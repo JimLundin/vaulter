@@ -12,7 +12,6 @@ import {
   AllOpenQuestions,
   DailyLog,
 } from './Home.tsx';
-import './home.css';
 
 export const home: Extension = {
   id: 'home',
@@ -24,10 +23,8 @@ export const home: Extension = {
       body: (
         <>
           <NoteBody note={note} />
-          <div className="v-dash">
-            <div className="dash">
-              <HomeSections />
-            </div>
+          <div className="v-dash mt-10">
+            <HomeSections />
           </div>
         </>
       ),

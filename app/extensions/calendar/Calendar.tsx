@@ -7,7 +7,13 @@ import { fmtDay, lastDay, monthName, today, weekdayDay } from '../../../core/for
 import { occurrences, type Occurrence } from './dates.ts';
 import { useVault } from '../../core/host.tsx';
 import { link } from '../../core/route.ts';
-import './calendar.css';
+import { cn } from 'cn';
+import { Field, FieldList, PageHeader, Section } from '@/components/layout.tsx';
+
+const lnk = 'text-primary no-underline hover:underline';
+/** A date as a Field label: the label's colour, not its uppercase. */
+const dateLabel = 'text-sm font-normal normal-case tracking-normal tabular-nums';
+const code = 'rounded-sm bg-surface px-1 font-mono text-sm';
 
 // An entry is upcoming if it (or its end) is today or later; a month or year counts until it is over.
 const last = (o: Occurrence) => lastDay(o.end || o.date);
@@ -56,29 +62,50 @@ export function Calendar() {
           : '';
   };
 
-  const section = (label: string, list: Occurrence[], isPast: boolean) =>
+  const part = (label: string, list: Occurrence[], isPast: boolean) =>
     list.length > 0 && (
-      <section className={`cal ${isPast ? 'past' : ''}`}>
-        <h2>{label}</h2>
+      <div className="mt-12 first:mt-0">
+        <h2 className="m-0 mb-5 text-2xl font-bold tracking-tight">{label}</h2>
         {byMonth(list).map(([month, items]) => (
-          <div key={month} className="month">
-            <h3>{monthName(month)}</h3>
-            <ul>
+          <Section key={month} title={monthName(month)} count={items.length} className="mt-8">
+            <ul className="m-0 grid list-none gap-0.5 p-0">
               {items.map((o) => {
                 const dn = daily.get(o.date);
+                const soon = !isPast && when(o);
                 return (
                   <li
                     key={`${o.note.id} ${o.date} ${o.what}`}
-                    className={o.date === t ? 'now' : ''}
+                    className={cn(
+                      'm-0 -mx-2 grid grid-cols-[4.5rem_1fr] gap-x-4 rounded-md px-2 py-1.5',
+                      o.date === t && 'bg-accent',
+                    )}
                   >
-                    <span className="day">
-                      {dn ? <a href={link(hrefOf(dn))}>{dayLabel(o)}</a> : dayLabel(o)}
+                    <span className="pt-px text-sm text-faint tabular-nums">
+                      {dn ? (
+                        <a
+                          className="text-inherit no-underline hover:underline"
+                          href={link(hrefOf(dn))}
+                        >
+                          {dayLabel(o)}
+                        </a>
+                      ) : (
+                        dayLabel(o)
+                      )}
                     </span>
-                    <span className="what">
+                    <span className={cn('min-w-0', isPast && 'text-muted-foreground')}>
                       {o.what}
-                      {!!o.end && <span className="end"> until {fmtDay(o.end)}</span>}
-                      {!isPast && when(o) && <em>{when(o)}</em>}
-                      <a className="src" href={link(hrefOf(o.note))}>
+                      {!!o.end && <span className="text-faint"> until {fmtDay(o.end)}</span>}
+                      {!!soon && (
+                        <span
+                          className={cn(
+                            'ml-2 text-xs font-semibold',
+                            days(o) === 0 || days(o) === 1 ? 'text-destructive' : 'text-warning',
+                          )}
+                        >
+                          {soon}
+                        </span>
+                      )}
+                      <a className={cn(lnk, 'block text-sm')} href={link(hrefOf(o.note))}>
                         {titleOf(o.note)}
                       </a>
                     </span>
@@ -86,22 +113,25 @@ export function Calendar() {
                 );
               })}
             </ul>
-          </div>
+          </Section>
         ))}
-      </section>
+      </div>
     );
 
   return (
     <div className="v-calendar">
-      <div className="meta">
-        <span className="chip">calendar</span>
-      </div>
-      <h1>Calendar</h1>
-      <p className="lede">
-        Every date recorded in a note. Add one with a note's <code>dates</code> field.
-      </p>
-      {section('Coming up', upcoming, false)}
-      {section('Past', past, true)}
+      <PageHeader
+        kind="calendar"
+        title="Calendar"
+        lede={
+          <>
+            Every date recorded in a note. Add one with a note's <code className={code}>dates</code>{' '}
+            field.
+          </>
+        }
+      />
+      {part('Coming up', upcoming, false)}
+      {part('Past', past, true)}
     </div>
   );
 }
@@ -113,24 +143,29 @@ export function NoteDates({ note }: { note: Note }) {
   );
   if (!dates.length) return null;
   return (
-    <section className="sect">
-      <h2>
-        Dates{' '}
-        <a className="more" href={link('/calendar/')}>
+    <Section
+      title="Dates"
+      action={
+        <a className={lnk} href={link('/calendar/')}>
           calendar →
         </a>
-      </h2>
-      <ul className="dates">
+      }
+    >
+      <FieldList>
         {dates.map((x) => (
-          <li key={`${x.date} ${x.what}`}>
-            <time>
-              {x.yearly ? `${fmtDay(x.date, false)} yearly` : fmtDay(x.date)}
-              {!!x.end && ` – ${fmtDay(x.end)}`}
-            </time>
+          <Field
+            key={`${x.date} ${x.what}`}
+            label={
+              <time className={dateLabel}>
+                {x.yearly ? `${fmtDay(x.date, false)} yearly` : fmtDay(x.date)}
+                {!!x.end && ` – ${fmtDay(x.end)}`}
+              </time>
+            }
+          >
             {x.what}
-          </li>
+          </Field>
         ))}
-      </ul>
-    </section>
+      </FieldList>
+    </Section>
   );
 }
