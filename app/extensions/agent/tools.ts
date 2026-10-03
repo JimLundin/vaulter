@@ -142,7 +142,7 @@ function captureTool(w: AgentContext['w'], capture: NonNullable<AgentContext['ca
     // no schema: the check will say so at commit
   }
   return tool({
-    description: `Stage the raw record of this Capture (conventions §8a): the app appends everything said since the last capture, verbatim, to today's log (captures/YYYY-MM-DD.md) as one exchange, with what it collects itself (time, device, place, weather, session). You give only what needs judgement: the procedure (${procedures}), a one-line summary, the topics (the notes it was filed into) and any place Jim named. Once per Capture, after staging the curated edits and before commit; never write the log with writeFile.`,
+    description: `Stage the raw record of this Capture (conventions §8a): the app appends everything said since the last capture, verbatim, to today's log (captures/YYYY-MM-DD.md) as one exchange, with what it collects itself (time, device, place, weather, session). You give only what needs judgement: the procedure (${procedures}), a one-line summary, the topics (the notes it was filed into) and any place Jim named. Once per Capture, as its raw-record step, before the daily bullet: it returns "raw", the link that bullet ends with ("Raw: …"). Then file the curated side and commit it all as one commit. Never write the log with writeFile.`,
     inputSchema: z.object({
       procedure: z.string(),
       summary: z.string(),

@@ -135,7 +135,7 @@ export function Agent() {
       });
       await aw.stage(r.path, r.text);
       chat.captured = chat.turns.length;
-      return { path: r.path, at: r.exchange.at };
+      return { path: r.path, at: r.exchange.at, raw: r.raw };
     },
   };
   const tools = async (): Promise<ToolSet> =>

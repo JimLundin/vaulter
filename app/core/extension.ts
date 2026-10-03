@@ -58,5 +58,5 @@ export interface AgentContext {
     summary: string;
     topics: string[];
     where?: string[];
-  }) => Promise<{ path: string; at: string }>;
+  }) => Promise<{ path: string; at: string; raw: string }>;
 }

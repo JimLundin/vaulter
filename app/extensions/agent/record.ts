@@ -6,6 +6,7 @@ import {
   appendExchange,
   capturePath,
   dayOfStamp,
+  lastRawLink,
   stockholmStamp,
   type Exchange,
   type Turn,
@@ -47,7 +48,7 @@ export function recordExchange(o: {
   session: Record<string, unknown>;
   files: VaultFile[];
   now?: Date;
-}): { path: string; text: string; exchange: Exchange } {
+}): { path: string; text: string; exchange: Exchange; raw: string } {
   const said = o.turns.filter((t) => t.text.trim());
   if (!said.some((t) => t.role === 'user'))
     throw new Error('nothing Jim said since the last capture');
@@ -80,5 +81,6 @@ export function recordExchange(o: {
     text: t.text,
   }));
   const before = o.files.find((f) => f.path === path)?.text ?? null;
-  return { path, text: appendExchange(before, exchange, turns), exchange };
+  const text = appendExchange(before, exchange, turns);
+  return { path, text, exchange, raw: lastRawLink(text, dayOfStamp(at)) };
 }

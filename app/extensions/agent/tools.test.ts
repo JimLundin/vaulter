@@ -250,7 +250,7 @@ test("a Capture's raw record is the chat itself, staged with the edits, and the 
         files: ctx.w.files(),
       });
       await ctx.w.stage(r.path, r.text);
-      return { path: r.path, at: r.exchange.at };
+      return { path: r.path, at: r.exchange.at, raw: r.raw };
     },
   };
   const model = new MockLanguageModelV4({

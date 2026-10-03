@@ -16,6 +16,7 @@ import {
   appendExchange,
   capturePath,
   dayOfStamp,
+  lastRawLink,
   stockholmStamp,
   type Turn,
 } from '../core/capture.ts';
@@ -49,7 +50,10 @@ export function parseTurns(input: string): Turn[] {
   ].map((m) => ({ who: m[1] as Turn['who'], text: m[2].trim() }));
 }
 const turns = parseTurns(readFileSync(0, 'utf8'));
-if (!turns.some((t) => t.who === 'Jim')) fail('stdin has no **Jim:** turn: pipe in the transcript');
+// A scheduled task's report is one **Agent:** turn (conventions §0); anything else records what Jim said.
+if (!turns.length) fail('stdin has no **Jim:** or **Agent:** turn: pipe in the transcript');
+if (source !== 'scheduled' && !turns.some((t) => t.who === 'Jim'))
+  fail('stdin has no **Jim:** turn: pipe in the transcript');
 
 const ROOT = vaultArg();
 const files = readVaultFiles(ROOT);
@@ -127,3 +131,4 @@ const text = appendExchange(
 mkdirSync(join(ROOT, 'captures'), { recursive: true });
 writeFileSync(join(ROOT, path), text);
 console.log(`appended an exchange at ${at.slice(11, 16)} to ${path}`);
+console.log(`raw link for the daily bullet: Raw: ${lastRawLink(text, dayOfStamp(at))}`);

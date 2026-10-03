@@ -4,6 +4,7 @@ import {
   appendExchange,
   dayTotals,
   headingsFor,
+  lastRawLink,
   logData,
   stockholmStamp,
   type Exchange,
@@ -167,4 +168,17 @@ test("renaming a note renames it in the exchanges' topics and where, not in the 
     where: ['Alpha Prime'],
   });
   expect(after).toContain('**Jim:** Alpha, as I said it.');
+});
+
+test("the raw link is the last exchange's anchor, seconds and all", () => {
+  const one = appendExchange(null, ex('2026-10-03T08:12:40+02:00'), [{ who: 'Jim', text: 'x' }]);
+  expect(lastRawLink(one, '2026-10-03')).toBe(
+    '[captures/2026-10-03#0812](</captures/2026-10-03.md#0812>)',
+  );
+  const two = appendExchange(one, ex('2026-10-03T08:12:59+02:00'), [
+    { who: 'Agent', text: 'Report.' },
+  ]);
+  expect(lastRawLink(two, '2026-10-03')).toBe(
+    '[captures/2026-10-03#081259](</captures/2026-10-03.md#081259>)',
+  );
 });

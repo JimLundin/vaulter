@@ -70,6 +70,15 @@ export function headingsFor(ats: string[]): string[] {
 /** The anchor a heading gets ("08:12" → "0812"), for daily notes' raw links. */
 export const anchorOf = (heading: string) => heading.replace(/:/g, '');
 
+/** The daily bullet's raw link to the last exchange in a day's log (conventions §7):
+ * "[captures/2026-10-03#0812](</captures/2026-10-03.md#0812>)". */
+export function lastRawLink(text: string, day: string) {
+  const h = bodyHeadings(text.replace(FRONT_RE, '')).at(-1);
+  if (!h) throw new Error(`${capturePath(day)} has no exchange`);
+  const a = anchorOf(h);
+  return `[captures/${day}#${a}](</${capturePath(day)}#${a}>)`;
+}
+
 /** The exchange headings in a log's body, in order. */
 export const bodyHeadings = (body: string) =>
   [...body.matchAll(/^## (\d{2}:\d{2}(?::\d{2})?)\s*$/gm)].map((m) => m[1]);
