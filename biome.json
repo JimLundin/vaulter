@@ -8,6 +8,7 @@
       "*.ts",
       "*.json",
       "!**/dist",
+      "!.claude",
       "!package-lock.json"
     ]
   },

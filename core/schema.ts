@@ -186,7 +186,6 @@ const NOTE_KEYS = [
   'address',
 ];
 const DAILY_KEYS = ['type', 'aliases', 'tags', 'created', 'where'];
-const LEGACY_CAPTURE_KEYS = ['type', 'date', 'source', 'topics', 'where'];
 const CAPTURE_KEYS = ['type', 'date', 'exchanges'];
 /** An exchange's fields beyond the collected groups (maps), which are open. */
 const EXCHANGE_FIELDS = ['at', 'ended', 'source', 'procedure', 'summary', 'topics', 'where'];
@@ -277,8 +276,6 @@ export function checkCapture(
   ids: Set<string>,
   s: Schema,
 ) {
-  if (!CAPTURE_RE.test(file) && /^captures\/\d{4}-\d{2}-\d{2}-[a-z0-9-]+\.md$/.test(file))
-    return checkLegacyCapture(file, data, ids);
   const out: string[] = [];
   const bad = (m: string) => out.push(`${file}: ${m}`);
   const day = CAPTURE_RE.exec(file)?.[1];
@@ -346,28 +343,5 @@ export function checkCapture(
     bad(
       `the body's exchange headings (${have.map((h) => `## ${h}`).join(', ') || 'none'}) must be one per exchange, in order: ${want.map((h) => `## ${h}`).join(', ')}`,
     );
-  return out;
-}
-
-/** The old one-file-per-Capture layout, accepted until the vault's captures are migrated. */
-function checkLegacyCapture(file: string, data: Frontmatter | null, ids: Set<string>) {
-  const out: string[] = [];
-  const bad = (m: string) => out.push(`${file}: ${m}`);
-  if (!data) return [...out, `${file}: no frontmatter`];
-  for (const k of Object.keys(data))
-    if (!LEGACY_CAPTURE_KEYS.includes(k))
-      bad(`unknown frontmatter field "${k}" (fields: ${LEGACY_CAPTURE_KEYS.join(', ')})`);
-  if (data.type !== 'capture') bad('type must be capture');
-  if (dateStr(data.date) !== file.slice(9, 19))
-    bad(`date ${dateStr(data.date)} doesn't match the filename`);
-  if (typeof data.source !== 'string' || !data.source)
-    bad('source is required (claude-app, claude-code, scheduled, …)');
-  if (!Array.isArray(data.topics))
-    bad(
-      'topics must list the notes this capture was filed into ([] only for a fragment too garbled to file)',
-    );
-  for (const t of list(data.topics))
-    if (!ids.has(t))
-      bad(`topics → "${t}" is not a note (renamed? use the current filename without extension)`);
   return out;
 }

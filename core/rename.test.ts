@@ -35,8 +35,8 @@ const FILES: VaultFile[] = [
     text: '---\nwhere: [Ada, Riverton]\n---\n# 2026-10-03\n\n- Walked [Ada](</Ada.md>).\n',
   },
   {
-    path: 'captures/2026-10-03-walk.md',
-    text: '---\ntype: capture\ndate: 2026-10-03\nsource: claude-app\ntopics: [Ada, Riverton]\n---\nFiled into [Ada](</Ada.md>).\n',
+    path: 'captures/2026-10-03.md',
+    text: '---\ntype: capture\ndate: 2026-10-03\nexchanges:\n  - at: "2026-10-03T08:12:40+02:00"\n    source: claude-code\n    procedure: capture\n    summary: A walk.\n    topics: [Ada, Riverton]\n---\n\n## 08:12\n\n**Jim:** Walked [Ada](</Ada.md>).\n',
   },
   { path: 'site/README.md', text: '[Ada](</Ada.md>)' },
   { path: SCHEMA_PATH, text: SCHEMA_YAML },
@@ -52,7 +52,7 @@ test('a rename moves the file and rewrites links, anchors, MDX hrefs and id fiel
     'Adalind.md',
     'Riverton.md',
     'Timeline.mdx',
-    'captures/2026-10-03-walk.md',
+    'captures/2026-10-03.md',
     'daily/2026-10-03.md',
   ]);
   expect(c['Ada.md']).toBeNull();
@@ -70,7 +70,7 @@ test('a rename moves the file and rewrites links, anchors, MDX hrefs and id fiel
   expect(c['daily/2026-10-03.md']).toContain('where: [Ada Lovelace, Riverton]');
   expect(c['daily/2026-10-03.md']).toContain('(</Ada Lovelace.md>)');
   // Captures: the body is verbatim; the topics follow, or the check would fail them.
-  expect(c['captures/2026-10-03-walk.md']).toBe(
+  expect(c['captures/2026-10-03.md']).toBe(
     FILES[5].text.replace('topics: [Ada,', 'topics: [Ada Lovelace,'),
   );
 });
@@ -91,7 +91,7 @@ test('switching the extension rewrites links but no ids', () => {
   expect(c['Riverton.md']).toContain('[Ada](</Ada.mdx>) and [care](</Ada.mdx#care>)');
   expect(c['Riverton.md']).toContain('related-to: [Ada, "Ada", Adalind]');
   expect(c['Timeline.mdx']).toContain('href: "/Ada.mdx#care"');
-  expect(c['captures/2026-10-03-walk.md']).toBeUndefined();
+  expect(c['captures/2026-10-03.md']).toBeUndefined();
   expect(c['Adalind.md']).toBeUndefined();
 });
 

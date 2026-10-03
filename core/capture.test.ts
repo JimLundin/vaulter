@@ -125,11 +125,7 @@ test('the check holds a log to its schema', () => {
   ]);
   expect(
     p(one('    source: vault-app\n    procedure: capture\n'), 'captures/2026-10-03-walk.md'),
-  ).toEqual([
-    'unknown frontmatter field "exchanges" (fields: type, date, source, topics, where)',
-    'source is required (claude-app, claude-code, scheduled, …)',
-    'topics must list the notes this capture was filed into ([] only for a fragment too garbled to file)',
-  ]);
+  ).toEqual(['captures are one log per day, captures/YYYY-MM-DD.md']);
   // An unquoted time is a YAML date, not text.
   expect(
     p(
