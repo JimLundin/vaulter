@@ -12,7 +12,6 @@ import { Field, FieldList, PageHeader, Section } from '@/components/layout.tsx';
 
 const lnk = 'text-primary no-underline hover:underline';
 /** A date as a Field label: the label's colour, not its uppercase. */
-const dateLabel = 'text-sm font-normal normal-case tracking-normal tabular-nums';
 const code = 'rounded-sm bg-surface px-1 font-mono text-sm';
 
 // An entry is upcoming if it (or its end) is today or later; a month or year counts until it is over.
@@ -155,8 +154,9 @@ export function NoteDates({ note }: { note: Note }) {
         {dates.map((x) => (
           <Field
             key={`${x.date} ${x.what}`}
+            date={true}
             label={
-              <time className={dateLabel}>
+              <time>
                 {x.yearly ? `${fmtDay(x.date, false)} yearly` : fmtDay(x.date)}
                 {!!x.end && ` – ${fmtDay(x.end)}`}
               </time>

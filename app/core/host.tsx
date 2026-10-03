@@ -13,6 +13,7 @@ import type { Entry } from '../../core/search.ts';
 import type { Writer } from './writer.ts';
 import type { VaultBackend } from './backend.ts';
 import { link } from './route.ts';
+import { PageHeader } from '@/components/layout.tsx';
 
 export interface Host {
   vault: Vault;
@@ -98,9 +99,14 @@ export function pageFor(path: string, host: Host): Page {
   return {
     title: 'Not found',
     body: (
-      <p className="lede">
-        Nothing at <code>{path}</code>. <a href={link('/')}>Home</a>
-      </p>
+      <PageHeader
+        title="Not found"
+        lede={
+          <>
+            Nothing at <code>{path}</code>. <a href={link('/')}>Home</a>
+          </>
+        }
+      />
     ),
   };
 }

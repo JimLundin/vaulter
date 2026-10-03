@@ -75,8 +75,9 @@ export function FollowUps({ note }: { note: Note }) {
         {fu.map((f) => (
           <Field
             key={`${f.by}|${f.what}`}
+            date={true}
             label={
-              <time className={cn('tabular-nums', f.due && 'text-destructive')}>
+              <time className={cn(f.due && 'text-destructive')}>
                 {f.by ? fmtDay(f.by) : 'no date'}
               </time>
             }

@@ -110,7 +110,7 @@ export function Places() {
     ev.length > 0 && (
       <FieldList className="mt-2 text-sm">
         {ev.map((e) => (
-          <Field key={`${e.d}|${e.h}|${e.w}`} label={fmtDay(e.d)}>
+          <Field key={`${e.d}|${e.h}|${e.w}`} date={true} label={fmtDay(e.d)}>
             {e.w} ·{' '}
             <a className={linkCls} href={link(e.h)}>
               {e.n}
@@ -206,6 +206,7 @@ export function Places() {
             {recent.map(([d, ps]) => (
               <Field
                 key={d}
+                date={true}
                 label={
                   <a
                     className="text-inherit no-underline hover:underline"

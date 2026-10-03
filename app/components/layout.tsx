@@ -35,7 +35,11 @@ export function PageHeader({
         <h1 className="m-0 text-3xl font-bold leading-tight tracking-tight">{title}</h1>
         {!!actions && <div className="flex shrink-0 items-center gap-2 pt-1">{actions}</div>}
       </div>
-      {!!lede && <div className="mt-2 text-muted-foreground [&_p]:m-0">{lede}</div>}
+      {!!lede && (
+        <div className="mt-2 text-muted-foreground [&_code]:rounded-sm [&_code]:bg-surface [&_code]:px-1 [&_code]:py-px [&_code]:font-mono [&_code]:text-sm [&_p]:m-0">
+          {lede}
+        </div>
+      )}
     </header>
   );
 }
@@ -95,11 +99,24 @@ export function FieldList({ children, className }: { children: ReactNode; classN
   );
 }
 
-export function Field({ label, children }: { label: ReactNode; children: ReactNode }) {
+/** A row; `date` for a date | content list (the label a date in faint figures, not an eyebrow). */
+export function Field({
+  label,
+  date = false,
+  children,
+}: {
+  label: ReactNode;
+  date?: boolean;
+  children: ReactNode;
+}) {
   return (
     <>
       <dt className="pt-0.5 max-sm:mt-2">
-        <Eyebrow>{label}</Eyebrow>
+        {date ? (
+          <span className="text-sm text-faint tabular-nums">{label}</span>
+        ) : (
+          <Eyebrow>{label}</Eyebrow>
+        )}
       </dt>
       <dd className="m-0 min-w-0">{children}</dd>
     </>

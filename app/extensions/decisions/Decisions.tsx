@@ -96,14 +96,7 @@ export function NoteDecisions({ note }: { note: Note }) {
     >
       <FieldList>
         {ds.map((x) => (
-          <Field
-            key={`${x.date} ${x.what}`}
-            label={
-              <time className="text-sm font-normal normal-case tracking-normal tabular-nums">
-                {fmtDay(x.date)}
-              </time>
-            }
-          >
+          <Field key={`${x.date} ${x.what}`} date={true} label={<time>{fmtDay(x.date)}</time>}>
             {x.what}
             {!!x.who && (
               <>

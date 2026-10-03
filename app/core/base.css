@@ -27,31 +27,12 @@
     --c: var(--a-none);
   }
 
-  /* Shared by the views: the kind chip above a title, and the lede under it. */
-  .meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.35rem 0.6rem;
-    align-items: center;
-    font-size: 0.82rem;
-    color: var(--ink-3);
-    margin-bottom: 0.2rem;
-  }
-  .chip {
-    background: var(--accent-soft);
-    color: var(--primary);
-    padding: 0.05rem 0.5rem;
-    border-radius: 999px;
-    font-weight: 600;
-  }
+  /* The agent's, until it moves to the components. */
   .lede {
     color: var(--ink-2);
   }
   .app-error {
     color: var(--s2);
     font-weight: 600;
-  }
-  .app-loading {
-    color: var(--ink-3);
   }
 }
