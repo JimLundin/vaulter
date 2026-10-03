@@ -135,6 +135,12 @@
           }
         }
       }
+    },
+    {
+      "includes": ["app/components/ui/**"],
+      "linter": {
+        "enabled": false
+      }
     }
   ]
 }

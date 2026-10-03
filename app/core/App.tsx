@@ -18,6 +18,7 @@ import { Previews } from './Previews.tsx';
 import { Unlock } from './Unlock.tsx';
 import { OpenFolder } from './OpenFolder.tsx';
 import { later } from './later.ts';
+import { ErrorState, Loading } from '@/components/layout.tsx';
 
 const MDX = Object.assign({}, ...EXTENSIONS.map((e) => e.mdx ?? {}));
 
@@ -93,13 +94,13 @@ export function App() {
 
   if (session.locked)
     return (
-      <main>
+      <main className="px-4">
         <Unlock unlock={session.locked.unlock} />
       </main>
     );
   if (session.folder)
     return (
-      <main>
+      <main className="px-4">
         <OpenFolder {...session.folder} />
       </main>
     );
@@ -107,17 +108,17 @@ export function App() {
   return (
     <HostContext.Provider value={host}>
       <TopBar status={status} signOut={session.signOut} index={host.index} />
-      <main>
+      <main className="mx-auto max-w-[44rem] px-4 pt-8 pb-20">
         {page ? (
           page.body
         ) : schema instanceof Error ? (
-          <p className="app-error">{schema.message}</p>
+          <ErrorState>{schema.message}</ErrorState>
         ) : status.kind === 'error' ? (
-          <p className="app-error">{status.message}</p>
+          <ErrorState>{status.message}</ErrorState>
         ) : (
-          <p className="app-loading">
+          <Loading>
             {status.kind === 'syncing' ? 'Fetching the vault…' : 'Opening the vault…'}
-          </p>
+          </Loading>
         )}
       </main>
       {ready && <Previews index={host.index} />}

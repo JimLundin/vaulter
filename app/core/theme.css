@@ -134,11 +134,17 @@
 @layer base {
   html {
     -webkit-text-size-adjust: 100%;
+    font-size: 17px;
   }
   body {
     @apply bg-background text-foreground font-sans;
-    font-size: 17px;
     line-height: 1.65;
+  }
+  /* Borders are the border token unless a component says otherwise (Tailwind's default is currentColor). */
+  *,
+  ::before,
+  ::after {
+    @apply border-border;
   }
   /* Keyboard focus, everywhere. */
   :focus-visible {

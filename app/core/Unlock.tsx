@@ -1,5 +1,9 @@
 // The password, once per device per 30 days (unlock.ts).
 import { type SubmitEvent, useId, useState } from 'react';
+import { Button } from '@/components/ui/button.tsx';
+import { Input } from '@/components/ui/input.tsx';
+import { Label } from '@/components/ui/label.tsx';
+import { Gate } from './OpenFolder.tsx';
 
 export function Unlock({ unlock }: { unlock: (password: string) => Promise<void> }) {
   const [pw, setPw] = useState('');
@@ -18,24 +22,25 @@ export function Unlock({ unlock }: { unlock: (password: string) => Promise<void>
     }
   };
   return (
-    <form className="unlock" onSubmit={submit}>
-      <h1>Vault</h1>
-      <label htmlFor={id}>Password</label>
-      <input
-        id={id}
-        type="password"
-        autoComplete="current-password"
-        // biome-ignore lint/a11y/noAutofocus: the password is the screen's only input, and what it's for
-        autoFocus={true}
-        value={pw}
-        disabled={busy}
-        onChange={(e) => setPw(e.currentTarget.value)}
-      />
-      <button type="submit" disabled={busy || !pw}>
-        {busy ? 'Opening…' : 'Open'}
-      </button>
-      {wrong ? <p className="app-error">That isn't the password.</p> : null}
-      <p className="lede">This device remembers it for 30 days.</p>
-    </form>
+    <Gate
+      footer="This device remembers it for 30 days."
+      error={wrong ? "That isn't the password." : ''}
+    >
+      <form className="grid gap-3" onSubmit={submit}>
+        <Label htmlFor={id}>Password</Label>
+        <Input
+          id={id}
+          type="password"
+          autoComplete="current-password"
+          autoFocus={true}
+          value={pw}
+          disabled={busy}
+          onChange={(e) => setPw(e.currentTarget.value)}
+        />
+        <Button type="submit" disabled={busy || !pw}>
+          {busy ? 'Opening…' : 'Open'}
+        </Button>
+      </form>
+    </Gate>
   );
 }
