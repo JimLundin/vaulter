@@ -221,7 +221,7 @@ test("the agent changes the app's own source: reads it, stages, and commits once
 test('the code tools come only with a GitHub token', async () => {
   const { ctx } = await writer();
   expect(await code.tools!(ctx)).toEqual({});
-  expect(Object.keys(await code.tools!({ ...ctx, github: 'tok' }))).toEqual([
+  expect(Object.keys(await code.tools!({ ...ctx, secrets: { github: 'tok' } }))).toEqual([
     'listCode',
     'readCode',
     'searchCode',

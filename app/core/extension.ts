@@ -9,6 +9,7 @@ import type { Entry, Hit } from '../../core/search.ts';
 import type { Host } from './host.tsx';
 import type { AgentWriter } from './writer.ts';
 import type { VaultBackend } from './backend.ts';
+import type { Secrets } from '../../core/sealed.ts';
 
 export interface Page {
   title: string;
@@ -44,10 +45,10 @@ export interface Extension {
 }
 
 /** What agent tools work with: the writer (always current), the app's search, the backend's history
- * (Host.since) and the GitHub token, for tools that reach beyond the vault (the app's own source). */
+ * (Host.since) and the sealed secrets, for tools that reach beyond the vault (the app's source, the web). */
 export interface AgentContext {
   w: AgentWriter;
   search: (query: string) => Hit[];
   since?: VaultBackend['since'];
-  github?: string;
+  secrets?: Secrets;
 }

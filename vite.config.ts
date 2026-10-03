@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 const SITE = fileURLToPath(new URL('.', import.meta.url));
 
 // The built page's Content Security Policy: script only from the app itself (no eval, no inline), network
-// only to GitHub, OpenAI and the map tiles. Styles may be inline (Preact style props, Shiki's colours).
+// only to GitHub, OpenAI, Jina (the agent's web tools: they fetch pages, the browser never does) and the map tiles. Styles may be inline (Preact style props, Shiki's colours).
 const csp = (): Plugin => ({
   name: 'csp',
   apply: 'build',
@@ -20,7 +20,7 @@ const csp = (): Plugin => ({
       "worker-src 'self'",
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: https://tile.openstreetmap.org",
-      `connect-src 'self' ${api} ${ai}`,
+      `connect-src 'self' ${api} ${ai} https://s.jina.ai https://r.jina.ai`,
       "font-src 'self'",
       "base-uri 'none'",
       "form-action 'none'",

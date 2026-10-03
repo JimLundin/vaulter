@@ -31,7 +31,7 @@ in `app/extensions/index.ts`. The shell renders what it contributes:
 | `homeSections` | sections of Home, by `order` | home |
 | `search(v)` | entries for search and link previews | notes, topics |
 | `mdx` | components notes may use (allowed by `meta/schema.yaml`) | notes |
-| `tools(ctx)` | agent tools, loaded with the agent | agent, editor (`renameNote`), audit (`audit`), code (the app's own source) |
+| `tools(ctx)` | agent tools, loaded with the agent | agent, editor (`renameNote`), audit (`audit`), code (the app's own source), web (`webSearch`, `fetchPage`) |
 
 A feature's own derived data is computed once per vault with `perVault` (`core/derive.ts`); a slow one is
 registered in `core/heavy.ts`, computed in the worker, kept per tree, and read with `useHeavy(key)`.

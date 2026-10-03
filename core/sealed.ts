@@ -7,6 +7,8 @@
 export interface Secrets {
   github: string;
   openai?: string;
+  /** Jina (jina.ai), for the agent's web search. */
+  jina?: string;
 }
 
 export interface Sealed {

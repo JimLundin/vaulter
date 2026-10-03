@@ -51,12 +51,12 @@ The design, its rules and how to add a feature: `ARCHITECTURE.md`. In short:
   the Git Data API), a picked folder (`folder.ts`, Chromium only), memory (`memory.ts`, for tests).
 - `app/extensions/` — every feature, listed in `extensions/index.ts`: notes, home, topics, calendar,
   decisions, map, similar, places, editor (edit, rename, changes, history), audit, agent, code (the
-  agent's tools over this repo, so the app can change itself).
+  agent's tools over this repo, so the app can change itself), web (search and reading pages, through Jina).
 - `tools/` — the only Node: `check.ts` (CI), `seal-secrets.ts` (publishing), `audit.ts` and
   `set-ext.ts` (command-line sessions), over `core/`.
 
 Security: notes render without eval (MDX props are literals), raw HTML and unsafe URLs are dropped, the
-page has a CSP (script only from the app; network only to GitHub, OpenAI and the map tiles), the cache is
+page has a CSP (script only from the app; network only to GitHub, OpenAI, Jina and the map tiles), the cache is
 encrypted with a per-device key, and every commit from the app passes the check and carries
 `Committed-From: vault app`.
 
@@ -78,6 +78,7 @@ What the seal needs, in this repo's settings:
 | `VAULT_PASSWORD` | secret | the app's password (12+ characters; long and random is best: the sealed file is public) |
 | `VAULT_GITHUB_TOKEN` | secret | a fine-grained PAT for `vault` and `vaulter` only (Contents read/write, Metadata read), with an expiry; `vaulter` is for the agent changing the app (`app/extensions/code/`) |
 | `VAULT_OPENAI_KEY` | secret | optional: the agent's key, from a project with a spend limit |
+| `VAULT_JINA_KEY` | secret | optional: the agent's web search (jina.ai); reading pages works without it, at a lower rate |
 | `VAULT_SALT` | variable | 16 random bytes, base64 (`openssl rand -base64 16`); set once |
 | `VAULT_OPENAI_API` | variable | optional: the agent's OpenAI-compatible endpoint (an API proxy); empty means api.openai.com |
 | `VAULT_REPO` | variable | optional: the vault the app reads, `owner/name@branch`; default `JimLundin/vault@main` |

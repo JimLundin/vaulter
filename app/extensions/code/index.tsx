@@ -4,5 +4,6 @@ import type { Extension } from '../../core/extension.ts';
 
 export const code: Extension = {
   id: 'code',
-  tools: async ({ github }) => (github ? (await import('./tools.ts')).codeTools(github) : {}),
+  tools: async ({ secrets }) =>
+    secrets?.github ? (await import('./tools.ts')).codeTools(secrets.github) : {},
 };

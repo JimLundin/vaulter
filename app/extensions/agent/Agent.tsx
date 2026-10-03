@@ -88,7 +88,7 @@ export function Agent() {
     w: agentWriter(() => chat.host!.writer as Writer),
     search: (q: string) => search(chat.host!.index, q),
     since: host.since,
-    github: secrets.github,
+    secrets,
   };
   const tools = async (): Promise<ToolSet> =>
     Object.assign(

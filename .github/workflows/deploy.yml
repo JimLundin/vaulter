@@ -48,6 +48,7 @@ jobs:
           VAULT_PASSWORD: ${{ secrets.VAULT_PASSWORD }}
           VAULT_GITHUB_TOKEN: ${{ secrets.VAULT_GITHUB_TOKEN }}
           VAULT_OPENAI_KEY: ${{ secrets.VAULT_OPENAI_KEY }}
+          VAULT_JINA_KEY: ${{ secrets.VAULT_JINA_KEY }}
           VAULT_SALT: ${{ vars.VAULT_SALT }}
         run: |
           node tools/seal-secrets.ts dist/secrets.json
