@@ -3,7 +3,8 @@ import { useEffect, useRef, useState } from 'react';
 import { parseRoute } from './route.ts';
 import type { Entry } from '../../core/search.ts';
 
-const LINKS = 'a.vault-link, .backlinks a, .notelist a, .dash a';
+// Links to notes in prose, and in any list marked data-previews (backlinks, note lists).
+const LINKS = 'a.vault-link, [data-previews] a, .dash a';
 
 export function Previews({ index }: { index: Map<string, Entry> }) {
   const [pv, setPv] = useState<{ n: Entry; r: DOMRect } | null>(null);
@@ -72,15 +73,25 @@ export function Previews({ index }: { index: Map<string, Entry> }) {
   return (
     <>
       {!!pv && (
-        // biome-ignore lint/correctness/useUniqueElementIds: the shell's one preview, styled as #preview in base.css
-        <div id="preview" role="tooltip" ref={pvEl}>
-          <b>{pv.n.t}</b>
-          {!!pv.n.e && <span>{pv.n.e}</span>}
+        // biome-ignore lint/correctness/useUniqueElementIds: the shell's one preview
+        <div
+          id="preview"
+          role="tooltip"
+          ref={pvEl}
+          className="pointer-events-none absolute z-20 max-w-sm rounded-lg border bg-popover p-3 text-sm leading-normal text-popover-foreground shadow-pop"
+        >
+          <div className="mb-1 font-semibold">{pv.n.t}</div>
+          {!!pv.n.e && <p className="m-0 text-muted-foreground">{pv.n.e}</p>}
         </div>
       )}
       {!!tip && (
-        // biome-ignore lint/correctness/useUniqueElementIds: the shell's one chart tooltip, styled as #charttip in base.css
-        <div id="charttip" role="tooltip" ref={tipEl}>
+        // biome-ignore lint/correctness/useUniqueElementIds: the shell's one chart tooltip
+        <div
+          id="charttip"
+          role="tooltip"
+          ref={tipEl}
+          className="pointer-events-none absolute z-20 whitespace-nowrap rounded-md border bg-popover px-2 py-1 text-xs text-popover-foreground tabular-nums shadow-pop"
+        >
           {tip.text}
         </div>
       )}

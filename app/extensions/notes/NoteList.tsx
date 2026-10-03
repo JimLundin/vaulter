@@ -3,6 +3,7 @@ import { useVault } from '../../core/host.tsx';
 import { link } from '../../core/route.ts';
 import { titleOf, excerptOf, hrefOf, kind, asList } from '../../../core/note-fields.ts';
 import { dateStr } from '../../../core/format.ts';
+import { Empty } from '@/components/layout.tsx';
 
 interface Props {
   type?: string;
@@ -24,17 +25,23 @@ export function NoteList({ type, tag, sort = 'title', excerpt = true }: Props) {
     );
   if (!hits.length)
     return (
-      <p className="empty">
-        No notes match{type ? ` type “${type}”` : ''}
-        {tag ? ` tag “${tag}”` : ''}.
-      </p>
+      <div className="not-prose my-4">
+        <Empty>
+          No notes match{type ? ` type “${type}”` : ''}
+          {tag ? ` tag “${tag}”` : ''}.
+        </Empty>
+      </div>
     );
   return (
-    <ul className="notelist">
+    <ul data-previews={true} className="not-prose my-4 list-none space-y-2 p-0">
       {hits.map((n) => (
-        <li key={n.id}>
-          <a href={link(hrefOf(n))}>{titleOf(n)}</a>
-          {excerpt && excerptOf(n, 140) && <span> — {excerptOf(n, 140)}</span>}
+        <li key={n.id} className="leading-normal">
+          <a href={link(hrefOf(n))} className="font-medium no-underline hover:underline">
+            {titleOf(n)}
+          </a>
+          {excerpt && !!excerptOf(n, 140) && (
+            <span className="text-muted-foreground"> — {excerptOf(n, 140)}</span>
+          )}
         </li>
       ))}
     </ul>

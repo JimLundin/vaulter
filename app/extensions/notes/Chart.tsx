@@ -91,18 +91,18 @@ export function Chart({ kind = 'line', title = '', unit = '', x = [], series: al
     `${series.length > 1 ? `${s.name} · ` : ''}${x[i]}: ${withUnit(v)}`;
 
   return (
-    <figure className="chart">
+    <figure className="chart not-prose mx-0 my-6">
       {title ? (
-        <figcaption>
+        <figcaption className="mb-1 text-sm font-semibold">
           {title}
-          {!!unit && <span> ({unit})</span>}
+          {!!unit && <span className="font-normal text-faint"> ({unit})</span>}
         </figcaption>
       ) : null}
       {series.length > 1 && (
-        <ul className="legend">
+        <ul className="m-0 mb-1 flex list-none flex-wrap gap-x-4 gap-y-1 p-0 text-sm text-muted-foreground">
           {series.map((s, i) => (
-            <li key={s.name}>
-              <i style={{ background: color(i) }} />
+            <li key={s.name} className="flex items-center gap-1.5">
+              <i className="inline-block size-2.5 rounded-sm" style={{ background: color(i) }} />
               {s.name}
             </li>
           ))}
@@ -188,9 +188,9 @@ export function Chart({ kind = 'line', title = '', unit = '', x = [], series: al
             </g>
           ))}
       </svg>
-      <details>
-        <summary>Data</summary>
-        <table>
+      <details className="mt-1 text-sm text-muted-foreground">
+        <summary className="cursor-pointer text-faint">Data</summary>
+        <table className="mt-2 block max-w-full overflow-x-auto border-collapse tabular-nums [&_td]:border-b [&_td]:py-1 [&_td]:pr-4 [&_th]:border-b [&_th]:py-1 [&_th]:pr-4 [&_th]:text-left [&_th]:font-semibold">
           <thead>
             <tr>
               <th />
@@ -215,7 +215,7 @@ export function Chart({ kind = 'line', title = '', unit = '', x = [], series: al
         </table>
       </details>
       {all.length > MAX && (
-        <p className="note">
+        <p className="m-0 mt-1 text-xs text-faint">
           Showing the first {MAX} of {all.length} series; split the rest into another chart.
         </p>
       )}

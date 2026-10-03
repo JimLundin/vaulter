@@ -1,19 +1,13 @@
 // One topic: every note tagged with it (or in that area/circle), grouped by type, and the topics that
 // most often appear alongside it. Built from tags alone.
-// biome-ignore lint/correctness/noUnresolvedImports: Fragment is in @types/react's namespace, which Biome doesn't follow
-import { Fragment } from 'react';
 import type { Note } from '../../../core/note-fields.ts';
-import {
-  topicsOf,
-  topicHref,
-  titleOf,
-  excerptOf,
-  hrefOf,
-  facet,
-} from '../../../core/note-fields.ts';
+import { topicsOf, topicHref, titleOf, excerptOf, facet } from '../../../core/note-fields.ts';
 import { useSchema, useVault } from '../../core/host.tsx';
 import { link } from '../../core/route.ts';
-import './topic.css';
+import { NoteLinks } from '../notes/sections.tsx';
+import { cn } from 'cn';
+import { Badge } from '@/components/ui/badge.tsx';
+import { PageHeader, Section } from '@/components/layout.tsx';
 
 export function Topic({ name }: { name: string }) {
   const v = useVault();
@@ -48,44 +42,55 @@ export function Topic({ name }: { name: string }) {
 
   return (
     <div className="v-topic">
-      <div className="meta">
-        <span className="chip">topic</span>
-      </div>
-      <h1>{name.replace(/-/g, ' ')}</h1>
-      <p className="lede">
-        {list.length} {list.length === 1 ? 'note' : 'notes'} tagged <code>{name}</code>
-        {areaOf.has(name) ? ' or in this area' : ''}.
-      </p>
+      <PageHeader
+        kind="topic"
+        title={<span className="capitalize">{name.replace(/-/g, ' ')}</span>}
+        lede={
+          <>
+            {list.length} {list.length === 1 ? 'note' : 'notes'} tagged{' '}
+            <code className="rounded-sm bg-surface px-1 py-0.5 font-mono text-sm">{name}</code>
+            {areaOf.has(name) ? ' or in this area' : ''}.
+          </>
+        }
+      />
       {related.length > 0 && (
-        <p className="related">
-          Related:{' '}
-          {related.map((t, i) => (
-            <Fragment key={t}>
-              {i > 0 && ' · '}
+        <div className="-mt-2 mb-8 flex flex-wrap items-center gap-1.5 text-sm text-faint">
+          <span className="mr-1">Related</span>
+          {related.map((t) => (
+            <Badge
+              key={t}
+              variant="outline"
+              asChild={true}
+              className="capitalize text-muted-foreground no-underline"
+            >
               <a href={link(topicHref(t))}>{t.replace(/-/g, ' ')}</a>
-            </Fragment>
+            </Badge>
           ))}
-        </p>
+        </div>
       )}
       {groups.map((g) => (
-        <section key={g.label} className="tgroup">
-          <h2>
-            {g.label} <span>{g.items.length}</span>
-          </h2>
-          <ul className="notelist">
-            {g.items.map((n) => {
+        <Section key={g.label} title={g.label} count={g.items.length}>
+          <NoteLinks
+            items={g.items.map((n) => {
               const s = facet(n, 'status');
-              const ex = excerptOf(n, 150);
-              return (
-                <li key={n.id}>
-                  <a href={link(hrefOf(n))}>{titleOf(n)}</a>
-                  {!!s && s !== 'done' && <em className={`st st-${s}`}>{s}</em>}
-                  {!!ex && <span> — {ex}</span>}
-                </li>
-              );
+              return {
+                note: n,
+                badge: !!s && s !== 'done' && (
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      'ml-2 align-text-bottom',
+                      s === 'active' ? 'border-success/60 text-success' : 'text-muted-foreground',
+                    )}
+                  >
+                    {s}
+                  </Badge>
+                ),
+                excerpt: excerptOf(n, 150),
+              };
             })}
-          </ul>
-        </section>
+          />
+        </Section>
       ))}
     </div>
   );

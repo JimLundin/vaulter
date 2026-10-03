@@ -1,10 +1,11 @@
 // Similar, not yet linked: under a note, the notes most alike in text that nothing connects yet
 // (core/similar.ts, computed in the worker).
 import type { Note } from '../../../core/note-fields.ts';
-import { titleOf, excerptOf, kind } from '../../../core/note-fields.ts';
+import { excerptOf, kind } from '../../../core/note-fields.ts';
 import type { Extension } from '../../core/extension.ts';
 import { useHeavy, useVault } from '../../core/host.tsx';
-import { to } from '../notes/sections.tsx';
+import { NoteLinks } from '../notes/sections.tsx';
+import { Section } from '@/components/layout.tsx';
 
 function Similar({ note }: { note: Note }) {
   const v = useVault();
@@ -15,17 +16,9 @@ function Similar({ note }: { note: Note }) {
       : [];
   if (!alike.length) return null;
   return (
-    <section className="sect backlinks">
-      <h2>Similar, not yet linked</h2>
-      <ul>
-        {alike.map((n) => (
-          <li key={n.id}>
-            <a href={to(n)}>{titleOf(n)}</a>
-            <p>{excerptOf(n, 160)}</p>
-          </li>
-        ))}
-      </ul>
-    </section>
+    <Section title="Similar, not yet linked">
+      <NoteLinks items={alike.map((n) => ({ note: n, excerpt: excerptOf(n, 160) }))} />
+    </Section>
   );
 }
 

@@ -1,115 +1,9 @@
-/* The page: type, previews and tooltips. Element rules are in the base layer and
-   the classes in the components layer, so Tailwind utilities override both; the tokens are theme.css. */
+/* What every page shares: the link colour, the area colours and the older views' shared classes. Element
+   typography is scoped to note content (prose.css); the tokens are theme.css. */
 @layer base {
-  /* What Tailwind's preflight resets and the views rely on: bold headings, list markers, underlines. */
-  h1,
-  h2,
-  h3,
-  h4 {
-    font-weight: 700;
-  }
-  ul {
-    list-style: disc;
-  }
-  ol {
-    list-style: decimal;
-  }
-  ul,
-  ol {
-    padding-left: 1.6em;
-  }
+  /* Links read as links anywhere; note content gets the rest of its typography from prose.css. */
   a {
     color: var(--primary);
-    text-decoration: underline;
-    text-underline-offset: 2px;
-    text-decoration-thickness: 1px;
-  }
-  svg a {
-    text-decoration: none;
-  }
-  a.vault-link {
-    text-decoration: none;
-    border-bottom: 1px solid color-mix(in srgb, var(--primary) 35%, transparent);
-  }
-  a.vault-link:hover {
-    border-bottom-color: var(--primary);
-  }
-  h1 {
-    font-size: 2rem;
-    line-height: 1.2;
-    margin: 0.2rem 0 0.6rem;
-    letter-spacing: -0.01em;
-  }
-  h2 {
-    font-size: 1.3rem;
-    margin: 2.2rem 0 0.6rem;
-  }
-  h3 {
-    font-size: 1.08rem;
-    margin: 1.6rem 0 0.4rem;
-  }
-  p,
-  ul,
-  ol,
-  table,
-  pre,
-  blockquote {
-    margin: 0 0 1rem;
-  }
-  li {
-    margin: 0.2rem 0;
-  }
-  hr {
-    border: 0;
-    border-top: 1px solid var(--line);
-    margin: 2rem 0;
-  }
-  blockquote {
-    border-left: 3px solid var(--line);
-    margin-left: 0;
-    padding-left: 1rem;
-    color: var(--ink-2);
-  }
-  code {
-    font:
-      0.88em / 1.5 ui-monospace,
-      SFMono-Regular,
-      Menlo,
-      monospace;
-    background: var(--surface);
-    padding: 0.1em 0.3em;
-    border-radius: 4px;
-  }
-  pre {
-    background: var(--surface) !important;
-    padding: 0.9rem 1rem;
-    border-radius: 8px;
-    overflow-x: auto;
-  }
-  pre code {
-    background: none;
-    padding: 0;
-  }
-  table {
-    border-collapse: collapse;
-    display: block;
-    overflow-x: auto;
-    max-width: 100%;
-    font-size: 0.94rem;
-  }
-  th,
-  td {
-    border-bottom: 1px solid var(--line);
-    padding: 0.4rem 0.7rem 0.4rem 0;
-    text-align: left;
-    vertical-align: top;
-  }
-  th {
-    color: var(--ink-2);
-    font-weight: 600;
-  }
-  img {
-    max-width: 100%;
   }
 }
 
@@ -133,39 +27,6 @@
     --c: var(--a-none);
   }
 
-  #preview {
-    position: absolute;
-    z-index: 20;
-    max-width: 22rem;
-    padding: 0.7rem 0.85rem;
-    font-size: 0.9rem;
-    line-height: 1.5;
-    background: var(--bg);
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    box-shadow: var(--shadow);
-    pointer-events: none;
-  }
-  #preview b {
-    display: block;
-    margin-bottom: 0.2rem;
-  }
-  #preview span {
-    color: var(--ink-2);
-  }
-  #charttip {
-    position: absolute;
-    z-index: 20;
-    padding: 0.35rem 0.55rem;
-    font-size: 0.85rem;
-    pointer-events: none;
-    background: var(--bg);
-    border: 1px solid var(--line);
-    border-radius: 6px;
-    box-shadow: var(--shadow);
-    white-space: nowrap;
-  }
-
   /* Shared by the views: the kind chip above a title, and the lede under it. */
   .meta {
     display: flex;
@@ -186,7 +47,6 @@
   .lede {
     color: var(--ink-2);
   }
-  .render-error,
   .app-error {
     color: var(--s2);
     font-weight: 600;

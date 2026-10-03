@@ -1,0 +1,153 @@
+/* Note content: what renderBody produces (and anything else written as prose) inside `.prose`. Elements
+   take their reading typography only here; views style themselves with utilities. `.not-prose` opts a
+   subtree out (the MDX components style themselves). */
+@layer components {
+  .prose {
+    line-height: 1.7;
+    overflow-wrap: break-word;
+
+    :where(h1, h2, h3, h4):not(:where(.not-prose, .not-prose *)) {
+      font-weight: 700;
+      line-height: 1.3;
+      letter-spacing: -0.01em;
+      scroll-margin-top: 5rem;
+    }
+    :where(h1):not(:where(.not-prose, .not-prose *)) {
+      font-size: var(--text-2xl, 1.5rem);
+      margin: 2.4rem 0 0.8rem;
+    }
+    :where(h2):not(:where(.not-prose, .not-prose *)) {
+      font-size: var(--text-xl, 1.25rem);
+      margin: 2.2rem 0 0.6rem;
+    }
+    :where(h3):not(:where(.not-prose, .not-prose *)) {
+      font-size: var(--text-lg, 1.125rem);
+      margin: 1.8rem 0 0.4rem;
+    }
+    :where(h4):not(:where(.not-prose, .not-prose *)) {
+      font-size: var(--text-base, 1rem);
+      margin: 1.4rem 0 0.3rem;
+    }
+    > :first-child {
+      margin-top: 0;
+    }
+    /* A note's own "# Title", when it opens the body: the size of a page title (layout.tsx PageHeader). */
+    > :where(h1:first-child) {
+      font-size: var(--text-3xl, 1.875rem);
+      line-height: 1.25;
+      letter-spacing: -0.025em;
+      margin-bottom: 1.5rem;
+    }
+    > :last-child {
+      margin-bottom: 0;
+    }
+
+    :where(p, ul, ol, table, pre, blockquote):not(:where(.not-prose, .not-prose *)) {
+      margin: 0 0 1rem;
+    }
+    :where(ul, ol):not(:where(.not-prose, .not-prose *)) {
+      padding-left: 1.5em;
+    }
+    :where(ul):not(:where(.not-prose, .not-prose *)) {
+      list-style: disc;
+    }
+    :where(ol):not(:where(.not-prose, .not-prose *)) {
+      list-style: decimal;
+    }
+    :where(li):not(:where(.not-prose, .not-prose *)) {
+      margin: 0.25rem 0;
+      padding-left: 0.15em;
+    }
+    :where(li)::marker {
+      color: var(--faint);
+    }
+    :where(li > ul, li > ol):not(:where(.not-prose, .not-prose *)) {
+      margin: 0.25rem 0 0;
+    }
+    :where(strong):not(:where(.not-prose, .not-prose *)) {
+      font-weight: 600;
+    }
+
+    :where(a):not(:where(.not-prose, .not-prose *)) {
+      color: var(--primary);
+      text-decoration: underline;
+      text-decoration-thickness: 1px;
+      text-underline-offset: 3px;
+      text-decoration-color: color-mix(in srgb, var(--primary) 45%, transparent);
+    }
+    :where(a):not(:where(.not-prose, .not-prose *)):hover {
+      text-decoration-color: var(--primary);
+    }
+    /* Links to other notes: a quiet accent rule rather than an underline. */
+    :where(a.vault-link) {
+      text-decoration: none;
+      border-bottom: 1px solid color-mix(in srgb, var(--primary) 35%, transparent);
+    }
+    :where(a.vault-link):hover {
+      border-bottom-color: var(--primary);
+    }
+
+    :where(hr):not(:where(.not-prose, .not-prose *)) {
+      border: 0;
+      border-top: 1px solid var(--border);
+      margin: 2rem 0;
+    }
+    :where(blockquote):not(:where(.not-prose, .not-prose *)) {
+      border-left: 3px solid var(--border);
+      padding-left: 1rem;
+      color: var(--muted-foreground);
+    }
+    :where(img):not(:where(.not-prose, .not-prose *)) {
+      max-width: 100%;
+      border-radius: calc(var(--radius) - 2px);
+    }
+
+    :where(code):not(:where(.not-prose, .not-prose *)) {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.875em;
+      background: var(--surface);
+      padding: 0.1em 0.35em;
+      border-radius: calc(var(--radius) - 4px);
+    }
+    :where(pre):not(:where(.not-prose, .not-prose *)) {
+      background: var(--surface) !important;
+      border: 1px solid var(--border);
+      padding: 0.85rem 1rem;
+      border-radius: var(--radius);
+      overflow-x: auto;
+      font-size: var(--text-sm, 0.875rem);
+      line-height: 1.55;
+    }
+    :where(pre code) {
+      background: none;
+      padding: 0;
+      font-size: inherit;
+      border-radius: 0;
+    }
+
+    :where(table):not(:where(.not-prose, .not-prose *)) {
+      display: block;
+      max-width: 100%;
+      overflow-x: auto;
+      border-collapse: collapse;
+      font-size: var(--text-sm, 0.875rem);
+      line-height: 1.5;
+    }
+    :where(th, td):not(:where(.not-prose, .not-prose *)) {
+      border-bottom: 1px solid var(--border);
+      padding: 0.45rem 1rem 0.45rem 0;
+      text-align: left;
+      vertical-align: top;
+    }
+    :where(th):not(:where(.not-prose, .not-prose *)) {
+      color: var(--muted-foreground);
+      font-weight: 600;
+      border-bottom-color: color-mix(in srgb, var(--foreground) 20%, var(--border));
+    }
+
+    :where(.render-error) {
+      color: var(--destructive);
+      font-weight: 600;
+    }
+  }
+}
