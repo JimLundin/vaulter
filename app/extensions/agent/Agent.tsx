@@ -1,17 +1,42 @@
 // The agent (app/agent.ts): Jim talks, it reads, stages and commits, following meta/conventions.md.
 // The model and the SDK load with this view. The conversation lives in memory for the session, outside
 // the view, so it survives moving around the app and a running turn keeps going meanwhile.
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { SquareIcon } from 'lucide-react';
 import type { ModelMessage, ToolSet } from 'ai';
 import type { AgentContext } from '../../core/extension.ts';
 import { search } from '../../../core/search.ts';
 import { agentWriter, type Writer } from '../../core/writer.ts';
 import { useHost } from '../../core/host.tsx';
 import { link } from '../../core/route.ts';
-import './agent.css';
+import { renderBody } from '../../core/markdown.ts';
 import { later } from '../../core/later.ts';
 import { appVersion, collect, type Place } from './meta.ts';
 import { recordExchange, type ChatTurn, type Collected } from './record.ts';
+import { Empty, PageHeader } from '@/components/layout.tsx';
+import { Button } from '@/components/ui/button.tsx';
+import { Input } from '@/components/ui/input.tsx';
+import { Label } from '@/components/ui/label.tsx';
+import {
+  Conversation,
+  ConversationContent,
+  ConversationScrollButton,
+} from '@/components/ai-elements/conversation.tsx';
+import {
+  PromptInput,
+  PromptInputBody,
+  PromptInputFooter,
+  PromptInputSubmit,
+  PromptInputTextarea,
+  PromptInputTools,
+} from '@/components/ai-elements/prompt-input.tsx';
+import {
+  Tool,
+  ToolContent,
+  ToolHeader,
+  ToolInput,
+  ToolOutput,
+} from '@/components/ai-elements/tool.tsx';
 
 const MODEL_KEY = 'vault.agent.model';
 const DEFAULT_MODEL = 'gpt-6-astra';
@@ -21,7 +46,10 @@ type Part =
   | {
       kind: 'tool';
       name: string;
+      /** The call in a line (brief), and in full. */
       input: string;
+      args?: unknown;
+      output?: unknown;
       result?: string;
       error?: boolean;
       commit?: string;
@@ -101,22 +129,16 @@ export function Agent() {
 
   if (!secrets?.openai)
     return (
-      <div className="v-agent">
-        <h1>Agent</h1>
-        <p className="lede">
-          {secrets
+      <PageHeader
+        title="Agent"
+        lede={
+          secrets
             ? 'No OpenAI key is sealed: set the VAULT_OPENAI_KEY repo secret and run the publish workflow.'
-            : 'The agent runs in the published app, with the sealed OpenAI key; in dev there is none.'}
-        </p>
-      </div>
+            : 'The agent runs in the published app, with the sealed OpenAI key; in dev there is none.'
+        }
+      />
     );
-  if (!w.commit)
-    return (
-      <div className="v-agent">
-        <h1>Agent</h1>
-        <p className="lede">Committing isn't available here.</p>
-      </div>
-    );
+  if (!w.commit) return <PageHeader title="Agent" lede="Committing isn't available here." />;
 
   // The latest writer and search, also after this view is gone: the tools run between renders.
   const aw = agentWriter(() => chat.host!.writer as Writer);
@@ -185,6 +207,7 @@ export function Agent() {
             kind: 'tool',
             name: p.toolName,
             input: brief(p.toolName, p.input),
+            args: p.input,
           };
           calls.set(p.toolCallId, part);
           agentTurn.parts.push(part);
@@ -192,6 +215,7 @@ export function Agent() {
           const part = calls.get(p.toolCallId);
           if (part) {
             const out: any = p.type === 'tool-result' ? p.output : { error: String(p.error) };
+            part.output = out;
             part.error = !!out?.error;
             part.commit = out?.committed;
             part.result = out?.error
@@ -231,88 +255,158 @@ export function Agent() {
 
   return (
     <div className="v-agent">
-      <h1>Agent</h1>
-      <div className="turns">
-        {turns.length === 0 && (
-          <p className="lede">
+      <PageHeader
+        title="Agent"
+        lede={
+          <>
             Tell it what to file ("vault it: …"), ask what the vault knows, or say "sign-off". It
             follows meta/conventions.md and commits on its own; everything it commits is in{' '}
             <a href={link('/history/')}>History</a>, with a revert.
-          </p>
-        )}
-        {turns.map((t, i) => (
-          // biome-ignore lint/suspicious/noArrayIndexKey: turns only append; a turn is its place in the conversation
-          <div key={i} className={`turn ${t.role}`}>
-            {t.parts.map((p, j) =>
-              p.kind === 'text' ? (
-                // biome-ignore lint/suspicious/noArrayIndexKey: parts only append; a part is its place in the turn
-                <div key={j} className="text">
-                  {p.text}
-                </div>
-              ) : (
-                // biome-ignore lint/suspicious/noArrayIndexKey: parts only append; a part is its place in the turn
-                <div key={j} className={`tool${p.error ? ' err' : ''}`}>
-                  <b>{p.name}</b>
-                  {!!p.input && (
-                    <>
-                      {' '}
-                      <code>{p.input}</code>
-                    </>
-                  )}
-                  {!!p.result && (
-                    <span>
-                      {' '}
-                      → {p.commit ? <a href={link('/history/')}>{p.result}</a> : p.result}
-                    </span>
-                  )}
-                </div>
-              ),
-            )}
-            {!!t.error && <p className="app-error">{t.error}</p>}
-          </div>
-        ))}
-      </div>
-      <form
-        className="ask"
-        onSubmit={(e) => {
-          e.preventDefault();
+          </>
+        }
+      />
+      <Conversation className="h-[calc(100dvh-24rem)] min-h-80 rounded-xl border bg-background">
+        <ConversationContent className="gap-6">
+          {turns.length === 0 && <Empty>Nothing said yet.</Empty>}
+          {turns.map((t, i) =>
+            t.role === 'user' ? (
+              // biome-ignore lint/suspicious/noArrayIndexKey: turns only append; a turn is its place in the conversation
+              <UserTurn key={i} turn={t} />
+            ) : (
+              // biome-ignore lint/suspicious/noArrayIndexKey: turns only append; a turn is its place in the conversation
+              <AgentTurn key={i} turn={t} live={busy && i === turns.length - 1} />
+            ),
+          )}
+        </ConversationContent>
+        <ConversationScrollButton />
+      </Conversation>
+      <PromptInput
+        className="mt-3"
+        onSubmit={() => {
           later(send());
         }}
       >
-        <textarea
-          value={input}
-          rows={3}
-          placeholder="vault it: …"
-          disabled={busy}
-          onChange={(e) => setInput(e.currentTarget.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-              e.preventDefault();
-              later(send());
-            }
-          }}
-        />
-        <div className="bar">
+        <PromptInputBody>
+          <PromptInputTextarea
+            value={input}
+            placeholder="vault it: …"
+            disabled={busy}
+            onChange={(e) => setInput(e.currentTarget.value)}
+            // ⌘/Ctrl+Enter sends; Enter is a new line (notes are often several).
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                e.preventDefault();
+                e.currentTarget.form?.requestSubmit();
+              }
+            }}
+          />
+        </PromptInputBody>
+        <PromptInputFooter>
+          <PromptInputTools>
+            <Label className="gap-2 font-normal text-faint text-xs">
+              Model
+              <Input
+                className="h-7 w-36 font-mono text-foreground text-xs"
+                value={model}
+                onChange={(e) => setModel(e.currentTarget.value)}
+                onBlur={(e) => localStorage.setItem(MODEL_KEY, e.currentTarget.value)}
+              />
+            </Label>
+            <span className="text-faint text-xs max-sm:hidden">⌘/Ctrl+Enter sends</span>
+          </PromptInputTools>
           {busy ? (
-            <button type="button" onClick={() => chat.abort?.abort()}>
-              Stop
-            </button>
+            <Button
+              type="button"
+              size="icon-sm"
+              variant="outline"
+              aria-label="Stop"
+              onClick={() => chat.abort?.abort()}
+            >
+              <SquareIcon />
+            </Button>
           ) : (
-            <button type="submit" className="primary" disabled={!input.trim()}>
-              Send
-            </button>
+            <PromptInputSubmit disabled={!input.trim()} />
           )}
-          <label>
-            Model{' '}
-            <input
-              value={model}
-              onChange={(e) => setModel(e.currentTarget.value)}
-              onBlur={(e) => localStorage.setItem(MODEL_KEY, e.currentTarget.value)}
+        </PromptInputFooter>
+      </PromptInput>
+    </div>
+  );
+}
+
+/** What Jim said, as typed. */
+function UserTurn({ turn }: { turn: Turn }) {
+  return (
+    <div className="ml-auto max-w-[85%] rounded-lg bg-secondary px-4 py-2.5 whitespace-pre-wrap">
+      {turn.parts.map((p) => (p.kind === 'text' ? p.text : '')).join('')}
+    </div>
+  );
+}
+
+/** The agent's text as vault Markdown: links resolve, and it reads like a note. */
+function Said({ text }: { text: string }) {
+  const body = useMemo(
+    () => renderBody({ id: 'agent', path: 'agent.md', ext: 'md', body: text }),
+    [text],
+  );
+  return <div className="prose">{body}</div>;
+}
+
+const toolState = (p: Part & { kind: 'tool' }) =>
+  p.error ? 'output-error' : p.result === undefined ? 'input-available' : 'output-available';
+
+function AgentTurn({ turn, live }: { turn: Turn; live: boolean }) {
+  return (
+    <div className="grid gap-3">
+      {turn.parts.map((p, j) =>
+        p.kind === 'text' ? (
+          // biome-ignore lint/suspicious/noArrayIndexKey: parts only append; a part is its place in the turn
+          <Said key={j} text={p.text} />
+        ) : (
+          // biome-ignore lint/suspicious/noArrayIndexKey: parts only append; a part is its place in the turn
+          <Tool key={j} className="mb-0">
+            <ToolHeader
+              type={`tool-${p.name}`}
+              title={p.input ? `${p.name} · ${p.input}` : p.name}
+              state={toolState(p)}
             />
-          </label>
-          <span className="hint">⌘/Ctrl+Enter sends</span>
-        </div>
-      </form>
+            <ToolContent>
+              <ToolInput input={p.args} />
+              {p.result !== undefined && (
+                <ToolOutput
+                  output={
+                    p.commit ? (
+                      <p className="p-3">
+                        <a href={link('/history/')}>{p.result}</a>
+                      </p>
+                    ) : (
+                      p.output
+                    )
+                  }
+                  errorText={p.error ? p.result : undefined}
+                />
+              )}
+            </ToolContent>
+          </Tool>
+        ),
+      )}
+      {live && turn.parts.length === 0 && (
+        <p className="flex items-center gap-2 text-faint text-sm" aria-live="polite">
+          <span className="size-1.5 animate-pulse rounded-full bg-faint" />
+          Thinking…
+        </p>
+      )}
+      {!!turn.error && <p className="text-destructive text-sm">{turn.error}</p>}
+      {!!(turn.model || turn.tokens) && (
+        <p className="text-faint text-xs tabular-nums">
+          {[
+            turn.model,
+            turn.tokens &&
+              `${turn.tokens.in.toLocaleString()} in · ${turn.tokens.out.toLocaleString()} out`,
+          ]
+            .filter(Boolean)
+            .join(' · ')}
+        </p>
+      )}
     </div>
   );
 }

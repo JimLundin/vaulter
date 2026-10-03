@@ -1,4 +1,4 @@
-/* What every page shares: the link colour, the area colours and the older views' shared classes. Element
+/* What every page shares: the link colour and the area colours. Element
    typography is scoped to note content (prose.css); the tokens are theme.css. */
 @layer base {
   /* Links read as links anywhere; note content gets the rest of its typography from prose.css. */
@@ -25,14 +25,5 @@
   }
   .a-none {
     --c: var(--a-none);
-  }
-
-  /* The agent's, until it moves to the components. */
-  .lede {
-    color: var(--ink-2);
-  }
-  .app-error {
-    color: var(--s2);
-    font-weight: 600;
   }
 }
