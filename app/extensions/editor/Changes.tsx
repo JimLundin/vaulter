@@ -1,35 +1,29 @@
 // Staged edits: each file's diff, what the check says about them, and the commit.
-// biome-ignore lint/correctness/noUnresolvedImports: Fragment is in @types/react's namespace, which Biome doesn't follow
-import { Fragment } from 'react';
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
+import { CheckIcon } from 'lucide-react';
 import { structuredPatch } from 'diff';
 import { hrefForId } from '../../../core/paths.ts';
 import { applyOverlay, newProblems } from '../../core/writer.ts';
 import { CheckFailed, Conflict } from '../../core/backend.ts';
 import { useWriter } from '../../core/host.tsx';
 import { link } from '../../core/route.ts';
-import './editor.css';
 import { later } from '../../core/later.ts';
+import { Confirm, DiffLines } from './parts.tsx';
+import { Empty, ErrorState, Loading, PageHeader, Section } from '@/components/layout.tsx';
+import { Badge } from '@/components/ui/badge.tsx';
+import { Button } from '@/components/ui/button.tsx';
+import { Input } from '@/components/ui/input.tsx';
+import { Label } from '@/components/ui/label.tsx';
 
 function Diff({ before, after }: { before: string; after: string }) {
   const p = structuredPatch('a', 'b', before, after, '', '', { context: 2 });
   return (
-    <pre className="diff">
-      {p.hunks.map((h) => (
-        <Fragment key={`${h.oldStart},${h.newStart}`}>
-          <span className="hunk">
-            @@ -{h.oldStart},{h.oldLines} +{h.newStart},{h.newLines} @@\n
-          </span>
-          {h.lines.map((l, i) => (
-            // biome-ignore lint/suspicious/noArrayIndexKey: a diff line is its position in the hunk; the same text can recur
-            <span key={i} className={l[0] === '+' ? 'add' : l[0] === '-' ? 'del' : ''}>
-              {l}
-              \n
-            </span>
-          ))}
-        </Fragment>
-      ))}
-    </pre>
+    <DiffLines
+      lines={p.hunks.flatMap((h) => [
+        `@@ -${h.oldStart},${h.oldLines} +${h.newStart},${h.newLines} @@`,
+        ...h.lines,
+      ])}
+    />
   );
 }
 
@@ -38,6 +32,7 @@ export function Changes() {
   const staged = Object.entries(w.overlay?.files ?? {});
   const [problems, setProblems] = useState<string[] | null>(null);
   const [message, setMessage] = useState('');
+  const id = useId();
   const [state, setState] = useState<{ busy?: boolean; error?: string; done?: string }>({});
   useEffect(() => {
     setProblems(null);
@@ -72,89 +67,130 @@ export function Changes() {
   if (!staged.length)
     return (
       <div className="v-changes">
-        <h1>Changes</h1>
+        <PageHeader title="Changes" />
         {state.done ? (
-          <p className="lede">
-            Committed <code>{state.done.slice(0, 7)}</code>. See{' '}
-            <a href={link('/history/')}>History</a>.
+          <p className="text-muted-foreground">
+            Committed <code className="font-mono text-sm">{state.done.slice(0, 7)}</code>. See{' '}
+            <a className="text-primary no-underline hover:underline" href={link('/history/')}>
+              History
+            </a>
+            .
           </p>
         ) : (
-          <p className="lede">Nothing staged. Edit a note from its page.</p>
+          <Empty>Nothing staged. Edit a note from its page.</Empty>
         )}
       </div>
     );
   return (
     <div className="v-changes">
-      <h1>
-        Changes <span className="n">{staged.length}</span>
-      </h1>
-      {staged.map(([path, text]) => {
-        const before = w.base.find((f) => f.path === path)?.text ?? '';
-        return (
-          <section key={path} className="file">
-            <h2>
-              <a href={link(hrefForId(path.replace(/\.mdx?$/, '')))}>{path}</a>
-              <small>{text === null ? 'deleted' : before ? 'edited' : 'new'}</small>
-              <a className="act" href={link(`/edit/${encodeURIComponent(path)}/`)}>
-                edit
-              </a>
-              <button type="button" className="act" onClick={() => w.unstage(path)}>
-                unstage
-              </button>
-            </h2>
-            <Diff before={before} after={text ?? ''} />
-          </section>
-        );
-      })}
-      <section className="commit">
-        {problems === null ? (
-          <p className="hint">Checking…</p>
-        ) : problems.length ? (
-          <>
-            <p className="app-error">
-              The check finds {problems.length} new {problems.length === 1 ? 'problem' : 'problems'}
-              :
+      <PageHeader
+        title="Changes"
+        lede="Staged edits, not yet committed. Review each diff, then commit them as one step."
+      />
+      <Section title="Staged" count={staged.length}>
+        <div className="grid gap-4">
+          {staged.map(([path, text]) => {
+            const before = w.base.find((f) => f.path === path)?.text ?? '';
+            return (
+              <div key={path} className="overflow-hidden rounded-lg border">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-b bg-surface px-3 py-2">
+                  <a
+                    className="min-w-0 break-all font-mono text-sm font-medium text-foreground no-underline hover:underline"
+                    href={link(hrefForId(path.replace(/\.mdx?$/, '')))}
+                  >
+                    {path}
+                  </a>
+                  <Badge
+                    variant="outline"
+                    className={
+                      text === null ? 'text-destructive' : before ? undefined : 'text-success'
+                    }
+                  >
+                    {text === null ? 'deleted' : before ? 'edited' : 'new'}
+                  </Badge>
+                  <div className="ml-auto flex gap-2">
+                    <Button asChild={true} size="sm" variant="outline">
+                      <a
+                        className="text-foreground no-underline"
+                        href={link(`/edit/${encodeURIComponent(path)}/`)}
+                      >
+                        edit
+                      </a>
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => w.unstage(path)}>
+                      unstage
+                    </Button>
+                  </div>
+                </div>
+                <Diff before={before} after={text ?? ''} />
+              </div>
+            );
+          })}
+        </div>
+      </Section>
+      <Section title="Commit">
+        <div className="grid gap-4">
+          {problems === null ? (
+            <Loading>Checking…</Loading>
+          ) : problems.length ? (
+            <ErrorState>
+              <p className="m-0">
+                The check finds {problems.length} new{' '}
+                {problems.length === 1 ? 'problem' : 'problems'}:
+              </p>
+              <ul className="m-0 mt-1 list-disc pl-5">
+                {problems.map((p) => (
+                  <li key={p}>{p}</li>
+                ))}
+              </ul>
+            </ErrorState>
+          ) : (
+            <p className="m-0 flex items-center gap-2 font-medium text-success">
+              <CheckIcon className="size-4" />
+              The check passes.
             </p>
-            <ul className="problems">
-              {problems.map((p) => (
-                <li key={p}>{p}</li>
-              ))}
-            </ul>
-          </>
-        ) : (
-          <p className="ok">The check passes.</p>
-        )}
-        {w.commit ? (
-          <>
-            <input
-              type="text"
-              placeholder="Commit message"
-              value={message}
-              onChange={(e) => setMessage(e.currentTarget.value)}
-            />
-            <div className="bar">
-              <button
-                type="button"
-                className="primary"
-                disabled={state.busy || problems === null || problems.length > 0}
-                onClick={commit}
-              >
-                {state.busy ? 'Committing…' : 'Commit to main'}
-              </button>
-              <button
-                type="button"
-                className="danger"
-                onClick={() => confirm('Discard every staged edit?') && w.discard()}
-              >
-                Discard all
-              </button>
-            </div>
-          </>
-        ) : (
-          <p className="hint">In dev the files are the working tree: commit with git.</p>
-        )}
-        {!!state.error && <p className="app-error">{state.error}</p>}
-      </section>
+          )}
+          {w.commit ? (
+            <>
+              <div className="grid gap-2">
+                <Label htmlFor={id}>Commit message</Label>
+                <Input
+                  id={id}
+                  type="text"
+                  placeholder={`vault: ${staged.map(([p]) => p.replace(/\.mdx?$/, '')).join(', ')}`}
+                  value={message}
+                  onChange={(e) => setMessage(e.currentTarget.value)}
+                />
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  disabled={state.busy || problems === null || problems.length > 0}
+                  onClick={commit}
+                >
+                  {state.busy ? 'Committing…' : 'Commit to main'}
+                </Button>
+                <Confirm
+                  trigger={
+                    <Button variant="ghost" className="ml-auto text-destructive">
+                      Discard all
+                    </Button>
+                  }
+                  title="Discard every staged edit?"
+                  description={`The edits to ${staged.length} ${staged.length === 1 ? 'file are' : 'files are'} dropped; this can't be undone.`}
+                  action="Discard all"
+                  destructive={true}
+                  onConfirm={() => w.discard()}
+                />
+              </div>
+            </>
+          ) : (
+            <p className="m-0 text-sm text-faint">
+              In dev the files are the working tree: commit with git.
+            </p>
+          )}
+          {!!state.error && <ErrorState>{state.error}</ErrorState>}
+        </div>
+      </Section>
     </div>
   );
 }
