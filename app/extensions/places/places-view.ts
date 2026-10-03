@@ -1,9 +1,10 @@
-// The Places page's interactive map (app/views/Places.tsx): every place note on a street map, sized by
+// The Places page's interactive map (Places.tsx): every place note on a street map, sized by
 // how often Jim was there, with its events, and his day-by-day trail. Tiles come from OpenStreetMap's tile
 // server, so this page fetches map images as it is panned; nothing else in the vault does. The server needs
 // a Referer (GitHub Pages sends one; a page opened from a local file gets blocked tiles). Dark mode inverts
 // the tiles in CSS, since OSM has no dark style. Leaflet is passed in, so it loads with the view.
 import type * as Leaflet from 'leaflet';
+import { onThemeChange } from '../../core/theme.ts';
 
 export interface PlaceEvent {
   d: string;
@@ -56,10 +57,6 @@ const tiles = (L: typeof Leaflet) =>
       '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
   });
 
-/**
- * The map in `el` (a .pl-canvas inside it, optionally a .pl-trail checkbox; anything with data-fly
- * flies to that place). `link` turns a site href into one that works where the map is shown.
- */
 /** A colour token as Leaflet needs it: resolved for the current theme (the tokens are light-dark() pairs). */
 function resolved(token: string) {
   const probe = document.createElement('span');
@@ -70,6 +67,11 @@ function resolved(token: string) {
   return c;
 }
 
+/**
+ * The map in `el` (a .pl-canvas inside it, optionally a .pl-trail checkbox; anything with data-fly
+ * flies to that place). `link` turns a site href into one that works where the map is shown.
+ * Markers and the trail are re-coloured when the theme changes; `remove` tears it all down.
+ */
 export function mountPlaces(
   el: HTMLElement,
   L: typeof Leaflet,
@@ -81,6 +83,7 @@ export function mountPlaces(
   tiles(L).addTo(map);
   const colour = (area: string) => resolved(`--a-${area || 'none'}`);
   const byId = new Map(data.places.map((p) => [p.id, p]));
+  const off: (() => void)[] = [];
 
   const markers = new Map<string, Leaflet.CircleMarker>();
   for (const p of data.places) {
@@ -92,21 +95,24 @@ export function mountPlaces(
       fillColor: colour(p.area),
       fillOpacity: weight ? 0.55 : 0.25,
     }).addTo(map);
+    // Tailwind finds these classes in this file, so they stay literal.
     const ev = p.ev
       .slice(0, 8)
       .map(
         (e) =>
-          `<li><span>${esc(fmt(e.d))}</span> ${esc(e.w)} · <a href="${esc(link(e.h))}">${esc(e.n)}</a></li>`,
+          `<li><span class="text-faint tabular-nums">${esc(fmt(e.d))}</span> ${esc(e.w)} · <a class="text-primary no-underline hover:underline" href="${esc(link(e.h))}">${esc(e.n)}</a></li>`,
       )
       .join('');
     m.bindPopup(
-      `<div class="pl-pop"><a class="pl-t" href="${esc(link(p.h))}">${esc(p.t)}</a>` +
-        (p.s ? `<p>${esc(p.s)}</p>` : '') +
-        (p.a ? `<p class="pl-a">${esc(p.a)}</p>` : '') +
+      `<div class="text-sm leading-normal"><a class="text-base font-semibold text-foreground no-underline hover:text-primary" href="${esc(link(p.h))}">${esc(p.t)}</a>` +
+        (p.s ? `<p class="m-0 mt-1 text-muted-foreground">${esc(p.s)}</p>` : '') +
+        (p.a ? `<p class="m-0 mt-1.5 text-xs text-faint">${esc(p.a)}</p>` : '') +
         (p.days
-          ? `<p class="pl-n">${p.days} ${p.days === 1 ? 'day' : 'days'} here · last ${esc(fmt(p.last))}</p>`
+          ? `<p class="m-0 mt-0.5 text-xs text-faint">${p.days} ${p.days === 1 ? 'day' : 'days'} here · last ${esc(fmt(p.last))}</p>`
           : '') +
-        (ev ? `<ul>${ev}</ul>` : '') +
+        (ev
+          ? `<ul class="m-0 mt-2 list-none space-y-0.5 border-t p-0 pt-2 text-xs">${ev}</ul>`
+          : '') +
         '</div>',
       { maxWidth: 300 },
     );
@@ -136,8 +142,20 @@ export function mountPlaces(
     if (label && seq.length < 2) label.hidden = true;
     const apply = () => (toggle.checked ? trail.addTo(map) : trail.remove());
     toggle.addEventListener('change', apply);
+    off.push(() => toggle.removeEventListener('change', apply));
     apply();
   }
+
+  // Leaflet paints with resolved colours, so a theme switch re-resolves them.
+  off.push(
+    onThemeChange(() => {
+      for (const p of data.places) {
+        const c = colour(p.area);
+        markers.get(p.id)?.setStyle({ color: c, fillColor: c });
+      }
+      trail.setStyle({ color: resolved('--faint') });
+    }),
+  );
 
   // Start on the places that matter most: where Jim has been and what happened, leaving out the far-off
   // (a country on another continent would zoom the map out to the whole world).
@@ -156,7 +174,7 @@ export function mountPlaces(
   else map.setView([59.3, 18], 5);
 
   // Jump buttons and list entries fly to a place (and everything located in it).
-  el.addEventListener('click', (e) => {
+  const onClick = (e: MouseEvent) => {
     const b = (e.target as Element).closest<HTMLElement>('[data-fly]');
     if (!b) return;
     e.preventDefault();
@@ -170,6 +188,13 @@ export function mountPlaces(
     else if (group.length) map.flyTo([group[0].lat, group[0].lon], 15);
     markers.get(id)?.openPopup();
     box.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-  });
-  return map;
+  };
+  el.addEventListener('click', onClick);
+  off.push(() => el.removeEventListener('click', onClick));
+  return {
+    remove() {
+      for (const f of off) f();
+      map.remove();
+    },
+  };
 }

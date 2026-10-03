@@ -1,5 +1,5 @@
 // Interaction for the vault map: area filters, pan/zoom and focusing a note's neighbourhood, over the SVG
-// that app/views/MapView.tsx renders (every dot is already a link).
+// that MapView.tsx renders (every dot is already a link).
 
 import type { Area } from '../../../core/schema.ts';
 
@@ -179,17 +179,22 @@ export function initMap(box: HTMLElement, data: MapCard[], areaOf: Map<string, A
       ]
         .filter(Boolean)
         .join(' · ');
+      // Tailwind finds these classes in this file, so they stay literal.
       card.innerHTML =
-        `<button type="button" class="x" aria-label="Close">×</button>` +
-        `<b class="a-${esc(d.a || 'none')}"><i></i>${esc(d.t)}</b><span class="m">${esc(meta)}</span>` +
-        (d.s ? `<p>${esc(d.s)}</p>` : '') +
-        `<a class="open" href="${esc(n.getAttribute('href'))}">Open note →</a>` +
+        `<div class="flex items-start gap-3"><div class="min-w-0 flex-1">` +
+        `<div class="flex items-center gap-2 text-base font-semibold leading-snug a-${esc(d.a || 'none')}">` +
+        `<i class="size-2.5 shrink-0 rounded-full bg-(--c)"></i>${esc(d.t)}</div>` +
+        `<div class="mt-0.5 text-xs text-faint">${esc(meta)}</div></div>` +
+        `<button type="button" class="x -mt-1.5 -mr-1.5 inline-flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md border-0 bg-transparent text-faint hover:bg-accent hover:text-foreground" aria-label="Close">` +
+        `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>` +
+        (d.s ? `<p class="mt-2 mb-0 text-muted-foreground">${esc(d.s)}</p>` : '') +
+        `<a class="mt-2 inline-block font-medium text-primary no-underline hover:underline" href="${esc(n.getAttribute('href'))}">Open note →</a>` +
         (list.length
-          ? `<p class="nb">Connected: ${list
+          ? `<p class="mt-3 mb-0 border-t pt-2.5 text-xs leading-relaxed text-faint">Connected: ${list
               .slice(0, 14)
               .map(
                 (j) =>
-                  `<a href="${esc(byI.get(j)!.getAttribute('href'))}" data-pick="${j}">${esc(data[j]?.t || '')}</a>`,
+                  `<a class="text-muted-foreground no-underline hover:text-primary hover:underline" href="${esc(byI.get(j)!.getAttribute('href'))}" data-pick="${j}">${esc(data[j]?.t || '')}</a>`,
               )
               .join(', ')}${list.length > 14 ? `, +${list.length - 14} more` : ''}</p>`
           : '');

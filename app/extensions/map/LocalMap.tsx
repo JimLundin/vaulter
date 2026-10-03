@@ -4,6 +4,8 @@
 import type { Note } from '../../../core/note-fields.ts';
 import { useHeavy, useSchema } from '../../core/host.tsx';
 import { link } from '../../core/route.ts';
+import { cn } from 'cn';
+import { Section } from '@/components/layout.tsx';
 import './localmap.css';
 
 const MAX = 24;
@@ -115,17 +117,25 @@ export function LocalMap({ note }: { note: Note }) {
   const more = all.length - shown.length;
 
   return (
-    <section className="sect v-lmap">
-      <h2>
-        Neighbourhood <span>{all.length}</span>
-        <a className="more" href={link('/map/')}>
+    <Section
+      className="v-lmap"
+      title="Neighbourhood"
+      count={all.length}
+      action={
+        <a className="text-primary hover:underline" href={link('/map/')}>
           full map →
         </a>
-      </h2>
+      }
+    >
       {[wide, narrow].map((L) => (
         <svg
           key={L.cls}
-          className={L.cls}
+          className={cn(
+            'block h-auto w-full overflow-visible',
+            L.cls === 'wide'
+              ? 'mx-auto max-w-[34rem] max-[560px]:hidden'
+              : 'hidden max-w-[24rem] max-[560px]:block',
+          )}
           viewBox={`0 0 ${L.W} ${L.H}`}
           style={{ aspectRatio: `${L.W} / ${L.H}` }}
           role="img"
@@ -172,27 +182,34 @@ export function LocalMap({ note }: { note: Note }) {
           </g>
         </svg>
       ))}
-      <ul className="lm-key">
+      <ul className="m-0 mt-3 flex list-none flex-wrap justify-center gap-x-4 gap-y-1 p-0 text-xs text-muted-foreground">
         {areas
           .filter(({ key: k }) => shown.some((x) => x.n.area === k))
           .map(({ key: k, label }) => (
-            <li key={k} className={`a-${k}`}>
-              <i />
-              {label} <small>{shown.filter((x) => x.n.area === k).length}</small>
+            <li key={k} className={`a-${k} flex items-center gap-1.5`}>
+              <i className="size-2 rounded-full bg-(--c)" />
+              {label}
+              <span className="text-faint tabular-nums">
+                {shown.filter((x) => x.n.area === k).length}
+              </span>
             </li>
           ))}
-        <li className="lm-lines">
-          <b className="rel" />
-          relation <b className="lnk" />
+        <li className="flex items-center gap-1.5">
+          <i className="w-5 border-t-[1.5px] border-faint" />
+          relation
+          <i className="ml-2 w-5 border-t border-dashed border-faint" />
           link
         </li>
       </ul>
       {more > 0 && (
-        <p className="lm-more">
+        <p className="m-0 mt-2 text-center text-xs text-faint">
           Showing the {shown.length} strongest connections; {more} more are on the{' '}
-          <a href={link('/map/')}>map</a> and listed below.
+          <a className="text-primary no-underline hover:underline" href={link('/map/')}>
+            map
+          </a>{' '}
+          and listed below.
         </p>
       )}
-    </section>
+    </Section>
   );
 }

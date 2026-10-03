@@ -4,6 +4,7 @@
 // biome-ignore lint/correctness/noUnresolvedImports: Fragment is in @types/react's namespace, which Biome doesn't follow
 import { Fragment } from 'react';
 import { useEffect, useMemo, useRef } from 'react';
+import { MapPinIcon } from 'lucide-react';
 import type { Vault } from '../../../core/derive.ts';
 import { titleOf, excerptOf, hrefOf, kind, facet, asList } from '../../../core/note-fields.ts';
 import { datesOf } from '../../../core/facts.ts';
@@ -11,8 +12,10 @@ import { fmtDay } from '../../../core/format.ts';
 import type { Place, PlaceEvent, PlacesData } from './places-view.ts';
 import { useVault } from '../../core/host.tsx';
 import { link } from '../../core/route.ts';
-import './places.css';
 import { later } from '../../core/later.ts';
+import { Field, FieldList, PageHeader, Section } from '@/components/layout.tsx';
+import { Button } from '@/components/ui/button.tsx';
+import './places.css';
 
 function placesData(v: Vault): PlacesData {
   // Days: each daily note's `where`, in order. Events: `dates` entries with a `where`.
@@ -55,22 +58,22 @@ function placesData(v: Vault): PlacesData {
 const weight = (p: Place) => p.days + p.ev.length;
 const daysLabel = (p: Place) =>
   p.days ? `${p.days} ${p.days === 1 ? 'day' : 'days'}, last ${fmtDay(p.last)}` : '';
+const linkCls = 'text-primary no-underline hover:underline';
 
 export function Places() {
   const v = useVault();
   const data = useMemo(() => placesData(v), [v]);
+  // The whole page, so the list's map buttons fly too (places-view.ts listens for data-fly in it).
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
     let map: { remove: () => void } | undefined;
     let live = true;
     later(
-      Promise.all([
-        import('leaflet'),
-        import('./places-view.ts'),
-        import('leaflet/dist/leaflet.css'),
-      ]).then(([L, { mountPlaces }]) => {
-        if (live && box.current) map = mountPlaces(box.current, L.default ?? L, data, link);
-      }),
+      Promise.all([import('leaflet'), import('./places-view.ts'), import('./leaflet.css')]).then(
+        ([L, { mountPlaces }]) => {
+          if (live && box.current) map = mountPlaces(box.current, L.default ?? L, data, link);
+        },
+      ),
     );
     return () => {
       live = false;
@@ -105,97 +108,126 @@ export function Places() {
   };
   const events = (ev: PlaceEvent[]) =>
     ev.length > 0 && (
-      <ul className="pl-ev">
+      <FieldList className="mt-2 text-sm">
         {ev.map((e) => (
-          <li key={`${e.d}|${e.h}|${e.w}`}>
-            <time>{fmtDay(e.d)}</time>
-            {e.w} · <a href={link(e.h)}>{e.n}</a>
-          </li>
+          <Field key={`${e.d}|${e.h}|${e.w}`} label={fmtDay(e.d)}>
+            {e.w} ·{' '}
+            <a className={linkCls} href={link(e.h)}>
+              {e.n}
+            </a>
+          </Field>
         ))}
-      </ul>
+      </FieldList>
     );
   const sub = (p: Place) => [p.a, daysLabel(p)].filter(Boolean).join(' · ');
+  const fly = (p: Place, label: string) => (
+    <Button variant="ghost" size="xs" className="text-muted-foreground" data-fly={p.id}>
+      <MapPinIcon />
+      {label}
+    </Button>
+  );
 
   return (
-    <div className="v-places">
-      <div className="meta">
-        <span className="chip">places</span>
-      </div>
-      <h1>Places</h1>
-      <p className="lede">
-        {data.places.length} places, {data.trail.length} days with a known whereabouts. Dots are
-        sized by days spent and events there; tap one for what happened. Record places with{' '}
-        <code>geo</code> on a place note and <code>where</code> on days and dates.
-      </p>
+    <div className="v-places" ref={box}>
+      <PageHeader
+        kind="places"
+        title="Places"
+        lede={
+          <p>
+            {data.places.length} places, {data.trail.length} days with a known whereabouts. Dots are
+            sized by days spent and events there; tap one for what happened. Record places with{' '}
+            <code>geo</code> on a place note and <code>where</code> on days and dates.
+          </p>
+        }
+      />
 
-      <div className="pl-map" ref={box}>
-        <div className="pl-bar">
-          <span className="pl-jump">
+      <div className="mt-4 mb-10">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+          <div className="flex flex-wrap gap-1.5">
             {top.map(({ p }) => (
-              <button key={p.id} type="button" data-fly={p.id}>
+              <Button key={p.id} variant="outline" size="sm" data-fly={p.id}>
                 {p.t}
-              </button>
+              </Button>
             ))}
-          </span>
-          <label>
-            <input type="checkbox" className="pl-trail" defaultChecked={true} /> Trail
+          </div>
+          <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
+            <input
+              type="checkbox"
+              className="pl-trail size-4 cursor-pointer accent-primary"
+              defaultChecked={true}
+            />
+            Trail
           </label>
         </div>
-        <div className="pl-canvas" />
-        <p className="pl-note">Map images are loaded from OpenStreetMap as you pan.</p>
+        <div className="pl-canvas z-0 h-[min(70vh,34rem)] rounded-xl border" />
+        <p className="m-0 mt-2 text-xs text-faint">
+          Map images are loaded from OpenStreetMap as you pan.
+        </p>
       </div>
 
-      <section className="pl-list">
-        {top.map(({ p, kids }) => (
-          <div key={p.id} className="pl-group">
-            <h2>
-              <a href={link(p.h)}>{p.t}</a>{' '}
-              <button type="button" className="pl-fly" data-fly={p.id}>
-                show on map
-              </button>
-            </h2>
-            {!!sub(p) && <p className="pl-sub">{sub(p)}</p>}
-            {events(p.ev)}
-            {kids.length > 0 && (
-              <ul className="pl-kids">
-                {kids.map((k) => (
-                  <li key={k.id}>
-                    <a href={link(k.h)}>{k.t}</a>{' '}
-                    <button type="button" className="pl-fly" data-fly={k.id}>
-                      map
-                    </button>
-                    {!!sub(k) && <span className="pl-sub">{sub(k)}</span>}
-                    {events(k.ev)}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        ))}
-      </section>
+      {top.map(({ p, kids }) => (
+        <Section
+          key={p.id}
+          title={
+            <a className="text-foreground no-underline hover:text-primary" href={link(p.h)}>
+              {p.t}
+            </a>
+          }
+          count={kids.length || undefined}
+          action={fly(p, 'Show on map')}
+        >
+          {!!sub(p) && <p className="m-0 text-sm text-faint">{sub(p)}</p>}
+          {events(p.ev)}
+          {kids.length > 0 && (
+            <ul className="m-0 mt-3 list-none space-y-4 border-l-2 p-0 pl-4">
+              {kids.map((k) => (
+                <li key={k.id}>
+                  <div className="flex flex-wrap items-center gap-x-2">
+                    <a
+                      className="font-semibold text-primary no-underline hover:underline"
+                      href={link(k.h)}
+                    >
+                      {k.t}
+                    </a>
+                    {fly(k, 'Map')}
+                  </div>
+                  {!!sub(k) && <p className="m-0 text-sm text-faint">{sub(k)}</p>}
+                  {events(k.ev)}
+                </li>
+              ))}
+            </ul>
+          )}
+        </Section>
+      ))}
 
       {recent.length > 0 && (
-        <section className="pl-days">
-          <h2>Recent days</h2>
-          <ul>
+        <Section title="Recent days">
+          <FieldList>
             {recent.map(([d, ps]) => (
-              <li key={d}>
-                <a className="d" href={link(`/daily/${d}/`)}>
-                  {fmtDay(d)}
-                </a>
-                <span>
-                  {ps.map((id, i) => (
-                    // biome-ignore lint/suspicious/noArrayIndexKey: a day's trail is ordered and may revisit a place; position is the identity
-                    <Fragment key={i}>
-                      {i > 0 && ' → '}
-                      <a href={href(id)}>{title(id)}</a>
-                    </Fragment>
-                  ))}
-                </span>
-              </li>
+              <Field
+                key={d}
+                label={
+                  <a
+                    className="text-inherit no-underline hover:underline"
+                    href={link(`/daily/${d}/`)}
+                  >
+                    {fmtDay(d)}
+                  </a>
+                }
+              >
+                {ps.map((id, i) => (
+                  // biome-ignore lint/suspicious/noArrayIndexKey: a day's trail is ordered and may revisit a place; position is the identity
+                  <Fragment key={i}>
+                    {i > 0 && <span className="text-faint"> → </span>}
+                    <a className={linkCls} href={href(id)}>
+                      {title(id)}
+                    </a>
+                  </Fragment>
+                ))}
+              </Field>
             ))}
-          </ul>
-        </section>
+          </FieldList>
+        </Section>
       )}
     </div>
   );
