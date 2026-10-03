@@ -80,7 +80,7 @@
       "reactNative": "none",
       "solid": "none",
       "svelte": "none",
-      "tailwind": "none",
+      "tailwind": "all",
       "turborepo": "none",
       "vue": "none",
       "react": "all",
@@ -97,6 +97,9 @@
     }
   },
   "css": {
+    "parser": {
+      "tailwindDirectives": true
+    },
     "linter": {
       "enabled": true
     }

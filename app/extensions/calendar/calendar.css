@@ -1,57 +1,59 @@
 /* The calendar (Calendar.tsx). */
-.v-calendar {
-  .cal h2 {
-    font-size: 1.15rem;
-    padding-bottom: 0.35rem;
-    border-bottom: 1px solid var(--line);
-  }
-  .month h3 {
-    font-size: 0.8rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--ink-3);
-    margin: 1.2rem 0 0.4rem;
-  }
-  .month ul {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-  }
-  .month li {
-    display: grid;
-    grid-template-columns: 5rem 1fr;
-    gap: 0.8rem;
-    padding: 0.3rem 0;
-    line-height: 1.45;
-  }
-  .month li.now {
-    background: var(--accent-soft);
-    border-radius: 6px;
-  }
-  .day {
-    color: var(--ink-3);
-    font-variant-numeric: tabular-nums;
-    font-size: 0.9rem;
-  }
-  .day a {
-    color: inherit;
-  }
-  .what em {
-    font-style: normal;
-    font-size: 0.78rem;
-    color: var(--s2);
-    font-weight: 600;
-    margin-left: 0.5rem;
-  }
-  .what .end {
-    color: var(--ink-3);
-  }
-  .what .src {
-    display: block;
-    font-size: 0.85rem;
-    text-decoration: none;
-  }
-  .past .what {
-    color: var(--ink-2);
+@layer components {
+  .v-calendar {
+    .cal h2 {
+      font-size: 1.15rem;
+      padding-bottom: 0.35rem;
+      border-bottom: 1px solid var(--line);
+    }
+    .month h3 {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--ink-3);
+      margin: 1.2rem 0 0.4rem;
+    }
+    .month ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .month li {
+      display: grid;
+      grid-template-columns: 5rem 1fr;
+      gap: 0.8rem;
+      padding: 0.3rem 0;
+      line-height: 1.45;
+    }
+    .month li.now {
+      background: var(--accent-soft);
+      border-radius: 6px;
+    }
+    .day {
+      color: var(--ink-3);
+      font-variant-numeric: tabular-nums;
+      font-size: 0.9rem;
+    }
+    .day a {
+      color: inherit;
+    }
+    .what em {
+      font-style: normal;
+      font-size: 0.78rem;
+      color: var(--s2);
+      font-weight: 600;
+      margin-left: 0.5rem;
+    }
+    .what .end {
+      color: var(--ink-3);
+    }
+    .what .src {
+      display: block;
+      font-size: 0.85rem;
+      text-decoration: none;
+    }
+    .past .what {
+      color: var(--ink-2);
+    }
   }
 }

@@ -2,6 +2,7 @@
 // The browser app (app/) and the tests for it and for the shared vault code (core/).
 import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
 import { fileURLToPath } from 'node:url';
 
 const SITE = fileURLToPath(new URL('.', import.meta.url));
@@ -36,7 +37,9 @@ const csp = (): Plugin => ({
 export default defineConfig({
   root: 'app',
   base: './',
-  plugins: [react(), csp()],
+  plugins: [react(), tailwindcss(), csp()],
+  // shadcn/ui's imports: @/components/ui/…, @/lib/utils.
+  resolve: { alias: { '@': fileURLToPath(new URL('app', import.meta.url)) } },
   build: {
     outDir: '../dist',
     emptyOutDir: true,

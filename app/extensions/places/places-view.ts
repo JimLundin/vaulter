@@ -60,6 +60,16 @@ const tiles = (L: typeof Leaflet) =>
  * The map in `el` (a .pl-canvas inside it, optionally a .pl-trail checkbox; anything with data-fly
  * flies to that place). `link` turns a site href into one that works where the map is shown.
  */
+/** A colour token as Leaflet needs it: resolved for the current theme (the tokens are light-dark() pairs). */
+function resolved(token: string) {
+  const probe = document.createElement('span');
+  probe.style.color = `var(${token}, #888)`;
+  document.body.append(probe);
+  const c = getComputedStyle(probe).color;
+  probe.remove();
+  return c;
+}
+
 export function mountPlaces(
   el: HTMLElement,
   L: typeof Leaflet,
@@ -69,8 +79,7 @@ export function mountPlaces(
   const box = el.querySelector<HTMLElement>('.pl-canvas')!;
   const map = L.map(box, { zoomControl: true, scrollWheelZoom: true, worldCopyJump: true });
   tiles(L).addTo(map);
-  const css = getComputedStyle(document.documentElement);
-  const colour = (area: string) => css.getPropertyValue(`--a-${area || 'none'}`).trim() || '#888';
+  const colour = (area: string) => resolved(`--a-${area || 'none'}`);
   const byId = new Map(data.places.map((p) => [p.id, p]));
 
   const markers = new Map<string, Leaflet.CircleMarker>();
@@ -115,7 +124,7 @@ export function mountPlaces(
   const trail = L.polyline(
     seq.map((p): [number, number] => [p.lat, p.lon]),
     {
-      color: css.getPropertyValue('--ink-3').trim() || '#888',
+      color: resolved('--faint'),
       weight: 1.5,
       opacity: 0.6,
       dashArray: '4 6',

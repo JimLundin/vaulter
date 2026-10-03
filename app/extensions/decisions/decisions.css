@@ -1,42 +1,44 @@
 /* Decisions (Decisions.tsx). */
-.v-decisions {
-  .month h2 {
-    font-size: 1.05rem;
-    padding-bottom: 0.35rem;
-    border-bottom: 1px solid var(--line);
-  }
-  .month ul {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-  }
-  .month li {
-    display: grid;
-    grid-template-columns: 4.5rem 1fr;
-    gap: 0.8rem;
-    padding: 0.45rem 0 0.45rem 0.7rem;
-    line-height: 1.45;
-    border-left: 3px solid var(--c);
-    margin: 0.3rem 0;
-  }
-  .day {
-    color: var(--ink-3);
-    font-variant-numeric: tabular-nums;
-    font-size: 0.9rem;
-  }
-  .what b {
-    font-weight: 600;
-  }
-  .why {
-    display: block;
-    color: var(--ink-2);
-    font-size: 0.93rem;
-  }
-  .src {
-    display: block;
-    font-size: 0.85rem;
-  }
-  .src a {
-    text-decoration: none;
+@layer components {
+  .v-decisions {
+    .month h2 {
+      font-size: 1.05rem;
+      padding-bottom: 0.35rem;
+      border-bottom: 1px solid var(--line);
+    }
+    .month ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .month li {
+      display: grid;
+      grid-template-columns: 4.5rem 1fr;
+      gap: 0.8rem;
+      padding: 0.45rem 0 0.45rem 0.7rem;
+      line-height: 1.45;
+      border-left: 3px solid var(--c);
+      margin: 0.3rem 0;
+    }
+    .day {
+      color: var(--ink-3);
+      font-variant-numeric: tabular-nums;
+      font-size: 0.9rem;
+    }
+    .what b {
+      font-weight: 600;
+    }
+    .why {
+      display: block;
+      color: var(--ink-2);
+      font-size: 0.93rem;
+    }
+    .src {
+      display: block;
+      font-size: 0.85rem;
+    }
+    .src a {
+      text-decoration: none;
+    }
   }
 }

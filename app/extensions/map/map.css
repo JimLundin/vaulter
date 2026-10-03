@@ -1,241 +1,243 @@
 /* The map (MapView.tsx); interaction in src/lib/graph-view.ts. */
-.v-map {
-  /* Wider than the reading column, centred on it. */
-  .vmap {
-    position: relative;
-    width: min(calc(100vw - 32px), 72rem);
-    left: 50%;
-    transform: translateX(-50%);
-    margin: 1rem 0 0.6rem;
-  }
-  .vm-bar {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem 0.8rem;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 0.6rem;
-  }
-  .vm-areas,
-  .vm-tools {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.35rem;
-  }
-  fieldset.vm-areas {
-    border: 0;
-    padding: 0;
-    margin: 0;
-    min-width: 0;
-  }
-  .vm-chip,
-  .vm-btn {
-    font: inherit;
-    font-size: 0.85rem;
-    color: var(--ink-2);
-    background: var(--bg);
-    border: 1px solid var(--line);
-    border-radius: 999px;
-    padding: 0.2rem 0.65rem;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    line-height: 1.4;
-  }
-  .vm-chip i {
-    width: 0.7rem;
-    height: 0.7rem;
-    border-radius: 50%;
-    background: var(--c);
-  }
-  .vm-chip small {
-    color: var(--ink-3);
-    font-variant-numeric: tabular-nums;
-  }
-  .vm-chip[aria-pressed="false"] {
-    color: var(--ink-3);
-    border-style: dashed;
-  }
-  .vm-chip[aria-pressed="false"] i {
-    background: none;
-    box-shadow: inset 0 0 0 1.5px var(--c);
-  }
-  .vm-btn[aria-pressed="true"] {
-    background: var(--accent-soft);
-    color: var(--accent);
-    border-color: var(--accent);
-  }
-  .vm-chip:hover,
-  .vm-btn:hover {
-    border-color: var(--accent);
-  }
+@layer components {
+  .v-map {
+    /* Wider than the reading column, centred on it. */
+    .vmap {
+      position: relative;
+      width: min(calc(100vw - 32px), 72rem);
+      left: 50%;
+      transform: translateX(-50%);
+      margin: 1rem 0 0.6rem;
+    }
+    .vm-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem 0.8rem;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.6rem;
+    }
+    .vm-areas,
+    .vm-tools {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+    }
+    fieldset.vm-areas {
+      border: 0;
+      padding: 0;
+      margin: 0;
+      min-width: 0;
+    }
+    .vm-chip,
+    .vm-btn {
+      font: inherit;
+      font-size: 0.85rem;
+      color: var(--ink-2);
+      background: var(--bg);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 0.2rem 0.65rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      line-height: 1.4;
+    }
+    .vm-chip i {
+      width: 0.7rem;
+      height: 0.7rem;
+      border-radius: 50%;
+      background: var(--c);
+    }
+    .vm-chip small {
+      color: var(--ink-3);
+      font-variant-numeric: tabular-nums;
+    }
+    .vm-chip[aria-pressed="false"] {
+      color: var(--ink-3);
+      border-style: dashed;
+    }
+    .vm-chip[aria-pressed="false"] i {
+      background: none;
+      box-shadow: inset 0 0 0 1.5px var(--c);
+    }
+    .vm-btn[aria-pressed="true"] {
+      background: var(--accent-soft);
+      color: var(--primary);
+      border-color: var(--primary);
+    }
+    .vm-chip:hover,
+    .vm-btn:hover {
+      border-color: var(--primary);
+    }
 
-  .vm-svg {
-    display: block;
-    width: 100%;
-    height: auto;
-    max-height: min(74vh, 48rem);
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: 12px;
-    touch-action: none;
-    cursor: grab;
-    user-select: none;
-    -webkit-user-select: none;
-    --k: 1;
-  }
-  .vm-svg.drag {
-    cursor: grabbing;
-  }
-  .vm-edges line {
-    stroke: var(--ink-3);
-    stroke-width: calc(1px / var(--k));
-    stroke-opacity: 0.22;
-  }
-  .vm-edges line.rel {
-    stroke-opacity: 0.6;
-    stroke-width: calc(1.6px / var(--k));
-  }
-  .vm-svg.relonly .vm-edges line.lnk {
-    display: none;
-  }
-  .vm-n circle {
-    fill: var(--c);
-    stroke: var(--surface);
-    stroke-width: calc(2px / var(--k));
-  }
-  .vm-n.act circle {
-    stroke: var(--ink);
-    stroke-width: calc(1.6px / var(--k));
-  }
-  .vm-l {
-    font-size: calc(11.5px / var(--k));
-    fill: var(--ink);
-    text-anchor: middle;
-    paint-order: stroke;
-    display: none;
-    dominant-baseline: hanging;
-    stroke: var(--surface);
-    stroke-width: calc(3px / var(--k));
-    stroke-linejoin: round;
-    pointer-events: none;
-  }
-  .vm-l.t1 {
-    font-weight: 600;
-  }
-  .vm-l.p-t {
-    dominant-baseline: auto;
-  }
-  .vm-l.p-r {
-    text-anchor: start;
-    dominant-baseline: central;
-  }
-  .vm-l.p-l {
-    text-anchor: end;
-    dominant-baseline: central;
-  }
-  /* A label appears once zoomed far enough that it no longer overlaps (data-l on its dot, set at build). */
-  .vm-l.lab,
-  .vm-l.hov {
-    display: inline;
-  }
-  .vm-n:hover circle,
-  .vm-n:focus-visible circle {
-    stroke: var(--ink);
-  }
-  .vm-region {
-    font-size: calc(13px / var(--k));
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    fill: var(--ink-2);
-    text-anchor: middle;
-    dominant-baseline: middle;
-    paint-order: stroke;
-    stroke: var(--surface);
-    stroke-width: calc(4px / var(--k));
-    pointer-events: none;
-  }
+    .vm-svg {
+      display: block;
+      width: 100%;
+      height: auto;
+      max-height: min(74vh, 48rem);
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      touch-action: none;
+      cursor: grab;
+      user-select: none;
+      -webkit-user-select: none;
+      --k: 1;
+    }
+    .vm-svg.drag {
+      cursor: grabbing;
+    }
+    .vm-edges line {
+      stroke: var(--ink-3);
+      stroke-width: calc(1px / var(--k));
+      stroke-opacity: 0.22;
+    }
+    .vm-edges line.rel {
+      stroke-opacity: 0.6;
+      stroke-width: calc(1.6px / var(--k));
+    }
+    .vm-svg.relonly .vm-edges line.lnk {
+      display: none;
+    }
+    .vm-n circle {
+      fill: var(--c);
+      stroke: var(--surface);
+      stroke-width: calc(2px / var(--k));
+    }
+    .vm-n.act circle {
+      stroke: var(--ink);
+      stroke-width: calc(1.6px / var(--k));
+    }
+    .vm-l {
+      font-size: calc(11.5px / var(--k));
+      fill: var(--ink);
+      text-anchor: middle;
+      paint-order: stroke;
+      display: none;
+      dominant-baseline: hanging;
+      stroke: var(--surface);
+      stroke-width: calc(3px / var(--k));
+      stroke-linejoin: round;
+      pointer-events: none;
+    }
+    .vm-l.t1 {
+      font-weight: 600;
+    }
+    .vm-l.p-t {
+      dominant-baseline: auto;
+    }
+    .vm-l.p-r {
+      text-anchor: start;
+      dominant-baseline: central;
+    }
+    .vm-l.p-l {
+      text-anchor: end;
+      dominant-baseline: central;
+    }
+    /* A label appears once zoomed far enough that it no longer overlaps (data-l on its dot, set at build). */
+    .vm-l.lab,
+    .vm-l.hov {
+      display: inline;
+    }
+    .vm-n:hover circle,
+    .vm-n:focus-visible circle {
+      stroke: var(--ink);
+    }
+    .vm-region {
+      font-size: calc(13px / var(--k));
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      fill: var(--ink-2);
+      text-anchor: middle;
+      dominant-baseline: middle;
+      paint-order: stroke;
+      stroke: var(--surface);
+      stroke-width: calc(4px / var(--k));
+      pointer-events: none;
+    }
 
-  /* Hidden areas, and focus on one note's neighbourhood. */
-  .vm-n.off,
-  .vm-l.off,
-  .vm-edges line.off,
-  .vm-region.off {
-    display: none;
-  }
-  .vm-svg.focus .vm-n:not(.near) {
-    opacity: 0.14;
-  }
-  .vm-svg.focus .vm-l:not(.near):not(.hov) {
-    display: none;
-  }
-  .vm-svg.focus .vm-l.near {
-    display: inline;
-  }
-  .vm-svg.focus .vm-edges line:not(.near) {
-    stroke-opacity: 0.05;
-  }
-  .vm-svg.focus .vm-edges line.near {
-    stroke: var(--ink-2);
-    stroke-opacity: 0.85;
-  }
-  .vm-svg.focus .vm-n.sel circle {
-    stroke: var(--ink);
-    stroke-width: calc(2.5px / var(--k));
-  }
-  .vm-svg.focus .vm-region {
-    opacity: 0.3;
-  }
+    /* Hidden areas, and focus on one note's neighbourhood. */
+    .vm-n.off,
+    .vm-l.off,
+    .vm-edges line.off,
+    .vm-region.off {
+      display: none;
+    }
+    .vm-svg.focus .vm-n:not(.near) {
+      opacity: 0.14;
+    }
+    .vm-svg.focus .vm-l:not(.near):not(.hov) {
+      display: none;
+    }
+    .vm-svg.focus .vm-l.near {
+      display: inline;
+    }
+    .vm-svg.focus .vm-edges line:not(.near) {
+      stroke-opacity: 0.05;
+    }
+    .vm-svg.focus .vm-edges line.near {
+      stroke: var(--ink-2);
+      stroke-opacity: 0.85;
+    }
+    .vm-svg.focus .vm-n.sel circle {
+      stroke: var(--ink);
+      stroke-width: calc(2.5px / var(--k));
+    }
+    .vm-svg.focus .vm-region {
+      opacity: 0.3;
+    }
 
-  .vm-card {
-    margin-top: 0.6rem;
-    padding: 0.7rem 0.9rem;
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    background: var(--bg);
-    font-size: 0.92rem;
-    line-height: 1.5;
-    box-shadow: var(--shadow);
-  }
-  .vm-card b {
-    font-size: 1rem;
-  }
-  .vm-card b i {
-    display: inline-block;
-    width: 0.65rem;
-    height: 0.65rem;
-    border-radius: 50%;
-    background: var(--c);
-    margin-right: 0.45rem;
-    vertical-align: 0.05em;
-  }
-  .vm-card .m {
-    color: var(--ink-3);
-    font-size: 0.8rem;
-    margin-left: 0.4rem;
-  }
-  .vm-card p {
-    margin: 0.2rem 0 0.4rem;
-    color: var(--ink-2);
-  }
-  .vm-card .open {
-    font-weight: 600;
-    text-decoration: none;
-  }
-  .vm-card .x {
-    float: right;
-    border: 0;
-    background: none;
-    color: var(--ink-3);
-    font: inherit;
-    font-size: 1.1rem;
-    cursor: pointer;
-    padding: 0 0.2rem;
-  }
-  .vm-foot {
-    color: var(--ink-3);
-    font-size: 0.85rem;
+    .vm-card {
+      margin-top: 0.6rem;
+      padding: 0.7rem 0.9rem;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--bg);
+      font-size: 0.92rem;
+      line-height: 1.5;
+      box-shadow: var(--shadow);
+    }
+    .vm-card b {
+      font-size: 1rem;
+    }
+    .vm-card b i {
+      display: inline-block;
+      width: 0.65rem;
+      height: 0.65rem;
+      border-radius: 50%;
+      background: var(--c);
+      margin-right: 0.45rem;
+      vertical-align: 0.05em;
+    }
+    .vm-card .m {
+      color: var(--ink-3);
+      font-size: 0.8rem;
+      margin-left: 0.4rem;
+    }
+    .vm-card p {
+      margin: 0.2rem 0 0.4rem;
+      color: var(--ink-2);
+    }
+    .vm-card .open {
+      font-weight: 600;
+      text-decoration: none;
+    }
+    .vm-card .x {
+      float: right;
+      border: 0;
+      background: none;
+      color: var(--ink-3);
+      font: inherit;
+      font-size: 1.1rem;
+      cursor: pointer;
+      padding: 0 0.2rem;
+    }
+    .vm-foot {
+      color: var(--ink-3);
+      font-size: 0.85rem;
+    }
   }
 }

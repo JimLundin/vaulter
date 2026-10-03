@@ -1,126 +1,128 @@
 /* The note components' styles; every selector is prefixed, since they render inside notes. */
-.notelist span {
-  color: var(--ink-2);
-}
-.notelist a {
-  font-weight: 600;
-  text-decoration: none;
-}
-.empty {
-  color: var(--ink-3);
-  font-style: italic;
-}
+@layer components {
+  .notelist span {
+    color: var(--ink-2);
+  }
+  .notelist a {
+    font-weight: 600;
+    text-decoration: none;
+  }
+  .empty {
+    color: var(--ink-3);
+    font-style: italic;
+  }
 
-.timeline {
-  list-style: none;
-  padding: 0 0 0 1.1rem;
-  margin: 0 0 1.4rem;
-  border-left: 2px solid var(--line);
-}
-.timeline li {
-  position: relative;
-  margin: 0 0 0.9rem;
-  padding-left: 0.3rem;
-}
-.timeline li::before {
-  content: "";
-  position: absolute;
-  left: calc(-1.1rem - 6px);
-  top: 0.5rem;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--s1);
-  box-shadow: 0 0 0 3px var(--bg);
-}
-.timeline time {
-  display: block;
-  font-size: 0.8rem;
-  color: var(--ink-3);
-  font-variant-numeric: tabular-nums;
-}
+  .timeline {
+    list-style: none;
+    padding: 0 0 0 1.1rem;
+    margin: 0 0 1.4rem;
+    border-left: 2px solid var(--line);
+  }
+  .timeline li {
+    position: relative;
+    margin: 0 0 0.9rem;
+    padding-left: 0.3rem;
+  }
+  .timeline li::before {
+    content: "";
+    position: absolute;
+    left: calc(-1.1rem - 6px);
+    top: 0.5rem;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--s1);
+    box-shadow: 0 0 0 3px var(--bg);
+  }
+  .timeline time {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--ink-3);
+    font-variant-numeric: tabular-nums;
+  }
 
-.chart {
-  margin: 1.2rem 0 1.6rem;
-}
-.chart figcaption {
-  font-weight: 600;
-  font-size: 0.95rem;
-  margin-bottom: 0.3rem;
-}
-.chart figcaption span {
-  color: var(--ink-3);
-  font-weight: 400;
-}
-.chart svg {
-  width: 100%;
-  height: auto;
-  display: block;
-  overflow: visible;
-}
-.chart .grid {
-  stroke: var(--grid);
-  stroke-width: 1;
-}
-.chart .zero {
-  stroke: var(--ink-3);
-  stroke-width: 1;
-}
-.chart text {
-  fill: var(--ink-3);
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-}
-.chart .ytick {
-  text-anchor: end;
-  dominant-baseline: middle;
-}
-.chart .xtick {
-  text-anchor: middle;
-}
-.chart .dlabel {
-  fill: var(--ink-2);
-  dominant-baseline: middle;
-  font-size: 12px;
-}
-.chart .pt {
-  stroke: var(--bg);
-  stroke-width: 2;
-}
-.chart [data-tip] {
-  cursor: default;
-}
-.chart path[data-tip]:hover {
-  opacity: 0.85;
-}
-.chart .legend {
-  list-style: none;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.2rem 1rem;
-  padding: 0;
-  margin: 0 0 0.3rem;
-  font-size: 0.85rem;
-  color: var(--ink-2);
-}
-.chart .legend i {
-  display: inline-block;
-  width: 10px;
-  height: 10px;
-  border-radius: 3px;
-  margin-right: 0.4rem;
-  vertical-align: -1px;
-}
-.chart details {
-  font-size: 0.85rem;
-  color: var(--ink-2);
-  margin-top: 0.3rem;
-}
-.chart summary {
-  cursor: pointer;
-  color: var(--ink-3);
-}
-.chart .note {
-  font-size: 0.8rem;
-  color: var(--ink-3);
+  .chart {
+    margin: 1.2rem 0 1.6rem;
+  }
+  .chart figcaption {
+    font-weight: 600;
+    font-size: 0.95rem;
+    margin-bottom: 0.3rem;
+  }
+  .chart figcaption span {
+    color: var(--ink-3);
+    font-weight: 400;
+  }
+  .chart svg {
+    width: 100%;
+    height: auto;
+    display: block;
+    overflow: visible;
+  }
+  .chart .grid {
+    stroke: var(--grid);
+    stroke-width: 1;
+  }
+  .chart .zero {
+    stroke: var(--ink-3);
+    stroke-width: 1;
+  }
+  .chart text {
+    fill: var(--ink-3);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+  }
+  .chart .ytick {
+    text-anchor: end;
+    dominant-baseline: middle;
+  }
+  .chart .xtick {
+    text-anchor: middle;
+  }
+  .chart .dlabel {
+    fill: var(--ink-2);
+    dominant-baseline: middle;
+    font-size: 12px;
+  }
+  .chart .pt {
+    stroke: var(--bg);
+    stroke-width: 2;
+  }
+  .chart [data-tip] {
+    cursor: default;
+  }
+  .chart path[data-tip]:hover {
+    opacity: 0.85;
+  }
+  .chart .legend {
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.2rem 1rem;
+    padding: 0;
+    margin: 0 0 0.3rem;
+    font-size: 0.85rem;
+    color: var(--ink-2);
+  }
+  .chart .legend i {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+    margin-right: 0.4rem;
+    vertical-align: -1px;
+  }
+  .chart details {
+    font-size: 0.85rem;
+    color: var(--ink-2);
+    margin-top: 0.3rem;
+  }
+  .chart summary {
+    cursor: pointer;
+    color: var(--ink-3);
+  }
+  .chart .note {
+    font-size: 0.8rem;
+    color: var(--ink-3);
+  }
 }

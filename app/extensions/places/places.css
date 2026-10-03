@@ -1,179 +1,181 @@
 /* Places (Places.tsx); the map itself in src/lib/places-view.ts. */
-.v-places {
-  .pl-map {
-    margin: 1rem 0 1.5rem;
-  }
-  .pl-canvas {
-    height: min(70vh, 34rem);
-    border-radius: 10px;
-    border: 1px solid var(--line);
-    z-index: 0;
-  }
-  .pl-bar {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.4rem 0.8rem;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 0.5rem;
-    font-size: 0.9rem;
-  }
-  .pl-note {
-    font-size: 0.78rem;
-    color: var(--ink-3);
-    margin: 0.4rem 0 0;
-  }
-  .pl-jump {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.35rem;
-  }
-  .pl-jump button,
-  .pl-fly {
-    font: inherit;
-    font-size: 0.82rem;
-    border: 1px solid var(--line);
-    background: var(--surface);
-    color: var(--ink-2);
-    border-radius: 999px;
-    padding: 0.1rem 0.6rem;
-    cursor: pointer;
-  }
-  .pl-jump button:hover,
-  .pl-fly:hover {
-    border-color: var(--accent);
-    color: var(--accent);
-  }
-  .pl-fly {
-    font-size: 0.72rem;
-    padding: 0 0.45rem;
-    vertical-align: 0.15em;
-    margin-left: 0.3rem;
-  }
-  .pl-bar label {
-    color: var(--ink-2);
-    display: flex;
-    gap: 0.3rem;
-    align-items: center;
-  }
-  .pl-group h2 {
-    font-size: 1.1rem;
-    margin: 1.6rem 0 0.2rem;
-  }
-  .pl-group h2 a {
-    text-decoration: none;
-  }
-  .pl-sub {
-    display: block;
-    font-size: 0.86rem;
-    color: var(--ink-3);
-    margin: 0 0 0.3rem;
-  }
-  .pl-kids {
-    list-style: none;
-    padding: 0 0 0 0.9rem;
-    margin: 0.4rem 0 0;
-    border-left: 2px solid var(--line);
-  }
-  .pl-kids > li {
-    margin: 0 0 0.6rem;
-  }
-  .pl-kids > li > a {
-    font-weight: 600;
-    text-decoration: none;
-  }
-  .pl-ev {
-    list-style: none;
-    padding: 0;
-    margin: 0.2rem 0 0.4rem;
-    font-size: 0.9rem;
-  }
-  .pl-ev time {
-    display: inline-block;
-    min-width: 7rem;
-    color: var(--ink-3);
-    font-size: 0.84rem;
-    font-variant-numeric: tabular-nums;
-  }
-  .pl-days h2 {
-    font-size: 1.1rem;
-    padding-bottom: 0.35rem;
-    border-bottom: 1px solid var(--line);
-  }
-  .pl-days ul {
-    list-style: none;
-    padding: 0;
-  }
-  .pl-days li {
-    display: grid;
-    grid-template-columns: 7.5rem 1fr;
-    gap: 0.8rem;
-    margin: 0.15rem 0;
-  }
-  .pl-days .d {
-    color: var(--ink-3);
-    font-size: 0.9rem;
-    font-variant-numeric: tabular-nums;
-  }
-  .pl-days a {
-    text-decoration: none;
-  }
-  /* Leaflet in the vault's palette. */
-  .leaflet-container {
-    font: inherit;
-    background: var(--surface);
-  }
-  .leaflet-popup-content-wrapper,
-  .leaflet-popup-tip {
-    background: var(--bg);
-    color: var(--ink);
-    box-shadow: var(--shadow);
-  }
-  .leaflet-popup-content {
-    margin: 0.7rem 0.9rem;
-    font-size: 0.9rem;
-    line-height: 1.45;
-  }
-  .pl-pop .pl-t {
-    font-weight: 700;
-    text-decoration: none;
-  }
-  .pl-pop p {
-    margin: 0.25rem 0;
-    color: var(--ink-2);
-  }
-  .pl-pop .pl-a,
-  .pl-pop .pl-n {
-    color: var(--ink-3);
-    font-size: 0.82rem;
-  }
-  .pl-pop ul {
-    list-style: none;
-    padding: 0;
-    margin: 0.3rem 0 0;
-    font-size: 0.84rem;
-  }
-  .pl-pop li span {
-    color: var(--ink-3);
-  }
-  .leaflet-control-attribution {
-    font-size: 0.68rem;
-  }
-  .leaflet-bar a {
-    background: var(--bg);
-    color: var(--ink);
-    border-bottom-color: var(--line);
-  }
-  .leaflet-control-attribution {
-    background: color-mix(in srgb, var(--bg) 80%, transparent) !important;
-    color: var(--ink-3);
-  }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) & .pl-canvas .leaflet-tile-pane {
+@layer components {
+  .v-places {
+    .pl-map {
+      margin: 1rem 0 1.5rem;
+    }
+    .pl-canvas {
+      height: min(70vh, 34rem);
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      z-index: 0;
+    }
+    .pl-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem 0.8rem;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.5rem;
+      font-size: 0.9rem;
+    }
+    .pl-note {
+      font-size: 0.78rem;
+      color: var(--ink-3);
+      margin: 0.4rem 0 0;
+    }
+    .pl-jump {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+    }
+    .pl-jump button,
+    .pl-fly {
+      font: inherit;
+      font-size: 0.82rem;
+      border: 1px solid var(--line);
+      background: var(--surface);
+      color: var(--ink-2);
+      border-radius: 999px;
+      padding: 0.1rem 0.6rem;
+      cursor: pointer;
+    }
+    .pl-jump button:hover,
+    .pl-fly:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+    .pl-fly {
+      font-size: 0.72rem;
+      padding: 0 0.45rem;
+      vertical-align: 0.15em;
+      margin-left: 0.3rem;
+    }
+    .pl-bar label {
+      color: var(--ink-2);
+      display: flex;
+      gap: 0.3rem;
+      align-items: center;
+    }
+    .pl-group h2 {
+      font-size: 1.1rem;
+      margin: 1.6rem 0 0.2rem;
+    }
+    .pl-group h2 a {
+      text-decoration: none;
+    }
+    .pl-sub {
+      display: block;
+      font-size: 0.86rem;
+      color: var(--ink-3);
+      margin: 0 0 0.3rem;
+    }
+    .pl-kids {
+      list-style: none;
+      padding: 0 0 0 0.9rem;
+      margin: 0.4rem 0 0;
+      border-left: 2px solid var(--line);
+    }
+    .pl-kids > li {
+      margin: 0 0 0.6rem;
+    }
+    .pl-kids > li > a {
+      font-weight: 600;
+      text-decoration: none;
+    }
+    .pl-ev {
+      list-style: none;
+      padding: 0;
+      margin: 0.2rem 0 0.4rem;
+      font-size: 0.9rem;
+    }
+    .pl-ev time {
+      display: inline-block;
+      min-width: 7rem;
+      color: var(--ink-3);
+      font-size: 0.84rem;
+      font-variant-numeric: tabular-nums;
+    }
+    .pl-days h2 {
+      font-size: 1.1rem;
+      padding-bottom: 0.35rem;
+      border-bottom: 1px solid var(--line);
+    }
+    .pl-days ul {
+      list-style: none;
+      padding: 0;
+    }
+    .pl-days li {
+      display: grid;
+      grid-template-columns: 7.5rem 1fr;
+      gap: 0.8rem;
+      margin: 0.15rem 0;
+    }
+    .pl-days .d {
+      color: var(--ink-3);
+      font-size: 0.9rem;
+      font-variant-numeric: tabular-nums;
+    }
+    .pl-days a {
+      text-decoration: none;
+    }
+    /* Leaflet in the vault's palette. */
+    .leaflet-container {
+      font: inherit;
+      background: var(--surface);
+    }
+    .leaflet-popup-content-wrapper,
+    .leaflet-popup-tip {
+      background: var(--bg);
+      color: var(--ink);
+      box-shadow: var(--shadow);
+    }
+    .leaflet-popup-content {
+      margin: 0.7rem 0.9rem;
+      font-size: 0.9rem;
+      line-height: 1.45;
+    }
+    .pl-pop .pl-t {
+      font-weight: 700;
+      text-decoration: none;
+    }
+    .pl-pop p {
+      margin: 0.25rem 0;
+      color: var(--ink-2);
+    }
+    .pl-pop .pl-a,
+    .pl-pop .pl-n {
+      color: var(--ink-3);
+      font-size: 0.82rem;
+    }
+    .pl-pop ul {
+      list-style: none;
+      padding: 0;
+      margin: 0.3rem 0 0;
+      font-size: 0.84rem;
+    }
+    .pl-pop li span {
+      color: var(--ink-3);
+    }
+    .leaflet-control-attribution {
+      font-size: 0.68rem;
+    }
+    .leaflet-bar a {
+      background: var(--bg);
+      color: var(--ink);
+      border-bottom-color: var(--line);
+    }
+    .leaflet-control-attribution {
+      background: color-mix(in srgb, var(--bg) 80%, transparent) !important;
+      color: var(--ink-3);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) & .pl-canvas .leaflet-tile-pane {
+        filter: invert(1) hue-rotate(180deg) brightness(0.9) contrast(0.9);
+      }
+    }
+    :root[data-theme="dark"] & .pl-canvas .leaflet-tile-pane {
       filter: invert(1) hue-rotate(180deg) brightness(0.9) contrast(0.9);
     }
-  }
-  :root[data-theme="dark"] & .pl-canvas .leaflet-tile-pane {
-    filter: invert(1) hue-rotate(180deg) brightness(0.9) contrast(0.9);
   }
 }

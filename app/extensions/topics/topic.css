@@ -1,51 +1,53 @@
 /* A topic (Topic.tsx). */
-.v-topic {
-  h1 {
-    text-transform: capitalize;
-  }
-  .related {
-    font-size: 0.92rem;
-    color: var(--ink-3);
-  }
-  .related a {
-    text-decoration: none;
-  }
-  .tgroup h2 {
-    font-size: 1.05rem;
-  }
-  .tgroup h2 span {
-    color: var(--ink-3);
-    font-weight: 400;
-    margin-left: 0.3rem;
-  }
-  .notelist {
-    list-style: none;
-    padding: 0;
-  }
-  .notelist li {
-    margin: 0 0 0.6rem;
-    line-height: 1.5;
-  }
-  .notelist a {
-    font-weight: 600;
-    text-decoration: none;
-  }
-  .notelist span {
-    color: var(--ink-2);
-    font-size: 0.94rem;
-  }
-  .st {
-    font-style: normal;
-    font-size: 0.75rem;
-    margin-left: 0.4rem;
-    padding: 0 0.4rem;
-    border: 1px solid var(--line);
-    border-radius: 999px;
-    color: var(--ink-3);
-  }
-  .st-active {
-    color: var(--s3);
-    border-color: currentColor;
-    font-weight: 600;
+@layer components {
+  .v-topic {
+    h1 {
+      text-transform: capitalize;
+    }
+    .related {
+      font-size: 0.92rem;
+      color: var(--ink-3);
+    }
+    .related a {
+      text-decoration: none;
+    }
+    .tgroup h2 {
+      font-size: 1.05rem;
+    }
+    .tgroup h2 span {
+      color: var(--ink-3);
+      font-weight: 400;
+      margin-left: 0.3rem;
+    }
+    .notelist {
+      list-style: none;
+      padding: 0;
+    }
+    .notelist li {
+      margin: 0 0 0.6rem;
+      line-height: 1.5;
+    }
+    .notelist a {
+      font-weight: 600;
+      text-decoration: none;
+    }
+    .notelist span {
+      color: var(--ink-2);
+      font-size: 0.94rem;
+    }
+    .st {
+      font-style: normal;
+      font-size: 0.75rem;
+      margin-left: 0.4rem;
+      padding: 0 0.4rem;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--ink-3);
+    }
+    .st-active {
+      color: var(--s3);
+      border-color: currentColor;
+      font-weight: 600;
+    }
   }
 }

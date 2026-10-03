@@ -19,7 +19,8 @@
     "erasableSyntaxOnly": true,
     "resolveJsonModule": true,
     "skipLibCheck": true,
-    "types": ["node", "vite/client"]
+    "types": ["node", "vite/client"],
+    "paths": { "@/*": ["./app/*"] }
   },
   "include": ["app", "core", "tools", "vite.config.ts"]
 }
