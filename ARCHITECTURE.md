@@ -31,7 +31,7 @@ in `app/extensions/index.ts`. The shell renders what it contributes:
 | `homeSections` | sections of Home, by `order` | home |
 | `search(v)` | entries for search and link previews | notes, topics |
 | `mdx` | components notes may use (allowed by `meta/schema.yaml`) | notes |
-| `tools(ctx)` | agent tools, loaded with the agent | agent, editor (`renameNote`), audit (`audit`) |
+| `tools(ctx)` | agent tools, loaded with the agent | agent, editor (`renameNote`), audit (`audit`), code (the app's own source) |
 
 A feature's own derived data is computed once per vault with `perVault` (`core/derive.ts`); a slow one is
 registered in `core/heavy.ts`, computed in the worker, kept per tree, and read with `useHeavy(key)`.
@@ -66,6 +66,17 @@ the audit, the map and every view read it at runtime (`schemaOf(files)`, `useSch
 mechanics (frontmatter fields, filename and tag patterns, rule logic). Changing a label or adding an area is
 an edit to the vault, not the app.
 
+## The app changes itself
+
+The agent can change this repo as it does the vault (`app/extensions/code/`): list, read and search the
+source, stage whole files, and commit them to `main` as one commit, never by force (rebuilt on `main` when
+it moved, a conflict when the same file did). There are no pull requests: `main` is the gate's input, and
+`.github/workflows/deploy.yml` deploys a push only after lint, the type check and the tests pass, so a
+broken change stays on `main` until a fix, never on devices. `codeStatus` reads a commit's CI runs (the
+public API, no token) with the failures' annotations, and `version.json` the commit that is live. The
+agent changes the app only when Jim asks or agrees (the vault's conventions, §16), and its commits carry
+`Committed-From: vault app`. Jim gets a new version on the next reload.
+
 ## Two repos
 
 `JimLundin/vaulter` (public, this repo) holds the app's source and serves it from GitHub Pages;
@@ -73,7 +84,8 @@ an edit to the vault, not the app.
 
 | Where | What |
 |---|---|
-| Runtime | the app reads and writes the vault through the GitHub API (`VITE_VAULT_REPO`, default `JimLundin/vault@main`), with the sealed token, a fine-grained PAT for `vault` only |
+| Runtime | the app reads and writes the vault through the GitHub API (`VITE_VAULT_REPO`, default `JimLundin/vault@main`), with the sealed token, a fine-grained PAT for `vault` and `vaulter` only |
+| Self-change | the agent reads, changes and commits this repo (`app/extensions/code/`, `VITE_APP_REPO`, default `JimLundin/vaulter@main`); the push deploys only if lint, the type check and the tests pass |
 | The vault's CI | `vault`'s check workflow checks out this repo's `main` and runs `tools/check.ts --vault .` |
 | Shell sessions | this repo cloned next to the vault (`../vaulter`); the audit and set-ext run from the vault root |
 

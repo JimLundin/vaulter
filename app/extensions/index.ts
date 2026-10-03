@@ -11,6 +11,7 @@ import { similar } from './similar/index.tsx';
 import { editor } from './editor/index.tsx';
 import { agent } from './agent/index.tsx';
 import { audit } from './audit/index.tsx';
+import { code } from './code/index.tsx';
 import { notes } from './notes/index.tsx';
 
 export const EXTENSIONS: Extension[] = [
@@ -24,5 +25,6 @@ export const EXTENSIONS: Extension[] = [
   editor,
   agent,
   audit,
+  code,
   notes,
 ];

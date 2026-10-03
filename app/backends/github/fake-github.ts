@@ -65,7 +65,7 @@ export async function fakeGitHub(files: Record<string, string>) {
     );
 
   const fetchFn = (async (url: string, init: RequestInit = {}) => {
-    const path = url.replace('https://gh.test/repos/JimLundin/vault', '');
+    const path = url.replace(/^https:\/\/gh\.test\/repos\/[^/]+\/[^/]+/, '');
     const method = init.method ?? 'GET';
     const body = init.body ? JSON.parse(String(init.body)) : null;
     state.calls.push(`${method} ${path}`);

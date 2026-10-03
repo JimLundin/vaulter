@@ -43,9 +43,11 @@ export interface Extension {
   tools?: (ctx: AgentContext) => ToolSet | Promise<ToolSet>;
 }
 
-/** What agent tools work with: the writer (always current), the app's search and the backend's history (Host.since). */
+/** What agent tools work with: the writer (always current), the app's search, the backend's history
+ * (Host.since) and the GitHub token, for tools that reach beyond the vault (the app's own source). */
 export interface AgentContext {
   w: AgentWriter;
   search: (query: string) => Hit[];
   since?: VaultBackend['since'];
+  github?: string;
 }

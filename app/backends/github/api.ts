@@ -16,6 +16,8 @@ const parseRepo = (s: string): Repo => {
   return { owner, name, branch };
 };
 export const REPO = parseRepo(import.meta.env?.VITE_VAULT_REPO || 'JimLundin/vault@main');
+/** The app's own source, which the agent can change: VITE_APP_REPO at build time. */
+export const APP_REPO = parseRepo(import.meta.env?.VITE_APP_REPO || 'JimLundin/vaulter@main');
 /** A file of the vault on GitHub, for "view source". */
 export const sourceUrl = (path: string, r = REPO) =>
   `https://github.com/${r.owner}/${r.name}/blob/${r.branch}/${encodeURI(path)}`;

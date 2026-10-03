@@ -50,7 +50,8 @@ The design, its rules and how to add a feature: `ARCHITECTURE.md`. In short:
 - `app/backends/` — GitHub (`github/`: the REST client, sync through the encrypted cache, commits through
   the Git Data API), a picked folder (`folder.ts`, Chromium only), memory (`memory.ts`, for tests).
 - `app/extensions/` — every feature, listed in `extensions/index.ts`: notes, home, topics, calendar,
-  decisions, map, similar, places, editor (edit, rename, changes, history), audit, agent.
+  decisions, map, similar, places, editor (edit, rename, changes, history), audit, agent, code (the
+  agent's tools over this repo, so the app can change itself).
 - `tools/` — the only Node: `check.ts` (CI), `seal-secrets.ts` (publishing), `audit.ts` and
   `set-ext.ts` (command-line sessions), over `core/`.
 
@@ -75,7 +76,7 @@ What the seal needs, in this repo's settings:
 | | Kind | What |
 |---|---|---|
 | `VAULT_PASSWORD` | secret | the app's password (12+ characters; long and random is best: the sealed file is public) |
-| `VAULT_GITHUB_TOKEN` | secret | a fine-grained PAT for `vault` only (Contents read/write, Metadata read), with an expiry |
+| `VAULT_GITHUB_TOKEN` | secret | a fine-grained PAT for `vault` and `vaulter` only (Contents read/write, Metadata read), with an expiry; `vaulter` is for the agent changing the app (`app/extensions/code/`) |
 | `VAULT_OPENAI_KEY` | secret | optional: the agent's key, from a project with a spend limit |
 | `VAULT_SALT` | variable | 16 random bytes, base64 (`openssl rand -base64 16`); set once |
 | `VAULT_OPENAI_API` | variable | optional: the agent's OpenAI-compatible endpoint (an API proxy); empty means api.openai.com |

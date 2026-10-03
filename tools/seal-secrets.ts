@@ -2,7 +2,7 @@
 // Runs in CI (.github/workflows/deploy.yml), from the repo's secrets; nothing is committed.
 //   VAULT_PASSWORD      the app's password (at least 12 characters)
 //   VAULT_SALT          base64, fixed: keeps remembered devices signed in across publishes; change it to sign them out
-//   VAULT_GITHUB_TOKEN  fine-grained, vault only, Contents read/write and Metadata read
+//   VAULT_GITHUB_TOKEN  fine-grained, vault and vaulter only, Contents read/write and Metadata read
 //   VAULT_OPENAI_KEY    optional
 // Usage: node tools/seal-secrets.ts dist/secrets.json
 import { writeFileSync } from 'node:fs';

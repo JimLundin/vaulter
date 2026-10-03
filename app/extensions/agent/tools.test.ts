@@ -8,6 +8,11 @@ import { SCHEMA } from '../../../core/schema.fixture.ts';
 import { notes } from '../notes/index.tsx';
 import { editor } from '../editor/index.tsx';
 import { runAgent } from './tools.ts';
+import { code } from '../code/index.tsx';
+import { codeRepo } from '../code/repo.ts';
+import { codeTools } from '../code/tools.ts';
+import { fakeGitHub } from '../../backends/github/fake-github.ts';
+import { github } from '../../backends/github/api.ts';
 import type { AgentContext } from '../../core/extension.ts';
 
 const NOTE = (title: string, extra = '') =>
@@ -169,4 +174,60 @@ test('renameNote, from the editor, stages the move and the links that follow it'
   expect(beta).toContain('[Alpha](</Alpha Centauri.md#see-also>)');
   expect(beta).toContain('related-to: [Alpha Centauri]');
   expect(out[2]).toContain('"problems":[]');
+});
+
+test("the agent changes the app's own source: reads it, stages, and commits once to its main", async () => {
+  const { ctx } = await writer();
+  const app = { owner: 'JimLundin', name: 'vaulter', branch: 'main' };
+  const f = await fakeGitHub({ 'app/extensions/index.ts': 'export const EXTENSIONS = [];\n' });
+  const repo = codeRepo(github('tok', app, 'https://gh.test', f.fetchFn), app, 'https://gh.test');
+  const model = new MockLanguageModelV4({
+    doStream: [
+      toolStep(['listCode', { prefix: 'app/' }], ['readCode', { path: 'app/extensions/index.ts' }]),
+      toolStep(
+        [
+          'writeCode',
+          { path: 'app/extensions/reading/index.tsx', text: 'export const reading = {};\n' },
+        ],
+        [
+          'writeCode',
+          { path: 'app/extensions/index.ts', text: 'export const EXTENSIONS = [reading];\n' },
+        ],
+      ),
+      toolStep(['commitCode', { message: 'a reading list' }]),
+      textStep('Added the reading list; it deploys once the tests pass.'),
+    ],
+  });
+  const run = runAgent(
+    model,
+    ctx,
+    [{ role: 'user', content: 'add a reading list' }],
+    codeTools('tok', repo),
+  );
+  const seen: string[] = [];
+  for await (const p of run.stream)
+    if (p.type === 'tool-result') seen.push(`${p.toolName}: ${JSON.stringify(p.output)}`);
+  await run.done;
+  expect(seen[0]).toBe('listCode: {"files":["app/extensions/index.ts"]}');
+  expect(seen.find((s) => s.startsWith('commitCode:'))).toContain(f.state.main);
+  expect(f.filesAt()).toEqual({
+    'app/extensions/index.ts': 'export const EXTENSIONS = [reading];\n',
+    'app/extensions/reading/index.tsx': 'export const reading = {};\n',
+  });
+  // The vault was not touched.
+  expect(ctx.w.staged()).toEqual([]);
+});
+
+test('the code tools come only with a GitHub token', async () => {
+  const { ctx } = await writer();
+  expect(await code.tools!(ctx)).toEqual({});
+  expect(Object.keys(await code.tools!({ ...ctx, github: 'tok' }))).toEqual([
+    'listCode',
+    'readCode',
+    'searchCode',
+    'writeCode',
+    'deleteCode',
+    'commitCode',
+    'codeStatus',
+  ]);
 });

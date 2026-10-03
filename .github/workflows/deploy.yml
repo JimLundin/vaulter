@@ -52,6 +52,7 @@ jobs:
         run: |
           node tools/seal-secrets.ts dist/secrets.json
           printf 'User-agent: *\nDisallow: /\n' > dist/robots.txt
+          printf '{"commit":"%s"}\n' "$GITHUB_SHA" > dist/version.json
       - uses: actions/upload-pages-artifact@v4
         with: { path: dist }
       - id: deploy
