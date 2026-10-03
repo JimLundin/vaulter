@@ -18,14 +18,14 @@ export function Timeline({ items = [], order = 'asc' }: Props) {
     (a, b) => (order === 'asc' ? 1 : -1) * String(a.date).localeCompare(String(b.date)),
   );
   return (
-    <ol class="timeline">
+    <ol className="timeline">
       {sorted.map((it) => (
         <li key={`${it.date}|${it.text}`}>
           <time>{it.date}</time>
           <div>
             {it.href && isSafeUrl(it.href) ? (
               <a
-                class="vault-link"
+                className="vault-link"
                 href={it.href.startsWith('/') ? link(siteHref(it.href)) : it.href}
               >
                 {it.text}

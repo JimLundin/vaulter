@@ -1,6 +1,6 @@
 // A note: its type, facets and tags, the body, and below it what every extension adds (NoteSections);
 // the footer links to the source and to each extension's actions on it.
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useState } from 'react';
 import type { Note } from '../../../core/note-fields.ts';
 import { asList, hrefOf, kind, topicHref } from '../../../core/note-fields.ts';
 import { dateStr } from '../../../core/format.ts';
@@ -16,7 +16,7 @@ export function NoteBody({ note }: { note: Note }) {
   useEffect(() => {
     if (note.ext === 'mdx' && !mdxReady()) later(loadMdx().then(() => setMdx(true)));
   }, [note.ext]);
-  return <article class="note">{renderBody(note, mdx)}</article>;
+  return <article className="note">{renderBody(note, mdx)}</article>;
 }
 
 export function NotePage({ note }: { note: Note }) {
@@ -28,20 +28,20 @@ export function NotePage({ note }: { note: Note }) {
   const upd = v.updated.get(note.id) ?? '';
   const open = asList(d.open);
   return (
-    <div class="v-note">
+    <div className="v-note">
       {!!(type || tags.length > 0 || created) && (
-        <div class="meta">
-          {!!type && <span class="chip">{type}</span>}
+        <div className="meta">
+          {!!type && <span className="chip">{type}</span>}
           {tags
             .filter((t) => /^(area|status|circle)\//.test(t))
             .map((t) => t.split('/'))
             .map(([f, val]) =>
               f === 'status' ? (
-                <span key={val} class={`facet f-${f} v-${val}`}>
+                <span key={val} className={`facet f-${f} v-${val}`}>
                   {val.replace('-', ' ')}
                 </span>
               ) : (
-                <a key={val} class={`facet f-${f} v-${val}`} href={link(topicHref(val))}>
+                <a key={val} className={`facet f-${f} v-${val}`} href={link(topicHref(val))}>
                   {val.replace('-', ' ')}
                 </a>
               ),
@@ -49,24 +49,24 @@ export function NotePage({ note }: { note: Note }) {
           {tags
             .filter((t) => !/^(area|status|circle)\//.test(t))
             .map((t) => (
-              <a key={t} class="tag" href={link(topicHref(t))}>
+              <a key={t} className="tag" href={link(topicHref(t))}>
                 #{t}
               </a>
             ))}
-          {!!created && <span class="date">{created}</span>}
-          {!!upd && upd !== created && <span class="date">updated {upd}</span>}
+          {!!created && <span className="date">{created}</span>}
+          {!!upd && upd !== created && <span className="date">updated {upd}</span>}
           {open.length > 0 && (
-            <a class="openq" href={link(`${hrefOf(note)}#open-questions`)}>
+            <a className="openq" href={link(`${hrefOf(note)}#open-questions`)}>
               {open.length} open {open.length === 1 ? 'question' : 'questions'}
             </a>
           )}
         </div>
       )}
       <NoteBody note={note} />
-      <div class="sects">
+      <div className="sects">
         <NoteSections note={note} />
       </div>
-      <footer class="src">
+      <footer className="src">
         {source ? <a href={source(note.path)}>{note.path}</a> : note.path}
         <NoteActions note={note} />
       </footer>

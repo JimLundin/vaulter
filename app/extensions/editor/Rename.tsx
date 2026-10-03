@@ -1,6 +1,6 @@
 // Rename a note, or switch it between .md and .mdx: stages the move and every file whose links or
 // frontmatter follow it (core/rename.ts), to review in Changes and commit as one step.
-import { useMemo, useState } from 'preact/hooks';
+import { useMemo, useState } from 'react';
 import { renameNote } from '../../../core/rename.ts';
 import { applyOverlay } from '../../core/writer.ts';
 import { useWriter } from '../../core/host.tsx';
@@ -28,13 +28,13 @@ export function Rename({ path }: { path: string }) {
   };
   const others = plan.changes.filter((c) => c.path !== path && c.path !== to);
   return (
-    <div class="v-edit v-rename">
-      <div class="meta">
-        <span class="chip">rename</span>
+    <div className="v-edit v-rename">
+      <div className="meta">
+        <span className="chip">rename</span>
         <code>{path}</code>
       </div>
-      <div class="bar">
-        <input value={name} spellcheck={false} onInput={(e) => setName(e.currentTarget.value)} />
+      <div className="bar">
+        <input value={name} spellCheck={false} onChange={(e) => setName(e.currentTarget.value)} />
         {!path.includes('/') && (
           <label>
             <input
@@ -47,7 +47,7 @@ export function Rename({ path }: { path: string }) {
         )}
       </div>
       {plan.error ? (
-        <p class="app-error">{plan.error}</p>
+        <p className="app-error">{plan.error}</p>
       ) : (
         plan.changes.length > 0 && (
           <>
@@ -69,12 +69,12 @@ export function Rename({ path }: { path: string }) {
           </>
         )
       )}
-      <div class="bar">
-        <button type="button" class="primary" onClick={stage} disabled={!plan.changes.length}>
+      <div className="bar">
+        <button type="button" className="primary" onClick={stage} disabled={!plan.changes.length}>
           Stage
         </button>
         <a href={link('/changes/')}>Changes</a>
-        <span class="hint">
+        <span className="hint">
           A rename is structural: its own <code>vault:</code> commit (conventions §16).
         </span>
       </div>

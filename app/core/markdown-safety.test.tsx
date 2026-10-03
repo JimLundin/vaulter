@@ -1,7 +1,7 @@
 // The renderer refuses code on its own, for a note that never went through the check.
 // biome-ignore-all lint/security/noSecrets: the strings are hostile markup to render, not secrets
 import { beforeAll, expect, test } from 'vitest';
-import { render } from 'preact-render-to-string';
+import { renderToStaticMarkup as render } from 'react-dom/server';
 import { renderBody, loadMdx } from './markdown.ts';
 import { notes } from '../extensions/notes/index.tsx';
 
@@ -17,7 +17,7 @@ test.each([
   ['export const a = (globalThis.pwned = 1)'],
   ['<Chart x={[globalThis]} />'],
 ])('%s renders an error and runs nothing', (body) => {
-  expect(html(body)).toContain("doesn't render");
+  expect(html(body)).toContain('doesn&#x27;t render'); // React escapes the apostrophe
   expect((globalThis as any).pwned).toBeUndefined();
 });
 

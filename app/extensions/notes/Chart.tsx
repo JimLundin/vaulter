@@ -91,7 +91,7 @@ export function Chart({ kind = 'line', title = '', unit = '', x = [], series: al
     `${series.length > 1 ? `${s.name} · ` : ''}${x[i]}: ${withUnit(v)}`;
 
   return (
-    <figure class="chart">
+    <figure className="chart">
       {title ? (
         <figcaption>
           {title}
@@ -99,10 +99,10 @@ export function Chart({ kind = 'line', title = '', unit = '', x = [], series: al
         </figcaption>
       ) : null}
       {series.length > 1 && (
-        <ul class="legend">
+        <ul className="legend">
           {series.map((s, i) => (
             <li key={s.name}>
-              <i style={`background:${color(i)}`} />
+              <i style={{ background: color(i) }} />
               {s.name}
             </li>
           ))}
@@ -111,8 +111,14 @@ export function Chart({ kind = 'line', title = '', unit = '', x = [], series: al
       <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={title || 'Chart'}>
         {ticks.map((t) => (
           <g key={t}>
-            <line x1={m.l} x2={W - m.r} y1={yAt(t)} y2={yAt(t)} class={t === 0 ? 'zero' : 'grid'} />
-            <text x={m.l - 8} y={yAt(t)} class="ytick">
+            <line
+              x1={m.l}
+              x2={W - m.r}
+              y1={yAt(t)}
+              y2={yAt(t)}
+              className={t === 0 ? 'zero' : 'grid'}
+            />
+            <text x={m.l - 8} y={yAt(t)} className="ytick">
               {fmt(t)}
             </text>
           </g>
@@ -121,7 +127,7 @@ export function Chart({ kind = 'line', title = '', unit = '', x = [], series: al
           (lab, i) =>
             i % every === 0 && (
               // biome-ignore lint/suspicious/noArrayIndexKey: a chart is static and positional: index i is category x[i]
-              <text key={i} x={xAt(i)} y={H - 10} class="xtick">
+              <text key={i} x={xAt(i)} y={H - 10} className="xtick">
                 {lab}
               </text>
             ),
@@ -150,16 +156,16 @@ export function Chart({ kind = 'line', title = '', unit = '', x = [], series: al
                 d={linePath(s)}
                 fill="none"
                 stroke={color(si)}
-                stroke-width="2"
-                stroke-linejoin="round"
-                stroke-linecap="round"
+                strokeWidth="2"
+                strokeLinejoin="round"
+                strokeLinecap="round"
               />
               {s.values.map(
                 (v, i) =>
                   typeof v === 'number' && (
                     // biome-ignore lint/suspicious/noArrayIndexKey: a chart is static and positional: index i is category x[i]
                     <g key={i}>
-                      <circle cx={xAt(i)} cy={yAt(v)} r="4" fill={color(si)} class="pt" />
+                      <circle cx={xAt(i)} cy={yAt(v)} r="4" fill={color(si)} className="pt" />
                       <circle
                         cx={xAt(i)}
                         cy={yAt(v)}
@@ -174,7 +180,7 @@ export function Chart({ kind = 'line', title = '', unit = '', x = [], series: al
                 <text
                   x={xAt(lastIdx(s)) + 10}
                   y={yAt(s.values[lastIdx(s)] as number)}
-                  class="dlabel"
+                  className="dlabel"
                 >
                   {s.name}
                 </text>
@@ -209,7 +215,7 @@ export function Chart({ kind = 'line', title = '', unit = '', x = [], series: al
         </table>
       </details>
       {all.length > MAX && (
-        <p class="note">
+        <p className="note">
           Showing the first {MAX} of {all.length} series; split the rest into another chart.
         </p>
       )}

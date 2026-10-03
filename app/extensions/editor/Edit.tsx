@@ -1,5 +1,5 @@
 // Edit a file as text, frontmatter and all, and stage it; or start a new note at a path.
-import { useState } from 'preact/hooks';
+import { useState } from 'react';
 import { hrefForId } from '../../../core/paths.ts';
 import { isVaultPath } from '../../../core/vault.ts';
 import { today } from '../../../core/format.ts';
@@ -26,7 +26,7 @@ export function Edit({ path }: { path: string }) {
   const href = hrefForId(path.replace(/\.mdx?$/, ''));
   if (!isVaultPath(path))
     return (
-      <p class="app-error">
+      <p className="app-error">
         {path} isn't a vault file: notes are at the root (.md or .mdx), or daily/, captures/, meta/
         (.md), and meta/schema.yaml.
       </p>
@@ -43,17 +43,17 @@ export function Edit({ path }: { path: string }) {
     }
   };
   return (
-    <div class="v-edit">
-      <div class="meta">
-        <span class="chip">{original === undefined ? 'new' : 'edit'}</span>
+    <div className="v-edit">
+      <div className="meta">
+        <span className="chip">{original === undefined ? 'new' : 'edit'}</span>
         <code>{path}</code>
         {staged !== undefined && <span>staged</span>}
       </div>
-      <textarea value={text} spellcheck={true} onInput={(e) => setText(e.currentTarget.value)} />
-      <div class="bar">
+      <textarea value={text} spellCheck={true} onChange={(e) => setText(e.currentTarget.value)} />
+      <div className="bar">
         <button
           type="button"
-          class="primary"
+          className="primary"
           onClick={save}
           disabled={text === (staged ?? original)}
         >
@@ -61,11 +61,11 @@ export function Edit({ path }: { path: string }) {
         </button>
         <a href={link(original === undefined && staged === undefined ? '/' : href)}>Cancel</a>
         {original !== undefined && (
-          <button type="button" class="danger" onClick={remove}>
+          <button type="button" className="danger" onClick={remove}>
             Delete file
           </button>
         )}
-        <span class="hint">
+        <span className="hint">
           Staged edits show at once; commit them in <a href={link('/changes/')}>Changes</a>.
         </span>
       </div>

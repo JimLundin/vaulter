@@ -1,8 +1,9 @@
 // Where things happen (conventions §3, "Places"): every place note with `geo` on a street map, how many
 // days Jim was there (daily notes' `where`), what happened there (`dates` entries' `where`), his trail,
 // and the same as a list grouped by place. Leaflet loads with this view; tiles come from OpenStreetMap.
-import { Fragment } from 'preact';
-import { useEffect, useMemo, useRef } from 'preact/hooks';
+// biome-ignore lint/correctness/noUnresolvedImports: Fragment is in @types/react's namespace, which Biome doesn't follow
+import { Fragment } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import type { Vault } from '../../../core/derive.ts';
 import { titleOf, excerptOf, hrefOf, kind, facet, asList } from '../../../core/note-fields.ts';
 import { datesOf } from '../../../core/facts.ts';
@@ -104,7 +105,7 @@ export function Places() {
   };
   const events = (ev: PlaceEvent[]) =>
     ev.length > 0 && (
-      <ul class="pl-ev">
+      <ul className="pl-ev">
         {ev.map((e) => (
           <li key={`${e.d}|${e.h}|${e.w}`}>
             <time>{fmtDay(e.d)}</time>
@@ -116,20 +117,20 @@ export function Places() {
   const sub = (p: Place) => [p.a, daysLabel(p)].filter(Boolean).join(' · ');
 
   return (
-    <div class="v-places">
-      <div class="meta">
-        <span class="chip">places</span>
+    <div className="v-places">
+      <div className="meta">
+        <span className="chip">places</span>
       </div>
       <h1>Places</h1>
-      <p class="lede">
+      <p className="lede">
         {data.places.length} places, {data.trail.length} days with a known whereabouts. Dots are
         sized by days spent and events there; tap one for what happened. Record places with{' '}
         <code>geo</code> on a place note and <code>where</code> on days and dates.
       </p>
 
-      <div class="pl-map" ref={box}>
-        <div class="pl-bar">
-          <span class="pl-jump">
+      <div className="pl-map" ref={box}>
+        <div className="pl-bar">
+          <span className="pl-jump">
             {top.map(({ p }) => (
               <button key={p.id} type="button" data-fly={p.id}>
                 {p.t}
@@ -137,33 +138,33 @@ export function Places() {
             ))}
           </span>
           <label>
-            <input type="checkbox" class="pl-trail" checked={true} /> Trail
+            <input type="checkbox" className="pl-trail" defaultChecked={true} /> Trail
           </label>
         </div>
-        <div class="pl-canvas" />
-        <p class="pl-note">Map images are loaded from OpenStreetMap as you pan.</p>
+        <div className="pl-canvas" />
+        <p className="pl-note">Map images are loaded from OpenStreetMap as you pan.</p>
       </div>
 
-      <section class="pl-list">
+      <section className="pl-list">
         {top.map(({ p, kids }) => (
-          <div key={p.id} class="pl-group">
+          <div key={p.id} className="pl-group">
             <h2>
               <a href={link(p.h)}>{p.t}</a>{' '}
-              <button type="button" class="pl-fly" data-fly={p.id}>
+              <button type="button" className="pl-fly" data-fly={p.id}>
                 show on map
               </button>
             </h2>
-            {!!sub(p) && <p class="pl-sub">{sub(p)}</p>}
+            {!!sub(p) && <p className="pl-sub">{sub(p)}</p>}
             {events(p.ev)}
             {kids.length > 0 && (
-              <ul class="pl-kids">
+              <ul className="pl-kids">
                 {kids.map((k) => (
                   <li key={k.id}>
                     <a href={link(k.h)}>{k.t}</a>{' '}
-                    <button type="button" class="pl-fly" data-fly={k.id}>
+                    <button type="button" className="pl-fly" data-fly={k.id}>
                       map
                     </button>
-                    {!!sub(k) && <span class="pl-sub">{sub(k)}</span>}
+                    {!!sub(k) && <span className="pl-sub">{sub(k)}</span>}
                     {events(k.ev)}
                   </li>
                 ))}
@@ -174,12 +175,12 @@ export function Places() {
       </section>
 
       {recent.length > 0 && (
-        <section class="pl-days">
+        <section className="pl-days">
           <h2>Recent days</h2>
           <ul>
             {recent.map(([d, ps]) => (
               <li key={d}>
-                <a class="d" href={link(`/daily/${d}/`)}>
+                <a className="d" href={link(`/daily/${d}/`)}>
                   {fmtDay(d)}
                 </a>
                 <span>

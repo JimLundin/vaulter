@@ -1,6 +1,13 @@
 // The top bar: home, the extensions' links, the sync state, and search ("/" focuses it; arrows, Enter
 // and Escape work in it).
-import { useEffect, useId, useMemo, useRef, useState } from 'preact/hooks';
+import {
+  type KeyboardEvent as ReactKeyboardEvent,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { search, type Entry } from '../../core/search.ts';
 import { useHost, navOf } from './host.tsx';
 import { link } from './route.ts';
@@ -59,7 +66,7 @@ export function TopBar({
     setQ('');
     input.current?.blur();
   };
-  const onKey = (e: KeyboardEvent) => {
+  const onKey = (e: ReactKeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       e.preventDefault();
       if (hits.length) setSel((sel + (e.key === 'ArrowDown' ? 1 : -1) + hits.length) % hits.length);
@@ -71,14 +78,14 @@ export function TopBar({
   };
 
   return (
-    <header class="top">
-      <a class="brand" href={link('/')}>
+    <header className="top">
+      <a className="brand" href={link('/')}>
         Vault
       </a>
       {navOf(host).map((n) => {
         const badge = n.badge?.(host);
         return badge === 0 ? null : (
-          <a key={n.href} class={`navl${badge ? ' staged' : ''}`} href={link(n.href)}>
+          <a key={n.href} className={`navl${badge ? ' staged' : ''}`} href={link(n.href)}>
             {n.label}
             {badge ? (
               <>
@@ -90,26 +97,26 @@ export function TopBar({
         );
       })}
       <span
-        class={`sync s-${status.kind}`}
+        className={`sync s-${status.kind}`}
         title={status.kind === 'error' ? status.message : undefined}
       >
         {label(status)}
       </span>
       {!!signOut && (
-        <button type="button" class="navl signout" onClick={signOut}>
+        <button type="button" className="navl signout" onClick={signOut}>
           Sign out
         </button>
       )}
-      <div class="search">
+      <div className="search">
         <input
           ref={input}
           id={id}
           type="search"
           placeholder="Find a note or topic…"
-          autocomplete="off"
+          autoComplete="off"
           aria-label="Find a note or topic"
           value={q}
-          onInput={(e) => {
+          onChange={(e) => {
             setQ(e.currentTarget.value);
             setSel(0);
             setOpen(true);
@@ -125,7 +132,7 @@ export function TopBar({
                 <li key={h.entry.href}>
                   <a
                     href={link(h.entry.href)}
-                    class={`${i === sel ? 'on ' : ''}${h.entry.k === 'topic' ? 'topic' : ''}`}
+                    className={`${i === sel ? 'on ' : ''}${h.entry.k === 'topic' ? 'topic' : ''}`}
                     onClick={() => go(h.entry.href)}
                   >
                     {h.entry.k === 'topic' ? (
@@ -142,7 +149,7 @@ export function TopBar({
               ))
             ) : (
               <li>
-                <span class="none">No match</span>
+                <span className="none">No match</span>
               </li>
             )}
           </ul>

@@ -24,13 +24,13 @@ export function NoteList({ type, tag, sort = 'title', excerpt = true }: Props) {
     );
   if (!hits.length)
     return (
-      <p class="empty">
+      <p className="empty">
         No notes match{type ? ` type “${type}”` : ''}
         {tag ? ` tag “${tag}”` : ''}.
       </p>
     );
   return (
-    <ul class="notelist">
+    <ul className="notelist">
       {hits.map((n) => (
         <li key={n.id}>
           <a href={link(hrefOf(n))}>{titleOf(n)}</a>

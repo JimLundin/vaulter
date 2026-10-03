@@ -1,8 +1,9 @@
 // What every view can reach: the vault (and its schema), the writer, the secrets and the extensions, plus
 // the slots where extensions render (note sections, note actions, home sections). The shell (App.tsx) provides it.
-import { createContext, Fragment } from 'preact';
-import { useContext } from 'preact/hooks';
-import type { ComponentType } from 'preact';
+// biome-ignore lint/correctness/noUnresolvedImports: Fragment is in @types/react's namespace, which Biome doesn't follow
+import { createContext, Fragment } from 'react';
+import { useContext } from 'react';
+import type { ComponentType } from 'react';
 import type { Vault } from '../../core/derive.ts';
 import type { Note } from '../../core/note-fields.ts';
 import type { Secrets } from '../../core/sealed.ts';
@@ -97,7 +98,7 @@ export function pageFor(path: string, host: Host): Page {
   return {
     title: 'Not found',
     body: (
-      <p class="lede">
+      <p className="lede">
         Nothing at <code>{path}</code>. <a href={link('/')}>Home</a>
       </p>
     ),

@@ -1,9 +1,10 @@
 // Code blocks, highlighted once Shiki has loaded (the first page with a fenced block loads it, with
 // only that block's language). Plain text until then, or for a language it doesn't know.
-import { useEffect, useState } from 'preact/hooks';
-import type { ComponentChildren, VNode } from 'preact';
+import { useEffect, useState } from 'react';
+import type { ReactElement, ReactNode } from 'react';
 import { toJsxRuntime } from 'hast-util-to-jsx-runtime';
-import { Fragment, jsx, jsxs } from 'preact/jsx-runtime';
+// biome-ignore lint/correctness/noUnresolvedImports: Fragment is in @types/react's namespace, which Biome doesn't follow
+import { Fragment, jsx, jsxs } from 'react/jsx-runtime';
 import type { HighlighterCore } from 'shiki/core';
 
 const LANGS: Record<string, () => Promise<any>> = {
@@ -34,17 +35,17 @@ async function highlight(code: string, lang: string) {
     Fragment,
     jsx: jsx as any,
     jsxs: jsxs as any,
-    elementAttributeNameCase: 'html',
-    stylePropertyNameCase: 'css',
+    elementAttributeNameCase: 'react',
+    stylePropertyNameCase: 'dom',
   });
 }
 
 /** Replaces <pre> in rendered notes. */
-export function Pre({ children, ...props }: { children?: ComponentChildren }) {
-  const code = children as VNode<{ class?: string; children?: unknown }> | undefined;
-  const lang = /language-(\S+)/.exec(String(code?.props?.class ?? ''))?.[1] ?? '';
+export function Pre({ children, ...props }: { children?: ReactNode }) {
+  const code = children as ReactElement<{ className?: string; children?: unknown }> | undefined;
+  const lang = /language-(\S+)/.exec(String(code?.props?.className ?? ''))?.[1] ?? '';
   const text = typeof code?.props?.children === 'string' ? code.props.children : '';
-  const [out, setOut] = useState<ComponentChildren>(null);
+  const [out, setOut] = useState<ReactNode>(null);
   useEffect(() => {
     setOut(null);
     if (!(text && LANGS[lang])) return;

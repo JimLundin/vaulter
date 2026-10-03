@@ -1,6 +1,6 @@
 // The shell: the session's vault and its schema (meta/schema.yaml), derived; the worker's results; the
 // writer; and the page the route points at, from whichever extension claims it, under the top bar.
-import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { deriveVault } from '../../core/derive.ts';
 import { schemaOf, NO_SCHEMA } from '../../core/schema.ts';
 import { loadNotes } from '../../core/vault.ts';
@@ -111,11 +111,11 @@ export function App() {
         {page ? (
           page.body
         ) : schema instanceof Error ? (
-          <p class="app-error">{schema.message}</p>
+          <p className="app-error">{schema.message}</p>
         ) : status.kind === 'error' ? (
-          <p class="app-error">{status.message}</p>
+          <p className="app-error">{status.message}</p>
         ) : (
-          <p class="app-loading">
+          <p className="app-loading">
             {status.kind === 'syncing' ? 'Fetching the vault…' : 'Opening the vault…'}
           </p>
         )}

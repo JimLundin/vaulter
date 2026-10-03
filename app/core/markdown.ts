@@ -1,4 +1,4 @@
-// A note's body -> Preact elements: GFM, smart quotes, vault links, heading ids. In .mdx, the components
+// A note's body -> React elements: GFM, smart quotes, vault links, heading ids. In .mdx, the components
 // allowed by mdx-rules.ts, with literal props resolved without eval. Raw HTML and unsafe URLs are
 // dropped. Links become app routes (link() in route.ts), and in-page anchors stay on the note's route.
 // A body that breaks the rules renders as an error, never as code.
@@ -12,8 +12,9 @@ import GithubSlugger from 'github-slugger';
 import { toString as textOf } from 'hast-util-to-string';
 import { visit } from 'unist-util-visit';
 import { toJsxRuntime } from 'hast-util-to-jsx-runtime';
-import { Fragment, jsx, jsxs } from 'preact/jsx-runtime';
-import type { ComponentChild, ComponentType } from 'preact';
+// biome-ignore lint/correctness/noUnresolvedImports: Fragment is in @types/react's namespace, which Biome doesn't follow
+import { Fragment, jsx, jsxs } from 'react/jsx-runtime';
+import type { ComponentType, ReactNode } from 'react';
 import { remarkVaultLinks } from '../../core/remark-vault-links.ts';
 import { literal, isComment } from '../../core/mdx-literal.ts';
 import { remove } from 'unist-util-remove';
@@ -97,7 +98,7 @@ const evaluater = (components: Record<string, unknown>) => () => ({
 export function renderBody(
   note: Pick<Note, 'id' | 'path' | 'ext' | 'body'>,
   components: Record<string, ComponentType<any>> = {},
-): ComponentChild {
+): ReactNode {
   const proc = note.ext === 'mdx' ? processors.mdx : processors.md;
   if (!proc) return null;
   try {
@@ -108,13 +109,13 @@ export function renderBody(
       jsx: jsx as any,
       jsxs: jsxs as any,
       components: { ...components, pre: Pre } as any,
-      elementAttributeNameCase: 'html',
+      elementAttributeNameCase: 'react',
       stylePropertyNameCase: 'dom',
       createEvaluater: evaluater(components),
     });
   } catch (e) {
     return jsx('p', {
-      class: 'render-error',
+      className: 'render-error',
       children: `${note.path} doesn't render: ${(e as Error).message}`,
     });
   }

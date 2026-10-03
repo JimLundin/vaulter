@@ -15,7 +15,7 @@ function Similar({ note }: { note: Note }) {
       : [];
   if (!alike.length) return null;
   return (
-    <section class="sect backlinks">
+    <section className="sect backlinks">
       <h2>Similar, not yet linked</h2>
       <ul>
         {alike.map((n) => (

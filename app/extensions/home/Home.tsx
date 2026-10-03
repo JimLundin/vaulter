@@ -8,7 +8,8 @@ import { dateStr, dayMonth, longDay, shortDay, today } from '../../../core/forma
 import { computeBrief } from '../../../core/brief.ts';
 import { useSchema, useVault } from '../../core/host.tsx';
 import { link } from '../../core/route.ts';
-import { Fragment } from 'preact';
+// biome-ignore lint/correctness/noUnresolvedImports: Fragment is in @types/react's namespace, which Biome doesn't follow
+import { Fragment } from 'react';
 import { to } from '../notes/sections.tsx';
 
 /** What every section sorts and groups by, once per vault. */
@@ -54,11 +55,11 @@ const byType = (
 };
 
 const Inline = ({ notes }: { notes: Note[] }) => (
-  <ul class="inline">
+  <ul className="inline">
     {notes.map((n) => {
       const s = facet(n, 'status');
       return (
-        <li key={n.id} class={s ? `s-${s}` : ''}>
+        <li key={n.id} className={s ? `s-${s}` : ''}>
           <a href={to(n)}>{titleOf(n)}</a>
           {s && s !== 'active' && <small>{s}</small>}
         </li>
@@ -74,36 +75,36 @@ export function Today() {
   const ev = (x: (typeof b.on)[number]) => (
     <>
       {x.what}
-      {!!x.end && <span class="b-end"> until {shortDay(x.end)}</span>} ·{' '}
+      {!!x.end && <span className="b-end"> until {shortDay(x.end)}</span>} ·{' '}
       {a(x.note, titleOf(x.note))}
     </>
   );
   return (
-    <section class="brief">
+    <section className="brief">
       <h2>
         Today{' '}
-        <a class="hub" href={link('/calendar/')}>
+        <a className="hub" href={link('/calendar/')}>
           Calendar →
         </a>
       </h2>
-      <div class="brief-body">
-        <p class="b-day">{longDay(b.today)}</p>
+      <div className="brief-body">
+        <p className="b-day">{longDay(b.today)}</p>
         {b.on.length ? (
-          <ul class="b-today">
+          <ul className="b-today">
             {b.on.map((x) => (
               <li key={`${x.note.id}|${x.date}|${x.what}`}>{ev(x)}</li>
             ))}
           </ul>
         ) : (
-          <p class="b-quiet">Nothing on the calendar today.</p>
+          <p className="b-quiet">Nothing on the calendar today.</p>
         )}
         {b.soon.length > 0 && (
           <>
             <h3>This week</h3>
-            <ul class="b-list">
+            <ul className="b-list">
               {b.soon.map((x) => (
                 <li key={`${x.note.id}|${x.date}|${x.what}`}>
-                  <span class="b-when">{shortDay(x.date)}</span>
+                  <span className="b-when">{shortDay(x.date)}</span>
                   <span>{ev(x)}</span>
                 </li>
               ))}
@@ -113,10 +114,10 @@ export function Today() {
         {b.fus.length > 0 && (
           <>
             <h3>Follow-ups</h3>
-            <ul class="b-list">
+            <ul className="b-list">
               {b.fus.map((f) => (
-                <li key={`${f.note.id}|${f.by}|${f.what}`} class={f.due ? 'b-due' : ''}>
-                  <span class="b-when">
+                <li key={`${f.note.id}|${f.by}|${f.what}`} className={f.due ? 'b-due' : ''}>
+                  <span className="b-when">
                     {f.late
                       ? 'overdue'
                       : f.due
@@ -142,7 +143,7 @@ export function Today() {
         {b.question ? (
           <>
             <h3>A question</h3>
-            <p class="b-q">
+            <p className="b-q">
               {b.question.q} · {a(b.question.note, titleOf(b.question.note))}
             </p>
           </>
@@ -150,7 +151,7 @@ export function Today() {
         {b.back.length > 0 && (
           <>
             <h3>Looking back</h3>
-            <ul class="b-back">
+            <ul className="b-back">
               {b.back.map((x) => (
                 <li key={x.label}>
                   <b>{x.label}</b>, {a(x.note, shortDay(x.note.id.slice(6)))}: {x.text}
@@ -171,16 +172,16 @@ export function InFocus() {
   return (
     <section>
       <h2>
-        In focus <span class="n">{active.length}</span>
+        In focus <span className="n">{active.length}</span>
       </h2>
-      <ul class="cards">
+      <ul className="cards">
         {active.slice(0, 6).map((n) => (
           <li key={n.id}>
             <a href={to(n)}>
               <b>{titleOf(n)}</b>
-              <span class="ex">{excerptOf(n, 130)}</span>
-              <span class="foot">
-                <span class="area">{areaOf.get(facet(n, 'area'))?.label ?? ''}</span>
+              <span className="ex">{excerptOf(n, 130)}</span>
+              <span className="foot">
+                <span className="area">{areaOf.get(facet(n, 'area'))?.label ?? ''}</span>
                 {seen(n) && <span>last logged {dayMonth(seen(n))}</span>}
               </span>
             </a>
@@ -188,7 +189,7 @@ export function InFocus() {
         ))}
       </ul>
       {active.length > 6 && (
-        <p class="also">
+        <p className="also">
           <span>Also active</span>
           {active.slice(6).map((n, i) => (
             <Fragment key={n.id}>
@@ -215,7 +216,7 @@ export function Recent() {
   return (
     <section>
       <h2>Recently touched</h2>
-      <ul class="pills">
+      <ul className="pills">
         {recent.map((n) => (
           <li key={n.id}>
             <a href={to(n)}>{titleOf(n)}</a>
@@ -239,14 +240,14 @@ export function Areas() {
         return (
           <section key={a.key} id={`area-${a.key}`}>
             <h2>
-              {a.label} <span class="n">{list.length}</span>
+              {a.label} <span className="n">{list.length}</span>
               {hub ? (
-                <a class="hub" href={to(hub)}>
+                <a className="hub" href={to(hub)}>
                   {titleOf(hub)} hub →
                 </a>
               ) : null}
             </h2>
-            <dl class="groups">
+            <dl className="groups">
               {byType(
                 v.schema,
                 list.filter((n) => n !== hub),
@@ -276,9 +277,9 @@ export function People() {
     // biome-ignore lint/correctness/useUniqueElementIds: a stable fragment target (#people), rendered once; useId would break it
     <section id="people">
       <h2>
-        People <span class="n">{people.length}</span>
+        People <span className="n">{people.length}</span>
       </h2>
-      <dl class="groups">
+      <dl className="groups">
         {circles.map((c) => {
           const list = people.filter((n) => facet(n, 'circle') === c.key).sort(byWeight);
           return (
@@ -306,7 +307,7 @@ export function Untagged() {
   return (
     <section>
       <h2>
-        Not yet tagged <span class="n">{list.length}</span>
+        Not yet tagged <span className="n">{list.length}</span>
       </h2>
       <Inline notes={list} />
     </section>
@@ -327,15 +328,15 @@ export function AllOpenQuestions() {
     );
   if (!withOpen.length) return null;
   return (
-    <section class="log">
+    <section className="log">
       <details>
         <summary>
           Open questions{' '}
-          <span class="n">
+          <span className="n">
             {withOpen.reduce((s, x) => s + x.q.length, 0)} across {withOpen.length} notes
           </span>
         </summary>
-        <dl class="oq">
+        <dl className="oq">
           {withOpen.map(({ n, q }) => (
             <div key={n.id}>
               <dt>
@@ -361,15 +362,15 @@ export function DailyLog() {
   if (!dailies.length) return null;
   const entries = (n: Note) => (n.body.match(/^\s*[-*] /gm) ?? []).length;
   return (
-    <section class="log">
+    <section className="log">
       <details>
         <summary>
           Daily log{' '}
-          <span class="n">
+          <span className="n">
             {dailies.length} days · latest {dayMonth(dailies[0].id.slice(6))}
           </span>
         </summary>
-        <ul class="days">
+        <ul className="days">
           {dailies.map((n) => (
             <li key={n.id}>
               <a href={to(n)}>{n.id.slice(6)}</a>

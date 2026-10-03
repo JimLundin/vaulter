@@ -1,7 +1,7 @@
 // The agent (app/agent.ts): Jim talks, it reads, stages and commits, following meta/conventions.md.
 // The model and the SDK load with this view. The conversation lives in memory for the session, outside
 // the view, so it survives moving around the app and a running turn keeps going meanwhile.
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useState } from 'react';
 import type { ModelMessage, ToolSet } from 'ai';
 import type { AgentContext } from '../../core/extension.ts';
 import { search } from '../../../core/search.ts';
@@ -101,9 +101,9 @@ export function Agent() {
 
   if (!secrets?.openai)
     return (
-      <div class="v-agent">
+      <div className="v-agent">
         <h1>Agent</h1>
-        <p class="lede">
+        <p className="lede">
           {secrets
             ? 'No OpenAI key is sealed: set the VAULT_OPENAI_KEY repo secret and run the publish workflow.'
             : 'The agent runs in the published app, with the sealed OpenAI key; in dev there is none.'}
@@ -112,9 +112,9 @@ export function Agent() {
     );
   if (!w.commit)
     return (
-      <div class="v-agent">
+      <div className="v-agent">
         <h1>Agent</h1>
-        <p class="lede">Committing isn't available here.</p>
+        <p className="lede">Committing isn't available here.</p>
       </div>
     );
 
@@ -230,11 +230,11 @@ export function Agent() {
   };
 
   return (
-    <div class="v-agent">
+    <div className="v-agent">
       <h1>Agent</h1>
-      <div class="turns">
+      <div className="turns">
         {turns.length === 0 && (
-          <p class="lede">
+          <p className="lede">
             Tell it what to file ("vault it: …"), ask what the vault knows, or say "sign-off". It
             follows meta/conventions.md and commits on its own; everything it commits is in{' '}
             <a href={link('/history/')}>History</a>, with a revert.
@@ -242,16 +242,16 @@ export function Agent() {
         )}
         {turns.map((t, i) => (
           // biome-ignore lint/suspicious/noArrayIndexKey: turns only append; a turn is its place in the conversation
-          <div key={i} class={`turn ${t.role}`}>
+          <div key={i} className={`turn ${t.role}`}>
             {t.parts.map((p, j) =>
               p.kind === 'text' ? (
                 // biome-ignore lint/suspicious/noArrayIndexKey: parts only append; a part is its place in the turn
-                <div key={j} class="text">
+                <div key={j} className="text">
                   {p.text}
                 </div>
               ) : (
                 // biome-ignore lint/suspicious/noArrayIndexKey: parts only append; a part is its place in the turn
-                <div key={j} class={`tool${p.error ? ' err' : ''}`}>
+                <div key={j} className={`tool${p.error ? ' err' : ''}`}>
                   <b>{p.name}</b>
                   {!!p.input && (
                     <>
@@ -268,12 +268,12 @@ export function Agent() {
                 </div>
               ),
             )}
-            {!!t.error && <p class="app-error">{t.error}</p>}
+            {!!t.error && <p className="app-error">{t.error}</p>}
           </div>
         ))}
       </div>
       <form
-        class="ask"
+        className="ask"
         onSubmit={(e) => {
           e.preventDefault();
           later(send());
@@ -284,7 +284,7 @@ export function Agent() {
           rows={3}
           placeholder="vault it: …"
           disabled={busy}
-          onInput={(e) => setInput(e.currentTarget.value)}
+          onChange={(e) => setInput(e.currentTarget.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
               e.preventDefault();
@@ -292,13 +292,13 @@ export function Agent() {
             }
           }}
         />
-        <div class="bar">
+        <div className="bar">
           {busy ? (
             <button type="button" onClick={() => chat.abort?.abort()}>
               Stop
             </button>
           ) : (
-            <button type="submit" class="primary" disabled={!input.trim()}>
+            <button type="submit" className="primary" disabled={!input.trim()}>
               Send
             </button>
           )}
@@ -306,13 +306,11 @@ export function Agent() {
             Model{' '}
             <input
               value={model}
-              onChange={(e) => {
-                setModel(e.currentTarget.value);
-                localStorage.setItem(MODEL_KEY, e.currentTarget.value);
-              }}
+              onChange={(e) => setModel(e.currentTarget.value)}
+              onBlur={(e) => localStorage.setItem(MODEL_KEY, e.currentTarget.value)}
             />
           </label>
-          <span class="hint">⌘/Ctrl+Enter sends</span>
+          <span className="hint">⌘/Ctrl+Enter sends</span>
         </div>
       </form>
     </div>

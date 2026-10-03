@@ -1,6 +1,7 @@
 // Staged edits: each file's diff, what the check says about them, and the commit.
-import { Fragment } from 'preact';
-import { useEffect, useState } from 'preact/hooks';
+// biome-ignore lint/correctness/noUnresolvedImports: Fragment is in @types/react's namespace, which Biome doesn't follow
+import { Fragment } from 'react';
+import { useEffect, useState } from 'react';
 import { structuredPatch } from 'diff';
 import { hrefForId } from '../../../core/paths.ts';
 import { applyOverlay, newProblems } from '../../core/writer.ts';
@@ -13,15 +14,15 @@ import { later } from '../../core/later.ts';
 function Diff({ before, after }: { before: string; after: string }) {
   const p = structuredPatch('a', 'b', before, after, '', '', { context: 2 });
   return (
-    <pre class="diff">
+    <pre className="diff">
       {p.hunks.map((h) => (
         <Fragment key={`${h.oldStart},${h.newStart}`}>
-          <span class="hunk">
+          <span className="hunk">
             @@ -{h.oldStart},{h.oldLines} +{h.newStart},{h.newLines} @@\n
           </span>
           {h.lines.map((l, i) => (
             // biome-ignore lint/suspicious/noArrayIndexKey: a diff line is its position in the hunk; the same text can recur
-            <span key={i} class={l[0] === '+' ? 'add' : l[0] === '-' ? 'del' : ''}>
+            <span key={i} className={l[0] === '+' ? 'add' : l[0] === '-' ? 'del' : ''}>
               {l}
               \n
             </span>
@@ -70,34 +71,34 @@ export function Changes() {
 
   if (!staged.length)
     return (
-      <div class="v-changes">
+      <div className="v-changes">
         <h1>Changes</h1>
         {state.done ? (
-          <p class="lede">
+          <p className="lede">
             Committed <code>{state.done.slice(0, 7)}</code>. See{' '}
             <a href={link('/history/')}>History</a>.
           </p>
         ) : (
-          <p class="lede">Nothing staged. Edit a note from its page.</p>
+          <p className="lede">Nothing staged. Edit a note from its page.</p>
         )}
       </div>
     );
   return (
-    <div class="v-changes">
+    <div className="v-changes">
       <h1>
-        Changes <span class="n">{staged.length}</span>
+        Changes <span className="n">{staged.length}</span>
       </h1>
       {staged.map(([path, text]) => {
         const before = w.base.find((f) => f.path === path)?.text ?? '';
         return (
-          <section key={path} class="file">
+          <section key={path} className="file">
             <h2>
               <a href={link(hrefForId(path.replace(/\.mdx?$/, '')))}>{path}</a>
               <small>{text === null ? 'deleted' : before ? 'edited' : 'new'}</small>
-              <a class="act" href={link(`/edit/${encodeURIComponent(path)}/`)}>
+              <a className="act" href={link(`/edit/${encodeURIComponent(path)}/`)}>
                 edit
               </a>
-              <button type="button" class="act" onClick={() => w.unstage(path)}>
+              <button type="button" className="act" onClick={() => w.unstage(path)}>
                 unstage
               </button>
             </h2>
@@ -105,23 +106,23 @@ export function Changes() {
           </section>
         );
       })}
-      <section class="commit">
+      <section className="commit">
         {problems === null ? (
-          <p class="hint">Checking…</p>
+          <p className="hint">Checking…</p>
         ) : problems.length ? (
           <>
-            <p class="app-error">
+            <p className="app-error">
               The check finds {problems.length} new {problems.length === 1 ? 'problem' : 'problems'}
               :
             </p>
-            <ul class="problems">
+            <ul className="problems">
               {problems.map((p) => (
                 <li key={p}>{p}</li>
               ))}
             </ul>
           </>
         ) : (
-          <p class="ok">The check passes.</p>
+          <p className="ok">The check passes.</p>
         )}
         {w.commit ? (
           <>
@@ -129,12 +130,12 @@ export function Changes() {
               type="text"
               placeholder="Commit message"
               value={message}
-              onInput={(e) => setMessage(e.currentTarget.value)}
+              onChange={(e) => setMessage(e.currentTarget.value)}
             />
-            <div class="bar">
+            <div className="bar">
               <button
                 type="button"
-                class="primary"
+                className="primary"
                 disabled={state.busy || problems === null || problems.length > 0}
                 onClick={commit}
               >
@@ -142,7 +143,7 @@ export function Changes() {
               </button>
               <button
                 type="button"
-                class="danger"
+                className="danger"
                 onClick={() => confirm('Discard every staged edit?') && w.discard()}
               >
                 Discard all
@@ -150,9 +151,9 @@ export function Changes() {
             </div>
           </>
         ) : (
-          <p class="hint">In dev the files are the working tree: commit with git.</p>
+          <p className="hint">In dev the files are the working tree: commit with git.</p>
         )}
-        {!!state.error && <p class="app-error">{state.error}</p>}
+        {!!state.error && <p className="app-error">{state.error}</p>}
       </section>
     </div>
   );

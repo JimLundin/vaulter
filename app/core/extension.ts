@@ -1,7 +1,7 @@
 // What a feature adds to the app. Every feature, from the note page to the agent, is an Extension listed in
 // extensions/index.ts; the shell only renders what they contribute. A new feature is a folder there and a
 // line in that list; nothing else changes. Contribution points exist because a feature uses each one.
-import type { ComponentChild, ComponentType } from 'preact';
+import type { ComponentType, ReactNode } from 'react';
 import type { ToolSet } from 'ai';
 import type { Vault } from '../../core/derive.ts';
 import type { Note } from '../../core/note-fields.ts';
@@ -13,7 +13,7 @@ import type { Secrets } from '../../core/sealed.ts';
 
 export interface Page {
   title: string;
-  body: ComponentChild;
+  body: ReactNode;
 }
 
 export interface Extension {

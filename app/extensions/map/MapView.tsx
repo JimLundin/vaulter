@@ -1,7 +1,8 @@
 // The vault as a map: every topical note a dot coloured by area and sized by connections, links and
 // relations as edges (layout: core/vault-map.ts). app/legacy/graph-view.ts adds filters, pan/zoom and focus.
-import { Fragment } from 'preact';
-import { useEffect, useRef } from 'preact/hooks';
+// biome-ignore lint/correctness/noUnresolvedImports: Fragment is in @types/react's namespace, which Biome doesn't follow
+import { Fragment } from 'react';
+import { useEffect, useRef } from 'react';
 import type { VaultMap } from '../../../core/vault-map.ts';
 import { topicHref } from '../../../core/note-fields.ts';
 import { initMap } from './graph-view.ts';
@@ -15,9 +16,9 @@ export function MapView() {
   const map = useHeavy('map');
   if (!map)
     return (
-      <div class="v-map">
+      <div className="v-map">
         <h1>Map</h1>
-        <p class="lede">Laying out the map…</p>
+        <p className="lede">Laying out the map…</p>
       </div>
     );
   return <MapSvg map={map} />;
@@ -74,23 +75,23 @@ function MapSvg({ map }: { map: VaultMap }) {
     `${n.title}${n.area ? ` · ${areaOf.get(n.area)?.label}` : ''}${n.type ? ` · ${n.type}` : ''}\n${n.summary}`;
 
   return (
-    <div class="v-map">
-      <div class="meta">
-        <span class="chip">map</span>
+    <div className="v-map">
+      <div className="meta">
+        <span className="chip">map</span>
       </div>
       <h1>Map</h1>
-      <p class="lede">
+      <p className="lede">
         {nodes.length} notes and {edges.length} connections, {relCount} of them typed relations.
         Coloured by area; bigger dots are more connected. Tap a dot to see its neighbourhood.
       </p>
-      <div class="vmap" ref={box}>
-        <div class="vm-bar">
-          <fieldset class="vm-areas" aria-label="Areas">
+      <div className="vmap" ref={box}>
+        <div className="vm-bar">
+          <fieldset className="vm-areas" aria-label="Areas">
             {areas.map(({ key, label }) => (
               <button
                 key={key}
                 type="button"
-                class={`vm-chip a-${key}`}
+                className={`vm-chip a-${key}`}
                 data-area={key}
                 aria-pressed="true"
               >
@@ -100,42 +101,42 @@ function MapSvg({ map }: { map: VaultMap }) {
               </button>
             ))}
           </fieldset>
-          <div class="vm-tools">
+          <div className="vm-tools">
             <button
               type="button"
-              class="vm-btn"
+              className="vm-btn"
               data-edges={true}
               aria-pressed="false"
               title="Show only typed relations"
             >
               Relations only
             </button>
-            <button type="button" class="vm-btn" data-zoom="1" aria-label="Zoom in">
+            <button type="button" className="vm-btn" data-zoom="1" aria-label="Zoom in">
               +
             </button>
-            <button type="button" class="vm-btn" data-zoom="-1" aria-label="Zoom out">
+            <button type="button" className="vm-btn" data-zoom="-1" aria-label="Zoom out">
               &minus;
             </button>
-            <button type="button" class="vm-btn" data-zoom="0" aria-label="Reset view">
+            <button type="button" className="vm-btn" data-zoom="0" aria-label="Reset view">
               Reset
             </button>
           </div>
         </div>
         <svg
-          class="vm-svg"
+          className="vm-svg"
           viewBox={`0 0 ${width} ${height}`}
           role="img"
           aria-label={`Map of ${nodes.length} notes coloured by area`}
           data-w={width}
           data-h={height}
-          style={`aspect-ratio: ${width} / ${height}`}
+          style={{ aspectRatio: `${width} / ${height}` }}
         >
-          <g class="vm-vp">
-            <g class="vm-edges">
+          <g className="vm-vp">
+            <g className="vm-edges">
               {edges.map((e) => (
                 <line
                   key={`${e.a}-${e.b}`}
-                  class={e.rel.length ? 'rel' : 'lnk'}
+                  className={e.rel.length ? 'rel' : 'lnk'}
                   data-a={e.a}
                   data-b={e.b}
                   {...seg(e)}
@@ -146,12 +147,12 @@ function MapSvg({ map }: { map: VaultMap }) {
                 </line>
               ))}
             </g>
-            <g class="vm-nodes">
+            <g className="vm-nodes">
               {nodes.map((n) => (
                 <a
                   key={n.i}
                   href={link(n.href)}
-                  class={`vm-n a-${n.area || 'none'}${n.status === 'active' ? ' act' : ''}`}
+                  className={`vm-n a-${n.area || 'none'}${n.status === 'active' ? ' act' : ''}`}
                   data-i={n.i}
                   data-area={n.area}
                   data-l={n.labelAt}
@@ -163,16 +164,16 @@ function MapSvg({ map }: { map: VaultMap }) {
             </g>
             {/* Labels sit above every dot; each mirrors its dot's state classes (graph-view.ts). */}
             {/* biome-ignore lint/a11y/noAriaHiddenOnFocusable: labels repeat each dot's title; nothing here takes focus */}
-            <g class="vm-labels" aria-hidden="true">
+            <g className="vm-labels" aria-hidden="true">
               {regions.map((r) => (
-                <text key={r.key} class={`vm-region a-${r.key}`} x={r.x} y={r.y}>
+                <text key={r.key} className={`vm-region a-${r.key}`} x={r.x} y={r.y}>
                   {r.label}
                 </text>
               ))}
               {nodes.map((n) => (
                 <text
                   key={n.i}
-                  class={`vm-l p-${n.labelPos} t${n.tier}${n.labelAt <= 1 ? ' lab' : ''}`}
+                  className={`vm-l p-${n.labelPos} t${n.tier}${n.labelAt <= 1 ? ' lab' : ''}`}
                   data-i={n.i}
                   {...place(n)}
                 >
@@ -182,9 +183,9 @@ function MapSvg({ map }: { map: VaultMap }) {
             </g>
           </g>
         </svg>
-        <div class="vm-card" hidden={true} aria-live="polite" />
+        <div className="vm-card" hidden={true} aria-live="polite" />
       </div>
-      <p class="vm-foot">
+      <p className="vm-foot">
         Solid lines are typed relations (<code>relations</code> in a note's frontmatter); faint
         lines are links in the text. Rings mark notes that are active now. As lists:
         {areas.map(({ key, label }, k) => (

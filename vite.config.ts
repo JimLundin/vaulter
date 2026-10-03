@@ -1,14 +1,14 @@
 /// <reference types="vitest/config" />
 // The browser app (app/) and the tests for it and for the shared vault code (core/).
 import { defineConfig, type Plugin } from 'vite';
-import preact from '@preact/preset-vite';
+import react from '@vitejs/plugin-react';
 import { fileURLToPath } from 'node:url';
 
 const SITE = fileURLToPath(new URL('.', import.meta.url));
 
 // The built page's Content Security Policy: script only from the app itself (no eval, no inline), network
 // only to GitHub, OpenAI, Jina (the agent's web tools: they fetch pages, the browser never does), the map
-// tiles, and for a capture's metadata OpenStreetMap's geocoder (an address) and open-meteo (the weather). Styles may be inline (Preact style props, Shiki's colours).
+// tiles, and for a capture's metadata OpenStreetMap's geocoder (an address) and open-meteo (the weather). Styles may be inline (React style props, Shiki's colours).
 const csp = (): Plugin => ({
   name: 'csp',
   apply: 'build',
@@ -36,7 +36,7 @@ const csp = (): Plugin => ({
 export default defineConfig({
   root: 'app',
   base: './',
-  plugins: [preact(), csp()],
+  plugins: [react(), csp()],
   build: {
     outDir: '../dist',
     emptyOutDir: true,

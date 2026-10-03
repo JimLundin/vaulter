@@ -1,5 +1,5 @@
 // Hover previews on links to notes (mouse only), and tooltips on chart marks.
-import { useEffect, useRef, useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'react';
 import { parseRoute } from './route.ts';
 import type { Entry } from '../../core/search.ts';
 
@@ -53,7 +53,6 @@ export function Previews({ index }: { index: Map<string, Entry> }) {
   // Place each once it has a size: the preview under its link (above when there's no room), the tooltip above the pointer.
   useEffect(() => {
     const el = pvEl.current;
-    // biome-ignore lint/suspicious/noUnnecessaryConditions: a ref is set after render; Biome types it by its initial null
     if (!(el && pv)) return;
     const { r } = pv;
     el.style.left = `${Math.max(8, Math.min(r.left + scrollX, scrollX + innerWidth - el.offsetWidth - 12))}px`;
@@ -65,7 +64,6 @@ export function Previews({ index }: { index: Map<string, Entry> }) {
   }, [pv]);
   useEffect(() => {
     const el = tipEl.current;
-    // biome-ignore lint/suspicious/noUnnecessaryConditions: a ref is set after render; Biome types it by its initial null
     if (!(el && tip)) return;
     el.style.left = `${Math.min(tip.x + 12, scrollX + innerWidth - el.offsetWidth - 8)}px`;
     el.style.top = `${tip.y - el.offsetHeight - 10}px`;

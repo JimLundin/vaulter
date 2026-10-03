@@ -9,7 +9,7 @@ data, and nothing the browser runs needs Node.
 | Layer | Where | May use | Holds |
 |---|---|---|---|
 | Vault model | `core/` | itself and pure libraries (no DOM, no Node) | parsing, the check, derivations, the vocabulary reader, formats, audit, rename |
-| Shell | `app/core/` | `core/`, the DOM, Preact | routing, top bar and search, the extension host, the writer, the session, the encrypted store, the workers |
+| Shell | `app/core/` | `core/`, the DOM, React | routing, top bar and search, the extension host, the writer, the session, the encrypted store, the workers |
 | Backends | `app/backends/<name>` | `core/`, `app/core/backend.ts` | one way to a vault each: GitHub (with the cache), a picked folder, memory (tests) |
 | Features | `app/extensions/<name>/` | `core/`, `app/core/` | everything the user sees beyond the shell |
 | Tools | `tools/` | Node, `core/` | thin CLIs over `core/`: the CI check, sealing, and the audit and rename for shell sessions |

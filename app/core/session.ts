@@ -2,7 +2,7 @@
 // (backends/folder.ts). Built: the secrets are unlocked (unlock.ts), then GitHub through the encrypted
 // cache. Opens from what the device kept, then refreshes: at once, when the tab comes back (at most every
 // 30 s), and when the backend says something changed.
-import { useEffect, useRef, useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'react';
 import type { Sealed, Secrets } from '../../core/sealed.ts';
 import { Offline, type Head, type VaultBackend } from './backend.ts';
 import { forget, remembered, unlock, type Unlocked } from './unlock.ts';
@@ -51,7 +51,6 @@ export function useSession(): Session {
   const busy = useRef<boolean>(false);
 
   const refresh = async (b: VaultBackend, force = false) => {
-    // biome-ignore lint/suspicious/noUnnecessaryConditions: refresh sets busy itself; Biome types it by its initial false
     if (busy.current || (!force && Date.now() - last.current < EVERY)) return;
     busy.current = true;
     last.current = Date.now();
@@ -129,7 +128,7 @@ export function useSession(): Session {
   useEffect(() => {
     if (!backend) return;
     // Changed elsewhere: another tab wrote the cache (read it), or the files changed on disk (refetch).
-    const off = backend.watch((h) => (h ? setHead(h) : refresh(backend, true)));
+    const off = backend.watch((h) => (h ? setHead(h) : later(refresh(backend, true))));
     const back = () => {
       if (document.visibilityState === 'visible') later(refresh(backend));
     };

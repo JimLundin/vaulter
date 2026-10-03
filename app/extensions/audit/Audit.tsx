@@ -1,6 +1,6 @@
 // The weekly sweep's audit (core/audit.ts) as a page: every section, the notes in it linked. The week's
 // history comes from the backend (`since`), so the page shows only where the backend keeps one.
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useState } from 'react';
 import { audit, daysBefore, esc, type Section } from '../../../core/audit.ts';
 import { perVault, type Vault } from '../../../core/derive.ts';
 import { today } from '../../../core/format.ts';
@@ -72,19 +72,19 @@ export function Audit() {
   }, [vault, since]);
   const { sections, error } = state;
   return (
-    <div class="v-audit">
+    <div className="v-audit">
       <h1>Audit</h1>
-      <p class="lede">
+      <p className="lede">
         What the weekly sweep (conventions §15) must judge, the last {DAYS} days. It changes
         nothing; fix each by hand.
       </p>
       {error ? (
-        <p class="app-error">{error}</p>
+        <p className="app-error">{error}</p>
       ) : !sections ? (
-        <p class="app-loading">Auditing…</p>
+        <p className="app-loading">Auditing…</p>
       ) : (
         sections.map(({ title, rows }) => (
-          <section key={title} class="sect">
+          <section key={title} className="sect">
             <h2>
               {title} <span>{rows.length}</span>
             </h2>

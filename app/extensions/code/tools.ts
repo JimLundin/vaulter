@@ -15,7 +15,7 @@ const workspace = (token: string) => {
   return shared.repo;
 };
 
-const ABOUT = `The app's own source: the public repo ${APP_REPO.owner}/${APP_REPO.name} (TypeScript, Preact, Vite), not the vault.`;
+const ABOUT = `The app's own source: the public repo ${APP_REPO.owner}/${APP_REPO.name} (TypeScript, React, Vite), not the vault.`;
 
 export const codeTools = (token: string, repo: CodeRepo = workspace(token)) =>
   ({

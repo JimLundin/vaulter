@@ -24,8 +24,8 @@ export const home: Extension = {
       body: (
         <>
           <NoteBody note={note} />
-          <div class="v-dash">
-            <div class="dash">
+          <div className="v-dash">
+            <div className="dash">
               <HomeSections />
             </div>
           </div>

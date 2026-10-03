@@ -1,6 +1,7 @@
 // One topic: every note tagged with it (or in that area/circle), grouped by type, and the topics that
 // most often appear alongside it. Built from tags alone.
-import { Fragment } from 'preact';
+// biome-ignore lint/correctness/noUnresolvedImports: Fragment is in @types/react's namespace, which Biome doesn't follow
+import { Fragment } from 'react';
 import type { Note } from '../../../core/note-fields.ts';
 import {
   topicsOf,
@@ -46,17 +47,17 @@ export function Topic({ name }: { name: string }) {
     .map(([t]) => t);
 
   return (
-    <div class="v-topic">
-      <div class="meta">
-        <span class="chip">topic</span>
+    <div className="v-topic">
+      <div className="meta">
+        <span className="chip">topic</span>
       </div>
       <h1>{name.replace(/-/g, ' ')}</h1>
-      <p class="lede">
+      <p className="lede">
         {list.length} {list.length === 1 ? 'note' : 'notes'} tagged <code>{name}</code>
         {areaOf.has(name) ? ' or in this area' : ''}.
       </p>
       {related.length > 0 && (
-        <p class="related">
+        <p className="related">
           Related:{' '}
           {related.map((t, i) => (
             <Fragment key={t}>
@@ -67,18 +68,18 @@ export function Topic({ name }: { name: string }) {
         </p>
       )}
       {groups.map((g) => (
-        <section key={g.label} class="tgroup">
+        <section key={g.label} className="tgroup">
           <h2>
             {g.label} <span>{g.items.length}</span>
           </h2>
-          <ul class="notelist">
+          <ul className="notelist">
             {g.items.map((n) => {
               const s = facet(n, 'status');
               const ex = excerptOf(n, 150);
               return (
                 <li key={n.id}>
                   <a href={link(hrefOf(n))}>{titleOf(n)}</a>
-                  {!!s && s !== 'done' && <em class={`st st-${s}`}>{s}</em>}
+                  {!!s && s !== 'done' && <em className={`st st-${s}`}>{s}</em>}
                   {!!ex && <span> — {ex}</span>}
                 </li>
               );

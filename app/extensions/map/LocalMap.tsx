@@ -70,7 +70,7 @@ export function LocalMap({ note }: { note: Note }) {
       H: TOP + rows * ROW + 6,
       cx,
       cy,
-      me: { x: cx, y: cy - 18, anchor: 'middle', base: 'auto' },
+      me: { x: cx, y: cy - 18, anchor: 'middle' as const, base: 'auto' as const },
       items,
       len: 25,
     };
@@ -95,7 +95,7 @@ export function LocalMap({ note }: { note: Note }) {
       H: cy + 22 + shown.length * ROW + 4,
       cx,
       cy,
-      me: { x: cx + 16, y: cy, anchor: 'start', base: 'central' },
+      me: { x: cx + 16, y: cy, anchor: 'start' as const, base: 'central' as const },
       items,
       len: 28,
     };
@@ -115,30 +115,36 @@ export function LocalMap({ note }: { note: Note }) {
   const more = all.length - shown.length;
 
   return (
-    <section class="sect v-lmap">
+    <section className="sect v-lmap">
       <h2>
         Neighbourhood <span>{all.length}</span>
-        <a class="more" href={link('/map/')}>
+        <a className="more" href={link('/map/')}>
           full map →
         </a>
       </h2>
       {[wide, narrow].map((L) => (
         <svg
           key={L.cls}
-          class={L.cls}
+          className={L.cls}
           viewBox={`0 0 ${L.W} ${L.H}`}
-          style={`aspect-ratio: ${L.W} / ${L.H}`}
+          style={{ aspectRatio: `${L.W} / ${L.H}` }}
           role="img"
           aria-label={`${me.title} and the ${all.length} notes it connects to, by area`}
         >
-          <g class="lm-edges">
+          <g className="lm-edges">
             {L.cls === 'narrow' && L.items.length > 0 && (
-              <line class="trunk" x1={L.cx} y1={L.cy + 10} x2={L.cx} y2={f(L.items.at(-1)!.y)} />
+              <line
+                className="trunk"
+                x1={L.cx}
+                y1={L.cy + 10}
+                x2={L.cx}
+                y2={f(L.items.at(-1)!.y)}
+              />
             )}
             {L.items.map((it) => (
               <line
                 key={it.n.i}
-                class={it.e.rel.length ? 'rel' : 'lnk'}
+                className={it.e.rel.length ? 'rel' : 'lnk'}
                 {...(L.cls === 'narrow'
                   ? { x1: L.cx, y1: f(it.y), x2: f(it.x - it.r - 2), y2: f(it.y) }
                   : seg(L.cx, L.cy, it))}
@@ -150,39 +156,39 @@ export function LocalMap({ note }: { note: Note }) {
             ))}
           </g>
           {L.items.map((it) => (
-            <a key={it.n.i} href={link(it.n.href)} class={`lm-n a-${it.n.area || 'none'}`}>
+            <a key={it.n.i} href={link(it.n.href)} className={`lm-n a-${it.n.area || 'none'}`}>
               <title>{`${it.n.title}${it.n.area ? ` · ${areaOf.get(it.n.area)?.label}` : ''}${it.n.summary ? `\n${it.n.summary}` : ''}`}</title>
               <circle cx={it.x} cy={f(it.y)} r={f(it.r)} />
-              <text x={it.tx} y={f(it.y)} text-anchor={it.anchor}>
+              <text x={it.tx} y={f(it.y)} textAnchor={it.anchor}>
                 {clip(it.n.title, L.len)}
               </text>
             </a>
           ))}
-          <g class={`lm-me a-${me.area || 'none'}`}>
+          <g className={`lm-me a-${me.area || 'none'}`}>
             <circle cx={L.cx} cy={f(L.cy)} r="10" />
-            <text x={L.me.x} y={f(L.me.y)} text-anchor={L.me.anchor} dominant-baseline={L.me.base}>
+            <text x={L.me.x} y={f(L.me.y)} textAnchor={L.me.anchor} dominantBaseline={L.me.base}>
               {clip(me.title, 30)}
             </text>
           </g>
         </svg>
       ))}
-      <ul class="lm-key">
+      <ul className="lm-key">
         {areas
           .filter(({ key: k }) => shown.some((x) => x.n.area === k))
           .map(({ key: k, label }) => (
-            <li key={k} class={`a-${k}`}>
+            <li key={k} className={`a-${k}`}>
               <i />
               {label} <small>{shown.filter((x) => x.n.area === k).length}</small>
             </li>
           ))}
-        <li class="lm-lines">
-          <b class="rel" />
-          relation <b class="lnk" />
+        <li className="lm-lines">
+          <b className="rel" />
+          relation <b className="lnk" />
           link
         </li>
       </ul>
       {more > 0 && (
-        <p class="lm-more">
+        <p className="lm-more">
           Showing the {shown.length} strongest connections; {more} more are on the{' '}
           <a href={link('/map/')}>map</a> and listed below.
         </p>

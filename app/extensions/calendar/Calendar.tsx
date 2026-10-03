@@ -58,24 +58,27 @@ export function Calendar() {
 
   const section = (label: string, list: Occurrence[], isPast: boolean) =>
     list.length > 0 && (
-      <section class={`cal ${isPast ? 'past' : ''}`}>
+      <section className={`cal ${isPast ? 'past' : ''}`}>
         <h2>{label}</h2>
         {byMonth(list).map(([month, items]) => (
-          <div key={month} class="month">
+          <div key={month} className="month">
             <h3>{monthName(month)}</h3>
             <ul>
               {items.map((o) => {
                 const dn = daily.get(o.date);
                 return (
-                  <li key={`${o.note.id} ${o.date} ${o.what}`} class={o.date === t ? 'now' : ''}>
-                    <span class="day">
+                  <li
+                    key={`${o.note.id} ${o.date} ${o.what}`}
+                    className={o.date === t ? 'now' : ''}
+                  >
+                    <span className="day">
                       {dn ? <a href={link(hrefOf(dn))}>{dayLabel(o)}</a> : dayLabel(o)}
                     </span>
-                    <span class="what">
+                    <span className="what">
                       {o.what}
-                      {!!o.end && <span class="end"> until {fmtDay(o.end)}</span>}
+                      {!!o.end && <span className="end"> until {fmtDay(o.end)}</span>}
                       {!isPast && when(o) && <em>{when(o)}</em>}
-                      <a class="src" href={link(hrefOf(o.note))}>
+                      <a className="src" href={link(hrefOf(o.note))}>
                         {titleOf(o.note)}
                       </a>
                     </span>
@@ -89,12 +92,12 @@ export function Calendar() {
     );
 
   return (
-    <div class="v-calendar">
-      <div class="meta">
-        <span class="chip">calendar</span>
+    <div className="v-calendar">
+      <div className="meta">
+        <span className="chip">calendar</span>
       </div>
       <h1>Calendar</h1>
-      <p class="lede">
+      <p className="lede">
         Every date recorded in a note. Add one with a note's <code>dates</code> field.
       </p>
       {section('Coming up', upcoming, false)}
@@ -110,14 +113,14 @@ export function NoteDates({ note }: { note: Note }) {
   );
   if (!dates.length) return null;
   return (
-    <section class="sect">
+    <section className="sect">
       <h2>
         Dates{' '}
-        <a class="more" href={link('/calendar/')}>
+        <a className="more" href={link('/calendar/')}>
           calendar →
         </a>
       </h2>
-      <ul class="dates">
+      <ul className="dates">
         {dates.map((x) => (
           <li key={`${x.date} ${x.what}`}>
             <time>

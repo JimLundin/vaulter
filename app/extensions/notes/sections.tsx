@@ -1,6 +1,7 @@
 // What a note states about itself, under its body: open questions, follow-ups, connections (relations
 // both ways), and the notes linking to it.
-import { Fragment } from 'preact';
+// biome-ignore lint/correctness/noUnresolvedImports: Fragment is in @types/react's namespace, which Biome doesn't follow
+import { Fragment } from 'react';
 import type { Note } from '../../../core/note-fields.ts';
 import { titleOf, hrefOf } from '../../../core/note-fields.ts';
 import { followUpsOf, openOf } from '../../../core/facts.ts';
@@ -14,7 +15,7 @@ export function OpenQuestions({ note }: { note: Note }) {
   const open = openOf(note);
   if (note.id === 'Home' || !open.length) return null;
   return (
-    <section class="sect open">
+    <section className="sect open">
       {/* biome-ignore lint/correctness/useUniqueElementIds: the fragment target NotePage links to (#open-questions); useId would break it */}
       <h2 id="open-questions">Open questions</h2>
       <ul>
@@ -30,12 +31,12 @@ export function FollowUps({ note }: { note: Note }) {
   const fu = followUpsOf(note, useVault().byId);
   if (!fu.length) return null;
   return (
-    <section class="sect">
+    <section className="sect">
       {/* biome-ignore lint/correctness/useUniqueElementIds: a stable fragment target (#follow-ups); useId would break it */}
       <h2 id="follow-ups">Follow-ups</h2>
-      <ul class="dates">
+      <ul className="dates">
         {fu.map((f) => (
-          <li key={`${f.by}|${f.what}`} class={f.due ? 'due' : ''}>
+          <li key={`${f.by}|${f.what}`} className={f.due ? 'due' : ''}>
             <time>{f.by ? fmtDay(f.by) : 'no date'}</time>
             {f.what}
             {f.who ? (
@@ -55,9 +56,9 @@ export function Connections({ note }: { note: Note }) {
   const edges = useVault().graph.get(note.id) ?? [];
   if (!edges.length) return null;
   return (
-    <section class="sect">
+    <section className="sect">
       <h2>Connections</h2>
-      <dl class="edges">
+      <dl className="edges">
         {edges.map((e) => (
           <div key={e.label}>
             <dt>{e.label}</dt>
@@ -80,7 +81,7 @@ export function LinkedFrom({ note }: { note: Note }) {
   const inbound = useVault().backlinks.get(note.id) ?? [];
   if (note.id === 'Home' || !inbound.length) return null;
   return (
-    <section class="sect backlinks">
+    <section className="sect backlinks">
       <h2>
         Linked from <span>{inbound.length}</span>
       </h2>

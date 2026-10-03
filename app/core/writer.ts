@@ -1,7 +1,7 @@
 // Staging and committing, for any backend: what the editor and the agent write through. Edits wait in an
 // overlay over the head (kept on the device by the backend, so a reload loses nothing); a commit writes
 // them as one step, refused if the check finds a problem they add, or if a staged file changed meanwhile.
-import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { applyChanges, type VaultFile } from '../../core/vault.ts';
 import { blobSha } from '../../core/blob-sha.ts';
 import { CheckFailed, Conflict, type Head, type VaultBackend, type Verify } from './backend.ts';
@@ -69,7 +69,7 @@ export const agentWriter = (w: () => Writer): AgentWriter => ({
   commit: w().commit ? (m) => w().commit!(m) : null,
 });
 
-/** The writer without Preact: the overlay, staging and the commit over a backend. useWriter wraps it. */
+/** The writer without React: the overlay, staging and the commit over a backend. useWriter wraps it. */
 export function writerCore(
   backend: VaultBackend | null,
   base: () => VaultFile[],
