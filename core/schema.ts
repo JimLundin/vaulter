@@ -5,6 +5,7 @@ import { load } from 'js-yaml';
 import { dateStr } from './format.ts';
 import { SCHEMA_PATH, type Frontmatter, type VaultFile } from './vault.ts';
 import type { Predicate } from './relations.ts';
+import { bodyHeadings, CAPTURE_RE, headingsFor, STAMP_RE } from './capture.ts';
 
 export interface Term {
   key: string;
@@ -33,6 +34,9 @@ export interface Schema {
   predicates: Record<string, Predicate>;
   /** MDX components notes may use (conventions §13): the app implements them, the vault allows them. */
   components: string[];
+  /** Where a capture's exchange came from (vault-app, claude-app, …), and what it was (capture, sign-off, …). */
+  sources: Term[];
+  procedures: Term[];
   typeOf: Map<string, Term>;
   areaOf: Map<string, Area>;
   statusOf: Map<string, Term>;
@@ -95,6 +99,8 @@ export function parseSchema(file: unknown): Schema {
     'broad',
     'predicates',
     'components',
+    'sources',
+    'procedures',
   ]);
   const types = section(raw, 'types', ['label', 'use'], term);
   const areas: Area[] = section(raw, 'areas', ['label', 'hub', 'use'], (v, at) => ({
@@ -103,6 +109,8 @@ export function parseSchema(file: unknown): Schema {
   }));
   const statuses = section(raw, 'statuses', ['label', 'use'], term);
   const circles = section(raw, 'circles', ['label', 'use'], term);
+  const sources = section(raw, 'sources', ['label', 'use'], term);
+  const procedures = section(raw, 'procedures', ['label', 'use'], term);
   const predicates: Record<string, Predicate> = {};
   for (const { key, ...v } of section(
     raw,
@@ -136,6 +144,8 @@ export function parseSchema(file: unknown): Schema {
     predicates,
     broadTopics: new Set(Object.values(broad).flat()),
     components: names(raw.components ?? [], 'components', COMPONENT),
+    sources,
+    procedures,
     typeOf: keyed(types),
     areaOf: keyed(areas),
     statusOf: keyed(statuses),
@@ -176,7 +186,10 @@ const NOTE_KEYS = [
   'address',
 ];
 const DAILY_KEYS = ['type', 'aliases', 'tags', 'created', 'where'];
-const CAPTURE_KEYS = ['type', 'date', 'source', 'topics', 'where'];
+const LEGACY_CAPTURE_KEYS = ['type', 'date', 'source', 'topics', 'where'];
+const CAPTURE_KEYS = ['type', 'date', 'exchanges'];
+/** An exchange's fields beyond the collected groups (maps), which are open. */
+const EXCHANGE_FIELDS = ['at', 'ended', 'source', 'procedure', 'summary', 'topics', 'where'];
 const TAG_RE = /^((area|status|circle)\/)?[a-z0-9][a-z0-9-]*$/;
 const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
 const BAD_FILENAME = /[/\\:?*"<>|]/;
@@ -255,16 +268,95 @@ export function checkDaily(file: string, data: Frontmatter | null, body = '') {
   return out;
 }
 
-/** Problems with a raw capture's frontmatter (its body is verbatim and never checked). */
-export function checkCapture(file: string, data: Frontmatter | null, ids: Set<string>) {
+/** Problems with a day's capture log (core/capture.ts): its frontmatter, and its headings against its
+ * exchanges. The turns themselves are verbatim and never checked. */
+export function checkCapture(
+  file: string,
+  data: Frontmatter | null,
+  body: string,
+  ids: Set<string>,
+  s: Schema,
+) {
+  if (!CAPTURE_RE.test(file) && /^captures\/\d{4}-\d{2}-\d{2}-[a-z0-9-]+\.md$/.test(file))
+    return checkLegacyCapture(file, data, ids);
   const out: string[] = [];
   const bad = (m: string) => out.push(`${file}: ${m}`);
-  if (!/^captures\/\d{4}-\d{2}-\d{2}-[a-z0-9-]+\.md$/.test(file))
-    bad('captures are captures/YYYY-MM-DD-slug.md, slug lowercase-hyphenated');
-  if (!data) return [...out, `${file}: no frontmatter`];
+  const day = CAPTURE_RE.exec(file)?.[1];
+  if (!day) return [`${file}: captures are one log per day, captures/YYYY-MM-DD.md`];
+  if (!data) return [`${file}: no frontmatter`];
   for (const k of Object.keys(data))
     if (!CAPTURE_KEYS.includes(k))
       bad(`unknown frontmatter field "${k}" (fields: ${CAPTURE_KEYS.join(', ')})`);
+  if (data.type !== 'capture') bad('type must be capture');
+  if (dateStr(data.date) !== day) bad(`date ${dateStr(data.date)} doesn't match the filename`);
+  const exchanges: unknown[] = Array.isArray(data.exchanges) ? data.exchanges : [];
+  if (!exchanges.length) bad("exchanges must list the day's exchanges, in order");
+  const sources = new Set(s.sources.map((x) => x.key));
+  const procedures = new Set(s.procedures.map((x) => x.key));
+  const ats: string[] = [];
+  for (const [i, x] of exchanges.entries()) {
+    const at = `exchange ${i + 1}`;
+    if (!x || typeof x !== 'object' || Array.isArray(x)) {
+      bad(`${at} must be a map`);
+      continue;
+    }
+    const e = x as Frontmatter;
+    if (typeof e.at !== 'string' || !STAMP_RE.test(e.at)) {
+      bad(`${at}: at must be a quoted time with its offset, "${day}T08:12:40+02:00"`);
+      continue;
+    }
+    ats.push(e.at);
+    if (e.at.slice(0, 10) !== day) bad(`${at}: at ${e.at} is not on ${day}`);
+    if (e.ended != null && (typeof e.ended !== 'string' || !STAMP_RE.test(e.ended)))
+      bad(`${at}: ended must be a quoted time with its offset, like at`);
+    else if (e.ended != null && Date.parse(e.ended) < Date.parse(e.at))
+      bad(`${at}: ended is before at`);
+    if (!sources.has(e.source))
+      bad(
+        `${at}: source "${e.source ?? ''}" is not one of meta/schema.yaml's sources (${keys(s.sources)})`,
+      );
+    if (!procedures.has(e.procedure))
+      bad(
+        `${at}: procedure "${e.procedure ?? ''}" is not one of meta/schema.yaml's procedures (${keys(s.procedures)})`,
+      );
+    if (typeof e.summary !== 'string' || !e.summary.trim())
+      bad(`${at}: summary is required: one line on what the exchange was`);
+    if (!Array.isArray(e.topics))
+      bad(
+        `${at}: topics must list the notes it was filed into ([] only for a fragment too garbled to file)`,
+      );
+    for (const t of list(e.topics))
+      if (!ids.has(t))
+        bad(
+          `${at}: topics → "${t}" is not a note (renamed? use the current filename without extension)`,
+        );
+    if (e.where != null && !Array.isArray(e.where)) bad(`${at}: where must be a list`);
+    for (const [k, v] of Object.entries(e))
+      if (!EXCHANGE_FIELDS.includes(k) && (!v || typeof v !== 'object' || Array.isArray(v)))
+        bad(
+          `${at}: ${k} must be a map of what was collected (fields: ${EXCHANGE_FIELDS.join(', ')}, or a group)`,
+        );
+  }
+  for (let i = 1; i < ats.length; i++)
+    if (Date.parse(ats[i]) < Date.parse(ats[i - 1]))
+      bad(`exchange ${i + 1} is earlier than exchange ${i}: exchanges are in time order`);
+  const want = headingsFor(ats);
+  const have = bodyHeadings(body);
+  if (ats.length === exchanges.length && want.join() !== have.join())
+    bad(
+      `the body's exchange headings (${have.map((h) => `## ${h}`).join(', ') || 'none'}) must be one per exchange, in order: ${want.map((h) => `## ${h}`).join(', ')}`,
+    );
+  return out;
+}
+
+/** The old one-file-per-Capture layout, accepted until the vault's captures are migrated. */
+function checkLegacyCapture(file: string, data: Frontmatter | null, ids: Set<string>) {
+  const out: string[] = [];
+  const bad = (m: string) => out.push(`${file}: ${m}`);
+  if (!data) return [...out, `${file}: no frontmatter`];
+  for (const k of Object.keys(data))
+    if (!LEGACY_CAPTURE_KEYS.includes(k))
+      bad(`unknown frontmatter field "${k}" (fields: ${LEGACY_CAPTURE_KEYS.join(', ')})`);
   if (data.type !== 'capture') bad('type must be capture');
   if (dateStr(data.date) !== file.slice(9, 19))
     bad(`date ${dateStr(data.date)} doesn't match the filename`);

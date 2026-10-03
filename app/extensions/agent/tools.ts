@@ -14,13 +14,16 @@ import { z } from 'zod';
 import { vaultOf } from '../../../core/derive.ts';
 import { isVaultPath } from '../../../core/vault.ts';
 import { titleOf, kind } from '../../../core/note-fields.ts';
+import { schemaOf } from '../../../core/schema.ts';
+import { capturePath } from '../../../core/capture.ts';
+import { today } from '../../../core/format.ts';
 import { CheckFailed, Conflict } from '../../core/backend.ts';
 import { newProblems } from '../../core/writer.ts';
 import type { AgentContext } from '../../core/extension.ts';
 
 const LIST_MAX = 200;
 
-export function agentTools({ w, search }: AgentContext) {
+export function agentTools({ w, search, capture }: AgentContext) {
   const vault = () => vaultOf(w.files());
   const byPath = (path: string) => w.files().find((f) => f.path === path);
   return {
@@ -124,11 +127,43 @@ export function agentTools({ w, search }: AgentContext) {
         }
       },
     }),
+    ...(capture && { capture: captureTool(w, capture) }),
   } satisfies ToolSet;
 }
 
-/** The agent's instructions: the app's plumbing, then the vault's own rules, which win. */
-export function instructions(conventions: string, now = new Date()) {
+/** The raw record (conventions §8a), written by the app from the chat itself. */
+function captureTool(w: AgentContext['w'], capture: NonNullable<AgentContext['capture']>) {
+  let procedures = 'capture, sign-off, …';
+  try {
+    procedures = schemaOf(w.files())
+      .procedures.map((p) => p.key)
+      .join(', ');
+  } catch {
+    // no schema: the check will say so at commit
+  }
+  return tool({
+    description: `Stage the raw record of this Capture (conventions §8a): the app appends everything said since the last capture, verbatim, to today's log (captures/YYYY-MM-DD.md) as one exchange, with what it collects itself (time, device, place, weather, session). You give only what needs judgement: the procedure (${procedures}), a one-line summary, the topics (the notes it was filed into) and any place Jim named. Once per Capture, after staging the curated edits and before commit; never write the log with writeFile.`,
+    inputSchema: z.object({
+      procedure: z.string(),
+      summary: z.string(),
+      topics: z.array(z.string()),
+      where: z.array(z.string()).optional(),
+    }),
+    execute: async (judged) => {
+      try {
+        return { ...(await capture(judged)), staged: w.staged() };
+      } catch (e) {
+        return { error: (e as Error).message };
+      }
+    },
+  });
+}
+
+const TODAY_MAX = 30_000;
+
+/** The agent's instructions: the app's plumbing, then the vault's own rules, which win, then today's log so
+ * far (the one conversation, from any device), so a chat picks up where the last one left off. */
+export function instructions(conventions: string, now = new Date(), log = '') {
   return `You are Jim's vault agent, inside his vault app. The vault is a git repo of Markdown notes; this app reads it, and your tools read, stage and commit files in it.
 
 Every rule about the vault (note format, filing, procedures, questions, git) is in meta/conventions.md, below, and it is authoritative. Follow it exactly. Where it says to run a command or use git, use your tools instead:
@@ -140,10 +175,17 @@ Every rule about the vault (note format, filing, procedures, questions, git) is 
 
 What Jim says maps to a procedure in the conventions: "vault it", "file this", "capture this", "remember this" → Capture; "sign-off" → Sign-off; "sweep the vault" → Weekly Sweep; "what do I know about …", "check the vault", "when did …", "pull up what we have on …", "resolve the open questions" → Recall. If no procedure matches, say so and stop rather than improvising one. Writing reads the conventions (below) in full first; never write unless Jim asked for a Capture or his answers turn into one.
 
-The raw record of a Capture (captures/) is this conversation, as the conventions describe. Today is ${now.toLocaleDateString('sv-SE', { timeZone: 'Europe/Stockholm' })} (${now.toLocaleDateString('en-GB', { weekday: 'long', timeZone: 'Europe/Stockholm' })}), Europe/Stockholm.
+The raw record of a Capture (captures/) is this conversation, and the capture tool writes it: verbatim, from the chat itself, with the time, device, place and weather the app collects. Today's log so far is at the end: the same conversation, earlier today, on this device or another; pick up from it rather than asking again. Today is ${now.toLocaleDateString('sv-SE', { timeZone: 'Europe/Stockholm' })} (${now.toLocaleDateString('en-GB', { weekday: 'long', timeZone: 'Europe/Stockholm' })}), Europe/Stockholm.
 
 === meta/conventions.md ===
-${conventions}`;
+${conventions}${
+  log
+    ? `
+
+=== Today so far (${capturePath(today())}) ===
+${log.length > TODAY_MAX ? `…${log.slice(-TODAY_MAX)}` : log}`
+    : ''
+}`;
 }
 
 /** One turn: the history plus Jim's message; `done` resolves to the history to keep for the next turn.
@@ -158,9 +200,10 @@ export function runAgent(
   const conventions =
     ctx.w.files().find((f) => f.path === 'meta/conventions.md')?.text ??
     '(meta/conventions.md is missing: say so and stop)';
+  const log = ctx.w.files().find((f) => f.path === capturePath(today()))?.text ?? '';
   const r = streamText({
     model,
-    instructions: instructions(conventions),
+    instructions: instructions(conventions, new Date(), log),
     messages: history,
     tools: { ...tools, ...agentTools(ctx) },
     stopWhen: isStepCount(40),

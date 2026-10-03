@@ -3,12 +3,15 @@
 // the view, so it survives moving around the app and a running turn keeps going meanwhile.
 import { useEffect, useState } from 'preact/hooks';
 import type { ModelMessage, ToolSet } from 'ai';
+import type { AgentContext } from '../../core/extension.ts';
 import { search } from '../../../core/search.ts';
 import { agentWriter, type Writer } from '../../core/writer.ts';
 import { useHost } from '../../core/host.tsx';
 import { link } from '../../core/route.ts';
 import './agent.css';
 import { later } from '../../core/later.ts';
+import { appVersion, collect, type Place } from './meta.ts';
+import { recordExchange, type ChatTurn, type Collected } from './record.ts';
 
 const MODEL_KEY = 'vault.agent.model';
 const DEFAULT_MODEL = 'gpt-6-astra';
@@ -27,10 +30,20 @@ interface Turn {
   role: 'user' | 'agent';
   parts: Part[];
   error?: string;
+  /** When it started, for the raw record; and, for the agent's, what it cost and who answered. */
+  at: string;
+  tokens?: { in: number; out: number };
+  model?: string;
 }
 
 const chat = {
+  /** This chat, in its exchanges' session: a random id per chat. */
+  id: crypto.randomUUID().slice(0, 8),
   turns: [] as Turn[],
+  /** Turns before this one are in a capture already. */
+  captured: 0,
+  /** What the device says about the current turn, collected while the agent works. */
+  meta: null as Promise<Collected> | null,
   history: [] as ModelMessage[],
   busy: false as boolean,
   abort: null as AbortController | null,
@@ -47,6 +60,28 @@ const brief = (name: string, input: any) =>
   input?.query ??
   input?.message ??
   (name === 'check' ? '' : JSON.stringify(input ?? {}).slice(0, 80));
+
+/** A turn as the raw record takes it: what was said, and which tools the agent used. */
+const chatTurn = (t: Turn): ChatTurn => ({
+  role: t.role,
+  at: t.at,
+  text: t.parts
+    .flatMap((p) => (p.kind === 'text' ? [p.text] : []))
+    .join('')
+    .trim(),
+  tools: t.parts.flatMap((p) => (p.kind === 'tool' ? [p.name] : [])),
+  tokens: t.tokens,
+  model: t.model,
+});
+
+/** The vault's place notes with coordinates, to match a location fix against. */
+const placesOf = (host: ReturnType<typeof useHost>): Place[] =>
+  host.vault.notes.flatMap((n) => {
+    const g = n.data.geo;
+    return n.data.type === 'place' && typeof g?.lat === 'number' && typeof g?.lon === 'number'
+      ? [{ id: n.id, lat: g.lat, lon: g.lon }]
+      : [];
+  });
 
 export function Agent() {
   const host = useHost();
@@ -84,11 +119,24 @@ export function Agent() {
     );
 
   // The latest writer and search, also after this view is gone: the tools run between renders.
+  const aw = agentWriter(() => chat.host!.writer as Writer);
   const ctx = {
-    w: agentWriter(() => chat.host!.writer as Writer),
+    w: aw,
     search: (q: string) => search(chat.host!.index, q),
     since: host.since,
     secrets,
+    capture: async (judged: Parameters<NonNullable<AgentContext['capture']>>[0]) => {
+      const r = recordExchange({
+        turns: chat.turns.slice(chat.captured).map(chatTurn),
+        judged,
+        collected: (await chat.meta) ?? { groups: {} },
+        session: { chat: chat.id, model, app: appVersion() },
+        files: aw.files(),
+      });
+      await aw.stage(r.path, r.text);
+      chat.captured = chat.turns.length;
+      return { path: r.path, at: r.exchange.at };
+    },
   };
   const tools = async (): Promise<ToolSet> =>
     Object.assign(
@@ -100,9 +148,15 @@ export function Agent() {
     const text = input.trim();
     if (!text || chat.busy) return;
     setInput('');
-    const agentTurn: Turn = { role: 'agent', parts: [] };
+    const now = new Date().toISOString();
+    const agentTurn: Turn = { role: 'agent', parts: [], at: now };
     chat.busy = true;
-    chat.turns = [...chat.turns, { role: 'user', parts: [{ kind: 'text', text }] }, agentTurn];
+    chat.turns = [
+      ...chat.turns,
+      { role: 'user', parts: [{ kind: 'text', text }], at: now },
+      agentTurn,
+    ];
+    chat.meta = collect(placesOf(host)).catch(() => ({ groups: {} }));
     const update = () => {
       chat.turns = [...chat.turns];
       chat.emit();
@@ -152,6 +206,13 @@ export function Agent() {
                     ? `staged: ${out.staged.join(', ')}`
                     : 'ok';
           }
+        } else if (p.type === 'finish-step') {
+          const t = agentTurn.tokens ?? { in: 0, out: 0 };
+          agentTurn.tokens = {
+            in: t.in + (p.usage.inputTokens ?? 0),
+            out: t.out + (p.usage.outputTokens ?? 0),
+          };
+          agentTurn.model = p.response.modelId || agentTurn.model;
         } else if (p.type === 'error') {
           agentTurn.error = String((p.error as any)?.message ?? p.error);
         }

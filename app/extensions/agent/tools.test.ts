@@ -8,6 +8,10 @@ import { SCHEMA } from '../../../core/schema.fixture.ts';
 import { notes } from '../notes/index.tsx';
 import { editor } from '../editor/index.tsx';
 import { runAgent } from './tools.ts';
+import { recordExchange } from './record.ts';
+import { checkVault } from '../../../core/check.ts';
+import { capturePath } from '../../../core/capture.ts';
+import { today } from '../../../core/format.ts';
 import { code } from '../code/index.tsx';
 import { codeRepo } from '../code/repo.ts';
 import { codeTools } from '../code/tools.ts';
@@ -230,4 +234,56 @@ test('the code tools come only with a GitHub token', async () => {
     'commitCode',
     'codeStatus',
   ]);
+});
+
+test("a Capture's raw record is the chat itself, staged with the edits, and the next chat sees it", async () => {
+  const { ctx, files } = await writer();
+  const said = 'vault it: Gamma, uh,   relates to Alpha.';
+  const capturing = {
+    ...ctx,
+    capture: async (judged: Parameters<NonNullable<typeof ctx.capture>>[0]) => {
+      const r = recordExchange({
+        turns: [{ role: 'user', at: new Date().toISOString(), text: said }],
+        judged,
+        collected: { groups: { device: { id: '3f9c', form: 'phone' } } },
+        session: { chat: 'c1' },
+        files: ctx.w.files(),
+      });
+      await ctx.w.stage(r.path, r.text);
+      return { path: r.path, at: r.exchange.at };
+    },
+  };
+  const model = new MockLanguageModelV4({
+    doStream: [
+      toolStep([
+        'writeFile',
+        { path: 'Gamma.md', text: NOTE('Gamma', 'See [Alpha](</Alpha.md>).') },
+      ]),
+      toolStep([
+        'capture',
+        { procedure: 'capture', summary: 'Gamma relates to Alpha.', topics: ['Gamma'] },
+      ]),
+      toolStep(['commit', { message: 'vaulter: Gamma' }]),
+      textStep('Filed Gamma.'),
+    ],
+  });
+  const run = runAgent(model, capturing, [{ role: 'user', content: said }]);
+  const seen: string[] = [];
+  for await (const p of run.stream)
+    if (p.type === 'tool-result') seen.push(`${p.toolName}: ${JSON.stringify(p.output)}`);
+  await run.done;
+  expect(seen.find((s) => s.startsWith('commit:'))).toMatch(/committed/);
+  const log = files().find((f) => f.path === capturePath(today()))!.text;
+  expect(log).toContain(`**Jim:** ${said}`);
+  expect(log).toContain('device: {id: 3f9c, form: phone}');
+  expect(checkVault(files()).problems).toEqual([]);
+
+  // A new chat, on any device, starts from today's log.
+  const next = new MockLanguageModelV4({ doStream: [textStep('Picking up.')] });
+  const again = runAgent(next, capturing, [{ role: 'user', content: 'where were we?' }]);
+  for await (const _ of again.stream);
+  await again.done;
+  const prompt = JSON.stringify(next.doStreamCalls[0].prompt);
+  expect(prompt).toContain(`=== Today so far (${capturePath(today())}) ===`);
+  expect(prompt).toContain('Gamma, uh,   relates to Alpha.');
 });

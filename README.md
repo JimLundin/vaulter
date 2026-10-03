@@ -20,8 +20,10 @@ components (the vault's `meta/conventions.md` §13). The design and its history:
 
 With this repo cloned next to the vault (`../vaulter`) and `npm ci` run in it, from the vault root:
 `node ../vaulter/tools/check.ts` (the check), `node ../vaulter/tools/audit.ts` (the weekly
-sweep's report, changes nothing) and `node ../vaulter/tools/set-ext.ts "Note" md|mdx` (switch a
-note's extension and rewrite every link to it). Each takes `--vault <dir>`, default the working directory.
+sweep's report, changes nothing), `node ../vaulter/tools/set-ext.ts "Note" md|mdx` (switch a
+note's extension and rewrite every link to it) and `node ../vaulter/tools/capture.ts --source … --procedure …
+--summary … --topic … < turns.md` (append a Capture's exchange to the day's log, collecting the time, machine,
+session and weather itself). Each takes `--vault <dir>`, default the working directory.
 
 All code is TypeScript. Node 24 runs the scripts directly (type stripping), so only erasable syntax,
 explicit `.ts` imports and `import type` (enforced by `tsconfig.json`).
@@ -42,7 +44,8 @@ The design, its rules and how to add a feature: `ARCHITECTURE.md`. In short:
 
 - `core/` — the vault model, pure (no DOM, no Node): parse (`vault.ts`), check (`check.ts`), derive
   (`derive.ts`, plus `facts.ts`, `vault-map.ts`, `similar.ts`, `brief.ts`, `audit.ts`, `rename.ts`),
-  vocabulary (`schema.ts` over `meta/schema.yaml`), formats (`format.ts`), secrets (`sealed.ts`).
+  vocabulary (`schema.ts` over `meta/schema.yaml`), formats (`format.ts`), secrets (`sealed.ts`), the
+  day's capture log (`capture.ts`: one per day, its exchanges' metadata in the frontmatter), weather (`weather.ts`).
 - `app/core/` — the shell: `App.tsx`, routing, the top bar and search, the extension host (`host.tsx`,
   `extension.ts`), the session and backends contract (`session.ts`, `backend.ts`), the writer
   (`writer.ts`), the encrypted IndexedDB (`store.ts`), unlocking (`unlock.ts`), rendering
@@ -52,11 +55,11 @@ The design, its rules and how to add a feature: `ARCHITECTURE.md`. In short:
 - `app/extensions/` — every feature, listed in `extensions/index.ts`: notes, home, topics, calendar,
   decisions, map, similar, places, editor (edit, rename, changes, history), audit, agent, code (the
   agent's tools over this repo, so the app can change itself), web (search and reading pages, through Jina).
-- `tools/` — the only Node: `check.ts` (CI), `seal-secrets.ts` (publishing), `audit.ts` and
-  `set-ext.ts` (command-line sessions), over `core/`.
+- `tools/` — the only Node: `check.ts` (CI), `seal-secrets.ts` (publishing), `audit.ts`, `set-ext.ts`
+  and `capture.ts` (command-line sessions), over `core/`.
 
 Security: notes render without eval (MDX props are literals), raw HTML and unsafe URLs are dropped, the
-page has a CSP (script only from the app; network only to GitHub, OpenAI, Jina and the map tiles), the cache is
+page has a CSP (script only from the app; network only to GitHub, OpenAI, Jina, the map tiles, and for a capture's metadata OpenStreetMap's geocoder and open-meteo), the cache is
 encrypted with a per-device key, and every commit from the app passes the check and carries
 `Committed-From: vault app`.
 

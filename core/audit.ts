@@ -246,7 +246,10 @@ export async function audit(
     inDir('captures')
       .filter((p) => p.id.slice(9, 19) >= since)
       .flatMap(({ path: f, data }) => {
-        const loose = asList(data.where).filter((w) => !placeIds.has(w));
+        const wheres = Array.isArray(data.exchanges)
+          ? data.exchanges.flatMap((e: { where?: unknown } | null) => asList(e?.where))
+          : asList(data.where);
+        const loose = [...new Set(wheres)].filter((w) => !placeIds.has(w));
         return loose.length ? [`${f}: where: ${loose.join(', ')} — not place notes; resolve`] : [];
       }),
   );

@@ -24,6 +24,12 @@ predicates:
   friend-of: { label: Friend of, symmetric: true, use: friends }
   related-to: { label: Related to, symmetric: true, use: anything }
 components: [Chart, Timeline, NoteList]
+sources:
+  vault-app: { label: The app }
+  claude-code: { label: Claude Code }
+procedures:
+  capture: { label: Capture }
+  sign-off: { label: Sign-off }
 `;
 
 /** Spread into a test vault's files. */

@@ -92,7 +92,8 @@ export function checkVault(files: VaultFile[]): { problems: string[]; ok: number
     } else if (n.id.startsWith('daily/')) {
       problems.push(...checkDaily(n.path, data, n.body));
       if (data) problems.push(...checkMeta(n.id, data, noteIds, schema.predicates));
-    } else if (n.id.startsWith('captures/')) problems.push(...checkCapture(n.path, data, noteIds));
+    } else if (n.id.startsWith('captures/'))
+      problems.push(...checkCapture(n.path, data, n.body, noteIds, schema));
   }
   for (const n of notes)
     if (n.error) problems.push(`${n.path}: frontmatter is not valid YAML (${n.error})`);

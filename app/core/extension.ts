@@ -51,4 +51,12 @@ export interface AgentContext {
   search: (query: string) => Hit[];
   since?: VaultBackend['since'];
   secrets?: Secrets;
+  /** Stage the raw record of the chat since the last capture (the agent's record.ts), where the chat
+   * keeps one: what needs judgement in, the day's log path and the exchange's time out. */
+  capture?: (judged: {
+    procedure: string;
+    summary: string;
+    topics: string[];
+    where?: string[];
+  }) => Promise<{ path: string; at: string }>;
 }

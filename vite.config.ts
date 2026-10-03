@@ -7,7 +7,8 @@ import { fileURLToPath } from 'node:url';
 const SITE = fileURLToPath(new URL('.', import.meta.url));
 
 // The built page's Content Security Policy: script only from the app itself (no eval, no inline), network
-// only to GitHub, OpenAI, Jina (the agent's web tools: they fetch pages, the browser never does) and the map tiles. Styles may be inline (Preact style props, Shiki's colours).
+// only to GitHub, OpenAI, Jina (the agent's web tools: they fetch pages, the browser never does), the map
+// tiles, and for a capture's metadata OpenStreetMap's geocoder (an address) and open-meteo (the weather). Styles may be inline (Preact style props, Shiki's colours).
 const csp = (): Plugin => ({
   name: 'csp',
   apply: 'build',
@@ -20,7 +21,7 @@ const csp = (): Plugin => ({
       "worker-src 'self'",
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: https://tile.openstreetmap.org",
-      `connect-src 'self' ${api} ${ai} https://s.jina.ai https://r.jina.ai`,
+      `connect-src 'self' ${api} ${ai} https://s.jina.ai https://r.jina.ai https://nominatim.openstreetmap.org https://api.open-meteo.com`,
       "font-src 'self'",
       "base-uri 'none'",
       "form-action 'none'",
@@ -48,6 +49,9 @@ export default defineConfig({
       output: { entryFileNames: (c) => (c.name === 'sw' ? 'sw.js' : 'assets/[name]-[hash].js') },
     },
   },
-  define: { __BUILD__: JSON.stringify(Date.now().toString(36)) },
+  define: {
+    __BUILD__: JSON.stringify(Date.now().toString(36)),
+    __COMMIT__: JSON.stringify((process.env.GITHUB_SHA ?? '').slice(0, 7)),
+  },
   test: { root: SITE, include: ['app/**/*.test.{ts,tsx}', 'core/**/*.test.ts'] },
 });

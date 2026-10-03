@@ -11,10 +11,17 @@ const idOf = (path: string) => path.replace(/\.mdx?$/, '');
 
 /** The frontmatter without the fields that hold note ids (relations.ts checkMeta, schema.ts checkCapture). */
 const withoutIds = ({ relations, where, topics, ...d }: Frontmatter) => {
-  const drop = (xs: unknown, k: string) =>
-    Array.isArray(xs) ? xs.map((x) => (x && typeof x === 'object' ? { ...x, [k]: null } : x)) : xs;
+  const drop = (xs: unknown, ...ks: string[]) =>
+    Array.isArray(xs)
+      ? xs.map((x) =>
+          x && typeof x === 'object'
+            ? { ...x, ...Object.fromEntries(ks.map((k) => [k, null])) }
+            : x,
+        )
+      : xs;
   return JSON.stringify({
     ...d,
+    exchanges: drop(d.exchanges, 'topics', 'where'),
     dates: drop(d.dates, 'where'),
     'follow-ups': drop(d['follow-ups'], 'who'),
     decisions: drop(d.decisions, 'who'),
