@@ -104,6 +104,12 @@ export async function safeMode(s: State) {
             running.has(id) ? 'running' : config.disabled.includes(id) ? 'off' : '',
           ),
           ...(problems.get(id) ?? []).map((p) => h('p', { class: 'problem' }, p)),
+          ...s.kernel.errors
+            .of(id)
+            .slice(-3)
+            .map((e) =>
+              h('small', {}, `${new Date(e.at).toLocaleString()} · ${e.where}: ${e.message}`),
+            ),
         ),
       ),
       ...s.bundled.map((id) =>

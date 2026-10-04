@@ -3,7 +3,9 @@ import type { Kernel } from '../../src/kernel/kernel.ts';
 import { startRepo } from '../../src/kernel/testing.ts';
 
 let kernel: Kernel | undefined;
-afterEach(() => kernel?.dispose());
+afterEach(async () => {
+  await kernel?.dispose();
+});
 
 it('starts after notes@1 conformance, keeps notes as records, and tells requirers', async () => {
   const r = await startRepo(['store-local', 'notes'], {

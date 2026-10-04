@@ -26,6 +26,18 @@ export interface ExtensionInfo {
   secrets: { name: string; label: string; hosts: string[]; set: boolean }[];
   agentGuide: string;
   author: { kind: 'person' } | { kind: 'agent'; reason: string };
+  /** The kernel API it was written against. */
+  kernel: string;
+  /** Its last errors, newest last, and whether there were many in the last minute. */
+  errors: ErrorEntry[];
+  failing: boolean;
+}
+
+export interface ErrorEntry {
+  at: string;
+  where: 'setup' | 'call' | 'callback' | 'stop' | 'uncaught';
+  message: string;
+  stack?: string;
 }
 
 export interface AccessInfo {
@@ -59,8 +71,9 @@ export interface SourceInfo {
   repo: string;
   ref: string;
   pin?: string;
-  /** The commit this device is running. */
+  /** The commit this device is running, and the kernel's API version. */
   commit: string;
+  kernelApi: string;
   /** Draft branches this device loads on top. */
   drafts: string[];
 }
@@ -105,6 +118,8 @@ export interface Review {
 
 export interface KernelV1 {
   extensions: () => Promise<ExtensionInfo[]>;
+  /** An extension's last errors. */
+  errors: (id: string) => Promise<ErrorEntry[]>;
   source: () => Promise<SourceInfo>;
   /** Every guarded function seen, with its level. */
   access: () => Promise<AccessInfo[]>;
@@ -119,7 +134,7 @@ export interface KernelV1 {
   // Personal: a person, right after a tap or key.
   decide: (id: string, approve: boolean) => Promise<void>;
   setAccess: (ext: string, label: string, access: Access | null) => Promise<void>;
-  /** Takes effect on the next start. */
+  /** Starts or stops it now, and on every start from then on. */
   setEnabled: (id: string, on: boolean) => Promise<void>;
   /** Stops it, drops its data and secrets, and turns it off. */
   remove: (id: string) => Promise<void>;
@@ -157,6 +172,7 @@ export const kernel = defineContract<KernelV1>({
   inputs: {
     audit: z.tuple([z.number().int().positive().max(1000).optional()]),
     review: z.tuple([branch]),
+    errors: z.tuple([id]),
     decide: z.tuple([z.string(), z.boolean()]),
     setAccess: z.tuple([id, z.string().min(1), Access.nullable()]),
     setEnabled: z.tuple([id, z.boolean()]),

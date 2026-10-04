@@ -8,6 +8,7 @@
 // function (a tool's `run`) handed across is wrapped so every call to it goes through Pip's access
 // policy. Values otherwise pass as they are: no copying, so components and schemas can cross too.
 import { type Access, type Guard, guardOf } from './access.ts';
+import { ErrorLog } from './errors.ts';
 import { type CheckResult, runSuite, type Suite } from './conformance.ts';
 import { type AnyContract, type Contract, ContractRef } from './contract.ts';
 import { type Extension, type ExtStorage, type KernelApi, Statics } from './extension.ts';
@@ -57,11 +58,14 @@ interface Party {
   plan?: Plan;
   /** What it provides, by contract key: its contract handle and implementation (or per caller). */
   provided: Map<string, { contract: AnyContract; impl: object }>;
+  /** What to run when it stops (kernel.onStop), newest first. */
+  stops?: (() => unknown)[];
 }
 
 type Fn = (...args: unknown[]) => unknown;
 const NOT_METHODS = new Set(Object.getOwnPropertyNames(Object.prototype));
 const WRAPPED = Symbol('pip.wrapped');
+const isClass = (f: Fn) => /^class[\s{]/.test(Function.prototype.toString.call(f));
 
 export const KERNEL = 'kernel';
 
@@ -72,12 +76,20 @@ export class Kernel {
   private readonly parties = new Map<string, Party>();
   private readonly refused = new Map<string, string[]>();
   private readonly perCallerImpls = new Map<string, object>();
+  /** The latest plan of every extension that loaded, for starting it again. */
+  private readonly plans = new Map<string, Plan>();
+  private startOpts: StartOptions = {};
+  /** Wrapped functions, by the function and who owns and holds it: one wrapper each, so a function
+   * handed over twice is the same function on the far side. */
+  private readonly wrappers = new WeakMap<Fn, Map<string, Fn>>();
+  readonly errors: ErrorLog;
   private readonly opts: KernelOptions;
   private readonly link: (plan: Plan) => string;
 
   constructor(opts: KernelOptions) {
     this.opts = opts;
     this.policy = new Policy(opts.storage, opts.access ?? (() => ({})));
+    this.errors = new ErrorLog(opts.storage);
     this.link = linker(opts.url, opts.shared);
   }
 
@@ -126,7 +138,9 @@ export class Kernel {
   /** Starts the extensions in `plans` beside those already running: each is loaded and its static
    * fields read; those the resolver accepts are set up in dependency order, and a provider whose
    * contract has a conformance suite must pass it before anything that requires it starts. */
-  async start(plans: Map<string, Plan>, opts: StartOptions = {}) {
+  async start(plans: Map<string, Plan>, opts: StartOptions = this.startOpts) {
+    this.startOpts = opts;
+    for (const [id, plan] of plans) this.plans.set(id, plan);
     const refused: Refused[] = [];
     const refuse = (id: string, problems: string[]) => {
       refused.push({ id, problems });
@@ -188,6 +202,8 @@ export class Kernel {
         }
         this.refused.delete(a.id);
       } catch (e) {
+        this.errors.record(a.id, 'setup', e);
+        await this.runStops(party);
         this.parties.delete(a.id);
         refuse(a.id, [`setup failed: ${(e as Error).message}`]);
       }
@@ -246,7 +262,7 @@ export class Kernel {
       return results;
     } finally {
       await this.forget(id);
-      this.parties.delete(id);
+      await this.stop(id);
     }
   }
 
@@ -263,24 +279,73 @@ export class Kernel {
     await this.opts.storage.drop(caller);
   }
 
-  /** Stops an extension: its handles refuse from then on, and what requires it is refused on the
-   * next start. (What it set going in this page stays until the reload.) */
-  stop(id: string) {
+  /** Stops an extension, and first everything that requires it (they hold handles on it): each one's
+   * onStop runs, providers let go of what it registered with them (`release`), and the functions it
+   * handed out go quiet. Its data stays. Returns every extension stopped, dependants first. */
+  async stop(id: string): Promise<string[]> {
+    const party = this.parties.get(id);
+    if (!party || id === KERNEL) return [];
+    const stopped: string[] = [];
+    for (const p of [...this.parties.values()])
+      if (p.id !== id && Object.values(p.wiring).includes(id))
+        // biome-ignore lint/performance/noAwaitInLoops: dependants stop one at a time
+        stopped.push(...(await this.stop(p.id)));
+    await this.runStops(party);
+    await Promise.all(
+      Object.entries(party.wiring).map(async ([key, to]) => {
+        const impl = this.parties.get(to)?.provided.get(key)?.impl;
+        try {
+          if (isPerCaller(impl)) await perCallerDef(impl).release?.(id);
+        } catch (e) {
+          this.errors.record(to, 'stop', e);
+        }
+        this.perCallerImpls.delete(`${to}\n${key}\n${id}`);
+      }),
+    );
     this.parties.delete(id);
+    stopped.push(id);
+    return stopped;
+  }
+
+  private async runStops(party: Party) {
+    for (const fn of party.stops ?? []) {
+      try {
+        // biome-ignore lint/performance/noAwaitInLoops: in order, newest first
+        await fn();
+      } catch (e) {
+        this.errors.record(party.id, 'stop', e);
+      }
+    }
+    party.stops = [];
+  }
+
+  /** Stops `ids` (with what requires them) and starts them all again, from `plans` where given (a
+   * draft's new commit) or from the plans they last loaded with: a change without a page reload. */
+  async reload(ids: string[], plans = new Map<string, Plan>()) {
+    const stopped = new Set<string>();
+    for (const id of ids) for (const s of await this.stop(id)) stopped.add(s);
+    const again = new Map<string, Plan>();
+    for (const id of new Set([...stopped, ...plans.keys()])) {
+      const plan = plans.get(id) ?? this.plans.get(id);
+      if (plan) again.set(id, plan);
+    }
+    return this.start(again);
   }
 
   /** Removes an extension's data: its storage, what providers keep for it, and its secrets. */
   async remove(id: string) {
     const statics = this.parties.get(id)?.statics ?? this.seen.get(id);
     await this.forget(id);
-    this.stop(id);
+    await this.stop(id);
     // biome-ignore lint/performance/noAwaitInLoops: a few secrets
     for (const name of Object.keys(statics?.secrets ?? {}))
       await this.opts.secrets.forget(id, name);
   }
 
-  dispose() {
-    for (const id of [...this.parties.keys()]) this.stop(id);
+  /** Stops every extension, last started first. */
+  async dispose() {
+    // biome-ignore lint/performance/noAwaitInLoops: one at a time, dependants first
+    for (const id of [...this.parties.keys()].reverse()) await this.stop(id);
   }
 
   running = () =>
@@ -344,16 +409,32 @@ export class Kernel {
         );
       args = parsed.data;
     }
-    return this.carry(to, from, await (fn as Fn).apply(impl, args));
+    let result: unknown;
+    try {
+      result = await (fn as Fn).apply(impl, args);
+    } catch (e) {
+      this.errors.record(to, 'call', e);
+      throw e;
+    }
+    return this.carry(to, from, result);
   }
 
-  /** A value going from `owner` to `holder`: each guarded function in it (in plain objects and arrays)
-   * is wrapped so that calling it goes through the access policy, as `holder` calling `owner`. */
+  /** A value going from `owner` to `holder`: each function in it (in plain objects and arrays) is
+   * wrapped with its owner, so it goes quiet once the owner stops and its errors are the owner's; a
+   * guarded one also goes through the access policy, as `holder` calling `owner`. */
   private carry(owner: string, holder: string, v: unknown, depth = 0): unknown {
     if (depth > 20) return v;
     if (typeof v === 'function') {
-      const guard = guardOf(v);
-      return guard && !(WRAPPED in v) ? this.guardedCall(v as Fn, guard, owner, holder) : v;
+      const fn = v as Fn;
+      if (WRAPPED in fn || isClass(fn) || owner === KERNEL) return fn;
+      const key = `${owner}\n${holder}`;
+      const known = this.wrappers.get(fn)?.get(key);
+      if (known) return known;
+      const guard = guardOf(fn);
+      const wrapped = guard ? this.guardedCall(fn, guard, owner, holder) : this.owned(fn, owner);
+      if (!this.wrappers.has(fn)) this.wrappers.set(fn, new Map());
+      this.wrappers.get(fn)!.set(key, wrapped);
+      return wrapped;
     }
     if (Array.isArray(v)) return v.map((x) => this.carry(owner, holder, x, depth + 1));
     if (typeof v === 'object' && v !== null && Object.getPrototypeOf(v) === Object.prototype) {
@@ -364,12 +445,42 @@ export class Kernel {
     return v;
   }
 
+  /** A function of `owner`'s: once the owner stops, calling it does nothing (a handler it left with a
+   * provider goes quiet); while it runs, what it throws is recorded as the owner's. Synchronous when
+   * the function is, so a component or a sync callback stays one. */
+  private owned(fn: Fn, owner: string): Fn {
+    const kernel = this;
+    const wrapped = function (this: unknown, ...args: unknown[]) {
+      if (!kernel.parties.has(owner)) return;
+      try {
+        const out = fn.apply(this, args);
+        if (out instanceof Promise)
+          return out.catch((e: unknown) => {
+            kernel.errors.record(owner, 'callback', e);
+            throw e;
+          });
+        return out;
+      } catch (e) {
+        kernel.errors.record(owner, 'callback', e);
+        throw e;
+      }
+    };
+    Object.defineProperty(wrapped, WRAPPED, { value: true });
+    Object.defineProperty(wrapped, 'name', { value: fn.name });
+    return wrapped;
+  }
+
   private guardedCall(fn: Fn, guard: Guard, owner: string, holder: string): Fn {
     this.policy.see(owner, guard);
     const wrapped = async (...args: unknown[]) => {
       if (!this.parties.has(owner)) throw new Refusal(`${owner} is not running`);
       await this.policy.admit({ from: holder, to: owner, guard, args });
-      return fn(...args);
+      try {
+        return await fn(...args);
+      } catch (e) {
+        this.errors.record(owner, 'callback', e);
+        throw e;
+      }
     };
     Object.defineProperty(wrapped, WRAPPED, { value: true });
     return wrapped;
@@ -392,6 +503,9 @@ export class Kernel {
       hasSecret: async (name) =>
         name in party.statics.secrets && (await this.opts.secrets.has(party.id, name)),
       storage,
+      onStop: (fn) => {
+        party.stops = [fn, ...(party.stops ?? [])];
+      },
     };
   }
 }
@@ -405,10 +519,11 @@ function staticsOf(def: Extension['def']) {
         { kind: c?.kind, name: c?.name, version: c?.version, personal: c?.personal },
       ]),
     );
-  const { id, version, permissions, secrets, agentGuide, author } = def;
+  const { id, version, kernel, permissions, secrets, agentGuide, author } = def;
   return {
     id,
     version,
+    kernel,
     requires: refs(def.requires),
     optional: refs(def.optional),
     provides: refs(def.provides),

@@ -12,6 +12,7 @@ import { Kernel } from './kernel.ts';
 import { extensionsIn, planAll, planner, type Stats, type Tree } from './loader.ts';
 import type { Refused } from './resolve.ts';
 import { safeMode } from './safe-mode.ts';
+import { singleTab, standbyScreen } from './single-tab.ts';
 import { type KernelKeep, type SecretStore, secretStore } from './secrets.ts';
 import { SHARED } from './shared.ts';
 import { idbStorage } from './storage.ts';
@@ -49,6 +50,14 @@ export interface State {
 const SHELL = 'ui.shell@1';
 
 export async function start(opts: StartOptions) {
+  // One tab at a time has the kernel; this one waits until the person moves Vaulter here.
+  const tab = singleTab();
+  if (!(await tab.claim())) {
+    const moved = sessionStorage.getItem('pip-moved') === '1';
+    sessionStorage.removeItem('pip-moved');
+    await standbyScreen(tab, moved);
+  }
+
   const keep = idbKeep();
   const secrets = secretStore(keep);
   const config = await configStore(keep, opts.defaultSource);
@@ -62,6 +71,17 @@ export async function start(opts: StartOptions) {
     access: () => config.get().access,
     userPresent: () => navigator.userActivation?.isActive === true,
   });
+  // An error nothing caught is kept under the extension whose code threw it (its stack says).
+  addEventListener('error', (e) => kernel.errors.uncaught(e.error));
+  addEventListener('unhandledrejection', (e) => kernel.errors.uncaught(e.reason));
+  await kernel.errors.load();
+  // Another tab asked for Vaulter: stop every extension, hand over, and wait here.
+  tab.onTakeOver(async () => {
+    await kernel.dispose();
+    sessionStorage.setItem('pip-moved', '1');
+    setTimeout(() => location.reload(), 50);
+  });
+
   const s: State = {
     config,
     keep,

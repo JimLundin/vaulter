@@ -42,7 +42,9 @@ const files = {
 };
 
 let k: Kernel | undefined;
-afterEach(() => k?.dispose());
+afterEach(async () => {
+  await k?.dispose();
+});
 
 describe('the kernel contract', () => {
   it('lists every extension with its status, and refuses changes not made by a person', async () => {

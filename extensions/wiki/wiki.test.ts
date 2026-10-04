@@ -7,7 +7,9 @@ import type { Kernel } from '../../src/kernel/kernel.ts';
 import { startRepo } from '../../src/kernel/testing.ts';
 
 let kernel: Kernel | undefined;
-afterEach(() => kernel?.dispose());
+afterEach(async () => {
+  await kernel?.dispose();
+});
 
 // A model that files notes the way the instructions ask, by looking at the note and the pages sent.
 const FAKE_AI = `

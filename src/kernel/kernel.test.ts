@@ -126,8 +126,8 @@ const start = async (...args: Parameters<typeof startTree>) => {
   kernels.push(r.kernel);
   return r;
 };
-afterEach(() => {
-  for (const k of kernels) k.dispose();
+afterEach(async () => {
+  await Promise.all(kernels.map((k) => k.dispose()));
   kernels = [];
 });
 

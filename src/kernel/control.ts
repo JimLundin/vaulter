@@ -7,6 +7,7 @@ import type { ConfigStore } from './config.ts';
 import type { Kernel } from './kernel.ts';
 import type { SecretStore } from './secrets.ts';
 import type { Unsealer } from './unseal.ts';
+import { KERNEL_API } from './version.ts';
 
 export interface ControlEnv {
   kernel: Kernel;
@@ -62,6 +63,9 @@ export function control(env: ControlEnv): KernelV1 {
             ),
             agentGuide: s?.agentGuide ?? '',
             author: s?.author ?? { kind: 'person' },
+            kernel: s?.kernel ?? '',
+            errors: kernel.errors.of(id).slice(-5),
+            failing: kernel.errors.failing(id),
           };
         }),
       );
@@ -73,6 +77,7 @@ export function control(env: ControlEnv): KernelV1 {
         ref: c.ref,
         pin: c.pin,
         commit: env.commit(),
+        kernelApi: KERNEL_API,
         drafts: c.drafts,
       });
     },
@@ -99,6 +104,7 @@ export function control(env: ControlEnv): KernelV1 {
       }));
     },
     review: (branch) => env.review(branch),
+    errors: (id) => Promise.resolve(kernel.errors.of(id)),
 
     decide: (id, approve) => Promise.resolve(kernel.policy.decide(id, approve)),
     setAccess: (ext, label, access) =>
@@ -108,11 +114,15 @@ export function control(env: ControlEnv): KernelV1 {
         else next[`${ext}/${label}`] = access;
         return { ...c, access: next };
       }),
-    setEnabled: (id, on) =>
-      config.update((c) => ({
+    async setEnabled(id, on) {
+      await config.update((c) => ({
         ...c,
         disabled: on ? c.disabled.filter((x) => x !== id) : [...new Set([...c.disabled, id])],
-      })),
+      }));
+      // Now, too: off stops it (and what requires it); on starts it, and what stopped with it.
+      if (!on) await kernel.stop(id);
+      else if (!kernel.running().some((r) => r.id === id)) await kernel.reload([id]);
+    },
     async remove(id) {
       await kernel.remove(id);
       await config.update((c) => ({ ...c, disabled: [...new Set([...c.disabled, id])] }));

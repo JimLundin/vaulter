@@ -5,7 +5,9 @@ import { secretStore } from '../../src/kernel/secrets.ts';
 import { memoryKeep, startRepo } from '../../src/kernel/testing.ts';
 
 let kernel: Kernel | undefined;
-afterEach(() => kernel?.dispose());
+afterEach(async () => {
+  await kernel?.dispose();
+});
 
 const sse = (events: object[]) =>
   new Response(

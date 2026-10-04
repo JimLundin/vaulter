@@ -2,6 +2,7 @@
 // An extension that can't be wired is left out with its reasons, and so is everything that needed it;
 // the rest still loads (the delete test: removing a feature must not stop the app).
 import { satisfies } from './contract.ts';
+import { KERNEL_API } from './version.ts';
 import { Statics } from './extension.ts';
 
 export interface Accepted {
@@ -51,7 +52,9 @@ export function resolve(
       continue;
     }
     const { id } = parsed.data;
-    if (id !== folder) refuse(folder, `its id is "${id}"; it must be its folder's name`);
+    if (!satisfies(KERNEL_API, parsed.data.kernel))
+      refuse(folder, `needs kernel API ${parsed.data.kernel}; this kernel has ${KERNEL_API}`);
+    else if (id !== folder) refuse(folder, `its id is "${id}"; it must be its folder's name`);
     else if (valid.has(id) || started.some((x) => x.id === id))
       refuse(id, `two extensions have the id "${id}"`);
     else valid.set(id, { statics: parsed.data });

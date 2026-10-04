@@ -80,7 +80,21 @@ Values otherwise pass as they are, not copied: a React component, a Zod schema o
 
 **Personal methods.** A contract can mark methods only a person may call: answering a question, approving, changing access, accepting a draft, unlocking the sealed secrets. The kernel lets such a call through only right after a user activation (a tap or a key), so Pip can't approve its own proposals.
 
-**What every extension gets from the kernel** (the second argument to `setup`): `storage`, a namespace of its own in the kernel's IndexedDB, dropped when the extension is removed; `fetch`, https only, to its declared hosts, with a secret attached by the kernel when asked for; and `hasSecret`.
+**What every extension gets from the kernel** (the second argument to `setup`): `storage`, a namespace of its own in the kernel's IndexedDB, dropped when the extension is removed; `fetch`, https only, to its declared hosts, with a secret attached by the kernel when asked for; `hasSecret`; and `onStop`.
+
+**Stopping.** An extension can stop without a page reload: turned off, reloaded with a draft's new commit, removed, or with every other one when the tab hands Vaulter over. Stopping one stops first everything that requires it, since they hold handles on it. For each, in that order:
+
+- its `onStop` functions run (timers, anything else it started);
+- each per-caller provider it required gets `release(caller)`, to let go of what it registered (the agent drops its tools);
+- every function it handed out through a handle goes quiet: the kernel wraps each function that crosses with its owner, so a handler a provider forgot to let go of does nothing once its owner has stopped.
+
+Its data stays; `remove` drops it. `kernel.reload(ids)` stops extensions (with their dependants) and starts them all again, from a new plan where given, so turning one on or off through the kernel contract takes effect at once.
+
+**Errors.** What an extension's code throws through a handle (a call it provides, a callback it handed out, its setup or its onStop) is kept under that extension, and so is an error nothing caught: every compiled module carries a source URL, `pip:///<commit>/extensions/<id>/<file>`, so the stack says whose code it was. The last twenty per extension are kept, survive a reload (for safe mode), and five in a minute mark it failing (`kernel.extensions()`, `kernel.errors(id)`).
+
+**One tab at a time.** Two tabs would run two kernels over the same IndexedDB, each deaf to the other's changes. The kernel holds a Web Lock while it runs; another tab shows a bare screen until the person moves Vaulter there, when the first tab stops every extension and lets go (`src/kernel/single-tab.ts`).
+
+**The kernel API is versioned.** `KERNEL_API` (`src/kernel/version.ts`) is the version of what extensions are given; an extension states in its static fields the version it was written against (`kernel: '1.1.0'`, default `1.0.0`), and loads only on a kernel with the same major and at least that minor. That matters because the kernel a device runs comes from the deployed page (or the service worker's cache) while extensions come from the repo at a commit: an extension that needs a newer kernel is refused with that reason rather than failing at runtime.
 
 ## The extension format
 
@@ -109,7 +123,7 @@ The definition has two parts:
 
 | Part | Holds | Read by |
 | --- | --- | --- |
-| Static fields: `id`, `version`, `requires`, `optional`, `provides`, `permissions`, `secrets`, `agentGuide` | Plain values | The kernel before any code runs, and the review screen |
+| Static fields: `id`, `version`, `kernel`, `requires`, `optional`, `provides`, `permissions`, `secrets`, `agentGuide` | Plain values | The kernel before any code runs, and the review screen |
 | `setup(ctx)` | Code that registers types, tools, views and handlers through the contracts it requires | Runs once the kernel has accepted the static part |
 
 `ctx` contains typed handles only for the contracts listed in `requires`, and for those in `optional` that something provides (undefined otherwise). An optional contract keeps the delete test: the wiki gives Pip tools when an agent is installed, asks questions when there is somewhere to ask, revises pages when there is a model, and works by hand without any of them. Calling anything else fails to compile, and the kernel refuses it at runtime as well. The kernel reads the static fields by evaluating the module before `setup` runs; an extension's id must be its folder's name, and a contract's key is derived by the kernel from its name and version, never taken from the sandbox.
@@ -372,6 +386,10 @@ Three patterns repeat across these screens:
 | The kernel's own screens | A `kernel@1` contract the kernel provides; the screens are extensions. |
 | Offline | A service worker for the kernel's files; trees and compiled output in the kernel's IndexedDB. |
 | Secrets on a new device | Sealed into the page by CI with a password; the kernel asks for it once per device. |
+| Turning an extension off, a draft swap | Live: stopping runs onStop, releases it with providers and silences its functions; dependants stop first. |
+| Errors | Kept per extension at the handle boundary and by stack for uncaught ones; failing after five in a minute. |
+| Several tabs | One kernel at a time, by a Web Lock; another tab takes over on request. |
+| Kernel and extensions from different commits | The kernel API is versioned; an extension states the version it needs. |
 
 **Build order.**
 
@@ -404,6 +422,8 @@ Where it stands (the `pip` branch): every architecture goal above has an impleme
 - [x] Spike: how long does compiling every extension in the browser take, and is a CI-built cache needed from the start? (No; see above.)
 - [x] How a device chooses which draft branches to load: per device, through `kernel.tryDraft` (the review screen) or safe mode.
 - [ ] Views: how the shell lays out views and panels from several extensions (`ui.shell`, and its granularity: one contract, or separate ones for slots, keys and the palette). The first job of the UI work.
-- [ ] Pending approvals live in memory: an `ask` call that isn't decided before the app closes fails, and Pip asks again. Persisting them needs the call to be replayable.
+- [ ] Pending approvals live in memory: an `ask` call that isn't decided before the app closes fails, and Pip asks again. Persisting them needs the call to be replayable. (Postponed.)
+- [ ] Postponed with it: a schema version for the kernel's own stored data (config, keep), cleaning up data left by extensions deleted from the repo, and bringing the first-draft examples above up to date.
+- [ ] Not planned for now: reading files from GitHub without the API's rate limit (raw.githubusercontent or an archive per commit), and a whole-system export through the kernel for backup and sync.
 
 **Sources:** [OpenAI Realtime API guide](https://developers.openai.com/api/docs/guides/realtime)

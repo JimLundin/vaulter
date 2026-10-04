@@ -19,3 +19,4 @@ export {
   type KernelApi,
 } from './extension.ts';
 export { type PerCaller, perCaller } from './per-caller.ts';
+export { KERNEL_API } from './version.ts';

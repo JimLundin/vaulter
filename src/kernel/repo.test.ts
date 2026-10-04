@@ -21,7 +21,9 @@ const read = (dir: string): Record<string, string> => {
 };
 
 let kernel: Kernel | undefined;
-afterEach(() => kernel?.dispose());
+afterEach(async () => {
+  await kernel?.dispose();
+});
 
 it("starts store-local after records@1's conformance suite, and serves another extension through the client", async () => {
   const files = {

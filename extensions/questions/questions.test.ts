@@ -4,7 +4,9 @@ import type { Kernel } from '../../src/kernel/kernel.ts';
 import { startRepo } from '../../src/kernel/testing.ts';
 
 let kernel: Kernel | undefined;
-afterEach(() => kernel?.dispose());
+afterEach(async () => {
+  await kernel?.dispose();
+});
 
 const probe = defineContract<{ run: (a?: string) => Promise<unknown> }>({
   name: 'probe',
