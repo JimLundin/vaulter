@@ -24,7 +24,7 @@ The kernel only connects extensions. Checked against the delete test, none of th
 | First drafted as core | Becomes | Provides |
 | --- | --- | --- |
 | Note log | `notes` extension | `notes@1` |
-| Record store | `records` contract, implemented by a storage extension such as `store-idb` | `records@1` |
+| Record store | `records` contract, implemented by a storage extension such as `store-local` | `records@1` |
 | Agent loop | `agent` extension | `agent@1`, `agent.tools@1` |
 | Shell | `shell-mobile` and `shell-desktop` extensions | `ui.shell@1` |
 | AI provider (new) | `openai` extension | `ai.transcribe@1`, `ai.realtime@1`, `ai.chat@1`, `ai.embed@1` |
@@ -35,30 +35,52 @@ What remains are the jobs an extension can't do for itself:
 | --- | --- |
 | Fetch extension source from a source provider, compile it in the browser and cache the output per commit | Every extension, built-in or Pip's, has to arrive the same way |
 | Validate each extension's definition and resolve contracts: match each `requires` to a `provides`, check versions | Extensions can't wire themselves without a referee |
-| Broker every call between extensions and check its permission | An extension can't police its own access; Pip's read, write and ask settings are enforced here |
+| Route every call between extensions and check it: that the caller requires the contract, that a callback was handed to it, Pip's read, write and ask, and that a person's own actions come from a person | An extension can't police its own access; Pip's read, write and ask settings are enforced here |
 | Hold secrets and attach them to requests for declared hosts only | No extension can be trusted with another's secrets |
-| Run extension code in a sandbox (Web Worker or iframe) | Isolation has to be imposed from outside |
+| Run each extension in its own sandbox, and give it the storage and network a sandbox doesn't have | Isolation has to be imposed from outside |
 | Choose which branch or commit to load, and roll back | Needed before any extension has loaded |
 | Safe mode: a bare screen to switch branch, roll back or disable extensions | Recovery when a broken shell hides the app |
+| Provide the `kernel` contract: the extensions, their access, approvals, drafts and review | Only the kernel knows what it loaded and why; the screens for it are extensions |
 
-**The bootstrap set.** Before the kernel can load anything, it needs a source provider: an ordinary extension providing `extensions.source@1`, which reads extension source from the repo. It ships inside the kernel bundle, together with safe mode, and is the only extension that does. Moving to another git host means swapping this one provider. With nothing but the bootstrap set, the app boots into safe mode, asks for a repo and a token, and loads everything else from there.
+**The bootstrap set.** Before the kernel can load anything, it needs a source provider: an ordinary extension providing `extensions.source@1`, which reads extension source from the repo. Its source ships inside the kernel bundle, together with safe mode, and it is the only extension that does; it is compiled and sandboxed like any other. Under `npm run dev` the kernel itself provides the contract over the working tree. Moving to another git host means swapping this one provider. With nothing but the bootstrap set, the app boots into safe mode, asks for a repo and a token, and loads everything else from there.
 
 **Contracts are the central idea.** Extensions never depend on each other by name. They require a contract, such as `records@1`, and any installed extension that provides it satisfies them. Moving storage from IndexedDB to an embedded database, or the AI from OpenAI to another provider, means installing a different provider. A Git backup extension simply requires `notes@1` and `records@1`.
 
-**Contribution points are contracts too.** The kernel has no idea what a view, a tool or a record type is. The shell provides `ui.shell@1` with its slots, the agent provides `agent.tools@1`, and the records contract handles type registration. An extension adds a tool by contributing to `agent.tools@1`, exactly as it would to any other contract.
+**Contribution points are contracts too.** The kernel has no idea what a view, a tool or a record type is. The shell provides `ui.shell@1` with its slots, the agent provides `agent.tools@1`, and the records contract handles type registration. The kernel knows only two generic things about what crosses it: a function marked with an access level (a tool's `run`), and a contract method marked personal. An extension adds a tool by contributing to `agent.tools@1`, exactly as it would to any other contract.
 
 ```
- ┌─────────────── extensions ───────────────┐
- │ shell-*   voice   wiki   agent   openai …│   each provides and requires contracts
- └───────┬───────────────────────────┬──────┘
-         │ calls, through contracts  │
- ┌───────▼───────────────────────────▼──────┐
- │ kernel: loader · resolver · broker ·     │   source-github and safe mode ship inside it
- │         secrets · sandbox · safe mode    │
- └──────────────────────────────────────────┘
+ ┌────────── extensions, one sandbox each ──────────┐
+ │ shell-*   voice   wiki   agent   openai   …      │   each provides and requires contracts
+ └───────┬──────────────────────────────────┬───────┘
+         │ messages over a port: calls,     │
+         │ callbacks, storage, fetch        │
+ ┌───────▼──────────────────────────────────▼───────┐
+ │ kernel: loader · resolver · router · policy ·    │   source-github's source and safe mode
+ │         secrets · storage · sandboxes · safe mode│   ship inside it
+ └──────────────────────────────────────────────────┘
 ```
 
-Extensions provide and require contracts, and every call between them passes through the kernel's broker. Pip's agent is one extension among them, so the extensions it writes are installed through the same kernel as any other.
+Extensions provide and require contracts, and every call between them passes through the kernel's router. Pip's agent is one extension among them, so the extensions it writes are installed through the same kernel as any other.
+
+## Sandboxes and the wire
+
+Every extension runs in its own sandbox: a hidden `srcdoc` iframe with `sandbox="allow-scripts"`, so its origin is opaque. It has no access to the app's page, cookies or IndexedDB, and its own Content Security Policy forbids any network. Its only way out is a `MessagePort` to the kernel. A Web Worker would not do: a worker on the app's origin can open the kernel's IndexedDB, and with it the secrets.
+
+| A sandbox has | From |
+| --- | --- |
+| Its code | The kernel compiles the extension and sends the plan (`src/kernel/loader.ts`); the sandbox links it into `blob:` modules (`src/sandbox/link.ts`) |
+| The runtime, Zod and the kernel API | One bundle the kernel sends as text (`src/sandbox/core.ts`); React in a second, only if the extension imports it. Nothing is fetched by the sandbox, so it starts offline: a service worker can't serve a frame with an opaque origin |
+| Storage | `kernel.storage`: a namespace of its own in the kernel's IndexedDB, dropped when the extension is removed |
+| Network | `kernel.fetch`: https only, to its declared hosts, with a secret attached by the kernel when asked for |
+| Devices | The frame's `allow` attribute, set from its accepted `permissions.device` |
+
+**Calls are messages.** A call to a contract goes from the requirer's sandbox to the kernel, which checks that the caller requires that contract, routes it to the provider's sandbox, and returns the result. So every method on the wire is async and takes and returns values structured clone can copy. A function anywhere in a value becomes a callback: the sandbox names it with a local id, the kernel turns that into a global id and records who was handed it, and calling it is another routed message. Only an extension that was handed a callback can call it.
+
+**A contract has two faces.** `W`, the wire interface, is what a provider implements. `T`, what a requirer uses, is the same unless the contract has a `client`: code in the contract package that runs in the requirer's sandbox and adapts `W` into `T`. The records client turns Zod fields into JSON Schema and returns the type handle at once; the agent.tools client turns a tool's Zod input into JSON Schema and marks its `run` with its access level. A Zod schema itself can't cross.
+
+**Where each check runs.** The kernel validates static fields and routes; the provider's sandbox checks every call against the contract's Zod `inputs`, so the side that is protected does the checking; the kernel applies access levels and personal methods, which no sandbox can skip.
+
+**Personal methods.** A contract can mark methods only a person may call: answering a question, approving, changing access, accepting a draft. The kernel lets such a call through only right after a user activation, with the calling extension's own frame focused, so a tap in one extension can't be borrowed by another, and Pip can't approve its own proposals.
 
 ## The extension format
 
@@ -66,19 +88,22 @@ Every extension is TypeScript source in the repo, exporting one `defineExtension
 
 ```
 src/kernel/              kernel and safe mode (the only built bundle)
+src/sandbox/             what runs inside every sandbox: the runtime, the linker, the bootstrap
 contracts/
-  records/               interface, Zod schemas, conformance tests
-  ui.shell/
+  records/               interface, Zod schemas, client, conformance suite
   agent.tools/
+  kernel/                the kernel's own contract
 extensions/
-  source-github/         bootstrap: ships inside the kernel bundle
-  store-idb/
+  source-github/         bootstrap: its source ships inside the kernel bundle
+  store-local/
   wiki/
     index.ts             export default defineExtension({...})
     revise.ts
     views/Page.tsx
     wiki.test.ts
 ```
+
+An extension imports the kernel as `@pip/kernel`, a contract as `@contracts/<name>`, its own files relatively, and the shared `zod`, `react`, `react/jsx-runtime` and `react-dom/client`. Nothing else resolves, so an extension can't reach into another's folder.
 
 The definition has two parts:
 
@@ -87,15 +112,15 @@ The definition has two parts:
 | Static fields: `id`, `version`, `requires`, `provides`, `permissions`, `secrets`, `agentGuide` | Plain values | The kernel before any code runs, and the review screen |
 | `setup(ctx)` | Code that registers types, tools, views and handlers through the contracts it requires | Runs in the sandbox once the kernel has accepted the static part |
 
-`ctx` contains typed handles only for the contracts listed in `requires`. Calling anything else fails to compile, and the broker refuses it at runtime as well.
+`ctx` contains typed handles only for the contracts listed in `requires`. Calling anything else fails to compile, and the kernel refuses it at runtime as well. The kernel reads the static fields by evaluating the module in a sandbox before `setup` runs; an extension's id must be its folder's name, and a contract's key is derived by the kernel from its name and version, never taken from the sandbox.
 
 **A contract is a TypeScript package** in `contracts/`: its interface, Zod schemas for every input, and a conformance test suite for providers. A misspelled slot, a missing method or a wrong argument is a type error in your editor and in CI. Tool input schemas for Pip are generated from the same Zod schemas, so there is no hand-written JSON and no string mini-language anywhere.
 
 **Checks happen at three points.**
 
 - TypeScript, in the editor and in CI on every push.
-- Zod, when the kernel loads an extension's static fields and on every call through the broker.
-- Conformance tests, before a provider can satisfy a `requires`.
+- Zod, when the kernel loads an extension's static fields, and in the provider's sandbox on every call.
+- Conformance suites (`contracts/<name>/conformance.ts`), run by the kernel against a scratch instance of each provider, in its own sandbox and namespace, before the provider can satisfy a `requires`; a pass is cached by the shas of the provider and the suite. CI runs the same suites under Vitest.
 
 **Isolation.** Each extension's data lives in its own namespace with the storage provider. It reaches anything else only through contracts it requires and has permission to call, so removing it removes its namespace and nothing else.
 
@@ -118,7 +143,7 @@ From each extension Pip gets:
 | `write` | Uses it, logs it, offers undo | Adding a fact with a clear source |
 | `ask` | Proposes the change; you approve | Merging people, changing dates, anything uncertain |
 
-You can tighten or loosen any tool in that extension's settings. The kernel's broker enforces these on every call, so neither an extension nor the agent extension itself can go around them.
+You can tighten or loosen any tool in that extension's settings. The kernel enforces these on every call: a tool's `run` reaches the agent as a callback marked with its level, so each call Pip makes to it is routed through the kernel's policy (`src/kernel/policy.ts`), which logs `write` calls and holds `ask` calls until you approve them through the `kernel` contract. Neither an extension nor the agent extension itself can go around them.
 
 **Only load what is relevant.** Pip always sees a one-line summary of each installed extension. It loads an extension's full tools and guide only when the task needs it, so twenty extensions don't crowd every request. Recording a note about a café pulls in Map; asking about next week pulls in Calendar.
 
@@ -135,9 +160,12 @@ The repo is where every extension lives, and every extension goes through the sa
 
 The code, compiler, loader and contracts are the same at every stage; only the branch changes. Because drafts live in git, they survive a cleared browser cache and appear on your other devices.
 
+- **Writing a draft** goes through `extensions.source@1`: one commit on a `draft/*` branch, only under `extensions/` and `contracts/`, never forced. The kernel is never written this way. Merging is personal, so only accepting a draft (a person, through the `kernel` contract) reaches `main`.
+- **Trying a draft** is per device (`kernel.tryDraft`, or safe mode): the device loads `main` with each tried draft's changed folders on top (`src/kernel/drafts.ts`).
+- **Reviewing a draft** compares the two trees and each changed extension's static fields, read in a scratch sandbox, and lists in plain words what it newly asks for: a host, a device, a secret, or a powerful contract such as `kernel@1` or `extensions.source@1`. CI's checks on the draft's head come with it.
 - **Rollback** is reverting the merge, or pinning the app to an earlier commit from safe mode.
-- **Startup** compiles each extension once per commit and caches the result. If that gets slow, CI can publish compiled output beside the source, and the loader uses it when present.
-- **Offline,** the PWA cache serves the last compiled version, so the app opens without reaching GitHub.
+- **Startup** compiles each file once and caches the output by blob sha, so a new commit recompiles only what changed. If that gets slow, CI can publish compiled output beside the source.
+- **Offline,** the service worker serves the kernel, the kernel sends sandboxes their code, and the last tree and compiled output are in the kernel's IndexedDB, so the app opens without reaching GitHub.
 - **Pip gets no special access.** Its extension's permissions and secrets are part of what you review, and raising them later takes a new draft.
 
 ## Secrets
@@ -149,7 +177,7 @@ Secrets never go into the repo and never sync between devices. A new device need
 1. A GitHub fine-grained token limited to this one repo, with read and write access to contents, for the source provider.
 2. Your OpenAI key, for the `openai` extension.
 
-Realtime fits the same model: the kernel calls `POST /v1/realtime/client_secrets` with your key, and the voice extension receives only the short-lived session key.
+Realtime fits the same model: the `openai` extension calls `POST /v1/realtime/client_secrets` through `kernel.fetch`, which attaches your key, and returns only the short-lived session key through `ai.realtime@1`; the voice extension connects with that.
 
 ## Stability
 
@@ -268,7 +296,7 @@ export default defineExtension({
       kind: z.enum(["run", "gym", "swim"]),
       distanceKm: z.number().optional(),
       minutes: z.number().optional(),
-      place: wiki.place.ref().optional(),
+      place: refTo(wiki.place).optional(),
     });
 
     extract.addRule({
@@ -293,7 +321,7 @@ export default defineExtension({
 });
 ```
 
-Map, Git backup, the OpenAI provider and the GitHub source provider follow the same pattern.
+Map, Git backup, the OpenAI provider and the GitHub source provider follow the same pattern. These examples predate the sandbox: on the wire every contract method is async (`await records.query(...)`), and a type handle is plain data, so a reference field is `refTo(wiki.place)` rather than a method on the handle.
 
 ## UI for extensions
 
@@ -326,35 +354,36 @@ Three patterns repeat across these screens:
 | Secrets | Held by the kernel, attached only to requests for declared hosts; never in the repo, never synced. |
 | Live transcription | OpenAI Realtime API, inside the `openai` extension behind `ai.realtime@1`, using a short-lived session key minted from your key. |
 | Direct browser calls to OpenAI | Confirmed working in your trial project; no proxy. |
-| Storage for records and embeddings | An extension that provides `records@1`. IndexedDB first; others can replace it. |
+| Storage for records and embeddings | An extension that provides `records@1` (`store-local`, on the kernel's storage). Others can replace it by passing the conformance suite. |
 | Sync and backup of data | Extensions, such as a Git backup requiring `notes@1` and `records@1`, kept separate from the code repo. |
+| Sandbox | One opaque-origin `srcdoc` iframe per extension, with no network of its own; not a Web Worker, which could read the app's IndexedDB. |
+| Calls between extensions | Async messages routed by the kernel; functions become kernel-routed callbacks. A contract may ship a client that adapts the wire interface for requirers. |
+| Pip's access | Read, write and ask attach to guarded callbacks (a tool's `run`); the person's setting overrides the declared level. |
+| What only a person may do | Contract methods marked personal pass only right after a user activation in the caller's own frame. |
+| The kernel's own screens | A `kernel@1` contract the kernel provides; the screens are extensions. |
+| Offline | A service worker for the kernel's files; sandboxes get their code from the kernel; trees and compiled output in the kernel's IndexedDB. |
 
 **Build order.**
 
-1. Kernel with safe mode, the in-browser compiler and loader, the broker and the secret store.
-2. The bootstrap source provider for GitHub.
-
-Progress (on the `pip` branch):
-
-- Step 1, in `src/kernel/`: contracts and versions (`contract.ts`), definitions with Zod-checked static fields (`extension.ts`), the resolver (`resolve.ts`), the broker with its gate for Pip's read, write and ask (`broker.ts`), per-caller providers for namespaces (`per-caller.ts`), secrets and the kernel's `fetch` (`secrets.ts`, `idb.ts`), the compiler (`compile.ts`: Sucrase and es-module-lexer, loaded only on a cache miss) and the loader (`loader.ts`: compiled output cached by blob sha, linked into blob: modules), start-up with offline fallback (`start.ts`) and safe mode (`safe-mode.ts`). Not yet: the sandbox (extensions run in the page), and running conformance suites before accepting a provider (they run in CI).
-- Step 2: `source-github`, and `source-dev` for `npm run dev`.
-- Step 3: `extensions.source`, `records` (with its conformance suite), `notes` and `ui.shell`. Not yet: `ai.*`, `agent.tools`, `questions`.
-- Steps 4 and 5, first cut: `store-idb`, `notes`, one responsive `shell` (the split into `shell-mobile` and `shell-desktop` waits until they differ by more than CSS), and `wiki` with hand-written pages citing notes.
-
-The compile spike's answer: Sucrase compiles about 100 KB of TypeScript in 10 ms, and output is cached per blob, so a new commit recompiles only what changed; no CI-built cache is needed yet. The kernel bundle is 625 KB (167 KB gzipped), most of it React DOM and Zod, which extensions share whole.
-3. Contract packages with conformance tests: `records`, `notes`, `ui.shell`, `ai.*`, `agent.tools`, `questions`.
-4. Foundation extensions: `store-idb`, `notes`, `openai`, `shell-mobile`, `shell-desktop`, `agent`.
+1. Kernel with safe mode, the in-browser compiler and loader, the router and the secret store. **Done**, and the sandbox with it.
+2. The bootstrap source provider for GitHub. **Done**, with drafts: commit, merge and checks.
+3. Contract packages with conformance suites: `records`, `notes`, `ai.*`, `agent.tools`, `questions`, and `kernel`. **Done**, except `ui.shell`, which waits for the UI work.
+4. Foundation extensions: `store-local` (**done**), `notes`, `openai`, `shell-mobile`, `shell-desktop`, `agent`.
 5. Voice, Wiki and Questions, which together exercise nearly every contract.
 6. Today, Search and Map.
-7. The draft-branch flow, so Pip can write extensions.
+7. The draft-branch flow, so Pip can write extensions. **The kernel's part is done**: trying drafts per device, review, accept; Pip's side belongs to the agent extension.
+
+Where it stands (the `pip` branch): every architecture goal above has an implementation and tests, run in Node with the same runtime in-process sandboxes (`src/kernel/testing.ts`), and checked in Chromium with real sandboxes, online and offline. The compile spike: Sucrase compiles about 100 KB of TypeScript in 10 ms, cached per blob, so no CI-built cache is needed yet. The kernel bundle is 140 KB (43 KB gzipped); the sandbox bundles (runtime and Zod, and React) and the compiler are separate chunks, loaded when needed.
 
 **A rebuild, not a refactor.** The first draft planned to wrap the existing app's modules as providers and move features over one at a time. Instead (2026-10-04) Pip is a full rebuild on the `pip` branch, with the old app removed there so the two never run side by side. This iteration has two features, `notes` and `wiki`; later ones (the weekly sweep on a schedule, voice, Pip itself) are extensions on top.
 
 **Open questions.**
 
-- [ ] Spike: does `POST /v1/realtime/client_secrets` accept browser requests the way the other endpoints do?
-- [x] Spike: how long does compiling every extension in the browser take, and is a CI-built cache needed from the start? (No; see Progress.)
-- [ ] Contract granularity: one `ui.shell` contract, or separate ones for slots, keys and the palette?
-- [ ] How a device chooses which draft branches to load: per device in safe mode, or per draft on the review screen.
+- [ ] Spike: does `POST /v1/realtime/client_secrets` accept browser requests the way the other endpoints do? (It goes through `kernel.fetch` now, so CORS is the only question.)
+- [x] Spike: how long does compiling every extension in the browser take, and is a CI-built cache needed from the start? (No; see above.)
+- [x] How a device chooses which draft branches to load: per device, through `kernel.tryDraft` (the review screen) or safe mode.
+- [ ] Views across sandboxes: each extension renders into its own frame, so the shell needs the kernel to place frames where its slots are (the kernel owns every frame), and a page built from panels is several frames. This is the first job of the UI work, together with `ui.shell` and its granularity (one contract, or separate ones for slots, keys and the palette).
+- [ ] Memory: every sandbox parses its own copy of the runtime and Zod (and React for views). Fine for tens of extensions; measure on a phone before there are many more.
+- [ ] Pending approvals live in memory: an `ask` call that isn't decided before the app closes fails, and Pip asks again. Persisting them needs the call to be replayable.
 
 **Sources:** [OpenAI Realtime API guide](https://developers.openai.com/api/docs/guides/realtime)

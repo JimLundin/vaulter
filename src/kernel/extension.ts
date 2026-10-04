@@ -2,14 +2,17 @@
 // the kernel validates before any of its code runs; `setup` runs once they are accepted, with handles
 // only for the contracts it requires (ARCHITECTURE.md, "The extension format").
 import { z } from 'zod';
-import { type AnyContract, ContractName, type Impl, Version } from './contract.ts';
+import {
+  type AnyContract,
+  ContractName,
+  ContractRef,
+  type Impl,
+  type Use,
+  Version,
+} from './contract.ts';
 import type { PerCaller } from './per-caller.ts';
 
-const contractHandle = z.custom<AnyContract>(
-  (c) => typeof c === 'object' && c !== null && (c as AnyContract).kind === 'contract',
-  { message: 'not a contract handle (import it from contracts/)' },
-);
-const handles = z.record(z.string(), contractHandle);
+const refs = z.record(z.string().regex(/^[a-zA-Z_$][\w$]*$/), ContractRef);
 
 const Host = z
   .string()
@@ -28,8 +31,8 @@ export type SecretSpec = z.infer<typeof SecretSpec>;
 export const Statics = z.object({
   id: z.string().regex(/^[a-z][a-z0-9-]*$/, { message: 'lowercase words joined by dashes' }),
   version: Version,
-  requires: handles.default({}),
-  provides: handles.default({}),
+  requires: refs.default({}),
+  provides: refs.default({}),
   permissions: z
     .object({
       device: z.array(z.enum(['microphone', 'camera', 'geolocation'])).default([]),
@@ -49,17 +52,38 @@ export const Statics = z.object({
 });
 export type Statics = z.infer<typeof Statics>;
 
-/** What the kernel gives every extension besides its contracts. */
+/** A request through the kernel: only plain values, so it can cross from the sandbox. */
+export interface FetchInit {
+  method?: string;
+  headers?: Record<string, string>;
+  body?: string | ArrayBuffer | Uint8Array;
+  /** One of the extension's declared secrets: the kernel attaches it, the extension never sees it. */
+  secret?: string;
+}
+
+/** The extension's own storage, kept by the kernel in a namespace no other extension can reach; it
+ * goes when the extension is removed. Values are anything structured clone copies. */
+export interface ExtStorage {
+  get: <T>(key: string) => Promise<T | undefined>;
+  set: (key: string, value: unknown) => Promise<void>;
+  delete: (key: string) => Promise<void>;
+  /** Entries whose key starts with `prefix`, in key order. */
+  list: <T>(prefix?: string) => Promise<[string, T][]>;
+}
+
+/** What the kernel gives every extension besides its contracts. A sandbox has no network and no
+ * storage of its own (its origin is opaque), so both come from here. */
 export interface KernelApi {
-  /** `fetch`, allowed only to the extension's declared hosts; `secret` names one of its secrets, which
-   * the kernel attaches itself, so the extension never sees the value. */
-  fetch: (url: string, init?: RequestInit & { secret?: string }) => Promise<Response>;
-  /** A secret the extension declared is set, without revealing it. */
+  readonly id: string;
+  /** https only, to the extension's declared hosts. */
+  fetch: (url: string, init?: FetchInit) => Promise<Response>;
+  /** Whether a secret the extension declared is set, without revealing it. */
   hasSecret: (name: string) => Promise<boolean>;
+  storage: ExtStorage;
 }
 
 type Contracts = Record<string, AnyContract>;
-export type Ctx<R extends Contracts> = { [K in keyof R]: Impl<R[K]> };
+export type Ctx<R extends Contracts> = { [K in keyof R]: Use<R[K]> };
 /** What setup returns for each contract it provides: the implementation, or one per caller. */
 export type Provided<P extends Contracts> = { [K in keyof P]: Impl<P[K]> | PerCaller<Impl<P[K]>> };
 // biome-ignore lint/suspicious/noConfusingVoidType: a setup that provides nothing returns nothing

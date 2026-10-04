@@ -2,12 +2,11 @@
 // An extension that can't be wired is left out with its reasons, and so is everything that needed it;
 // the rest still loads (the delete test: removing a feature must not stop the app).
 import { satisfies } from './contract.ts';
-import { type Extension, Statics } from './extension.ts';
+import { Statics } from './extension.ts';
 
 export interface Accepted {
   id: string;
   statics: Statics;
-  def: Extension['def'];
   /** For each `requires` key in the definition, the id of the extension that provides it. */
   wiring: Record<string, string>;
 }
@@ -25,9 +24,10 @@ export interface Resolution {
 }
 
 export interface Candidate {
-  /** Where it came from ("extensions/wiki"), for problems in a definition with no valid id. */
-  origin: string;
-  ext: unknown;
+  /** The folder it came from (extensions/<id>): its id must be the folder's name. */
+  folder: string;
+  /** Its static fields as its sandbox reported them, not yet validated. */
+  statics: unknown;
 }
 
 /** `choose` settles two providers of the same contract: contract key → extension id. `started` are
@@ -41,25 +41,19 @@ export function resolve(
   const refuse = (id: string, problem: string) =>
     refused.set(id, [...(refused.get(id) ?? []), problem]);
 
-  const valid = new Map<string, { statics: Statics; def: Extension['def'] }>();
-  for (const { origin, ext } of candidates) {
-    const def =
-      (ext as Extension | undefined)?.kind === 'extension' ? (ext as Extension).def : null;
-    if (!def) {
-      refuse(origin, 'the default export is not defineExtension({...})');
-      continue;
-    }
-    const parsed = Statics.safeParse(def);
-    const id = parsed.success ? parsed.data.id : typeof def.id === 'string' ? def.id : origin;
+  const valid = new Map<string, { statics: Statics }>();
+  for (const { folder, statics } of candidates) {
+    const parsed = Statics.safeParse(statics);
     if (!parsed.success) {
       for (const i of parsed.error.issues)
-        refuse(id, `${i.path.join('.') || 'definition'}: ${i.message}`);
+        refuse(folder, `${i.path.join('.') || 'definition'}: ${i.message}`);
       continue;
     }
-    if (typeof def.setup !== 'function') refuse(id, 'setup: not a function');
+    const { id } = parsed.data;
+    if (id !== folder) refuse(folder, `its id is "${id}"; it must be its folder's name`);
     else if (valid.has(id) || started.some((x) => x.id === id))
       refuse(id, `two extensions have the id "${id}"`);
-    else valid.set(id, { statics: parsed.data, def });
+    else valid.set(id, { statics: parsed.data });
   }
 
   // Leave out, until nothing changes, whatever can't be wired to the extensions still in.
@@ -121,8 +115,7 @@ export function resolve(
       if (live.delete(id)) refuse(id, 'something it requires could not start');
       return false;
     }
-    const { statics, def } = valid.get(id)!;
-    accepted.push({ id, statics, def, wiring: wiring.get(id)! });
+    accepted.push({ id, statics: valid.get(id)!.statics, wiring: wiring.get(id)! });
     return true;
   };
   for (const id of [...live]) visit(id, []);

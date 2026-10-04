@@ -1,5 +1,7 @@
-// Where extension source comes from: a git host, read at a commit. The kernel's bootstrap set provides it
-// (source-github, or source-dev under `npm run dev`); moving to another host means another provider.
+// Where extension source comes from, and where Pip's drafts go: a git host, read at a commit and written
+// on branches. The kernel's bootstrap set provides it (source-github, or source-dev under `npm run dev`);
+// moving to another host means another provider. Requiring it lets an extension write the repo, which
+// the review screen shows.
 import { defineContract } from '@pip/kernel';
 import { z } from 'zod';
 
@@ -9,25 +11,68 @@ export interface SourceFile {
   sha: string;
 }
 
+export interface Change {
+  path: string;
+  /** The new text, or null to delete the file. */
+  content: string | null;
+}
+
+export interface Checks {
+  state: 'none' | 'pending' | 'success' | 'failure';
+  runs: { name: string; state: string }[];
+}
+
 export interface SourceV1 {
   /** The commit `ref` (a branch, a tag or a commit) points at now, in `repo` ("owner/name"). */
   head: (repo: string, ref: string) => Promise<string>;
   /** The files under extensions/ and contracts/ at `commit`. */
   tree: (repo: string, commit: string) => Promise<SourceFile[]>;
   read: (repo: string, path: string, sha: string) => Promise<string>;
-  /** The branches, for safe mode and for trying a draft. */
+  /** The branches: the main one, and drafts (draft/*). */
   refs: (repo: string) => Promise<string[]>;
+  /** One commit on a draft branch (draft/*) with every change; the branch is made from `base` if it
+   * doesn't exist. Only files under extensions/ and contracts/: the kernel is never written here.
+   * Never forced: if the branch moved since `parent`, it fails. Returns the new commit. */
+  commit: (
+    repo: string,
+    change: { branch: string; base?: string; parent?: string; message: string; files: Change[] },
+  ) => Promise<string>;
+  /** Merges `head` into `base`; returns the merge commit. Personal: the kernel calls it when a person
+   * accepts a draft, and nothing else can. */
+  merge: (repo: string, base: string, head: string, message: string) => Promise<string>;
+  /** CI's checks on a commit. */
+  checks: (repo: string, commit: string) => Promise<Checks>;
 }
 
 const repo = z.string().regex(/^[\w.-]+\/[\w.-]+$/, { message: 'owner/name' });
+const ref = z.string().min(1);
+const path = z
+  .string()
+  .regex(/^(extensions|contracts)\/[\w.@/-]+$/, {
+    message: 'a path under extensions/ or contracts/',
+  })
+  .refine((p) => !p.split('/').includes('..'), { message: 'no ".." in a path' });
 
 export const source = defineContract<SourceV1>({
   name: 'extensions.source',
-  version: '1.0.0',
+  version: '1.1.0',
+  personal: ['merge'],
   inputs: {
-    head: z.tuple([repo, z.string().min(1)]),
-    tree: z.tuple([repo, z.string().min(1)]),
-    read: z.tuple([repo, z.string().min(1), z.string().min(1)]),
+    head: z.tuple([repo, ref]),
+    tree: z.tuple([repo, ref]),
+    read: z.tuple([repo, z.string().min(1), ref]),
     refs: z.tuple([repo]),
+    commit: z.tuple([
+      repo,
+      z.object({
+        branch: z.string().regex(/^draft\/[\w.-]+$/, { message: 'a draft branch: draft/<name>' }),
+        base: ref.optional(),
+        parent: ref.optional(),
+        message: z.string().min(1),
+        files: z.array(z.object({ path, content: z.string().nullable() })).min(1),
+      }),
+    ]),
+    merge: z.tuple([repo, ref, ref, z.string().min(1)]),
+    checks: z.tuple([repo, ref]),
   },
 });

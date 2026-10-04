@@ -1,6 +1,14 @@
 // A contract: what one extension provides and others require, by name and version, never by extension
-// id (ARCHITECTURE.md, "The kernel"). A contract package in contracts/ exports one handle made here;
-// the interface is the handle's type, and `inputs` are Zod schemas the broker checks every call against.
+// id (ARCHITECTURE.md, "The kernel"). A contract package in contracts/ exports one handle made here.
+//
+// Every extension runs in its own sandbox, so a call between two of them is a message through the
+// kernel. A contract therefore has two faces:
+//   W, the wire interface: what a provider implements. Every method is async and takes and returns
+//     values that can be copied between sandboxes (functions become kernel-routed callbacks).
+//   T, what a requirer uses: by default the same as W; a contract with a `client` adapts W into T in
+//     the requirer's sandbox (records turns Zod schemas into JSON Schema there, so registerType can
+//     return a typed handle at once).
+// `inputs` are Zod schemas for W's methods, checked in the provider's sandbox before every call.
 import { z } from 'zod';
 
 const SEMVER = /^(\d+)\.(\d+)\.(\d+)$/;
@@ -11,41 +19,71 @@ export const ContractName = z.string().regex(/^[a-z][a-z0-9]*(\.[a-z][a-z0-9]*)*
 export const Version = z.string().regex(SEMVER, { message: 'major.minor.patch, such as "1.2.0"' });
 
 /** A method's arguments, as one tuple schema. */
-export type Inputs<T> = { [M in keyof T]?: z.ZodType<unknown[]> };
+export type Inputs<W> = { [M in keyof W]?: z.ZodType<unknown[]> };
 
-export interface Contract<T> {
+export interface ClientInfo {
+  /** The id of the extension the client runs for. */
+  caller: string;
+}
+
+export interface Contract<T, W = T> {
   readonly kind: 'contract';
   readonly name: string;
   readonly version: string;
   /** `name@major`: what a `requires` asks for and a `provides` satisfies. */
   readonly key: string;
-  readonly inputs: Inputs<T>;
-  /** Only for the type: a contract's interface lives here, never at runtime. */
-  readonly _type?: T;
+  readonly inputs: Inputs<W>;
+  /** Methods only a person may call: the kernel lets a call through only right after a gesture
+   * (a tap or a key), so no extension, Pip included, can call them on its own. */
+  readonly personal: readonly string[];
+  readonly client?: (remote: W, info: ClientInfo) => T;
+  /** Only for the types: never set at runtime. */
+  readonly _use?: T;
+  readonly _wire?: W;
 }
 
-// biome-ignore lint/suspicious/noExplicitAny: a map of contracts of any interface
-export type AnyContract = Contract<any>;
-export type Impl<C> = C extends Contract<infer T> ? T : never;
+// biome-ignore lint/suspicious/noExplicitAny: a contract of any interface
+export type AnyContract = Contract<any, any>;
+/** What a provider of the contract implements. */
+export type Impl<C> = C extends Contract<infer _T, infer W> ? W : never;
+/** What a requirer of the contract is handed. */
+export type Use<C> = C extends Contract<infer T, infer _W> ? T : never;
 
-export function defineContract<T>(def: {
+export function defineContract<T, W = T>(def: {
   name: string;
   version: string;
-  inputs?: Inputs<T>;
-}): Contract<T> {
+  inputs?: Inputs<W>;
+  personal?: (keyof W & string)[];
+  client?: (remote: W, info: ClientInfo) => T;
+}): Contract<T, W> {
   const name = ContractName.parse(def.name);
   const version = Version.parse(def.version);
   return Object.freeze({
     kind: 'contract',
     name,
     version,
-    key: `${name}@${major(version)}`,
+    key: keyOf(name, version),
     inputs: def.inputs ?? {},
+    personal: Object.freeze([...(def.personal ?? [])]),
+    client: def.client,
   });
 }
 
 const parts = (v: string) => v.split('.').map(Number) as [number, number, number];
 export const major = (v: string) => parts(v)[0];
+export const keyOf = (name: string, version: string) => `${name}@${major(version)}`;
+
+/** A contract as it crosses from a sandbox to the kernel: name and version only. The kernel derives
+ * the key itself rather than trusting one. */
+export const ContractRef = z
+  .object({
+    kind: z.literal('contract'),
+    name: ContractName,
+    version: Version,
+    personal: z.array(z.string()).default([]),
+  })
+  .transform((c) => ({ ...c, key: keyOf(c.name, c.version) }));
+export type ContractRef = z.output<typeof ContractRef>;
 
 /** Whether a provider at `provided` satisfies a requirer built against `required`: the same major, and
  * at least the same minor (a minor adds methods; a requirer may use them). */

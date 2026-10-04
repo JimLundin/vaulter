@@ -1,5 +1,6 @@
 // Safe mode: a bare screen, in plain DOM and part of the kernel, that works whatever an extension does.
-// From here: choose the repo and branch, pin a commit (a rollback), turn extensions off, and set secrets.
+// From here: choose the repo and branch, pin a commit (a rollback), turn extensions and drafts off, and
+// set secrets.
 import type { State } from './start.ts';
 
 type Child = Node | string | null | undefined | false;
@@ -25,15 +26,25 @@ body { margin: 0; font: 15px/1.5 system-ui, sans-serif; color-scheme: light dark
 `;
 
 export async function safeMode(s: State) {
-  const { config } = s;
-  const refs = s.src ? await s.src.refs(config.repo).catch(() => []) : [];
+  const config = s.config.get();
+  const refs = s.src ? await s.src.refs(config.repo).catch(() => [] as string[]) : [];
   const problems = new Map(s.refused.map((r) => [r.id, r.problems]));
-  const running = new Set(s.booted?.running.map((r) => r.id));
+  for (const [id, p] of s.kernel.problems()) problems.set(id, p);
+  const running = new Set(s.kernel.running().map((r) => r.id));
+  const statics = [...s.kernel.seen.values()];
 
   const field = (label: string, name: string, value: string, extra: Record<string, string> = {}) =>
     h('label', {}, label, h('input', { type: 'text', name, value, ...extra }));
+  const check = (name: string, label: string, on: boolean, note = '') =>
+    h(
+      'label',
+      { class: 'row' },
+      h('input', { type: 'checkbox', name, checked: on }),
+      label,
+      h('small', {}, note),
+    );
 
-  const secretRows = [...s.bootstrap.map((b) => b.statics), ...s.statics].flatMap((st) =>
+  const secretRows = statics.flatMap((st) =>
     Object.entries(st.secrets).map(([name, spec]) =>
       h(
         'label',
@@ -48,6 +59,7 @@ export async function safeMode(s: State) {
       ),
     ),
   );
+  const drafts = refs.filter((r) => r.startsWith('draft/'));
 
   const form = h(
     'form',
@@ -62,14 +74,21 @@ export async function safeMode(s: State) {
       field('Branch', 'ref', config.ref, { list: 'refs' }),
       h('datalist', { id: 'refs' }, ...refs.map((r) => h('option', { value: r }))),
       field('Pinned commit (empty: the latest on the branch)', 'pin', config.pin ?? ''),
-      h('small', {}, s.commit ? `Loaded ${s.commit.slice(0, 12)}` : 'Nothing loaded'),
-      s.loaded &&
+      h('small', {}, s.commit ? `Loaded ${s.commit.slice(0, 20)}` : 'Nothing loaded'),
+      s.stats &&
         h(
           'small',
           {},
-          `${s.loaded.stats.files} files, ${s.loaded.stats.compiled} compiled in ${Math.round(s.loaded.stats.compileMs)} ms; ${Math.round(s.loaded.stats.totalMs)} ms in all`,
+          `${s.stats.files} files, ${s.stats.compiled} compiled in ${Math.round(s.stats.compileMs)} ms`,
         ),
     ),
+    drafts.length > 0 &&
+      h(
+        'fieldset',
+        {},
+        h('legend', {}, 'Drafts on this device'),
+        ...drafts.map((b) => check(`draft:${b}`, b, config.drafts.includes(b))),
+      ),
     h(
       'fieldset',
       {},
@@ -78,21 +97,18 @@ export async function safeMode(s: State) {
         h(
           'div',
           {},
-          h(
-            'label',
-            { class: 'row' },
-            h('input', {
-              type: 'checkbox',
-              name: `on:${id}`,
-              checked: !config.disabled.includes(id),
-            }),
+          check(
+            `on:${id}`,
             id,
-            h('small', {}, running.has(id) ? 'running' : config.disabled.includes(id) ? 'off' : ''),
+            !config.disabled.includes(id),
+            running.has(id) ? 'running' : config.disabled.includes(id) ? 'off' : '',
           ),
           ...(problems.get(id) ?? []).map((p) => h('p', { class: 'problem' }, p)),
         ),
       ),
-      ...s.bootstrap.map((b) => h('small', {}, `${b.id}: in the kernel bundle`)),
+      ...s.bundled.map((id) =>
+        h('small', {}, `${id}: in the kernel bundle${running.has(id) ? ', running' : ''}`),
+      ),
     ),
     secretRows.length > 0 && h('fieldset', {}, h('legend', {}, 'Secrets'), ...secretRows),
     h('div', {}, h('button', { type: 'submit' }, 'Save and start')),
@@ -103,16 +119,18 @@ export async function safeMode(s: State) {
     void (async () => {
       const data = new FormData(form as HTMLFormElement);
       const text = (k: string) => String(data.get(k) ?? '').trim();
-      await s.keep.set('config', {
-        ...config,
-        repo: text('repo') || config.repo,
-        ref: text('ref') || config.ref,
+      await s.config.update((c) => ({
+        ...c,
+        repo: text('repo') || c.repo,
+        ref: text('ref') || c.ref,
         pin: text('pin') || undefined,
         disabled: s.found.filter((id) => !data.has(`on:${id}`)),
-      });
+        drafts: drafts.filter((b) => data.has(`draft:${b}`)),
+      }));
       for (const [k, v] of data) {
         if (!(k.startsWith('secret:') && typeof v === 'string' && v !== '')) continue;
         const [ext, name] = k.slice('secret:'.length).split('/');
+        // biome-ignore lint/performance/noAwaitInLoops: a few secrets, one at a time
         if (v.trim() === '') await s.secrets.forget(ext, name);
         else await s.secrets.set(ext, name, v.trim());
       }
