@@ -113,6 +113,8 @@ export interface KernelV1 {
   audit: (limit?: number) => Promise<AuditEntry[]>;
   drafts: () => Promise<DraftInfo[]>;
   review: (branch: string) => Promise<Review>;
+  /** Whether the page carries sealed secrets (secrets.json). */
+  sealed: () => Promise<{ present: boolean }>;
 
   // Personal: a person, right after a tap or key.
   decide: (id: string, approve: boolean) => Promise<void>;
@@ -123,6 +125,8 @@ export interface KernelV1 {
   remove: (id: string) => Promise<void>;
   setSecret: (ext: string, name: string, value: string) => Promise<void>;
   forgetSecret: (ext: string, name: string) => Promise<void>;
+  /** Opens the page's sealed secrets with the password and keeps them on this device. */
+  unlock: (password: string) => Promise<void>;
   /** A repo, branch, or a pinned commit (a rollback; null for the branch's latest). Next start. */
   setSource: (change: { repo?: string; ref?: string; pin?: string | null }) => Promise<void>;
   /** Loads a draft branch on this device, on top of the main one. Next start. */
@@ -145,6 +149,7 @@ export const kernel = defineContract<KernelV1>({
     'remove',
     'setSecret',
     'forgetSecret',
+    'unlock',
     'setSource',
     'tryDraft',
     'accept',
@@ -158,6 +163,7 @@ export const kernel = defineContract<KernelV1>({
     remove: z.tuple([id]),
     setSecret: z.tuple([id, z.string().min(1), z.string().min(1)]),
     forgetSecret: z.tuple([id, z.string().min(1)]),
+    unlock: z.tuple([z.string().min(1)]),
     setSource: z.tuple([
       z.object({
         repo: z

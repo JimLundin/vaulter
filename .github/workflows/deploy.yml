@@ -1,6 +1,7 @@
 # CI: on every push the tests, the type check and lint; on main, build the kernel bundle and deploy it to
 # GitHub Pages (Settings → Pages → Source: GitHub Actions). Extensions aren't built here: the app reads
-# them from the repo at runtime. Nothing secret is in the build; each device holds its own (safe mode).
+# them from the repo at runtime. Secrets are sealed into dist/secrets.json with PIP_PASSWORD; each device
+# opens them once and keeps its own copy.
 name: Deploy
 
 on:
@@ -46,6 +47,14 @@ jobs:
           npm ci && npm run build
           printf 'User-agent: *\nDisallow: /\n' > dist/robots.txt
           printf '{"commit":"%s"}\n' "$GITHUB_SHA" > dist/version.json
+      # A step of its own, after the install: no dependency's script runs with the secrets around.
+      - name: Seal the secrets in
+        env:
+          # The password, the salt, and every secret named PIP_SECRET__<EXTENSION>__<NAME>.
+          PIP_PASSWORD: ${{ secrets.PIP_PASSWORD }}
+          PIP_SALT: ${{ vars.PIP_SALT }}
+          PIP_SECRETS_JSON: ${{ toJSON(secrets) }}
+        run: node tools/seal-secrets.ts dist/secrets.json
       - uses: actions/upload-pages-artifact@v4
         with: { path: dist }
       - id: deploy

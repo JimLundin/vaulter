@@ -1,6 +1,6 @@
-// Linking a plan inside a sandbox: each module becomes a module URL there, bottom-up, so every import
-// points at one that already exists. Shared modules come from the sandbox's own copies.
-import type { Plan } from '../kernel/loader.ts';
+// Linking a plan: each module becomes a module URL (blob: in the browser), bottom-up, so every import
+// points at one that already exists. Shared modules are the kernel's own copies, one for everyone.
+import type { Plan } from './loader.ts';
 
 const SHARED = Symbol.for('pip.shared');
 

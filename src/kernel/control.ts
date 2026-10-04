@@ -6,6 +6,7 @@ import type { ExtensionInfo, KernelV1, Review } from '@contracts/kernel';
 import type { ConfigStore } from './config.ts';
 import type { Kernel } from './kernel.ts';
 import type { SecretStore } from './secrets.ts';
+import type { Unsealer } from './unseal.ts';
 
 export interface ControlEnv {
   kernel: Kernel;
@@ -20,6 +21,7 @@ export interface ControlEnv {
   source: () => SourceV1 | undefined;
   review: (branch: string) => Promise<Review>;
   restart: () => void;
+  sealed?: Unsealer;
 }
 
 export function control(env: ControlEnv): KernelV1 {
@@ -136,5 +138,10 @@ export function control(env: ControlEnv): KernelV1 {
       return sha;
     },
     restart: () => Promise.resolve(env.restart()),
+    sealed: () => Promise.resolve({ present: env.sealed?.present() ?? false }),
+    async unlock(password) {
+      if (!env.sealed) throw new Error('there is no sealed file');
+      await env.sealed.unlock(password);
+    },
   };
 }

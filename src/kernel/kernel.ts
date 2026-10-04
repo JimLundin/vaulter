@@ -1,40 +1,43 @@
-// The kernel: starts each extension in its own sandbox, wires every `requires` to a provider, and
-// routes every message between them (ARCHITECTURE.md, "The kernel"). Nothing passes between two
-// sandboxes except through `route`, which checks that the caller requires the contract, that a
-// callback was handed to the caller, and Pip's access for a guarded one.
+// The kernel: loads every extension into this page, wires each `requires` to a provider, and hands
+// each extension handles that check every call (ARCHITECTURE.md, "The kernel"). Extensions run in the
+// kernel's own page: there is no sandbox, so these checks keep well-behaved code, and Pip's model, in
+// line; they don't contain hostile code.
 //
-// Callbacks: a function in a message becomes a reference. A sandbox names its own functions with local
-// ids; the kernel turns each into a global id (`owner#local`) and records who holds it, so only an
-// extension that was handed a callback can call it, and only through the kernel.
-import type { KernelRequest, SandboxRequest, SerializedResponse } from '../sandbox/runtime.ts';
-import { Access, type Guard } from './access.ts';
+// A handle on a contract is the provider's implementation behind a check: a personal method passes
+// only right after a person acted, arguments must pass the contract's Zod inputs, and a guarded
+// function (a tool's `run`) handed across is wrapped so every call to it goes through Pip's access
+// policy. Values otherwise pass as they are: no copying, so components and schemas can cross too.
+import { type Access, type Guard, guardOf } from './access.ts';
+import { type CheckResult, runSuite, type Suite } from './conformance.ts';
 import { type AnyContract, type Contract, ContractRef } from './contract.ts';
-import { Statics } from './extension.ts';
+import { type Extension, type ExtStorage, type KernelApi, Statics } from './extension.ts';
+import { linker } from './link.ts';
 import type { Plan } from './loader.ts';
 import { isPerCaller, perCallerDef } from './per-caller.ts';
 import { Policy } from './policy.ts';
-import type { Realm, RealmFactory } from './realm.ts';
 import { type Refused, resolve } from './resolve.ts';
 import { type KernelKeep, kernelFetch, type SecretStore } from './secrets.ts';
 import type { KernelStorage } from './storage.ts';
-import { CB, type CbRef, encode, mapRefs, Peer } from './wire.ts';
 
 export class Refusal extends Error {
   override name = 'Refusal';
 }
 
 export interface KernelOptions {
-  realms: RealmFactory;
   secrets: SecretStore;
   storage: KernelStorage;
+  /** The shared modules extensions import, by specifier (@pip/kernel, zod, react…). */
+  shared: Record<string, object>;
+  /** A module URL for compiled code: a blob: URL in the browser, a data: URL in Node. */
+  url: (code: string) => string;
+  load: (url: string) => Promise<Record<string, unknown>>;
   /** The kernel's own cache: conformance results. */
   keep?: KernelKeep;
   /** The person's access settings, by `extension/label`. */
   access?: () => Record<string, Access>;
   fetch?: typeof fetch;
-  /** Whether a person acted just now, in `caller`'s own sandbox: the condition for a contract's
-   * personal methods. In the browser, a fresh user activation with that sandbox's frame focused
-   * (realm.ts, `userPresentIn`), so a tap in one extension can't be borrowed by another. */
+  /** Whether a person acted just now (navigator.userActivation in the browser): the condition for
+   * a contract's personal methods. Told who is calling, for tests. */
   userPresent?: (caller: string) => boolean;
 }
 
@@ -48,37 +51,34 @@ export interface StartOptions {
 interface Party {
   id: string;
   statics: Statics;
-  /** Requires: contract key → provider id. */
+  /** Requires and optional: contract key → provider id. */
   wiring: Record<string, string>;
-  host?: { peer: Peer; realm: Realm; plan: Plan };
-  /** The kernel's own providers (the kernel contract), by key. */
-  local?: Map<string, object>;
+  def?: Extension['def'];
+  plan?: Plan;
+  /** What it provides, by contract key: its contract handle and implementation (or per caller). */
+  provided: Map<string, { contract: AnyContract; impl: object }>;
 }
 
 type Fn = (...args: unknown[]) => unknown;
+const NOT_METHODS = new Set(Object.getOwnPropertyNames(Object.prototype));
+const WRAPPED = Symbol('pip.wrapped');
 
 export const KERNEL = 'kernel';
 
 export class Kernel {
   readonly policy: Policy;
+  /** The static fields of every extension that loaded, running or not. */
+  readonly seen = new Map<string, Statics>();
   private readonly parties = new Map<string, Party>();
   private readonly refused = new Map<string, string[]>();
-  /** The static fields of every extension that evaluated, running or not. */
-  readonly seen = new Map<string, Statics>();
-  private readonly cbs = new Map<
-    string,
-    { owner: string; local: string; guard?: Guard; holders: Set<string> }
-  >();
-  // The kernel's own callbacks (functions in what its providers return) and proxies for others'.
-  private readonly kernelFns = new Map<string, Fn>();
-  private readonly kernelProxies = new Map<string, Fn>();
-  private nextFn = 0;
-
+  private readonly perCallerImpls = new Map<string, object>();
   private readonly opts: KernelOptions;
+  private readonly link: (plan: Plan) => string;
 
   constructor(opts: KernelOptions) {
     this.opts = opts;
     this.policy = new Policy(opts.storage, opts.access ?? (() => ({})));
+    this.link = linker(opts.url, opts.shared);
   }
 
   private kernelParty(): Party {
@@ -88,7 +88,7 @@ export class Kernel {
         id: KERNEL,
         statics: Statics.parse({ id: KERNEL, version: '1.0.0' }),
         wiring: {},
-        local: new Map(),
+        provided: new Map(),
       };
       this.parties.set(KERNEL, me);
     }
@@ -97,17 +97,35 @@ export class Kernel {
 
   /* ---------- Starting ---------- */
 
-  /** Gives the kernel's own provider (the kernel contract) to extensions that require it. */
+  /** Gives the kernel's own provider of a contract (the kernel contract; the dev source). */
   provide(contract: AnyContract, impl: object) {
     const ref = ContractRef.parse(contract);
     const me = this.kernelParty();
     me.statics.provides[contract.name.replaceAll('.', '_')] = ref;
-    me.local!.set(ref.key, impl);
+    me.provided.set(ref.key, { contract, impl });
   }
 
-  /** Starts the extensions in `plans` beside those already running. Each is evaluated in a sandbox to
-   * read its static fields; those the resolver accepts are set up in dependency order, and a provider
-   * whose contract has a conformance suite must pass it before anything that requires it starts. */
+  /** An extension's definition, from its plan: the module is linked and evaluated, and its static
+   * fields validated, before any `setup` runs. */
+  async inspect(id: string, plan: Plan): Promise<{ def: Extension['def']; statics: Statics }> {
+    const ext = (await this.opts.load(this.link(plan))).default as Extension | undefined;
+    if (ext?.kind !== 'extension' || typeof ext.def?.setup !== 'function')
+      throw new Error('the default export is not defineExtension({...})');
+    const statics = Statics.safeParse(staticsOf(ext.def));
+    if (!statics.success)
+      throw new Error(
+        statics.error.issues
+          .map((i) => `${i.path.join('.') || 'definition'}: ${i.message}`)
+          .join('; '),
+      );
+    if (statics.data.id !== id)
+      throw new Error(`its id is "${statics.data.id}"; it must be its folder's name`);
+    return { def: ext.def, statics: statics.data };
+  }
+
+  /** Starts the extensions in `plans` beside those already running: each is loaded and its static
+   * fields read; those the resolver accepts are set up in dependency order, and a provider whose
+   * contract has a conformance suite must pass it before anything that requires it starts. */
   async start(plans: Map<string, Plan>, opts: StartOptions = {}) {
     const refused: Refused[] = [];
     const refuse = (id: string, problems: string[]) => {
@@ -115,81 +133,50 @@ export class Kernel {
       this.refused.set(id, problems);
     };
 
-    const inits = await Promise.all(
-      [...plans].map(async ([id, plan]) => {
-        try {
-          const host = await this.spawn(id, plan);
+    const loaded = new Map<string, { def: Extension['def']; plan: Plan }>();
+    const candidates = (
+      await Promise.all(
+        [...plans].map(async ([id, plan]) => {
           try {
-            const statics = await host.peer.request({
-              op: 'init',
-              id,
-              plan,
-            } satisfies SandboxRequest);
-            return { id, host, statics };
+            const { def, statics } = await this.inspect(id, plan);
+            this.seen.set(id, statics);
+            loaded.set(id, { def, plan });
+            return [{ folder: id, statics }];
           } catch (e) {
-            host.realm.dispose();
-            throw e;
+            refuse(id, [(e as Error).message]);
+            return [];
           }
-        } catch (e) {
-          refuse(id, [(e as Error).message]);
-          return null;
-        }
-      }),
-    );
-    const hosts = new Map(inits.flatMap((x) => (x ? [[x.id, x.host] as const] : [])));
-    for (const x of inits) {
-      const parsed = x && Statics.safeParse(x.statics);
-      if (parsed?.success) this.seen.set(x!.id, parsed.data);
-    }
+        }),
+      )
+    ).flat();
     const res = resolve(
-      inits.flatMap((x) => (x ? [{ folder: x.id, statics: x.statics }] : [])),
+      candidates,
       opts.choose,
       [...this.parties.values()].map((p) => ({ id: p.id, statics: p.statics })),
     );
-    for (const r of res.refused) {
-      refuse(r.id, r.problems);
-      hosts.get(r.id)?.realm.dispose();
-    }
+    for (const r of res.refused) refuse(r.id, r.problems);
 
     for (const a of res.accepted) {
-      let host = hosts.get(a.id)!;
       // An optional provider that didn't start is left out; a required one stops this one.
       for (const [as, p] of Object.entries(a.wiring))
         if (as in a.statics.optional && !this.parties.has(p)) delete a.wiring[as];
       const down = Object.values(a.wiring).filter((p) => !this.parties.has(p));
       if (down.length) {
         refuse(a.id, [`${[...new Set(down)].join(', ')} could not start`]);
-        host.realm.dispose();
         continue;
       }
       const refs = { ...a.statics.requires, ...a.statics.optional };
-      const wiring = Object.fromEntries(
-        Object.entries(a.wiring).map(([as, provider]) => [refs[as].key, provider]),
-      );
+      const party: Party = {
+        id: a.id,
+        statics: a.statics,
+        wiring: Object.fromEntries(Object.entries(a.wiring).map(([as, p]) => [refs[as].key, p])),
+        ...loaded.get(a.id)!,
+        provided: new Map(),
+      };
       try {
-        // A frame's device permissions are fixed when it is made: one that needs a device gets a
-        // new sandbox, allowed exactly what its accepted static fields declare.
-        if (a.statics.permissions.device.length) {
-          host.realm.dispose();
-          host = await this.spawn(a.id, host.plan, a.statics.permissions.device);
-          await host.peer.request({
-            op: 'init',
-            id: a.id,
-            plan: host.plan,
-          } satisfies SandboxRequest);
-        }
-      } catch (e) {
-        refuse(a.id, [(e as Error).message]);
-        continue;
-      }
-      const party: Party = { id: a.id, statics: a.statics, wiring, host };
-      this.parties.set(a.id, party);
-      try {
+        this.parties.set(a.id, party);
         // biome-ignore lint/performance/noAwaitInLoops: setups run in dependency order
-        await host.peer.request({
-          op: 'setup',
-          wired: Object.keys(wiring),
-        } satisfies SandboxRequest);
+        await this.setup(party);
         for (const c of Object.values(a.statics.provides)) {
           const suite = await opts.conformance?.(c);
           if (!suite) continue;
@@ -201,7 +188,7 @@ export class Kernel {
         }
         this.refused.delete(a.id);
       } catch (e) {
-        this.stop(a.id);
+        this.parties.delete(a.id);
         refuse(a.id, [`setup failed: ${(e as Error).message}`]);
       }
     }
@@ -211,52 +198,55 @@ export class Kernel {
     };
   }
 
-  /** An extension's static fields, read in a scratch sandbox that is closed straight after. */
-  async inspect(id: string, plan: Plan): Promise<Statics> {
-    const host = await this.spawn(`${id}~inspect`, plan);
-    try {
-      return Statics.parse(
-        await host.peer.request({ op: 'init', id, plan } satisfies SandboxRequest),
-      );
-    } finally {
-      host.realm.dispose();
+  /** Runs `setup` with a handle for each contract wired, and keeps what it provides. */
+  private async setup(party: Party) {
+    const def = party.def!;
+    const ctx: Record<string, unknown> = {};
+    const wanted = { ...def.requires, ...def.optional } as Record<string, AnyContract>;
+    for (const [alias, c] of Object.entries(wanted)) {
+      const to = party.wiring[c.key];
+      // An optional contract nothing provides is undefined in ctx.
+      if (to) ctx[alias] = this.handle(c, to, party.id);
+    }
+    const out = (await def.setup(ctx as never, this.kernelApi(party))) as
+      | Record<string, unknown>
+      | undefined;
+    for (const [alias, c] of Object.entries(def.provides ?? {}) as [string, AnyContract][]) {
+      const impl = out?.[alias];
+      if (typeof impl !== 'object' || impl === null)
+        throw new Error(`provides ${c.key} as "${alias}" but setup returned nothing for it`);
+      if (!isPerCaller(impl)) missing(c, impl);
+      party.provided.set(c.key, { contract: c, impl });
     }
   }
 
-  private async spawn(id: string, plan: Plan, device: readonly string[] = []) {
-    const ui = plan.shared.some((m) => m.startsWith('react'));
-    const realm = await this.opts.realms(id, { device, ui });
-    const peer = new Peer(realm.port, (req) => this.route(id, req as KernelRequest));
-    return { peer, realm, plan };
-  }
-
-  /** Runs a conformance suite against a scratch instance of `party`, wired as it is, with its own
-   * namespace everywhere; what the scratch instance stored is dropped afterwards. Passing results are
-   * cached by the shas of the provider and the suite. */
-  private async conform(party: Party, key: string, suite: Plan) {
-    const plan = party.host!.plan;
-    const cacheKey = `conformance:${await digest({ key, p: plan.shas, s: suite.shas })}`;
+  /** A conformance suite against a scratch instance of `party`: its setup run again as
+   * `<id>~conformance`, so per-caller providers and storage keep it apart; what it stored is dropped
+   * afterwards. A pass is cached by the shas of the provider and the suite. */
+  private async conform(party: Party, key: string, suitePlan: Plan): Promise<CheckResult[]> {
+    const cacheKey = `conformance:${await digest({ key, p: party.plan?.shas, s: suitePlan.shas })}`;
     if (await this.opts.keep?.get(cacheKey)) return [];
     const id = `${party.id}~conformance`;
-    const host = await this.spawn(id, plan, party.statics.permissions.device);
-    this.parties.set(id, { ...party, id, host });
+    const scratch: Party = { ...party, id, provided: new Map() };
+    this.parties.set(id, scratch);
     try {
-      await host.peer.request({ op: 'init', id, plan } satisfies SandboxRequest);
-      await host.peer.request({
-        op: 'setup',
-        wired: Object.keys(party.wiring),
-      } satisfies SandboxRequest);
-      const results = (await host.peer.request({
-        op: 'conformance',
-        key,
-        plan: suite,
-      } satisfies SandboxRequest)) as { name: string; ok: boolean; error?: string }[];
+      await this.setup(scratch);
+      const suite = (await this.opts.load(this.link(suitePlan))).default as
+        | Suite<unknown>
+        | undefined;
+      if (suite?.kind !== 'conformance') throw new Error(`${suitePlan.entry} exports no suite`);
+      const { contract, impl } = scratch.provided.get(key)!;
+      // Each check gets a fresh caller, so per-caller providers start it empty.
+      const results = await runSuite(suite, (n) => {
+        const caller = `check-${n}`;
+        const i = isPerCaller(impl) ? perCallerDef(impl).make(caller) : impl;
+        return contract.client ? contract.client(i as never, { caller }) : i;
+      });
       if (results.every((r) => r.ok)) await this.opts.keep?.set(cacheKey, true);
       return results;
     } finally {
       await this.forget(id);
       this.parties.delete(id);
-      host.realm.dispose();
     }
   }
 
@@ -265,30 +255,26 @@ export class Kernel {
     const party = this.parties.get(caller);
     await Promise.all(
       Object.entries(party?.wiring ?? {}).map(async ([key, to]) => {
-        const p = this.parties.get(to);
-        if (p?.host)
-          await p.host.peer
-            .request({ op: 'forget', key, caller } satisfies SandboxRequest)
-            .catch(() => undefined);
-        const impl = p?.local?.get(key);
+        const impl = this.parties.get(to)?.provided.get(key)?.impl;
         if (isPerCaller(impl)) await perCallerDef(impl).forget?.(caller);
+        this.perCallerImpls.delete(`${to}\n${key}\n${caller}`);
       }),
     );
     await this.opts.storage.drop(caller);
   }
 
-  /** Stops an extension's sandbox. What requires it fails from then on, and is refused on the next
-   * start. */
+  /** Stops an extension: its handles refuse from then on, and what requires it is refused on the
+   * next start. (What it set going in this page stays until the reload.) */
   stop(id: string) {
-    this.parties.get(id)?.host?.realm.dispose();
     this.parties.delete(id);
   }
 
   /** Removes an extension's data: its storage, what providers keep for it, and its secrets. */
   async remove(id: string) {
-    const statics = this.parties.get(id)?.statics;
+    const statics = this.parties.get(id)?.statics ?? this.seen.get(id);
     await this.forget(id);
     this.stop(id);
+    // biome-ignore lint/performance/noAwaitInLoops: a few secrets
     for (const name of Object.keys(statics?.secrets ?? {}))
       await this.opts.secrets.forget(id, name);
   }
@@ -305,204 +291,140 @@ export class Kernel {
 
   /** A handle on a running provider of `contract`, for the kernel's own use (as "kernel"). */
   use<T, W>(contract: Contract<T, W>, provider?: string): T {
+    const providers = [...this.parties.values()].filter((p) => p.provided.has(contract.key));
     const to =
-      provider ??
-      [...this.parties.values()].find((p) =>
-        Object.values(p.statics.provides).some((c) => c.key === contract.key),
-      )?.id;
+      provider ?? (providers.find((p) => p.id !== KERNEL) ?? providers[0])?.id ?? undefined;
     if (!to) throw new Refusal(`nothing running provides ${contract.key}`);
-    this.kernelParty().wiring[contract.key] = to;
+    return this.handle(contract, to, KERNEL) as T;
+  }
+
+  /* ---------- Handles ---------- */
+
+  /** What `from` holds for `contract`: the provider's implementation behind the kernel's checks, with
+   * the contract's client (from the requirer's own copy) on top. */
+  private handle(contract: AnyContract, to: string, from: string): unknown {
     const remote = new Proxy(
       {},
       {
         get: (_, method) => {
           if (typeof method !== 'string' || method === 'then') return;
-          return async (...args: unknown[]) =>
-            this.fromKernelWire(
-              await this.route(KERNEL, {
-                op: 'call',
-                key: contract.key,
-                method,
-                args: this.toKernelWire(args) as unknown[],
-              }),
-            );
+          return (...args: unknown[]) => this.call(from, to, contract.key, method, args);
         },
       },
-    ) as W;
-    return contract.client ? contract.client(remote, { caller: KERNEL }) : (remote as unknown as T);
+    );
+    return contract.client ? contract.client(remote as never, { caller: from }) : remote;
   }
 
-  /* ---------- Routing ---------- */
-
-  private async route(from: string, req: KernelRequest): Promise<unknown> {
-    switch (req.op) {
-      case 'call': {
-        const to = this.parties.get(from)?.wiring[req.key];
-        if (!to) throw new Refusal(`${from} does not require ${req.key}`);
-        const party = this.parties.get(to);
-        if (!party) throw new Refusal(`${to}, which provides ${req.key}, is not running`);
-        const contract = Object.values(party.statics.provides).find((c) => c.key === req.key);
-        if (
-          contract?.personal.includes(req.method) &&
-          from !== KERNEL &&
-          !this.opts.userPresent?.(from)
-        )
-          throw new Refusal(
-            `${req.key}.${req.method} is for a person to do, right after a tap or key`,
-          );
-        const args = this.carry(from, to, req.args) as unknown[];
-        const result = party.host
-          ? await party.host.peer.request({
-              op: 'call',
-              from,
-              key: req.key,
-              method: req.method,
-              args,
-            } satisfies SandboxRequest)
-          : await this.callLocal(party, from, req.key, req.method, args);
-        return this.carry(to, from, result);
-      }
-      case 'invoke': {
-        const cb = this.cbs.get(req.cb);
-        if (!cb?.holders.has(from)) throw new Refusal(`${from} was not handed that callback`);
-        const owner = this.parties.get(cb.owner);
-        if (!owner) throw new Refusal(`${cb.owner} is not running`);
-        const args = this.carry(from, cb.owner, req.args) as unknown[];
-        if (cb.guard) await this.policy.admit({ from, to: cb.owner, guard: cb.guard, args });
-        const result = owner.host
-          ? await owner.host.peer.request({
-              op: 'invoke',
-              cb: cb.local,
-              args,
-            } satisfies SandboxRequest)
-          : this.toKernelWire(
-              await this.kernelFns.get(cb.local)!(...(this.fromKernelWire(args) as unknown[])),
-            );
-        return this.carry(cb.owner, from, result);
-      }
-      case 'kernel':
-        return this.serve(from, req.method, req.args);
-      default:
-        throw new Refusal('unknown request');
+  private async call(from: string, to: string, key: string, method: string, raw: unknown[]) {
+    const party = this.parties.get(to);
+    if (!party) throw new Refusal(`${to}, which provides ${key}, is not running`);
+    if (!this.parties.has(from) && from !== KERNEL) throw new Refusal(`${from} is not running`);
+    const p = party.provided.get(key);
+    if (!p) throw new Refusal(`${to} does not provide ${key}`);
+    const { contract } = p;
+    if (contract.personal.includes(method) && from !== KERNEL && !this.opts.userPresent?.(from))
+      throw new Refusal(`${key}.${method} is for a person to do, right after a tap or key`);
+    let impl = p.impl as Record<string, unknown>;
+    if (isPerCaller(impl)) {
+      const k = `${to}\n${key}\n${from}`;
+      if (!this.perCallerImpls.has(k)) this.perCallerImpls.set(k, perCallerDef(impl).make(from));
+      impl = this.perCallerImpls.get(k) as Record<string, unknown>;
+      missing(contract, impl);
     }
-  }
-
-  /** A value going from `sender` to `receiver`: the sender's own callback references become global
-   * ones, which the receiver now holds. */
-  private carry(sender: string, receiver: string, v: unknown): unknown {
-    return mapRefs(v, (r) => {
-      const gid = `${sender}#${r[CB]}`;
-      let cb = this.cbs.get(gid);
-      if (!cb) {
-        const guard =
-          typeof r.label === 'string' && Access.safeParse(r.access).success
-            ? { label: r.label, access: r.access as Access }
-            : undefined;
-        if (guard) this.policy.see(sender, guard);
-        cb = { owner: sender, local: r[CB], guard, holders: new Set() };
-        this.cbs.set(gid, cb);
-      }
-      cb.holders.add(receiver);
-      return { [CB]: gid, ...cb.guard } satisfies CbRef;
-    });
-  }
-
-  private async callLocal(
-    party: Party,
-    from: string,
-    key: string,
-    method: string,
-    args: unknown[],
-  ) {
-    let impl = party.local!.get(key) as Record<string, unknown>;
-    if (isPerCaller(impl)) impl = perCallerDef(impl).make(from) as Record<string, unknown>;
     const fn = impl[method];
-    if (typeof fn !== 'function' || !Object.hasOwn(impl, method))
+    if (typeof fn !== 'function' || NOT_METHODS.has(method))
       throw new Refusal(`${key} has no method "${method}"`);
-    return this.toKernelWire(await (fn as Fn).apply(impl, this.fromKernelWire(args) as unknown[]));
-  }
-
-  // Values in the kernel's own calls: its functions get kernel-local ids; others' become proxies.
-  private toKernelWire(v: unknown) {
-    return encode(v, (fn) => {
-      const lid = String(++this.nextFn);
-      this.kernelFns.set(lid, fn);
-      return { [CB]: lid };
-    });
-  }
-  private fromKernelWire(v: unknown): unknown {
-    return mapRefs(v, (r) => {
-      const gid = r[CB];
-      let fn = this.kernelProxies.get(gid);
-      if (!fn) {
-        fn = async (...args: unknown[]): Promise<unknown> =>
-          this.fromKernelWire(
-            await this.route(KERNEL, {
-              op: 'invoke',
-              cb: gid,
-              args: this.toKernelWire(args) as unknown[],
-            }),
-          );
-        this.kernelProxies.set(gid, fn);
-      }
-      return fn;
-    });
-  }
-
-  /* ---------- What the kernel serves every extension (KernelApi) ---------- */
-
-  private async serve(from: string, method: string, args: unknown[]): Promise<unknown> {
-    const party = this.parties.get(from);
-    if (!party?.host) throw new Refusal('not an extension');
-    const s = this.opts.storage;
-    const [a, b] = args;
-    switch (method) {
-      case 'fetch':
-        return serialize(
-          await kernelFetch(
-            party.statics,
-            this.opts.secrets,
-            this.opts.fetch,
-          )(String(a), (b ?? {}) as never),
+    let args = this.carry(from, to, raw) as unknown[];
+    const schema = contract.inputs[method];
+    if (schema) {
+      const parsed = schema.safeParse(args);
+      if (!parsed.success)
+        throw new Refusal(
+          `${from} → ${key}.${method}: ${parsed.error.issues.map((i) => `${i.path.join('.') || 'arguments'}: ${i.message}`).join('; ')}`,
         );
-      case 'hasSecret':
-        return String(a) in party.statics.secrets && this.opts.secrets.has(from, String(a));
-      case 'storage.get':
-        return s.get(from, String(a));
-      case 'storage.set':
-        return s.set(from, String(a), b);
-      case 'storage.delete':
-        return s.delete(from, String(a));
-      case 'storage.list':
-        return s.list(from, String(a ?? ''));
-      default:
-        throw new Refusal(`the kernel has no "${method}"`);
+      args = parsed.data;
     }
+    return this.carry(to, from, await (fn as Fn).apply(impl, args));
+  }
+
+  /** A value going from `owner` to `holder`: each guarded function in it (in plain objects and arrays)
+   * is wrapped so that calling it goes through the access policy, as `holder` calling `owner`. */
+  private carry(owner: string, holder: string, v: unknown, depth = 0): unknown {
+    if (depth > 20) return v;
+    if (typeof v === 'function') {
+      const guard = guardOf(v);
+      return guard && !(WRAPPED in v) ? this.guardedCall(v as Fn, guard, owner, holder) : v;
+    }
+    if (Array.isArray(v)) return v.map((x) => this.carry(owner, holder, x, depth + 1));
+    if (typeof v === 'object' && v !== null && Object.getPrototypeOf(v) === Object.prototype) {
+      const out: Record<string, unknown> = {};
+      for (const [k, x] of Object.entries(v)) out[k] = this.carry(owner, holder, x, depth + 1);
+      return out;
+    }
+    return v;
+  }
+
+  private guardedCall(fn: Fn, guard: Guard, owner: string, holder: string): Fn {
+    this.policy.see(owner, guard);
+    const wrapped = async (...args: unknown[]) => {
+      if (!this.parties.has(owner)) throw new Refusal(`${owner} is not running`);
+      await this.policy.admit({ from: holder, to: owner, guard, args });
+      return fn(...args);
+    };
+    Object.defineProperty(wrapped, WRAPPED, { value: true });
+    return wrapped;
+  }
+
+  /* ---------- What the kernel gives every extension ---------- */
+
+  private kernelApi(party: Party): KernelApi {
+    const s = this.opts.storage;
+    const ns = party.id;
+    const storage: ExtStorage = {
+      get: (key) => s.get(ns, key) as never,
+      set: (key, value) => s.set(ns, key, value),
+      delete: (key) => s.delete(ns, key),
+      list: (prefix) => s.list(ns, prefix ?? '') as never,
+    };
+    return {
+      id: party.id,
+      fetch: kernelFetch(party.statics, this.opts.secrets, this.opts.fetch),
+      hasSecret: async (name) =>
+        name in party.statics.secrets && (await this.opts.secrets.has(party.id, name)),
+      storage,
+    };
   }
 }
 
-let streamsTransfer: boolean | undefined;
-const canTransferStreams = () => {
-  if (streamsTransfer === undefined)
-    try {
-      const rs = new ReadableStream();
-      structuredClone(rs, { transfer: [rs] as unknown as Transferable[] });
-      streamsTransfer = true;
-    } catch {
-      streamsTransfer = false;
-    }
-  return streamsTransfer;
-};
-
-/** A response as it crosses to a sandbox: the body as a stream where streams can be transferred (so
- * a streamed answer arrives as it comes), otherwise read whole. */
-async function serialize(r: Response): Promise<SerializedResponse> {
+/** The static fields as plain values: contracts by name, version and personal methods. */
+function staticsOf(def: Extension['def']) {
+  const refs = (m: Record<string, AnyContract> | undefined) =>
+    Object.fromEntries(
+      Object.entries(m ?? {}).map(([as, c]) => [
+        as,
+        { kind: c?.kind, name: c?.name, version: c?.version, personal: c?.personal },
+      ]),
+    );
+  const { id, version, permissions, secrets, agentGuide, author } = def;
   return {
-    status: r.status,
-    statusText: r.statusText,
-    headers: [...r.headers],
-    body: canTransferStreams() ? r.body : await r.arrayBuffer(),
+    id,
+    version,
+    requires: refs(def.requires),
+    optional: refs(def.optional),
+    provides: refs(def.provides),
+    permissions,
+    secrets,
+    agentGuide,
+    author,
   };
+}
+
+/** Every method the contract has inputs for is a function on the implementation. */
+function missing(c: AnyContract, impl: unknown) {
+  const absent = Object.keys(c.inputs).filter(
+    (m) => typeof (impl as Record<string, unknown> | null)?.[m] !== 'function',
+  );
+  if (absent.length) throw new Error(`${c.key} is missing ${absent.join(', ')}`);
 }
 
 async function digest(v: unknown) {

@@ -1,5 +1,5 @@
 {
-  // One config for the kernel (src/), the contracts and the extensions. Extensions import the kernel as
+  // One config for the kernel (src/), the contracts, the extensions and the CI tools (tools/). Extensions import the kernel as
   // @pip/kernel and contracts as @contracts/<name>; the loader resolves the same names in the browser.
   "compilerOptions": {
     "target": "ES2023",
@@ -25,5 +25,5 @@
       "@contracts/*": ["./contracts/*/index.ts", "./contracts/*"]
     }
   },
-  "include": ["src", "contracts", "extensions", "vite.config.ts"]
+  "include": ["src", "contracts", "extensions", "tools", "vite.config.ts"]
 }

@@ -1,12 +1,11 @@
-// Running the kernel in tests: real sandboxes in this process (inProcessRealms), fed from a tree of
-// source strings, with memory storage. Not isolated, but the same protocol and the same checks.
+// Running the kernel in tests: the same kernel as in the browser, fed from a tree of source strings,
+// with modules as data: URLs and memory storage.
 import { describe, expect, it } from 'vitest';
 import type { Suite } from './conformance.ts';
 import type { AnyContract } from './contract.ts';
 import { runSuite } from './conformance.ts';
 import { Kernel, type KernelOptions } from './kernel.ts';
 import { planAll, planner, type Tree } from './loader.ts';
-import { inProcessRealms } from './realm.ts';
 import { type KernelKeep, secretStore } from './secrets.ts';
 import { memoryStorage } from './storage.ts';
 
@@ -44,11 +43,9 @@ export async function startTree(
   const storage = opts.storage ?? memoryStorage();
   const keep = memoryKeep();
   const kernel = new Kernel({
-    realms: inProcessRealms({
-      url: (code) => `data:text/javascript;base64,${Buffer.from(code).toString('base64')}`,
-      load: (url) => import(/* @vite-ignore */ url),
-      shared: { '@pip/kernel': () => import('./api.ts'), zod: () => import('zod') },
-    }),
+    url: (code) => `data:text/javascript;base64,${Buffer.from(code).toString('base64')}`,
+    load: (url) => import(/* @vite-ignore */ url),
+    shared: { '@pip/kernel': await import('./api.ts'), zod: await import('zod') },
     secrets: opts.secrets ?? secretStore(memoryKeep()),
     storage,
     keep,

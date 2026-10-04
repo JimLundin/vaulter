@@ -1,6 +1,6 @@
-// Starting the app in the browser: the source provider first (source-github, bundled, in a sandbox; or
-// the working tree under `npm run dev`), then every extension at the chosen commit with this device's
-// drafts on top, planned, sandboxed and started. Safe mode takes over when asked for (?safe), when no
+// Starting the app in the browser: the source provider first (source-github, bundled; or the working
+// tree under `npm run dev`), then every extension at the chosen commit with this device's drafts on
+// top, planned, loaded into this page and started. Safe mode takes over when asked for (?safe), when no
 // shell started, or when starting failed outright; it depends on no extension.
 import { type SourceV1, source } from '@contracts/extensions.source';
 import { kernel as kernelContract } from '@contracts/kernel';
@@ -10,12 +10,13 @@ import { overlay, review } from './drafts.ts';
 import { idbKeep } from './idb.ts';
 import { Kernel } from './kernel.ts';
 import { extensionsIn, planAll, planner, type Stats, type Tree } from './loader.ts';
-import { iframeRealms, type SandboxCode, userPresentIn } from './realm.ts';
 import type { Refused } from './resolve.ts';
 import { safeMode } from './safe-mode.ts';
 import { type KernelKeep, type SecretStore, secretStore } from './secrets.ts';
 import { SHARED } from './shared.ts';
 import { idbStorage } from './storage.ts';
+import { unlockScreen } from './unlock-screen.ts';
+import { unsealer } from './unseal.ts';
 
 export interface StartOptions {
   /** The bundled extensions' source, with the contracts they import: path → text. */
@@ -23,8 +24,8 @@ export interface StartOptions {
   bundled: string[];
   /** `owner/repo@ref` unless this device chose otherwise. */
   defaultSource: string;
-  /** What every sandbox runs (realm.ts). */
-  sandbox: SandboxCode;
+  /** The modules extensions import by name, as the kernel bundle has them. */
+  shared: Record<string, object>;
   /** Under `npm run dev`: the working tree instead of a repo. */
   devSource?: SourceV1;
 }
@@ -52,12 +53,14 @@ export async function start(opts: StartOptions) {
   const secrets = secretStore(keep);
   const config = await configStore(keep, opts.defaultSource);
   const kernel = new Kernel({
-    realms: iframeRealms(opts.sandbox),
+    shared: opts.shared,
+    url: (code) => URL.createObjectURL(new Blob([code], { type: 'text/javascript' })),
+    load: (url) => import(/* @vite-ignore */ url),
     secrets,
     storage: idbStorage(),
     keep,
     access: () => config.get().access,
-    userPresent: userPresentIn,
+    userPresent: () => navigator.userActivation?.isActive === true,
   });
   const s: State = {
     config,
@@ -70,6 +73,14 @@ export async function start(opts: StartOptions) {
     refused: [],
   };
   const wantSafe = new URLSearchParams(location.search).has('safe');
+
+  // Sealed secrets in the page (secrets.json): imported on their own once this device has the key;
+  // otherwise asked for once, before anything starts.
+  const sealed = unsealer(keep, secrets);
+  const sealedState = await sealed.check(async () =>
+    (await fetch(new URL('secrets.json', location.href), { cache: 'no-cache' })).json(),
+  );
+  if (sealedState === 'locked' && !wantSafe) await unlockScreen(sealed);
 
   try {
     if (opts.devSource) kernel.provide(source, opts.devSource);
@@ -119,11 +130,12 @@ export async function start(opts: StartOptions) {
               ref,
               treeAt: (commit) => treeAt(s, src, commit, true),
               inspect: async (id, t, entry) =>
-                kernel.inspect(id, await planner(t, { ...deps }).plan(entry)),
+                (await kernel.inspect(id, await planner(t, { ...deps }).plan(entry))).statics,
             },
             branch,
           ),
         restart: () => location.reload(),
+        sealed,
       }),
     );
     if (wantSafe) return safeMode(s);

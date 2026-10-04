@@ -3,6 +3,7 @@
   "files": {
     "includes": [
       "src/**",
+      "tools/**",
       "contracts/**",
       "extensions/**",
       "*.ts",
@@ -109,7 +110,7 @@
   },
   "overrides": [
     {
-      "includes": ["vite.config.ts"],
+      "includes": ["tools/**", "vite.config.ts"],
       "linter": {
         "rules": {
           "correctness": {
