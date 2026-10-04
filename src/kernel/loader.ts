@@ -29,7 +29,7 @@ export interface Plan {
   modules: Record<string, PlannedModule>;
   /** The shared modules it imports. */
   shared: string[];
-  /** The sha of every file in it, by path: what conformance results are cached by. */
+  /** The sha of every file in it, by path. */
   shas: Record<string, string>;
 }
 

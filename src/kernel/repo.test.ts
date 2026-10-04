@@ -25,7 +25,7 @@ afterEach(async () => {
   await kernel?.dispose();
 });
 
-it("starts store-local after records@1's conformance suite, and serves another extension through the client", async () => {
+it('starts store-local and serves another extension through the records client', async () => {
   const files = {
     ...read('contracts'),
     ...read('extensions/store-local'),

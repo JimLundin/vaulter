@@ -108,7 +108,18 @@ export function control({ booted: b, review, restart }: ControlEnv): KernelV1 {
     setSecret: (ext, name, value) => secrets.set(ext, name, value),
     forgetSecret: (ext, name) => secrets.forget(ext, name),
     setSource: (change) => config.setSource(change),
-    tryDraft: (branch, on) => config.tryDraft(branch, on),
+    async tryDraft(branch, on) {
+      // CI runs the conformance suites on the draft: one it failed isn't tried here until it passes.
+      if (on) {
+        const { repo } = config.get();
+        const checks = await src()
+          .checks(repo, await src().head(repo, branch))
+          .catch(() => undefined);
+        if (checks?.state === 'failure')
+          throw new Error(`${branch} failed CI's checks: it can be tried once they pass`);
+      }
+      await config.tryDraft(branch, on);
+    },
     async accept(branch, message) {
       const c = config.get();
       const sha = await src().merge(c.repo, c.ref, branch, message ?? `Accept ${branch}`);

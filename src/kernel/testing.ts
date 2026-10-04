@@ -1,12 +1,10 @@
 // Running the kernel in tests: the same boot as in the browser (boot.ts), on a test device that stands
 // in for one: modules as data: URLs, memory storage, and a source made of strings.
 import type { SourceV1 } from '@contracts/extensions.source';
-import { describe, expect, it } from 'vitest';
 import type { Access } from './access.ts';
 import { boot, type Device } from './boot.ts';
 import { type Config, defaultConfig } from './config.ts';
 import type { Suite } from './conformance.ts';
-import { runSuite } from './conformance.ts';
 import type { AnyContract } from './contract.ts';
 import type { Tree } from './loader.ts';
 import type { KernelKeep } from './secrets.ts';
@@ -151,17 +149,6 @@ export async function startTree(files: Record<string, string>, opts: TreeOptions
   };
 }
 
-/** A contract's conformance suite under Vitest, against `make()`'s provider. */
-export function conformanceInVitest<T>(suite: Suite<T>, make: (n: number) => T) {
-  describe(`${suite.contract} conformance`, () => {
-    it.each(suite.checks.map((c) => c.name))('%s', async (name) => {
-      const only = { ...suite, checks: suite.checks.filter((c) => c.name === name) };
-      const [r] = await runSuite(only, make);
-      expect(r.error).toBeUndefined();
-    });
-  });
-}
-
 const ROOT = new URL('../../', import.meta.url);
 
 /** The repo's own source under `dirs` ("contracts", "extensions/notes"), as a tree of strings. */
@@ -190,4 +177,33 @@ export async function startRepo(
 ) {
   const files = await repoFiles('contracts', ...extensions.map((e) => `extensions/${e}`));
   return startTree({ ...files, ...extra }, opts);
+}
+
+/** The repo's contracts and every extension in it, started; with each contract that has a
+ * conformance suite (contracts/<name>/conformance.ts), the suite and the extensions providing it. */
+export async function repoConformance() {
+  const files = await repoFiles('contracts', 'extensions');
+  // The suites call personal methods (answering a question) as a person would.
+  const r = await startTree(files, { presence: { grant() {}, take: () => true } });
+  const suites: { suite: Suite<unknown>; contract: AnyContract; providers: string[] }[] = [];
+  for (const path of Object.keys(files).sort()) {
+    const name = /^contracts\/([^/]+)\/conformance\.ts$/.exec(path)?.[1];
+    if (!name) continue;
+    const suite = (await import(/* @vite-ignore */ new URL(path, ROOT).href))
+      .default as Suite<unknown>;
+    const exports = await import(
+      /* @vite-ignore */ new URL(`contracts/${name}/index.ts`, ROOT).href
+    );
+    const contract = Object.values(exports).find(
+      (c) =>
+        (c as AnyContract | undefined)?.kind === 'contract' &&
+        (c as AnyContract).key === suite.contract,
+    ) as AnyContract;
+    const providers = r.kernel
+      .running()
+      .filter((x) => Object.values(x.statics.provides).some((c) => c.key === suite.contract))
+      .map((x) => x.id);
+    suites.push({ suite, contract, providers });
+  }
+  return { ...r, suites };
 }

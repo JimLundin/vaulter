@@ -82,7 +82,7 @@ Values otherwise pass as they are, not copied: a React component, a Zod schema o
 
 **Personal methods.** A contract can mark methods only a person may call: answering a question, approving, changing access, accepting a draft, unlocking the sealed secrets. An extension wraps the event handlers of its own screen with `kernel.asPerson`; a person's tap or key there (a trusted event) lets that extension, and only it, make one personal call within a few seconds, while the browser still counts the gesture as recent (`src/kernel/presence.ts`). A second call needs a second tap. Pip's own extensions never pass: the one providing `agent@1`, and any extension whose author is Pip, are refused a personal call even right after a tap, so Pip can't approve its own proposals.
 
-**What every extension gets from the kernel** (the second argument to `setup`): `storage`, a namespace of its own in the kernel's IndexedDB, dropped when the extension is removed; `fetch`, https only, to its declared hosts, with a secret attached by the kernel when asked for; `hasSecret`; `onStop`; and `asPerson`, for the handlers of its own screen.
+**What every extension gets from the kernel** (the second argument to `setup`): `storage`, a namespace of its own in the kernel's IndexedDB, dropped when the extension is removed; `fetch`, https only, to its declared hosts, with a secret attached by the kernel when asked for (the host list is a declaration the review screen shows, not a wall: code in the page can call the browser's `fetch` too, and the page's Content-Security-Policy is what limits where anything goes); `hasSecret`; `onStop`; and `asPerson`, for the handlers of its own screen.
 
 **Stopping.** An extension can stop without a page reload: turned off, reloaded with a draft's new commit, removed, or with every other one when the tab hands Vaulter over. Stopping one stops first everything that requires it, since they hold handles on it. For each, in that order:
 
@@ -136,7 +136,7 @@ The definition has two parts:
 
 - TypeScript, in the editor and in CI on every push.
 - Zod, when the kernel loads an extension's static fields, and wherever data comes from outside typed code: tool inputs, record fields, a model's answers. A contract may give Zod `inputs` for a method like that; none does today.
-- Conformance suites (`contracts/<name>/conformance.ts`), run by the kernel against a scratch instance of each provider, in its own namespace, before the provider can satisfy a `requires`; a pass is cached by the shas of the provider and the suite. CI runs the same suites under Vitest.
+- Conformance suites (`contracts/<name>/conformance.ts`), which CI runs on every push, draft branches included, against every extension in the repo that provides the contract, through real kernel handles (`contracts/conformance.test.ts`). The kernel doesn't run them when it starts; a device won't try a draft whose CI checks failed.
 
 **Separation.** Each extension's data lives in its own namespace, in the kernel's storage and with the storage provider, and it is meant to reach others only through the contracts it requires, so removing it removes its namespace and nothing else. This is the design every extension follows, not a wall: see "Running in the page".
 
@@ -169,7 +169,7 @@ The repo is where every extension lives, and every extension goes through the sa
 
 | Stage | Source is on | Runs on | Moves on when |
 | --- | --- | --- | --- |
-| Draft | A branch, such as `draft/workouts`, written by Pip | Devices where you've chosen to try that branch | Pip has a working version and CI type checks pass |
+| Draft | A branch, such as `draft/workouts`, written by Pip | Devices where you've chosen to try that branch, once CI's checks haven't failed | Pip has a working version and CI's checks pass: types, tests and every conformance suite |
 | Trial | The same branch, with more commits as Pip iterates | The same devices | You approve it on the review screen |
 | Accept | Merged into `main`, or a pull request if you want a second look | — | The merge lands |
 | Live | `main` | Every device, on its next start | — |
@@ -209,7 +209,7 @@ Realtime fits the same model: the `openai` extension calls `POST /v1/realtime/cl
 Five rules keep new features from forcing refactors.
 
 - **Contracts are versioned, not extensions' internals.** A provider may change anything behind `records@1` as long as it still passes the contract's test suite. A breaking change ships as `records@2`, and a provider can offer both while requirers move over.
-- **Every contract ships a conformance test suite.** Any new provider, including one Pip writes, must pass it before it can satisfy a `requires`.
+- **Contracts with a provider to hold to account ship a conformance test suite** (records, notes and questions today). Any new provider, including one Pip writes, must pass it in CI before its draft can be tried or accepted.
 - **Type changes are migrations.** Splitting `place` into `venue` and `city` is a migration the records contract runs once and can reverse.
 - **Nothing is overwritten or removed for good.** Every change to a record is a new revision with the earlier ones kept (`history`); a change names the revision it was made from, so two changes at once can't lose either (`update`). Deleting or merging leaves a tombstone that can be restored. Only removing an extension drops its data.
 - **Derived data is disposable.** Wiki pages, records, embeddings and indexes are built from the notes extension's append-only log, so any of them can be rebuilt. A buggy extension can corrupt a view, never what you said.
@@ -387,7 +387,7 @@ Three patterns repeat across these screens:
 | Secrets | Held by the kernel, attached only to requests for declared hosts; never in the repo, never synced. |
 | Live transcription | OpenAI Realtime API, inside the `openai` extension behind `ai.realtime@1`, using a short-lived session key minted from your key. |
 | Direct browser calls to OpenAI | Confirmed working in your trial project; no proxy. |
-| Storage for records and embeddings | An extension that provides `records@1` (`store-local`, on the kernel's storage). Others can replace it by passing the conformance suite. |
+| Storage for records and embeddings | An extension that provides `records@1` (`store-local`, on the kernel's storage). Others can replace it by passing the conformance suite in CI. |
 | Sync and backup of data | Extensions, such as a Git backup requiring `notes@1` and `records@1`, kept separate from the code repo. |
 | Isolation | None: every extension runs in the kernel's page, drafts too. The kernel's checks keep well-behaved code and Pip's model in line; review keeps bad code out of `main`. WebAssembly modules if isolation is ever needed. |
 | Calls between extensions | Through kernel handles: personal methods, guarded functions wrapped by the policy; values pass uncopied. TypeScript checks the arguments, not the kernel. A contract may ship a client for requirers. |

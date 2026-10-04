@@ -1,6 +1,6 @@
 // Conformance suites: what every provider of a contract must do. A contract ships one as
-// contracts/<name>/conformance.ts; the kernel runs it against a scratch instance of each provider before
-// that provider may satisfy a `requires`, and CI runs the same suite under Vitest (testing.ts).
+// contracts/<name>/conformance.ts, and CI runs it against every extension in the repo that provides the
+// contract, through real handles (contracts/conformance.test.ts), on every push, draft branches included.
 import type { AnyContract, Use } from './contract.ts';
 
 export interface Asserts {

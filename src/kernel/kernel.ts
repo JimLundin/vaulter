@@ -10,7 +10,6 @@
 // policy. Values otherwise pass as they are: no copying, so components and schemas can cross too.
 import { type Access, applyGuard, type Guard, guardOf } from './access.ts';
 import { ErrorLog } from './errors.ts';
-import { type CheckResult, runSuite, type Suite } from './conformance.ts';
 import { type AnyContract, type Contract, ContractRef } from './contract.ts';
 import {
   type Extension,
@@ -25,7 +24,7 @@ import { isPerCaller, perCallerDef } from './per-caller.ts';
 import { Policy } from './policy.ts';
 import { asPerson, type Presence } from './presence.ts';
 import { type Refused, resolve } from './resolve.ts';
-import { type KernelKeep, kernelFetch, type SecretStore } from './secrets.ts';
+import { kernelFetch, type SecretStore } from './secrets.ts';
 import type { KernelStorage } from './storage.ts';
 
 export class Refusal extends Error {
@@ -40,8 +39,6 @@ export interface KernelOptions {
   /** A module URL for compiled code: a blob: URL in the browser, a data: URL in Node. */
   url: (code: string) => string;
   load: (url: string) => Promise<Record<string, unknown>>;
-  /** The kernel's own cache: conformance results. */
-  keep?: KernelKeep;
   /** The person's access settings, by `extension/label`. */
   access?: () => Record<string, Access>;
   fetch?: typeof fetch;
@@ -53,8 +50,6 @@ export interface KernelOptions {
 export interface StartOptions {
   /** Contract key → extension id, where two extensions provide the same contract. */
   choose?: Record<string, string>;
-  /** The plan for a contract's conformance suite (contracts/<name>/conformance.ts), if it has one. */
-  conformance?: (contract: ContractRef) => Promise<Plan | null>;
 }
 
 interface Party {
@@ -135,8 +130,8 @@ export class Kernel {
   }
 
   /** Starts the extensions in `plans` beside those already running: each is loaded and its static
-   * fields read; those the resolver accepts are set up in dependency order, and a provider whose
-   * contract has a conformance suite must pass it before anything that requires it starts. */
+   * fields read; those the resolver accepts are set up in dependency order. (A contract's conformance
+   * suite is CI's to run, against every provider in the repo: testing.ts.) */
   async start(plans: Map<string, Plan>, opts: StartOptions = this.startOpts) {
     this.startOpts = opts;
     for (const [id, plan] of plans) this.plans.set(id, plan);
@@ -190,15 +185,6 @@ export class Kernel {
         this.parties.set(a.id, party);
         // biome-ignore lint/performance/noAwaitInLoops: setups run in dependency order
         await this.setup(party);
-        for (const c of Object.values(a.statics.provides)) {
-          const suite = await opts.conformance?.(c);
-          if (!suite) continue;
-          const failed = (await this.conform(party, c.key, suite)).filter((r) => !r.ok);
-          if (failed.length)
-            throw new Error(
-              `${c.key} conformance: ${failed.map((f) => `${f.name}: ${f.error}`).join('; ')}`,
-            );
-        }
         this.refused.delete(a.id);
       } catch (e) {
         this.errors.record(a.id, 'setup', e);
@@ -234,34 +220,27 @@ export class Kernel {
     }
   }
 
-  /** A conformance suite against a scratch instance of `party`: its setup run again as
-   * `<id>~conformance`, so per-caller providers and storage keep it apart; what it stored is dropped
-   * afterwards. A pass is cached by the shas of the provider and the suite. */
-  private async conform(party: Party, key: string, suitePlan: Plan): Promise<CheckResult[]> {
-    const cacheKey = `conformance:${await digest({ key, p: party.plan?.shas, s: suitePlan.shas })}`;
-    if (await this.opts.keep?.get(cacheKey)) return [];
-    const id = `${party.id}~conformance`;
-    const scratch: Party = { ...party, id, provided: new Map() };
-    this.parties.set(id, scratch);
-    try {
-      await this.setup(scratch);
-      const suite = (await this.opts.load(this.link(suitePlan))).default as
-        | Suite<unknown>
-        | undefined;
-      if (suite?.kind !== 'conformance') throw new Error(`${suitePlan.entry} exports no suite`);
-      const { contract, impl } = scratch.provided.get(key)!;
-      // Each check gets a fresh caller, so per-caller providers start it empty.
-      const results = await runSuite(suite, (n) => {
-        const caller = `check-${n}`;
-        const i = isPerCaller(impl) ? perCallerDef(impl).make(caller) : impl;
-        return contract.client ? contract.client(i as never, { caller }) : i;
-      });
-      if (results.every((r) => r.ok)) await this.opts.keep?.set(cacheKey, true);
-      return results;
-    } finally {
-      await this.forget(id);
-      await this.stop(id);
-    }
+  /** A caller that isn't an extension, with real handles on running providers: what a contract's
+   * conformance suite runs as in CI (testing.ts), a fresh one per check. `drop` forgets what it left
+   * with the providers and stops it. */
+  caller(id: string) {
+    const party: Party = {
+      id,
+      statics: Statics.parse({ id, version: '0.0.0' }),
+      wiring: {},
+      provided: new Map(),
+    };
+    this.parties.set(id, party);
+    return {
+      use: <T, W>(contract: Contract<T, W>, provider: string): T => {
+        party.wiring[contract.key] = provider;
+        return this.handle(contract, provider, id) as T;
+      },
+      drop: async () => {
+        await this.forget(id);
+        this.parties.delete(id);
+      },
+    };
   }
 
   /** Drops what `caller` left with the providers it required, and its own storage. */
@@ -526,10 +505,3 @@ export class Kernel {
 /** Pip's own extensions are never a person: the agent, and any extension Pip wrote. */
 const isAgent = (s: Statics | undefined) =>
   s?.author.kind === 'agent' || Object.values(s?.provides ?? {}).some((c) => c.key === 'agent@1');
-
-async function digest(v: unknown) {
-  const bytes = new TextEncoder().encode(JSON.stringify(v));
-  return [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))]
-    .map((x) => x.toString(16).padStart(2, '0'))
-    .join('');
-}

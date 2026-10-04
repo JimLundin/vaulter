@@ -1,5 +1,5 @@
-// What every provider of records@1 must do. The kernel runs it against a scratch instance before a
-// provider may satisfy `requires: { records }`; CI runs it too (extensions/store-local/records.test.ts).
+// What every provider of records@1 must do: CI runs it against each one in the repo
+// (contracts/conformance.test.ts).
 import { defineConformance } from '@pip/kernel';
 import { z } from 'zod';
 import { records } from './index.ts';
@@ -180,7 +180,7 @@ export default defineConformance(records, [
     },
   },
   {
-    name: 'migrates a type to a new version once, and can revert it, schema and all',
+    name: 'migrates a type to a new version once, and can revert it',
     async run(r, t) {
       const v1 = r.registerType('spot', { place: z.string() });
       const old = await r.create(v1, { place: 'Café Lumière, Stockholm' });

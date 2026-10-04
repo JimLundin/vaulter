@@ -89,6 +89,11 @@ describe('the kernel contract', () => {
       { base: 'main', head: 'draft/maps', message: 'Accept draft/maps' },
     ]);
     expect(config.get().drafts).toEqual([]);
+    r.src.source.checks = async () => ({
+      state: 'failure',
+      runs: [{ name: 'test', state: 'failure' }],
+    });
+    await expect(api.tryDraft('draft/maps', true)).rejects.toThrow(/failed CI's checks/);
     await api.setSecret('maps', 'token', 'pk.1');
     expect((await api.extensions()).find((e) => e.id === 'maps')?.secrets[0].set).toBe(true);
     await api.setSource({ pin: 'abcdef1' });

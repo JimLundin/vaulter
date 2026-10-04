@@ -1,8 +1,7 @@
 // Boot: from a device and a source of extensions to a running kernel, or to safe mode with a reason
 // (ARCHITECTURE.md, "Extension lifecycle"). The source provider comes first (source-github from the
 // kernel bundle, or one the kernel provides itself), then every extension at the chosen commit with
-// this device's drafts on top: planned, loaded into the page and started, each provider's conformance
-// suite first. The device is a browser (start.ts); tests boot the same way on a test device.
+// this device's drafts on top: planned, loaded into the page and started. The device is a browser (start.ts); tests boot the same way on a test device.
 import { type SourceV1, source } from '@contracts/extensions.source';
 import { kernel as kernelContract } from '@contracts/kernel';
 import { type ConfigStore, configStore } from './config.ts';
@@ -96,7 +95,6 @@ export async function boot(device: Device, opts: BootOptions): Promise<Booted> {
     load: device.load,
     secrets,
     storage: device.storage,
-    keep,
     access: () => config.get().access,
     presence: device.presence,
     fetch: device.fetch,
@@ -177,16 +175,10 @@ export async function boot(device: Device, opts: BootOptions): Promise<Booted> {
     }
 
     const skip = new Set([...config.get().disabled, ...b.bundled]);
-    const { plans, refused, stats, planner: p } = await planAll(tree, deps, skip);
+    const { plans, refused, stats } = await planAll(tree, deps, skip);
     b.stats = stats;
     b.refused.push(...refused);
-    const started = await kernel.start(plans, {
-      choose: config.get().choose,
-      conformance: (c) => {
-        const path = `contracts/${c.name}/conformance.ts`;
-        return tree.files.has(path) ? p.plan(path) : Promise.resolve(null);
-      },
-    });
+    const started = await kernel.start(plans, { choose: config.get().choose });
     b.refused.push(...started.refused);
     b.started.push(...started.started);
     const shell = kernel

@@ -13,7 +13,7 @@ const probe = defineContract<{ run: (a?: string) => Promise<unknown> }>({
   version: '1.0.0',
 });
 
-it('passes questions@1 conformance, and only a person may answer', async () => {
+it('lets only a person answer a question, and hands the answer to the asker', async () => {
   let present = '';
   const r = await startRepo(
     ['store-local', 'questions'],

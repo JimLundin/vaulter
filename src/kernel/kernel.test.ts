@@ -21,18 +21,6 @@ export const notes = defineContract<NotesV1>({
   inputs: { append: z.tuple([z.string().min(1)]) },
 });`;
 
-const NOTES_CONFORMANCE = `
-import { defineConformance } from '@pip/kernel';
-import { notes } from './index.ts';
-export default defineConformance(notes, [
-  { name: 'counts what was appended', async run(n, t) {
-    t.equal(await n.count(), 0);
-    await n.append('a');
-    t.equal(await n.count(), 1);
-  } },
-  { name: 'refuses an empty note', async run(n, t) { await t.rejects(n.append('')); } },
-]);`;
-
 // Notes, kept in the kernel's storage for this extension.
 const NOTES_EXT = `
 import { defineExtension } from '@pip/kernel';
@@ -133,7 +121,6 @@ const toolsContract = defineContract<{
 
 const base = {
   'contracts/notes/index.ts': NOTES,
-  'contracts/notes/conformance.ts': NOTES_CONFORMANCE,
   'extensions/notes/index.ts': NOTES_EXT,
 };
 const tooling = (access: string) => ({
@@ -267,21 +254,14 @@ describe('the kernel', () => {
     ]);
   });
 
-  it("refuses a provider that fails its contract's conformance suite", async () => {
-    const lax = NOTES_EXT.replace("if (!text) throw new Error('empty');", '').replace(
-      'provides: { notes },',
-      'provides: { notes: { ...notes, inputs: {} } },',
-    );
-    const { refused } = await start({ ...base, 'extensions/notes/index.ts': lax });
-    expect(refused[0].problems[0]).toMatch(/notes@1 conformance: refuses an empty note/);
-  });
-
-  it('runs conformance on a scratch instance whose data is dropped', async () => {
-    const { kernel, storage, refused } = await start(base);
-    expect(refused).toEqual([]);
-    expect(kernel.running().map((r) => r.id)).toEqual(['notes']);
-    expect(await storage.list('notes~conformance', '')).toEqual([]);
-    expect(await storage.get('notes', 'n')).toBeUndefined();
+  it('gives a caller that is not an extension real handles, until it is dropped', async () => {
+    const { kernel } = await start(base);
+    const caller = kernel.caller('check-1');
+    const n = caller.use(notesContract, 'notes');
+    expect(await n.append('from a check')).toBe(1);
+    await expect(n.append('')).rejects.toThrow(/check-1 → notes@1\.append/);
+    await caller.drop();
+    await expect(n.append('again')).rejects.toThrow(/check-1 is not running/);
   });
 
   it("applies Pip's access to a guarded callback: read runs, write is logged, ask waits", async () => {

@@ -1,5 +1,5 @@
 // Records in this device's storage, through the kernel. Another provider (an embedded database, a
-// synced store) replaces it by providing records@1 and passing its conformance suite.
+// synced store) replaces it by providing records@1 and passing its conformance suite in CI.
 import { defineExtension, perCaller } from '@pip/kernel';
 import { records } from '@contracts/records';
 import { localRecords } from './records.ts';
