@@ -393,6 +393,53 @@ describe('the kernel', () => {
     expect(kernel.running().map((r) => r.id)).toEqual(['notes']);
   });
 
+  it("never lets Pip's own extensions make a personal call, even right after a tap", async () => {
+    const questions = defineContract<{ answer: (a: string) => Promise<void> }>({
+      name: 'questions',
+      version: '1.0.0',
+      personal: ['answer'],
+    });
+    const caller = (
+      id: string,
+      statics: string,
+      imports = '',
+    ) => `import { defineExtension } from '@pip/kernel';
+      import { questions } from '@contracts/questions';
+      ${imports}
+      export default defineExtension({ id: '${id}', version: '1.0.0', requires: { questions }, ${statics}
+        async setup({ questions }, kernel) {
+          try { await questions.answer('yes'); await kernel.storage.set('out', 'answered'); }
+          catch (e) { await kernel.storage.set('out', e.message); }
+          return ${id === 'agent' ? '{ agent: {} }' : 'undefined'};
+        } });`;
+    const { storage, refused } = await start(
+      {
+        'contracts/questions/index.ts': `import { defineContract } from '@pip/kernel';
+          export const questions = defineContract({ name: 'questions', version: '1.0.0', personal: ['answer'] });`,
+        'contracts/agent/index.ts': `import { defineContract } from '@pip/kernel';
+          export const agent = defineContract({ name: 'agent', version: '1.0.0' });`,
+        'extensions/agent/index.ts': caller(
+          'agent',
+          'provides: { agent },',
+          "import { agent } from '@contracts/agent';",
+        ),
+        'extensions/workouts/index.ts': caller(
+          'workouts',
+          "author: { kind: 'agent', reason: 'runs' },",
+        ),
+        'extensions/settings/index.ts': caller('settings', ''),
+      },
+      {
+        provide: [[questions, { answer: async () => undefined }]],
+        presence: { grant() {}, take: () => true },
+      },
+    );
+    expect(refused).toEqual([]);
+    expect(await storage.get('agent', 'out')).toMatch(/is for a person to do; agent is Pip's/);
+    expect(await storage.get('workouts', 'out')).toMatch(/workouts is Pip's/);
+    expect(await storage.get('settings', 'out')).toBe('answered');
+  });
+
   it("lets a contract's personal methods through only right after a person acted in the caller", async () => {
     const answers: string[] = [];
     const ask = defineContract<{
@@ -426,7 +473,7 @@ describe('the kernel', () => {
         provide: [
           [ask, { ask: async () => undefined, answer: async (a: string) => void answers.push(a) }],
         ],
-        userPresent: (caller) => caller === present,
+        presence: { grant() {}, take: (caller) => caller === present },
       },
     );
     expect(refused).toEqual([]);

@@ -70,7 +70,7 @@ So the kernel's checks keep well-behaved code, and Pip's model, in line; they do
 
 **Calls go through handles.** A requirer's `ctx` holds a handle per contract, not the provider's object. Every call through a handle:
 
-- refuses if the provider (or the caller) isn't running, or the method is a contract's personal one and no person just acted;
+- refuses if the provider (or the caller) isn't running, or the method is a contract's personal one and no person just acted in the caller's screen;
 - checks the arguments against the `inputs` of the provider's copy of the contract, which also says where a guarded function sits (a tool's `run`, through `guardedObject`) and which of its fields give its label and level;
 - wraps every function among the arguments and the result with its owner, so it goes quiet once the owner stops; a guarded one also goes through Pip's access policy on every call, as the holder calling its owner, and carries the level the policy applies now (`run.level`).
 
@@ -80,9 +80,9 @@ Values otherwise pass as they are, not copied: a React component, a Zod schema o
 
 **A contract has two faces.** `W`, what a provider implements, and `T`, what a requirer uses: the same unless the contract has a `client`, code in the contract package that adapts `W` into `T` on the requirer's side. The records client keeps `registerType` synchronous and turns Zod fields into JSON Schema, which is what providers store; the agent.tools client turns a tool's Zod input into JSON Schema (what a model reads) and marks its `run` with its level.
 
-**Personal methods.** A contract can mark methods only a person may call: answering a question, approving, changing access, accepting a draft, unlocking the sealed secrets. The kernel lets such a call through only right after a user activation (a tap or a key), so Pip can't approve its own proposals.
+**Personal methods.** A contract can mark methods only a person may call: answering a question, approving, changing access, accepting a draft, unlocking the sealed secrets. An extension wraps the event handlers of its own screen with `kernel.asPerson`; a person's tap or key there (a trusted event) lets that extension, and only it, make one personal call within a few seconds, while the browser still counts the gesture as recent (`src/kernel/presence.ts`). A second call needs a second tap. Pip's own extensions never pass: the one providing `agent@1`, and any extension whose author is Pip, are refused a personal call even right after a tap, so Pip can't approve its own proposals.
 
-**What every extension gets from the kernel** (the second argument to `setup`): `storage`, a namespace of its own in the kernel's IndexedDB, dropped when the extension is removed; `fetch`, https only, to its declared hosts, with a secret attached by the kernel when asked for; `hasSecret`; and `onStop`.
+**What every extension gets from the kernel** (the second argument to `setup`): `storage`, a namespace of its own in the kernel's IndexedDB, dropped when the extension is removed; `fetch`, https only, to its declared hosts, with a secret attached by the kernel when asked for; `hasSecret`; `onStop`; and `asPerson`, for the handlers of its own screen.
 
 **Stopping.** An extension can stop without a page reload: turned off, reloaded with a draft's new commit, removed, or with every other one when the tab hands Vaulter over. Stopping one stops first everything that requires it, since they hold handles on it. For each, in that order:
 
@@ -384,7 +384,7 @@ Three patterns repeat across these screens:
 | Isolation | None: every extension runs in the kernel's page, drafts too. The kernel's checks keep well-behaved code and Pip's model in line; review keeps bad code out of `main`. WebAssembly modules if isolation is ever needed. |
 | Calls between extensions | Through kernel handles: checked inputs, personal methods, guarded functions wrapped by the policy; values pass uncopied. A contract may ship a client for requirers. |
 | Pip's access | Read, write and ask attach to functions a contract's inputs guard (a tool's `run`), so no requirer can leave the guard off; the person's setting overrides the declared level. |
-| What only a person may do | Contract methods marked personal pass only right after a user activation. |
+| What only a person may do | Contract methods marked personal pass once per tap or key in the calling extension's own screen (`kernel.asPerson`); never for the agent or an extension Pip wrote. |
 | The kernel's own screens | A `kernel@1` contract the kernel provides; the screens are extensions. |
 | Offline | A service worker for the kernel's files; trees and compiled output in the kernel's IndexedDB. |
 | Secrets on a new device | Sealed into the page by CI with a password; the kernel asks for it once per device. |

@@ -22,6 +22,7 @@ import { linker } from './link.ts';
 import type { Plan } from './loader.ts';
 import { isPerCaller, perCallerDef } from './per-caller.ts';
 import { Policy } from './policy.ts';
+import { asPerson, type Presence } from './presence.ts';
 import { type Refused, resolve } from './resolve.ts';
 import { type KernelKeep, kernelFetch, type SecretStore } from './secrets.ts';
 import type { KernelStorage } from './storage.ts';
@@ -43,9 +44,9 @@ export interface KernelOptions {
   /** The person's access settings, by `extension/label`. */
   access?: () => Record<string, Access>;
   fetch?: typeof fetch;
-  /** Whether a person acted just now (navigator.userActivation in the browser): the condition for
-   * a contract's personal methods. Told who is calling, for tests. */
-  userPresent?: (caller: string) => boolean;
+  /** Which extension a person just acted in (presence.ts): the condition for a contract's personal
+   * methods. Without it, no extension may make a personal call. */
+  presence?: Presence;
 }
 
 export interface StartOptions {
@@ -384,8 +385,12 @@ export class Kernel {
     const p = party.provided.get(key);
     if (!p) throw new Refusal(`${to} does not provide ${key}`);
     const { contract } = p;
-    if (contract.personal.includes(method) && from !== KERNEL && !this.opts.userPresent?.(from))
-      throw new Refusal(`${key}.${method} is for a person to do, right after a tap or key`);
+    if (contract.personal.includes(method) && from !== KERNEL) {
+      if (isAgent(this.parties.get(from)?.statics))
+        throw new Refusal(`${key}.${method} is for a person to do; ${from} is Pip's`);
+      if (!this.opts.presence?.take(from))
+        throw new Refusal(`${key}.${method} is for a person to do, right after a tap or key`);
+    }
     let impl = p.impl as Record<string, unknown>;
     if (isPerCaller(impl)) {
       const k = `${to}\n${key}\n${from}`;
@@ -507,9 +512,15 @@ export class Kernel {
       onStop: (fn) => {
         party.stops = [fn, ...(party.stops ?? [])];
       },
+      asPerson: (handler) =>
+        this.opts.presence ? asPerson(this.opts.presence, party.id, handler) : handler,
     };
   }
 }
+
+/** Pip's own extensions are never a person: the agent, and any extension Pip wrote. */
+const isAgent = (s: Statics | undefined) =>
+  s?.author.kind === 'agent' || Object.values(s?.provides ?? {}).some((c) => c.key === 'agent@1');
 
 /** Every method the contract has inputs for is a function on the implementation. */
 function missing(c: AnyContract, impl: unknown) {

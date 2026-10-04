@@ -32,7 +32,7 @@ it('passes questions@1 conformance, and only a person may answer', async () => {
             } } };
           } });`,
     },
-    { userPresent: (caller) => caller === present },
+    { presence: { grant() {}, take: (caller) => caller === present } },
   );
   kernel = r.kernel;
   expect(r.refused).toEqual([]);

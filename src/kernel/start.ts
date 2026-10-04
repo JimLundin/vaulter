@@ -11,6 +11,7 @@ import { idbKeep } from './idb.ts';
 import { Kernel } from './kernel.ts';
 import { extensionsIn, planAll, planner, type Stats, type Tree } from './loader.ts';
 import type { Refused } from './resolve.ts';
+import { presence } from './presence.ts';
 import { safeMode } from './safe-mode.ts';
 import { singleTab, standbyScreen } from './single-tab.ts';
 import { type KernelKeep, type SecretStore, secretStore } from './secrets.ts';
@@ -69,7 +70,7 @@ export async function start(opts: StartOptions) {
     storage: idbStorage(),
     keep,
     access: () => config.get().access,
-    userPresent: () => navigator.userActivation?.isActive === true,
+    presence: presence(() => navigator.userActivation?.isActive === true),
   });
   // An error nothing caught is kept under the extension whose code threw it (its stack says).
   addEventListener('error', (e) => kernel.errors.uncaught(e.error));
