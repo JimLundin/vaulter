@@ -1,5 +1,5 @@
 // What every view can reach: the vault (and its schema), the writer, the secrets and the extensions, plus
-// the slots where extensions render (note sections, note actions, home sections). The shell (App.tsx) provides it.
+// the slots where extensions render (note sections, note actions). The shell (App.tsx) provides it.
 // biome-ignore lint/correctness/noUnresolvedImports: Fragment is in @types/react's namespace, which Biome doesn't follow
 import { createContext, Fragment } from 'react';
 import { useContext } from 'react';
@@ -76,17 +76,6 @@ export function NoteActions({ note }: { note: Note }) {
             · <a href={link(a.href(note))}>{a.label}</a>
           </Fragment>
         ))}
-    </>
-  );
-}
-
-export function HomeSections() {
-  const { extensions } = useHost();
-  return (
-    <>
-      {slot(extensions, (e) => e.homeSections).map(({ view: V, key }) => (
-        <V key={key} />
-      ))}
     </>
   );
 }

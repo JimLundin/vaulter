@@ -5,7 +5,7 @@ import type { Note } from '../../../core/note-fields.ts';
 import { facet, titleOf, excerptOf } from '../../../core/note-fields.ts';
 import { dayMonth, longDay, shortDay, today } from '../../../core/format.ts';
 import { computeBrief } from '../../../core/brief.ts';
-import { HomeSections, useSchema, useVault } from '../../core/host.tsx';
+import { useSchema, useVault } from '../../core/host.tsx';
 import { link, useRoute } from '../../core/route.ts';
 // biome-ignore lint/correctness/noUnresolvedImports: Fragment is in @types/react's namespace, which Biome doesn't follow
 import { Fragment, type ReactNode, useEffect, useRef, useState } from 'react';
@@ -47,7 +47,6 @@ export function HomePage({ note }: { note: Note }) {
         </aside>
       </div>
       <AreaTabs />
-      <HomeSections />
     </>
   );
 }

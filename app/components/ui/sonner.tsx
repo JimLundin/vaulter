@@ -16,6 +16,13 @@ const Toaster = ({ ...props }: ToasterProps) => {
     <Sonner
       theme={theme as ToasterProps['theme']}
       className="toaster group"
+      // Action buttons (Undo, Review, Open) in the primary colour, not sonner's black.
+      toastOptions={{
+        classNames: {
+          actionButton: '!bg-primary !text-primary-foreground !font-medium',
+          cancelButton: '!bg-secondary !text-secondary-foreground',
+        },
+      }}
       icons={{
         success: <CircleCheckIcon className="size-4" />,
         info: <InfoIcon className="size-4" />,

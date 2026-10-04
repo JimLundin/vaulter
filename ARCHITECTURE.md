@@ -9,7 +9,7 @@ data, and nothing the browser runs needs Node.
 | Layer | Where | May use | Holds |
 |---|---|---|---|
 | Vault model | `core/` | itself and pure libraries (no DOM, no Node) | parsing, the check, derivations, the vocabulary reader, formats, audit, rename |
-| Shell | `app/core/` | `core/`, the DOM, React | routing, top bar and search, the extension host, the writer, the session, the encrypted store, the workers |
+| Shell | `app/core/` | `core/`, the DOM, React | routing, the frame (sidebar, header, the panel beside the page, the phone's bottom bar), ⌘K, the keys, the extension host, the writer, the session, the encrypted store, the workers |
 | Backends | `app/backends/<name>` | `core/`, `app/core/backend.ts` | one way to a vault each: GitHub (with the cache), a picked folder, memory (tests) |
 | Features | `app/extensions/<name>/` | `core/`, `app/core/` | everything the user sees beyond the shell |
 | Tools | `tools/` | Node, `core/` | thin CLIs over `core/`: the CI check, sealing, and the audit and rename for shell sessions |
@@ -24,18 +24,21 @@ in `app/extensions/index.ts`. The shell renders what it contributes:
 
 | Point | What it is | Used by |
 |---|---|---|
-| `page(path, host)` | the page for a route, or null; asked in list order | every feature with a page |
-| `nav` | top-bar links, with `when` (only if it applies) and `badge`; searchable as pages | calendar, map, places, decisions, audit, agent, editor |
+| `page(path, host)` | the page for a route, or null; asked in list order; `width` reading or wide | every feature with a page |
+| `nav` | pages in the sidebar, with `when` (only if it applies), `badge`, an `icon`, go-to `keys` ("g c") and `tab` (the phone's bottom bar); searchable as pages | calendar, map, places, decisions, audit, editor |
+| `commands(host)` | what Jim can do: in ⌘K, on their keys, in the shortcuts list (?) | home, notes, agent, editor |
+| `panel` | the panel beside every page (docked, a sheet, or a drawer on a phone), with its button's `indicator` and "Ask …" in ⌘K | agent |
+| `sidebar` | groups in the sidebar under the pages, by `order` | home (areas), notes (recent) |
 | `noteSections` | sections under a note's body, by `order` | notes, calendar, decisions, map, similar |
 | `noteActions` | links in a note's footer | editor (edit, rename) |
-| `homeSections` | sections of Home, by `order` | home |
 | `search(v)` | entries for search and link previews | notes, topics |
 | `mdx` | components notes may use (allowed by `meta/schema.yaml`) | notes |
 | `tools(ctx)` | agent tools, loaded with the agent | agent, editor (`renameNote`), audit (`audit`), code (the app's own source), web (`webSearch`, `fetchPage`) |
 
 A feature's own derived data is computed once per vault with `perVault` (`core/derive.ts`); a slow one is
 registered in `core/heavy.ts`, computed in the worker, kept per tree, and read with `useHeavy(key)`.
-Contribution points are added when a feature needs one, not before.
+Contribution points are added when a feature needs one, not before. Rows a list can move through (j/k,
+↑/↓) are marked `data-nav` (`app/core/keys.ts`); passing confirmations are sonner toasts.
 
 Example, a reading list: `app/extensions/reading/index.tsx` with a `page` for `#/reading/` listing notes
 tagged `reading` and `status/active`, a `nav` entry, a `noteSections` entry ("On the reading list") and,

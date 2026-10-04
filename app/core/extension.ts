@@ -81,8 +81,6 @@ export interface Extension {
   noteSections?: { order: number; view: ComponentType<{ note: Note }> }[];
   /** Links in a note's footer ("edit"). */
   noteActions?: { label: string; href: (note: Note) => string; when?: (host: Host) => boolean }[];
-  /** Sections of Home, under the Home note, by `order`. */
-  homeSections?: { order: number; view: ComponentType }[];
   /** Entries for search and link previews (notes, topics, …). */
   search?: (v: Vault) => Entry[];
   /** Components notes can use in MDX (which ones notes may use is the vault's call: components in meta/schema.yaml). */
