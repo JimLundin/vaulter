@@ -20,25 +20,16 @@ import {
 import type { Statics } from './extension.ts';
 import type { Presence } from './presence.ts';
 import type { Refused } from './resolve.ts';
-import { type SecretStore, secretStore } from './secrets.ts';
 import type { KernelKeep } from './storage.ts';
-import { type Unsealer, unsealer } from './unseal.ts';
 
 /** What differs between devices: a browser, or the test device that stands in for one. */
 export interface Device {
-  /** The kernel's own state: settings, secrets, trees and compiled output, its logs. */
+  /** The kernel's own state: settings, trees and compiled output, its logs. */
   keep: KernelKeep;
-  /** The secret store; by default one over `keep`. */
-  secrets?: SecretStore;
   /** A module URL for compiled code, and loading it. */
   url: (code: string) => string;
   load: (url: string) => Promise<Record<string, unknown>>;
   presence?: Presence;
-  fetch?: typeof fetch;
-  /** The page's sealed secrets file (secrets.json), or anything else when there is none. */
-  sealedFile: () => Promise<unknown>;
-  /** Asks the person for the sealed secrets' password; resolves once unlocked or put off. */
-  askPassword: (sealed: Unsealer) => Promise<void>;
   restart: () => void;
   /** Told the kernel as soon as it exists, before anything starts: for errors nothing caught. */
   watch?: (kernel: Kernel) => void;
@@ -63,8 +54,6 @@ export interface Booted {
   kernel: Kernel;
   config: ConfigStore;
   keep: KernelKeep;
-  secrets: SecretStore;
-  sealed: Unsealer;
   /** The source provider, when one is running: drafts and pinned commits come through it. */
   src?: SourceV1;
   commit?: string;
@@ -82,38 +71,27 @@ const SHELL = 'ui.shell@1';
 
 export async function boot(device: Device, opts: BootOptions): Promise<Booted> {
   const { keep } = device;
-  const secrets = device.secrets ?? secretStore(keep);
   const config = await configStore(keep, opts.defaultSource);
   const kernel = new Kernel({
     shared: opts.shared,
     url: device.url,
     load: device.load,
-    secrets,
     keep,
     access: () => config.get().access,
     presence: device.presence,
-    fetch: device.fetch,
   });
   device.watch?.(kernel);
   await kernel.errors.load();
 
-  const sealed = unsealer(keep, secrets);
   const b: Booted = {
     kernel,
     config,
     keep,
-    secrets,
-    sealed,
     found: [],
     origins: new Map(),
     refused: [],
     started: [],
   };
-  // Sealed secrets in the page: imported on their own once this device has the key; otherwise
-  // asked for once, before anything starts.
-  if ((await sealed.check(device.sealedFile)) === 'locked' && !opts.safe)
-    await device.askPassword(sealed);
-
   const shared = Object.keys(opts.shared);
   try {
     for (const [c, impl] of opts.provide ?? []) kernel.provide(c, impl);

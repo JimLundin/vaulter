@@ -1,9 +1,9 @@
 // Bringing the sealed file's secrets onto this device: once with the password, and after that on its
 // own for every new file sealed with the same salt (the derived key is kept, non-extractable). The
-// secrets go into the kernel's store; nothing else ever sees them.
+// secrets go into the vault; nothing else ever sees them.
 import { isSealedFile, keyFor, open, type SealedFile } from './sealed.ts';
-import type { SecretStore } from './secrets.ts';
-import type { KernelKeep } from './storage.ts';
+import type { Store } from './store.ts';
+import type { Vault } from './vault.ts';
 
 export type SealedState = 'none' | 'imported' | 'locked';
 
@@ -12,8 +12,9 @@ const digest = async (file: SealedFile) =>
     .map((b) => b.toString(16).padStart(2, '0'))
     .join('');
 
-export function unsealer(keep: KernelKeep, secrets: SecretStore) {
+export function unsealer(keep: Store, secrets: Vault) {
   let file: SealedFile | null = null;
+  let locked = false;
 
   const importAll = async (values: Record<string, string>) => {
     for (const [k, v] of Object.entries(values)) {
@@ -43,6 +44,7 @@ export function unsealer(keep: KernelKeep, secrets: SecretStore) {
           // A different password with the same salt: ask.
         }
       }
+      locked = true;
       return 'locked';
     },
 
@@ -59,12 +61,15 @@ export function unsealer(keep: KernelKeep, secrets: SecretStore) {
       await importAll(values);
       await keep.set('sealed:key', { salt: file.kdf.salt, iterations: file.kdf.iterations, key });
       await keep.set('sealed:imported', await digest(file));
+      locked = false;
     },
 
     /** Forget the kept key: the next sealed file asks for the password again. */
-    forgetKey: () => keep.del('sealed:key'),
+    forgetKey: () => keep.delete('sealed:key'),
 
     present: () => file !== null,
+    /** The page has sealed secrets this device hasn't opened. */
+    locked: () => locked,
   };
 }
 

@@ -1,8 +1,10 @@
-// Secrets: held by the kernel, never by an extension (ARCHITECTURE.md, "Secrets"). Each is stored
-// encrypted under a per-device key, under its extension's id, and attached by the kernel to requests for
-// the hosts the extension declared for it. Nothing here syncs or reaches the repo.
-import type { FetchInit, Statics } from './extension.ts';
-import type { KernelKeep } from './storage.ts';
+// Secrets on this device, held by this extension and never handed to another (ARCHITECTURE.md,
+// "Secrets"). Each is stored encrypted under a non-extractable per-device key, under its extension's id,
+// and attached to requests for the hosts the extension declared for it. Nothing here syncs or reaches
+// the repo.
+import type { FetchInit } from '@contracts/net';
+import type { Statics } from '@vaulter/kernel';
+import type { Store } from './store.ts';
 
 interface Sealed {
   iv: Uint8Array<ArrayBuffer>;
@@ -11,15 +13,17 @@ interface Sealed {
 
 const enc = new TextEncoder();
 
-export interface SecretStore {
+export interface Vault {
   set: (ext: string, name: string, value: string) => Promise<void>;
   has: (ext: string, name: string) => Promise<boolean>;
   forget: (ext: string, name: string) => Promise<void>;
-  /** The kernel's only way to the value; never handed to an extension. */
+  /** Every secret of an extension: when it is removed. */
+  forgetAll: (ext: string) => Promise<void>;
+  /** The only way to a value: for attaching it to a request, never handed to an extension. */
   reveal: (ext: string, name: string) => Promise<string | undefined>;
 }
 
-export function secretStore(keep: KernelKeep): SecretStore {
+export function vault(keep: Store): Vault {
   // A non-extractable AES-GCM key, created once per device; IndexedDB stores the CryptoKey itself.
   let key: Promise<CryptoKey> | undefined;
   const deviceKey = () => {
@@ -49,7 +53,10 @@ export function secretStore(keep: KernelKeep): SecretStore {
       await keep.set(id(ext, name), { iv, data } satisfies Sealed);
     },
     has: async (ext, name) => (await keep.get(id(ext, name))) !== undefined,
-    forget: (ext, name) => keep.del(id(ext, name)),
+    forget: (ext, name) => keep.delete(id(ext, name)),
+    async forgetAll(ext) {
+      for (const [k] of await keep.list(`secret:${ext}/`)) await keep.delete(k);
+    },
     async reveal(ext, name) {
       const s = await keep.get<Sealed>(id(ext, name));
       if (!s) return;
@@ -63,12 +70,12 @@ export function secretStore(keep: KernelKeep): SecretStore {
   };
 }
 
-/** The kernel's `fetch` for one extension: https only, to its declared hosts, with a secret attached
- * only when the request names it and goes to one of that secret's hosts. */
-export function kernelFetch(
+/** `fetch` for one extension: https only, to its declared hosts, with a secret attached only when
+ * the request names it and goes to one of that secret's hosts. */
+export function fetcher(
   ext: Pick<Statics, 'id' | 'permissions' | 'secrets'>,
-  secrets: SecretStore,
-  fetchImpl: typeof fetch = fetch,
+  secrets: Vault,
+  fetchImpl: typeof fetch = (...a) => fetch(...a),
 ) {
   const allowed = new Set([
     ...ext.permissions.network,

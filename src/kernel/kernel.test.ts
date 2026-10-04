@@ -3,8 +3,7 @@ import { defineContract, satisfies } from './contract.ts';
 import { readStatics, Statics } from './extension.ts';
 import type { Kernel } from './kernel.ts';
 import { resolve } from './resolve.ts';
-import { secretStore } from './secrets.ts';
-import { memoryKeep, startTree } from './testing.ts';
+import { startTree } from './testing.ts';
 
 // Fixture source: compiled and loaded like any extension in the repo.
 const NOTES = `
@@ -318,65 +317,9 @@ describe('the kernel', () => {
     expect(await kernel.use(toolsContract).level('merge')).toBe('read');
   });
 
-  it('fetches for an extension, attaching its secret only for its hosts', async () => {
-    const secrets = secretStore(memoryKeep());
-    await secrets.set('openai', 'key', 'sk-123');
-    const seen: [string, string | null][] = [];
-    const fetchImpl = ((url: string, init?: RequestInit) => {
-      seen.push([String(url), new Headers(init?.headers).get('Authorization')]);
-      return Promise.resolve(new Response(JSON.stringify({ ok: true })));
-    }) as typeof fetch;
-    const { kernel, refused } = await start(
-      {
-        'contracts/probe/index.ts': `import { defineContract } from '@vaulter/kernel';
-          export const probe = defineContract<{ run(): Promise<unknown> }>({ name: 'probe', version: '1.0.0' });`,
-        'extensions/openai/index.ts': `import { defineExtension } from '@vaulter/kernel';
-          import { probe } from '@contracts/probe';
-          export default defineExtension({ id: 'openai', version: '1.0.0', provides: { probe },
-            secrets: { key: { label: 'OpenAI key', hosts: ['api.openai.com'] } },
-            permissions: { network: ['example.org'] },
-            setup(_, kernel) { return { probe: { async run() {
-              const r = await kernel.fetch('https://api.openai.com/v1/models', { secret: 'key' });
-              const errors = [];
-              for (const [u, init] of [['https://evil.test/'], ['https://example.org/', { secret: 'key' }], ['http://api.openai.com/']]) {
-                try { await kernel.fetch(u, init); } catch (e) { errors.push(e.message); }
-              }
-              return { body: await r.json(), has: await kernel.hasSecret('key'), errors };
-            } } }; },
-          });`,
-      },
-      { secrets, fetch: fetchImpl },
-    );
-    expect(refused).toEqual([]);
-    const probe = defineContract<{ run: () => Promise<unknown> }>({
-      name: 'probe',
-      version: '1.0.0',
-    });
-    const out = (await kernel.use(probe).run()) as {
-      body: unknown;
-      has: boolean;
-      errors: string[];
-    };
-    expect(out.body).toEqual({ ok: true });
-    expect(out.has).toBe(true);
-    expect(seen).toEqual([['https://api.openai.com/v1/models', 'Bearer sk-123']]);
-    expect(out.errors).toEqual([
-      'openai: evil.test is not among its declared hosts',
-      'openai: the secret "key" is not for example.org',
-      'openai: only https requests (http://api.openai.com)',
-    ]);
-  });
-
-  it('removes an extension: its secrets go, and its handles refuse', async () => {
-    const secrets = secretStore(memoryKeep());
-    await secrets.set('voice', 'token', 'pk.1');
-    const voice = VOICE_EXT.replace(
-      "id: 'voice', version: '1.0.0', requires: { notes },",
-      "id: 'voice', version: '1.0.0', requires: { notes }, secrets: { token: { label: 'T', hosts: ['api.example.com'] } },",
-    );
-    const { kernel } = await start({ ...base, 'extensions/voice/index.ts': voice }, { secrets });
+  it('removes an extension: its handles refuse from then on', async () => {
+    const { kernel } = await start({ ...base, 'extensions/voice/index.ts': VOICE_EXT });
     await kernel.remove('voice');
-    expect(await secrets.has('voice', 'token')).toBe(false);
     expect(kernel.running().map((r) => r.id)).toEqual(['notes']);
   });
 

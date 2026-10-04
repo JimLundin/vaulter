@@ -14,7 +14,7 @@ export interface ControlEnv {
 }
 
 export function control({ booted: b, review, restart }: ControlEnv): KernelV1 {
-  const { kernel, config, secrets, sealed } = b;
+  const { kernel, config } = b;
   const src = () => {
     if (!b.src) throw new Error('no source provider is running');
     return b.src;
@@ -39,14 +39,12 @@ export function control({ booted: b, review, restart }: ControlEnv): KernelV1 {
             optional: Object.values(s?.optional ?? {}).map((c) => c.key),
             provides: Object.values(s?.provides ?? {}).map((c) => c.key),
             permissions: s?.permissions ?? { device: [], network: [] },
-            secrets: await Promise.all(
-              Object.entries(s?.secrets ?? {}).map(async ([name, x]) => ({
-                name,
-                label: x.label,
-                hosts: x.hosts,
-                set: await secrets.has(id, name),
-              })),
-            ),
+            // Declared; whether each is set is net@1's to say.
+            secrets: Object.entries(s?.secrets ?? {}).map(([name, x]) => ({
+              name,
+              label: x.label,
+              hosts: x.hosts,
+            })),
             agentGuide: s?.agentGuide ?? '',
             author: s?.author ?? { kind: 'person' },
             kernel: s?.kernel ?? '',
@@ -106,8 +104,6 @@ export function control({ booted: b, review, restart }: ControlEnv): KernelV1 {
       await config.setEnabled(id, false);
       restart();
     },
-    setSecret: (ext, name, value) => secrets.set(ext, name, value),
-    forgetSecret: (ext, name) => secrets.forget(ext, name),
     setSource: (change) => config.setSource(change),
     async tryDraft(branch, on) {
       // CI runs the conformance suites on the draft: one it failed isn't tried here until it passes.
@@ -122,7 +118,5 @@ export function control({ booted: b, review, restart }: ControlEnv): KernelV1 {
       await config.tryDraft(branch, on);
     },
     restart: () => Promise.resolve(restart()),
-    sealed: () => Promise.resolve({ present: sealed.present() }),
-    unlock: (password) => sealed.unlock(password),
   };
 }

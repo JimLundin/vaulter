@@ -13,8 +13,8 @@ export {
 export {
   defineExtension,
   type Extension,
-  type FetchInit,
   type KernelApi,
+  type Statics,
 } from './extension.ts';
 export { type PerCaller, perCaller } from './per-caller.ts';
 export { Declined } from './policy.ts';

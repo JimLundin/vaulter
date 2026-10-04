@@ -5,7 +5,7 @@
 // (16 bytes, base64; a repo variable, set once) keeps the salt the same across deploys, so devices
 // that unlocked once take each new file without asking again.
 import { writeFile } from 'node:fs/promises';
-import { seal } from '../src/kernel/sealed.ts';
+import { seal } from '../extensions/secrets/sealed.ts';
 
 const out = process.argv[2];
 if (!out) throw new Error('usage: node tools/seal-secrets.ts <out.json>');

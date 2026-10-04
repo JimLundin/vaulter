@@ -8,14 +8,14 @@ viewer over the `JimLundin/vault` repo, is in `main`'s history before the `pip` 
 
 | Where | What |
 |---|---|
-| `src/kernel/` | the kernel: the loader and compiler, the resolver, the handles and their policy (Vaulter's access, approvals), secrets (sealed ones too), its own state, drafts, the `kernel` contract's implementation, boot (`boot.ts`, with this browser as its device in `start.ts`), the unlock screen and safe mode. Built into the app's one bundle |
+| `src/kernel/` | the kernel: the loader and compiler, the resolver, the handles and their policy (Vaulter's access, approvals), its own state, drafts, the `kernel` contract's implementation, boot (`boot.ts`, with this browser as its device in `start.ts`), the unlock screen and safe mode. Built into the app's one bundle |
 | `tools/` | CI only: `seal-secrets.ts`, which seals the secrets into the built page |
 | `contracts/<name>/` | one contract each: its TypeScript interface, where a method's guarded function sits, and a conformance suite if it has one for providers to pass |
 | `extensions/<id>/` | one extension each, exporting `defineExtension({...})`; compiled in the browser from the repo and loaded into the page |
 
-Contracts: `kernel` (provided by the kernel), `extensions.source`, `records`, `notes`, `questions`,
+Contracts: `kernel` (provided by the kernel), `net`, `extensions.source`, `records`, `notes`, `questions`,
 `wiki`, `agent`, `agent.tools`, `ai.chat`, `ai.realtime`. Extensions:
-`source-github` (drafts and older commits), `store-local`, `notes`, `questions`, `openai`,
+`secrets`, `source-github` (drafts and older commits), `store-local`, `notes`, `questions`, `openai`,
 `wiki` and `agent` (Vaulter itself); `ARCHITECTURE.md` has a table of what each provides and requires. The UI,
 and with it `ui.shell`, comes next; until a shell is installed the app opens in safe mode, where the
 OpenAI key is set.
@@ -46,7 +46,7 @@ extension in the repo that provides it (`contracts/conformance.test.ts`).
 
 The built app runs the extensions it was built with (main); `VITE_VAULTER_SOURCE` (`owner/repo@ref`,
 default `JimLundin/vaulter@main`) is where source-github finds drafts and older commits. Safe mode (`?safe`, or whenever no shell starts) changes the repo, branch or
-pinned commit per device, turns extensions and drafts off, and sets secrets. Secrets are sealed into
+pinned commit per device and turns extensions and drafts off. Secrets (the `secrets` extension) are sealed into
 the build by CI with a password (`VAULTER_PASSWORD`, `VAULTER_SALT`, `VAULTER_SECRET__<EXTENSION>__<NAME>`); each
 device asks for the password once and keeps its own encrypted copy.
 

@@ -32,11 +32,11 @@ Going from a device and a source of extensions to a running kernel, or to safe m
 _Avoid_: startup, init
 
 **Device**:
-One browser, with its own storage, secrets, settings and tried drafts; nothing about a device syncs. Tests stand in a test device for a browser.
+One browser, with its own data, secrets, settings and tried drafts; nothing about a device syncs. Tests stand in a test device for a browser.
 _Avoid_: client, machine, platform
 
 **Safe mode**:
-The kernel's own bare screen for recovering when extensions fail: change the source, pin a commit, turn extensions and drafts off, set secrets.
+The kernel's own bare screen for recovering when extensions fail: change the source, pin a commit, turn extensions and drafts off.
 
 ## People and Vaulter
 
@@ -68,7 +68,7 @@ An extension Vaulter wrote or changed, on a `draft/*` branch; a device may try i
 _Avoid_: proposal, PR
 
 **Secret**:
-A value an extension declares, held by the kernel and attached only to requests for the hosts it was declared for.
+A value an extension declares, held by the secrets extension and attached only to requests for the hosts it was declared for.
 _Avoid_: key, token, credential (a secret may be any of these)
 
 **Sealed secrets**:

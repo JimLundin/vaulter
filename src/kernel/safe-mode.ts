@@ -1,6 +1,6 @@
 // Safe mode: a bare screen, in plain DOM and part of the kernel, that works whatever an extension does.
-// From here: choose the repo and branch, pin a commit (a rollback), turn extensions and drafts off, and
-// set secrets.
+// From here: choose the repo and branch, pin a commit (a rollback), and turn extensions and drafts
+// off. Secrets are the secrets extension's.
 import type { Booted } from './boot.ts';
 
 type Child = Node | string | null | undefined | false;
@@ -33,7 +33,6 @@ export async function safeMode(s: Booted) {
   const problems = new Map(s.refused.map((r) => [r.id, r.problems]));
   for (const [id, p] of s.kernel.problems()) problems.set(id, p);
   const running = new Set(s.kernel.running().map((r) => r.id));
-  const statics = [...s.kernel.seen.values()];
 
   const field = (label: string, name: string, value: string, extra: Record<string, string> = {}) =>
     h('label', {}, label, h('input', { type: 'text', name, value, ...extra }));
@@ -45,22 +44,6 @@ export async function safeMode(s: Booted) {
       label,
       h('small', {}, note),
     );
-
-  const secretRows = statics.flatMap((st) =>
-    Object.entries(st.secrets).map(([name, spec]) =>
-      h(
-        'label',
-        {},
-        `${st.id}: ${spec.label}`,
-        h('input', {
-          type: 'password',
-          name: `secret:${st.id}/${name}`,
-          placeholder: 'unchanged; type to set, a single space to forget',
-          autocomplete: 'off',
-        }),
-      ),
-    ),
-  );
 
   const form = h(
     'form',
@@ -114,7 +97,6 @@ export async function safeMode(s: Booted) {
         ),
       ),
     ),
-    secretRows.length > 0 && h('fieldset', {}, h('legend', {}, 'Secrets'), ...secretRows),
     h('div', {}, h('button', { type: 'submit' }, 'Save and start')),
   );
 
@@ -127,13 +109,6 @@ export async function safeMode(s: Booted) {
       await s.config.setSource({ repo: text('repo'), ref: text('ref'), pin: text('pin') || null });
       for (const id of s.found) await s.config.setEnabled(id, data.has(`on:${id}`));
       for (const b of drafts) await s.config.tryDraft(b, data.has(`draft:${b}`));
-      for (const [k, v] of data) {
-        if (!(k.startsWith('secret:') && typeof v === 'string' && v !== '')) continue;
-        const [ext, name] = k.slice('secret:'.length).split('/');
-        // biome-ignore lint/performance/noAwaitInLoops: a few secrets, one at a time
-        if (v.trim() === '') await s.secrets.forget(ext, name);
-        else await s.secrets.set(ext, name, v.trim());
-      }
       location.href = location.pathname;
     })();
   });

@@ -92,8 +92,7 @@ export function testSource(branches: Record<string, Record<string, string>>) {
   return t;
 }
 
-/** The test device: the kernel's state in memory, data: URLs for compiled code, no sealed file and
- * no person. */
+/** The test device: the kernel's state in memory, data: URLs for compiled code, and no person. */
 let devices = 0;
 
 export function testDevice(over: Partial<Device> = {}): Device {
@@ -104,8 +103,6 @@ export function testDevice(over: Partial<Device> = {}): Device {
     url: (code) =>
       `data:text/javascript;base64,${Buffer.from(`${code}\n// device ${device}`).toString('base64')}`,
     load: (url) => import(/* @vite-ignore */ url),
-    sealedFile: () => Promise.resolve(null),
-    askPassword: () => Promise.resolve(),
     restart: () => undefined,
     ...over,
   };

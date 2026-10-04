@@ -18,7 +18,6 @@ import { isPerCaller, perCallerDef } from './per-caller.ts';
 import { Policy } from './policy.ts';
 import { asPerson, type Presence } from './presence.ts';
 import { type Refused, resolve } from './resolve.ts';
-import { kernelFetch, type SecretStore } from './secrets.ts';
 import type { KernelKeep } from './storage.ts';
 
 export class Refusal extends Error {
@@ -26,7 +25,6 @@ export class Refusal extends Error {
 }
 
 export interface KernelOptions {
-  secrets: SecretStore;
   /** The kernel's own state: audit and error logs. */
   keep: KernelKeep;
   /** The shared modules extensions import, by specifier (@vaulter/kernel, zod, react…). */
@@ -36,7 +34,6 @@ export interface KernelOptions {
   load: (url: string) => Promise<Record<string, unknown>>;
   /** The person's access settings, by `extension/label`. */
   access?: () => Record<string, Access>;
-  fetch?: typeof fetch;
   /** Which extension a person just acted in (presence.ts): the condition for a contract's personal
    * methods. Without it, no extension may make a personal call. */
   presence?: Presence;
@@ -238,15 +235,11 @@ export class Kernel {
     );
   }
 
-  /** Removes an extension's data: what providers keep for it (its records), and its secrets. Its
-   * handles refuse from then on; what it set going in the page stops with the page's next start. */
+  /** Removes an extension's data: what providers keep for it (its records, its secrets). Its handles
+   * refuse from then on; what it set going in the page stops with the page's next start. */
   async remove(id: string) {
-    const statics = this.parties.get(id)?.statics ?? this.seen.get(id);
     await this.forget(id);
     if (id !== KERNEL) this.parties.delete(id);
-    // biome-ignore lint/performance/noAwaitInLoops: a few secrets
-    for (const name of Object.keys(statics?.secrets ?? {}))
-      await this.opts.secrets.forget(id, name);
   }
 
   /** Every handle refuses from now on: before the page goes (another tab takes over), and in tests.
@@ -301,7 +294,10 @@ export class Kernel {
     let impl = p.impl as Record<string, unknown>;
     if (isPerCaller(impl)) {
       const k = `${to}\n${key}\n${from}`;
-      if (!this.perCallerImpls.has(k)) this.perCallerImpls.set(k, perCallerDef(impl).make(from));
+      if (!this.perCallerImpls.has(k)) {
+        const statics = (this.parties.get(from) ?? this.kernelParty()).statics;
+        this.perCallerImpls.set(k, perCallerDef(impl).make(from, statics));
+      }
       impl = this.perCallerImpls.get(k) as Record<string, unknown>;
     }
     const fn = impl[method];
@@ -357,9 +353,6 @@ export class Kernel {
   private kernelApi(party: Party): KernelApi {
     return {
       id: party.id,
-      fetch: kernelFetch(party.statics, this.opts.secrets, this.opts.fetch),
-      hasSecret: async (name) =>
-        name in party.statics.secrets && (await this.opts.secrets.has(party.id, name)),
       asPerson: (handler) =>
         this.opts.presence ? asPerson(this.opts.presence, party.id, handler) : handler,
     };

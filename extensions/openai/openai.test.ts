@@ -1,12 +1,13 @@
-import { afterEach, expect, it } from 'vitest';
+import { net } from '@contracts/net';
+import { afterEach, expect, it, vi } from 'vitest';
 import { defineContract } from '../../src/kernel/contract.ts';
 import type { Kernel } from '../../src/kernel/kernel.ts';
-import { secretStore } from '../../src/kernel/secrets.ts';
-import { memoryKeep, startRepo } from '../../src/kernel/testing.ts';
+import { startRepo } from '../../src/kernel/testing.ts';
 
 let kernel: Kernel | undefined;
-afterEach(async () => {
-  await kernel?.dispose();
+afterEach(() => {
+  kernel?.dispose();
+  vi.unstubAllGlobals();
 });
 
 const sse = (events: object[]) =>
@@ -74,15 +75,13 @@ it('speaks the Responses and realtime APIs, with the key attached by the kernel'
       });
     return new Response(JSON.stringify({ error: { message: 'nope' } }), { status: 400 });
   }) as typeof fetch;
-  const secrets = secretStore(memoryKeep());
-  await secrets.set('openai', 'key', 'sk-test');
+  // The secrets extension makes the requests, attaching the key: the network is a fake here.
+  vi.stubGlobal('fetch', fetchImpl);
 
-  const r = await startRepo(
-    ['openai'],
-    {
-      'contracts/probe/index.ts': `import { defineContract } from '@vaulter/kernel';
+  const r = await startRepo(['secrets', 'openai'], {
+    'contracts/probe/index.ts': `import { defineContract } from '@vaulter/kernel';
         export const probe = defineContract<{ run(): Promise<unknown> }>({ name: 'probe', version: '1.0.0' });`,
-      'extensions/probe/index.ts': `import { defineExtension } from '@vaulter/kernel';
+    'extensions/probe/index.ts': `import { defineExtension } from '@vaulter/kernel';
         import { chat } from '@contracts/ai.chat';
         import { realtime } from '@contracts/ai.realtime';
         import { probe } from '@contracts/probe';
@@ -103,11 +102,10 @@ it('speaks the Responses and realtime APIs, with the key attached by the kernel'
             const session = await realtime.session({ purpose: 'transcription', language: 'sv' });
             return { first, streamed, deltas, session };
           } } }; } });`,
-    },
-    { secrets, fetch: fetchImpl },
-  );
+  });
   kernel = r.kernel;
   expect(r.refused).toEqual([]);
+  await kernel.use(net, 'secrets').setSecret('openai', 'key', 'sk-test');
   const out = (await kernel
     .use(
       defineContract<{ run: () => Promise<Record<string, unknown>> }>({

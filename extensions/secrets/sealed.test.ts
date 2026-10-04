@@ -5,12 +5,23 @@ import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { describe, expect, it } from 'vitest';
 import { keyFor, open, seal } from './sealed.ts';
-import { secretStore } from './secrets.ts';
-import { memoryKeep } from './testing.ts';
+import type { Store } from './store.ts';
 import { unsealer } from './unseal.ts';
+import { vault } from './vault.ts';
 import process from 'node:process';
 
 const FAST = { iterations: 1000 };
+
+const memoryStore = (): Store => {
+  const m = new Map<string, unknown>();
+  return {
+    get: <T>(k: string) => Promise.resolve(m.get(k) as T | undefined),
+    set: (k, v) => Promise.resolve(void m.set(k, v)),
+    delete: (k) => Promise.resolve(void m.delete(k)),
+    list: <T>(prefix = '') =>
+      Promise.resolve([...m].filter(([k]) => k.startsWith(prefix)).sort() as [string, T][]),
+  };
+};
 const salt = new Uint8Array(16).fill(7);
 
 describe('sealed secrets', () => {
@@ -24,8 +35,8 @@ describe('sealed secrets', () => {
   });
 
   it('are imported once with the password, then on their own for a new file with the same salt', async () => {
-    const keep = memoryKeep();
-    const secrets = secretStore(keep);
+    const keep = memoryStore();
+    const secrets = vault(keep);
     const u = unsealer(keep, secrets);
     const first = await seal(
       'pw-pw-pw-pw-pw-pw',

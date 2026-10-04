@@ -6,7 +6,6 @@ import { presence } from './presence.ts';
 import { safeMode } from './safe-mode.ts';
 import { singleTab, standbyScreen } from './single-tab.ts';
 import { idbKeep } from './storage.ts';
-import { unlockScreen } from './unlock-screen.ts';
 
 export type StartOptions = Pick<BootOptions, 'page' | 'defaultSource' | 'shared'>;
 
@@ -27,9 +26,6 @@ export async function start(opts: StartOptions) {
     url: (code) => URL.createObjectURL(new Blob([code], { type: 'text/javascript' })),
     load: (url) => import(/* @vite-ignore */ url),
     presence: presence(() => navigator.userActivation?.isActive === true),
-    sealedFile: async () =>
-      (await fetch(new URL('secrets.json', location.href), { cache: 'no-cache' })).json(),
-    askPassword: unlockScreen,
     restart: () => location.reload(),
     watch: (kernel) => {
       // An error nothing caught is kept under the extension whose code threw it (its stack says).

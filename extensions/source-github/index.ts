@@ -3,6 +3,7 @@
 // and loaded like any other. The token is optional for reading a public repo, at GitHub's lower rate limit.
 import { defineExtension } from '@vaulter/kernel';
 import { type Checks, source } from '@contracts/extensions.source';
+import { net } from '@contracts/net';
 
 const API = 'https://api.github.com';
 const ours = (path: string) =>
@@ -13,6 +14,8 @@ export default defineExtension({
   id: 'source-github',
   version: '1.1.0',
   provides: { source },
+  // Without net@1 (the secrets extension), it reads a public repo without a token.
+  optional: { net },
   secrets: {
     token: {
       label: 'GitHub token: fine-grained, this repo only, Contents read and write',
@@ -20,13 +23,13 @@ export default defineExtension({
     },
   },
   agentGuide: 'Reads and writes extension source on GitHub. Vaulter writes drafts through it.',
-  setup(_, kernel) {
+  setup({ net }) {
     const call = async (
       path: string,
       init: { method?: string; body?: unknown; accept?: string } = {},
     ) => {
-      const secret = (await kernel.hasSecret('token')) ? 'token' : undefined;
-      return kernel.fetch(`${API}${path}`, {
+      const secret = (await net?.hasSecret('token')) ? 'token' : undefined;
+      return (net?.fetch ?? fetch)(`${API}${path}`, {
         method: init.method,
         headers: {
           Accept: init.accept ?? 'application/vnd.github+json',

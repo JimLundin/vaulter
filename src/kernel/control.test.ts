@@ -58,7 +58,7 @@ describe('the kernel contract', () => {
       version: '1.4.0',
       draft: 'draft/maps',
       permissions: { network: ['tile.openstreetmap.org'], device: [] },
-      secrets: [{ name: 'token', label: 'Mapbox', hosts: ['api.mapbox.com'], set: false }],
+      secrets: [{ name: 'token', label: 'Mapbox', hosts: ['api.mapbox.com'] }],
       agentGuide: 'Places on a map.',
     });
     expect(by.broken).toMatchObject({ status: 'refused', problems: ['setup failed: no'] });
@@ -91,8 +91,6 @@ describe('the kernel contract', () => {
       runs: [{ name: 'test', state: 'failure' }],
     });
     await expect(api.tryDraft('draft/maps', true)).rejects.toThrow(/failed CI's checks/);
-    await api.setSecret('maps', 'token', 'pk.1');
-    expect((await api.extensions()).find((e) => e.id === 'maps')?.secrets[0].set).toBe(true);
     await api.setSource({ pin: 'abcdef1' });
     expect(config.get().pin).toBe('abcdef1');
     await api.setSource({ pin: null });

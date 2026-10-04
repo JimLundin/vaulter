@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import type { Kernel } from './kernel.ts';
-import { seal } from './sealed.ts';
 import { REPO, startTree, testOut, testSource } from './testing.ts';
 import { source } from '@contracts/extensions.source';
 import { boot } from './boot.ts';
@@ -112,36 +111,6 @@ describe('boot', () => {
     expect(await r.storage.get('map', 'started')).toBe('1.0.0');
     expect(await r.storage.get('notes', 'started')).toBe('0.1.0');
     expect(r.booted.origins).toEqual(new Map([['notes', 'draft/notes']]));
-  });
-
-  it('asks for the password when the page has sealed secrets this device cannot open yet', async () => {
-    const file = await seal(
-      'correct horse battery staple',
-      { 'maps/token': 'pk.1' },
-      {
-        iterations: 1000,
-      },
-    );
-    const asked: string[] = [];
-    const r = await startTree(
-      {
-        'extensions/maps/index.ts': ext(
-          'maps',
-          '1.0.0',
-          "secrets: { token: { label: 'Mapbox', hosts: ['api.mapbox.com'] } },",
-        ),
-      },
-      {
-        sealedFile: () => Promise.resolve(file),
-        askPassword: async (sealed) => {
-          asked.push('asked');
-          await sealed.unlock('correct horse battery staple');
-        },
-      },
-    );
-    kernels.push(r.kernel);
-    expect(asked).toEqual(['asked']);
-    expect(await r.booted.secrets.reveal('maps', 'token')).toBe('pk.1');
   });
 
   it('in safe mode starts nothing, and safe mode takes over when a pinned commit has no source', async () => {

@@ -1,8 +1,9 @@
 // OpenAI: provides ai.chat (the Responses API) and ai.realtime. The account's
-// key is a secret the kernel holds and attaches; this extension never sees it. A realtime session gets a
+// key is a secret the secrets extension holds and attaches (net@1); this extension never sees it. A realtime session gets a
 // short-lived key minted here, which is all the voice extension receives.
 import { defineExtension } from '@vaulter/kernel';
 import { chat } from '@contracts/ai.chat';
+import { net } from '@contracts/net';
 import { realtime, SessionRequest } from '@contracts/ai.realtime';
 import { fromResponse, readStream, toResponsesBody } from './responses.ts';
 
@@ -19,14 +20,15 @@ export default defineExtension({
   id: 'openai',
   version: '1.0.0',
   provides: { chat, realtime },
+  requires: { net },
   secrets: {
     key: { label: 'OpenAI API key, from a project with a spend limit', hosts: ['api.openai.com'] },
   },
   agentGuide:
     'The language and live speech models. Other extensions use it; Vaulter rarely calls it directly.',
-  setup(_, kernel) {
+  setup({ net }) {
     const call = async (path: string, init: { json?: unknown } = {}) => {
-      const r = await kernel.fetch(`${API}${path}`, {
+      const r = await net.fetch(`${API}${path}`, {
         method: init.json === undefined ? 'GET' : 'POST',
         headers: init.json === undefined ? {} : { 'Content-Type': 'application/json' },
         body: init.json === undefined ? undefined : JSON.stringify(init.json),

@@ -56,23 +56,10 @@ export const Statics = z.object({
 });
 export type Statics = z.infer<typeof Statics>;
 
-/** A request through the kernel's `fetch`. */
-export interface FetchInit {
-  method?: string;
-  headers?: Record<string, string>;
-  body?: string | ArrayBuffer | Uint8Array | Blob | FormData | URLSearchParams;
-  /** One of the extension's declared secrets: the kernel attaches it, the extension never sees it. */
-  secret?: string;
-}
-
-/** What the kernel gives every extension besides its contracts: a fetch that attaches its secrets, so
- * no extension handles one itself. Data is kept through records@1. */
+/** What the kernel gives every extension besides its contracts. The network with secrets is net@1's,
+ * data is records@1's. */
 export interface KernelApi {
   readonly id: string;
-  /** https only, to the extension's declared hosts. */
-  fetch: (url: string, init?: FetchInit) => Promise<Response>;
-  /** Whether a secret the extension declared is set, without revealing it. */
-  hasSecret: (name: string) => Promise<boolean>;
   /** Wraps an event handler of the extension's own screen: a person's tap or key on it lets this
    * extension make one personal call (approving, answering) within a few seconds. */
   asPerson: <A extends [{ isTrusted?: boolean } | undefined, ...unknown[]], R>(
