@@ -15,6 +15,9 @@ export const Message = z.discriminatedUnion('role', [
     role: z.literal('assistant'),
     content: z.string().nullable(),
     toolCalls: z.array(ToolCall).default([]),
+    /** The provider's own record of this turn (a reasoning model's reasoning), from ChatResult.state:
+     * sent back unchanged, so the model keeps its train of thought across tool calls. */
+    state: z.json().optional(),
   }),
   z.object({ role: z.literal('tool'), toolCallId: z.string(), content: z.string() }),
 ]);
@@ -37,6 +40,8 @@ export const ChatRequest = z.object({
     .union([z.enum(['auto', 'none', 'required']), z.object({ name: z.string() })])
     .default('auto'),
   temperature: z.number().min(0).max(2).optional(),
+  /** How hard a reasoning model thinks: more is slower and costs more. */
+  reasoning: z.enum(['none', 'low', 'medium', 'high']).optional(),
   maxTokens: z.number().int().positive().optional(),
   /** A JSON answer matching this schema. */
   responseSchema: z
@@ -51,6 +56,8 @@ export interface ChatResult {
   stop: 'end' | 'tool' | 'length' | 'filter';
   usage: { input: number; output: number };
   model: string;
+  /** To send back with this turn as an assistant message (see Message). */
+  state?: unknown;
 }
 
 export interface Delta {

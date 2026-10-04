@@ -109,10 +109,10 @@ The definition has two parts:
 
 | Part | Holds | Read by |
 | --- | --- | --- |
-| Static fields: `id`, `version`, `requires`, `provides`, `permissions`, `secrets`, `agentGuide` | Plain values | The kernel before any code runs, and the review screen |
+| Static fields: `id`, `version`, `requires`, `optional`, `provides`, `permissions`, `secrets`, `agentGuide` | Plain values | The kernel before any code runs, and the review screen |
 | `setup(ctx)` | Code that registers types, tools, views and handlers through the contracts it requires | Runs in the sandbox once the kernel has accepted the static part |
 
-`ctx` contains typed handles only for the contracts listed in `requires`. Calling anything else fails to compile, and the kernel refuses it at runtime as well. The kernel reads the static fields by evaluating the module in a sandbox before `setup` runs; an extension's id must be its folder's name, and a contract's key is derived by the kernel from its name and version, never taken from the sandbox.
+`ctx` contains typed handles only for the contracts listed in `requires`, and for those in `optional` that something provides (undefined otherwise). An optional contract keeps the delete test: the wiki gives Pip tools when an agent is installed, asks questions when there is somewhere to ask, revises pages when there is a model, and works by hand without any of them. Calling anything else fails to compile, and the kernel refuses it at runtime as well. The kernel reads the static fields by evaluating the module in a sandbox before `setup` runs; an extension's id must be its folder's name, and a contract's key is derived by the kernel from its name and version, never taken from the sandbox.
 
 **A contract is a TypeScript package** in `contracts/`: its interface, Zod schemas for every input, and a conformance test suite for providers. A misspelled slot, a missing method or a wrong argument is a type error in your editor and in CI. Tool input schemas for Pip are generated from the same Zod schemas, so there is no hand-written JSON and no string mini-language anywhere.
 
@@ -368,10 +368,21 @@ Three patterns repeat across these screens:
 1. Kernel with safe mode, the in-browser compiler and loader, the router and the secret store. **Done**, and the sandbox with it.
 2. The bootstrap source provider for GitHub. **Done**, with drafts: commit, merge and checks.
 3. Contract packages with conformance suites: `records`, `notes`, `ai.*`, `agent.tools`, `questions`, and `kernel`. **Done**, except `ui.shell`, which waits for the UI work.
-4. Foundation extensions: `store-local` (**done**), `notes`, `openai`, `shell-mobile`, `shell-desktop`, `agent`.
-5. Voice, Wiki and Questions, which together exercise nearly every contract.
+4. Foundation extensions: `store-local`, `notes`, `openai` and `agent` (**done**); `shell-mobile` and `shell-desktop` wait for the UI work.
+5. Voice, Wiki and Questions, which together exercise nearly every contract. **Wiki and Questions done**; voice needs the UI (a microphone button) and the realtime spike.
 6. Today, Search and Map.
 7. The draft-branch flow, so Pip can write extensions. **The kernel's part is done**: trying drafts per device, review, accept; Pip's side belongs to the agent extension.
+
+The extensions so far, each tested in sandboxes with the others (`startRepo` in `src/kernel/testing.ts`):
+
+| Extension | Provides | Requires (optional) | Notes |
+| --- | --- | --- | --- |
+| `store-local` | `records@1` | | On the kernel's storage; passes the records suite |
+| `notes` | `notes@1` | `records` | Append-only; lists by when a note was said |
+| `questions` | `questions@1` | `records` | Answers reach the asker's topic handler, also after a restart; answering is personal |
+| `openai` | `ai.chat`, `ai.transcribe`, `ai.realtime`, `ai.embed` | | The Responses API (tool calling for current models needs it), `store: false` with the encrypted reasoning sent back as a turn's `state`; realtime keys from `/v1/realtime/client_secrets`, WebRTC at `/v1/realtime/calls`. Default models in `extensions/openai/index.ts` |
+| `wiki` | `wiki@1` | `records`, `notes` (`ai.chat`, `questions`, `agent.tools`) | Person, place, event and topic types; every fact cites its notes; each note is revised into pages by the model, and what it isn't sure of becomes a yes/no question whose answer makes the change |
+| `agent` | `agent@1`, `agent.tools@1` | `ai.chat` (`kernel`) | Sees a line per extension, opens only those a request needs, calls their tools through the kernel |
 
 Where it stands (the `pip` branch): every architecture goal above has an implementation and tests, run in Node with the same runtime in-process sandboxes (`src/kernel/testing.ts`), and checked in Chromium with real sandboxes, online and offline. The compile spike: Sucrase compiles about 100 KB of TypeScript in 10 ms, cached per blob, so no CI-built cache is needed yet. The kernel bundle is 140 KB (43 KB gzipped); the sandbox bundles (runtime and Zod, and React) and the compiler are separate chunks, loaded when needed.
 
@@ -379,7 +390,7 @@ Where it stands (the `pip` branch): every architecture goal above has an impleme
 
 **Open questions.**
 
-- [ ] Spike: does `POST /v1/realtime/client_secrets` accept browser requests the way the other endpoints do? (It goes through `kernel.fetch` now, so CORS is the only question.)
+- [ ] Spike: does `POST /v1/realtime/client_secrets` accept browser requests the way the other endpoints do? (It goes through `kernel.fetch` now, so CORS is the only question.) The `openai` extension is tested against a fake API only: a first run with a real key should confirm it, and the default model names.
 - [x] Spike: how long does compiling every extension in the browser take, and is a CI-built cache needed from the start? (No; see above.)
 - [x] How a device chooses which draft branches to load: per device, through `kernel.tryDraft` (the review screen) or safe mode.
 - [ ] Views across sandboxes: each extension renders into its own frame, so the shell needs the kernel to place frames where its slots are (the kernel owns every frame), and a page built from panels is several frames. This is the first job of the UI work, together with `ui.shell` and its granularity (one contract, or separate ones for slots, keys and the palette).

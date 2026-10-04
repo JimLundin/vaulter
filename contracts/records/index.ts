@@ -102,7 +102,8 @@ export type RecordRef = z.infer<typeof RecordRef>;
 /** A field holding a reference to a record of `type`: `place: refTo(wiki.place).optional()`. */
 export const refTo = (type: RecordType) => RecordRef.extend({ type: z.literal(type.name) });
 
-const TypeName = z.string().regex(/^[a-z][a-z0-9-]*\/[a-z][a-z0-9-]*$/, {
+// The namespace is an extension id, or a scratch instance's (`id~conformance`, made by the kernel).
+const TypeName = z.string().regex(/^[a-z][a-z0-9-]*(~[a-z]+)?\/[a-z][a-z0-9-]*$/, {
   message: 'extension/name, in lowercase words joined by dashes',
 });
 const fn = z.custom<(...args: never[]) => unknown>((f) => typeof f === 'function', {

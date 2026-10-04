@@ -44,7 +44,8 @@ export function overlay(main: Tree, drafts: { branch: string; tree: Tree }[]) {
 
 export const summary = (s: Statics): StaticsSummary => ({
   version: s.version,
-  requires: Object.values(s.requires).map((c) => c.key),
+  // Optional contracts count: a draft that may use kernel@1 when present can use it.
+  requires: [...Object.values(s.requires), ...Object.values(s.optional)].map((c) => c.key),
   provides: Object.values(s.provides).map((c) => c.key),
   device: s.permissions.device,
   network: s.permissions.network,

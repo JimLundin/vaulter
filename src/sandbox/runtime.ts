@@ -22,7 +22,8 @@ export interface RuntimeDeps {
 /** What the kernel asks of a sandbox. */
 export type SandboxRequest =
   | { op: 'init'; id: string; plan: Plan }
-  | { op: 'setup' }
+  /** `wired`: the contract keys the kernel wired, required and optional. */
+  | { op: 'setup'; wired: string[] }
   | { op: 'call'; from: string; key: string; method: string; args: unknown[] }
   | { op: 'invoke'; cb: string; args: unknown[] }
   | { op: 'conformance'; key: string; plan: Plan }
@@ -154,7 +155,11 @@ export function runtime(port: Port, deps: RuntimeDeps) {
       case 'setup': {
         if (!def) throw new Error('setup before init');
         const ctx: Record<string, unknown> = {};
-        for (const [as, c] of Object.entries(def.requires ?? {}) as [string, AnyContract][]) {
+        const wired = new Set(req.wired);
+        const wanted = { ...def.requires, ...def.optional } as Record<string, AnyContract>;
+        for (const [as, c] of Object.entries(wanted)) {
+          // An optional contract nothing provides is undefined in ctx.
+          if (!wired.has(c.key)) continue;
           const r = remote(c.key);
           ctx[as] = c.client ? c.client(r, { caller: id }) : r;
         }
@@ -247,6 +252,7 @@ function staticsOf(def: Extension['def']) {
     id,
     version,
     requires: refs(def.requires),
+    optional: refs(def.optional),
     provides: refs(def.provides),
     permissions,
     secrets,

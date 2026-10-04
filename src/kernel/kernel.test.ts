@@ -401,4 +401,34 @@ describe('the kernel', () => {
     expect(await probe.run()).toEqual(['answered']);
     expect(answers).toEqual(['the first']);
   });
+
+  it('starts an extension without an optional contract nothing provides, and with it when present', async () => {
+    const user = `import { defineExtension } from '@pip/kernel';
+      import { notes } from '@contracts/notes';
+      export default defineExtension({ id: 'wiki', version: '1.0.0', optional: { notes },
+        async setup({ notes }, kernel) {
+          await kernel.storage.set('had', notes ? await notes.count() : 'none');
+        } });`;
+    const without = await start({
+      'contracts/notes/index.ts': NOTES,
+      'extensions/wiki/index.ts': user,
+    });
+    expect(without.refused).toEqual([]);
+    expect(await without.storage.get('wiki', 'had')).toBe('none');
+
+    const withIt = await start({ ...base, 'extensions/wiki/index.ts': user });
+    expect(withIt.refused).toEqual([]);
+    expect(await withIt.storage.get('wiki', 'had')).toBe(0);
+
+    const broken = await start({
+      ...base,
+      'extensions/notes/index.ts': NOTES_EXT.replace(
+        'setup(_, kernel) {',
+        "setup(_, kernel) { throw new Error('down');",
+      ),
+      'extensions/wiki/index.ts': user,
+    });
+    expect(broken.kernel.running().map((r) => r.id)).toEqual(['wiki']);
+    expect(await broken.storage.get('wiki', 'had')).toBe('none');
+  });
 });

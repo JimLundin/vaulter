@@ -32,6 +32,9 @@ export const Statics = z.object({
   id: z.string().regex(/^[a-z][a-z0-9-]*$/, { message: 'lowercase words joined by dashes' }),
   version: Version,
   requires: refs.default({}),
+  /** Contracts it uses when something provides them, and starts without otherwise: tools for Pip
+   * when an agent is installed, questions when there is somewhere to ask. */
+  optional: refs.default({}),
   provides: refs.default({}),
   permissions: z
     .object({
@@ -83,22 +86,28 @@ export interface KernelApi {
 }
 
 type Contracts = Record<string, AnyContract>;
-export type Ctx<R extends Contracts> = { [K in keyof R]: Use<R[K]> };
+export type Ctx<R extends Contracts, O extends Contracts = Record<never, never>> = {
+  [K in keyof R]: Use<R[K]>;
+} & { [K in keyof O]: Use<O[K]> | undefined };
 /** What setup returns for each contract it provides: the implementation, or one per caller. */
 export type Provided<P extends Contracts> = { [K in keyof P]: Impl<P[K]> | PerCaller<Impl<P[K]>> };
 // biome-ignore lint/suspicious/noConfusingVoidType: a setup that provides nothing returns nothing
 type SetupResult<P extends Contracts> = keyof P extends never ? void : Provided<P>;
 
-export interface ExtensionDef<R extends Contracts, P extends Contracts>
-  extends Omit<z.input<typeof Statics>, 'requires' | 'provides'> {
+export interface ExtensionDef<
+  R extends Contracts,
+  P extends Contracts,
+  O extends Contracts = Record<never, never>,
+> extends Omit<z.input<typeof Statics>, 'requires' | 'provides' | 'optional'> {
   requires?: R;
+  optional?: O;
   provides?: P;
-  setup: (ctx: Ctx<R>, kernel: KernelApi) => SetupResult<P> | Promise<SetupResult<P>>;
+  setup: (ctx: Ctx<R, O>, kernel: KernelApi) => SetupResult<P> | Promise<SetupResult<P>>;
 }
 
 export interface Extension {
   readonly kind: 'extension';
-  readonly def: ExtensionDef<Contracts, Contracts>;
+  readonly def: ExtensionDef<Contracts, Contracts, Contracts>;
 }
 
 /** The default export of an extension's index.ts. Validation happens when the kernel loads it, so a
@@ -106,6 +115,10 @@ export interface Extension {
 export function defineExtension<
   R extends Contracts = Record<never, never>,
   P extends Contracts = Record<never, never>,
->(def: ExtensionDef<R, P>): Extension {
-  return { kind: 'extension', def: def as unknown as ExtensionDef<Contracts, Contracts> };
+  O extends Contracts = Record<never, never>,
+>(def: ExtensionDef<R, P, O>): Extension {
+  return {
+    kind: 'extension',
+    def: def as unknown as ExtensionDef<Contracts, Contracts, Contracts>,
+  };
 }

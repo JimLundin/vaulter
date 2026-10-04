@@ -7,7 +7,8 @@ import { Statics } from './extension.ts';
 export interface Accepted {
   id: string;
   statics: Statics;
-  /** For each `requires` key in the definition, the id of the extension that provides it. */
+  /** For each `requires` alias, and each `optional` one that could be met, the id of the extension
+   * that provides it. */
   wiring: Record<string, string>;
 }
 
@@ -85,6 +86,14 @@ export function resolve(
           else problems.push(`requires ${c.name} ${c.version}; ${ids[0]} provides ${p.version}`);
         }
       }
+      // Optional: wired when exactly one provider fits; otherwise the extension starts without it.
+      for (const [as, c] of Object.entries(statics.optional)) {
+        const all = providers.get(c.key) ?? [];
+        const ids = choose[c.key] && all.includes(choose[c.key]) ? [choose[c.key]] : all;
+        if (ids.length !== 1 || ids[0] === id) continue;
+        const p = Object.values(staticsOf(ids[0]).provides).find((x) => x.key === c.key)!;
+        if (satisfies(p.version, c.version)) wired[as] = ids[0];
+      }
       if (problems.length) {
         for (const p of problems) refuse(id, p);
         live.delete(id);
@@ -109,7 +118,14 @@ export function resolve(
     }
     state.set(id, 'visiting');
     let ok = true;
-    for (const dep of Object.values(wiring.get(id)!)) ok = visit(dep, [...path, id]) && ok;
+    const wired = wiring.get(id)!;
+    const { optional } = valid.get(id)!.statics;
+    for (const [as, dep] of Object.entries(wired)) {
+      if (as in optional) {
+        // An optional provider that can't start, or that would close a cycle, is left out.
+        if (state.get(dep) === 'visiting' || !visit(dep, [...path, id])) delete wired[as];
+      } else ok = visit(dep, [...path, id]) && ok;
+    }
     state.set(id, 'done');
     if (!(ok && live.has(id))) {
       if (live.delete(id)) refuse(id, 'something it requires could not start');

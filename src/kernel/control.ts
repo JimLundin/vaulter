@@ -47,6 +47,7 @@ export function control(env: ControlEnv): KernelV1 {
             bundled: env.bundled.includes(id),
             draft: env.origins().get(id),
             requires: Object.values(s?.requires ?? {}).map((c) => c.key),
+            optional: Object.values(s?.optional ?? {}).map((c) => c.key),
             provides: Object.values(s?.provides ?? {}).map((c) => c.key),
             permissions: s?.permissions ?? { device: [], network: [] },
             secrets: await Promise.all(

@@ -85,3 +85,33 @@ export function conformanceInVitest<T>(suite: Suite<T>, make: (n: number) => T) 
     });
   });
 }
+
+const ROOT = new URL('../../', import.meta.url);
+
+/** The repo's own source under `dirs` ("contracts", "extensions/notes"), as a tree of strings. */
+export async function repoFiles(...dirs: string[]): Promise<Record<string, string>> {
+  const { readdir, readFile } = await import('node:fs/promises');
+  const out: Record<string, string> = {};
+  for (const dir of dirs)
+    for (const entry of await readdir(new URL(dir, ROOT), {
+      recursive: true,
+      withFileTypes: true,
+    })) {
+      if (!(entry.isFile() && /\.tsx?$/.test(entry.name)) || /\.test\.tsx?$/.test(entry.name))
+        continue;
+      const abs = new URL(`${entry.parentPath}/${entry.name}`, 'file://');
+      const rel = abs.pathname.slice(new URL(ROOT).pathname.length);
+      out[rel] = await readFile(abs, 'utf8');
+    }
+  return out;
+}
+
+/** All contracts, the given extensions of the repo, and `extra` fixture files, started. */
+export async function startRepo(
+  extensions: string[],
+  extra: Record<string, string> = {},
+  opts: Parameters<typeof startTree>[1] = {},
+) {
+  const files = await repoFiles('contracts', ...extensions.map((e) => `extensions/${e}`));
+  return startTree({ ...files, ...extra }, opts);
+}

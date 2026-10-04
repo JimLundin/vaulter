@@ -19,6 +19,8 @@ export interface ExtensionInfo {
   /** The draft branch it loads from on this device, if not the main one. */
   draft?: string;
   requires: string[];
+  /** Contracts it uses when present. */
+  optional: string[];
   provides: string[];
   permissions: { device: string[]; network: string[] };
   secrets: { name: string; label: string; hosts: string[]; set: boolean }[];

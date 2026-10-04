@@ -153,14 +153,18 @@ export class Kernel {
 
     for (const a of res.accepted) {
       let host = hosts.get(a.id)!;
+      // An optional provider that didn't start is left out; a required one stops this one.
+      for (const [as, p] of Object.entries(a.wiring))
+        if (as in a.statics.optional && !this.parties.has(p)) delete a.wiring[as];
       const down = Object.values(a.wiring).filter((p) => !this.parties.has(p));
       if (down.length) {
         refuse(a.id, [`${[...new Set(down)].join(', ')} could not start`]);
         host.realm.dispose();
         continue;
       }
+      const refs = { ...a.statics.requires, ...a.statics.optional };
       const wiring = Object.fromEntries(
-        Object.entries(a.statics.requires).map(([as, c]) => [c.key, a.wiring[as]]),
+        Object.entries(a.wiring).map(([as, provider]) => [refs[as].key, provider]),
       );
       try {
         // A frame's device permissions are fixed when it is made: one that needs a device gets a
@@ -182,7 +186,10 @@ export class Kernel {
       this.parties.set(a.id, party);
       try {
         // biome-ignore lint/performance/noAwaitInLoops: setups run in dependency order
-        await host.peer.request({ op: 'setup' } satisfies SandboxRequest);
+        await host.peer.request({
+          op: 'setup',
+          wired: Object.keys(wiring),
+        } satisfies SandboxRequest);
         for (const c of Object.values(a.statics.provides)) {
           const suite = await opts.conformance?.(c);
           if (!suite) continue;
@@ -235,7 +242,10 @@ export class Kernel {
     this.parties.set(id, { ...party, id, host });
     try {
       await host.peer.request({ op: 'init', id, plan } satisfies SandboxRequest);
-      await host.peer.request({ op: 'setup' } satisfies SandboxRequest);
+      await host.peer.request({
+        op: 'setup',
+        wired: Object.keys(party.wiring),
+      } satisfies SandboxRequest);
       const results = (await host.peer.request({
         op: 'conformance',
         key,

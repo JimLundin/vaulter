@@ -27,20 +27,22 @@ export default defineConformance(notes, [
   {
     name: 'lists by when they were said, newest first, within a range',
     async run(n, t) {
-      await n.append({ text: 'b', at: '2026-01-02T10:00:00.000Z', source: 'import' });
-      await n.append({ text: 'a', at: '2026-01-01T10:00:00.000Z', source: 'import' });
-      await n.append({ text: 'c', at: '2026-01-03T10:00:00.000Z', source: 'import' });
+      // One log for everyone: other checks' notes may be there too, so look at a range of its own.
+      const range = { since: '2001-01-01T00:00:00.000Z', until: '2001-01-04T00:00:00.000Z' };
+      await n.append({ text: 'b', at: '2001-01-02T10:00:00.000Z', source: 'import' });
+      await n.append({ text: 'a', at: '2001-01-01T10:00:00.000Z', source: 'import' });
+      await n.append({ text: 'c', at: '2001-01-03T10:00:00.000Z', source: 'import' });
       t.equal(
-        (await n.list()).map((x) => x.text),
+        (await n.list(range)).map((x) => x.text),
         ['c', 'b', 'a'],
       );
       t.equal(
-        (await n.list({ order: 'oldest', limit: 2 })).map((x) => x.text),
+        (await n.list({ ...range, order: 'oldest', limit: 2 })).map((x) => x.text),
         ['a', 'b'],
       );
       t.equal(
         (
-          await n.list({ since: '2026-01-02T00:00:00.000Z', until: '2026-01-03T00:00:00.000Z' })
+          await n.list({ since: '2001-01-02T00:00:00.000Z', until: '2001-01-03T00:00:00.000Z' })
         ).map((x) => x.text),
         ['b'],
       );
