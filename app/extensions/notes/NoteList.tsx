@@ -3,7 +3,9 @@ import { useVault } from '../../core/host.tsx';
 import { link } from '../../core/route.ts';
 import { titleOf, excerptOf, hrefOf, kind, asList } from '../../../core/note-fields.ts';
 import { dateStr } from '../../../core/format.ts';
+import { cn } from 'cn';
 import { Empty } from '@/components/layout.tsx';
+import { navRow } from './sections.tsx';
 
 interface Props {
   type?: string;
@@ -33,10 +35,14 @@ export function NoteList({ type, tag, sort = 'title', excerpt = true }: Props) {
       </div>
     );
   return (
-    <ul data-previews={true} className="not-prose my-4 list-none space-y-2 p-0">
+    <ul data-previews={true} className="not-prose my-4 list-none space-y-1 p-0">
       {hits.map((n) => (
-        <li key={n.id} className="leading-normal">
-          <a href={link(hrefOf(n))} className="font-medium no-underline hover:underline">
+        <li key={n.id} className={cn('leading-normal', navRow)}>
+          <a
+            data-nav={true}
+            href={link(hrefOf(n))}
+            className="font-medium no-underline outline-none hover:underline"
+          >
             {titleOf(n)}
           </a>
           {excerpt && !!excerptOf(n, 140) && (

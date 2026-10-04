@@ -10,7 +10,8 @@
       font-weight: 700;
       line-height: 1.3;
       letter-spacing: -0.01em;
-      scroll-margin-top: 5rem;
+      /* Anchors land under the sticky 48px header (Shell.tsx), with room to breathe. */
+      scroll-margin-top: 4.5rem;
     }
     :where(h1):not(:where(.not-prose, .not-prose *)) {
       font-size: var(--text-2xl, 1.5rem);

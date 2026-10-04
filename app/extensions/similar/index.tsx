@@ -16,7 +16,8 @@ function Similar({ note }: { note: Note }) {
       : [];
   if (!alike.length) return null;
   return (
-    <Section title="Similar, not yet linked">
+    // biome-ignore lint/correctness/useUniqueElementIds: a stable fragment target (#similar); useId would break it
+    <Section title="Similar, not yet linked" id="similar" count={alike.length}>
       <NoteLinks items={alike.map((n) => ({ note: n, excerpt: excerptOf(n, 160) }))} />
     </Section>
   );
