@@ -5,6 +5,7 @@ import type { ReactNode } from 'react';
 import { cn } from 'cn';
 import { Alert, AlertDescription } from '@/components/ui/alert.tsx';
 import { Badge } from '@/components/ui/badge.tsx';
+import { Skeleton } from '@/components/ui/skeleton.tsx';
 
 export function PageHeader({
   kind,
@@ -123,7 +124,29 @@ export function Field({
   );
 }
 
-export function Loading({ children = 'Loading…' }: { children?: ReactNode }) {
+/** Waiting: a line saying for what, or the shape of what's coming (a page, a list). */
+export function Loading({
+  children = 'Loading…',
+  shape,
+}: {
+  children?: ReactNode;
+  shape?: 'page' | 'list';
+}) {
+  if (shape)
+    return (
+      <div className="grid gap-3" aria-live="polite" aria-busy={true}>
+        <span className="sr-only">{children}</span>
+        {shape === 'page' && (
+          <>
+            <Skeleton className="h-5 w-24 rounded-full" />
+            <Skeleton className="mb-4 h-9 w-2/3" />
+          </>
+        )}
+        {[92, 78, 85, 64, 88, 70].map((w) => (
+          <Skeleton key={w} className="h-4" style={{ width: `${w}%` }} />
+        ))}
+      </div>
+    );
   return (
     <p className="flex items-center gap-2 text-faint" aria-live="polite">
       <span className="size-1.5 animate-pulse rounded-full bg-faint" />

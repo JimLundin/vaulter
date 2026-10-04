@@ -1,5 +1,5 @@
 // The shell: the session's vault and its schema (meta/schema.yaml), derived; the worker's results; the
-// writer; and the page the route points at, from whichever extension claims it, under the top bar.
+// writer; and the page the route points at, from whichever extension claims it, in the Shell.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { deriveVault } from '../../core/derive.ts';
 import { schemaOf, NO_SCHEMA } from '../../core/schema.ts';
@@ -13,7 +13,8 @@ import { useSession } from './session.ts';
 import { useWriter, applyOverlay } from './writer.ts';
 import { useRoute } from './route.ts';
 import { HostContext, navOf, pageFor, type Host } from './host.tsx';
-import { TopBar } from './TopBar.tsx';
+import { Shell } from './Shell.tsx';
+import { useUi } from './ui.ts';
 import { Previews } from './Previews.tsx';
 import { Unlock } from './Unlock.tsx';
 import { OpenFolder } from './OpenFolder.tsx';
@@ -48,7 +49,9 @@ export function App() {
     writer.overlay ? null : (session.head?.version ?? null),
   );
 
+  const ui = useUi();
   const host: Host = {
+    ui,
     vault,
     writer,
     secrets: session.secrets,
@@ -107,8 +110,7 @@ export function App() {
   const { status } = session;
   return (
     <HostContext.Provider value={host}>
-      <TopBar status={status} signOut={session.signOut} index={host.index} />
-      <main className="mx-auto max-w-[44rem] px-4 pt-8 pb-20">
+      <Shell page={page} status={status} signOut={session.signOut}>
         {page ? (
           page.body
         ) : schema instanceof Error ? (
@@ -120,7 +122,7 @@ export function App() {
             {status.kind === 'syncing' ? 'Fetching the vault…' : 'Opening the vault…'}
           </Loading>
         )}
-      </main>
+      </Shell>
       {ready && <Previews index={host.index} />}
     </HostContext.Provider>
   );

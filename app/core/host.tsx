@@ -13,6 +13,7 @@ import type { Entry } from '../../core/search.ts';
 import type { Writer } from './writer.ts';
 import type { VaultBackend } from './backend.ts';
 import { link } from './route.ts';
+import type { Ui } from './ui.ts';
 import { PageHeader } from '@/components/layout.tsx';
 
 export interface Host {
@@ -30,6 +31,8 @@ export interface Host {
   since?: VaultBackend['since'];
   /** Where a file can be seen at its source, if the backend has one. */
   source?: VaultBackend['source'];
+  /** The shell: panels, search, the shortcuts list, the sidebar (ui.ts). */
+  ui: Ui;
 }
 
 export const HostContext = createContext<Host>(null!);

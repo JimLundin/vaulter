@@ -20,6 +20,11 @@ export const parseRoute = (hash: string): Route => {
 /** A site href ("/janne/#h") as a link in the app ("#/janne/#h"). */
 export const link = (href: string) => `#${href}`;
 
+/** Goes to a site href. */
+export const go = (href: string) => {
+  location.hash = link(href);
+};
+
 export function useRoute(): Route {
   const [route, setRoute] = useState(() => parseRoute(location.hash));
   useEffect(() => {

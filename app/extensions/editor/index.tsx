@@ -1,5 +1,6 @@
 // Editing: a file as text (#/edit/<path>/), a rename (#/rename/<path>/, and the agent's renameNote), the staged edits with their diffs, the check and the commit
 // (#/changes/), and what the app committed, with a revert (#/history/).
+import { HistoryIcon, GitCommitVerticalIcon } from 'lucide-react';
 import type { Extension } from '../../core/extension.ts';
 import { Edit } from './Edit.tsx';
 import { Changes } from './Changes.tsx';
@@ -22,6 +23,8 @@ export const editor: Extension = {
     {
       label: 'History',
       href: '/history/',
+      icon: HistoryIcon,
+      keys: 'g y',
       order: 80,
       summary: 'What the app committed, with a revert',
       when: (h) => !!h.writer.history,
@@ -29,6 +32,8 @@ export const editor: Extension = {
     {
       label: 'Changes',
       href: '/changes/',
+      icon: GitCommitVerticalIcon,
+      keys: 'g s',
       order: 90,
       badge: (h) => Object.keys(h.writer.overlay?.files ?? {}).length,
     },

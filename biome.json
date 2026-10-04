@@ -137,7 +137,7 @@
       }
     },
     {
-      "includes": ["app/components/ui/**", "app/components/ai-elements/**"],
+      "includes": ["app/components/ui/**", "app/components/ai-elements/**", "app/hooks/**"],
       "linter": {
         "enabled": false
       }
