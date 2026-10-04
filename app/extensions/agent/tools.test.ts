@@ -287,3 +287,18 @@ test("a Capture's raw record is the chat itself, staged with the edits, and the 
   expect(prompt).toContain(`=== Today so far (${capturePath(today())}) ===`);
   expect(prompt).toContain('Gamma, uh,   relates to Alpha.');
 });
+
+test('the agent is told what Jim is looking at', async () => {
+  const { ctx } = await writer();
+  const model = new MockLanguageModelV4({ doStream: [textStep('ok'), textStep('ok')] });
+  const ask = async (page: { title: string; path?: string }) => {
+    const run = runAgent(model, ctx, [{ role: 'user', content: 'x' }], {}, undefined, page);
+    for await (const _ of run.stream);
+    await run.done;
+  };
+  await ask({ title: 'Alpha', path: 'Alpha.md' });
+  await ask({ title: 'Calendar' });
+  const [note, other] = model.doStreamCalls.map((c) => JSON.stringify(c.prompt));
+  expect(note).toContain('Jim is looking at: Alpha (Alpha.md)');
+  expect(other).toContain('Jim is looking at: the Calendar page');
+});

@@ -162,6 +162,8 @@ export function Shell({
     e.panel && (!e.panel.when || e.panel.when(host)) ? [e.panel] : [],
   );
   const panel = panels.find((p) => p.id === host.ui.panel) ?? null;
+  // Toasts stay clear of a docked panel.
+  const docked = useMedia(WIDE) && !!panel;
 
   return (
     <TooltipProvider delayDuration={300}>
@@ -183,7 +185,11 @@ export function Shell({
       </SidebarProvider>
       <Search commands={commands} />
       <Shortcuts commands={commands} />
-      <Toaster position="bottom-right" offset={{ bottom: 24 }} mobileOffset={{ bottom: 88 }} />
+      <Toaster
+        position="bottom-right"
+        offset={{ bottom: 24, right: docked ? '29.5rem' : 24 }}
+        mobileOffset={{ bottom: 88 }}
+      />
     </TooltipProvider>
   );
 }
@@ -281,7 +287,7 @@ function PanelHost({ panel }: { panel: Panel | null }) {
   if (phone)
     return (
       <Drawer open={true} onOpenChange={(o) => !o && close()}>
-        <DrawerContent className="h-[92svh] max-h-[92svh]">
+        <DrawerContent className="h-[92svh] max-h-[92svh] data-[vaul-drawer-direction=bottom]:max-h-[92svh]">
           <DrawerTitle className="sr-only">{panel.label}</DrawerTitle>
           <div className="flex min-h-0 flex-1 flex-col pb-[env(safe-area-inset-bottom)]">
             {body}
@@ -338,7 +344,7 @@ function BottomBar({ panels }: { panels: Panel[] }) {
           </span>
           {main.label}
           {!!main.indicator && (
-            <span className="absolute top-1 right-[calc(50%-1.75rem)]">
+            <span className="absolute top-[-1.25rem] right-[calc(50%-1.9rem)]">
               <main.indicator />
             </span>
           )}

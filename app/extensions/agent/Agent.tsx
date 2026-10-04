@@ -1,19 +1,16 @@
-// The agent (app/agent.ts): Jim talks, it reads, stages and commits, following meta/conventions.md.
-// The model and the SDK load with this view. The conversation lives in memory for the session, outside
-// the view, so it survives moving around the app and a running turn keeps going meanwhile.
-import { useEffect, useMemo, useState } from 'react';
-import { SquareIcon } from 'lucide-react';
-import type { ModelMessage, ToolSet } from 'ai';
-import type { AgentContext } from '../../core/extension.ts';
-import { search } from '../../../core/search.ts';
-import { agentWriter, type Writer } from '../../core/writer.ts';
+// The agent's chat (app/agent.ts): Jim talks, it reads, stages and commits, following meta/conventions.md.
+// It fills whatever holds it (the docked panel, a sheet, a phone's drawer, the /agent/ page): the
+// conversation takes the height, the composer stays at the bottom. The conversation itself is chat.ts.
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { PlusIcon, SquareIcon } from 'lucide-react';
+import type { PanelArg } from '../../core/extension.ts';
+import { titleOf } from '../../../core/note-fields.ts';
 import { useHost } from '../../core/host.tsx';
-import { link } from '../../core/route.ts';
+import { link, useRoute } from '../../core/route.ts';
 import { renderBody } from '../../core/markdown.ts';
 import { later } from '../../core/later.ts';
-import { appVersion, collect, type Place } from './meta.ts';
-import { recordExchange, type ChatTurn, type Collected } from './record.ts';
-import { Empty, PageHeader } from '@/components/layout.tsx';
+import { chat, MODEL_KEY, model, newChat, ready, send, stop, useChat, viewing } from './chat.ts';
+import type { Part, Turn } from './chat.ts';
 import { Button } from '@/components/ui/button.tsx';
 import { Input } from '@/components/ui/input.tsx';
 import { Label } from '@/components/ui/label.tsx';
@@ -26,6 +23,7 @@ import {
   PromptInput,
   PromptInputBody,
   PromptInputFooter,
+  PromptInputSpeechButton,
   PromptInputSubmit,
   PromptInputTextarea,
   PromptInputTools,
@@ -38,236 +36,119 @@ import {
   ToolOutput,
 } from '@/components/ai-elements/tool.tsx';
 
-const MODEL_KEY = 'vault.agent.model';
-const DEFAULT_MODEL = 'gpt-6-astra';
+const dictates = 'SpeechRecognition' in globalThis || 'webkitSpeechRecognition' in globalThis;
+const VAULT_IT = 'vault it: ';
 
-type Part =
-  | { kind: 'text'; text: string }
-  | {
-      kind: 'tool';
-      name: string;
-      /** The call in a line (brief), and in full. */
-      input: string;
-      args?: unknown;
-      output?: unknown;
-      result?: string;
-      error?: boolean;
-      commit?: string;
-    };
-interface Turn {
-  role: 'user' | 'agent';
-  parts: Part[];
-  error?: string;
-  /** When it started, for the raw record; and, for the agent's, what it cost and who answered. */
-  at: string;
-  tokens?: { in: number; out: number };
-  model?: string;
-}
-
-const chat = {
-  /** This chat, in its exchanges' session: a random id per chat. */
-  id: crypto.randomUUID().slice(0, 8),
-  turns: [] as Turn[],
-  /** Turns before this one are in a capture already. */
-  captured: 0,
-  /** What the device says about the current turn, collected while the agent works. */
-  meta: null as Promise<Collected> | null,
-  history: [] as ModelMessage[],
-  busy: false as boolean,
-  abort: null as AbortController | null,
-  host: null as ReturnType<typeof useHost> | null,
-  listeners: new Set<() => void>(),
-  emit() {
-    for (const f of this.listeners) f();
-  },
-};
-
-/** The tool call in a line: its path or query, not the whole file. */
-const brief = (name: string, input: any) =>
-  input?.path ??
-  input?.query ??
-  input?.message ??
-  (name === 'check' ? '' : JSON.stringify(input ?? {}).slice(0, 80));
-
-/** A turn as the raw record takes it: what was said, and which tools the agent used. */
-const chatTurn = (t: Turn): ChatTurn => ({
-  role: t.role,
-  at: t.at,
-  text: t.parts
-    .flatMap((p) => (p.kind === 'text' ? [p.text] : []))
-    .join('')
-    .trim(),
-  tools: t.parts.flatMap((p) => (p.kind === 'tool' ? [p.name] : [])),
-  tokens: t.tokens,
-  model: t.model,
-});
-
-/** The vault's place notes with coordinates, to match a location fix against. */
-const placesOf = (host: ReturnType<typeof useHost>): Place[] =>
-  host.vault.notes.flatMap((n) => {
-    const g = n.data.geo;
-    return n.data.type === 'place' && typeof g?.lat === 'number' && typeof g?.lon === 'number'
-      ? [{ id: n.id, lat: g.lat, lon: g.lon }]
-      : [];
-  });
-
-export function Agent() {
+export function AgentChat({ arg }: { arg: PanelArg | null; close?: () => void }) {
   const host = useHost();
-  const { secrets, writer: w } = host;
   chat.host = host;
-  const [, rerender] = useState(0);
-  useEffect(() => {
-    const f = () => rerender((n) => n + 1);
-    chat.listeners.add(f);
-    return () => {
-      chat.listeners.delete(f);
-    };
+  const { turns, busy } = useChat();
+  const { path } = useRoute();
+  const note = host.vault.byHref.get(path);
+  const [input, setInput] = useState(chat.draft);
+  const ref = useRef<HTMLTextAreaElement>(null);
+  const type = useCallback((t: string) => {
+    chat.draft = t;
+    setInput(t);
   }, []);
-  const [input, setInput] = useState('');
-  const [model, setModel] = useState(() => localStorage.getItem(MODEL_KEY) || DEFAULT_MODEL);
-  const { turns, busy } = chat;
+  const focus = () =>
+    requestAnimationFrame(() => {
+      const t = ref.current;
+      t?.focus();
+      t?.setSelectionRange(t.value.length, t.value.length);
+    });
+  const say = (text: string) => {
+    type('');
+    later(send(text));
+  };
 
-  if (!secrets?.openai)
+  useEffect(viewing, []);
+  // Opened with a prompt (⌘K's "Ask the agent: …"): sent, or put in to finish; each opening once.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: per opening (arg.n), whatever else changed
+  useEffect(() => {
+    if (!arg || arg.n === chat.arg) return;
+    chat.arg = arg.n;
+    if (arg.send && !chat.state.busy) say(arg.text);
+    else {
+      type(arg.text);
+      focus();
+    }
+  }, [arg]);
+
+  if (!ready(host))
     return (
-      <PageHeader
-        title="Agent"
-        lede={
-          secrets
+      <p className="p-6 text-muted-foreground text-sm">
+        {!host.secrets?.openai
+          ? host.secrets
             ? 'No OpenAI key is sealed: set the VAULT_OPENAI_KEY repo secret and run the publish workflow.'
             : 'The agent runs in the published app, with the sealed OpenAI key; in dev there is none.'
-        }
-      />
+          : "Committing isn't available here."}
+      </p>
     );
-  if (!w.commit) return <PageHeader title="Agent" lede="Committing isn't available here." />;
 
-  // The latest writer and search, also after this view is gone: the tools run between renders.
-  const aw = agentWriter(() => chat.host!.writer as Writer);
-  const ctx = {
-    w: aw,
-    search: (q: string) => search(chat.host!.index, q),
-    since: host.since,
-    secrets,
-    capture: async (judged: Parameters<NonNullable<AgentContext['capture']>>[0]) => {
-      const r = recordExchange({
-        turns: chat.turns.slice(chat.captured).map(chatTurn),
-        judged,
-        collected: (await chat.meta) ?? { groups: {} },
-        session: { chat: chat.id, model, app: appVersion() },
-        files: aw.files(),
-      });
-      await aw.stage(r.path, r.text);
-      chat.captured = chat.turns.length;
-      return { path: r.path, at: r.exchange.at, raw: r.raw };
+  const suggestions: { label: string; run: () => void }[] = [
+    {
+      label: 'vault it: …',
+      run: () => {
+        type(VAULT_IT);
+        focus();
+      },
     },
-  };
-  const tools = async (): Promise<ToolSet> =>
-    Object.assign(
-      {},
-      ...(await Promise.all(chat.host!.extensions.map((e) => e.tools?.(ctx) ?? {}))),
-    );
-
-  const send = async () => {
-    const text = input.trim();
-    if (!text || chat.busy) return;
-    setInput('');
-    const now = new Date().toISOString();
-    const agentTurn: Turn = { role: 'agent', parts: [], at: now };
-    chat.busy = true;
-    chat.turns = [
-      ...chat.turns,
-      { role: 'user', parts: [{ kind: 'text', text }], at: now },
-      agentTurn,
-    ];
-    chat.meta = collect(placesOf(host)).catch(() => ({ groups: {} }));
-    const update = () => {
-      chat.turns = [...chat.turns];
-      chat.emit();
-    };
-    update();
-    chat.history = [...chat.history, { role: 'user', content: text }];
-    chat.abort = new AbortController();
-    try {
-      const [{ runAgent }, { createOpenAI }] = await Promise.all([
-        import('./tools.ts'),
-        import('@ai-sdk/openai'),
-      ]);
-      const openai = createOpenAI({
-        apiKey: secrets.openai,
-        baseURL: import.meta.env.VITE_OPENAI_API || undefined,
-      });
-      const run = runAgent(openai(model), ctx, chat.history, await tools(), chat.abort.signal);
-      const calls = new Map<string, Part & { kind: 'tool' }>();
-      for await (const p of run.stream) {
-        if (p.type === 'text-delta') {
-          const last = agentTurn.parts.at(-1);
-          if (last?.kind === 'text') last.text += p.text;
-          else agentTurn.parts.push({ kind: 'text', text: p.text });
-        } else if (p.type === 'tool-call') {
-          const part: Part & { kind: 'tool' } = {
-            kind: 'tool',
-            name: p.toolName,
-            input: brief(p.toolName, p.input),
-            args: p.input,
-          };
-          calls.set(p.toolCallId, part);
-          agentTurn.parts.push(part);
-        } else if (p.type === 'tool-result' || p.type === 'tool-error') {
-          const part = calls.get(p.toolCallId);
-          if (part) {
-            const out: any = p.type === 'tool-result' ? p.output : { error: String(p.error) };
-            part.output = out;
-            part.error = !!out?.error;
-            part.commit = out?.committed;
-            part.result = out?.error
-              ? out.error + (out.problems ? `: ${out.problems.join('; ')}` : '')
-              : out?.committed
-                ? `committed ${out.committed}`
-                : out?.problems
-                  ? out.problems.length
-                    ? `${out.problems.length} problems`
-                    : 'check passes'
-                  : out?.staged
-                    ? `staged: ${out.staged.join(', ')}`
-                    : 'ok';
-          }
-        } else if (p.type === 'finish-step') {
-          const t = agentTurn.tokens ?? { in: 0, out: 0 };
-          agentTurn.tokens = {
-            in: t.in + (p.usage.inputTokens ?? 0),
-            out: t.out + (p.usage.outputTokens ?? 0),
-          };
-          agentTurn.model = p.response.modelId || agentTurn.model;
-        } else if (p.type === 'error') {
-          agentTurn.error = String((p.error as any)?.message ?? p.error);
-        }
-        update();
-      }
-      chat.history = await run.done;
-    } catch (e) {
-      agentTurn.error = (e as Error).name === 'AbortError' ? 'Stopped.' : (e as Error).message;
-      update();
-    } finally {
-      chat.busy = false;
-      chat.abort = null;
-      chat.emit();
-    }
-  };
+    { label: "What's due this week?", run: () => say("What's due this week?") },
+    { label: 'sign-off', run: () => say('sign-off') },
+    ...(note
+      ? [
+          {
+            label: `What do I know about ${titleOf(note)}?`,
+            run: () => say(`What do I know about ${titleOf(note)}?`),
+          },
+        ]
+      : []),
+  ];
 
   return (
-    <div className="v-agent">
-      <PageHeader
-        title="Agent"
-        lede={
-          <>
-            Tell it what to file ("vault it: …"), ask what the vault knows, or say "sign-off". It
-            follows meta/conventions.md and commits on its own; everything it commits is in{' '}
-            <a href={link('/history/')}>History</a>, with a revert.
-          </>
-        }
-      />
-      <Conversation className="h-[calc(100dvh-24rem)] min-h-80 rounded-xl border bg-background">
+    <div className="flex min-h-0 flex-1 flex-col">
+      {turns.length > 0 && (
+        <div className="flex h-10 shrink-0 items-center gap-2 border-b px-3 text-xs">
+          <a href={link('/history/')} className="text-muted-foreground">
+            History
+          </a>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="ml-auto h-7 gap-1 text-xs max-md:h-9"
+            disabled={busy}
+            onClick={newChat}
+          >
+            <PlusIcon />
+            New chat
+          </Button>
+        </div>
+      )}
+      <Conversation className="min-h-0">
         <ConversationContent className="gap-6">
-          {turns.length === 0 && <Empty>Nothing said yet.</Empty>}
+          {turns.length === 0 && (
+            <div className="grid gap-4 pt-2">
+              <p className="text-muted-foreground text-sm">
+                Tell it what to file, ask what the vault knows, or say "sign-off". It follows
+                meta/conventions.md and commits on its own; everything it commits is in{' '}
+                <a href={link('/history/')}>History</a>, with a revert.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {suggestions.map((s) => (
+                  <Button
+                    key={s.label}
+                    variant="outline"
+                    size="sm"
+                    className="h-auto max-w-full whitespace-normal rounded-full py-1.5 text-left font-normal max-md:min-h-11 max-md:px-4 max-md:text-base"
+                    onClick={s.run}
+                  >
+                    {s.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          )}
           {turns.map((t, i) =>
             t.role === 'user' ? (
               // biome-ignore lint/suspicious/noArrayIndexKey: turns only append; a turn is its place in the conversation
@@ -280,56 +161,85 @@ export function Agent() {
         </ConversationContent>
         <ConversationScrollButton />
       </Conversation>
-      <PromptInput
-        className="mt-3"
-        onSubmit={() => {
-          later(send());
-        }}
-      >
-        <PromptInputBody>
-          <PromptInputTextarea
-            value={input}
-            placeholder="vault it: …"
-            disabled={busy}
-            onChange={(e) => setInput(e.currentTarget.value)}
-            // ⌘/Ctrl+Enter sends; Enter is a new line (notes are often several).
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-                e.preventDefault();
-                e.currentTarget.form?.requestSubmit();
-              }
-            }}
-          />
-        </PromptInputBody>
-        <PromptInputFooter>
-          <PromptInputTools>
-            <Label className="gap-2 font-normal text-faint text-xs">
-              Model
-              <Input
-                className="h-7 w-36 font-mono text-foreground text-xs"
-                value={model}
-                onChange={(e) => setModel(e.currentTarget.value)}
-                onBlur={(e) => localStorage.setItem(MODEL_KEY, e.currentTarget.value)}
-              />
-            </Label>
-            <span className="text-faint text-xs max-sm:hidden">⌘/Ctrl+Enter sends</span>
-          </PromptInputTools>
-          {busy ? (
-            <Button
-              type="button"
-              size="icon-sm"
-              variant="outline"
-              aria-label="Stop"
-              onClick={() => chat.abort?.abort()}
-            >
-              <SquareIcon />
-            </Button>
-          ) : (
-            <PromptInputSubmit disabled={!input.trim()} />
-          )}
-        </PromptInputFooter>
-      </PromptInput>
+      <div className="shrink-0 p-3 pt-0">
+        <PromptInput
+          onSubmit={() => {
+            if (input.trim()) say(input);
+          }}
+        >
+          <PromptInputBody>
+            <PromptInputTextarea
+              ref={ref}
+              value={input}
+              placeholder={busy ? 'Working…' : 'Say what to file, or ask…'}
+              disabled={busy}
+              className="max-md:text-base"
+              onChange={(e) => type(e.currentTarget.value)}
+              // ⌘/Ctrl+Enter sends; Enter is a new line (notes are often several).
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                  e.preventDefault();
+                  e.currentTarget.form?.requestSubmit();
+                }
+              }}
+            />
+          </PromptInputBody>
+          <PromptInputFooter>
+            <PromptInputTools className="min-w-0">
+              <Model />
+              <span className="truncate text-faint text-xs max-md:hidden">⌘/Ctrl+Enter sends</span>
+            </PromptInputTools>
+            <div className="flex items-center gap-1">
+              {!!dictates && (
+                <PromptInputSpeechButton
+                  textareaRef={ref}
+                  onTranscriptionChange={type}
+                  disabled={busy}
+                  aria-label="Dictate"
+                  className="max-md:size-10"
+                />
+              )}
+              {busy ? (
+                <Button
+                  type="button"
+                  size="icon-sm"
+                  variant="outline"
+                  aria-label="Stop"
+                  className="max-md:size-10"
+                  onClick={stop}
+                >
+                  <SquareIcon />
+                </Button>
+              ) : (
+                <PromptInputSubmit
+                  aria-label="Send"
+                  className="max-md:size-10"
+                  disabled={!input.trim()}
+                />
+              )}
+            </div>
+          </PromptInputFooter>
+        </PromptInput>
+      </div>
     </div>
+  );
+}
+
+/** Which model answers, kept per device. */
+function Model() {
+  const [value, setValue] = useState(model);
+  return (
+    <Label className="gap-1.5 font-normal text-faint text-xs">
+      Model
+      <Input
+        className="h-7 w-32 font-mono text-foreground text-xs"
+        value={value}
+        onChange={(e) => {
+          setValue(e.currentTarget.value);
+          localStorage.setItem(MODEL_KEY, e.currentTarget.value);
+        }}
+      />
+    </Label>
   );
 }
 
@@ -356,7 +266,7 @@ const toolState = (p: Part & { kind: 'tool' }) =>
 
 function AgentTurn({ turn, live }: { turn: Turn; live: boolean }) {
   return (
-    <div className="grid gap-3">
+    <div className="grid min-w-0 gap-3">
       {turn.parts.map((p, j) =>
         p.kind === 'text' ? (
           // biome-ignore lint/suspicious/noArrayIndexKey: parts only append; a part is its place in the turn

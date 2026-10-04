@@ -161,9 +161,16 @@ function captureTool(w: AgentContext['w'], capture: NonNullable<AgentContext['ca
 
 const TODAY_MAX = 30_000;
 
-/** The agent's instructions: the app's plumbing, then the vault's own rules, which win, then today's log so
- * far (the one conversation, from any device), so a chat picks up where the last one left off. */
-export function instructions(conventions: string, now = new Date(), log = '') {
+/** Where Jim is in the app as he speaks: a note (its title and path) or a page. */
+export interface OnScreen {
+  title: string;
+  path?: string;
+}
+
+/** The agent's instructions: the app's plumbing and what Jim is looking at, then the vault's own rules,
+ * which win, then today's log so far (the one conversation, from any device), so a chat picks up where
+ * the last one left off. */
+export function instructions(conventions: string, now = new Date(), log = '', page?: OnScreen) {
   return `You are Jim's vault agent, inside his vault app. The vault is a git repo of Markdown notes; this app reads it, and your tools read, stage and commit files in it.
 
 Every rule about the vault (note format, filing, procedures, questions, git) is in meta/conventions.md, below, and it is authoritative. Follow it exactly. Where it says to run a command or use git, use your tools instead:
@@ -175,7 +182,13 @@ Every rule about the vault (note format, filing, procedures, questions, git) is 
 
 What Jim says maps to a procedure in the conventions: "vault it", "file this", "capture this", "remember this" → Capture; "sign-off" → Sign-off; "sweep the vault" → Weekly Sweep; "what do I know about …", "check the vault", "when did …", "pull up what we have on …", "resolve the open questions" → Recall. If no procedure matches, say so and stop rather than improvising one. Writing reads the conventions (below) in full first; never write unless Jim asked for a Capture or his answers turn into one.
 
-The raw record of a Capture (captures/) is this conversation, and the capture tool writes it: verbatim, from the chat itself, with the time, device, place and weather the app collects. Today's log so far is at the end: the same conversation, earlier today, on this device or another; pick up from it rather than asking again. Today is ${now.toLocaleDateString('sv-SE', { timeZone: 'Europe/Stockholm' })} (${now.toLocaleDateString('en-GB', { weekday: 'long', timeZone: 'Europe/Stockholm' })}), Europe/Stockholm.
+The raw record of a Capture (captures/) is this conversation, and the capture tool writes it: verbatim, from the chat itself, with the time, device, place and weather the app collects. Today's log so far is at the end: the same conversation, earlier today, on this device or another; pick up from it rather than asking again. Today is ${now.toLocaleDateString('sv-SE', { timeZone: 'Europe/Stockholm' })} (${now.toLocaleDateString('en-GB', { weekday: 'long', timeZone: 'Europe/Stockholm' })}), Europe/Stockholm.${
+    page
+      ? `
+
+Jim is looking at: ${page.path ? `${page.title} (${page.path})` : `the ${page.title} page`}; "this" or "here" means it.`
+      : ''
+  }
 
 === meta/conventions.md ===
 ${conventions}${
@@ -189,13 +202,14 @@ ${log.length > TODAY_MAX ? `…${log.slice(-TODAY_MAX)}` : log}`
 }
 
 /** One turn: the history plus Jim's message; `done` resolves to the history to keep for the next turn.
- * `tools`: what the other extensions add to the vault tools. */
+ * `tools`: what the other extensions add to the vault tools; `page`: what Jim is looking at. */
 export function runAgent(
   model: LanguageModel,
   ctx: AgentContext,
   history: ModelMessage[],
   tools: ToolSet = {},
   signal?: AbortSignal,
+  page?: OnScreen,
 ) {
   const conventions =
     ctx.w.files().find((f) => f.path === 'meta/conventions.md')?.text ??
@@ -203,7 +217,7 @@ export function runAgent(
   const log = ctx.w.files().find((f) => f.path === capturePath(today()))?.text ?? '';
   const r = streamText({
     model,
-    instructions: instructions(conventions, new Date(), log),
+    instructions: instructions(conventions, new Date(), log, page),
     messages: history,
     tools: { ...tools, ...agentTools(ctx) },
     stopWhen: isStepCount(40),

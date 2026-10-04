@@ -1023,12 +1023,15 @@ declare global {
 export type PromptInputSpeechButtonProps = ComponentProps<typeof PromptInputButton> & {
   textareaRef?: RefObject<HTMLTextAreaElement | null>;
   onTranscriptionChange?: (text: string) => void;
+  /** The language spoken (BCP 47); the browser's by default. */
+  lang?: string;
 };
 
 export const PromptInputSpeechButton = ({
   className,
   textareaRef,
   onTranscriptionChange,
+  lang,
   ...props
 }: PromptInputSpeechButtonProps) => {
   const [isListening, setIsListening] = useState(false);
@@ -1045,7 +1048,7 @@ export const PromptInputSpeechButton = ({
 
       speechRecognition.continuous = true;
       speechRecognition.interimResults = true;
-      speechRecognition.lang = 'en-US';
+      speechRecognition.lang = lang || navigator.language;
 
       speechRecognition.onstart = () => {
         setIsListening(true);
@@ -1090,7 +1093,7 @@ export const PromptInputSpeechButton = ({
         recognitionRef.current.stop();
       }
     };
-  }, [textareaRef, onTranscriptionChange]);
+  }, [textareaRef, onTranscriptionChange, lang]);
 
   const toggleListening = useCallback(() => {
     if (!recognition) {
