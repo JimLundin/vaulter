@@ -84,10 +84,7 @@ describe('the kernel contract', () => {
     expect(await api.drafts()).toEqual([
       { branch: 'draft/maps', extensions: ['maps'], loaded: true },
     ]);
-    expect(await api.accept('draft/maps')).toMatch(/^main-/);
-    expect(r.src.merged).toEqual([
-      { base: 'main', head: 'draft/maps', message: 'Accept draft/maps' },
-    ]);
+    await api.tryDraft('draft/maps', false);
     expect(config.get().drafts).toEqual([]);
     r.src.source.checks = async () => ({
       state: 'failure',

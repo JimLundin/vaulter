@@ -33,7 +33,7 @@ What remains are the jobs an extension can't do for itself:
 
 | Kernel job | Why it can't be an extension |
 | --- | --- |
-| Fetch extension source from a source provider, compile it in the browser and cache the output per commit | Every extension, built-in or Vaulter's, has to arrive the same way |
+| Load the extensions the page was built with (main), and a draft or an older commit through a source provider; compile them in the browser and cache the output by file | Every extension, built-in or Vaulter's, has to arrive the same way |
 | Validate each extension's definition and resolve contracts: match each `requires` to a `provides`, check versions | Extensions can't wire themselves without a referee |
 | Route every call between extensions and check it: that the caller requires the contract, that a callback was handed to it, Vaulter's read, write and ask, and that a person's own actions come from a person | An extension can't police its own access; Vaulter's read, write and ask settings are enforced here |
 | Hold secrets (and open the page's sealed ones) and attach them to requests for declared hosts only | One place that knows them, so no extension has to |
@@ -42,7 +42,7 @@ What remains are the jobs an extension can't do for itself:
 | Safe mode: a bare screen to switch branch, roll back or disable extensions | Recovery when a broken shell hides the app |
 | Provide the `kernel` contract: the extensions, their access, approvals, drafts and review | Only the kernel knows what it loaded and why; the screens for it are extensions |
 
-**The bootstrap set.** Before the kernel can load anything, it needs a source provider: an ordinary extension providing `extensions.source@1`, which reads extension source from the repo. Its source ships inside the kernel bundle, together with safe mode, and it is the only extension that does; it is compiled and loaded like any other. Under `npm run dev` the kernel itself provides the contract over the working tree. Moving to another git host means swapping this one provider. With nothing but the bootstrap set, the app boots into safe mode, asks for a repo and a token, and loads everything else from there.
+**Main is the page's own.** The page is built with every extension and contract on `main` as source text, and the kernel loads those: no repo, token or network is needed to start, and the app opens offline from the service worker alone. Under `npm run dev` they are the working tree. A source provider is an ordinary extension (`source-github`, providing `extensions.source@1`) that adds what needs git: trying a draft branch, pinning an older commit, writing drafts and merging them. Remove it and the app still runs, without drafts. When a device tries drafts or a pin, the kernel starts the source provider first, with what it requires, then loads the rest on top; moving to another git host means swapping this one provider.
 
 **Contracts are the central idea.** Extensions never depend on each other by name. They require a contract, such as `records@1`, and any installed extension that provides it satisfies them. Moving storage from IndexedDB to an embedded database, or the AI from OpenAI to another provider, means installing a different provider. A Git backup extension simply requires `notes@1` and `records@1`.
 
@@ -55,8 +55,8 @@ What remains are the jobs an extension can't do for itself:
          │ calls through kernel handles: checked,   │
          │ guarded, a fetch per extension           │
  ┌───────▼──────────────────────────────────────────▼───────┐
- │ kernel: loader · resolver · handles · policy · secrets · │   source-github's source and safe
- │         sealed secrets · its own state · safe mode       │   mode ship inside it
+ │ kernel: loader · resolver · handles · policy · secrets · │   main's source and safe mode
+ │         sealed secrets · its own state · safe mode       │   ship inside the page
  └──────────────────────────────────────────────────────────┘
 ```
 
@@ -97,14 +97,14 @@ Values otherwise pass as they are, not copied: a React component, a Zod schema o
 Every extension is TypeScript source in the repo, exporting one `defineExtension({...})`. There is no second format: an extension Vaulter writes is the same kind of folder, on a branch.
 
 ```
-src/kernel/              kernel and safe mode (the only built bundle)
+src/kernel/              kernel and safe mode (the built bundle, with main's source as text)
 tools/                   CI only: sealing the secrets into the built page
 contracts/
   records/               interface, conformance suite
   agent.tools/
   kernel/                the kernel's own contract
 extensions/
-  source-github/         bootstrap: its source ships inside the kernel bundle
+  source-github/         drafts and older commits, from GitHub
   store-local/
   wiki/
     index.ts             export default defineExtension({...})
@@ -165,17 +165,17 @@ The repo is where every extension lives, and every extension goes through the sa
 | --- | --- | --- | --- |
 | Draft | A branch, such as `draft/workouts`, written by Vaulter | Devices where you've chosen to try that branch, once CI's checks haven't failed | Vaulter has a working version and CI's checks pass: types, tests and every conformance suite |
 | Trial | The same branch, with more commits as Vaulter iterates | The same devices | You approve it on the review screen |
-| Accept | Merged into `main`, or a pull request if you want a second look | — | The merge lands |
-| Live | `main` | Every device, on its next start | — |
+| Accept | Merged into `main`, or a pull request if you want a second look | — | The merge lands and CI deploys it |
+| Live | `main`, built into the page | Every device, on its next start | — |
 
 The code, compiler, loader and contracts are the same at every stage; only the branch changes. Because drafts live in git, they survive a cleared browser cache and appear on your other devices.
 
-- **Writing a draft** goes through `extensions.source@1`: one commit on a `draft/*` branch, only under `extensions/` and `contracts/`, never forced. The kernel is never written this way. Merging is personal, so only accepting a draft (a person, through the `kernel` contract) reaches `main`.
+- **Writing a draft** goes through `extensions.source@1`: one commit on a `draft/*` branch, only under `extensions/` and `contracts/`, never forced. The kernel is never written this way. Merging is personal, so only accepting a draft (a person, through the source provider's `merge`) reaches `main`, and main deploys with it.
 - **Trying a draft** is per device (`kernel.tryDraft`, or safe mode): the device loads `main` with each tried draft's changed folders on top (`src/kernel/drafts.ts`).
 - **Reviewing a draft** compares the two trees and each changed extension's static fields, read by loading it, and lists in plain words what it newly asks for: a host, a device, a secret, or a powerful contract such as `kernel@1` or `extensions.source@1`. CI's checks on the draft's head come with it.
-- **Rollback** is reverting the merge, or pinning the app to an earlier commit from safe mode.
-- **Boot** (`src/kernel/boot.ts`) goes from a device and a source to a running kernel, or to safe mode with the reason: the tree at the branch or the pinned commit (offline, the last one this device loaded), the tried drafts on top, every extension planned and started, the `kernel` contract provided. The device is a browser (`start.ts` adds only the one-tab lock, the window's error listeners and the screens); tests boot the same way on a test device. Boot compiles each file once and caches the output by blob sha, so a new commit recompiles only what changed. If that gets slow, CI can publish compiled output beside the source.
-- **Offline,** the service worker serves the kernel, and the last tree and compiled output are in the kernel's own database, so the app opens without reaching GitHub.
+- **Rollback** is reverting the merge, or pinning the app to an earlier commit from safe mode, which needs the source provider.
+- **Boot** (`src/kernel/boot.ts`) goes from a device and the page's own extensions to a running kernel, or to safe mode with the reason: main from the page, or a pinned commit through the source provider; the tried drafts on top (offline, the trees this device last loaded for them); every extension planned and started; the `kernel` contract provided. The device is a browser (`start.ts` adds only the one-tab lock, the window's error listeners and the screens); tests boot the same way on a test device. Boot compiles each file once and caches the output by its git blob sha, which the page's files and a git host's trees share, so a new commit recompiles only what changed. If that gets slow, CI can publish compiled output beside the source.
+- **Offline,** the service worker serves the page and with it main; compiled output and the trees of tried drafts are in the kernel's own database, so the app opens without reaching GitHub.
 - **Vaulter gets no special access.** Its extension's permissions and secrets are part of what you review, and raising them later takes a new draft.
 
 ## Secrets
@@ -376,7 +376,7 @@ Three patterns repeat across these screens:
 | Question | Decision |
 | --- | --- |
 | Extension format | TypeScript source exporting `defineExtension`; static fields validated with Zod. No declarative data format. |
-| Where extensions live | In the repo, under `extensions/`. The browser fetches, compiles and caches them per commit. |
+| Where extensions live | In the repo, under `extensions/`. Main is built into the page as source; drafts and older commits come through a source provider. The browser compiles them and caches the output. |
 | Vaulter-written extensions | Same format and loader, on a `draft/*` branch; accepting merges it into `main`. |
 | Secrets | Held by the kernel, attached only to requests for declared hosts; never in the repo, never synced. |
 | Live transcription | OpenAI Realtime API, inside the `openai` extension behind `ai.realtime@1`, using a short-lived session key minted from your key. |
@@ -389,7 +389,7 @@ Three patterns repeat across these screens:
 | Vaulter's access | Read, write and ask attach to functions a contract guards (a tool's `run`), so no requirer can leave the guard off; the person's setting overrides the declared level. |
 | What only a person may do | Contract methods marked personal pass once per tap or key in the calling extension's own screen (`kernel.asPerson`); never for the agent or an extension Vaulter wrote. |
 | The kernel's own screens | A `kernel@1` contract the kernel provides; the screens are extensions. |
-| Offline | A service worker for the kernel's files; trees and compiled output in the kernel's own database. |
+| Offline | A service worker for the page, main included; compiled output and draft trees in the kernel's own database. |
 | Secrets on a new device | Sealed into the page by CI with a password; the kernel asks for it once per device. |
 | Turning an extension off, a draft swap | Save the change and start the app again (a page reload, from the cache); no extension is stopped one at a time. |
 | Errors | Kept per extension, by the stack: at the handle boundary and for uncaught ones. |
@@ -399,7 +399,7 @@ Three patterns repeat across these screens:
 **Build order.**
 
 1. Kernel with safe mode, the in-browser compiler and loader, the handles and the secret store. **Done**, with sealed secrets.
-2. The bootstrap source provider for GitHub. **Done**, with drafts: commit, merge and checks.
+2. The source provider for GitHub. **Done**, with drafts: commit, merge and checks. (Main moved into the page on 2026-10-04: the provider is optional.)
 3. Contract packages: `records`, `notes` and `questions` with conformance suites, `ai.chat`, `ai.realtime`, `agent.tools` and `kernel`. **Done**, except `ui.shell`, which waits for the UI work. `ai.transcribe` and `ai.embed` were written and taken out again until voice or search needs them (they are in the history).
 4. Foundation extensions: `store-local`, `notes`, `openai` and `agent` (**done**); `shell-mobile` and `shell-desktop` wait for the UI work.
 5. Voice, Wiki and Questions, which together exercise nearly every contract. **Wiki and Questions done**; voice needs the UI (a microphone button) and the realtime spike.

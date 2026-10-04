@@ -15,7 +15,7 @@ viewer over the `JimLundin/vault` repo, is in `main`'s history before the `pip` 
 
 Contracts: `kernel` (provided by the kernel), `extensions.source`, `records`, `notes`, `questions`,
 `wiki`, `agent`, `agent.tools`, `ai.chat`, `ai.realtime`. Extensions:
-`source-github` (the only one the kernel bundle ships), `store-local`, `notes`, `questions`, `openai`,
+`source-github` (drafts and older commits), `store-local`, `notes`, `questions`, `openai`,
 `wiki` and `agent` (Vaulter itself); `ARCHITECTURE.md` has a table of what each provides and requires. The UI,
 and with it `ui.shell`, comes next; until a shell is installed the app opens in safe mode, where the
 OpenAI key is set.
@@ -31,7 +31,7 @@ Every contract method is async, and goes through a kernel handle that checks it 
 |---|---|
 | `npm ci` | install |
 | `npm run dev` | the app on the working tree: the kernel compiles `extensions/` and `contracts/` as Vite serves them |
-| `npm run build` | the kernel bundle into `dist/` |
+| `npm run build` | the page into `dist/`: the kernel, with main's extensions as source |
 | `node tools/seal-secrets.ts <out>` | seal the secrets from the environment (what CI runs; see ARCHITECTURE.md, "Secrets") |
 | `npm test` / `npm run typecheck` | Vitest (`src/`, `contracts/`, `extensions/`) and TypeScript over all three |
 | `npm run lint` / `npm run format` | Biome: check (CI), or fix in place. 2 spaces, single quotes, semicolons, trailing commas, 100 columns |
@@ -44,8 +44,8 @@ extension in the repo that provides it (`contracts/conformance.test.ts`).
 
 ## Running it
 
-The built app reads extensions from `VITE_VAULTER_SOURCE` (`owner/repo@ref`, default
-`JimLundin/vaulter@main`); safe mode (`?safe`, or whenever no shell starts) changes the repo, branch or
+The built app runs the extensions it was built with (main); `VITE_VAULTER_SOURCE` (`owner/repo@ref`,
+default `JimLundin/vaulter@main`) is where source-github finds drafts and older commits. Safe mode (`?safe`, or whenever no shell starts) changes the repo, branch or
 pinned commit per device, turns extensions and drafts off, and sets secrets. Secrets are sealed into
 the build by CI with a password (`VAULTER_PASSWORD`, `VAULTER_SALT`, `VAULTER_SECRET__<EXTENSION>__<NAME>`); each
 device asks for the password once and keeps its own encrypted copy.

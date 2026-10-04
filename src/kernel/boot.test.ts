@@ -2,7 +2,9 @@ import { afterEach, describe, expect, it } from 'vitest';
 import type { Kernel } from './kernel.ts';
 import { seal } from './sealed.ts';
 import { REPO, startTree, testOut, testSource } from './testing.ts';
+import { source } from '@contracts/extensions.source';
 import { boot } from './boot.ts';
+import type { AnyContract } from './contract.ts';
 import { testDevice } from './testing.ts';
 
 const ext = (
@@ -36,21 +38,60 @@ describe('boot', () => {
     expect(r.booted.safe?.reason).toMatch(/No shell is installed/);
   });
 
-  it('starts offline from the last tree and compiled output this device loaded', async () => {
-    const device = testDevice();
-    const src = testSource({ main: { 'extensions/map/index.ts': ext('map') } });
-    const opts = {
-      source: { provide: src.source },
+  it('starts main from the page alone, with no source provider and nothing to reach', async () => {
+    const booted = await boot(testDevice(), {
+      page: { commit: 'abc1234', files: { 'extensions/map/index.ts': ext('map') } },
       defaultSource: `${REPO}@main`,
       shared: await shared(),
+    });
+    kernels.push(booted.kernel);
+    expect(booted.started).toEqual(['map']);
+    expect([booted.commit, booted.src]).toEqual(['abc1234', undefined]);
+  });
+
+  it('tries a draft offline from the tree this device last loaded for it', async () => {
+    const main = { 'extensions/map/index.ts': ext('map') };
+    const src = testSource({
+      main,
+      'draft/notes': { ...main, 'extensions/notes/index.ts': ext('notes', '0.1.0') },
+    });
+    const device = testDevice();
+    await device.keep.set('config', { drafts: ['draft/notes'] });
+    const opts = {
+      page: { commit: await src.source.head(REPO, 'main'), files: main },
+      defaultSource: `${REPO}@main`,
+      shared: await shared(),
+      provide: [[source, src.source]] as [AnyContract, object][],
     };
     const online = await boot(device, opts);
-    await online.kernel.dispose();
+    online.kernel.dispose();
     src.offline = true;
     const offline = await boot(device, opts);
     kernels.push(offline.kernel);
-    expect(offline.commit).toBe(online.commit);
-    expect(offline.started).toEqual(['map']);
+    expect(offline.started.sort()).toEqual(['map', 'notes']);
+    expect(offline.origins).toEqual(new Map([['notes', 'draft/notes']]));
+  });
+
+  it('runs main without drafts when no source provider is running, and says so', async () => {
+    const r = await startTree({ 'extensions/map/index.ts': ext('map') });
+    kernels.push(r.kernel);
+    const booted = await boot(testDevice({ keep: r.keep }), {
+      page: { commit: 'abc1234', files: { 'extensions/map/index.ts': ext('map') } },
+      defaultSource: `${REPO}@main`,
+      shared: await shared(),
+    });
+    kernels.push(booted.kernel);
+    expect(booted.started).toEqual(['map']);
+    expect(booted.refused).toEqual([]);
+    await r.keep.set('config', { drafts: ['draft/notes'] });
+    const again = await boot(testDevice({ keep: r.keep }), {
+      page: { commit: 'abc1234', files: { 'extensions/map/index.ts': ext('map') } },
+      defaultSource: `${REPO}@main`,
+      shared: await shared(),
+    });
+    kernels.push(again.kernel);
+    expect(again.started).toEqual(['map']);
+    expect(again.refused).toEqual([{ id: 'drafts', problems: ['no source provider is running'] }]);
   });
 
   it('loads a pinned commit instead of the branch, and drafts the device tries on top', async () => {
@@ -103,21 +144,21 @@ describe('boot', () => {
     expect(await r.booted.secrets.reveal('maps', 'token')).toBe('pk.1');
   });
 
-  it('in safe mode starts nothing but the source, and safe mode takes over when starting fails', async () => {
+  it('in safe mode starts nothing, and safe mode takes over when a pinned commit has no source', async () => {
     const safe = await startTree({ 'extensions/map/index.ts': ext('map') }, { safe: true });
     kernels.push(safe.kernel);
     expect(safe.booted.safe).toEqual({});
     expect(safe.kernel.running()).toEqual([]);
     expect(safe.booted.found).toEqual(['map']);
 
-    const src = testSource({ main: {} });
-    src.offline = true;
-    const failed = await boot(testDevice(), {
-      source: { provide: src.source },
+    const device = testDevice();
+    await device.keep.set('config', { pin: 'abcdef1' });
+    const pinned = await boot(device, {
+      page: { commit: 'abc1234', files: { 'extensions/map/index.ts': ext('map') } },
       defaultSource: `${REPO}@main`,
       shared: await shared(),
     });
-    kernels.push(failed.kernel);
-    expect(failed.safe?.reason).toBe('Failed to fetch');
+    kernels.push(pinned.kernel);
+    expect(pinned.safe?.reason).toMatch(/a pinned commit needs a source provider/);
   });
 });

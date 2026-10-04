@@ -36,8 +36,8 @@ export interface SourceV1 {
     repo: string,
     change: { branch: string; base?: string; parent?: string; message: string; files: Change[] },
   ) => Promise<string>;
-  /** Merges `head` into `base`; returns the merge commit. Personal: the kernel calls it when a person
-   * accepts a draft, and nothing else can. */
+  /** Merges `head` into `base`; returns the merge commit. Personal: accepting a draft is a person's
+   * to do, on the review screen; main deploys with it, and every device has it on its next start. */
   merge: (repo: string, base: string, head: string, message: string) => Promise<string>;
   /** CI's checks on a commit. */
   checks: (repo: string, commit: string) => Promise<Checks>;

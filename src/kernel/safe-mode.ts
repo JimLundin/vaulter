@@ -28,6 +28,8 @@ body { margin: 0; font: 15px/1.5 system-ui, sans-serif; color-scheme: light dark
 export async function safeMode(s: Booted) {
   const config = s.config.get();
   const refs = s.src ? await s.src.refs(config.repo).catch(() => [] as string[]) : [];
+  // The drafts this device tries, and with a source provider every other one there is.
+  const drafts = [...new Set([...config.drafts, ...refs.filter((r) => r.startsWith('draft/'))])];
   const problems = new Map(s.refused.map((r) => [r.id, r.problems]));
   for (const [id, p] of s.kernel.problems()) problems.set(id, p);
   const running = new Set(s.kernel.running().map((r) => r.id));
@@ -59,7 +61,6 @@ export async function safeMode(s: Booted) {
       ),
     ),
   );
-  const drafts = refs.filter((r) => r.startsWith('draft/'));
 
   const form = h(
     'form',
@@ -111,9 +112,6 @@ export async function safeMode(s: Booted) {
               h('small', {}, `${new Date(e.at).toLocaleString()} · ${e.where}: ${e.message}`),
             ),
         ),
-      ),
-      ...s.bundled.map((id) =>
-        h('small', {}, `${id}: in the kernel bundle${running.has(id) ? ', running' : ''}`),
       ),
     ),
     secretRows.length > 0 && h('fieldset', {}, h('legend', {}, 'Secrets'), ...secretRows),

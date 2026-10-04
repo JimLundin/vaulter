@@ -25,7 +25,7 @@ export function control({ booted: b, review, restart }: ControlEnv): KernelV1 {
       const running = new Set(kernel.running().map((r) => r.id));
       const problems = kernel.problems();
       const { disabled } = config.get();
-      const ids = [...new Set([...b.bundled, ...b.found, ...kernel.seen.keys()])].sort();
+      const ids = [...new Set([...b.found, ...kernel.seen.keys()])].sort();
       return Promise.all(
         ids.map(async (id): Promise<ExtensionInfo> => {
           const s = kernel.seen.get(id);
@@ -34,7 +34,6 @@ export function control({ booted: b, review, restart }: ControlEnv): KernelV1 {
             version: s?.version,
             status: running.has(id) ? 'running' : disabled.includes(id) ? 'off' : 'refused',
             problems: problems.get(id) ?? [],
-            bundled: b.bundled.includes(id),
             draft: b.origins.get(id),
             requires: Object.values(s?.requires ?? {}).map((c) => c.key),
             optional: Object.values(s?.optional ?? {}).map((c) => c.key),
@@ -81,7 +80,10 @@ export function control({ booted: b, review, restart }: ControlEnv): KernelV1 {
     audit: (limit) => kernel.policy.audit(limit),
     async drafts() {
       const c = config.get();
-      const refs = (await src().refs(c.repo)).filter((r) => r.startsWith('draft/'));
+      // Without a source provider, the drafts this device was told to try are all it knows.
+      const refs = b.src
+        ? (await b.src.refs(c.repo)).filter((r) => r.startsWith('draft/'))
+        : c.drafts;
       const origins = b.origins;
       return refs.map((branch) => ({
         branch,
@@ -118,12 +120,6 @@ export function control({ booted: b, review, restart }: ControlEnv): KernelV1 {
           throw new Error(`${branch} failed CI's checks: it can be tried once they pass`);
       }
       await config.tryDraft(branch, on);
-    },
-    async accept(branch, message) {
-      const c = config.get();
-      const sha = await src().merge(c.repo, c.ref, branch, message ?? `Accept ${branch}`);
-      await config.tryDraft(branch, false);
-      return sha;
     },
     restart: () => Promise.resolve(restart()),
     sealed: () => Promise.resolve({ present: sealed.present() }),

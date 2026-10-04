@@ -2,9 +2,9 @@
 // in for one: modules as data: URLs, the kernel's state in memory, and a source made of strings.
 // Fixture extensions report what they saw through `out`, the shared module @vaulter/test, which tests
 // read back as `storage`.
-import type { SourceV1 } from '@contracts/extensions.source';
+import { type SourceV1, source } from '@contracts/extensions.source';
 import type { Access } from './access.ts';
-import { boot, type Device } from './boot.ts';
+import { blobSha, boot, type Device } from './boot.ts';
 import { type Config, defaultConfig } from './config.ts';
 import type { Suite } from './conformance.ts';
 import type { AnyContract } from './contract.ts';
@@ -40,11 +40,6 @@ export const treeOf = (files: Record<string, string>, commit = 'test0000'): Tree
 
 export const REPO = 'o/r';
 
-const sha1 = async (text: string) =>
-  [...new Uint8Array(await crypto.subtle.digest('SHA-1', new TextEncoder().encode(text)))]
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('');
-
 /** A source over branches of files, each branch one commit: path → text. Set `offline` to make every
  * read of the repo fail, as with no network; `merge` and `checks` may be replaced. */
 export function testSource(branches: Record<string, Record<string, string>>) {
@@ -60,7 +55,7 @@ export function testSource(branches: Record<string, Record<string, string>>) {
   const commitOf = async (ref: string) => {
     const files = t.branches[ref];
     if (!files) throw new Error(`no branch ${ref}`);
-    return `${ref.replaceAll('/', '-')}-${(await sha1(JSON.stringify(files))).slice(0, 8)}`;
+    return `${ref.replaceAll('/', '-')}-${(await blobSha(JSON.stringify(files))).slice(0, 8)}`;
   };
   const filesAt = async (commit: string) => {
     for (const ref of Object.keys(t.branches))
@@ -76,13 +71,13 @@ export function testSource(branches: Record<string, Record<string, string>>) {
       reach();
       const files = await filesAt(commit);
       return Promise.all(
-        Object.entries(files).map(async ([path, text]) => ({ path, sha: await sha1(text) })),
+        Object.entries(files).map(async ([path, text]) => ({ path, sha: await blobSha(text) })),
       );
     },
     read: async (_repo, path, sha) => {
       reach();
       for (const files of Object.values(t.branches))
-        if (path in files && (await sha1(files[path])) === sha) return files[path];
+        if (path in files && (await blobSha(files[path])) === sha) return files[path];
       throw new Error(`no ${path} at ${sha}`);
     },
     refs: async () => Object.keys(t.branches),
@@ -140,15 +135,16 @@ export async function startTree(files: Record<string, string>, opts: TreeOptions
     access: { ...config?.access, ...access },
     choose: { ...config?.choose, ...choose },
   });
+  // Main is the page's (`files`); the test source has it too, with the branches for drafts and pins.
   const booted = await boot(device, {
-    source: { provide: src.source },
+    page: { commit: await src.source.head(REPO, 'main'), files },
     defaultSource: `${REPO}@main`,
     shared: {
       '@vaulter/kernel': await import('./api.ts'),
       zod: await import('zod'),
       '@vaulter/test': { out },
     },
-    provide,
+    provide: [[source, src.source], ...(provide ?? [])],
     safe,
   });
   return {

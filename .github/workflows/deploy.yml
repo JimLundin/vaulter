@@ -1,6 +1,6 @@
-# CI: on every push the tests, the type check and lint; on main, build the kernel bundle and deploy it to
-# GitHub Pages (Settings → Pages → Source: GitHub Actions). Extensions aren't built here: the app reads
-# them from the repo at runtime. Secrets are sealed into dist/secrets.json with VAULTER_PASSWORD; each device
+# CI: on every push the tests, the type check and lint; on main, build the page and deploy it to GitHub
+# Pages (Settings → Pages → Source: GitHub Actions). The page carries main's extensions as source, which
+# the browser compiles; drafts come from the repo at runtime. Secrets are sealed into dist/secrets.json with VAULTER_PASSWORD; each device
 # opens them once and keeps its own copy.
 name: Deploy
 
@@ -43,6 +43,7 @@ jobs:
       - name: Build
         env:
           VITE_VAULTER_SOURCE: ${{ vars.VAULTER_SOURCE }}
+          VITE_VAULTER_COMMIT: ${{ github.sha }}
         run: |
           npm ci && npm run build
           printf 'User-agent: *\nDisallow: /\n' > dist/robots.txt

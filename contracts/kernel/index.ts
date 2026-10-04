@@ -14,8 +14,6 @@ export interface ExtensionInfo {
   version?: string;
   status: 'running' | 'refused' | 'off';
   problems: string[];
-  /** Shipped inside the kernel bundle (the source provider). */
-  bundled: boolean;
   /** The draft branch it loads from on this device, if not the main one. */
   draft?: string;
   requires: string[];
@@ -145,8 +143,6 @@ export interface KernelV1 {
   setSource: (change: { repo?: string; ref?: string; pin?: string | null }) => Promise<void>;
   /** Loads a draft branch on this device, on top of the main one. Next start. */
   tryDraft: (branch: string, on: boolean) => Promise<void>;
-  /** Merges a draft into the main branch; every device gets it on its next start. */
-  accept: (branch: string, message?: string) => Promise<string>;
   restart: () => Promise<void>;
 }
 
@@ -163,6 +159,5 @@ export const kernel = defineContract<KernelV1>({
     'unlock',
     'setSource',
     'tryDraft',
-    'accept',
   ],
 });
