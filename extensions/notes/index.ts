@@ -3,7 +3,7 @@
 // can be rebuilt from them.
 import { defineExtension } from '@pip/kernel';
 import { NewNote, type Note, NoteSource, type NotesV1, notes } from '@contracts/notes';
-import { records } from '@contracts/records';
+import { type Rec, records } from '@contracts/records';
 import { z } from 'zod';
 
 export default defineExtension({
@@ -13,41 +13,39 @@ export default defineExtension({
   requires: { records },
   agentGuide: 'The log of what the person said or typed, never changed. Cite a note by its id.',
   setup({ records }) {
-    const note = records.registerType('note', {
+    const fields = {
       text: z.string(),
       source: NoteSource,
       at: z.iso.datetime(),
       context: z.record(z.string(), z.json()).optional(),
-    });
+    };
+    const note = records.registerType('note', fields);
     const listeners = new Set<(n: Note) => void>();
-    const toNote = (r: Note): Note => ({
-      id: r.id,
-      text: r.text,
-      source: r.source,
-      at: r.at,
-      ...(r.context === undefined ? {} : { context: r.context }),
-    });
+    const toNote = ({ meta: _, ...n }: Rec<typeof fields>): Note => n as Note;
 
     const api: NotesV1 = {
       async append(input) {
         const n = NewNote.parse(input);
-        const rec = await records.put(note, { ...n, at: n.at ?? new Date().toISOString() });
-        const out = toNote(rec as Note);
+        const out = toNote(
+          await records.create(note, { ...n, at: n.at ?? new Date().toISOString() }),
+        );
         for (const l of listeners) void Promise.resolve(l(out)).catch(() => undefined);
         return out;
       },
       async get(id) {
         const rec = await records.get(note, id);
-        return rec && toNote(rec as Note);
+        return rec && toNote(rec);
       },
       // By when it was said, which for an import is not when it was stored.
       async list(q = {}) {
-        let all = (await records.query(note)).map((r) => toNote(r as Note));
-        if (q.since) all = all.filter((n) => n.at >= q.since!);
-        if (q.until) all = all.filter((n) => n.at < q.until!);
-        all.sort((a, b) => a.at.localeCompare(b.at) || a.id.localeCompare(b.id));
-        if (q.order !== 'oldest') all.reverse();
-        return all.slice(0, q.limit);
+        const at = { gte: q.since, lt: q.until };
+        const found = await records.query(note, {
+          where: q.since || q.until ? { at } : {},
+          orderBy: 'at',
+          order: q.order === 'oldest' ? 'asc' : 'desc',
+          limit: q.limit,
+        });
+        return found.map(toNote);
       },
       onAppended(handler) {
         listeners.add(handler);

@@ -147,3 +147,22 @@ it('works by hand without a model, questions or an agent', async () => {
   const p = await wiki.create('place', { name: 'Eriksdalsbadet', area: 'Södermalm' });
   expect(p).toMatchObject({ kind: 'place', area: 'Södermalm', facts: [] });
 });
+
+it('keeps both of two facts added at once, and a merged page reads as the one kept', async () => {
+  const r = await startRepo(['store-local', 'notes', 'wiki']);
+  kernel = r.kernel;
+  const wiki = use<WikiV1>(kernel, 'wiki');
+  const n = await use<NotesV1>(kernel, 'notes').append({ text: 'Ada swims on Sundays' });
+  const ada = await wiki.create('person', { name: 'Ada' });
+  const ref = { type: ada.type, id: ada.id };
+  await Promise.all([
+    wiki.addFact(ref, { text: 'Swims', sources: [n.id] }),
+    wiki.addFact(ref, { text: 'On Sundays', sources: [n.id] }),
+  ]);
+  expect((await wiki.get(ref))?.facts.map((f) => f.text).sort()).toEqual(['On Sundays', 'Swims']);
+
+  const lovelace = await wiki.create('person', { name: 'Ada Lovelace' });
+  await wiki.merge({ type: lovelace.type, id: lovelace.id }, ref);
+  expect(await wiki.get(ref)).toMatchObject({ id: lovelace.id, aliases: ['Ada'] });
+  expect((await wiki.find('ada')).map((e) => e.name)).toEqual(['Ada Lovelace']);
+});

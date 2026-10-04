@@ -37,14 +37,14 @@ it("starts store-local after records@1's conformance suite, and serves another e
         id: 'people', version: '1.0.0', requires: { records },
         async setup({ records }, kernel) {
           const v1 = records.registerType('person', { name: z.string() });
-          const ada = await records.put(v1, { name: 'Ada Lovelace' });
+          const ada = await records.create(v1, { name: 'Ada Lovelace' });
           const v2 = records.registerType('person', { first: z.string(), last: z.string() }, {
             version: 2,
             migrate: { 1: (o) => { const [first, last] = String(o.name).split(' '); return { first, last }; } },
           });
           const seen = [];
           await records.onChanged(v2, (c) => { seen.push(c.first); });
-          await records.put(v2, { first: 'Grace', last: 'Hopper' });
+          await records.create(v2, { first: 'Grace', last: 'Hopper' });
           await new Promise((ok) => setTimeout(ok, 20));
           await kernel.storage.set('result', { ada: await records.get(v2, ada.id), all: (await records.query(v2)).length, seen });
         },
@@ -59,7 +59,11 @@ it("starts store-local after records@1's conformance suite, and serves another e
     all: number;
     seen: string[];
   };
-  expect(result.ada).toMatchObject({ first: 'Ada', last: 'Lovelace', v: 2, type: 'people/person' });
+  expect(result.ada).toMatchObject({
+    first: 'Ada',
+    last: 'Lovelace',
+    meta: { v: 2, rev: 2, type: 'people/person' },
+  });
   expect(result.all).toBe(2);
   expect(result.seen).toEqual(['Grace']);
   // The records live in store-local's namespace, under people's.

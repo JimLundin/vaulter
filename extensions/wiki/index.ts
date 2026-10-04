@@ -48,7 +48,9 @@ export default defineExtension({
       revise,
       async onChanged(handler) {
         const stops = await Promise.all(
-          KINDS.map((k) => records.onChanged(types[k], (c) => handler({ type: c.type, id: c.id }))),
+          KINDS.map((k) =>
+            records.onChanged(types[k], (c) => handler({ type: c.meta.type, id: c.id })),
+          ),
         );
         return () => {
           for (const s of stops) s();

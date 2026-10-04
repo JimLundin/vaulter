@@ -1,140 +1,286 @@
 // records@1 over the kernel's storage for this extension (one namespace, IndexedDB underneath). Keys:
-//   t:<type>               the type: its schema, version and owner
-//   r:<type>:<id>          a record
-//   a:<type>:<id>          a merged record's id, pointing at the one it was merged into
-//   h:<type>:<v>:<id>      a record as it was at version v, before a migration
-// Queries read a type's records and filter in memory: plenty for one person's data.
+//   format                       the layout below, so a later store-local can tell what it reads
+//   t:<type>                     the type: its schema and version now
+//   s:<type>:<v>                 its schema at version v, to revert to
+//   r:<type>:<id>                a record as it is now, a tombstone included
+//   h:<type>:<id>:<rev>          each earlier revision of it
+// Queries read a type's records and filter in memory: plenty for one person's data. Changes to one
+// record run one at a time (this page is the only one with the kernel), so a revision check holds.
 import type { ExtStorage } from '@pip/kernel';
-import type { Change, JsonSchema, RecordsWire, Stored, Where } from '@contracts/records';
+import {
+  Conflict,
+  type Filter,
+  type JsonSchema,
+  type Query,
+  type Range,
+  type RecordsWire,
+  type Stored,
+} from '@contracts/records';
 import { z } from 'zod';
+
+export const FORMAT = 2;
 
 interface TypeEntry {
   schema: JsonSchema;
   version: number;
 }
 
+const words = (s: string) =>
+  s
+    .toLocaleLowerCase()
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter(Boolean);
+
+const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+
+const inRange = (v: unknown, r: Range) =>
+  v !== undefined &&
+  (r.gt === undefined || (v as never) > (r.gt as never)) &&
+  (r.gte === undefined || (v as never) >= (r.gte as never)) &&
+  (r.lt === undefined || (v as never) < (r.lt as never)) &&
+  (r.lte === undefined || (v as never) <= (r.lte as never));
+
+const matches = (v: unknown, f: Filter) => {
+  if (f === null || typeof f !== 'object') return v === f;
+  if ('eq' in f && !same(v, f.eq)) return false;
+  if (f.in && !f.in.some((x) => same(v, x))) return false;
+  if ('has' in f && !(Array.isArray(v) && v.some((x) => same(x, f.has)))) return false;
+  const ranged = [f.gt, f.gte, f.lt, f.lte].some((x) => x !== undefined);
+  return !ranged || inRange(v, f);
+};
+
+const fieldsOf = ({ id: _, meta: _m, ...fields }: Stored) => fields;
+
 export function localRecords(storage: ExtStorage) {
-  const listeners = new Map<string, Set<(c: Change) => void>>();
+  const listeners = new Map<string, Set<(c: Stored) => void>>();
   const schemas = new Map<string, z.ZodType>();
-  // Each record created after the one before, even within a millisecond, so "newest first" holds.
+  const format = (async () => {
+    const at = await storage.get<number>('format');
+    if (at === undefined) await storage.set('format', FORMAT);
+    else if (at !== FORMAT)
+      throw new Error(`records are stored in format ${at}; this store-local reads ${FORMAT}`);
+  })();
+  // Each change made after the one before, even within a millisecond, so "latest first" holds.
   let last = 0;
   const stamp = () => {
     last = Math.max(Date.now(), last + 1);
     return new Date(last).toISOString();
   };
-  const emit = (type: string, c: Change) => {
+  // One change at a time per record: the next waits for the one before.
+  const queues = new Map<string, Promise<unknown>>();
+  const serial = <T>(key: string, f: () => Promise<T>): Promise<T> => {
+    const next = (queues.get(key) ?? Promise.resolve()).then(f, f);
+    queues.set(
+      key,
+      next.catch(() => undefined),
+    );
+    return next;
+  };
+  const emit = (type: string, c: Stored) => {
     for (const l of listeners.get(type) ?? []) void Promise.resolve(l(c)).catch(() => undefined);
   };
   const typeOf = async (type: string) => {
+    await format;
     const t = await storage.get<TypeEntry>(`t:${type}`);
     if (!t) throw new Error(`no record type "${type}"`);
     return t;
   };
   const validator = (type: string, t: TypeEntry) => {
-    const k = `${type}@${t.version}`;
+    const k = `${type}@${t.version}:${JSON.stringify(t.schema)}`;
     if (!schemas.has(k)) schemas.set(k, z.fromJSONSchema(t.schema as never));
     return schemas.get(k)!;
   };
-  const all = async (type: string) => (await storage.list<Stored>(`r:${type}:`)).map(([, r]) => r);
-  const resolveId = async (type: string, id: string) =>
-    (await storage.get<string>(`a:${type}:${id}`)) ?? id;
+  const check = (type: string, t: TypeEntry, fields: Record<string, unknown>) => {
+    const r = validator(type, t).safeParse(fields);
+    if (!r.success)
+      throw new Error(
+        `${type}: ${r.error.issues.map((i) => `${i.path.join('.') || 'value'}: ${i.message}`).join('; ')}`,
+      );
+    return r.data as Record<string, unknown>;
+  };
+  const all = async (type: string) => {
+    await format;
+    return (await storage.list<Stored>(`r:${type}:`)).map(([, r]) => r);
+  };
+  const current = (type: string, id: string) => storage.get<Stored>(`r:${type}:${id}`);
+  /** The record `id` reads as: itself, or the one it was merged into. */
+  const resolve = async (type: string, id: string) => {
+    let rec = await current(type, id);
+    for (let hops = 0; rec?.meta.mergedInto && hops < 50; hops++)
+      // biome-ignore lint/performance/noAwaitInLoops: each hop needs the one before
+      rec = await current(type, rec.meta.mergedInto);
+    return rec;
+  };
+  /** Writes the next revision of `rec`, keeping the one it replaces. */
+  const write = async (type: string, prior: Stored | undefined, next: Stored) => {
+    if (prior)
+      await storage.set(`h:${type}:${prior.id}:${String(prior.meta.rev).padStart(9, '0')}`, prior);
+    await storage.set(`r:${type}:${next.id}`, next);
+    emit(type, next);
+    return next;
+  };
+  const revise = (
+    prior: Stored,
+    fields: Record<string, unknown>,
+    meta: Partial<Stored['meta']> = {},
+  ) =>
+    ({
+      ...fields,
+      id: prior.id,
+      meta: { ...prior.meta, updated: stamp(), rev: prior.meta.rev + 1, ...meta },
+    }) as Stored;
 
   const make = (caller: string): RecordsWire => {
     const mine = (type: string) => {
       if (!type.startsWith(`${caller}/`)) throw new Error(`${caller} may not write ${type}`);
     };
-    const save = async (type: string, rec: Stored) => {
-      await storage.set(`r:${type}:${rec.id}`, rec);
-      emit(type, rec);
-      return rec;
-    };
 
     return {
-      async register(name, schema, version, migrations) {
-        const type = `${caller}/${name}`;
+      async register(type, schema, version, migrations) {
+        mine(type);
+        await format;
         const prior = await storage.get<TypeEntry>(`t:${type}`);
-        await storage.set(`t:${type}`, { schema, version } satisfies TypeEntry);
-        if (!prior || prior.version === version) return;
-        if (prior.version > version) return this.revert(type, version);
-        // Migrate every record up, one version at a time, keeping each as it was.
-        const check = validator(type, { schema, version });
-        for (const rec of await all(type)) {
-          let { id, type: _t, created, updated, v, ...data } = rec;
-          for (; v < version; v++) {
-            const up = migrations[String(v)];
-            if (!up) throw new Error(`${type}: no migration from version ${v}`);
-            // biome-ignore lint/performance/noAwaitInLoops: each step needs the one before
-            await storage.set(`h:${type}:${v}:${id}`, { ...data, id, type, created, updated, v });
-            data = await up(data);
+        await storage.set(`s:${type}:${version}`, schema);
+        if (prior && prior.version > version) return this.revert(type, version);
+        if (prior && prior.version < version) {
+          // Every record up, one version at a time, each step a revision; the version is the new one
+          // only once every record has moved, so a migration cut short runs again.
+          const t = { schema, version };
+          for (const rec of await all(type)) {
+            if (rec.meta.v >= version) continue;
+            let data = fieldsOf(rec);
+            for (let v = rec.meta.v; v < version; v++) {
+              const up = migrations[String(v)];
+              if (!up) throw new Error(`${type}: no migration from version ${v}`);
+              // biome-ignore lint/performance/noAwaitInLoops: each step needs the one before
+              data = await up(data);
+            }
+            await serial(`${type}:${rec.id}`, () =>
+              write(type, rec, revise(rec, check(type, t, data), { v: version })),
+            );
           }
-          await storage.set(`r:${type}:${id}`, {
-            ...(check.parse(data) as Record<string, unknown>),
-            id,
-            type,
-            created,
-            updated,
-            v: version,
-          });
         }
+        await storage.set(`t:${type}`, { schema, version } satisfies TypeEntry);
       },
 
-      async get(type, id) {
-        return storage.get<Stored>(`r:${type}:${await resolveId(type, id)}`);
+      async get(type, id, opts = {}) {
+        await format;
+        if (opts.deleted) return current(type, id);
+        const rec = await resolve(type, id);
+        return rec?.meta.deleted ? undefined : rec;
       },
 
-      async query(type, where: Where = {}) {
-        let out = await all(type);
-        if (where.since) out = out.filter((r) => r.created >= where.since!);
-        if (where.until) out = out.filter((r) => r.created < where.until!);
-        out.sort((a, b) => a.created.localeCompare(b.created) || a.id.localeCompare(b.id));
-        if (where.order !== 'oldest') out.reverse();
-        return out.slice(0, where.limit);
+      async query(type, q: Query = {}) {
+        let out = (await all(type)).filter((r) => q.deleted || !r.meta.deleted);
+        for (const [field, f] of Object.entries(q.where ?? {}))
+          out = out.filter((r) => matches(r[field], f));
+        if (q.created) out = out.filter((r) => inRange(r.meta.created, q.created!));
+        if (q.updated) out = out.filter((r) => inRange(r.meta.updated, q.updated!));
+        const by = q.orderBy ?? 'created';
+        const key = (r: Stored) =>
+          by === 'created' || by === 'updated' ? r.meta[by] : (r[by] as string | number);
+        out.sort((a, b) => {
+          const [x, y] = [key(a), key(b)];
+          return x === y ? a.meta.created.localeCompare(b.meta.created) : x < y ? -1 : 1;
+        });
+        if (q.order !== 'asc') out.reverse();
+        return out.slice(0, q.limit);
       },
 
-      async search(types, text) {
-        const words = text.toLocaleLowerCase().split(/\s+/).filter(Boolean);
-        const found = (await Promise.all(types.map(all))).flat();
-        return found.filter((r) => {
-          const hay = Object.values(r)
-            .filter((v) => typeof v === 'string')
-            .join(' ')
-            .toLocaleLowerCase();
-          return words.every((w) => hay.includes(w));
+      async search(types, text, opts = {}) {
+        const want = words(text);
+        const found = (await Promise.all(types.map(all))).flat().filter((r) => !r.meta.deleted);
+        const hit = found.filter((r) => {
+          const values = opts.fields ? opts.fields.map((f) => r[f]) : Object.values(fieldsOf(r));
+          const hay = words(
+            values
+              .flatMap((v) => (Array.isArray(v) ? v : [v]))
+              .filter((v) => typeof v === 'string')
+              .join(' '),
+          ).join(' ');
+          return want.every((w) => hay.includes(w));
+        });
+        return hit.slice(0, opts.limit);
+      },
+
+      async create(type, value) {
+        mine(type);
+        const t = await typeOf(type);
+        const { id: asked, ...fields } = value as { id?: string } & Record<string, unknown>;
+        const id = asked ?? crypto.randomUUID();
+        return serial(`${type}:${id}`, async () => {
+          if (await current(type, id)) throw new Error(`${type}: a record ${id} exists`);
+          const now = stamp();
+          return write(type, undefined, {
+            ...check(type, t, fields),
+            id,
+            meta: { type, created: now, updated: now, v: t.version, rev: 1 },
+          } as Stored);
         });
       },
 
-      async put(type, value) {
+      async replace(type, id, fields, rev) {
         mine(type);
         const t = await typeOf(type);
-        const { id, ...fields } = value as { id?: string } & Record<string, unknown>;
-        const data = validator(type, t).parse(fields) as Record<string, unknown>;
-        const prior = id ? await this.get(type, id) : undefined;
-        const now = stamp();
-        return save(type, {
-          ...data,
-          id: prior?.id ?? id ?? crypto.randomUUID(),
-          type,
-          created: prior?.created ?? now,
-          updated: now,
-          v: t.version,
+        return serial(`${type}:${id}`, async () => {
+          const prior = await current(type, id);
+          if (!prior || prior.meta.deleted) throw new Error(`${type}: no record ${id}`);
+          if (prior.meta.rev !== rev)
+            throw new Conflict(`${type}/${id} is at revision ${prior.meta.rev}, not ${rev}`);
+          return write(type, prior, revise(prior, check(type, t, fields), { v: t.version }));
         });
       },
 
       async delete(type, id) {
         mine(type);
-        await storage.delete(`r:${type}:${id}`);
-        emit(type, { id, type, deleted: true });
+        await format;
+        await serial(`${type}:${id}`, async () => {
+          const prior = await current(type, id);
+          if (!prior || prior.meta.deleted) return;
+          await write(type, prior, revise(prior, fieldsOf(prior), { deleted: stamp() }));
+        });
+      },
+
+      async restore(type, id) {
+        mine(type);
+        await format;
+        return serial(`${type}:${id}`, async () => {
+          const prior = await current(type, id);
+          if (!prior) throw new Error(`${type}: no record ${id}`);
+          if (!prior.meta.deleted) return prior;
+          const { deleted: _, mergedInto: _m, ...meta } = prior.meta;
+          return write(type, prior, {
+            ...fieldsOf(prior),
+            id,
+            meta: { ...meta, updated: stamp(), rev: prior.meta.rev + 1 },
+          } as Stored);
+        });
       },
 
       async merge(type, keepId, mergeId) {
         mine(type);
+        const t = await typeOf(type);
         const [keep, merge] = await Promise.all([this.get(type, keepId), this.get(type, mergeId)]);
         if (!(keep && merge)) throw new Error(`${type}: both records must exist to merge`);
-        const merged = { ...merge, ...keep, updated: stamp() } as Stored;
-        await storage.delete(`r:${type}:${merge.id}`);
-        await storage.set(`a:${type}:${merge.id}`, keep.id);
-        emit(type, { id: merge.id, type, deleted: true });
-        return save(type, merged);
+        if (keep.id === merge.id) throw new Error(`${type}: a record can't be merged into itself`);
+        await serial(`${type}:${merge.id}`, async () => {
+          const prior = (await current(type, merge.id))!;
+          await write(
+            type,
+            prior,
+            revise(prior, fieldsOf(prior), { deleted: stamp(), mergedInto: keep.id }),
+          );
+        });
+        return serial(`${type}:${keep.id}`, async () => {
+          const prior = (await current(type, keep.id))!;
+          const fields = check(type, t, { ...fieldsOf(merge), ...fieldsOf(prior) });
+          return write(type, prior, revise(prior, fields));
+        });
+      },
+
+      async history(type, id) {
+        await format;
+        return (await storage.list<Stored>(`h:${type}:${id}:`)).map(([, r]) => r).reverse();
       },
 
       onChanged(type, handler) {
@@ -149,13 +295,27 @@ export function localRecords(storage: ExtStorage) {
       async revert(type, version) {
         mine(type);
         const t = await typeOf(type);
+        const schema = await storage.get<JsonSchema>(`s:${type}:${version}`);
+        if (!schema) throw new Error(`${type} was never at version ${version}`);
         for (const rec of await all(type)) {
-          if (rec.v <= version) continue;
+          if (rec.meta.v <= version) continue;
+          // The latest revision at that version; a record made since has none, and is put away.
           // biome-ignore lint/performance/noAwaitInLoops: one record at a time
-          const old = await storage.get<Stored>(`h:${type}:${version}:${rec.id}`);
-          if (old) await storage.set(`r:${type}:${rec.id}`, old);
+          const earlier = (await this.history(type, rec.id)).find((h) => h.meta.v <= version);
+          await serial(`${type}:${rec.id}`, () =>
+            write(
+              type,
+              rec,
+              earlier
+                ? revise(rec, fieldsOf(earlier), {
+                    v: earlier.meta.v,
+                    deleted: earlier.meta.deleted,
+                  })
+                : revise(rec, fieldsOf(rec), { deleted: rec.meta.deleted ?? stamp() }),
+            ),
+          );
         }
-        await storage.set(`t:${type}`, { ...t, version });
+        await storage.set(`t:${type}`, { ...t, schema, version } satisfies TypeEntry);
       },
     };
   };
@@ -163,7 +323,7 @@ export function localRecords(storage: ExtStorage) {
   /** Drops every type the caller registered, and their records. */
   const forget = async (caller: string) => {
     // biome-ignore lint/performance/noAwaitInLoops: a sweep, once
-    for (const prefix of ['t:', 'r:', 'a:', 'h:'])
+    for (const prefix of ['t:', 's:', 'r:', 'h:'])
       for (const [key] of await storage.list(`${prefix}${caller}/`)) await storage.delete(key);
   };
 

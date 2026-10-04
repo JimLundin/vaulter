@@ -210,7 +210,8 @@ Five rules keep new features from forcing refactors.
 
 - **Contracts are versioned, not extensions' internals.** A provider may change anything behind `records@1` as long as it still passes the contract's test suite. A breaking change ships as `records@2`, and a provider can offer both while requirers move over.
 - **Every contract ships a conformance test suite.** Any new provider, including one Pip writes, must pass it before it can satisfy a `requires`.
-- **Type changes are migrations.** Splitting `place` into `venue` and `city` is a migration the records contract runs once, logs and can reverse. Data is never just overwritten.
+- **Type changes are migrations.** Splitting `place` into `venue` and `city` is a migration the records contract runs once and can reverse.
+- **Nothing is overwritten or removed for good.** Every change to a record is a new revision with the earlier ones kept (`history`); a change names the revision it was made from, so two changes at once can't lose either (`update`). Deleting or merging leaves a tombstone that can be restored. Only removing an extension drops its data.
 - **Derived data is disposable.** Wiki pages, records, embeddings and indexes are built from the notes extension's append-only log, so any of them can be rebuilt. A buggy extension can corrupt a view, never what you said.
 - **Safe mode always works.** It belongs to the kernel and depends on no extension, so a broken shell or storage provider can always be disabled or rolled back.
 
@@ -225,16 +226,23 @@ One contract and three extensions show the format end to end. Names and signatur
 export const RecordRef = z.object({ type: z.string(), id: z.string() });
 export const DateRange = z.object({ from: z.string().date(), to: z.string().date() });
 
+// A record is { id, ...fields, meta: { type, created, updated, v, rev, deleted?, mergedInto? } }.
 export interface RecordsV1 {
   registerType<S extends z.ZodRawShape>(name: string, fields: S): RecordType<S>;
-  query<S extends z.ZodRawShape>(type: RecordType<S>, where?: Where<S>): Promise<Rec<S>[]>;
-  search(types: RecordType<any>[], text: string): Promise<Rec<any>[]>;
-  put<S extends z.ZodRawShape>(type: RecordType<S>, value: Input<S>): Promise<Rec<S>>;
-  merge(keep: z.infer<typeof RecordRef>, merge: z.infer<typeof RecordRef>): Promise<void>;
-  onCreated<S extends z.ZodRawShape>(type: RecordType<S>, handler: (rec: Rec<S>) => void): Unsubscribe;
+  get<S extends z.ZodRawShape>(type: RecordType<S>, id: string): Promise<Rec<S> | undefined>;
+  // where: { kind: 'run', distanceKm: { gte: 5 }, tags: { has: 'park' } }, orderBy, order, limit
+  query<S extends z.ZodRawShape>(type: RecordType<S>, q?: Query): Promise<Rec<S>[]>;
+  search<S extends z.ZodRawShape>(types: RecordType<S>[], text: string): Promise<Rec<S>[]>;
+  create<S extends z.ZodRawShape>(type: RecordType<S>, value: Input<S>): Promise<Rec<S>>;
+  // Runs `change` on the record as it is now, again if it changed meanwhile: no update is lost.
+  update<S extends z.ZodRawShape>(type: RecordType<S>, id: string, change: (now: Rec<S>) => Input<S>): Promise<Rec<S>>;
+  delete(type: RecordType, id: string): Promise<void>; // a tombstone; restore() brings it back
+  merge<S extends z.ZodRawShape>(type: RecordType<S>, keep: string, merge: string): Promise<Rec<S>>;
+  history<S extends z.ZodRawShape>(type: RecordType<S>, id: string): Promise<Rec<S>[]>;
+  onChanged<S extends z.ZodRawShape>(type: RecordType<S>, handler: (rec: Rec<S>) => void): Promise<Unsubscribe>;
 }
 
-export const records = defineContract<RecordsV1>({ name: "records", version: "1.2.0" });
+export const records = defineContract<RecordsV1, RecordsWire>({ name: "records", version: "1.0.0", inputs, client });
 ```
 
 **Voice capture** records and transcribes with the Realtime API through `aiRealtime`, then appends to the notes log. `shell.slots.bottomBarPrimary` is a typed constant, so a misspelled slot doesn't compile.
@@ -407,7 +415,7 @@ The extensions so far, each tested with the others (`startRepo` in `src/kernel/t
 
 | Extension | Provides | Requires (optional) | Notes |
 | --- | --- | --- | --- |
-| `store-local` | `records@1` | | On the kernel's storage; passes the records suite |
+| `store-local` | `records@1` | | On the kernel's storage, with every revision kept and a format number for its layout; passes the records suite |
 | `notes` | `notes@1` | `records` | Append-only; lists by when a note was said |
 | `questions` | `questions@1` | `records` | Answers reach the asker's topic handler, also after a restart; answering is personal |
 | `openai` | `ai.chat`, `ai.transcribe`, `ai.realtime`, `ai.embed` | | The Responses API (tool calling for current models needs it), `store: false` with the encrypted reasoning sent back as a turn's `state`; realtime keys from `/v1/realtime/client_secrets`, WebRTC at `/v1/realtime/calls`. Default models in `extensions/openai/index.ts` |
