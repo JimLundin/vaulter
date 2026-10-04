@@ -1,6 +1,6 @@
 {
   // One config for the kernel (src/), the contracts, the extensions and the CI tools (tools/). Extensions import the kernel as
-  // @pip/kernel and contracts as @contracts/<name>; the loader resolves the same names in the browser.
+  // @vaulter/kernel and contracts as @contracts/<name>; the loader resolves the same names in the browser.
   "compilerOptions": {
     "target": "ES2023",
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
@@ -21,7 +21,7 @@
     "skipLibCheck": true,
     "types": ["node", "vite/client"],
     "paths": {
-      "@pip/kernel": ["./src/kernel/api.ts"],
+      "@vaulter/kernel": ["./src/kernel/api.ts"],
       "@contracts/*": ["./contracts/*/index.ts", "./contracts/*"]
     }
   },

@@ -1,4 +1,4 @@
-// What Pip may do with the wiki, as agent tools: looking things up is free, adding is logged, and
+// What Vaulter may do with the wiki, as agent tools: looking things up is free, adding is logged, and
 // anything that rewrites what is known (merging pages, retracting a fact) asks first.
 import type { AgentToolsV1 } from '@contracts/agent.tools';
 import { RecordRef } from '@contracts/records';

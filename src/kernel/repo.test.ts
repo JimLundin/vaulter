@@ -31,8 +31,8 @@ it('starts store-local and serves another extension its records', async () => {
     ...read('contracts'),
     ...read('extensions/store-local'),
     'extensions/people/index.ts': `
-      import { defineExtension } from '@pip/kernel';
-      import { out } from '@pip/test';
+      import { defineExtension } from '@vaulter/kernel';
+      import { out } from '@vaulter/test';
       import { records } from '@contracts/records';
       import { z } from 'zod';
       export default defineExtension({

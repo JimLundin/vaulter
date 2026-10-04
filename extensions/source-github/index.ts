@@ -1,7 +1,7 @@
 // The bootstrap source provider: reads extensions/ and contracts/ from a GitHub repo at a commit, and
-// writes Pip's drafts. It ships inside the kernel bundle (the only extension that does) and is compiled
+// writes Vaulter's drafts. It ships inside the kernel bundle (the only extension that does) and is compiled
 // and loaded like any other. The token is optional for reading a public repo, at GitHub's lower rate limit.
-import { defineExtension } from '@pip/kernel';
+import { defineExtension } from '@vaulter/kernel';
 import { type Checks, source } from '@contracts/extensions.source';
 
 const API = 'https://api.github.com';
@@ -19,7 +19,7 @@ export default defineExtension({
       hosts: ['api.github.com'],
     },
   },
-  agentGuide: 'Reads and writes extension source on GitHub. Pip writes drafts through it.',
+  agentGuide: 'Reads and writes extension source on GitHub. Vaulter writes drafts through it.',
   setup(_, kernel) {
     const call = async (
       path: string,
@@ -80,7 +80,7 @@ export default defineExtension({
           ),
 
         async commit(repo, change) {
-          // Pip writes drafts: on a draft branch, and never the kernel or anything else outside these.
+          // Vaulter writes drafts: on a draft branch, and never the kernel or anything else outside these.
           if (!/^draft\/[\w.-]+$/.test(change.branch))
             throw new Error(`${change.branch} is not a draft branch (draft/<name>)`);
           const outside = change.files.filter((f) => !ours(f.path)).map((f) => f.path);

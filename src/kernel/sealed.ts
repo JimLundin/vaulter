@@ -11,7 +11,7 @@ export interface SealedFile {
   data: string;
 }
 
-const AAD = new TextEncoder().encode('pip-secrets-v1');
+const AAD = new TextEncoder().encode('vaulter-secrets-v1');
 const b64 = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes));
 const unb64 = (s: string) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
 

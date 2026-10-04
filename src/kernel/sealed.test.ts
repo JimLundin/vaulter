@@ -50,15 +50,15 @@ describe('sealed secrets', () => {
     expect(await u.check(() => Promise.reject(new Error('404')))).toBe('none');
   });
 
-  it('are sealed in CI from PIP_SECRET__<EXTENSION>__<NAME>', async () => {
-    const out = join(await mkdtemp(join(tmpdir(), 'pip-')), 'secrets.json');
+  it('are sealed in CI from VAULTER_SECRET__<EXTENSION>__<NAME>', async () => {
+    const out = join(await mkdtemp(join(tmpdir(), 'vaulter-')), 'secrets.json');
     await promisify(execFile)(process.execPath, ['tools/seal-secrets.ts', out], {
       env: {
-        PIP_PASSWORD: 'a-long-enough-password',
-        PIP_SALT: btoa(String.fromCharCode(...salt)),
-        PIP_SECRETS_JSON: JSON.stringify({
-          PIP_SECRET__OPENAI__KEY: 'sk-ci',
-          PIP_SECRET__SOURCE_GITHUB__TOKEN: 'gh-ci',
+        VAULTER_PASSWORD: 'a-long-enough-password',
+        VAULTER_SALT: btoa(String.fromCharCode(...salt)),
+        VAULTER_SECRETS_JSON: JSON.stringify({
+          VAULTER_SECRET__OPENAI__KEY: 'sk-ci',
+          VAULTER_SECRET__SOURCE_GITHUB__TOKEN: 'gh-ci',
           GITHUB_TOKEN: 'not-sealed',
         }),
       },

@@ -1,6 +1,6 @@
 // What every provider of records@1 must do: CI runs it against each one in the repo
 // (contracts/conformance.test.ts).
-import { defineConformance } from '@pip/kernel';
+import { defineConformance } from '@vaulter/kernel';
 import { z } from 'zod';
 import { records } from './index.ts';
 

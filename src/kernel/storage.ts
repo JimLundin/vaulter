@@ -15,7 +15,7 @@ const done = <T>(r: IDBRequest<T>) =>
   });
 
 /** In IndexedDB, in the browser. */
-export function idbKeep(name = 'pip-kernel'): KernelKeep {
+export function idbKeep(name = 'vaulter-kernel'): KernelKeep {
   let db: Promise<IDBDatabase> | undefined;
   const store = async (mode: IDBTransactionMode) => {
     db ??= new Promise((ok, fail) => {

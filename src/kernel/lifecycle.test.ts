@@ -6,7 +6,7 @@ import { startTree } from './testing.ts';
 import { KERNEL_API } from './version.ts';
 
 const BUS = `
-import { defineContract } from '@pip/kernel';
+import { defineContract } from '@vaulter/kernel';
 export interface BusV1 {
   emit(text: string): Promise<number>;
   on(handler: (text: string) => void): Promise<() => void>;
@@ -17,7 +17,7 @@ export const bus = defineContract<BusV1>({ name: 'bus', version: '1.0.0' });`;
 
 // A provider that remembers handlers per caller.
 const BUS_EXT = `
-import { defineExtension, perCaller } from '@pip/kernel';
+import { defineExtension, perCaller } from '@vaulter/kernel';
 import { bus } from '@contracts/bus';
 export default defineExtension({ id: 'bus', version: '1.0.0', provides: { bus },
   setup(_, kernel) {
@@ -35,8 +35,8 @@ export default defineExtension({ id: 'bus', version: '1.0.0', provides: { bus },
   } });`;
 
 const listener = (id: string, extra = '') => `
-import { defineExtension } from '@pip/kernel';
-import { out } from '@pip/test';
+import { defineExtension } from '@vaulter/kernel';
+import { out } from '@vaulter/test';
 import { bus } from '@contracts/bus';
 export default defineExtension({ id: '${id}', version: '1.0.0', requires: { bus }, ${extra}
   async setup({ bus }, kernel) {
@@ -96,7 +96,7 @@ describe('errors', () => {
 
   it('are traced to an extension by the source URL of its modules', () => {
     const stack =
-      'Error: x\n    at h (pip:///abc1234/extensions/wiki/revise.ts:12:3)\n    at run (kernel.ts:1:1)';
+      'Error: x\n    at h (vaulter:///abc1234/extensions/wiki/revise.ts:12:3)\n    at run (kernel.ts:1:1)';
     expect(extensionIn(stack)).toBe('wiki');
     expect(extensionIn('Error: x\n    at kernel.ts:1:1')).toBeUndefined();
   });

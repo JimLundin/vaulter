@@ -1,4 +1,4 @@
-// Pip's access to what an extension offers (ARCHITECTURE.md, "Permissions per tool"). A contract says
+// Vaulter's access to what an extension offers (ARCHITECTURE.md, "Permissions per tool"). A contract says
 // where a guarded function sits in a method's arguments (a tool's `run`) and how to read its label and
 // level from the argument it is in; the handle guards it, so the policy applies to every call to it
 // whatever the caller sent. The person's own setting for that label comes first:

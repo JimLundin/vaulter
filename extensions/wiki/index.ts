@@ -1,8 +1,8 @@
 // The wiki (wiki@1): pages about people, places, events and topics, every fact citing its notes. With a
 // model (ai.chat), each note appended is revised into the pages it touches; with questions, what the
-// model isn't sure of is asked rather than guessed; with an agent, Pip gets the wiki's tools. Without
+// model isn't sure of is asked rather than guessed; with an agent, Vaulter gets the wiki's tools. Without
 // any of them, the wiki still works by hand.
-import { defineExtension } from '@pip/kernel';
+import { defineExtension } from '@vaulter/kernel';
 import { agentTools } from '@contracts/agent.tools';
 import { chat } from '@contracts/ai.chat';
 import { notes } from '@contracts/notes';

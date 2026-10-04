@@ -1,10 +1,10 @@
-// Tools for Pip: what an extension lets Pip do, written once and used by both the screens and Pip
-// (ARCHITECTURE.md, "How Pip uses extensions"). The agent provides it; an extension adds tools with a
+// Tools for Vaulter: what an extension lets Vaulter do, written once and used by both the screens and Vaulter
+// (ARCHITECTURE.md, "How Vaulter uses extensions"). The agent provides it; an extension adds tools with a
 // Zod input and an access level, and the agent hands the input to the model as JSON Schema and checks
 // what the model sends against it. The contract guards `run` with the tool's level, so the kernel
-// applies read, write or ask to every call Pip makes, whatever the adding extension's copy of this
+// applies read, write or ask to every call Vaulter makes, whatever the adding extension's copy of this
 // contract says.
-import { type Access, defineContract, type Guarded } from '@pip/kernel';
+import { type Access, defineContract, type Guarded } from '@vaulter/kernel';
 import type { z } from 'zod';
 
 export type Unsubscribe = () => void;
@@ -12,7 +12,7 @@ export type Unsubscribe = () => void;
 export interface Tool<I> {
   /** Unique within the extension: "findEntity". Letters, digits and _. */
   name: string;
-  /** For Pip: what it does and when to use it. */
+  /** For Vaulter: what it does and when to use it. */
   description: string;
   /** The level it declares; the person's setting may change it. */
   access: Access;

@@ -80,9 +80,9 @@ it('speaks the Responses and realtime APIs, with the key attached by the kernel'
   const r = await startRepo(
     ['openai'],
     {
-      'contracts/probe/index.ts': `import { defineContract } from '@pip/kernel';
+      'contracts/probe/index.ts': `import { defineContract } from '@vaulter/kernel';
         export const probe = defineContract<{ run(): Promise<unknown> }>({ name: 'probe', version: '1.0.0' });`,
-      'extensions/probe/index.ts': `import { defineExtension } from '@pip/kernel';
+      'extensions/probe/index.ts': `import { defineExtension } from '@vaulter/kernel';
         import { chat } from '@contracts/ai.chat';
         import { realtime } from '@contracts/ai.realtime';
         import { probe } from '@contracts/probe';

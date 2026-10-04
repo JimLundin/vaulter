@@ -7,17 +7,17 @@ import { startTree } from './testing.ts';
 
 const files: Record<string, string> = {
   'contracts/kernel/index.ts': readFileSync('contracts/kernel/index.ts', 'utf8'),
-  'contracts/probe/index.ts': `import { defineContract } from '@pip/kernel';
+  'contracts/probe/index.ts': `import { defineContract } from '@vaulter/kernel';
     export const probe = defineContract<{ run(): Promise<unknown> }>({ name: 'probe', version: '1.0.0' });`,
-  'extensions/maps/index.ts': `import { defineExtension } from '@pip/kernel';
+  'extensions/maps/index.ts': `import { defineExtension } from '@vaulter/kernel';
     export default defineExtension({ id: 'maps', version: '1.3.0',
       permissions: { network: ['tile.openstreetmap.org'] },
       secrets: { token: { label: 'Mapbox', hosts: ['api.mapbox.com'] } },
       agentGuide: 'Places on a map.', setup() {} });`,
-  'extensions/broken/index.ts': `import { defineExtension } from '@pip/kernel';
+  'extensions/broken/index.ts': `import { defineExtension } from '@vaulter/kernel';
     export default defineExtension({ id: 'broken', version: '1.0.0', setup() { throw new Error('no'); } });`,
   // An extension that requires the kernel contract and tries to change things on its own.
-  'extensions/sneaky/index.ts': `import { defineExtension } from '@pip/kernel';
+  'extensions/sneaky/index.ts': `import { defineExtension } from '@vaulter/kernel';
     import { kernel } from '@contracts/kernel';
     import { probe } from '@contracts/probe';
     export default defineExtension({ id: 'sneaky', version: '1.0.0', requires: { kernel }, provides: { probe },

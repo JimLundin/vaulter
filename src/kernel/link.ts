@@ -2,7 +2,7 @@
 // points at one that already exists. Shared modules are the kernel's own copies, one for everyone.
 import type { Plan } from './loader.ts';
 
-const SHARED = Symbol.for('pip.shared');
+const SHARED = Symbol.for('vaulter.shared');
 
 export function linker(url: (code: string) => string, shared: Record<string, object>) {
   (globalThis as Record<symbol, unknown>)[SHARED] = shared;
@@ -16,7 +16,7 @@ export function linker(url: (code: string) => string, shared: Record<string, obj
       const ns = shared[spec] as Record<string, unknown> | undefined;
       if (!ns) throw new Error(`the kernel has no shared module "${spec}"`);
       const names = Object.keys(ns).filter((k) => k !== 'default');
-      const m = `globalThis[Symbol.for('pip.shared')][${JSON.stringify(spec)}]`;
+      const m = `globalThis[Symbol.for('vaulter.shared')][${JSON.stringify(spec)}]`;
       urls.set(
         key,
         url(
@@ -50,7 +50,7 @@ export function linker(url: (code: string) => string, shared: Record<string, obj
         out =
           out.slice(0, start) + (quoted ? JSON.stringify(targets[k]) : targets[k]) + out.slice(end);
       }
-      const u = url(`${out}\n//# sourceURL=pip:///${plan.commit.slice(0, 7)}/${path}`);
+      const u = url(`${out}\n//# sourceURL=vaulter:///${plan.commit.slice(0, 7)}/${path}`);
       urls.set(key, u);
       paths.set(u, path);
       return u;

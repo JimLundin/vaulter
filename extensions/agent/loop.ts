@@ -1,13 +1,13 @@
-// Pip's loop: the model sees a line about every extension with tools, opens the ones a request needs,
+// Vaulter's loop: the model sees a line about every extension with tools, opens the ones a request needs,
 // and calls their tools until it can answer. Tools reach the model as `<extension>__<tool>`.
 import type { ChatV1, Message } from '@contracts/ai.chat';
 import type { AskRequest, Answer, Step } from '@contracts/agent';
 import { AskRequest as AskSchema } from '@contracts/agent';
 import type { HeldTool } from '@contracts/agent.tools';
-import { Declined } from '@pip/kernel';
+import { Declined } from '@vaulter/kernel';
 import { z } from 'zod';
 
-export const INSTRUCTIONS = `You are Pip, a personal assistant that keeps a wiki from the notes a person speaks or types.
+export const INSTRUCTIONS = `You are Vaulter, a personal assistant that keeps a wiki from the notes a person speaks or types.
 Answer from what the extensions know, using their tools; never guess or invent. Cite the notes facts come from when it helps.
 Open an extension (open_extension) before using its tools; open only what the request needs.
 Some tools wait for the person to approve; if one is declined, say so and do not try another way around.

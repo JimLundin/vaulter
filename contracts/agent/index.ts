@@ -1,7 +1,7 @@
-// Pip itself: ask in words, and it uses the extensions' tools (agent.tools) to answer or to act. Each
+// Vaulter itself: ask in words, and it uses the extensions' tools (agent.tools) to answer or to act. Each
 // tool's access applies to every call it makes (read, write logged, ask approved first), enforced by
 // the kernel, not by the agent.
-import { defineContract } from '@pip/kernel';
+import { defineContract } from '@vaulter/kernel';
 import { z } from 'zod';
 
 export const Turn = z.object({ role: z.enum(['user', 'assistant']), content: z.string() });

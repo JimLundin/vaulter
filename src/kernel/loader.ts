@@ -5,7 +5,7 @@
 // What a file may import:
 //   ./x.ts, ../x.ts   a file in the same extension folder (or, from a contract, in contracts/)
 //   @contracts/name   a contract: contracts/name/index.ts (and @contracts/name/file.ts)
-//   the shared modules the kernel offers: @pip/kernel, zod, react, react/jsx-runtime, react-dom/client
+//   the shared modules the kernel offers: @vaulter/kernel, zod, react, react/jsx-runtime, react-dom/client
 // Anything else is a problem for that extension alone; the others still load.
 import type { Compiled } from './compile.ts';
 import type { Refused } from './resolve.ts';

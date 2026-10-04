@@ -33,7 +33,7 @@ export const Statics = z.object({
   /** The kernel API it was written against (version.ts): the same major, at least this minor. */
   kernel: Version.default('1.0.0'),
   requires: refs.default({}),
-  /** Contracts it uses when something provides them, and starts without otherwise: tools for Pip
+  /** Contracts it uses when something provides them, and starts without otherwise: tools for Vaulter
    * when an agent is installed, questions when there is somewhere to ask. */
   optional: refs.default({}),
   provides: refs.default({}),
@@ -45,7 +45,7 @@ export const Statics = z.object({
     })
     .default({ device: [], network: [] }),
   secrets: z.record(ContractName, SecretSpec).default({}),
-  /** When Pip should use it; one line at most is always in Pip's context. */
+  /** When Vaulter should use it; one line at most is always in Vaulter's context. */
   agentGuide: z.string().default(''),
   author: z
     .discriminatedUnion('kind', [

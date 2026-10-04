@@ -5,7 +5,7 @@
 /// <reference lib="webworker" />
 const sw = self as unknown as ServiceWorkerGlobalScope;
 
-const CACHE = 'pip-kernel-1';
+const CACHE = 'vaulter-kernel-1';
 
 const fetchAndKeep = async (cache: Cache, req: Request) => {
   const res = await fetch(req);

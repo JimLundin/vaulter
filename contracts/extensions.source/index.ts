@@ -1,8 +1,8 @@
-// Where extension source comes from, and where Pip's drafts go: a git host, read at a commit and written
+// Where extension source comes from, and where Vaulter's drafts go: a git host, read at a commit and written
 // on branches. The kernel's bootstrap set provides it (source-github, or source-dev under `npm run dev`);
 // moving to another host means another provider. Requiring it lets an extension write the repo, which
 // the review screen shows.
-import { defineContract } from '@pip/kernel';
+import { defineContract } from '@vaulter/kernel';
 
 export interface SourceFile {
   path: string;

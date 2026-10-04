@@ -1,7 +1,7 @@
 // A provider whose implementation depends on who calls it, such as storage namespaced by extension:
 // `make` runs once for each extension that requires the contract, with that extension's id. `forget`
 // drops what a caller stored, when it is removed or when a check's caller is dropped.
-const PER_CALLER = Symbol.for('pip.perCaller');
+const PER_CALLER = Symbol.for('vaulter.perCaller');
 
 export interface PerCallerDef<T> {
   make: (caller: string) => T;

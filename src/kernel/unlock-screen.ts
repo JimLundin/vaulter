@@ -5,7 +5,7 @@ import type { Unsealer } from './unseal.ts';
 
 export function unlockScreen(u: Unsealer): Promise<void> {
   return new Promise((done) => {
-    const root = document.getElementById('pip') ?? document.body;
+    const root = document.getElementById('vaulter') ?? document.body;
     const form = document.createElement('form');
     form.style.cssText =
       'max-width:22rem;margin:20vh auto;display:grid;gap:.75rem;font:15px/1.5 system-ui,sans-serif';

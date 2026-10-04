@@ -13,7 +13,7 @@ afterEach(async () => {
 
 // A model that files notes the way the instructions ask, by looking at the note and the pages sent.
 const FAKE_AI = `
-import { defineExtension } from '@pip/kernel';
+import { defineExtension } from '@vaulter/kernel';
 import { chat } from '@contracts/ai.chat';
 const none = { create: [], add: [], summaries: [] };
 export default defineExtension({ id: 'fake-ai', version: '1.0.0', provides: { chat },
@@ -43,8 +43,8 @@ export default defineExtension({ id: 'fake-ai', version: '1.0.0', provides: { ch
 
 // An agent that only keeps the tools it is given.
 const FAKE_AGENT = `
-import { defineExtension } from '@pip/kernel';
-import { out } from '@pip/test';
+import { defineExtension } from '@vaulter/kernel';
+import { out } from '@vaulter/test';
 import { agentTools } from '@contracts/agent.tools';
 import { z } from 'zod';
 export default defineExtension({ id: 'agent', version: '1.0.0', provides: { agentTools },
@@ -55,7 +55,7 @@ export default defineExtension({ id: 'agent', version: '1.0.0', provides: { agen
 const use = <T>(k: Kernel, name: string) => k.use(defineContract<T>({ name, version: '1.0.0' }));
 const settle = () => new Promise((ok) => setTimeout(ok, 50));
 
-it('revises pages from notes, cites every fact, asks when unsure, and gives Pip its tools', async () => {
+it('revises pages from notes, cites every fact, asks when unsure, and gives Vaulter its tools', async () => {
   const r = await startRepo(['store-local', 'notes', 'questions', 'wiki'], {
     'extensions/fake-ai/index.ts': FAKE_AI,
     'extensions/agent/index.ts': FAKE_AGENT,

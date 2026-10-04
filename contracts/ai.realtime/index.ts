@@ -1,11 +1,11 @@
 // Live audio sessions. The provider mints a short-lived session key from the account's key (which only
 // the kernel holds) and returns it with where to connect; the requirer (voice) connects itself, over
 // WebRTC, and never sees the account's key (ARCHITECTURE.md, "Secrets").
-import { defineContract } from '@pip/kernel';
+import { defineContract } from '@vaulter/kernel';
 import { z } from 'zod';
 
 export const SessionRequest = z.object({
-  /** Transcribing what is said, or a spoken conversation with Pip. */
+  /** Transcribing what is said, or a spoken conversation with Vaulter. */
   purpose: z.enum(['transcription', 'conversation']),
   model: z.string().optional(),
   instructions: z.string().max(8000).optional(),

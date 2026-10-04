@@ -12,7 +12,7 @@
 // tombstone that can be restored. A type's version goes up with a change to its fields, with a
 // migration from each older version, which the provider runs once and can revert. Only removing the
 // extension drops its records.
-import { defineContract } from '@pip/kernel';
+import { defineContract } from '@vaulter/kernel';
 import { z } from 'zod';
 
 export type Unsubscribe = () => void;

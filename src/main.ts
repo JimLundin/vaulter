@@ -22,9 +22,9 @@ void (async () =>
     bundled: ['source-github'],
     defaultSource: dev
       ? 'local/working-tree@working-tree'
-      : import.meta.env.VITE_PIP_SOURCE || 'JimLundin/vaulter@main',
+      : import.meta.env.VITE_VAULTER_SOURCE || 'JimLundin/vaulter@main',
     shared: {
-      '@pip/kernel': kernel,
+      '@vaulter/kernel': kernel,
       zod,
       react,
       'react/jsx-runtime': jsxRuntime,

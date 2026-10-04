@@ -1,14 +1,14 @@
 # Vaulter
 
-A voice-first personal knowledge wiki, built as a small kernel plus extensions (the project is Pip; the
-app is still Vaulter). The design is `ARCHITECTURE.md`; the words it uses are in `CONTEXT.md`. This is a full rebuild: the previous app, a
+A voice-first personal knowledge wiki, built as a small kernel plus extensions; Vaulter is also the
+agent inside it. The design is `ARCHITECTURE.md`; the words it uses are in `CONTEXT.md`. This is a full rebuild: the previous app, a
 viewer over the `JimLundin/vault` repo, is in `main`'s history before the `pip` branch.
 
 ## Layout
 
 | Where | What |
 |---|---|
-| `src/kernel/` | the kernel: the loader and compiler, the resolver, the handles and their policy (Pip's access, approvals), secrets (sealed ones too), its own state, drafts, the `kernel` contract's implementation, boot (`boot.ts`, with this browser as its device in `start.ts`), the unlock screen and safe mode. Built into the app's one bundle |
+| `src/kernel/` | the kernel: the loader and compiler, the resolver, the handles and their policy (Vaulter's access, approvals), secrets (sealed ones too), its own state, drafts, the `kernel` contract's implementation, boot (`boot.ts`, with this browser as its device in `start.ts`), the unlock screen and safe mode. Built into the app's one bundle |
 | `tools/` | CI only: `seal-secrets.ts`, which seals the secrets into the built page |
 | `contracts/<name>/` | one contract each: its TypeScript interface, where a method's guarded function sits, and a conformance suite if it has one for providers to pass |
 | `extensions/<id>/` | one extension each, exporting `defineExtension({...})`; compiled in the browser from the repo and loaded into the page |
@@ -16,11 +16,11 @@ viewer over the `JimLundin/vault` repo, is in `main`'s history before the `pip` 
 Contracts: `kernel` (provided by the kernel), `extensions.source`, `records`, `notes`, `questions`,
 `wiki`, `agent`, `agent.tools`, `ai.chat`, `ai.realtime`. Extensions:
 `source-github` (the only one the kernel bundle ships), `store-local`, `notes`, `questions`, `openai`,
-`wiki` and `agent` (Pip); `ARCHITECTURE.md` has a table of what each provides and requires. The UI,
+`wiki` and `agent` (Vaulter itself); `ARCHITECTURE.md` has a table of what each provides and requires. The UI,
 and with it `ui.shell`, comes next; until a shell is installed the app opens in safe mode, where the
 OpenAI key is set.
 
-An extension imports the kernel as `@pip/kernel`, a contract as `@contracts/<name>`, its own files
+An extension imports the kernel as `@vaulter/kernel`, a contract as `@contracts/<name>`, its own files
 relatively, and the shared `zod`, `react`, `react/jsx-runtime` and `react-dom/client`; nothing else.
 Every contract method is async, and goes through a kernel handle that checks it (ARCHITECTURE.md,
 "Running in the page"). Extensions run in the kernel's page, with no sandbox.
@@ -44,10 +44,10 @@ extension in the repo that provides it (`contracts/conformance.test.ts`).
 
 ## Running it
 
-The built app reads extensions from `VITE_PIP_SOURCE` (`owner/repo@ref`, default
+The built app reads extensions from `VITE_VAULTER_SOURCE` (`owner/repo@ref`, default
 `JimLundin/vaulter@main`); safe mode (`?safe`, or whenever no shell starts) changes the repo, branch or
 pinned commit per device, turns extensions and drafts off, and sets secrets. Secrets are sealed into
-the build by CI with a password (`PIP_PASSWORD`, `PIP_SALT`, `PIP_SECRET__<EXTENSION>__<NAME>`); each
+the build by CI with a password (`VAULTER_PASSWORD`, `VAULTER_SALT`, `VAULTER_SECRET__<EXTENSION>__<NAME>`); each
 device asks for the password once and keeps its own encrypted copy.
 
 Every push runs `.github/workflows/deploy.yml`: lint, the type check and the tests; on `main` it builds and

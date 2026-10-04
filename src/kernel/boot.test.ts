@@ -9,15 +9,15 @@ const ext = (
   id: string,
   version = '1.0.0',
   more = '',
-) => `import { defineExtension } from '@pip/kernel';
-    import { out } from '@pip/test';
+) => `import { defineExtension } from '@vaulter/kernel';
+    import { out } from '@vaulter/test';
   export default defineExtension({ id: '${id}', version: '${version}', ${more}
     async setup(_, kernel) { await out.set('${id}', 'started', '${version}'); } });`;
 
 const shared = async () => ({
-  '@pip/kernel': await import('./api.ts'),
+  '@vaulter/kernel': await import('./api.ts'),
   zod: await import('zod'),
-  '@pip/test': { out: testOut() },
+  '@vaulter/test': { out: testOut() },
 });
 
 let kernels: Kernel[] = [];

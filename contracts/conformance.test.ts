@@ -1,6 +1,6 @@
 // Every contract's conformance suite against every extension in the repo that provides it, through
 // real handles, each check as a fresh caller: what CI runs on every push, draft branches included, so
-// a provider Pip writes is held to its contract before anyone accepts it.
+// a provider Vaulter writes is held to its contract before anyone accepts it.
 import { afterAll, describe, expect, it } from 'vitest';
 import { runSuite } from '../src/kernel/conformance.ts';
 import { repoConformance } from '../src/kernel/testing.ts';

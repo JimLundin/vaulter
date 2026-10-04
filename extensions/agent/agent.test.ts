@@ -12,8 +12,8 @@ afterEach(async () => {
 
 // A model that follows a script: open the wiki, use a tool, then answer from what came back.
 const SCRIPTED = `
-import { defineExtension } from '@pip/kernel';
-import { out } from '@pip/test';
+import { defineExtension } from '@vaulter/kernel';
+import { out } from '@vaulter/test';
 import { chat } from '@contracts/ai.chat';
 const say = (content) => ({ content, toolCalls: [], stop: 'end', usage: { input: 1, output: 1 }, model: 'fake' });
 const call = (name, args) => ({ content: null, toolCalls: [{ id: 'c' + Math.random(), name, arguments: JSON.stringify(args) }], stop: 'tool', usage: { input: 1, output: 1 }, model: 'fake', state: [{ type: 'reasoning', id: 'r1' }] });
@@ -47,12 +47,12 @@ it('answers with the tools it opens, and waits for the person on a tool that ask
   kernel = r.kernel;
   expect(r.refused).toEqual([]);
   const wiki = use<WikiV1>(kernel, 'wiki');
-  const pip = use<AgentV1>(kernel, 'agent');
+  const agent = use<AgentV1>(kernel, 'agent');
   const ada = await wiki.create('person', { name: 'Ada', summary: 'A friend from Uppsala.' });
   const dup = await wiki.create('person', { name: 'Ada L.' });
 
   const steps: Step[] = [];
-  const a = await pip.ask({ prompt: 'Who is Ada?' }, (s) => {
+  const a = await agent.ask({ prompt: 'Who is Ada?' }, (s) => {
     steps.push(s);
   });
   expect(a.text).toBe('Ada L.: ; Ada: A friend from Uppsala.');
@@ -65,7 +65,7 @@ it('answers with the tools it opens, and waits for the person on a tool that ask
   expect(offered[1]).toContain('wiki__findPages');
 
   const refs = { keep: { type: ada.type, id: ada.id }, merge: { type: dup.type, id: dup.id } };
-  const merging = pip.ask({ prompt: `Merge these: ${JSON.stringify(refs)}` });
+  const merging = agent.ask({ prompt: `Merge these: ${JSON.stringify(refs)}` });
   await vi.waitFor(() => expect(kernel!.policy.approvals()).toHaveLength(1), { timeout: 2000 });
   expect(kernel.policy.approvals()[0]).toMatchObject({
     from: 'agent',
@@ -76,7 +76,7 @@ it('answers with the tools it opens, and waits for the person on a tool that ask
   expect((await merging).text).toBe('Merged into Ada');
   expect((await wiki.get(refs.keep))?.aliases).toEqual(['Ada L.']);
 
-  const declined = pip.ask({ prompt: `Merge these: ${JSON.stringify(refs)}` });
+  const declined = agent.ask({ prompt: `Merge these: ${JSON.stringify(refs)}` });
   await vi.waitFor(() => expect(kernel!.policy.approvals()).toHaveLength(1), { timeout: 2000 });
   kernel.policy.decide(kernel.policy.approvals()[0].id, false);
   expect((await declined).text).toBe('Not merged: the person declined');

@@ -1,7 +1,7 @@
 // One kernel at a time: two tabs running it would share the same IndexedDB with listeners that never
 // hear of each other's changes. The kernel holds a Web Lock while it runs; a second tab waits on a bare
 // screen until the person moves Vaulter there, when the first tab stops its extensions and lets go.
-const LOCK = 'pip-kernel';
+const LOCK = 'vaulter-kernel';
 const TAKE_OVER = 'take-over';
 
 export interface TabDeps {
@@ -11,7 +11,7 @@ export interface TabDeps {
 
 const browser = (): TabDeps => ({
   locks: navigator.locks,
-  channel: () => new BroadcastChannel('pip-kernel'),
+  channel: () => new BroadcastChannel('vaulter-kernel'),
 });
 
 export function singleTab(deps: TabDeps = browser()) {
@@ -65,7 +65,7 @@ export type SingleTab = ReturnType<typeof singleTab>;
 /** The bare screen in a tab without the kernel; resolves when the person moves Vaulter here. */
 export function standbyScreen(tab: SingleTab, moved = false): Promise<void> {
   return new Promise((done) => {
-    const root = document.getElementById('pip') ?? document.body;
+    const root = document.getElementById('vaulter') ?? document.body;
     const box = document.createElement('div');
     box.style.cssText =
       'max-width:24rem;margin:20vh auto;display:grid;gap:.75rem;font:15px/1.5 system-ui,sans-serif';

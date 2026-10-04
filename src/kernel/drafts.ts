@@ -1,4 +1,4 @@
-// Drafts: extensions Pip writes, on draft/* branches (ARCHITECTURE.md, "Extension lifecycle"). A
+// Drafts: extensions Vaulter writes, on draft/* branches (ARCHITECTURE.md, "Extension lifecycle"). A
 // device that tries a draft loads the main branch with the draft's changed folders on top. Reviewing a
 // draft compares the two trees and each changed extension's static fields, so what it newly asks for
 // (a host, a secret, a device, a powerful contract) is shown to approve on purpose.
@@ -53,7 +53,7 @@ export const summary = (s: Statics): StaticsSummary => ({
   author: s.author,
 });
 
-/** Contracts that let an extension change Pip itself or the repo. */
+/** Contracts that let an extension change Vaulter itself or the repo. */
 const POWERFUL: Record<string, string> = {
   'kernel@1': 'manage extensions, access and approvals',
   'extensions.source@1': 'write draft extensions to the repo',

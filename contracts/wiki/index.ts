@@ -2,7 +2,7 @@
 // the notes it came from, so a page can always be checked against what was said, and rebuilt from it.
 // Each kind is a record type (handles from `types()`), read with records@1 like any other. They are
 // meant to grow: a new field is a new version of the type, with a migration (records@1).
-import { defineContract } from '@pip/kernel';
+import { defineContract } from '@vaulter/kernel';
 import { z } from 'zod';
 import { RecordRef } from '@contracts/records';
 
@@ -14,7 +14,7 @@ export type Kind = z.infer<typeof Kind>;
 export const Fact = z.object({
   id: z.string(),
   text: z.string().min(1),
-  /** The notes it comes from: never empty for a fact Pip added. */
+  /** The notes it comes from: never empty for a fact Vaulter added. */
   sources: z.array(z.string()),
   /** When it was true or happened, if it says. */
   at: z.string().optional(),

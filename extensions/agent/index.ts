@@ -1,7 +1,7 @@
-// The agent (agent@1): Pip. It takes the tools every extension adds (agent.tools), reads each
+// The agent (agent@1): Vaulter. It takes the tools every extension adds (agent.tools), reads each
 // extension's guide from the kernel, and answers with a model (ai.chat). It holds no access of its own:
 // every tool call goes through the kernel, which applies the tool's level.
-import { defineExtension, perCaller } from '@pip/kernel';
+import { defineExtension, perCaller } from '@vaulter/kernel';
 import { agent } from '@contracts/agent';
 import { type AgentToolsV1, agentTools, type HeldTool } from '@contracts/agent.tools';
 import { chat } from '@contracts/ai.chat';
@@ -14,7 +14,7 @@ export default defineExtension({
   provides: { agent, agentTools },
   requires: { chat },
   optional: { kernel },
-  agentGuide: 'Pip itself.',
+  agentGuide: 'Vaulter itself.',
   setup({ chat, kernel }) {
     const tools = new Map<string, Map<string, HeldTool>>();
     const tools_ = (from: string): AgentToolsV1 => ({

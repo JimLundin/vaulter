@@ -1,12 +1,12 @@
 // The kernel: loads every extension into this page, wires each `requires` to a provider, and hands
 // each extension handles that check every call (ARCHITECTURE.md, "The kernel"). Extensions run in the
-// kernel's own page: there is no sandbox, so these checks keep well-behaved code, and Pip's model, in
+// kernel's own page: there is no sandbox, so these checks keep well-behaved code, and Vaulter's model, in
 // line; they don't contain hostile code.
 //
 // A handle on a contract is the provider's implementation behind a check: a personal method passes
 // only right after a person acted in the caller, arguments pass the contract's Zod inputs if it has any,
 // and a guarded
-// function (a tool's `run`) handed across is wrapped so every call to it goes through Pip's access
+// function (a tool's `run`) handed across is wrapped so every call to it goes through Vaulter's access
 // policy. Values otherwise pass as they are: no copying, so components and schemas can cross too.
 import { type Access, applyGuard, type Guard } from './access.ts';
 import { ErrorLog } from './errors.ts';
@@ -29,7 +29,7 @@ export interface KernelOptions {
   secrets: SecretStore;
   /** The kernel's own state: audit and error logs. */
   keep: KernelKeep;
-  /** The shared modules extensions import, by specifier (@pip/kernel, zod, react…). */
+  /** The shared modules extensions import, by specifier (@vaulter/kernel, zod, react…). */
   shared: Record<string, object>;
   /** A module URL for compiled code: a blob: URL in the browser, a data: URL in Node. */
   url: (code: string) => string;
@@ -294,7 +294,7 @@ export class Kernel {
     const { contract } = p;
     if (contract.personal.includes(method) && from !== KERNEL) {
       if (isAgent(this.parties.get(from)?.statics))
-        throw new Refusal(`${key}.${method} is for a person to do; ${from} is Pip's`);
+        throw new Refusal(`${key}.${method} is for a person to do; ${from} is the agent's own`);
       if (!this.opts.presence?.take(from))
         throw new Refusal(`${key}.${method} is for a person to do, right after a tap or key`);
     }
@@ -366,6 +366,6 @@ export class Kernel {
   }
 }
 
-/** Pip's own extensions are never a person: the agent, and any extension Pip wrote. */
+/** Vaulter's own extensions are never a person: the agent, and any extension Vaulter wrote. */
 const isAgent = (s: Statics | undefined) =>
   s?.author.kind === 'agent' || Object.values(s?.provides ?? {}).some((c) => c.key === 'agent@1');

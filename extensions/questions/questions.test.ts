@@ -18,15 +18,15 @@ it('lets only a person answer a question, and hands the answer to the asker', as
   const r = await startRepo(
     ['store-local', 'questions'],
     {
-      'contracts/probe/index.ts': `import { defineContract } from '@pip/kernel';
+      'contracts/probe/index.ts': `import { defineContract } from '@vaulter/kernel';
         export const probe = defineContract<{ run(a?: string): Promise<unknown> }>({ name: 'probe', version: '1.0.0' });`,
-      'extensions/pip/index.ts': `import { defineExtension } from '@pip/kernel';
-    import { out } from '@pip/test';
+      'extensions/asker/index.ts': `import { defineExtension } from '@vaulter/kernel';
+    import { out } from '@vaulter/test';
         import { questions } from '@contracts/questions';
         import { probe } from '@contracts/probe';
-        export default defineExtension({ id: 'pip', version: '1.0.0', requires: { questions }, provides: { probe },
+        export default defineExtension({ id: 'asker', version: '1.0.0', requires: { questions }, provides: { probe },
           async setup({ questions }, kernel) {
-            await questions.handle('merge', async (a) => { await out.set('pip', 'answer', a.choice); });
+            await questions.handle('merge', async (a) => { await out.set('asker', 'answer', a.choice); });
             return { probe: { async run(id) {
               if (!id) return questions.ask({ topic: 'merge', title: 'Same Ada?', choices: [{ id: 'yes', label: 'Yes' }] });
               try { await questions.answer(id, { choice: 'yes' }); return 'answered'; } catch (e) { return e.message; }
@@ -42,8 +42,8 @@ it('lets only a person answer a question, and hands the answer to the asker', as
   expect(await p.run(id)).toBe(
     'questions@1.answer is for a person to do, right after a tap or key',
   );
-  present = 'pip';
+  present = 'asker';
   expect(await p.run(id)).toBe('answered');
   await new Promise((ok) => setTimeout(ok, 30));
-  expect(await r.storage.get('pip', 'answer')).toBe('yes');
+  expect(await r.storage.get('asker', 'answer')).toBe('yes');
 });

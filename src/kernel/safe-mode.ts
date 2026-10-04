@@ -143,5 +143,5 @@ export async function safeMode(s: Booted) {
   const style = h('style');
   style.textContent = css;
   document.head.append(style);
-  (document.getElementById('pip') ?? document.body).replaceChildren(form);
+  (document.getElementById('vaulter') ?? document.body).replaceChildren(form);
 }

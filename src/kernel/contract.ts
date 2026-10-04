@@ -32,7 +32,7 @@ export interface Contract<T> {
   readonly inputs: Inputs<T>;
   readonly guards: Guards<T>;
   /** Methods only a person may call: the kernel lets a call through only right after a gesture
-   * (a tap or a key), so no extension, Pip included, can call them on its own. */
+   * (a tap or a key), so no extension, Vaulter included, can call them on its own. */
   readonly personal: readonly string[];
   /** Only for the types: never set at runtime. */
   readonly _interface?: T;

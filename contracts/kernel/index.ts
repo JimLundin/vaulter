@@ -2,7 +2,7 @@
 // approvals need (ARCHITECTURE.md, "UI for extensions"). The kernel provides it; an extension that
 // requires it shows that in its static fields, and every change it can make is personal: only a person
 // can make it, right after a tap or key in that extension.
-import { defineContract } from '@pip/kernel';
+import { defineContract } from '@vaulter/kernel';
 import { z } from 'zod';
 
 export const Access = z.enum(['read', 'write', 'ask']);
@@ -49,7 +49,7 @@ export interface AccessInfo {
 
 export interface Approval {
   id: string;
-  /** Who is calling (usually Pip's agent) and whose guarded function. */
+  /** Who is calling (usually Vaulter's agent) and whose guarded function. */
   from: string;
   to: string;
   label: string;

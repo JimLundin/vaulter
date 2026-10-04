@@ -1,6 +1,6 @@
-# Pip
+# Vaulter
 
-A voice-first personal knowledge wiki built as a small kernel plus extensions. Pip is both the project and the agent inside it; the app is still called Vaulter.
+A voice-first personal knowledge wiki built as a small kernel plus extensions. Vaulter is both the app and the agent inside it.
 
 ## The kernel and extensions
 
@@ -9,7 +9,7 @@ The one part that isn't an extension: it loads extensions, connects them through
 _Avoid_: core, runtime, host
 
 **Extension**:
-A folder in the repo that provides and requires contracts; every feature is one, including those Pip writes.
+A folder in the repo that provides and requires contracts; every feature is one, including those Vaulter writes.
 _Avoid_: plugin, module, app
 
 **Contract**:
@@ -38,10 +38,10 @@ _Avoid_: client, machine, platform
 **Safe mode**:
 The kernel's own bare screen for recovering when extensions fail: change the source, pin a commit, turn extensions and drafts off, set secrets.
 
-## People and Pip
+## People and Vaulter
 
 **Person**:
-The human using Pip; some actions are only theirs.
+The human using Vaulter; some actions are only theirs.
 _Avoid_: user, owner
 
 **Personal method**:
@@ -52,19 +52,19 @@ The kernel's knowledge that a person just acted in a particular extension, which
 _Avoid_: user activation, gesture (the browser's terms for its part of it)
 
 **Guard**:
-The mark on a function an extension hands out (a tool's run) that makes every call to it go through Pip's access.
+The mark on a function an extension hands out (a tool's run) that makes every call to it go through Vaulter's access.
 
 **Access level**:
-How freely Pip may use a guarded function: read (freely), write (logged), or ask (only once the person approves).
+How freely Vaulter may use a guarded function: read (freely), write (logged), or ask (only once the person approves).
 _Avoid_: permission (that's a device, network or secret an extension declares)
 
 **Approval**:
 A held ask-level call, waiting for the person to approve or decline it.
 
-## Changing Pip
+## Changing Vaulter
 
 **Draft**:
-An extension Pip wrote or changed, on a `draft/*` branch; a device may try it before the person accepts it into main.
+An extension Vaulter wrote or changed, on a `draft/*` branch; a device may try it before the person accepts it into main.
 _Avoid_: proposal, PR
 
 **Secret**:

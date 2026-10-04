@@ -1,6 +1,6 @@
 // Running the kernel in tests: the same boot as in the browser (boot.ts), on a test device that stands
 // in for one: modules as data: URLs, the kernel's state in memory, and a source made of strings.
-// Fixture extensions report what they saw through `out`, the shared module @pip/test, which tests
+// Fixture extensions report what they saw through `out`, the shared module @vaulter/test, which tests
 // read back as `storage`.
 import type { SourceV1 } from '@contracts/extensions.source';
 import type { Access } from './access.ts';
@@ -12,7 +12,7 @@ import type { Tree } from './loader.ts';
 import { memoryKeep } from './storage.ts';
 
 /** The shared modules tests offer extensions. */
-export const SHARED = ['@pip/kernel', 'zod'] as const;
+export const SHARED = ['@vaulter/kernel', 'zod'] as const;
 
 export { memoryKeep };
 
@@ -144,9 +144,9 @@ export async function startTree(files: Record<string, string>, opts: TreeOptions
     source: { provide: src.source },
     defaultSource: `${REPO}@main`,
     shared: {
-      '@pip/kernel': await import('./api.ts'),
+      '@vaulter/kernel': await import('./api.ts'),
       zod: await import('zod'),
-      '@pip/test': { out },
+      '@vaulter/test': { out },
     },
     provide,
     safe,

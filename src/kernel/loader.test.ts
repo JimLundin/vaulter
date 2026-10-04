@@ -38,7 +38,7 @@ describe('the loader', () => {
       'extensions/d/index.ts': "import './x.ts';",
       'extensions/d/x.ts': "import './index.ts';",
       'extensions/e/index.ts': 'import(someVariable);',
-      'extensions/f/index.ts': "import '@pip/kernel';",
+      'extensions/f/index.ts': "import '@vaulter/kernel';",
     };
     const { plans, refused } = await planAll(treeOf(files), deps(files));
     expect([...plans.keys()]).toEqual(['f']);

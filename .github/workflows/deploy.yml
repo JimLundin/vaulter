@@ -1,6 +1,6 @@
 # CI: on every push the tests, the type check and lint; on main, build the kernel bundle and deploy it to
 # GitHub Pages (Settings → Pages → Source: GitHub Actions). Extensions aren't built here: the app reads
-# them from the repo at runtime. Secrets are sealed into dist/secrets.json with PIP_PASSWORD; each device
+# them from the repo at runtime. Secrets are sealed into dist/secrets.json with VAULTER_PASSWORD; each device
 # opens them once and keeps its own copy.
 name: Deploy
 
@@ -42,7 +42,7 @@ jobs:
         with: { node-version: 24, cache: npm }
       - name: Build
         env:
-          VITE_PIP_SOURCE: ${{ vars.PIP_SOURCE }}
+          VITE_VAULTER_SOURCE: ${{ vars.VAULTER_SOURCE }}
         run: |
           npm ci && npm run build
           printf 'User-agent: *\nDisallow: /\n' > dist/robots.txt
@@ -50,12 +50,12 @@ jobs:
       # A step of its own, after the install: no dependency's script runs with the secrets around.
       - name: Seal the secrets in
         env:
-          # The password, the salt, and each secret to seal, as PIP_SECRET__<EXTENSION>__<NAME>: a new
+          # The password, the salt, and each secret to seal, as VAULTER_SECRET__<EXTENSION>__<NAME>: a new
           # one is a line here and a secret of that name in the repo's settings.
-          PIP_PASSWORD: ${{ secrets.PIP_PASSWORD }}
-          PIP_SALT: ${{ vars.PIP_SALT }}
-          PIP_SECRET__OPENAI__KEY: ${{ secrets.PIP_SECRET__OPENAI__KEY }}
-          PIP_SECRET__SOURCE_GITHUB__TOKEN: ${{ secrets.PIP_SECRET__SOURCE_GITHUB__TOKEN }}
+          VAULTER_PASSWORD: ${{ secrets.VAULTER_PASSWORD }}
+          VAULTER_SALT: ${{ vars.VAULTER_SALT }}
+          VAULTER_SECRET__OPENAI__KEY: ${{ secrets.VAULTER_SECRET__OPENAI__KEY }}
+          VAULTER_SECRET__SOURCE_GITHUB__TOKEN: ${{ secrets.VAULTER_SECRET__SOURCE_GITHUB__TOKEN }}
         run: node tools/seal-secrets.ts dist/secrets.json
       - uses: actions/upload-pages-artifact@v4
         with: { path: dist }

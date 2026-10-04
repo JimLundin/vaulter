@@ -8,7 +8,7 @@ import { memoryKeep, startTree } from './testing.ts';
 
 // Fixture source: compiled and loaded like any extension in the repo.
 const NOTES = `
-import { defineContract } from '@pip/kernel';
+import { defineContract } from '@vaulter/kernel';
 import { z } from 'zod';
 export interface NotesV1 {
   append(text: string): Promise<number>;
@@ -23,8 +23,8 @@ export const notes = defineContract<NotesV1>({
 
 // Notes, kept in the kernel's storage for this extension.
 const NOTES_EXT = `
-import { defineExtension } from '@pip/kernel';
-import { out } from '@pip/test';
+import { defineExtension } from '@vaulter/kernel';
+import { out } from '@vaulter/test';
 import { notes } from '@contracts/notes';
 export default defineExtension({
   id: 'notes', version: '1.0.0', provides: { notes },
@@ -47,8 +47,8 @@ export default defineExtension({
 
 // A requirer that subscribes and appends.
 const VOICE_EXT = `
-import { defineExtension } from '@pip/kernel';
-import { out } from '@pip/test';
+import { defineExtension } from '@vaulter/kernel';
+import { out } from '@vaulter/test';
 import { notes } from '@contracts/notes';
 export default defineExtension({
   id: 'voice', version: '1.0.0', requires: { notes },
@@ -62,7 +62,7 @@ export default defineExtension({
 });`;
 
 const TOOLS = `
-import { defineContract } from '@pip/kernel';
+import { defineContract } from '@vaulter/kernel';
 export interface Tool { name: string; access: 'read' | 'write' | 'ask'; run: (input: unknown) => Promise<unknown> }
 export interface ToolsV1 {
   add(tool: Tool): Promise<void>;
@@ -74,7 +74,7 @@ export const tools = defineContract<ToolsV1>({ name: 'agent.tools', version: '1.
 } });`;
 
 const AGENT_EXT = `
-import { defineExtension } from '@pip/kernel';
+import { defineExtension } from '@vaulter/kernel';
 import { tools } from '@contracts/agent.tools';
 export default defineExtension({
   id: 'agent', version: '1.0.0', provides: { tools },
@@ -89,7 +89,7 @@ export default defineExtension({
 });`;
 
 const toolExt = (access: string) => `
-import { defineExtension } from '@pip/kernel';
+import { defineExtension } from '@vaulter/kernel';
 import { tools } from '@contracts/agent.tools';
 export default defineExtension({
   id: 'workouts', version: '0.1.0', requires: { tools },
@@ -100,7 +100,7 @@ export default defineExtension({
 
 // A draft that brings its own copy of the contract, without the guard on a tool.
 const SNEAKY = `
-import { defineContract, defineExtension } from '@pip/kernel';
+import { defineContract, defineExtension } from '@vaulter/kernel';
 const tools = defineContract({ name: 'agent.tools', version: '1.0.0' });
 export default defineExtension({
   id: 'workouts', version: '0.1.0', requires: { tools },
@@ -244,12 +244,12 @@ describe('the kernel', () => {
   it('refuses an extension whose setup fails, and what requires it, but starts the rest', async () => {
     const { kernel, refused } = await start({
       ...base,
-      'extensions/notes/index.ts': `import { defineExtension } from '@pip/kernel';
+      'extensions/notes/index.ts': `import { defineExtension } from '@vaulter/kernel';
         import { notes } from '@contracts/notes';
         export default defineExtension({ id: 'notes', version: '1.0.0', provides: { notes },
           setup() { throw new Error('broken'); } });`,
       'extensions/voice/index.ts': VOICE_EXT,
-      'extensions/map/index.ts': `import { defineExtension } from '@pip/kernel';
+      'extensions/map/index.ts': `import { defineExtension } from '@vaulter/kernel';
         export default defineExtension({ id: 'map', version: '1.0.0', setup() {} });`,
     });
     expect(kernel.running().map((r) => r.id)).toEqual(['map']);
@@ -269,7 +269,7 @@ describe('the kernel', () => {
     await expect(n.append('again')).rejects.toThrow(/check-1 is not running/);
   });
 
-  it("applies Pip's access to a guarded callback: read runs, write is logged, ask waits", async () => {
+  it("applies Vaulter's access to a guarded callback: read runs, write is logged, ask waits", async () => {
     const read = await start(tooling('read'));
     expect(await read.kernel.use(toolsContract).call('merge', 'a')).toBe('merged a');
     expect(await read.kernel.policy.audit()).toEqual([]);
@@ -328,9 +328,9 @@ describe('the kernel', () => {
     }) as typeof fetch;
     const { kernel, refused } = await start(
       {
-        'contracts/probe/index.ts': `import { defineContract } from '@pip/kernel';
+        'contracts/probe/index.ts': `import { defineContract } from '@vaulter/kernel';
           export const probe = defineContract<{ run(): Promise<unknown> }>({ name: 'probe', version: '1.0.0' });`,
-        'extensions/openai/index.ts': `import { defineExtension } from '@pip/kernel';
+        'extensions/openai/index.ts': `import { defineExtension } from '@vaulter/kernel';
           import { probe } from '@contracts/probe';
           export default defineExtension({ id: 'openai', version: '1.0.0', provides: { probe },
             secrets: { key: { label: 'OpenAI key', hosts: ['api.openai.com'] } },
@@ -380,7 +380,7 @@ describe('the kernel', () => {
     expect(kernel.running().map((r) => r.id)).toEqual(['notes']);
   });
 
-  it("never lets Pip's own extensions make a personal call, even right after a tap", async () => {
+  it("never lets Vaulter's own extensions make a personal call, even right after a tap", async () => {
     const questions = defineContract<{ answer: (a: string) => Promise<void> }>({
       name: 'questions',
       version: '1.0.0',
@@ -390,8 +390,8 @@ describe('the kernel', () => {
       id: string,
       statics: string,
       imports = '',
-    ) => `import { defineExtension } from '@pip/kernel';
-    import { out } from '@pip/test';
+    ) => `import { defineExtension } from '@vaulter/kernel';
+    import { out } from '@vaulter/test';
       import { questions } from '@contracts/questions';
       ${imports}
       export default defineExtension({ id: '${id}', version: '1.0.0', requires: { questions }, ${statics}
@@ -402,9 +402,9 @@ describe('the kernel', () => {
         } });`;
     const { storage, refused } = await start(
       {
-        'contracts/questions/index.ts': `import { defineContract } from '@pip/kernel';
+        'contracts/questions/index.ts': `import { defineContract } from '@vaulter/kernel';
           export const questions = defineContract({ name: 'questions', version: '1.0.0', personal: ['answer'] });`,
-        'contracts/agent/index.ts': `import { defineContract } from '@pip/kernel';
+        'contracts/agent/index.ts': `import { defineContract } from '@vaulter/kernel';
           export const agent = defineContract({ name: 'agent', version: '1.0.0' });`,
         'extensions/agent/index.ts': caller(
           'agent',
@@ -423,8 +423,10 @@ describe('the kernel', () => {
       },
     );
     expect(refused).toEqual([]);
-    expect(await storage.get('agent', 'out')).toMatch(/is for a person to do; agent is Pip's/);
-    expect(await storage.get('workouts', 'out')).toMatch(/workouts is Pip's/);
+    expect(await storage.get('agent', 'out')).toMatch(
+      /is for a person to do; agent is the agent's own/,
+    );
+    expect(await storage.get('workouts', 'out')).toMatch(/workouts is the agent's own/);
     expect(await storage.get('settings', 'out')).toBe('answered');
   });
 
@@ -441,15 +443,15 @@ describe('the kernel', () => {
     let present = '';
     const { kernel, refused } = await start(
       {
-        'contracts/questions/index.ts': `import { defineContract } from '@pip/kernel';
+        'contracts/questions/index.ts': `import { defineContract } from '@vaulter/kernel';
           export const questions = defineContract<{ ask(q: string): Promise<void>; answer(a: string): Promise<void> }>({
             name: 'questions', version: '1.0.0', personal: ['answer'] });`,
-        'contracts/probe/index.ts': `import { defineContract } from '@pip/kernel';
+        'contracts/probe/index.ts': `import { defineContract } from '@vaulter/kernel';
           export const probe = defineContract<{ run(): Promise<string[]> }>({ name: 'probe', version: '1.0.0' });`,
-        'extensions/pip/index.ts': `import { defineExtension } from '@pip/kernel';
+        'extensions/asker/index.ts': `import { defineExtension } from '@vaulter/kernel';
           import { questions } from '@contracts/questions';
           import { probe } from '@contracts/probe';
-          export default defineExtension({ id: 'pip', version: '1.0.0', requires: { questions }, provides: { probe },
+          export default defineExtension({ id: 'asker', version: '1.0.0', requires: { questions }, provides: { probe },
             setup({ questions }) { return { probe: { async run() {
               const out = [];
               await questions.ask('which Ada?');
@@ -471,14 +473,14 @@ describe('the kernel', () => {
     expect(await probe.run()).toEqual([
       'questions@1.answer is for a person to do, right after a tap or key',
     ]);
-    present = 'pip';
+    present = 'asker';
     expect(await probe.run()).toEqual(['answered']);
     expect(answers).toEqual(['the first']);
   });
 
   it('starts an extension without an optional contract nothing provides, and with it when present', async () => {
-    const user = `import { defineExtension } from '@pip/kernel';
-    import { out } from '@pip/test';
+    const user = `import { defineExtension } from '@vaulter/kernel';
+    import { out } from '@vaulter/test';
       import { notes } from '@contracts/notes';
       export default defineExtension({ id: 'wiki', version: '1.0.0', optional: { notes },
         async setup({ notes }, kernel) {

@@ -1,6 +1,6 @@
 // Chat with a language model: messages in, a message (with any tool calls) out. Provided by an AI
 // extension (openai); the agent and anything that summarises or extracts require it.
-import { defineContract } from '@pip/kernel';
+import { defineContract } from '@vaulter/kernel';
 import { z } from 'zod';
 
 export type JsonSchema = Record<string, unknown>;

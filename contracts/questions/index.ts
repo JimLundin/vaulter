@@ -1,8 +1,8 @@
-// Questions: how Pip asks when something is unclear, contradicts what was said before, or is a change it
-// isn't sure of (ARCHITECTURE.md, "Pip proposes, you approve"). An extension asks under a topic of its
+// Questions: how Vaulter asks when something is unclear, contradicts what was said before, or is a change it
+// isn't sure of (ARCHITECTURE.md, "Vaulter proposes, you approve"). An extension asks under a topic of its
 // own and handles answers under that topic; answers that arrive while it isn't running are delivered
-// when it next registers its handler. Answering is personal: Pip can't answer its own questions.
-import { defineContract } from '@pip/kernel';
+// when it next registers its handler. Answering is personal: Vaulter can't answer its own questions.
+import { defineContract } from '@vaulter/kernel';
 import { z } from 'zod';
 import { RecordRef } from '@contracts/records';
 

@@ -1,8 +1,8 @@
-// Questions (questions@1): what Pip and other extensions ask the person, kept as records so they survive
+// Questions (questions@1): what Vaulter and other extensions ask the person, kept as records so they survive
 // a restart. An asker handles answers under its own topics; an answer that arrives while the asker isn't
 // running waits until it registers its handler again. Answering is personal (the kernel lets only a
 // person do it), so no extension can answer its own question.
-import { defineExtension, perCaller } from '@pip/kernel';
+import { defineExtension, perCaller } from '@vaulter/kernel';
 import {
   Answer,
   NewQuestion,

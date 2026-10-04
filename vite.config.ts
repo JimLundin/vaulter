@@ -6,7 +6,7 @@ import { defineConfig, type Plugin } from 'vite';
 
 const at = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 const alias = [
-  { find: '@pip/kernel', replacement: at('src/kernel/api.ts') },
+  { find: '@vaulter/kernel', replacement: at('src/kernel/api.ts') },
   { find: /^@contracts\/([^/]+)$/, replacement: at('contracts/$1/index.ts') },
   { find: /^@contracts\/(.+)$/, replacement: at('contracts/$1') },
 ];

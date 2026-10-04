@@ -3,7 +3,7 @@ import { singleTab } from './single-tab.ts';
 
 const deps = () => ({
   locks: navigator.locks,
-  channel: () => new BroadcastChannel('pip-kernel-test'),
+  channel: () => new BroadcastChannel('vaulter-kernel-test'),
 });
 
 it('lets one tab have the kernel, and hands it over when another asks', async () => {

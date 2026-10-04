@@ -25,13 +25,14 @@ export async function start(opts: StartOptions) {
   // One tab at a time has the kernel; this one waits until the person moves Vaulter here.
   const tab = singleTab();
   if (!(await tab.claim())) {
-    const moved = sessionStorage.getItem('pip-moved') === '1';
-    sessionStorage.removeItem('pip-moved');
+    const moved = sessionStorage.getItem('vaulter-moved') === '1';
+    sessionStorage.removeItem('vaulter-moved');
     await standbyScreen(tab, moved);
   }
 
-  // The database the kernel shared with extensions' storage; store-local keeps its own now.
-  indexedDB.deleteDatabase('pip-data');
+  // Databases of earlier versions: the kernel's under its old name, and the one it shared with
+  // extensions' storage (store-local keeps its own now).
+  for (const old of ['pip-kernel', 'pip-data']) indexedDB.deleteDatabase(old);
   const browser: Device = {
     keep: idbKeep(),
     url: (code) => URL.createObjectURL(new Blob([code], { type: 'text/javascript' })),
@@ -49,7 +50,7 @@ export async function start(opts: StartOptions) {
       // into the waiting screen.
       tab.onTakeOver(async () => {
         kernel.dispose();
-        sessionStorage.setItem('pip-moved', '1');
+        sessionStorage.setItem('vaulter-moved', '1');
         setTimeout(() => location.reload(), 50);
       });
     },

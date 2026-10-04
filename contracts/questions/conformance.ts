@@ -1,5 +1,5 @@
 // What every provider of questions@1 must do.
-import { defineConformance } from '@pip/kernel';
+import { defineConformance } from '@vaulter/kernel';
 import { questions } from './index.ts';
 
 const wait = () => new Promise((ok) => setTimeout(ok, 20));
