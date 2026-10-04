@@ -180,7 +180,7 @@ Secrets are held by the kernel, never by an extension's own code. An extension d
 | --- | --- | --- |
 | `PIP_PASSWORD` | secret | The password: 16 characters at least, long and random is best, since the sealed file is public |
 | `PIP_SALT` | variable | 16 random bytes, base64 (`openssl rand -base64 16`), set once: devices then take each new deploy without the password |
-| `PIP_SECRET__<EXTENSION>__<NAME>` | secret | One per secret: `PIP_SECRET__OPENAI__KEY` is `openai/key`, `PIP_SECRET__SOURCE_GITHUB__TOKEN` is `source-github/token` |
+| `PIP_SECRET__<EXTENSION>__<NAME>` | secret | One per secret: `PIP_SECRET__OPENAI__KEY` is `openai/key`, `PIP_SECRET__SOURCE_GITHUB__TOKEN` is `source-github/token`. Each is named in the seal step of `deploy.yml`, so the step sees only these |
 
 The deploy seals in a step of its own, after the install, so no dependency's script runs with the secrets in its environment. A new key: change the secret and deploy; devices pick it up on their next start. A new password or salt: devices ask once more.
 

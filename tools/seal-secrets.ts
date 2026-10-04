@@ -1,7 +1,7 @@
 // Seals the secrets into the built page: node tools/seal-secrets.ts dist/secrets.json
 // In CI (deploy.yml), from the repo's secrets: PIP_PASSWORD, and one PIP_SECRET__<EXTENSION>__<NAME> per
 // secret ("PIP_SECRET__OPENAI__KEY" → openai/key, "PIP_SECRET__SOURCE_GITHUB__TOKEN" →
-// source-github/token), given as PIP_SECRETS_JSON (`toJSON(secrets)`) or as plain variables. PIP_SALT
+// source-github/token), each named in deploy.yml (or given together as PIP_SECRETS_JSON). PIP_SALT
 // (16 bytes, base64; a repo variable, set once) keeps the salt the same across deploys, so devices
 // that unlocked once take each new file without asking again.
 import { writeFile } from 'node:fs/promises';

@@ -50,10 +50,12 @@ jobs:
       # A step of its own, after the install: no dependency's script runs with the secrets around.
       - name: Seal the secrets in
         env:
-          # The password, the salt, and every secret named PIP_SECRET__<EXTENSION>__<NAME>.
+          # The password, the salt, and each secret to seal, as PIP_SECRET__<EXTENSION>__<NAME>: a new
+          # one is a line here and a secret of that name in the repo's settings.
           PIP_PASSWORD: ${{ secrets.PIP_PASSWORD }}
           PIP_SALT: ${{ vars.PIP_SALT }}
-          PIP_SECRETS_JSON: ${{ toJSON(secrets) }}
+          PIP_SECRET__OPENAI__KEY: ${{ secrets.PIP_SECRET__OPENAI__KEY }}
+          PIP_SECRET__SOURCE_GITHUB__TOKEN: ${{ secrets.PIP_SECRET__SOURCE_GITHUB__TOKEN }}
         run: node tools/seal-secrets.ts dist/secrets.json
       - uses: actions/upload-pages-artifact@v4
         with: { path: dist }
