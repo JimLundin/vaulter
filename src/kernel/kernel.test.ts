@@ -324,15 +324,16 @@ describe('the kernel', () => {
   });
 
   it("follows the person's setting over the declared level, and tells the holder", async () => {
-    const settings: Record<string, 'read' | 'write' | 'ask'> = { 'workouts/tool:merge': 'ask' };
-    const { kernel } = await start(tooling('read'), { access: () => settings });
+    const { kernel, booted } = await start(tooling('read'), {
+      access: { 'workouts/tool:merge': 'ask' },
+    });
     expect(await kernel.use(toolsContract).level('merge')).toBe('ask');
     void kernel.use(toolsContract).call('merge', 'x');
     await vi.waitFor(() => expect(kernel.policy.approvals()).toHaveLength(1));
     expect([...kernel.policy.known.values()]).toEqual([
       { ext: 'workouts', label: 'tool:merge', declared: 'read' },
     ]);
-    delete settings['workouts/tool:merge'];
+    await booted.config.setAccess('workouts', 'tool:merge', null);
     expect(await kernel.use(toolsContract).level('merge')).toBe('read');
   });
 

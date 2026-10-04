@@ -1,7 +1,7 @@
 // Safe mode: a bare screen, in plain DOM and part of the kernel, that works whatever an extension does.
 // From here: choose the repo and branch, pin a commit (a rollback), turn extensions and drafts off, and
 // set secrets.
-import type { State } from './start.ts';
+import type { Booted } from './boot.ts';
 
 type Child = Node | string | null | undefined | false;
 
@@ -25,7 +25,7 @@ body { margin: 0; font: 15px/1.5 system-ui, sans-serif; color-scheme: light dark
 .safe small { opacity: .7; }
 `;
 
-export async function safeMode(s: State) {
+export async function safeMode(s: Booted) {
   const config = s.config.get();
   const refs = s.src ? await s.src.refs(config.repo).catch(() => [] as string[]) : [];
   const problems = new Map(s.refused.map((r) => [r.id, r.problems]));
@@ -65,7 +65,7 @@ export async function safeMode(s: State) {
     'form',
     { class: 'safe' },
     h('h1', {}, 'Vaulter: safe mode'),
-    s.error && h('p', { class: 'problem' }, s.error),
+    s.safe?.reason && h('p', { class: 'problem' }, s.safe.reason),
     h(
       'fieldset',
       {},
@@ -125,14 +125,10 @@ export async function safeMode(s: State) {
     void (async () => {
       const data = new FormData(form as HTMLFormElement);
       const text = (k: string) => String(data.get(k) ?? '').trim();
-      await s.config.update((c) => ({
-        ...c,
-        repo: text('repo') || c.repo,
-        ref: text('ref') || c.ref,
-        pin: text('pin') || undefined,
-        disabled: s.found.filter((id) => !data.has(`on:${id}`)),
-        drafts: drafts.filter((b) => data.has(`draft:${b}`)),
-      }));
+      // The same changes the kernel contract makes, one at a time: what isn't on the form stays.
+      await s.config.setSource({ repo: text('repo'), ref: text('ref'), pin: text('pin') || null });
+      for (const id of s.found) await s.config.setEnabled(id, data.has(`on:${id}`));
+      for (const b of drafts) await s.config.tryDraft(b, data.has(`draft:${b}`));
       for (const [k, v] of data) {
         if (!(k.startsWith('secret:') && typeof v === 'string' && v !== '')) continue;
         const [ext, name] = k.slice('secret:'.length).split('/');

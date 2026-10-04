@@ -1,14 +1,18 @@
-// Running the kernel in tests: the same kernel as in the browser, fed from a tree of source strings,
-// with modules as data: URLs and memory storage.
+// Running the kernel in tests: the same boot as in the browser (boot.ts), on a test device that stands
+// in for one: modules as data: URLs, memory storage, and a source made of strings.
+import type { SourceV1 } from '@contracts/extensions.source';
 import { describe, expect, it } from 'vitest';
+import type { Access } from './access.ts';
+import { boot, type Device } from './boot.ts';
+import { type Config, defaultConfig } from './config.ts';
 import type { Suite } from './conformance.ts';
-import type { AnyContract } from './contract.ts';
 import { runSuite } from './conformance.ts';
-import { Kernel, type KernelOptions } from './kernel.ts';
-import { planAll, planner, type Tree } from './loader.ts';
-import { type KernelKeep, secretStore } from './secrets.ts';
+import type { AnyContract } from './contract.ts';
+import type { Tree } from './loader.ts';
+import type { KernelKeep } from './secrets.ts';
 import { memoryStorage } from './storage.ts';
 
+/** The shared modules tests offer extensions. */
 export const SHARED = ['@pip/kernel', 'zod'] as const;
 
 export const memoryKeep = (): KernelKeep => {
@@ -31,44 +35,119 @@ export const treeOf = (files: Record<string, string>, commit = 'test0000'): Tree
   files: new Map(Object.keys(files).map((p) => [p, `${p}@${files[p].length}`])),
 });
 
-/** A kernel over `files`, with every extension in them planned and started. */
-export async function startTree(
-  files: Record<string, string>,
-  opts: Partial<KernelOptions> & {
-    choose?: Record<string, string>;
-    /** The kernel's own providers, given before anything starts. */
-    provide?: [AnyContract, object][];
-  } = {},
-) {
-  const storage = opts.storage ?? memoryStorage();
-  const keep = memoryKeep();
-  const kernel = new Kernel({
+export const REPO = 'o/r';
+
+const sha1 = async (text: string) =>
+  [...new Uint8Array(await crypto.subtle.digest('SHA-1', new TextEncoder().encode(text)))]
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+
+/** A source over branches of files, each branch one commit: path → text. Set `offline` to make every
+ * read of the repo fail, as with no network; `merge` and `checks` may be replaced. */
+export function testSource(branches: Record<string, Record<string, string>>) {
+  const t = {
+    branches,
+    offline: false,
+    merged: [] as { base: string; head: string; message: string }[],
+    source: undefined as unknown as SourceV1,
+  };
+  const reach = () => {
+    if (t.offline) throw new TypeError('Failed to fetch');
+  };
+  const commitOf = async (ref: string) => {
+    const files = t.branches[ref];
+    if (!files) throw new Error(`no branch ${ref}`);
+    return `${ref.replaceAll('/', '-')}-${(await sha1(JSON.stringify(files))).slice(0, 8)}`;
+  };
+  const filesAt = async (commit: string) => {
+    for (const ref of Object.keys(t.branches))
+      if ((await commitOf(ref)) === commit) return t.branches[ref];
+    throw new Error(`no commit ${commit}`);
+  };
+  t.source = {
+    head: async (_repo, ref) => {
+      reach();
+      return commitOf(ref);
+    },
+    tree: async (_repo, commit) => {
+      reach();
+      const files = await filesAt(commit);
+      return Promise.all(
+        Object.entries(files).map(async ([path, text]) => ({ path, sha: await sha1(text) })),
+      );
+    },
+    read: async (_repo, path, sha) => {
+      reach();
+      for (const files of Object.values(t.branches))
+        if (path in files && (await sha1(files[path])) === sha) return files[path];
+      throw new Error(`no ${path} at ${sha}`);
+    },
+    refs: async () => Object.keys(t.branches),
+    commit: () => Promise.reject(new Error('the test source does not take commits')),
+    merge: async (_repo, base, head, message) => {
+      t.merged.push({ base, head, message });
+      t.branches[base] = { ...t.branches[base], ...t.branches[head] };
+      return commitOf(base);
+    },
+    checks: async () => ({ state: 'none', runs: [] }),
+  };
+  return t;
+}
+
+/** The test device: memory storage, data: URLs for compiled code, no sealed file and no person. */
+export function testDevice(over: Partial<Device> = {}): Device {
+  return {
+    keep: memoryKeep(),
+    storage: memoryStorage(),
     url: (code) => `data:text/javascript;base64,${Buffer.from(code).toString('base64')}`,
     load: (url) => import(/* @vite-ignore */ url),
-    shared: { '@pip/kernel': await import('./api.ts'), zod: await import('zod') },
-    secrets: opts.secrets ?? secretStore(memoryKeep()),
-    storage,
-    keep,
-    ...opts,
+    sealedFile: () => Promise.resolve(null),
+    askPassword: () => Promise.resolve(),
+    restart: () => undefined,
+    ...over,
+  };
+}
+
+export interface TreeOptions extends Partial<Omit<Device, 'keep'>> {
+  keep?: KernelKeep;
+  /** This device's settings before it boots. */
+  config?: Partial<Config>;
+  access?: Record<string, Access>;
+  choose?: Record<string, string>;
+  /** The kernel's own providers, given before anything starts. */
+  provide?: [AnyContract, object][];
+  /** More branches beside main (drafts), path → text. */
+  branches?: Record<string, Record<string, string>>;
+  safe?: boolean;
+}
+
+/** Boots a test device on `files` as the main branch, with every extension in them started. */
+export async function startTree(files: Record<string, string>, opts: TreeOptions = {}) {
+  const { config, access, choose, provide, branches, safe, ...over } = opts;
+  const device = testDevice(over);
+  const src = testSource({ main: files, ...branches });
+  await device.keep.set('config', {
+    ...defaultConfig(`${REPO}@main`),
+    ...config,
+    access: { ...config?.access, ...access },
+    choose: { ...config?.choose, ...choose },
   });
-  for (const [c, impl] of opts.provide ?? []) kernel.provide(c, impl);
-  const tree = treeOf(files);
-  const deps = { read: (p: string) => Promise.resolve(files[p]), shared: SHARED };
-  const { plans, refused } = await planAll(tree, deps);
-  const p = planner(tree, deps);
-  const started = await kernel.start(plans, {
-    choose: opts.choose,
-    conformance: async (c) => {
-      const path = `contracts/${c.name}/conformance.ts`;
-      return tree.files.has(path) ? p.plan(path) : null;
-    },
+  const booted = await boot(device, {
+    source: { provide: src.source },
+    defaultSource: `${REPO}@main`,
+    shared: { '@pip/kernel': await import('./api.ts'), zod: await import('zod') },
+    provide,
+    safe,
   });
   return {
-    kernel,
-    storage,
-    keep,
-    refused: [...refused, ...started.refused],
-    started: started.started,
+    booted,
+    src,
+    device,
+    kernel: booted.kernel,
+    storage: device.storage,
+    keep: device.keep,
+    refused: booted.refused,
+    started: booted.started,
   };
 }
 

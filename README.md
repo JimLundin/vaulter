@@ -8,7 +8,7 @@ viewer over the `JimLundin/vault` repo, is in `main`'s history before the `pip` 
 
 | Where | What |
 |---|---|
-| `src/kernel/` | the kernel: the loader and compiler, the resolver, the handles and their policy (Pip's access, approvals), secrets (sealed ones too), storage, drafts, the `kernel` contract's implementation, start-up, the unlock screen and safe mode. Built into the app's one bundle |
+| `src/kernel/` | the kernel: the loader and compiler, the resolver, the handles and their policy (Pip's access, approvals), secrets (sealed ones too), storage, drafts, the `kernel` contract's implementation, boot (`boot.ts`, with this browser as its device in `start.ts`), the unlock screen and safe mode. Built into the app's one bundle |
 | `tools/` | CI only: `seal-secrets.ts`, which seals the secrets into the built page |
 | `contracts/<name>/` | one contract each: its interface, Zod schemas for every input, a client when the wire needs adapting, and a conformance suite every provider must pass |
 | `extensions/<id>/` | one extension each, exporting `defineExtension({...})`; compiled in the browser from the repo and loaded into the page |
@@ -37,9 +37,10 @@ Every contract method is async, and goes through a kernel handle that checks it 
 | `npm run lint` / `npm run format` | Biome: check (CI), or fix in place. 2 spaces, single quotes, semicolons, trailing commas, 100 columns |
 
 All code is TypeScript with only erasable syntax and `import type` for types (`tsconfig.json`), which is
-also what the in-browser compiler (Sucrase) expects. Tests run extensions on the same kernel as the browser
-(`src/kernel/testing.ts`: `startTree` for a tree of source strings, `conformanceInVitest` for a
-contract's suite against a provider).
+also what the in-browser compiler (Sucrase) expects. Tests boot the same way as the browser, on a
+test device that stands in for one (`src/kernel/testing.ts`: `startTree` for a tree of source strings
+as the main branch, with drafts beside it if wanted; `startRepo` for the repo's own extensions;
+`conformanceInVitest` for a contract's suite against a provider).
 
 ## Running it
 
