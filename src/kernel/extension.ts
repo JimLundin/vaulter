@@ -1,8 +1,9 @@
 // An extension: one `defineExtension({...})` per folder in extensions/. Its static fields are plain values
 // the kernel validates before any of its code runs; `setup` runs once they are accepted, with handles
-// only for the contracts it requires (ARCHITECTURE-pip.md, "The extension format").
+// only for the contracts it requires (ARCHITECTURE.md, "The extension format").
 import { z } from 'zod';
 import { type AnyContract, ContractName, type Impl, Version } from './contract.ts';
+import type { PerCaller } from './per-caller.ts';
 
 const contractHandle = z.custom<AnyContract>(
   (c) => typeof c === 'object' && c !== null && (c as AnyContract).kind === 'contract',
@@ -59,7 +60,8 @@ export interface KernelApi {
 
 type Contracts = Record<string, AnyContract>;
 export type Ctx<R extends Contracts> = { [K in keyof R]: Impl<R[K]> };
-export type Provided<P extends Contracts> = { [K in keyof P]: Impl<P[K]> };
+/** What setup returns for each contract it provides: the implementation, or one per caller. */
+export type Provided<P extends Contracts> = { [K in keyof P]: Impl<P[K]> | PerCaller<Impl<P[K]>> };
 // biome-ignore lint/suspicious/noConfusingVoidType: a setup that provides nothing returns nothing
 type SetupResult<P extends Contracts> = keyof P extends never ? void : Provided<P>;
 

@@ -1,28 +1,24 @@
 /// <reference types="vitest/config" />
-// The browser app (app/) and the tests for it and for the shared vault code (core/).
+// The kernel bundle: src/kernel and the bootstrap extensions it ships with. Every other extension and
+// every contract is compiled in the browser from the repo (ARCHITECTURE.md, "The kernel").
 import { defineConfig, type Plugin } from 'vite';
-import react from '@vitejs/plugin-react';
-import tailwindcss from '@tailwindcss/vite';
 import { fileURLToPath } from 'node:url';
 
-const SITE = fileURLToPath(new URL('.', import.meta.url));
+const at = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 
-// The built page's Content Security Policy: script only from the app itself (no eval, no inline), network
-// only to GitHub, OpenAI, Jina (the agent's web tools: they fetch pages, the browser never does), the map
-// tiles, and for a capture's metadata OpenStreetMap's geocoder (an address) and open-meteo (the weather). Styles may be inline (React style props, Shiki's colours).
+// The built page's Content Security Policy. Compiled extensions run as blob: modules; network goes only
+// to GitHub (the source) and OpenAI. Styles may be inline (React style props).
 const csp = (): Plugin => ({
   name: 'csp',
   apply: 'build',
   transformIndexHtml(html) {
-    const api = new URL(process.env.VITE_GITHUB_API || 'https://api.github.com').origin;
-    const ai = new URL(process.env.VITE_OPENAI_API || 'https://api.openai.com').origin;
     const policy = [
       "default-src 'none'",
-      "script-src 'self'",
-      "worker-src 'self'",
+      "script-src 'self' blob:",
+      "worker-src 'self' blob:",
       "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: https://tile.openstreetmap.org",
-      `connect-src 'self' ${api} ${ai} https://s.jina.ai https://r.jina.ai https://nominatim.openstreetmap.org https://api.open-meteo.com`,
+      "img-src 'self' data: blob:",
+      "connect-src 'self' https://api.github.com https://api.openai.com",
       "font-src 'self'",
       "base-uri 'none'",
       "form-action 'none'",
@@ -35,33 +31,15 @@ const csp = (): Plugin => ({
 });
 
 export default defineConfig({
-  root: 'app',
   base: './',
-  plugins: [react(), tailwindcss(), csp()],
-  // shadcn/ui's imports: @/components/ui/…, @/lib/utils.
-  resolve: { alias: { '@': fileURLToPath(new URL('app', import.meta.url)) } },
-  build: {
-    outDir: '../dist',
-    emptyOutDir: true,
-    // The service worker is its own entry at the root (its scope is the app); everything else is hashed.
-    rolldownOptions: {
-      input: {
-        index: fileURLToPath(new URL('app/index.html', import.meta.url)),
-        sw: fileURLToPath(new URL('app/core/sw.ts', import.meta.url)),
-      },
-      output: { entryFileNames: (c) => (c.name === 'sw' ? 'sw.js' : 'assets/[name]-[hash].js') },
-    },
-  },
-  define: {
-    __BUILD__: JSON.stringify(Date.now().toString(36)),
-    __COMMIT__: JSON.stringify((process.env.GITHUB_SHA ?? '').slice(0, 7)),
-  },
-  test: {
-    root: SITE,
-    include: [
-      'app/**/*.test.{ts,tsx}',
-      'core/**/*.test.ts',
-      '{src,contracts,extensions}/**/*.test.{ts,tsx}',
+  plugins: [csp()],
+  resolve: {
+    alias: [
+      { find: '@pip/kernel', replacement: at('src/kernel/api.ts') },
+      { find: /^@contracts\/([^/]+)$/, replacement: at('contracts/$1/index.ts') },
+      { find: /^@contracts\/(.+)$/, replacement: at('contracts/$1') },
     ],
   },
+  build: { outDir: 'dist', emptyOutDir: true },
+  test: { include: ['{src,contracts,extensions}/**/*.test.{ts,tsx}'] },
 });

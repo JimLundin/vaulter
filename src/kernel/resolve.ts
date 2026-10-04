@@ -30,8 +30,13 @@ export interface Candidate {
   ext: unknown;
 }
 
-/** `choose` settles two providers of the same contract: contract key → extension id. */
-export function resolve(candidates: Candidate[], choose: Record<string, string> = {}): Resolution {
+/** `choose` settles two providers of the same contract: contract key → extension id. `started` are
+ * extensions already running (the bootstrap set), which provide but are not resolved again. */
+export function resolve(
+  candidates: Candidate[],
+  choose: Record<string, string> = {},
+  started: { id: string; statics: Statics }[] = [],
+): Resolution {
   const refused = new Map<string, string[]>();
   const refuse = (id: string, problem: string) =>
     refused.set(id, [...(refused.get(id) ?? []), problem]);
@@ -52,18 +57,21 @@ export function resolve(candidates: Candidate[], choose: Record<string, string> 
       continue;
     }
     if (typeof def.setup !== 'function') refuse(id, 'setup: not a function');
-    else if (valid.has(id)) refuse(id, `two extensions have the id "${id}"`);
+    else if (valid.has(id) || started.some((x) => x.id === id))
+      refuse(id, `two extensions have the id "${id}"`);
     else valid.set(id, { statics: parsed.data, def });
   }
 
   // Leave out, until nothing changes, whatever can't be wired to the extensions still in.
   const live = new Set(valid.keys());
+  const running = new Map(started.map((x) => [x.id, x.statics]));
+  const staticsOf = (id: string) => valid.get(id)?.statics ?? running.get(id)!;
   const wiring = new Map<string, Record<string, string>>();
   for (let changed = true; changed; ) {
     changed = false;
     const providers = new Map<string, string[]>();
-    for (const id of live)
-      for (const c of Object.values(valid.get(id)!.statics.provides))
+    for (const id of [...running.keys(), ...live])
+      for (const c of Object.values(staticsOf(id).provides))
         providers.set(c.key, [...(providers.get(c.key) ?? []), id]);
 
     for (const id of [...live]) {
@@ -78,9 +86,7 @@ export function resolve(candidates: Candidate[], choose: Record<string, string> 
           problems.push(`requires ${c.key}, provided by ${ids.join(' and ')}: choose one`);
         else if (ids[0] === id) problems.push(`requires ${c.key}, which only it provides`);
         else {
-          const p = Object.values(valid.get(ids[0])!.statics.provides).find(
-            (x) => x.key === c.key,
-          )!;
+          const p = Object.values(staticsOf(ids[0]).provides).find((x) => x.key === c.key)!;
           if (satisfies(p.version, c.version)) wired[as] = ids[0];
           else problems.push(`requires ${c.name} ${c.version}; ${ids[0]} provides ${p.version}`);
         }
@@ -97,6 +103,7 @@ export function resolve(candidates: Candidate[], choose: Record<string, string> 
   const accepted: Accepted[] = [];
   const state = new Map<string, 'visiting' | 'done'>();
   const visit = (id: string, path: string[]): boolean => {
+    if (running.has(id)) return true;
     if (state.get(id) === 'done') return live.has(id);
     if (state.get(id) === 'visiting') {
       const cycle = [...path.slice(path.indexOf(id)), id];

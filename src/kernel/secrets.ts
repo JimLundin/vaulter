@@ -1,4 +1,4 @@
-// Secrets: held by the kernel, never by an extension (ARCHITECTURE-pip.md, "Secrets"). Each is stored
+// Secrets: held by the kernel, never by an extension (ARCHITECTURE.md, "Secrets"). Each is stored
 // encrypted under a per-device key, under its extension's id, and attached by the kernel to requests for
 // the hosts the extension declared for it. Nothing here syncs or reaches the repo.
 import type { KernelApi, Statics } from './extension.ts';

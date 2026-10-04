@@ -1,6 +1,6 @@
 {
-  // One config for the app, the shared vault code, the Node scripts and Pip (src/, contracts/, extensions/). Node 24 runs the .ts files
-  // directly (type stripping), so only erasable syntax, explicit .ts imports and `import type`.
+  // One config for the kernel (src/), the contracts and the extensions. Extensions import the kernel as
+  // @pip/kernel and contracts as @contracts/<name>; the loader resolves the same names in the browser.
   "compilerOptions": {
     "target": "ES2023",
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
@@ -20,7 +20,10 @@
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "types": ["node", "vite/client"],
-    "paths": { "@/*": ["./app/*"] }
+    "paths": {
+      "@pip/kernel": ["./src/kernel/api.ts"],
+      "@contracts/*": ["./contracts/*/index.ts", "./contracts/*"]
+    }
   },
-  "include": ["app", "core", "tools", "src", "contracts", "extensions", "vite.config.ts"]
+  "include": ["src", "contracts", "extensions", "vite.config.ts"]
 }

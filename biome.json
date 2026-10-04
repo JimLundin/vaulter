@@ -2,9 +2,6 @@
   "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
   "files": {
     "includes": [
-      "app/**",
-      "core/**",
-      "tools/**",
       "src/**",
       "contracts/**",
       "extensions/**",
@@ -69,6 +66,9 @@
         "useTopLevelRegex": "off",
         "noJsxPropsBind": "off"
       },
+      "correctness": {
+        "noUndeclaredDependencies": "off"
+      },
       "nursery": {
         "useStrictBooleanExpressions": "off",
         "noFloatingPromises": "error",
@@ -109,7 +109,7 @@
   },
   "overrides": [
     {
-      "includes": ["tools/**", "vite.config.ts"],
+      "includes": ["vite.config.ts"],
       "linter": {
         "rules": {
           "correctness": {
@@ -127,6 +127,16 @@
       }
     },
     {
+      "includes": ["extensions/**", "contracts/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noDefaultExport": "off"
+          }
+        }
+      }
+    },
+    {
       "includes": ["**/*.css"],
       "linter": {
         "rules": {
@@ -137,12 +147,6 @@
             "noDescendingSpecificity": "off"
           }
         }
-      }
-    },
-    {
-      "includes": ["app/components/ui/**", "app/components/ai-elements/**", "app/hooks/**"],
-      "linter": {
-        "enabled": false
       }
     }
   ]

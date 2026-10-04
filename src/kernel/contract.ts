@@ -1,5 +1,5 @@
 // A contract: what one extension provides and others require, by name and version, never by extension
-// id (ARCHITECTURE-pip.md, "The kernel"). A contract package in contracts/ exports one handle made here;
+// id (ARCHITECTURE.md, "The kernel"). A contract package in contracts/ exports one handle made here;
 // the interface is the handle's type, and `inputs` are Zod schemas the broker checks every call against.
 import { z } from 'zod';
 

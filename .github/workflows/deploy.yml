@@ -1,5 +1,6 @@
-# The app's CI: on every push the tests, the type check and lint; on main, build, seal the secrets in, and
-# deploy to GitHub Pages (Settings → Pages → Source: GitHub Actions). Run it by hand after changing a secret.
+# CI: on every push the tests, the type check and lint; on main, build the kernel bundle and deploy it to
+# GitHub Pages (Settings → Pages → Source: GitHub Actions). Extensions aren't built here: the app reads
+# them from the repo at runtime. Nothing secret is in the build; each device holds its own (safe mode).
 name: Deploy
 
 on:
@@ -40,18 +41,9 @@ jobs:
         with: { node-version: 24, cache: npm }
       - name: Build
         env:
-          VITE_OPENAI_API: ${{ vars.VAULT_OPENAI_API }}
-          VITE_VAULT_REPO: ${{ vars.VAULT_REPO }}
-        run: npm ci && npm run build
-      - name: Seal the secrets into it
-        env:
-          VAULT_PASSWORD: ${{ secrets.VAULT_PASSWORD }}
-          VAULT_GITHUB_TOKEN: ${{ secrets.VAULT_GITHUB_TOKEN }}
-          VAULT_OPENAI_KEY: ${{ secrets.VAULT_OPENAI_KEY }}
-          VAULT_JINA_KEY: ${{ secrets.VAULT_JINA_KEY }}
-          VAULT_SALT: ${{ vars.VAULT_SALT }}
+          VITE_PIP_SOURCE: ${{ vars.PIP_SOURCE }}
         run: |
-          node tools/seal-secrets.ts dist/secrets.json
+          npm ci && npm run build
           printf 'User-agent: *\nDisallow: /\n' > dist/robots.txt
           printf '{"commit":"%s"}\n' "$GITHUB_SHA" > dist/version.json
       - uses: actions/upload-pages-artifact@v4
