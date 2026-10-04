@@ -56,5 +56,12 @@ export default defineConfig({
     __BUILD__: JSON.stringify(Date.now().toString(36)),
     __COMMIT__: JSON.stringify((process.env.GITHUB_SHA ?? '').slice(0, 7)),
   },
-  test: { root: SITE, include: ['app/**/*.test.{ts,tsx}', 'core/**/*.test.ts'] },
+  test: {
+    root: SITE,
+    include: [
+      'app/**/*.test.{ts,tsx}',
+      'core/**/*.test.ts',
+      '{src,contracts,extensions}/**/*.test.{ts,tsx}',
+    ],
+  },
 });

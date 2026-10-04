@@ -1,0 +1,124 @@
+// The referee: validates each extension's static fields and wires every `requires` to one `provides`.
+// An extension that can't be wired is left out with its reasons, and so is everything that needed it;
+// the rest still loads (the delete test: removing a feature must not stop the app).
+import { satisfies } from './contract.ts';
+import { type Extension, Statics } from './extension.ts';
+
+export interface Accepted {
+  id: string;
+  statics: Statics;
+  def: Extension['def'];
+  /** For each `requires` key in the definition, the id of the extension that provides it. */
+  wiring: Record<string, string>;
+}
+
+export interface Refused {
+  /** The extension's id, or where it came from when its definition has none. */
+  id: string;
+  problems: string[];
+}
+
+export interface Resolution {
+  /** In an order where every extension comes after the ones it requires. */
+  accepted: Accepted[];
+  refused: Refused[];
+}
+
+export interface Candidate {
+  /** Where it came from ("extensions/wiki"), for problems in a definition with no valid id. */
+  origin: string;
+  ext: unknown;
+}
+
+/** `choose` settles two providers of the same contract: contract key → extension id. */
+export function resolve(candidates: Candidate[], choose: Record<string, string> = {}): Resolution {
+  const refused = new Map<string, string[]>();
+  const refuse = (id: string, problem: string) =>
+    refused.set(id, [...(refused.get(id) ?? []), problem]);
+
+  const valid = new Map<string, { statics: Statics; def: Extension['def'] }>();
+  for (const { origin, ext } of candidates) {
+    const def =
+      (ext as Extension | undefined)?.kind === 'extension' ? (ext as Extension).def : null;
+    if (!def) {
+      refuse(origin, 'the default export is not defineExtension({...})');
+      continue;
+    }
+    const parsed = Statics.safeParse(def);
+    const id = parsed.success ? parsed.data.id : typeof def.id === 'string' ? def.id : origin;
+    if (!parsed.success) {
+      for (const i of parsed.error.issues)
+        refuse(id, `${i.path.join('.') || 'definition'}: ${i.message}`);
+      continue;
+    }
+    if (typeof def.setup !== 'function') refuse(id, 'setup: not a function');
+    else if (valid.has(id)) refuse(id, `two extensions have the id "${id}"`);
+    else valid.set(id, { statics: parsed.data, def });
+  }
+
+  // Leave out, until nothing changes, whatever can't be wired to the extensions still in.
+  const live = new Set(valid.keys());
+  const wiring = new Map<string, Record<string, string>>();
+  for (let changed = true; changed; ) {
+    changed = false;
+    const providers = new Map<string, string[]>();
+    for (const id of live)
+      for (const c of Object.values(valid.get(id)!.statics.provides))
+        providers.set(c.key, [...(providers.get(c.key) ?? []), id]);
+
+    for (const id of [...live]) {
+      const { statics } = valid.get(id)!;
+      const wired: Record<string, string> = {};
+      const problems: string[] = [];
+      for (const [as, c] of Object.entries(statics.requires)) {
+        const all = providers.get(c.key) ?? [];
+        const ids = choose[c.key] && all.includes(choose[c.key]) ? [choose[c.key]] : all;
+        if (ids.length === 0) problems.push(`requires ${c.key}, which nothing installed provides`);
+        else if (ids.length > 1)
+          problems.push(`requires ${c.key}, provided by ${ids.join(' and ')}: choose one`);
+        else if (ids[0] === id) problems.push(`requires ${c.key}, which only it provides`);
+        else {
+          const p = Object.values(valid.get(ids[0])!.statics.provides).find(
+            (x) => x.key === c.key,
+          )!;
+          if (satisfies(p.version, c.version)) wired[as] = ids[0];
+          else problems.push(`requires ${c.name} ${c.version}; ${ids[0]} provides ${p.version}`);
+        }
+      }
+      if (problems.length) {
+        for (const p of problems) refuse(id, p);
+        live.delete(id);
+        changed = true;
+      } else wiring.set(id, wired);
+    }
+  }
+
+  // Order by dependencies; a cycle can't start, so each of its members is refused.
+  const accepted: Accepted[] = [];
+  const state = new Map<string, 'visiting' | 'done'>();
+  const visit = (id: string, path: string[]): boolean => {
+    if (state.get(id) === 'done') return live.has(id);
+    if (state.get(id) === 'visiting') {
+      const cycle = [...path.slice(path.indexOf(id)), id];
+      for (const m of cycle.slice(0, -1)) {
+        refuse(m, `a cycle: ${cycle.join(' → ')}`);
+        live.delete(m);
+      }
+      return false;
+    }
+    state.set(id, 'visiting');
+    let ok = true;
+    for (const dep of Object.values(wiring.get(id)!)) ok = visit(dep, [...path, id]) && ok;
+    state.set(id, 'done');
+    if (!(ok && live.has(id))) {
+      if (live.delete(id)) refuse(id, 'something it requires could not start');
+      return false;
+    }
+    const { statics, def } = valid.get(id)!;
+    accepted.push({ id, statics, def, wiring: wiring.get(id)! });
+    return true;
+  };
+  for (const id of [...live]) visit(id, []);
+
+  return { accepted, refused: [...refused].map(([id, problems]) => ({ id, problems })) };
+}
