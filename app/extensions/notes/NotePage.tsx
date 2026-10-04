@@ -52,6 +52,7 @@ export function NotePage({ note }: { note: Note }) {
   const leadsWithTitle = /^\s*#\s/.test(note.body);
   const name = note.id.split('/').pop()!;
   const href = hrefOf(note);
+  const [more, setMore] = useState(false);
   const article = useRef<HTMLElement>(null);
   const below = useRef<HTMLDivElement>(null);
   const headings = useHeadings(article, note);
@@ -103,14 +104,35 @@ export function NotePage({ note }: { note: Note }) {
       {open.length} open {open.length === 1 ? 'question' : 'questions'}
     </a>
   );
-  // With the rail beside the body, the header keeps only the type: the rest is in the rail.
+  // With the rail beside the body, the header keeps only the type: the rest is in the rail. Without it,
+  // the facets and the last change; the tags and the created date wait behind "+N", so the title sits high.
+  const lastDate = upd && upd !== created ? `updated ${upd}` : created;
+  const extra = [
+    ...tagLinks,
+    ...(!!created && lastDate !== created
+      ? [
+          <span key="created" className="tabular-nums">
+            created {created}
+          </span>,
+        ]
+      : []),
+  ];
   const meta = (
     <>
       {facetBadges}
-      {tagLinks}
-      {!!created && <span className="tabular-nums">{created}</span>}
-      {!!upd && upd !== created && <span className="tabular-nums">updated {upd}</span>}
+      {!!lastDate && <span className="tabular-nums">{lastDate}</span>}
       {openLink}
+      {more ? extra : null}
+      {extra.length > 0 && (
+        <button
+          type="button"
+          aria-expanded={more}
+          onClick={() => setMore(!more)}
+          className="-my-2 inline-flex min-h-8 cursor-pointer items-center rounded-md px-1.5 text-faint tabular-nums hover:text-foreground max-md:-my-3 max-md:min-h-11"
+        >
+          {more ? 'less' : `+${extra.length}`}
+        </button>
+      )}
     </>
   );
   return (
