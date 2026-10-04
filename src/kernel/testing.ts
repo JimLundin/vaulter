@@ -7,26 +7,13 @@ import { type Config, defaultConfig } from './config.ts';
 import type { Suite } from './conformance.ts';
 import type { AnyContract } from './contract.ts';
 import type { Tree } from './loader.ts';
-import type { KernelKeep } from './secrets.ts';
-import { memoryStorage } from './storage.ts';
+import { type KernelKeep, kernelKeep, memoryStorage } from './storage.ts';
 
 /** The shared modules tests offer extensions. */
 export const SHARED = ['@pip/kernel', 'zod'] as const;
 
-export const memoryKeep = (): KernelKeep => {
-  const m = new Map<string, unknown>();
-  return {
-    get: <T>(id: string) => Promise.resolve(m.get(id) as T | undefined),
-    set: (id, v) => {
-      m.set(id, v);
-      return Promise.resolve();
-    },
-    del: (id) => {
-      m.delete(id);
-      return Promise.resolve();
-    },
-  };
-};
+/** The kernel's own state, in memory. */
+export const memoryKeep = (): KernelKeep => kernelKeep(memoryStorage());
 
 export const treeOf = (files: Record<string, string>, commit = 'test0000'): Tree => ({
   commit,
@@ -95,7 +82,6 @@ export function testSource(branches: Record<string, Record<string, string>>) {
 /** The test device: memory storage, data: URLs for compiled code, no sealed file and no person. */
 export function testDevice(over: Partial<Device> = {}): Device {
   return {
-    keep: memoryKeep(),
     storage: memoryStorage(),
     url: (code) => `data:text/javascript;base64,${Buffer.from(code).toString('base64')}`,
     load: (url) => import(/* @vite-ignore */ url),
@@ -106,8 +92,7 @@ export function testDevice(over: Partial<Device> = {}): Device {
   };
 }
 
-export interface TreeOptions extends Partial<Omit<Device, 'keep'>> {
-  keep?: KernelKeep;
+export interface TreeOptions extends Partial<Device> {
   /** This device's settings before it boots. */
   config?: Partial<Config>;
   access?: Record<string, Access>;
@@ -124,7 +109,7 @@ export async function startTree(files: Record<string, string>, opts: TreeOptions
   const { config, access, choose, provide, branches, safe, ...over } = opts;
   const device = testDevice(over);
   const src = testSource({ main: files, ...branches });
-  await device.keep.set('config', {
+  await kernelKeep(device.storage).set('config', {
     ...defaultConfig(`${REPO}@main`),
     ...config,
     access: { ...config?.access, ...access },
@@ -143,7 +128,7 @@ export async function startTree(files: Record<string, string>, opts: TreeOptions
     device,
     kernel: booted.kernel,
     storage: device.storage,
-    keep: device.keep,
+    keep: booted.keep,
     refused: booted.refused,
     started: booted.started,
   };

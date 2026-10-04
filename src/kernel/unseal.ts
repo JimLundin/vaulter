@@ -2,7 +2,8 @@
 // own for every new file sealed with the same salt (the derived key is kept, non-extractable). The
 // secrets go into the kernel's store; nothing else ever sees them.
 import { isSealedFile, keyFor, open, type SealedFile } from './sealed.ts';
-import type { KernelKeep, SecretStore } from './secrets.ts';
+import type { SecretStore } from './secrets.ts';
+import type { KernelKeep } from './storage.ts';
 
 export type SealedState = 'none' | 'imported' | 'locked';
 

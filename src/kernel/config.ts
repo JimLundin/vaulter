@@ -2,7 +2,7 @@
 // (by a person) or in safe mode, both through the operations here. Never synced: each device chooses
 // its own drafts and pins.
 import type { Access } from './access.ts';
-import type { KernelKeep } from './secrets.ts';
+import type { KernelKeep } from './storage.ts';
 
 export interface Config {
   repo: string;

@@ -3,7 +3,6 @@
 // when starting failed outright; it depends on no extension.
 import type { SourceV1 } from '@contracts/extensions.source';
 import { boot, type Device } from './boot.ts';
-import { idbKeep } from './idb.ts';
 import { presence } from './presence.ts';
 import { safeMode } from './safe-mode.ts';
 import { singleTab, standbyScreen } from './single-tab.ts';
@@ -31,8 +30,9 @@ export async function start(opts: StartOptions) {
     await standbyScreen(tab, moved);
   }
 
+  // The kernel's own state used to have a database of its own; it is the "kernel" namespace now.
+  indexedDB.deleteDatabase('pip-kernel');
   const browser: Device = {
-    keep: idbKeep(),
     storage: idbStorage(),
     url: (code) => URL.createObjectURL(new Blob([code], { type: 'text/javascript' })),
     load: (url) => import(/* @vite-ignore */ url),

@@ -2,13 +2,7 @@
 // encrypted under a per-device key, under its extension's id, and attached by the kernel to requests for
 // the hosts the extension declared for it. Nothing here syncs or reaches the repo.
 import type { FetchInit, Statics } from './extension.ts';
-
-/** Where the kernel keeps its own small state; IndexedDB in the browser (idb.ts), a Map in tests. */
-export interface KernelKeep {
-  get: <T>(id: string) => Promise<T | undefined>;
-  set: (id: string, value: unknown) => Promise<void>;
-  del: (id: string) => Promise<void>;
-}
+import type { KernelKeep } from './storage.ts';
 
 interface Sealed {
   iv: Uint8Array<ArrayBuffer>;

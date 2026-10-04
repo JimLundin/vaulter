@@ -170,5 +170,7 @@ export function readStatics(folder: string, def: Extension['def']): Statics {
     );
   if (parsed.data.id !== folder)
     throw new Error(`its id is "${parsed.data.id}"; it must be its folder's name`);
+  // The kernel's own storage namespace, and its own name as a caller.
+  if (parsed.data.id === 'kernel') throw new Error('"kernel" is the kernel\'s own id');
   return parsed.data;
 }

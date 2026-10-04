@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import type { Kernel } from './kernel.ts';
 import { seal } from './sealed.ts';
-import { memoryKeep, REPO, startTree, testSource } from './testing.ts';
+import { REPO, startTree, testSource } from './testing.ts';
 import { boot } from './boot.ts';
 import { testDevice } from './testing.ts';
 
@@ -107,7 +107,7 @@ describe('boot', () => {
 
     const src = testSource({ main: {} });
     src.offline = true;
-    const failed = await boot(testDevice({ keep: memoryKeep() }), {
+    const failed = await boot(testDevice(), {
       source: { provide: src.source },
       defaultSource: `${REPO}@main`,
       shared: await shared(),

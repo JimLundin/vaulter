@@ -178,6 +178,9 @@ describe('resolve', () => {
     expect(() => readStatics('other', def({ id: 'notes', version: '1.0.0' }))).toThrow(
       /must be its folder's name/,
     );
+    expect(() => readStatics('kernel', def({ id: 'kernel', version: '1.0.0' }))).toThrow(
+      /the kernel's own id/,
+    );
   });
 
   it('refuses what requires a contract nothing provides, and starts the rest', () => {

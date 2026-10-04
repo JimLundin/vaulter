@@ -1,5 +1,6 @@
 // Every extension's own storage, kept by the kernel in one IndexedDB database: a namespace per
-// extension, dropped when the extension is removed.
+// extension, dropped when the extension is removed. The kernel's own state (settings, secrets, trees,
+// compiled output, its logs) is the namespace "kernel", which no extension can take as its id.
 export interface KernelStorage {
   get: (ns: string, key: string) => Promise<unknown>;
   set: (ns: string, key: string, value: unknown) => Promise<void>;
@@ -7,6 +8,19 @@ export interface KernelStorage {
   list: (ns: string, prefix: string) => Promise<[string, unknown][]>;
   drop: (ns: string) => Promise<void>;
 }
+
+/** The kernel's own state: its namespace of the storage. */
+export interface KernelKeep {
+  get: <T>(id: string) => Promise<T | undefined>;
+  set: (id: string, value: unknown) => Promise<void>;
+  del: (id: string) => Promise<void>;
+}
+
+export const kernelKeep = (s: KernelStorage): KernelKeep => ({
+  get: <T>(id: string) => s.get('kernel', id) as Promise<T | undefined>,
+  set: (id, value) => s.set('kernel', id, value),
+  del: (id) => s.delete('kernel', id),
+});
 
 const done = <T>(r: IDBRequest<T>) =>
   new Promise<T>((ok, fail) => {

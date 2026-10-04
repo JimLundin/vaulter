@@ -82,7 +82,7 @@ Values otherwise pass as they are, not copied: a React component, a Zod schema o
 
 **Personal methods.** A contract can mark methods only a person may call: answering a question, approving, changing access, accepting a draft, unlocking the sealed secrets. An extension wraps the event handlers of its own screen with `kernel.asPerson`; a person's tap or key there (a trusted event) lets that extension, and only it, make one personal call within a few seconds, while the browser still counts the gesture as recent (`src/kernel/presence.ts`). A second call needs a second tap. Pip's own extensions never pass: the one providing `agent@1`, and any extension whose author is Pip, are refused a personal call even right after a tap, so Pip can't approve its own proposals.
 
-**What every extension gets from the kernel** (the second argument to `setup`): `storage`, a namespace of its own in the kernel's IndexedDB, dropped when the extension is removed; `fetch`, https only, to its declared hosts, with a secret attached by the kernel when asked for (the host list is a declaration the review screen shows, not a wall: code in the page can call the browser's `fetch` too, and the page's Content-Security-Policy is what limits where anything goes); `hasSecret`; `onStop`; and `asPerson`, for the handlers of its own screen.
+**What every extension gets from the kernel** (the second argument to `setup`): `storage`, a namespace of its own in IndexedDB (the kernel's state is one more namespace, `kernel`), dropped when the extension is removed; `fetch`, https only, to its declared hosts, with a secret attached by the kernel when asked for (the host list is a declaration the review screen shows, not a wall: code in the page can call the browser's `fetch` too, and the page's Content-Security-Policy is what limits where anything goes); `hasSecret`; `onStop`; and `asPerson`, for the handlers of its own screen.
 
 **Stopping.** An extension can stop without a page reload: turned off, reloaded with a draft's new commit, removed, or with every other one when the tab hands Vaulter over. Stopping one stops first everything that requires it, since they hold handles on it. For each, in that order:
 
@@ -181,14 +181,14 @@ The code, compiler, loader and contracts are the same at every stage; only the b
 - **Reviewing a draft** compares the two trees and each changed extension's static fields, read by loading it, and lists in plain words what it newly asks for: a host, a device, a secret, or a powerful contract such as `kernel@1` or `extensions.source@1`. CI's checks on the draft's head come with it.
 - **Rollback** is reverting the merge, or pinning the app to an earlier commit from safe mode.
 - **Boot** (`src/kernel/boot.ts`) goes from a device and a source to a running kernel, or to safe mode with the reason: the tree at the branch or the pinned commit (offline, the last one this device loaded), the tried drafts on top, every extension planned and started, the `kernel` contract provided. The device is a browser (`start.ts` adds only the one-tab lock, the window's error listeners and the screens); tests boot the same way on a test device. Boot compiles each file once and caches the output by blob sha, so a new commit recompiles only what changed. If that gets slow, CI can publish compiled output beside the source.
-- **Offline,** the service worker serves the kernel, and the last tree and compiled output are in the kernel's IndexedDB, so the app opens without reaching GitHub.
+- **Offline,** the service worker serves the kernel, and the last tree and compiled output are in IndexedDB, in the kernel's namespace, so the app opens without reaching GitHub.
 - **Pip gets no special access.** Its extension's permissions and secrets are part of what you review, and raising them later takes a new draft.
 
 ## Secrets
 
 Secrets are held by the kernel, never by an extension's own code. An extension declares which secrets it needs and the hosts each one is for; it asks `kernel.fetch(url, { secret: 'key' })`, and the kernel attaches the value only to requests for those hosts. Code in the page could reach the store directly (there is no sandbox), so this keeps well-behaved extensions from handling secrets at all, rather than walling them off.
 
-**On a device**, secrets are kept in the kernel's IndexedDB (`pip-kernel`), each under `secret:<extension>/<name>`, encrypted with AES-GCM under a per-device key that can't be exported. They never sync between devices.
+**On a device**, secrets are kept in IndexedDB (`pip-data`, in the kernel's own namespace `kernel`, beside every extension's), each under `secret:<extension>/<name>`, encrypted with AES-GCM under a per-device key that can't be exported. They never sync between devices.
 
 **Sealed in the page.** So that a device needs no typing, CI seals every secret into `dist/secrets.json` (`tools/seal-secrets.ts`): one file encrypted with a key derived from a password (PBKDF2, 600,000 rounds; AES-GCM), public like the rest of the page. On a device's first start the kernel asks for the password once, on a bare screen of its own (`src/kernel/unlock-screen.ts`), and moves the secrets into the device's store. It keeps the derived key, so a later deploy sealed with the same salt is taken without asking. A settings screen can do the same through the kernel contract's personal `unlock`; it never sees a secret.
 
@@ -394,7 +394,7 @@ Three patterns repeat across these screens:
 | Pip's access | Read, write and ask attach to functions a contract guards (a tool's `run`), so no requirer can leave the guard off; the person's setting overrides the declared level. |
 | What only a person may do | Contract methods marked personal pass once per tap or key in the calling extension's own screen (`kernel.asPerson`); never for the agent or an extension Pip wrote. |
 | The kernel's own screens | A `kernel@1` contract the kernel provides; the screens are extensions. |
-| Offline | A service worker for the kernel's files; trees and compiled output in the kernel's IndexedDB. |
+| Offline | A service worker for the kernel's files; trees and compiled output in IndexedDB, in the kernel's namespace. |
 | Secrets on a new device | Sealed into the page by CI with a password; the kernel asks for it once per device. |
 | Turning an extension off, a draft swap | Live: stopping runs onStop, releases it with providers and silences its functions; dependants stop first. |
 | Errors | Kept per extension at the handle boundary and by stack for uncaught ones; failing after five in a minute. |

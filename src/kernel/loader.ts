@@ -9,7 +9,7 @@
 // Anything else is a problem for that extension alone; the others still load.
 import type { Compiled } from './compile.ts';
 import type { Refused } from './resolve.ts';
-import type { KernelKeep } from './secrets.ts';
+import type { KernelKeep } from './storage.ts';
 
 /** A commit's files under extensions/ and contracts/, by path, with each one's blob sha. */
 export interface Tree {

@@ -19,15 +19,14 @@ import {
 } from './loader.ts';
 import type { Presence } from './presence.ts';
 import type { Refused } from './resolve.ts';
-import { type KernelKeep, type SecretStore, secretStore } from './secrets.ts';
-import type { KernelStorage } from './storage.ts';
+import { type SecretStore, secretStore } from './secrets.ts';
+import { type KernelKeep, type KernelStorage, kernelKeep } from './storage.ts';
 import { type Unsealer, unsealer } from './unseal.ts';
 
 /** What differs between devices: a browser, or the test device that stands in for one. */
 export interface Device {
-  /** The kernel's own state: settings, secrets, trees and compiled output. */
-  keep: KernelKeep;
-  /** Every extension's storage. */
+  /** Every extension's storage, and the kernel's own state (settings, secrets, trees, compiled
+   * output) as its namespace "kernel". */
   storage: KernelStorage;
   /** The secret store; by default one over `keep`. */
   secrets?: SecretStore;
@@ -86,7 +85,7 @@ export interface Booted {
 const SHELL = 'ui.shell@1';
 
 export async function boot(device: Device, opts: BootOptions): Promise<Booted> {
-  const { keep } = device;
+  const keep = kernelKeep(device.storage);
   const secrets = device.secrets ?? secretStore(keep);
   const config = await configStore(keep, opts.defaultSource);
   const kernel = new Kernel({
