@@ -121,6 +121,10 @@ export default defineConformance(records, [
         (await r.search([place], 'café', { fields: ['name', 'aliases'] })).map((x) => x.name),
         ['Café Lumière'],
       );
+      t.equal(
+        (await r.search([place], 'café')).map((x) => x.name),
+        ['The library', 'Café Lumière'],
+      );
       // Not the metadata: every record has a type and an id.
       t.equal(await r.search([place], place.name.split('/')[0]), []);
     },

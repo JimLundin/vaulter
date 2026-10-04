@@ -99,7 +99,7 @@ export interface RecordsWire {
   get: (type: string, id: string, opts?: { deleted?: boolean }) => Promise<Stored | undefined>;
   query: (type: string, q?: Query) => Promise<Stored[]>;
   /** Records of `types` whose text fields (or `fields`, strings and arrays of them) contain every
-   * word of `text`. */
+   * word of `text`, the latest created first. */
   search: (
     types: string[],
     text: string,

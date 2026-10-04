@@ -200,6 +200,7 @@ export function localRecords(storage: ExtStorage) {
           ).join(' ');
           return want.every((w) => hay.includes(w));
         });
+        hit.sort((a, b) => b.meta.created.localeCompare(a.meta.created));
         return hit.slice(0, opts.limit);
       },
 
