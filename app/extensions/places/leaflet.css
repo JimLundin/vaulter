@@ -1,2 +1,0 @@
-/* Leaflet's stylesheet, loaded with the map, in the base layer so places.css and Tailwind win over it. */
-@import "leaflet/dist/leaflet.css" layer(base);
