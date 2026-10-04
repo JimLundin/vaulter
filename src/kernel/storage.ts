@@ -1,26 +1,12 @@
-// Every extension's own storage, kept by the kernel in one IndexedDB database: a namespace per
-// extension, dropped when the extension is removed. The kernel's own state (settings, secrets, trees,
-// compiled output, its logs) is the namespace "kernel", which no extension can take as its id.
-export interface KernelStorage {
-  get: (ns: string, key: string) => Promise<unknown>;
-  set: (ns: string, key: string, value: unknown) => Promise<void>;
-  delete: (ns: string, key: string) => Promise<void>;
-  list: (ns: string, prefix: string) => Promise<[string, unknown][]>;
-  drop: (ns: string) => Promise<void>;
-}
-
-/** The kernel's own state: its namespace of the storage. */
+// The kernel's own state: settings, secrets, trees and compiled output, the audit and error logs. It
+// is the kernel's alone, in a database of its own, because the kernel needs it before any extension
+// has loaded and safe mode needs it when none works. Extensions keep their data through records@1,
+// whose provider owns its own storage.
 export interface KernelKeep {
   get: <T>(id: string) => Promise<T | undefined>;
   set: (id: string, value: unknown) => Promise<void>;
   del: (id: string) => Promise<void>;
 }
-
-export const kernelKeep = (s: KernelStorage): KernelKeep => ({
-  get: <T>(id: string) => s.get('kernel', id) as Promise<T | undefined>,
-  set: (id, value) => s.set('kernel', id, value),
-  del: (id) => s.delete('kernel', id),
-});
 
 const done = <T>(r: IDBRequest<T>) =>
   new Promise<T>((ok, fail) => {
@@ -28,59 +14,41 @@ const done = <T>(r: IDBRequest<T>) =>
     r.onerror = () => fail(r.error);
   });
 
-const END = '￿';
-
-/** In IndexedDB, keyed by [namespace, key]. */
-export function idbStorage(name = 'pip-data'): KernelStorage {
+/** In IndexedDB, in the browser. */
+export function idbKeep(name = 'pip-kernel'): KernelKeep {
   let db: Promise<IDBDatabase> | undefined;
   const store = async (mode: IDBTransactionMode) => {
     db ??= new Promise((ok, fail) => {
       const r = indexedDB.open(name, 1);
-      r.onupgradeneeded = () => r.result.createObjectStore('data');
+      r.onupgradeneeded = () => r.result.createObjectStore('keep');
       r.onsuccess = () => ok(r.result);
       r.onerror = () => fail(r.error);
     });
-    return (await db).transaction('data', mode).objectStore('data');
+    return (await db).transaction('keep', mode).objectStore('keep');
   };
-  const range = (ns: string, prefix: string) => IDBKeyRange.bound([ns, prefix], [ns, prefix + END]);
   return {
-    get: async (ns, key) => done((await store('readonly')).get([ns, key])),
-    async set(ns, key, value) {
-      await done((await store('readwrite')).put(value, [ns, key]));
+    get: async <T>(id: string) => done<T | undefined>((await store('readonly')).get(id)),
+    set: async (id, value) => {
+      await done((await store('readwrite')).put(value, id));
     },
-    async delete(ns, key) {
-      await done((await store('readwrite')).delete([ns, key]));
-    },
-    async list(ns, prefix) {
-      const s = await store('readonly');
-      const r = range(ns, prefix);
-      const [keys, values] = await Promise.all([done(s.getAllKeys(r)), done(s.getAll(r))]);
-      return keys.map((k, i) => [(k as [string, string])[1], values[i]]);
-    },
-    async drop(ns) {
-      await done((await store('readwrite')).delete(range(ns, '')));
+    del: async (id) => {
+      await done((await store('readwrite')).delete(id));
     },
   };
 }
 
 /** In memory, for tests. */
-export function memoryStorage(): KernelStorage {
-  const m = new Map<string, Map<string, unknown>>();
-  const of = (ns: string) => {
-    if (!m.has(ns)) m.set(ns, new Map());
-    return m.get(ns)!;
-  };
+export function memoryKeep(): KernelKeep {
+  const m = new Map<string, unknown>();
   return {
-    get: (ns, key) => Promise.resolve(structuredClone(of(ns).get(key))),
-    set: (ns, key, value) => Promise.resolve(void of(ns).set(key, structuredClone(value))),
-    delete: (ns, key) => Promise.resolve(void of(ns).delete(key)),
-    list: (ns, prefix) =>
-      Promise.resolve(
-        [...of(ns)]
-          .filter(([k]) => k.startsWith(prefix))
-          .sort(([a], [b]) => (a < b ? -1 : 1))
-          .map(([k, v]) => [k, structuredClone(v)] as [string, unknown]),
-      ),
-    drop: (ns) => Promise.resolve(void m.delete(ns)),
+    get: <T>(id: string) => Promise.resolve(m.get(id) as T | undefined),
+    set: (id, v) => {
+      m.set(id, v);
+      return Promise.resolve();
+    },
+    del: (id) => {
+      m.delete(id);
+      return Promise.resolve();
+    },
   };
 }

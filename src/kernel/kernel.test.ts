@@ -24,6 +24,7 @@ export const notes = defineContract<NotesV1>({
 // Notes, kept in the kernel's storage for this extension.
 const NOTES_EXT = `
 import { defineExtension } from '@pip/kernel';
+import { out } from '@pip/test';
 import { notes } from '@contracts/notes';
 export default defineExtension({
   id: 'notes', version: '1.0.0', provides: { notes },
@@ -32,13 +33,13 @@ export default defineExtension({
     return { notes: {
       async append(text: string) {
         if (!text) throw new Error('empty');
-        const n = ((await kernel.storage.get<number>('n')) ?? 0) + 1;
-        await kernel.storage.set('n', n);
-        await kernel.storage.set('note:' + n, text);
+        const n = ((await out.get('notes', 'n')) ?? 0) + 1;
+        await out.set('notes', 'n', n);
+        await out.set('notes', 'note:' + n, text);
         for (const h of handlers) await h(text);
         return n;
       },
-      count: async () => (await kernel.storage.get<number>('n')) ?? 0,
+      count: async () => (await out.get('notes', 'n')) ?? 0,
       async onAppended(h: (t: string) => void) { handlers.add(h); return () => { handlers.delete(h); }; },
     } };
   },
@@ -47,13 +48,14 @@ export default defineExtension({
 // A requirer that subscribes and appends.
 const VOICE_EXT = `
 import { defineExtension } from '@pip/kernel';
+import { out } from '@pip/test';
 import { notes } from '@contracts/notes';
 export default defineExtension({
   id: 'voice', version: '1.0.0', requires: { notes },
   async setup({ notes }, kernel) {
     await notes.onAppended(async (t) => {
-      const seen = (await kernel.storage.get<string[]>('seen')) ?? [];
-      await kernel.storage.set('seen', [...seen, t]);
+      const seen = (await out.get('voice', 'seen')) ?? [];
+      await out.set('voice', 'seen', [...seen, t]);
     });
     await notes.append('from voice');
   },
@@ -365,11 +367,16 @@ describe('the kernel', () => {
     ]);
   });
 
-  it('removes an extension with its data', async () => {
-    const { kernel, storage } = await start({ ...base, 'extensions/voice/index.ts': VOICE_EXT });
-    expect(await storage.get('voice', 'seen')).toEqual(['from voice']);
+  it('removes an extension: its secrets go, and its handles refuse', async () => {
+    const secrets = secretStore(memoryKeep());
+    await secrets.set('voice', 'token', 'pk.1');
+    const voice = VOICE_EXT.replace(
+      "id: 'voice', version: '1.0.0', requires: { notes },",
+      "id: 'voice', version: '1.0.0', requires: { notes }, secrets: { token: { label: 'T', hosts: ['api.example.com'] } },",
+    );
+    const { kernel } = await start({ ...base, 'extensions/voice/index.ts': voice }, { secrets });
     await kernel.remove('voice');
-    expect(await storage.get('voice', 'seen')).toBeUndefined();
+    expect(await secrets.has('voice', 'token')).toBe(false);
     expect(kernel.running().map((r) => r.id)).toEqual(['notes']);
   });
 
@@ -384,12 +391,13 @@ describe('the kernel', () => {
       statics: string,
       imports = '',
     ) => `import { defineExtension } from '@pip/kernel';
+    import { out } from '@pip/test';
       import { questions } from '@contracts/questions';
       ${imports}
       export default defineExtension({ id: '${id}', version: '1.0.0', requires: { questions }, ${statics}
         async setup({ questions }, kernel) {
-          try { await questions.answer('yes'); await kernel.storage.set('out', 'answered'); }
-          catch (e) { await kernel.storage.set('out', e.message); }
+          try { await questions.answer('yes'); await out.set('${id}', 'out', 'answered'); }
+          catch (e) { await out.set('${id}', 'out', e.message); }
           return ${id === 'agent' ? '{ agent: {} }' : 'undefined'};
         } });`;
     const { storage, refused } = await start(
@@ -470,10 +478,11 @@ describe('the kernel', () => {
 
   it('starts an extension without an optional contract nothing provides, and with it when present', async () => {
     const user = `import { defineExtension } from '@pip/kernel';
+    import { out } from '@pip/test';
       import { notes } from '@contracts/notes';
       export default defineExtension({ id: 'wiki', version: '1.0.0', optional: { notes },
         async setup({ notes }, kernel) {
-          await kernel.storage.set('had', notes ? await notes.count() : 'none');
+          await out.set('wiki', 'had', notes ? await notes.count() : 'none');
         } });`;
     const without = await start({
       'contracts/notes/index.ts': NOTES,

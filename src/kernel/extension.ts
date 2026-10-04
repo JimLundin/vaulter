@@ -65,25 +65,14 @@ export interface FetchInit {
   secret?: string;
 }
 
-/** The extension's own storage, kept by the kernel in a namespace of its own; it goes when the
- * extension is removed. Values are anything structured clone copies. */
-export interface ExtStorage {
-  get: <T>(key: string) => Promise<T | undefined>;
-  set: (key: string, value: unknown) => Promise<void>;
-  delete: (key: string) => Promise<void>;
-  /** Entries whose key starts with `prefix`, in key order. */
-  list: <T>(prefix?: string) => Promise<[string, T][]>;
-}
-
-/** What the kernel gives every extension besides its contracts: storage of its own, and a fetch that
- * attaches its secrets, so no extension handles either itself. */
+/** What the kernel gives every extension besides its contracts: a fetch that attaches its secrets, so
+ * no extension handles one itself. Data is kept through records@1. */
 export interface KernelApi {
   readonly id: string;
   /** https only, to the extension's declared hosts. */
   fetch: (url: string, init?: FetchInit) => Promise<Response>;
   /** Whether a secret the extension declared is set, without revealing it. */
   hasSecret: (name: string) => Promise<boolean>;
-  storage: ExtStorage;
   /** Wraps an event handler of the extension's own screen: a person's tap or key on it lets this
    * extension make one personal call (approving, answering) within a few seconds. */
   asPerson: <A extends [{ isTrusted?: boolean } | undefined, ...unknown[]], R>(
@@ -167,7 +156,7 @@ export function readStatics(folder: string, def: Extension['def']): Statics {
     );
   if (parsed.data.id !== folder)
     throw new Error(`its id is "${parsed.data.id}"; it must be its folder's name`);
-  // The kernel's own storage namespace, and its own name as a caller.
+  // The kernel's own name as a caller.
   if (parsed.data.id === 'kernel') throw new Error('"kernel" is the kernel\'s own id');
   return parsed.data;
 }

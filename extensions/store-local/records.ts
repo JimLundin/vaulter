@@ -1,4 +1,4 @@
-// records@1 over the kernel's storage for this extension (one namespace, IndexedDB underneath). Keys:
+// records@1 over store-local's own database (store.ts: IndexedDB in the browser). Keys:
 //   format                       the layout below, so a later store-local can tell what it reads
 //   t:<type>                     the type: its version now
 //   r:<type>:<id>                a record as it is now, a tombstone included
@@ -6,7 +6,6 @@
 // Each value is checked and shaped by its type's own Zod, given at registration. Queries read a type's
 // records and filter in memory: plenty for one person's data. Changes to one record run one after
 // another (this page is the only one with the kernel), so an update always starts from the last.
-import type { ExtStorage } from '@pip/kernel';
 import type {
   Filter,
   Migration,
@@ -17,6 +16,7 @@ import type {
   Stored,
 } from '@contracts/records';
 import { z } from 'zod';
+import type { Store } from './store.ts';
 
 export const FORMAT = 2;
 
@@ -50,7 +50,7 @@ const matches = (v: unknown, f: Filter) => {
 
 const fieldsOf = ({ id: _, meta: _m, ...fields }: Stored) => fields;
 
-export function localRecords(storage: ExtStorage) {
+export function localRecords(storage: Store) {
   const listeners = new Map<string, Set<(c: Stored) => void>>();
   const format = (async () => {
     const at = await storage.get<number>('format');

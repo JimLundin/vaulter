@@ -2,7 +2,7 @@
 // that label, or else the level the extension declared. Write calls are logged; ask calls wait in
 // `pending` until the person decides, through the kernel contract (contracts/kernel).
 import type { Access, Guard } from './access.ts';
-import type { KernelStorage } from './storage.ts';
+import type { KernelKeep } from './storage.ts';
 
 export interface GuardedCall {
   /** The extension calling. */
@@ -36,7 +36,6 @@ export class Declined extends Error {
   override name = 'Declined';
 }
 
-const NS = 'kernel';
 const AUDIT_MAX = 1000;
 
 export class Policy {
@@ -49,11 +48,11 @@ export class Policy {
   readonly known = new Map<string, { ext: string; label: string; declared: Access }>();
   private n = 0;
 
-  private readonly storage: KernelStorage;
+  private readonly keep: KernelKeep;
   private readonly settings: () => Record<string, Access>;
 
-  constructor(storage: KernelStorage, settings: () => Record<string, Access>) {
-    this.storage = storage;
+  constructor(keep: KernelKeep, settings: () => Record<string, Access>) {
+    this.keep = keep;
     this.settings = settings;
   }
 
@@ -102,7 +101,7 @@ export class Policy {
   }
 
   async audit(limit = 100): Promise<AuditEntry[]> {
-    const all = ((await this.storage.get(NS, 'audit')) as AuditEntry[] | undefined) ?? [];
+    const all = (await this.keep.get<AuditEntry[]>('audit')) ?? [];
     return all.slice(-limit).reverse();
   }
 
@@ -112,7 +111,7 @@ export class Policy {
   }
 
   private async log(call: GuardedCall, access: Access, outcome: AuditEntry['outcome']) {
-    const all = ((await this.storage.get(NS, 'audit')) as AuditEntry[] | undefined) ?? [];
+    const all = (await this.keep.get<AuditEntry[]>('audit')) ?? [];
     all.push({
       at: new Date().toISOString(),
       from: call.from,
@@ -121,6 +120,6 @@ export class Policy {
       access,
       outcome,
     });
-    await this.storage.set(NS, 'audit', all.slice(-AUDIT_MAX));
+    await this.keep.set('audit', all.slice(-AUDIT_MAX));
   }
 }

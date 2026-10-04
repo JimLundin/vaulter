@@ -13,7 +13,6 @@ export {
 export {
   defineExtension,
   type Extension,
-  type ExtStorage,
   type FetchInit,
   type KernelApi,
 } from './extension.ts';

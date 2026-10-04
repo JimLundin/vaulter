@@ -2,6 +2,7 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, expect, it } from 'vitest';
+import { records } from '@contracts/records';
 import type { Kernel } from './kernel.ts';
 import { startTree } from './testing.ts';
 
@@ -31,6 +32,7 @@ it('starts store-local and serves another extension its records', async () => {
     ...read('extensions/store-local'),
     'extensions/people/index.ts': `
       import { defineExtension } from '@pip/kernel';
+      import { out } from '@pip/test';
       import { records } from '@contracts/records';
       import { z } from 'zod';
       export default defineExtension({
@@ -46,7 +48,7 @@ it('starts store-local and serves another extension its records', async () => {
           await records.onChanged(v2, (c) => { seen.push(c.first); });
           await records.create(v2, { first: 'Grace', last: 'Hopper' });
           await new Promise((ok) => setTimeout(ok, 20));
-          await kernel.storage.set('result', { ada: await records.get(v2, ada.id), all: (await records.query(v2)).length, seen });
+          await out.set('people', 'result', { ada: await records.get(v2, ada.id), all: (await records.query(v2)).length, seen });
         },
       });`,
   };
@@ -66,7 +68,10 @@ it('starts store-local and serves another extension its records', async () => {
   });
   expect(result.all).toBe(2);
   expect(result.seen).toEqual(['Grace']);
-  // The records live in store-local's namespace, under people's.
-  const keys = (await r.storage.list('store-local', 'r:')).map(([k]) => k.split(':')[1]);
-  expect(new Set(keys)).toEqual(new Set(['people/person']));
+  // Removing people removes its records with store-local.
+  const person = { kind: 'record-type', name: 'people/person', version: 2 } as const;
+  const reader = kernel.caller('check-1');
+  expect(await reader.use(records, 'store-local').query(person)).toHaveLength(2);
+  await kernel.remove('people');
+  expect(await reader.use(records, 'store-local').query(person)).toEqual([]);
 });

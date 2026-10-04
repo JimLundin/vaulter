@@ -36,17 +36,18 @@ export default defineExtension({ id: 'bus', version: '1.0.0', provides: { bus },
 
 const listener = (id: string, extra = '') => `
 import { defineExtension } from '@pip/kernel';
+import { out } from '@pip/test';
 import { bus } from '@contracts/bus';
 export default defineExtension({ id: '${id}', version: '1.0.0', requires: { bus }, ${extra}
   async setup({ bus }, kernel) {
-    const runs = ((await kernel.storage.get('runs')) ?? 0) + 1;
-    await kernel.storage.set('runs', runs);
+    const runs = ((await out.get('${id}', 'runs')) ?? 0) + 1;
+    await out.set('${id}', 'runs', runs);
     const h = async (t) => {
       if (t === 'boom') throw new Error('handler broke');
-      await kernel.storage.set('heard', [...((await kernel.storage.get('heard')) ?? []), t]);
+      await out.set('${id}', 'heard', [...((await out.get('${id}', 'heard')) ?? []), t]);
     };
     await bus.on(h);
-    await kernel.storage.set('same', await bus.same(h, h));
+    await out.set('${id}', 'same', await bus.same(h, h));
   } });`;
 
 const files = {
@@ -90,7 +91,7 @@ describe('errors', () => {
       ['call', 'handler broke'],
     ]);
     // Kept for the next start's safe mode.
-    expect(Object.keys((await r.storage.get('kernel', 'errors')) as object)).toContain('a');
+    expect(Object.keys((await r.keep.get<object>('errors')) ?? {})).toContain('a');
   });
 
   it('are traced to an extension by the source URL of its modules', () => {

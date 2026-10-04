@@ -37,7 +37,7 @@ What remains are the jobs an extension can't do for itself:
 | Validate each extension's definition and resolve contracts: match each `requires` to a `provides`, check versions | Extensions can't wire themselves without a referee |
 | Route every call between extensions and check it: that the caller requires the contract, that a callback was handed to it, Pip's read, write and ask, and that a person's own actions come from a person | An extension can't police its own access; Pip's read, write and ask settings are enforced here |
 | Hold secrets (and open the page's sealed ones) and attach them to requests for declared hosts only | One place that knows them, so no extension has to |
-| Load each extension into the page, and give it its own storage and a `fetch` that attaches secrets | Every extension, built-in or Pip's, gets the same services the same way |
+| Load each extension into the page, and give it a `fetch` that attaches secrets | Every extension, built-in or Pip's, gets the same services the same way |
 | Choose which branch or commit to load, and roll back | Needed before any extension has loaded |
 | Safe mode: a bare screen to switch branch, roll back or disable extensions | Recovery when a broken shell hides the app |
 | Provide the `kernel` contract: the extensions, their access, approvals, drafts and review | Only the kernel knows what it loaded and why; the screens for it are extensions |
@@ -53,10 +53,10 @@ What remains are the jobs an extension can't do for itself:
  │ shell-*   voice   wiki   agent   openai   …              │   each provides and requires contracts
  └───────┬──────────────────────────────────────────┬───────┘
          │ calls through kernel handles: checked,   │
-         │ guarded, storage and fetch per extension │
+         │ guarded, a fetch per extension           │
  ┌───────▼──────────────────────────────────────────▼───────┐
  │ kernel: loader · resolver · handles · policy · secrets · │   source-github's source and safe
- │         sealed secrets · storage · safe mode             │   mode ship inside it
+ │         sealed secrets · its own state · safe mode       │   mode ship inside it
  └──────────────────────────────────────────────────────────┘
 ```
 
@@ -82,7 +82,7 @@ Values otherwise pass as they are, not copied: a React component, a Zod schema o
 
 **Personal methods.** A contract can mark methods only a person may call: answering a question, approving, changing access, accepting a draft, unlocking the sealed secrets. An extension wraps the event handlers of its own screen with `kernel.asPerson`; a person's tap or key there (a trusted event) lets that extension, and only it, make one personal call within a few seconds, while the browser still counts the gesture as recent (`src/kernel/presence.ts`). A second call needs a second tap. Pip's own extensions never pass: the one providing `agent@1`, and any extension whose author is Pip, are refused a personal call even right after a tap, so Pip can't approve its own proposals.
 
-**What every extension gets from the kernel** (the second argument to `setup`): `storage`, a namespace of its own in IndexedDB (the kernel's state is one more namespace, `kernel`), dropped when the extension is removed; `fetch`, https only, to its declared hosts, with a secret attached by the kernel when asked for (the host list is a declaration the review screen shows, not a wall: code in the page can call the browser's `fetch` too, and the page's Content-Security-Policy is what limits where anything goes); `hasSecret`; and `asPerson`, for the handlers of its own screen.
+**What every extension gets from the kernel** (the second argument to `setup`): `fetch`, https only, to its declared hosts, with a secret attached by the kernel when asked for (the host list is a declaration the review screen shows, not a wall: code in the page can call the browser's `fetch` too, and the page's Content-Security-Policy is what limits where anything goes); `hasSecret`; and `asPerson`, for the handlers of its own screen. No storage: an extension keeps its data through `records@1`, whose provider owns where it goes (store-local: its own IndexedDB database; a git-backed one later). The kernel keeps only its own state (settings, secrets, trees, compiled output, its logs) in a database of its own, `pip-kernel`, because it needs it before any extension loads and safe mode needs it when none works.
 
 **Starting again is the page's job.** Nothing stops one extension at a time. Turning an extension on or off, removing one, or trying a draft saves the change and starts the app again: a page reload, which with the compile cache takes about a second and leaves nothing of the old run behind. A tab that hands Vaulter over makes every handle refuse, then reloads.
 
@@ -132,7 +132,7 @@ The definition has two parts:
 - Zod, when the kernel loads an extension's static fields, and wherever data comes from outside typed code: tool inputs, record fields, a model's answers. A contract may give Zod `inputs` for a method like that; none does today.
 - Conformance suites (`contracts/<name>/conformance.ts`), which CI runs on every push, draft branches included, against every extension in the repo that provides the contract, through real kernel handles (`contracts/conformance.test.ts`). The kernel doesn't run them when it starts; a device won't try a draft whose CI checks failed.
 
-**Separation.** Each extension's data lives in its own namespace, in the kernel's storage and with the storage provider, and it is meant to reach others only through the contracts it requires, so removing it removes its namespace and nothing else. This is the design every extension follows, not a wall: see "Running in the page".
+**Separation.** Each extension's data lives with the records provider, in the extension's own namespace, and it is meant to reach others only through the contracts it requires, so removing it removes its records (the provider's `forget`) and nothing else. This is the design every extension follows, not a wall: see "Running in the page".
 
 ## How Pip uses extensions
 
@@ -175,14 +175,14 @@ The code, compiler, loader and contracts are the same at every stage; only the b
 - **Reviewing a draft** compares the two trees and each changed extension's static fields, read by loading it, and lists in plain words what it newly asks for: a host, a device, a secret, or a powerful contract such as `kernel@1` or `extensions.source@1`. CI's checks on the draft's head come with it.
 - **Rollback** is reverting the merge, or pinning the app to an earlier commit from safe mode.
 - **Boot** (`src/kernel/boot.ts`) goes from a device and a source to a running kernel, or to safe mode with the reason: the tree at the branch or the pinned commit (offline, the last one this device loaded), the tried drafts on top, every extension planned and started, the `kernel` contract provided. The device is a browser (`start.ts` adds only the one-tab lock, the window's error listeners and the screens); tests boot the same way on a test device. Boot compiles each file once and caches the output by blob sha, so a new commit recompiles only what changed. If that gets slow, CI can publish compiled output beside the source.
-- **Offline,** the service worker serves the kernel, and the last tree and compiled output are in IndexedDB, in the kernel's namespace, so the app opens without reaching GitHub.
+- **Offline,** the service worker serves the kernel, and the last tree and compiled output are in the kernel's own database, so the app opens without reaching GitHub.
 - **Pip gets no special access.** Its extension's permissions and secrets are part of what you review, and raising them later takes a new draft.
 
 ## Secrets
 
 Secrets are held by the kernel, never by an extension's own code. An extension declares which secrets it needs and the hosts each one is for; it asks `kernel.fetch(url, { secret: 'key' })`, and the kernel attaches the value only to requests for those hosts. Code in the page could reach the store directly (there is no sandbox), so this keeps well-behaved extensions from handling secrets at all, rather than walling them off.
 
-**On a device**, secrets are kept in IndexedDB (`pip-data`, in the kernel's own namespace `kernel`, beside every extension's), each under `secret:<extension>/<name>`, encrypted with AES-GCM under a per-device key that can't be exported. They never sync between devices.
+**On a device**, secrets are kept in the kernel's own IndexedDB database (`pip-kernel`), each under `secret:<extension>/<name>`, encrypted with AES-GCM under a per-device key that can't be exported. They never sync between devices.
 
 **Sealed in the page.** So that a device needs no typing, CI seals every secret into `dist/secrets.json` (`tools/seal-secrets.ts`): one file encrypted with a key derived from a password (PBKDF2, 600,000 rounds; AES-GCM), public like the rest of the page. On a device's first start the kernel asks for the password once, on a bare screen of its own (`src/kernel/unlock-screen.ts`), and moves the secrets into the device's store. It keeps the derived key, so a later deploy sealed with the same salt is taken without asking. A settings screen can do the same through the kernel contract's personal `unlock`; it never sees a secret.
 
@@ -381,14 +381,15 @@ Three patterns repeat across these screens:
 | Secrets | Held by the kernel, attached only to requests for declared hosts; never in the repo, never synced. |
 | Live transcription | OpenAI Realtime API, inside the `openai` extension behind `ai.realtime@1`, using a short-lived session key minted from your key. |
 | Direct browser calls to OpenAI | Confirmed working in your trial project; no proxy. |
-| Storage for records and embeddings | An extension that provides `records@1` (`store-local`, on the kernel's storage). Others can replace it by passing the conformance suite in CI. |
+| Where extensions keep data | Through `records@1` only: the kernel gives no storage. |
+| Storage for records and embeddings | An extension that provides `records@1` (`store-local`, in its own IndexedDB database). Others can replace it by passing the conformance suite in CI. |
 | Sync and backup of data | Extensions, such as a Git backup requiring `notes@1` and `records@1`, kept separate from the code repo. |
 | Isolation | None: every extension runs in the kernel's page, drafts too. The kernel's checks keep well-behaved code and Pip's model in line; review keeps bad code out of `main`. WebAssembly modules if isolation is ever needed. |
 | Calls between extensions | Through kernel handles: personal methods, guarded functions wrapped by the policy; values pass uncopied. TypeScript checks the arguments, not the kernel. A contract is one interface, with no adapter between the two sides. |
 | Pip's access | Read, write and ask attach to functions a contract guards (a tool's `run`), so no requirer can leave the guard off; the person's setting overrides the declared level. |
 | What only a person may do | Contract methods marked personal pass once per tap or key in the calling extension's own screen (`kernel.asPerson`); never for the agent or an extension Pip wrote. |
 | The kernel's own screens | A `kernel@1` contract the kernel provides; the screens are extensions. |
-| Offline | A service worker for the kernel's files; trees and compiled output in IndexedDB, in the kernel's namespace. |
+| Offline | A service worker for the kernel's files; trees and compiled output in the kernel's own database. |
 | Secrets on a new device | Sealed into the page by CI with a password; the kernel asks for it once per device. |
 | Turning an extension off, a draft swap | Save the change and start the app again (a page reload, from the cache); no extension is stopped one at a time. |
 | Errors | Kept per extension, by the stack: at the handle boundary and for uncaught ones. |
@@ -409,7 +410,7 @@ The extensions so far, each tested with the others (`startRepo` in `src/kernel/t
 
 | Extension | Provides | Requires (optional) | Notes |
 | --- | --- | --- | --- |
-| `store-local` | `records@1` | | On the kernel's storage, with every revision kept and a format number for its layout; passes the records suite |
+| `store-local` | `records@1` | | In its own IndexedDB database, with every revision kept and a format number for its layout; passes the records suite |
 | `notes` | `notes@1` | `records` | Append-only; lists by when a note was said |
 | `questions` | `questions@1` | `records` | Answers reach the asker's topic handler, also after a restart; answering is personal |
 | `openai` | `ai.chat`, `ai.realtime` | | The Responses API (tool calling for current models needs it), `store: false` with the encrypted reasoning sent back as a turn's `state`; realtime keys from `/v1/realtime/client_secrets`, WebRTC at `/v1/realtime/calls`. Default models in `extensions/openai/index.ts` |

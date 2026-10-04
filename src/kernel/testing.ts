@@ -1,5 +1,7 @@
 // Running the kernel in tests: the same boot as in the browser (boot.ts), on a test device that stands
-// in for one: modules as data: URLs, memory storage, and a source made of strings.
+// in for one: modules as data: URLs, the kernel's state in memory, and a source made of strings.
+// Fixture extensions report what they saw through `out`, the shared module @pip/test, which tests
+// read back as `storage`.
 import type { SourceV1 } from '@contracts/extensions.source';
 import type { Access } from './access.ts';
 import { boot, type Device } from './boot.ts';
@@ -7,13 +9,29 @@ import { type Config, defaultConfig } from './config.ts';
 import type { Suite } from './conformance.ts';
 import type { AnyContract } from './contract.ts';
 import type { Tree } from './loader.ts';
-import { type KernelKeep, kernelKeep, memoryStorage } from './storage.ts';
+import { memoryKeep } from './storage.ts';
 
 /** The shared modules tests offer extensions. */
 export const SHARED = ['@pip/kernel', 'zod'] as const;
 
-/** The kernel's own state, in memory. */
-export const memoryKeep = (): KernelKeep => kernelKeep(memoryStorage());
+export { memoryKeep };
+
+/** Where fixture extensions write what a test checks: by extension id, then key. */
+export function testOut() {
+  const m = new Map<string, Map<string, unknown>>();
+  const of = (ns: string) => {
+    if (!m.has(ns)) m.set(ns, new Map());
+    return m.get(ns)!;
+  };
+  return {
+    get: <T = unknown>(ns: string, key: string) =>
+      Promise.resolve(of(ns).get(key) as T | undefined),
+    set: (ns: string, key: string, value: unknown) => Promise.resolve(void of(ns).set(key, value)),
+    list: (ns: string, prefix = '') =>
+      Promise.resolve([...of(ns)].filter(([k]) => k.startsWith(prefix)).sort()),
+  };
+}
+export type TestOut = ReturnType<typeof testOut>;
 
 export const treeOf = (files: Record<string, string>, commit = 'test0000'): Tree => ({
   commit,
@@ -79,11 +97,17 @@ export function testSource(branches: Record<string, Record<string, string>>) {
   return t;
 }
 
-/** The test device: memory storage, data: URLs for compiled code, no sealed file and no person. */
+/** The test device: the kernel's state in memory, data: URLs for compiled code, no sealed file and
+ * no person. */
+let devices = 0;
+
 export function testDevice(over: Partial<Device> = {}): Device {
+  const device = ++devices;
   return {
-    storage: memoryStorage(),
-    url: (code) => `data:text/javascript;base64,${Buffer.from(code).toString('base64')}`,
+    keep: memoryKeep(),
+    // Each device its own modules, as each browser tab has: Node caches a module by its URL.
+    url: (code) =>
+      `data:text/javascript;base64,${Buffer.from(`${code}\n// device ${device}`).toString('base64')}`,
     load: (url) => import(/* @vite-ignore */ url),
     sealedFile: () => Promise.resolve(null),
     askPassword: () => Promise.resolve(),
@@ -108,8 +132,9 @@ export interface TreeOptions extends Partial<Device> {
 export async function startTree(files: Record<string, string>, opts: TreeOptions = {}) {
   const { config, access, choose, provide, branches, safe, ...over } = opts;
   const device = testDevice(over);
+  const out = testOut();
   const src = testSource({ main: files, ...branches });
-  await kernelKeep(device.storage).set('config', {
+  await device.keep.set('config', {
     ...defaultConfig(`${REPO}@main`),
     ...config,
     access: { ...config?.access, ...access },
@@ -118,7 +143,11 @@ export async function startTree(files: Record<string, string>, opts: TreeOptions
   const booted = await boot(device, {
     source: { provide: src.source },
     defaultSource: `${REPO}@main`,
-    shared: { '@pip/kernel': await import('./api.ts'), zod: await import('zod') },
+    shared: {
+      '@pip/kernel': await import('./api.ts'),
+      zod: await import('zod'),
+      '@pip/test': { out },
+    },
     provide,
     safe,
   });
@@ -127,7 +156,7 @@ export async function startTree(files: Record<string, string>, opts: TreeOptions
     src,
     device,
     kernel: booted.kernel,
-    storage: device.storage,
+    storage: out,
     keep: booted.keep,
     refused: booted.refused,
     started: booted.started,

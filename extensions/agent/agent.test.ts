@@ -13,14 +13,15 @@ afterEach(async () => {
 // A model that follows a script: open the wiki, use a tool, then answer from what came back.
 const SCRIPTED = `
 import { defineExtension } from '@pip/kernel';
+import { out } from '@pip/test';
 import { chat } from '@contracts/ai.chat';
 const say = (content) => ({ content, toolCalls: [], stop: 'end', usage: { input: 1, output: 1 }, model: 'fake' });
 const call = (name, args) => ({ content: null, toolCalls: [{ id: 'c' + Math.random(), name, arguments: JSON.stringify(args) }], stop: 'tool', usage: { input: 1, output: 1 }, model: 'fake', state: [{ type: 'reasoning', id: 'r1' }] });
 export default defineExtension({ id: 'fake-ai', version: '1.0.0', provides: { chat },
   setup(_, kernel) { return { chat: {
     async complete(req) {
-      const log = (await kernel.storage.get('tools')) ?? [];
-      await kernel.storage.set('tools', [...log, req.tools.map((t) => t.name)]);
+      const log = (await out.get('fake-ai', 'tools')) ?? [];
+      await out.set('fake-ai', 'tools', [...log, req.tools.map((t) => t.name)]);
       const prompt = req.messages.filter((m) => m.role === 'user').at(-1).content;
       const tools = req.messages.filter((m) => m.role === 'tool');
       const last = tools.at(-1) && JSON.parse(tools.at(-1).content);

@@ -1,8 +1,10 @@
-// Records in this device's storage, through the kernel. Another provider (an embedded database, a
-// synced store) replaces it by providing records@1 and passing its conformance suite in CI.
+// Records in this browser, in store-local's own IndexedDB database. Another provider (one that keeps
+// them in git, an embedded database) replaces it by providing records@1 and passing its conformance
+// suite in CI.
 import { defineExtension, perCaller } from '@pip/kernel';
 import { records } from '@contracts/records';
 import { localRecords } from './records.ts';
+import { idbStore } from './store.ts';
 
 export default defineExtension({
   id: 'store-local',
@@ -10,8 +12,8 @@ export default defineExtension({
   provides: { records },
   agentGuide:
     'Stores records on this device. Pip uses records through the extensions that own them.',
-  setup(_, kernel) {
-    const { make, forget } = localRecords(kernel.storage);
+  setup() {
+    const { make, forget } = localRecords(idbStore());
     return { records: perCaller(make, { forget }) };
   },
 });

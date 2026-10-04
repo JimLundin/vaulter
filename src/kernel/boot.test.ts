@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import type { Kernel } from './kernel.ts';
 import { seal } from './sealed.ts';
-import { REPO, startTree, testSource } from './testing.ts';
+import { REPO, startTree, testOut, testSource } from './testing.ts';
 import { boot } from './boot.ts';
 import { testDevice } from './testing.ts';
 
@@ -10,10 +10,15 @@ const ext = (
   version = '1.0.0',
   more = '',
 ) => `import { defineExtension } from '@pip/kernel';
+    import { out } from '@pip/test';
   export default defineExtension({ id: '${id}', version: '${version}', ${more}
-    async setup(_, kernel) { await kernel.storage.set('started', '${version}'); } });`;
+    async setup(_, kernel) { await out.set('${id}', 'started', '${version}'); } });`;
 
-const shared = async () => ({ '@pip/kernel': await import('./api.ts'), zod: await import('zod') });
+const shared = async () => ({
+  '@pip/kernel': await import('./api.ts'),
+  zod: await import('zod'),
+  '@pip/test': { out: testOut() },
+});
 
 let kernels: Kernel[] = [];
 afterEach(async () => {

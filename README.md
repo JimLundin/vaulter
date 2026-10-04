@@ -8,7 +8,7 @@ viewer over the `JimLundin/vault` repo, is in `main`'s history before the `pip` 
 
 | Where | What |
 |---|---|
-| `src/kernel/` | the kernel: the loader and compiler, the resolver, the handles and their policy (Pip's access, approvals), secrets (sealed ones too), storage, drafts, the `kernel` contract's implementation, boot (`boot.ts`, with this browser as its device in `start.ts`), the unlock screen and safe mode. Built into the app's one bundle |
+| `src/kernel/` | the kernel: the loader and compiler, the resolver, the handles and their policy (Pip's access, approvals), secrets (sealed ones too), its own state, drafts, the `kernel` contract's implementation, boot (`boot.ts`, with this browser as its device in `start.ts`), the unlock screen and safe mode. Built into the app's one bundle |
 | `tools/` | CI only: `seal-secrets.ts`, which seals the secrets into the built page |
 | `contracts/<name>/` | one contract each: its TypeScript interface, where a method's guarded function sits, and a conformance suite if it has one for providers to pass |
 | `extensions/<id>/` | one extension each, exporting `defineExtension({...})`; compiled in the browser from the repo and loaded into the page |

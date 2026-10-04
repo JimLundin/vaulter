@@ -48,5 +48,8 @@ export default defineConfig({
       output: { entryFileNames: (c) => (c.name === 'sw' ? 'sw.js' : 'assets/[name]-[hash].js') },
     },
   },
-  test: { include: ['{src,contracts,extensions}/**/*.test.{ts,tsx}'] },
+  test: {
+    include: ['{src,contracts,extensions}/**/*.test.{ts,tsx}'],
+    setupFiles: ['src/kernel/test-setup.ts'],
+  },
 });

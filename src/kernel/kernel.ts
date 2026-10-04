@@ -11,13 +11,7 @@
 import { type Access, applyGuard, type Guard } from './access.ts';
 import { ErrorLog } from './errors.ts';
 import { type AnyContract, type Contract, ContractRef } from './contract.ts';
-import {
-  type Extension,
-  type ExtStorage,
-  type KernelApi,
-  readStatics,
-  Statics,
-} from './extension.ts';
+import { type Extension, type KernelApi, readStatics, Statics } from './extension.ts';
 import { linker } from './link.ts';
 import type { Plan } from './loader.ts';
 import { isPerCaller, perCallerDef } from './per-caller.ts';
@@ -25,7 +19,7 @@ import { Policy } from './policy.ts';
 import { asPerson, type Presence } from './presence.ts';
 import { type Refused, resolve } from './resolve.ts';
 import { kernelFetch, type SecretStore } from './secrets.ts';
-import type { KernelStorage } from './storage.ts';
+import type { KernelKeep } from './storage.ts';
 
 export class Refusal extends Error {
   override name = 'Refusal';
@@ -33,7 +27,8 @@ export class Refusal extends Error {
 
 export interface KernelOptions {
   secrets: SecretStore;
-  storage: KernelStorage;
+  /** The kernel's own state: audit and error logs. */
+  keep: KernelKeep;
   /** The shared modules extensions import, by specifier (@pip/kernel, zod, react…). */
   shared: Record<string, object>;
   /** A module URL for compiled code: a blob: URL in the browser, a data: URL in Node. */
@@ -81,10 +76,10 @@ export class Kernel {
 
   constructor(opts: KernelOptions) {
     this.opts = opts;
-    this.policy = new Policy(opts.storage, opts.access ?? (() => ({})));
+    this.policy = new Policy(opts.keep, opts.access ?? (() => ({})));
     const { link, extensionAt } = linker(opts.url, opts.shared);
     this.link = link;
-    this.errors = new ErrorLog(opts.storage, extensionAt);
+    this.errors = new ErrorLog(opts.keep, extensionAt);
   }
 
   private kernelParty(): Party {
@@ -231,7 +226,7 @@ export class Kernel {
     };
   }
 
-  /** Drops what `caller` left with the providers it required, and its own storage. */
+  /** Drops what `caller` left with the providers it required. */
   private async forget(caller: string) {
     const party = this.parties.get(caller);
     await Promise.all(
@@ -241,10 +236,9 @@ export class Kernel {
         this.perCallerImpls.delete(`${to}\n${key}\n${caller}`);
       }),
     );
-    await this.opts.storage.drop(caller);
   }
 
-  /** Removes an extension's data: its storage, what providers keep for it, and its secrets. Its
+  /** Removes an extension's data: what providers keep for it (its records), and its secrets. Its
    * handles refuse from then on; what it set going in the page stops with the page's next start. */
   async remove(id: string) {
     const statics = this.parties.get(id)?.statics ?? this.seen.get(id);
@@ -361,20 +355,11 @@ export class Kernel {
   /* ---------- What the kernel gives every extension ---------- */
 
   private kernelApi(party: Party): KernelApi {
-    const s = this.opts.storage;
-    const ns = party.id;
-    const storage: ExtStorage = {
-      get: (key) => s.get(ns, key) as never,
-      set: (key, value) => s.set(ns, key, value),
-      delete: (key) => s.delete(ns, key),
-      list: (prefix) => s.list(ns, prefix ?? '') as never,
-    };
     return {
       id: party.id,
       fetch: kernelFetch(party.statics, this.opts.secrets, this.opts.fetch),
       hasSecret: async (name) =>
         name in party.statics.secrets && (await this.opts.secrets.has(party.id, name)),
-      storage,
       asPerson: (handler) =>
         this.opts.presence ? asPerson(this.opts.presence, party.id, handler) : handler,
     };

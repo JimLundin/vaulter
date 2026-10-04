@@ -6,7 +6,7 @@ import { boot, type Device } from './boot.ts';
 import { presence } from './presence.ts';
 import { safeMode } from './safe-mode.ts';
 import { singleTab, standbyScreen } from './single-tab.ts';
-import { idbStorage } from './storage.ts';
+import { idbKeep } from './storage.ts';
 import { unlockScreen } from './unlock-screen.ts';
 
 export interface StartOptions {
@@ -30,10 +30,10 @@ export async function start(opts: StartOptions) {
     await standbyScreen(tab, moved);
   }
 
-  // The kernel's own state used to have a database of its own; it is the "kernel" namespace now.
-  indexedDB.deleteDatabase('pip-kernel');
+  // The database the kernel shared with extensions' storage; store-local keeps its own now.
+  indexedDB.deleteDatabase('pip-data');
   const browser: Device = {
-    storage: idbStorage(),
+    keep: idbKeep(),
     url: (code) => URL.createObjectURL(new Blob([code], { type: 'text/javascript' })),
     load: (url) => import(/* @vite-ignore */ url),
     presence: presence(() => navigator.userActivation?.isActive === true),
