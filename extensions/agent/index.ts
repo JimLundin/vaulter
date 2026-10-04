@@ -40,11 +40,7 @@ export default defineExtension({
     };
 
     return {
-      // A stopped extension's tools go with it.
       agentTools: perCaller(tools_, {
-        release: (caller) => {
-          tools.delete(caller);
-        },
         forget: (caller) => {
           tools.delete(caller);
         },

@@ -7,6 +7,8 @@ const SHARED = Symbol.for('pip.shared');
 export function linker(url: (code: string) => string, shared: Record<string, object>) {
   (globalThis as Record<symbol, unknown>)[SHARED] = shared;
   const urls = new Map<string, string>();
+  /** Each linked module's URL → its path, to tell from a stack whose code threw. */
+  const paths = new Map<string, string>();
 
   const shim = (spec: string) => {
     const key = `shared:${spec}`;
@@ -32,7 +34,7 @@ export function linker(url: (code: string) => string, shared: Record<string, obj
 
   /** The URL of the plan's entry module. Modules are kept by path and sha, so two plans from the
    * same commit share them, and a changed file is a new module. */
-  return function link(plan: Plan): string {
+  function link(plan: Plan): string {
     const visit = (path: string): string => {
       const key = `${plan.shas[path]}:${path}`;
       const known = urls.get(key);
@@ -50,8 +52,22 @@ export function linker(url: (code: string) => string, shared: Record<string, obj
       }
       const u = url(`${out}\n//# sourceURL=pip:///${plan.commit.slice(0, 7)}/${path}`);
       urls.set(key, u);
+      paths.set(u, path);
       return u;
     };
     return visit(plan.entry);
+  }
+
+  /** The extension whose module comes first in `stack`, by the module URLs linked here: where a
+   * runtime keeps them in stacks instead of each module's source URL. */
+  const extensionAt = (stack: string): string | undefined => {
+    let first: { at: number; path: string } | undefined;
+    for (const [u, path] of paths) {
+      const at = stack.indexOf(u);
+      if (at >= 0 && (!first || at < first.at)) first = { at, path };
+    }
+    return first && /^extensions\/([^/]+)\//.exec(first.path)?.[1];
   };
+
+  return { link, extensionAt };
 }

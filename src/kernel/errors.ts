@@ -1,20 +1,18 @@
-// What went wrong, and in which extension: errors thrown through a handle (a call, a callback, setup or
-// a stop) are kept by the kernel under the extension whose code threw, and so are uncaught ones, traced
-// by the source URL every compiled module carries (pip:///<commit>/extensions/<id>/…, link.ts). The last
+// What went wrong, and in which extension: errors thrown through a handle (a call, a guarded callback,
+// setup) and uncaught ones are kept by the kernel under the extension whose code threw, traced by the
+// source URL every compiled module carries (pip:///<commit>/extensions/<id>/…, link.ts). The last
 // few per extension are kept, for safe mode and the extensions list.
 import type { KernelStorage } from './storage.ts';
 
 export interface ErrorEntry {
   at: string;
   /** Where it surfaced. */
-  where: 'setup' | 'call' | 'callback' | 'stop' | 'uncaught';
+  where: 'setup' | 'call' | 'callback' | 'uncaught';
   message: string;
   stack?: string;
 }
 
 const KEEP = 20;
-/** This many in a minute and an extension is shown as failing. */
-const FAILING = 5;
 
 /** The extension a stack trace points into, if any. */
 export function extensionIn(stack: string | undefined): string | undefined {
@@ -24,10 +22,19 @@ export function extensionIn(stack: string | undefined): string | undefined {
 export class ErrorLog {
   private readonly byExt = new Map<string, ErrorEntry[]>();
   private readonly storage?: KernelStorage;
+  private readonly locate?: (stack: string) => string | undefined;
   private loaded?: Promise<void>;
 
-  constructor(storage?: KernelStorage) {
+  /** `locate` finds an extension in a stack by its modules' URLs, where the source URL isn't kept. */
+  constructor(storage?: KernelStorage, locate?: (stack: string) => string | undefined) {
     this.storage = storage;
+    this.locate = locate;
+  }
+
+  /** The extension whose code `err` was thrown in, by its stack. */
+  blame(err: unknown): string | undefined {
+    const stack = (err as Error | undefined)?.stack;
+    return stack ? (extensionIn(stack) ?? this.locate?.(stack)) : undefined;
   }
 
   /** Errors from earlier runs, so safe mode can show why the last start went wrong. */
@@ -58,15 +65,10 @@ export class ErrorLog {
 
   /** An uncaught error or rejection: kept under the extension its stack points into. */
   uncaught(err: unknown): string | undefined {
-    const ext = extensionIn((err as Error | undefined)?.stack);
+    const ext = this.blame(err);
     if (ext) this.record(ext, 'uncaught', err);
     return ext;
   }
 
   of = (ext: string) => [...(this.byExt.get(ext) ?? [])];
-
-  failing(ext: string) {
-    const since = new Date(Date.now() - 60_000).toISOString();
-    return (this.byExt.get(ext) ?? []).filter((e) => e.at >= since).length >= FAILING;
-  }
 }

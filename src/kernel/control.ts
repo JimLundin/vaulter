@@ -1,7 +1,7 @@
 // The kernel contract's implementation (contracts/kernel): what the extensions list, settings, review
 // screen and approvals are built on. Changes go to the device's settings (config.ts, the same
-// operations safe mode uses) and take effect on the next start, except approvals, access and turning
-// an extension on or off, which apply at once.
+// operations safe mode uses) and take effect on the next start, which turning an extension on or off
+// starts at once; approvals and access apply as they are.
 import type { ExtensionInfo, KernelV1, Review } from '@contracts/kernel';
 import type { Booted } from './boot.ts';
 import { KERNEL_API } from './version.ts';
@@ -52,7 +52,6 @@ export function control({ booted: b, review, restart }: ControlEnv): KernelV1 {
             author: s?.author ?? { kind: 'person' },
             kernel: s?.kernel ?? '',
             errors: kernel.errors.of(id).slice(-5),
-            failing: kernel.errors.failing(id),
           };
         }),
       );
@@ -95,15 +94,15 @@ export function control({ booted: b, review, restart }: ControlEnv): KernelV1 {
 
     decide: (id, approve) => Promise.resolve(kernel.policy.decide(id, approve)),
     setAccess: (ext, label, access) => config.setAccess(ext, label, access),
+    // An extension is turned on or off by starting the app again: a page reload, from the cache.
     async setEnabled(id, on) {
       await config.setEnabled(id, on);
-      // Now, too: off stops it (and what requires it); on starts it, and what stopped with it.
-      if (!on) await kernel.stop(id);
-      else if (!kernel.running().some((r) => r.id === id)) await kernel.reload([id]);
+      restart();
     },
     async remove(id) {
       await kernel.remove(id);
       await config.setEnabled(id, false);
+      restart();
     },
     setSecret: (ext, name, value) => secrets.set(ext, name, value),
     forgetSecret: (ext, name) => secrets.forget(ext, name),

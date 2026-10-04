@@ -29,23 +29,24 @@ export interface GuardSpec {
   guard: (value: any) => Guard;
 }
 
-// Kept here and not exported from @pip/kernel: only the kernel guards a function, from the contract.
-const guards = new WeakMap<object, Guard>();
-
-export const guardOf = (fn: unknown): Guard | undefined =>
-  typeof fn === 'function' ? guards.get(fn) : undefined;
-
-/** `args` with the function `spec` names replaced by a guarded one; the caller's own function is
- * never marked. */
-export function applyGuard(args: unknown[], spec: GuardSpec): unknown[] {
+/** `args` with the function `spec` names replaced by `wrap`'s guarded one. */
+export function applyGuard(
+  args: unknown[],
+  spec: GuardSpec,
+  wrap: (fn: (...a: unknown[]) => unknown, guard: Guard) => unknown,
+): unknown[] {
   const value = args[spec.arg] as Record<string, unknown> | undefined;
   const fn = value?.[spec.fn];
   if (typeof fn !== 'function')
     throw new Error(`argument ${spec.arg}: "${spec.fn}" is not a function`);
   const { label, access } = spec.guard(value);
-  const run = (...a: unknown[]) => (fn as (...x: unknown[]) => unknown)(...a);
-  guards.set(run, { label: String(label), access: Access.parse(access) });
   const out = [...args];
-  out[spec.arg] = { ...value, [spec.fn]: run };
+  out[spec.arg] = {
+    ...value,
+    [spec.fn]: wrap(fn as (...a: unknown[]) => unknown, {
+      label: String(label),
+      access: Access.parse(access),
+    }),
+  };
   return out;
 }

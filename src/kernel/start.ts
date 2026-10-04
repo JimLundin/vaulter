@@ -45,9 +45,10 @@ export async function start(opts: StartOptions) {
       // An error nothing caught is kept under the extension whose code threw it (its stack says).
       addEventListener('error', (e) => kernel.errors.uncaught(e.error));
       addEventListener('unhandledrejection', (e) => kernel.errors.uncaught(e.reason));
-      // Another tab asked for Vaulter: stop every extension, hand over, and wait here.
+      // Another tab asked for Vaulter: every handle refuses, the lock goes over, and this tab reloads
+      // into the waiting screen.
       tab.onTakeOver(async () => {
-        await kernel.dispose();
+        kernel.dispose();
         sessionStorage.setItem('pip-moved', '1');
         setTimeout(() => location.reload(), 50);
       });

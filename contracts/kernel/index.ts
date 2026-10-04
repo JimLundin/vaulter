@@ -28,14 +28,13 @@ export interface ExtensionInfo {
   author: { kind: 'person' } | { kind: 'agent'; reason: string };
   /** The kernel API it was written against. */
   kernel: string;
-  /** Its last errors, newest last, and whether there were many in the last minute. */
+  /** Its last errors, newest last. */
   errors: ErrorEntry[];
-  failing: boolean;
 }
 
 export interface ErrorEntry {
   at: string;
-  where: 'setup' | 'call' | 'callback' | 'stop' | 'uncaught';
+  where: 'setup' | 'call' | 'callback' | 'uncaught';
   message: string;
   stack?: string;
 }
@@ -134,9 +133,9 @@ export interface KernelV1 {
   // Personal: a person, right after a tap or key.
   decide: (id: string, approve: boolean) => Promise<void>;
   setAccess: (ext: string, label: string, access: Access | null) => Promise<void>;
-  /** Starts or stops it now, and on every start from then on. */
+  /** Turns it on or off, and starts the app again (`restart`) so it takes effect. */
   setEnabled: (id: string, on: boolean) => Promise<void>;
-  /** Stops it, drops its data and secrets, and turns it off. */
+  /** Drops its data and secrets, turns it off, and starts the app again. */
   remove: (id: string) => Promise<void>;
   setSecret: (ext: string, name: string, value: string) => Promise<void>;
   forgetSecret: (ext: string, name: string) => Promise<void>;

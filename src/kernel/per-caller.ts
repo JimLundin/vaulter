@@ -1,12 +1,10 @@
 // A provider whose implementation depends on who calls it, such as storage namespaced by extension:
-// `make` runs once for each extension that requires the contract, with that extension's id. `release`
-// lets go of what a caller registered (its handlers, its tools) when it stops; `forget` drops what it
-// stored, when it is removed or when a check's caller is dropped.
+// `make` runs once for each extension that requires the contract, with that extension's id. `forget`
+// drops what a caller stored, when it is removed or when a check's caller is dropped.
 const PER_CALLER = Symbol.for('pip.perCaller');
 
 export interface PerCallerDef<T> {
   make: (caller: string) => T;
-  release?: (caller: string) => void | Promise<void>;
   forget?: (caller: string) => void | Promise<void>;
 }
 
@@ -16,7 +14,7 @@ export interface PerCaller<T> {
 
 export const perCaller = <T>(
   make: (caller: string) => T,
-  opts: Pick<PerCallerDef<T>, 'release' | 'forget'> = {},
+  opts: Pick<PerCallerDef<T>, 'forget'> = {},
 ): PerCaller<T> => ({ [PER_CALLER]: { make, ...opts } }) as PerCaller<T>;
 
 export const isPerCaller = (v: unknown): v is PerCaller<object> =>

@@ -84,9 +84,6 @@ export interface KernelApi {
   /** Whether a secret the extension declared is set, without revealing it. */
   hasSecret: (name: string) => Promise<boolean>;
   storage: ExtStorage;
-  /** Runs when the extension stops (turned off, reloaded, removed, or the tab handed over): clear
-   * timers and anything else it started. Handlers it gave other extensions go quiet on their own. */
-  onStop: (fn: () => void | Promise<void>) => void;
   /** Wraps an event handler of the extension's own screen: a person's tap or key on it lets this
    * extension make one personal call (approving, answering) within a few seconds. */
   asPerson: <A extends [{ isTrusted?: boolean } | undefined, ...unknown[]], R>(

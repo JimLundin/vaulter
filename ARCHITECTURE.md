@@ -72,7 +72,7 @@ So the kernel's checks keep well-behaved code, and Pip's model, in line; they do
 
 - refuses if the provider (or the caller) isn't running, or the method is a contract's personal one and no person just acted in the caller's screen;
 - guards the function the provider's copy of the contract names (`guards`: a tool's `run`, with its label and level read from the tool), and checks the arguments against Zod `inputs` if the contract gives any;
-- wraps every function among the arguments and the result with its owner, so it goes quiet once the owner stops; a guarded one also goes through Pip's access policy on every call, as the holder calling its owner, and carries the level the policy applies now (`run.level`).
+- passes functions as they are, except the guarded one the contract names: that one goes through Pip's access policy on every call, as the holder calling its owner, and carries the level the policy applies now (`run.level`).
 
 Because the guard comes from the provider's copy of the contract, a requirer can't leave it off: a draft with its own copy of a contract still hands over a guarded `run`.
 
@@ -82,19 +82,13 @@ Values otherwise pass as they are, not copied: a React component, a Zod schema o
 
 **Personal methods.** A contract can mark methods only a person may call: answering a question, approving, changing access, accepting a draft, unlocking the sealed secrets. An extension wraps the event handlers of its own screen with `kernel.asPerson`; a person's tap or key there (a trusted event) lets that extension, and only it, make one personal call within a few seconds, while the browser still counts the gesture as recent (`src/kernel/presence.ts`). A second call needs a second tap. Pip's own extensions never pass: the one providing `agent@1`, and any extension whose author is Pip, are refused a personal call even right after a tap, so Pip can't approve its own proposals.
 
-**What every extension gets from the kernel** (the second argument to `setup`): `storage`, a namespace of its own in IndexedDB (the kernel's state is one more namespace, `kernel`), dropped when the extension is removed; `fetch`, https only, to its declared hosts, with a secret attached by the kernel when asked for (the host list is a declaration the review screen shows, not a wall: code in the page can call the browser's `fetch` too, and the page's Content-Security-Policy is what limits where anything goes); `hasSecret`; `onStop`; and `asPerson`, for the handlers of its own screen.
+**What every extension gets from the kernel** (the second argument to `setup`): `storage`, a namespace of its own in IndexedDB (the kernel's state is one more namespace, `kernel`), dropped when the extension is removed; `fetch`, https only, to its declared hosts, with a secret attached by the kernel when asked for (the host list is a declaration the review screen shows, not a wall: code in the page can call the browser's `fetch` too, and the page's Content-Security-Policy is what limits where anything goes); `hasSecret`; and `asPerson`, for the handlers of its own screen.
 
-**Stopping.** An extension can stop without a page reload: turned off, reloaded with a draft's new commit, removed, or with every other one when the tab hands Vaulter over. Stopping one stops first everything that requires it, since they hold handles on it. For each, in that order:
+**Starting again is the page's job.** Nothing stops one extension at a time. Turning an extension on or off, removing one, or trying a draft saves the change and starts the app again: a page reload, which with the compile cache takes about a second and leaves nothing of the old run behind. A tab that hands Vaulter over makes every handle refuse, then reloads.
 
-- its `onStop` functions run (timers, anything else it started);
-- each per-caller provider it required gets `release(caller)`, to let go of what it registered (the agent drops its tools);
-- every function it handed out through a handle goes quiet: the kernel wraps each function that crosses with its owner, so a handler a provider forgot to let go of does nothing once its owner has stopped.
+**Errors.** What is thrown through a handle (in a call, a guarded callback, a setup), and what nothing caught, is kept under the extension whose code threw it: every compiled module carries a source URL, `pip:///<commit>/extensions/<id>/<file>`, and the kernel knows each module's own URL too, so the stack says whose code it was. The last twenty per extension are kept and survive a reload, for safe mode (`kernel.extensions()`, `kernel.errors(id)`).
 
-Its data stays; `remove` drops it. `kernel.reload(ids)` stops extensions (with their dependants) and starts them all again, from a new plan where given, so turning one on or off through the kernel contract takes effect at once.
-
-**Errors.** What an extension's code throws through a handle (a call it provides, a callback it handed out, its setup or its onStop) is kept under that extension, and so is an error nothing caught: every compiled module carries a source URL, `pip:///<commit>/extensions/<id>/<file>`, so the stack says whose code it was. The last twenty per extension are kept, survive a reload (for safe mode), and five in a minute mark it failing (`kernel.extensions()`, `kernel.errors(id)`).
-
-**One tab at a time.** Two tabs would run two kernels over the same IndexedDB, each deaf to the other's changes. The kernel holds a Web Lock while it runs; another tab shows a bare screen until the person moves Vaulter there, when the first tab stops every extension and lets go (`src/kernel/single-tab.ts`).
+**One tab at a time.** Two tabs would run two kernels over the same IndexedDB, each deaf to the other's changes. The kernel holds a Web Lock while it runs; another tab shows a bare screen until the person moves Vaulter there, when the first tab makes every handle refuse, lets go and reloads into the same bare screen (`src/kernel/single-tab.ts`).
 
 **The kernel API is versioned.** `KERNEL_API` (`src/kernel/version.ts`) is the version of what extensions are given; an extension states in its static fields the version it was written against (`kernel: '1.1.0'`, default `1.0.0`), and loads only on a kernel with the same major and at least that minor. That matters because the kernel a device runs comes from the deployed page (or the service worker's cache) while extensions come from the repo at a commit: an extension that needs a newer kernel is refused with that reason rather than failing at runtime.
 
@@ -396,8 +390,8 @@ Three patterns repeat across these screens:
 | The kernel's own screens | A `kernel@1` contract the kernel provides; the screens are extensions. |
 | Offline | A service worker for the kernel's files; trees and compiled output in IndexedDB, in the kernel's namespace. |
 | Secrets on a new device | Sealed into the page by CI with a password; the kernel asks for it once per device. |
-| Turning an extension off, a draft swap | Live: stopping runs onStop, releases it with providers and silences its functions; dependants stop first. |
-| Errors | Kept per extension at the handle boundary and by stack for uncaught ones; failing after five in a minute. |
+| Turning an extension off, a draft swap | Save the change and start the app again (a page reload, from the cache); no extension is stopped one at a time. |
+| Errors | Kept per extension, by the stack: at the handle boundary and for uncaught ones. |
 | Several tabs | One kernel at a time, by a Web Lock; another tab takes over on request. |
 | Kernel and extensions from different commits | The kernel API is versioned; an extension states the version it needs. |
 
