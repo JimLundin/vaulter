@@ -1,43 +1,26 @@
-// Home: the Home note, then the sections every extension adds to it; these are the vault's own.
+// Home: the Home note as the lede over a dashboard of the vault's own sections (Home.tsx), with the
+// areas in the sidebar and as commands ("Go to area: Work").
 import type { Extension } from '../../core/extension.ts';
-import { HomeSections } from '../../core/host.tsx';
-import { NoteBody } from '../notes/NotePage.tsx';
-import {
-  Today,
-  InFocus,
-  Recent,
-  Areas,
-  People,
-  Untagged,
-  AllOpenQuestions,
-  DailyLog,
-} from './Home.tsx';
+import { go } from '../../core/route.ts';
+import { HomePage } from './Home.tsx';
+import { AreasSidebar } from './Sidebar.tsx';
+import { areaHref, home as homeData } from './data.ts';
 
 export const home: Extension = {
   id: 'home',
   page(path, { vault }) {
     const note = vault.byId.get('Home');
     if (path !== '/' || !note) return null;
-    return {
-      title: 'Home',
-      body: (
-        <>
-          <NoteBody note={note} />
-          <div className="v-dash mt-10">
-            <HomeSections />
-          </div>
-        </>
-      ),
-    };
+    return { title: 'Home', width: 'wide', body: <HomePage note={note} /> };
   },
-  homeSections: [
-    { order: 10, view: Today },
-    { order: 20, view: InFocus },
-    { order: 30, view: Recent },
-    { order: 40, view: Areas },
-    { order: 50, view: People },
-    { order: 60, view: Untagged },
-    { order: 70, view: AllOpenQuestions },
-    { order: 80, view: DailyLog },
-  ],
+  sidebar: [{ order: 10, view: AreasSidebar }],
+  commands: ({ vault }) =>
+    homeData(vault)
+      .areas.filter((a) => a.notes.length)
+      .map((a) => ({
+        id: `home.area.${a.key}`,
+        label: `Go to area: ${a.label}`,
+        group: 'Areas',
+        run: () => go(areaHref(a)),
+      })),
 };
