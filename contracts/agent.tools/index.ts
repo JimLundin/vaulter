@@ -1,9 +1,9 @@
 // Tools for Pip: what an extension lets Pip do, written once and used by both the screens and Pip
 // (ARCHITECTURE.md, "How Pip uses extensions"). The agent provides it; an extension adds tools with a
 // Zod input and an access level. The client turns the input into JSON Schema (what a model reads); the
-// inputs guard `run` with its level, so the kernel applies read, write or ask to every call Pip makes,
-// whatever the adding extension's copy of this contract does.
-import { type Access, defineContract, func, type Guarded, guardedObject } from '@pip/kernel';
+// contract guards `run` with its level, so the kernel applies read, write or ask to every call Pip
+// makes, whatever the adding extension's copy of this contract does.
+import { type Access, defineContract, type Guarded } from '@pip/kernel';
 import { z } from 'zod';
 
 export type JsonSchema = Record<string, unknown>;
@@ -48,19 +48,13 @@ const Name = z
 export const agentTools = defineContract<AgentToolsV1, AgentToolsWire>({
   name: 'agent.tools',
   version: '1.0.0',
-  inputs: {
-    add: z.tuple([
-      guardedObject(
-        {
-          name: Name,
-          description: z.string().min(1).max(2000),
-          access: z.enum(['read', 'write', 'ask']),
-          input: z.record(z.string(), z.unknown()),
-          run: func<WireTool['run']>(),
-        },
-        { fn: 'run', access: 'access', label: (t) => `tool:${t.name}` },
-      ),
-    ]),
+  // `run` is guarded with the tool's own level, whatever the adding extension's copy of this does.
+  guards: {
+    add: {
+      arg: 0,
+      fn: 'run',
+      guard: (t: WireTool) => ({ label: `tool:${t.name}`, access: t.access }),
+    },
   },
   client: (remote) => ({
     add: (tool) =>

@@ -5,7 +5,9 @@ import { defineExtension } from '@pip/kernel';
 import { type Checks, source } from '@contracts/extensions.source';
 
 const API = 'https://api.github.com';
-const ours = (path: string) => path.startsWith('extensions/') || path.startsWith('contracts/');
+const ours = (path: string) =>
+  (path.startsWith('extensions/') || path.startsWith('contracts/')) &&
+  !path.split('/').includes('..');
 
 export default defineExtension({
   id: 'source-github',
@@ -78,6 +80,14 @@ export default defineExtension({
           ),
 
         async commit(repo, change) {
+          // Pip writes drafts: on a draft branch, and never the kernel or anything else outside these.
+          if (!/^draft\/[\w.-]+$/.test(change.branch))
+            throw new Error(`${change.branch} is not a draft branch (draft/<name>)`);
+          const outside = change.files.filter((f) => !ours(f.path)).map((f) => f.path);
+          if (outside.length)
+            throw new Error(
+              `only extensions/ and contracts/ can be written: ${outside.join(', ')}`,
+            );
           const existing = await refSha(repo, change.branch);
           const parent = existing ?? (await head(repo, change.base ?? 'main'));
           if (change.parent && existing && existing !== change.parent)

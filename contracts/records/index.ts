@@ -13,7 +13,7 @@
 // either (`update` retries on a conflict). Deleting or merging leaves a tombstone that can be restored.
 // A type's version goes up with a change to its fields, with a migration from each older version,
 // which the provider runs once and can revert. Only removing the extension drops its records.
-import { defineContract, func } from '@pip/kernel';
+import { defineContract } from '@pip/kernel';
 import { z } from 'zod';
 
 export type JsonSchema = Record<string, unknown>;
@@ -176,39 +176,6 @@ export type RecordRef = z.infer<typeof RecordRef>;
 /** A field holding a reference to a record of `type`: `place: refTo(wiki.place).optional()`. */
 export const refTo = (type: RecordType) => RecordRef.extend({ type: z.literal(type.name) });
 
-// The namespace is an extension id, or a scratch instance's (`id~conformance`, made by the kernel).
-const TypeName = z.string().regex(/^[a-z][a-z0-9-]*(~[a-z]+)?\/[a-z][a-z0-9-]*$/, {
-  message: 'extension/name, in lowercase words joined by dashes',
-});
-const RangeSchema = z.object({
-  gt: z.unknown().optional(),
-  gte: z.unknown().optional(),
-  lt: z.unknown().optional(),
-  lte: z.unknown().optional(),
-});
-const QuerySchema = z.object({
-  where: z
-    .record(
-      z.string(),
-      z.union([
-        z.union([z.string(), z.number(), z.boolean(), z.null()]),
-        RangeSchema.extend({
-          eq: z.unknown().optional(),
-          in: z.array(z.unknown()).optional(),
-          has: z.unknown().optional(),
-        }),
-      ]),
-    )
-    .optional(),
-  created: RangeSchema.optional(),
-  updated: RangeSchema.optional(),
-  orderBy: z.string().optional(),
-  order: z.enum(['asc', 'desc']).optional(),
-  limit: z.number().int().positive().optional(),
-  deleted: z.boolean().optional(),
-});
-const Fields = z.record(z.string(), z.unknown());
-
 const schemas = new Map<string, z.ZodType>();
 /** The Zod schema for a handle's fields, made once per type and version. */
 export function schemaOf(type: RecordType): z.ZodType {
@@ -222,34 +189,6 @@ const TRIES = 4;
 export const records = defineContract<RecordsV1, RecordsWire>({
   name: 'records',
   version: '1.0.0',
-  inputs: {
-    register: z.tuple([
-      TypeName,
-      Fields,
-      z.number().int().positive(),
-      z.record(z.string(), func()),
-    ]),
-    get: z.tuple([TypeName, z.string(), z.object({ deleted: z.boolean().optional() }).optional()]),
-    query: z.tuple([TypeName, QuerySchema.optional()]),
-    search: z.tuple([
-      z.array(TypeName),
-      z.string(),
-      z
-        .object({
-          fields: z.array(z.string()).optional(),
-          limit: z.number().int().positive().optional(),
-        })
-        .optional(),
-    ]),
-    create: z.tuple([TypeName, Fields]),
-    replace: z.tuple([TypeName, z.string(), Fields, z.number().int().positive()]),
-    delete: z.tuple([TypeName, z.string()]),
-    restore: z.tuple([TypeName, z.string()]),
-    merge: z.tuple([TypeName, z.string(), z.string()]),
-    history: z.tuple([TypeName, z.string()]),
-    onChanged: z.tuple([TypeName, func()]),
-    revert: z.tuple([TypeName, z.number().int().positive()]),
-  },
   client(remote, { caller }) {
     // Registration is sent at once; anything done with the type waits for it (a migration included).
     const ready = new Map<string, Promise<void>>();

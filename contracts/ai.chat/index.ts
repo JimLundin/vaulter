@@ -75,8 +75,4 @@ export interface ChatV1 {
 export const chat = defineContract<ChatV1>({
   name: 'ai.chat',
   version: '1.0.0',
-  inputs: {
-    complete: z.tuple([ChatRequest]),
-    stream: z.tuple([ChatRequest, z.custom<(d: Delta) => void>((f) => typeof f === 'function')]),
-  },
 });

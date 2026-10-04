@@ -10,7 +10,7 @@ viewer over the `JimLundin/vault` repo, is in `main`'s history before the `pip` 
 |---|---|
 | `src/kernel/` | the kernel: the loader and compiler, the resolver, the handles and their policy (Pip's access, approvals), secrets (sealed ones too), storage, drafts, the `kernel` contract's implementation, boot (`boot.ts`, with this browser as its device in `start.ts`), the unlock screen and safe mode. Built into the app's one bundle |
 | `tools/` | CI only: `seal-secrets.ts`, which seals the secrets into the built page |
-| `contracts/<name>/` | one contract each: its interface, Zod schemas for every input, a client when the wire needs adapting, and a conformance suite every provider must pass |
+| `contracts/<name>/` | one contract each: its TypeScript interface, where a method's guarded function sits, a client when the wire needs adapting, and a conformance suite every provider must pass |
 | `extensions/<id>/` | one extension each, exporting `defineExtension({...})`; compiled in the browser from the repo and loaded into the page |
 
 Contracts: `kernel` (provided by the kernel), `extensions.source`, `records`, `notes`, `questions`,

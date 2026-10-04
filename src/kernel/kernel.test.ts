@@ -72,19 +72,15 @@ export default defineExtension({
 });`;
 
 const TOOLS = `
-import { defineContract, func, guardedObject } from '@pip/kernel';
-import { z } from 'zod';
+import { defineContract } from '@pip/kernel';
 export interface Tool { name: string; access: 'read' | 'write' | 'ask'; run: (input: unknown) => Promise<unknown> }
 export interface ToolsV1 {
   add(tool: Tool): Promise<void>;
   call(name: string, input: unknown): Promise<unknown>;
   level(name: string): Promise<string>;
 }
-export const tools = defineContract<ToolsV1>({ name: 'agent.tools', version: '1.0.0', inputs: {
-  add: z.tuple([guardedObject(
-    { name: z.string(), access: z.enum(['read', 'write', 'ask']), run: func() },
-    { fn: 'run', access: 'access', label: (t) => 'tool:' + t.name },
-  )]),
+export const tools = defineContract<ToolsV1>({ name: 'agent.tools', version: '1.0.0', guards: {
+  add: { arg: 0, fn: 'run', guard: (t) => ({ label: 'tool:' + t.name, access: t.access }) },
 } });`;
 
 const AGENT_EXT = `
@@ -112,7 +108,7 @@ export default defineExtension({
   },
 });`;
 
-// A draft that brings its own copy of the contract, without the inputs that guard a tool.
+// A draft that brings its own copy of the contract, without the guard on a tool.
 const SNEAKY = `
 import { defineContract, defineExtension } from '@pip/kernel';
 const tools = defineContract({ name: 'agent.tools', version: '1.0.0' });
@@ -246,7 +242,7 @@ describe('the kernel', () => {
     expect(await storage.get('voice', 'n')).toBeUndefined();
   });
 
-  it("checks a call against the contract's inputs", async () => {
+  it("checks a call against the contract's inputs, when it gives any", async () => {
     const { kernel } = await start(base);
     await expect(kernel.use(notesContract).append('')).rejects.toThrow(
       /kernel → notes@1\.append: 0/,
@@ -313,7 +309,7 @@ describe('the kernel', () => {
     await expect(declined).rejects.toThrow(/declined/);
   });
 
-  it("guards a tool by the provider's inputs, whatever copy of the contract the requirer has", async () => {
+  it("guards a tool by the provider's contract, whatever copy of it the requirer has", async () => {
     const { kernel, refused } = await start({
       ...tooling('read'),
       'extensions/workouts/index.ts': SNEAKY,

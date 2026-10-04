@@ -3,7 +3,6 @@
 // moving to another host means another provider. Requiring it lets an extension write the repo, which
 // the review screen shows.
 import { defineContract } from '@pip/kernel';
-import { z } from 'zod';
 
 export interface SourceFile {
   path: string;
@@ -44,35 +43,8 @@ export interface SourceV1 {
   checks: (repo: string, commit: string) => Promise<Checks>;
 }
 
-const repo = z.string().regex(/^[\w.-]+\/[\w.-]+$/, { message: 'owner/name' });
-const ref = z.string().min(1);
-const path = z
-  .string()
-  .regex(/^(extensions|contracts)\/[\w.@/-]+$/, {
-    message: 'a path under extensions/ or contracts/',
-  })
-  .refine((p) => !p.split('/').includes('..'), { message: 'no ".." in a path' });
-
 export const source = defineContract<SourceV1>({
   name: 'extensions.source',
   version: '1.1.0',
   personal: ['merge'],
-  inputs: {
-    head: z.tuple([repo, ref]),
-    tree: z.tuple([repo, ref]),
-    read: z.tuple([repo, z.string().min(1), ref]),
-    refs: z.tuple([repo]),
-    commit: z.tuple([
-      repo,
-      z.object({
-        branch: z.string().regex(/^draft\/[\w.-]+$/, { message: 'a draft branch: draft/<name>' }),
-        base: ref.optional(),
-        parent: ref.optional(),
-        message: z.string().min(1),
-        files: z.array(z.object({ path, content: z.string().nullable() })).min(1),
-      }),
-    ]),
-    merge: z.tuple([repo, ref, ref, z.string().min(1)]),
-    checks: z.tuple([repo, ref]),
-  },
 });

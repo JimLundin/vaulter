@@ -112,30 +112,7 @@ export interface WikiV1 {
   onChanged: (handler: (ref: RecordRef) => void) => Promise<Unsubscribe>;
 }
 
-const fn = z.custom<(...args: never[]) => unknown>((f) => typeof f === 'function', {
-  message: 'not a function',
-});
-
 export const wiki = defineContract<WikiV1>({
   name: 'wiki',
   version: '1.0.0',
-  inputs: {
-    find: z.tuple([z.string(), z.array(Kind).optional()]),
-    get: z.tuple([RecordRef]),
-    create: z.tuple([Kind, NewEntity]),
-    update: z.tuple([RecordRef, z.record(z.string(), z.unknown())]),
-    addFact: z.tuple([
-      RecordRef,
-      z.object({
-        text: z.string().min(1),
-        sources: z.array(z.string()),
-        at: z.string().optional(),
-      }),
-    ]),
-    retractFact: z.tuple([RecordRef, z.string()]),
-    merge: z.tuple([RecordRef, RecordRef]),
-    citing: z.tuple([z.string()]),
-    revise: z.tuple([z.string()]),
-    onChanged: z.tuple([fn]),
-  },
 });

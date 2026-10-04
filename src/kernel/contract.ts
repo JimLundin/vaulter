@@ -9,9 +9,12 @@
 //   T, what a requirer uses: by default the same as W; a contract with a `client` adapts W into T on
 //     the requirer's side (records turns Zod schemas into JSON Schema there, so registerType can
 //     return a typed handle at once).
-// `inputs` are Zod schemas for W's methods, taken from the provider's copy of the contract and checked
-// by the handle before every call.
+// The interface is the contract: TypeScript checks both sides in the editor and in CI, so the kernel
+// doesn't check arguments again. A contract may still give Zod `inputs` for a method whose arguments
+// come from outside typed code, and says where a method's guarded function sits (`guards`). Both are
+// taken from the provider's copy of the contract.
 import { z } from 'zod';
+import type { GuardSpec } from './access.ts';
 
 const SEMVER = /^(\d+)\.(\d+)\.(\d+)$/;
 
@@ -22,6 +25,8 @@ export const Version = z.string().regex(SEMVER, { message: 'major.minor.patch, s
 
 /** A method's arguments, as one tuple schema. */
 export type Inputs<W> = { [M in keyof W]?: z.ZodType<unknown[]> };
+/** Where each method's guarded function is (access.ts). */
+export type Guards<W> = { [M in keyof W]?: GuardSpec };
 
 export interface ClientInfo {
   /** The id of the extension the client runs for. */
@@ -35,6 +40,7 @@ export interface Contract<T, W = T> {
   /** `name@major`: what a `requires` asks for and a `provides` satisfies. */
   readonly key: string;
   readonly inputs: Inputs<W>;
+  readonly guards: Guards<W>;
   /** Methods only a person may call: the kernel lets a call through only right after a gesture
    * (a tap or a key), so no extension, Pip included, can call them on its own. */
   readonly personal: readonly string[];
@@ -55,6 +61,7 @@ export function defineContract<T, W = T>(def: {
   name: string;
   version: string;
   inputs?: Inputs<W>;
+  guards?: Guards<W>;
   personal?: (keyof W & string)[];
   client?: (remote: W, info: ClientInfo) => T;
 }): Contract<T, W> {
@@ -66,6 +73,7 @@ export function defineContract<T, W = T>(def: {
     version,
     key: keyOf(name, version),
     inputs: def.inputs ?? {},
+    guards: def.guards ?? {},
     personal: Object.freeze([...(def.personal ?? [])]),
     client: def.client,
   });

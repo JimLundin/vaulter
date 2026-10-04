@@ -151,9 +151,6 @@ export interface KernelV1 {
   restart: () => Promise<void>;
 }
 
-const id = z.string().regex(/^[a-z][a-z0-9-]*$/);
-const branch = z.string().min(1).max(200);
-
 export const kernel = defineContract<KernelV1>({
   name: 'kernel',
   version: '1.0.0',
@@ -169,32 +166,4 @@ export const kernel = defineContract<KernelV1>({
     'tryDraft',
     'accept',
   ],
-  inputs: {
-    audit: z.tuple([z.number().int().positive().max(1000).optional()]),
-    review: z.tuple([branch]),
-    errors: z.tuple([id]),
-    decide: z.tuple([z.string(), z.boolean()]),
-    setAccess: z.tuple([id, z.string().min(1), Access.nullable()]),
-    setEnabled: z.tuple([id, z.boolean()]),
-    remove: z.tuple([id]),
-    setSecret: z.tuple([id, z.string().min(1), z.string().min(1)]),
-    forgetSecret: z.tuple([id, z.string().min(1)]),
-    unlock: z.tuple([z.string().min(1)]),
-    setSource: z.tuple([
-      z.object({
-        repo: z
-          .string()
-          .regex(/^[\w.-]+\/[\w.-]+$/)
-          .optional(),
-        ref: branch.optional(),
-        pin: z
-          .string()
-          .regex(/^[0-9a-f]{7,40}$/)
-          .nullable()
-          .optional(),
-      }),
-    ]),
-    tryDraft: z.tuple([branch, z.boolean()]),
-    accept: z.tuple([branch, z.string().optional()]),
-  },
 });

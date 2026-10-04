@@ -39,26 +39,7 @@ export interface NotesV1 {
   onAppended: (handler: (note: Note) => void) => Promise<Unsubscribe>;
 }
 
-const fn = z.custom<(...args: never[]) => unknown>((f) => typeof f === 'function', {
-  message: 'not a function',
-});
-
 export const notes = defineContract<NotesV1>({
   name: 'notes',
   version: '1.0.0',
-  inputs: {
-    append: z.tuple([NewNote]),
-    get: z.tuple([z.string()]),
-    list: z.tuple([
-      z
-        .object({
-          since: z.string().optional(),
-          until: z.string().optional(),
-          limit: z.number().int().positive().optional(),
-          order: z.enum(['newest', 'oldest']).optional(),
-        })
-        .optional(),
-    ]),
-    onAppended: z.tuple([fn]),
-  },
 });

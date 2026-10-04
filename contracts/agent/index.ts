@@ -40,10 +40,4 @@ export interface AgentV1 {
 export const agent = defineContract<AgentV1>({
   name: 'agent',
   version: '1.0.0',
-  inputs: {
-    ask: z.tuple([
-      AskRequest,
-      z.custom<(s: Step) => void>((f) => typeof f === 'function').optional(),
-    ]),
-  },
 });

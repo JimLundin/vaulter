@@ -58,21 +58,8 @@ export interface QuestionsV1 {
   dismiss: (id: string) => Promise<void>;
 }
 
-const fn = z.custom<(...args: never[]) => unknown>((f) => typeof f === 'function', {
-  message: 'not a function',
-});
-
 export const questions = defineContract<QuestionsV1>({
   name: 'questions',
   version: '1.0.0',
   personal: ['answer', 'dismiss'],
-  inputs: {
-    ask: z.tuple([NewQuestion]),
-    handle: z.tuple([NewQuestion.shape.topic, fn]),
-    withdraw: z.tuple([z.string()]),
-    get: z.tuple([z.string()]),
-    onChanged: z.tuple([fn]),
-    answer: z.tuple([z.string(), Answer]),
-    dismiss: z.tuple([z.string()]),
-  },
 });

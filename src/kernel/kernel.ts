@@ -4,10 +4,11 @@
 // line; they don't contain hostile code.
 //
 // A handle on a contract is the provider's implementation behind a check: a personal method passes
-// only right after a person acted, arguments must pass the contract's Zod inputs, and a guarded
+// only right after a person acted in the caller, arguments pass the contract's Zod inputs if it has any,
+// and a guarded
 // function (a tool's `run`) handed across is wrapped so every call to it goes through Pip's access
 // policy. Values otherwise pass as they are: no copying, so components and schemas can cross too.
-import { type Access, type Guard, guardOf } from './access.ts';
+import { type Access, applyGuard, type Guard, guardOf } from './access.ts';
 import { ErrorLog } from './errors.ts';
 import { type CheckResult, runSuite, type Suite } from './conformance.ts';
 import { type AnyContract, type Contract, ContractRef } from './contract.ts';
@@ -229,7 +230,6 @@ export class Kernel {
       const impl = out?.[alias];
       if (typeof impl !== 'object' || impl === null)
         throw new Error(`provides ${c.key} as "${alias}" but setup returned nothing for it`);
-      if (!isPerCaller(impl)) missing(c, impl);
       party.provided.set(c.key, { contract: c, impl });
     }
   }
@@ -396,13 +396,11 @@ export class Kernel {
       const k = `${to}\n${key}\n${from}`;
       if (!this.perCallerImpls.has(k)) this.perCallerImpls.set(k, perCallerDef(impl).make(from));
       impl = this.perCallerImpls.get(k) as Record<string, unknown>;
-      missing(contract, impl);
     }
     const fn = impl[method];
     if (typeof fn !== 'function' || NOT_METHODS.has(method))
       throw new Refusal(`${key} has no method "${method}"`);
-    // Checked first: the provider's inputs guard the functions they declare (access.ts), and then
-    // every function is carried across.
+    // The provider's inputs (if any) and guards first, then every function is carried across.
     let args = raw;
     const schema = contract.inputs[method];
     if (schema) {
@@ -413,6 +411,13 @@ export class Kernel {
         );
       args = parsed.data;
     }
+    const guard = contract.guards[method];
+    if (guard)
+      try {
+        args = applyGuard(args, guard);
+      } catch (e) {
+        throw new Refusal(`${from} → ${key}.${method}: ${(e as Error).message}`);
+      }
     args = this.carry(from, to, args) as unknown[];
     let result: unknown;
     try {
@@ -521,14 +526,6 @@ export class Kernel {
 /** Pip's own extensions are never a person: the agent, and any extension Pip wrote. */
 const isAgent = (s: Statics | undefined) =>
   s?.author.kind === 'agent' || Object.values(s?.provides ?? {}).some((c) => c.key === 'agent@1');
-
-/** Every method the contract has inputs for is a function on the implementation. */
-function missing(c: AnyContract, impl: unknown) {
-  const absent = Object.keys(c.inputs).filter(
-    (m) => typeof (impl as Record<string, unknown> | null)?.[m] !== 'function',
-  );
-  if (absent.length) throw new Error(`${c.key} is missing ${absent.join(', ')}`);
-}
 
 async function digest(v: unknown) {
   const bytes = new TextEncoder().encode(JSON.stringify(v));

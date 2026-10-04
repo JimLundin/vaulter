@@ -46,7 +46,7 @@ What remains are the jobs an extension can't do for itself:
 
 **Contracts are the central idea.** Extensions never depend on each other by name. They require a contract, such as `records@1`, and any installed extension that provides it satisfies them. Moving storage from IndexedDB to an embedded database, or the AI from OpenAI to another provider, means installing a different provider. A Git backup extension simply requires `notes@1` and `records@1`.
 
-**Contribution points are contracts too.** The kernel has no idea what a view, a tool or a record type is. The shell provides `ui.shell@1` with its slots, the agent provides `agent.tools@1`, and the records contract handles type registration. The kernel knows only two generic things about what crosses it: a function a contract's inputs guard with an access level (a tool's `run`), and a contract method marked personal. An extension adds a tool by contributing to `agent.tools@1`, exactly as it would to any other contract.
+**Contribution points are contracts too.** The kernel has no idea what a view, a tool or a record type is. The shell provides `ui.shell@1` with its slots, the agent provides `agent.tools@1`, and the records contract handles type registration. The kernel knows only two generic things about what crosses it: a function a contract guards with an access level (a tool's `run`), and a contract method marked personal. An extension adds a tool by contributing to `agent.tools@1`, exactly as it would to any other contract.
 
 ```
  ┌──────────── extensions, in the kernel's page ────────────┐
@@ -71,14 +71,14 @@ So the kernel's checks keep well-behaved code, and Pip's model, in line; they do
 **Calls go through handles.** A requirer's `ctx` holds a handle per contract, not the provider's object. Every call through a handle:
 
 - refuses if the provider (or the caller) isn't running, or the method is a contract's personal one and no person just acted in the caller's screen;
-- checks the arguments against the `inputs` of the provider's copy of the contract, which also says where a guarded function sits (a tool's `run`, through `guardedObject`) and which of its fields give its label and level;
+- guards the function the provider's copy of the contract names (`guards`: a tool's `run`, with its label and level read from the tool), and checks the arguments against Zod `inputs` if the contract gives any;
 - wraps every function among the arguments and the result with its owner, so it goes quiet once the owner stops; a guarded one also goes through Pip's access policy on every call, as the holder calling its owner, and carries the level the policy applies now (`run.level`).
 
-Because the guard comes from the provider's inputs, a requirer can't leave it off: a draft with its own copy of a contract, or a client that skips it, still hands over a guarded `run`.
+Because the guard comes from the provider's copy of the contract, a requirer can't leave it off: a draft with its own copy of a contract, or a client that skips it, still hands over a guarded `run`.
 
 Values otherwise pass as they are, not copied: a React component, a Zod schema or a `Blob` crosses like anything else. Contract methods are still async, and still take plain values where they can, so a provider may be anywhere: in this page today, behind a network or in a WebAssembly module later.
 
-**A contract has two faces.** `W`, what a provider implements, and `T`, what a requirer uses: the same unless the contract has a `client`, code in the contract package that adapts `W` into `T` on the requirer's side. The records client keeps `registerType` synchronous and turns Zod fields into JSON Schema, which is what providers store; the agent.tools client turns a tool's Zod input into JSON Schema (what a model reads) and marks its `run` with its level.
+**A contract has two faces.** `W`, what a provider implements, and `T`, what a requirer uses: the same unless the contract has a `client`, code in the contract package that adapts `W` into `T` on the requirer's side. The records client keeps `registerType` synchronous and turns Zod fields into JSON Schema, which is what providers store; the agent.tools client turns a tool's Zod input into JSON Schema (what a model reads).
 
 **Personal methods.** A contract can mark methods only a person may call: answering a question, approving, changing access, accepting a draft, unlocking the sealed secrets. An extension wraps the event handlers of its own screen with `kernel.asPerson`; a person's tap or key there (a trusted event) lets that extension, and only it, make one personal call within a few seconds, while the browser still counts the gesture as recent (`src/kernel/presence.ts`). A second call needs a second tap. Pip's own extensions never pass: the one providing `agent@1`, and any extension whose author is Pip, are refused a personal call even right after a tap, so Pip can't approve its own proposals.
 
@@ -106,7 +106,7 @@ Every extension is TypeScript source in the repo, exporting one `defineExtension
 src/kernel/              kernel and safe mode (the only built bundle)
 tools/                   CI only: sealing the secrets into the built page
 contracts/
-  records/               interface, Zod schemas, client, conformance suite
+  records/               interface, client, conformance suite
   agent.tools/
   kernel/                the kernel's own contract
 extensions/
@@ -130,12 +130,12 @@ The definition has two parts:
 
 `ctx` contains typed handles only for the contracts listed in `requires`, and for those in `optional` that something provides (undefined otherwise). An optional contract keeps the delete test: the wiki gives Pip tools when an agent is installed, asks questions when there is somewhere to ask, revises pages when there is a model, and works by hand without any of them. Calling anything else fails to compile, and the kernel refuses it at runtime as well. The kernel reads the static fields by evaluating the module before `setup` runs; an extension's id must be its folder's name, and a contract's key is derived from its name and version.
 
-**A contract is a TypeScript package** in `contracts/`: its interface, Zod schemas for every input, and a conformance test suite for providers. A misspelled slot, a missing method or a wrong argument is a type error in your editor and in CI. Tool input schemas for Pip are generated from the same Zod schemas, so there is no hand-written JSON and no string mini-language anywhere.
+**A contract is a TypeScript package** in `contracts/`: its interface, and a conformance test suite for providers. The interface is the whole definition: a misspelled slot, a missing method or a wrong argument is a type error in your editor and in CI, on both sides, so the kernel doesn't check arguments again. Zod is for what doesn't come from typed code: a tool's input (what Pip's model sends, and the JSON Schema it reads), a record type's fields (what is stored), a model's structured answer. There is no hand-written JSON and no string mini-language anywhere.
 
 **Checks happen at three points.**
 
 - TypeScript, in the editor and in CI on every push.
-- Zod, when the kernel loads an extension's static fields, and on every call through a handle.
+- Zod, when the kernel loads an extension's static fields, and wherever data comes from outside typed code: tool inputs, record fields, a model's answers. A contract may give Zod `inputs` for a method like that; none does today.
 - Conformance suites (`contracts/<name>/conformance.ts`), run by the kernel against a scratch instance of each provider, in its own namespace, before the provider can satisfy a `requires`; a pass is cached by the shas of the provider and the suite. CI runs the same suites under Vitest.
 
 **Separation.** Each extension's data lives in its own namespace, in the kernel's storage and with the storage provider, and it is meant to reach others only through the contracts it requires, so removing it removes its namespace and nothing else. This is the design every extension follows, not a wall: see "Running in the page".
@@ -159,7 +159,7 @@ From each extension Pip gets:
 | `write` | Uses it, logs it, offers undo | Adding a fact with a clear source |
 | `ask` | Proposes the change; you approve | Merging people, changing dates, anything uncertain |
 
-You can tighten or loosen any tool in that extension's settings. The kernel enforces these on every call: a tool's `run` reaches the agent guarded by the `agent.tools` inputs, so each call Pip makes to it is routed through the kernel's policy (`src/kernel/policy.ts`), which logs `write` calls and holds `ask` calls until you approve them through the `kernel` contract. The agent tells the model each tool's level as the policy applies it now, your setting included. Neither an extension nor the agent extension itself can go around them.
+You can tighten or loosen any tool in that extension's settings. The kernel enforces these on every call: a tool's `run` reaches the agent guarded as the `agent.tools` contract says, so each call Pip makes to it is routed through the kernel's policy (`src/kernel/policy.ts`), which logs `write` calls and holds `ask` calls until you approve them through the `kernel` contract. The agent tells the model each tool's level as the policy applies it now, your setting included. Neither an extension nor the agent extension itself can go around them.
 
 **Only load what is relevant.** Pip always sees a one-line summary of each installed extension. It loads an extension's full tools and guide only when the task needs it, so twenty extensions don't crowd every request. Recording a note about a café pulls in Map; asking about next week pulls in Calendar.
 
@@ -242,7 +242,7 @@ export interface RecordsV1 {
   onChanged<S extends z.ZodRawShape>(type: RecordType<S>, handler: (rec: Rec<S>) => void): Promise<Unsubscribe>;
 }
 
-export const records = defineContract<RecordsV1, RecordsWire>({ name: "records", version: "1.0.0", inputs, client });
+export const records = defineContract<RecordsV1, RecordsWire>({ name: "records", version: "1.0.0", client });
 ```
 
 **Voice capture** records and transcribes with the Realtime API through `aiRealtime`, then appends to the notes log. `shell.slots.bottomBarPrimary` is a typed constant, so a misspelled slot doesn't compile.
@@ -390,8 +390,8 @@ Three patterns repeat across these screens:
 | Storage for records and embeddings | An extension that provides `records@1` (`store-local`, on the kernel's storage). Others can replace it by passing the conformance suite. |
 | Sync and backup of data | Extensions, such as a Git backup requiring `notes@1` and `records@1`, kept separate from the code repo. |
 | Isolation | None: every extension runs in the kernel's page, drafts too. The kernel's checks keep well-behaved code and Pip's model in line; review keeps bad code out of `main`. WebAssembly modules if isolation is ever needed. |
-| Calls between extensions | Through kernel handles: checked inputs, personal methods, guarded functions wrapped by the policy; values pass uncopied. A contract may ship a client for requirers. |
-| Pip's access | Read, write and ask attach to functions a contract's inputs guard (a tool's `run`), so no requirer can leave the guard off; the person's setting overrides the declared level. |
+| Calls between extensions | Through kernel handles: personal methods, guarded functions wrapped by the policy; values pass uncopied. TypeScript checks the arguments, not the kernel. A contract may ship a client for requirers. |
+| Pip's access | Read, write and ask attach to functions a contract guards (a tool's `run`), so no requirer can leave the guard off; the person's setting overrides the declared level. |
 | What only a person may do | Contract methods marked personal pass once per tap or key in the calling extension's own screen (`kernel.asPerson`); never for the agent or an extension Pip wrote. |
 | The kernel's own screens | A `kernel@1` contract the kernel provides; the screens are extensions. |
 | Offline | A service worker for the kernel's files; trees and compiled output in the kernel's IndexedDB. |
