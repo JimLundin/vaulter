@@ -2,13 +2,14 @@
 import { useEffect, useId, useState } from 'react';
 import { CheckIcon } from 'lucide-react';
 import { structuredPatch } from 'diff';
+import { toast } from 'sonner';
 import { hrefForId } from '../../../core/paths.ts';
 import { applyOverlay, newProblems } from '../../core/writer.ts';
 import { CheckFailed, Conflict } from '../../core/backend.ts';
 import { useWriter } from '../../core/host.tsx';
-import { link } from '../../core/route.ts';
+import { go, link } from '../../core/route.ts';
 import { later } from '../../core/later.ts';
-import { Confirm, DiffLines } from './parts.tsx';
+import { Confirm, DiffLines, shortSha } from './parts.tsx';
 import { Empty, ErrorState, Loading, PageHeader, Section } from '@/components/layout.tsx';
 import { Badge } from '@/components/ui/badge.tsx';
 import { Button } from '@/components/ui/button.tsx';
@@ -25,6 +26,13 @@ function Diff({ before, after }: { before: string; after: string }) {
       ])}
     />
   );
+}
+
+/** Focuses the commit message once Changes is on screen (the "Commit staged changes" command). */
+export function focusCommit(tries = 20) {
+  const el = document.querySelector<HTMLInputElement>('[data-commit-message]');
+  if (el) el.focus();
+  else if (tries > 0) requestAnimationFrame(() => focusCommit(tries - 1));
 }
 
 export function Changes() {
@@ -52,6 +60,9 @@ export function Changes() {
       );
       setMessage('');
       setState({ done: sha });
+      toast.success(`Committed ${shortSha(sha)}`, {
+        action: w.history ? { label: 'History', onClick: () => go('/history/') } : undefined,
+      });
     } catch (e) {
       setState({
         error:
@@ -61,7 +72,32 @@ export function Changes() {
               ? `Changed on main meanwhile: ${e.paths.join(', ')}. Reload the file and stage it again.`
               : (e as Error).message,
       });
+      toast.error(
+        e instanceof CheckFailed
+          ? 'The check fails'
+          : e instanceof Conflict
+            ? 'Changed on main meanwhile'
+            : 'The commit failed',
+      );
     }
+  };
+  const canCommit = !state.busy && problems !== null && problems.length === 0;
+  const unstage = async (path: string, text: string | null) => {
+    await w.unstage(path);
+    toast(`Unstaged ${path}`, { action: { label: 'Undo', onClick: () => w.stage(path, text) } });
+  };
+  const discardAll = async () => {
+    const files = staged;
+    await w.discard();
+    toast(`Discarded ${files.length} staged ${files.length === 1 ? 'edit' : 'edits'}`, {
+      action: {
+        label: 'Undo',
+        onClick: async () => {
+          // biome-ignore lint/performance/noAwaitInLoops: one at a time; each stage builds on the overlay the last one wrote
+          for (const [p, t] of files) await w.stage(p, t);
+        },
+      },
+    });
   };
 
   if (!staged.length)
@@ -69,13 +105,10 @@ export function Changes() {
       <div className="v-changes">
         <PageHeader title="Changes" />
         {state.done ? (
-          <p className="text-muted-foreground">
-            Committed <code className="font-mono text-sm">{state.done.slice(0, 7)}</code>. See{' '}
-            <a className="text-primary no-underline hover:underline" href={link('/history/')}>
-              History
-            </a>
-            .
-          </p>
+          <Empty>
+            Nothing staged. Committed{' '}
+            <code className="font-mono text-sm">{shortSha(state.done)}</code>.
+          </Empty>
         ) : (
           <Empty>Nothing staged. Edit a note from its page.</Empty>
         )}
@@ -95,7 +128,8 @@ export function Changes() {
               <div key={path} className="overflow-hidden rounded-lg border">
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-b bg-surface px-3 py-2">
                   <a
-                    className="min-w-0 break-all font-mono text-sm font-medium text-foreground no-underline hover:underline"
+                    data-nav={true}
+                    className="-mx-1 min-w-0 break-all rounded-sm px-1 font-mono text-sm font-medium text-foreground no-underline hover:underline data-[nav]:focus-visible:bg-accent data-[nav]:focus-visible:outline-2"
                     href={link(hrefForId(path.replace(/\.mdx?$/, '')))}
                   >
                     {path}
@@ -117,7 +151,7 @@ export function Changes() {
                         edit
                       </a>
                     </Button>
-                    <Button size="sm" variant="outline" onClick={() => w.unstage(path)}>
+                    <Button size="sm" variant="outline" onClick={() => unstage(path, text)}>
                       unstage
                     </Button>
                   </div>
@@ -131,7 +165,7 @@ export function Changes() {
       <Section title="Commit">
         <div className="grid gap-4">
           {problems === null ? (
-            <Loading>Checking…</Loading>
+            <Loading shape="list">Checking…</Loading>
           ) : problems.length ? (
             <ErrorState>
               <p className="m-0">
@@ -156,17 +190,16 @@ export function Changes() {
                 <Label htmlFor={id}>Commit message</Label>
                 <Input
                   id={id}
+                  data-commit-message={true}
                   type="text"
                   placeholder={`vault: ${staged.map(([p]) => p.replace(/\.mdx?$/, '')).join(', ')}`}
                   value={message}
                   onChange={(e) => setMessage(e.currentTarget.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && canCommit && commit()}
                 />
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <Button
-                  disabled={state.busy || problems === null || problems.length > 0}
-                  onClick={commit}
-                >
+                <Button disabled={!canCommit} onClick={commit}>
                   {state.busy ? 'Committing…' : 'Commit to main'}
                 </Button>
                 <Confirm
@@ -176,10 +209,10 @@ export function Changes() {
                     </Button>
                   }
                   title="Discard every staged edit?"
-                  description={`The edits to ${staged.length} ${staged.length === 1 ? 'file are' : 'files are'} dropped; this can't be undone.`}
+                  description={`The edits to ${staged.length} ${staged.length === 1 ? 'file are' : 'files are'} dropped.`}
                   action="Discard all"
                   destructive={true}
-                  onConfirm={() => w.discard()}
+                  onConfirm={discardAll}
                 />
               </div>
             </>

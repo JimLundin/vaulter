@@ -11,6 +11,8 @@ import { cn } from 'cn';
 import { Field, FieldList, PageHeader, Section } from '@/components/layout.tsx';
 
 const lnk = 'text-primary no-underline hover:underline';
+/** A row's link that j/k stop at: highlighted when focused. */
+const navRow = '-mx-1 px-1 data-[nav]:focus-visible:bg-accent data-[nav]:focus-visible:outline-2';
 /** A date as a Field label: the label's colour, not its uppercase. */
 const code = 'rounded-sm bg-surface px-1 font-mono text-sm';
 
@@ -75,7 +77,7 @@ export function Calendar() {
                   <li
                     key={`${o.note.id} ${o.date} ${o.what}`}
                     className={cn(
-                      'm-0 -mx-2 grid grid-cols-[4.5rem_1fr] gap-x-4 rounded-md px-2 py-1.5',
+                      'm-0 -mx-2 grid grid-cols-[4.5rem_1fr] gap-x-4 rounded-md px-2 py-1.5 has-[[data-nav]:focus-visible]:bg-accent/60',
                       o.date === t && 'bg-accent',
                     )}
                   >
@@ -104,7 +106,11 @@ export function Calendar() {
                           {soon}
                         </span>
                       )}
-                      <a className={cn(lnk, 'block text-sm')} href={link(hrefOf(o.note))}>
+                      <a
+                        data-nav={true}
+                        className={cn(lnk, 'block w-fit rounded-sm text-sm', navRow)}
+                        href={link(hrefOf(o.note))}
+                      >
                         {titleOf(o.note)}
                       </a>
                     </span>
@@ -140,7 +146,10 @@ export function NoteDates({ note }: { note: Note }) {
   const dates = datesOf(note).sort(
     (a, b) => Number(b.yearly) - Number(a.yearly) || b.date.localeCompare(a.date),
   );
+  const v = useVault();
   if (!dates.length) return null;
+  /** The day's daily note, for a one-off date that has one: where the row links. */
+  const daily = (d: string) => (d.length === 10 ? v.byId.get(`daily/${d}`) : undefined);
   return (
     <Section
       title="Dates"
@@ -162,7 +171,17 @@ export function NoteDates({ note }: { note: Note }) {
               </time>
             }
           >
-            {x.what}
+            {daily(x.date) ? (
+              <a
+                data-nav={true}
+                className={cn('rounded-sm text-inherit no-underline hover:underline', navRow)}
+                href={link(hrefOf(daily(x.date)!))}
+              >
+                {x.what}
+              </a>
+            ) : (
+              x.what
+            )}
           </Field>
         ))}
       </FieldList>

@@ -41,13 +41,15 @@ const paths = perVault(
 function Row({ text }: { text: string }) {
   const v = useVault();
   return (
-    <li className="px-3 py-2 text-sm [overflow-wrap:anywhere]">
+    <li className="px-3 py-2 text-sm [overflow-wrap:anywhere] has-[[data-nav]:focus-visible]:bg-accent/60">
       {text.split(paths(v)).map((s, i) =>
         i % 2 ? (
           <a
             // biome-ignore lint/suspicious/noArrayIndexKey: a piece of a split row; its position is its identity (a path can recur)
             key={i}
-            className="font-medium text-primary no-underline hover:underline"
+            // The row's first note is where j/k stop.
+            data-nav={i === 1 || undefined}
+            className="-mx-0.5 rounded-sm px-0.5 font-medium text-primary no-underline hover:underline data-[nav]:focus-visible:bg-accent data-[nav]:focus-visible:outline-2"
             href={link(hrefOf({ id: s.replace(/\.mdx?$/, '') }))}
           >
             {s}
@@ -84,7 +86,7 @@ export function Audit() {
       {error ? (
         <ErrorState>{error}</ErrorState>
       ) : !sections ? (
-        <Loading>Auditing…</Loading>
+        <Loading shape="list">Auditing…</Loading>
       ) : (
         sections.map(({ title, rows }) => (
           <Section key={title} title={title} count={rows.length}>

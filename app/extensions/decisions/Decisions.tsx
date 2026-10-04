@@ -47,7 +47,7 @@ export function Decisions() {
               <li
                 key={`${d.note.id} ${d.date} ${d.what}`}
                 className={cn(
-                  'm-0 grid grid-cols-[4.5rem_1fr] gap-x-4 border-l-2 max-sm:grid-cols-1 border-(--c) py-1 pl-3',
+                  'm-0 grid grid-cols-[4.5rem_1fr] gap-x-4 rounded-r-md border-l-2 max-sm:grid-cols-1 border-(--c) py-1 pl-3 has-[[data-nav]:focus-visible]:bg-accent/60',
                   `a-${facet(d.note, 'area') || 'none'}`,
                 )}
               >
@@ -56,7 +56,15 @@ export function Decisions() {
                   <b className="font-medium">{d.what}</b>
                   {!!d.why && <span className="block text-sm text-muted-foreground">{d.why}</span>}
                   <span className="block text-sm">
-                    <a className={lnk} href={link(hrefOf(d.note))}>
+                    <a
+                      data-nav={true}
+                      className={cn(
+                        lnk,
+                        '-mx-1 rounded-sm px-1',
+                        'data-[nav]:focus-visible:bg-accent data-[nav]:focus-visible:outline-2',
+                      )}
+                      href={link(hrefOf(d.note))}
+                    >
                       {titleOf(d.note)}
                     </a>
                     {!!d.who && (

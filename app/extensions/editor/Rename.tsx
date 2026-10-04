@@ -4,7 +4,8 @@ import { useId, useMemo, useState } from 'react';
 import { renameNote } from '../../../core/rename.ts';
 import { applyOverlay } from '../../core/writer.ts';
 import { useWriter } from '../../core/host.tsx';
-import { link } from '../../core/route.ts';
+import { toast } from 'sonner';
+import { go, link } from '../../core/route.ts';
 import { ErrorState, PageHeader, Section } from '@/components/layout.tsx';
 import { Button } from '@/components/ui/button.tsx';
 import { Checkbox } from '@/components/ui/checkbox.tsx';
@@ -31,7 +32,10 @@ export function Rename({ path }: { path: string }) {
   const stage = async () => {
     // biome-ignore lint/performance/noAwaitInLoops: one at a time; each stage builds on the overlay the last one wrote
     for (const c of plan.changes) await w.stage(c.path, c.text);
-    location.hash = link('/changes/');
+    toast.success(`Staged the rename to ${to}`, {
+      action: { label: 'Review', onClick: () => go('/changes/') },
+    });
+    go('/changes/');
   };
   const others = plan.changes.filter((c) => c.path !== path && c.path !== to);
   return (

@@ -1,4 +1,4 @@
-// What Changes, History and Edit share: a diff's lines, and the dialog that confirms a step.
+// What Changes, History and Edit share: a diff's lines, the dialog that confirms a step, a short sha.
 import type { ReactNode } from 'react';
 import { cn } from 'cn';
 import {
@@ -72,3 +72,6 @@ export function Confirm({
     </AlertDialog>
   );
 }
+
+/** A commit as shown: a git sha's first 7, or a backend's own id whole (the folder's "folder-…"). */
+export const shortSha = (sha: string) => (/^[0-9a-f]{8,}$/i.test(sha) ? sha.slice(0, 7) : sha);

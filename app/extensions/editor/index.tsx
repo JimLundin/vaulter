@@ -1,9 +1,10 @@
 // Editing: a file as text (#/edit/<path>/), a rename (#/rename/<path>/, and the agent's renameNote), the staged edits with their diffs, the check and the commit
 // (#/changes/), and what the app committed, with a revert (#/history/).
-import { HistoryIcon, GitCommitVerticalIcon } from 'lucide-react';
+import { HistoryIcon, GitCommitVerticalIcon, GitCompareIcon } from 'lucide-react';
 import type { Extension } from '../../core/extension.ts';
 import { Edit } from './Edit.tsx';
-import { Changes } from './Changes.tsx';
+import { Changes, focusCommit } from './Changes.tsx';
+import { go } from '../../core/route.ts';
 import { History } from './History.tsx';
 import { Rename } from './Rename.tsx';
 
@@ -16,7 +17,7 @@ export const editor: Extension = {
     if (!m) return null;
     const file = decodeURIComponent(m[2]);
     return m[1] === 'edit'
-      ? { title: `Edit ${file}`, body: <Edit key={file} path={file} /> }
+      ? { title: `Edit ${file}`, body: <Edit key={file} path={file} />, width: 'wide' }
       : { title: `Rename ${file}`, body: <Rename key={file} path={file} /> };
   },
   nav: [
@@ -36,6 +37,27 @@ export const editor: Extension = {
       keys: 'g s',
       order: 90,
       badge: (h) => Object.keys(h.writer.overlay?.files ?? {}).length,
+    },
+  ],
+  commands: () => [
+    {
+      id: 'editor.review',
+      label: 'Review changes',
+      group: 'Actions',
+      icon: GitCompareIcon,
+      when: (h) => Object.keys(h.writer.overlay?.files ?? {}).length > 0,
+      run: () => go('/changes/'),
+    },
+    {
+      id: 'editor.commit',
+      label: 'Commit staged changes',
+      group: 'Actions',
+      icon: GitCommitVerticalIcon,
+      when: (h) => !!h.writer.commit && Object.keys(h.writer.overlay?.files ?? {}).length > 0,
+      run: () => {
+        go('/changes/');
+        focusCommit();
+      },
     },
   ],
   noteActions: [
