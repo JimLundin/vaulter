@@ -28,35 +28,6 @@ const extOf = (mime: string) =>
     'audio/ogg': 'ogg',
   })[mime.split(';')[0]] ?? 'webm';
 
-/** A multipart/form-data body by hand: FormData can't cross from a sandbox to the kernel. */
-function multipart(
-  fields: Record<string, string | undefined>,
-  file: { name: string; mime: string; bytes: Uint8Array },
-) {
-  const boundary = `pip-${crypto.randomUUID()}`;
-  const enc = new TextEncoder();
-  const parts: Uint8Array[] = [];
-  for (const [k, v] of Object.entries(fields))
-    if (v !== undefined)
-      parts.push(
-        enc.encode(`--${boundary}\r\nContent-Disposition: form-data; name="${k}"\r\n\r\n${v}\r\n`),
-      );
-  parts.push(
-    enc.encode(
-      `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${file.name}"\r\nContent-Type: ${file.mime}\r\n\r\n`,
-    ),
-    file.bytes,
-    enc.encode(`\r\n--${boundary}--\r\n`),
-  );
-  const body = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
-  let at = 0;
-  for (const p of parts) {
-    body.set(p, at);
-    at += p.length;
-  }
-  return { body, type: `multipart/form-data; boundary=${boundary}` };
-}
-
 export default defineExtension({
   id: 'openai',
   version: '1.0.0',
@@ -69,16 +40,11 @@ export default defineExtension({
   setup(_, kernel) {
     const call = async (
       path: string,
-      init: { json?: unknown; body?: Uint8Array; type?: string; method?: string } = {},
+      init: { json?: unknown; body?: FormData; method?: string } = {},
     ) => {
       const r = await kernel.fetch(`${API}${path}`, {
         method: init.method ?? (init.json !== undefined || init.body ? 'POST' : 'GET'),
-        headers:
-          init.json !== undefined
-            ? { 'Content-Type': 'application/json' }
-            : init.type
-              ? { 'Content-Type': init.type }
-              : {},
+        headers: init.json !== undefined ? { 'Content-Type': 'application/json' } : {},
         body: init.json !== undefined ? JSON.stringify(init.json) : init.body,
         secret: 'key',
       });
@@ -111,19 +77,19 @@ export default defineExtension({
       transcribe: {
         async transcribe(raw) {
           const req = TranscribeRequest.parse(raw);
-          const bytes = new Uint8Array(
-            req.audio instanceof Blob ? await req.audio.arrayBuffer() : req.audio,
+          const body = new FormData();
+          body.set('model', req.model ?? MODELS.transcribe);
+          if (req.language) body.set('language', req.language);
+          if (req.prompt) body.set('prompt', req.prompt);
+          body.set('response_format', 'json');
+          body.set(
+            'file',
+            new Blob([req.audio instanceof Blob ? req.audio : new Uint8Array(req.audio)], {
+              type: req.mime,
+            }),
+            `audio.${extOf(req.mime)}`,
           );
-          const { body, type } = multipart(
-            {
-              model: req.model ?? MODELS.transcribe,
-              language: req.language,
-              prompt: req.prompt,
-              response_format: 'json',
-            },
-            { name: `audio.${extOf(req.mime)}`, mime: req.mime, bytes },
-          );
-          const out = (await (await call('/audio/transcriptions', { body, type })).json()) as {
+          const out = (await (await call('/audio/transcriptions', { body })).json()) as {
             text: string;
             language?: string;
             duration?: number;

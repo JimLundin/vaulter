@@ -61,7 +61,7 @@ export type Statics = z.infer<typeof Statics>;
 export interface FetchInit {
   method?: string;
   headers?: Record<string, string>;
-  body?: string | ArrayBuffer | Uint8Array;
+  body?: string | ArrayBuffer | Uint8Array | Blob | FormData | URLSearchParams;
   /** One of the extension's declared secrets: the kernel attaches it, the extension never sees it. */
   secret?: string;
 }
@@ -126,4 +126,43 @@ export function defineExtension<
     kind: 'extension',
     def: def as unknown as ExtensionDef<Contracts, Contracts, Contracts>,
   };
+}
+
+/** The static fields as plain values: contracts by name, version and personal methods. */
+function staticsOf(def: Extension['def']) {
+  const refs = (m: Record<string, AnyContract> | undefined) =>
+    Object.fromEntries(
+      Object.entries(m ?? {}).map(([as, c]) => [
+        as,
+        { kind: c?.kind, name: c?.name, version: c?.version, personal: c?.personal },
+      ]),
+    );
+  const { id, version, kernel, permissions, secrets, agentGuide, author } = def;
+  return {
+    id,
+    version,
+    kernel,
+    requires: refs(def.requires),
+    optional: refs(def.optional),
+    provides: refs(def.provides),
+    permissions,
+    secrets,
+    agentGuide,
+    author,
+  };
+}
+
+/** The static fields of the extension in `folder` (extensions/<folder>), validated: what the kernel and
+ * the review screen read before any of its code runs. Throws every problem at once. */
+export function readStatics(folder: string, def: Extension['def']): Statics {
+  const parsed = Statics.safeParse(staticsOf(def));
+  if (!parsed.success)
+    throw new Error(
+      parsed.error.issues
+        .map((i) => `${i.path.join('.') || 'definition'}: ${i.message}`)
+        .join('; '),
+    );
+  if (parsed.data.id !== folder)
+    throw new Error(`its id is "${parsed.data.id}"; it must be its folder's name`);
+  return parsed.data;
 }

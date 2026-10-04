@@ -158,9 +158,14 @@ it('speaks the Responses, transcription, realtime and embeddings APIs, with the 
   expect(out.deltas).toEqual(['Hel', 'lo']);
   expect(out.streamed).toMatchObject({ content: 'Hello', stop: 'end' });
   expect(out.text).toMatchObject({ text: 'Lunch with Ada' });
-  const multipart = seen[3].body as string;
-  expect(multipart).toMatch(/name="model"\r\n\r\ngpt-transcribe/);
-  expect(multipart).toMatch(/filename="audio.webm"\r\nContent-Type: audio\/webm\r\n\r\nRIFF/);
+  const form = seen[3].body as FormData;
+  expect(form.get('model')).toBe('gpt-transcribe');
+  const file = form.get('file') as File;
+  expect([file.name, file.type, (await file.text()).slice(0, 4)]).toEqual([
+    'audio.webm',
+    'audio/webm',
+    'RIFF',
+  ]);
   expect(seen[4].body).toEqual({
     expires_after: { anchor: 'created_at', seconds: 600 },
     session: {

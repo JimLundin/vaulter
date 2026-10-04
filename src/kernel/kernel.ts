@@ -11,7 +11,13 @@ import { type Access, type Guard, guardOf } from './access.ts';
 import { ErrorLog } from './errors.ts';
 import { type CheckResult, runSuite, type Suite } from './conformance.ts';
 import { type AnyContract, type Contract, ContractRef } from './contract.ts';
-import { type Extension, type ExtStorage, type KernelApi, Statics } from './extension.ts';
+import {
+  type Extension,
+  type ExtStorage,
+  type KernelApi,
+  readStatics,
+  Statics,
+} from './extension.ts';
 import { linker } from './link.ts';
 import type { Plan } from './loader.ts';
 import { isPerCaller, perCallerDef } from './per-caller.ts';
@@ -123,16 +129,7 @@ export class Kernel {
     const ext = (await this.opts.load(this.link(plan))).default as Extension | undefined;
     if (ext?.kind !== 'extension' || typeof ext.def?.setup !== 'function')
       throw new Error('the default export is not defineExtension({...})');
-    const statics = Statics.safeParse(staticsOf(ext.def));
-    if (!statics.success)
-      throw new Error(
-        statics.error.issues
-          .map((i) => `${i.path.join('.') || 'definition'}: ${i.message}`)
-          .join('; '),
-      );
-    if (statics.data.id !== id)
-      throw new Error(`its id is "${statics.data.id}"; it must be its folder's name`);
-    return { def: ext.def, statics: statics.data };
+    return { def: ext.def, statics: readStatics(id, ext.def) };
   }
 
   /** Starts the extensions in `plans` beside those already running: each is loaded and its static
@@ -155,7 +152,7 @@ export class Kernel {
             const { def, statics } = await this.inspect(id, plan);
             this.seen.set(id, statics);
             loaded.set(id, { def, plan });
-            return [{ folder: id, statics }];
+            return [{ id, statics }];
           } catch (e) {
             refuse(id, [(e as Error).message]);
             return [];
@@ -508,30 +505,6 @@ export class Kernel {
       },
     };
   }
-}
-
-/** The static fields as plain values: contracts by name, version and personal methods. */
-function staticsOf(def: Extension['def']) {
-  const refs = (m: Record<string, AnyContract> | undefined) =>
-    Object.fromEntries(
-      Object.entries(m ?? {}).map(([as, c]) => [
-        as,
-        { kind: c?.kind, name: c?.name, version: c?.version, personal: c?.personal },
-      ]),
-    );
-  const { id, version, kernel, permissions, secrets, agentGuide, author } = def;
-  return {
-    id,
-    version,
-    kernel,
-    requires: refs(def.requires),
-    optional: refs(def.optional),
-    provides: refs(def.provides),
-    permissions,
-    secrets,
-    agentGuide,
-    author,
-  };
 }
 
 /** Every method the contract has inputs for is a function on the implementation. */

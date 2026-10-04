@@ -1,9 +1,10 @@
-// The referee: validates each extension's static fields and wires every `requires` to one `provides`.
+// The referee: wires every `requires` among extensions whose static fields were read (readStatics) to
+// one `provides`.
 // An extension that can't be wired is left out with its reasons, and so is everything that needed it;
 // the rest still loads (the delete test: removing a feature must not stop the app).
 import { satisfies } from './contract.ts';
 import { KERNEL_API } from './version.ts';
-import { Statics } from './extension.ts';
+import type { Statics } from './extension.ts';
 
 export interface Accepted {
   id: string;
@@ -26,10 +27,8 @@ export interface Resolution {
 }
 
 export interface Candidate {
-  /** The folder it came from (extensions/<id>): its id must be the folder's name. */
-  folder: string;
-  /** Its static fields, not yet validated. */
-  statics: unknown;
+  id: string;
+  statics: Statics;
 }
 
 /** `choose` settles two providers of the same contract: contract key → extension id. `started` are
@@ -44,20 +43,12 @@ export function resolve(
     refused.set(id, [...(refused.get(id) ?? []), problem]);
 
   const valid = new Map<string, { statics: Statics }>();
-  for (const { folder, statics } of candidates) {
-    const parsed = Statics.safeParse(statics);
-    if (!parsed.success) {
-      for (const i of parsed.error.issues)
-        refuse(folder, `${i.path.join('.') || 'definition'}: ${i.message}`);
-      continue;
-    }
-    const { id } = parsed.data;
-    if (!satisfies(KERNEL_API, parsed.data.kernel))
-      refuse(folder, `needs kernel API ${parsed.data.kernel}; this kernel has ${KERNEL_API}`);
-    else if (id !== folder) refuse(folder, `its id is "${id}"; it must be its folder's name`);
+  for (const { id, statics } of candidates) {
+    if (!satisfies(KERNEL_API, statics.kernel))
+      refuse(id, `needs kernel API ${statics.kernel}; this kernel has ${KERNEL_API}`);
     else if (valid.has(id) || started.some((x) => x.id === id))
       refuse(id, `two extensions have the id "${id}"`);
-    else valid.set(id, { statics: parsed.data });
+    else valid.set(id, { statics });
   }
 
   // Leave out, until nothing changes, whatever can't be wired to the extensions still in.

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { defineContract, satisfies } from './contract.ts';
+import { readStatics, Statics } from './extension.ts';
 import type { Kernel } from './kernel.ts';
 import { resolve } from './resolve.ts';
 import { secretStore } from './secrets.ts';
@@ -147,8 +148,8 @@ describe('contracts', () => {
 describe('resolve', () => {
   const ref = (name: string, version = '1.0.0') => ({ kind: 'contract', name, version });
   const ext = (id: string, more: object = {}) => ({
-    folder: id,
-    statics: { id, version: '1.0.0', ...more },
+    id,
+    statics: Statics.parse({ id, version: '1.0.0', ...more }),
   });
 
   it('orders an extension after what it requires, and derives contract keys itself', () => {
@@ -161,21 +162,22 @@ describe('resolve', () => {
     expect(r.accepted[0].statics.provides.notes.key).toBe('notes@1');
   });
 
-  it('refuses bad static fields, an id that is not its folder, and what needed them', () => {
-    const r = resolve([
-      { folder: 'bad', statics: { id: 'Bad Id', version: 'one' } },
-      {
-        folder: 'other',
-        statics: { id: 'notes', version: '1.0.0', provides: { notes: ref('notes') } },
-      },
-      ext('voice', { requires: { notes: ref('notes') } }),
-      ext('map'),
-    ]);
+  it('reads static fields once: every bad field, and an id that is not its folder', () => {
+    const def = (fields: object) => ({ ...fields, setup() {} }) as never;
+    expect(() => readStatics('bad', def({ id: 'Bad Id', version: 'one' }))).toThrow(
+      /id:.*; version:/,
+    );
+    expect(() => readStatics('other', def({ id: 'notes', version: '1.0.0' }))).toThrow(
+      /must be its folder's name/,
+    );
+  });
+
+  it('refuses what requires a contract nothing provides, and starts the rest', () => {
+    const r = resolve([ext('voice', { requires: { notes: ref('notes') } }), ext('map')]);
     expect(r.accepted.map((a) => a.id)).toEqual(['map']);
-    const by = Object.fromEntries(r.refused.map((x) => [x.id, x.problems.join(' / ')]));
-    expect(by.bad).toMatch(/id:.*version:/);
-    expect(by.other).toMatch(/must be its folder's name/);
-    expect(by.voice).toBe('requires notes@1, which nothing installed provides');
+    expect(r.refused).toEqual([
+      { id: 'voice', problems: ['requires notes@1, which nothing installed provides'] },
+    ]);
   });
 
   it('refuses an outdated provider, doubled providers (unless chosen), and cycles', () => {
