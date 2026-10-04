@@ -5,6 +5,7 @@ import type { AskRequest, Answer, Step } from '@contracts/agent';
 import { AskRequest as AskSchema } from '@contracts/agent';
 import type { HeldTool } from '@contracts/agent.tools';
 import { Declined } from '@pip/kernel';
+import { z } from 'zod';
 
 export const INSTRUCTIONS = `You are Pip, a personal assistant that keeps a wiki from the notes a person speaks or types.
 Answer from what the extensions know, using their tools; never guess or invent. Cite the notes facts come from when it helps.
@@ -70,7 +71,7 @@ export async function ask(
         [...(all.get(ext)?.values() ?? [])].map((t) => ({
           name: name(ext, t.name),
           description: `${t.description}${t.run.level === 'ask' ? ' (asks the person first)' : ''}`,
-          parameters: t.input,
+          parameters: z.toJSONSchema(t.input, { io: 'input', unrepresentable: 'any' }),
         })),
       ),
     ];
@@ -101,7 +102,7 @@ export async function ask(
           const t = opened.has(ext) ? all.get(ext)?.get(tool) : undefined;
           if (!t) throw new Error(`open ${ext} first, or no tool ${call.name}`);
           try {
-            output = await t.run(input);
+            output = await t.run(t.input.parse(input));
             await step({ kind: 'tool', extension: ext, tool, input, output });
           } catch (e) {
             const error = e instanceof Declined ? 'the person declined' : (e as Error).message;

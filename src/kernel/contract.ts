@@ -3,7 +3,7 @@
 //
 // Every extension runs in the kernel's page, and a call between two of them goes through a kernel
 // handle (kernel.ts). A contract has two faces:
-//   W, the wire face (hence `RecordsWire`, `AgentToolsWire`): what a provider implements. Every
+//   W, the wire face (hence `RecordsWire`): what a provider implements. Every
 //     method is async and takes plain values where it can, so a provider could live elsewhere later
 //     (behind a network, in a WebAssembly module).
 //   T, what a requirer uses: by default the same as W; a contract with a `client` adapts W into T on

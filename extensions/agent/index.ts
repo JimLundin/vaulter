@@ -3,7 +3,7 @@
 // every tool call goes through the kernel, which applies the tool's level.
 import { defineExtension, perCaller } from '@pip/kernel';
 import { agent } from '@contracts/agent';
-import { type AgentToolsWire, agentTools, type HeldTool } from '@contracts/agent.tools';
+import { type AgentToolsV1, agentTools, type HeldTool } from '@contracts/agent.tools';
 import { chat } from '@contracts/ai.chat';
 import { kernel } from '@contracts/kernel';
 import { ask } from './loop.ts';
@@ -17,8 +17,12 @@ export default defineExtension({
   agentGuide: 'Pip itself.',
   setup({ chat, kernel }) {
     const tools = new Map<string, Map<string, HeldTool>>();
-    const tools_ = (from: string): AgentToolsWire => ({
-      add(tool) {
+    const tools_ = (from: string): AgentToolsV1 => ({
+      add(added) {
+        // A tool's name goes to the model as part of the function's name.
+        if (!/^[a-zA-Z][a-zA-Z0-9_]{0,63}$/.test(added.name))
+          throw new Error(`"${added.name}" is not a tool name: letters, digits and _`);
+        const tool = added as unknown as HeldTool;
         const mine = tools.get(from) ?? new Map<string, HeldTool>();
         tools.set(from, mine);
         mine.set(tool.name, tool);

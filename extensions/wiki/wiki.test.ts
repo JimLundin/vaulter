@@ -45,9 +45,10 @@ export default defineExtension({ id: 'fake-ai', version: '1.0.0', provides: { ch
 const FAKE_AGENT = `
 import { defineExtension } from '@pip/kernel';
 import { agentTools } from '@contracts/agent.tools';
+import { z } from 'zod';
 export default defineExtension({ id: 'agent', version: '1.0.0', provides: { agentTools },
   setup(_, kernel) { const tools = []; return { agentTools: {
-    async add(t) { tools.push({ name: t.name, access: t.access, input: t.input }); await kernel.storage.set('tools', tools); return () => {}; },
+    async add(t) { tools.push({ name: t.name, access: t.run.level, input: z.toJSONSchema(t.input) }); await kernel.storage.set('tools', tools); return () => {}; },
   } }; } });`;
 
 const use = <T>(k: Kernel, name: string) => k.use(defineContract<T>({ name, version: '1.0.0' }));
