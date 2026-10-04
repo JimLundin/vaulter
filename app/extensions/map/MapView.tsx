@@ -90,10 +90,7 @@ function MapSvg({ map }: { map: VaultMap }) {
         }
       />
       {/* Wider than the reading column, centred on it. */}
-      <div
-        className="relative left-1/2 mt-4 mb-3 w-[min(calc(100vw-32px),72rem)] -translate-x-1/2"
-        ref={box}
-      >
+      <div className="relative mt-4 mb-3 w-full" ref={box}>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
           {/* aria-pressed on the chips and "Relations only" belongs to graph-view.ts; React sets it once. */}
           <fieldset className="m-0 flex min-w-0 flex-wrap gap-1.5 border-0 p-0" aria-label="Areas">

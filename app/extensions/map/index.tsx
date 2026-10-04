@@ -7,7 +7,7 @@ import { LocalMap } from './LocalMap.tsx';
 
 export const map: Extension = {
   id: 'map',
-  page: (path) => (path === '/map/' ? { title: 'Map', body: <MapView /> } : null),
+  page: (path) => (path === '/map/' ? { title: 'Map', body: <MapView />, width: 'wide' } : null),
   nav: [
     {
       label: 'Map',
