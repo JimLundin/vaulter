@@ -89,7 +89,7 @@ Values otherwise pass as they are, not copied: a React component, a Zod schema o
 
 **One tab at a time.** Two tabs would run two kernels over the same IndexedDB, each deaf to the other's changes. The kernel holds a Web Lock while it runs; another tab shows a bare screen until the person moves Vaulter there, when the first tab makes every handle refuse, lets go and reloads into the same bare screen (`src/kernel/single-tab.ts`).
 
-**The kernel API is versioned.** `KERNEL_API` (`src/kernel/version.ts`) is the version of what extensions are given; an extension states in its static fields the version it was written against (`kernel: '1.1.0'`, default `1.0.0`), and loads only on a kernel with the same major and at least that minor. That matters because the kernel a device runs comes from the deployed page (or the service worker's cache) while extensions come from the repo at a commit: an extension that needs a newer kernel is refused with that reason rather than failing at runtime.
+**Kernel and extensions ship together.** Main's extensions are built into the same page as the kernel, so they always match; a draft is typechecked in CI against the kernel on its own branch. There is no separate version for the kernel's API.
 
 ## The extension format
 
@@ -118,7 +118,7 @@ The definition has two parts:
 
 | Part | Holds | Read by |
 | --- | --- | --- |
-| Static fields: `id`, `version`, `kernel`, `requires`, `optional`, `provides`, `permissions`, `secrets`, `agentGuide` | Plain values | The kernel before any code runs, and the review screen |
+| Static fields: `id`, `version`, `requires`, `optional`, `provides`, `permissions`, `secrets`, `agentGuide` | Plain values | The kernel before any code runs, and the review screen |
 | `setup(ctx)` | Code that registers types, tools, views and handlers through the contracts it requires | Runs once the kernel has accepted the static part |
 
 `ctx` contains typed handles only for the contracts listed in `requires`, and for those in `optional` that something provides (undefined otherwise). An optional contract keeps the delete test: the wiki gives Vaulter tools when an agent is installed, asks questions when there is somewhere to ask, revises pages when there is a model, and works by hand without any of them. Calling anything else fails to compile, and the kernel refuses it at runtime as well. The kernel reads the static fields by evaluating the module before `setup` runs; an extension's id must be its folder's name, and a contract's key is derived from its name and version.
@@ -393,7 +393,7 @@ Three patterns repeat across these screens:
 | Turning an extension off, a draft swap | Save the change and start the app again (a page reload, from the cache); no extension is stopped one at a time. |
 | Errors | Kept per extension, by the stack: at the handle boundary and for uncaught ones. |
 | Several tabs | One kernel at a time, by a Web Lock; another tab takes over on request. |
-| Kernel and extensions from different commits | The kernel API is versioned; an extension states the version it needs. |
+| Kernel and extensions from different commits | They don't come apart: main's extensions ship in the kernel's page, and CI checks a draft against the kernel on its branch. |
 
 **Build order.**
 

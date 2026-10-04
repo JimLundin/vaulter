@@ -3,7 +3,6 @@ import { defineContract } from './contract.ts';
 import { extensionIn } from './errors.ts';
 import type { Kernel } from './kernel.ts';
 import { startTree } from './testing.ts';
-import { KERNEL_API } from './version.ts';
 
 const BUS = `
 import { defineContract } from '@vaulter/kernel';
@@ -100,23 +99,4 @@ describe('errors', () => {
     expect(extensionIn(stack)).toBe('wiki');
     expect(extensionIn('Error: x\n    at kernel.ts:1:1')).toBeUndefined();
   });
-});
-
-it('refuses an extension written for a kernel API this kernel does not have', async () => {
-  const [major, minor] = KERNEL_API.split('.').map(Number);
-  const r = await startTree({
-    ...files,
-    'extensions/a/index.ts': listener('a', `kernel: '${major + 1}.0.0',`),
-    'extensions/b/index.ts': listener('b', `kernel: '${major}.${minor}.0',`),
-  });
-  kernel = r.kernel;
-  expect(r.refused).toEqual([
-    { id: 'a', problems: [`needs kernel API ${major + 1}.0.0; this kernel has ${KERNEL_API}`] },
-  ]);
-  expect(
-    kernel
-      .running()
-      .map((x) => x.id)
-      .sort(),
-  ).toEqual(['b', 'bus']);
 });

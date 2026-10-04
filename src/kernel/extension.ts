@@ -30,8 +30,6 @@ export type SecretSpec = z.infer<typeof SecretSpec>;
 export const Statics = z.object({
   id: z.string().regex(/^[a-z][a-z0-9-]*$/, { message: 'lowercase words joined by dashes' }),
   version: Version,
-  /** The kernel API it was written against (version.ts): the same major, at least this minor. */
-  kernel: Version.default('1.0.0'),
   requires: refs.default({}),
   /** Contracts it uses when something provides them, and starts without otherwise: tools for Vaulter
    * when an agent is installed, questions when there is somewhere to ask. */
@@ -116,11 +114,10 @@ function staticsOf(def: Extension['def']) {
         { kind: c?.kind, name: c?.name, version: c?.version, personal: c?.personal },
       ]),
     );
-  const { id, version, kernel, permissions, secrets, agentGuide, author } = def;
+  const { id, version, permissions, secrets, agentGuide, author } = def;
   return {
     id,
     version,
-    kernel,
     requires: refs(def.requires),
     optional: refs(def.optional),
     provides: refs(def.provides),

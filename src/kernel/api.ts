@@ -18,4 +18,3 @@ export {
 } from './extension.ts';
 export { type PerCaller, perCaller } from './per-caller.ts';
 export { Declined } from './policy.ts';
-export { KERNEL_API } from './version.ts';

@@ -3,7 +3,6 @@
 // An extension that can't be wired is left out with its reasons, and so is everything that needed it;
 // the rest still loads (the delete test: removing a feature must not stop the app).
 import { satisfies } from './contract.ts';
-import { KERNEL_API } from './version.ts';
 import type { Statics } from './extension.ts';
 
 export interface Accepted {
@@ -44,9 +43,7 @@ export function resolve(
 
   const valid = new Map<string, { statics: Statics }>();
   for (const { id, statics } of candidates) {
-    if (!satisfies(KERNEL_API, statics.kernel))
-      refuse(id, `needs kernel API ${statics.kernel}; this kernel has ${KERNEL_API}`);
-    else if (valid.has(id) || started.some((x) => x.id === id))
+    if (valid.has(id) || started.some((x) => x.id === id))
       refuse(id, `two extensions have the id "${id}"`);
     else valid.set(id, { statics });
   }

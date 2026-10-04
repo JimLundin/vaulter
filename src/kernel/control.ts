@@ -4,7 +4,6 @@
 // starts at once; approvals and access apply as they are.
 import type { ExtensionInfo, KernelV1, Review } from '@contracts/kernel';
 import type { Booted } from './boot.ts';
-import { KERNEL_API } from './version.ts';
 
 export interface ControlEnv {
   /** What boot found and started; read at each call, as boot fills it in. */
@@ -47,7 +46,6 @@ export function control({ booted: b, review, restart }: ControlEnv): KernelV1 {
             })),
             agentGuide: s?.agentGuide ?? '',
             author: s?.author ?? { kind: 'person' },
-            kernel: s?.kernel ?? '',
             errors: kernel.errors.of(id).slice(-5),
           };
         }),
@@ -60,7 +58,6 @@ export function control({ booted: b, review, restart }: ControlEnv): KernelV1 {
         ref: c.ref,
         pin: c.pin,
         commit: b.commit ?? '',
-        kernelApi: KERNEL_API,
         drafts: c.drafts,
       });
     },

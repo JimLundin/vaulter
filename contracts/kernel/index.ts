@@ -25,8 +25,6 @@ export interface ExtensionInfo {
   secrets: { name: string; label: string; hosts: string[] }[];
   agentGuide: string;
   author: { kind: 'person' } | { kind: 'agent'; reason: string };
-  /** The kernel API it was written against. */
-  kernel: string;
   /** Its last errors, newest last. */
   errors: ErrorEntry[];
 }
@@ -69,9 +67,8 @@ export interface SourceInfo {
   repo: string;
   ref: string;
   pin?: string;
-  /** The commit this device is running, and the kernel's API version. */
+  /** The commit this device is running. */
   commit: string;
-  kernelApi: string;
   /** Draft branches this device loads on top. */
   drafts: string[];
 }
