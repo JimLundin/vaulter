@@ -27,7 +27,7 @@ The kernel only connects extensions. Checked against the delete test, none of th
 | Record store | `records` contract, implemented by a storage extension such as `store-local` | `records@1` |
 | Agent loop | `agent` extension | `agent@1`, `agent.tools@1` |
 | Shell | `shell-mobile` and `shell-desktop` extensions | `ui.shell@1` |
-| AI provider (new) | `openai` extension | `ai.transcribe@1`, `ai.realtime@1`, `ai.chat@1`, `ai.embed@1` |
+| AI provider (new) | `openai` extension | `ai.chat@1`, `ai.realtime@1` (and `ai.transcribe@1`, `ai.embed@1` once something needs them) |
 
 What remains are the jobs an extension can't do for itself:
 
@@ -405,7 +405,7 @@ Three patterns repeat across these screens:
 
 1. Kernel with safe mode, the in-browser compiler and loader, the handles and the secret store. **Done**, with sealed secrets.
 2. The bootstrap source provider for GitHub. **Done**, with drafts: commit, merge and checks.
-3. Contract packages with conformance suites: `records`, `notes`, `ai.*`, `agent.tools`, `questions`, and `kernel`. **Done**, except `ui.shell`, which waits for the UI work.
+3. Contract packages: `records`, `notes` and `questions` with conformance suites, `ai.chat`, `ai.realtime`, `agent.tools` and `kernel`. **Done**, except `ui.shell`, which waits for the UI work. `ai.transcribe` and `ai.embed` were written and taken out again until voice or search needs them (they are in the history).
 4. Foundation extensions: `store-local`, `notes`, `openai` and `agent` (**done**); `shell-mobile` and `shell-desktop` wait for the UI work.
 5. Voice, Wiki and Questions, which together exercise nearly every contract. **Wiki and Questions done**; voice needs the UI (a microphone button) and the realtime spike.
 6. Today, Search and Map.
@@ -418,7 +418,7 @@ The extensions so far, each tested with the others (`startRepo` in `src/kernel/t
 | `store-local` | `records@1` | | On the kernel's storage, with every revision kept and a format number for its layout; passes the records suite |
 | `notes` | `notes@1` | `records` | Append-only; lists by when a note was said |
 | `questions` | `questions@1` | `records` | Answers reach the asker's topic handler, also after a restart; answering is personal |
-| `openai` | `ai.chat`, `ai.transcribe`, `ai.realtime`, `ai.embed` | | The Responses API (tool calling for current models needs it), `store: false` with the encrypted reasoning sent back as a turn's `state`; realtime keys from `/v1/realtime/client_secrets`, WebRTC at `/v1/realtime/calls`. Default models in `extensions/openai/index.ts` |
+| `openai` | `ai.chat`, `ai.realtime` | | The Responses API (tool calling for current models needs it), `store: false` with the encrypted reasoning sent back as a turn's `state`; realtime keys from `/v1/realtime/client_secrets`, WebRTC at `/v1/realtime/calls`. Default models in `extensions/openai/index.ts` |
 | `wiki` | `wiki@1` | `records`, `notes` (`ai.chat`, `questions`, `agent.tools`) | Person, place, event and topic types; every fact cites its notes; each note is revised into pages by the model, and what it isn't sure of becomes a yes/no question whose answer makes the change |
 | `agent` | `agent@1`, `agent.tools@1` | `ai.chat` (`kernel`) | Sees a line per extension, opens only those a request needs, calls their tools through the kernel |
 

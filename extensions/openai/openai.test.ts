@@ -40,7 +40,7 @@ const RESPONSE = {
   usage: { input_tokens: 12, output_tokens: 7 },
 };
 
-it('speaks the Responses, transcription, realtime and embeddings APIs, with the key attached by the kernel', async () => {
+it('speaks the Responses and realtime APIs, with the key attached by the kernel', async () => {
   const seen: { url: string; auth: string | null; body: unknown }[] = [];
   const fetchImpl = (async (url: string, init?: RequestInit) => {
     const raw = init?.body;
@@ -66,20 +66,11 @@ it('speaks the Responses, transcription, realtime and embeddings APIs, with the 
             },
           ])
         : Response.json(RESPONSE);
-    if (url.endsWith('/audio/transcriptions')) return Response.json({ text: 'Lunch with Ada' });
     if (url.endsWith('/realtime/client_secrets'))
       return Response.json({
         value: 'ek_1',
         expires_at: 1_900_000_000,
         session: { model: 'gpt-live-transcribe' },
-      });
-    if (url.endsWith('/embeddings'))
-      return Response.json({
-        model: 'text-embedding-3-small',
-        data: [
-          { index: 1, embedding: [0, 1] },
-          { index: 0, embedding: [1, 0] },
-        ],
       });
     return new Response(JSON.stringify({ error: { message: 'nope' } }), { status: 400 });
   }) as typeof fetch;
@@ -93,12 +84,10 @@ it('speaks the Responses, transcription, realtime and embeddings APIs, with the 
         export const probe = defineContract<{ run(): Promise<unknown> }>({ name: 'probe', version: '1.0.0' });`,
       'extensions/probe/index.ts': `import { defineExtension } from '@pip/kernel';
         import { chat } from '@contracts/ai.chat';
-        import { transcribe } from '@contracts/ai.transcribe';
         import { realtime } from '@contracts/ai.realtime';
-        import { embed } from '@contracts/ai.embed';
         import { probe } from '@contracts/probe';
-        export default defineExtension({ id: 'probe', version: '1.0.0', requires: { chat, transcribe, realtime, embed }, provides: { probe },
-          setup({ chat, transcribe, realtime, embed }) { return { probe: { async run() {
+        export default defineExtension({ id: 'probe', version: '1.0.0', requires: { chat, realtime }, provides: { probe },
+          setup({ chat, realtime }) { return { probe: { async run() {
             const first = await chat.complete({
               messages: [{ role: 'system', content: 'Be brief.' }, { role: 'user', content: 'Who is Ada?' }],
               tools: [{ name: 'findEntity', description: 'Find', parameters: { type: 'object' } }],
@@ -111,10 +100,8 @@ it('speaks the Responses, transcription, realtime and embeddings APIs, with the 
             ] });
             const deltas = [];
             const streamed = await chat.stream({ messages: [{ role: 'user', content: 'hi' }] }, (d) => { deltas.push(d.text); });
-            const text = await transcribe.transcribe({ audio: new Blob(['RIFF']), mime: 'audio/webm', language: 'sv' });
             const session = await realtime.session({ purpose: 'transcription', language: 'sv' });
-            const vectors = await embed.embed({ texts: ['a', 'b'] });
-            return { first, streamed, deltas, text, session, vectors };
+            return { first, streamed, deltas, session };
           } } }; } });`,
     },
     { secrets, fetch: fetchImpl },
@@ -157,16 +144,7 @@ it('speaks the Responses, transcription, realtime and embeddings APIs, with the 
   ]);
   expect(out.deltas).toEqual(['Hel', 'lo']);
   expect(out.streamed).toMatchObject({ content: 'Hello', stop: 'end' });
-  expect(out.text).toMatchObject({ text: 'Lunch with Ada' });
-  const form = seen[3].body as FormData;
-  expect(form.get('model')).toBe('gpt-transcribe');
-  const file = form.get('file') as File;
-  expect([file.name, file.type, (await file.text()).slice(0, 4)]).toEqual([
-    'audio.webm',
-    'audio/webm',
-    'RIFF',
-  ]);
-  expect(seen[4].body).toEqual({
+  expect(seen[3].body).toEqual({
     expires_after: { anchor: 'created_at', seconds: 600 },
     session: {
       type: 'transcription',
@@ -178,13 +156,5 @@ it('speaks the Responses, transcription, realtime and embeddings APIs, with the 
     expiresAt: new Date(1_900_000_000_000).toISOString(),
     model: 'gpt-live-transcribe',
     connect: { kind: 'webrtc', url: 'https://api.openai.com/v1/realtime/calls' },
-  });
-  expect(out.vectors).toEqual({
-    vectors: [
-      [1, 0],
-      [0, 1],
-    ],
-    model: 'text-embedding-3-small',
-    dimensions: 2,
   });
 });

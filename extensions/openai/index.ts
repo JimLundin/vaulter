@@ -1,11 +1,9 @@
-// OpenAI: provides ai.chat (the Responses API), ai.transcribe, ai.realtime and ai.embed. The account's
+// OpenAI: provides ai.chat (the Responses API) and ai.realtime. The account's
 // key is a secret the kernel holds and attaches; this extension never sees it. A realtime session gets a
 // short-lived key minted here, which is all the voice extension receives.
 import { defineExtension } from '@pip/kernel';
 import { chat } from '@contracts/ai.chat';
-import { embed } from '@contracts/ai.embed';
 import { realtime, SessionRequest } from '@contracts/ai.realtime';
-import { TranscribeRequest, transcribe } from '@contracts/ai.transcribe';
 import { fromResponse, readStream, toResponsesBody } from './responses.ts';
 
 const API = 'https://api.openai.com/v1';
@@ -13,39 +11,25 @@ const API = 'https://api.openai.com/v1';
 /** Defaults, when a request names no model. */
 export const MODELS = {
   chat: 'gpt-6.1-sol',
-  transcribe: 'gpt-transcribe',
   realtime: 'gpt-realtime-2.1',
   liveTranscribe: 'gpt-live-transcribe',
-  embed: 'text-embedding-3-small',
 };
-
-const extOf = (mime: string) =>
-  ({
-    'audio/webm': 'webm',
-    'audio/mp4': 'mp4',
-    'audio/mpeg': 'mp3',
-    'audio/wav': 'wav',
-    'audio/ogg': 'ogg',
-  })[mime.split(';')[0]] ?? 'webm';
 
 export default defineExtension({
   id: 'openai',
   version: '1.0.0',
-  provides: { chat, transcribe, realtime, embed },
+  provides: { chat, realtime },
   secrets: {
     key: { label: 'OpenAI API key, from a project with a spend limit', hosts: ['api.openai.com'] },
   },
   agentGuide:
-    'The language, speech and embedding models. Other extensions use it; Pip rarely calls it directly.',
+    'The language and live speech models. Other extensions use it; Pip rarely calls it directly.',
   setup(_, kernel) {
-    const call = async (
-      path: string,
-      init: { json?: unknown; body?: FormData; method?: string } = {},
-    ) => {
+    const call = async (path: string, init: { json?: unknown } = {}) => {
       const r = await kernel.fetch(`${API}${path}`, {
-        method: init.method ?? (init.json !== undefined || init.body ? 'POST' : 'GET'),
-        headers: init.json !== undefined ? { 'Content-Type': 'application/json' } : {},
-        body: init.json !== undefined ? JSON.stringify(init.json) : init.body,
+        method: init.json === undefined ? 'GET' : 'POST',
+        headers: init.json === undefined ? {} : { 'Content-Type': 'application/json' },
+        body: init.json === undefined ? undefined : JSON.stringify(init.json),
         secret: 'key',
       });
       if (!r.ok) {
@@ -72,30 +56,6 @@ export default defineExtension({
           ((await (await call('/models')).json()) as { data: { id: string }[] }).data
             .map((m) => m.id)
             .sort(),
-      },
-
-      transcribe: {
-        async transcribe(raw) {
-          const req = TranscribeRequest.parse(raw);
-          const body = new FormData();
-          body.set('model', req.model ?? MODELS.transcribe);
-          if (req.language) body.set('language', req.language);
-          if (req.prompt) body.set('prompt', req.prompt);
-          body.set('response_format', 'json');
-          body.set(
-            'file',
-            new Blob([req.audio instanceof Blob ? req.audio : new Uint8Array(req.audio)], {
-              type: req.mime,
-            }),
-            `audio.${extOf(req.mime)}`,
-          );
-          const out = (await (await call('/audio/transcriptions', { body })).json()) as {
-            text: string;
-            language?: string;
-            duration?: number;
-          };
-          return { text: out.text, language: out.language, seconds: out.duration };
-        },
       },
 
       realtime: {
@@ -140,22 +100,6 @@ export default defineExtension({
                 : (req.model ?? MODELS.realtime)),
             connect: { kind: 'webrtc', url: `${API}/realtime/calls` },
           };
-        },
-      },
-
-      embed: {
-        async embed(req) {
-          const out = (await (
-            await call('/embeddings', {
-              json: {
-                input: req.texts,
-                model: req.model ?? MODELS.embed,
-                encoding_format: 'float',
-              },
-            })
-          ).json()) as { model: string; data: { index: number; embedding: number[] }[] };
-          const vectors = [...out.data].sort((a, b) => a.index - b.index).map((d) => d.embedding);
-          return { vectors, model: out.model, dimensions: vectors[0]?.length ?? 0 };
         },
       },
     };
