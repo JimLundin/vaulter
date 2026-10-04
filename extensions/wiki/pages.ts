@@ -14,12 +14,12 @@ export const KINDS = ['person', 'place', 'event', 'topic'] as const;
 
 export type Types = { [K in Kind]: RecordType<(typeof fields)[K]> };
 
-export function registerTypes(records: RecordsV1): Types {
+export async function registerTypes(records: RecordsV1): Promise<Types> {
   return {
-    person: records.registerType('person', fields.person),
-    place: records.registerType('place', fields.place),
-    event: records.registerType('event', fields.event),
-    topic: records.registerType('topic', fields.topic),
+    person: await records.registerType('person', fields.person),
+    place: await records.registerType('place', fields.place),
+    event: await records.registerType('event', fields.event),
+    topic: await records.registerType('topic', fields.topic),
   };
 }
 
@@ -53,7 +53,7 @@ export function pages(records: RecordsV1, types: Types) {
     return e;
   };
   /** The page changed by `change`, which gets it as it is now: a change made meanwhile isn't lost.
-   * What isn't one of the kind's fields (id, kind, dates) is left out by the records client. */
+   * What isn't one of the kind's fields (id, kind, dates) is left out by the type's Zod. */
   const change = async (ref: RecordRef, f: (e: Entity) => Partial<Entity>) => {
     await must(ref);
     const rec = await records.update(typeOf(ref), ref.id, (cur) => {

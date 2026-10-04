@@ -22,7 +22,7 @@ export default defineExtension({
   requires: { records },
   agentGuide:
     'Ask the person when something is unclear or you are unsure of a change; never guess.',
-  setup({ records }) {
+  async setup({ records }) {
     const fields = {
       ...NewQuestion.shape,
       from: z.string(),
@@ -32,7 +32,7 @@ export default defineExtension({
       /** Whether the asker's handler has had the answer. */
       delivered: z.boolean(),
     };
-    const question = records.registerType('question', fields);
+    const question = await records.registerType('question', fields);
     type Stored = Rec<typeof fields>;
 
     const handlers = new Map<string, Handler>();

@@ -232,7 +232,7 @@ export class Kernel {
     };
     this.parties.set(id, party);
     return {
-      use: <T, W>(contract: Contract<T, W>, provider: string): T => {
+      use: <T>(contract: Contract<T>, provider: string): T => {
         party.wiring[contract.key] = provider;
         return this.handle(contract, provider, id) as T;
       },
@@ -332,7 +332,7 @@ export class Kernel {
   problems = () => new Map(this.refused);
 
   /** A handle on a running provider of `contract`, for the kernel's own use (as "kernel"). */
-  use<T, W>(contract: Contract<T, W>, provider?: string): T {
+  use<T>(contract: Contract<T>, provider?: string): T {
     const providers = [...this.parties.values()].filter((p) => p.provided.has(contract.key));
     const to =
       provider ?? (providers.find((p) => p.id !== KERNEL) ?? providers[0])?.id ?? undefined;
@@ -342,10 +342,9 @@ export class Kernel {
 
   /* ---------- Handles ---------- */
 
-  /** What `from` holds for `contract`: the provider's implementation behind the kernel's checks, with
-   * the contract's client (from the requirer's own copy) on top. */
+  /** What `from` holds for `contract`: the provider's implementation behind the kernel's checks. */
   private handle(contract: AnyContract, to: string, from: string): unknown {
-    const remote = new Proxy(
+    return new Proxy(
       {},
       {
         get: (_, method) => {
@@ -354,7 +353,6 @@ export class Kernel {
         },
       },
     );
-    return contract.client ? contract.client(remote as never, { caller: from }) : remote;
   }
 
   private async call(from: string, to: string, key: string, method: string, raw: unknown[]) {

@@ -22,7 +22,7 @@ export default defineExtension({
   agentGuide:
     'The source of truth for people, places, events and topics the person knows. Look things up here first; cite a note for every fact.',
   async setup({ records, notes, chat, questions, agentTools }) {
-    const types = registerTypes(records);
+    const types = await registerTypes(records);
     const { api, all } = pages(records, types);
     const r = chat ? reviser({ wiki: api, all, chat, questions }) : undefined;
 

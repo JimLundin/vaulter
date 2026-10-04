@@ -12,14 +12,14 @@ export default defineExtension({
   provides: { notes },
   requires: { records },
   agentGuide: 'The log of what the person said or typed, never changed. Cite a note by its id.',
-  setup({ records }) {
+  async setup({ records }) {
     const fields = {
       text: z.string(),
       source: NoteSource,
       at: z.iso.datetime(),
       context: z.record(z.string(), z.json()).optional(),
     };
-    const note = records.registerType('note', fields);
+    const note = await records.registerType('note', fields);
     const listeners = new Set<(n: Note) => void>();
     const toNote = ({ meta: _, ...n }: Rec<typeof fields>): Note => n as Note;
 

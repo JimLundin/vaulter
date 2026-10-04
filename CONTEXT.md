@@ -21,7 +21,7 @@ The extension that implements a contract.
 
 **Requirer**:
 An extension that uses a contract; it may require it, or use it only when something provides it (optional).
-_Avoid_: consumer, client (a contract's client is something else)
+_Avoid_: consumer, client
 
 **Handle**:
 What a requirer holds for a contract: the provider behind the kernel's checks.

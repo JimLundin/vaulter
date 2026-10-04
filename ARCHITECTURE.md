@@ -74,11 +74,11 @@ So the kernel's checks keep well-behaved code, and Pip's model, in line; they do
 - guards the function the provider's copy of the contract names (`guards`: a tool's `run`, with its label and level read from the tool), and checks the arguments against Zod `inputs` if the contract gives any;
 - wraps every function among the arguments and the result with its owner, so it goes quiet once the owner stops; a guarded one also goes through Pip's access policy on every call, as the holder calling its owner, and carries the level the policy applies now (`run.level`).
 
-Because the guard comes from the provider's copy of the contract, a requirer can't leave it off: a draft with its own copy of a contract, or a client that skips it, still hands over a guarded `run`.
+Because the guard comes from the provider's copy of the contract, a requirer can't leave it off: a draft with its own copy of a contract still hands over a guarded `run`.
 
 Values otherwise pass as they are, not copied: a React component, a Zod schema or a `Blob` crosses like anything else. Contract methods are still async, and still take plain values where they can, so a provider may be anywhere: in this page today, behind a network or in a WebAssembly module later.
 
-**A contract has two faces.** `W`, what a provider implements, and `T`, what a requirer uses: the same unless the contract has a `client`, code in the contract package that adapts `W` into `T` on the requirer's side. The records client keeps `registerType` synchronous, names each type in its caller's namespace, and checks every value against the type's own Zod, so a provider stores values as they come and is checked once, not twice. Most contracts have none: `agent.tools` hands the agent each tool as it was added, its Zod input included, which the agent turns into JSON Schema for the model and checks the model's arguments against.
+**A contract is one interface.** The provider implements it and a requirer calls it; there is no adapter between them. The records provider is given each type's Zod at registration, so it names the type in its caller's namespace and checks every value itself. `agent.tools` hands the agent each tool as it was added, its Zod input included, which the agent turns into JSON Schema for the model and checks the model's arguments against.
 
 **Personal methods.** A contract can mark methods only a person may call: answering a question, approving, changing access, accepting a draft, unlocking the sealed secrets. An extension wraps the event handlers of its own screen with `kernel.asPerson`; a person's tap or key there (a trusted event) lets that extension, and only it, make one personal call within a few seconds, while the browser still counts the gesture as recent (`src/kernel/presence.ts`). A second call needs a second tap. Pip's own extensions never pass: the one providing `agent@1`, and any extension whose author is Pip, are refused a personal call even right after a tap, so Pip can't approve its own proposals.
 
@@ -106,7 +106,7 @@ Every extension is TypeScript source in the repo, exporting one `defineExtension
 src/kernel/              kernel and safe mode (the only built bundle)
 tools/                   CI only: sealing the secrets into the built page
 contracts/
-  records/               interface, client, conformance suite
+  records/               interface, conformance suite
   agent.tools/
   kernel/                the kernel's own contract
 extensions/
@@ -211,7 +211,7 @@ Five rules keep new features from forcing refactors.
 - **Contracts are versioned, not extensions' internals.** A provider may change anything behind `records@1` as long as it still passes the contract's test suite. A breaking change ships as `records@2`, and a provider can offer both while requirers move over.
 - **Contracts with a provider to hold to account ship a conformance test suite** (records, notes and questions today). Any new provider, including one Pip writes, must pass it in CI before its draft can be tried or accepted.
 - **Type changes are migrations.** Splitting `place` into `venue` and `city` is a migration the records contract runs once and can reverse.
-- **Nothing is overwritten or removed for good.** Every change to a record is a new revision with the earlier ones kept (`history`); a change names the revision it was made from, so two changes at once can't lose either (`update`). Deleting or merging leaves a tombstone that can be restored. Only removing an extension drops its data.
+- **Nothing is overwritten or removed for good.** Every change to a record is a new revision with the earlier ones kept (`history`); changes to one record run one after another, each `update` getting it as the last left it, so two changes at once can't lose either. Deleting or merging leaves a tombstone that can be restored. Only removing an extension drops its data.
 - **Derived data is disposable.** Wiki pages, records, embeddings and indexes are built from the notes extension's append-only log, so any of them can be rebuilt. A buggy extension can corrupt a view, never what you said.
 - **Safe mode always works.** It belongs to the kernel and depends on no extension, so a broken shell or storage provider can always be disabled or rolled back.
 
@@ -228,13 +228,13 @@ export const DateRange = z.object({ from: z.string().date(), to: z.string().date
 
 // A record is { id, ...fields, meta: { type, created, updated, v, rev, deleted?, mergedInto? } }.
 export interface RecordsV1 {
-  registerType<S extends z.ZodRawShape>(name: string, fields: S): RecordType<S>;
+  registerType<S extends z.ZodRawShape>(name: string, fields: S): Promise<RecordType<S>>;
   get<S extends z.ZodRawShape>(type: RecordType<S>, id: string): Promise<Rec<S> | undefined>;
   // where: { kind: 'run', distanceKm: { gte: 5 }, tags: { has: 'park' } }, orderBy, order, limit
   query<S extends z.ZodRawShape>(type: RecordType<S>, q?: Query): Promise<Rec<S>[]>;
   search<S extends z.ZodRawShape>(types: RecordType<S>[], text: string): Promise<Rec<S>[]>;
   create<S extends z.ZodRawShape>(type: RecordType<S>, value: Input<S>): Promise<Rec<S>>;
-  // Runs `change` on the record as it is now, again if it changed meanwhile: no update is lost.
+  // Runs `change` on the record as it is now; the next change to it waits: no update is lost.
   update<S extends z.ZodRawShape>(type: RecordType<S>, id: string, change: (now: Rec<S>) => Input<S>): Promise<Rec<S>>;
   delete(type: RecordType, id: string): Promise<void>; // a tombstone; restore() brings it back
   merge<S extends z.ZodRawShape>(type: RecordType<S>, keep: string, merge: string): Promise<Rec<S>>;
@@ -242,7 +242,7 @@ export interface RecordsV1 {
   onChanged<S extends z.ZodRawShape>(type: RecordType<S>, handler: (rec: Rec<S>) => void): Promise<Unsubscribe>;
 }
 
-export const records = defineContract<RecordsV1, RecordsWire>({ name: "records", version: "1.0.0", client });
+export const records = defineContract<RecordsV1>({ name: "records", version: "1.0.0" });
 ```
 
 **Voice capture** records and transcribes with the Realtime API through `aiRealtime`, then appends to the notes log. `shell.slots.bottomBarPrimary` is a typed constant, so a misspelled slot doesn't compile.
@@ -390,7 +390,7 @@ Three patterns repeat across these screens:
 | Storage for records and embeddings | An extension that provides `records@1` (`store-local`, on the kernel's storage). Others can replace it by passing the conformance suite in CI. |
 | Sync and backup of data | Extensions, such as a Git backup requiring `notes@1` and `records@1`, kept separate from the code repo. |
 | Isolation | None: every extension runs in the kernel's page, drafts too. The kernel's checks keep well-behaved code and Pip's model in line; review keeps bad code out of `main`. WebAssembly modules if isolation is ever needed. |
-| Calls between extensions | Through kernel handles: personal methods, guarded functions wrapped by the policy; values pass uncopied. TypeScript checks the arguments, not the kernel. A contract may ship a client for requirers. |
+| Calls between extensions | Through kernel handles: personal methods, guarded functions wrapped by the policy; values pass uncopied. TypeScript checks the arguments, not the kernel. A contract is one interface, with no adapter between the two sides. |
 | Pip's access | Read, write and ask attach to functions a contract guards (a tool's `run`), so no requirer can leave the guard off; the person's setting overrides the declared level. |
 | What only a person may do | Contract methods marked personal pass once per tap or key in the calling extension's own screen (`kernel.asPerson`); never for the agent or an extension Pip wrote. |
 | The kernel's own screens | A `kernel@1` contract the kernel provides; the screens are extensions. |

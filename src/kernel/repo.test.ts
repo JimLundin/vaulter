@@ -25,7 +25,7 @@ afterEach(async () => {
   await kernel?.dispose();
 });
 
-it('starts store-local and serves another extension through the records client', async () => {
+it('starts store-local and serves another extension its records', async () => {
   const files = {
     ...read('contracts'),
     ...read('extensions/store-local'),
@@ -36,9 +36,9 @@ it('starts store-local and serves another extension through the records client',
       export default defineExtension({
         id: 'people', version: '1.0.0', requires: { records },
         async setup({ records }, kernel) {
-          const v1 = records.registerType('person', { name: z.string() });
+          const v1 = await records.registerType('person', { name: z.string() });
           const ada = await records.create(v1, { name: 'Ada Lovelace' });
-          const v2 = records.registerType('person', { first: z.string(), last: z.string() }, {
+          const v2 = await records.registerType('person', { first: z.string(), last: z.string() }, {
             version: 2,
             migrate: { 1: (o) => { const [first, last] = String(o.name).split(' '); return { first, last }; } },
           });

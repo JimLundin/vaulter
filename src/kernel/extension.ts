@@ -6,8 +6,7 @@ import {
   type AnyContract,
   ContractName,
   ContractRef,
-  type Impl,
-  type Use,
+  type InterfaceOf,
   Version,
 } from './contract.ts';
 import type { PerCaller } from './per-caller.ts';
@@ -97,10 +96,12 @@ export interface KernelApi {
 
 type Contracts = Record<string, AnyContract>;
 export type Ctx<R extends Contracts, O extends Contracts = Record<never, never>> = {
-  [K in keyof R]: Use<R[K]>;
-} & { [K in keyof O]: Use<O[K]> | undefined };
+  [K in keyof R]: InterfaceOf<R[K]>;
+} & { [K in keyof O]: InterfaceOf<O[K]> | undefined };
 /** What setup returns for each contract it provides: the implementation, or one per caller. */
-export type Provided<P extends Contracts> = { [K in keyof P]: Impl<P[K]> | PerCaller<Impl<P[K]>> };
+export type Provided<P extends Contracts> = {
+  [K in keyof P]: InterfaceOf<P[K]> | PerCaller<InterfaceOf<P[K]>>;
+};
 // biome-ignore lint/suspicious/noConfusingVoidType: a setup that provides nothing returns nothing
 type SetupResult<P extends Contracts> = keyof P extends never ? void : Provided<P>;
 

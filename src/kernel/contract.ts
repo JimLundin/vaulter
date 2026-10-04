@@ -2,17 +2,12 @@
 // id (ARCHITECTURE.md, "The kernel"). A contract package in contracts/ exports one handle made here.
 //
 // Every extension runs in the kernel's page, and a call between two of them goes through a kernel
-// handle (kernel.ts). A contract has two faces:
-//   W, the wire face (hence `RecordsWire`): what a provider implements. Every
-//     method is async and takes plain values where it can, so a provider could live elsewhere later
-//     (behind a network, in a WebAssembly module).
-//   T, what a requirer uses: by default the same as W; a contract with a `client` adapts W into T on
-//     the requirer's side (records turns Zod schemas into JSON Schema there, so registerType can
-//     return a typed handle at once).
-// The interface is the contract: TypeScript checks both sides in the editor and in CI, so the kernel
-// doesn't check arguments again. A contract may still give Zod `inputs` for a method whose arguments
-// come from outside typed code, and says where a method's guarded function sits (`guards`). Both are
-// taken from the provider's copy of the contract.
+// handle (kernel.ts). The interface is the contract: the provider implements it and a requirer calls
+// it, and TypeScript checks both sides in the editor and in CI, so the kernel doesn't check arguments
+// again. Every method is async and takes plain values where it can, so a provider could live
+// elsewhere later (behind a network, in a WebAssembly module). A contract may still give Zod `inputs`
+// for a method whose arguments come from outside typed code, and says where a method's guarded
+// function sits (`guards`); both are taken from the provider's copy of the contract.
 import { z } from 'zod';
 import type { GuardSpec } from './access.ts';
 
@@ -24,47 +19,37 @@ export const ContractName = z.string().regex(/^[a-z][a-z0-9]*(\.[a-z][a-z0-9]*)*
 export const Version = z.string().regex(SEMVER, { message: 'major.minor.patch, such as "1.2.0"' });
 
 /** A method's arguments, as one tuple schema. */
-export type Inputs<W> = { [M in keyof W]?: z.ZodType<unknown[]> };
+export type Inputs<T> = { [M in keyof T]?: z.ZodType<unknown[]> };
 /** Where each method's guarded function is (access.ts). */
-export type Guards<W> = { [M in keyof W]?: GuardSpec };
+export type Guards<T> = { [M in keyof T]?: GuardSpec };
 
-export interface ClientInfo {
-  /** The id of the extension the client runs for. */
-  caller: string;
-}
-
-export interface Contract<T, W = T> {
+export interface Contract<T> {
   readonly kind: 'contract';
   readonly name: string;
   readonly version: string;
   /** `name@major`: what a `requires` asks for and a `provides` satisfies. */
   readonly key: string;
-  readonly inputs: Inputs<W>;
-  readonly guards: Guards<W>;
+  readonly inputs: Inputs<T>;
+  readonly guards: Guards<T>;
   /** Methods only a person may call: the kernel lets a call through only right after a gesture
    * (a tap or a key), so no extension, Pip included, can call them on its own. */
   readonly personal: readonly string[];
-  readonly client?: (remote: W, info: ClientInfo) => T;
   /** Only for the types: never set at runtime. */
-  readonly _use?: T;
-  readonly _wire?: W;
+  readonly _interface?: T;
 }
 
 // biome-ignore lint/suspicious/noExplicitAny: a contract of any interface
-export type AnyContract = Contract<any, any>;
-/** What a provider of the contract implements. */
-export type Impl<C> = C extends Contract<infer _T, infer W> ? W : never;
-/** What a requirer of the contract is handed. */
-export type Use<C> = C extends Contract<infer T, infer _W> ? T : never;
+export type AnyContract = Contract<any>;
+/** The contract's interface: what a provider implements and a requirer is handed. */
+export type InterfaceOf<C> = C extends Contract<infer T> ? T : never;
 
-export function defineContract<T, W = T>(def: {
+export function defineContract<T>(def: {
   name: string;
   version: string;
-  inputs?: Inputs<W>;
-  guards?: Guards<W>;
-  personal?: (keyof W & string)[];
-  client?: (remote: W, info: ClientInfo) => T;
-}): Contract<T, W> {
+  inputs?: Inputs<T>;
+  guards?: Guards<T>;
+  personal?: (keyof T & string)[];
+}): Contract<T> {
   const name = ContractName.parse(def.name);
   const version = Version.parse(def.version);
   return Object.freeze({
@@ -75,7 +60,6 @@ export function defineContract<T, W = T>(def: {
     inputs: def.inputs ?? {},
     guards: def.guards ?? {},
     personal: Object.freeze([...(def.personal ?? [])]),
-    client: def.client,
   });
 }
 

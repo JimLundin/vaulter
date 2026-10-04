@@ -10,7 +10,10 @@ export default defineConformance(records, [
   {
     name: 'registers a type in the caller’s namespace and checks values against it',
     async run(r, t) {
-      const person = r.registerType('person', { name: z.string(), age: z.number().optional() });
+      const person = await r.registerType('person', {
+        name: z.string(),
+        age: z.number().optional(),
+      });
       t.ok(/^[\w~-]+\/person$/.test(person.name), `namespaced: ${person.name}`);
       const p = await r.create(person, { name: 'Ada' });
       t.equal(
@@ -26,7 +29,7 @@ export default defineConformance(records, [
   {
     name: 'creates a record with a chosen id once, and refuses that id again',
     async run(r, t) {
-      const thing = r.registerType('thing', { n: z.number() });
+      const thing = await r.registerType('thing', { n: z.number() });
       const a = await r.create(thing, { id: 'one', n: 1 });
       t.equal(a.id, 'one');
       await t.rejects(r.create(thing, { id: 'one', n: 2 }));
@@ -36,7 +39,7 @@ export default defineConformance(records, [
   {
     name: 'updates a record as a new revision, keeping when it was created and every earlier one',
     async run(r, t) {
-      const thing = r.registerType('thing', { n: z.number() });
+      const thing = await r.registerType('thing', { n: z.number() });
       const a = await r.create(thing, { n: 1 });
       const b = await r.update(thing, a.id, (cur) => ({ n: cur.n + 1 }));
       t.equal([b.id, b.n, b.meta.rev, b.meta.created], [a.id, 2, 2, a.meta.created]);
@@ -54,7 +57,7 @@ export default defineConformance(records, [
   {
     name: 'loses neither of two updates made at once',
     async run(r, t) {
-      const counter = r.registerType('counter', { n: z.number(), by: z.array(z.string()) });
+      const counter = await r.registerType('counter', { n: z.number(), by: z.array(z.string()) });
       const c = await r.create(counter, { n: 0, by: [] });
       const slow = (who: string) =>
         r.update(counter, c.id, async (cur) => {
@@ -69,7 +72,7 @@ export default defineConformance(records, [
   {
     name: 'queries by field values and ranges, ordered by a field or when, up to a limit',
     async run(r, t) {
-      const ev = r.registerType('event', {
+      const ev = await r.registerType('event', {
         n: z.number(),
         kind: z.string(),
         tags: z.array(z.string()),
@@ -106,7 +109,7 @@ export default defineConformance(records, [
   {
     name: 'finds records by the words in their text fields, or in the fields asked for',
     async run(r, t) {
-      const place = r.registerType('place', {
+      const place = await r.registerType('place', {
         name: z.string(),
         aliases: z.array(z.string()),
         notes: z.string().optional(),
@@ -132,7 +135,7 @@ export default defineConformance(records, [
   {
     name: 'deletes to a tombstone, hidden unless asked for, which can be restored',
     async run(r, t) {
-      const note = r.registerType('scrap', { text: z.string() });
+      const note = await r.registerType('scrap', { text: z.string() });
       const a = await r.create(note, { text: 'keep me' });
       await r.delete(note, a.id);
       t.equal(await r.get(note, a.id), undefined);
@@ -148,7 +151,7 @@ export default defineConformance(records, [
   {
     name: 'tells a subscriber about each change, until it unsubscribes',
     async run(r, t) {
-      const w = r.registerType('watched', { n: z.number() });
+      const w = await r.registerType('watched', { n: z.number() });
       const seen: unknown[] = [];
       const stop = await r.onChanged(w, (c) => {
         seen.push(c.meta.deleted ? 'deleted' : c.n);
@@ -165,7 +168,7 @@ export default defineConformance(records, [
   {
     name: 'merges two records, and a merged id reads as the one kept, through a chain of merges',
     async run(r, t) {
-      const p = r.registerType('who', { name: z.string(), born: z.string().optional() });
+      const p = await r.registerType('who', { name: z.string(), born: z.string().optional() });
       const a = await r.create(p, { name: 'Ada Lovelace' });
       const b = await r.create(p, { name: 'Ada', born: '1815' });
       const c = await r.create(p, { name: 'Augusta Ada King' });
@@ -182,9 +185,9 @@ export default defineConformance(records, [
   {
     name: 'migrates a type to a new version once, and can revert it',
     async run(r, t) {
-      const v1 = r.registerType('spot', { place: z.string() });
+      const v1 = await r.registerType('spot', { place: z.string() });
       const old = await r.create(v1, { place: 'Café Lumière, Stockholm' });
-      const v2 = r.registerType(
+      const v2 = await r.registerType(
         'spot',
         { venue: z.string(), city: z.string() },
         {

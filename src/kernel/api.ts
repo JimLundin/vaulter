@@ -4,13 +4,11 @@
 export type { Access, Guard, Guarded, GuardSpec } from './access.ts';
 export { type Asserts, type Check, defineConformance, type Suite } from './conformance.ts';
 export {
-  type ClientInfo,
   type Contract,
   defineContract,
   type Guards,
-  type Impl,
   type Inputs,
-  type Use,
+  type InterfaceOf,
 } from './contract.ts';
 export {
   defineExtension,
