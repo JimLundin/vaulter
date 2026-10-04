@@ -12,7 +12,7 @@ export function linker(url: (code: string) => string, shared: Record<string, obj
     const key = `shared:${spec}`;
     if (!urls.has(key)) {
       const ns = shared[spec] as Record<string, unknown> | undefined;
-      if (!ns) throw new Error(`the sandbox has no shared module "${spec}"`);
+      if (!ns) throw new Error(`the kernel has no shared module "${spec}"`);
       const names = Object.keys(ns).filter((k) => k !== 'default');
       const m = `globalThis[Symbol.for('pip.shared')][${JSON.stringify(spec)}]`;
       urls.set(

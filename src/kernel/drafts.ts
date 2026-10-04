@@ -79,7 +79,7 @@ export interface ReviewEnv {
   repo: string;
   ref: string;
   treeAt: (commit: string) => Promise<Tree>;
-  /** The static fields of an extension's plan, read in a scratch sandbox. */
+  /** The static fields of an extension's plan, read by loading it. */
   inspect: (id: string, tree: Tree, entry: string) => Promise<Statics>;
 }
 

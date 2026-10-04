@@ -1,5 +1,5 @@
-/** The modules every sandbox has one copy of, which compiled code imports by these names
- * (src/sandbox/main.ts loads them). */
+/** The modules the page has one copy of, which compiled code imports by these names (src/main.ts
+ * hands them to the kernel). */
 export const SHARED = [
   '@pip/kernel',
   'zod',

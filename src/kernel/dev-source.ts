@@ -1,5 +1,5 @@
 // The source under `npm run dev`: the working tree, as Vite serves it, provided by the kernel itself
-// (import.meta.glob exists only in the bundle, not in a sandbox). The "commit" is "working-tree" and a
+// (import.meta.glob exists only in the kernel bundle, not in compiled extension code). The "commit" is "working-tree" and a
 // file's sha is a hash of its text, so an edit shows on the next reload and recompiles only that file.
 // It can't write: drafts need the real repo.
 import type { SourceV1 } from '@contracts/extensions.source';

@@ -17,7 +17,7 @@ export interface Guard {
 
 const GUARD = Symbol.for('pip.guard');
 
-/** Marks `fn` so the kernel applies `access` to every call that reaches it from another sandbox. */
+/** Marks `fn` so the kernel applies `access` to every call that reaches it through a handle. */
 export function guarded<F extends (...args: never[]) => unknown>(fn: F, guard: Guard): F {
   Object.defineProperty(fn, GUARD, {
     value: { label: guard.label, access: Access.parse(guard.access) },

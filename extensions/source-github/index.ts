@@ -1,6 +1,6 @@
 // The bootstrap source provider: reads extensions/ and contracts/ from a GitHub repo at a commit, and
-// writes Pip's drafts. It ships inside the kernel bundle (the only extension that does) and runs in a
-// sandbox like any other. The token is optional for reading a public repo, at GitHub's lower rate limit.
+// writes Pip's drafts. It ships inside the kernel bundle (the only extension that does) and is compiled
+// and loaded like any other. The token is optional for reading a public repo, at GitHub's lower rate limit.
 import { defineExtension } from '@pip/kernel';
 import { type Checks, source } from '@contracts/extensions.source';
 

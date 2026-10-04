@@ -28,7 +28,7 @@ export interface Resolution {
 export interface Candidate {
   /** The folder it came from (extensions/<id>): its id must be the folder's name. */
   folder: string;
-  /** Its static fields as its sandbox reported them, not yet validated. */
+  /** Its static fields, not yet validated. */
   statics: unknown;
 }
 

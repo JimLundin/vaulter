@@ -1,5 +1,5 @@
-// Every extension's own storage, kept by the kernel: a sandbox's origin is opaque, so it has no
-// IndexedDB of its own. One namespace per extension; removing the extension drops its namespace.
+// Every extension's own storage, kept by the kernel in one IndexedDB database: a namespace per
+// extension, dropped when the extension is removed.
 export interface KernelStorage {
   get: (ns: string, key: string) => Promise<unknown>;
   set: (ns: string, key: string, value: unknown) => Promise<void>;

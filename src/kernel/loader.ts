@@ -1,11 +1,11 @@
 // The loader: from a commit's tree to a plan per extension, the compiled modules it needs with every
-// import resolved. The kernel compiles (compile.ts) but never evaluates extension code: a plan goes to
-// the extension's sandbox, which links it into modules there (link.ts) and runs it.
+// import resolved. The kernel compiles (compile.ts), then links a plan into
+// blob: modules in this page (link.ts) and loads it.
 //
 // What a file may import:
 //   ./x.ts, ../x.ts   a file in the same extension folder (or, from a contract, in contracts/)
 //   @contracts/name   a contract: contracts/name/index.ts (and @contracts/name/file.ts)
-//   the shared modules the sandbox offers: @pip/kernel, zod, react, react/jsx-runtime, react-dom/client
+//   the shared modules the kernel offers: @pip/kernel, zod, react, react/jsx-runtime, react-dom/client
 // Anything else is a problem for that extension alone; the others still load.
 import type { Compiled } from './compile.ts';
 import type { Refused } from './resolve.ts';
@@ -38,7 +38,7 @@ export interface LoaderDeps {
   read: (path: string, sha: string) => Promise<string>;
   /** Compiled output by blob sha; absent in tests. */
   keep?: KernelKeep;
-  /** The specifiers the sandbox offers as shared modules. */
+  /** The specifiers the kernel offers as shared modules. */
   shared: readonly string[];
 }
 

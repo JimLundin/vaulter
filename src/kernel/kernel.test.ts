@@ -5,7 +5,7 @@ import { resolve } from './resolve.ts';
 import { secretStore } from './secrets.ts';
 import { memoryKeep, startTree } from './testing.ts';
 
-// Fixture source: compiled and run in sandboxes, like any extension in the repo.
+// Fixture source: compiled and loaded like any extension in the repo.
 const NOTES = `
 import { defineContract } from '@pip/kernel';
 import { z } from 'zod';
@@ -202,7 +202,7 @@ describe('resolve', () => {
 });
 
 describe('the kernel', () => {
-  it('runs each extension in its own sandbox and routes calls and callbacks between them', async () => {
+  it('loads each extension and routes calls and callbacks between them', async () => {
     const { kernel, storage, refused } = await start({
       ...base,
       'extensions/voice/index.ts': VOICE_EXT,
@@ -212,14 +212,14 @@ describe('the kernel', () => {
     const n = kernel.use(notesContract);
     expect(await n.count()).toBe(1);
     await n.append('from the kernel');
-    // Voice's handler ran in voice's sandbox, called back through the kernel.
+    // Voice's handler was called back through the kernel.
     expect(await storage.get('voice', 'seen')).toEqual(['from voice', 'from the kernel']);
     // Each extension's storage is its own namespace.
     expect(await storage.get('notes', 'note:2')).toBe('from the kernel');
     expect(await storage.get('voice', 'n')).toBeUndefined();
   });
 
-  it("checks a call against the contract's inputs in the provider's sandbox", async () => {
+  it("checks a call against the contract's inputs", async () => {
     const { kernel } = await start(base);
     await expect(kernel.use(notesContract).append('')).rejects.toThrow(
       /kernel → notes@1\.append: 0/,

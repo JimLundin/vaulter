@@ -57,7 +57,7 @@ export const Statics = z.object({
 });
 export type Statics = z.infer<typeof Statics>;
 
-/** A request through the kernel: only plain values, so it can cross from the sandbox. */
+/** A request through the kernel's `fetch`. */
 export interface FetchInit {
   method?: string;
   headers?: Record<string, string>;
@@ -66,8 +66,8 @@ export interface FetchInit {
   secret?: string;
 }
 
-/** The extension's own storage, kept by the kernel in a namespace no other extension can reach; it
- * goes when the extension is removed. Values are anything structured clone copies. */
+/** The extension's own storage, kept by the kernel in a namespace of its own; it goes when the
+ * extension is removed. Values are anything structured clone copies. */
 export interface ExtStorage {
   get: <T>(key: string) => Promise<T | undefined>;
   set: (key: string, value: unknown) => Promise<void>;
@@ -76,8 +76,8 @@ export interface ExtStorage {
   list: <T>(prefix?: string) => Promise<[string, T][]>;
 }
 
-/** What the kernel gives every extension besides its contracts. A sandbox has no network and no
- * storage of its own (its origin is opaque), so both come from here. */
+/** What the kernel gives every extension besides its contracts: storage of its own, and a fetch that
+ * attaches its secrets, so no extension handles either itself. */
 export interface KernelApi {
   readonly id: string;
   /** https only, to the extension's declared hosts. */

@@ -1,14 +1,16 @@
 // A contract: what one extension provides and others require, by name and version, never by extension
 // id (ARCHITECTURE.md, "The kernel"). A contract package in contracts/ exports one handle made here.
 //
-// Every extension runs in its own sandbox, so a call between two of them is a message through the
-// kernel. A contract therefore has two faces:
-//   W, the wire interface: what a provider implements. Every method is async and takes and returns
-//     values that can be copied between sandboxes (functions become kernel-routed callbacks).
-//   T, what a requirer uses: by default the same as W; a contract with a `client` adapts W into T in
-//     the requirer's sandbox (records turns Zod schemas into JSON Schema there, so registerType can
+// Every extension runs in the kernel's page, and a call between two of them goes through a kernel
+// handle (kernel.ts). A contract has two faces:
+//   W, the wire face (hence `RecordsWire`, `AgentToolsWire`): what a provider implements. Every
+//     method is async and takes plain values where it can, so a provider could live elsewhere later
+//     (behind a network, in a WebAssembly module).
+//   T, what a requirer uses: by default the same as W; a contract with a `client` adapts W into T on
+//     the requirer's side (records turns Zod schemas into JSON Schema there, so registerType can
 //     return a typed handle at once).
-// `inputs` are Zod schemas for W's methods, checked in the provider's sandbox before every call.
+// `inputs` are Zod schemas for W's methods, taken from the provider's copy of the contract and checked
+// by the handle before every call.
 import { z } from 'zod';
 
 const SEMVER = /^(\d+)\.(\d+)\.(\d+)$/;
@@ -73,8 +75,7 @@ const parts = (v: string) => v.split('.').map(Number) as [number, number, number
 export const major = (v: string) => parts(v)[0];
 export const keyOf = (name: string, version: string) => `${name}@${major(version)}`;
 
-/** A contract as it crosses from a sandbox to the kernel: name and version only. The kernel derives
- * the key itself rather than trusting one. */
+/** A contract as the static fields name it: by name and version, with its key derived from them. */
 export const ContractRef = z
   .object({
     kind: z.literal('contract'),

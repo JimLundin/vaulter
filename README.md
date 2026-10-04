@@ -1,7 +1,7 @@
 # Vaulter
 
 A voice-first personal knowledge wiki, built as a small kernel plus extensions (the project is Pip; the
-app is still Vaulter). The design is `ARCHITECTURE.md`. This is a full rebuild: the previous app, a
+app is still Vaulter). The design is `ARCHITECTURE.md`; the words it uses are in `CONTEXT.md`. This is a full rebuild: the previous app, a
 viewer over the `JimLundin/vault` repo, is in `main`'s history before the `pip` branch.
 
 ## Layout
@@ -23,7 +23,7 @@ OpenAI key is set.
 An extension imports the kernel as `@pip/kernel`, a contract as `@contracts/<name>`, its own files
 relatively, and the shared `zod`, `react`, `react/jsx-runtime` and `react-dom/client`; nothing else.
 Every contract method is async, and goes through a kernel handle that checks it (ARCHITECTURE.md,
-"Running in the page"). There is no sandbox: extensions run in the kernel's page.
+"Running in the page"). Extensions run in the kernel's page, with no sandbox.
 
 ## Commands
 

@@ -2,7 +2,7 @@
 // (ARCHITECTURE.md, "A contract: records"). A type is registered by name once and then passed around
 // as a handle, so another extension refers to it by the handle a contract gives it, never by a string.
 //
-// Handles are plain data (they cross sandboxes): the name, the fields as JSON Schema, the version. The
+// Handles are plain data: the name, the fields as JSON Schema, the version. The
 // client below turns Zod fields into that, validates puts before they leave, and keeps registerType
 // synchronous. An extension may read any type it has a handle for, and write only its own.
 //

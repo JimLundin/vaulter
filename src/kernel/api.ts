@@ -1,5 +1,5 @@
-// What extensions and contracts import, as `@pip/kernel`. Every sandbox has one copy of this module,
-// shared by everything compiled into it.
+// What extensions and contracts import, as `@pip/kernel`. The page has one copy of this module,
+// shared by every extension.
 // biome-ignore-all lint/performance/noBarrelFile: this is the public surface, one import for authors
 export { type Access, type Guard, guarded } from './access.ts';
 export { type Asserts, type Check, defineConformance, type Suite } from './conformance.ts';

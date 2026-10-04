@@ -1,4 +1,4 @@
-// The repo's own contracts and extensions, started by the kernel in sandboxes.
+// The repo's own contracts and extensions, started by the kernel.
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, expect, it } from 'vitest';
