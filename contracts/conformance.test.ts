@@ -2,7 +2,7 @@
 // real handles, each check as a fresh caller: what CI runs on every push, draft branches included, so
 // a provider Vaulter writes is held to its contract before anyone accepts it.
 import { afterAll, describe, expect, it } from 'vitest';
-import { runSuite } from '../src/kernel/conformance.ts';
+import { runSuite } from './conformance.ts';
 import { repoConformance } from '../src/kernel/testing.ts';
 
 const repo = await repoConformance();

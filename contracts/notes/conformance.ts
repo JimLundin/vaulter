@@ -1,6 +1,6 @@
 // What every provider of notes@1 must do: keep each note as it was said, in order, and say when one is
 // appended.
-import { defineConformance } from '@vaulter/kernel';
+import { defineConformance } from '../conformance.ts';
 import { notes } from './index.ts';
 
 export default defineConformance(notes, [

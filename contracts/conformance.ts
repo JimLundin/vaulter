@@ -1,7 +1,8 @@
 // Conformance suites: what every provider of a contract must do. A contract ships one as
 // contracts/<name>/conformance.ts, and CI runs it against every extension in the repo that provides the
-// contract, through real handles (contracts/conformance.test.ts), on every push, draft branches included.
-import type { AnyContract, InterfaceOf } from './contract.ts';
+// contract, through real handles (conformance.test.ts), on every push, draft branches included. Only CI
+// uses this: it isn't part of the kernel, and the page doesn't carry the suites.
+import type { Contract } from '@vaulter/kernel';
 
 export interface Asserts {
   ok: (v: unknown, message?: string) => void;
@@ -21,10 +22,11 @@ export interface Suite<T> {
   readonly checks: Check<T>[];
 }
 
-export const defineConformance = <C extends AnyContract>(
-  contract: C,
-  checks: Check<InterfaceOf<C>>[],
-): Suite<InterfaceOf<C>> => ({ kind: 'conformance', contract: contract.key, checks });
+export const defineConformance = <T>(contract: Contract<T>, checks: Check<T>[]): Suite<T> => ({
+  kind: 'conformance',
+  contract: contract.key,
+  checks,
+});
 
 export function deepEqual(a: unknown, b: unknown): boolean {
   if (Object.is(a, b)) return true;

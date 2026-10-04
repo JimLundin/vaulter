@@ -2,7 +2,6 @@
 // shared by every extension.
 // biome-ignore-all lint/performance/noBarrelFile: this is the public surface, one import for authors
 export type { Access, Guard, Guarded, GuardSpec } from './access.ts';
-export { type Asserts, type Check, defineConformance, type Suite } from './conformance.ts';
 export {
   type Contract,
   defineContract,
