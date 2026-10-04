@@ -1,27 +1,24 @@
 // records@1 over the kernel's storage for this extension (one namespace, IndexedDB underneath). Keys:
 //   format                       the layout below, so a later store-local can tell what it reads
-//   t:<type>                     the type: its schema and version now
-//   s:<type>:<v>                 its schema at version v, to revert to
+//   t:<type>                     the type: its version now
 //   r:<type>:<id>                a record as it is now, a tombstone included
 //   h:<type>:<id>:<rev>          each earlier revision of it
-// Queries read a type's records and filter in memory: plenty for one person's data. Changes to one
+// The records client checks values against the type's own Zod before they arrive, so they are taken
+// as they come. Queries read a type's records and filter in memory: plenty for one person's data. Changes to one
 // record run one at a time (this page is the only one with the kernel), so a revision check holds.
 import type { ExtStorage } from '@pip/kernel';
 import {
   Conflict,
   type Filter,
-  type JsonSchema,
   type Query,
   type Range,
   type RecordsWire,
   type Stored,
 } from '@contracts/records';
-import { z } from 'zod';
 
 export const FORMAT = 2;
 
 interface TypeEntry {
-  schema: JsonSchema;
   version: number;
 }
 
@@ -53,7 +50,6 @@ const fieldsOf = ({ id: _, meta: _m, ...fields }: Stored) => fields;
 
 export function localRecords(storage: ExtStorage) {
   const listeners = new Map<string, Set<(c: Stored) => void>>();
-  const schemas = new Map<string, z.ZodType>();
   const format = (async () => {
     const at = await storage.get<number>('format');
     if (at === undefined) await storage.set('format', FORMAT);
@@ -84,19 +80,6 @@ export function localRecords(storage: ExtStorage) {
     const t = await storage.get<TypeEntry>(`t:${type}`);
     if (!t) throw new Error(`no record type "${type}"`);
     return t;
-  };
-  const validator = (type: string, t: TypeEntry) => {
-    const k = `${type}@${t.version}:${JSON.stringify(t.schema)}`;
-    if (!schemas.has(k)) schemas.set(k, z.fromJSONSchema(t.schema as never));
-    return schemas.get(k)!;
-  };
-  const check = (type: string, t: TypeEntry, fields: Record<string, unknown>) => {
-    const r = validator(type, t).safeParse(fields);
-    if (!r.success)
-      throw new Error(
-        `${type}: ${r.error.issues.map((i) => `${i.path.join('.') || 'value'}: ${i.message}`).join('; ')}`,
-      );
-    return r.data as Record<string, unknown>;
   };
   const all = async (type: string) => {
     await format;
@@ -136,16 +119,14 @@ export function localRecords(storage: ExtStorage) {
     };
 
     return {
-      async register(type, schema, version, migrations) {
+      async register(type, version, migrations) {
         mine(type);
         await format;
         const prior = await storage.get<TypeEntry>(`t:${type}`);
-        await storage.set(`s:${type}:${version}`, schema);
         if (prior && prior.version > version) return this.revert(type, version);
         if (prior && prior.version < version) {
           // Every record up, one version at a time, each step a revision; the version is the new one
           // only once every record has moved, so a migration cut short runs again.
-          const t = { schema, version };
           for (const rec of await all(type)) {
             if (rec.meta.v >= version) continue;
             let data = fieldsOf(rec);
@@ -156,11 +137,11 @@ export function localRecords(storage: ExtStorage) {
               data = await up(data);
             }
             await serial(`${type}:${rec.id}`, () =>
-              write(type, rec, revise(rec, check(type, t, data), { v: version })),
+              write(type, rec, revise(rec, data, { v: version })),
             );
           }
         }
-        await storage.set(`t:${type}`, { schema, version } satisfies TypeEntry);
+        await storage.set(`t:${type}`, { version } satisfies TypeEntry);
       },
 
       async get(type, id, opts = {}) {
@@ -213,7 +194,7 @@ export function localRecords(storage: ExtStorage) {
           if (await current(type, id)) throw new Error(`${type}: a record ${id} exists`);
           const now = stamp();
           return write(type, undefined, {
-            ...check(type, t, fields),
+            ...fields,
             id,
             meta: { type, created: now, updated: now, v: t.version, rev: 1 },
           } as Stored);
@@ -228,7 +209,7 @@ export function localRecords(storage: ExtStorage) {
           if (!prior || prior.meta.deleted) throw new Error(`${type}: no record ${id}`);
           if (prior.meta.rev !== rev)
             throw new Conflict(`${type}/${id} is at revision ${prior.meta.rev}, not ${rev}`);
-          return write(type, prior, revise(prior, check(type, t, fields), { v: t.version }));
+          return write(type, prior, revise(prior, fields, { v: t.version }));
         });
       },
 
@@ -260,7 +241,7 @@ export function localRecords(storage: ExtStorage) {
 
       async merge(type, keepId, mergeId) {
         mine(type);
-        const t = await typeOf(type);
+        await typeOf(type);
         const [keep, merge] = await Promise.all([this.get(type, keepId), this.get(type, mergeId)]);
         if (!(keep && merge)) throw new Error(`${type}: both records must exist to merge`);
         if (keep.id === merge.id) throw new Error(`${type}: a record can't be merged into itself`);
@@ -274,7 +255,7 @@ export function localRecords(storage: ExtStorage) {
         });
         return serial(`${type}:${keep.id}`, async () => {
           const prior = (await current(type, keep.id))!;
-          const fields = check(type, t, { ...fieldsOf(merge), ...fieldsOf(prior) });
+          const fields = { ...fieldsOf(merge), ...fieldsOf(prior) };
           return write(type, prior, revise(prior, fields));
         });
       },
@@ -295,9 +276,7 @@ export function localRecords(storage: ExtStorage) {
 
       async revert(type, version) {
         mine(type);
-        const t = await typeOf(type);
-        const schema = await storage.get<JsonSchema>(`s:${type}:${version}`);
-        if (!schema) throw new Error(`${type} was never at version ${version}`);
+        await typeOf(type);
         for (const rec of await all(type)) {
           if (rec.meta.v <= version) continue;
           // The latest revision at that version; a record made since has none, and is put away.
@@ -316,7 +295,7 @@ export function localRecords(storage: ExtStorage) {
             ),
           );
         }
-        await storage.set(`t:${type}`, { ...t, schema, version } satisfies TypeEntry);
+        await storage.set(`t:${type}`, { version } satisfies TypeEntry);
       },
     };
   };
@@ -324,7 +303,7 @@ export function localRecords(storage: ExtStorage) {
   /** Drops every type the caller registered, and their records. */
   const forget = async (caller: string) => {
     // biome-ignore lint/performance/noAwaitInLoops: a sweep, once
-    for (const prefix of ['t:', 's:', 'r:', 'h:'])
+    for (const prefix of ['t:', 'r:', 'h:'])
       for (const [key] of await storage.list(`${prefix}${caller}/`)) await storage.delete(key);
   };
 

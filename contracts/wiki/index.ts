@@ -67,7 +67,7 @@ export interface Entity {
 }
 
 export interface WikiTypes {
-  person: { kind: 'record-type'; name: string; schema: Record<string, unknown>; version: number };
+  person: { kind: 'record-type'; name: string; version: number };
   place: WikiTypes['person'];
   event: WikiTypes['person'];
   topic: WikiTypes['person'];

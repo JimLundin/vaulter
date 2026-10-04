@@ -2,11 +2,10 @@
 // (ARCHITECTURE.md, "A contract: records"). A type is registered by name once and then passed around
 // as a handle, so another extension refers to it by the handle a contract gives it, never by a string.
 //
-// Handles are plain data: the name, the fields as JSON Schema, the version. The client below names a
-// type in its caller's namespace, shapes values with the type's own Zod (defaults, trims: code only the
-// requirer has), and keeps registerType synchronous; the provider checks every value against the
-// type's schema and refuses what doesn't fit. An extension may read any type it has a handle for, and
-// write only its own.
+// Handles are plain data: the name and the version. The client below names a type in its caller's
+// namespace, checks and shapes every value with the type's own Zod (defaults and trims included), and
+// keeps registerType synchronous; the provider takes values as they come. An extension may read any
+// type it has a handle for, and write only its own.
 //
 // Nothing is overwritten or removed for good. Every change makes a new revision and keeps the one
 // before (`history`); a change names the revision it was made from, so two changes at once can't lose
@@ -16,14 +15,12 @@
 import { defineContract } from '@pip/kernel';
 import { z } from 'zod';
 
-export type JsonSchema = Record<string, unknown>;
 export type Unsubscribe = () => void;
 
 export interface RecordType<S extends z.ZodRawShape = z.ZodRawShape> {
   readonly kind: 'record-type';
   /** `extension/name`: the namespace is the registering extension's id. */
   readonly name: string;
-  readonly schema: JsonSchema;
   readonly version: number;
   /** Only for the types. */
   readonly _shape?: S;
@@ -88,12 +85,7 @@ type Migration = (
 /** What a provider implements, per calling extension (`perCaller`). */
 export interface RecordsWire {
   /** `type` is `<caller>/<name>`: only the caller's own. */
-  register: (
-    type: string,
-    schema: JsonSchema,
-    version: number,
-    migrations: Record<string, Migration>,
-  ) => Promise<void>;
+  register: (type: string, version: number, migrations: Record<string, Migration>) => Promise<void>;
   /** A merged record's id reads as the one it was merged into; with `deleted`, the record itself,
    * a tombstone included. */
   get: (type: string, id: string, opts?: { deleted?: boolean }) => Promise<Stored | undefined>;
@@ -176,13 +168,8 @@ export type RecordRef = z.infer<typeof RecordRef>;
 /** A field holding a reference to a record of `type`: `place: refTo(wiki.place).optional()`. */
 export const refTo = (type: RecordType) => RecordRef.extend({ type: z.literal(type.name) });
 
+// Each type's Zod, by name and version: the requirer that registered it is the only one that writes it.
 const schemas = new Map<string, z.ZodType>();
-/** The Zod schema for a handle's fields, made once per type and version. */
-export function schemaOf(type: RecordType): z.ZodType {
-  const key = `${type.name}@${type.version}`;
-  if (!schemas.has(key)) schemas.set(key, z.fromJSONSchema(type.schema as never));
-  return schemas.get(key)!;
-}
 
 const TRIES = 4;
 
@@ -193,23 +180,24 @@ export const records = defineContract<RecordsV1, RecordsWire>({
     // Registration is sent at once; anything done with the type waits for it (a migration included).
     const ready = new Map<string, Promise<void>>();
     const own = (t: RecordType) => ready.get(t.name) ?? Promise.resolve();
+    /** The value checked and shaped by the type's Zod; another extension's type is the provider's
+     * to refuse. */
     const shape = (type: RecordType, value: unknown) =>
-      schemaOf(type).parse(value) as Record<string, unknown>;
+      (schemas.get(`${type.name}@${type.version}`)?.parse(value) ?? value) as Record<
+        string,
+        unknown
+      >;
     return {
       registerType(name, fields, opts = {}) {
         const zod = z.object(fields);
         const type: RecordType<typeof fields> = Object.freeze({
           kind: 'record-type',
           name: `${caller}/${name}`,
-          schema: {
-            ...(z.toJSONSchema(zod, { io: 'input', unrepresentable: 'any' }) as JsonSchema),
-            additionalProperties: false,
-          },
           version: opts.version ?? 1,
         });
         schemas.set(`${type.name}@${type.version}`, zod);
         const migrations = Object.fromEntries(Object.entries(opts.migrate ?? {}));
-        const p = remote.register(type.name, type.schema, type.version, migrations);
+        const p = remote.register(type.name, type.version, migrations);
         p.catch(() => undefined);
         ready.set(type.name, p);
         return type;
