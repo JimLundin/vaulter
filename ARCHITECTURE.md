@@ -46,7 +46,7 @@ What remains are the jobs an extension can't do for itself:
 
 **Contracts are the central idea.** Extensions never depend on each other by name. They require a contract, such as `records@1`, and any installed extension that provides it satisfies them. Moving storage from IndexedDB to an embedded database, or the AI from OpenAI to another provider, means installing a different provider. A Git backup extension simply requires `notes@1` and `records@1`.
 
-**Contribution points are contracts too.** The kernel has no idea what a view, a tool or a record type is. The shell provides `ui.shell@1` with its slots, the agent provides `agent.tools@1`, and the records contract handles type registration. The kernel knows only two generic things about what crosses it: a function marked with an access level (a tool's `run`), and a contract method marked personal. An extension adds a tool by contributing to `agent.tools@1`, exactly as it would to any other contract.
+**Contribution points are contracts too.** The kernel has no idea what a view, a tool or a record type is. The shell provides `ui.shell@1` with its slots, the agent provides `agent.tools@1`, and the records contract handles type registration. The kernel knows only two generic things about what crosses it: a function a contract's inputs guard with an access level (a tool's `run`), and a contract method marked personal. An extension adds a tool by contributing to `agent.tools@1`, exactly as it would to any other contract.
 
 ```
  ┌──────────── extensions, in the kernel's page ────────────┐
@@ -71,8 +71,10 @@ So the kernel's checks keep well-behaved code, and Pip's model, in line; they do
 **Calls go through handles.** A requirer's `ctx` holds a handle per contract, not the provider's object. Every call through a handle:
 
 - refuses if the provider (or the caller) isn't running, or the method is a contract's personal one and no person just acted;
-- checks the arguments against the contract's Zod `inputs`;
-- wraps every guarded function among the arguments and the result (a tool's `run`), so each call to it goes through Pip's access policy as the holder calling its owner.
+- checks the arguments against the `inputs` of the provider's copy of the contract, which also says where a guarded function sits (a tool's `run`, through `guardedObject`) and which of its fields give its label and level;
+- wraps every function among the arguments and the result with its owner, so it goes quiet once the owner stops; a guarded one also goes through Pip's access policy on every call, as the holder calling its owner, and carries the level the policy applies now (`run.level`).
+
+Because the guard comes from the provider's inputs, a requirer can't leave it off: a draft with its own copy of a contract, or a client that skips it, still hands over a guarded `run`.
 
 Values otherwise pass as they are, not copied: a React component, a Zod schema or a `Blob` crosses like anything else. Contract methods are still async, and still take plain values where they can, so a provider may be anywhere: in this page today, behind a network or in a WebAssembly module later.
 
@@ -157,7 +159,7 @@ From each extension Pip gets:
 | `write` | Uses it, logs it, offers undo | Adding a fact with a clear source |
 | `ask` | Proposes the change; you approve | Merging people, changing dates, anything uncertain |
 
-You can tighten or loosen any tool in that extension's settings. The kernel enforces these on every call: a tool's `run` reaches the agent as a callback marked with its level, so each call Pip makes to it is routed through the kernel's policy (`src/kernel/policy.ts`), which logs `write` calls and holds `ask` calls until you approve them through the `kernel` contract. Neither an extension nor the agent extension itself can go around them.
+You can tighten or loosen any tool in that extension's settings. The kernel enforces these on every call: a tool's `run` reaches the agent guarded by the `agent.tools` inputs, so each call Pip makes to it is routed through the kernel's policy (`src/kernel/policy.ts`), which logs `write` calls and holds `ask` calls until you approve them through the `kernel` contract. The agent tells the model each tool's level as the policy applies it now, your setting included. Neither an extension nor the agent extension itself can go around them.
 
 **Only load what is relevant.** Pip always sees a one-line summary of each installed extension. It loads an extension's full tools and guide only when the task needs it, so twenty extensions don't crowd every request. Recording a note about a café pulls in Map; asking about next week pulls in Calendar.
 
@@ -381,7 +383,7 @@ Three patterns repeat across these screens:
 | Sync and backup of data | Extensions, such as a Git backup requiring `notes@1` and `records@1`, kept separate from the code repo. |
 | Isolation | None: every extension runs in the kernel's page, drafts too. The kernel's checks keep well-behaved code and Pip's model in line; review keeps bad code out of `main`. WebAssembly modules if isolation is ever needed. |
 | Calls between extensions | Through kernel handles: checked inputs, personal methods, guarded functions wrapped by the policy; values pass uncopied. A contract may ship a client for requirers. |
-| Pip's access | Read, write and ask attach to guarded callbacks (a tool's `run`); the person's setting overrides the declared level. |
+| Pip's access | Read, write and ask attach to functions a contract's inputs guard (a tool's `run`), so no requirer can leave the guard off; the person's setting overrides the declared level. |
 | What only a person may do | Contract methods marked personal pass only right after a user activation. |
 | The kernel's own screens | A `kernel@1` contract the kernel provides; the screens are extensions. |
 | Offline | A service worker for the kernel's files; trees and compiled output in the kernel's IndexedDB. |

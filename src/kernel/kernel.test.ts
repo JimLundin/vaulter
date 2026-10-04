@@ -72,10 +72,20 @@ export default defineExtension({
 });`;
 
 const TOOLS = `
-import { defineContract } from '@pip/kernel';
-export interface Tool { name: string; run: (input: unknown) => Promise<unknown> }
-export interface ToolsV1 { add(tool: Tool): Promise<void>; call(name: string, input: unknown): Promise<unknown> }
-export const tools = defineContract<ToolsV1>({ name: 'agent.tools', version: '1.0.0' });`;
+import { defineContract, func, guardedObject } from '@pip/kernel';
+import { z } from 'zod';
+export interface Tool { name: string; access: 'read' | 'write' | 'ask'; run: (input: unknown) => Promise<unknown> }
+export interface ToolsV1 {
+  add(tool: Tool): Promise<void>;
+  call(name: string, input: unknown): Promise<unknown>;
+  level(name: string): Promise<string>;
+}
+export const tools = defineContract<ToolsV1>({ name: 'agent.tools', version: '1.0.0', inputs: {
+  add: z.tuple([guardedObject(
+    { name: z.string(), access: z.enum(['read', 'write', 'ask']), run: func() },
+    { fn: 'run', access: 'access', label: (t) => 'tool:' + t.name },
+  )]),
+} });`;
 
 const AGENT_EXT = `
 import { defineExtension } from '@pip/kernel';
@@ -87,17 +97,29 @@ export default defineExtension({
     return { tools: {
       async add(t) { all.set(t.name, t); },
       async call(name, input) { return all.get(name).run(input); },
+      async level(name) { return all.get(name).run.level; },
     } };
   },
 });`;
 
 const toolExt = (access: string) => `
-import { defineExtension, guarded } from '@pip/kernel';
+import { defineExtension } from '@pip/kernel';
 import { tools } from '@contracts/agent.tools';
 export default defineExtension({
   id: 'workouts', version: '0.1.0', requires: { tools },
   async setup({ tools }) {
-    await tools.add({ name: 'merge', run: guarded(async (x) => 'merged ' + x, { label: 'tool:merge', access: '${access}' }) });
+    await tools.add({ name: 'merge', access: '${access}', run: async (x) => 'merged ' + x });
+  },
+});`;
+
+// A draft that brings its own copy of the contract, without the inputs that guard a tool.
+const SNEAKY = `
+import { defineContract, defineExtension } from '@pip/kernel';
+const tools = defineContract({ name: 'agent.tools', version: '1.0.0' });
+export default defineExtension({
+  id: 'workouts', version: '0.1.0', requires: { tools },
+  async setup({ tools }) {
+    await tools.add({ name: 'merge', access: 'ask', run: async (x) => 'merged ' + x });
   },
 });`;
 
@@ -105,7 +127,10 @@ const notesContract = defineContract<{
   append: (t: string) => Promise<number>;
   count: () => Promise<number>;
 }>({ name: 'notes', version: '1.1.0' });
-const toolsContract = defineContract<{ call: (name: string, input: unknown) => Promise<unknown> }>({
+const toolsContract = defineContract<{
+  call: (name: string, input: unknown) => Promise<unknown>;
+  level: (name: string) => Promise<string>;
+}>({
   name: 'agent.tools',
   version: '1.0.0',
 });
@@ -288,15 +313,27 @@ describe('the kernel', () => {
     await expect(declined).rejects.toThrow(/declined/);
   });
 
-  it("follows the person's setting over the declared level", async () => {
-    const { kernel } = await start(tooling('read'), {
-      access: () => ({ 'workouts/tool:merge': 'ask' }),
+  it("guards a tool by the provider's inputs, whatever copy of the contract the requirer has", async () => {
+    const { kernel, refused } = await start({
+      ...tooling('read'),
+      'extensions/workouts/index.ts': SNEAKY,
     });
+    expect(refused).toEqual([]);
+    void kernel.use(toolsContract).call('merge', 'x');
+    await vi.waitFor(() => expect(kernel.policy.approvals()).toHaveLength(1));
+  });
+
+  it("follows the person's setting over the declared level, and tells the holder", async () => {
+    const settings: Record<string, 'read' | 'write' | 'ask'> = { 'workouts/tool:merge': 'ask' };
+    const { kernel } = await start(tooling('read'), { access: () => settings });
+    expect(await kernel.use(toolsContract).level('merge')).toBe('ask');
     void kernel.use(toolsContract).call('merge', 'x');
     await vi.waitFor(() => expect(kernel.policy.approvals()).toHaveLength(1));
     expect([...kernel.policy.known.values()]).toEqual([
       { ext: 'workouts', label: 'tool:merge', declared: 'read' },
     ]);
+    delete settings['workouts/tool:merge'];
+    expect(await kernel.use(toolsContract).level('merge')).toBe('read');
   });
 
   it('fetches for an extension, attaching its secret only for its hosts', async () => {

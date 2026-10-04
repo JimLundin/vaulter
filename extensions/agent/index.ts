@@ -3,7 +3,7 @@
 // every tool call goes through the kernel, which applies the tool's level.
 import { defineExtension, perCaller } from '@pip/kernel';
 import { agent } from '@contracts/agent';
-import { type AgentToolsWire, agentTools, type WireTool } from '@contracts/agent.tools';
+import { type AgentToolsWire, agentTools, type HeldTool } from '@contracts/agent.tools';
 import { chat } from '@contracts/ai.chat';
 import { kernel } from '@contracts/kernel';
 import { ask } from './loop.ts';
@@ -16,10 +16,10 @@ export default defineExtension({
   optional: { kernel },
   agentGuide: 'Pip itself.',
   setup({ chat, kernel }) {
-    const tools = new Map<string, Map<string, WireTool>>();
+    const tools = new Map<string, Map<string, HeldTool>>();
     const tools_ = (from: string): AgentToolsWire => ({
       add(tool) {
-        const mine = tools.get(from) ?? new Map<string, WireTool>();
+        const mine = tools.get(from) ?? new Map<string, HeldTool>();
         tools.set(from, mine);
         mine.set(tool.name, tool);
         return Promise.resolve(() => {

@@ -396,7 +396,9 @@ export class Kernel {
     const fn = impl[method];
     if (typeof fn !== 'function' || NOT_METHODS.has(method))
       throw new Refusal(`${key} has no method "${method}"`);
-    let args = this.carry(from, to, raw) as unknown[];
+    // Checked first: the provider's inputs guard the functions they declare (access.ts), and then
+    // every function is carried across.
+    let args = raw;
     const schema = contract.inputs[method];
     if (schema) {
       const parsed = schema.safeParse(args);
@@ -406,6 +408,7 @@ export class Kernel {
         );
       args = parsed.data;
     }
+    args = this.carry(from, to, args) as unknown[];
     let result: unknown;
     try {
       result = await (fn as Fn).apply(impl, args);
@@ -423,11 +426,11 @@ export class Kernel {
     if (depth > 20) return v;
     if (typeof v === 'function') {
       const fn = v as Fn;
-      if (WRAPPED in fn || isClass(fn) || owner === KERNEL) return fn;
+      const guard = guardOf(fn);
+      if (WRAPPED in fn || isClass(fn) || (owner === KERNEL && !guard)) return fn;
       const key = `${owner}\n${holder}`;
       const known = this.wrappers.get(fn)?.get(key);
       if (known) return known;
-      const guard = guardOf(fn);
       const wrapped = guard ? this.guardedCall(fn, guard, owner, holder) : this.owned(fn, owner);
       if (!this.wrappers.has(fn)) this.wrappers.set(fn, new Map());
       this.wrappers.get(fn)!.set(key, wrapped);
@@ -480,6 +483,7 @@ export class Kernel {
       }
     };
     Object.defineProperty(wrapped, WRAPPED, { value: true });
+    Object.defineProperty(wrapped, 'level', { get: () => this.policy.levelOf(owner, guard) });
     return wrapped;
   }
 

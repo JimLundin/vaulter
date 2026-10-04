@@ -3,7 +3,8 @@
 import type { ChatV1, Message } from '@contracts/ai.chat';
 import type { AskRequest, Answer, Step } from '@contracts/agent';
 import { AskRequest as AskSchema } from '@contracts/agent';
-import type { WireTool } from '@contracts/agent.tools';
+import type { HeldTool } from '@contracts/agent.tools';
+import { Declined } from '@pip/kernel';
 
 export const INSTRUCTIONS = `You are Pip, a personal assistant that keeps a wiki from the notes a person speaks or types.
 Answer from what the extensions know, using their tools; never guess or invent. Cite the notes facts come from when it helps.
@@ -16,7 +17,7 @@ const MAX_OUTPUT = 20_000;
 
 export interface Catalog {
   /** Tools by extension. */
-  tools: () => Map<string, Map<string, WireTool>>;
+  tools: () => Map<string, Map<string, HeldTool>>;
   /** One line per extension: what it is for. */
   guide: (extension: string) => Promise<string>;
 }
@@ -68,7 +69,7 @@ export async function ask(
       ...[...opened].flatMap((ext) =>
         [...(all.get(ext)?.values() ?? [])].map((t) => ({
           name: name(ext, t.name),
-          description: `${t.description}${t.access === 'ask' ? ' (asks the person first)' : ''}`,
+          description: `${t.description}${t.run.level === 'ask' ? ' (asks the person first)' : ''}`,
           parameters: t.input,
         })),
       ),
@@ -103,8 +104,7 @@ export async function ask(
             output = await t.run(input);
             await step({ kind: 'tool', extension: ext, tool, input, output });
           } catch (e) {
-            const error =
-              (e as Error).name === 'Declined' ? 'the person declined' : (e as Error).message;
+            const error = e instanceof Declined ? 'the person declined' : (e as Error).message;
             await step({ kind: 'tool', extension: ext, tool, input, error });
             output = { error };
           }
