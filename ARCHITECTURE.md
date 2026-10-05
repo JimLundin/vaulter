@@ -44,7 +44,7 @@ export const about: About = {
 
 - **Starting is importing.** An extension's top-level code is its setup, with top-level `await` for what is async. The module graph is the start order: an extension runs once what it imports has.
 - **An extension that keeps something per caller** takes the caller's id: `recordsFor('wiki')`, `questionsFor('wiki')`, `netFor('openai', about)`.
-- **What an extension may export:** what it provides (`notes`, `wiki`, `chat`…), `tools` for Vaulter, and, for the one shell, `shell`.
+- **What an extension exports** is what it offers others (`notes`, `wiki`, `chat`…), and anything under one of the agreed names below.
 - **`about.ts`** holds `version`, `agentGuide`, `preview`, and its `secrets` with the hosts each is for. It has no imports but the type, so the kernel reads every one before importing anything.
 - **Zod is for what doesn't come from typed code**: a tool's input (what Vaulter's model sends, and the JSON Schema it reads), a record type's fields (what is stored), a model's structured answer, and what a person types.
 
@@ -59,6 +59,35 @@ export const about: About = {
  tools/           CI only: sealing the secrets into the built page
  tests/           every test: tests/kernel/, tests/extensions/<id>/, and app.ts to start the app in one
 ```
+
+## How extensions interact
+
+In three ways, and no others.
+
+**Calling what another exports.** A direct import: the wiki calls `notes.get(id)` and `chat.complete(…)`. TypeScript checks the call; nothing sits between the two at runtime. What is kept per caller takes the caller's own id (`recordsFor('wiki')`).
+
+**Hearing back.** A callback handed over: `notes.onAppended(note => …)` for every new note; `questions.handle('revise', answer => …)` for the answers to the questions an extension asked under its own topic, also after a restart.
+
+**Being found.** An extension that serves others doesn't import them: it finds them through the kernel's `running()`, by an export with an agreed name, and each side works without the other. These are the agreed names:
+
+| Export | Read by | What it is |
+| --- | --- | --- |
+| `tools` | the agent | `Tool[]` (`#extensions/agent`): what Vaulter may do with the extension, each with a Zod input and an access level |
+| `ui` | the shell | `Ui` (`#extensions/shell`): the extension's screens, navigation, actions, panels and notices |
+| `shell` | the kernel | `{ mount(root) }`: the one extension that owns the page |
+
+An extension imports these types with `import type`, which leaves nothing behind at runtime: the wiki's `tools` and `ui` don't load the agent or the shell, and the wiki runs without either.
+
+```
+main.ts → kernel: import every extension that is on
+   wiki imports storage, notes, questions, openai: they run first, each once
+   wiki's top level registers its types, subscribes to notes, handles its answers
+every import done → `started`
+start.ts → the extension exporting `shell` mounts on the page; the shell reads every `ui`,
+           and the agent every `tools`, from running()
+```
+
+An extension that throws while it starts is listed as failed, with why; the others start, unless they import it.
 
 ## The kernel
 
@@ -87,7 +116,7 @@ From each extension Vaulter gets:
 
 - **Its tools** (`export const tools`), each with a Zod input and an access level.
 - **Its agent guide**, telling Vaulter when the extension is the right one to use.
-- **Its views**, once the shell has them: "Where was I on Tuesday?" can return the Map view filtered to Tuesday.
+- **Its views** (its `ui`), once the shell has them: "Where was I on Tuesday?" can return the Map view filtered to Tuesday.
 
 **Access per tool.** The agent applies it to every call its model makes:
 
@@ -140,23 +169,40 @@ Live speech will fit the same model when voice is built: the `openai` extension 
 - **Nothing is overwritten or removed for good.** Every change to a record is a new revision, and storage keeps the earlier ones; changes to one record run one after another, each `update` getting it as the last left it, so two changes at once can't lose either. Deleting leaves a tombstone. Reading the earlier revisions and tombstones back comes with the screen that needs it. Only removing an extension drops its data.
 - **Derived data is disposable.** Wiki pages, records, embeddings and indexes are built from the notes extension's append-only log, so any of them can be rebuilt. A buggy extension can corrupt a view, never what you said.
 
-## UI for extensions
+## The UI
 
-The draft screens are on the [Personal Agent UI canvas](https://claude.ai/artifact/DgYwb36EJbxiBHgB5TFbu1), on its Extensions page. On mobile every control sits at the bottom; on desktop every action has a key.
+One extension, `shell`, owns the page: the frame, the sidebar and keys on desktop, the controls at the bottom on mobile. It draws nothing of its own subject. Every screen comes from the extension it belongs to (the wiki's pages are in `extensions/wiki/`), exported under the agreed name `ui`:
 
-| Screen | Device | What it shows |
+```ts
+// extensions/wiki/ui.tsx, exported from its index.ts
+import type { Ui } from '#extensions/shell';
+
+export const ui: Ui = {
+  views: [
+    { id: 'person', route: '/wiki/person', title: 'People', component: PeopleList, home: 0 },
+    { id: 'page', route: '/wiki/:kind/:id', title: 'Page', component: PageView, shows: 'wiki/person' },
+  ],
+  nav: [{ id: 'person', label: 'People', route: '/wiki/person', group: 'wiki' }],
+  panels: [{ id: 'visits', target: 'wiki/place', component: Visits }],
+};
+```
+
+The standard, in `extensions/shell/api.ts`:
+
+| In `Ui` | What it is | The shell |
 | --- | --- | --- |
-| Extensions list | Mobile | The extensions, previews to try, Vaulter's open suggestion, and "Ask Vaulter for a feature" |
-| Vaulter proposes an extension | Mobile | Workouts: the reason, a preview on real notes, what it adds, its hosts and secrets, Try or Not now |
-| Page built from panels | Mobile | A place page whose map, visits and question panels each come from a different extension, labelled with their source |
-| Extension settings | Desktop | Map: what it adds, its tools and their access, its hosts and secrets, what imports it |
-| Map screen | Desktop | An extension's own screen, added to the sidebar by the extension itself |
+| `views` | A screen at a route (`/wiki/:kind/:id`), with a title; `home` makes it a candidate for the first screen, `shows` the record type it shows, so anything can link to a record without knowing whose screen it is | routes to it, and hands it `ViewProps` |
+| `nav` | An item in the navigation, in a `group`, with an optional count (`badge`) | lays it out for the device |
+| `actions` | A command: the large button on mobile and the first key hint on desktop (`primary`), search, or the rest (`more`) | puts it in its slot |
+| `panels` | A part of another extension's page, by record type (`target: 'wiki/place'`) | shows it on that page, labelled with the extension it came from |
+| `notices` | Something asking for the person's attention on the home screen (open questions) | shows it on mobile; desktop has the counts in the navigation |
 
-Three patterns repeat across these screens:
-
+- **What only the shell knows comes as props** (`ViewProps`): `navigate`, `params`, `back`, `linkTo(record)`, sheets, and the keys a screen listens to while it shows. Data never goes through the shell: a wiki screen imports the wiki and calls it, like any other code.
+- **One look.** Screens are React components built from the shared kit in `src/ui/` (`#ui`: buttons, lists, the theme), a library rather than an extension: it does nothing on its own and is never off.
 - **Source labels.** Every panel says which extension made it, so it's always clear what turning one off would remove.
-- **Proposals look like questions.** A tool call that asks first, and a change Vaulter is unsure of, come with the same Yes and No as any question from Vaulter.
-- **What an extension may do is visible.** Its tools' access and its hosts and secrets are shown in plain words.
+- **Proposals look like questions.** A tool call that asks first, and a change Vaulter is unsure of, come with the same Yes and No as any question.
+
+The draft screens are on the [Personal Agent UI canvas](https://claude.ai/artifact/DgYwb36EJbxiBHgB5TFbu1), on its Extensions page; the shell and the wiki's, questions' and secrets' screens were first built on the `pip-ui` worktree, against an earlier `ui.shell` contract whose `addView`, `addNav`, `addAction`, `addPanel` and `addNotice` become the `ui` export's lists.
 
 ## Decisions, build order and open questions
 
@@ -207,7 +253,7 @@ The extensions so far, each tested with the others (`startApp` in `tests/app.ts`
 **Open questions.**
 
 - [ ] Spike: does `POST /v1/realtime/client_secrets` accept browser requests the way the other endpoints do? (It would go through `net.fetch`, so CORS is the only question.) The `openai` extension is tested against a fake API only: a first run with a real key should confirm it, and the model name.
-- [ ] The shell: how it lays out views and panels from several extensions, and what it exports for the kernel to hand the page to. The first job of the UI work.
+- [ ] The shell itself, and `#ui`: moving the `pip-ui` work onto the `ui` export.
 - [ ] Cleaning up data left by extensions deleted from the repo.
 
 **Sources:** [OpenAI Realtime API guide](https://developers.openai.com/api/docs/guides/realtime)

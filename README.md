@@ -18,8 +18,9 @@ rebuild: the previous app, a viewer over the `JimLundin/vault` repo, is in `main
 Extensions: `storage` (records), `secrets` (the network with secrets), `notes`, `questions`,
 `openai` (the model), `wiki` and `agent` (Vaulter itself); `ARCHITECTURE.md` has a table of what each
 exports and imports. An extension imports another as `#extensions/<id>`, the kernel as `#kernel`, and
-its own files relatively.
-The UI, and with it the shell, comes next; until a shell is installed the page says so.
+its own files relatively. Extensions that serve others find them by an agreed export: the agent reads
+every `tools`, the shell every `ui` (ARCHITECTURE.md, "How extensions interact"). The shell comes next,
+with the UI work; until one is installed the page says so.
 
 ## Commands
 

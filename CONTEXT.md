@@ -16,6 +16,13 @@ _Avoid_: plugin, module, app
 An extension's own description (version, agent guide, hosts and secrets, whether it is a preview), which the kernel reads before running any of it.
 _Avoid_: manifest, metadata
 
+**Agreed export**:
+An export by a name others look for, such as `tools` (read by the agent) or `ui` (read by the shell): how an extension plugs into another without either importing the other.
+_Avoid_: hook, registration, contribution point
+
+**Shell**:
+The one extension that owns the page and lays out every extension's `ui` for the device.
+
 **Preview**:
 An extension on main that is off until a device turns it on: how a new extension, Vaulter's included, is tried.
 _Avoid_: draft, beta, experiment
