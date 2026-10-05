@@ -3,7 +3,7 @@
 // modules. After a start, a test imports what it uses (`await import('#extensions/wiki')`) and gets
 // the modules the app has. A fixture extension is an about and the exports it would have.
 import { vi } from 'vitest';
-import type { About, Exports, Folders, Settings } from './kernel.ts';
+import type { About, Exports, Folders, Settings } from '../src/kernel/kernel.ts';
 
 const id = (path: string) => path.split('/').at(-2) ?? path;
 const byId = <T>(m: Record<string, T>) =>
@@ -11,9 +11,9 @@ const byId = <T>(m: Record<string, T>) =>
 
 const repo: Folders = {
   about: byId(
-    import.meta.glob<About>('../../extensions/*/about.ts', { eager: true, import: 'about' }),
+    import.meta.glob<About>('../extensions/*/about.ts', { eager: true, import: 'about' }),
   ),
-  load: byId(import.meta.glob<Exports>('../../extensions/*/index.ts')),
+  load: byId(import.meta.glob<Exports>('../extensions/*/index.ts')),
 };
 
 /** Every extension in the repo. */
@@ -34,7 +34,7 @@ export interface AppOptions {
 /** Starts the repo's extensions `ids` and any fixtures, as a page would; the kernel it started. */
 export async function startApp(ids: string[], opts: AppOptions = {}) {
   vi.resetModules();
-  const kernel = await import('./kernel.ts');
+  const kernel = await import('../src/kernel/kernel.ts');
   const fixtures = Object.entries(opts.fixtures ?? {});
   const settings = opts.settings ?? { current: { enabled: {} } };
   await kernel.boot(

@@ -1,7 +1,7 @@
 // Records: what store-local keeps, and how; anything that replaces it keeps these too.
 import { expect, it } from 'vitest';
 import { z } from 'zod';
-import { startApp } from '../../src/kernel/testing.ts';
+import { startApp } from '../../app.ts';
 
 /** Time for listeners, which hear of a change after it is kept. */
 const settle = () => new Promise((ok) => setTimeout(ok, 20));
@@ -9,7 +9,7 @@ const settle = () => new Promise((ok) => setTimeout(ok, 20));
 /** Records as a fresh caller has them, on a freshly started store. */
 const use = async () => {
   await startApp(['store-local']);
-  return (await import('./index.ts')).recordsFor('test');
+  return (await import('#extensions/store-local')).recordsFor('test');
 };
 
 it('registers a type in the caller’s namespace and checks values against it', async () => {

@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { startApp } from '../../src/kernel/testing.ts';
+import { startApp } from '../../app.ts';
 
 /** Time for listeners, which hear of a change after it is kept. */
 const settle = () => new Promise((ok) => setTimeout(ok, 20));
@@ -9,7 +9,7 @@ const ask = { topic: 'merge', title: 'Same Ada?', choices: [{ id: 'yes', label: 
 
 it("hands the person's answer to the asker's handler for its topic", async () => {
   await startApp(APP);
-  const { questionsFor } = await import('./index.ts');
+  const { questionsFor } = await import('#extensions/questions');
   const asker = questionsFor('asker');
   const got: (string | undefined)[] = [];
   await asker.handle('merge', (a) => {
@@ -23,7 +23,7 @@ it("hands the person's answer to the asker's handler for its topic", async () =>
 
 it("keeps a person's answer when the asker's handler fails, and delivers it again later", async () => {
   await startApp(APP);
-  const before = (await import('./index.ts')).questionsFor('asker');
+  const before = (await import('#extensions/questions')).questionsFor('asker');
   await before.handle('merge', () => {
     throw new Error('the asker broke');
   });
@@ -33,7 +33,7 @@ it("keeps a person's answer when the asker's handler fails, and delivers it agai
 
   // The app starts again, and the asker registers its handler again: it is handed the answer then.
   await startApp(APP);
-  const after = (await import('./index.ts')).questionsFor('asker');
+  const after = (await import('#extensions/questions')).questionsFor('asker');
   const got: (string | undefined)[] = [];
   await after.handle('merge', (a) => {
     got.push(a.choice);
@@ -44,7 +44,7 @@ it("keeps a person's answer when the asker's handler fails, and delivers it agai
 /** Questions as a fresh asker has them. */
 const use = async () => {
   await startApp(['questions']);
-  return (await import('./index.ts')).questionsFor('test');
+  return (await import('#extensions/questions')).questionsFor('test');
 };
 
 it('keeps an asked question open until it is answered', async () => {

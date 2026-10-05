@@ -1,5 +1,5 @@
 import { expect, it, vi } from 'vitest';
-import { startApp } from '../../src/kernel/testing.ts';
+import { startApp } from '../../app.ts';
 
 const RESPONSE = {
   model: 'gpt-6.1-sol',
@@ -35,7 +35,7 @@ it('speaks the Responses API, with the key attached by the secrets extension', a
   await (await import('#extensions/secrets'))
     .netFor('settings', { version: '0.0.0' })
     .setSecret('openai', 'key', 'sk-test');
-  const ai = (await import('./index.ts')).chat;
+  const ai = (await import('#extensions/openai')).chat;
   const reply = await ai.complete({
     messages: [
       { role: 'system', content: 'Be brief.' },

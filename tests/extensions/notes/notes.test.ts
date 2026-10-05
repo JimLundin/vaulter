@@ -1,13 +1,13 @@
 // Notes: each kept as it was said, listed in order, and told to whoever listens.
 import { expect, it } from 'vitest';
-import { startApp } from '../../src/kernel/testing.ts';
+import { startApp } from '../../app.ts';
 
 /** Time for listeners, which hear of a change after it is kept. */
 const settle = () => new Promise((ok) => setTimeout(ok, 20));
 
 const use = async () => {
   await startApp(['notes']);
-  return (await import('./index.ts')).notes;
+  return (await import('#extensions/notes')).notes;
 };
 
 it('keeps a note as it was, with when it was said', async () => {

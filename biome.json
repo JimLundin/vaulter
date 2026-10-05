@@ -5,6 +5,7 @@
       "src/**",
       "tools/**",
       "extensions/**",
+      "tests/**",
       "*.ts",
       "*.json",
       "!**/dist",

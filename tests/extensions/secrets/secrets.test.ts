@@ -1,5 +1,5 @@
 import { expect, it, vi } from 'vitest';
-import { startApp } from '../../src/kernel/testing.ts';
+import { startApp } from '../../app.ts';
 
 // An extension with a secret for one host, and another host it may reach without one.
 const about = {
@@ -17,7 +17,7 @@ it('attaches a secret only to requests for its hosts, and forgets it with its ex
   const kernel = await startApp(['secrets'], {
     fixtures: { caller: { about, load: () => Promise.resolve({}) } },
   });
-  const { netFor } = await import('./index.ts');
+  const { netFor } = await import('#extensions/secrets');
   const net = netFor('caller', about);
   await net.setSecret('caller', 'key', 'sk-123');
 

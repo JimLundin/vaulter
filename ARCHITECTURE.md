@@ -57,6 +57,7 @@ export const about: About = {
      index.ts     the module
      api.ts       the types and schemas other extensions use
  tools/           CI only: sealing the secrets into the built page
+ tests/           every test: tests/kernel/, tests/extensions/<id>/, and app.ts to start the app in one
 ```
 
 ## The kernel
@@ -194,7 +195,7 @@ Three patterns repeat across these screens:
 5. Today, Search and Map.
 6. Vaulter writing extensions, as pull requests: a focused extension of its own.
 
-The extensions so far, each tested with the others (`startApp` in `src/kernel/testing.ts`):
+The extensions so far, each tested with the others (`startApp` in `tests/app.ts`):
 
 | Extension | Exports | Imports | Notes |
 | --- | --- | --- | --- |

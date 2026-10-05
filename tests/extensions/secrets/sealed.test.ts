@@ -5,10 +5,10 @@ import { join } from 'node:path';
 import process from 'node:process';
 import { promisify } from 'node:util';
 import { describe, expect, it } from 'vitest';
-import { keyFor, open, seal } from './sealed.ts';
-import { idbStore } from './store.ts';
-import { unsealer } from './unseal.ts';
-import { vault } from './vault.ts';
+import { keyFor, open, seal } from '../../../extensions/secrets/sealed.ts';
+import { idbStore } from '../../../extensions/secrets/store.ts';
+import { unsealer } from '../../../extensions/secrets/unseal.ts';
+import { vault } from '../../../extensions/secrets/vault.ts';
 
 const FAST = { iterations: 1000 };
 

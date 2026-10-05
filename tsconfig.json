@@ -1,6 +1,6 @@
 {
-  // One config for the kernel (src/), the extensions and the CI tools (tools/). Extensions import the kernel as #kernel and
-  // each other as #extensions/<id> (package.json's imports).
+  // One config for the kernel (src/), the extensions, the tests (tests/) and the CI tools (tools/). Extensions import the
+  // kernel as #kernel and each other as #extensions/<id> (package.json's imports).
   "compilerOptions": {
     "target": "ES2023",
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
@@ -21,5 +21,5 @@
     "skipLibCheck": true,
     "types": ["node", "vite/client"]
   },
-  "include": ["src", "extensions", "tools", "vite.config.ts"]
+  "include": ["src", "extensions", "tools", "tests", "vite.config.ts"]
 }

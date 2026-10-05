@@ -49,8 +49,8 @@ export default defineConfig({
     },
   },
   test: {
-    include: ['{src,extensions}/**/*.test.{ts,tsx}'],
-    setupFiles: ['src/kernel/test-setup.ts'],
+    include: ['tests/**/*.test.ts'],
+    setupFiles: ['tests/setup.ts'],
     unstubGlobals: true,
   },
 });

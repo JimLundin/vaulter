@@ -1,6 +1,6 @@
 import { expect, it, vi } from 'vitest';
 import type { Chat } from '#extensions/openai';
-import { startApp } from '../../src/kernel/testing.ts';
+import { startApp } from '../../app.ts';
 
 // A model that files notes the way the instructions ask, by looking at the note and the pages sent;
 // with `offline`, every request fails, as with no key yet.
@@ -63,7 +63,7 @@ const start = async () => {
   await startApp(['wiki']);
   return {
     log: (await import('#extensions/notes')).notes,
-    pages: (await import('./index.ts')).wiki,
+    pages: (await import('#extensions/wiki')).wiki,
     asked: (await import('#extensions/questions')).questionsFor('screen'),
   };
 };
@@ -132,7 +132,7 @@ it('revises pages from notes, cites every fact, asks when unsure, and gives Vaul
   ]);
   expect((await pages.get({ type: dup.type, id: dup.id }))?.id).toBe(ada.id);
 
-  const { tools } = await import('./index.ts');
+  const { tools } = await import('#extensions/wiki');
   expect(Object.fromEntries(tools.map((t) => [t.name, t.access]))).toEqual({
     findPages: 'read',
     getPage: 'read',

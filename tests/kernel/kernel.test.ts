@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { blame } from './errors.ts';
-import { REPO, startApp } from './testing.ts';
+import { blame } from '../../src/kernel/errors.ts';
+import { REPO, startApp } from '../app.ts';
 
 describe('the kernel', () => {
   it('starts what this device has on, and a preview only once it is turned on', async () => {

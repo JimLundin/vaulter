@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { singleTab } from './single-tab.ts';
+import { singleTab } from '../../src/kernel/single-tab.ts';
 
 const deps = () => ({
   locks: navigator.locks,

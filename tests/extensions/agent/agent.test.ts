@@ -1,7 +1,7 @@
 import { expect, it, vi } from 'vitest';
+import type { Step } from '#extensions/agent';
 import type { Chat, ChatResult } from '#extensions/openai';
-import { startApp } from '../../src/kernel/testing.ts';
-import type { Step } from './api.ts';
+import { startApp } from '../../app.ts';
 
 // A model that follows a script: open the wiki, use a tool, then answer from what came back. It keeps
 // the tools it was offered each time.
@@ -40,7 +40,7 @@ const start = async () => {
   await startApp(['wiki', 'agent']);
   return {
     pages: (await import('#extensions/wiki')).wiki,
-    vaulter: (await import('./index.ts')).agent,
+    vaulter: (await import('#extensions/agent')).agent,
     asked: (await import('#extensions/questions')).questionsFor('screen'),
   };
 };
