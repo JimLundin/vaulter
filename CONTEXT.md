@@ -5,67 +5,44 @@ A voice-first personal knowledge wiki built as a small kernel plus extensions. V
 ## The kernel and extensions
 
 **Kernel**:
-The one part that isn't an extension: it loads extensions, connects them through contracts and checks every call between them.
+The one part that isn't an extension: it imports the extensions a device has on, lists them, and keeps their errors.
 _Avoid_: core, runtime, host
 
 **Extension**:
-A folder in the repo that provides and requires contracts; every feature is one, including those Vaulter writes.
+A folder in the repo, an ES module and its about; every feature is one, including those Vaulter writes.
 _Avoid_: plugin, module, app
 
+**About**:
+An extension's own description (version, agent guide, hosts and secrets, whether it is a preview), which the kernel reads before running any of it.
+_Avoid_: manifest, metadata
+
 **Contract**:
-A named, versioned interface that one extension provides and others require; extensions never depend on each other by name.
+The TypeScript interface between extensions, with the schemas both sides share; `package.json` names the one extension that provides it.
 _Avoid_: service, API, protocol
 
 **Provider**:
-The extension that implements a contract.
+The extension that implements a contract; what other extensions import for it.
 
-**Requirer**:
-An extension that uses a contract; it may require it, or use it only when something provides it (optional).
-_Avoid_: consumer, client
-
-**Handle**:
-What a requirer holds for a contract: the provider behind the kernel's checks.
-_Avoid_: proxy, reference
-
-**Boot**:
-Going from a device and a source of extensions to a running kernel, or to safe mode with a reason.
-_Avoid_: startup, init
+**Preview**:
+An extension on main that is off until a device turns it on: how a new extension, Vaulter's included, is tried.
+_Avoid_: draft, beta, experiment
 
 **Device**:
-One browser, with its own data, secrets, settings and tried drafts; nothing about a device syncs. Tests stand in a test device for a browser.
+One browser, with its own data, secrets and choices of what is on; nothing about a device syncs.
 _Avoid_: client, machine, platform
-
-**Safe mode**:
-The kernel's own bare screen for recovering when extensions fail: change the source, pin a commit, turn extensions and drafts off.
 
 ## People and Vaulter
 
 **Person**:
-The human using Vaulter; some actions are only theirs.
+The human using Vaulter.
 _Avoid_: user, owner
 
-**Personal method**:
-A contract method only a person may call, such as approving, answering or changing access.
-
-**Person presence**:
-The kernel's knowledge that a person just acted in a particular extension, which a single personal call may use.
-_Avoid_: user activation, gesture (the browser's terms for its part of it)
-
-**Guard**:
-The mark on a function an extension hands out (a tool's run) that makes every call to it go through Vaulter's access.
-
 **Access level**:
-How freely Vaulter may use a guarded function: read (freely), write (logged), or ask (only once the person approves).
-_Avoid_: permission (that's a device, network or secret an extension declares)
+What Vaulter may do with a tool on its own: read (run it), write (run it, shown in its steps), or ask (only once the person says yes).
+_Avoid_: permission (that's a host or secret an extension declares)
 
 **Approval**:
-A held ask-level call, waiting for the person to approve or decline it.
-
-## Changing Vaulter
-
-**Draft**:
-An extension written or changed on a `draft/*` branch (by hand for now, by Vaulter later); a device may try it before it is merged into main.
-_Avoid_: proposal, PR
+The question Vaulter asks before a tool that asks first; the person's yes runs the call.
 
 **Secret**:
 A value an extension declares, held by the secrets extension and attached only to requests for the hosts it was declared for.
@@ -89,10 +66,10 @@ A named shape of record that one extension registers and others refer to by hand
 
 **Revision**:
 One state of a record; each change makes a new one, and earlier ones are kept.
-_Avoid_: version (an extension's or a contract's version is something else)
+_Avoid_: version (an extension's version is something else)
 
 **Tombstone**:
-A deleted or merged-away record that is kept, hidden, and can be restored.
+A deleted or merged-away record that is kept, hidden.
 
 **Wiki page**:
 A record about a person, place, event or topic, whose facts each cite the notes they came from.

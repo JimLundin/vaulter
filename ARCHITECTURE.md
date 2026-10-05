@@ -1,6 +1,6 @@
 # Vaulter — Extension Architecture
 
-Oct 4, 2026 · @Jim · A full rebuild of the previous app, on the `pip` branch. Vaulter is the app, and the agent inside it.
+Oct 4, 2026 · @Jim · A full rebuild of the previous app, on the `pip` branch. Vaulter is the app, and the agent inside it. Reworked on Oct 5: extensions are plain modules, built by CI.
 
 Vaulter is a voice-first personal knowledge wiki built as a small kernel plus extensions, where every feature, including the ones Vaulter writes itself, is an extension.
 
@@ -10,344 +10,155 @@ You speak notes throughout the day. Vaulter transcribes them, asks when somethin
 
 Principles:
 
-- **The kernel only connects extensions.** It stores no notes, runs no agent and draws no screens.
+- **The kernel only chooses which extensions run.** It stores no notes, runs no agent, draws no screens and wires nothing: extensions import one another.
 - **Everything else is an extension**, including voice capture, the wiki, questions and search.
-- **The delete test.** If the app still runs with a feature removed, that feature is an extension. Only what fails the test belongs in the kernel.
-- **One API for people and Vaulter.** Anything a person can do through an extension, Vaulter can do through the same calls.
+- **The delete test.** If the app still runs with a feature removed, that feature is an extension. Removing one is removing its folder and the imports of it, which the build and CI check.
+- **One API for people and Vaulter.** Anything a person can do through an extension, Vaulter can do through the same functions, as its tools.
 - **Nothing you said is ever lost.** The notes extension keeps raw notes append-only; every page and record built from them can be rebuilt.
-- **Vaulter proposes, you approve.** Changes Vaulter is unsure of, and every new or changed extension, come to you as a question.
+- **Vaulter proposes, you approve.** Changes Vaulter is unsure of come to you as a question, and so does every tool call that asks first.
+
+## Extensions are modules
+
+An extension is a folder in `extensions/`: its `index.ts`, an ordinary ES module, and an `about.ts` the kernel reads before running any of it. Extensions reach each other with ordinary imports. A contract, in `contracts/<name>/`, is the TypeScript interface between them, with the Zod schemas both sides share and a conformance suite for providers; `package.json`'s `imports` name each contract's provider, in one place:
+
+```jsonc
+"imports": {
+  "#kernel": "./src/kernel/api.ts",
+  "#contracts/*": "./contracts/*/index.ts",
+  "#records": "./extensions/store-local/index.ts",
+  "#notes": "./extensions/notes/index.ts",
+  "#questions": "./extensions/questions/index.ts",
+  "#net": "./extensions/secrets/index.ts",
+  "#chat": "./extensions/openai/index.ts",
+  "#wiki": "./extensions/wiki/index.ts",
+  "#agent": "./extensions/agent/index.ts"
+}
+```
+
+Moving records from IndexedDB to an embedded database, or the model from OpenAI to another provider, is a new provider that exports the same names and passes the same suite, and one line here. TypeScript checks every import against the contract's interface, in the editor and in CI, so nothing checks arguments at runtime.
+
+```ts
+// extensions/notes/index.ts
+import { NewNote, type NotesV1 } from '#contracts/notes';
+import { recordsFor } from '#records';
+
+const records = recordsFor('notes');          // a caller names itself
+const note = await records.registerType('note', { ...NewNote.shape, at: z.iso.datetime() });
+
+export const notes: NotesV1 = { append, get, list, onAppended };
+```
+
+```ts
+// extensions/notes/about.ts
+export const about: About = {
+  version: '1.0.0',
+  agentGuide: 'The log of what the person said or typed, never changed. Cite a note by its id.',
+};
+```
+
+- **Starting is importing.** An extension's top-level code is its setup, with top-level `await` for what is async. The module graph is the start order: an extension runs once what it imports has.
+- **A provider of something kept per extension** takes the caller's id (`recordsFor('wiki')`, `questionsFor('wiki')`, `netFor('openai', about)`) and exports `forget(id)`, which the kernel calls when that extension is removed.
+- **What an extension may export:** what it provides (`notes`, `wiki`, `chat`…), `tools` for Vaulter, `forget`, and, for the one shell, `shell`.
+- **`about.ts`** holds `version`, `agentGuide`, `preview`, and for `#net`, the hosts it fetches (`network`) and its `secrets` with the hosts each is for. It has no imports but the type, so the kernel reads every one before importing anything.
+- **Zod is for what doesn't come from typed code**: a tool's input (what Vaulter's model sends, and the JSON Schema it reads), a record type's fields (what is stored), a model's structured answer, and what a person types.
+
+```
+ src/kernel/      the kernel: what is on, the extensions list, errors, one tab at a time
+ src/main.ts      every extensions/*/about.ts, and every extensions/*/index.ts as a lazy import
+ contracts/
+   records/       index.ts: the interface and shared Zod · conformance.ts: what a provider must do
+   notes/ questions/ wiki/ ai.chat/ agent/ agent.tools/ net/
+ extensions/
+   store-local/ notes/ questions/ secrets/ openai/ wiki/ agent/
+     about.ts     read first
+     index.ts     the module
+ tools/           CI only: sealing the secrets into the built page
+```
 
 ## The kernel
 
-The kernel only connects extensions. Checked against the delete test, none of the four parts first drafted as core needs to live in it.
-
-| First drafted as core | Becomes | Provides |
-| --- | --- | --- |
-| Note log | `notes` extension | `notes@1` |
-| Record store | `records` contract, implemented by a storage extension such as `store-local` | `records@1` |
-| Agent loop | `agent` extension | `agent@1`, `agent.tools@1` |
-| Shell | `shell-mobile` and `shell-desktop` extensions | `ui.shell@1` |
-| AI provider (new) | `openai` extension | `ai.chat@1` (and live speech, transcription and embeddings once something needs them) |
-
-What remains are the jobs an extension can't do for itself:
+What is left are the jobs no extension can do for itself (`src/kernel`, under 300 lines):
 
 | Kernel job | Why it can't be an extension |
 | --- | --- |
-| Load the extensions the page was built with (main), and a draft or an older commit through a source provider; compile them in the browser and cache the output by file | Every extension, built-in or Vaulter's, has to arrive the same way |
-| Validate each extension's definition and resolve contracts: match each `requires` to the one `provides` of the same contract and version | Extensions can't wire themselves without a referee |
-| Route every call between extensions and check it: that the caller requires the contract, that a callback was handed to it, Vaulter's read, write and ask, and that a person's own actions come from a person | An extension can't police its own access; Vaulter's read, write and ask settings are enforced here |
-| Load each extension into the page, and tell each provider who calls it and what the caller declared | Every extension, built-in or Vaulter's, arrives and is wired the same way |
-| Choose which branch or commit to load, and roll back | Needed before any extension has loaded |
-| Safe mode: a bare screen to switch branch, roll back or disable extensions | Recovery when a broken shell hides the app |
-| Provide the `kernel` contract: the extensions, their access, approvals, drafts and review | Only the kernel knows what it loaded and why; the screens for it are extensions |
+| Import the extensions this device has on (`kernel.ts`), and list every extension with its status | Nothing has run yet to decide it |
+| Keep this device's choices of what is on, in `localStorage`; `?reset` forgets them | A preview that breaks the shell would otherwise leave no way back |
+| Remove an extension: every running provider's `forget(id)`, then off | Only the kernel knows every provider that exports one |
+| Trace an error to the extension whose code threw it (`errors.ts`) | By the stack: in the build each extension is a chunk of its own, `assets/ext/<id>.<hash>.js`; in dev and tests its files are `extensions/<id>/…` |
+| One tab at a time (`single-tab.ts`) | Two tabs over one IndexedDB would each miss the other's changes, and records' one-change-at-a-time per record holds only within a tab |
+| Hand the page to the shell, or say there is none | Before any screen exists |
 
-**Main is the page's own.** The page is built with every extension and contract on `main` as source text, and the kernel loads those: no repo, token or network is needed to start, and the app opens offline from the service worker alone. Under `npm run dev` they are the working tree. A source provider is an ordinary extension (`source-github`, providing `extensions.source@1`) that adds what needs git: trying a draft branch and pinning an older commit. Writing and accepting drafts come with the agent that writes them. Remove it and the app still runs, without drafts. When a device tries drafts or a pin, the kernel starts the source provider first, with what it requires, then loads the rest on top; moving to another git host means swapping this one provider.
+Extensions use the kernel as `#kernel`: `extensions()`, `running()` (each running extension's `about` and exports: how the agent finds every extension's tools), `started` (once everything that is on has started), `setEnabled`, `remove` and `errorsOf`.
 
-**Contracts are the central idea.** Extensions never depend on each other by name. They require a contract, such as `records@1`, and any installed extension that provides it satisfies them. Moving storage from IndexedDB to an embedded database, or the AI from OpenAI to another provider, means installing a different provider. A Git backup extension simply requires `notes@1` and `records@1`.
+**On, off and previews.** An extension is on unless this device turned it off, and a preview (`preview: true` in its `about.ts`) is off until a device turns it on. Turning one on or off saves the choice and reloads the page. An extension that another one imports loads with it, whether it is on or not: off means the kernel doesn't import it itself. So a preview is something at the edge, such as a new screen or new tools, and replacing a provider is a change to `package.json` merged to `main`.
 
-**Contribution points are contracts too.** The kernel has no idea what a view, a tool or a record type is. The shell provides `ui.shell@1` with its slots, the agent provides `agent.tools@1`, and the records contract handles type registration. The kernel knows only two generic things about what crosses it: a function a contract guards with an access level (a tool's `run`), and a contract method marked personal. An extension adds a tool by contributing to `agent.tools@1`, exactly as it would to any other contract.
+**Running in the page.** Every extension runs in the page, with one copy of each module. There is no sandbox, and nothing pretends to be one: an extension can reach anything in the page, secrets included. What keeps bad code out is review before it reaches `main`. An earlier version gave every extension its own opaque-origin iframe, and a later one routed every call through kernel handles that checked callers, guarded tools and gated personal calls; both were dropped, for isolation this app doesn't need. If isolating untrusted code ever matters, the way is WebAssembly modules.
 
-```
- ┌──────────── extensions, in the kernel's page ────────────┐
- │ shell-*   voice   wiki   agent   openai   …              │   each provides and requires contracts
- └───────┬──────────────────────────────────────────┬───────┘
-         │ calls through kernel handles: checked,   │
-         │ guarded, a fetch per extension           │
- ┌───────▼──────────────────────────────────────────▼───────┐
- │ kernel: loader · resolver · handles · policy · presence ·│   main's source and safe mode
- │         its own state · safe mode                        │   ship inside the page
- └──────────────────────────────────────────────────────────┘
-```
-
-Extensions provide and require contracts, and every call between them passes through the kernel's router. Vaulter's agent is one extension among them, so the extensions it writes are installed through the same kernel as any other.
-
-## Running in the page
-
-Every extension runs in the kernel's own page: the kernel links its compiled modules into `blob:` modules (`src/kernel/link.ts`) and evaluates them here, with one copy of each shared module (the kernel API, Zod, React) for everyone. There is no sandbox. An earlier version gave every extension its own opaque-origin iframe; it was dropped (2026-10-04) because one frame per extension would have made the UI a set of separately positioned documents, multiplied memory per extension, and copied every value between them, for an isolation this app doesn't need. If isolating untrusted code ever becomes a priority, the way is WebAssembly modules, not frames.
-
-So the kernel's checks keep well-behaved code, and Vaulter's model, in line; they don't contain hostile code. An extension, a draft Vaulter wrote included, can reach anything in the page, the secrets with it. What protects the app from bad code is the review of a draft before it reaches `main`, and safe mode to turn anything off.
-
-**Calls go through handles.** A requirer's `ctx` holds a handle per contract, not the provider's object. Every call through a handle:
-
-- refuses if the provider (or the caller) isn't running, or the method is a contract's personal one and no person just acted in the caller's screen;
-- guards the function the provider's copy of the contract names (`guards`: a tool's `run`, with its label and level read from the tool);
-- passes functions as they are, except the guarded one the contract names: that one goes through Vaulter's access policy on every call, as the holder calling its owner, and carries the level the policy applies now (`run.level`).
-
-Because the guard comes from the provider's copy of the contract, a requirer can't leave it off: a draft with its own copy of a contract still hands over a guarded `run`.
-
-Values otherwise pass as they are, not copied: a React component, a Zod schema or a `Blob` crosses like anything else. Contract methods are still async, and still take plain values where they can, so a provider may be anywhere: in this page today, behind a network or in a WebAssembly module later.
-
-**A contract is one interface.** The provider implements it and a requirer calls it; there is no adapter between them. The records provider is given each type's Zod at registration, so it names the type in its caller's namespace and checks every value itself. `agent.tools` hands the agent each tool as it was added, its Zod input included, which the agent turns into JSON Schema for the model and checks the model's arguments against.
-
-**Personal methods.** A contract can mark methods only a person may call: answering a question, approving, changing access, setting a secret or unlocking the sealed ones. An extension wraps the event handlers of its own screen with `kernel.asPerson`; a person's tap or key there (a trusted event) lets that extension, and only it, make one personal call within a few seconds, while the browser still counts the gesture as recent (`src/kernel/presence.ts`). A second call needs a second tap. Vaulter's own extensions never pass: the one providing `agent@1`, and any extension whose author is Vaulter, are refused a personal call even right after a tap, so Vaulter can't approve its own proposals.
-
-**What every extension gets from the kernel** (the second argument to `setup`): its `id`, and `asPerson`, for the handlers of its own screen. Nothing else: the network with secrets is `net@1`'s (the secrets extension), and data is `records@1`'s. A per-caller provider is given each caller's id and static fields, which is how the secrets extension knows a caller's declared hosts and secrets. No storage: an extension keeps its data through `records@1`, whose provider owns where it goes (store-local: its own IndexedDB database; a git-backed one later). The kernel keeps only its own state (settings, trees, compiled output, its logs) in a database of its own, `vaulter-kernel`, because it needs it before any extension loads and safe mode needs it when none works.
-
-**Starting again is the page's job.** Nothing stops one extension at a time. Turning an extension on or off, removing one, or trying a draft saves the change and starts the app again: a page reload, which with the compile cache takes about a second and leaves nothing of the old run behind. A tab that hands Vaulter over makes every handle refuse, then reloads.
-
-**Errors.** What is thrown through a handle (in a call, a guarded callback, a setup), and what nothing caught, is kept under the extension whose code threw it: every compiled module carries a source URL, `vaulter:///<commit>/extensions/<id>/<file>`, and the kernel knows each module's own URL too, so the stack says whose code it was. The last twenty per extension are kept and survive a reload, for safe mode and `kernel.extensions()`.
-
-**One tab at a time.** Two tabs would run two kernels over the same IndexedDB, each deaf to the other's changes. The kernel holds a Web Lock while it runs; another tab shows a bare screen until the person moves Vaulter there, when the first tab makes every handle refuse, lets go and reloads into the same bare screen (`src/kernel/single-tab.ts`).
-
-**Kernel and extensions ship together.** Main's extensions are built into the same page as the kernel, so they always match; a draft is typechecked in CI against the kernel on its own branch. There is no separate version for the kernel's API.
-
-## The extension format
-
-Every extension is TypeScript source in the repo, exporting one `defineExtension({...})`. There is no second format: an extension Vaulter writes is the same kind of folder, on a branch.
-
-```
-src/kernel/              kernel and safe mode (the built bundle, with main's source as text)
-tools/                   CI only: sealing the secrets into the built page
-contracts/
-  records/               interface, conformance suite
-  agent.tools/
-  kernel/                the kernel's own contract
-extensions/
-  source-github/         drafts and older commits, from GitHub
-  store-local/
-  wiki/
-    index.ts             export default defineExtension({...})
-    revise.ts
-    views/Page.tsx
-    wiki.test.ts
-```
-
-An extension imports the kernel as `#kernel`, a contract as `#contracts/<name>` (the names `package.json` declares under `imports`, which TypeScript, Vite and the in-browser loader all resolve), its own files relatively, and the shared `zod`, `react`, `react/jsx-runtime` and `react-dom/client`. Nothing else resolves, so an extension can't reach into another's folder.
-
-The definition has two parts:
-
-| Part | Holds | Read by |
-| --- | --- | --- |
-| Static fields: `id`, `version`, `requires`, `optional`, `provides`, `permissions`, `secrets`, `agentGuide` | Plain values | The kernel before any code runs, and the review screen |
-| `setup(ctx)` | Code that registers types, tools, views and handlers through the contracts it requires | Runs once the kernel has accepted the static part |
-
-`ctx` contains typed handles only for the contracts listed in `requires`, and for those in `optional` that something provides (undefined otherwise). An optional contract keeps the delete test: the wiki gives Vaulter tools when an agent is installed, asks questions when there is somewhere to ask, revises pages when there is a model, and works by hand without any of them. Calling anything else fails to compile, and the kernel refuses it at runtime as well. The kernel reads the static fields by evaluating the module before `setup` runs; an extension's id must be its folder's name, and a contract's key is derived from its name and version.
-
-**A contract is a TypeScript package** in `contracts/`: its interface, and a conformance test suite for providers. The interface is the whole definition: a misspelled slot, a missing method or a wrong argument is a type error in your editor and in CI, on both sides, so the kernel doesn't check arguments again. Zod is for what doesn't come from typed code: a tool's input (what Vaulter's model sends, and the JSON Schema it reads), a record type's fields (what is stored), a model's structured answer. There is no hand-written JSON and no string mini-language anywhere.
-
-**Checks happen at three points.**
-
-- TypeScript, in the editor and in CI on every push.
-- Zod, when the kernel loads an extension's static fields, and wherever data comes from outside typed code: tool inputs, record fields, a model's answers.
-- Conformance suites (`contracts/<name>/conformance.ts`), which CI runs on every push, draft branches included, against every extension in the repo that provides the contract, through real kernel handles (`contracts/conformance.test.ts`). The kernel doesn't run them when it starts; a device won't try a draft whose CI checks failed.
-
-**Separation.** Each extension's data lives with the records provider, in the extension's own namespace, and it is meant to reach others only through the contracts it requires, so removing it removes its records (the provider's `forget`) and nothing else. This is the design every extension follows, not a wall: see "Running in the page".
+**Starting again is the page's job.** Nothing stops one extension at a time. Turning an extension on or off, or removing one, saves the change and reloads the page. A tab that hands Vaulter over reloads into the waiting screen.
 
 ## How Vaulter uses extensions
 
-Vaulter gains every extension's abilities automatically, because an extension's tools are written once and used by both the UI and Vaulter.
+Vaulter gains every extension's abilities automatically, because an extension's tools are written once and used by both the screens and Vaulter.
 
 From each extension Vaulter gets:
 
-- **Its data**, through the records@1 contract, which covers every type the extension registers.
-- **Its tools**, with typed inputs and a permission each.
-- **Its views**, which Vaulter can open or embed in an answer. "Where was I on Tuesday?" can return the Map view filtered to Tuesday.
+- **Its tools** (`export const tools`), each with a Zod input and an access level.
 - **Its agent guide**, telling Vaulter when the extension is the right one to use.
+- **Its views**, once the shell has them: "Where was I on Tuesday?" can return the Map view filtered to Tuesday.
 
-**Permissions per tool.**
+**Access per tool.** The agent applies it to every call its model makes:
 
-| Permission | Vaulter's behaviour | Typical use |
+| Access | Vaulter's behaviour | Typical use |
 | --- | --- | --- |
-| `read` | Uses it freely | Queries, search, look-ups |
-| `write` | Uses it, logs it, offers undo | Adding a fact with a clear source |
-| `ask` | Proposes the change; you approve | Merging people, changing dates, anything uncertain |
+| `read` | Runs it | Queries, search, look-ups |
+| `write` | Runs it, and it shows in the answer's steps | Adding a fact with a clear source |
+| `ask` | Asks you first, as a question: the call runs when you say yes | Merging people, retracting a fact, anything uncertain |
 
-You can tighten or loosen any tool in that extension's settings. The kernel enforces these on every call: a tool's `run` reaches the agent guarded as the `agent.tools` contract says, so each call Vaulter makes to it is routed through the kernel's policy (`src/kernel/policy.ts`), which logs `write` calls and holds `ask` calls until you approve them through the `kernel` contract. The agent tells the model each tool's level as the policy applies it now, your setting included. Neither an extension nor the agent extension itself can go around them.
+An `ask` call becomes a question on the agent's own topic (`extensions/agent/catalog.ts`), with the call as its data; your yes runs it, also after a restart. The model only acts through tools, and no tool answers questions, so this is the whole boundary. An extension Vaulter writes that tried to answer its own questions would be caught where all code is: in review, before `main`.
 
-**Only load what is relevant.** Vaulter always sees a one-line summary of each installed extension. It loads an extension's full tools and guide only when the task needs it, so twenty extensions don't crowd every request. Recording a note about a café pulls in Map; asking about next week pulls in Calendar.
+**Only load what is relevant.** Vaulter always sees a one-line summary of each extension with tools. It opens an extension's tools only when the task needs it, so twenty extensions don't crowd every request.
 
 ## Extension lifecycle
 
-The repo is where every extension lives, and every extension goes through the same loader. A Vaulter-written extension isn't a different kind of thing, just one that hasn't reached `main` yet.
+Every extension lives on `main`, and CI builds the page from it: one build, the kernel and every extension together, typechecked and tested, every contract's conformance suite run against every provider in the repo.
 
-| Stage | Source is on | Runs on | Moves on when |
+| Stage | Where | Runs on | Moves on when |
 | --- | --- | --- | --- |
-| Draft | A branch, such as `draft/workouts`, written by Vaulter | Devices where you've chosen to try that branch, once CI's checks haven't failed | Vaulter has a working version and CI's checks pass: types, tests and every conformance suite |
-| Trial | The same branch, with more commits as Vaulter iterates | The same devices | You approve it on the review screen |
-| Accept | Merged into `main`, or a pull request if you want a second look | — | The merge lands and CI deploys it |
-| Live | `main`, built into the page | Every device, on its next start | — |
+| Pull request | A branch, with the new extension marked `preview: true` | Nowhere yet | CI passes (types, tests, every conformance suite) and you review it: what it imports, its hosts and secrets in `about.ts` |
+| Preview | Merged into `main` and deployed | Devices that turn it on | You've tried it |
+| Live | `preview` removed | Every device, on its next start | — |
 
-The code, compiler, loader and contracts are the same at every stage; only the branch changes. Because drafts live in git, they survive a cleared browser cache and appear on your other devices.
-
-- **Writing a draft** is for now a `draft/*` branch pushed by hand. Vaulter writing them, and accepting one from the review screen, come with a focused extension for it: one commit on a `draft/*` branch, only under `extensions/` and `contracts/`, never forced, and accepting personal. Until then a draft is accepted by merging it on GitHub, and main deploys with it.
-- **Trying a draft** is per device (`kernel.tryDraft`, or safe mode): the device loads `main` with each tried draft's changed folders on top (`src/kernel/drafts.ts`).
-- **Reviewing a draft** compares the two trees and each changed extension's static fields, read by loading it, and lists in plain words what it newly asks for: a host, a device, a secret, or a powerful contract such as `kernel@1`. CI's checks on the draft's head come with it.
-- **Rollback** is reverting the merge, or pinning the app to an earlier commit from safe mode, which needs the source provider.
-- **Boot** (`src/kernel/boot.ts`) goes from a device and the page's own extensions to a running kernel, or to safe mode with the reason: main from the page, or a pinned commit through the source provider; the tried drafts on top (offline, the trees this device last loaded for them); every extension planned and started; the `kernel` contract provided. The device is a browser (`start.ts` adds only the one-tab lock, the window's error listeners and the screens); tests boot the same way on a test device. Boot compiles each file once and caches the output by its git blob sha, which the page's files and a git host's trees share, so a new commit recompiles only what changed. If that gets slow, CI can publish compiled output beside the source.
-- **Offline,** the service worker serves the page and with it main; compiled output and the trees of tried drafts are in the kernel's own database, so the app opens without reaching GitHub.
-- **Vaulter gets no special access.** Its extension's permissions and secrets are part of what you review, and raising them later takes a new draft.
+- **Writing an extension** is for now by hand. Vaulter writing them, as pull requests, comes with a focused extension for it.
+- **Rollback** is a revert on `main`, which deploys. A device a preview has left without a working screen opens `?reset`.
+- **Offline,** the service worker serves the page and every extension's chunk with it.
 
 ## Secrets
 
-Secrets are held by one extension, `secrets`, which provides `net@1`, never by the extension that uses them. An extension declares which secrets it needs and the hosts each one is for, and the hosts it reaches without one, in its static fields; it requires `net` and asks `net.fetch(url, { secret: 'key' })`, and the secrets extension attaches the value only to requests for those hosts (https only, no credentials, no redirects). Code in the page could reach the store directly (there is no sandbox), so this keeps well-behaved extensions from handling secrets at all, rather than walling them off; the host list is a declaration the review screen shows, and the page's Content-Security-Policy is what limits where anything goes. Remove the secrets extension and what needs a key stops working; the app and safe mode still run.
+Secrets are held by one extension, `secrets` (`#net`), never by the extension that uses them. An extension declares in its `about.ts` the secrets it needs, the hosts each one is for, and the hosts it reaches without one; it takes its own net with `netFor(id, about)` and asks `net.fetch(url, { secret: 'key' })`, and the secrets extension attaches the value only to requests for those hosts (https only, no credentials, no redirects). Code in the page could reach the store directly, so this keeps well-behaved extensions from handling secrets at all, rather than walling them off; the page's Content-Security-Policy is what limits where anything goes (`connect-src` this page and OpenAI, `script-src` this page only).
 
 **On a device**, secrets are kept in the secrets extension's own IndexedDB database (`secrets`), each under `secret:<extension>/<name>`, encrypted with AES-GCM under a per-device key that can't be exported. They never sync between devices.
 
-**Sealed in the page.** So that a device needs no typing, CI seals every secret into `dist/secrets.json` (`tools/seal-secrets.ts`): one file encrypted with a key derived from a password (PBKDF2, 600,000 rounds; AES-GCM), public like the rest of the page. On a device's first start the secrets extension asks for the password once, in a dialog over whatever the page shows (`extensions/secrets/dialog.ts`), and moves the secrets into its store. It keeps the derived key, so a later deploy sealed with the same salt is taken without asking. A settings screen can do the same through net@1's personal `unlock`; it never sees a secret.
+**Sealed in the page.** So that a device needs no typing, CI seals every secret into `dist/secrets.json` (`tools/seal-secrets.ts`): one file encrypted with a key derived from a password (PBKDF2, 600,000 rounds; AES-GCM), public like the rest of the page. On a device's first start the secrets extension asks for the password once, in a dialog over whatever the page shows (`extensions/secrets/dialog.ts`), and moves the secrets into its store. It keeps the derived key, so a later deploy sealed with the same salt is taken without asking. A settings screen can do the same through `unlock`; it never sees a secret.
 
 | In this repo's settings | Kind | What |
 | --- | --- | --- |
 | `VAULTER_PASSWORD` | secret | The password: 16 characters at least, long and random is best, since the sealed file is public |
 | `VAULTER_SALT` | variable | 16 random bytes, base64 (`openssl rand -base64 16`), set once: devices then take each new deploy without the password |
-| `VAULTER_SECRET__<EXTENSION>__<NAME>` | secret | One per secret: `VAULTER_SECRET__OPENAI__KEY` is `openai/key`, `VAULTER_SECRET__SOURCE_GITHUB__TOKEN` is `source-github/token`. Each is named in the seal step of `deploy.yml`, so the step sees only these |
+| `VAULTER_SECRET__<EXTENSION>__<NAME>` | secret | One per secret: `VAULTER_SECRET__OPENAI__KEY` is `openai/key`. Each is named in the seal step of `deploy.yml`, so the step sees only these |
 
 The deploy seals in a step of its own, after the install, so no dependency's script runs with the secrets in its environment. A new key: change the secret and deploy; devices pick it up on their next start. A new password or salt: devices ask once more.
 
-The two secrets to start: a GitHub fine-grained token limited to this one repo, with read access to contents, for the source provider (optional while the repo is public); and an OpenAI key, from a project with a spend limit, for the `openai` extension.
+To start: an OpenAI key, from a project with a spend limit, for the `openai` extension.
 
 Live speech will fit the same model when voice is built: the `openai` extension asks `POST /v1/realtime/client_secrets` through `net.fetch`, which attaches your key, and hands a voice extension only the short-lived session key.
 
 ## Stability
 
-Five rules keep new features from forcing refactors.
-
-- **Contracts are versioned, not extensions' internals.** A contract's version is one number, the `@1` in `records@1`; there are no minor versions, since contracts and their providers ship together and CI checks them. A provider may change anything behind `records@1` as long as it still passes the contract's test suite. A breaking change ships as `records@2`, and a provider can offer both while requirers move over.
-- **Contracts with a provider to hold to account ship a conformance test suite** (records, notes and questions today). Any new provider, including one Vaulter writes, must pass it in CI before its draft can be tried or accepted.
-- **Record types grow without migrations, for now.** A new field is optional or has a default, so stored records still fit. Versions and migrations for a type come with the first change that breaks stored records (splitting `place` into `venue` and `city`), not before: records is not at 1.0 yet.
-- **Nothing is overwritten or removed for good.** Every change to a record is a new revision with the earlier ones kept (`history`); changes to one record run one after another, each `update` getting it as the last left it, so two changes at once can't lose either. Deleting or merging leaves a tombstone that can be restored. Only removing an extension drops its data.
+- **Contracts change with their users.** Contracts and providers ship together and CI checks them against each other, so a contract has no version: a change that breaks requirers changes them in the same pull request.
+- **Contracts with a provider to hold to account ship a conformance suite** (records, notes and questions today), found by the export a provider is known by (`recordsFor`, `notes`, `questionsFor`). Any new provider, one Vaulter writes included, passes it in CI before it is merged.
+- **Record types grow without migrations, for now.** A new field is optional or has a default, so stored records still fit. Versions and migrations come with the first change that breaks stored records, not before: records is not at 1.0 yet.
+- **Nothing is overwritten or removed for good.** Every change to a record is a new revision, and the provider keeps the earlier ones; changes to one record run one after another, each `update` getting it as the last left it, so two changes at once can't lose either. Deleting or merging leaves a tombstone. Reading the earlier revisions and tombstones back comes with the screen that needs it. Only removing an extension drops its data.
 - **Derived data is disposable.** Wiki pages, records, embeddings and indexes are built from the notes extension's append-only log, so any of them can be rebuilt. A buggy extension can corrupt a view, never what you said.
-- **Safe mode always works.** It belongs to the kernel and depends on no extension, so a broken shell or storage provider can always be disabled or rolled back.
-
-## Prototype examples
-
-One contract and three extensions show the format end to end. Names and signatures are the first draft's proposal, not the API: `records` below is today's, but voice, `aiRealtime`, `shell`, `extract`, `today` and `refTo` don't exist yet.
-
-**A contract: `records`.** Record types are registered by name once and then passed around as typed handles, so other extensions refer to a type by importing its handle, never by a string.
-
-```ts
-// contracts/records/index.ts
-export const RecordRef = z.object({ type: z.string(), id: z.string() });
-export const DateRange = z.object({ from: z.string().date(), to: z.string().date() });
-
-// A record is { id, ...fields, meta: { type, created, updated, rev, deleted?, mergedInto? } }.
-export interface RecordsV1 {
-  registerType<S extends z.ZodRawShape>(name: string, fields: S): Promise<RecordType<S>>;
-  get<S extends z.ZodRawShape>(type: RecordType<S>, id: string): Promise<Rec<S> | undefined>;
-  // where: { kind: 'run', distanceKm: { gte: 5 }, tags: { has: 'park' } }, orderBy, order, limit
-  query<S extends z.ZodRawShape>(type: RecordType<S>, q?: Query): Promise<Rec<S>[]>;
-  search<S extends z.ZodRawShape>(types: RecordType<S>[], text: string): Promise<Rec<S>[]>;
-  create<S extends z.ZodRawShape>(type: RecordType<S>, value: Input<S>): Promise<Rec<S>>;
-  // Runs `change` on the record as it is now; the next change to it waits: no update is lost.
-  update<S extends z.ZodRawShape>(type: RecordType<S>, id: string, change: (now: Rec<S>) => Input<S>): Promise<Rec<S>>;
-  delete(type: RecordType, id: string): Promise<void>; // a tombstone; restore() brings it back
-  merge<S extends z.ZodRawShape>(type: RecordType<S>, keep: string, merge: string): Promise<Rec<S>>;
-  history<S extends z.ZodRawShape>(type: RecordType<S>, id: string): Promise<Rec<S>[]>;
-  onChanged<S extends z.ZodRawShape>(type: RecordType<S>, handler: (rec: Rec<S>) => void): Promise<Unsubscribe>;
-}
-
-export const records = defineContract<RecordsV1>({ name: "records", version: 1 });
-```
-
-**Voice capture** records and transcribes with the Realtime API through `aiRealtime`, then appends to the notes log. `shell.slots.bottomBarPrimary` is a typed constant, so a misspelled slot doesn't compile.
-
-```ts
-// extensions/voice/index.ts
-export default defineExtension({
-  id: "voice",
-  version: "1.2.0",
-  requires: { notes, aiRealtime, shell },
-  permissions: { device: ["microphone"] },
-  agentGuide: "Captures notes. Vaulter never needs to call this.",
-  setup({ notes, aiRealtime, shell }) {
-    shell.addAction({
-      id: "record",
-      label: "New note",
-      icon: "mic",
-      slot: shell.slots.bottomBarPrimary,
-      keys: [{ key: "Space", mode: "hold" }],
-      async run() {
-        const session = await aiRealtime.transcribe({ source: "microphone" });
-        const text = await session.done();
-        await notes.append({ text, source: "voice" });
-      },
-    });
-  },
-});
-```
-
-**Wiki** registers the main types, revises pages whenever a note is appended, gives Vaulter its tools, and provides its types to other extensions through the `wiki` contract.
-
-```ts
-// extensions/wiki/index.ts
-export default defineExtension({
-  id: "wiki",
-  version: "2.0.0",
-  provides: { wiki },
-  requires: { records, notes, questions, agentTools, shell },
-  agentGuide: "The source of truth for people, places and events. Cite a note for every fact.",
-  setup({ records, notes, questions, agentTools, shell }) {
-    const person = records.registerType("person", {
-      name: z.string(),
-      aliases: z.array(z.string()),
-      birthday: z.string().date().optional(),
-    });
-    const place = records.registerType("place", {
-      name: z.string(),
-      area: z.string().optional(),
-    });
-
-    notes.onAppended((note) => revisePages(note, { records, questions, person, place }));
-
-    agentTools.add({
-      name: "findPages",
-      access: "read",
-      input: z.object({ query: z.string() }),
-      run: ({ query }) => records.search([person, place], query),
-    });
-    agentTools.add({
-      name: "mergeEntities",
-      access: "ask",
-      input: z.object({ keep: RecordRef, merge: RecordRef }),
-      run: ({ keep, merge }) => records.merge(keep, merge),
-    });
-
-    shell.addView({ id: "page", route: "/wiki/:id", component: PageView, embeddable: true });
-
-    return { wiki: { person, place } };
-  },
-});
-```
-
-**Workouts** is what Vaulter would write on a `draft/workouts` branch. It is the same kind of file as Wiki; the query and the chart are ordinary functions, so nothing needs a special interpreter.
-
-```ts
-// extensions/workouts/index.ts
-export default defineExtension({
-  id: "workouts",
-  version: "0.1.0",
-  author: { kind: "agent", reason: "Runs mentioned in 6 notes since August" },
-  requires: { records, wiki, extract, today, agentTools },
-  setup({ records, wiki, extract, today, agentTools }) {
-    const workout = records.registerType("workout", {
-      kind: z.enum(["run", "gym", "swim"]),
-      distanceKm: z.number().optional(),
-      minutes: z.number().optional(),
-      place: refTo(wiki.place).optional(),
-    });
-
-    extract.addRule({
-      into: workout,
-      instruction: "Exercise the person did, with distance and duration when mentioned.",
-    });
-
-    today.addSection({
-      id: "weekly",
-      title: "Workouts this week",
-      load: async () => weeklyKm(await records.query(workout, { since: weeksAgo(6) })),
-      component: WeeklyBars,
-    });
-
-    agentTools.add({
-      name: "workoutsBetween",
-      access: "read",
-      input: z.object({ range: DateRange }),
-      run: ({ range }) => records.query(workout, { date: { between: range } }),
-    });
-  },
-});
-```
-
-Map, Git backup, the OpenAI provider and the GitHub source provider follow the same pattern. These examples are the first draft's: every contract method is async (`await records.query(...)`), and a type handle is plain data, so a reference field is `refTo(wiki.place)` rather than a method on the handle.
 
 ## UI for extensions
 
@@ -355,18 +166,17 @@ The draft screens are on the [Personal Agent UI canvas](https://claude.ai/artifa
 
 | Screen | Device | What it shows |
 | --- | --- | --- |
-| Extensions list | Mobile | Built-in and added extensions, Vaulter's open suggestion, and "Ask Vaulter for a feature" |
-| Vaulter proposes an extension | Mobile | Workouts: the reason, a preview on real notes, what it adds, its access, Add or Not now |
+| Extensions list | Mobile | The extensions, previews to try, Vaulter's open suggestion, and "Ask Vaulter for a feature" |
+| Vaulter proposes an extension | Mobile | Workouts: the reason, a preview on real notes, what it adds, its hosts and secrets, Try or Not now |
 | Page built from panels | Mobile | A place page whose map, visits and question panels each come from a different extension, labelled with their source |
-| Extension settings | Desktop | Map: per-tool access for Vaulter (Read, Write, Ask me), what it adds, version history with rollback, dependants |
-| Review a code change | Desktop | Map 1.3 to 1.4: why, the changes, new network access to approve, automatic checks, before and after preview, code diff |
+| Extension settings | Desktop | Map: what it adds, its tools and their access, its hosts and secrets, what imports it |
 | Map screen | Desktop | An extension's own screen, added to the sidebar by the extension itself |
 
 Three patterns repeat across these screens:
 
 - **Source labels.** Every panel says which extension made it, so it's always clear what turning one off would remove.
-- **Proposals look like questions.** A new or changed extension is reviewed with the same Approve and Not now flow as any question from Vaulter.
-- **Access is visible and adjustable.** What Vaulter may do with each extension is shown in plain words and can be changed in one tap or key.
+- **Proposals look like questions.** A tool call that asks first, and a change Vaulter is unsure of, come with the same Yes and No as any question from Vaulter.
+- **What an extension may do is visible.** Its tools' access and its hosts and secrets are shown in plain words.
 
 ## Decisions, build order and open questions
 
@@ -374,62 +184,51 @@ Three patterns repeat across these screens:
 
 | Question | Decision |
 | --- | --- |
-| Extension format | TypeScript source exporting `defineExtension`; static fields validated with Zod. No declarative data format. |
-| Where extensions live | In the repo, under `extensions/`. Main is built into the page as source; drafts and older commits come through a source provider. The browser compiles them and caches the output. |
-| Vaulter-written extensions | Same format and loader, on a `draft/*` branch; accepting merges it into `main`. |
-| Secrets | Held by the secrets extension (`net@1`), attached only to requests for declared hosts; never in the repo, never synced. |
+| Extension format | An ES module (`index.ts`) and an `about.ts`; no definition object, no setup function. |
+| How extensions reach each other | Imports. `package.json`'s `imports` name each contract's provider; a contract is a TypeScript interface. |
+| Where extensions live, and how they get to a device | In the repo under `extensions/`, built by CI with the kernel into one page; each extension a chunk of its own. |
+| Vaulter-written extensions | Pull requests to `main` with `preview: true`; a device turns a preview on to try it. |
+| Turning an extension off | Per device, saved in `localStorage`, and the page reloads; what another extension imports loads anyway. |
+| Isolation | None: every extension runs in the page. Review keeps bad code out of `main`. WebAssembly modules if isolation is ever needed. |
+| Who is calling | A caller names itself to a provider of something kept per extension (`recordsFor('wiki')`). |
+| Vaulter's access | Each tool declares `read`, `write` or `ask`; the agent applies it, and `ask` is a question whose yes runs the call. |
+| What only a person may do | Nothing is enforced: the person answers questions on a screen, and the model can only use tools. |
+| Secrets | Held by the secrets extension, attached only to requests for declared hosts; never in the repo, never synced. Sealed into the page by CI with a password, asked once per device. |
+| Where extensions keep data | Through records (`#records`): `store-local`, in its own IndexedDB database. |
+| Sync and backup of data | Extensions, such as a Git backup importing notes and records, kept separate from the code repo. |
 | Live transcription | OpenAI Realtime API, inside the `openai` extension, using a short-lived session key minted from your key; its contract comes with voice. |
 | Direct browser calls to OpenAI | Confirmed working in your trial project; no proxy. |
-| Where extensions keep data | Through `records@1` only: the kernel gives no storage. |
-| Storage for records and embeddings | An extension that provides `records@1` (`store-local`, in its own IndexedDB database). Others can replace it by passing the conformance suite in CI. |
-| Sync and backup of data | Extensions, such as a Git backup requiring `notes@1` and `records@1`, kept separate from the code repo. |
-| Isolation | None: every extension runs in the kernel's page, drafts too. The kernel's checks keep well-behaved code and Vaulter's model in line; review keeps bad code out of `main`. WebAssembly modules if isolation is ever needed. |
-| Calls between extensions | Through kernel handles: personal methods, guarded functions wrapped by the policy; values pass uncopied. TypeScript checks the arguments, not the kernel. A contract is one interface, with no adapter between the two sides. |
-| Vaulter's access | Read, write and ask attach to functions a contract guards (a tool's `run`), so no requirer can leave the guard off; the person's setting overrides the declared level. |
-| What only a person may do | Contract methods marked personal pass once per tap or key in the calling extension's own screen (`kernel.asPerson`); never for the agent or an extension Vaulter wrote. |
-| The kernel's own screens | A `kernel@1` contract the kernel provides; the screens are extensions. |
-| Offline | A service worker for the page, main included; compiled output and draft trees in the kernel's own database. |
-| Secrets on a new device | Sealed into the page by CI with a password; the secrets extension asks for it once per device. |
-| Turning an extension off, a draft swap | Save the change and start the app again (a page reload, from the cache); no extension is stopped one at a time. |
-| Errors | Kept per extension, by the stack: at the handle boundary and for uncaught ones. |
+| Offline | A service worker for the page and every extension's chunk. |
+| Errors | Kept per extension, for this run, by the stack. |
 | Several tabs | One kernel at a time, by a Web Lock; another tab takes over on request. |
-| Kernel and extensions from different commits | They don't come apart: main's extensions ship in the kernel's page, and CI checks a draft against the kernel on its branch. |
 
 **Build order.**
 
-1. Kernel with safe mode, the in-browser compiler and loader, and the handles. **Done**; the secret store and sealed secrets, first part of it, are the `secrets` extension since 2026-10-04.
-2. The source provider for GitHub. **Done** for reading drafts and older commits, and CI's checks; writing and merging drafts were taken out (2026-10-05) to come back with the agent that writes them. Main moved into the page on 2026-10-04: the provider is optional.
-3. Contract packages: `records`, `notes` and `questions` with conformance suites, `ai.chat`, `agent.tools`, `net` and `kernel`. **Done**, except `ui.shell`, which waits for the UI work. `ai.transcribe` and `ai.embed` were written and taken out again until voice or search needs them (they are in the history).
-4. Foundation extensions: `store-local`, `notes`, `openai` and `agent` (**done**); `shell-mobile` and `shell-desktop` wait for the UI work.
-5. Voice, Wiki and Questions, which together exercise nearly every contract. **Wiki and Questions done**; voice needs the UI (a microphone button) and the realtime spike.
-6. Today, Search and Map.
-7. The draft-branch flow, so Vaulter can write extensions. **The kernel's part is done**: trying drafts per device and reviewing them; writing and accepting them are a focused extension of their own, to come.
+1. The kernel. **Done**, reworked on 2026-10-05 from an in-browser compiler, loader, resolver and checked handles to importing modules built by CI.
+2. Contracts: `records`, `notes` and `questions` with conformance suites, `ai.chat`, `agent`, `agent.tools`, `net`, `wiki`. **Done**; the shell's comes with the UI work.
+3. Foundation extensions: `store-local`, `secrets`, `notes`, `openai` and `agent` (**done**); the shell waits for the UI work.
+4. Voice, Wiki and Questions. **Wiki and Questions done**; voice needs the UI (a microphone button) and the realtime spike.
+5. Today, Search and Map.
+6. Vaulter writing extensions, as pull requests: a focused extension of its own.
 
-The extensions so far, each tested with the others (`startRepo` in `src/kernel/testing.ts`):
+The extensions so far, each tested with the others (`startApp` in `src/kernel/testing.ts`):
 
-| Extension | Provides | Requires (optional) | Notes |
+| Extension | Exports | Imports | Notes |
 | --- | --- | --- | --- |
-| `secrets` | `net@1` | | Holds secrets encrypted on the device, opens the page's sealed ones, attaches each only to its declared hosts |
-| `source-github` | `extensions.source@1` | (`net`) | Drafts and older commits on GitHub, and CI's checks; reads a public repo without a token |
-| `store-local` | `records@1` | | In its own IndexedDB database, with every revision kept and a format number for its layout; passes the records suite |
-| `notes` | `notes@1` | `records` | Append-only; lists by when a note was said |
-| `questions` | `questions@1` | `records` | Answers reach the asker's topic handler, also after a restart; answering is personal |
-| `openai` | `ai.chat` | `net` | The Responses API (tool calling for current models needs it), `store: false` with the encrypted reasoning sent back as a turn's `state`. Its model is in `extensions/openai/index.ts`; streaming, live speech and the rest come with what needs them (the realtime work is in the history) |
-| `wiki` | `wiki@1` | `records`, `notes` (`ai.chat`, `questions`, `agent.tools`) | Person, place, event and topic types; every fact cites its notes; each note is revised into pages by the model, and what it isn't sure of becomes a yes/no question whose answer makes the change |
-| `agent` | `agent@1`, `agent.tools@1` | `ai.chat` (`kernel`) | Sees a line per extension, opens only those a request needs, calls their tools through the kernel |
+| `store-local` | `recordsFor`, `forget` (`#records`) | | In its own IndexedDB database, with every revision kept and a format number for its layout; passes the records suite |
+| `secrets` | `netFor`, `forget` (`#net`) | | Holds secrets encrypted on the device, opens the page's sealed ones, attaches each only to its declared hosts |
+| `notes` | `notes` (`#notes`) | `#records` | Append-only; lists by when a note was said |
+| `questions` | `questionsFor`, `forget` (`#questions`) | `#records` | Answers reach the asker's topic handler, also after a restart |
+| `openai` | `chat` (`#chat`) | `#net` | The Responses API (tool calling for current models needs it), `store: false` with the encrypted reasoning sent back as a turn's `state`. Its model is in `extensions/openai/index.ts`; streaming, live speech and the rest come with what needs them |
+| `wiki` | `wiki`, `tools` (`#wiki`) | `#records`, `#notes`, `#questions`, `#chat` | Person, place, event and topic types; every fact cites its notes; each note is revised into pages by the model, and what it isn't sure of becomes a yes/no question whose answer makes the change |
+| `agent` | `agent` (`#agent`) | `#chat`, `#questions`, `#kernel` | Sees a line per extension with tools, opens only those a request needs, asks before a tool that asks first |
 
-Where it stands (the `pip` branch): every architecture goal above has an implementation and tests, run in Node through the same boot on a test device (`src/kernel/testing.ts`), and checked in Chromium, online and offline. The compile spike: Sucrase compiles about 100 KB of TypeScript in 10 ms, cached per blob, so no CI-built cache is needed yet. The kernel bundle, with React and Zod for every extension, is 650 KB (176 KB gzipped); the compiler is a separate chunk, loaded on a cache miss.
-
-**A rebuild, not a refactor.** The first draft planned to wrap the existing app's modules as providers and move features over one at a time. Instead (2026-10-04) Vaulter is rebuilt from scratch on the `pip` branch, with the old app removed there so the two never run side by side. This iteration has two features, `notes` and `wiki`; later ones (the weekly sweep on a schedule, voice, Vaulter itself) are extensions on top.
+**A rebuild, not a refactor.** The first draft planned to wrap the existing app's modules as providers and move features over one at a time. Instead (2026-10-04) Vaulter is rebuilt from scratch on the `pip` branch, with the old app removed there so the two never run side by side.
 
 **Open questions.**
 
-- [ ] Spike: does `POST /v1/realtime/client_secrets` accept browser requests the way the other endpoints do? (It would go through `net.fetch`, so CORS is the only question; the code is in the history, from before 2026-10-05.) The `openai` extension is tested against a fake API only: a first run with a real key should confirm it, and the model name.
-- [x] Spike: how long does compiling every extension in the browser take, and is a CI-built cache needed from the start? (No; see above.)
-- [x] How a device chooses which draft branches to load: per device, through `kernel.tryDraft` (the review screen) or safe mode.
-- [ ] Views: how the shell lays out views and panels from several extensions (`ui.shell`, and its granularity: one contract, or separate ones for slots, keys and the palette). The first job of the UI work.
-- [ ] Pending approvals live in memory: an `ask` call that isn't decided before the app closes fails, and Vaulter asks again. Persisting them needs the call to be replayable. (Postponed.)
-- [ ] Postponed with it: a schema version for the kernel's own stored data (config, keep), cleaning up data left by extensions deleted from the repo, and bringing the first-draft examples above up to date.
-- [ ] Not planned for now: reading files from GitHub without the API's rate limit (raw.githubusercontent or an archive per commit), and a whole-system export through the kernel for backup and sync.
+- [ ] Spike: does `POST /v1/realtime/client_secrets` accept browser requests the way the other endpoints do? (It would go through `net.fetch`, so CORS is the only question.) The `openai` extension is tested against a fake API only: a first run with a real key should confirm it, and the model name.
+- [ ] The shell: how it lays out views and panels from several extensions, and what it exports for the kernel to hand the page to. The first job of the UI work.
+- [ ] Cleaning up data left by extensions deleted from the repo.
 
 **Sources:** [OpenAI Realtime API guide](https://developers.openai.com/api/docs/guides/realtime)
