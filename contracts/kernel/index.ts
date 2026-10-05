@@ -2,11 +2,10 @@
 // approvals need (ARCHITECTURE.md, "UI for extensions"). The kernel provides it; an extension that
 // requires it shows that in its static fields, and every change it can make is personal: only a person
 // can make it, right after a tap or key in that extension.
-import { defineContract } from '@vaulter/kernel';
-import { z } from 'zod';
+import { type Access, defineContract } from '@vaulter/kernel';
 
-export const Access = z.enum(['read', 'write', 'ask']);
-export type Access = z.infer<typeof Access>;
+export type { Access };
+
 export type Unsubscribe = () => void;
 
 export interface ExtensionInfo {
@@ -31,6 +30,7 @@ export interface ExtensionInfo {
 
 export interface ErrorEntry {
   at: string;
+  /** Where it surfaced. */
   where: 'setup' | 'call' | 'callback' | 'uncaught';
   message: string;
   stack?: string;
@@ -113,8 +113,6 @@ export interface Review {
 
 export interface KernelV1 {
   extensions: () => Promise<ExtensionInfo[]>;
-  /** An extension's last errors. */
-  errors: (id: string) => Promise<ErrorEntry[]>;
   source: () => Promise<SourceInfo>;
   /** Every guarded function seen, with its level. */
   access: () => Promise<AccessInfo[]>;
@@ -140,6 +138,6 @@ export interface KernelV1 {
 
 export const kernel = defineContract<KernelV1>({
   name: 'kernel',
-  version: '1.0.0',
+  version: 1,
   personal: ['decide', 'setAccess', 'setEnabled', 'remove', 'setSource', 'tryDraft'],
 });

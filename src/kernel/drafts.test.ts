@@ -52,7 +52,7 @@ describe('drafts', () => {
         device: ['geolocation'],
       },
       secrets: { token: { label: 'Mapbox', hosts: ['api.mapbox.com'] } },
-      requires: { k: { kind: 'contract', name: 'kernel', version: '1.0.0' } },
+      requires: { k: { kind: 'contract', name: 'kernel', version: 1 } },
     });
     expect(raises(before, after)).toEqual([
       'reach api.mapbox.com',

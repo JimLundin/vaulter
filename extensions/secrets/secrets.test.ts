@@ -10,12 +10,12 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-const probe = defineContract<{ run: () => Promise<unknown> }>({ name: 'probe', version: '1.0.0' });
+const probe = defineContract<{ run: () => Promise<unknown> }>({ name: 'probe', version: 1 });
 
 // An extension with a secret for one host, and another host it may reach without one.
 const CALLER = {
   'contracts/probe/index.ts': `import { defineContract } from '@vaulter/kernel';
-    export const probe = defineContract({ name: 'probe', version: '1.0.0' });`,
+    export const probe = defineContract({ name: 'probe', version: 1 });`,
   'extensions/caller/index.ts': `import { defineExtension } from '@vaulter/kernel';
     import { net } from '@contracts/net';
     import { probe } from '@contracts/probe';

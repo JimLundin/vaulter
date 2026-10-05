@@ -96,7 +96,7 @@ export async function boot(device: Device, opts: BootOptions): Promise<Booted> {
   try {
     for (const [c, impl] of opts.provide ?? []) kernel.provide(c, impl);
     const page = await pageTree(opts.page);
-    const { repo, ref, pin, drafts, disabled, choose } = config.get();
+    const { repo, ref, pin, drafts, disabled } = config.get();
     const deps: LoaderDeps = {
       read: (path, sha) => {
         const text = page.texts.get(sha);
@@ -137,7 +137,7 @@ export async function boot(device: Device, opts: BootOptions): Promise<Booted> {
     // providing extensions.source starts first, with what it requires, and the rest after.
     let tree = page.tree;
     if (pin || drafts.length) {
-      const first = await startSource(kernel, page.tree, deps, skip, choose);
+      const first = await startSource(kernel, page.tree, deps, skip);
       b.refused.push(...first.refused);
       b.started.push(...first.started);
       b.src = running(kernel);
@@ -170,7 +170,7 @@ export async function boot(device: Device, opts: BootOptions): Promise<Booted> {
     const { plans, refused, stats } = await planAll(tree, deps, skip);
     b.stats = stats;
     b.refused.push(...refused);
-    const started = await kernel.start(plans, { choose });
+    const started = await kernel.start(plans);
     b.refused.push(...started.refused);
     b.started.push(...started.started);
     b.src ??= running(kernel);
@@ -196,13 +196,7 @@ const running = (kernel: Kernel) => {
 };
 
 /** The extensions providing extensions.source, with everything they require, started from `tree`. */
-async function startSource(
-  kernel: Kernel,
-  tree: Tree,
-  deps: LoaderDeps,
-  skip: Set<string>,
-  choose: Record<string, string>,
-) {
+async function startSource(kernel: Kernel, tree: Tree, deps: LoaderDeps, skip: Set<string>) {
   if (running(kernel)) return { started: [], refused: [] };
   const { plans, refused } = await planAll(tree, deps, skip);
   const statics = new Map<string, Statics>();
@@ -221,9 +215,7 @@ async function startSource(
   for (const id of want)
     for (const c of Object.values(statics.get(id)!.requires))
       for (const p of providers(c.key)) want.add(p);
-  const started = await kernel.start(new Map([...plans].filter(([id]) => want.has(id))), {
-    choose,
-  });
+  const started = await kernel.start(new Map([...plans].filter(([id]) => want.has(id))));
   return { started: started.started, refused: [...refused, ...started.refused] };
 }
 

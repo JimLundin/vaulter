@@ -12,7 +12,7 @@ export interface BusV1 {
   same(a: unknown, b: unknown): Promise<boolean>;
   fail(): Promise<void>;
 }
-export const bus = defineContract<BusV1>({ name: 'bus', version: '1.0.0' });`;
+export const bus = defineContract<BusV1>({ name: 'bus', version: 1 });`;
 
 // A provider that remembers handlers per caller.
 const BUS_EXT = `
@@ -60,7 +60,7 @@ const busContract = defineContract<{
   fail: () => Promise<void>;
 }>({
   name: 'bus',
-  version: '1.0.0',
+  version: 1,
 });
 
 let kernel: Kernel | undefined;

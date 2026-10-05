@@ -57,7 +57,6 @@ export type Statics = z.infer<typeof Statics>;
 /** What the kernel gives every extension besides its contracts. The network with secrets is net@1's,
  * data is records@1's. */
 export interface KernelApi {
-  readonly id: string;
   /** Wraps an event handler of the extension's own screen: a person's tap or key on it lets this
    * extension make one personal call (approving, answering) within a few seconds. */
   asPerson: <A extends [{ isTrusted?: boolean } | undefined, ...unknown[]], R>(

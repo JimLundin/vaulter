@@ -38,7 +38,7 @@ export default defineExtension({ id: 'fake-ai', version: '1.0.0', provides: { ch
     async models() { return ['fake']; },
   } }; } });`;
 
-const use = <T>(k: Kernel, name: string) => k.use(defineContract<T>({ name, version: '1.0.0' }));
+const use = <T>(k: Kernel, name: string) => k.use(defineContract<T>({ name, version: 1 }));
 
 it('answers with the tools it opens, and waits for the person on a tool that asks', async () => {
   const r = await startRepo(['store-local', 'notes', 'wiki', 'agent'], {

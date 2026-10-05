@@ -6,7 +6,6 @@ export {
   type Contract,
   defineContract,
   type Guards,
-  type Inputs,
   type InterfaceOf,
 } from './contract.ts';
 export {

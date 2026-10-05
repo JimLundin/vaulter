@@ -135,4 +135,4 @@ export type RecordRef = z.infer<typeof RecordRef>;
 /** A field holding a reference to a record of `type`: `place: refTo(wiki.place).optional()`. */
 export const refTo = (type: RecordType) => RecordRef.extend({ type: z.literal(type.name) });
 
-export const records = defineContract<RecordsV1>({ name: 'records', version: '1.0.0' });
+export const records = defineContract<RecordsV1>({ name: 'records', version: 1 });

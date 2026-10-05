@@ -20,13 +20,13 @@ export function control({ booted: b, review, restart }: ControlEnv): KernelV1 {
   };
 
   return {
-    async extensions() {
+    extensions() {
       const running = new Set(kernel.running().map((r) => r.id));
       const problems = kernel.problems();
       const { disabled } = config.get();
       const ids = [...new Set([...b.found, ...kernel.seen.keys()])].sort();
-      return Promise.all(
-        ids.map(async (id): Promise<ExtensionInfo> => {
+      return Promise.resolve(
+        ids.map((id): ExtensionInfo => {
           const s = kernel.seen.get(id);
           return {
             id,
@@ -87,7 +87,6 @@ export function control({ booted: b, review, restart }: ControlEnv): KernelV1 {
       }));
     },
     review: (branch) => review(branch),
-    errors: (id) => Promise.resolve(kernel.errors.of(id)),
 
     decide: (id, approve) => Promise.resolve(kernel.policy.decide(id, approve)),
     setAccess: (ext, label, access) => config.setAccess(ext, label, access),

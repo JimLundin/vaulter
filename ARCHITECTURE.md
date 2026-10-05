@@ -34,7 +34,7 @@ What remains are the jobs an extension can't do for itself:
 | Kernel job | Why it can't be an extension |
 | --- | --- |
 | Load the extensions the page was built with (main), and a draft or an older commit through a source provider; compile them in the browser and cache the output by file | Every extension, built-in or Vaulter's, has to arrive the same way |
-| Validate each extension's definition and resolve contracts: match each `requires` to a `provides`, check versions | Extensions can't wire themselves without a referee |
+| Validate each extension's definition and resolve contracts: match each `requires` to the one `provides` of the same contract and version | Extensions can't wire themselves without a referee |
 | Route every call between extensions and check it: that the caller requires the contract, that a callback was handed to it, Vaulter's read, write and ask, and that a person's own actions come from a person | An extension can't police its own access; Vaulter's read, write and ask settings are enforced here |
 | Load each extension into the page, and tell each provider who calls it and what the caller declared | Every extension, built-in or Vaulter's, arrives and is wired the same way |
 | Choose which branch or commit to load, and roll back | Needed before any extension has loaded |
@@ -70,7 +70,7 @@ So the kernel's checks keep well-behaved code, and Vaulter's model, in line; the
 **Calls go through handles.** A requirer's `ctx` holds a handle per contract, not the provider's object. Every call through a handle:
 
 - refuses if the provider (or the caller) isn't running, or the method is a contract's personal one and no person just acted in the caller's screen;
-- guards the function the provider's copy of the contract names (`guards`: a tool's `run`, with its label and level read from the tool), and checks the arguments against Zod `inputs` if the contract gives any;
+- guards the function the provider's copy of the contract names (`guards`: a tool's `run`, with its label and level read from the tool);
 - passes functions as they are, except the guarded one the contract names: that one goes through Vaulter's access policy on every call, as the holder calling its owner, and carries the level the policy applies now (`run.level`).
 
 Because the guard comes from the provider's copy of the contract, a requirer can't leave it off: a draft with its own copy of a contract still hands over a guarded `run`.
@@ -85,7 +85,7 @@ Values otherwise pass as they are, not copied: a React component, a Zod schema o
 
 **Starting again is the page's job.** Nothing stops one extension at a time. Turning an extension on or off, removing one, or trying a draft saves the change and starts the app again: a page reload, which with the compile cache takes about a second and leaves nothing of the old run behind. A tab that hands Vaulter over makes every handle refuse, then reloads.
 
-**Errors.** What is thrown through a handle (in a call, a guarded callback, a setup), and what nothing caught, is kept under the extension whose code threw it: every compiled module carries a source URL, `vaulter:///<commit>/extensions/<id>/<file>`, and the kernel knows each module's own URL too, so the stack says whose code it was. The last twenty per extension are kept and survive a reload, for safe mode (`kernel.extensions()`, `kernel.errors(id)`).
+**Errors.** What is thrown through a handle (in a call, a guarded callback, a setup), and what nothing caught, is kept under the extension whose code threw it: every compiled module carries a source URL, `vaulter:///<commit>/extensions/<id>/<file>`, and the kernel knows each module's own URL too, so the stack says whose code it was. The last twenty per extension are kept and survive a reload, for safe mode and `kernel.extensions()`.
 
 **One tab at a time.** Two tabs would run two kernels over the same IndexedDB, each deaf to the other's changes. The kernel holds a Web Lock while it runs; another tab shows a bare screen until the person moves Vaulter there, when the first tab makes every handle refuse, lets go and reloads into the same bare screen (`src/kernel/single-tab.ts`).
 
@@ -128,7 +128,7 @@ The definition has two parts:
 **Checks happen at three points.**
 
 - TypeScript, in the editor and in CI on every push.
-- Zod, when the kernel loads an extension's static fields, and wherever data comes from outside typed code: tool inputs, record fields, a model's answers. A contract may give Zod `inputs` for a method like that; none does today.
+- Zod, when the kernel loads an extension's static fields, and wherever data comes from outside typed code: tool inputs, record fields, a model's answers.
 - Conformance suites (`contracts/<name>/conformance.ts`), which CI runs on every push, draft branches included, against every extension in the repo that provides the contract, through real kernel handles (`contracts/conformance.test.ts`). The kernel doesn't run them when it starts; a device won't try a draft whose CI checks failed.
 
 **Separation.** Each extension's data lives with the records provider, in the extension's own namespace, and it is meant to reach others only through the contracts it requires, so removing it removes its records (the provider's `forget`) and nothing else. This is the design every extension follows, not a wall: see "Running in the page".
@@ -201,7 +201,7 @@ Realtime fits the same model: the `openai` extension calls `POST /v1/realtime/cl
 
 Five rules keep new features from forcing refactors.
 
-- **Contracts are versioned, not extensions' internals.** A provider may change anything behind `records@1` as long as it still passes the contract's test suite. A breaking change ships as `records@2`, and a provider can offer both while requirers move over.
+- **Contracts are versioned, not extensions' internals.** A contract's version is one number, the `@1` in `records@1`; there are no minor versions, since contracts and their providers ship together and CI checks them. A provider may change anything behind `records@1` as long as it still passes the contract's test suite. A breaking change ships as `records@2`, and a provider can offer both while requirers move over.
 - **Contracts with a provider to hold to account ship a conformance test suite** (records, notes and questions today). Any new provider, including one Vaulter writes, must pass it in CI before its draft can be tried or accepted.
 - **Type changes are migrations.** Splitting `place` into `venue` and `city` is a migration the records contract runs once and can reverse.
 - **Nothing is overwritten or removed for good.** Every change to a record is a new revision with the earlier ones kept (`history`); changes to one record run one after another, each `update` getting it as the last left it, so two changes at once can't lose either. Deleting or merging leaves a tombstone that can be restored. Only removing an extension drops its data.
@@ -235,7 +235,7 @@ export interface RecordsV1 {
   onChanged<S extends z.ZodRawShape>(type: RecordType<S>, handler: (rec: Rec<S>) => void): Promise<Unsubscribe>;
 }
 
-export const records = defineContract<RecordsV1>({ name: "records", version: "1.0.0" });
+export const records = defineContract<RecordsV1>({ name: "records", version: 1 });
 ```
 
 **Voice capture** records and transcribes with the Realtime API through `aiRealtime`, then appends to the notes log. `shell.slots.bottomBarPrimary` is a typed constant, so a misspelled slot doesn't compile.

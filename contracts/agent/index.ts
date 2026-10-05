@@ -39,5 +39,5 @@ export interface AgentV1 {
 
 export const agent = defineContract<AgentV1>({
   name: 'agent',
-  version: '1.0.0',
+  version: 1,
 });

@@ -112,7 +112,6 @@ export interface TreeOptions extends Partial<Device> {
   /** This device's settings before it boots. */
   config?: Partial<Config>;
   access?: Record<string, Access>;
-  choose?: Record<string, string>;
   /** The kernel's own providers, given before anything starts. */
   provide?: [AnyContract, object][];
   /** More branches beside main (drafts), path → text. */
@@ -122,7 +121,7 @@ export interface TreeOptions extends Partial<Device> {
 
 /** Boots a test device on `files` as the main branch, with every extension in them started. */
 export async function startTree(files: Record<string, string>, opts: TreeOptions = {}) {
-  const { config, access, choose, provide, branches, safe, ...over } = opts;
+  const { config, access, provide, branches, safe, ...over } = opts;
   const device = testDevice(over);
   const out = testOut();
   const src = testSource({ main: files, ...branches });
@@ -130,7 +129,6 @@ export async function startTree(files: Record<string, string>, opts: TreeOptions
     ...defaultConfig(`${REPO}@main`),
     ...config,
     access: { ...config?.access, ...access },
-    choose: { ...config?.choose, ...choose },
   });
   // Main is the page's (`files`); the test source has it too, with the branches for drafts and pins.
   const booted = await boot(device, {

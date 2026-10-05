@@ -10,8 +10,6 @@ export interface Config {
   /** A commit to stay on instead of `ref`'s latest: a rollback. */
   pin?: string;
   disabled: string[];
-  /** Contract key → extension id, where two extensions provide the same contract. */
-  choose: Record<string, string>;
   /** The person's access settings, by `extension/label`. */
   access: Record<string, Access>;
   /** Draft branches loaded on top of `ref`. */
@@ -20,7 +18,7 @@ export interface Config {
 
 export function defaultConfig(spec: string): Config {
   const [repo, ref = 'main'] = spec.split('@');
-  return { repo, ref, disabled: [], choose: {}, access: {}, drafts: [] };
+  return { repo, ref, disabled: [], access: {}, drafts: [] };
 }
 
 export interface SourceChange {
@@ -37,8 +35,6 @@ export interface ConfigStore {
   setSource: (change: SourceChange) => Promise<void>;
   /** The person's level for one of an extension's guarded functions; null for the declared one. */
   setAccess: (ext: string, label: string, access: Access | null) => Promise<void>;
-  /** Which extension provides a contract two extensions provide; null to choose none. */
-  choose: (key: string, id: string | null) => Promise<void>;
 }
 
 const toggle = (list: string[], x: string, on: boolean) =>
@@ -74,10 +70,5 @@ export async function configStore(keep: KernelKeep, fallback: string): Promise<C
           access: access === null ? without(c.access, k) : { ...c.access, [k]: access },
         };
       }),
-    choose: (key, id) =>
-      update((c) => ({
-        ...c,
-        choose: id === null ? without(c.choose, key) : { ...c.choose, [key]: id },
-      })),
   };
 }

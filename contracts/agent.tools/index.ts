@@ -31,7 +31,7 @@ export interface AgentToolsV1 {
 
 export const agentTools = defineContract<AgentToolsV1>({
   name: 'agent.tools',
-  version: '1.0.0',
+  version: 1,
   guards: {
     add: {
       arg: 0,

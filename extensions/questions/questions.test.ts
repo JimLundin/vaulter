@@ -10,7 +10,7 @@ afterEach(async () => {
 
 const probe = defineContract<{ run: (a?: string) => Promise<unknown> }>({
   name: 'probe',
-  version: '1.0.0',
+  version: 1,
 });
 
 it('lets only a person answer a question, and hands the answer to the asker', async () => {
@@ -19,7 +19,7 @@ it('lets only a person answer a question, and hands the answer to the asker', as
     ['store-local', 'questions'],
     {
       'contracts/probe/index.ts': `import { defineContract } from '@vaulter/kernel';
-        export const probe = defineContract<{ run(a?: string): Promise<unknown> }>({ name: 'probe', version: '1.0.0' });`,
+        export const probe = defineContract<{ run(a?: string): Promise<unknown> }>({ name: 'probe', version: 1 });`,
       'extensions/asker/index.ts': `import { defineExtension } from '@vaulter/kernel';
     import { out } from '@vaulter/test';
         import { questions } from '@contracts/questions';

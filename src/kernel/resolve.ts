@@ -2,7 +2,6 @@
 // one `provides`.
 // An extension that can't be wired is left out with its reasons, and so is everything that needed it;
 // the rest still loads (the delete test: removing a feature must not stop the app).
-import { satisfies } from './contract.ts';
 import type { Statics } from './extension.ts';
 
 export interface Accepted {
@@ -30,11 +29,11 @@ export interface Candidate {
   statics: Statics;
 }
 
-/** `choose` settles two providers of the same contract: contract key → extension id. `started` are
- * extensions already running (the bootstrap set), which provide but are not resolved again. */
+/** `started` are extensions already running (a source provider started first), which provide but are
+ * not resolved again. Two extensions providing the same contract is a problem for whatever requires
+ * it: there is nothing to choose between them yet. */
 export function resolve(
   candidates: Candidate[],
-  choose: Record<string, string> = {},
   started: { id: string; statics: Statics }[] = [],
 ): Resolution {
   const refused = new Map<string, string[]>();
@@ -65,25 +64,17 @@ export function resolve(
       const wired: Record<string, string> = {};
       const problems: string[] = [];
       for (const [as, c] of Object.entries(statics.requires)) {
-        const all = providers.get(c.key) ?? [];
-        const ids = choose[c.key] && all.includes(choose[c.key]) ? [choose[c.key]] : all;
+        const ids = providers.get(c.key) ?? [];
         if (ids.length === 0) problems.push(`requires ${c.key}, which nothing installed provides`);
         else if (ids.length > 1)
-          problems.push(`requires ${c.key}, provided by ${ids.join(' and ')}: choose one`);
+          problems.push(`requires ${c.key}, which ${ids.join(' and ')} both provide`);
         else if (ids[0] === id) problems.push(`requires ${c.key}, which only it provides`);
-        else {
-          const p = Object.values(staticsOf(ids[0]).provides).find((x) => x.key === c.key)!;
-          if (satisfies(p.version, c.version)) wired[as] = ids[0];
-          else problems.push(`requires ${c.name} ${c.version}; ${ids[0]} provides ${p.version}`);
-        }
+        else wired[as] = ids[0];
       }
       // Optional: wired when exactly one provider fits; otherwise the extension starts without it.
       for (const [as, c] of Object.entries(statics.optional)) {
-        const all = providers.get(c.key) ?? [];
-        const ids = choose[c.key] && all.includes(choose[c.key]) ? [choose[c.key]] : all;
-        if (ids.length !== 1 || ids[0] === id) continue;
-        const p = Object.values(staticsOf(ids[0]).provides).find((x) => x.key === c.key)!;
-        if (satisfies(p.version, c.version)) wired[as] = ids[0];
+        const ids = providers.get(c.key) ?? [];
+        if (ids.length === 1 && ids[0] !== id) wired[as] = ids[0];
       }
       if (problems.length) {
         for (const p of problems) refuse(id, p);

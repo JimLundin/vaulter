@@ -2,15 +2,8 @@
 // setup) and uncaught ones are kept by the kernel under the extension whose code threw, traced by the
 // source URL every compiled module carries (vaulter:///<commit>/extensions/<id>/…, link.ts). The last
 // few per extension are kept, for safe mode and the extensions list.
+import type { ErrorEntry } from '@contracts/kernel';
 import type { KernelKeep } from './storage.ts';
-
-export interface ErrorEntry {
-  at: string;
-  /** Where it surfaced. */
-  where: 'setup' | 'call' | 'callback' | 'uncaught';
-  message: string;
-  stack?: string;
-}
 
 const KEEP = 20;
 

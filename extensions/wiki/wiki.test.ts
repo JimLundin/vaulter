@@ -52,7 +52,7 @@ export default defineExtension({ id: 'agent', version: '1.0.0', provides: { agen
     async add(t) { tools.push({ name: t.name, access: t.run.level, input: z.toJSONSchema(t.input) }); await out.set('agent', 'tools', tools); return () => {}; },
   } }; } });`;
 
-const use = <T>(k: Kernel, name: string) => k.use(defineContract<T>({ name, version: '1.0.0' }));
+const use = <T>(k: Kernel, name: string) => k.use(defineContract<T>({ name, version: 1 }));
 const settle = () => new Promise((ok) => setTimeout(ok, 50));
 
 it('revises pages from notes, cites every fact, asks when unsure, and gives Vaulter its tools', async () => {

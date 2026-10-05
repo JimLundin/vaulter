@@ -30,5 +30,5 @@ export interface RealtimeV1 {
 
 export const realtime = defineContract<RealtimeV1>({
   name: 'ai.realtime',
-  version: '1.0.0',
+  version: 1,
 });

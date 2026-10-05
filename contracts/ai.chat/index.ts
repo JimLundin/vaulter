@@ -74,5 +74,5 @@ export interface ChatV1 {
 
 export const chat = defineContract<ChatV1>({
   name: 'ai.chat',
-  version: '1.0.0',
+  version: 1,
 });

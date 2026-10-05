@@ -4,10 +4,8 @@
 // line; they don't contain hostile code.
 //
 // A handle on a contract is the provider's implementation behind a check: a personal method passes
-// only right after a person acted in the caller, arguments pass the contract's Zod inputs if it has any,
-// and a guarded
-// function (a tool's `run`) handed across is wrapped so every call to it goes through Vaulter's access
-// policy. Values otherwise pass as they are: no copying, so components and schemas can cross too.
+// only right after a person acted in the caller, and a guarded function (a tool's `run`) handed across
+// is wrapped so every call to it goes through Vaulter's access policy. Values otherwise pass as they are: no copying, so components and schemas can cross too.
 import { type Access, applyGuard, type Guard } from './access.ts';
 import { ErrorLog } from './errors.ts';
 import { type AnyContract, type Contract, ContractRef } from './contract.ts';
@@ -39,18 +37,12 @@ export interface KernelOptions {
   presence?: Presence;
 }
 
-export interface StartOptions {
-  /** Contract key → extension id, where two extensions provide the same contract. */
-  choose?: Record<string, string>;
-}
-
 interface Party {
   id: string;
   statics: Statics;
   /** Requires and optional: contract key → provider id. */
   wiring: Record<string, string>;
   def?: Extension['def'];
-  plan?: Plan;
   /** What it provides, by contract key: its contract handle and implementation (or per caller). */
   provided: Map<string, { contract: AnyContract; impl: object }>;
 }
@@ -115,21 +107,21 @@ export class Kernel {
   /** Starts the extensions in `plans` beside those already running: each is loaded and its static
    * fields read; those the resolver accepts are set up in dependency order. (A contract's conformance
    * suite is CI's to run, against every provider in the repo: testing.ts.) */
-  async start(plans: Map<string, Plan>, opts: StartOptions = {}) {
+  async start(plans: Map<string, Plan>) {
     const refused: Refused[] = [];
     const refuse = (id: string, problems: string[]) => {
       refused.push({ id, problems });
       this.refused.set(id, problems);
     };
 
-    const loaded = new Map<string, { def: Extension['def']; plan: Plan }>();
+    const loaded = new Map<string, { def: Extension['def'] }>();
     const candidates = (
       await Promise.all(
         [...plans].map(async ([id, plan]) => {
           try {
             const { def, statics } = await this.inspect(id, plan);
             this.seen.set(id, statics);
-            loaded.set(id, { def, plan });
+            loaded.set(id, { def });
             return [{ id, statics }];
           } catch (e) {
             refuse(id, [(e as Error).message]);
@@ -140,7 +132,6 @@ export class Kernel {
     ).flat();
     const res = resolve(
       candidates,
-      opts.choose,
       [...this.parties.values()].map((p) => ({ id: p.id, statics: p.statics })),
     );
     for (const r of res.refused) refuse(r.id, r.problems);
@@ -303,17 +294,7 @@ export class Kernel {
     const fn = impl[method];
     if (typeof fn !== 'function' || NOT_METHODS.has(method))
       throw new Refusal(`${key} has no method "${method}"`);
-    // The provider's inputs (if any) and guards first, then every function is carried across.
     let args = raw;
-    const schema = contract.inputs[method];
-    if (schema) {
-      const parsed = schema.safeParse(args);
-      if (!parsed.success)
-        throw new Refusal(
-          `${from} → ${key}.${method}: ${parsed.error.issues.map((i) => `${i.path.join('.') || 'arguments'}: ${i.message}`).join('; ')}`,
-        );
-      args = parsed.data;
-    }
     // Functions cross as they are, except the guarded one the contract names: it goes through the
     // policy on every call, as the provider (`to`) calling the extension that handed it over.
     const guard = contract.guards[method];
@@ -352,7 +333,6 @@ export class Kernel {
 
   private kernelApi(party: Party): KernelApi {
     return {
-      id: party.id,
       asPerson: (handler) =>
         this.opts.presence ? asPerson(this.opts.presence, party.id, handler) : handler,
     };

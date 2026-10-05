@@ -8,7 +8,7 @@ import { startTree } from './testing.ts';
 const files: Record<string, string> = {
   'contracts/kernel/index.ts': readFileSync('contracts/kernel/index.ts', 'utf8'),
   'contracts/probe/index.ts': `import { defineContract } from '@vaulter/kernel';
-    export const probe = defineContract<{ run(): Promise<unknown> }>({ name: 'probe', version: '1.0.0' });`,
+    export const probe = defineContract<{ run(): Promise<unknown> }>({ name: 'probe', version: 1 });`,
   'extensions/maps/index.ts': `import { defineExtension } from '@vaulter/kernel';
     export default defineExtension({ id: 'maps', version: '1.3.0',
       permissions: { network: ['tile.openstreetmap.org'] },
@@ -67,7 +67,7 @@ describe('the kernel contract', () => {
     const probe = r.kernel.use(
       defineContract<{ run: () => Promise<{ list: string[]; raised: string }> }>({
         name: 'probe',
-        version: '1.0.0',
+        version: 1,
       }),
     );
     const out = await probe.run();

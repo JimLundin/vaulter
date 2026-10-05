@@ -45,6 +45,6 @@ export interface SourceV1 {
 
 export const source = defineContract<SourceV1>({
   name: 'extensions.source',
-  version: '1.1.0',
+  version: 1,
   personal: ['merge'],
 });

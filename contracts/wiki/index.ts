@@ -114,5 +114,5 @@ export interface WikiV1 {
 
 export const wiki = defineContract<WikiV1>({
   name: 'wiki',
-  version: '1.0.0',
+  version: 1,
 });

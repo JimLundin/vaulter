@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { defineContract, satisfies } from './contract.ts';
+import { defineContract } from './contract.ts';
 import { readStatics, Statics } from './extension.ts';
 import type { Kernel } from './kernel.ts';
 import { resolve } from './resolve.ts';
@@ -8,17 +8,12 @@ import { startTree } from './testing.ts';
 // Fixture source: compiled and loaded like any extension in the repo.
 const NOTES = `
 import { defineContract } from '@vaulter/kernel';
-import { z } from 'zod';
 export interface NotesV1 {
   append(text: string): Promise<number>;
   count(): Promise<number>;
   onAppended(handler: (text: string) => void): Promise<() => void>;
 }
-export const notes = defineContract<NotesV1>({
-  name: 'notes',
-  version: '1.1.0',
-  inputs: { append: z.tuple([z.string().min(1)]) },
-});`;
+export const notes = defineContract<NotesV1>({ name: 'notes', version: 1 });`;
 
 // Notes, kept in the kernel's storage for this extension.
 const NOTES_EXT = `
@@ -68,7 +63,7 @@ export interface ToolsV1 {
   call(name: string, input: unknown): Promise<unknown>;
   level(name: string): Promise<string>;
 }
-export const tools = defineContract<ToolsV1>({ name: 'agent.tools', version: '1.0.0', guards: {
+export const tools = defineContract<ToolsV1>({ name: 'agent.tools', version: 1, guards: {
   add: { arg: 0, fn: 'run', guard: (t) => ({ label: 'tool:' + t.name, access: t.access }) },
 } });`;
 
@@ -100,7 +95,7 @@ export default defineExtension({
 // A draft that brings its own copy of the contract, without the guard on a tool.
 const SNEAKY = `
 import { defineContract, defineExtension } from '@vaulter/kernel';
-const tools = defineContract({ name: 'agent.tools', version: '1.0.0' });
+const tools = defineContract({ name: 'agent.tools', version: 1 });
 export default defineExtension({
   id: 'workouts', version: '0.1.0', requires: { tools },
   async setup({ tools }) {
@@ -111,13 +106,13 @@ export default defineExtension({
 const notesContract = defineContract<{
   append: (t: string) => Promise<number>;
   count: () => Promise<number>;
-}>({ name: 'notes', version: '1.1.0' });
+}>({ name: 'notes', version: 1 });
 const toolsContract = defineContract<{
   call: (name: string, input: unknown) => Promise<unknown>;
   level: (name: string) => Promise<string>;
 }>({
   name: 'agent.tools',
-  version: '1.0.0',
+  version: 1,
 });
 
 const base = {
@@ -142,20 +137,15 @@ afterEach(async () => {
 });
 
 describe('contracts', () => {
-  it('are keyed by name and major version', () => {
-    expect(defineContract({ name: 'ui.shell', version: '1.2.0' }).key).toBe('ui.shell@1');
-    expect(() => defineContract({ name: 'Records', version: '1.0.0' })).toThrow();
-    expect(() => defineContract({ name: 'records', version: '1' })).toThrow();
-  });
-  it('are satisfied by the same major at the same or a later minor', () => {
-    expect(satisfies('1.2.0', '1.1.5')).toBe(true);
-    expect(satisfies('1.1.4', '1.1.5')).toBe(false);
-    expect(satisfies('2.0.0', '1.1.0')).toBe(false);
+  it('are keyed by name and version', () => {
+    expect(defineContract({ name: 'ui.shell', version: 2 }).key).toBe('ui.shell@2');
+    expect(() => defineContract({ name: 'Records', version: 1 })).toThrow();
+    expect(() => defineContract({ name: 'records', version: 1.5 })).toThrow();
   });
 });
 
 describe('resolve', () => {
-  const ref = (name: string, version = '1.0.0') => ({ kind: 'contract', name, version });
+  const ref = (name: string, version = 1) => ({ kind: 'contract', name, version });
   const ext = (id: string, more: object = {}) => ({
     id,
     statics: Statics.parse({ id, version: '1.0.0', ...more }),
@@ -192,17 +182,15 @@ describe('resolve', () => {
     ]);
   });
 
-  it('refuses an outdated provider, doubled providers (unless chosen), and cycles', () => {
-    const voice = ext('voice', { requires: { notes: ref('notes', '1.1.0') } });
+  it('refuses another version than the one required, doubled providers, and cycles', () => {
+    const voice = ext('voice', { requires: { notes: ref('notes', 2) } });
     const old = resolve([voice, ext('notes', { provides: { notes: ref('notes') } })]);
-    expect(old.refused[0].problems).toEqual(['requires notes 1.1.0; notes provides 1.0.0']);
+    expect(old.refused[0].problems).toEqual(['requires notes@2, which nothing installed provides']);
     const two = [
       voice,
-      ...['a', 'b'].map((id) => ext(id, { provides: { notes: ref('notes', '1.1.0') } })),
+      ...['a', 'b'].map((id) => ext(id, { provides: { notes: ref('notes', 2) } })),
     ];
-    expect(resolve(two).refused[0].problems[0]).toMatch(/choose one/);
-    const chosen = resolve(two, { 'notes@1': 'b' });
-    expect(chosen.accepted.find((a) => a.id === 'voice')?.wiring).toEqual({ notes: 'b' });
+    expect(resolve(two).refused[0].problems[0]).toMatch(/which a and b both provide/);
     const cyc = resolve([
       ext('x', { provides: { a: ref('a') }, requires: { b: ref('b') } }),
       ext('y', { provides: { b: ref('b') }, requires: { a: ref('a') } }),
@@ -233,13 +221,6 @@ describe('the kernel', () => {
     expect(await storage.get('voice', 'n')).toBeUndefined();
   });
 
-  it("checks a call against the contract's inputs, when it gives any", async () => {
-    const { kernel } = await start(base);
-    await expect(kernel.use(notesContract).append('')).rejects.toThrow(
-      /kernel → notes@1\.append: 0/,
-    );
-  });
-
   it('refuses an extension whose setup fails, and what requires it, but starts the rest', async () => {
     const { kernel, refused } = await start({
       ...base,
@@ -263,7 +244,6 @@ describe('the kernel', () => {
     const caller = kernel.caller('check-1');
     const n = caller.use(notesContract, 'notes');
     expect(await n.append('from a check')).toBe(1);
-    await expect(n.append('')).rejects.toThrow(/check-1 → notes@1\.append/);
     await caller.drop();
     await expect(n.append('again')).rejects.toThrow(/check-1 is not running/);
   });
@@ -326,7 +306,7 @@ describe('the kernel', () => {
   it("never lets Vaulter's own extensions make a personal call, even right after a tap", async () => {
     const questions = defineContract<{ answer: (a: string) => Promise<void> }>({
       name: 'questions',
-      version: '1.0.0',
+      version: 1,
       personal: ['answer'],
     });
     const caller = (
@@ -346,9 +326,9 @@ describe('the kernel', () => {
     const { storage, refused } = await start(
       {
         'contracts/questions/index.ts': `import { defineContract } from '@vaulter/kernel';
-          export const questions = defineContract({ name: 'questions', version: '1.0.0', personal: ['answer'] });`,
+          export const questions = defineContract({ name: 'questions', version: 1, personal: ['answer'] });`,
         'contracts/agent/index.ts': `import { defineContract } from '@vaulter/kernel';
-          export const agent = defineContract({ name: 'agent', version: '1.0.0' });`,
+          export const agent = defineContract({ name: 'agent', version: 1 });`,
         'extensions/agent/index.ts': caller(
           'agent',
           'provides: { agent },',
@@ -380,7 +360,7 @@ describe('the kernel', () => {
       answer: (a: string) => Promise<void>;
     }>({
       name: 'questions',
-      version: '1.0.0',
+      version: 1,
       personal: ['answer'],
     });
     let present = '';
@@ -388,9 +368,9 @@ describe('the kernel', () => {
       {
         'contracts/questions/index.ts': `import { defineContract } from '@vaulter/kernel';
           export const questions = defineContract<{ ask(q: string): Promise<void>; answer(a: string): Promise<void> }>({
-            name: 'questions', version: '1.0.0', personal: ['answer'] });`,
+            name: 'questions', version: 1, personal: ['answer'] });`,
         'contracts/probe/index.ts': `import { defineContract } from '@vaulter/kernel';
-          export const probe = defineContract<{ run(): Promise<string[]> }>({ name: 'probe', version: '1.0.0' });`,
+          export const probe = defineContract<{ run(): Promise<string[]> }>({ name: 'probe', version: 1 });`,
         'extensions/asker/index.ts': `import { defineExtension } from '@vaulter/kernel';
           import { questions } from '@contracts/questions';
           import { probe } from '@contracts/probe';
@@ -411,7 +391,7 @@ describe('the kernel', () => {
     );
     expect(refused).toEqual([]);
     const probe = kernel.use(
-      defineContract<{ run: () => Promise<string[]> }>({ name: 'probe', version: '1.0.0' }),
+      defineContract<{ run: () => Promise<string[]> }>({ name: 'probe', version: 1 }),
     );
     expect(await probe.run()).toEqual([
       'questions@1.answer is for a person to do, right after a tap or key',

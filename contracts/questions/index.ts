@@ -60,6 +60,6 @@ export interface QuestionsV1 {
 
 export const questions = defineContract<QuestionsV1>({
   name: 'questions',
-  version: '1.0.0',
+  version: 1,
   personal: ['answer', 'dismiss'],
 });

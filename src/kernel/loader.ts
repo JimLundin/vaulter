@@ -27,8 +27,6 @@ export interface Plan {
   commit: string;
   entry: string;
   modules: Record<string, PlannedModule>;
-  /** The shared modules it imports. */
-  shared: string[];
   /** The sha of every file in it, by path. */
   shas: Record<string, string>;
 }
@@ -119,7 +117,6 @@ export function planner(tree: Tree, deps: LoaderDeps) {
     if (!tree.files.has(entry)) throw new Error(`${entry} not found at this commit`);
     const t0 = performance.now();
     const modules: Record<string, PlannedModule> = {};
-    const shared = new Set<string>();
     const visit = async (path: string, stack: string[]): Promise<void> => {
       if (stack.includes(path)) throw new Error(`an import cycle: ${[...stack, path].join(' → ')}`);
       if (path in modules) return;
@@ -130,7 +127,6 @@ export function planner(tree: Tree, deps: LoaderDeps) {
       for (const i of imports) {
         const target = resolveSpec(path, i.spec);
         m.imports.push({ start: i.start, end: i.end, quoted: i.quoted, target });
-        if (target.startsWith('shared:')) shared.add(target.slice('shared:'.length));
       }
       for (const i of m.imports)
         if (!i.target.startsWith('shared:')) await visit(i.target, [...stack, path]);
@@ -138,7 +134,7 @@ export function planner(tree: Tree, deps: LoaderDeps) {
     await visit(entry, []);
     stats.totalMs += performance.now() - t0;
     const shas = Object.fromEntries(Object.keys(modules).map((p) => [p, tree.files.get(p)!]));
-    return { commit: tree.commit, entry, modules, shared: [...shared].sort(), shas };
+    return { commit: tree.commit, entry, modules, shas };
   }
 
   return { plan, stats, tree };

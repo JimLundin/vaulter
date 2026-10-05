@@ -41,5 +41,5 @@ export interface NotesV1 {
 
 export const notes = defineContract<NotesV1>({
   name: 'notes',
-  version: '1.0.0',
+  version: 1,
 });

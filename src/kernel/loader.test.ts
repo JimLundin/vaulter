@@ -25,7 +25,6 @@ describe('the loader', () => {
       'extensions/notes/a.ts',
       'extensions/notes/index.ts',
     ]);
-    expect(p.shared).toEqual(['zod']);
     // Types are stripped; a type-only import is gone.
     expect(p.modules['extensions/notes/a.ts'].code).not.toMatch(/number|types/);
   });

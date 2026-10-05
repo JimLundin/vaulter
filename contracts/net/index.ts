@@ -40,6 +40,6 @@ export interface NetV1 {
 
 export const net = defineContract<NetV1>({
   name: 'net',
-  version: '1.0.0',
+  version: 1,
   personal: ['setSecret', 'forgetSecret', 'unlock'],
 });
