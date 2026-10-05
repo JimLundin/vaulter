@@ -9,12 +9,8 @@ The one part that isn't an extension: it imports the extensions a device has on,
 _Avoid_: core, runtime, host
 
 **Extension**:
-A folder in the repo, an ES module and its about; every feature is one, including those Vaulter writes. One extension per job: others import it by folder.
+A folder in the repo, an ES module; every feature is one, including those Vaulter writes. One extension per job: others import it by folder.
 _Avoid_: plugin, module, app
-
-**About**:
-An extension's own description (version, agent guide, hosts and secrets, whether it is a preview), which the kernel reads before running any of it.
-_Avoid_: manifest, metadata
 
 **Agreed export**:
 An export by a name others look for, such as `tools` (read by the agent) or `ui` (read by the shell): how an extension plugs into another without either importing the other.
@@ -24,11 +20,11 @@ _Avoid_: hook, registration, contribution point
 The one extension that owns the page and lays out every extension's `ui` for the device.
 
 **Preview**:
-An extension on main that is off until a device turns it on: how a new extension, Vaulter's included, is tried.
-_Avoid_: draft, beta, experiment
+A pull request's own build of the page, on the same site, where a new extension, Vaulter's included, is tried before it reaches main.
+_Avoid_: draft, beta, staging
 
 **Device**:
-One browser, with its own data, secrets and choices of what is on; nothing about a device syncs.
+One browser, with its own data and secrets; nothing about a device syncs yet.
 _Avoid_: client, machine, platform
 
 ## People and Vaulter

@@ -4,10 +4,7 @@ import { servePage, startApp } from '../../app.ts';
 
 const PASSWORD = 'pw-pw-pw-pw-pw-pw';
 const FAST = { iterations: 1000, salt: new Uint8Array(16).fill(7) };
-const about = {
-  version: '1.0.0',
-  secrets: { key: { label: 'Key', hosts: ['api.openai.com'] } },
-};
+const declared = { key: ['api.openai.com'] };
 
 /** The page, with `values` sealed into it, and the auth header of each other request it sends. */
 const page = async (values: Record<string, string>, seen: [string, string | null][]) => {
@@ -23,7 +20,7 @@ const models = 'https://api.openai.com/v1/models';
 it('opens the sealed secrets with the password, and a new deploy with the same salt on its own', async () => {
   const seen: [string, string | null][] = [];
   const first = await page({ 'caller/key': 'sk-1' }, seen);
-  const net = first.netFor('caller', about);
+  const net = first.netFor('caller', declared);
   await expect(net.fetch(models, { secret: 'key' })).rejects.toThrow('is not set');
   await expect(first.unlock('nope')).rejects.toThrow('does not open');
   await first.unlock(PASSWORD);
@@ -31,7 +28,7 @@ it('opens the sealed secrets with the password, and a new deploy with the same s
 
   // A new deploy with a new value: this device opens it with the key it kept.
   const second = await page({ 'caller/key': 'sk-2' }, seen);
-  await second.netFor('caller', about).fetch(models, { secret: 'key' });
+  await second.netFor('caller', declared).fetch(models, { secret: 'key' });
   expect(seen).toEqual([
     [models, 'Bearer sk-1'],
     [models, 'Bearer sk-2'],
@@ -42,7 +39,7 @@ it('attaches a secret only to the hosts declared for it, and only over https', a
   const seen: [string, string | null][] = [];
   const secrets = await page({ 'caller/key': 'sk-1' }, seen);
   await secrets.unlock(PASSWORD);
-  const net = secrets.netFor('caller', about);
+  const net = secrets.netFor('caller', declared);
   const refused = (url: string, init?: { secret: string }) =>
     net.fetch(url, init).then(
       () => 'sent',

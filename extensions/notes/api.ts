@@ -30,5 +30,5 @@ export interface Notes {
   append: (note: z.input<typeof NewNote>) => Promise<Note>;
   get: (id: string) => Promise<Note | undefined>;
   list: (query?: NotesQuery) => Promise<Note[]>;
-  onAppended: (handler: (note: Note) => void) => Promise<Unsubscribe>;
+  onAppended: (handler: (note: Note) => void) => Unsubscribe;
 }

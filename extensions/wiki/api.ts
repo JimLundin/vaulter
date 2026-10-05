@@ -1,6 +1,6 @@
 // The wiki: curated pages about people, places, events and topics, built from notes. Every fact cites
 // the notes it came from, so a page can always be checked against what was said, and rebuilt from it.
-// Each kind is a record type of the wiki's, kept through records.
+// Each kind is a collection of the wiki's, kept in storage.
 
 import { z } from 'zod';
 import { RecordRef } from '#extensions/storage';

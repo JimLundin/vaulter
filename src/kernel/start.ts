@@ -1,27 +1,16 @@
-// Starting the app in this browser: only one tab may have it, and that tab imports the extensions this
-// device has on (kernel.ts) and hands the page to the shell. ?reset forgets this device's choices
-// of what is on, for a device a preview has left without a working screen.
-import { boot, type Folders, running, type Settings } from './kernel.ts';
+// Starting the app in this browser: only one tab may have it, and that tab imports every extension
+// (kernel.ts) and hands the page to the shell.
+import { load } from './kernel.ts';
 import { claim } from './single-tab.ts';
 
-const KEY = 'vaulter';
-
-const settings = {
-  get: (): Settings => ({ enabled: {}, ...JSON.parse(localStorage.getItem(KEY) ?? '{}') }),
-  set: (s: Settings) => localStorage.setItem(KEY, JSON.stringify(s)),
-};
-
-export async function start(folders: Folders) {
-  if (new URLSearchParams(location.search).has('reset')) {
-    localStorage.removeItem(KEY);
-    location.replace(location.pathname);
-    return;
-  }
-
+export async function start(folders: Record<string, () => Promise<Record<string, unknown>>>) {
   if (!(await claim())) return say('Vaulter is open in another tab.');
-
-  await boot(folders, { settings, reload: () => location.reload() });
-  const shell = running().find((r) => r.exports.shell)?.exports.shell as
+  const modules = await Promise.all(
+    Object.entries(folders).map(async ([id, importIt]) => [id, await importIt()] as const),
+  ).catch((e: Error) => say(`Vaulter could not start: ${e.message}`));
+  if (!modules) return;
+  load(Object.fromEntries(modules));
+  const shell = modules.find(([, m]) => m.shell)?.[1].shell as
     | { mount: (at: HTMLElement) => void }
     | undefined;
   if (shell) shell.mount(root());

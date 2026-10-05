@@ -2,7 +2,6 @@
 // extension holds and attaches (secrets); this extension never sees it.
 
 import { netFor } from '#extensions/secrets';
-import { about } from './about.ts';
 import type { Chat } from './api.ts';
 import { fromResponse, toResponsesBody } from './responses.ts';
 
@@ -13,7 +12,7 @@ const API = 'https://api.openai.com/v1';
 /** The model it asks. */
 const MODEL = 'gpt-6.1-sol';
 
-const net = netFor('openai', about);
+const net = netFor('openai', { key: ['api.openai.com'] });
 
 const post = async (path: string, json: unknown) => {
   const r = await net.fetch(`${API}${path}`, {

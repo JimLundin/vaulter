@@ -1,14 +1,14 @@
-// Records over storage's own database (store.ts: IndexedDB in the browser). Keys:
-//   r:<type>:<id>                a record as it is now, a tombstone included
-//   h:<type>:<id>:<rev>          each earlier revision of it
-// Each value is checked and shaped by its type's own Zod, given at registration on this start. Queries
-// read a type's records and filter in memory: plenty for one person's data. Changes to one record run
-// one after another (this page is the only one with the kernel), so an update always starts from the
+// Collections over storage's own database (store.ts: IndexedDB in the browser). Keys:
+//   r:<collection>:<id>          a record as it is now, a tombstone included
+//   h:<collection>:<id>:<rev>    each earlier revision of it
+// Queries read a collection and filter in memory: plenty for one person's data. Changes to one record
+// run one after another (this page is the only tab with Vaulter), so an update always starts from the
 // last.
 
-import { z } from 'zod';
-import type { Filter, Query, Records, RecordType, Stored } from './api.ts';
+import type { Collection, Filter, Query, Rec } from './api.ts';
 import type { Store } from './store.ts';
+
+type Stored = Rec<Record<string, unknown>>;
 
 const words = (s: string) =>
   s
@@ -41,7 +41,7 @@ const ordered = (by: string, dir: 1 | -1) => {
   };
 };
 
-export function localRecords(storage: Store) {
+export function collections(storage: Store) {
   // Each change made after the one before, even within a millisecond, so "latest first" holds.
   let last = 0;
   const stamp = () => {
@@ -58,77 +58,43 @@ export function localRecords(storage: Store) {
     );
     return next;
   };
-  const all = async (type: string) => (await storage.list<Stored>(`r:${type}:`)).map(([, r]) => r);
-  const current = (type: string, id: string) => storage.get<Stored>(`r:${type}:${id}`);
-  /** Writes the next revision of `rec`, keeping the one it replaces. */
-  const write = async (type: string, prior: Stored | undefined, next: Stored) => {
-    if (prior)
-      await storage.set(`h:${type}:${prior.id}:${String(prior.meta.rev).padStart(9, '0')}`, prior);
-    await storage.set(`r:${type}:${next.id}`, next);
-    return next;
-  };
-  const revise = (
-    prior: Stored,
-    fields: Record<string, unknown>,
-    meta: Partial<Stored['meta']> = {},
-  ) =>
-    ({
-      ...fields,
+
+  return <T>(name: string): Collection<T> => {
+    const all = async () =>
+      (await storage.list<Stored>(`r:${name}:`)).map(([, r]) => r).filter((r) => !r.meta.deleted);
+    const current = (id: string) => storage.get<Stored>(`r:${name}:${id}`);
+    /** Writes the next revision, keeping the one it replaces. */
+    const write = async (prior: Stored | undefined, next: Stored) => {
+      if (prior)
+        await storage.set(
+          `h:${name}:${prior.id}:${String(prior.meta.rev).padStart(9, '0')}`,
+          prior,
+        );
+      await storage.set(`r:${name}:${next.id}`, next);
+      return next;
+    };
+    const revise = (prior: Stored, fields: object, meta: Partial<Stored['meta']> = {}): Stored => ({
+      ...fieldsOf(fields as Stored),
       id: prior.id,
       meta: { ...prior.meta, updated: stamp(), rev: prior.meta.rev + 1, ...meta },
-    }) as Stored;
+    });
 
-  // Each type's Zod, from its registration on this start.
-  const zods = new Map<string, z.ZodType>();
-  const zodOf = (type: string) => {
-    const zod = zods.get(type);
-    if (!zod) throw new Error(`no record type "${type}"`);
-    return zod;
-  };
-  /** `fields` checked and shaped by the type's Zod. */
-  const shape = (type: string, fields: unknown) => {
-    const r = zodOf(type).safeParse(fields);
-    if (!r.success)
-      throw new Error(
-        `${type}: ${r.error.issues.map((i) => `${i.path.join('.') || 'value'}: ${i.message}`).join('; ')}`,
-      );
-    return r.data as Record<string, unknown>;
-  };
-
-  const make = (caller: string): Records => {
-    /** The type's name, if it is the caller's own to write. */
-    const mine = (t: RecordType) => {
-      if (!t.name.startsWith(`${caller}/`)) throw new Error(`${caller} may not write ${t.name}`);
-      return t.name;
-    };
-    const get = async (t: RecordType, id: string) => {
-      const rec = await current(t.name, id);
-      return rec?.meta.deleted ? undefined : rec;
-    };
-
-    const impl = {
-      registerType(name: string, fields: z.ZodRawShape): Promise<RecordType> {
-        const type = `${caller}/${name}`;
-        zods.set(type, z.object(fields));
-        return Promise.resolve({ kind: 'record-type', name: type });
+    const collection = {
+      name,
+      async get(id: string) {
+        const rec = await current(id);
+        return rec?.meta.deleted ? undefined : rec;
       },
-
-      get,
-
-      async query(t: RecordType, q: Query = {}) {
-        let out = (await all(t.name)).filter((r) => !r.meta.deleted);
+      async query(q: Query<Record<string, unknown>> = {}) {
+        let out = await all();
         for (const [field, f] of Object.entries(q.where ?? {}))
-          out = out.filter((r) => matches(r[field], f));
+          if (f !== undefined) out = out.filter((r) => matches(r[field], f));
         out.sort(ordered(q.orderBy ?? 'created', q.order === 'asc' ? 1 : -1));
         return out.slice(0, q.limit);
       },
-
-      async search(types: RecordType[], text: string, opts: { fields?: string[] } = {}) {
+      async search(text: string, opts: { fields?: string[] } = {}) {
         const want = words(text);
-        const found = (await Promise.all(types.map((t) => all(t.name))))
-          .flat()
-          .filter((r) => !r.meta.deleted);
-        const hit = found.filter((r) => {
+        const hit = (await all()).filter((r) => {
           const values = opts.fields ? opts.fields.map((f) => r[f]) : Object.values(fieldsOf(r));
           const hay = words(
             values
@@ -138,51 +104,36 @@ export function localRecords(storage: Store) {
           ).join(' ');
           return want.every((w) => hay.includes(w));
         });
-        hit.sort((a, b) => b.meta.created.localeCompare(a.meta.created));
-        return hit;
+        return hit.sort((a, b) => b.meta.created.localeCompare(a.meta.created));
       },
-
-      async create(t: RecordType, value: Record<string, unknown>) {
-        const type = mine(t);
+      async create(value: Record<string, unknown>) {
         const { id: asked, ...fields } = value as { id?: string } & Record<string, unknown>;
-        const data = shape(type, fields);
         const id = asked ?? crypto.randomUUID();
-        return await serial(`${type}:${id}`, async () => {
-          if (await current(type, id)) throw new Error(`${type}: a record ${id} exists`);
+        return await serial(`${name}:${id}`, async () => {
+          if (await current(id)) throw new Error(`${name}: a record ${id} exists`);
           const now = stamp();
-          return write(type, undefined, {
-            ...data,
+          return write(undefined, {
+            ...fields,
             id,
-            meta: { type, created: now, updated: now, rev: 1 },
-          } as Stored);
+            meta: { collection: name, created: now, updated: now, rev: 1 },
+          });
         });
       },
-
-      async update(
-        t: RecordType,
-        id: string,
-        change: (current: Stored) => unknown | Promise<unknown>,
-      ) {
-        const type = mine(t);
-        zodOf(type);
-        return await serial(`${type}:${id}`, async () => {
-          const prior = await current(type, id);
-          if (!prior || prior.meta.deleted) throw new Error(`${type}: no record ${id}`);
-          return write(type, prior, revise(prior, shape(type, await change(prior))));
+      async update(id: string, change: (current: Stored) => object | Promise<object>) {
+        return await serial(`${name}:${id}`, async () => {
+          const prior = await current(id);
+          if (!prior || prior.meta.deleted) throw new Error(`${name}: no record ${id}`);
+          return write(prior, revise(prior, await change(prior)));
         });
       },
-
-      async delete(t: RecordType, id: string) {
-        const type = mine(t);
-        await serial(`${type}:${id}`, async () => {
-          const prior = await current(type, id);
+      async delete(id: string) {
+        await serial(`${name}:${id}`, async () => {
+          const prior = await current(id);
           if (!prior || prior.meta.deleted) return;
-          await write(type, prior, revise(prior, fieldsOf(prior), { deleted: stamp() }));
+          await write(prior, revise(prior, fieldsOf(prior), { deleted: stamp() }));
         });
       },
     };
-    return impl as unknown as Records;
+    return collection as unknown as Collection<T>;
   };
-
-  return make;
 }

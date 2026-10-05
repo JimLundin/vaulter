@@ -1,5 +1,4 @@
-// The agent: Vaulter. It takes the tools every extension exports, reads each extension's guide, and
-// answers with a model (openai). A tool that asks first becomes a question whose yes runs it, also after
+// The agent: Vaulter. It takes the tools every extension exports, and answers with a model (openai). A tool that asks first becomes a question whose yes runs it, also after
 // a restart.
 
 import { chat } from '#extensions/openai';

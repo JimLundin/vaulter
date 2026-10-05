@@ -2,21 +2,19 @@
 // appended is revised by the model (openai) into the pages it touches, and what the model isn't sure of
 // is asked (questions) rather than guessed. It gives Vaulter its tools (`tools`).
 
-import { z } from 'zod';
 import { notes } from '#extensions/notes';
 import { chat } from '#extensions/openai';
 import { questionsFor } from '#extensions/questions';
-import { recordsFor } from '#extensions/storage';
+import { collection } from '#extensions/storage';
 import type { Wiki } from './api.ts';
-import { pages, registerTypes } from './pages.ts';
+import { pages } from './pages.ts';
 import { reviser } from './revise.ts';
 import { toolsOf } from './tools.ts';
 
 export * from './api.ts';
 
-const records = recordsFor('wiki');
 const questions = questionsFor('wiki');
-const { api, all } = pages(records, await registerTypes(records));
+const { api, all } = pages();
 const r = reviser({ wiki: api, all, chat, questions });
 
 // One revision at a time, in the order the notes came.
@@ -33,19 +31,18 @@ const revise = (noteId: string) => {
 
 // A note whose revision failed (no key yet, offline, a bad answer from the model) is kept, and revised
 // again on the next start; one that succeeds is put away.
-const unrevised = await records.registerType('unrevised', { error: z.string() });
+const unrevised = collection<{ error: string }>('wiki/unrevised');
 const attempt = (noteId: string) =>
   revise(noteId).then(
-    () => records.delete(unrevised, noteId),
+    () => unrevised.delete(noteId),
     async (e: Error) => {
-      const left = await records.get(unrevised, noteId);
-      if (left) await records.update(unrevised, noteId, () => ({ error: e.message }));
-      else await records.create(unrevised, { id: noteId, error: e.message });
+      if (await unrevised.get(noteId)) await unrevised.update(noteId, () => ({ error: e.message }));
+      else await unrevised.create({ id: noteId, error: e.message });
     },
   );
-await notes.onAppended((n) => void attempt(n.id));
+notes.onAppended((n) => void attempt(n.id));
 await questions.handle('revise', (answer, q) => r.answered(answer.choice, q.data));
-for (const left of await records.query(unrevised, { order: 'asc' })) void attempt(left.id);
+for (const left of await unrevised.query({ order: 'asc' })) void attempt(left.id);
 
 export const wiki: Wiki = { ...api, revise };
 export const tools = toolsOf(wiki);

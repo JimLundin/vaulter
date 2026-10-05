@@ -1,11 +1,11 @@
-// The tools Vaulter has, from what every running extension exports as `tools`, and the person's
+// The tools Vaulter has, from what every extension exports as `tools`, and the person's
 // approval of the ones that ask first: such a call becomes a question on the agent's own topic, with
 // the call as its data, and a yes runs it. The answer can come after a restart, before everything has
 // started: the call waits until it has.
 
 import type { Question } from '#extensions/questions';
 import { questionsFor } from '#extensions/questions';
-import { running, started } from '#kernel';
+import { extensions, started } from '#kernel';
 import type { Tool } from './api.ts';
 
 const APPROVE = 'approve';
@@ -24,17 +24,13 @@ const named = (t: Tool<unknown>) =>
 /** Tools by extension, now. */
 export const tools = () =>
   new Map(
-    running()
+    extensions()
       .filter((r) => Array.isArray(r.exports.tools))
       .map((r) => [
         r.id,
         new Map((r.exports.tools as Tool<unknown>[]).filter(named).map((t) => [t.name, t])),
       ]),
   );
-
-/** One line per extension: what it is for. */
-export const guide = (id: string) =>
-  running().find((r) => r.id === id)?.about.agentGuide || 'no guide';
 
 /** Asks the person whether Vaulter may make `call`; the question's id. */
 export const askFirst = (call: Call, description: string) =>

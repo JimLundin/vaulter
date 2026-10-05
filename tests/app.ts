@@ -1,63 +1,27 @@
 // Running the app in tests: the same kernel as in the browser, on a fresh set of modules each start
 // (vi.resetModules), so starting again within a test is the page's next start: the same IndexedDB, new
 // modules. After a start, a test imports what it uses (`await import('#extensions/wiki')`) and gets
-// the modules the app has. A fixture extension is an about and the exports it would have.
+// the modules the app has. A fixture extension is just the exports it would have.
 import { vi } from 'vitest';
-import type { About, Exports, Folders, Settings } from '../src/kernel/kernel.ts';
 
-const id = (path: string) => path.split('/').at(-2) ?? path;
-const byId = <T>(m: Record<string, T>) =>
-  Object.fromEntries(Object.entries(m).map(([path, v]) => [id(path), v]));
+type Exports = Record<string, unknown>;
 
-const repo: Folders = {
-  about: byId(
-    import.meta.glob<About>('../extensions/*/about.ts', { eager: true, import: 'about' }),
-  ),
-  load: byId(import.meta.glob<Exports>('../extensions/*/index.ts')),
-};
+const repo = Object.fromEntries(
+  Object.entries(import.meta.glob<Exports>('../extensions/*/index.ts')).map(([path, importIt]) => [
+    path.split('/').at(-2) ?? path,
+    importIt,
+  ]),
+);
 
 /** Every extension in the repo. */
-export const REPO = Object.keys(repo.about);
+export const REPO = Object.keys(repo);
 
-export interface Fixture {
-  about?: About;
-  load: () => Promise<Exports>;
-}
-
-export interface AppOptions {
-  /** Extensions that aren't in the repo, by id. */
-  fixtures?: Record<string, Fixture>;
-  /** This device's settings, kept from one start to the next when the same object is passed. */
-  settings?: { current: Settings };
-}
-
-/** Starts the repo's extensions `ids` and any fixtures, as a page would; the kernel it started. */
-export async function startApp(ids: string[], opts: AppOptions = {}) {
+/** Starts the repo's extensions `ids`, and `fixtures` beside them, as a page would; the kernel. */
+export async function startApp(ids: string[], fixtures: Record<string, Exports> = {}) {
   vi.resetModules();
   const kernel = await import('../src/kernel/kernel.ts');
-  const fixtures = Object.entries(opts.fixtures ?? {});
-  const settings = opts.settings ?? { current: { enabled: {} } };
-  await kernel.boot(
-    {
-      about: {
-        ...Object.fromEntries(ids.map((x) => [x, repo.about[x]])),
-        ...Object.fromEntries(fixtures.map(([x, f]) => [x, f.about ?? { version: '0.0.0' }])),
-      },
-      load: {
-        ...Object.fromEntries(ids.map((x) => [x, repo.load[x]])),
-        ...Object.fromEntries(fixtures.map(([x, f]) => [x, f.load])),
-      },
-    },
-    {
-      settings: {
-        get: () => settings.current,
-        set: (s) => {
-          settings.current = s;
-        },
-      },
-      reload: () => undefined,
-    },
-  );
+  const modules = await Promise.all(ids.map(async (id) => [id, await repo[id]()] as const));
+  kernel.load({ ...Object.fromEntries(modules), ...fixtures });
   return kernel;
 }
 

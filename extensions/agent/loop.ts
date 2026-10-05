@@ -1,10 +1,10 @@
-// Vaulter's loop: the model sees every extension's guide and tools, and calls them until it can answer.
+// Vaulter's loop: the model sees every extension's tools, and calls them until it can answer.
 // Tools reach the model as `<extension>__<tool>`.
 
 import { z } from 'zod';
 import type { Chat, Message } from '#extensions/openai';
 import type { Answer, AskRequest, Step } from './api.ts';
-import { askFirst, guide, tools } from './catalog.ts';
+import { askFirst, tools } from './catalog.ts';
 
 const INSTRUCTIONS = `You are Vaulter, a personal assistant that keeps a wiki from the notes a person speaks or types.
 Answer from what the extensions know, using their tools; never guess or invent. Cite the notes facts come from when it helps.
@@ -62,9 +62,8 @@ export async function ask(
   onStep?: (s: Step) => unknown,
 ): Promise<Answer> {
   const all = tools();
-  const lines = [...all.keys()].map((ext) => `- ${ext}: ${guide(ext)}`);
   const messages: Message[] = [
-    { role: 'system', content: `${INSTRUCTIONS}\n\nExtensions:\n${lines.join('\n') || '(none)'}` },
+    { role: 'system', content: INSTRUCTIONS },
     { role: 'user', content: req.prompt },
   ];
   const steps: Step[] = [];

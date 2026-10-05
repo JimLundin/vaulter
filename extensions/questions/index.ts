@@ -2,35 +2,24 @@
 // restart. An asker handles answers under its own topics; an answer that arrives while the asker isn't
 // running waits until it registers its handler again.
 
-import { z } from 'zod';
-import type { Query, Rec } from '#extensions/storage';
-import { recordsFor } from '#extensions/storage';
-import { Answer, NewQuestion, type Question, type Questions, Status } from './api.ts';
+import { collection, type Query, type Rec } from '#extensions/storage';
+import { Answer, NewQuestion, type Question, type Questions } from './api.ts';
 
 export * from './api.ts';
 
 type Handler = (answer: Answer, question: Question) => unknown;
 
-const records = recordsFor('questions');
-const fields = {
-  ...NewQuestion.shape,
-  from: z.string(),
-  at: z.iso.datetime(),
-  status: Status,
-  answer: Answer.optional(),
-  /** Whether the asker's handler has had the answer. */
-  delivered: z.boolean(),
-};
-const question = await records.registerType('question', fields);
-type Kept = Rec<typeof fields>;
+/** A question as kept: with whether the asker's handler has had its answer. */
+type Fields = Omit<Question, 'id'> & { delivered: boolean };
+type Kept = Rec<Fields>;
+const kept = collection<Fields>('questions/question');
 
 const handlers = new Map<string, Handler>();
 const strip = ({ delivered: _, meta: _m, ...q }: Kept): Question => q;
-const find = (where: Query['where']) =>
-  records.query(question, { where, orderBy: 'at', order: 'asc' });
+const find = (where: Query<Fields>['where']) => kept.query({ where, orderBy: 'at', order: 'asc' });
 /** The question as it is now, changed by `change` if it may be. */
 const update = (id: string, change: (q: Kept) => Partial<Kept>) =>
-  records.update(question, id, (q) => ({ ...q, ...change(q) }));
+  kept.update(id, (q) => ({ ...q, ...change(q) }));
 
 /** The answer to its asker's handler; one the handler fails on stays undelivered, to go to it
  * again when the asker next registers it. */
@@ -53,7 +42,7 @@ export const questionsFor = (from: string): Questions => ({
       const [same] = await find({ from, key: q.key, status: 'open' });
       if (same) return same.id;
     }
-    const saved = await records.create(question, {
+    const saved = await kept.create({
       ...q,
       from,
       at: new Date().toISOString(),
@@ -73,7 +62,7 @@ export const questionsFor = (from: string): Questions => ({
   },
   open: async () => (await find({ status: 'open' })).map(strip),
   async get(id) {
-    const q = await records.get(question, id);
+    const q = await kept.get(id);
     return q && strip(q);
   },
   async answer(id, input) {

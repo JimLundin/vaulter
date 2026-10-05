@@ -1,14 +1,10 @@
-// The page's entry: every extension in extensions/, each in a chunk of its own, imported when it is on.
-import type { About } from './kernel/api.ts';
+// The page's entry: every extension in extensions/, imported once this tab has Vaulter.
 import { start } from './kernel/start.ts';
 
-const id = (path: string) => path.split('/').at(-2) ?? path;
-const byId = <T>(m: Record<string, T>) =>
-  Object.fromEntries(Object.entries(m).map(([path, v]) => [id(path), v]));
-
-void start({
-  about: byId(
-    import.meta.glob<About>('../extensions/*/about.ts', { eager: true, import: 'about' }),
+void start(
+  Object.fromEntries(
+    Object.entries(import.meta.glob<Record<string, unknown>>('../extensions/*/index.ts')).map(
+      ([path, importIt]) => [path.split('/').at(-2) ?? path, importIt],
+    ),
   ),
-  load: byId(import.meta.glob<Record<string, unknown>>('../extensions/*/index.ts')),
-});
+);

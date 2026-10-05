@@ -1,7 +1,7 @@
 // The network with secrets: a request with one of the caller's declared secrets attached by the
 // secrets extension, only to the hosts declared for it, so no extension handles a key itself
-// (ARCHITECTURE.md, "Secrets"). An extension declares its secrets in its about.ts, and hands them over
-// with its id when it takes its own net: `netFor(id, about)`.
+// (ARCHITECTURE.md, "Secrets"). An extension names its secrets and their hosts when it takes its own
+// net: `netFor('openai', { key: ['api.openai.com'] })`.
 
 /** A request through `fetch`. */
 export interface FetchInit {

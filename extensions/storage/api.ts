@@ -1,28 +1,17 @@
-// Records: typed data every extension keeps here, each in its own namespace. A type is registered by
-// name once and then passed around as a handle, so another extension refers to it by the handle the
-// owner exports, never by a string. Handles are plain data: the name. Storage names a type in its
-// caller's namespace and checks and shapes every value with the type's own Zod (defaults and trims
-// included). An extension may read any type it has a handle for, and write only its own.
+// Records: what every extension keeps, in collections. A collection is named by its owner
+// (`wiki/person`) and typed by what it holds; storage keeps what it is given, and checks nothing:
+// what comes from outside typed code is checked where it comes in.
 //
 // Nothing is overwritten or removed for good. Every change makes a new revision and storage keeps the
 // one before; changes to one record run one after another, each `update` getting the record as the
 // last one left it, so two changes at once can't lose either. Deleting leaves a tombstone. Reading
-// earlier revisions and tombstones back comes with the screen that needs it. A type's fields may grow
-// with optional fields and defaults; a change that breaks stored records brings migrations with it.
+// earlier revisions and tombstones back comes with the screen that needs it.
 
 import { z } from 'zod';
 
-export interface RecordType<S extends z.ZodRawShape = z.ZodRawShape> {
-  readonly kind: 'record-type';
-  /** `extension/name`: the namespace is the registering extension's id. */
-  readonly name: string;
-  /** Only for the types. */
-  readonly _shape?: S;
-}
-
-/** What the provider keeps about a record, beside its fields. */
+/** What storage keeps about a record, beside what it holds. */
 export interface Meta {
-  type: string;
+  collection: string;
   created: string;
   updated: string;
   /** Its revision: 1 when created, one more with every change. */
@@ -31,52 +20,37 @@ export interface Meta {
   deleted?: string;
 }
 
-export type Rec<S extends z.ZodRawShape> = { id: string } & z.output<z.ZodObject<S>> & {
-    meta: Meta;
-  };
-export type Input<S extends z.ZodRawShape> = z.input<z.ZodObject<S>>;
-export type Stored = { id: string; meta: Meta } & Record<string, unknown>;
+export type Rec<T> = T & { id: string; meta: Meta };
 
 type Scalar = string | number | boolean | null;
 /** A top-level field: equal to a value, or from `gte` (included) to `lt` (not). */
 export type Filter = Scalar | { gte?: Scalar; lt?: Scalar };
 
-export interface Query {
-  where?: Record<string, Filter>;
+export interface Query<T> {
+  where?: { [K in keyof T]?: Filter };
   /** A top-level field, or `created` or `updated` (the default); records without it come last. */
-  orderBy?: string;
+  orderBy?: (keyof T & string) | 'created' | 'updated';
   /** `desc` (the default): the latest first. */
   order?: 'asc' | 'desc';
   limit?: number;
 }
 
-/** Records as one extension has them (`recordsFor(id)`), which is how a type gets its namespace. */
-export interface Records {
-  registerType: <S extends z.ZodRawShape>(name: string, fields: S) => Promise<RecordType<S>>;
-  get: <S extends z.ZodRawShape>(type: RecordType<S>, id: string) => Promise<Rec<S> | undefined>;
-  query: <S extends z.ZodRawShape>(type: RecordType<S>, q?: Query) => Promise<Rec<S>[]>;
-  /** Records of `types` whose text fields (or `fields`, strings and arrays of them) contain every
-   * word of `text`, the latest created first. */
-  search: <S extends z.ZodRawShape>(
-    types: RecordType<S>[],
-    text: string,
-    opts?: { fields?: (keyof S & string)[] },
-  ) => Promise<Rec<S>[]>;
+export interface Collection<T> {
+  readonly name: string;
+  get: (id: string) => Promise<Rec<T> | undefined>;
+  query: (q?: Query<T>) => Promise<Rec<T>[]>;
+  /** Records whose text fields (or `fields`, strings and arrays of them) contain every word of
+   * `text`, the latest created first. */
+  search: (text: string, opts?: { fields?: (keyof T & string)[] }) => Promise<Rec<T>[]>;
   /** A new record; with an `id`, refused if that id is taken. */
-  create: <S extends z.ZodRawShape>(
-    type: RecordType<S>,
-    value: Input<S> & { id?: string },
-  ) => Promise<Rec<S>>;
+  create: (value: T & { id?: string }) => Promise<Rec<T>>;
   /** A new revision of the record, from `change`, which gets it as it is now: no other change to it
    * runs until this one is done. */
-  update: <S extends z.ZodRawShape>(
-    type: RecordType<S>,
-    id: string,
-    change: (current: Rec<S>) => Input<S> | Promise<Input<S>>,
-  ) => Promise<Rec<S>>;
+  update: (id: string, change: (current: Rec<T>) => T | Promise<T>) => Promise<Rec<T>>;
   /** Leaves a tombstone. */
-  delete: (type: RecordType, id: string) => Promise<void>;
+  delete: (id: string) => Promise<void>;
 }
 
+/** A record, by its collection and id: how one record points at another. */
 export const RecordRef = z.object({ type: z.string(), id: z.string() });
 export type RecordRef = z.infer<typeof RecordRef>;

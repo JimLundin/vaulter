@@ -1,45 +1,45 @@
-// The wiki's pages as records: one record type per kind, facts kept on the page with the notes they
-// came from. Everything here is what the wiki offers besides revising.
-import type { RecordRef, Records, RecordType, Stored } from '#extensions/storage';
+// The wiki's pages as records: one collection per kind, facts kept on the page with the notes they
+// came from. Everything here is what the wiki offers besides revising. What a page holds is shaped by
+// its kind's Zod on every write: what comes in may come from the model.
+import { z } from 'zod';
+import { type Collection, collection, type Rec, type RecordRef } from '#extensions/storage';
 import { fields, Kind, type Page, type Wiki } from './api.ts';
 
 export const KINDS = Kind.options;
 
-export type Types = { [K in Kind]: RecordType<(typeof fields)[K]> };
+type Fields = Record<string, unknown>;
+const shapes: Record<Kind, z.ZodType<Fields>> = {
+  person: z.object(fields.person),
+  place: z.object(fields.place),
+  event: z.object(fields.event),
+  topic: z.object(fields.topic),
+};
+const kept = Object.fromEntries(KINDS.map((k) => [k, collection<Fields>(`wiki/${k}`)])) as Record<
+  Kind,
+  Collection<Fields>
+>;
 
-export async function registerTypes(records: Records): Promise<Types> {
-  return {
-    person: await records.registerType('person', fields.person),
-    place: await records.registerType('place', fields.place),
-    event: await records.registerType('event', fields.event),
-    topic: await records.registerType('topic', fields.topic),
-  };
-}
-
-export function pages(records: Records, types: Types) {
-  const kindOf = (type: string) => KINDS.find((k) => types[k].name === type);
-  const typeOf = (ref: RecordRef) => {
+export function pages() {
+  const kindOf = (type: string) => KINDS.find((k) => kept[k].name === type);
+  const of = (ref: RecordRef) => {
     const k = kindOf(ref.type);
     if (!k) throw new Error(`${ref.type} is not a wiki type`);
-    return types[k];
+    return k;
   };
-  const page = (rec: Stored): Page => {
-    const { meta, ...fields } = rec;
-    const kind = kindOf(meta.type);
-    if (!kind) throw new Error(`${meta.type} is not a wiki type`);
+  const page = (rec: Rec<Fields>): Page => {
+    const { meta, ...held } = rec;
     return {
-      ...fields,
-      type: meta.type,
-      kind,
+      ...held,
+      type: meta.collection,
+      kind: of({ type: meta.collection, id: rec.id }),
       created: meta.created,
       updated: meta.updated,
     } as Page;
   };
-  const all = async () =>
-    (await Promise.all(KINDS.map((k) => records.query(types[k])))).flat().map(page);
+  const all = async () => (await Promise.all(KINDS.map((k) => kept[k].query()))).flat().map(page);
 
   const get = async (ref: RecordRef) => {
-    const rec = await records.get(typeOf(ref), ref.id);
+    const rec = await kept[of(ref)].get(ref.id);
     return rec && page(rec);
   };
   const must = async (ref: RecordRef) => {
@@ -48,11 +48,12 @@ export function pages(records: Records, types: Types) {
     return e;
   };
   /** The page changed by `change`, which gets it as it is now: a change made meanwhile isn't lost.
-   * What isn't one of the kind's fields (id, kind, dates) is left out by the type's Zod. */
+   * What isn't one of the kind's fields (id, kind, dates) is left out by its Zod. */
   const change = async (ref: RecordRef, f: (e: Page) => Partial<Page>) => {
-    const rec = await records.update(typeOf(ref), ref.id, (cur) => {
+    const k = of(ref);
+    const rec = await kept[k].update(ref.id, (cur) => {
       const e = page(cur);
-      return { ...e, ...f(e) } as never;
+      return shapes[k].parse({ ...e, ...f(e) });
     });
     return page(rec);
   };
@@ -60,14 +61,17 @@ export function pages(records: Records, types: Types) {
 
   const api: Omit<Wiki, 'revise'> = {
     async find(text, kinds = [...KINDS]) {
-      const found = await records.search(kinds.map((k) => types[k]) as RecordType[], text, {
-        fields: ['name', 'aliases', 'summary'],
-      });
-      return found.map(page);
+      const found = await Promise.all(
+        kinds.map((k) => kept[k].search(text, { fields: ['name', 'aliases', 'summary'] })),
+      );
+      return found
+        .flat()
+        .sort((a, b) => b.meta.created.localeCompare(a.meta.created))
+        .map(page);
     },
     get,
-    // The kind's own Zod fills in what the page doesn't give: no aliases, summary, facts or links.
-    create: async (kind, input) => page(await records.create(types[kind], input as never)),
+    // The kind's Zod fills in what the page doesn't give: no aliases, summary, facts or links.
+    create: async (kind, input) => page(await kept[kind].create(shapes[kind].parse(input))),
     update(ref, patch) {
       const { facts: _, ...rest } = patch;
       return change(ref, () => rest as Partial<Page>);
@@ -97,7 +101,7 @@ export function pages(records: Records, types: Types) {
           ),
         };
       });
-      await records.delete(typeOf(mergeRef), mergeRef.id);
+      await kept[of(mergeRef)].delete(mergeRef.id);
       // What pointed at the merged page now points at the one kept.
       const swap = (r: unknown) => (r && same(r as RecordRef, mergeRef) ? keepRef : r);
       const swapped = (e: Page): Partial<Page> => ({
