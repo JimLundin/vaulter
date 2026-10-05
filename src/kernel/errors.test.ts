@@ -1,6 +1,5 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { defineContract } from './contract.ts';
-import type { Kernel } from './kernel.ts';
 import { startTree } from './testing.ts';
 
 const BUS = `
@@ -18,7 +17,7 @@ const BUS_EXT = `
 import { defineExtension, perCaller } from '#kernel';
 import { bus } from '#contracts/bus';
 export default defineExtension({ id: 'bus', version: '1.0.0', provides: { bus },
-  setup(_, kernel) {
+  setup() {
     const handlers = new Map();
     return { bus: perCaller((caller) => ({
       async emit(text) {
@@ -37,7 +36,7 @@ import { defineExtension } from '#kernel';
 import { out } from '#test';
 import { bus } from '#contracts/bus';
 export default defineExtension({ id: '${id}', version: '1.0.0', requires: { bus }, ${extra}
-  async setup({ bus }, kernel) {
+  async setup({ bus }) {
     const runs = ((await out.get('${id}', 'runs')) ?? 0) + 1;
     await out.set('${id}', 'runs', runs);
     const h = async (t) => {
@@ -62,21 +61,15 @@ const busContract = defineContract<{
   version: 1,
 });
 
-let kernel: Kernel | undefined;
-afterEach(async () => {
-  await kernel?.dispose();
-});
-
 describe('errors', () => {
   it('pass functions across as they are', async () => {
     const r = await startTree(files);
-    ({ kernel } = r);
     expect(await r.out.get('a', 'same')).toBe(true);
   });
 
   it('are kept under the extension whose code threw', async () => {
     const r = await startTree(files);
-    ({ kernel } = r);
+    const { kernel } = r;
     const bus = kernel.use(busContract);
     await expect(bus.fail()).rejects.toThrow('bus broke');
     await expect(bus.emit('boom')).rejects.toThrow('handler broke');

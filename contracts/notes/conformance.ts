@@ -1,6 +1,6 @@
 // What every provider of notes@1 must do: keep each note as it was said, in order, and say when one is
 // appended.
-import { defineConformance } from '../conformance.ts';
+import { defineConformance, settle } from '../conformance.ts';
 import { notes } from './index.ts';
 
 export default defineConformance(notes, [
@@ -56,10 +56,10 @@ export default defineConformance(notes, [
         seen.push(x.text);
       });
       await n.append({ text: 'one' });
-      await new Promise((ok) => setTimeout(ok, 20));
+      await settle();
       stop();
       await n.append({ text: 'two' });
-      await new Promise((ok) => setTimeout(ok, 20));
+      await settle();
       expect(seen).toEqual(['one']);
     },
   },

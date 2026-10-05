@@ -13,11 +13,14 @@ export interface Check<T> {
 }
 
 export interface Suite<T> {
-  readonly contract: string;
+  readonly contract: Contract<T>;
   readonly checks: Check<T>[];
 }
 
+/** Time for what a provider does after a call returns, such as telling its listeners. */
+export const settle = () => new Promise((ok) => setTimeout(ok, 20));
+
 export const defineConformance = <T>(contract: Contract<T>, checks: Check<T>[]): Suite<T> => ({
-  contract: contract.key,
+  contract,
   checks,
 });

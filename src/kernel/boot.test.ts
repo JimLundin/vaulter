@@ -12,7 +12,7 @@ const ext = (
 ) => `import { defineExtension } from '#kernel';
     import { out } from '#test';
   export default defineExtension({ id: '${id}', version: '${version}', ${more}
-    async setup(_, kernel) { await out.set('${id}', 'started', '${version}'); } });`;
+    async setup() { await out.set('${id}', 'started', '${version}'); } });`;
 
 const shared = async () => ({
   '#kernel': await import('./api.ts'),
@@ -29,7 +29,6 @@ afterEach(async () => {
 describe('boot', () => {
   it('starts every extension in the page, and asks for safe mode when no shell started', async () => {
     const r = await startTree({ 'extensions/map/index.ts': ext('map') });
-    kernels.push(r.kernel);
     expect(r.started).toEqual(['map']);
     expect(r.booted.found).toEqual(['map']);
     expect(r.booted.commit).toMatch(/^main-/);
@@ -72,7 +71,6 @@ describe('boot', () => {
 
   it('runs main without drafts when no source provider is running, and says so', async () => {
     const r = await startTree({ 'extensions/map/index.ts': ext('map') });
-    kernels.push(r.kernel);
     const booted = await boot(testDevice({ keep: r.keep }), {
       page: { commit: 'abc1234', files: { 'extensions/map/index.ts': ext('map') } },
       defaultSource: `${REPO}@main`,
@@ -106,7 +104,6 @@ describe('boot', () => {
         config: { pin, drafts: ['draft/notes'] },
       },
     );
-    kernels.push(r.kernel);
     expect(await r.out.get('map', 'started')).toBe('1.0.0');
     expect(await r.out.get('notes', 'started')).toBe('0.1.0');
     expect(r.booted.origins).toEqual(new Map([['notes', 'draft/notes']]));
@@ -114,7 +111,6 @@ describe('boot', () => {
 
   it('in safe mode starts nothing, and safe mode takes over when a pinned commit has no source', async () => {
     const safe = await startTree({ 'extensions/map/index.ts': ext('map') }, { safe: true });
-    kernels.push(safe.kernel);
     expect(safe.booted.safe).toEqual({});
     expect(safe.kernel.running()).toEqual([]);
     expect(safe.booted.found).toEqual(['map']);

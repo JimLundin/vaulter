@@ -2,10 +2,8 @@
 // (contracts/conformance.test.ts).
 
 import { z } from 'zod';
-import { defineConformance } from '../conformance.ts';
+import { defineConformance, settle } from '../conformance.ts';
 import { records } from './index.ts';
-
-const settle = () => new Promise((ok) => setTimeout(ok, 20));
 
 export default defineConformance(records, [
   {
@@ -177,12 +175,7 @@ export default defineConformance(records, [
   {
     name: 'refuses writes to another extension’s type',
     async run(r, expect) {
-      const foreign = {
-        kind: 'record-type',
-        name: 'someone-else/secret',
-        schema: {},
-        version: 1,
-      } as const;
+      const foreign = { kind: 'record-type', name: 'someone-else/secret' } as const;
       await expect(r.create(foreign, {})).rejects.toThrow();
     },
   },

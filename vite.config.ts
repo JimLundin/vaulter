@@ -45,5 +45,6 @@ export default defineConfig({
   test: {
     include: ['{src,contracts,extensions}/**/*.test.{ts,tsx}'],
     setupFiles: ['src/kernel/test-setup.ts'],
+    unstubGlobals: true,
   },
 });

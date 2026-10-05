@@ -12,13 +12,13 @@ it('starts every extension in the repo', () => {
 });
 
 let n = 0;
-for (const { suite, contract, providers } of repo.suites)
+for (const { suite, providers } of repo.suites)
   for (const provider of providers)
-    describe(`${suite.contract} by ${provider}`, () => {
+    describe(`${suite.contract.key} by ${provider}`, () => {
       it.each(suite.checks.map((check) => [check.name, check] as const))('%s', async (_, check) => {
         const caller = repo.kernel.caller(`check-${++n}`);
         try {
-          await check.run(caller.use(contract, provider), expect);
+          await check.run(caller.use(suite.contract, provider), expect);
         } finally {
           await caller.drop();
         }

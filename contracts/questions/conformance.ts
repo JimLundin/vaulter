@@ -1,8 +1,6 @@
 // What every provider of questions@1 must do.
-import { defineConformance } from '../conformance.ts';
+import { defineConformance, settle } from '../conformance.ts';
 import { questions } from './index.ts';
-
-const wait = () => new Promise((ok) => setTimeout(ok, 20));
 
 export default defineConformance(questions, [
   {
@@ -48,13 +46,13 @@ export default defineConformance(questions, [
       await q.handle('later', (a, question) => {
         got.push([a.text, question.data]);
       });
-      await wait();
+      await settle();
       expect(got).toEqual([['Café Lumière', { note: 'n1' }]]);
       // Delivered once, not again on the next registration.
       await q.handle('later', () => {
         got.push('again');
       });
-      await wait();
+      await settle();
       expect(got.length).toEqual(1);
     },
   },

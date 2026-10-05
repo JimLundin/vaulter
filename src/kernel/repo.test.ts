@@ -1,9 +1,8 @@
 // The repo's own contracts and extensions, started by the kernel.
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { afterEach, expect, it } from 'vitest';
+import { expect, it } from 'vitest';
 import { records } from '#contracts/records';
-import type { Kernel } from './kernel.ts';
 import { startTree } from './testing.ts';
 
 const ROOT = join(import.meta.dirname, '../..');
@@ -21,11 +20,6 @@ const read = (dir: string): Record<string, string> => {
   return out;
 };
 
-let kernel: Kernel | undefined;
-afterEach(async () => {
-  await kernel?.dispose();
-});
-
 it('starts store-local and serves another extension its records', async () => {
   const files = {
     ...read('contracts'),
@@ -37,7 +31,7 @@ it('starts store-local and serves another extension its records', async () => {
       import { z } from 'zod';
       export default defineExtension({
         id: 'people', version: '1.0.0', requires: { records },
-        async setup({ records }, kernel) {
+        async setup({ records }) {
           const person = await records.registerType('person', { first: z.string(), last: z.string() });
           const ada = await records.create(person, { first: 'Ada', last: 'Lovelace' });
           const seen = [];
@@ -49,7 +43,7 @@ it('starts store-local and serves another extension its records', async () => {
       });`,
   };
   const r = await startTree(files);
-  ({ kernel } = r);
+  const { kernel } = r;
   expect(r.refused).toEqual([]);
   expect(kernel.running().map((x) => x.id)).toEqual(['store-local', 'people']);
   const result = (await r.out.get('people', 'result')) as {

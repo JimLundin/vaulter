@@ -1,13 +1,14 @@
 // Running the kernel in tests: the same boot as in the browser (boot.ts), on a test device that stands
 // in for one: modules as data: URLs, the kernel's state in memory, and a source made of strings.
 // Fixture extensions report what they saw through `out`, the shared module #test, which tests
-// read back as `out`.
+// read back as `out`; one that a test calls into provides `probe`, from #test too.
+import { onTestFinished } from 'vitest';
 import { type SourceV1, source } from '#contracts/extensions.source';
 import type { Suite } from '../../contracts/conformance.ts';
 import type { Access } from './access.ts';
 import { blobSha, boot, type Device } from './boot.ts';
 import { type Config, defaultConfig } from './config.ts';
-import type { AnyContract } from './contract.ts';
+import { type AnyContract, defineContract } from './contract.ts';
 import type { Tree } from './loader.ts';
 import { memoryKeep } from './storage.ts';
 
@@ -111,9 +112,23 @@ export interface TreeOptions extends Partial<Device> {
   safe?: boolean;
 }
 
-/** Boots a test device on `files` as the main branch, with every extension in them started. */
+/** What a fixture extension provides for a test to call into it: `run`, whatever it does. */
+export const probe = defineContract<{ run: (input?: unknown) => Promise<unknown> }>({
+  name: 'probe',
+  version: 1,
+});
+
+/** Boots a test device on `files` as the main branch, with every extension in them started, and
+ * stops it when the test ends. */
 export async function startTree(files: Record<string, string>, opts: TreeOptions = {}) {
+  const r = await bootTree(files, opts);
+  onTestFinished(() => r.kernel.dispose());
+  return r;
+}
+
+async function bootTree(files: Record<string, string>, opts: TreeOptions) {
   const { config, access, provide, branches, safe, ...over } = opts;
+
   const device = testDevice(over);
   const out = testOut();
   const src = testSource({ main: files, ...branches });
@@ -129,7 +144,7 @@ export async function startTree(files: Record<string, string>, opts: TreeOptions
     shared: {
       '#kernel': await import('./api.ts'),
       zod: await import('zod'),
-      '#test': { out },
+      '#test': { out, probe },
     },
     provide: [[source, src.source], ...(provide ?? [])],
     safe,
@@ -180,26 +195,17 @@ export async function startRepo(
 export async function repoConformance() {
   const files = await repoFiles('contracts', 'extensions');
   // The suites call personal methods (answering a question) as a person would.
-  const r = await startTree(files, { presence: { grant: () => undefined, take: () => true } });
-  const suites: { suite: Suite<unknown>; contract: AnyContract; providers: string[] }[] = [];
+  const r = await bootTree(files, { presence: { grant: () => undefined, take: () => true } });
+  const suites: { suite: Suite<unknown>; providers: string[] }[] = [];
   for (const path of Object.keys(files).sort((a, b) => a.localeCompare(b))) {
-    const name = /^contracts\/([^/]+)\/conformance\.ts$/.exec(path)?.[1];
-    if (!name) continue;
+    if (!/^contracts\/[^/]+\/conformance\.ts$/.test(path)) continue;
     const suite = (await import(/* @vite-ignore */ new URL(path, ROOT).href))
       .default as Suite<unknown>;
-    const exports = await import(
-      /* @vite-ignore */ new URL(`contracts/${name}/index.ts`, ROOT).href
-    );
-    const contract = Object.values(exports).find(
-      (c) =>
-        (c as AnyContract | undefined)?.kind === 'contract' &&
-        (c as AnyContract).key === suite.contract,
-    ) as AnyContract;
     const providers = r.kernel
       .running()
-      .filter((x) => Object.values(x.statics.provides).some((c) => c.key === suite.contract))
+      .filter((x) => Object.values(x.statics.provides).some((c) => c.key === suite.contract.key))
       .map((x) => x.id);
-    suites.push({ suite, contract, providers });
+    suites.push({ suite, providers });
   }
   return { ...r, suites };
 }

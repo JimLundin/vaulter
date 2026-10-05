@@ -1,24 +1,12 @@
-import { afterEach, expect, it, vi } from 'vitest';
+import { expect, it, vi } from 'vitest';
 import { net } from '#contracts/net';
-import { defineContract } from '../../src/kernel/contract.ts';
-import type { Kernel } from '../../src/kernel/kernel.ts';
-import { startRepo } from '../../src/kernel/testing.ts';
-
-let kernel: Kernel | undefined;
-afterEach(() => {
-  kernel?.dispose();
-  vi.unstubAllGlobals();
-});
-
-const probe = defineContract<{ run: () => Promise<unknown> }>({ name: 'probe', version: 1 });
+import { probe, startRepo } from '../../src/kernel/testing.ts';
 
 // An extension with a secret for one host, and another host it may reach without one.
 const CALLER = {
-  'contracts/probe/index.ts': `import { defineContract } from '#kernel';
-    export const probe = defineContract({ name: 'probe', version: 1 });`,
   'extensions/caller/index.ts': `import { defineExtension } from '#kernel';
     import { net } from '#contracts/net';
-    import { probe } from '#contracts/probe';
+    import { probe } from '#test';
     export default defineExtension({ id: 'caller', version: '1.0.0', requires: { net }, provides: { probe },
       permissions: { network: ['example.org'] },
       secrets: { key: { label: 'Key', hosts: ['api.openai.com'] } },
@@ -39,7 +27,7 @@ it('attaches a secret only to requests for its hosts, and forgets it with its ex
     return Promise.resolve(Response.json({ ok: true }));
   });
   const r = await startRepo(['secrets'], CALLER);
-  ({ kernel } = r);
+  const { kernel } = r;
   expect(r.refused).toEqual([]);
   const secrets = kernel.use(net, 'secrets');
   await secrets.setSecret('caller', 'key', 'sk-123');

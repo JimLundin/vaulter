@@ -1,32 +1,17 @@
-import { afterEach, expect, it } from 'vitest';
+import { expect, it } from 'vitest';
 import { questions } from '#contracts/questions';
-import { defineContract } from '../../src/kernel/contract.ts';
-import type { Kernel } from '../../src/kernel/kernel.ts';
-import { startRepo } from '../../src/kernel/testing.ts';
-
-let kernel: Kernel | undefined;
-afterEach(async () => {
-  await kernel?.dispose();
-});
-
-const probe = defineContract<{ run: (a?: string) => Promise<unknown> }>({
-  name: 'probe',
-  version: 1,
-});
+import { probe, startRepo } from '../../src/kernel/testing.ts';
 
 it('lets only a person answer a question, and hands the answer to the asker', async () => {
   let present = '';
   const r = await startRepo(
     ['store-local', 'questions'],
     {
-      'contracts/probe/index.ts': `import { defineContract } from '#kernel';
-        export const probe = defineContract<{ run(a?: string): Promise<unknown> }>({ name: 'probe', version: 1 });`,
       'extensions/asker/index.ts': `import { defineExtension } from '#kernel';
-    import { out } from '#test';
+        import { out, probe } from '#test';
         import { questions } from '#contracts/questions';
-        import { probe } from '#contracts/probe';
         export default defineExtension({ id: 'asker', version: '1.0.0', requires: { questions }, provides: { probe },
-          async setup({ questions }, kernel) {
+          async setup({ questions }) {
             await questions.handle('merge', async (a) => { await out.set('asker', 'answer', a.choice); });
             return { probe: { async run(id) {
               if (!id) return questions.ask({ topic: 'merge', title: 'Same Ada?', choices: [{ id: 'yes', label: 'Yes' }] });
@@ -36,7 +21,7 @@ it('lets only a person answer a question, and hands the answer to the asker', as
     },
     { presence: { grant: () => undefined, take: (caller) => caller === present } },
   );
-  ({ kernel } = r);
+  const { kernel } = r;
   expect(r.refused).toEqual([]);
   const p = kernel.use(probe);
   const id = (await p.run()) as string;
@@ -45,15 +30,13 @@ it('lets only a person answer a question, and hands the answer to the asker', as
   );
   present = 'asker';
   expect(await p.run(id)).toBe('answered');
-  await new Promise((ok) => setTimeout(ok, 30));
   expect(await r.out.get('asker', 'answer')).toBe('yes');
 });
 
 it("keeps a person's answer when the asker's handler fails, and delivers it again later", async () => {
   const asker = (fails: boolean) => `import { defineExtension } from '#kernel';
-    import { out } from '#test';
+    import { out, probe } from '#test';
     import { questions } from '#contracts/questions';
-    import { probe } from '#contracts/probe';
     export default defineExtension({ id: 'asker', version: '1.0.0', requires: { questions }, provides: { probe },
       async setup({ questions }) {
         await questions.handle('merge', async (a) => {
@@ -63,8 +46,6 @@ it("keeps a person's answer when the asker's handler fails, and delivers it agai
         return { probe: { run: () => questions.ask({ topic: 'merge', title: 'Same Ada?', choices: [{ id: 'yes', label: 'Yes' }] }) } };
       } });`;
   const files = (fails: boolean) => ({
-    'contracts/probe/index.ts': `import { defineContract } from '#kernel';
-      export const probe = defineContract({ name: 'probe', version: 1 });`,
     'extensions/asker/index.ts': asker(fails),
   });
   const before = await startRepo(['store-local', 'questions'], files(true));
@@ -74,8 +55,7 @@ it("keeps a person's answer when the asker's handler fails, and delivers it agai
   expect((await before.kernel.use(questions).get(id))?.status).toBe('answered');
   before.kernel.dispose();
 
+  // The asker registers its handler again on starting, and is handed the answer then.
   const after = await startRepo(['store-local', 'questions'], files(false));
-  ({ kernel } = after);
-  await new Promise((ok) => setTimeout(ok, 30));
   expect(await after.out.get('asker', 'answer')).toBe('yes');
 });

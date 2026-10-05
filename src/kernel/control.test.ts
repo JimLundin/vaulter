@@ -1,14 +1,10 @@
 import { readFileSync } from 'node:fs';
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { kernel as kernelContract } from '#contracts/kernel';
-import { defineContract } from './contract.ts';
-import type { Kernel } from './kernel.ts';
-import { startTree } from './testing.ts';
+import { probe, startTree } from './testing.ts';
 
 const files: Record<string, string> = {
   'contracts/kernel/index.ts': readFileSync('contracts/kernel/index.ts', 'utf8'),
-  'contracts/probe/index.ts': `import { defineContract } from '#kernel';
-    export const probe = defineContract<{ run(): Promise<unknown> }>({ name: 'probe', version: 1 });`,
   'extensions/maps/index.ts': `import { defineExtension } from '#kernel';
     export default defineExtension({ id: 'maps', version: '1.3.0',
       permissions: { network: ['tile.openstreetmap.org'] },
@@ -19,7 +15,7 @@ const files: Record<string, string> = {
   // An extension that requires the kernel contract and tries to change things on its own.
   'extensions/sneaky/index.ts': `import { defineExtension } from '#kernel';
     import { kernel } from '#contracts/kernel';
-    import { probe } from '#contracts/probe';
+    import { probe } from '#test';
     export default defineExtension({ id: 'sneaky', version: '1.0.0', requires: { kernel }, provides: { probe },
       setup({ kernel }) { return { probe: { async run() {
         const list = (await kernel.extensions()).map((e) => e.id + ':' + e.status);
@@ -28,9 +24,6 @@ const files: Record<string, string> = {
         return { list, raised };
       } } }; } });`,
 };
-
-let k: Kernel | undefined;
-afterEach(() => k?.dispose());
 
 describe('the kernel contract', () => {
   it('lists every extension with its status, and refuses changes not made by a person', async () => {
@@ -46,7 +39,6 @@ describe('the kernel contract', () => {
       },
       config: { drafts: ['draft/maps'] },
     });
-    k = r.kernel;
     // As the kernel calls it for a person (safe mode, the review screen's taps).
     const api = r.kernel.use(kernelContract);
     const { config } = r.booted;
@@ -64,13 +56,7 @@ describe('the kernel contract', () => {
     expect(by.broken).toMatchObject({ status: 'refused', problems: ['setup failed: no'] });
 
     // Through the kernel, from an extension with no person behind the call: reads yes, changes no.
-    const probe = r.kernel.use(
-      defineContract<{ run: () => Promise<{ list: string[]; raised: string }> }>({
-        name: 'probe',
-        version: 1,
-      }),
-    );
-    const out = await probe.run();
+    const out = (await r.kernel.use(probe).run()) as { list: string[]; raised: string };
     expect(out.list).toContain('maps:running');
     expect(out.raised).toBe('kernel@1.setAccess is for a person to do, right after a tap or key');
 

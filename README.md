@@ -39,8 +39,10 @@ Every contract method is async, and goes through a kernel handle that checks it 
 All code is TypeScript with only erasable syntax and `import type` for types (`tsconfig.json`), which is
 also what the in-browser compiler (Sucrase) expects. Tests boot the same way as the browser, on a
 test device that stands in for one (`src/kernel/testing.ts`: `startTree` for a tree of source strings
-as the main branch, with drafts beside it if wanted; `startRepo` for the repo's own extensions). Every contract's conformance suite runs against every
-extension in the repo that provides it (`contracts/conformance.test.ts`).
+as the main branch, with drafts beside it if wanted; `startRepo` for the repo's own extensions), stopped
+when the test ends. Fixture extensions report through `out` and are called through `probe`, both from
+the shared module `#test`. Every contract's conformance suite runs against every extension in the repo
+that provides it (`contracts/conformance.test.ts`).
 
 ## Running it
 

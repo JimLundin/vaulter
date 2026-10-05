@@ -1,15 +1,8 @@
-import { afterEach, expect, it, vi } from 'vitest';
-import type { NotesV1 } from '../../contracts/notes/index.ts';
-import type { QuestionsV1 } from '../../contracts/questions/index.ts';
-import type { WikiV1 } from '../../contracts/wiki/index.ts';
-import { defineContract } from '../../src/kernel/contract.ts';
-import type { Kernel } from '../../src/kernel/kernel.ts';
+import { expect, it, vi } from 'vitest';
+import { notes } from '#contracts/notes';
+import { questions } from '#contracts/questions';
+import { wiki } from '#contracts/wiki';
 import { startRepo } from '../../src/kernel/testing.ts';
-
-let kernel: Kernel | undefined;
-afterEach(async () => {
-  await kernel?.dispose();
-});
 
 // A model that files notes the way the instructions ask, by looking at the note and the pages sent.
 const FAKE_AI = `
@@ -17,7 +10,7 @@ import { defineExtension } from '#kernel';
 import { chat } from '#contracts/ai.chat';
 const none = { create: [], add: [], summaries: [] };
 export default defineExtension({ id: 'fake-ai', version: '1.0.0', provides: { chat },
-  setup(_, kernel) { return { chat: {
+  setup() { return { chat: {
     async complete(req) {
       const { note, pages } = JSON.parse(req.messages[1].content);
       const id = (name) => pages.find((p) => p.name === name)?.id;
@@ -46,11 +39,10 @@ import { out } from '#test';
 import { agentTools } from '#contracts/agent.tools';
 import { z } from 'zod';
 export default defineExtension({ id: 'agent', version: '1.0.0', provides: { agentTools },
-  setup(_, kernel) { const tools = []; return { agentTools: {
+  setup() { const tools = []; return { agentTools: {
     async add(t) { tools.push({ name: t.name, access: t.run.level, input: z.toJSONSchema(t.input) }); await out.set('agent', 'tools', tools); return () => {}; },
   } }; } });`;
 
-const use = <T>(k: Kernel, name: string) => k.use(defineContract<T>({ name, version: 1 }));
 const settle = () => new Promise((ok) => setTimeout(ok, 50));
 
 it('revises pages from notes, cites every fact, asks when unsure, and gives Vaulter its tools', async () => {
@@ -58,70 +50,69 @@ it('revises pages from notes, cites every fact, asks when unsure, and gives Vaul
     'extensions/fake-ai/index.ts': FAKE_AI,
     'extensions/agent/index.ts': FAKE_AGENT,
   });
-  ({ kernel } = r);
+  const { kernel } = r;
   expect(r.refused).toEqual([]);
-  const notes = use<NotesV1>(kernel, 'notes');
-  const wiki = use<WikiV1>(kernel, 'wiki');
-  const questions = use<QuestionsV1>(kernel, 'questions');
+  const log = kernel.use(notes);
+  const pages = kernel.use(wiki);
+  const asked = kernel.use(questions);
 
-  const n1 = await notes.append({ text: 'Lunch with Ada at Café Lumière' });
+  const n1 = await log.append({ text: 'Lunch with Ada at Café Lumière' });
   // The revision runs on its own once the note is appended: wait for it to have written the page.
   await vi.waitFor(
     async () =>
-      expect(await wiki.find('Ada', ['person'])).toMatchObject([
+      expect(await pages.find('Ada', ['person'])).toMatchObject([
         { kind: 'person', name: 'Ada', summary: 'A friend.' },
       ]),
     { timeout: 2000 },
   );
-  const [ada] = await wiki.find('Ada', ['person']);
+  const [ada] = await pages.find('Ada', ['person']);
   expect(ada.facts.map((f) => [f.text, f.sources])).toEqual([
     ['Had lunch at Café Lumière', [n1.id]],
   ]);
   // Found by an alias too.
-  expect((await wiki.find('lumière')).map((e) => e.name)).toEqual(['Café Lumière']);
+  expect((await pages.find('lumière')).map((e) => e.name)).toEqual(['Café Lumière']);
 
-  const n2 = await notes.append({
+  const n2 = await log.append({
     text: 'Ada said her birthday is in December; we met at the café',
   });
-  await vi.waitFor(async () => expect(await questions.open()).toHaveLength(1), { timeout: 2000 });
-  expect((await wiki.get({ type: ada.type, id: ada.id }))?.facts.map((f) => f.text)).toEqual([
+  await vi.waitFor(async () => expect(await asked.open()).toHaveLength(1), { timeout: 2000 });
+  expect((await pages.get({ type: ada.type, id: ada.id }))?.facts.map((f) => f.text)).toEqual([
     'Had lunch at Café Lumière',
     'Birthday in December',
   ]);
-  const [q] = await questions.open();
+  const [q] = await asked.open();
   expect(q).toMatchObject({
     from: 'wiki',
     topic: 'revise',
     title: 'Is "the café" Café Lumière?',
     notes: [n2.id],
   });
-  await questions.answer(q.id, { choice: 'yes' });
-  await settle();
-  const [cafe] = await wiki.find('Café Lumière', ['place']);
+  await asked.answer(q.id, { choice: 'yes' });
+  const [cafe] = await pages.find('Café Lumière', ['place']);
   expect(cafe.facts.map((f) => [f.text, f.sources])).toEqual([['Ada likes it', [n2.id]]]);
-  expect((await wiki.citing(n2.id)).map((e) => e.name).sort()).toEqual(['Ada', 'Café Lumière']);
+  expect((await pages.citing(n2.id)).map((e) => e.name).sort()).toEqual(['Ada', 'Café Lumière']);
 
   // Merging folds the facts and aliases together, and what pointed at the merged page follows.
-  const dup = await wiki.create('person', { name: 'Ada L.' });
-  await wiki.addFact(
+  const dup = await pages.create('person', { name: 'Ada L.' });
+  await pages.addFact(
     { type: dup.type, id: dup.id },
     { text: 'Works in Uppsala', sources: [n1.id] },
   );
-  const trip = await wiki.create('event', {
+  const trip = await pages.create('event', {
     name: 'Trip',
     people: [{ type: dup.type, id: dup.id }],
   });
-  const merged = await wiki.merge({ type: ada.type, id: ada.id }, { type: dup.type, id: dup.id });
+  const merged = await pages.merge({ type: ada.type, id: ada.id }, { type: dup.type, id: dup.id });
   expect(merged.aliases).toEqual(['Ada L.']);
   expect(merged.facts.map((f) => f.text)).toEqual([
     'Had lunch at Café Lumière',
     'Birthday in December',
     'Works in Uppsala',
   ]);
-  expect((await wiki.get({ type: trip.type, id: trip.id }))?.people).toEqual([
+  expect((await pages.get({ type: trip.type, id: trip.id }))?.people).toEqual([
     { type: ada.type, id: ada.id },
   ]);
-  expect((await wiki.get({ type: dup.type, id: dup.id }))?.id).toBe(ada.id);
+  expect((await pages.get({ type: dup.type, id: dup.id }))?.id).toBe(ada.id);
 
   const tools = (await r.out.get('agent', 'tools')) as {
     name: string;
@@ -143,32 +134,32 @@ it('revises pages from notes, cites every fact, asks when unsure, and gives Vaul
 
 it('works by hand without a model, questions or an agent', async () => {
   const r = await startRepo(['store-local', 'notes', 'wiki']);
-  ({ kernel } = r);
+  const { kernel } = r;
   expect(r.refused).toEqual([]);
-  const wiki = use<WikiV1>(kernel, 'wiki');
-  const n = await use<NotesV1>(kernel, 'notes').append({ text: 'Swim at Eriksdal' });
-  await expect(wiki.revise(n.id)).rejects.toThrow(/needs a language model/);
-  const p = await wiki.create('place', { name: 'Eriksdalsbadet', area: 'Södermalm' });
+  const pages = kernel.use(wiki);
+  const n = await kernel.use(notes).append({ text: 'Swim at Eriksdal' });
+  await expect(pages.revise(n.id)).rejects.toThrow(/needs a language model/);
+  const p = await pages.create('place', { name: 'Eriksdalsbadet', area: 'Södermalm' });
   expect(p).toMatchObject({ kind: 'place', area: 'Södermalm', facts: [] });
 });
 
 it('keeps both of two facts added at once, and a merged page reads as the one kept', async () => {
   const r = await startRepo(['store-local', 'notes', 'wiki']);
-  ({ kernel } = r);
-  const wiki = use<WikiV1>(kernel, 'wiki');
-  const n = await use<NotesV1>(kernel, 'notes').append({ text: 'Ada swims on Sundays' });
-  const ada = await wiki.create('person', { name: 'Ada' });
+  const { kernel } = r;
+  const pages = kernel.use(wiki);
+  const n = await kernel.use(notes).append({ text: 'Ada swims on Sundays' });
+  const ada = await pages.create('person', { name: 'Ada' });
   const ref = { type: ada.type, id: ada.id };
   await Promise.all([
-    wiki.addFact(ref, { text: 'Swims', sources: [n.id] }),
-    wiki.addFact(ref, { text: 'On Sundays', sources: [n.id] }),
+    pages.addFact(ref, { text: 'Swims', sources: [n.id] }),
+    pages.addFact(ref, { text: 'On Sundays', sources: [n.id] }),
   ]);
-  expect((await wiki.get(ref))?.facts.map((f) => f.text).sort()).toEqual(['On Sundays', 'Swims']);
+  expect((await pages.get(ref))?.facts.map((f) => f.text).sort()).toEqual(['On Sundays', 'Swims']);
 
-  const lovelace = await wiki.create('person', { name: 'Ada Lovelace' });
-  await wiki.merge({ type: lovelace.type, id: lovelace.id }, ref);
-  expect(await wiki.get(ref)).toMatchObject({ id: lovelace.id, aliases: ['Ada'] });
-  expect((await wiki.find('ada')).map((e) => e.name)).toEqual(['Ada Lovelace']);
+  const lovelace = await pages.create('person', { name: 'Ada Lovelace' });
+  await pages.merge({ type: lovelace.type, id: lovelace.id }, ref);
+  expect(await pages.get(ref)).toMatchObject({ id: lovelace.id, aliases: ['Ada'] });
+  expect((await pages.find('ada')).map((e) => e.name)).toEqual(['Ada Lovelace']);
 });
 
 it('revises a note again on the next start when its revision failed', async () => {
@@ -180,19 +171,17 @@ it('revises a note again on the next start when its revision failed', async () =
   const before = await startRepo(['store-local', 'notes', 'wiki'], {
     'extensions/fake-ai/index.ts': failing,
   });
-  await use<NotesV1>(before.kernel, 'notes').append({ text: 'Lunch with Ada at Café Lumière' });
+  await before.kernel.use(notes).append({ text: 'Lunch with Ada at Café Lumière' });
   await settle();
-  expect(await use<WikiV1>(before.kernel, 'wiki').find('Ada')).toEqual([]);
+  expect(await before.kernel.use(wiki).find('Ada')).toEqual([]);
   before.kernel.dispose();
 
   // The key is set, and the app starts again (store-local's database is still this device's).
   const after = await startRepo(['store-local', 'notes', 'wiki'], {
     'extensions/fake-ai/index.ts': FAKE_AI,
   });
-  ({ kernel } = after);
   await vi.waitFor(
-    async () =>
-      expect(await use<WikiV1>(after.kernel, 'wiki').find('Ada', ['person'])).toHaveLength(1),
+    async () => expect(await after.kernel.use(wiki).find('Ada', ['person'])).toHaveLength(1),
     { timeout: 2000 },
   );
 });

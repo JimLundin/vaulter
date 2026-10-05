@@ -1,9 +1,8 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { defineContract } from './contract.ts';
 import { readStatics, Statics } from './extension.ts';
-import type { Kernel } from './kernel.ts';
 import { resolve } from './resolve.ts';
-import { startTree } from './testing.ts';
+import { probe, startTree } from './testing.ts';
 
 // Fixture source: compiled and loaded like any extension in the repo.
 const NOTES = `
@@ -22,7 +21,7 @@ import { out } from '#test';
 import { notes } from '#contracts/notes';
 export default defineExtension({
   id: 'notes', version: '1.0.0', provides: { notes },
-  setup(_, kernel) {
+  setup() {
     const handlers = new Set<(t: string) => void>();
     return { notes: {
       async append(text: string) {
@@ -46,7 +45,7 @@ import { out } from '#test';
 import { notes } from '#contracts/notes';
 export default defineExtension({
   id: 'voice', version: '1.0.0', requires: { notes },
-  async setup({ notes }, kernel) {
+  async setup({ notes }) {
     await notes.onAppended(async (t) => {
       const seen = (await out.get('voice', 'seen')) ?? [];
       await out.set('voice', 'seen', [...seen, t]);
@@ -125,17 +124,6 @@ const tooling = (access: string) => ({
   'extensions/workouts/index.ts': toolExt(access),
 });
 
-let kernels: Kernel[] = [];
-const start = async (...args: Parameters<typeof startTree>) => {
-  const r = await startTree(...args);
-  kernels.push(r.kernel);
-  return r;
-};
-afterEach(async () => {
-  await Promise.all(kernels.map((k) => k.dispose()));
-  kernels = [];
-});
-
 describe('contracts', () => {
   it('are keyed by name and version', () => {
     expect(defineContract({ name: 'ui.shell', version: 2 }).key).toBe('ui.shell@2');
@@ -205,7 +193,7 @@ describe('resolve', () => {
 
 describe('the kernel', () => {
   it('loads each extension and routes calls and callbacks between them', async () => {
-    const { kernel, out, refused } = await start({
+    const { kernel, out, refused } = await startTree({
       ...base,
       'extensions/voice/index.ts': VOICE_EXT,
     });
@@ -222,7 +210,7 @@ describe('the kernel', () => {
   });
 
   it('refuses an extension whose setup fails, and what requires it, but starts the rest', async () => {
-    const { kernel, refused } = await start({
+    const { kernel, refused } = await startTree({
       ...base,
       'extensions/notes/index.ts': `import { defineExtension } from '#kernel';
         import { notes } from '#contracts/notes';
@@ -240,7 +228,7 @@ describe('the kernel', () => {
   });
 
   it('gives a caller that is not an extension real handles, until it is dropped', async () => {
-    const { kernel } = await start(base);
+    const { kernel } = await startTree(base);
     const caller = kernel.caller('check-1');
     const n = caller.use(notesContract, 'notes');
     expect(await n.append('from a check')).toBe(1);
@@ -249,17 +237,17 @@ describe('the kernel', () => {
   });
 
   it("applies Vaulter's access to a guarded callback: read runs, write is logged, ask waits", async () => {
-    const read = await start(tooling('read'));
+    const read = await startTree(tooling('read'));
     expect(await read.kernel.use(toolsContract).call('merge', 'a')).toBe('merged a');
     expect(await read.kernel.policy.audit()).toEqual([]);
 
-    const write = await start(tooling('write'));
+    const write = await startTree(tooling('write'));
     await write.kernel.use(toolsContract).call('merge', 'b');
     expect((await write.kernel.policy.audit()).map((e) => [e.to, e.label, e.outcome])).toEqual([
       ['workouts', 'tool:merge', 'done'],
     ]);
 
-    const ask = await start(tooling('ask'));
+    const ask = await startTree(tooling('ask'));
     const t = ask.kernel.use(toolsContract);
     const pending = t.call('merge', 'c');
     await vi.waitFor(() => expect(ask.kernel.policy.approvals()).toHaveLength(1));
@@ -274,7 +262,7 @@ describe('the kernel', () => {
   });
 
   it("guards a tool by the provider's contract, whatever copy of it the requirer has", async () => {
-    const { kernel, refused } = await start({
+    const { kernel, refused } = await startTree({
       ...tooling('read'),
       'extensions/workouts/index.ts': SNEAKY,
     });
@@ -284,7 +272,7 @@ describe('the kernel', () => {
   });
 
   it("follows the person's setting over the declared level, and tells the holder", async () => {
-    const { kernel, booted } = await start(tooling('read'), {
+    const { kernel, booted } = await startTree(tooling('read'), {
       access: { 'workouts/tool:merge': 'ask' },
     });
     expect(await kernel.use(toolsContract).level('merge')).toBe('ask');
@@ -298,7 +286,7 @@ describe('the kernel', () => {
   });
 
   it('removes an extension: its handles refuse from then on', async () => {
-    const { kernel } = await start({ ...base, 'extensions/voice/index.ts': VOICE_EXT });
+    const { kernel } = await startTree({ ...base, 'extensions/voice/index.ts': VOICE_EXT });
     await kernel.remove('voice');
     expect(kernel.running().map((r) => r.id)).toEqual(['notes']);
   });
@@ -318,12 +306,12 @@ describe('the kernel', () => {
       import { questions } from '#contracts/questions';
       ${imports}
       export default defineExtension({ id: '${id}', version: '1.0.0', requires: { questions }, ${statics}
-        async setup({ questions }, kernel) {
+        async setup({ questions }) {
           try { await questions.answer('yes'); await out.set('${id}', 'out', 'answered'); }
           catch (e) { await out.set('${id}', 'out', e.message); }
           return ${id === 'agent' ? '{ agent: {} }' : 'undefined'};
         } });`;
-    const { out, refused } = await start(
+    const { out, refused } = await startTree(
       {
         'contracts/questions/index.ts': `import { defineContract } from '#kernel';
           export const questions = defineContract({ name: 'questions', version: 1, personal: ['answer'] });`,
@@ -364,16 +352,14 @@ describe('the kernel', () => {
       personal: ['answer'],
     });
     let present = '';
-    const { kernel, refused } = await start(
+    const { kernel, refused } = await startTree(
       {
         'contracts/questions/index.ts': `import { defineContract } from '#kernel';
           export const questions = defineContract<{ ask(q: string): Promise<void>; answer(a: string): Promise<void> }>({
             name: 'questions', version: 1, personal: ['answer'] });`,
-        'contracts/probe/index.ts': `import { defineContract } from '#kernel';
-          export const probe = defineContract<{ run(): Promise<string[]> }>({ name: 'probe', version: 1 });`,
         'extensions/asker/index.ts': `import { defineExtension } from '#kernel';
           import { questions } from '#contracts/questions';
-          import { probe } from '#contracts/probe';
+          import { probe } from '#test';
           export default defineExtension({ id: 'asker', version: '1.0.0', requires: { questions }, provides: { probe },
             setup({ questions }) { return { probe: { async run() {
               const out = [];
@@ -390,14 +376,12 @@ describe('the kernel', () => {
       },
     );
     expect(refused).toEqual([]);
-    const probe = kernel.use(
-      defineContract<{ run: () => Promise<string[]> }>({ name: 'probe', version: 1 }),
-    );
-    expect(await probe.run()).toEqual([
+    const asker = kernel.use(probe);
+    expect(await asker.run()).toEqual([
       'questions@1.answer is for a person to do, right after a tap or key',
     ]);
     present = 'asker';
-    expect(await probe.run()).toEqual(['answered']);
+    expect(await asker.run()).toEqual(['answered']);
     expect(answers).toEqual(['the first']);
   });
 
@@ -406,25 +390,25 @@ describe('the kernel', () => {
     import { out } from '#test';
       import { notes } from '#contracts/notes';
       export default defineExtension({ id: 'wiki', version: '1.0.0', optional: { notes },
-        async setup({ notes }, kernel) {
+        async setup({ notes }) {
           await out.set('wiki', 'had', notes ? await notes.count() : 'none');
         } });`;
-    const without = await start({
+    const without = await startTree({
       'contracts/notes/index.ts': NOTES,
       'extensions/wiki/index.ts': user,
     });
     expect(without.refused).toEqual([]);
     expect(await without.out.get('wiki', 'had')).toBe('none');
 
-    const withIt = await start({ ...base, 'extensions/wiki/index.ts': user });
+    const withIt = await startTree({ ...base, 'extensions/wiki/index.ts': user });
     expect(withIt.refused).toEqual([]);
     expect(await withIt.out.get('wiki', 'had')).toBe(0);
 
-    const broken = await start({
+    const broken = await startTree({
       ...base,
       'extensions/notes/index.ts': NOTES_EXT.replace(
-        'setup(_, kernel) {',
-        "setup(_, kernel) { throw new Error('down');",
+        'setup() {',
+        "setup() { throw new Error('down');",
       ),
       'extensions/wiki/index.ts': user,
     });
