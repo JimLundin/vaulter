@@ -14,8 +14,6 @@ import { memoryKeep } from './storage.ts';
 /** The shared modules tests offer extensions. */
 export const SHARED = ['@vaulter/kernel', 'zod'] as const;
 
-export { memoryKeep };
-
 /** Where fixture extensions write what a test checks: by extension id, then key. */
 export function testOut() {
   const m = new Map<string, Map<string, unknown>>();
@@ -28,7 +26,9 @@ export function testOut() {
       Promise.resolve(of(ns).get(key) as T | undefined),
     set: (ns: string, key: string, value: unknown) => Promise.resolve(void of(ns).set(key, value)),
     list: (ns: string, prefix = '') =>
-      Promise.resolve([...of(ns)].filter(([k]) => k.startsWith(prefix)).sort()),
+      Promise.resolve(
+        [...of(ns)].filter(([k]) => k.startsWith(prefix)).sort(([a], [b]) => a.localeCompare(b)),
+      ),
   };
 }
 
@@ -44,7 +44,7 @@ export const REPO = 'o/r';
 export function testSource(branches: Record<string, Record<string, string>>) {
   const t = {
     branches,
-    offline: false,
+    offline: false as boolean,
     source: undefined as unknown as SourceV1,
   };
   const reach = () => {
@@ -63,7 +63,7 @@ export function testSource(branches: Record<string, Record<string, string>>) {
   t.source = {
     head: async (_repo, ref) => {
       reach();
-      return commitOf(ref);
+      return await commitOf(ref);
     },
     tree: async (_repo, commit) => {
       reach();
@@ -181,9 +181,9 @@ export async function startRepo(
 export async function repoConformance() {
   const files = await repoFiles('contracts', 'extensions');
   // The suites call personal methods (answering a question) as a person would.
-  const r = await startTree(files, { presence: { grant() {}, take: () => true } });
+  const r = await startTree(files, { presence: { grant: () => undefined, take: () => true } });
   const suites: { suite: Suite<unknown>; contract: AnyContract; providers: string[] }[] = [];
-  for (const path of Object.keys(files).sort()) {
+  for (const path of Object.keys(files).sort((a, b) => a.localeCompare(b))) {
     const name = /^contracts\/([^/]+)\/conformance\.ts$/.exec(path)?.[1];
     if (!name) continue;
     const suite = (await import(/* @vite-ignore */ new URL(path, ROOT).href))

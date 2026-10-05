@@ -19,7 +19,6 @@ export function unsealer(keep: Store, secrets: Vault) {
   const importAll = async (values: Record<string, string>) => {
     for (const [k, v] of Object.entries(values)) {
       const [ext, name] = k.split('/');
-      // biome-ignore lint/performance/noAwaitInLoops: a few secrets
       if (ext && name && v) await secrets.set(ext, name, v);
     }
   };
@@ -55,8 +54,8 @@ export function unsealer(keep: Store, secrets: Vault) {
       let values: Record<string, string>;
       try {
         values = await open(key, file);
-      } catch {
-        throw new Error('that password does not open the secrets');
+      } catch (cause) {
+        throw new Error('that password does not open the secrets', { cause });
       }
       await importAll(values);
       await keep.set('sealed:key', { salt: file.kdf.salt, iterations: file.kdf.iterations, key });

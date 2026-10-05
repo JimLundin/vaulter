@@ -71,13 +71,13 @@ afterEach(async () => {
 describe('errors', () => {
   it('pass functions across as they are', async () => {
     const r = await startTree(files);
-    kernel = r.kernel;
+    ({ kernel } = r);
     expect(await r.storage.get('a', 'same')).toBe(true);
   });
 
   it('are kept under the extension whose code threw', async () => {
     const r = await startTree(files);
-    kernel = r.kernel;
+    ({ kernel } = r);
     const bus = kernel.use(busContract);
     await expect(bus.fail()).rejects.toThrow('bus broke');
     await expect(bus.emit('boom')).rejects.toThrow('handler broke');

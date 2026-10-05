@@ -99,7 +99,11 @@ export class Kernel {
    * fields validated, before any `setup` runs. */
   async inspect(id: string, plan: Plan): Promise<{ def: Extension['def']; statics: Statics }> {
     const ext = (await this.opts.load(this.link(plan))).default as Extension | undefined;
-    if (ext?.kind !== 'extension' || typeof ext.def?.setup !== 'function')
+    // A module's default export can be anything: check it is what defineExtension made.
+    if (
+      ext?.kind !== 'extension' ||
+      typeof (ext.def as Partial<Extension['def']> | undefined)?.setup !== 'function'
+    )
       throw new Error('the default export is not defineExtension({...})');
     return { def: ext.def, statics: readStatics(id, ext.def) };
   }
@@ -155,7 +159,6 @@ export class Kernel {
       };
       try {
         this.parties.set(a.id, party);
-        // biome-ignore lint/performance/noAwaitInLoops: setups run in dependency order
         await this.setup(party);
         this.refused.delete(a.id);
       } catch (e) {
@@ -286,7 +289,7 @@ export class Kernel {
     if (isPerCaller(impl)) {
       const k = `${to}\n${key}\n${from}`;
       if (!this.perCallerImpls.has(k)) {
-        const statics = (this.parties.get(from) ?? this.kernelParty()).statics;
+        const { statics } = this.parties.get(from) ?? this.kernelParty();
         this.perCallerImpls.set(k, perCallerDef(impl).make(from, statics));
       }
       impl = this.perCallerImpls.get(k) as Record<string, unknown>;
@@ -302,7 +305,7 @@ export class Kernel {
       try {
         args = applyGuard(args, guard, (f, g) => this.guardedCall(f, g, from, to));
       } catch (e) {
-        throw new Refusal(`${from} → ${key}.${method}: ${(e as Error).message}`);
+        throw new Refusal(`${from} → ${key}.${method}: ${(e as Error).message}`, { cause: e });
       }
     try {
       return await (fn as Fn).apply(impl, args);

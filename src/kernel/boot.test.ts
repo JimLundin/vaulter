@@ -67,7 +67,7 @@ describe('boot', () => {
     src.offline = true;
     const offline = await boot(device, opts);
     kernels.push(offline.kernel);
-    expect(offline.started.sort()).toEqual(['map', 'notes']);
+    expect(offline.started.sort((a, b) => a.localeCompare(b))).toEqual(['map', 'notes']);
     expect(offline.origins).toEqual(new Map([['notes', 'draft/notes']]));
   });
 

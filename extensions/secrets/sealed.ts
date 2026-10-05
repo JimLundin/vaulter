@@ -68,4 +68,4 @@ export const isSealedFile = (v: unknown): v is SealedFile =>
   v !== null &&
   (v as SealedFile).v === 1 &&
   typeof (v as SealedFile).data === 'string' &&
-  typeof (v as SealedFile).kdf?.salt === 'string';
+  typeof (v as Partial<SealedFile>).kdf?.salt === 'string';

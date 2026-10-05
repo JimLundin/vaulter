@@ -34,12 +34,12 @@ const CALLER = {
 
 it('attaches a secret only to requests for its hosts, and forgets it with its extension', async () => {
   const seen: [string, string | null][] = [];
-  vi.stubGlobal('fetch', async (url: string, init?: RequestInit) => {
+  vi.stubGlobal('fetch', (url: string, init?: RequestInit) => {
     seen.push([url, new Headers(init?.headers).get('Authorization')]);
-    return Response.json({ ok: true });
+    return Promise.resolve(Response.json({ ok: true }));
   });
   const r = await startRepo(['secrets'], CALLER);
-  kernel = r.kernel;
+  ({ kernel } = r);
   expect(r.refused).toEqual([]);
   const secrets = kernel.use(net, 'secrets');
   await secrets.setSecret('caller', 'key', 'sk-123');

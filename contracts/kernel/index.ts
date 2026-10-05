@@ -5,7 +5,7 @@
 import type { Checks } from '@contracts/extensions.source';
 import { type Access, defineContract } from '@vaulter/kernel';
 
-export type { Access };
+export type { Access } from '@vaulter/kernel';
 
 export type Unsubscribe = () => void;
 

@@ -162,7 +162,7 @@ describe('resolve', () => {
   });
 
   it('reads static fields once: every bad field, and an id that is not its folder', () => {
-    const def = (fields: object) => ({ ...fields, setup() {} }) as never;
+    const def = (fields: object) => ({ ...fields, setup: () => undefined }) as never;
     expect(() => readStatics('bad', def({ id: 'Bad Id', version: 'one' }))).toThrow(
       /id:.*; version:/,
     );
@@ -342,7 +342,7 @@ describe('the kernel', () => {
       },
       {
         provide: [[questions, { answer: async () => undefined }]],
-        presence: { grant() {}, take: () => true },
+        presence: { grant: () => undefined, take: () => true },
       },
     );
     expect(refused).toEqual([]);
@@ -386,7 +386,7 @@ describe('the kernel', () => {
         provide: [
           [ask, { ask: async () => undefined, answer: async (a: string) => void answers.push(a) }],
         ],
-        presence: { grant() {}, take: (caller) => caller === present },
+        presence: { grant: () => undefined, take: (caller) => caller === present },
       },
     );
     expect(refused).toEqual([]);

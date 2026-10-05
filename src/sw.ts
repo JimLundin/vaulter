@@ -3,7 +3,7 @@
 // is none. Main's extensions come with the page; their compiled code, and the trees of tried drafts,
 // are in the kernel's IndexedDB.
 /// <reference lib="webworker" />
-const sw = self as unknown as ServiceWorkerGlobalScope;
+const sw = globalThis as unknown as ServiceWorkerGlobalScope;
 
 const CACHE = 'vaulter-kernel-1';
 

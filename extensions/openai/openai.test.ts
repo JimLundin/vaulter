@@ -28,11 +28,14 @@ const RESPONSE = {
 
 it('speaks the Responses API, with the key attached by the secrets extension', async () => {
   const seen: { url: string; auth: string | null; body: unknown }[] = [];
-  const fetchImpl = (async (url: string, init?: RequestInit) => {
+  const fetchImpl = ((url: string, init?: RequestInit) => {
     const body = JSON.parse(String(init?.body));
     seen.push({ url, auth: new Headers(init?.headers).get('Authorization'), body });
-    if (url.endsWith('/responses')) return Response.json(RESPONSE);
-    return new Response(JSON.stringify({ error: { message: 'nope' } }), { status: 400 });
+    return Promise.resolve(
+      url.endsWith('/responses')
+        ? Response.json(RESPONSE)
+        : Response.json({ error: { message: 'nope' } }, { status: 400 }),
+    );
   }) as typeof fetch;
   // The secrets extension makes the requests, attaching the key: the network is a fake here.
   vi.stubGlobal('fetch', fetchImpl);
@@ -57,7 +60,7 @@ it('speaks the Responses API, with the key attached by the secrets extension', a
             return { first };
           } } }; } });`,
   });
-  kernel = r.kernel;
+  ({ kernel } = r);
   expect(r.refused).toEqual([]);
   await kernel.use(net, 'secrets').setSecret('openai', 'key', 'sk-test');
   const out = (await kernel
@@ -67,7 +70,7 @@ it('speaks the Responses API, with the key attached by the secrets extension', a
         version: 1,
       }),
     )
-    .run()) as Record<string, any>;
+    .run()) as { first: unknown };
 
   expect(out.first).toMatchObject({
     content: null,
@@ -75,7 +78,7 @@ it('speaks the Responses API, with the key attached by the secrets extension', a
     usage: { input: 12, output: 7 },
   });
   expect(seen.every((s) => s.auth === 'Bearer sk-test')).toBe(true);
-  const [first, second] = seen.map((s) => s.body as Record<string, any>);
+  const [first, second] = seen.map((s) => s.body as { input: unknown });
   expect(first).toMatchObject({
     model: 'gpt-6.1-sol',
     store: false,

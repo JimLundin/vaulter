@@ -19,7 +19,12 @@ const memoryStore = (): Store => {
     set: (k, v) => Promise.resolve(void m.set(k, v)),
     delete: (k) => Promise.resolve(void m.delete(k)),
     list: <T>(prefix = '') =>
-      Promise.resolve([...m].filter(([k]) => k.startsWith(prefix)).sort() as [string, T][]),
+      Promise.resolve(
+        [...m].filter(([k]) => k.startsWith(prefix)).sort(([a], [b]) => a.localeCompare(b)) as [
+          string,
+          T,
+        ][],
+      ),
   };
 };
 const salt = new Uint8Array(16).fill(7);

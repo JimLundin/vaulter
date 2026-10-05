@@ -191,7 +191,9 @@ const need = (src: SourceV1 | undefined, what = 'this') => {
 const running = (kernel: Kernel) => {
   try {
     return kernel.use(source);
-  } catch {}
+  } catch {
+    // Nothing running provides it.
+  }
 };
 
 /** The extensions providing extensions.source, with everything they require, started from `tree`. */
@@ -201,7 +203,6 @@ async function startSource(kernel: Kernel, tree: Tree, deps: LoaderDeps, skip: S
   const statics = new Map<string, Statics>();
   for (const [id, plan] of plans)
     try {
-      // biome-ignore lint/performance/noAwaitInLoops: a handful, compiled already
       statics.set(id, (await kernel.inspect(id, plan)).statics);
     } catch {
       // Refused, with its reason, when everything else starts.

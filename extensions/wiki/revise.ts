@@ -77,7 +77,6 @@ export function reviser(deps: ReviseDeps) {
       ...(f.at ? { at: f.at } : {}),
     });
     for (const c of changes.create) {
-      // biome-ignore lint/performance/noAwaitInLoops: each page in order
       let e = await deps.wiki.create(c.kind as Kind, { name: c.name, aliases: c.aliases });
       for (const f of c.facts) e = await deps.wiki.addFact({ type: e.type, id: e.id }, cite(f));
       made.set(c.ref, e);
@@ -131,7 +130,6 @@ export function reviser(deps: ReviseDeps) {
       await apply(plan, note, rev);
       for (const q of plan.ask) {
         if (!deps.questions) continue;
-        // biome-ignore lint/performance/noAwaitInLoops: questions in order
         const id = await deps.questions.ask({
           topic: 'revise',
           // Revising the same note again asks nothing twice.

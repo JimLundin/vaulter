@@ -58,7 +58,7 @@ it('revises pages from notes, cites every fact, asks when unsure, and gives Vaul
     'extensions/fake-ai/index.ts': FAKE_AI,
     'extensions/agent/index.ts': FAKE_AGENT,
   });
-  kernel = r.kernel;
+  ({ kernel } = r);
   expect(r.refused).toEqual([]);
   const notes = use<NotesV1>(kernel, 'notes');
   const wiki = use<WikiV1>(kernel, 'wiki');
@@ -143,7 +143,7 @@ it('revises pages from notes, cites every fact, asks when unsure, and gives Vaul
 
 it('works by hand without a model, questions or an agent', async () => {
   const r = await startRepo(['store-local', 'notes', 'wiki']);
-  kernel = r.kernel;
+  ({ kernel } = r);
   expect(r.refused).toEqual([]);
   const wiki = use<WikiV1>(kernel, 'wiki');
   const n = await use<NotesV1>(kernel, 'notes').append({ text: 'Swim at Eriksdal' });
@@ -154,7 +154,7 @@ it('works by hand without a model, questions or an agent', async () => {
 
 it('keeps both of two facts added at once, and a merged page reads as the one kept', async () => {
   const r = await startRepo(['store-local', 'notes', 'wiki']);
-  kernel = r.kernel;
+  ({ kernel } = r);
   const wiki = use<WikiV1>(kernel, 'wiki');
   const n = await use<NotesV1>(kernel, 'notes').append({ text: 'Ada swims on Sundays' });
   const ada = await wiki.create('person', { name: 'Ada' });
@@ -189,7 +189,7 @@ it('revises a note again on the next start when its revision failed', async () =
   const after = await startRepo(['store-local', 'notes', 'wiki'], {
     'extensions/fake-ai/index.ts': FAKE_AI,
   });
-  kernel = after.kernel;
+  ({ kernel } = after);
   await vi.waitFor(
     async () => expect(await use<WikiV1>(kernel!, 'wiki').find('Ada', ['person'])).toHaveLength(1),
     { timeout: 2000 },

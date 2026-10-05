@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { planAll } from './loader.ts';
-import { memoryKeep, SHARED, treeOf } from './testing.ts';
+import { memoryKeep } from './storage.ts';
+import { SHARED, treeOf } from './testing.ts';
 
 const deps = (files: Record<string, string>) => ({
   read: (p: string) => Promise.resolve(files[p]),
@@ -20,7 +21,7 @@ describe('the loader', () => {
     const { plans, refused } = await planAll(treeOf(files), deps(files));
     expect(refused).toEqual([]);
     const p = plans.get('notes')!;
-    expect(Object.keys(p.modules).sort()).toEqual([
+    expect(Object.keys(p.modules).sort((a, b) => a.localeCompare(b))).toEqual([
       'contracts/notes/index.ts',
       'extensions/notes/a.ts',
       'extensions/notes/index.ts',

@@ -79,10 +79,10 @@ export function control({ booted: b, review, restart }: ControlEnv): KernelV1 {
       const refs = b.src
         ? (await b.src.refs(c.repo)).filter((r) => r.startsWith('draft/'))
         : c.drafts;
-      const origins = b.origins;
+      const { origins } = b;
       return refs.map((branch) => ({
         branch,
-        extensions: [...origins].filter(([, b]) => b === branch).map(([id]) => id),
+        extensions: [...origins].filter(([, from]) => from === branch).map(([id]) => id),
         loaded: c.drafts.includes(branch),
       }));
     },

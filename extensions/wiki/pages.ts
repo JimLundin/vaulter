@@ -109,7 +109,6 @@ export function pages(records: RecordsV1, types: Types) {
       });
       for (const e of await all()) {
         if (e.id === keepRef.id) continue;
-        // biome-ignore lint/performance/noAwaitInLoops: a sweep, rare
         if (JSON.stringify({ ...e, ...swapped(e) }) !== JSON.stringify(e))
           await change(refOf(e), swapped);
       }

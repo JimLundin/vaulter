@@ -78,7 +78,6 @@ export async function ask(
         })),
       ),
     ];
-    // biome-ignore lint/performance/noAwaitInLoops: each turn needs the one before
     const r = await chat.complete({ messages, tools });
     usage.input += r.usage.input;
     usage.output += r.usage.output;

@@ -103,7 +103,7 @@ export function defineExtension<
 
 /** The static fields as plain values: contracts by name, version and personal methods. */
 function staticsOf(def: Extension['def']) {
-  const refs = (m: Record<string, AnyContract> | undefined) =>
+  const named = (m: Record<string, AnyContract> | undefined) =>
     Object.fromEntries(
       Object.entries(m ?? {}).map(([as, c]) => [
         as,
@@ -114,9 +114,9 @@ function staticsOf(def: Extension['def']) {
   return {
     id,
     version,
-    requires: refs(def.requires),
-    optional: refs(def.optional),
-    provides: refs(def.provides),
+    requires: named(def.requires),
+    optional: named(def.optional),
+    provides: named(def.provides),
     permissions,
     secrets,
     agentGuide,

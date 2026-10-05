@@ -34,9 +34,9 @@ it('lets only a person answer a question, and hands the answer to the asker', as
             } } };
           } });`,
     },
-    { presence: { grant() {}, take: (caller) => caller === present } },
+    { presence: { grant: () => undefined, take: (caller) => caller === present } },
   );
-  kernel = r.kernel;
+  ({ kernel } = r);
   expect(r.refused).toEqual([]);
   const p = kernel.use(probe);
   const id = (await p.run()) as string;
@@ -75,7 +75,7 @@ it("keeps a person's answer when the asker's handler fails, and delivers it agai
   before.kernel.dispose();
 
   const after = await startRepo(['store-local', 'questions'], files(false));
-  kernel = after.kernel;
+  ({ kernel } = after);
   await new Promise((ok) => setTimeout(ok, 30));
   expect(await after.storage.get('asker', 'answer')).toBe('yes');
 });

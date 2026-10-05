@@ -74,7 +74,6 @@ export function localRecords(storage: Store) {
   const resolve = async (type: string, id: string) => {
     let rec = await current(type, id);
     for (let hops = 0; rec?.meta.mergedInto && hops < 50; hops++)
-      // biome-ignore lint/performance/noAwaitInLoops: each hop needs the one before
       rec = await current(type, rec.meta.mergedInto);
     return rec;
   };
@@ -274,7 +273,6 @@ export function localRecords(storage: Store) {
 
   /** Drops every type the caller registered, and their records. */
   const forget = async (caller: string) => {
-    // biome-ignore lint/performance/noAwaitInLoops: a sweep, once
     for (const prefix of ['t:', 'r:', 'h:'])
       for (const [key] of await storage.list(`${prefix}${caller}/`)) await storage.delete(key);
   };

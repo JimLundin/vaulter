@@ -43,7 +43,7 @@ export function singleTab(deps: TabDeps = browser()) {
       }),
 
     /** In the tab that has the kernel: when another asks, `stop`, then let go. */
-    onTakeOver(stop: () => Promise<void>) {
+    onTakeOver(stop: () => unknown) {
       channel.onmessage = async (e: MessageEvent) => {
         if (e.data !== TAKE_OVER || !release) return;
         await stop();

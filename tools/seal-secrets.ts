@@ -7,7 +7,7 @@
 import { writeFile } from 'node:fs/promises';
 import { seal } from '../extensions/secrets/sealed.ts';
 
-const out = process.argv[2];
+const [, , out] = process.argv;
 if (!out) throw new Error('usage: node tools/seal-secrets.ts <out.json>');
 
 const password = process.env.VAULTER_PASSWORD ?? '';
@@ -36,4 +36,10 @@ const salt = process.env.VAULTER_SALT
   : undefined;
 if (salt && salt.length < 16) throw new Error('VAULTER_SALT must be 16 bytes, base64');
 await writeFile(out, `${JSON.stringify(await seal(password, secrets, { salt }))}\n`);
-console.log(`Sealed ${Object.keys(secrets).sort().join(', ') || 'no secrets'} into ${out}.`);
+console.log(
+  `Sealed ${
+    Object.keys(secrets)
+      .sort((a, b) => a.localeCompare(b))
+      .join(', ') || 'no secrets'
+  } into ${out}.`,
+);

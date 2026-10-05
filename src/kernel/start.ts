@@ -18,9 +18,6 @@ export async function start(opts: StartOptions) {
     await standbyScreen(tab, moved);
   }
 
-  // Databases of earlier versions: the kernel's under its old name, and the one it shared with
-  // extensions' storage (store-local keeps its own now).
-  for (const old of ['pip-kernel', 'pip-data']) indexedDB.deleteDatabase(old);
   const browser: Device = {
     keep: idbKeep(),
     url: (code) => URL.createObjectURL(new Blob([code], { type: 'text/javascript' })),
@@ -33,7 +30,7 @@ export async function start(opts: StartOptions) {
       addEventListener('unhandledrejection', (e) => kernel.errors.uncaught(e.reason));
       // Another tab asked for Vaulter: every handle refuses, the lock goes over, and this tab reloads
       // into the waiting screen.
-      tab.onTakeOver(async () => {
+      tab.onTakeOver(() => {
         kernel.dispose();
         sessionStorage.setItem('vaulter-moved', '1');
         setTimeout(() => location.reload(), 50);

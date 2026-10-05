@@ -13,7 +13,7 @@ it('lets one tab have the kernel, and hands it over when another asks', async ()
   expect(await second.claim()).toBe(false);
 
   const order: string[] = [];
-  first.onTakeOver(async () => {
+  first.onTakeOver(() => {
     order.push('first stops');
   });
   await second.takeOver();

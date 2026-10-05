@@ -22,7 +22,7 @@ export default defineConformance(records, [
         1,
         true,
       ]);
-      expect(Object.keys(p).sort()).toEqual(['id', 'meta', 'name']);
+      expect(Object.keys(p).sort((a, b) => a.localeCompare(b))).toEqual(['id', 'meta', 'name']);
       await expect(r.create(person, { name: 1 } as never)).rejects.toThrow();
       expect(await r.get(person, p.id)).toEqual(p);
       expect(await r.get(person, 'nope')).toEqual(undefined);

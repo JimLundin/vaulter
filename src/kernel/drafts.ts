@@ -5,7 +5,7 @@
 import type { Checks, SourceV1 } from '@contracts/extensions.source';
 import type { Review, StaticsSummary } from '@contracts/kernel';
 import type { Statics } from './extension.ts';
-import { extensionsIn, type Plan, type Tree } from './loader.ts';
+import { extensionsIn, type Tree } from './loader.ts';
 
 /** `extensions/<id>/…` → id; a contract's file → `contracts`. */
 const unitOf = (path: string) =>
@@ -15,7 +15,9 @@ const unitOf = (path: string) =>
       ? 'contracts'
       : null;
 
-const filesOf = (tree: Tree, unit: string) => [...tree.files].filter(([p]) => unitOf(p) === unit);
+/** A unit's files, in path order. */
+const filesOf = (tree: Tree, unit: string) =>
+  [...tree.files].filter(([p]) => unitOf(p) === unit).sort(([a], [b]) => a.localeCompare(b));
 
 const same = (a: [string, string][], b: [string, string][]) =>
   a.length === b.length && a.every(([p, s], i) => b[i][0] === p && b[i][1] === s);
@@ -24,8 +26,8 @@ const same = (a: [string, string][], b: [string, string][]) =>
 export function changedUnits(main: Tree, draft: Tree): string[] {
   const units = new Set([...main.files.keys(), ...draft.files.keys()].map(unitOf).filter(Boolean));
   return [...units]
-    .filter((u) => !same(filesOf(main, u!).sort(), filesOf(draft, u!).sort()))
-    .sort() as string[];
+    .filter((u) => !same(filesOf(main, u!), filesOf(draft, u!)))
+    .sort((a, b) => a!.localeCompare(b!)) as string[];
 }
 
 /** The main tree with each draft's changed folders in place of main's; later drafts win. */
@@ -90,7 +92,7 @@ export async function review(env: ReviewEnv, branch: string): Promise<Review> {
   const [main, draft] = await Promise.all([env.treeAt(base), env.treeAt(head)]);
   const files = [...new Set([...main.files.keys(), ...draft.files.keys()])]
     .filter((p) => main.files.get(p) !== draft.files.get(p))
-    .sort()
+    .sort((a, b) => a.localeCompare(b))
     .map((path) => ({
       path,
       status: (!main.files.has(path) ? 'added' : !draft.files.has(path) ? 'removed' : 'changed') as
@@ -128,5 +130,3 @@ export async function review(env: ReviewEnv, branch: string): Promise<Review> {
     .catch(() => ({ state: 'none', runs: [] }));
   return { branch, base, head, files, extensions, checks };
 }
-
-export type { Plan };

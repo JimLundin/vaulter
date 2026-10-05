@@ -42,7 +42,7 @@ it('answers with the tools it opens, and waits for the person on a tool that ask
   const r = await startRepo(['store-local', 'notes', 'wiki', 'agent'], {
     'extensions/fake-ai/index.ts': SCRIPTED,
   });
-  kernel = r.kernel;
+  ({ kernel } = r);
   expect(r.refused).toEqual([]);
   const wiki = use<WikiV1>(kernel, 'wiki');
   const agent = use<AgentV1>(kernel, 'agent');

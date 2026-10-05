@@ -49,7 +49,7 @@ it('starts store-local and serves another extension its records', async () => {
       });`,
   };
   const r = await startTree(files);
-  kernel = r.kernel;
+  ({ kernel } = r);
   expect(r.refused).toEqual([]);
   expect(kernel.running().map((x) => x.id)).toEqual(['store-local', 'people']);
   const result = (await r.storage.get('people', 'result')) as {

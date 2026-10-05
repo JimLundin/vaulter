@@ -22,7 +22,7 @@ it('keeps notes as records, and tells requirers', async () => {
           await out.set('voice', 'out', { n, list: await notes.list(), heard });
         } });`,
   });
-  kernel = r.kernel;
+  ({ kernel } = r);
   expect(r.refused).toEqual([]);
   expect(kernel.running().map((x) => x.id)).toEqual(['store-local', 'notes', 'voice']);
   const out = (await r.storage.get('voice', 'out')) as {
