@@ -3,86 +3,20 @@
 // contract, through real handles (conformance.test.ts), on every push, draft branches included. Only CI
 // uses this: it isn't part of the kernel, and the page doesn't carry the suites.
 import type { Contract } from '@vaulter/kernel';
-
-export interface Asserts {
-  ok: (v: unknown, message?: string) => void;
-  /** Deep equality of plain values. */
-  equal: (actual: unknown, expected: unknown, message?: string) => void;
-  rejects: (p: Promise<unknown>, message?: string) => Promise<void>;
-}
+import type { ExpectStatic } from 'vitest';
 
 export interface Check<T> {
   name: string;
-  run: (use: T, t: Asserts) => void | Promise<void>;
+  /** `use` is a fresh caller's handle on the provider. */
+  run: (use: T, expect: ExpectStatic) => unknown;
 }
 
 export interface Suite<T> {
-  readonly kind: 'conformance';
   readonly contract: string;
   readonly checks: Check<T>[];
 }
 
 export const defineConformance = <T>(contract: Contract<T>, checks: Check<T>[]): Suite<T> => ({
-  kind: 'conformance',
   contract: contract.key,
   checks,
 });
-
-export function deepEqual(a: unknown, b: unknown): boolean {
-  if (Object.is(a, b)) return true;
-  if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false;
-  if (Array.isArray(a) !== Array.isArray(b)) return false;
-  const ka = Object.keys(a).filter((k) => (a as Record<string, unknown>)[k] !== undefined);
-  const kb = Object.keys(b).filter((k) => (b as Record<string, unknown>)[k] !== undefined);
-  return (
-    ka.length === kb.length &&
-    ka.every((k) => deepEqual((a as Record<string, unknown>)[k], (b as Record<string, unknown>)[k]))
-  );
-}
-
-const show = (v: unknown) => {
-  try {
-    return JSON.stringify(v);
-  } catch {
-    return String(v);
-  }
-};
-
-export const asserts: Asserts = {
-  ok(v, message) {
-    if (!v) throw new Error(message ?? `expected a true value, got ${show(v)}`);
-  },
-  equal(actual, expected, message) {
-    if (!deepEqual(actual, expected))
-      throw new Error(message ?? `expected ${show(expected)}, got ${show(actual)}`);
-  },
-  async rejects(p, message) {
-    try {
-      await p;
-    } catch {
-      return;
-    }
-    throw new Error(message ?? 'expected a rejection');
-  },
-};
-
-export interface CheckResult {
-  name: string;
-  ok: boolean;
-  error?: string;
-}
-
-/** Runs every check against a fresh instance from `make`. */
-export async function runSuite<T>(suite: Suite<T>, make: (n: number) => T): Promise<CheckResult[]> {
-  const out: CheckResult[] = [];
-  for (const [n, check] of suite.checks.entries()) {
-    try {
-      // biome-ignore lint/performance/noAwaitInLoops: checks run one at a time
-      await check.run(make(n), asserts);
-      out.push({ name: check.name, ok: true });
-    } catch (e) {
-      out.push({ name: check.name, ok: false, error: (e as Error).message });
-    }
-  }
-  return out;
-}

@@ -2,7 +2,6 @@
 // real handles, each check as a fresh caller: what CI runs on every push, draft branches included, so
 // a provider Vaulter writes is held to its contract before anyone accepts it.
 import { afterAll, describe, expect, it } from 'vitest';
-import { runSuite } from './conformance.ts';
 import { repoConformance } from '../src/kernel/testing.ts';
 
 const repo = await repoConformance();
@@ -19,9 +18,8 @@ for (const { suite, contract, providers } of repo.suites)
       it.each(suite.checks.map((c) => c.name))('%s', async (name) => {
         const caller = repo.kernel.caller(`check-${++n}`);
         try {
-          const only = { ...suite, checks: suite.checks.filter((c) => c.name === name) };
-          const [result] = await runSuite(only, () => caller.use(contract, provider));
-          expect(result.error).toBeUndefined();
+          const check = suite.checks.find((c) => c.name === name)!;
+          await check.run(caller.use(contract, provider), expect);
         } finally {
           await caller.drop();
         }
