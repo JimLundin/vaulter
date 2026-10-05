@@ -203,7 +203,7 @@ Five rules keep new features from forcing refactors.
 
 - **Contracts are versioned, not extensions' internals.** A contract's version is one number, the `@1` in `records@1`; there are no minor versions, since contracts and their providers ship together and CI checks them. A provider may change anything behind `records@1` as long as it still passes the contract's test suite. A breaking change ships as `records@2`, and a provider can offer both while requirers move over.
 - **Contracts with a provider to hold to account ship a conformance test suite** (records, notes and questions today). Any new provider, including one Vaulter writes, must pass it in CI before its draft can be tried or accepted.
-- **Type changes are migrations.** Splitting `place` into `venue` and `city` is a migration the records contract runs once and can reverse.
+- **Record types grow without migrations, for now.** A new field is optional or has a default, so stored records still fit. Versions and migrations for a type come with the first change that breaks stored records (splitting `place` into `venue` and `city`), not before: records is not at 1.0 yet.
 - **Nothing is overwritten or removed for good.** Every change to a record is a new revision with the earlier ones kept (`history`); changes to one record run one after another, each `update` getting it as the last left it, so two changes at once can't lose either. Deleting or merging leaves a tombstone that can be restored. Only removing an extension drops its data.
 - **Derived data is disposable.** Wiki pages, records, embeddings and indexes are built from the notes extension's append-only log, so any of them can be rebuilt. A buggy extension can corrupt a view, never what you said.
 - **Safe mode always works.** It belongs to the kernel and depends on no extension, so a broken shell or storage provider can always be disabled or rolled back.
@@ -219,7 +219,7 @@ One contract and three extensions show the format end to end. Names and signatur
 export const RecordRef = z.object({ type: z.string(), id: z.string() });
 export const DateRange = z.object({ from: z.string().date(), to: z.string().date() });
 
-// A record is { id, ...fields, meta: { type, created, updated, v, rev, deleted?, mergedInto? } }.
+// A record is { id, ...fields, meta: { type, created, updated, rev, deleted?, mergedInto? } }.
 export interface RecordsV1 {
   registerType<S extends z.ZodRawShape>(name: string, fields: S): Promise<RecordType<S>>;
   get<S extends z.ZodRawShape>(type: RecordType<S>, id: string): Promise<Rec<S> | undefined>;

@@ -85,11 +85,11 @@ One item of typed data an extension keeps through the records contract.
 _Avoid_: row, document, entity
 
 **Record type**:
-A named, versioned shape of record that one extension registers and others refer to by handle.
+A named shape of record that one extension registers and others refer to by handle.
 
 **Revision**:
 One state of a record; each change makes a new one, and earlier ones are kept.
-_Avoid_: version (a record type's version is something else)
+_Avoid_: version (an extension's or a contract's version is something else)
 
 **Tombstone**:
 A deleted or merged-away record that is kept, hidden, and can be restored.

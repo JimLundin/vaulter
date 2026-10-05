@@ -17,8 +17,8 @@ export default defineConformance(records, [
       t.ok(/^[\w~-]+\/person$/.test(person.name), `namespaced: ${person.name}`);
       const p = await r.create(person, { name: 'Ada' });
       t.equal(
-        [p.name, p.meta.type, p.meta.v, p.meta.rev, p.meta.created === p.meta.updated],
-        ['Ada', person.name, 1, 1, true],
+        [p.name, p.meta.type, p.meta.rev, p.meta.created === p.meta.updated],
+        ['Ada', person.name, 1, true],
       );
       t.equal(Object.keys(p).sort(), ['id', 'meta', 'name']);
       await t.rejects(r.create(person, { name: 1 } as never));
@@ -180,38 +180,6 @@ export default defineConformance(records, [
       t.equal((await r.get(p, b.id))?.id, c.id);
       await t.rejects(r.merge(p, c.id, b.id), 'b already reads as c');
       t.equal((await r.get(p, b.id, { deleted: true }))?.meta.mergedInto, a.id);
-    },
-  },
-  {
-    name: 'migrates a type to a new version once, and can revert it',
-    async run(r, t) {
-      const v1 = await r.registerType('spot', { place: z.string() });
-      const old = await r.create(v1, { place: 'Café Lumière, Stockholm' });
-      const v2 = await r.registerType(
-        'spot',
-        { venue: z.string(), city: z.string() },
-        {
-          version: 2,
-          migrate: {
-            1: (o) => {
-              const [venue, city] = String(o.place).split(', ');
-              return { venue, city };
-            },
-          },
-        },
-      );
-      const now = await r.get(v2, old.id);
-      t.equal(
-        [now?.venue, now?.city, now?.meta.v, now?.meta.created],
-        ['Café Lumière', 'Stockholm', 2, old.meta.created],
-      );
-      const made = await r.create(v2, { venue: 'Bar', city: 'Oslo' });
-      await r.revert(v2, 1);
-      t.equal((await r.get(v1, old.id))?.place, 'Café Lumière, Stockholm');
-      // The type takes version 1's fields again; a record made at version 2 is put away, not lost.
-      await r.update(v1, old.id, () => ({ place: 'Café Lumière, Uppsala' }));
-      t.equal(await r.get(v1, made.id), undefined);
-      t.equal((await r.get(v2, made.id, { deleted: true }))?.venue, 'Bar');
     },
   },
   {

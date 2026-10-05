@@ -38,17 +38,13 @@ it('starts store-local and serves another extension its records', async () => {
       export default defineExtension({
         id: 'people', version: '1.0.0', requires: { records },
         async setup({ records }, kernel) {
-          const v1 = await records.registerType('person', { name: z.string() });
-          const ada = await records.create(v1, { name: 'Ada Lovelace' });
-          const v2 = await records.registerType('person', { first: z.string(), last: z.string() }, {
-            version: 2,
-            migrate: { 1: (o) => { const [first, last] = String(o.name).split(' '); return { first, last }; } },
-          });
+          const person = await records.registerType('person', { first: z.string(), last: z.string() });
+          const ada = await records.create(person, { first: 'Ada', last: 'Lovelace' });
           const seen = [];
-          await records.onChanged(v2, (c) => { seen.push(c.first); });
-          await records.create(v2, { first: 'Grace', last: 'Hopper' });
+          await records.onChanged(person, (c) => { seen.push(c.first); });
+          await records.create(person, { first: 'Grace', last: 'Hopper' });
           await new Promise((ok) => setTimeout(ok, 20));
-          await out.set('people', 'result', { ada: await records.get(v2, ada.id), all: (await records.query(v2)).length, seen });
+          await out.set('people', 'result', { ada: await records.get(person, ada.id), all: (await records.query(person)).length, seen });
         },
       });`,
   };
@@ -64,12 +60,12 @@ it('starts store-local and serves another extension its records', async () => {
   expect(result.ada).toMatchObject({
     first: 'Ada',
     last: 'Lovelace',
-    meta: { v: 2, rev: 2, type: 'people/person' },
+    meta: { rev: 1, type: 'people/person' },
   });
   expect(result.all).toBe(2);
   expect(result.seen).toEqual(['Grace']);
   // Removing people removes its records with store-local.
-  const person = { kind: 'record-type', name: 'people/person', version: 2 } as const;
+  const person = { kind: 'record-type', name: 'people/person' } as const;
   const reader = kernel.caller('check-1');
   expect(await reader.use(records, 'store-local').query(person)).toHaveLength(2);
   await kernel.remove('people');

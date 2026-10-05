@@ -2,15 +2,16 @@
 // (ARCHITECTURE.md, "A contract: records"). A type is registered by name once and then passed around
 // as a handle, so another extension refers to it by the handle a contract gives it, never by a string.
 //
-// Handles are plain data: the name and the version. The provider names a type in its caller's
+// Handles are plain data: the name. The provider names a type in its caller's
 // namespace and checks and shapes every value with the type's own Zod (defaults and trims included).
 // An extension may read any type it has a handle for, and write only its own.
 //
 // Nothing is overwritten or removed for good. Every change makes a new revision and keeps the one
 // before (`history`); changes to one record run one after another, each `update` getting the record as
 // the last one left it, so two changes at once can't lose either. Deleting or merging leaves a
-// tombstone that can be restored. A type's version goes up with a change to its fields, with a
-// migration from each older version, which the provider runs once and can revert. Only removing the
+// tombstone that can be restored. A type's fields may grow with optional fields and defaults; a change
+// that breaks stored records will bring versions and migrations with it, when there is one. Only
+// removing the
 // extension drops its records.
 import { defineContract } from '@vaulter/kernel';
 import { z } from 'zod';
@@ -21,7 +22,6 @@ export interface RecordType<S extends z.ZodRawShape = z.ZodRawShape> {
   readonly kind: 'record-type';
   /** `extension/name`: the namespace is the registering extension's id. */
   readonly name: string;
-  readonly version: number;
   /** Only for the types. */
   readonly _shape?: S;
 }
@@ -31,8 +31,6 @@ export interface Meta {
   type: string;
   created: string;
   updated: string;
-  /** The type's version this record is at. */
-  v: number;
   /** Its revision: 1 when created, one more with every change. */
   rev: number;
   /** When it was deleted or merged away: a tombstone, hidden unless asked for. */
@@ -72,17 +70,9 @@ export interface Query {
   deleted?: boolean;
 }
 
-export type Migration = (
-  old: Record<string, unknown>,
-) => Record<string, unknown> | Promise<Record<string, unknown>>;
-
 /** Provided per calling extension (`perCaller`), which is how a type gets its caller's namespace. */
 export interface RecordsV1 {
-  registerType: <S extends z.ZodRawShape>(
-    name: string,
-    fields: S,
-    opts?: { version?: number; migrate?: Record<number, Migration> },
-  ) => Promise<RecordType<S>>;
+  registerType: <S extends z.ZodRawShape>(name: string, fields: S) => Promise<RecordType<S>>;
   /** A merged record's id reads as the one it was merged into; with `deleted`, the record itself,
    * a tombstone included. */
   get: <S extends z.ZodRawShape>(
@@ -125,8 +115,6 @@ export interface RecordsV1 {
     type: RecordType<S>,
     handler: (change: Rec<S>) => void,
   ) => Promise<Unsubscribe>;
-  /** Puts every record of the type back as it was at `version`, undoing later migrations. */
-  revert: (type: RecordType, version: number) => Promise<void>;
 }
 
 export const RecordRef = z.object({ type: z.string(), id: z.string() });

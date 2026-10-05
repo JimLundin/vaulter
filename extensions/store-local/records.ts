@@ -1,28 +1,19 @@
 // records@1 over store-local's own database (store.ts: IndexedDB in the browser). Keys:
 //   format                       the layout below, so a later store-local can tell what it reads
-//   t:<type>                     the type: its version now
+//   t:<type>                     the type, registered
 //   r:<type>:<id>                a record as it is now, a tombstone included
 //   h:<type>:<id>:<rev>          each earlier revision of it
 // Each value is checked and shaped by its type's own Zod, given at registration. Queries read a type's
 // records and filter in memory: plenty for one person's data. Changes to one record run one after
 // another (this page is the only one with the kernel), so an update always starts from the last.
-import type {
-  Filter,
-  Migration,
-  Query,
-  Range,
-  RecordsV1,
-  RecordType,
-  Stored,
-} from '@contracts/records';
+import type { Filter, Query, Range, RecordsV1, RecordType, Stored } from '@contracts/records';
 import { z } from 'zod';
 import type { Store } from './store.ts';
 
 export const FORMAT = 2;
 
-interface TypeEntry {
-  version: number;
-}
+/** What is kept of a type: that it was registered. */
+type TypeEntry = Record<string, never>;
 
 const words = (s: string) =>
   s
@@ -115,12 +106,12 @@ export function localRecords(storage: Store) {
       meta: { ...prior.meta, updated: stamp(), rev: prior.meta.rev + 1, ...meta },
     }) as Stored;
 
-  // Each type's Zod, by name and version, from its registration on this start.
+  // Each type's Zod, from its registration on this start.
   const zods = new Map<string, z.ZodType>();
-  /** `fields` checked and shaped by the type's Zod at `version`. */
-  const shape = (type: string, version: number, fields: unknown) => {
-    const zod = zods.get(`${type}@${version}`);
-    if (!zod) throw new Error(`${type} isn't registered at version ${version}`);
+  /** `fields` checked and shaped by the type's Zod. */
+  const shape = (type: string, fields: unknown) => {
+    const zod = zods.get(type);
+    if (!zod) throw new Error(`${type} isn't registered`);
     const r = zod.safeParse(fields);
     if (!r.success)
       throw new Error(
@@ -146,66 +137,13 @@ export function localRecords(storage: Store) {
       return (await storage.list<Stored>(`h:${t.name}:${id}:`)).map(([, r]) => r).reverse();
     };
 
-    const revert = async (t: RecordType, version: number) => {
-      const type = mine(t);
-      await typeOf(type);
-      for (const rec of await all(type)) {
-        if (rec.meta.v <= version) continue;
-        // The latest revision at that version; a record made since has none, and is put away.
-        // biome-ignore lint/performance/noAwaitInLoops: one record at a time
-        const earlier = (await history(t, rec.id)).find((h) => h.meta.v <= version);
-        await serial(`${type}:${rec.id}`, () =>
-          write(
-            type,
-            rec,
-            earlier
-              ? revise(rec, fieldsOf(earlier), {
-                  v: earlier.meta.v,
-                  deleted: earlier.meta.deleted,
-                })
-              : revise(rec, fieldsOf(rec), { deleted: rec.meta.deleted ?? stamp() }),
-          ),
-        );
-      }
-      await storage.set(`t:${type}`, { version } satisfies TypeEntry);
-    };
-
     const impl = {
-      async registerType(
-        name: string,
-        fields: z.ZodRawShape,
-        opts: { version?: number; migrate?: Record<number, Migration> } = {},
-      ): Promise<RecordType> {
+      async registerType(name: string, fields: z.ZodRawShape): Promise<RecordType> {
         const type = `${caller}/${name}`;
-        const version = opts.version ?? 1;
-        const handle: RecordType = { kind: 'record-type', name: type, version };
-        zods.set(`${type}@${version}`, z.object(fields));
+        zods.set(type, z.object(fields));
         await format;
-        const prior = await storage.get<TypeEntry>(`t:${type}`);
-        if (prior && prior.version > version) {
-          await revert(handle, version);
-          return handle;
-        }
-        if (prior && prior.version < version) {
-          // Every record up, one version at a time, each step a revision; the version is the new one
-          // only once every record has moved, so a migration cut short runs again.
-          for (const rec of await all(type)) {
-            if (rec.meta.v >= version) continue;
-            let data = fieldsOf(rec);
-            for (let v = rec.meta.v; v < version; v++) {
-              const up = opts.migrate?.[v];
-              if (!up) throw new Error(`${type}: no migration from version ${v}`);
-              // biome-ignore lint/performance/noAwaitInLoops: each step needs the one before
-              data = await up(data);
-            }
-            const next = shape(type, version, data);
-            await serial(`${type}:${rec.id}`, () =>
-              write(type, rec, revise(rec, next, { v: version })),
-            );
-          }
-        }
-        await storage.set(`t:${type}`, { version } satisfies TypeEntry);
-        return handle;
+        await storage.set(`t:${type}`, {} satisfies TypeEntry);
+        return { kind: 'record-type', name: type };
       },
 
       get,
@@ -252,9 +190,9 @@ export function localRecords(storage: Store) {
 
       async create(t: RecordType, value: Record<string, unknown>) {
         const type = mine(t);
-        const { version } = await typeOf(type);
+        await typeOf(type);
         const { id: asked, ...fields } = value as { id?: string } & Record<string, unknown>;
-        const data = shape(type, version, fields);
+        const data = shape(type, fields);
         const id = asked ?? crypto.randomUUID();
         return serial(`${type}:${id}`, async () => {
           if (await current(type, id)) throw new Error(`${type}: a record ${id} exists`);
@@ -262,7 +200,7 @@ export function localRecords(storage: Store) {
           return write(type, undefined, {
             ...data,
             id,
-            meta: { type, created: now, updated: now, v: version, rev: 1 },
+            meta: { type, created: now, updated: now, rev: 1 },
           } as Stored);
         });
       },
@@ -273,13 +211,12 @@ export function localRecords(storage: Store) {
         change: (current: Stored) => unknown | Promise<unknown>,
       ) {
         const type = mine(t);
-        const { version } = await typeOf(type);
+        await typeOf(type);
         const target = (await resolve(type, id))?.id ?? id;
         return serial(`${type}:${target}`, async () => {
           const prior = await current(type, target);
           if (!prior || prior.meta.deleted) throw new Error(`${type}: no record ${id}`);
-          const next = shape(type, version, await change(prior));
-          return write(type, prior, revise(prior, next, { v: version }));
+          return write(type, prior, revise(prior, shape(type, await change(prior))));
         });
       },
 
@@ -311,7 +248,7 @@ export function localRecords(storage: Store) {
 
       async merge(t: RecordType, keepId: string, mergeId: string) {
         const type = mine(t);
-        const { version } = await typeOf(type);
+        await typeOf(type);
         const [keep, merge] = await Promise.all([get(t, keepId), get(t, mergeId)]);
         if (!(keep && merge)) throw new Error(`${type}: both records must exist to merge`);
         if (keep.id === merge.id) throw new Error(`${type}: a record can't be merged into itself`);
@@ -325,7 +262,7 @@ export function localRecords(storage: Store) {
         });
         return serial(`${type}:${keep.id}`, async () => {
           const prior = (await current(type, keep.id))!;
-          const fields = shape(type, version, { ...fieldsOf(merge), ...fieldsOf(prior) });
+          const fields = shape(type, { ...fieldsOf(merge), ...fieldsOf(prior) });
           return write(type, prior, revise(prior, fields));
         });
       },
@@ -340,8 +277,6 @@ export function localRecords(storage: Store) {
           set.delete(handler);
         });
       },
-
-      revert,
     };
     return impl as unknown as RecordsV1;
   };
