@@ -69,33 +69,36 @@ export default defineConformance(records, [
     },
   },
   {
-    name: 'queries by field values and ranges, ordered by a field or when, up to a limit',
+    name: "queries by a field's value or range, ordered by a field or when, up to a limit",
     async run(r, expect) {
       const ev = await r.registerType('event', {
         n: z.number(),
         kind: z.string(),
-        tags: z.array(z.string()),
+        at: z.string().optional(),
       });
-      for (const [n, kind, tags] of [
-        [1, 'run', ['park']],
-        [2, 'swim', []],
-        [3, 'run', ['park', 'rain']],
+      for (const [n, kind, at] of [
+        [1, 'run', '2026-01-01'],
+        [2, 'swim', undefined],
+        [3, 'run', '2026-03-01'],
       ] as const)
-        await r.create(ev, { n, kind, tags: [...tags] });
+        await r.create(ev, { n, kind, ...(at ? { at } : {}) });
       expect((await r.query(ev)).map((x) => x.n)).toEqual([3, 2, 1]);
       expect((await r.query(ev, { where: { kind: 'run' }, order: 'asc' })).map((x) => x.n)).toEqual(
         [1, 3],
       );
       expect(
-        (await r.query(ev, { where: { n: { gte: 2 }, tags: { has: 'park' } } })).map((x) => x.n),
-      ).toEqual([3]);
-      expect(
-        (await r.query(ev, { where: { kind: { in: ['swim', 'yoga'] } } })).map((x) => x.n),
-      ).toEqual([2]);
+        (await r.query(ev, { where: { at: { gte: '2026-01-01', lt: '2026-02-01' } } })).map(
+          (x) => x.n,
+        ),
+      ).toEqual([1]);
       expect((await r.query(ev, { orderBy: 'n', order: 'asc', limit: 2 })).map((x) => x.n)).toEqual(
         [1, 2],
       );
-      expect(await r.query(ev, { created: { gte: '2999-01-01' } })).toEqual([]);
+      // Without the field ordered by: last, in either order.
+      expect((await r.query(ev, { orderBy: 'at' })).map((x) => x.n)).toEqual([3, 1, 2]);
+      expect((await r.query(ev, { orderBy: 'at', order: 'asc' })).map((x) => x.n)).toEqual([
+        1, 3, 2,
+      ]);
     },
   },
   {

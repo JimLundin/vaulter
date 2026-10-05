@@ -46,22 +46,12 @@ export type Input<S extends z.ZodRawShape> = z.input<z.ZodObject<S>>;
 export type Stored = { id: string; meta: Meta } & Record<string, unknown>;
 
 type Scalar = string | number | boolean | null;
-/** A range, on a field or on when records were created or changed. */
-export interface Range {
-  gt?: Scalar;
-  gte?: Scalar;
-  lt?: Scalar;
-  lte?: Scalar;
-}
-/** A top-level field: equal to a value, or matching every operator given (`has`: an array field
- * holding the value). Objects compare by value. */
-export type Filter = Scalar | (Range & { eq?: unknown; in?: unknown[]; has?: unknown });
+/** A top-level field: equal to a value, or from `gte` (included) to `lt` (not). */
+export type Filter = Scalar | { gte?: Scalar; lt?: Scalar };
 
 export interface Query {
   where?: Record<string, Filter>;
-  created?: Range;
-  updated?: Range;
-  /** A top-level field, or `created` or `updated` (the default). */
+  /** A top-level field, or `created` or `updated` (the default); records without it come last. */
   orderBy?: string;
   /** `desc` (the default): the latest first. */
   order?: 'asc' | 'desc';
@@ -86,7 +76,7 @@ export interface RecordsV1 {
   search: <S extends z.ZodRawShape>(
     types: RecordType<S>[],
     text: string,
-    opts?: { fields?: (keyof S & string)[]; limit?: number },
+    opts?: { fields?: (keyof S & string)[] },
   ) => Promise<Rec<S>[]>;
   /** A new record; with an `id`, refused if that id is taken. */
   create: <S extends z.ZodRawShape>(

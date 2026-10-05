@@ -6,7 +6,7 @@
 // Each value is checked and shaped by its type's own Zod, given at registration. Queries read a type's
 // records and filter in memory: plenty for one person's data. Changes to one record run one after
 // another (this page is the only one with the kernel), so an update always starts from the last.
-import type { Filter, Query, Range, RecordsV1, RecordType, Stored } from '@contracts/records';
+import type { Filter, Query, RecordsV1, RecordType, Stored } from '@contracts/records';
 import { z } from 'zod';
 import type { Store } from './store.ts';
 
@@ -21,22 +21,13 @@ const words = (s: string) =>
     .split(/[^\p{L}\p{N}]+/u)
     .filter(Boolean);
 
-const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
-
-const inRange = (v: unknown, r: Range) =>
-  v !== undefined &&
-  (r.gt === undefined || (v as never) > (r.gt as never)) &&
-  (r.gte === undefined || (v as never) >= (r.gte as never)) &&
-  (r.lt === undefined || (v as never) < (r.lt as never)) &&
-  (r.lte === undefined || (v as never) <= (r.lte as never));
-
 const matches = (v: unknown, f: Filter) => {
   if (f === null || typeof f !== 'object') return v === f;
-  if ('eq' in f && !same(v, f.eq)) return false;
-  if (f.in && !f.in.some((x) => same(v, x))) return false;
-  if ('has' in f && !(Array.isArray(v) && v.some((x) => same(x, f.has)))) return false;
-  const ranged = [f.gt, f.gte, f.lt, f.lte].some((x) => x !== undefined);
-  return !ranged || inRange(v, f);
+  if (v === undefined || v === null) return false;
+  return (
+    (f.gte == null || (v as never) >= (f.gte as never)) &&
+    (f.lt == null || (v as never) < (f.lt as never))
+  );
 };
 
 const fieldsOf = ({ id: _, meta: _m, ...fields }: Stored) => fields;
@@ -152,24 +143,23 @@ export function localRecords(storage: Store) {
         let out = (await all(t.name)).filter((r) => q.deleted || !r.meta.deleted);
         for (const [field, f] of Object.entries(q.where ?? {}))
           out = out.filter((r) => matches(r[field], f));
-        if (q.created) out = out.filter((r) => inRange(r.meta.created, q.created!));
-        if (q.updated) out = out.filter((r) => inRange(r.meta.updated, q.updated!));
         const by = q.orderBy ?? 'created';
         const key = (r: Stored) =>
-          by === 'created' || by === 'updated' ? r.meta[by] : (r[by] as string | number);
+          by === 'created' || by === 'updated'
+            ? r.meta[by]
+            : (r[by] as string | number | undefined);
+        const dir = q.order === 'asc' ? 1 : -1;
         out.sort((a, b) => {
           const [x, y] = [key(a), key(b)];
-          return x === y ? a.meta.created.localeCompare(b.meta.created) : x < y ? -1 : 1;
+          if (x === y) return dir * a.meta.created.localeCompare(b.meta.created);
+          if (x === undefined) return 1;
+          if (y === undefined) return -1;
+          return dir * (x < y ? -1 : 1);
         });
-        if (q.order !== 'asc') out.reverse();
         return out.slice(0, q.limit);
       },
 
-      async search(
-        types: RecordType[],
-        text: string,
-        opts: { fields?: string[]; limit?: number } = {},
-      ) {
+      async search(types: RecordType[], text: string, opts: { fields?: string[] } = {}) {
         const want = words(text);
         const found = (await Promise.all(types.map((t) => all(t.name))))
           .flat()
@@ -185,7 +175,7 @@ export function localRecords(storage: Store) {
           return want.every((w) => hay.includes(w));
         });
         hit.sort((a, b) => b.meta.created.localeCompare(a.meta.created));
-        return hit.slice(0, opts.limit);
+        return hit;
       },
 
       async create(t: RecordType, value: Record<string, unknown>) {
