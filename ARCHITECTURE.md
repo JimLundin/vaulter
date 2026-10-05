@@ -41,7 +41,7 @@ What remains are the jobs an extension can't do for itself:
 | Safe mode: a bare screen to switch branch, roll back or disable extensions | Recovery when a broken shell hides the app |
 | Provide the `kernel` contract: the extensions, their access, approvals, drafts and review | Only the kernel knows what it loaded and why; the screens for it are extensions |
 
-**Main is the page's own.** The page is built with every extension and contract on `main` as source text, and the kernel loads those: no repo, token or network is needed to start, and the app opens offline from the service worker alone. Under `npm run dev` they are the working tree. A source provider is an ordinary extension (`source-github`, providing `extensions.source@1`) that adds what needs git: trying a draft branch, pinning an older commit, writing drafts and merging them. Remove it and the app still runs, without drafts. When a device tries drafts or a pin, the kernel starts the source provider first, with what it requires, then loads the rest on top; moving to another git host means swapping this one provider.
+**Main is the page's own.** The page is built with every extension and contract on `main` as source text, and the kernel loads those: no repo, token or network is needed to start, and the app opens offline from the service worker alone. Under `npm run dev` they are the working tree. A source provider is an ordinary extension (`source-github`, providing `extensions.source@1`) that adds what needs git: trying a draft branch and pinning an older commit. Writing and accepting drafts come with the agent that writes them. Remove it and the app still runs, without drafts. When a device tries drafts or a pin, the kernel starts the source provider first, with what it requires, then loads the rest on top; moving to another git host means swapping this one provider.
 
 **Contracts are the central idea.** Extensions never depend on each other by name. They require a contract, such as `records@1`, and any installed extension that provides it satisfies them. Moving storage from IndexedDB to an embedded database, or the AI from OpenAI to another provider, means installing a different provider. A Git backup extension simply requires `notes@1` and `records@1`.
 
@@ -79,7 +79,7 @@ Values otherwise pass as they are, not copied: a React component, a Zod schema o
 
 **A contract is one interface.** The provider implements it and a requirer calls it; there is no adapter between them. The records provider is given each type's Zod at registration, so it names the type in its caller's namespace and checks every value itself. `agent.tools` hands the agent each tool as it was added, its Zod input included, which the agent turns into JSON Schema for the model and checks the model's arguments against.
 
-**Personal methods.** A contract can mark methods only a person may call: answering a question, approving, changing access, accepting a draft, setting a secret or unlocking the sealed ones. An extension wraps the event handlers of its own screen with `kernel.asPerson`; a person's tap or key there (a trusted event) lets that extension, and only it, make one personal call within a few seconds, while the browser still counts the gesture as recent (`src/kernel/presence.ts`). A second call needs a second tap. Vaulter's own extensions never pass: the one providing `agent@1`, and any extension whose author is Vaulter, are refused a personal call even right after a tap, so Vaulter can't approve its own proposals.
+**Personal methods.** A contract can mark methods only a person may call: answering a question, approving, changing access, setting a secret or unlocking the sealed ones. An extension wraps the event handlers of its own screen with `kernel.asPerson`; a person's tap or key there (a trusted event) lets that extension, and only it, make one personal call within a few seconds, while the browser still counts the gesture as recent (`src/kernel/presence.ts`). A second call needs a second tap. Vaulter's own extensions never pass: the one providing `agent@1`, and any extension whose author is Vaulter, are refused a personal call even right after a tap, so Vaulter can't approve its own proposals.
 
 **What every extension gets from the kernel** (the second argument to `setup`): its `id`, and `asPerson`, for the handlers of its own screen. Nothing else: the network with secrets is `net@1`'s (the secrets extension), and data is `records@1`'s. A per-caller provider is given each caller's id and static fields, which is how the secrets extension knows a caller's declared hosts and secrets. No storage: an extension keeps its data through `records@1`, whose provider owns where it goes (store-local: its own IndexedDB database; a git-backed one later). The kernel keeps only its own state (settings, trees, compiled output, its logs) in a database of its own, `vaulter-kernel`, because it needs it before any extension loads and safe mode needs it when none works.
 
@@ -169,9 +169,9 @@ The repo is where every extension lives, and every extension goes through the sa
 
 The code, compiler, loader and contracts are the same at every stage; only the branch changes. Because drafts live in git, they survive a cleared browser cache and appear on your other devices.
 
-- **Writing a draft** goes through `extensions.source@1`: one commit on a `draft/*` branch, only under `extensions/` and `contracts/`, never forced. The kernel is never written this way. Merging is personal, so only accepting a draft (a person, through the source provider's `merge`) reaches `main`, and main deploys with it.
+- **Writing a draft** is for now a `draft/*` branch pushed by hand. Vaulter writing them, and accepting one from the review screen, come with a focused extension for it: one commit on a `draft/*` branch, only under `extensions/` and `contracts/`, never forced, and accepting personal. Until then a draft is accepted by merging it on GitHub, and main deploys with it.
 - **Trying a draft** is per device (`kernel.tryDraft`, or safe mode): the device loads `main` with each tried draft's changed folders on top (`src/kernel/drafts.ts`).
-- **Reviewing a draft** compares the two trees and each changed extension's static fields, read by loading it, and lists in plain words what it newly asks for: a host, a device, a secret, or a powerful contract such as `kernel@1` or `extensions.source@1`. CI's checks on the draft's head come with it.
+- **Reviewing a draft** compares the two trees and each changed extension's static fields, read by loading it, and lists in plain words what it newly asks for: a host, a device, a secret, or a powerful contract such as `kernel@1`. CI's checks on the draft's head come with it.
 - **Rollback** is reverting the merge, or pinning the app to an earlier commit from safe mode, which needs the source provider.
 - **Boot** (`src/kernel/boot.ts`) goes from a device and the page's own extensions to a running kernel, or to safe mode with the reason: main from the page, or a pinned commit through the source provider; the tried drafts on top (offline, the trees this device last loaded for them); every extension planned and started; the `kernel` contract provided. The device is a browser (`start.ts` adds only the one-tab lock, the window's error listeners and the screens); tests boot the same way on a test device. Boot compiles each file once and caches the output by its git blob sha, which the page's files and a git host's trees share, so a new commit recompiles only what changed. If that gets slow, CI can publish compiled output beside the source.
 - **Offline,** the service worker serves the page and with it main; compiled output and the trees of tried drafts are in the kernel's own database, so the app opens without reaching GitHub.
@@ -193,7 +193,7 @@ Secrets are held by one extension, `secrets`, which provides `net@1`, never by t
 
 The deploy seals in a step of its own, after the install, so no dependency's script runs with the secrets in its environment. A new key: change the secret and deploy; devices pick it up on their next start. A new password or salt: devices ask once more.
 
-The two secrets to start: a GitHub fine-grained token limited to this one repo, with read and write access to contents, for the source provider (optional while the repo is public); and an OpenAI key, from a project with a spend limit, for the `openai` extension.
+The two secrets to start: a GitHub fine-grained token limited to this one repo, with read access to contents, for the source provider (optional while the repo is public); and an OpenAI key, from a project with a spend limit, for the `openai` extension.
 
 Live speech will fit the same model when voice is built: the `openai` extension asks `POST /v1/realtime/client_secrets` through `net.fetch`, which attaches your key, and hands a voice extension only the short-lived session key.
 
@@ -398,19 +398,19 @@ Three patterns repeat across these screens:
 **Build order.**
 
 1. Kernel with safe mode, the in-browser compiler and loader, and the handles. **Done**; the secret store and sealed secrets, first part of it, are the `secrets` extension since 2026-10-04.
-2. The source provider for GitHub. **Done**, with drafts: commit, merge and checks. (Main moved into the page on 2026-10-04: the provider is optional.)
+2. The source provider for GitHub. **Done** for reading drafts and older commits, and CI's checks; writing and merging drafts were taken out (2026-10-05) to come back with the agent that writes them. Main moved into the page on 2026-10-04: the provider is optional.
 3. Contract packages: `records`, `notes` and `questions` with conformance suites, `ai.chat`, `agent.tools`, `net` and `kernel`. **Done**, except `ui.shell`, which waits for the UI work. `ai.transcribe` and `ai.embed` were written and taken out again until voice or search needs them (they are in the history).
 4. Foundation extensions: `store-local`, `notes`, `openai` and `agent` (**done**); `shell-mobile` and `shell-desktop` wait for the UI work.
 5. Voice, Wiki and Questions, which together exercise nearly every contract. **Wiki and Questions done**; voice needs the UI (a microphone button) and the realtime spike.
 6. Today, Search and Map.
-7. The draft-branch flow, so Vaulter can write extensions. **The kernel's part is done**: trying drafts per device, review, accept; Vaulter's side belongs to the agent extension.
+7. The draft-branch flow, so Vaulter can write extensions. **The kernel's part is done**: trying drafts per device and reviewing them; writing and accepting them are a focused extension of their own, to come.
 
 The extensions so far, each tested with the others (`startRepo` in `src/kernel/testing.ts`):
 
 | Extension | Provides | Requires (optional) | Notes |
 | --- | --- | --- | --- |
 | `secrets` | `net@1` | | Holds secrets encrypted on the device, opens the page's sealed ones, attaches each only to its declared hosts |
-| `source-github` | `extensions.source@1` | (`net`) | Drafts, older commits and merges on GitHub; reads a public repo without a token |
+| `source-github` | `extensions.source@1` | (`net`) | Drafts and older commits on GitHub, and CI's checks; reads a public repo without a token |
 | `store-local` | `records@1` | | In its own IndexedDB database, with every revision kept and a format number for its layout; passes the records suite |
 | `notes` | `notes@1` | `records` | Append-only; lists by when a note was said |
 | `questions` | `questions@1` | `records` | Answers reach the asker's topic handler, also after a restart; answering is personal |

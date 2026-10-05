@@ -41,12 +41,11 @@ export const treeOf = (files: Record<string, string>, commit = 'test0000'): Tree
 export const REPO = 'o/r';
 
 /** A source over branches of files, each branch one commit: path → text. Set `offline` to make every
- * read of the repo fail, as with no network; `merge` and `checks` may be replaced. */
+ * read of the repo fail, as with no network; `checks` may be replaced. */
 export function testSource(branches: Record<string, Record<string, string>>) {
   const t = {
     branches,
     offline: false,
-    merged: [] as { base: string; head: string; message: string }[],
     source: undefined as unknown as SourceV1,
   };
   const reach = () => {
@@ -81,12 +80,6 @@ export function testSource(branches: Record<string, Record<string, string>>) {
       throw new Error(`no ${path} at ${sha}`);
     },
     refs: async () => Object.keys(t.branches),
-    commit: () => Promise.reject(new Error('the test source does not take commits')),
-    merge: async (_repo, base, head, message) => {
-      t.merged.push({ base, head, message });
-      t.branches[base] = { ...t.branches[base], ...t.branches[head] };
-      return commitOf(base);
-    },
     checks: async () => ({ state: 'none', runs: [] }),
   };
   return t;

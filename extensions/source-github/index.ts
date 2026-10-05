@@ -1,6 +1,7 @@
-// The bootstrap source provider: reads extensions/ and contracts/ from a GitHub repo at a commit, and
-// writes Vaulter's drafts. It ships inside the kernel bundle (the only extension that does) and is compiled
-// and loaded like any other. The token is optional for reading a public repo, at GitHub's lower rate limit.
+// The source provider for GitHub: reads extensions/ and contracts/ from the repo at a commit, for the
+// drafts a device tries and a pinned commit (main is the page's own), and CI's checks on a commit. The
+// token is optional for a public repo, at GitHub's lower rate limit. Writing drafts comes with the
+// agent that writes them.
 import { defineExtension } from '@vaulter/kernel';
 import { type Checks, source } from '@contracts/extensions.source';
 import { net } from '@contracts/net';
@@ -18,46 +19,25 @@ export default defineExtension({
   optional: { net },
   secrets: {
     token: {
-      label: 'GitHub token: fine-grained, this repo only, Contents read and write',
+      label: 'GitHub token: fine-grained, this repo only, Contents read',
       hosts: ['api.github.com'],
     },
   },
-  agentGuide: 'Reads and writes extension source on GitHub. Vaulter writes drafts through it.',
+  agentGuide: 'Reads extension source on GitHub: drafts and older commits. Vaulter never needs it.',
   setup({ net }) {
-    const call = async (
-      path: string,
-      init: { method?: string; body?: unknown; accept?: string } = {},
-    ) => {
+    const ok = async (path: string, accept = 'application/vnd.github+json') => {
       const secret = (await net?.hasSecret('token')) ? 'token' : undefined;
-      return (net?.fetch ?? fetch)(`${API}${path}`, {
-        method: init.method,
-        headers: {
-          Accept: init.accept ?? 'application/vnd.github+json',
-          'X-GitHub-Api-Version': '2022-11-28',
-          ...(init.body ? { 'Content-Type': 'application/json' } : {}),
-        },
-        body: init.body === undefined ? undefined : JSON.stringify(init.body),
+      const r = await (net?.fetch ?? fetch)(`${API}${path}`, {
+        headers: { Accept: accept, 'X-GitHub-Api-Version': '2022-11-28' },
         secret,
       });
-    };
-    const ok = async (path: string, init?: Parameters<typeof call>[1]) => {
-      const r = await call(path, init);
-      if (!r.ok) throw new Error(`GitHub ${r.status} for ${init?.method ?? 'GET'} ${path}`);
+      if (!r.ok) throw new Error(`GitHub ${r.status} for ${path}`);
       return r;
     };
-    const json = async <T>(path: string, init?: Parameters<typeof call>[1]) =>
-      (await (await ok(path, init)).json()) as T;
-    const refSha = async (repo: string, branch: string) => {
-      const r = await call(`/repos/${repo}/git/ref/heads/${branch}`);
-      if (r.status === 404) return null;
-      if (!r.ok) throw new Error(`GitHub ${r.status} reading ${branch}`);
-      return ((await r.json()) as { object: { sha: string } }).object.sha;
-    };
+    const json = async <T>(path: string) => (await (await ok(path)).json()) as T;
     const head = async (repo: string, ref: string) =>
       (
-        await ok(`/repos/${repo}/commits/${encodeURIComponent(ref)}`, {
-          accept: 'application/vnd.github.sha',
-        })
+        await ok(`/repos/${repo}/commits/${encodeURIComponent(ref)}`, 'application/vnd.github.sha')
       ).text();
 
     return {
@@ -74,77 +54,11 @@ export default defineExtension({
             .map(({ path, sha }) => ({ path, sha }));
         },
         read: async (repo, _path, sha) =>
-          (
-            await ok(`/repos/${repo}/git/blobs/${sha}`, { accept: 'application/vnd.github.raw' })
-          ).text(),
+          (await ok(`/repos/${repo}/git/blobs/${sha}`, 'application/vnd.github.raw')).text(),
         refs: async (repo) =>
           (await json<{ name: string }[]>(`/repos/${repo}/branches?per_page=100`)).map(
             (b) => b.name,
           ),
-
-        async commit(repo, change) {
-          // Vaulter writes drafts: on a draft branch, and never the kernel or anything else outside these.
-          if (!/^draft\/[\w.-]+$/.test(change.branch))
-            throw new Error(`${change.branch} is not a draft branch (draft/<name>)`);
-          const outside = change.files.filter((f) => !ours(f.path)).map((f) => f.path);
-          if (outside.length)
-            throw new Error(
-              `only extensions/ and contracts/ can be written: ${outside.join(', ')}`,
-            );
-          const existing = await refSha(repo, change.branch);
-          const parent = existing ?? (await head(repo, change.base ?? 'main'));
-          if (change.parent && existing && existing !== change.parent)
-            throw new Error(`${change.branch} moved since ${change.parent.slice(0, 7)}`);
-          const base = await json<{ tree: { sha: string } }>(
-            `/repos/${repo}/git/commits/${parent}`,
-          );
-          const entries = await Promise.all(
-            change.files.map(async (f) => ({
-              path: f.path,
-              mode: '100644',
-              type: 'blob',
-              sha:
-                f.content === null
-                  ? null
-                  : (
-                      await json<{ sha: string }>(`/repos/${repo}/git/blobs`, {
-                        method: 'POST',
-                        body: { content: f.content, encoding: 'utf-8' },
-                      })
-                    ).sha,
-            })),
-          );
-          const tree = await json<{ sha: string }>(`/repos/${repo}/git/trees`, {
-            method: 'POST',
-            body: { base_tree: base.tree.sha, tree: entries },
-          });
-          const commit = await json<{ sha: string }>(`/repos/${repo}/git/commits`, {
-            method: 'POST',
-            body: { message: change.message, tree: tree.sha, parents: [parent] },
-          });
-          if (existing)
-            await ok(`/repos/${repo}/git/refs/heads/${change.branch}`, {
-              method: 'PATCH',
-              body: { sha: commit.sha, force: false },
-            });
-          else
-            await ok(`/repos/${repo}/git/refs`, {
-              method: 'POST',
-              body: { ref: `refs/heads/${change.branch}`, sha: commit.sha },
-            });
-          return commit.sha;
-        },
-
-        async merge(repo, base, headRef, message) {
-          const r = await call(`/repos/${repo}/merges`, {
-            method: 'POST',
-            body: { base, head: headRef, commit_message: message },
-          });
-          if (r.status === 204) return head(repo, base);
-          if (r.status === 409) throw new Error(`${headRef} conflicts with ${base}`);
-          if (!r.ok) throw new Error(`GitHub ${r.status} merging ${headRef}`);
-          return ((await r.json()) as { sha: string }).sha;
-        },
 
         async checks(repo, commit): Promise<Checks> {
           const { check_runs: runs } = await json<{

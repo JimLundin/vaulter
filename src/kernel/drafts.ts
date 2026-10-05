@@ -53,10 +53,9 @@ export const summary = (s: Statics): StaticsSummary => ({
   author: s.author,
 });
 
-/** Contracts that let an extension change Vaulter itself or the repo. */
+/** Contracts that let an extension change Vaulter itself. */
 const POWERFUL: Record<string, string> = {
   'kernel@1': 'manage extensions, access and approvals',
-  'extensions.source@1': 'write draft extensions to the repo',
 };
 
 /** What `after` may do that `before` couldn't. */
