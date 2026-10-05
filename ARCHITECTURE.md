@@ -70,7 +70,7 @@ What is left are the jobs no extension can do for itself (`src/kernel`, under 30
 | Keep this device's choices of what is on, in `localStorage`; `?reset` forgets them | A preview that breaks the shell would otherwise leave no way back |
 | Remove an extension: every running extension's `forget(id)`, then off | Only the kernel knows every extension that exports one |
 | Trace an error to the extension whose code threw it (`errors.ts`) | By the stack: in the build each extension is a chunk of its own, `assets/ext/<id>.<hash>.js`; in dev and tests its files are `extensions/<id>/…` |
-| One tab at a time (`single-tab.ts`) | Two tabs over one IndexedDB would each miss the other's changes, and records' one-change-at-a-time per record holds only within a tab |
+| One tab at a time (`single-tab.ts`): the first holds a Web Lock while it is open, and another says Vaulter is open elsewhere | Two tabs over one IndexedDB would each miss the other's changes, and records' one-change-at-a-time per record holds only within a tab |
 | Hand the page to the shell, or say there is none | Before any screen exists |
 
 Extensions use the kernel as `#kernel`: `extensions()`, `running()` (each running extension's `about` and exports: how the agent finds every extension's tools), `started` (once everything that is on has started), `setEnabled`, `remove` and `errorsOf`.
@@ -79,7 +79,7 @@ Extensions use the kernel as `#kernel`: `extensions()`, `running()` (each runnin
 
 **Running in the page.** Every extension runs in the page, with one copy of each module. There is no sandbox, and nothing pretends to be one: an extension can reach anything in the page, secrets included. What keeps bad code out is review before it reaches `main`. An earlier version gave every extension its own opaque-origin iframe, and a later one routed every call through kernel handles that checked callers, guarded tools and gated personal calls; both were dropped, for isolation this app doesn't need. If isolating untrusted code ever matters, the way is WebAssembly modules.
 
-**Starting again is the page's job.** Nothing stops one extension at a time. Turning an extension on or off, or removing one, saves the change and reloads the page. A tab that hands Vaulter over reloads into the waiting screen.
+**Starting again is the page's job.** Nothing stops one extension at a time. Turning an extension on or off, or removing one, saves the change and reloads the page.
 
 ## How Vaulter uses extensions
 
@@ -184,7 +184,7 @@ Three patterns repeat across these screens:
 | Direct browser calls to OpenAI | Confirmed working in your trial project; no proxy. |
 | Offline | Not a goal: Vaulter is an agent, and its data is to follow you across devices. No service worker. |
 | Errors | Kept per extension, for this run, by the stack. |
-| Several tabs | One kernel at a time, by a Web Lock; another tab takes over on request. |
+| Several tabs | One at a time, by a Web Lock: another tab says Vaulter is open elsewhere. Installed as an app later, there is one window anyway. |
 
 **Build order.**
 

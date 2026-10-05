@@ -1,25 +1,7 @@
 import { expect, it } from 'vitest';
-import { singleTab } from '../../src/kernel/single-tab.ts';
+import { claim } from '../../src/kernel/single-tab.ts';
 
-const deps = () => ({
-  locks: navigator.locks,
-  channel: () => new BroadcastChannel('vaulter-kernel-test'),
-});
-
-it('lets one tab have the kernel, and hands it over when another asks', async () => {
-  const first = singleTab(deps());
-  const second = singleTab(deps());
-  expect(await first.claim()).toBe(true);
-  expect(await second.claim()).toBe(false);
-
-  const order: string[] = [];
-  first.onTakeOver(() => {
-    order.push('first stops');
-  });
-  await second.takeOver();
-  order.push('second has it');
-  expect(order).toEqual(['first stops', 'second has it']);
-  expect(await singleTab(deps()).claim()).toBe(false);
-  first.close();
-  second.close();
+it('lets one tab have Vaulter, and no other while it is open', async () => {
+  expect(await claim()).toBe(true);
+  expect(await claim()).toBe(false);
 });
