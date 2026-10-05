@@ -20,7 +20,7 @@ const brief = (e: {
   summary: e.summary,
 });
 
-export async function addTools(tools: AgentToolsV1, wiki: Omit<WikiV1, 'onChanged'>) {
+export async function addTools(tools: AgentToolsV1, wiki: WikiV1) {
   const add = [
     tools.add({
       name: 'findPages',

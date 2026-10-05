@@ -21,9 +21,6 @@ const Host = z
 export const SecretSpec = z.object({
   label: z.string().min(1),
   hosts: z.array(Host).min(1),
-  /** The header it goes in, and what comes before the value. */
-  header: z.string().default('Authorization'),
-  prefix: z.string().default('Bearer '),
 });
 export type SecretSpec = z.infer<typeof SecretSpec>;
 

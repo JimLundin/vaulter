@@ -2,6 +2,7 @@
 // approvals need (ARCHITECTURE.md, "UI for extensions"). The kernel provides it; an extension that
 // requires it shows that in its static fields, and every change it can make is personal: only a person
 // can make it, right after a tap or key in that extension.
+import type { Checks } from '@contracts/extensions.source';
 import { type Access, defineContract } from '@vaulter/kernel';
 
 export type { Access };
@@ -105,10 +106,7 @@ export interface Review {
     raises: string[];
     problems: string[];
   }[];
-  checks: {
-    state: 'none' | 'pending' | 'success' | 'failure';
-    runs: { name: string; state: string }[];
-  };
+  checks: Checks;
 }
 
 export interface KernelV1 {

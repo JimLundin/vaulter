@@ -41,7 +41,7 @@ const RESPONSE = {
   usage: { input_tokens: 12, output_tokens: 7 },
 };
 
-it('speaks the Responses and realtime APIs, with the key attached by the kernel', async () => {
+it('speaks the Responses and realtime APIs, with the key attached by the secrets extension', async () => {
   const seen: { url: string; auth: string | null; body: unknown }[] = [];
   const fetchImpl = (async (url: string, init?: RequestInit) => {
     const raw = init?.body;

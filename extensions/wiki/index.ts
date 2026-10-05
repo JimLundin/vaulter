@@ -9,7 +9,7 @@ import { notes } from '@contracts/notes';
 import { questions } from '@contracts/questions';
 import { records } from '@contracts/records';
 import { type WikiV1, wiki } from '@contracts/wiki';
-import { KINDS, pages, registerTypes } from './pages.ts';
+import { pages, registerTypes } from './pages.ts';
 import { reviser } from './revise.ts';
 import { addTools } from './tools.ts';
 
@@ -43,20 +43,7 @@ export default defineExtension({
       await questions?.handle('revise', (answer, q) => r.answered(answer.choice, q.data));
     }
 
-    const full: WikiV1 = {
-      ...api,
-      revise,
-      async onChanged(handler) {
-        const stops = await Promise.all(
-          KINDS.map((k) =>
-            records.onChanged(types[k], (c) => handler({ type: c.meta.type, id: c.id })),
-          ),
-        );
-        return () => {
-          for (const s of stops) s();
-        };
-      },
-    };
+    const full: WikiV1 = { ...api, revise };
     if (agentTools) await addTools(agentTools, full);
     return { wiki: full };
   },

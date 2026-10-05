@@ -62,7 +62,7 @@ export function candidates(note: string, pages: Entity[], max = 60): Entity[] {
 }
 
 export interface ReviseDeps {
-  wiki: Omit<WikiV1, 'revise' | 'onChanged'>;
+  wiki: Omit<WikiV1, 'revise'>;
   all: () => Promise<Entity[]>;
   chat: ChatV1;
   questions?: QuestionsV1;

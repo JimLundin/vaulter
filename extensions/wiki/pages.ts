@@ -1,16 +1,9 @@
 // The wiki's pages as records: one record type per kind, facts kept on the page with the notes they
 // came from. Everything here is what wiki@1 offers besides revising.
 import type { RecordRef, RecordsV1, RecordType, Stored } from '@contracts/records';
-import {
-  type Entity,
-  fields,
-  type Kind,
-  NewEntity,
-  type WikiTypes,
-  type WikiV1,
-} from '@contracts/wiki';
+import { type Entity, fields, Kind, NewEntity, type WikiV1 } from '@contracts/wiki';
 
-export const KINDS = ['person', 'place', 'event', 'topic'] as const;
+export const KINDS = Kind.options;
 
 export type Types = { [K in Kind]: RecordType<(typeof fields)[K]> };
 
@@ -55,7 +48,6 @@ export function pages(records: RecordsV1, types: Types) {
   /** The page changed by `change`, which gets it as it is now: a change made meanwhile isn't lost.
    * What isn't one of the kind's fields (id, kind, dates) is left out by the type's Zod. */
   const change = async (ref: RecordRef, f: (e: Entity) => Partial<Entity>) => {
-    await must(ref);
     const rec = await records.update(typeOf(ref), ref.id, (cur) => {
       const e = entity(cur);
       return { ...e, ...f(e) } as never;
@@ -64,8 +56,7 @@ export function pages(records: RecordsV1, types: Types) {
   };
   const refOf = (e: Entity): RecordRef => ({ type: e.type, id: e.id });
 
-  const api: Omit<WikiV1, 'revise' | 'onChanged'> = {
-    types: () => Promise.resolve(types as unknown as WikiTypes),
+  const api: Omit<WikiV1, 'revise'> = {
     async find(text, kinds = [...KINDS]) {
       const found = await records.search(kinds.map((k) => types[k]) as RecordType[], text, {
         fields: ['name', 'aliases', 'summary'],
@@ -137,5 +128,5 @@ export function pages(records: RecordsV1, types: Types) {
     citing: async (noteId) =>
       (await all()).filter((e) => e.facts.some((f) => f.sources.includes(noteId))),
   };
-  return { api, all, refOf, kindOf };
+  return { api, all };
 }

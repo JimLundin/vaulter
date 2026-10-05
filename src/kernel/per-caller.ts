@@ -1,7 +1,7 @@
 // A provider whose implementation depends on who calls it, such as storage namespaced by extension:
 // `make` runs once for each extension that requires the contract, with that extension's id and its
 // static fields (what it declared: its secrets and hosts, its permissions). `forget`
-// drops what a caller stored, when it is removed or when a check's caller is dropped.
+// drops what a caller stored when it is removed (and, in CI, after each conformance check).
 import type { Statics } from './extension.ts';
 
 const PER_CALLER = Symbol.for('vaulter.perCaller');

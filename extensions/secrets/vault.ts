@@ -95,7 +95,7 @@ export function fetcher(
         throw new Error(`${ext.id}: the secret "${secret}" is not for ${u.hostname}`);
       const value = await secrets.reveal(ext.id, secret);
       if (value === undefined) throw new Error(`${ext.id}: the secret "${secret}" is not set`);
-      headers.set(spec.header, spec.prefix + value);
+      headers.set('Authorization', `Bearer ${value}`);
     }
     // No credentials or referrer from the app's own origin ride along, and no redirect elsewhere.
     return fetchImpl(u.href, {

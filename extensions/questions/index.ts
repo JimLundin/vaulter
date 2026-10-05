@@ -101,7 +101,6 @@ export default defineExtension({
       },
       async answer(id, input) {
         const answer = Answer.parse(input);
-        if (!(await records.get(question, id))) throw new Error('that question is not open');
         const saved = await update(id, (q) => {
           if (q.status !== 'open') throw new Error('that question is not open');
           if (answer.choice !== undefined && !q.choices?.some((c) => c.id === answer.choice))
@@ -114,7 +113,6 @@ export default defineExtension({
         await deliver(saved);
       },
       async dismiss(id) {
-        if (!(await records.get(question, id))) throw new Error('that question is not open');
         await update(id, (q) => {
           if (q.status !== 'open') throw new Error('that question is not open');
           return { status: 'dismissed' };

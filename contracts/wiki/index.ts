@@ -1,12 +1,9 @@
 // The wiki: curated pages about people, places, events and topics, built from notes. Every fact cites
 // the notes it came from, so a page can always be checked against what was said, and rebuilt from it.
-// Each kind is a record type (handles from `types()`), read with records@1 like any other. They are
-// meant to grow: a new field is a new version of the type, with a migration (records@1).
+// Each kind is a record type of the wiki's, kept through records@1.
 import { defineContract } from '@vaulter/kernel';
 import { z } from 'zod';
 import { RecordRef } from '@contracts/records';
-
-export type Unsubscribe = () => void;
 
 export const Kind = z.enum(['person', 'place', 'event', 'topic']);
 export type Kind = z.infer<typeof Kind>;
@@ -66,13 +63,6 @@ export interface Entity {
   [field: string]: unknown;
 }
 
-export interface WikiTypes {
-  person: { kind: 'record-type'; name: string; version: number };
-  place: WikiTypes['person'];
-  event: WikiTypes['person'];
-  topic: WikiTypes['person'];
-}
-
 export interface Revision {
   note: string;
   created: RecordRef[];
@@ -90,8 +80,6 @@ export const NewEntity = z
   .catchall(z.unknown());
 
 export interface WikiV1 {
-  /** The record types, to read the wiki with records@1 or to refer to (refTo(types.place)). */
-  types: () => Promise<WikiTypes>;
   /** Pages whose name, aliases or summary contain every word of `text`. */
   find: (text: string, kinds?: Kind[]) => Promise<Entity[]>;
   get: (ref: RecordRef) => Promise<Entity | undefined>;
@@ -109,7 +97,6 @@ export interface WikiV1 {
   citing: (noteId: string) => Promise<Entity[]>;
   /** Revises the pages a note touches (as happens on its own when a note is appended, with a model). */
   revise: (noteId: string) => Promise<Revision>;
-  onChanged: (handler: (ref: RecordRef) => void) => Promise<Unsubscribe>;
 }
 
 export const wiki = defineContract<WikiV1>({

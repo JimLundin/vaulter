@@ -64,9 +64,6 @@ export function unsealer(keep: Store, secrets: Vault) {
       locked = false;
     },
 
-    /** Forget the kept key: the next sealed file asks for the password again. */
-    forgetKey: () => keep.delete('sealed:key'),
-
     present: () => file !== null,
     /** The page has sealed secrets this device hasn't opened. */
     locked: () => locked,
