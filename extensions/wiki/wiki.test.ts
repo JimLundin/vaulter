@@ -65,11 +65,15 @@ it('revises pages from notes, cites every fact, asks when unsure, and gives Vaul
   const questions = use<QuestionsV1>(kernel, 'questions');
 
   const n1 = await notes.append({ text: 'Lunch with Ada at Café Lumière' });
-  await vi.waitFor(async () => expect(await wiki.find('Ada', ['person'])).toHaveLength(1), {
-    timeout: 2000,
-  });
+  // The revision runs on its own once the note is appended: wait for it to have written the page.
+  await vi.waitFor(
+    async () =>
+      expect(await wiki.find('Ada', ['person'])).toMatchObject([
+        { kind: 'person', name: 'Ada', summary: 'A friend.' },
+      ]),
+    { timeout: 2000 },
+  );
   const [ada] = await wiki.find('Ada', ['person']);
-  expect(ada).toMatchObject({ kind: 'person', name: 'Ada', summary: 'A friend.' });
   expect(ada.facts.map((f) => [f.text, f.sources])).toEqual([
     ['Had lunch at Café Lumière', [n1.id]],
   ]);
