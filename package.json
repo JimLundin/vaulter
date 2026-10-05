@@ -1,33 +1,33 @@
 {
-  "name": "vaulter",
-  "private": true,
-  "type": "module",
-  "imports": {
-    "#kernel": "./src/kernel/api.ts",
-    "#extensions/*": "./extensions/*/index.ts"
-  },
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
-    "test": "vitest run",
-    "typecheck": "tsc",
-    "lint": "biome ci .",
-    "format": "biome check --write ."
-  },
-  "dependencies": {
-    "react": "^19.3.0",
-    "react-dom": "^19.3.0",
-    "zod": "^4.6.5"
-  },
-  "devDependencies": {
-    "@biomejs/biome": "2.5.15",
-    "@types/node": "^24.19.1",
-    "@types/react": "^19.3.0",
-    "@types/react-dom": "^19.3.0",
-    "fake-indexeddb": "^6.2.5",
-    "typescript": "^7.0.2",
-    "vite": "^8.3.2",
-    "vitest": "^5.0.3"
-  }
+    "name": "vaulter",
+    "private": true,
+    "type": "module",
+    "imports": {
+        "#kernel": "./src/kernel/api.ts",
+        "#extensions/*": "./extensions/*/index.ts"
+    },
+    "scripts": {
+        "dev": "vite",
+        "build": "vite build",
+        "preview": "vite preview",
+        "test": "vitest run",
+        "typecheck": "tsc",
+        "lint": "biome ci .",
+        "format": "biome check --write ."
+    },
+    "dependencies": {
+        "react": "^19.3.0",
+        "react-dom": "^19.3.0",
+        "zod": "^4.6.5"
+    },
+    "devDependencies": {
+        "@biomejs/biome": "2.5.15",
+        "@types/node": "^24.19.1",
+        "@types/react": "^19.3.0",
+        "@types/react-dom": "^19.3.0",
+        "fake-indexeddb": "^6.2.5",
+        "typescript": "^7.0.2",
+        "vite": "^8.3.2",
+        "vitest": "^5.0.3"
+    }
 }

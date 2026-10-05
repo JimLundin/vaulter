@@ -3,18 +3,18 @@
 import { start } from './kernel/start.ts';
 
 const folders = import.meta.glob<Record<string, unknown>>(
-  '../extensions/*/index.ts',
+    '../extensions/*/index.ts',
 );
 
 function idOf(path: string) {
-  return path.split('/').at(-2) ?? path;
+    return path.split('/').at(-2) ?? path;
 }
 
 void start(
-  Object.fromEntries(
-    Object.entries(folders).map(([path, importModule]) => [
-      idOf(path),
-      importModule,
-    ]),
-  ),
+    Object.fromEntries(
+        Object.entries(folders).map(([path, importModule]) => [
+            idOf(path),
+            importModule,
+        ]),
+    ),
 );

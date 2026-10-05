@@ -7,12 +7,12 @@ export type Unsubscribe = () => void;
 
 /** `value` without `keys`. */
 export function omit<T extends object, K extends keyof T>(
-  value: T,
-  ...keys: K[]
+    value: T,
+    ...keys: K[]
 ): Omit<T, K> {
-  const rest = { ...value };
-  for (const key of keys) {
-    delete rest[key];
-  }
-  return rest;
+    const rest = { ...value };
+    for (const key of keys) {
+        delete rest[key];
+    }
+    return rest;
 }

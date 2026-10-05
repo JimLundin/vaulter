@@ -4,26 +4,29 @@
 import type { z } from 'zod';
 
 export interface AskRequest {
-  prompt: string;
+    prompt: string;
 }
 
 /** A tool call Vaulter made, with what came of it. */
 export interface Step {
-  extension: string;
-  tool: string;
-  input: unknown;
-  output?: unknown;
-  error?: string;
+    extension: string;
+    tool: string;
+    input: unknown;
+    output?: unknown;
+    error?: string;
 }
 
 export interface Answer {
-  text: string;
-  steps: Step[];
-  usage: { input: number; output: number };
+    text: string;
+    steps: Step[];
+    usage: { input: number; output: number };
 }
 
 export interface Agent {
-  ask: (request: AskRequest, onStep?: (step: Step) => void) => Promise<Answer>;
+    ask: (
+        request: AskRequest,
+        onStep?: (step: Step) => void,
+    ) => Promise<Answer>;
 }
 
 /**
@@ -37,13 +40,13 @@ export type Access = 'read' | 'write' | 'ask';
 /** What an extension lets Vaulter do. An extension exports its tools as
  * `tools`. */
 export interface Tool<I> {
-  /** Unique within the extension, such as "findPages". Letters, digits and
-   * single underscores. */
-  name: string;
-  /** For the model: what it does, and when to use it. */
-  description: string;
-  access: Access;
-  /** What the model must send. It is checked before `run`. */
-  input: z.ZodType<I>;
-  run: (input: I) => unknown;
+    /** Unique within the extension, such as "findPages". Letters, digits and
+     * single underscores. */
+    name: string;
+    /** For the model: what it does, and when to use it. */
+    description: string;
+    access: Access;
+    /** What the model must send. It is checked before `run`. */
+    input: z.ZodType<I>;
+    run: (input: I) => unknown;
 }

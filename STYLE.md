@@ -1,6 +1,6 @@
 # Style
 
-Biome formats and lints (`npm run format`, `npm run lint`): 80 columns, 2 spaces, single quotes,
+Biome formats and lints (`npm run format`, `npm run lint`): 80 columns, 4 spaces, single quotes,
 semicolons, trailing commas, braces on every body. This page is what it can't check. More lines are
 fine when they make the code easier to read.
 

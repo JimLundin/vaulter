@@ -9,28 +9,28 @@ import { isSealedFile, keyFor, open, type SealedFile } from './sealed.ts';
 /** The key this device derived from the password. It can't be exported,
  * and opens every later deploy sealed with the same salt. */
 interface KeptKey {
-  salt: string;
-  iterations: number;
-  key: CryptoKey;
+    salt: string;
+    iterations: number;
+    key: CryptoKey;
 }
 
 const store = idbStore('secrets');
 
 async function readSealedFile() {
-  const url = new URL('secrets.json', location.href);
-  const response = await fetch(url, { cache: 'no-cache' });
-  const file: unknown = await response.json();
-  return isSealedFile(file) ? file : null;
+    const url = new URL('secrets.json', location.href);
+    const response = await fetch(url, { cache: 'no-cache' });
+    const file: unknown = await response.json();
+    return isSealedFile(file) ? file : null;
 }
 
 async function openWithKeptKey(file: SealedFile) {
-  const kept = await store.get<KeptKey>('key');
-  const fits =
-    kept?.salt === file.kdf.salt && kept.iterations === file.kdf.iterations;
-  if (!fits) {
-    return null;
-  }
-  return await open(kept.key, file).catch(() => null);
+    const kept = await store.get<KeptKey>('key');
+    const fits =
+        kept?.salt === file.kdf.salt && kept.iterations === file.kdf.iterations;
+    if (!fits) {
+        return null;
+    }
+    return await open(kept.key, file).catch(() => null);
 }
 
 const file = await readSealedFile().catch(() => null);
@@ -38,36 +38,36 @@ const file = await readSealedFile().catch(() => null);
 let opened: Record<string, string> = {};
 
 if (file) {
-  const values = await openWithKeptKey(file);
-  if (values) {
-    opened = values;
-  } else if (typeof document !== 'undefined') {
-    unlockDialog(unlock);
-  }
+    const values = await openWithKeptKey(file);
+    if (values) {
+        opened = values;
+    } else if (typeof document !== 'undefined') {
+        unlockDialog(unlock);
+    }
 }
 
 /** Opens the page's sealed secrets with the password, and keeps the key on
  * this device. */
 export async function unlock(password: string) {
-  if (!file) {
-    throw new Error('this page has no sealed secrets');
-  }
-  const key = await keyFor(password, file.kdf);
-  try {
-    opened = await open(key, file);
-  } catch (cause) {
-    throw new Error('that password does not open the secrets', { cause });
-  }
-  const kept: KeptKey = {
-    salt: file.kdf.salt,
-    iterations: file.kdf.iterations,
-    key,
-  };
-  await store.set('key', kept);
+    if (!file) {
+        throw new Error('this page has no sealed secrets');
+    }
+    const key = await keyFor(password, file.kdf);
+    try {
+        opened = await open(key, file);
+    } catch (cause) {
+        throw new Error('that password does not open the secrets', { cause });
+    }
+    const kept: KeptKey = {
+        salt: file.kdf.salt,
+        iterations: file.kdf.iterations,
+        key,
+    };
+    await store.set('key', kept);
 }
 
 /** A secret by its name in the sealed file, such as "openai/key", once
  * this device has opened it. */
 export function secret(name: string): string | undefined {
-  return opened[name];
+    return opened[name];
 }

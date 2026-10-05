@@ -19,37 +19,37 @@ let queue: Promise<unknown> = Promise.resolve();
 
 /** Revises a note after the one before, in the order the notes came. */
 function reviseInTurn(noteId: string) {
-  const next = queue.then(async () => {
-    const note = await notes.get(noteId);
-    if (!note) {
-      throw new Error(`no note ${noteId}`);
-    }
-    return revise(note);
-  });
-  queue = next.catch(() => undefined);
-  return next;
+    const next = queue.then(async () => {
+        const note = await notes.get(noteId);
+        if (!note) {
+            throw new Error(`no note ${noteId}`);
+        }
+        return revise(note);
+    });
+    queue = next.catch(() => undefined);
+    return next;
 }
 
 async function attempt(noteId: string) {
-  try {
-    await reviseInTurn(noteId);
-    await unrevised.delete(noteId);
-  } catch (error) {
-    const reason = (error as Error).message;
-    if (await unrevised.get(noteId)) {
-      await unrevised.update(noteId, () => ({ error: reason }));
-    } else {
-      await unrevised.create({ id: noteId, error: reason });
+    try {
+        await reviseInTurn(noteId);
+        await unrevised.delete(noteId);
+    } catch (error) {
+        const reason = (error as Error).message;
+        if (await unrevised.get(noteId)) {
+            await unrevised.update(noteId, () => ({ error: reason }));
+        } else {
+            await unrevised.create({ id: noteId, error: reason });
+        }
     }
-  }
 }
 
 notes.onAppended((note) => void attempt(note.id));
 await questionsFor('wiki').handle('revise', (answer, question) =>
-  answered(answer.choice, question.data),
+    answered(answer.choice, question.data),
 );
 for (const left of await unrevised.query({ order: 'asc' })) {
-  void attempt(left.id);
+    void attempt(left.id);
 }
 
 export const wiki: Wiki = { ...pages, revise: reviseInTurn };
