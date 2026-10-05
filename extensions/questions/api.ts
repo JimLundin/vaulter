@@ -12,7 +12,9 @@ export const NewQuestion = z.object({
   title: z.string().min(1).max(200),
   body: z.string().max(4000).optional(),
   /** Choices to pick from, one of which is the answer; with none, the answer is text. */
-  choices: z.array(z.object({ id: z.string().min(1), label: z.string().min(1) })).optional(),
+  choices: z
+    .array(z.object({ id: z.string().min(1), label: z.string().min(1) }))
+    .optional(),
   /** The notes it came from. */
   notes: z.array(z.string()).default([]),
   /** Asking again with the same key while one is open returns that one. */
@@ -23,7 +25,9 @@ export const NewQuestion = z.object({
 
 export const Answer = z
   .object({ choice: z.string().optional(), text: z.string().optional() })
-  .refine((a) => a.choice !== undefined || a.text !== undefined, { message: 'a choice or text' });
+  .refine((a) => a.choice !== undefined || a.text !== undefined, {
+    message: 'a choice or text',
+  });
 export type Answer = z.infer<typeof Answer>;
 
 export const Status = z.enum(['open', 'answered']);

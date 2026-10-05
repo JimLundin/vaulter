@@ -7,7 +7,9 @@ const FAST = { iterations: 1000, salt: new Uint8Array(16).fill(7) };
 
 /** The page, with `values` sealed into it, started. */
 const page = async (values: Record<string, string>) => {
-  servePage(await seal(PASSWORD, values, FAST), () => Promise.reject(new Error('offline')));
+  servePage(await seal(PASSWORD, values, FAST), () =>
+    Promise.reject(new Error('offline')),
+  );
   await startApp(['secrets']);
   return import('#extensions/secrets');
 };

@@ -16,7 +16,8 @@ const kept = collection<Fields>('questions/question');
 
 const handlers = new Map<string, Handler>();
 const strip = ({ delivered: _, meta: _m, ...q }: Kept): Question => q;
-const find = (where: Query<Fields>['where']) => kept.query({ where, orderBy: 'at', order: 'asc' });
+const find = (where: Query<Fields>['where']) =>
+  kept.query({ where, orderBy: 'at', order: 'asc' });
 /** The question as it is now, changed by `change` if it may be. */
 const update = (id: string, change: (q: Kept) => Partial<Kept>) =>
   kept.update(id, (q) => ({ ...q, ...change(q) }));
@@ -25,7 +26,9 @@ const update = (id: string, change: (q: Kept) => Partial<Kept>) =>
  * again when the asker next registers it. */
 const deliver = async (q: Kept) => {
   const h = handlers.get(`${q.from}/${q.topic}`);
-  if (!(h && q.status === 'answered' && q.answer && !q.delivered)) return;
+  if (!(h && q.status === 'answered' && q.answer && !q.delivered)) {
+    return;
+  }
   try {
     await h(q.answer, strip(q));
   } catch {
@@ -40,7 +43,9 @@ export const questionsFor = (from: string): Questions => ({
     const q = NewQuestion.parse(input);
     if (q.key) {
       const [same] = await find({ from, key: q.key, status: 'open' });
-      if (same) return same.id;
+      if (same) {
+        return same.id;
+      }
     }
     const saved = await kept.create({
       ...q,
@@ -54,10 +59,18 @@ export const questionsFor = (from: string): Questions => ({
   async handle(topic, handler) {
     const k = `${from}/${topic}`;
     handlers.set(k, handler);
-    for (const q of await find({ from, topic, status: 'answered', delivered: false }))
+    for (const q of await find({
+      from,
+      topic,
+      status: 'answered',
+      delivered: false,
+    })) {
       await deliver(q);
+    }
     return () => {
-      if (handlers.get(k) === handler) handlers.delete(k);
+      if (handlers.get(k) === handler) {
+        handlers.delete(k);
+      }
     };
   },
   open: async () => (await find({ status: 'open' })).map(strip),
@@ -68,11 +81,18 @@ export const questionsFor = (from: string): Questions => ({
   async answer(id, input) {
     const answer = Answer.parse(input);
     const saved = await update(id, (q) => {
-      if (q.status !== 'open') throw new Error('that question is not open');
-      if (answer.choice !== undefined && !q.choices?.some((c) => c.id === answer.choice))
+      if (q.status !== 'open') {
+        throw new Error('that question is not open');
+      }
+      if (
+        answer.choice !== undefined &&
+        !q.choices?.some((c) => c.id === answer.choice)
+      ) {
         throw new Error(`"${answer.choice}" is not one of its choices`);
-      if (answer.choice === undefined && q.choices?.length)
+      }
+      if (answer.choice === undefined && q.choices?.length) {
         throw new Error('this question takes one of its choices');
+      }
       return { status: 'answered', answer };
     });
     await deliver(saved);

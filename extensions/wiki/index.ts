@@ -22,7 +22,9 @@ let queue: Promise<unknown> = Promise.resolve();
 const revise = (noteId: string) => {
   const next = queue.then(async () => {
     const note = await notes.get(noteId);
-    if (!note) throw new Error(`no note ${noteId}`);
+    if (!note) {
+      throw new Error(`no note ${noteId}`);
+    }
     return r.revise(note);
   });
   queue = next.catch(() => undefined);
@@ -36,13 +38,20 @@ const attempt = (noteId: string) =>
   revise(noteId).then(
     () => unrevised.delete(noteId),
     async (e: Error) => {
-      if (await unrevised.get(noteId)) await unrevised.update(noteId, () => ({ error: e.message }));
-      else await unrevised.create({ id: noteId, error: e.message });
+      if (await unrevised.get(noteId)) {
+        await unrevised.update(noteId, () => ({ error: e.message }));
+      } else {
+        await unrevised.create({ id: noteId, error: e.message });
+      }
     },
   );
 notes.onAppended((n) => void attempt(n.id));
-await questions.handle('revise', (answer, q) => r.answered(answer.choice, q.data));
-for (const left of await unrevised.query({ order: 'asc' })) void attempt(left.id);
+await questions.handle('revise', (answer, q) =>
+  r.answered(answer.choice, q.data),
+);
+for (const left of await unrevised.query({ order: 'asc' })) {
+  void attempt(left.id);
+}
 
 export const wiki: Wiki = { ...api, revise };
 export const tools = toolsOf(wiki);

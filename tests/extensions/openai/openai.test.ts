@@ -24,9 +24,16 @@ const says = (text: string) => ({
 
 /** OpenAI, answering with `replies` in turn; what each request sent, and with what key. */
 const openai = async (replies: unknown[]) => {
-  const seen: { auth: string | null; body: { input: unknown; [k: string]: unknown } }[] = [];
+  const seen: {
+    auth: string | null;
+    body: { input: unknown; [k: string]: unknown };
+  }[] = [];
   servePage(
-    await seal('pw-pw-pw-pw-pw-pw', { 'openai/key': 'sk-test' }, { iterations: 1000 }),
+    await seal(
+      'pw-pw-pw-pw-pw-pw',
+      { 'openai/key': 'sk-test' },
+      { iterations: 1000 },
+    ),
     (_url, init) => {
       seen.push({
         auth: new Headers(init?.headers).get('Authorization'),
@@ -41,7 +48,10 @@ const openai = async (replies: unknown[]) => {
 };
 
 it('answers, calling the functions it is given, with its reasoning sent back each turn', async () => {
-  const { model, seen } = await openai([CALLS, says('Ada Lovelace, a friend.')]);
+  const { model, seen } = await openai([
+    CALLS,
+    says('Ada Lovelace, a friend.'),
+  ]);
   const asked: unknown[] = [];
   const answer = await model.answer({
     instructions: 'Be brief.',
@@ -61,7 +71,13 @@ it('answers, calling the functions it is given, with its reasoning sent back eac
 
   expect(answer).toEqual({
     text: 'Ada Lovelace, a friend.',
-    calls: [{ name: 'findPages', input: { query: 'Ada' }, output: { name: 'Ada Lovelace' } }],
+    calls: [
+      {
+        name: 'findPages',
+        input: { query: 'Ada' },
+        output: { name: 'Ada Lovelace' },
+      },
+    ],
     usage: { input: 15, output: 9 },
   });
   expect(asked).toEqual([{ query: 'Ada' }]);
@@ -82,14 +98,24 @@ it('answers, calling the functions it is given, with its reasoning sent back eac
     { role: 'system', content: 'Be brief.' },
     { role: 'user', content: 'Who is Ada?' },
     ...CALLS.output,
-    { type: 'function_call_output', call_id: 'call_1', output: '{"name":"Ada Lovelace"}' },
+    {
+      type: 'function_call_output',
+      call_id: 'call_1',
+      output: '{"name":"Ada Lovelace"}',
+    },
   ]);
 });
 
 it('gives a structured answer, checked against its schema', async () => {
   const { model } = await openai([says('{"name":"Ada"}'), says('{"name":3}')]);
   const schema = z.object({ name: z.string() });
-  const ask = () => model.json({ instructions: 'Name them.', input: {}, schema, name: 'person' });
+  const ask = () =>
+    model.json({
+      instructions: 'Name them.',
+      input: {},
+      schema,
+      name: 'person',
+    });
   expect(await ask()).toEqual({ name: 'Ada' });
   await expect(ask()).rejects.toThrow();
 });

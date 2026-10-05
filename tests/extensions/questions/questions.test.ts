@@ -5,7 +5,11 @@ import { startApp } from '../../app.ts';
 const settle = () => new Promise((ok) => setTimeout(ok, 20));
 
 const APP = ['storage', 'questions'];
-const ask = { topic: 'merge', title: 'Same Ada?', choices: [{ id: 'yes', label: 'Yes' }] };
+const ask = {
+  topic: 'merge',
+  title: 'Same Ada?',
+  choices: [{ id: 'yes', label: 'Yes' }],
+};
 
 it("hands the person's answer to the asker's handler for its topic", async () => {
   await startApp(APP);
@@ -69,17 +73,32 @@ it('keeps an asked question open until it is answered', async () => {
   ).toBeTruthy();
   await q.answer(id, { choice: 'yes' });
   expect((await q.get(id))?.status).toEqual('answered');
-  expect(!(await q.open()).some((x) => x.id === id), 'no longer open').toBeTruthy();
+  expect(
+    !(await q.open()).some((x) => x.id === id),
+    'no longer open',
+  ).toBeTruthy();
 });
 it('asks once per key while the question is open', async () => {
   const q = await use();
-  const a = await q.ask({ topic: 'date', title: 'When was the trip?', key: 'trip-date' });
-  const b = await q.ask({ topic: 'date', title: 'When was the trip?', key: 'trip-date' });
+  const a = await q.ask({
+    topic: 'date',
+    title: 'When was the trip?',
+    key: 'trip-date',
+  });
+  const b = await q.ask({
+    topic: 'date',
+    title: 'When was the trip?',
+    key: 'trip-date',
+  });
   expect(a).toEqual(b);
 });
 it("delivers an answer to the asker's handler, also when it registers afterwards", async () => {
   const q = await use();
-  const id = await q.ask({ topic: 'later', title: 'Which café?', data: { note: 'n1' } });
+  const id = await q.ask({
+    topic: 'later',
+    title: 'Which café?',
+    data: { note: 'n1' },
+  });
   await q.answer(id, { text: 'Café Lumière' });
   const got: unknown[] = [];
   await q.handle('later', (a, question) => {

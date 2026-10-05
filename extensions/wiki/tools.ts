@@ -44,7 +44,8 @@ export const toolsOf = (wiki: Wiki): Tool<unknown>[] => [
   }),
   tool({
     name: 'getPage',
-    description: 'A wiki page with all its facts and the notes each comes from.',
+    description:
+      'A wiki page with all its facts and the notes each comes from.',
     access: 'read',
     input: z.object({ ref: RecordRef }),
     run: ({ ref }) => wiki.get(ref),
@@ -58,7 +59,8 @@ export const toolsOf = (wiki: Wiki): Tool<unknown>[] => [
   }),
   tool({
     name: 'createPage',
-    description: 'Create a wiki page. Only for something the notes clearly mention.',
+    description:
+      'Create a wiki page. Only for something the notes clearly mention.',
     access: 'write',
     input: z.object({
       kind: Kind,
@@ -69,7 +71,8 @@ export const toolsOf = (wiki: Wiki): Tool<unknown>[] => [
   }),
   tool({
     name: 'addFact',
-    description: 'Add a fact to a page, citing the notes it comes from (at least one).',
+    description:
+      'Add a fact to a page, citing the notes it comes from (at least one).',
     access: 'write',
     input: z.object({
       ref: RecordRef,
@@ -89,7 +92,8 @@ export const toolsOf = (wiki: Wiki): Tool<unknown>[] => [
   }),
   tool({
     name: 'mergePages',
-    description: 'Merge two pages about the same thing; the person approves first.',
+    description:
+      'Merge two pages about the same thing; the person approves first.',
     access: 'ask',
     input: z.object({ keep: RecordRef, merge: RecordRef }),
     run: async ({ keep, merge }) => brief(await wiki.merge(keep, merge)),

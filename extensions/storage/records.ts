@@ -17,8 +17,12 @@ const words = (s: string) =>
     .filter(Boolean);
 
 const matches = (v: unknown, f: Filter) => {
-  if (f === null || typeof f !== 'object') return v === f;
-  if (v === undefined || v === null) return false;
+  if (f === null || typeof f !== 'object') {
+    return v === f;
+  }
+  if (v === undefined || v === null) {
+    return false;
+  }
   return (
     (f.gte == null || (v as never) >= (f.gte as never)) &&
     (f.lt == null || (v as never) < (f.lt as never))
@@ -31,12 +35,20 @@ const fieldsOf = ({ id: _, meta: _m, ...fields }: Stored) => fields;
  * the field last either way. */
 const ordered = (by: string, dir: 1 | -1) => {
   const key = (r: Stored) =>
-    by === 'created' || by === 'updated' ? r.meta[by] : (r[by] as string | number | undefined);
+    by === 'created' || by === 'updated'
+      ? r.meta[by]
+      : (r[by] as string | number | undefined);
   return (a: Stored, b: Stored) => {
     const [x, y] = [key(a), key(b)];
-    if (x === y) return dir * a.meta.created.localeCompare(b.meta.created);
-    if (x === undefined) return 1;
-    if (y === undefined) return -1;
+    if (x === y) {
+      return dir * a.meta.created.localeCompare(b.meta.created);
+    }
+    if (x === undefined) {
+      return 1;
+    }
+    if (y === undefined) {
+      return -1;
+    }
     return dir * (x < y ? -1 : 1);
   };
 };
@@ -61,22 +73,34 @@ export function collections(storage: Store) {
 
   return <T>(name: string): Collection<T> => {
     const all = async () =>
-      (await storage.list<Stored>(`r:${name}:`)).map(([, r]) => r).filter((r) => !r.meta.deleted);
+      (await storage.list<Stored>(`r:${name}:`))
+        .map(([, r]) => r)
+        .filter((r) => !r.meta.deleted);
     const current = (id: string) => storage.get<Stored>(`r:${name}:${id}`);
     /** Writes the next revision, keeping the one it replaces. */
     const write = async (prior: Stored | undefined, next: Stored) => {
-      if (prior)
+      if (prior) {
         await storage.set(
           `h:${name}:${prior.id}:${String(prior.meta.rev).padStart(9, '0')}`,
           prior,
         );
+      }
       await storage.set(`r:${name}:${next.id}`, next);
       return next;
     };
-    const revise = (prior: Stored, fields: object, meta: Partial<Stored['meta']> = {}): Stored => ({
+    const revise = (
+      prior: Stored,
+      fields: object,
+      meta: Partial<Stored['meta']> = {},
+    ): Stored => ({
       ...fieldsOf(fields as Stored),
       id: prior.id,
-      meta: { ...prior.meta, updated: stamp(), rev: prior.meta.rev + 1, ...meta },
+      meta: {
+        ...prior.meta,
+        updated: stamp(),
+        rev: prior.meta.rev + 1,
+        ...meta,
+      },
     });
 
     const collection = {
@@ -87,15 +111,20 @@ export function collections(storage: Store) {
       },
       async query(q: Query<Record<string, unknown>> = {}) {
         let out = await all();
-        for (const [field, f] of Object.entries(q.where ?? {}))
-          if (f !== undefined) out = out.filter((r) => matches(r[field], f));
+        for (const [field, f] of Object.entries(q.where ?? {})) {
+          if (f !== undefined) {
+            out = out.filter((r) => matches(r[field], f));
+          }
+        }
         out.sort(ordered(q.orderBy ?? 'created', q.order === 'asc' ? 1 : -1));
         return out.slice(0, q.limit);
       },
       async search(text: string, opts: { fields?: string[] } = {}) {
         const want = words(text);
         const hit = (await all()).filter((r) => {
-          const values = opts.fields ? opts.fields.map((f) => r[f]) : Object.values(fieldsOf(r));
+          const values = opts.fields
+            ? opts.fields.map((f) => r[f])
+            : Object.values(fieldsOf(r));
           const hay = words(
             values
               .flatMap((v) => (Array.isArray(v) ? v : [v]))
@@ -107,10 +136,15 @@ export function collections(storage: Store) {
         return hit.sort((a, b) => b.meta.created.localeCompare(a.meta.created));
       },
       async create(value: Record<string, unknown>) {
-        const { id: asked, ...fields } = value as { id?: string } & Record<string, unknown>;
+        const { id: asked, ...fields } = value as { id?: string } & Record<
+          string,
+          unknown
+        >;
         const id = asked ?? crypto.randomUUID();
         return await serial(`${name}:${id}`, async () => {
-          if (await current(id)) throw new Error(`${name}: a record ${id} exists`);
+          if (await current(id)) {
+            throw new Error(`${name}: a record ${id} exists`);
+          }
           const now = stamp();
           return write(undefined, {
             ...fields,
@@ -119,18 +153,28 @@ export function collections(storage: Store) {
           });
         });
       },
-      async update(id: string, change: (current: Stored) => object | Promise<object>) {
+      async update(
+        id: string,
+        change: (current: Stored) => object | Promise<object>,
+      ) {
         return await serial(`${name}:${id}`, async () => {
           const prior = await current(id);
-          if (!prior || prior.meta.deleted) throw new Error(`${name}: no record ${id}`);
+          if (!prior || prior.meta.deleted) {
+            throw new Error(`${name}: no record ${id}`);
+          }
           return write(prior, revise(prior, await change(prior)));
         });
       },
       async delete(id: string) {
         await serial(`${name}:${id}`, async () => {
           const prior = await current(id);
-          if (!prior || prior.meta.deleted) return;
-          await write(prior, revise(prior, fieldsOf(prior), { deleted: stamp() }));
+          if (!prior || prior.meta.deleted) {
+            return;
+          }
+          await write(
+            prior,
+            revise(prior, fieldsOf(prior), { deleted: stamp() }),
+          );
         });
       },
     };

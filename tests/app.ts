@@ -7,20 +7,24 @@ import { vi } from 'vitest';
 type Exports = Record<string, unknown>;
 
 const repo = Object.fromEntries(
-  Object.entries(import.meta.glob<Exports>('../extensions/*/index.ts')).map(([path, importIt]) => [
-    path.split('/').at(-2) ?? path,
-    importIt,
-  ]),
+  Object.entries(import.meta.glob<Exports>('../extensions/*/index.ts')).map(
+    ([path, importIt]) => [path.split('/').at(-2) ?? path, importIt],
+  ),
 );
 
 /** Every extension in the repo. */
 export const REPO = Object.keys(repo);
 
 /** Starts the repo's extensions `ids`, and `fixtures` beside them, as a page would; the kernel. */
-export async function startApp(ids: string[], fixtures: Record<string, Exports> = {}) {
+export async function startApp(
+  ids: string[],
+  fixtures: Record<string, Exports> = {},
+) {
   vi.resetModules();
   const kernel = await import('../src/kernel/kernel.ts');
-  const modules = await Promise.all(ids.map(async (id) => [id, await repo[id]()] as const));
+  const modules = await Promise.all(
+    ids.map(async (id) => [id, await repo[id]()] as const),
+  );
   kernel.load({ ...Object.fromEntries(modules), ...fixtures });
   return kernel;
 }

@@ -14,9 +14,13 @@ const toNote = ({ meta: _, ...n }: Rec<Omit<Note, 'id'>>): Note => n;
 export const notes: Notes = {
   async append(input) {
     const n = NewNote.parse(input);
-    const out = toNote(await kept.create({ ...n, at: n.at ?? new Date().toISOString() }));
+    const out = toNote(
+      await kept.create({ ...n, at: n.at ?? new Date().toISOString() }),
+    );
     // After the note is kept, and apart from it: a listener that fails is its own error.
-    for (const l of listeners) queueMicrotask(() => l(out));
+    for (const l of listeners) {
+      queueMicrotask(() => l(out));
+    }
     return out;
   },
   async get(id) {

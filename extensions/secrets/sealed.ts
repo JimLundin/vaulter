@@ -16,7 +16,10 @@ const b64 = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes));
 const unb64 = (s: string) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
 
 /** The key for a file's salt and iterations; non-extractable, so a device can keep it. */
-export async function keyFor(password: string, kdf: SealedFile['kdf']): Promise<CryptoKey> {
+export async function keyFor(
+  password: string,
+  kdf: SealedFile['kdf'],
+): Promise<CryptoKey> {
   const base = await crypto.subtle.importKey(
     'raw',
     new TextEncoder().encode(password),
@@ -25,7 +28,12 @@ export async function keyFor(password: string, kdf: SealedFile['kdf']): Promise<
     ['deriveKey'],
   );
   return crypto.subtle.deriveKey(
-    { name: 'PBKDF2', hash: 'SHA-256', iterations: kdf.iterations, salt: unb64(kdf.salt) },
+    {
+      name: 'PBKDF2',
+      hash: 'SHA-256',
+      iterations: kdf.iterations,
+      salt: unb64(kdf.salt),
+    },
     base,
     { name: 'AES-GCM', length: 256 },
     false,
@@ -54,7 +62,10 @@ export async function seal(
 }
 
 /** The secrets in a file; throws on the wrong key. */
-export async function open(key: CryptoKey, file: SealedFile): Promise<Record<string, string>> {
+export async function open(
+  key: CryptoKey,
+  file: SealedFile,
+): Promise<Record<string, string>> {
   const plain = await crypto.subtle.decrypt(
     { name: 'AES-GCM', iv: unb64(file.iv), additionalData: AAD },
     key,

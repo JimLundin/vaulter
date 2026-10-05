@@ -8,8 +8,13 @@ function el<K extends keyof HTMLElementTagNameMap>(
   ...children: (Node | string)[]
 ) {
   const { style, ...rest } = props;
-  const e: HTMLElementTagNameMap[K] = Object.assign(document.createElement(tag), rest);
-  if (style) e.style.cssText = style;
+  const e: HTMLElementTagNameMap[K] = Object.assign(
+    document.createElement(tag),
+    rest,
+  );
+  if (style) {
+    e.style.cssText = style;
+  }
   e.append(...children);
   return e;
 }
@@ -35,7 +40,12 @@ export function unlockDialog(unlock: (password: string) => Promise<void>) {
       input,
     ),
     alert,
-    el('div', { style: 'display:flex;gap:.5rem' }, el('button', {}, 'Unlock'), later),
+    el(
+      'div',
+      { style: 'display:flex;gap:.5rem' },
+      el('button', {}, 'Unlock'),
+      later,
+    ),
   );
   const dialog = el(
     'dialog',

@@ -24,7 +24,11 @@ export type Message =
 
 export interface TurnRequest {
   messages: Message[];
-  tools?: { name: string; description: string; parameters: Record<string, unknown> }[];
+  tools?: {
+    name: string;
+    description: string;
+    parameters: Record<string, unknown>;
+  }[];
   /** A JSON answer matching this schema. */
   responseSchema?: { name: string; schema: Record<string, unknown> };
 }
@@ -46,9 +50,17 @@ function inputOf(m: Message): Item[] {
     case 'user':
       return [{ role: m.role, content: m.content }];
     case 'tool':
-      return [{ type: 'function_call_output', call_id: m.toolCallId, output: m.content }];
+      return [
+        {
+          type: 'function_call_output',
+          call_id: m.toolCallId,
+          output: m.content,
+        },
+      ];
     default:
-      if (Array.isArray(m.state)) return m.state as Item[];
+      if (Array.isArray(m.state)) {
+        return m.state as Item[];
+      }
       return [
         ...(m.content ? [{ role: 'assistant', content: m.content }] : []),
         ...(m.toolCalls ?? []).map((c) => ({
@@ -116,7 +128,10 @@ export function fromResponse(r: Response): TurnResult {
   return {
     content: text || null,
     toolCalls,
-    usage: { input: r.usage?.input_tokens ?? 0, output: r.usage?.output_tokens ?? 0 },
+    usage: {
+      input: r.usage?.input_tokens ?? 0,
+      output: r.usage?.output_tokens ?? 0,
+    },
     state: r.output,
   };
 }

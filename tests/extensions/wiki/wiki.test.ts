@@ -8,14 +8,16 @@ let offline = false;
 const none = { create: [], add: [], summaries: [] };
 const fake: Pick<Model, 'json'> = {
   json<T>(req: { input: unknown; schema: { parse: (v: unknown) => T } }) {
-    if (offline) return Promise.reject(new Error('OpenAI 401: no key'));
+    if (offline) {
+      return Promise.reject(new Error('OpenAI 401: no key'));
+    }
     const { note, pages } = req.input as {
       note: { text: string };
       pages: { id: string; name: string }[];
     };
     const id = (name: string) => pages.find((p) => p.name === name)?.id;
     let plan: Record<string, unknown> = { ...none, ask: [] };
-    if (note.text.startsWith('Lunch'))
+    if (note.text.startsWith('Lunch')) {
       plan = {
         ...plan,
         create: [
@@ -26,29 +28,55 @@ const fake: Pick<Model, 'json'> = {
             aliases: [],
             facts: [{ text: 'Had lunch at Café Lumière', at: null }],
           },
-          { ref: 'n2', kind: 'place', name: 'Café Lumière', aliases: ['Lumière'], facts: [] },
+          {
+            ref: 'n2',
+            kind: 'place',
+            name: 'Café Lumière',
+            aliases: ['Lumière'],
+            facts: [],
+          },
         ],
         summaries: [{ id: 'n1', summary: 'A friend.' }],
       };
-    if (note.text.startsWith('Ada'))
+    }
+    if (note.text.startsWith('Ada')) {
       plan = {
         ...plan,
-        add: [{ id: id('Ada'), facts: [{ text: 'Birthday in December', at: null }] }],
+        add: [
+          {
+            id: id('Ada'),
+            facts: [{ text: 'Birthday in December', at: null }],
+          },
+        ],
         ask: [
           {
             title: 'Is "the café" Café Lumière?',
             body: null,
             yes: {
               ...none,
-              add: [{ id: id('Café Lumière'), facts: [{ text: 'Ada likes it', at: null }] }],
+              add: [
+                {
+                  id: id('Café Lumière'),
+                  facts: [{ text: 'Ada likes it', at: null }],
+                },
+              ],
             },
             no: {
               ...none,
-              create: [{ ref: 'n3', kind: 'place', name: 'The café', aliases: [], facts: [] }],
+              create: [
+                {
+                  ref: 'n3',
+                  kind: 'place',
+                  name: 'The café',
+                  aliases: [],
+                  facts: [],
+                },
+              ],
             },
           },
         ],
       };
+    }
     return Promise.resolve(req.schema.parse(plan));
   },
 };
@@ -84,16 +112,19 @@ it('revises pages from notes, cites every fact, asks when unsure, and gives Vaul
     ['Had lunch at Café Lumière', [n1.id]],
   ]);
   // Found by an alias too.
-  expect((await pages.find('lumière')).map((e) => e.name)).toEqual(['Café Lumière']);
+  expect((await pages.find('lumière')).map((e) => e.name)).toEqual([
+    'Café Lumière',
+  ]);
 
   const n2 = await log.append({
     text: 'Ada said her birthday is in December; we met at the café',
   });
-  await vi.waitFor(async () => expect(await asked.open()).toHaveLength(1), { timeout: 2000 });
-  expect((await pages.get({ type: ada.type, id: ada.id }))?.facts.map((f) => f.text)).toEqual([
-    'Had lunch at Café Lumière',
-    'Birthday in December',
-  ]);
+  await vi.waitFor(async () => expect(await asked.open()).toHaveLength(1), {
+    timeout: 2000,
+  });
+  expect(
+    (await pages.get({ type: ada.type, id: ada.id }))?.facts.map((f) => f.text),
+  ).toEqual(['Had lunch at Café Lumière', 'Birthday in December']);
   const [q] = await asked.open();
   expect(q).toMatchObject({
     from: 'wiki',
@@ -103,8 +134,13 @@ it('revises pages from notes, cites every fact, asks when unsure, and gives Vaul
   });
   await asked.answer(q.id, { choice: 'yes' });
   const [cafe] = await pages.find('Café Lumière', ['place']);
-  expect(cafe.facts.map((f) => [f.text, f.sources])).toEqual([['Ada likes it', [n2.id]]]);
-  expect((await pages.citing(n2.id)).map((e) => e.name).sort()).toEqual(['Ada', 'Café Lumière']);
+  expect(cafe.facts.map((f) => [f.text, f.sources])).toEqual([
+    ['Ada likes it', [n2.id]],
+  ]);
+  expect((await pages.citing(n2.id)).map((e) => e.name).sort()).toEqual([
+    'Ada',
+    'Café Lumière',
+  ]);
 
   // Merging folds the facts and aliases together, and what pointed at the merged page follows.
   const dup = await pages.create('person', { name: 'Ada L.' });
@@ -116,7 +152,10 @@ it('revises pages from notes, cites every fact, asks when unsure, and gives Vaul
     name: 'Trip',
     people: [{ type: dup.type, id: dup.id }],
   });
-  const merged = await pages.merge({ type: ada.type, id: ada.id }, { type: dup.type, id: dup.id });
+  const merged = await pages.merge(
+    { type: ada.type, id: ada.id },
+    { type: dup.type, id: dup.id },
+  );
   expect(merged.aliases).toEqual(['Ada L.']);
   expect(merged.facts.map((f) => f.text)).toEqual([
     'Had lunch at Café Lumière',
@@ -147,7 +186,10 @@ it('works by hand when the model cannot be reached', async () => {
   const { log, pages } = await start();
   const n = await log.append({ text: 'Swim at Eriksdal' });
   await expect(pages.revise(n.id)).rejects.toThrow(/no key/);
-  const p = await pages.create('place', { name: 'Eriksdalsbadet', area: 'Södermalm' });
+  const p = await pages.create('place', {
+    name: 'Eriksdalsbadet',
+    area: 'Södermalm',
+  });
   expect(p).toMatchObject({ kind: 'place', area: 'Södermalm', facts: [] });
 });
 
@@ -161,14 +203,19 @@ it('keeps both of two facts added at once, and a merged page goes into the one k
     pages.addFact(ref, { text: 'Swims', sources: [n.id] }),
     pages.addFact(ref, { text: 'On Sundays', sources: [n.id] }),
   ]);
-  expect((await pages.get(ref))?.facts.map((f) => f.text).sort()).toEqual(['On Sundays', 'Swims']);
+  expect((await pages.get(ref))?.facts.map((f) => f.text).sort()).toEqual([
+    'On Sundays',
+    'Swims',
+  ]);
 
   const lovelace = await pages.create('person', { name: 'Ada Lovelace' });
   await pages.merge({ type: lovelace.type, id: lovelace.id }, ref);
   expect(await pages.get(ref)).toBeUndefined();
   const kept = await pages.get({ type: lovelace.type, id: lovelace.id });
   expect([kept?.aliases, kept?.facts.length]).toEqual([['Ada'], 2]);
-  expect((await pages.find('ada')).map((e) => e.name)).toEqual(['Ada Lovelace']);
+  expect((await pages.find('ada')).map((e) => e.name)).toEqual([
+    'Ada Lovelace',
+  ]);
 });
 
 it('revises a note again on the next start when its revision failed', async () => {
@@ -181,7 +228,11 @@ it('revises a note again on the next start when its revision failed', async () =
   // The key is set, and the app starts again (storage's database is still this device's).
   offline = false;
   const after = await start();
-  await vi.waitFor(async () => expect(await after.pages.find('Ada', ['person'])).toHaveLength(1), {
-    timeout: 2000,
-  });
+  await vi.waitFor(
+    async () =>
+      expect(await after.pages.find('Ada', ['person'])).toHaveLength(1),
+    {
+      timeout: 2000,
+    },
+  );
 });

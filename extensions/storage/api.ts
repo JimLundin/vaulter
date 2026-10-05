@@ -39,12 +39,18 @@ export interface Collection<T> {
   query: (q?: Query<T>) => Promise<Rec<T>[]>;
   /** Records whose text fields (or `fields`, strings and arrays of them) contain every word of
    * `text`, the latest created first. */
-  search: (text: string, opts?: { fields?: (keyof T & string)[] }) => Promise<Rec<T>[]>;
+  search: (
+    text: string,
+    opts?: { fields?: (keyof T & string)[] },
+  ) => Promise<Rec<T>[]>;
   /** A new record; with an `id`, refused if that id is taken. */
   create: (value: T & { id?: string }) => Promise<Rec<T>>;
   /** A new revision of the record, from `change`, which gets it as it is now: no other change to it
    * runs until this one is done. */
-  update: (id: string, change: (current: Rec<T>) => T | Promise<T>) => Promise<Rec<T>>;
+  update: (
+    id: string,
+    change: (current: Rec<T>) => T | Promise<T>,
+  ) => Promise<Rec<T>>;
   /** Leaves a tombstone. */
   delete: (id: string) => Promise<void>;
 }

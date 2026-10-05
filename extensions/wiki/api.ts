@@ -30,9 +30,18 @@ export interface Common {
 /** What each kind holds. */
 export interface Fields {
   person: Common & { birthday?: string };
-  place: Common & { area?: string; address?: string; geo?: { lat: number; lon: number } };
+  place: Common & {
+    area?: string;
+    address?: string;
+    geo?: { lat: number; lon: number };
+  };
   /** A date or date-time; `until` for one that lasted. */
-  event: Common & { date?: string; until?: string; place?: RecordRef; people: RecordRef[] };
+  event: Common & {
+    date?: string;
+    until?: string;
+    place?: RecordRef;
+    people: RecordRef[];
+  };
   topic: Common;
 }
 

@@ -42,7 +42,11 @@ export const agent: Agent = {
       async onCall({ name, ...call }) {
         // An extension's id has no _, so the first __ ends it.
         const at = name.indexOf('__');
-        const step = { extension: name.slice(0, at), tool: name.slice(at + 2), ...call };
+        const step = {
+          extension: name.slice(0, at),
+          tool: name.slice(at + 2),
+          ...call,
+        };
         steps.push(step);
         await onStep?.(step);
       },

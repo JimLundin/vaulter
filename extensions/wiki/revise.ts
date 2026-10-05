@@ -69,15 +69,24 @@ export interface ReviseDeps {
   questions: Questions;
 }
 
-type Cite = (f: z.infer<typeof FactIn>) => { text: string; sources: string[]; at?: string };
+type Cite = (f: z.infer<typeof FactIn>) => {
+  text: string;
+  sources: string[];
+  at?: string;
+};
 
 export function reviser(deps: ReviseDeps) {
   /** Each page the plan creates, with its facts: by the plan's own ref for it. */
   const create = async (changes: Changes, cite: Cite, rev: Revised) => {
     const made = new Map<string, Page>();
     for (const c of changes.create) {
-      let e = await deps.wiki.create(c.kind, { name: c.name, aliases: c.aliases });
-      for (const f of c.facts) e = await deps.wiki.addFact({ type: e.type, id: e.id }, cite(f));
+      let e = await deps.wiki.create(c.kind, {
+        name: c.name,
+        aliases: c.aliases,
+      });
+      for (const f of c.facts) {
+        e = await deps.wiki.addFact({ type: e.type, id: e.id }, cite(f));
+      }
       made.set(c.ref, e);
       rev.created.push({ type: e.type, id: e.id });
     }
@@ -85,7 +94,11 @@ export function reviser(deps: ReviseDeps) {
   };
 
   const apply = async (changes: Changes, note: Note, rev: Revised) => {
-    const cite: Cite = (f) => ({ text: f.text, sources: [note.id], ...(f.at ? { at: f.at } : {}) });
+    const cite: Cite = (f) => ({
+      text: f.text,
+      sources: [note.id],
+      ...(f.at ? { at: f.at } : {}),
+    });
     const made = await create(changes, cite, rev);
     const known = new Map((await deps.all()).map((e) => [e.id, e]));
     const refOf = (id: string) => {
@@ -94,13 +107,19 @@ export function reviser(deps: ReviseDeps) {
     };
     for (const a of changes.add) {
       const ref = refOf(a.id);
-      if (!ref) continue;
-      for (const f of a.facts) await deps.wiki.addFact(ref, cite(f));
+      if (!ref) {
+        continue;
+      }
+      for (const f of a.facts) {
+        await deps.wiki.addFact(ref, cite(f));
+      }
       rev.updated.push(ref);
     }
     for (const s of changes.summaries) {
       const ref = refOf(s.id);
-      if (ref) await deps.wiki.update(ref, { summary: s.summary });
+      if (ref) {
+        await deps.wiki.update(ref, { summary: s.summary });
+      }
     }
   };
 
@@ -120,7 +139,12 @@ export function reviser(deps: ReviseDeps) {
         schema: Plan,
         name: 'revision',
       });
-      const rev: Revised = { note: note.id, created: [], updated: [], asked: [] };
+      const rev: Revised = {
+        note: note.id,
+        created: [],
+        updated: [],
+        asked: [],
+      };
       await apply(plan, note, rev);
       for (const q of plan.ask) {
         const id = await deps.questions.ask({
@@ -149,7 +173,12 @@ export function reviser(deps: ReviseDeps) {
     async answered(choice: string | undefined, data: unknown) {
       const d = data as { note: Note; yes: Changes; no: Changes };
       const changes = Changes.parse(choice === 'yes' ? d.yes : d.no);
-      await apply(changes, d.note, { note: d.note.id, created: [], updated: [], asked: [] });
+      await apply(changes, d.note, {
+        note: d.note.id,
+        created: [],
+        updated: [],
+        asked: [],
+      });
     },
   };
 }

@@ -15,7 +15,9 @@ interface Kept {
 }
 
 const read = async () => {
-  const r = await fetch(new URL('secrets.json', location.href), { cache: 'no-cache' });
+  const r = await fetch(new URL('secrets.json', location.href), {
+    cache: 'no-cache',
+  });
   const f: unknown = await r.json();
   return isSealedFile(f) ? f : null;
 };
@@ -24,15 +26,21 @@ let opened: Record<string, string> = {};
 
 if (file) {
   const kept = await store.get<Kept>('key');
-  const same = kept?.salt === file.kdf.salt && kept.iterations === file.kdf.iterations;
+  const same =
+    kept?.salt === file.kdf.salt && kept.iterations === file.kdf.iterations;
   const values = same && (await open(kept.key, file).catch(() => null));
-  if (values) opened = values;
-  else if (typeof document !== 'undefined') unlockDialog(unlock);
+  if (values) {
+    opened = values;
+  } else if (typeof document !== 'undefined') {
+    unlockDialog(unlock);
+  }
 }
 
 /** Opens the page's sealed secrets with the password, and keeps the key on this device. */
 export async function unlock(password: string) {
-  if (!file) throw new Error('this page has no sealed secrets');
+  if (!file) {
+    throw new Error('this page has no sealed secrets');
+  }
   const key = await keyFor(password, file.kdf);
   try {
     opened = await open(key, file);

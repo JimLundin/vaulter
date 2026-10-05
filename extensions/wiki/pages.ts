@@ -1,20 +1,26 @@
 // The wiki's pages as records: one collection per kind, facts kept on the page with the notes they
 // came from. Everything here is what the wiki offers besides revising. What the model sends is checked
 // by the tools' and the reviser's Zod before it gets here.
-import { type Collection, collection, type Rec, type RecordRef } from '#extensions/storage';
+import {
+  type Collection,
+  collection,
+  type Rec,
+  type RecordRef,
+} from '#extensions/storage';
 import { KINDS, type Kind, type Page, type Wiki } from './api.ts';
 
 type Fields = Record<string, unknown>;
-const kept = Object.fromEntries(KINDS.map((k) => [k, collection<Fields>(`wiki/${k}`)])) as Record<
-  Kind,
-  Collection<Fields>
->;
+const kept = Object.fromEntries(
+  KINDS.map((k) => [k, collection<Fields>(`wiki/${k}`)]),
+) as Record<Kind, Collection<Fields>>;
 
 export function pages() {
   const kindOf = (type: string) => KINDS.find((k) => kept[k].name === type);
   const of = (ref: RecordRef) => {
     const k = kindOf(ref.type);
-    if (!k) throw new Error(`${ref.type} is not a wiki type`);
+    if (!k) {
+      throw new Error(`${ref.type} is not a wiki type`);
+    }
     return k;
   };
   const page = (rec: Rec<Fields>): Page => {
@@ -27,7 +33,8 @@ export function pages() {
       updated: meta.updated,
     } as Page;
   };
-  const all = async () => (await Promise.all(KINDS.map((k) => kept[k].query()))).flat().map(page);
+  const all = async () =>
+    (await Promise.all(KINDS.map((k) => kept[k].query()))).flat().map(page);
 
   const get = async (ref: RecordRef) => {
     const rec = await kept[of(ref)].get(ref.id);
@@ -35,7 +42,9 @@ export function pages() {
   };
   const must = async (ref: RecordRef) => {
     const e = await get(ref);
-    if (!e) throw new Error(`no page ${ref.type}:${ref.id}`);
+    if (!e) {
+      throw new Error(`no page ${ref.type}:${ref.id}`);
+    }
     return e;
   };
   /** The page changed by `change`, which gets it as it is now: a change made meanwhile isn't lost.
@@ -43,7 +52,14 @@ export function pages() {
   const change = async (ref: RecordRef, f: (e: Page) => Partial<Page>) => {
     const rec = await kept[of(ref)].update(ref.id, (cur) => {
       const e = page(cur);
-      const { id: _, type: _t, kind: _k, created: _c, updated: _u, ...held } = { ...e, ...f(e) };
+      const {
+        id: _,
+        type: _t,
+        kind: _k,
+        created: _c,
+        updated: _u,
+        ...held
+      } = { ...e, ...f(e) };
       return held;
     });
     return page(rec);
@@ -53,7 +69,9 @@ export function pages() {
   const api: Omit<Wiki, 'revise'> = {
     async find(text, kinds = [...KINDS]) {
       const found = await Promise.all(
-        kinds.map((k) => kept[k].search(text, { fields: ['name', 'aliases', 'summary'] })),
+        kinds.map((k) =>
+          kept[k].search(text, { fields: ['name', 'aliases', 'summary'] }),
+        ),
       );
       return found
         .flat()
@@ -79,51 +97,66 @@ export function pages() {
       return change(ref, () => rest);
     },
     addFact(ref, fact) {
-      const added = { id: crypto.randomUUID(), added: new Date().toISOString(), ...fact };
+      const added = {
+        id: crypto.randomUUID(),
+        added: new Date().toISOString(),
+        ...fact,
+      };
       return change(ref, (e) => ({ facts: [...e.facts, added] }));
     },
     retractFact: (ref, factId) =>
       change(ref, (e) => ({ facts: e.facts.filter((f) => f.id !== factId) })),
     async merge(keepRef, mergeRef) {
-      if (keepRef.type !== mergeRef.type)
+      if (keepRef.type !== mergeRef.type) {
         throw new Error('only pages of the same kind can be merged');
+      }
       const merge = await must(mergeRef);
-      const same = (a: RecordRef, b: RecordRef) => a.type === b.type && a.id === b.id;
+      const same = (a: RecordRef, b: RecordRef) =>
+        a.type === b.type && a.id === b.id;
       const merged = await change(keepRef, (keep) => {
         const ids = new Set(keep.facts.map((f) => f.id));
         return {
           ...merge,
           ...keep,
-          aliases: [...new Set([...keep.aliases, merge.name, ...merge.aliases])].filter(
-            (a) => a !== keep.name,
-          ),
+          aliases: [
+            ...new Set([...keep.aliases, merge.name, ...merge.aliases]),
+          ].filter((a) => a !== keep.name),
           facts: [...keep.facts, ...merge.facts.filter((f) => !ids.has(f.id))],
           related: [...keep.related, ...merge.related].filter(
-            (r, i, list) => !same(r, keepRef) && list.findIndex((x) => same(x, r)) === i,
+            (r, i, list) =>
+              !same(r, keepRef) && list.findIndex((x) => same(x, r)) === i,
           ),
         };
       });
       await kept[of(mergeRef)].delete(mergeRef.id);
       // What pointed at the merged page now points at the one kept.
-      const swap = (r: unknown) => (r && same(r as RecordRef, mergeRef) ? keepRef : r);
+      const swap = (r: unknown) =>
+        r && same(r as RecordRef, mergeRef) ? keepRef : r;
       const swapped = (e: Page): Partial<Page> => ({
         related: e.related.map((r) => swap(r) as RecordRef),
         ...(e.kind === 'event'
           ? {
               place: swap(e.place),
-              people: (e.people as RecordRef[]).map((r) => swap(r) as RecordRef),
+              people: (e.people as RecordRef[]).map(
+                (r) => swap(r) as RecordRef,
+              ),
             }
           : {}),
       });
       for (const e of await all()) {
-        if (e.id === keepRef.id) continue;
-        if (JSON.stringify({ ...e, ...swapped(e) }) !== JSON.stringify(e))
+        if (e.id === keepRef.id) {
+          continue;
+        }
+        if (JSON.stringify({ ...e, ...swapped(e) }) !== JSON.stringify(e)) {
           await change(refOf(e), swapped);
+        }
       }
       return merged;
     },
     citing: async (noteId) =>
-      (await all()).filter((e) => e.facts.some((f) => f.sources.includes(noteId))),
+      (await all()).filter((e) =>
+        e.facts.some((f) => f.sources.includes(noteId)),
+      ),
   };
   return { api, all };
 }

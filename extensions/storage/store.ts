@@ -25,14 +25,18 @@ export function idbStore(name: string): Store {
     return (await db).transaction('data', mode).objectStore('data');
   };
   return {
-    get: async <T>(key: string) => done<T | undefined>((await store('readonly')).get(key)),
+    get: async <T>(key: string) =>
+      done<T | undefined>((await store('readonly')).get(key)),
     async set(key, value) {
       await done((await store('readwrite')).put(value, key));
     },
     async list<T>(prefix: string) {
       const s = await store('readonly');
       const range = IDBKeyRange.bound(prefix, `${prefix}￿`);
-      const [keys, values] = await Promise.all([done(s.getAllKeys(range)), done(s.getAll(range))]);
+      const [keys, values] = await Promise.all([
+        done(s.getAllKeys(range)),
+        done(s.getAll(range)),
+      ]);
       return keys.map((k, i) => [String(k), values[i] as T] as [string, T]);
     },
   };

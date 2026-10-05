@@ -28,7 +28,11 @@ export const tools = () =>
       .filter((r) => Array.isArray(r.exports.tools))
       .map((r) => [
         r.id,
-        new Map((r.exports.tools as Tool<unknown>[]).filter(named).map((t) => [t.name, t])),
+        new Map(
+          (r.exports.tools as Tool<unknown>[])
+            .filter(named)
+            .map((t) => [t.name, t]),
+        ),
       ]),
   );
 
@@ -39,7 +43,10 @@ export const askFirst = (call: Call, description: string) =>
     // The same call asked again while the first is open is the same question.
     key: JSON.stringify(call),
     title: `May Vaulter use ${call.extension}'s ${call.tool}?`,
-    body: `${description}\n\n${JSON.stringify(call.input, null, 2)}`.slice(0, 4000),
+    body: `${description}\n\n${JSON.stringify(call.input, null, 2)}`.slice(
+      0,
+      4000,
+    ),
     choices: [
       { id: 'yes', label: 'Yes' },
       { id: 'no', label: 'No' },
@@ -49,10 +56,14 @@ export const askFirst = (call: Call, description: string) =>
 
 // Not awaited: an answer waiting from before waits for everything to start, this extension included.
 void questions.handle(APPROVE, async (answer, q: Question) => {
-  if (answer.choice !== 'yes') return;
+  if (answer.choice !== 'yes') {
+    return;
+  }
   await started;
   const call = q.data as unknown as Call;
   const t = tools().get(call.extension)?.get(call.tool);
-  if (!t) throw new Error(`${call.extension} has no tool ${call.tool}`);
+  if (!t) {
+    throw new Error(`${call.extension} has no tool ${call.tool}`);
+  }
   await t.run(t.input.parse(call.input));
 });

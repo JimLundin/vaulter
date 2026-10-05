@@ -3,18 +3,29 @@
 import { load } from './kernel.ts';
 import { claim } from './single-tab.ts';
 
-export async function start(folders: Record<string, () => Promise<Record<string, unknown>>>) {
-  if (!(await claim())) return say('Vaulter is open in another tab.');
+export async function start(
+  folders: Record<string, () => Promise<Record<string, unknown>>>,
+) {
+  if (!(await claim())) {
+    return say('Vaulter is open in another tab.');
+  }
   const modules = await Promise.all(
-    Object.entries(folders).map(async ([id, importIt]) => [id, await importIt()] as const),
+    Object.entries(folders).map(
+      async ([id, importIt]) => [id, await importIt()] as const,
+    ),
   ).catch((e: Error) => say(`Vaulter could not start: ${e.message}`));
-  if (!modules) return;
+  if (!modules) {
+    return;
+  }
   load(Object.fromEntries(modules));
   const shell = modules.find(([, m]) => m.shell)?.[1].shell as
     | { mount: (at: HTMLElement) => void }
     | undefined;
-  if (shell) shell.mount(root());
-  else say('No shell is installed.');
+  if (shell) {
+    shell.mount(root());
+  } else {
+    say('No shell is installed.');
+  }
 }
 
 const root = () => document.getElementById('vaulter') ?? document.body;
