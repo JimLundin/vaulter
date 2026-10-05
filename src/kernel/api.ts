@@ -1,10 +1,8 @@
-// What extensions import as #kernel: the extensions in this page, and turning one on, off or away.
-export { blame, type ErrorEntry, errorsOf } from './errors.ts';
+// What extensions import as #kernel: the extensions in this page, and turning one on or off.
 export {
   type About,
   type ExtensionInfo,
   extensions,
-  remove,
   running,
   setEnabled,
   started,

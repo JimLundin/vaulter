@@ -1,7 +1,6 @@
 // Starting the app in this browser: only one tab may have it, and that tab imports the extensions this
 // device has on (kernel.ts) and hands the page to the shell. ?reset forgets this device's choices
 // of what is on, for a device a preview has left without a working screen.
-import { uncaught } from './errors.ts';
 import { boot, type Folders, running, type Settings } from './kernel.ts';
 import { claim } from './single-tab.ts';
 
@@ -20,9 +19,6 @@ export async function start(folders: Folders) {
   }
 
   if (!(await claim())) return say('Vaulter is open in another tab.');
-  // An error nothing caught is kept under the extension whose code threw it (its stack says).
-  addEventListener('error', (e) => uncaught(e.error));
-  addEventListener('unhandledrejection', (e) => uncaught(e.reason));
 
   await boot(folders, { settings, reload: () => location.reload() });
   const shell = running().find((r) => r.exports.shell)?.exports.shell as

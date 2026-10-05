@@ -1,46 +1,63 @@
-import { expect, it, vi } from 'vitest';
-import { startApp } from '../../app.ts';
+import { expect, it } from 'vitest';
+import { seal } from '../../../extensions/secrets/sealed.ts';
+import { servePage, startApp } from '../../app.ts';
 
-// An extension with a secret for one host, and another host it may reach without one.
+const PASSWORD = 'pw-pw-pw-pw-pw-pw';
+const FAST = { iterations: 1000, salt: new Uint8Array(16).fill(7) };
 const about = {
   version: '1.0.0',
-  network: ['example.org'],
   secrets: { key: { label: 'Key', hosts: ['api.openai.com'] } },
 };
 
-it('attaches a secret only to requests for its hosts, and forgets it with its extension', async () => {
-  const seen: [string, string | null][] = [];
-  vi.stubGlobal('fetch', (url: string, init?: RequestInit) => {
-    seen.push([url, new Headers(init?.headers).get('Authorization')]);
+/** The page, with `values` sealed into it, and the auth header of each other request it sends. */
+const page = async (values: Record<string, string>, seen: [string, string | null][]) => {
+  servePage(await seal(PASSWORD, values, FAST), (url, init) => {
+    seen.push([String(url), new Headers(init?.headers).get('Authorization')]);
     return Promise.resolve(Response.json({ ok: true }));
   });
-  const kernel = await startApp(['secrets'], {
-    fixtures: { caller: { about, load: () => Promise.resolve({}) } },
-  });
-  const { netFor } = await import('#extensions/secrets');
-  const net = netFor('caller', about);
-  await net.setSecret('caller', 'key', 'sk-123');
+  await startApp(['secrets']);
+  return import('#extensions/secrets');
+};
+const models = 'https://api.openai.com/v1/models';
 
-  const r = await net.fetch('https://api.openai.com/v1/models', { secret: 'key' });
-  expect([await r.json(), await net.hasSecret('key')]).toEqual([{ ok: true }, true]);
-  expect(seen).toEqual([['https://api.openai.com/v1/models', 'Bearer sk-123']]);
+it('opens the sealed secrets with the password, and a new deploy with the same salt on its own', async () => {
+  const seen: [string, string | null][] = [];
+  const first = await page({ 'caller/key': 'sk-1' }, seen);
+  const net = first.netFor('caller', about);
+  await expect(net.fetch(models, { secret: 'key' })).rejects.toThrow('is not set');
+  await expect(first.unlock('nope')).rejects.toThrow('does not open');
+  await first.unlock(PASSWORD);
+  await net.fetch(models, { secret: 'key' });
+
+  // A new deploy with a new value: this device opens it with the key it kept.
+  const second = await page({ 'caller/key': 'sk-2' }, seen);
+  await second.netFor('caller', about).fetch(models, { secret: 'key' });
+  expect(seen).toEqual([
+    [models, 'Bearer sk-1'],
+    [models, 'Bearer sk-2'],
+  ]);
+});
+
+it('attaches a secret only to the hosts declared for it, and only over https', async () => {
+  const seen: [string, string | null][] = [];
+  const secrets = await page({ 'caller/key': 'sk-1' }, seen);
+  await secrets.unlock(PASSWORD);
+  const net = secrets.netFor('caller', about);
   const refused = (url: string, init?: { secret: string }) =>
     net.fetch(url, init).then(
       () => 'sent',
       (e: Error) => e.message,
     );
   expect([
-    await refused('https://evil.test/'),
     await refused('https://example.org/', { secret: 'key' }),
+    await refused('https://example.org/', { secret: 'other' }),
     await refused('http://api.openai.com/'),
+    await refused('https://example.org/'),
   ]).toEqual([
-    'caller: evil.test is not among its declared hosts',
     'caller: the secret "key" is not for example.org',
+    'caller: no secret named "other" is declared',
     'caller: only https requests (http://api.openai.com)',
+    'sent',
   ]);
-
-  await kernel.remove('caller');
-  expect(await net.secrets([{ extension: 'caller', name: 'key' }])).toEqual([
-    { extension: 'caller', name: 'key', set: false },
-  ]);
+  expect(seen).toEqual([['https://example.org/', null]]);
 });

@@ -1,5 +1,6 @@
-import { expect, it, vi } from 'vitest';
-import { startApp } from '../../app.ts';
+import { expect, it } from 'vitest';
+import { seal } from '../../../extensions/secrets/sealed.ts';
+import { servePage, startApp } from '../../app.ts';
 
 const RESPONSE = {
   model: 'gpt-6.1-sol',
@@ -29,12 +30,12 @@ it('speaks the Responses API, with the key attached by the secrets extension', a
     );
   }) as typeof fetch;
   // The secrets extension makes the requests, attaching the key: the network is a fake here.
-  vi.stubGlobal('fetch', fake);
-
+  servePage(
+    await seal('pw-pw-pw-pw-pw-pw', { 'openai/key': 'sk-test' }, { iterations: 1000 }),
+    fake,
+  );
   await startApp(['secrets', 'openai']);
-  await (await import('#extensions/secrets'))
-    .netFor('settings', { version: '0.0.0' })
-    .setSecret('openai', 'key', 'sk-test');
+  await (await import('#extensions/secrets')).unlock('pw-pw-pw-pw-pw-pw');
   const ai = (await import('#extensions/openai')).chat;
   const reply = await ai.complete({
     messages: [

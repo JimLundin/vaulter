@@ -3,7 +3,7 @@
 // Each kind is a record type of the wiki's, kept through records.
 
 import { z } from 'zod';
-import { RecordRef } from '#extensions/store-local';
+import { RecordRef } from '#extensions/storage';
 
 export const Kind = z.enum(['person', 'place', 'event', 'topic']);
 export type Kind = z.infer<typeof Kind>;
@@ -92,7 +92,8 @@ export interface Wiki {
     fact: { text: string; sources: string[]; at?: string },
   ) => Promise<Page>;
   retractFact: (ref: RecordRef, factId: string) => Promise<Page>;
-  /** Folds `merge` into `keep`: facts, aliases and links together; `merge` then reads as `keep`. */
+  /** Folds `merge` into `keep`: facts, aliases and links together; `merge` is then deleted, and what
+   * pointed at it points at `keep`. */
   merge: (keep: RecordRef, merge: RecordRef) => Promise<Page>;
   /** The pages that cite a note. */
   citing: (noteId: string) => Promise<Page[]>;

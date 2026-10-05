@@ -3,8 +3,8 @@
 // running waits until it registers its handler again.
 
 import { z } from 'zod';
-import type { Query, Rec } from '#extensions/store-local';
-import { recordsFor } from '#extensions/store-local';
+import type { Query, Rec } from '#extensions/storage';
+import { recordsFor } from '#extensions/storage';
 import { Answer, NewQuestion, type Question, type Questions, Status } from './api.ts';
 
 export * from './api.ts';
@@ -25,16 +25,9 @@ const question = await records.registerType('question', fields);
 type Kept = Rec<typeof fields>;
 
 const handlers = new Map<string, Handler>();
-const watchers = new Set<(open: Question[]) => void>();
 const strip = ({ delivered: _, meta: _m, ...q }: Kept): Question => q;
 const find = (where: Query['where']) =>
   records.query(question, { where, orderBy: 'at', order: 'asc' });
-const openOnes = async () => (await find({ status: 'open' })).map(strip);
-const changed = async () => {
-  if (!watchers.size) return;
-  const list = await openOnes();
-  for (const w of watchers) queueMicrotask(() => w(list));
-};
 /** The question as it is now, changed by `change` if it may be. */
 const update = (id: string, change: (q: Kept) => Partial<Kept>) =>
   records.update(question, id, (q) => ({ ...q, ...change(q) }));
@@ -67,7 +60,6 @@ export const questionsFor = (from: string): Questions => ({
       status: 'open',
       delivered: false,
     });
-    await changed();
     return saved.id;
   },
   async handle(topic, handler) {
@@ -79,16 +71,10 @@ export const questionsFor = (from: string): Questions => ({
       if (handlers.get(k) === handler) handlers.delete(k);
     };
   },
-  open: openOnes,
+  open: async () => (await find({ status: 'open' })).map(strip),
   async get(id) {
     const q = await records.get(question, id);
     return q && strip(q);
-  },
-  onChanged(handler) {
-    watchers.add(handler);
-    return Promise.resolve(() => {
-      watchers.delete(handler);
-    });
   },
   async answer(id, input) {
     const answer = Answer.parse(input);
@@ -100,19 +86,6 @@ export const questionsFor = (from: string): Questions => ({
         throw new Error('this question takes one of its choices');
       return { status: 'answered', answer };
     });
-    await changed();
     await deliver(saved);
   },
-  async dismiss(id) {
-    await update(id, (q) => {
-      if (q.status !== 'open') throw new Error('that question is not open');
-      return { status: 'dismissed' };
-    });
-    await changed();
-  },
 });
-
-// A removed asker's questions go with it: nothing is left to hand their answers to.
-export const forget = async (from: string) => {
-  for (const q of await find({ from })) await records.delete(question, q.id);
-};

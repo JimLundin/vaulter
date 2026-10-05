@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { blame } from '../../src/kernel/errors.ts';
 import { REPO, startApp } from '../app.ts';
 
 describe('the kernel', () => {
@@ -38,41 +37,6 @@ describe('the kernel', () => {
       { id: 'broken', status: 'failed', problem: 'no' },
       { id: 'maps', status: 'running' },
     ]);
-  });
-
-  it('removes an extension: every provider forgets it, and it is off', async () => {
-    const forgot: string[] = [];
-    const settings = { current: { enabled: {} } };
-    const kernel = await startApp([], {
-      settings,
-      fixtures: {
-        store: {
-          load: () =>
-            Promise.resolve({
-              forget: (id: string) => {
-                forgot.push(id);
-                return Promise.resolve();
-              },
-            }),
-        },
-        maps: { load: () => Promise.resolve({}) },
-      },
-    });
-    await kernel.remove('maps');
-    expect(forgot).toEqual(['maps']);
-    expect(settings.current).toEqual({ enabled: { maps: false } });
-  });
-
-  it('traces an error to the extension whose code threw it, built or not', () => {
-    expect(
-      blame(
-        'Error: x\n    at h (/repo/extensions/wiki/revise.ts:12:3)\n    at k (/repo/src/kernel/kernel.ts:1:1)',
-      ),
-    ).toBe('wiki');
-    expect(blame('Error: x\n    at h (https://v.app/assets/ext/store-local.Ab3_x9.js:1:2)')).toBe(
-      'store-local',
-    );
-    expect(blame('Error: x\n    at k (https://v.app/assets/index.Cd4.js:1:1)')).toBeUndefined();
   });
 });
 

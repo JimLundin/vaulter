@@ -1,15 +1,12 @@
-// Records: what store-local keeps, and how; anything that replaces it keeps these too.
+// Records: what storage keeps, and how.
 import { expect, it } from 'vitest';
 import { z } from 'zod';
 import { startApp } from '../../app.ts';
 
-/** Time for listeners, which hear of a change after it is kept. */
-const settle = () => new Promise((ok) => setTimeout(ok, 20));
-
 /** Records as a fresh caller has them, on a freshly started store. */
 const use = async () => {
-  await startApp(['store-local']);
-  return (await import('#extensions/store-local')).recordsFor('test');
+  await startApp(['storage']);
+  return (await import('#extensions/storage')).recordsFor('test');
 };
 
 it('registers a type in the caller’s namespace and checks values against it', async () => {
@@ -115,35 +112,6 @@ it('deletes to a hidden tombstone', async () => {
   expect(await r.get(note, a.id)).toEqual(undefined);
   expect(await r.query(note)).toEqual([]);
   expect(await r.search([note], 'keep')).toEqual([]);
-});
-it('tells a subscriber about each change, until it unsubscribes', async () => {
-  const r = await use();
-  const w = await r.registerType('watched', { n: z.number() });
-  const seen: unknown[] = [];
-  const stop = await r.onChanged(w, (c) => {
-    seen.push(c.meta.deleted ? 'deleted' : c.n);
-  });
-  const a = await r.create(w, { n: 1 });
-  await r.delete(w, a.id);
-  await settle();
-  stop();
-  await r.create(w, { n: 2 });
-  await settle();
-  expect(seen).toEqual([1, 'deleted']);
-});
-it('merges two records, and a merged id reads as the one kept, through a chain of merges', async () => {
-  const r = await use();
-  const p = await r.registerType('who', { name: z.string(), born: z.string().optional() });
-  const a = await r.create(p, { name: 'Ada Lovelace' });
-  const b = await r.create(p, { name: 'Ada', born: '1815' });
-  const c = await r.create(p, { name: 'Augusta Ada King' });
-  const m = await r.merge(p, a.id, b.id);
-  expect([m.id, m.name, m.born]).toEqual([a.id, 'Ada Lovelace', '1815']);
-  expect((await r.get(p, b.id))?.id).toEqual(a.id);
-  expect((await r.query(p)).length).toEqual(2);
-  await r.merge(p, c.id, a.id);
-  expect((await r.get(p, b.id))?.id).toEqual(c.id);
-  await expect(r.merge(p, c.id, b.id), 'b already reads as c').rejects.toThrow();
 });
 it('refuses writes to another extension’s type', async () => {
   const r = await use();

@@ -1,20 +1,16 @@
 // Records: typed data every extension keeps here, each in its own namespace. A type is registered by
 // name once and then passed around as a handle, so another extension refers to it by the handle the
-// owner exports, never by a string.
+// owner exports, never by a string. Handles are plain data: the name. Storage names a type in its
+// caller's namespace and checks and shapes every value with the type's own Zod (defaults and trims
+// included). An extension may read any type it has a handle for, and write only its own.
 //
-// Handles are plain data: the name. The provider names a type in its caller's namespace and checks
-// and shapes every value with the type's own Zod (defaults and trims included). An extension may read
-// any type it has a handle for, and write only its own.
-//
-// Nothing is overwritten or removed for good. Every change makes a new revision and the provider keeps
-// the one before; changes to one record run one after another, each `update` getting the record as
-// the last one left it, so two changes at once can't lose either. Deleting or merging leaves a
-// tombstone. Reading earlier revisions and tombstones back comes with the screen that needs it. A type's fields may grow with optional fields and defaults; a change
-// that breaks stored records will bring versions and migrations with it, when there is one. Only
-// removing the extension drops its records.
+// Nothing is overwritten or removed for good. Every change makes a new revision and storage keeps the
+// one before; changes to one record run one after another, each `update` getting the record as the
+// last one left it, so two changes at once can't lose either. Deleting leaves a tombstone. Reading
+// earlier revisions and tombstones back comes with the screen that needs it. A type's fields may grow
+// with optional fields and defaults; a change that breaks stored records brings migrations with it.
 
 import { z } from 'zod';
-import type { Unsubscribe } from '#kernel';
 
 export interface RecordType<S extends z.ZodRawShape = z.ZodRawShape> {
   readonly kind: 'record-type';
@@ -31,10 +27,8 @@ export interface Meta {
   updated: string;
   /** Its revision: 1 when created, one more with every change. */
   rev: number;
-  /** When it was deleted or merged away: a tombstone, hidden unless asked for. */
+  /** When it was deleted: a tombstone, kept and hidden. */
   deleted?: string;
-  /** The id of the record it was merged into. */
-  mergedInto?: string;
 }
 
 export type Rec<S extends z.ZodRawShape> = { id: string } & z.output<z.ZodObject<S>> & {
@@ -59,7 +53,6 @@ export interface Query {
 /** Records as one extension has them (`recordsFor(id)`), which is how a type gets its namespace. */
 export interface Records {
   registerType: <S extends z.ZodRawShape>(name: string, fields: S) => Promise<RecordType<S>>;
-  /** A merged record's id reads as the one it was merged into. */
   get: <S extends z.ZodRawShape>(type: RecordType<S>, id: string) => Promise<Rec<S> | undefined>;
   query: <S extends z.ZodRawShape>(type: RecordType<S>, q?: Query) => Promise<Rec<S>[]>;
   /** Records of `types` whose text fields (or `fields`, strings and arrays of them) contain every
@@ -83,16 +76,6 @@ export interface Records {
   ) => Promise<Rec<S>>;
   /** Leaves a tombstone. */
   delete: (type: RecordType, id: string) => Promise<void>;
-  /** Folds `merge` into `keep` (keep's fields win); `merge` becomes a tombstone that reads as `keep`. */
-  merge: <S extends z.ZodRawShape>(
-    type: RecordType<S>,
-    keep: string,
-    merge: string,
-  ) => Promise<Rec<S>>;
-  onChanged: <S extends z.ZodRawShape>(
-    type: RecordType<S>,
-    handler: (change: Rec<S>) => void,
-  ) => Promise<Unsubscribe>;
 }
 
 export const RecordRef = z.object({ type: z.string(), id: z.string() });

@@ -4,7 +4,7 @@ import { startApp } from '../../app.ts';
 /** Time for listeners, which hear of a change after it is kept. */
 const settle = () => new Promise((ok) => setTimeout(ok, 20));
 
-const APP = ['store-local', 'questions'];
+const APP = ['storage', 'questions'];
 const ask = { topic: 'merge', title: 'Same Ada?', choices: [{ id: 'yes', label: 'Yes' }] };
 
 it("hands the person's answer to the asker's handler for its topic", async () => {

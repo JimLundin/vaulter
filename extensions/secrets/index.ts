@@ -1,36 +1,79 @@
-// Secrets: the network with secrets attached. Each extension declares its secrets and the hosts
-// each is for in its about.ts; this one keeps them encrypted on the device, opens the page's sealed ones
-// (secrets.json, sealed by CI) with the password once, and attaches a secret only to a request for its
-// hosts.
-
+// Secrets: every one sealed into the page by CI (secrets.json, sealed.ts), opened on a device with the
+// password once. The key derived from it is kept on the device, non-extractable, so a later deploy sealed
+// with the same salt opens on its own; the secrets themselves are only ever in this page's memory.
+// A secret is attached only to a request for the hosts its extension declared for it.
+import { idbStore } from '#extensions/storage';
 import type { About } from '#kernel';
-import type { Net } from './api.ts';
+import type { FetchInit, Net } from './api.ts';
 import { unlockDialog } from './dialog.ts';
-import { idbStore } from './store.ts';
-import { unsealer } from './unseal.ts';
-import { fetcher, vault } from './vault.ts';
+import { isSealedFile, keyFor, open, type SealedFile } from './sealed.ts';
 
 export * from './api.ts';
 
-const store = idbStore();
-const secrets = vault(store);
-const sealed = unsealer(store, secrets);
-const state = await sealed.check(async () =>
-  (await fetch(new URL('secrets.json', location.href), { cache: 'no-cache' })).json(),
-);
-if (state === 'locked' && typeof document !== 'undefined') unlockDialog(sealed);
+const store = idbStore('secrets');
 
-/** The network as `caller` has it, with what it declared in its about.ts. */
+interface Kept {
+  salt: string;
+  iterations: number;
+  key: CryptoKey;
+}
+
+const read = async () => {
+  const r = await fetch(new URL('secrets.json', location.href), { cache: 'no-cache' });
+  const f: unknown = await r.json();
+  return isSealedFile(f) ? f : null;
+};
+const file: SealedFile | null = await read().catch(() => null);
+let secrets: Record<string, string> = {};
+
+if (file) {
+  const kept = await store.get<Kept>('key');
+  const same = kept?.salt === file.kdf.salt && kept.iterations === file.kdf.iterations;
+  const opened = same && (await open(kept.key, file).catch(() => null));
+  if (opened) secrets = opened;
+  else if (typeof document !== 'undefined') unlockDialog(unlock);
+}
+
+/** Opens the page's sealed secrets with the password, and keeps the key on this device. */
+export async function unlock(password: string) {
+  if (!file) throw new Error('this page has no sealed secrets');
+  const key = await keyFor(password, file.kdf);
+  try {
+    secrets = await open(key, file);
+  } catch (cause) {
+    throw new Error('that password does not open the secrets', { cause });
+  }
+  await store.set('key', {
+    salt: file.kdf.salt,
+    iterations: file.kdf.iterations,
+    key,
+  } satisfies Kept);
+}
+
+/** The network as `caller` has it, with the secrets it declared in its about.ts. */
 export const netFor = (caller: string, about: About): Net => ({
-  fetch: fetcher(caller, about, secrets),
-  hasSecret: async (name) => name in (about.secrets ?? {}) && (await secrets.has(caller, name)),
-  secrets: (of) =>
-    Promise.all(of.map(async (s) => ({ ...s, set: await secrets.has(s.extension, s.name) }))),
-  sealed: () => Promise.resolve({ present: sealed.present(), locked: sealed.locked() }),
-  setSecret: (ext, name, value) => secrets.set(ext, name, value),
-  forgetSecret: (ext, name) => secrets.forget(ext, name),
-  unlock: (password) => sealed.unlock(password),
+  async fetch(url: string, init: FetchInit = {}) {
+    const u = new URL(url);
+    if (u.protocol !== 'https:') throw new Error(`${caller}: only https requests (${u.origin})`);
+    const { secret, ...rest } = init;
+    const headers = new Headers(rest.headers);
+    if (secret !== undefined) {
+      const hosts = about.secrets?.[secret]?.hosts;
+      if (!hosts) throw new Error(`${caller}: no secret named "${secret}" is declared`);
+      if (!hosts.includes(u.hostname))
+        throw new Error(`${caller}: the secret "${secret}" is not for ${u.hostname}`);
+      const value = secrets[`${caller}/${secret}`];
+      if (value === undefined) throw new Error(`${caller}: the secret "${secret}" is not set`);
+      headers.set('Authorization', `Bearer ${value}`);
+    }
+    // No credentials or referrer from the app's own origin ride along, and no redirect elsewhere.
+    return await fetch(u.href, {
+      method: rest.method,
+      body: rest.body as BodyInit | undefined,
+      headers,
+      credentials: 'omit',
+      referrerPolicy: 'no-referrer',
+      redirect: 'error',
+    });
+  },
 });
-
-/** A removed extension's secrets go with it. */
-export const forget = (caller: string) => secrets.forgetAll(caller);

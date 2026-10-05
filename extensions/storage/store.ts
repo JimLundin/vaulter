@@ -1,9 +1,8 @@
-// The secrets extension's own database in this browser: one IndexedDB object store of keys and values
-// (the device key, each secret encrypted under it, what was opened of the sealed file).
+// A database of its own in this browser, by name: one IndexedDB object store of keys and values, read by
+// key or by a key's prefix. Records keep theirs in "storage"; the secrets extension has one too.
 export interface Store {
   get: <T>(key: string) => Promise<T | undefined>;
   set: (key: string, value: unknown) => Promise<void>;
-  delete: (key: string) => Promise<void>;
   /** Entries whose key starts with `prefix`, in key order. */
   list: <T>(prefix: string) => Promise<[string, T][]>;
 }
@@ -14,11 +13,11 @@ const done = <T>(r: IDBRequest<T>) =>
     r.onerror = () => fail(r.error);
   });
 
-export function idbStore(): Store {
+export function idbStore(name: string): Store {
   let db: Promise<IDBDatabase> | undefined;
   const store = async (mode: IDBTransactionMode) => {
     db ??= new Promise((ok, fail) => {
-      const r = indexedDB.open('secrets', 1);
+      const r = indexedDB.open(name, 1);
       r.onupgradeneeded = () => r.result.createObjectStore('data');
       r.onsuccess = () => ok(r.result);
       r.onerror = () => fail(r.error);
@@ -29,9 +28,6 @@ export function idbStore(): Store {
     get: async <T>(key: string) => done<T | undefined>((await store('readonly')).get(key)),
     async set(key, value) {
       await done((await store('readwrite')).put(value, key));
-    },
-    async delete(key) {
-      await done((await store('readwrite')).delete(key));
     },
     async list<T>(prefix: string) {
       const s = await store('readonly');

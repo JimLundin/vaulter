@@ -9,16 +9,14 @@ export interface AskRequest {
   prompt: string;
 }
 
-export type Step =
-  | { kind: 'open'; extension: string }
-  | {
-      kind: 'tool';
-      extension: string;
-      tool: string;
-      input: unknown;
-      output?: unknown;
-      error?: string;
-    };
+/** A tool call Vaulter made, with what came of it. */
+export interface Step {
+  extension: string;
+  tool: string;
+  input: unknown;
+  output?: unknown;
+  error?: string;
+}
 
 export interface Answer {
   text: string;

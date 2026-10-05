@@ -130,7 +130,7 @@ it('revises pages from notes, cites every fact, asks when unsure, and gives Vaul
   expect((await pages.get({ type: trip.type, id: trip.id }))?.people).toEqual([
     { type: ada.type, id: ada.id },
   ]);
-  expect((await pages.get({ type: dup.type, id: dup.id }))?.id).toBe(ada.id);
+  expect(await pages.get({ type: dup.type, id: dup.id })).toBeUndefined();
 
   const { tools } = await import('#extensions/wiki');
   expect(Object.fromEntries(tools.map((t) => [t.name, t.access]))).toEqual({
@@ -155,7 +155,7 @@ it('works by hand when the model cannot be reached', async () => {
   expect(p).toMatchObject({ kind: 'place', area: 'Södermalm', facts: [] });
 });
 
-it('keeps both of two facts added at once, and a merged page reads as the one kept', async () => {
+it('keeps both of two facts added at once, and a merged page goes into the one kept', async () => {
   offline = true;
   const { log, pages } = await start();
   const n = await log.append({ text: 'Ada swims on Sundays' });
@@ -169,7 +169,9 @@ it('keeps both of two facts added at once, and a merged page reads as the one ke
 
   const lovelace = await pages.create('person', { name: 'Ada Lovelace' });
   await pages.merge({ type: lovelace.type, id: lovelace.id }, ref);
-  expect(await pages.get(ref)).toMatchObject({ id: lovelace.id, aliases: ['Ada'] });
+  expect(await pages.get(ref)).toBeUndefined();
+  const kept = await pages.get({ type: lovelace.type, id: lovelace.id });
+  expect([kept?.aliases, kept?.facts.length]).toEqual([['Ada'], 2]);
   expect((await pages.find('ada')).map((e) => e.name)).toEqual(['Ada Lovelace']);
 });
 
@@ -180,7 +182,7 @@ it('revises a note again on the next start when its revision failed', async () =
   await settle();
   expect(await before.pages.find('Ada')).toEqual([]);
 
-  // The key is set, and the app starts again (store-local's database is still this device's).
+  // The key is set, and the app starts again (storage's database is still this device's).
   offline = false;
   const after = await start();
   await vi.waitFor(async () => expect(await after.pages.find('Ada', ['person'])).toHaveLength(1), {

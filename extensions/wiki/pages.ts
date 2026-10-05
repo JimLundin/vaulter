@@ -1,6 +1,6 @@
 // The wiki's pages as records: one record type per kind, facts kept on the page with the notes they
 // came from. Everything here is what the wiki offers besides revising.
-import type { RecordRef, Records, RecordType, Stored } from '#extensions/store-local';
+import type { RecordRef, Records, RecordType, Stored } from '#extensions/storage';
 import { fields, Kind, type Page, type Wiki } from './api.ts';
 
 export const KINDS = Kind.options;
@@ -97,7 +97,7 @@ export function pages(records: Records, types: Types) {
           ),
         };
       });
-      await records.merge(typeOf(keepRef), keepRef.id, mergeRef.id);
+      await records.delete(typeOf(mergeRef), mergeRef.id);
       // What pointed at the merged page now points at the one kept.
       const swap = (r: unknown) => (r && same(r as RecordRef, mergeRef) ? keepRef : r);
       const swapped = (e: Page): Partial<Page> => ({

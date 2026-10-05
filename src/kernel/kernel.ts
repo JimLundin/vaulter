@@ -2,7 +2,6 @@
 // "The kernel"). Extensions reach each other by importing one another (#extensions/<id>), so the module
 // graph is the wiring and the start order: the kernel only chooses which folders to import. An
 // extension that one that is on imports loads with it, on or not.
-import { record } from './errors.ts';
 
 /** An extension's own description, in its about.ts: read before any of its code runs. */
 export interface About {
@@ -11,9 +10,7 @@ export interface About {
   agentGuide?: string;
   /** On main but off until a device turns it on. */
   preview?: boolean;
-  /** Hosts it fetches without a secret (net). */
-  network?: string[];
-  /** Its secrets, and the only hosts each is attached for (net). */
+  /** Its secrets, and the only hosts each is attached for (the secrets extension). */
   secrets?: Record<string, { label: string; hosts: string[] }>;
 }
 
@@ -25,8 +22,7 @@ export interface ExtensionInfo {
   problem?: string;
 }
 
-/** What an extension's index.ts exports. A provider of something kept per extension exports
- * `forget(id)`, called when that extension is removed. */
+/** What an extension's index.ts exports. */
 export type Exports = Record<string, unknown>;
 
 /** This device's choices: extensions turned on or off, against each one's default (on, unless a
@@ -76,7 +72,6 @@ export async function boot(folders: Folders, on: Device) {
       } catch (e) {
         entry.status = 'failed';
         entry.problem = (e as Error).message;
-        record(id, 'start', e);
       }
     }),
   );
@@ -89,31 +84,16 @@ export const extensions = (): ExtensionInfo[] =>
     .sort((a, b) => a.id.localeCompare(b.id))
     .map(({ exports: _, ...info }) => info);
 
-/** The running extensions' exports: tools for Vaulter, a shell, `forget`. */
+/** The running extensions' exports: tools for Vaulter, a shell. */
 export const running = () =>
   [...entries.values()]
     .filter((e) => e.status === 'running')
     .map((e) => ({ id: e.id, about: e.about, exports: e.exports ?? {} }));
 
-const need = () => {
-  if (!device) throw new Error('the kernel has not started');
-  return device;
-};
-
 /** Turns an extension on or off for this device, and starts the app again. */
 export function setEnabled(id: string, on: boolean) {
-  const d = need();
-  const { enabled } = d.settings.get();
-  d.settings.set({ enabled: { ...enabled, [id]: on } });
-  d.reload();
-}
-
-/** Drops what every provider keeps for `id` (its records, its secrets, its questions), and turns it
- * off. */
-export async function remove(id: string) {
-  for (const r of running()) {
-    const forget = r.exports.forget as ((id: string) => Promise<void>) | undefined;
-    await forget?.(id);
-  }
-  setEnabled(id, false);
+  if (!device) throw new Error('the kernel has not started');
+  const { enabled } = device.settings.get();
+  device.settings.set({ enabled: { ...enabled, [id]: on } });
+  device.reload();
 }

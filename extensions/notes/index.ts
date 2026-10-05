@@ -3,8 +3,8 @@
 // rebuilt from them.
 
 import { z } from 'zod';
-import type { Rec } from '#extensions/store-local';
-import { recordsFor } from '#extensions/store-local';
+import type { Rec } from '#extensions/storage';
+import { recordsFor } from '#extensions/storage';
 import { NewNote, type Note, type Notes } from './api.ts';
 
 export * from './api.ts';

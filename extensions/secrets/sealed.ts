@@ -1,7 +1,7 @@
 // Sealed secrets: every secret in one file, encrypted with a key derived from a password (PBKDF2,
 // AES-GCM), so it can sit in the public page (dist/secrets.json). CI seals it from the repo's secrets
-// (tools/seal-secrets.ts); the secrets extension opens it with the password once per device and keeps
-// the secrets in its vault (vault.ts). Keys inside are `<extension>/<name>`: "openai/key".
+// (tools/seal-secrets.ts); the secrets extension opens it with the password once per device. Keys
+// inside are `<extension>/<name>`: "openai/key".
 // Pure WebCrypto, for the browser and for Node.
 
 export interface SealedFile {

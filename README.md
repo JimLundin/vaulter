@@ -9,13 +9,13 @@ rebuild: the previous app, a viewer over the `JimLundin/vault` repo, is in `main
 
 | Where | What |
 |---|---|
-| `src/kernel/` | the kernel: importing the extensions a device has on (`kernel.ts`), errors, one tab at a time, starting in the browser (`start.ts`) |
+| `src/kernel/` | the kernel: importing the extensions a device has on (`kernel.ts`), one tab at a time, starting in the browser (`start.ts`) |
 | `src/main.ts` | the page's entry: every extension's `about.ts`, and its `index.ts` as a lazy import |
 | `extensions/<id>/` | one extension each: `index.ts`, an ES module; `api.ts`, the types and schemas others use; and `about.ts`, read first |
 | `tools/` | CI only: `seal-secrets.ts`, which seals the secrets into the built page |
 | `tests/` | every test, by what it tests (`tests/kernel/`, `tests/extensions/<id>/`), and `app.ts`, which starts the app in a test |
 
-Extensions: `store-local` (records), `secrets` (the network with secrets), `notes`, `questions`,
+Extensions: `storage` (records), `secrets` (the network with secrets), `notes`, `questions`,
 `openai` (the model), `wiki` and `agent` (Vaulter itself); `ARCHITECTURE.md` has a table of what each
 exports and imports. An extension imports another as `#extensions/<id>`, the kernel as `#kernel`, and
 its own files relatively.
@@ -27,7 +27,7 @@ The UI, and with it the shell, comes next; until a shell is installed the page s
 |---|---|
 | `npm ci` | install |
 | `npm run dev` | the app on the working tree |
-| `npm run build` | the page into `dist/`, each extension a chunk of its own |
+| `npm run build` | the page into `dist/` |
 | `node tools/seal-secrets.ts <out>` | seal the secrets from the environment (what CI runs; see ARCHITECTURE.md, "Secrets") |
 | `npm test` / `npm run typecheck` | Vitest (`tests/`) and TypeScript over everything |
 | `npm run lint` / `npm run format` | Biome: check (CI), or fix in place. 2 spaces, single quotes, semicolons, trailing commas, 100 columns |

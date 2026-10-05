@@ -6,9 +6,6 @@ import process from 'node:process';
 import { promisify } from 'node:util';
 import { describe, expect, it } from 'vitest';
 import { keyFor, open, seal } from '../../../extensions/secrets/sealed.ts';
-import { idbStore } from '../../../extensions/secrets/store.ts';
-import { unsealer } from '../../../extensions/secrets/unseal.ts';
-import { vault } from '../../../extensions/secrets/vault.ts';
 
 const FAST = { iterations: 1000 };
 
@@ -22,33 +19,6 @@ describe('sealed secrets', () => {
       'openai/key': 'sk-1',
     });
     await expect(open(await keyFor('wrong', file.kdf), file)).rejects.toThrow();
-  });
-
-  it('are imported once with the password, then on their own for a new file with the same salt', async () => {
-    const keep = idbStore();
-    const secrets = vault(keep);
-    const u = unsealer(keep, secrets);
-    const first = await seal(
-      'pw-pw-pw-pw-pw-pw',
-      { 'openai/key': 'sk-1', 'maps/token': 'gh-1' },
-      { ...FAST, salt },
-    );
-    expect(await u.check(async () => first)).toBe('locked');
-    await expect(u.unlock('nope')).rejects.toThrow('does not open');
-    await u.unlock('pw-pw-pw-pw-pw-pw');
-    expect(await secrets.reveal('openai', 'key')).toBe('sk-1');
-    expect(await secrets.reveal('maps', 'token')).toBe('gh-1');
-    expect(await u.check(async () => first)).toBe('imported');
-
-    // A new deploy, a new key value: no password needed.
-    const second = await seal('pw-pw-pw-pw-pw-pw', { 'openai/key': 'sk-2' }, { ...FAST, salt });
-    expect(await u.check(async () => second)).toBe('imported');
-    expect(await secrets.reveal('openai', 'key')).toBe('sk-2');
-
-    // A new salt (or password): asked again.
-    const third = await seal('pw-pw-pw-pw-pw-pw', { 'openai/key': 'sk-3' }, FAST);
-    expect(await u.check(async () => third)).toBe('locked');
-    expect(await u.check(() => Promise.reject(new Error('404')))).toBe('none');
   });
 
   it('are sealed in CI from VAULTER_SECRET__<EXTENSION>__<NAME>', async () => {

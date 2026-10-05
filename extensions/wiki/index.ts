@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { notes } from '#extensions/notes';
 import { chat } from '#extensions/openai';
 import { questionsFor } from '#extensions/questions';
-import { recordsFor } from '#extensions/store-local';
+import { recordsFor } from '#extensions/storage';
 import type { Wiki } from './api.ts';
 import { pages, registerTypes } from './pages.ts';
 import { reviser } from './revise.ts';

@@ -26,7 +26,7 @@ export const Answer = z
   .refine((a) => a.choice !== undefined || a.text !== undefined, { message: 'a choice or text' });
 export type Answer = z.infer<typeof Answer>;
 
-export const Status = z.enum(['open', 'answered', 'dismissed']);
+export const Status = z.enum(['open', 'answered']);
 
 export interface Question extends z.output<typeof NewQuestion> {
   id: string;
@@ -47,8 +47,6 @@ export interface Questions {
   ) => Promise<Unsubscribe>;
   open: () => Promise<Question[]>;
   get: (id: string) => Promise<Question | undefined>;
-  onChanged: (handler: (open: Question[]) => void) => Promise<Unsubscribe>;
   // The person's, from a screen.
   answer: (id: string, answer: Answer) => Promise<void>;
-  dismiss: (id: string) => Promise<void>;
 }

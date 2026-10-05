@@ -5,7 +5,7 @@ A voice-first personal knowledge wiki built as a small kernel plus extensions. V
 ## The kernel and extensions
 
 **Kernel**:
-The one part that isn't an extension: it imports the extensions a device has on, lists them, and keeps their errors.
+The one part that isn't an extension: it imports the extensions a device has on, and lists them.
 _Avoid_: core, runtime, host
 
 **Extension**:
@@ -51,7 +51,7 @@ Something the person said or wrote, kept for good; everything else can be rebuil
 _Avoid_: entry, memo, transcript
 
 **Record**:
-One item of typed data an extension keeps through store-local.
+One item of typed data an extension keeps through storage.
 _Avoid_: row, document, entity
 
 **Record type**:
@@ -62,7 +62,7 @@ One state of a record; each change makes a new one, and earlier ones are kept.
 _Avoid_: version (an extension's version is something else)
 
 **Tombstone**:
-A deleted or merged-away record that is kept, hidden.
+A deleted record that is kept, hidden.
 
 **Wiki page**:
 A record about a person, place, event or topic, whose facts each cite the notes they came from.

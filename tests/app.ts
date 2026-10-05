@@ -60,3 +60,14 @@ export async function startApp(ids: string[], opts: AppOptions = {}) {
   );
   return kernel;
 }
+
+/** This page, at https://vaulter.test/, with `file` as its secrets.json; every other request goes to
+ * `other`. */
+export function servePage(file: unknown, other: typeof fetch) {
+  vi.stubGlobal('location', new URL('https://vaulter.test/'));
+  vi.stubGlobal('fetch', (url: string | URL, init?: RequestInit) =>
+    String(url) === 'https://vaulter.test/secrets.json'
+      ? Promise.resolve(Response.json(file))
+      : other(url, init),
+  );
+}

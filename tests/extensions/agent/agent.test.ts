@@ -3,8 +3,8 @@ import type { Step } from '#extensions/agent';
 import type { Chat, ChatResult } from '#extensions/openai';
 import { startApp } from '../../app.ts';
 
-// A model that follows a script: open the wiki, use a tool, then answer from what came back. It keeps
-// the tools it was offered each time.
+// A model that follows a script: use a tool, then answer from what came back. It keeps the tools it
+// was offered each time.
 const offered: string[][] = [];
 const say = (content: string): ChatResult => ({
   content,
@@ -23,14 +23,13 @@ const scripted: Chat = {
     const prompt = String(req.messages.filter((m) => m.role === 'user').at(-1)?.content);
     const results = req.messages.filter((m) => m.role === 'tool');
     const last = results.length ? JSON.parse(String(results.at(-1)?.content)) : undefined;
-    if (!last) return Promise.resolve(call('open_extension', { id: 'wiki' }));
     if (prompt.startsWith('Who')) {
-      if (last.opened) return Promise.resolve(call('wiki__findPages', { query: 'Ada' }));
+      if (!last) return Promise.resolve(call('wiki__findPages', { query: 'Ada' }));
       const found = last as { name: string; summary: string }[];
       return Promise.resolve(say(found.map((p) => `${p.name}: ${p.summary}`).join('; ')));
     }
     const { keep, merge } = JSON.parse(prompt.slice(prompt.indexOf('{')));
-    if (last.opened) return Promise.resolve(call('wiki__mergePages', { keep, merge }));
+    if (!last) return Promise.resolve(call('wiki__mergePages', { keep, merge }));
     return Promise.resolve(say(last.asked ? 'Asked you first' : `Not merged: ${last.error}`));
   },
 };
@@ -55,12 +54,8 @@ it('answers with the tools it opens, and asks the person before a tool that asks
     steps.push(s);
   });
   expect(a.text).toBe('Ada L.: ; Ada: A friend from Uppsala.');
-  expect(
-    steps.map((s) => (s.kind === 'open' ? `open ${s.extension}` : `${s.extension}.${s.tool}`)),
-  ).toEqual(['open wiki', 'wiki.findPages']);
-  // The wiki's tools appear only once it is opened.
-  expect(offered[0]).toEqual(['open_extension']);
-  expect(offered[1]).toContain('wiki__findPages');
+  expect(steps.map((s) => `${s.extension}.${s.tool}`)).toEqual(['wiki.findPages']);
+  expect(offered[0]).toContain('wiki__mergePages');
 
   const refs = { keep: { type: ada.type, id: ada.id }, merge: { type: dup.type, id: dup.id } };
   const merge = () => vaulter.ask({ prompt: `Merge these: ${JSON.stringify(refs)}` });
@@ -75,7 +70,7 @@ it('answers with the tools it opens, and asks the person before a tool that asks
   });
   await asked.answer(q.id, { choice: 'yes' });
   expect((await pages.get(refs.keep))?.aliases).toEqual(['Ada L.']);
-  expect((await pages.get(refs.merge))?.id).toBe(ada.id);
+  expect(await pages.get(refs.merge)).toBeUndefined();
 
   // Asked again, and the person says no: nothing is made.
   const other = await pages.create('person', { name: 'Grace' });
@@ -93,9 +88,9 @@ it('makes an approved call after a restart, from the question alone', async () =
   const refs = { keep: { type: ada.type, id: ada.id }, merge: { type: dup.type, id: dup.id } };
   await before.vaulter.ask({ prompt: `Merge these: ${JSON.stringify(refs)}` });
 
-  // The app starts again (store-local's database is still this device's), and the person says yes.
+  // The app starts again (storage's database is still this device's), and the person says yes.
   const after = await start();
   const [q] = await after.asked.open();
   await after.asked.answer(q.id, { choice: 'yes' });
-  expect((await after.pages.get(refs.merge))?.id).toBe(ada.id);
+  expect(await after.pages.get(refs.merge)).toBeUndefined();
 });

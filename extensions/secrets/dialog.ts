@@ -1,6 +1,5 @@
 // The password prompt for the page's sealed secrets, over whatever the page shows, when
 // this device hasn't opened the sealed file yet. "Not now" closes it; it asks again on the next start.
-import type { Unsealer } from './unseal.ts';
 
 /** An element with its style and properties, and its children. */
 function el<K extends keyof HTMLElementTagNameMap>(
@@ -15,7 +14,7 @@ function el<K extends keyof HTMLElementTagNameMap>(
   return e;
 }
 
-export function unlockDialog(u: Unsealer) {
+export function unlockDialog(unlock: (password: string) => Promise<void>) {
   const input = el('input', {
     type: 'password',
     name: 'password',
@@ -47,7 +46,7 @@ export function unlockDialog(u: Unsealer) {
   form.onsubmit = (e) => {
     e.preventDefault();
     alert.textContent = 'Opening…';
-    u.unlock(input.value).then(
+    unlock(input.value).then(
       () => dialog.close(),
       (err: Error) => {
         alert.textContent = err.message;

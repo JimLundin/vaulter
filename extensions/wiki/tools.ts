@@ -3,7 +3,7 @@
 
 import { z } from 'zod';
 import type { Tool } from '#extensions/agent';
-import { RecordRef } from '#extensions/store-local';
+import { RecordRef } from '#extensions/storage';
 import { Kind, type Page, type Wiki } from './api.ts';
 
 /** A tool as the list holds it, whatever its input. */
