@@ -129,3 +129,45 @@ it('gives a structured answer, checked against its schema', async () => {
     expect(await ask()).toEqual({ name: 'Ada' });
     await expect(ask()).rejects.toThrow();
 });
+
+it('sends a call it cannot make back to the model as its error', async () => {
+    const call = (name: string, args: string) => ({
+        output: [
+            {
+                type: 'function_call',
+                call_id: `call_${name}`,
+                name,
+                arguments: args,
+            },
+        ],
+        usage: { input_tokens: 1, output_tokens: 1 },
+    });
+    const { model, seen } = await openai([
+        call('findPages', '{"query":'),
+        call('nowhere', '{}'),
+        says('Sorry.'),
+    ]);
+    const answer = await model.answer({
+        instructions: 'Be brief.',
+        prompt: 'Who is Ada?',
+        fns: [
+            {
+                name: 'findPages',
+                description: 'Find',
+                input: z.object({ query: z.string() }),
+                call: () => [],
+            },
+        ],
+    });
+
+    expect(answer.text).toBe('Sorry.');
+    expect(answer.calls.map((made) => made.error !== undefined)).toEqual([
+        true,
+        true,
+    ]);
+    expect(seen[2].body.input).toContainEqual({
+        type: 'function_call_output',
+        call_id: 'call_nowhere',
+        output: '{"error":"no function nowhere"}',
+    });
+});

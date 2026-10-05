@@ -7,19 +7,17 @@ export interface Loaded {
 }
 
 let loaded: Loaded[] = [];
-let resolveStarted: () => void = () => undefined;
+const { promise, resolve } = Promise.withResolvers<void>();
 
 /** Resolves once every extension has started. */
-export const started = new Promise<void>((resolve) => {
-    resolveStarted = resolve;
-});
+export const started = promise;
 
 /** Keeps every extension, by id, once each has started. */
 export function load(modules: Record<string, Record<string, unknown>>) {
     loaded = Object.entries(modules)
         .sort(([a], [b]) => a.localeCompare(b))
         .map(([id, exports]) => ({ id, exports }));
-    resolveStarted();
+    resolve();
 }
 
 /** Every extension in the page, with what it exports, in id order. */

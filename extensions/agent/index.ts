@@ -1,15 +1,15 @@
-// The agent: Vaulter. It hands the model every extension's tools, and the
-// model calls them until it can answer.
+// The agent: Vaulter. It hands the model every extension's tools, as
+// functions named `<extension>__<tool>`, and the model calls them until it
+// can answer.
 
-import { type Fn, model } from '#extensions/openai';
-import type { Agent, Step, Tool } from './api.ts';
+import { type Call, type Fn, model } from '#extensions/openai';
+import type { Tool } from './api.ts';
 import { askFirst, tools } from './catalog.ts';
 import instructions from './instructions.md?raw';
 
 export * from './api.ts';
 
-/** `tool` as a function the model calls, as `<extension>__<tool>`. */
-function fnOf(extension: string, tool: Tool<unknown>): Fn {
+function fnOf(extension: string, tool: Tool): Fn {
     const asks = tool.access === 'ask';
     return {
         name: `${extension}__${tool.name}`,
@@ -21,42 +21,22 @@ function fnOf(extension: string, tool: Tool<unknown>): Fn {
             if (!asks) {
                 return tool.run(input);
             }
-            const call = { extension, tool: tool.name, input: input as never };
+            const call = { extension, tool: tool.name, input };
             return { asked: await askFirst(call, tool.description) };
         },
     };
 }
 
-function fns(): Fn[] {
+function fns() {
     return [...tools()].flatMap(([extension, own]) =>
         [...own.values()].map((tool) => fnOf(extension, tool)),
     );
 }
 
-/** A call the model made, as a step: the extension and the tool. */
-function stepOf(name: string, call: Omit<Step, 'extension' | 'tool'>): Step {
-    // An extension's id has no underscore, so the first __ ends it.
-    const split = name.indexOf('__');
-    return {
-        extension: name.slice(0, split),
-        tool: name.slice(split + 2),
-        ...call,
-    };
-}
-
-export const agent: Agent = {
-    async ask(request, onStep) {
-        const steps: Step[] = [];
-        const answer = await model.answer({
-            instructions,
-            prompt: request.prompt,
-            fns: fns(),
-            async onCall({ name, ...call }) {
-                const step = stepOf(name, call);
-                steps.push(step);
-                await onStep?.(step);
-            },
-        });
-        return { text: answer.text, steps, usage: answer.usage };
+export const agent = {
+    /** Answers `prompt` with every extension's tools. `onCall` hears each
+     * call the model makes. */
+    ask(prompt: string, onCall?: (call: Call) => unknown) {
+        return model.answer({ instructions, prompt, fns: fns(), onCall });
     },
 };

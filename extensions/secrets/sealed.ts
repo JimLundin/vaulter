@@ -2,19 +2,31 @@
 // from a password (PBKDF2, AES-GCM), so it can be public. CI seals it, and
 // a device opens it. Plain WebCrypto, for the browser and for Node.
 
-export interface SealedFile {
-    v: 1;
-    kdf: { name: 'PBKDF2'; hash: 'SHA-256'; iterations: number; salt: string };
-    iv: string;
-    data: string;
-}
+import { z } from 'zod';
 
+/** The sealed file, as the page serves it. */
+export const SealedFile = z.object({
+    v: z.literal(1),
+    kdf: z.object({
+        name: z.literal('PBKDF2'),
+        hash: z.literal('SHA-256'),
+        iterations: z.number().int().positive(),
+        salt: z.string(),
+    }),
+    iv: z.string(),
+    data: z.string(),
+});
+export type SealedFile = z.infer<typeof SealedFile>;
+
+const Secrets = z.record(z.string(), z.string());
 const AAD = new TextEncoder().encode('vaulter-secrets-v1');
+
 function base64(bytes: Uint8Array) {
     return btoa(String.fromCharCode(...bytes));
 }
 
-function bytesOf(base64Text: string) {
+/** The bytes of `base64Text`. */
+export function bytesOf(base64Text: string) {
     return Uint8Array.from(atob(base64Text), (c) => c.charCodeAt(0));
 }
 
@@ -32,12 +44,7 @@ export async function keyFor(
         ['deriveKey'],
     );
     return crypto.subtle.deriveKey(
-        {
-            name: 'PBKDF2',
-            hash: 'SHA-256',
-            iterations: kdf.iterations,
-            salt: bytesOf(kdf.salt),
-        },
+        { ...kdf, salt: bytesOf(kdf.salt) },
         base,
         { name: 'AES-GCM', length: 256 },
         false,
@@ -50,13 +57,15 @@ export async function keyFor(
 export async function seal(
     password: string,
     secrets: Record<string, string>,
-    opts: { salt?: Uint8Array; iterations?: number } = {},
+    options: { salt?: Uint8Array; iterations?: number } = {},
 ): Promise<SealedFile> {
-    const kdf = {
-        name: 'PBKDF2' as const,
-        hash: 'SHA-256' as const,
-        iterations: opts.iterations ?? 600_000,
-        salt: base64(opts.salt ?? crypto.getRandomValues(new Uint8Array(16))),
+    const kdf: SealedFile['kdf'] = {
+        name: 'PBKDF2',
+        hash: 'SHA-256',
+        iterations: options.iterations ?? 600_000,
+        salt: base64(
+            options.salt ?? crypto.getRandomValues(new Uint8Array(16)),
+        ),
     };
     const iv = crypto.getRandomValues(new Uint8Array(12));
     const data = await crypto.subtle.encrypt(
@@ -68,29 +77,11 @@ export async function seal(
 }
 
 /** The secrets in a file. Throws on the wrong key. */
-export async function open(
-    key: CryptoKey,
-    file: SealedFile,
-): Promise<Record<string, string>> {
+export async function open(key: CryptoKey, file: SealedFile) {
     const plain = await crypto.subtle.decrypt(
         { name: 'AES-GCM', iv: bytesOf(file.iv), additionalData: AAD },
         key,
         bytesOf(file.data),
     );
-    return JSON.parse(new TextDecoder().decode(plain)) as Record<
-        string,
-        string
-    >;
-}
-
-/** Whether `value` is a sealed file, as the page serves it. */
-export function isSealedFile(value: unknown): value is SealedFile {
-    const file = value as Partial<SealedFile> | null;
-    return (
-        typeof file === 'object' &&
-        file !== null &&
-        file.v === 1 &&
-        typeof file.data === 'string' &&
-        typeof file.kdf?.salt === 'string'
-    );
+    return Secrets.parse(JSON.parse(new TextDecoder().decode(plain)));
 }

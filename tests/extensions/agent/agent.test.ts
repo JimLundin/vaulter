@@ -1,16 +1,18 @@
 import { expect, it, vi } from 'vitest';
-import type { Step } from '#extensions/agent';
-import type { Fn, Model } from '#extensions/openai';
+import type { Call, model } from '#extensions/openai';
 import { startApp } from '../../app.ts';
 
 // A model that follows a script: call one function, then answer from what came
 // back. It keeps the functions it was offered each time.
 const offered: string[][] = [];
-const scripted: Pick<Model, 'answer'> = {
+const scripted: Pick<typeof model, 'answer'> = {
     async answer({ prompt, fns = [], onCall }) {
         offered.push(fns.map((f) => f.name));
         const call = async (name: string, input: unknown) => {
-            const fn = fns.find((f) => f.name === name) as Fn;
+            const fn = fns.find((f) => f.name === name);
+            if (!fn) {
+                throw new Error(`no function ${name}`);
+            }
             const output = await fn.call(fn.input.parse(input));
             await onCall?.({ name, input, output });
             return output;
@@ -57,22 +59,19 @@ it('asks the person before a tool that asks first', async () => {
     });
     const dup = await pages.create('person', { name: 'Ada L.' });
 
-    const steps: Step[] = [];
-    const answer = await vaulter.ask({ prompt: 'Who is Ada?' }, (s) => {
-        steps.push(s);
+    const calls: Call[] = [];
+    const answer = await vaulter.ask('Who is Ada?', (call) => {
+        calls.push(call);
     });
     expect(answer.text).toBe('Ada L.: ; Ada: A friend from Uppsala.');
-    expect(steps.map((s) => `${s.extension}.${s.tool}`)).toEqual([
-        'wiki.findPages',
-    ]);
+    expect(calls.map((call) => call.name)).toEqual(['wiki__findPages']);
     expect(offered[0]).toContain('wiki__mergePages');
 
     const refs = {
-        keep: { type: ada.type, id: ada.id },
-        merge: { type: dup.type, id: dup.id },
+        keep: ada.id,
+        merge: dup.id,
     };
-    const merge = () =>
-        vaulter.ask({ prompt: `Merge these: ${JSON.stringify(refs)}` });
+    const merge = () => vaulter.ask(`Merge these: ${JSON.stringify(refs)}`);
     expect((await merge()).text).toBe('Asked you first');
     // Nothing changes until the person says yes: then the call is made.
     expect((await pages.get(refs.merge))?.id).toBe(dup.id);
@@ -88,7 +87,7 @@ it('asks the person before a tool that asks first', async () => {
 
     // Asked again, and the person says no: nothing is made.
     const other = await pages.create('person', { name: 'Grace' });
-    refs.merge = { type: other.type, id: other.id };
+    refs.merge = other.id;
     await merge();
     const [again] = await asked.open();
     await asked.answer(again.id, { choice: 'no' });
@@ -100,12 +99,10 @@ it('makes an approved call after a restart', async () => {
     const ada = await before.pages.create('person', { name: 'Ada' });
     const dup = await before.pages.create('person', { name: 'Ada L.' });
     const refs = {
-        keep: { type: ada.type, id: ada.id },
-        merge: { type: dup.type, id: dup.id },
+        keep: ada.id,
+        merge: dup.id,
     };
-    await before.vaulter.ask({
-        prompt: `Merge these: ${JSON.stringify(refs)}`,
-    });
+    await before.vaulter.ask(`Merge these: ${JSON.stringify(refs)}`);
 
     // The app starts again (storage's database is still this device's), and the
     // person says yes.

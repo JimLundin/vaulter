@@ -6,10 +6,10 @@
 import { z } from 'zod';
 import type { Note } from '#extensions/notes';
 import { model } from '#extensions/openai';
-import { questionsFor } from '#extensions/questions';
-import type { RecordRef } from '#extensions/storage';
+import { questionsFor, YES_NO } from '#extensions/questions';
+import { words } from '#extensions/storage';
 import { KINDS, type Page, type Revised } from './api.ts';
-import { all, pages } from './pages.ts';
+import { addFact, all, create, get, update } from './pages.ts';
 import instructions from './revise.md?raw';
 
 // What the model answers, checked before anything is made of it.
@@ -45,94 +45,74 @@ type FactIn = z.infer<typeof FactIn>;
 
 /** What an unsure change's question holds, to make the change once it is
  * answered. */
-interface Pending {
-    note: Note;
-    yes: Changes;
-    no: Changes;
-}
+const Pending = z.object({ note: z.string(), yes: Changes, no: Changes });
 
 /** How many pages the model is shown with a note. */
 const MAX_PAGES = 60;
 const questions = questionsFor('wiki');
 
-function tokens(text: string) {
-    return text
-        .toLocaleLowerCase()
-        .split(/[^\p{L}\p{N}]+/u)
-        .filter((word) => word.length >= 3);
+/** The words of `text` that can name something. */
+function naming(text: string) {
+    return words(text).filter((word) => word.length >= 3);
 }
 
 /** The pages a note may be about: those with a name or alias word in it,
  * then the most recent. */
 function candidates(note: string, every: Page[]): Page[] {
-    const said = new Set(tokens(note));
+    const said = new Set(naming(note));
     const named = every.filter((page) =>
         [page.name, ...page.aliases].some((name) =>
-            tokens(name).some((word) => said.has(word)),
+            naming(name).some((word) => said.has(word)),
         ),
     );
     const recent = [...every].sort((a, b) =>
-        b.updated.localeCompare(a.updated),
+        b.meta.updated.localeCompare(a.meta.updated),
     );
     return [...new Set([...named, ...recent])].slice(0, MAX_PAGES);
 }
 
-/** A fact from the model, citing `note`. */
-function cited(fact: FactIn, note: Note) {
-    return {
-        text: fact.text,
-        sources: [note.id],
-        ...(fact.at ? { at: fact.at } : {}),
-    };
+/** A fact from the model, citing `noteId`. */
+function cited(fact: FactIn, noteId: string) {
+    return { text: fact.text, sources: [noteId], at: fact.at ?? undefined };
 }
 
-/** Makes the pages `changes` creates. Returns them by the plan's own ref
- * for each. */
-async function createPages(changes: Changes, note: Note, revised: Revised) {
-    const made = new Map<string, Page>();
-    for (const create of changes.create) {
-        let page = await pages.create(create.kind, {
-            name: create.name,
-            aliases: create.aliases,
-        });
-        for (const fact of create.facts) {
-            page = await pages.addFact(
-                { type: page.type, id: page.id },
-                cited(fact, note),
-            );
+/** Makes `changes`, citing `noteId`. The model names a page by its id, or
+ * by its ref in this answer, and a page it names that isn't there is left
+ * out. Returns the pages created and updated. */
+async function apply(changes: Changes, noteId: string) {
+    const made = new Map<string, string>();
+    const created: string[] = [];
+    for (const { ref, kind, name, aliases, facts } of changes.create) {
+        const page = await create(kind, { name, aliases });
+        for (const fact of facts) {
+            await addFact(page.id, cited(fact, noteId));
         }
-        made.set(create.ref, page);
-        revised.created.push({ type: page.type, id: page.id });
+        made.set(ref, page.id);
+        created.push(page.id);
     }
-    return made;
-}
-
-/** Makes `changes`, citing `note`. */
-async function apply(changes: Changes, note: Note, revised: Revised) {
-    const made = await createPages(changes, note, revised);
-    const known = new Map((await all()).map((page) => [page.id, page]));
-    // The model names a page by its id, or by its ref in this answer.
-    function refOf(id: string): RecordRef | undefined {
-        const page = made.get(id) ?? known.get(id);
-        return page && { type: page.type, id: page.id };
+    async function pageId(named: string) {
+        const id = made.get(named) ?? named;
+        return (await get(id)) && id;
     }
 
+    const updated: string[] = [];
     for (const add of changes.add) {
-        const ref = refOf(add.id);
-        if (!ref) {
+        const id = await pageId(add.id);
+        if (!id) {
             continue;
         }
         for (const fact of add.facts) {
-            await pages.addFact(ref, cited(fact, note));
+            await addFact(id, cited(fact, noteId));
         }
-        revised.updated.push(ref);
+        updated.push(id);
     }
-    for (const { id, summary } of changes.summaries) {
-        const ref = refOf(id);
-        if (ref) {
-            await pages.update(ref, { summary });
+    for (const { id: named, summary } of changes.summaries) {
+        const id = await pageId(named);
+        if (id) {
+            await update(id, { summary });
         }
     }
+    return { created, updated };
 }
 
 /** What the model is shown of each page. */
@@ -157,43 +137,28 @@ export async function revise(note: Note): Promise<Revised> {
         schema: Plan,
         name: 'revision',
     });
-    const revised: Revised = {
-        note: note.id,
-        created: [],
-        updated: [],
-        asked: [],
-    };
-    await apply(plan, note, revised);
+    const { created, updated } = await apply(plan, note.id);
 
+    const asked: string[] = [];
     for (const unsure of plan.ask) {
-        const pending: Pending = { note, yes: unsure.yes, no: unsure.no };
         const id = await questions.ask({
             topic: 'revise',
             // Revising the same note again doesn't ask again what is still
             // open.
             key: `${note.id}:${unsure.title}`,
             title: unsure.title,
-            ...(unsure.body ? { body: unsure.body } : {}),
-            choices: [
-                { id: 'yes', label: 'Yes' },
-                { id: 'no', label: 'No' },
-            ],
+            body: unsure.body ?? undefined,
+            choices: YES_NO,
             notes: [note.id],
-            data: pending as never,
+            data: { note: note.id, yes: unsure.yes, no: unsure.no },
         });
-        revised.asked.push(id);
+        asked.push(id);
     }
-    return revised;
+    return { note: note.id, created, updated, asked };
 }
 
 /** Makes the change an answered question chose. */
 export async function answered(choice: string | undefined, data: unknown) {
-    const pending = data as Pending;
-    const changes = Changes.parse(choice === 'yes' ? pending.yes : pending.no);
-    await apply(changes, pending.note, {
-        note: pending.note.id,
-        created: [],
-        updated: [],
-        asked: [],
-    });
+    const pending = Pending.parse(data);
+    await apply(choice === 'yes' ? pending.yes : pending.no, pending.note);
 }

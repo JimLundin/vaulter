@@ -1,26 +1,29 @@
 // Notes: the append-only log of what was said or typed. Voice appends to
-// it, and the wiki builds its pages from it.
+// it, and the wiki builds its pages from it. A note is never changed or
+// removed, so everything built from notes can be rebuilt from them.
 
+import { z } from 'zod';
 import { collection, type Rec } from '#extensions/storage';
-import { omit } from '#kernel';
-import { NewNote, type Note, type Notes } from './api.ts';
+import type { Unsubscribe } from '#kernel';
 
-export * from './api.ts';
+/** A note as a person or an import gives it. */
+export const NewNote = z.object({
+    text: z.string().trim().min(1),
+    source: z.enum(['typed', 'voice', 'import']).default('typed'),
+    /** When it was said: now, or earlier for an import. */
+    at: z.iso.datetime().default(() => new Date().toISOString()),
+    /** What was around it, such as where, or the audio's id. */
+    context: z.record(z.string(), z.json()).optional(),
+});
 
-type Kept = Omit<Note, 'id'>;
+export type Note = Rec<z.output<typeof NewNote>>;
 
-const kept = collection<Kept>('notes/note');
+const kept = collection<z.output<typeof NewNote>>('notes/note');
 const listeners = new Set<(note: Note) => void>();
 
-function noteOf(record: Rec<Kept>): Note {
-    return omit(record, 'meta');
-}
-
-export const notes: Notes = {
-    async append(input) {
-        const given = NewNote.parse(input);
-        const at = given.at ?? new Date().toISOString();
-        const note = noteOf(await kept.create({ ...given, at }));
+export const notes = {
+    async append(input: z.input<typeof NewNote>) {
+        const note = await kept.create(NewNote.parse(input));
         // Each listener runs on its own, after the note is kept, so one that
         // fails can't undo or stop anything.
         for (const listener of listeners) {
@@ -29,22 +32,29 @@ export const notes: Notes = {
         return note;
     },
 
-    async get(id) {
-        const record = await kept.get(id);
-        return record && noteOf(record);
+    get(id: string) {
+        return kept.get(id);
     },
 
-    async list(query = {}) {
-        const found = await kept.query({
+    /** By when each was said, which for an import is not when it was kept:
+     * at or after `since`, and before `until`. */
+    list(
+        query: {
+            since?: string;
+            until?: string;
+            limit?: number;
+            order?: 'newest' | 'oldest';
+        } = {},
+    ) {
+        return kept.query({
             where: { at: { gte: query.since, lt: query.until } },
             orderBy: 'at',
             order: query.order === 'oldest' ? 'asc' : 'desc',
             limit: query.limit,
         });
-        return found.map(noteOf);
     },
 
-    onAppended(listener) {
+    onAppended(listener: (note: Note) => void): Unsubscribe {
         listeners.add(listener);
         return () => {
             listeners.delete(listener);

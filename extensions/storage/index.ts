@@ -5,6 +5,7 @@ import { collections } from './records.ts';
 import { idbStore } from './store.ts';
 
 export * from './api.ts';
+export { words } from './records.ts';
 export { idbStore } from './store.ts';
 
 /** The collection `name`, by convention `<extension>/<what>`, typed by what

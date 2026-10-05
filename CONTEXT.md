@@ -34,7 +34,7 @@ The human using Vaulter.
 _Avoid_: user, owner
 
 **Access level**:
-What Vaulter may do with a tool on its own: read (run it), write (run it, shown in its steps), or ask (only once the person says yes).
+What Vaulter may do with a tool on its own: read (run it), write (run it, shown in its calls), or ask (only once the person says yes).
 _Avoid_: permission (that's a host or secret an extension declares)
 
 **Approval**:

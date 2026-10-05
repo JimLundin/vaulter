@@ -2,51 +2,23 @@
 // sealed secret "openai/key".
 
 import { z } from 'zod';
-import { secret } from '#extensions/secrets';
-import type { Answer, Call, Fn, Model } from './api.ts';
+import { messageOf } from '#kernel';
+import type { Call, Fn } from './api.ts';
 import {
-    bodyOf,
-    type Message,
-    resultOf,
-    type TurnRequest,
+    callsIn,
+    type FunctionCall,
+    type Item,
+    respond,
+    textIn,
 } from './responses.ts';
 
 export * from './api.ts';
 
-const API = 'https://api.openai.com/v1';
 /** The model it asks. */
 const MODEL = 'gpt-6.1-sol';
 const MAX_STEPS = 12;
 /** How much of a function's output goes back to the model. */
 const MAX_OUTPUT = 20_000;
-
-/** One turn with the model. */
-async function turn(request: TurnRequest) {
-    const key = secret('openai/key');
-    if (!key) {
-        throw new Error('the OpenAI key is not set: unlock this device');
-    }
-    // No cookies or referrer of the page's own go with it, and no redirect.
-    const response = await fetch(`${API}/responses`, {
-        method: 'POST',
-        headers: {
-            Authorization: `Bearer ${key}`,
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(bodyOf(request, MODEL)),
-        credentials: 'omit',
-        referrerPolicy: 'no-referrer',
-        redirect: 'error',
-    });
-    if (!response.ok) {
-        const failure = (await response.json().catch(() => null)) as {
-            error?: { message?: string };
-        } | null;
-        const reason = failure?.error?.message ?? response.statusText;
-        throw new Error(`OpenAI ${response.status}: ${reason}`);
-    }
-    return resultOf(await response.json());
-}
 
 /** A function's output as the model gets it, cut if it is long. */
 function shown(value: unknown) {
@@ -57,95 +29,119 @@ function shown(value: unknown) {
     return `${text.slice(0, MAX_OUTPUT)}… (cut)`;
 }
 
-/** Makes one call the model asked for, and returns what came of it. */
-async function made(fns: Fn[], name: string, args: string): Promise<Call> {
-    const input: unknown = JSON.parse(args || '{}');
-    const fn = fns.find((candidate) => candidate.name === name);
-    if (!fn) {
-        return { name, input, error: `no function ${name}` };
-    }
+/** Makes one call the model asked for, and returns what came of it. A call
+ * that fails, for any reason, goes back to the model as its error. */
+async function made(fns: Fn[], request: FunctionCall): Promise<Call> {
+    const { name } = request;
+    let input: unknown = request.arguments;
     try {
+        input = JSON.parse(request.arguments || '{}');
+        const fn = fns.find((candidate) => candidate.name === name);
+        if (!fn) {
+            throw new Error(`no function ${name}`);
+        }
         return { name, input, output: await fn.call(fn.input.parse(input)) };
     } catch (error) {
-        return { name, input, error: (error as Error).message };
+        return { name, input, error: messageOf(error) };
     }
 }
 
 function toolsOf(fns: Fn[]) {
     return fns.map((fn) => ({
+        type: 'function',
         name: fn.name,
         description: fn.description,
         parameters: z.toJSONSchema(fn.input, {
             io: 'input',
             unrepresentable: 'any',
         }),
+        // A schema made from Zod isn't always a strict-mode schema, because
+        // of its optional fields.
+        strict: false,
     }));
 }
 
-export const model: Model = {
+function opening(instructions: string, prompt: string): Item[] {
+    return [
+        { role: 'system', content: instructions },
+        { role: 'user', content: prompt },
+    ];
+}
+
+export const model = {
+    /** Answers `prompt`, calling `fns` as it needs to, for up to
+     * `maxSteps` turns. `onCall` hears each call once it is made. */
     async answer({
         instructions,
         prompt,
         fns = [],
         maxSteps = MAX_STEPS,
         onCall,
+    }: {
+        instructions: string;
+        prompt: string;
+        fns?: Fn[];
+        maxSteps?: number;
+        onCall?: (call: Call) => unknown;
     }) {
-        const tools = toolsOf(fns);
-        const messages: Message[] = [
-            { role: 'system', content: instructions },
-            { role: 'user', content: prompt },
-        ];
-        const answer: Answer = {
-            text: '',
-            calls: [],
-            usage: { input: 0, output: 0 },
-        };
+        const input = opening(instructions, prompt);
+        const tools = fns.length ? toolsOf(fns) : undefined;
+        const calls: Call[] = [];
+        const usage = { input: 0, output: 0 };
 
         for (let step = 0; step < maxSteps; step++) {
-            const result = await turn({ messages, tools });
-            answer.usage.input += result.usage.input;
-            answer.usage.output += result.usage.output;
-            messages.push({
-                role: 'assistant',
-                content: result.content,
-                toolCalls: result.toolCalls,
-                state: result.state,
-            });
-            if (!result.toolCalls.length) {
-                return { ...answer, text: result.content ?? '' };
+            const turn = await respond({ model: MODEL, input, tools });
+            usage.input += turn.usage.input_tokens;
+            usage.output += turn.usage.output_tokens;
+            input.push(...turn.output);
+            const asked = callsIn(turn.output);
+            if (!asked.length) {
+                return { text: textIn(turn.output), calls, usage };
             }
 
-            for (const toolCall of result.toolCalls) {
-                const call = await made(fns, toolCall.name, toolCall.arguments);
-                answer.calls.push(call);
+            for (const request of asked) {
+                const call = await made(fns, request);
+                calls.push(call);
                 await onCall?.(call);
-                messages.push({
-                    role: 'tool',
-                    toolCallId: toolCall.id,
-                    content: shown(
+                input.push({
+                    type: 'function_call_output',
+                    call_id: request.call_id,
+                    output: shown(
                         call.error ? { error: call.error } : call.output,
                     ),
                 });
             }
         }
 
-        return {
-            ...answer,
-            text: 'That took too many steps; ask again more narrowly.',
-        };
+        const text = 'That took too many steps; ask again more narrowly.';
+        return { text, calls, usage };
     },
 
-    async json({ instructions, input, schema, name }) {
-        const result = await turn({
-            messages: [
-                { role: 'system', content: instructions },
-                { role: 'user', content: JSON.stringify(input) },
-            ],
-            responseSchema: {
-                name,
-                schema: z.toJSONSchema(schema) as Record<string, unknown>,
+    /** An answer shaped by `schema`, and checked against it. `name` is the
+     * answer's name, for the model: "revision". */
+    async json<Schema extends z.ZodType>({
+        instructions,
+        input,
+        schema,
+        name,
+    }: {
+        instructions: string;
+        input: unknown;
+        schema: Schema;
+        name: string;
+    }): Promise<z.output<Schema>> {
+        const turn = await respond({
+            model: MODEL,
+            input: opening(instructions, JSON.stringify(input)),
+            text: {
+                format: {
+                    type: 'json_schema',
+                    name,
+                    schema: z.toJSONSchema(schema),
+                    strict: false,
+                },
             },
         });
-        return schema.parse(JSON.parse(result.content ?? '{}'));
+        return schema.parse(JSON.parse(textIn(turn.output) || '{}'));
     },
 };

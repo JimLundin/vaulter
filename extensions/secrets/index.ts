@@ -4,7 +4,7 @@
 
 import { idbStore } from '#extensions/storage';
 import { unlockDialog } from './dialog.ts';
-import { isSealedFile, keyFor, open, type SealedFile } from './sealed.ts';
+import { keyFor, open, SealedFile } from './sealed.ts';
 
 /** The key this device derived from the password. It can't be exported,
  * and opens every later deploy sealed with the same salt. */
@@ -19,8 +19,7 @@ const store = idbStore('secrets');
 async function readSealedFile() {
     const url = new URL('secrets.json', location.href);
     const response = await fetch(url, { cache: 'no-cache' });
-    const file: unknown = await response.json();
-    return isSealedFile(file) ? file : null;
+    return SealedFile.parse(await response.json());
 }
 
 async function openWithKeptKey(file: SealedFile) {

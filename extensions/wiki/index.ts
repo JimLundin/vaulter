@@ -5,12 +5,21 @@
 import { notes } from '#extensions/notes';
 import { questionsFor } from '#extensions/questions';
 import { collection } from '#extensions/storage';
-import type { Wiki } from './api.ts';
-import { pages } from './pages.ts';
+import { messageOf } from '#kernel';
+import {
+    addFact,
+    citing,
+    create,
+    find,
+    get,
+    merge,
+    retractFact,
+    update,
+} from './pages.ts';
 import { answered, revise } from './revise.ts';
-import { toolsOf } from './tools.ts';
 
 export * from './api.ts';
+export { tools } from './tools.ts';
 
 /** Notes whose revision failed (no key yet, offline, a bad answer), to be
  * revised again on the next start. */
@@ -35,7 +44,7 @@ async function attempt(noteId: string) {
         await reviseInTurn(noteId);
         await unrevised.delete(noteId);
     } catch (error) {
-        const reason = (error as Error).message;
+        const reason = messageOf(error);
         if (await unrevised.get(noteId)) {
             await unrevised.update(noteId, () => ({ error: reason }));
         } else {
@@ -52,5 +61,16 @@ for (const left of await unrevised.query({ order: 'asc' })) {
     void attempt(left.id);
 }
 
-export const wiki: Wiki = { ...pages, revise: reviseInTurn };
-export const tools = toolsOf(wiki);
+export const wiki = {
+    find,
+    get,
+    create,
+    update,
+    addFact,
+    retractFact,
+    merge,
+    citing,
+    /** Revises the pages a note touches, as happens on its own when a note
+     * is appended. */
+    revise: reviseInTurn,
+};

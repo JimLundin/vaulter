@@ -16,3 +16,8 @@ export function omit<T extends object, K extends keyof T>(
     }
     return rest;
 }
+
+/** What went wrong, as words, whatever was thrown. */
+export function messageOf(error: unknown) {
+    return error instanceof Error ? error.message : String(error);
+}

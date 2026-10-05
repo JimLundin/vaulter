@@ -2,104 +2,61 @@
 // Every fact cites the notes it came from, so a page can always be checked
 // against what was said, and rebuilt from it.
 
-import type { RecordRef } from '#extensions/storage';
+import { z } from 'zod';
+import type { Rec } from '#extensions/storage';
 
 export const KINDS = ['person', 'place', 'event', 'topic'] as const;
 export type Kind = (typeof KINDS)[number];
 
-export interface Fact {
-    id: string;
-    text: string;
+const Fact = z.object({
+    id: z.string(),
+    text: z.string(),
     /** The notes it comes from. Never empty for a fact Vaulter added. */
-    sources: string[];
+    sources: z.array(z.string()),
     /** When it was true or happened, if it says. */
-    at?: string;
-    added: string;
-}
+    at: z.string().optional(),
+    added: z.string(),
+});
+export type Fact = z.infer<typeof Fact>;
 
-/** What every kind has. */
-export interface Common {
-    name: string;
-    aliases: string[];
+/** What a page holds. Other pages are named by their ids. */
+const PageFields = z.object({
+    kind: z.enum(KINDS),
+    name: z.string().trim().min(1),
+    aliases: z.array(z.string()),
     /** A short summary in Markdown, kept up to date as facts are added. */
-    summary: string;
-    facts: Fact[];
-    related: RecordRef[];
-}
+    summary: z.string(),
+    facts: z.array(Fact),
+    related: z.array(z.string()),
+    /** A person's. */
+    birthday: z.string().optional(),
+    /** A place's. */
+    area: z.string().optional(),
+    address: z.string().optional(),
+    geo: z.object({ lat: z.number(), lon: z.number() }).optional(),
+    /** An event's: a date or date-time, `until` for one that lasted, and
+     * the place and people pages. */
+    date: z.string().optional(),
+    until: z.string().optional(),
+    place: z.string().optional(),
+    people: z.array(z.string()).optional(),
+});
+export type PageFields = z.infer<typeof PageFields>;
+export type Page = Rec<PageFields>;
 
-/** What each kind holds. */
-export interface Fields {
-    person: Common & { birthday?: string };
-    place: Common & {
-        area?: string;
-        address?: string;
-        geo?: { lat: number; lon: number };
-    };
-    /** A date or date-time; `until` for one that lasted. */
-    event: Common & {
-        date?: string;
-        until?: string;
-        place?: RecordRef;
-        people: RecordRef[];
-    };
-    topic: Common;
-}
+/** What a change to a page may set: anything but its kind and its facts. */
+export const Patch = PageFields.omit({ kind: true, facts: true }).partial();
+export type Patch = z.infer<typeof Patch>;
 
-export interface Page {
-    id: string;
-    type: string;
-    kind: Kind;
-    name: string;
-    aliases: string[];
-    summary: string;
-    facts: Fact[];
-    related: RecordRef[];
-    created: string;
-    updated: string;
-    [field: string]: unknown;
-}
+/** A new page: its name, and any of the other fields a change may set. */
+export const NewPage = Patch.required({ name: true });
+export type NewPage = z.infer<typeof NewPage>;
 
-/** What revising the wiki from a note did. */
+/** What revising the wiki from a note did, by page id. */
 export interface Revised {
     note: string;
-    created: RecordRef[];
-    updated: RecordRef[];
+    created: string[];
+    updated: string[];
     /** Questions asked instead of changes it wasn't sure of. */
     asked: string[];
-}
-
-/** A new page: its name, and any of its kind's other fields. */
-export interface NewPage {
-    name: string;
-    aliases?: string[];
-    summary?: string;
-    [field: string]: unknown;
-}
-
-/** What a change to a page may set: anything but its facts and what
- * storage keeps. */
-export type PagePatch = Partial<
-    Omit<Page, 'id' | 'type' | 'kind' | 'created' | 'updated' | 'facts'>
->;
-
-export interface Wiki {
-    /** Pages whose name, aliases or summary contain every word of `text`. */
-    find: (text: string, kinds?: Kind[]) => Promise<Page[]>;
-    get: (ref: RecordRef) => Promise<Page | undefined>;
-    create: (kind: Kind, page: NewPage) => Promise<Page>;
-    /** Changes fields other than facts. */
-    update: (ref: RecordRef, patch: PagePatch) => Promise<Page>;
-    addFact: (
-        ref: RecordRef,
-        fact: { text: string; sources: string[]; at?: string },
-    ) => Promise<Page>;
-    retractFact: (ref: RecordRef, factId: string) => Promise<Page>;
-    /** Folds `merge` into `keep`, with its facts, aliases and links. `merge`
-     * is then deleted, and what pointed at it points at `keep`. */
-    merge: (keep: RecordRef, merge: RecordRef) => Promise<Page>;
-    /** The pages that cite a note. */
-    citing: (noteId: string) => Promise<Page[]>;
-    /** Revises the pages a note touches, as happens on its own when a note
-     * is appended. */
-    revise: (noteId: string) => Promise<Revised>;
 }

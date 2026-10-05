@@ -1,6 +1,7 @@
 // Starting the app in this browser: claim the tab, import every extension,
 // and hand the page to the shell.
 
+import { messageOf } from './api.ts';
 import { load } from './kernel.ts';
 import { claim } from './single-tab.ts';
 
@@ -42,7 +43,7 @@ export async function start(folders: Record<string, () => Promise<Module>>) {
     try {
         modules = await importAll(folders);
     } catch (error) {
-        say(`Vaulter could not start: ${(error as Error).message}`);
+        say(`Vaulter could not start: ${messageOf(error)}`);
         return;
     }
     load(modules);

@@ -11,7 +11,7 @@ code is written is `STYLE.md`. This is a full rebuild: the previous app, a viewe
 |---|---|
 | `src/kernel/` | the kernel: importing the extensions a device has on (`kernel.ts`), one tab at a time, starting in the browser (`start.ts`) |
 | `src/main.ts` | the page's entry: every extension's `index.ts`, imported once this tab has Vaulter |
-| `extensions/<id>/` | one extension each: `index.ts`, an ES module, and `api.ts`, the types and schemas others use |
+| `extensions/<id>/` | one extension each: `index.ts`, an ES module, and `api.ts`, the schemas and data types others use |
 | `tools/` | CI only: `seal-secrets.ts`, which seals the secrets into the built page |
 | `tests/` | every test, by what it tests (`tests/kernel/`, `tests/extensions/<id>/`), and `app.ts`, which starts the app in a test |
 

@@ -3,7 +3,7 @@
 // handles the answers under that topic, also after a restart.
 
 import { z } from 'zod';
-import type { Unsubscribe } from '#kernel';
+import type { Rec } from '#extensions/storage';
 
 /** A question as an extension asks it. */
 export const NewQuestion = z.object({
@@ -19,8 +19,10 @@ export const NewQuestion = z.object({
     notes: z.array(z.string()).default([]),
     /** Asking again with the same key, while one is open, returns that one. */
     key: z.string().optional(),
-    /** Anything the asker needs back with the answer. */
-    data: z.json().optional(),
+    /** Anything the asker needs back with the answer. It comes back from
+     * storage, perhaps to a newer version of the asker, so the asker reads
+     * it with a schema of its own. */
+    data: z.unknown().optional(),
 });
 
 /** The person's answer: one of the choices, or text. */
@@ -31,25 +33,22 @@ export const Answer = z
     });
 export type Answer = z.infer<typeof Answer>;
 
-export interface Question extends z.output<typeof NewQuestion> {
-    id: string;
-    /** The extension that asked. */
-    from: string;
-    at: string;
-    status: 'open' | 'answered';
-    answer?: Answer;
-}
+export type Question = Rec<
+    z.output<typeof NewQuestion> & {
+        /** The extension that asked. */
+        from: string;
+        at: string;
+        status: 'open' | 'answered';
+        answer?: Answer;
+        /** Whether the asker has had its answer. */
+        delivered: boolean;
+    }
+>;
 
 export type Handler = (answer: Answer, question: Question) => unknown;
 
-export interface Questions {
-    /** Asks, and returns the question's id. */
-    ask: (question: z.input<typeof NewQuestion>) => Promise<string>;
-    /** Handles the answers to the asker's questions on `topic`. Answers that
-     * came while nothing handled them are delivered now. */
-    handle: (topic: string, handler: Handler) => Promise<Unsubscribe>;
-    open: () => Promise<Question[]>;
-    get: (id: string) => Promise<Question | undefined>;
-    /** The person's answer, from a screen. */
-    answer: (id: string, answer: Answer) => Promise<void>;
-}
+/** The choices of a yes-or-no question. */
+export const YES_NO = [
+    { id: 'yes', label: 'Yes' },
+    { id: 'no', label: 'No' },
+];

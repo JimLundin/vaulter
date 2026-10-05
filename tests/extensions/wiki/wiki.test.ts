@@ -1,12 +1,12 @@
 import { expect, it, vi } from 'vitest';
-import type { Model } from '#extensions/openai';
+import type { model } from '#extensions/openai';
 import { startApp } from '../../app.ts';
 
 // A model that files notes the way the instructions ask, by looking at the note
 // and the pages sent; with `offline`, every request fails, as with no key yet.
 let offline = false;
 const none = { create: [], add: [], summaries: [] };
-const fake: Pick<Model, 'json'> = {
+const fake: Pick<typeof model, 'json'> = {
     json<T>(req: { input: unknown; schema: { parse: (v: unknown) => T } }) {
         if (offline) {
             return Promise.reject(new Error('OpenAI 401: no key'));
@@ -128,11 +128,10 @@ it('revises pages from notes, and asks when unsure', async () => {
     await vi.waitFor(async () => expect(await asked.open()).toHaveLength(1), {
         timeout: 2000,
     });
-    expect(
-        (await pages.get({ type: ada.type, id: ada.id }))?.facts.map(
-            (f) => f.text,
-        ),
-    ).toEqual(['Had lunch at Café Lumière', 'Birthday in December']);
+    expect((await pages.get(ada.id))?.facts.map((f) => f.text)).toEqual([
+        'Had lunch at Café Lumière',
+        'Birthday in December',
+    ]);
     const [q] = await asked.open();
     expect(q).toMatchObject({
         from: 'wiki',
@@ -153,28 +152,20 @@ it('revises pages from notes, and asks when unsure', async () => {
     // Merging folds the facts and aliases together, and what pointed at the
     // merged page follows.
     const dup = await pages.create('person', { name: 'Ada L.' });
-    await pages.addFact(
-        { type: dup.type, id: dup.id },
-        { text: 'Works in Uppsala', sources: [n1.id] },
-    );
+    await pages.addFact(dup.id, { text: 'Works in Uppsala', sources: [n1.id] });
     const trip = await pages.create('event', {
         name: 'Trip',
-        people: [{ type: dup.type, id: dup.id }],
+        people: [dup.id],
     });
-    const merged = await pages.merge(
-        { type: ada.type, id: ada.id },
-        { type: dup.type, id: dup.id },
-    );
+    const merged = await pages.merge(ada.id, dup.id);
     expect(merged.aliases).toEqual(['Ada L.']);
     expect(merged.facts.map((f) => f.text)).toEqual([
         'Had lunch at Café Lumière',
         'Birthday in December',
         'Works in Uppsala',
     ]);
-    expect((await pages.get({ type: trip.type, id: trip.id }))?.people).toEqual(
-        [{ type: ada.type, id: ada.id }],
-    );
-    expect(await pages.get({ type: dup.type, id: dup.id })).toBeUndefined();
+    expect((await pages.get(trip.id))?.people).toEqual([ada.id]);
+    expect(await pages.get(dup.id)).toBeUndefined();
 
     const { tools } = await import('#extensions/wiki');
     expect(Object.fromEntries(tools.map((t) => [t.name, t.access]))).toEqual({
@@ -211,7 +202,7 @@ it('keeps two facts added at once, and merges pages', async () => {
     const { log, pages } = await start();
     const note = await log.append({ text: 'Ada swims on Sundays' });
     const ada = await pages.create('person', { name: 'Ada' });
-    const ref = { type: ada.type, id: ada.id };
+    const ref = ada.id;
     await Promise.all([
         pages.addFact(ref, { text: 'Swims', sources: [note.id] }),
         pages.addFact(ref, { text: 'On Sundays', sources: [note.id] }),
@@ -222,9 +213,9 @@ it('keeps two facts added at once, and merges pages', async () => {
     ]);
 
     const lovelace = await pages.create('person', { name: 'Ada Lovelace' });
-    await pages.merge({ type: lovelace.type, id: lovelace.id }, ref);
+    await pages.merge(lovelace.id, ref);
     expect(await pages.get(ref)).toBeUndefined();
-    const kept = await pages.get({ type: lovelace.type, id: lovelace.id });
+    const kept = await pages.get(lovelace.id);
     expect([kept?.aliases, kept?.facts.length]).toEqual([['Ada'], 2]);
     expect((await pages.find('ada')).map((e) => e.name)).toEqual([
         'Ada Lovelace',

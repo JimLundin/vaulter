@@ -3,7 +3,7 @@ import { expect, it } from 'vitest';
 import { startApp } from '../../app.ts';
 
 /** A collection of `T`, on a freshly started store. */
-async function use<T>(name = 'test/thing') {
+async function use<T extends object>(name = 'test/thing') {
     await startApp(['storage']);
     return (await import('#extensions/storage')).collection<T>(name);
 }

@@ -19,25 +19,26 @@ Principles:
 
 ## Extensions are modules
 
-An extension is a folder in `extensions/`: its `index.ts`, an ordinary ES module, and if it is large enough to split, an `api.ts` with the types other extensions use (re-exported by `index.ts`). Extensions reach each other with ordinary imports, by folder: `#extensions/<id>`, the one wildcard in `package.json`'s `imports`, beside `#kernel`.
+An extension is a folder in `extensions/`: its `index.ts`, an ordinary ES module, and if it is large enough to split, an `api.ts` with the schemas and data types other extensions use (re-exported by `index.ts`). What an extension offers is the objects it exports, and their types are taken from them (`typeof notes`): there is no interface restating them. Extensions reach each other with ordinary imports, by folder: `#extensions/<id>`, the one wildcard in `package.json`'s `imports`, beside `#kernel`.
 
 There is one extension for each job (one keeps records, one talks to the model) and no layer of contracts over them: what an extension exports is its interface, TypeScript checks every import of it in the editor and in CI, and nothing checks arguments at runtime. Keeping records elsewhere, or using another model, is a change to that extension, or a new one its importers move to: a refactor, done when it's needed.
 
 ```ts
 // extensions/notes/index.ts
 import { collection } from '#extensions/storage';
-import { NewNote, type Note, type Notes } from './api.ts';
+export const NewNote = z.object({ text: z.string().trim().min(1), … });   // what comes in
+export type Note = Rec<z.output<typeof NewNote>>;                        // what is kept
 
-const kept = collection<Omit<Note, 'id'>>('notes/note');   // storage, typed by what it holds
+const kept = collection<z.output<typeof NewNote>>('notes/note');   // storage, typed by what it holds
 
-export const notes: Notes = { append, get, list, onAppended };   // what it offers
+export const notes = { append, get, list, onAppended };   // what it offers
 // optional, found by others: export const tools = […]; export const ui = {…};
 ```
 
 - **Starting is importing.** An extension's top-level code is its setup, with top-level `await` for what is async. The module graph is the start order: an extension runs once what it imports has.
 - **What an extension exports** is what it offers others (`notes`, `wiki`, `model`…), and anything under one of the agreed names below. Nothing else describes it: no manifest, no version, no registration.
 - **Where something is kept per extension, the caller says who it is**: `questionsFor('wiki')`.
-- **Zod is only where data comes from outside typed code**: a tool's input (what Vaulter's model sends, and the JSON Schema it reads), a model's structured answer, and what a person types. There the Zod schema is the definition, and its type comes from it (`z.infer`). Everywhere else, the wiki's pages and storage included, types are plain TypeScript and nothing is checked again: Zod is the standard for agent tools (the MCP and OpenAI Agents SDKs take it too), and confined to the edges it doesn't spread.
+- **Zod is where data comes from outside typed code, and its type comes from the schema** (`z.infer`): a tool's input (what Vaulter's model sends, and the JSON Schema it reads), a model's structured answer, OpenAI's responses, the sealed secrets file, what a person types, and a question's `data`, which comes back from storage to its asker, perhaps a newer version of it. A shape that is also a tool's input, such as a wiki page, is defined once as a schema, and the tools' inputs are made from it (`Patch`, `NewPage`). Inside typed code nothing is checked again, and nothing is cast: a record is its domain type (`Rec<T>`), with no function converting it, and a list of tools of different inputs fits `Tool[]` because `run` is a method.
 
 ```
  src/kernel/      the kernel: one tab at a time, importing every extension, the list of them
@@ -50,7 +51,7 @@ export const notes: Notes = { append, get, list, onAppended };   // what it offe
  tests/           every test: tests/kernel/, tests/extensions/<id>/, and app.ts to start the app in one
 ```
 
-**Storage** is one function: `collection<T>(name)`, a collection named by its owner (`wiki/person`) and typed by what it holds, with `get`, `query` (by a field's value or range, ordered, limited), `search` (by the words in its text fields), `create`, `update` (one change at a time, from the record as it is now) and `delete` (a tombstone). Every revision is kept.
+**Storage** is one function: `collection<T>(name)`, a collection named by its owner (`wiki/page`) and typed by what it holds, with `get`, `query` (by a field's value or range, ordered, limited), `search` (by the words in its text fields), `create`, `update` (one change at a time, from the record as it is now) and `delete` (a tombstone). Every revision is kept.
 
 ## How extensions interact
 
@@ -109,7 +110,7 @@ From each extension Vaulter gets:
 | Access | Vaulter's behaviour | Typical use |
 | --- | --- | --- |
 | `read` | Runs it | Queries, search, look-ups |
-| `write` | Runs it, and it shows in the answer's steps | Adding a fact with a clear source |
+| `write` | Runs it, and it shows in the answer's calls | Adding a fact with a clear source |
 | `ask` | Asks you first, as a question: the call runs when you say yes | Merging people, retracting a fact, anything uncertain |
 
 An `ask` call becomes a question on the agent's own topic (`extensions/agent/catalog.ts`), with the call as its data; your yes runs it, also after a restart. The model only acts through tools, and no tool answers questions, so this is the whole boundary. An extension Vaulter writes that tried to answer its own questions would be caught where all code is: in review, before `main`.
@@ -230,7 +231,7 @@ The extensions so far, each tested with the others (`startApp` in `tests/app.ts`
 | `notes` | `notes` | `storage` | Append-only; lists by when a note was said |
 | `questions` | `questionsFor` | `storage` | Answers reach the asker's topic handler, also after a restart |
 | `openai` | `model` | `secrets` | `model.answer` runs the tool loop (functions in, an answer and its calls out), `model.json` gives a structured answer checked against its Zod schema. Over the Responses API, `store: false`, with the encrypted reasoning sent back each turn; the wire format stays inside. Its model name is in `extensions/openai/index.ts` |
-| `wiki` | `wiki`, `tools` | `storage`, `notes`, `questions`, `openai` | Person, place, event and topic types; every fact cites its notes; each note is revised into pages by the model, and what it isn't sure of becomes a yes/no question whose answer makes the change |
+| `wiki` | `wiki`, `tools` | `storage`, `notes`, `questions`, `openai` | Pages of four kinds (person, place, event, topic) in one collection, linking each other by id; every fact cites its notes; each note is revised into pages by the model, and what it isn't sure of becomes a yes/no question whose answer makes the change |
 | `agent` | `agent` | `openai`, `questions`, `#kernel` | Sees every extension's tools, and asks before a tool that asks first |
 
 **A rebuild, not a refactor.** The first draft planned to wrap the existing app's modules as extensions and move features over one at a time. Instead (2026-10-04) Vaulter is rebuilt from scratch on the `pip` branch, with the old app removed there so the two never run side by side.

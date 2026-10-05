@@ -5,50 +5,65 @@
 // for one person's data.
 
 import { omit } from '#kernel';
-import type { Collection, Filter, Query, Rec } from './api.ts';
+import type { Filter, Meta, Query, Rec, Sortable } from './api.ts';
 import type { Store } from './store.ts';
 
-type Stored = Rec<Record<string, unknown>>;
-type Fields = Record<string, unknown>;
-
-function words(text: string) {
+/** The words of `text`, in lower case, for search. */
+export function words(text: string) {
     return text
         .toLocaleLowerCase()
         .split(/[^\p{L}\p{N}]+/u)
         .filter(Boolean);
 }
 
+function valueAt(record: object, field: string): unknown {
+    return Object.entries(record).find(([key]) => key === field)?.[1];
+}
+
+function sortable(value: unknown) {
+    return typeof value === 'string' || typeof value === 'number'
+        ? value
+        : undefined;
+}
+
+function compare(x: Sortable, y: Sortable) {
+    if (typeof x === 'number' && typeof y === 'number') {
+        return x - y;
+    }
+    const [a, b] = [String(x), String(y)];
+    if (a === b) {
+        return 0;
+    }
+    return a < b ? -1 : 1;
+}
+
 function matches(value: unknown, filter: Filter) {
     if (filter === null || typeof filter !== 'object') {
         return value === filter;
     }
-    if (value === undefined || value === null) {
+    const at = sortable(value);
+    if (at === undefined) {
         return false;
     }
-    const atLeast =
-        filter.gte == null || (value as never) >= (filter.gte as never);
-    const below = filter.lt == null || (value as never) < (filter.lt as never);
+    const atLeast = filter.gte === undefined || compare(at, filter.gte) >= 0;
+    const below = filter.lt === undefined || compare(at, filter.lt) < 0;
     return atLeast && below;
-}
-
-function fieldsOf(record: Stored): Fields {
-    return omit(record, 'id', 'meta');
 }
 
 /** Compares records by `field` (or when they were created or updated), in
  * `direction`. Ties go by when created, and records without the field come
  * last either way. */
 function byField(field: string, direction: 1 | -1) {
-    function sortValue(record: Stored) {
+    function sortValue(record: Rec<object>) {
         if (field === 'created' || field === 'updated') {
             return record.meta[field];
         }
-        return record[field] as string | number | undefined;
+        return sortable(valueAt(record, field));
     }
-    return (a: Stored, b: Stored) => {
+    return (a: Rec<object>, b: Rec<object>) => {
         const [x, y] = [sortValue(a), sortValue(b)];
         if (x === y) {
-            return direction * a.meta.created.localeCompare(b.meta.created);
+            return direction * compare(a.meta.created, b.meta.created);
         }
         if (x === undefined) {
             return 1;
@@ -56,15 +71,15 @@ function byField(field: string, direction: 1 | -1) {
         if (y === undefined) {
             return -1;
         }
-        return direction * (x < y ? -1 : 1);
+        return direction * compare(x, y);
     };
 }
 
 /** The words of a record's text: of `fields`, or of every field. */
-function textOf(record: Stored, fields?: string[]) {
+function textOf(record: Rec<object>, fields?: string[]) {
     const values = fields
-        ? fields.map((field) => record[field])
-        : Object.values(fieldsOf(record));
+        ? fields.map((field) => valueAt(record, field))
+        : Object.values(omit(record, 'id', 'meta'));
     const strings = values
         .flatMap((value) => (Array.isArray(value) ? value : [value]))
         .filter((value) => typeof value === 'string');
@@ -100,26 +115,31 @@ export function collections(store: Store) {
     const now = clock();
     const serial = inTurn();
 
-    return function collection<T>(name: string): Collection<T> {
-        const recordKey = (id: string) => `r:${name}:${id}`;
-        const historyKey = (record: Stored) => {
+    /** The collection `name`, by convention `<extension>/<what>`, of
+     * records holding `T`. */
+    return function collection<T extends object>(name: string) {
+        function recordKey(id: string) {
+            return `r:${name}:${id}`;
+        }
+
+        function historyKey(record: Rec<T>) {
             const revision = String(record.meta.rev).padStart(9, '0');
             return `h:${name}:${record.id}:${revision}`;
-        };
+        }
 
         async function live() {
-            const entries = await store.list<Stored>(`r:${name}:`);
+            const entries = await store.list<Rec<T>>(`r:${name}:`);
             return entries
                 .map(([, record]) => record)
                 .filter((record) => !record.meta.deleted);
         }
 
         function current(id: string) {
-            return store.get<Stored>(recordKey(id));
+            return store.get<Rec<T>>(recordKey(id));
         }
 
         /** Writes the next revision, keeping the one it replaces. */
-        async function write(prior: Stored | undefined, next: Stored) {
+        async function write(prior: Rec<T> | undefined, next: Rec<T>) {
             if (prior) {
                 await store.set(historyKey(prior), prior);
             }
@@ -127,13 +147,11 @@ export function collections(store: Store) {
             return next;
         }
 
-        function revise(
-            prior: Stored,
-            fields: Fields,
-            meta: Partial<Stored['meta']> = {},
-        ): Stored {
+        /** `fields` as the revision after `prior`. Whatever id and meta
+         * `fields` has are storage's, not its own. */
+        function revise(prior: Rec<T>, fields: T, meta: Partial<Meta> = {}) {
             return {
-                ...omit(fields, 'id', 'meta'),
+                ...fields,
                 id: prior.id,
                 meta: {
                     ...prior.meta,
@@ -144,92 +162,90 @@ export function collections(store: Store) {
             };
         }
 
-        async function get(id: string) {
-            const record = await current(id);
-            return record?.meta.deleted ? undefined : record;
-        }
-
-        async function query(q: Query<Fields> = {}) {
-            let found = await live();
-            for (const [field, filter] of Object.entries(q.where ?? {})) {
-                if (filter !== undefined) {
-                    found = found.filter((record) =>
-                        matches(record[field], filter),
-                    );
-                }
-            }
-            found.sort(
-                byField(q.orderBy ?? 'created', q.order === 'asc' ? 1 : -1),
-            );
-            return found.slice(0, q.limit);
-        }
-
-        async function search(text: string, opts: { fields?: string[] } = {}) {
-            const wanted = words(text);
-            const found = (await live()).filter((record) => {
-                const haystack = textOf(record, opts.fields);
-                return wanted.every((word) => haystack.includes(word));
-            });
-            return found.sort((a, b) =>
-                b.meta.created.localeCompare(a.meta.created),
-            );
-        }
-
-        async function create(value: Fields & { id?: string }) {
-            const id = value.id ?? crypto.randomUUID();
-            return await serial(`${name}:${id}`, async () => {
-                if (await current(id)) {
-                    throw new Error(`${name}: a record ${id} exists`);
-                }
-                const at = now();
-                return write(undefined, {
-                    ...omit(value, 'id'),
-                    id,
-                    meta: {
-                        collection: name,
-                        created: at,
-                        updated: at,
-                        rev: 1,
-                    },
-                });
-            });
-        }
-
-        async function update(
-            id: string,
-            change: (record: Stored) => Fields | Promise<Fields>,
-        ) {
-            return await serial(`${name}:${id}`, async () => {
-                const prior = await current(id);
-                if (!prior || prior.meta.deleted) {
-                    throw new Error(`${name}: no record ${id}`);
-                }
-                return write(prior, revise(prior, await change(prior)));
-            });
-        }
-
-        async function remove(id: string) {
-            await serial(`${name}:${id}`, async () => {
-                const prior = await current(id);
-                if (!prior || prior.meta.deleted) {
-                    return;
-                }
-                await write(
-                    prior,
-                    revise(prior, fieldsOf(prior), { deleted: now() }),
-                );
-            });
-        }
-
-        const methods = {
+        return {
             name,
-            get,
-            query,
-            search,
-            create,
-            update,
-            delete: remove,
+
+            async get(id: string) {
+                const record = await current(id);
+                return record?.meta.deleted ? undefined : record;
+            },
+
+            async query(query: Query<T> = {}) {
+                let found = await live();
+                for (const [field, filter] of Object.entries(
+                    query.where ?? {},
+                )) {
+                    if (filter !== undefined) {
+                        found = found.filter((record) =>
+                            matches(valueAt(record, field), filter),
+                        );
+                    }
+                }
+                const direction = query.order === 'asc' ? 1 : -1;
+                found.sort(byField(query.orderBy ?? 'created', direction));
+                return found.slice(0, query.limit);
+            },
+
+            /** Records whose text contains every word of `text`, latest
+             * created first. The text is every string field, or only
+             * `fields`. */
+            async search(
+                text: string,
+                options: { fields?: (keyof T & string)[] } = {},
+            ) {
+                const wanted = words(text);
+                const found = (await live()).filter((record) => {
+                    const haystack = textOf(record, options.fields);
+                    return wanted.every((word) => haystack.includes(word));
+                });
+                return found.sort(byField('created', -1));
+            },
+
+            /** A new record. With an `id`, refused if that id is taken. */
+            create(value: T & { id?: string }) {
+                const id = value.id ?? crypto.randomUUID();
+                return serial(`${name}:${id}`, async () => {
+                    if (await current(id)) {
+                        throw new Error(`${name}: a record ${id} exists`);
+                    }
+                    const at = now();
+                    return write(undefined, {
+                        ...value,
+                        id,
+                        meta: {
+                            collection: name,
+                            created: at,
+                            updated: at,
+                            rev: 1,
+                        },
+                    });
+                });
+            },
+
+            /** A new revision, from `change`, which gets the record as it
+             * is now. No other change to it runs until this one is done. */
+            update(id: string, change: (current: Rec<T>) => T | Promise<T>) {
+                return serial(`${name}:${id}`, async () => {
+                    const prior = await current(id);
+                    if (!prior || prior.meta.deleted) {
+                        throw new Error(`${name}: no record ${id}`);
+                    }
+                    return write(prior, revise(prior, await change(prior)));
+                });
+            },
+
+            /** Leaves a tombstone. */
+            delete(id: string) {
+                return serial(`${name}:${id}`, async () => {
+                    const prior = await current(id);
+                    if (prior && !prior.meta.deleted) {
+                        await write(
+                            prior,
+                            revise(prior, prior, { deleted: now() }),
+                        );
+                    }
+                });
+            },
         };
-        return methods as unknown as Collection<T>;
     };
 }

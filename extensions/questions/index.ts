@@ -2,28 +2,16 @@
 // survive a restart. An answer that arrives while its asker isn't handling
 // its topic waits until the asker does.
 
-import { collection, type Query, type Rec } from '#extensions/storage';
-import { omit } from '#kernel';
-import {
-    Answer,
-    type Handler,
-    NewQuestion,
-    type Question,
-    type Questions,
-} from './api.ts';
+import type { z } from 'zod';
+import { collection, type Query } from '#extensions/storage';
+import { Answer, type Handler, NewQuestion, type Question } from './api.ts';
 
 export * from './api.ts';
 
-/** A question as kept, with whether the asker has had its answer. */
-type Fields = Omit<Question, 'id'> & { delivered: boolean };
-type Kept = Rec<Fields>;
+type Fields = Omit<Question, 'id' | 'meta'>;
 
 const kept = collection<Fields>('questions/question');
 const handlers = new Map<string, Handler>();
-
-function questionOf(record: Kept): Question {
-    return omit(record, 'delivered', 'meta');
-}
 
 function find(where: Query<Fields>['where']) {
     return kept.query({ where, orderBy: 'at', order: 'asc' });
@@ -32,13 +20,13 @@ function find(where: Query<Fields>['where']) {
 /** Hands the answer to its asker's handler. If the handler fails, the
  * answer stays undelivered, and goes to it again when the asker next
  * handles its topic. */
-async function deliver(question: Kept) {
+async function deliver(question: Question) {
     const handler = handlers.get(`${question.from}/${question.topic}`);
     if (!handler || !question.answer || question.delivered) {
         return;
     }
     try {
-        await handler(question.answer, questionOf(question));
+        await handler(question.answer, question);
     } catch {
         return;
     }
@@ -46,7 +34,7 @@ async function deliver(question: Kept) {
 }
 
 /** The reason `answer` doesn't fit `question`, if it doesn't. */
-function misfit(question: Kept, answer: Answer) {
+function misfit(question: Question, answer: Answer) {
     if (question.status !== 'open') {
         return 'that question is not open';
     }
@@ -65,9 +53,10 @@ function misfit(question: Kept, answer: Answer) {
 
 /** Questions as the asker `from` has them: it asks, and handles the
  * answers, under its own topics. */
-export function questionsFor(from: string): Questions {
+export function questionsFor(from: string) {
     return {
-        async ask(input) {
+        /** Asks, and returns the question's id. */
+        async ask(input: z.input<typeof NewQuestion>) {
             const question = NewQuestion.parse(input);
             if (question.key) {
                 const [same] = await find({
@@ -89,7 +78,9 @@ export function questionsFor(from: string): Questions {
             return saved.id;
         },
 
-        async handle(topic, handler) {
+        /** Handles the answers to the asker's questions on `topic`. Answers
+         * that came while nothing handled them are delivered now. */
+        async handle(topic: string, handler: Handler) {
             const key = `${from}/${topic}`;
             handlers.set(key, handler);
             const waiting = await find({
@@ -108,17 +99,16 @@ export function questionsFor(from: string): Questions {
             };
         },
 
-        async open() {
-            const found = await find({ status: 'open' });
-            return found.map(questionOf);
+        open() {
+            return find({ status: 'open' });
         },
 
-        async get(id) {
-            const record = await kept.get(id);
-            return record && questionOf(record);
+        get(id: string) {
+            return kept.get(id);
         },
 
-        async answer(id, input) {
+        /** The person's answer, from a screen. */
+        async answer(id: string, input: Answer) {
             const answer = Answer.parse(input);
             const saved = await kept.update(id, (question) => {
                 const reason = misfit(question, answer);

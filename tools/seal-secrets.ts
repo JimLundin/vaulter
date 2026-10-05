@@ -7,7 +7,7 @@
 // salt the same across deploys, so devices open each new file on their own.
 
 import { writeFile } from 'node:fs/promises';
-import { seal } from '../extensions/secrets/sealed.ts';
+import { bytesOf, seal } from '../extensions/secrets/sealed.ts';
 
 const SECRET = /^VAULTER_SECRET__([A-Z0-9_]+?)__([A-Z0-9_]+)$/;
 
@@ -30,9 +30,7 @@ function saltIn(env: NodeJS.ProcessEnv) {
     if (!env.VAULTER_SALT) {
         return undefined;
     }
-    const salt = Uint8Array.from(atob(env.VAULTER_SALT), (c) =>
-        c.charCodeAt(0),
-    );
+    const salt = bytesOf(env.VAULTER_SALT);
     if (salt.length < 16) {
         throw new Error('VAULTER_SALT must be 16 bytes, base64');
     }

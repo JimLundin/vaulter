@@ -38,6 +38,23 @@ const deliver = async (question: Kept) => { … };
 async function deliver(question: Kept) { … }
 ```
 
+## Types
+
+- An extension's interface is what it exports. Its types come from the exported objects
+  (`typeof notes`), not from an interface that restates them.
+- No casts. Data that comes in untyped (from a model, a fetch, or storage's `data` read back by a
+  question's asker) is parsed with Zod, and its type is the schema's.
+- A record is its domain type: `type Note = Rec<…>`, with no function that copies it into another
+  shape. Storage sets `id` and `meta` itself, so a change returns the record spread with what changed.
+
+```ts
+// no
+const call = question.data as unknown as Asked;
+
+// yes
+const call = Asked.parse(question.data);
+```
+
 ## Leaving fields out
 
 `omit` from `#kernel`, not throwaway names.
