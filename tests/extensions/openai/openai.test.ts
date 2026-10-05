@@ -22,8 +22,9 @@ const says = (text: string) => ({
   usage: { input_tokens: 3, output_tokens: 2 },
 });
 
-/** OpenAI, answering with `replies` in turn; what each request sent, and with what key. */
-const openai = async (replies: unknown[]) => {
+/** OpenAI, answering with `replies` in turn; what each request sent, and with
+ * what key. */
+async function openai(replies: unknown[]) {
   const seen: {
     auth: string | null;
     body: { input: unknown; [k: string]: unknown };
@@ -45,9 +46,9 @@ const openai = async (replies: unknown[]) => {
   await startApp(['secrets', 'openai']);
   await (await import('#extensions/secrets')).unlock('pw-pw-pw-pw-pw-pw');
   return { model: (await import('#extensions/openai')).model, seen };
-};
+}
 
-it('answers, calling the functions it is given, with its reasoning sent back each turn', async () => {
+it('calls functions, sending its reasoning back each turn', async () => {
   const { model, seen } = await openai([
     CALLS,
     says('Ada Lovelace, a friend.'),
@@ -93,7 +94,8 @@ it('answers, calling the functions it is given, with its reasoning sent back eac
       { role: 'user', content: 'Who is Ada?' },
     ],
   });
-  // The reasoning item goes back with the call, unchanged, then the function's output.
+  // The reasoning item goes back with the call, unchanged, then the function's
+  // output.
   expect(second.input).toEqual([
     { role: 'system', content: 'Be brief.' },
     { role: 'user', content: 'Who is Ada?' },

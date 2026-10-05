@@ -1,7 +1,5 @@
-// Vaulter itself: ask in words, and it uses the extensions' tools to answer or to act. An extension
-// exports `tools`, each with a Zod input and an access level; the agent hands the input to the model as
-// JSON Schema, checks what the model sends against it, and applies the level to every call: read and
-// write run, ask asks the person first, as a question, and runs when they say yes.
+// Vaulter itself. Ask in words, and it uses the extensions' tools to answer
+// or to act.
 
 import type { z } from 'zod';
 
@@ -25,21 +23,27 @@ export interface Answer {
 }
 
 export interface Agent {
-  ask: (req: AskRequest, onStep?: (step: Step) => void) => Promise<Answer>;
+  ask: (request: AskRequest, onStep?: (step: Step) => void) => Promise<Answer>;
 }
 
-/** What Vaulter may do with a tool on its own:
+/**
+ * What Vaulter may do with a tool on its own:
  *   read   run it
- *   write  run it, and say so in the answer's steps
- *   ask    ask the person first (a question): it runs when they say yes */
+ *   write  run it, and show it in the answer's steps
+ *   ask    ask the person first, and run it when they say yes
+ */
 export type Access = 'read' | 'write' | 'ask';
 
+/** What an extension lets Vaulter do. An extension exports its tools as
+ * `tools`. */
 export interface Tool<I> {
-  /** Unique within the extension: "findPages". Letters, digits and _. */
+  /** Unique within the extension, such as "findPages". Letters, digits and
+   * single underscores. */
   name: string;
-  /** For Vaulter: what it does and when to use it. */
+  /** For the model: what it does, and when to use it. */
   description: string;
   access: Access;
+  /** What the model must send. It is checked before `run`. */
   input: z.ZodType<I>;
-  run: (input: I) => unknown | Promise<unknown>;
+  run: (input: I) => unknown;
 }

@@ -33,7 +33,8 @@ describe('sealed secrets', () => {
       process.execPath,
       ['tools/seal-secrets.ts', out],
       {
-        // As CI names them: VAULTER_SECRET__<EXTENSION>__<NAME>, which no naming convention fits.
+        // As CI names them: VAULTER_SECRET__<EXTENSION>__<NAME>, which no
+        // naming convention fits.
         env: Object.fromEntries([
           ['VAULTER_PASSWORD', 'a-long-enough-password'],
           ['VAULTER_SALT', btoa(String.fromCharCode(...salt))],

@@ -1,6 +1,5 @@
-// The kernel: the extensions in this page, for those that read others' agreed exports (the agent's
-// `tools`, the shell's `ui`). The page imports every folder in extensions/ (start.ts); each extension
-// runs once what it imports has, so the module graph is the wiring and the start order.
+// The list of extensions in the page, for those that look for others'
+// agreed exports: the agent's `tools`, the shell's `ui`.
 
 export interface Loaded {
   id: string;
@@ -8,20 +7,22 @@ export interface Loaded {
 }
 
 let loaded: Loaded[] = [];
-let done: () => void = () => undefined;
+let resolveStarted: () => void = () => undefined;
 
 /** Resolves once every extension has started. */
-export const started = new Promise<void>((ok) => {
-  done = ok;
+export const started = new Promise<void>((resolve) => {
+  resolveStarted = resolve;
 });
 
-/** Every extension, by id, once each has started. */
+/** Keeps every extension, by id, once each has started. */
 export function load(modules: Record<string, Record<string, unknown>>) {
   loaded = Object.entries(modules)
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([id, exports]) => ({ id, exports }));
-  done();
+  resolveStarted();
 }
 
 /** Every extension in the page, with what it exports, in id order. */
-export const extensions = () => loaded;
+export function extensions() {
+  return loaded;
+}

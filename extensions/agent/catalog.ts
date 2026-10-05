@@ -1,69 +1,74 @@
-// The tools Vaulter has, from what every extension exports as `tools`, and the person's
-// approval of the ones that ask first: such a call becomes a question on the agent's own topic, with
-// the call as its data, and a yes runs it. The answer can come after a restart, before everything has
-// started: the call waits until it has.
+// The tools Vaulter has, and the person's approval of those that ask first.
+// Such a call becomes a question on the agent's own topic, holding the call,
+// and a yes makes it, also after a restart.
 
-import type { Question } from '#extensions/questions';
-import { questionsFor } from '#extensions/questions';
+import { type Question, questionsFor } from '#extensions/questions';
 import { extensions, started } from '#kernel';
 import type { Tool } from './api.ts';
 
-const APPROVE = 'approve';
-const questions = questionsFor('agent');
-
-interface Call {
+/** A call Vaulter asked to make. */
+interface Asked {
   extension: string;
   tool: string;
   input: Record<string, unknown>;
 }
 
-// A tool's name goes to the model as part of the function's name.
-const named = (t: Tool<unknown>) =>
-  /^[a-zA-Z][a-zA-Z0-9_]{0,40}$/.test(t.name) && !t.name.includes('__');
+const TOPIC = 'approve';
+/** A tool's name goes to the model inside the function's name. */
+const TOOL_NAME = /^[a-zA-Z][a-zA-Z0-9_]{0,40}$/;
+const questions = questionsFor('agent');
 
-/** Tools by extension, now. */
-export const tools = () =>
-  new Map(
-    extensions()
-      .filter((r) => Array.isArray(r.exports.tools))
-      .map((r) => [
-        r.id,
-        new Map(
-          (r.exports.tools as Tool<unknown>[])
-            .filter(named)
-            .map((t) => [t.name, t]),
-        ),
-      ]),
-  );
+function hasToolName(tool: Tool<unknown>) {
+  return TOOL_NAME.test(tool.name) && !tool.name.includes('__');
+}
 
-/** Asks the person whether Vaulter may make `call`; the question's id. */
-export const askFirst = (call: Call, description: string) =>
-  questions.ask({
-    topic: APPROVE,
-    // The same call asked again while the first is open is the same question.
+/** Every extension's tools, by extension and name, as they are now. */
+export function tools() {
+  const byExtension = new Map<string, Map<string, Tool<unknown>>>();
+  for (const { id, exports } of extensions()) {
+    if (!Array.isArray(exports.tools)) {
+      continue;
+    }
+    const own = (exports.tools as Tool<unknown>[]).filter(hasToolName);
+    byExtension.set(id, new Map(own.map((tool) => [tool.name, tool])));
+  }
+  return byExtension;
+}
+
+/** Asks the person whether Vaulter may make `call`. Returns the
+ * question's id. */
+export function askFirst(call: Asked, description: string) {
+  const input = JSON.stringify(call.input, null, 2);
+  return questions.ask({
+    topic: TOPIC,
+    // The same call, asked again while the first is open, is the same
+    // question.
     key: JSON.stringify(call),
     title: `May Vaulter use ${call.extension}'s ${call.tool}?`,
-    body: `${description}\n\n${JSON.stringify(call.input, null, 2)}`.slice(
-      0,
-      4000,
-    ),
+    body: `${description}\n\n${input}`.slice(0, 4000),
     choices: [
       { id: 'yes', label: 'Yes' },
       { id: 'no', label: 'No' },
     ],
     data: call as never,
   });
+}
 
-// Not awaited: an answer waiting from before waits for everything to start, this extension included.
-void questions.handle(APPROVE, async (answer, q: Question) => {
-  if (answer.choice !== 'yes') {
-    return;
-  }
+async function approved(question: Question) {
+  // An answer kept from before the last restart can arrive while the
+  // extension with the tool is still starting.
   await started;
-  const call = q.data as unknown as Call;
-  const t = tools().get(call.extension)?.get(call.tool);
-  if (!t) {
+  const call = question.data as unknown as Asked;
+  const tool = tools().get(call.extension)?.get(call.tool);
+  if (!tool) {
     throw new Error(`${call.extension} has no tool ${call.tool}`);
   }
-  await t.run(t.input.parse(call.input));
+  await tool.run(tool.input.parse(call.input));
+}
+
+// Not awaited: this extension is among those `approved` waits for.
+void questions.handle(TOPIC, async (answer, question) => {
+  if (answer.choice === 'yes') {
+    await approved(question);
+  }
 });

@@ -2,8 +2,8 @@ import { expect, it, vi } from 'vitest';
 import type { Model } from '#extensions/openai';
 import { startApp } from '../../app.ts';
 
-// A model that files notes the way the instructions ask, by looking at the note and the pages sent;
-// with `offline`, every request fails, as with no key yet.
+// A model that files notes the way the instructions ask, by looking at the note
+// and the pages sent; with `offline`, every request fails, as with no key yet.
 let offline = false;
 const none = { create: [], add: [], summaries: [] };
 const fake: Pick<Model, 'json'> = {
@@ -15,7 +15,7 @@ const fake: Pick<Model, 'json'> = {
       note: { text: string };
       pages: { id: string; name: string }[];
     };
-    const id = (name: string) => pages.find((p) => p.name === name)?.id;
+    const id = (name: string) => pages.find((place) => place.name === name)?.id;
     let plan: Record<string, unknown> = { ...none, ask: [] };
     if (note.text.startsWith('Lunch')) {
       plan = {
@@ -83,23 +83,26 @@ const fake: Pick<Model, 'json'> = {
 vi.doMock('#extensions/openai', () => ({ model: fake }));
 
 /** The wiki started, with what it uses. */
-const start = async () => {
+async function start() {
   await startApp(['wiki']);
   return {
     log: (await import('#extensions/notes')).notes,
     pages: (await import('#extensions/wiki')).wiki,
     asked: (await import('#extensions/questions')).questionsFor('screen'),
   };
-};
+}
 
-const settle = () => new Promise((ok) => setTimeout(ok, 50));
+function settle() {
+  return new Promise((resolve) => setTimeout(resolve, 50));
+}
 
-it('revises pages from notes, cites every fact, asks when unsure, and gives Vaulter its tools', async () => {
+it('revises pages from notes, and asks when unsure', async () => {
   offline = false;
   const { log, pages, asked } = await start();
 
   const n1 = await log.append({ text: 'Lunch with Ada at Café Lumière' });
-  // The revision runs on its own once the note is appended: wait for it to have written the page.
+  // The revision runs on its own once the note is appended: wait for it to have
+  // written the page.
   await vi.waitFor(
     async () =>
       expect(await pages.find('Ada', ['person'])).toMatchObject([
@@ -142,7 +145,8 @@ it('revises pages from notes, cites every fact, asks when unsure, and gives Vaul
     'Café Lumière',
   ]);
 
-  // Merging folds the facts and aliases together, and what pointed at the merged page follows.
+  // Merging folds the facts and aliases together, and what pointed at the
+  // merged page follows.
   const dup = await pages.create('person', { name: 'Ada L.' });
   await pages.addFact(
     { type: dup.type, id: dup.id },
@@ -184,24 +188,24 @@ it('revises pages from notes, cites every fact, asks when unsure, and gives Vaul
 it('works by hand when the model cannot be reached', async () => {
   offline = true;
   const { log, pages } = await start();
-  const n = await log.append({ text: 'Swim at Eriksdal' });
-  await expect(pages.revise(n.id)).rejects.toThrow(/no key/);
-  const p = await pages.create('place', {
+  const note = await log.append({ text: 'Swim at Eriksdal' });
+  await expect(pages.revise(note.id)).rejects.toThrow(/no key/);
+  const place = await pages.create('place', {
     name: 'Eriksdalsbadet',
     area: 'Södermalm',
   });
-  expect(p).toMatchObject({ kind: 'place', area: 'Södermalm', facts: [] });
+  expect(place).toMatchObject({ kind: 'place', area: 'Södermalm', facts: [] });
 });
 
-it('keeps both of two facts added at once, and a merged page goes into the one kept', async () => {
+it('keeps two facts added at once, and merges pages', async () => {
   offline = true;
   const { log, pages } = await start();
-  const n = await log.append({ text: 'Ada swims on Sundays' });
+  const note = await log.append({ text: 'Ada swims on Sundays' });
   const ada = await pages.create('person', { name: 'Ada' });
   const ref = { type: ada.type, id: ada.id };
   await Promise.all([
-    pages.addFact(ref, { text: 'Swims', sources: [n.id] }),
-    pages.addFact(ref, { text: 'On Sundays', sources: [n.id] }),
+    pages.addFact(ref, { text: 'Swims', sources: [note.id] }),
+    pages.addFact(ref, { text: 'On Sundays', sources: [note.id] }),
   ]);
   expect((await pages.get(ref))?.facts.map((f) => f.text).sort()).toEqual([
     'On Sundays',
@@ -218,14 +222,15 @@ it('keeps both of two facts added at once, and a merged page goes into the one k
   ]);
 });
 
-it('revises a note again on the next start when its revision failed', async () => {
+it('revises a failed note again on the next start', async () => {
   offline = true;
   const before = await start();
   await before.log.append({ text: 'Lunch with Ada at Café Lumière' });
   await settle();
   expect(await before.pages.find('Ada')).toEqual([]);
 
-  // The key is set, and the app starts again (storage's database is still this device's).
+  // The key is set, and the app starts again (storage's database is still this
+  // device's).
   offline = false;
   const after = await start();
   await vi.waitFor(

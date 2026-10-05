@@ -1,39 +1,58 @@
-// Starting the app in this browser: only one tab may have it, and that tab imports every extension
-// (kernel.ts) and hands the page to the shell.
+// Starting the app in this browser: claim the tab, import every extension,
+// and hand the page to the shell.
+
 import { load } from './kernel.ts';
 import { claim } from './single-tab.ts';
 
-export async function start(
-  folders: Record<string, () => Promise<Record<string, unknown>>>,
-) {
-  if (!(await claim())) {
-    return say('Vaulter is open in another tab.');
-  }
-  const modules = await Promise.all(
+type Module = Record<string, unknown>;
+
+interface Shell {
+  mount: (root: HTMLElement) => void;
+}
+
+function root() {
+  return document.getElementById('vaulter') ?? document.body;
+}
+
+/** A line on the page, where there is nothing else to show. */
+function say(text: string) {
+  const line = document.createElement('p');
+  line.style.cssText = 'font:15px/1.5 system-ui,sans-serif;margin:2rem';
+  line.textContent = text;
+  root().replaceChildren(line);
+}
+
+async function importAll(folders: Record<string, () => Promise<Module>>) {
+  const entries = await Promise.all(
     Object.entries(folders).map(
-      async ([id, importIt]) => [id, await importIt()] as const,
+      async ([id, importModule]) => [id, await importModule()] as const,
     ),
-  ).catch((e: Error) => say(`Vaulter could not start: ${e.message}`));
-  if (!modules) {
+  );
+  return Object.fromEntries(entries);
+}
+
+/** Starts Vaulter in this tab, from every extension's import. */
+export async function start(folders: Record<string, () => Promise<Module>>) {
+  if (!(await claim())) {
+    say('Vaulter is open in another tab.');
     return;
   }
-  load(Object.fromEntries(modules));
-  const shell = modules.find(([, m]) => m.shell)?.[1].shell as
-    | { mount: (at: HTMLElement) => void }
+
+  let modules: Record<string, Module>;
+  try {
+    modules = await importAll(folders);
+  } catch (error) {
+    say(`Vaulter could not start: ${(error as Error).message}`);
+    return;
+  }
+  load(modules);
+
+  const shell = Object.values(modules).find((m) => m.shell)?.shell as
+    | Shell
     | undefined;
   if (shell) {
     shell.mount(root());
   } else {
     say('No shell is installed.');
   }
-}
-
-const root = () => document.getElementById('vaulter') ?? document.body;
-
-/** A line on the page, where there is nothing else to show. */
-function say(text: string) {
-  const p = document.createElement('p');
-  p.style.cssText = 'font:15px/1.5 system-ui,sans-serif;margin:2rem';
-  p.textContent = text;
-  root().replaceChildren(p);
 }

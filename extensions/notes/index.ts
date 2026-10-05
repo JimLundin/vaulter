@@ -1,46 +1,53 @@
-// Notes: the append-only log of what was said or typed, kept as records. Voice appends here; the wiki
-// reads it to build pages. Nothing here changes or removes a note: every page built from notes can be
-// rebuilt from them.
+// Notes: the append-only log of what was said or typed. Voice appends to
+// it, and the wiki builds its pages from it.
 
 import { collection, type Rec } from '#extensions/storage';
+import { omit } from '#kernel';
 import { NewNote, type Note, type Notes } from './api.ts';
 
 export * from './api.ts';
 
-const kept = collection<Omit<Note, 'id'>>('notes/note');
-const listeners = new Set<(n: Note) => void>();
-const toNote = ({ meta: _, ...n }: Rec<Omit<Note, 'id'>>): Note => n;
+type Kept = Omit<Note, 'id'>;
+
+const kept = collection<Kept>('notes/note');
+const listeners = new Set<(note: Note) => void>();
+
+function noteOf(record: Rec<Kept>): Note {
+  return omit(record, 'meta');
+}
 
 export const notes: Notes = {
   async append(input) {
-    const n = NewNote.parse(input);
-    const out = toNote(
-      await kept.create({ ...n, at: n.at ?? new Date().toISOString() }),
-    );
-    // After the note is kept, and apart from it: a listener that fails is its own error.
-    for (const l of listeners) {
-      queueMicrotask(() => l(out));
+    const given = NewNote.parse(input);
+    const at = given.at ?? new Date().toISOString();
+    const note = noteOf(await kept.create({ ...given, at }));
+    // Each listener runs on its own, after the note is kept, so one that
+    // fails can't undo or stop anything.
+    for (const listener of listeners) {
+      queueMicrotask(() => listener(note));
     }
-    return out;
+    return note;
   },
+
   async get(id) {
-    const rec = await kept.get(id);
-    return rec && toNote(rec);
+    const record = await kept.get(id);
+    return record && noteOf(record);
   },
-  // By when it was said, which for an import is not when it was stored.
-  async list(q = {}) {
+
+  async list(query = {}) {
     const found = await kept.query({
-      where: { at: { gte: q.since, lt: q.until } },
+      where: { at: { gte: query.since, lt: query.until } },
       orderBy: 'at',
-      order: q.order === 'oldest' ? 'asc' : 'desc',
-      limit: q.limit,
+      order: query.order === 'oldest' ? 'asc' : 'desc',
+      limit: query.limit,
     });
-    return found.map(toNote);
+    return found.map(noteOf);
   },
-  onAppended(handler) {
-    listeners.add(handler);
+
+  onAppended(listener) {
+    listeners.add(listener);
     return () => {
-      listeners.delete(handler);
+      listeners.delete(listener);
     };
   },
 };

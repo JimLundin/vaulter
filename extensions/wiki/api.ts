@@ -1,6 +1,6 @@
-// The wiki: curated pages about people, places, events and topics, built from notes. Every fact cites
-// the notes it came from, so a page can always be checked against what was said, and rebuilt from it.
-// Each kind is a collection of the wiki's, kept in storage.
+// The wiki: pages about people, places, events and topics, built from notes.
+// Every fact cites the notes it came from, so a page can always be checked
+// against what was said, and rebuilt from it.
 
 import type { RecordRef } from '#extensions/storage';
 
@@ -10,7 +10,7 @@ export type Kind = (typeof KINDS)[number];
 export interface Fact {
   id: string;
   text: string;
-  /** The notes it comes from: never empty for a fact Vaulter added. */
+  /** The notes it comes from. Never empty for a fact Vaulter added. */
   sources: string[];
   /** When it was true or happened, if it says. */
   at?: string;
@@ -76,7 +76,8 @@ export interface NewPage {
   [field: string]: unknown;
 }
 
-/** What a change to a page may set: anything but its facts, and what storage keeps. */
+/** What a change to a page may set: anything but its facts and what
+ * storage keeps. */
 export type PagePatch = Partial<
   Omit<Page, 'id' | 'type' | 'kind' | 'created' | 'updated' | 'facts'>
 >;
@@ -93,11 +94,12 @@ export interface Wiki {
     fact: { text: string; sources: string[]; at?: string },
   ) => Promise<Page>;
   retractFact: (ref: RecordRef, factId: string) => Promise<Page>;
-  /** Folds `merge` into `keep`: facts, aliases and links together; `merge` is then deleted, and what
-   * pointed at it points at `keep`. */
+  /** Folds `merge` into `keep`, with its facts, aliases and links. `merge`
+   * is then deleted, and what pointed at it points at `keep`. */
   merge: (keep: RecordRef, merge: RecordRef) => Promise<Page>;
   /** The pages that cite a note. */
   citing: (noteId: string) => Promise<Page[]>;
-  /** Revises the pages a note touches (as happens on its own when a note is appended, with a model). */
+  /** Revises the pages a note touches, as happens on its own when a note
+   * is appended. */
   revise: (noteId: string) => Promise<Revised>;
 }

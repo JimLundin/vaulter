@@ -2,7 +2,9 @@ import { expect, it } from 'vitest';
 import { startApp } from '../../app.ts';
 
 /** Time for listeners, which hear of a change after it is kept. */
-const settle = () => new Promise((ok) => setTimeout(ok, 20));
+function settle() {
+  return new Promise((resolve) => setTimeout(resolve, 20));
+}
 
 const APP = ['storage', 'questions'];
 const ask = {
@@ -11,13 +13,13 @@ const ask = {
   choices: [{ id: 'yes', label: 'Yes' }],
 };
 
-it("hands the person's answer to the asker's handler for its topic", async () => {
+it("hands the answer to the asker's handler for its topic", async () => {
   await startApp(APP);
   const { questionsFor } = await import('#extensions/questions');
   const asker = questionsFor('asker');
   const got: (string | undefined)[] = [];
-  await asker.handle('merge', (a) => {
-    got.push(a.choice);
+  await asker.handle('merge', (first) => {
+    got.push(first.choice);
   });
   const id = await asker.ask(ask);
   // The screen answers, as the person.
@@ -25,7 +27,7 @@ it("hands the person's answer to the asker's handler for its topic", async () =>
   expect(got).toEqual(['yes']);
 });
 
-it("keeps a person's answer when the asker's handler fails, and delivers it again later", async () => {
+it('keeps an answer the handler failed on, for later', async () => {
   await startApp(APP);
   const before = (await import('#extensions/questions')).questionsFor('asker');
   await before.handle('merge', () => {
@@ -35,25 +37,26 @@ it("keeps a person's answer when the asker's handler fails, and delivers it agai
   await before.answer(id, { choice: 'yes' });
   expect((await before.get(id))?.status).toBe('answered');
 
-  // The app starts again, and the asker registers its handler again: it is handed the answer then.
+  // The app starts again, and the asker registers its handler again: it is
+  // handed the answer then.
   await startApp(APP);
   const after = (await import('#extensions/questions')).questionsFor('asker');
   const got: (string | undefined)[] = [];
-  await after.handle('merge', (a) => {
-    got.push(a.choice);
+  await after.handle('merge', (first) => {
+    got.push(first.choice);
   });
   expect(got).toEqual(['yes']);
 });
 
 /** Questions as a fresh asker has them. */
-const use = async () => {
+async function use() {
   await startApp(['questions']);
   return (await import('#extensions/questions')).questionsFor('test');
-};
+}
 
 it('keeps an asked question open until it is answered', async () => {
-  const q = await use();
-  const id = await q.ask({
+  const asker = await use();
+  const id = await asker.ask({
     topic: 'merge',
     title: 'Is Ada the same as Ada L.?',
     choices: [
@@ -61,65 +64,65 @@ it('keeps an asked question open until it is answered', async () => {
       { id: 'no', label: 'No' },
     ],
   });
-  const got = await q.get(id);
+  const got = await asker.get(id);
   expect([got?.title, got?.status, got?.topic]).toEqual([
     'Is Ada the same as Ada L.?',
     'open',
     'merge',
   ]);
   expect(
-    (await q.open()).some((x) => x.id === id),
+    (await asker.open()).some((x) => x.id === id),
     'listed as open',
   ).toBeTruthy();
-  await q.answer(id, { choice: 'yes' });
-  expect((await q.get(id))?.status).toEqual('answered');
+  await asker.answer(id, { choice: 'yes' });
+  expect((await asker.get(id))?.status).toEqual('answered');
   expect(
-    !(await q.open()).some((x) => x.id === id),
+    !(await asker.open()).some((x) => x.id === id),
     'no longer open',
   ).toBeTruthy();
 });
 it('asks once per key while the question is open', async () => {
-  const q = await use();
-  const a = await q.ask({
+  const asker = await use();
+  const first = await asker.ask({
     topic: 'date',
     title: 'When was the trip?',
     key: 'trip-date',
   });
-  const b = await q.ask({
+  const second = await asker.ask({
     topic: 'date',
     title: 'When was the trip?',
     key: 'trip-date',
   });
-  expect(a).toEqual(b);
+  expect(first).toEqual(second);
 });
-it("delivers an answer to the asker's handler, also when it registers afterwards", async () => {
-  const q = await use();
-  const id = await q.ask({
+it('delivers an answer to a handler registered after it', async () => {
+  const asker = await use();
+  const id = await asker.ask({
     topic: 'later',
     title: 'Which café?',
     data: { note: 'n1' },
   });
-  await q.answer(id, { text: 'Café Lumière' });
+  await asker.answer(id, { text: 'Café Lumière' });
   const got: unknown[] = [];
-  await q.handle('later', (a, question) => {
-    got.push([a.text, question.data]);
+  await asker.handle('later', (first, question) => {
+    got.push([first.text, question.data]);
   });
   await settle();
   expect(got).toEqual([['Café Lumière', { note: 'n1' }]]);
   // Delivered once, not again on the next registration.
-  await q.handle('later', () => {
+  await asker.handle('later', () => {
     got.push('again');
   });
   await settle();
   expect(got.length).toEqual(1);
 });
 it('refuses an answer that is not one of the choices', async () => {
-  const q = await use();
-  const id = await q.ask({
+  const asker = await use();
+  const id = await asker.ask({
     topic: 'pick',
     title: 'Pick one',
     choices: [{ id: 'a', label: 'A' }],
   });
-  await expect(q.answer(id, { choice: 'b' })).rejects.toThrow();
-  await expect(q.answer(id, { text: 'free text' })).rejects.toThrow();
+  await expect(asker.answer(id, { choice: 'b' })).rejects.toThrow();
+  await expect(asker.answer(id, { text: 'free text' })).rejects.toThrow();
 });

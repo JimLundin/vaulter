@@ -1,100 +1,126 @@
-// Questions: what Vaulter and other extensions ask the person, kept as records so they survive a
-// restart. An asker handles answers under its own topics; an answer that arrives while the asker isn't
-// running waits until it registers its handler again.
+// Questions: what Vaulter and other extensions ask the person, kept so they
+// survive a restart. An answer that arrives while its asker isn't handling
+// its topic waits until the asker does.
 
 import { collection, type Query, type Rec } from '#extensions/storage';
-import { Answer, NewQuestion, type Question, type Questions } from './api.ts';
+import { omit } from '#kernel';
+import {
+  Answer,
+  type Handler,
+  NewQuestion,
+  type Question,
+  type Questions,
+} from './api.ts';
 
 export * from './api.ts';
 
-type Handler = (answer: Answer, question: Question) => unknown;
-
-/** A question as kept: with whether the asker's handler has had its answer. */
+/** A question as kept, with whether the asker has had its answer. */
 type Fields = Omit<Question, 'id'> & { delivered: boolean };
 type Kept = Rec<Fields>;
+
 const kept = collection<Fields>('questions/question');
-
 const handlers = new Map<string, Handler>();
-const strip = ({ delivered: _, meta: _m, ...q }: Kept): Question => q;
-const find = (where: Query<Fields>['where']) =>
-  kept.query({ where, orderBy: 'at', order: 'asc' });
-/** The question as it is now, changed by `change` if it may be. */
-const update = (id: string, change: (q: Kept) => Partial<Kept>) =>
-  kept.update(id, (q) => ({ ...q, ...change(q) }));
 
-/** The answer to its asker's handler; one the handler fails on stays undelivered, to go to it
- * again when the asker next registers it. */
-const deliver = async (q: Kept) => {
-  const h = handlers.get(`${q.from}/${q.topic}`);
-  if (!(h && q.status === 'answered' && q.answer && !q.delivered)) {
+function questionOf(record: Kept): Question {
+  return omit(record, 'delivered', 'meta');
+}
+
+function find(where: Query<Fields>['where']) {
+  return kept.query({ where, orderBy: 'at', order: 'asc' });
+}
+
+/** Hands the answer to its asker's handler. If the handler fails, the
+ * answer stays undelivered, and goes to it again when the asker next
+ * handles its topic. */
+async function deliver(question: Kept) {
+  const handler = handlers.get(`${question.from}/${question.topic}`);
+  if (!handler || !question.answer || question.delivered) {
     return;
   }
   try {
-    await h(q.answer, strip(q));
+    await handler(question.answer, questionOf(question));
   } catch {
     return;
   }
-  await update(q.id, () => ({ delivered: true }));
-};
+  await kept.update(question.id, (now) => ({ ...now, delivered: true }));
+}
 
-/** Questions as the asker `from` has them: it asks, and handles the answers, under its own topics. */
-export const questionsFor = (from: string): Questions => ({
-  async ask(input) {
-    const q = NewQuestion.parse(input);
-    if (q.key) {
-      const [same] = await find({ from, key: q.key, status: 'open' });
-      if (same) {
-        return same.id;
+/** The reason `answer` doesn't fit `question`, if it doesn't. */
+function misfit(question: Kept, answer: Answer) {
+  if (question.status !== 'open') {
+    return 'that question is not open';
+  }
+  const picked = answer.choice;
+  if (picked !== undefined && !question.choices?.some((c) => c.id === picked)) {
+    return `"${picked}" is not one of its choices`;
+  }
+  if (picked === undefined && question.choices?.length) {
+    return 'this question takes one of its choices';
+  }
+  return undefined;
+}
+
+/** Questions as the asker `from` has them: it asks, and handles the
+ * answers, under its own topics. */
+export function questionsFor(from: string): Questions {
+  return {
+    async ask(input) {
+      const question = NewQuestion.parse(input);
+      if (question.key) {
+        const [same] = await find({ from, key: question.key, status: 'open' });
+        if (same) {
+          return same.id;
+        }
       }
-    }
-    const saved = await kept.create({
-      ...q,
-      from,
-      at: new Date().toISOString(),
-      status: 'open',
-      delivered: false,
-    });
-    return saved.id;
-  },
-  async handle(topic, handler) {
-    const k = `${from}/${topic}`;
-    handlers.set(k, handler);
-    for (const q of await find({
-      from,
-      topic,
-      status: 'answered',
-      delivered: false,
-    })) {
-      await deliver(q);
-    }
-    return () => {
-      if (handlers.get(k) === handler) {
-        handlers.delete(k);
+      const saved = await kept.create({
+        ...question,
+        from,
+        at: new Date().toISOString(),
+        status: 'open',
+        delivered: false,
+      });
+      return saved.id;
+    },
+
+    async handle(topic, handler) {
+      const key = `${from}/${topic}`;
+      handlers.set(key, handler);
+      const waiting = await find({
+        from,
+        topic,
+        status: 'answered',
+        delivered: false,
+      });
+      for (const question of waiting) {
+        await deliver(question);
       }
-    };
-  },
-  open: async () => (await find({ status: 'open' })).map(strip),
-  async get(id) {
-    const q = await kept.get(id);
-    return q && strip(q);
-  },
-  async answer(id, input) {
-    const answer = Answer.parse(input);
-    const saved = await update(id, (q) => {
-      if (q.status !== 'open') {
-        throw new Error('that question is not open');
-      }
-      if (
-        answer.choice !== undefined &&
-        !q.choices?.some((c) => c.id === answer.choice)
-      ) {
-        throw new Error(`"${answer.choice}" is not one of its choices`);
-      }
-      if (answer.choice === undefined && q.choices?.length) {
-        throw new Error('this question takes one of its choices');
-      }
-      return { status: 'answered', answer };
-    });
-    await deliver(saved);
-  },
-});
+      return () => {
+        if (handlers.get(key) === handler) {
+          handlers.delete(key);
+        }
+      };
+    },
+
+    async open() {
+      const found = await find({ status: 'open' });
+      return found.map(questionOf);
+    },
+
+    async get(id) {
+      const record = await kept.get(id);
+      return record && questionOf(record);
+    },
+
+    async answer(id, input) {
+      const answer = Answer.parse(input);
+      const saved = await kept.update(id, (question) => {
+        const reason = misfit(question, answer);
+        if (reason) {
+          throw new Error(reason);
+        }
+        return { ...question, status: 'answered', answer };
+      });
+      await deliver(saved);
+    },
+  };
+}

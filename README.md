@@ -1,9 +1,9 @@
 # Vaulter
 
 A voice-first personal knowledge wiki, built as a small kernel plus extensions; Vaulter is also the
-agent inside it. The design is `ARCHITECTURE.md`; the words it uses are in `CONTEXT.md`. This is a full
-rebuild: the previous app, a viewer over the `JimLundin/vault` repo, is in `main`'s history before the
-`pip` branch.
+agent inside it. The design is `ARCHITECTURE.md`, the words it uses are in `CONTEXT.md`, and how the
+code is written is `STYLE.md`. This is a full rebuild: the previous app, a viewer over the
+`JimLundin/vault` repo, is in `main`'s history before the `pip` branch.
 
 ## Layout
 
@@ -31,7 +31,7 @@ with the UI work; until one is installed the page says so.
 | `npm run build` | the page into `dist/` |
 | `node tools/seal-secrets.ts <out>` | seal the secrets from the environment (what CI runs; see ARCHITECTURE.md, "Secrets") |
 | `npm test` / `npm run typecheck` | Vitest (`tests/`) and TypeScript over everything |
-| `npm run lint` / `npm run format` | Biome: check (CI), or fix in place. 2 spaces, single quotes, semicolons, trailing commas, 100 columns |
+| `npm run lint` / `npm run format` | Biome: check (CI), or fix in place. 80 columns; the rest of the style is `STYLE.md` |
 
 All code is TypeScript with only erasable syntax and `import type` for types (`tsconfig.json`). Tests
 start the app the way the page does, on fresh modules each time (`startApp` in `tests/app.ts`),

@@ -1,14 +1,16 @@
-// One tab at a time: two would share the same IndexedDB with listeners that never hear of each other's
-// changes. The first tab holds a Web Lock for as long as it is open; another finds it taken and stays
-// empty.
+// One tab at a time. Two tabs would share one IndexedDB without hearing of
+// each other's changes, so the first holds a Web Lock while it is open.
+
 const LOCK = 'vaulter';
 
-/** Whether this tab has Vaulter: yes if no other tab has it, and then this one keeps it until it
- * closes. */
-export const claim = (locks: LockManager = navigator.locks) =>
-  new Promise<boolean>((ok) => {
+/** Whether this tab has Vaulter. It does if no other tab has it, and keeps
+ * it until it closes. */
+export function claim(locks: LockManager = navigator.locks) {
+  return new Promise<boolean>((resolve) => {
     void locks.request(LOCK, { ifAvailable: true }, (lock) => {
-      ok(lock !== null);
+      resolve(lock !== null);
+      // Held until the tab closes.
       return lock ? new Promise<void>(() => undefined) : undefined;
     });
   });
+}

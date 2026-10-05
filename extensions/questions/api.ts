@@ -1,28 +1,29 @@
-// Questions: how Vaulter asks when something is unclear, contradicts what was said before, or is a change it
-// isn't sure of (ARCHITECTURE.md, "Vaulter proposes, you approve"). An extension asks under a topic of its
-// own and handles answers under that topic; answers that arrive while it isn't running are delivered
-// when it next registers its handler. The person answers, on a screen; nothing answers for them.
+// Questions: how Vaulter asks the person when something is unclear, or a
+// change it isn't sure of. An extension asks under a topic of its own, and
+// handles the answers under that topic, also after a restart.
 
 import { z } from 'zod';
 import type { Unsubscribe } from '#kernel';
 
+/** A question as an extension asks it. */
 export const NewQuestion = z.object({
-  /** The asker's own topic: "merge-people", "unclear-date". */
+  /** The asker's own topic, such as "merge-people". */
   topic: z.string().regex(/^[a-z][a-z0-9-]*$/),
   title: z.string().min(1).max(200),
   body: z.string().max(4000).optional(),
-  /** Choices to pick from, one of which is the answer; with none, the answer is text. */
+  /** What the person can pick. With none, the answer is text. */
   choices: z
     .array(z.object({ id: z.string().min(1), label: z.string().min(1) }))
     .optional(),
   /** The notes it came from. */
   notes: z.array(z.string()).default([]),
-  /** Asking again with the same key while one is open returns that one. */
+  /** Asking again with the same key, while one is open, returns that one. */
   key: z.string().optional(),
-  /** Anything the asker needs back with the answer. Plain values only. */
+  /** Anything the asker needs back with the answer. */
   data: z.json().optional(),
 });
 
+/** The person's answer: one of the choices, or text. */
 export const Answer = z
   .object({ choice: z.string().optional(), text: z.string().optional() })
   .refine((a) => a.choice !== undefined || a.text !== undefined, {
@@ -30,27 +31,25 @@ export const Answer = z
   });
 export type Answer = z.infer<typeof Answer>;
 
-export const Status = z.enum(['open', 'answered']);
-
 export interface Question extends z.output<typeof NewQuestion> {
   id: string;
   /** The extension that asked. */
   from: string;
   at: string;
-  status: z.infer<typeof Status>;
+  status: 'open' | 'answered';
   answer?: Answer;
 }
 
+export type Handler = (answer: Answer, question: Question) => unknown;
+
 export interface Questions {
-  /** Returns the question's id. */
-  ask: (q: z.input<typeof NewQuestion>) => Promise<string>;
-  /** The asker's handler for its topic; pending answers are delivered on registering. */
-  handle: (
-    topic: string,
-    handler: (answer: Answer, question: Question) => unknown,
-  ) => Promise<Unsubscribe>;
+  /** Asks, and returns the question's id. */
+  ask: (question: z.input<typeof NewQuestion>) => Promise<string>;
+  /** Handles the answers to the asker's questions on `topic`. Answers that
+   * came while nothing handled them are delivered now. */
+  handle: (topic: string, handler: Handler) => Promise<Unsubscribe>;
   open: () => Promise<Question[]>;
   get: (id: string) => Promise<Question | undefined>;
-  // The person's, from a screen.
+  /** The person's answer, from a screen. */
   answer: (id: string, answer: Answer) => Promise<void>;
 }

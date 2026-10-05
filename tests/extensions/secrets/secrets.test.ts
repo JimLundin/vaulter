@@ -6,15 +6,15 @@ const PASSWORD = 'pw-pw-pw-pw-pw-pw';
 const FAST = { iterations: 1000, salt: new Uint8Array(16).fill(7) };
 
 /** The page, with `values` sealed into it, started. */
-const page = async (values: Record<string, string>) => {
+async function page(values: Record<string, string>) {
   servePage(await seal(PASSWORD, values, FAST), () =>
     Promise.reject(new Error('offline')),
   );
   await startApp(['secrets']);
   return import('#extensions/secrets');
-};
+}
 
-it('opens the sealed secrets with the password, and a new deploy with the same salt on its own', async () => {
+it('opens with the password, then each new deploy on its own', async () => {
   const first = await page({ 'openai/key': 'sk-1' });
   expect(first.secret('openai/key')).toBeUndefined();
   await expect(first.unlock('nope')).rejects.toThrow('does not open');

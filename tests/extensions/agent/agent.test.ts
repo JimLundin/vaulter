@@ -3,8 +3,8 @@ import type { Step } from '#extensions/agent';
 import type { Fn, Model } from '#extensions/openai';
 import { startApp } from '../../app.ts';
 
-// A model that follows a script: call one function, then answer from what came back. It keeps the
-// functions it was offered each time.
+// A model that follows a script: call one function, then answer from what came
+// back. It keeps the functions it was offered each time.
 const offered: string[][] = [];
 const scripted: Pick<Model, 'answer'> = {
   async answer({ prompt, fns = [], onCall }) {
@@ -36,16 +36,16 @@ const scripted: Pick<Model, 'answer'> = {
 };
 vi.doMock('#extensions/openai', () => ({ model: scripted }));
 
-const start = async () => {
+async function start() {
   await startApp(['wiki', 'agent']);
   return {
     pages: (await import('#extensions/wiki')).wiki,
     vaulter: (await import('#extensions/agent')).agent,
     asked: (await import('#extensions/questions')).questionsFor('screen'),
   };
-};
+}
 
-it('answers with the tools it opens, and asks the person before a tool that asks first', async () => {
+it('asks the person before a tool that asks first', async () => {
   const { pages, vaulter, asked } = await start();
   const ada = await pages.create('person', {
     name: 'Ada',
@@ -54,10 +54,10 @@ it('answers with the tools it opens, and asks the person before a tool that asks
   const dup = await pages.create('person', { name: 'Ada L.' });
 
   const steps: Step[] = [];
-  const a = await vaulter.ask({ prompt: 'Who is Ada?' }, (s) => {
+  const answer = await vaulter.ask({ prompt: 'Who is Ada?' }, (s) => {
     steps.push(s);
   });
-  expect(a.text).toBe('Ada L.: ; Ada: A friend from Uppsala.');
+  expect(answer.text).toBe('Ada L.: ; Ada: A friend from Uppsala.');
   expect(steps.map((s) => `${s.extension}.${s.tool}`)).toEqual([
     'wiki.findPages',
   ]);
@@ -91,7 +91,7 @@ it('answers with the tools it opens, and asks the person before a tool that asks
   expect((await pages.get(refs.merge))?.id).toBe(other.id);
 });
 
-it('makes an approved call after a restart, from the question alone', async () => {
+it('makes an approved call after a restart', async () => {
   const before = await start();
   const ada = await before.pages.create('person', { name: 'Ada' });
   const dup = await before.pages.create('person', { name: 'Ada L.' });
@@ -101,7 +101,8 @@ it('makes an approved call after a restart, from the question alone', async () =
   };
   await before.vaulter.ask({ prompt: `Merge these: ${JSON.stringify(refs)}` });
 
-  // The app starts again (storage's database is still this device's), and the person says yes.
+  // The app starts again (storage's database is still this device's), and the
+  // person says yes.
   const after = await start();
   const [q] = await after.asked.open();
   await after.asked.answer(q.id, { choice: 'yes' });

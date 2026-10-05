@@ -1,5 +1,6 @@
-// A database of its own in this browser, by name: one IndexedDB object store of keys and values, read by
-// key or by a key's prefix. Records keep theirs in "storage"; the secrets extension has one too.
+// A database of its own in this browser: one IndexedDB object store of
+// keys and values. Records keep theirs in "storage", secrets in "secrets".
+
 export interface Store {
   get: <T>(key: string) => Promise<T | undefined>;
   set: (key: string, value: unknown) => Promise<void>;
@@ -7,37 +8,42 @@ export interface Store {
   list: <T>(prefix: string) => Promise<[string, T][]>;
 }
 
-const done = <T>(r: IDBRequest<T>) =>
-  new Promise<T>((ok, fail) => {
-    r.onsuccess = () => ok(r.result);
-    r.onerror = () => fail(r.error);
+function settled<T>(request: IDBRequest<T>) {
+  return new Promise<T>((resolve, reject) => {
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
   });
+}
 
+/** The database `name`, opened on first use. */
 export function idbStore(name: string): Store {
-  let db: Promise<IDBDatabase> | undefined;
-  const store = async (mode: IDBTransactionMode) => {
-    db ??= new Promise((ok, fail) => {
-      const r = indexedDB.open(name, 1);
-      r.onupgradeneeded = () => r.result.createObjectStore('data');
-      r.onsuccess = () => ok(r.result);
-      r.onerror = () => fail(r.error);
+  let database: Promise<IDBDatabase> | undefined;
+
+  async function objects(mode: IDBTransactionMode) {
+    database ??= new Promise((resolve, reject) => {
+      const request = indexedDB.open(name, 1);
+      request.onupgradeneeded = () => request.result.createObjectStore('data');
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
     });
-    return (await db).transaction('data', mode).objectStore('data');
-  };
+    return (await database).transaction('data', mode).objectStore('data');
+  }
+
   return {
-    get: async <T>(key: string) =>
-      done<T | undefined>((await store('readonly')).get(key)),
+    async get<T>(key: string) {
+      return settled<T | undefined>((await objects('readonly')).get(key));
+    },
     async set(key, value) {
-      await done((await store('readwrite')).put(value, key));
+      await settled((await objects('readwrite')).put(value, key));
     },
     async list<T>(prefix: string) {
-      const s = await store('readonly');
+      const store = await objects('readonly');
       const range = IDBKeyRange.bound(prefix, `${prefix}￿`);
       const [keys, values] = await Promise.all([
-        done(s.getAllKeys(range)),
-        done(s.getAll(range)),
+        settled(store.getAllKeys(range)),
+        settled(store.getAll(range)),
       ]);
-      return keys.map((k, i) => [String(k), values[i] as T] as [string, T]);
+      return keys.map((key, i): [string, T] => [String(key), values[i] as T]);
     },
   };
 }

@@ -1,52 +1,58 @@
-// The agent: Vaulter. It hands the model every extension's tools, as `<extension>__<tool>`, and the
-// model calls them until it can answer. A tool that asks first becomes a question whose yes runs it,
-// also after a restart (catalog.ts).
+// The agent: Vaulter. It hands the model every extension's tools, and the
+// model calls them until it can answer.
 
 import { type Fn, model } from '#extensions/openai';
-import type { Agent, Step } from './api.ts';
+import type { Agent, Step, Tool } from './api.ts';
 import { askFirst, tools } from './catalog.ts';
+import instructions from './instructions.md?raw';
 
 export * from './api.ts';
 
-const INSTRUCTIONS = `You are Vaulter, a personal assistant that keeps a wiki from the notes a person speaks or types.
-Answer from what the extensions know, using their tools; never guess or invent. Cite the notes facts come from when it helps.
-Some tools ask the person first: the change is made only once they say yes. Say so, and do not try another way around.
-Answer briefly, in the person's language.`;
+/** `tool` as a function the model calls, as `<extension>__<tool>`. */
+function fnOf(extension: string, tool: Tool<unknown>): Fn {
+  const asks = tool.access === 'ask';
+  return {
+    name: `${extension}__${tool.name}`,
+    description: asks
+      ? `${tool.description} (asks the person first)`
+      : tool.description,
+    input: tool.input,
+    async call(input) {
+      if (!asks) {
+        return tool.run(input);
+      }
+      const call = { extension, tool: tool.name, input: input as never };
+      return { asked: await askFirst(call, tool.description) };
+    },
+  };
+}
 
-/** Every tool, as a function the model can call. */
-const fns = (): Fn[] =>
-  [...tools()].flatMap(([extension, held]) =>
-    [...held.values()].map((t) => ({
-      name: `${extension}__${t.name}`,
-      description: `${t.description}${t.access === 'ask' ? ' (asks the person first)' : ''}`,
-      input: t.input,
-      call: async (input) =>
-        t.access === 'ask'
-          ? {
-              asked: await askFirst(
-                { extension, tool: t.name, input: input as never },
-                t.description,
-              ),
-            }
-          : t.run(input),
-    })),
+function fns(): Fn[] {
+  return [...tools()].flatMap(([extension, own]) =>
+    [...own.values()].map((tool) => fnOf(extension, tool)),
   );
+}
+
+/** A call the model made, as a step: the extension and the tool. */
+function stepOf(name: string, call: Omit<Step, 'extension' | 'tool'>): Step {
+  // An extension's id has no underscore, so the first __ ends it.
+  const split = name.indexOf('__');
+  return {
+    extension: name.slice(0, split),
+    tool: name.slice(split + 2),
+    ...call,
+  };
+}
 
 export const agent: Agent = {
-  async ask(req, onStep) {
+  async ask(request, onStep) {
     const steps: Step[] = [];
     const answer = await model.answer({
-      instructions: INSTRUCTIONS,
-      prompt: req.prompt,
+      instructions,
+      prompt: request.prompt,
       fns: fns(),
       async onCall({ name, ...call }) {
-        // An extension's id has no _, so the first __ ends it.
-        const at = name.indexOf('__');
-        const step = {
-          extension: name.slice(0, at),
-          tool: name.slice(at + 2),
-          ...call,
-        };
+        const step = stepOf(name, call);
         steps.push(step);
         await onStep?.(step);
       },

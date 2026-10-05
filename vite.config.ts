@@ -2,7 +2,8 @@
 // The page: the kernel (src/) and every extension, built by CI.
 import { defineConfig, type Plugin } from 'vite';
 
-// The page's Content Security Policy: scripts only from the page itself, network only to OpenAI.
+// The page's Content Security Policy: scripts only from the page itself,
+// network only to OpenAI.
 const csp = (): Plugin => ({
   name: 'csp',
   apply: 'build',
@@ -19,7 +20,8 @@ const csp = (): Plugin => ({
     ].join('; ');
     return html.replace(
       '<head>',
-      `<head>\n  <meta http-equiv="Content-Security-Policy" content="${policy}" />`,
+      `<head>\n  <meta http-equiv="Content-Security-Policy"` +
+        ` content="${policy}" />`,
     );
   },
 });

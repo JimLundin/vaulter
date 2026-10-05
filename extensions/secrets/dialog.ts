@@ -1,5 +1,5 @@
-// The password prompt for the page's sealed secrets, over whatever the page shows, when
-// this device hasn't opened the sealed file yet. "Not now" closes it; it asks again on the next start.
+// The password prompt for the page's sealed secrets, when this device
+// hasn't opened them yet. "Not now" closes it until the next start.
 
 /** An element with its style and properties, and its children. */
 function el<K extends keyof HTMLElementTagNameMap>(
@@ -8,17 +8,18 @@ function el<K extends keyof HTMLElementTagNameMap>(
   ...children: (Node | string)[]
 ) {
   const { style, ...rest } = props;
-  const e: HTMLElementTagNameMap[K] = Object.assign(
+  const element: HTMLElementTagNameMap[K] = Object.assign(
     document.createElement(tag),
     rest,
   );
   if (style) {
-    e.style.cssText = style;
+    element.style.cssText = style;
   }
-  e.append(...children);
-  return e;
+  element.append(...children);
+  return element;
 }
 
+/** Shows the prompt, over whatever the page shows. */
 export function unlockDialog(unlock: (password: string) => Promise<void>) {
   const input = el('input', {
     type: 'password',
@@ -53,13 +54,13 @@ export function unlockDialog(unlock: (password: string) => Promise<void>) {
     form,
   );
   later.onclick = () => dialog.close();
-  form.onsubmit = (e) => {
-    e.preventDefault();
+  form.onsubmit = (event) => {
+    event.preventDefault();
     alert.textContent = 'Opening…';
     unlock(input.value).then(
       () => dialog.close(),
-      (err: Error) => {
-        alert.textContent = err.message;
+      (error: Error) => {
+        alert.textContent = error.message;
         input.select();
       },
     );

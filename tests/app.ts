@@ -1,7 +1,8 @@
-// Running the app in tests: the same kernel as in the browser, on a fresh set of modules each start
-// (vi.resetModules), so starting again within a test is the page's next start: the same IndexedDB, new
-// modules. After a start, a test imports what it uses (`await import('#extensions/wiki')`) and gets
-// the modules the app has. A fixture extension is just the exports it would have.
+// Running the app in tests: the same kernel as in the browser, on a fresh set
+// of modules each start (vi.resetModules), so starting again within a test is
+// the page's next start: the same IndexedDB, new modules. After a start, a test
+// imports what it uses (`await import('#extensions/wiki')`) and gets the
+// modules the app has. A fixture extension is just the exports it would have.
 import { vi } from 'vitest';
 
 type Exports = Record<string, unknown>;
@@ -15,7 +16,8 @@ const repo = Object.fromEntries(
 /** Every extension in the repo. */
 export const REPO = Object.keys(repo);
 
-/** Starts the repo's extensions `ids`, and `fixtures` beside them, as a page would; the kernel. */
+/** Starts the repo's extensions `ids`, and `fixtures` beside them, as a page
+ * would; the kernel. */
 export async function startApp(
   ids: string[],
   fixtures: Record<string, Exports> = {},
@@ -29,8 +31,8 @@ export async function startApp(
   return kernel;
 }
 
-/** This page, at https://vaulter.test/, with `file` as its secrets.json; every other request goes to
- * `other`. */
+/** This page, at https://vaulter.test/, with `file` as its secrets.json; every
+ * other request goes to `other`. */
 export function servePage(file: unknown, other: typeof fetch) {
   vi.stubGlobal('location', new URL('https://vaulter.test/'));
   vi.stubGlobal('fetch', (url: string | URL, init?: RequestInit) =>

@@ -3,60 +3,58 @@ import { expect, it } from 'vitest';
 import { startApp } from '../../app.ts';
 
 /** A collection of `T`, on a freshly started store. */
-const use = async <T>(name = 'test/thing') => {
+async function use<T>(name = 'test/thing') {
   await startApp(['storage']);
   return (await import('#extensions/storage')).collection<T>(name);
-};
+}
 
 it('keeps what it is given, with when and which revision', async () => {
   const people = await use<{ name: string; age?: number }>('test/person');
-  const p = await people.create({ name: 'Ada' });
+  const ada = await people.create({ name: 'Ada' });
   expect([
-    p.name,
-    p.meta.collection,
-    p.meta.rev,
-    p.meta.created === p.meta.updated,
+    ada.name,
+    ada.meta.collection,
+    ada.meta.rev,
+    ada.meta.created === ada.meta.updated,
   ]).toEqual(['Ada', 'test/person', 1, true]);
-  expect(Object.keys(p).sort((a, b) => a.localeCompare(b))).toEqual([
-    'id',
-    'meta',
-    'name',
-  ]);
-  expect(await people.get(p.id)).toEqual(p);
+  expect(
+    Object.keys(ada).sort((first, second) => first.localeCompare(second)),
+  ).toEqual(['id', 'meta', 'name']);
+  expect(await people.get(ada.id)).toEqual(ada);
   expect(await people.get('nope')).toEqual(undefined);
 });
 
-it('creates a record with a chosen id once, and refuses that id again', async () => {
+it('creates a record with a chosen id, once', async () => {
   const things = await use<{ n: number }>();
-  const a = await things.create({ id: 'one', n: 1 });
-  expect(a.id).toEqual('one');
+  const first = await things.create({ id: 'one', n: 1 });
+  expect(first.id).toEqual('one');
   await expect(things.create({ id: 'one', n: 2 })).rejects.toThrow();
   expect((await things.get('one'))?.n).toEqual(1);
 });
 
-it('updates a record as a new revision, keeping when it was created', async () => {
+it('updates a record as a new revision', async () => {
   const things = await use<{ n: number }>();
-  const a = await things.create({ n: 1 });
-  const b = await things.update(a.id, (cur) => ({ n: cur.n + 1 }));
-  expect([b.id, b.n, b.meta.rev, b.meta.created]).toEqual([
-    a.id,
+  const first = await things.create({ n: 1 });
+  const second = await things.update(first.id, (cur) => ({ n: cur.n + 1 }));
+  expect([second.id, second.n, second.meta.rev, second.meta.created]).toEqual([
+    first.id,
     2,
     2,
-    a.meta.created,
+    first.meta.created,
   ]);
   expect((await things.query()).length).toEqual(1);
 });
 
 it('loses neither of two updates made at once', async () => {
   const counters = await use<{ n: number; by: string[] }>();
-  const c = await counters.create({ n: 0, by: [] });
+  const counter = await counters.create({ n: 0, by: [] });
   const slow = (who: string) =>
-    counters.update(c.id, async (cur) => {
+    counters.update(counter.id, async (cur) => {
       await new Promise((ok) => setTimeout(ok, 5));
       return { n: cur.n + 1, by: [...cur.by, who] };
     });
   await Promise.all([slow('a'), slow('b')]);
-  const now = await counters.get(c.id);
+  const now = await counters.get(counter.id);
   expect([now?.n, [...(now?.by ?? [])].sort(), now?.meta.rev]).toEqual([
     2,
     ['a', 'b'],
@@ -64,7 +62,7 @@ it('loses neither of two updates made at once', async () => {
   ]);
 });
 
-it("queries by a field's value or range, ordered by a field or when, up to a limit", async () => {
+it('queries by value or range, ordered, up to a limit', async () => {
   const events = await use<{ n: number; kind: string; at?: string }>();
   for (const [n, kind, at] of [
     [1, 'run', '2026-01-01'],
@@ -95,7 +93,7 @@ it("queries by a field's value or range, ordered by a field or when, up to a lim
   ]);
 });
 
-it('finds records by the words in their text fields, or in the fields asked for', async () => {
+it('finds records by the words in their text', async () => {
   const places = await use<{ name: string; aliases: string[]; notes?: string }>(
     'test/place',
   );
@@ -124,9 +122,9 @@ it('finds records by the words in their text fields, or in the fields asked for'
 
 it('deletes to a hidden tombstone', async () => {
   const scraps = await use<{ text: string }>();
-  const a = await scraps.create({ text: 'keep me' });
-  await scraps.delete(a.id);
-  expect(await scraps.get(a.id)).toEqual(undefined);
+  const first = await scraps.create({ text: 'keep me' });
+  await scraps.delete(first.id);
+  expect(await scraps.get(first.id)).toEqual(undefined);
   expect(await scraps.query()).toEqual([]);
   expect(await scraps.search('keep')).toEqual([]);
 });

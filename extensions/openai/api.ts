@@ -1,10 +1,11 @@
-// The language model, for what its users do with it: answer a prompt, calling the functions it is
-// given as it needs to (the agent), or give a structured answer (the wiki's reviser). The model, the
-// wire format and the turns between are this extension's own.
+// The language model, for what its users do with it: answer a prompt,
+// calling the functions it is given (the agent), or give a structured
+// answer (the wiki). The wire format and the turns stay inside.
 
 import type { z } from 'zod';
 
-/** A function the model may call: what it does, what it takes, and what calling it does. */
+/** A function the model may call: what it does, what it takes, and what calling
+ * it does. */
 export interface Fn {
   /** Letters, digits and _: it goes to the model as the function's name. */
   name: string;
@@ -30,8 +31,9 @@ export interface Answer {
 }
 
 export interface Model {
-  /** Answers `prompt`, calling `fns` as it needs to, for up to `maxSteps` turns; `onCall` hears each
-   * call once it is made. A call that fails goes back to the model as its error. */
+  /** Answers `prompt`, calling `fns` as it needs to, for up to `maxSteps`
+   * turns; `onCall` hears each call once it is made. A call that fails goes
+   * back to the model as its error. */
   answer: (req: {
     instructions: string;
     prompt: string;
