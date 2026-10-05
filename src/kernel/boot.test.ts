@@ -107,8 +107,8 @@ describe('boot', () => {
       },
     );
     kernels.push(r.kernel);
-    expect(await r.storage.get('map', 'started')).toBe('1.0.0');
-    expect(await r.storage.get('notes', 'started')).toBe('0.1.0');
+    expect(await r.out.get('map', 'started')).toBe('1.0.0');
+    expect(await r.out.get('notes', 'started')).toBe('0.1.0');
     expect(r.booted.origins).toEqual(new Map([['notes', 'draft/notes']]));
   });
 

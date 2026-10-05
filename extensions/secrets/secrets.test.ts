@@ -54,7 +54,7 @@ it('attaches a secret only to requests for its hosts, and forgets it with its ex
   ]);
 
   await kernel.remove('caller');
-  expect(await secrets.secrets([{ ext: 'caller', name: 'key' }])).toEqual([
-    { ext: 'caller', name: 'key', set: false },
+  expect(await secrets.secrets([{ extension: 'caller', name: 'key' }])).toEqual([
+    { extension: 'caller', name: 'key', set: false },
   ]);
 });

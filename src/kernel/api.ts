@@ -5,3 +5,6 @@ export { type Contract, defineContract } from './contract.ts';
 export { defineExtension, type Statics } from './extension.ts';
 export { perCaller } from './per-caller.ts';
 export { Declined } from './policy.ts';
+
+/** Stops what it was given for: a listener, a handler, a tool. */
+export type Unsubscribe = () => void;

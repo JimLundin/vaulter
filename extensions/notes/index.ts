@@ -3,7 +3,7 @@
 // can be rebuilt from them.
 
 import { z } from 'zod';
-import { NewNote, type Note, NoteSource, type NotesV1, notes } from '#contracts/notes';
+import { NewNote, type Note, type NotesV1, notes } from '#contracts/notes';
 import { type Rec, records } from '#contracts/records';
 import { defineExtension } from '#kernel';
 
@@ -14,15 +14,10 @@ export default defineExtension({
   requires: { records },
   agentGuide: 'The log of what the person said or typed, never changed. Cite a note by its id.',
   async setup({ records }) {
-    const fields = {
-      text: z.string(),
-      source: NoteSource,
-      at: z.iso.datetime(),
-      context: z.record(z.string(), z.json()).optional(),
-    };
+    const fields = { ...NewNote.shape, at: z.iso.datetime() };
     const note = await records.registerType('note', fields);
     const listeners = new Set<(n: Note) => void>();
-    const toNote = ({ meta: _, ...n }: Rec<typeof fields>): Note => n as Note;
+    const toNote = ({ meta: _, ...n }: Rec<typeof fields>): Note => n;
 
     const api: NotesV1 = {
       async append(input) {

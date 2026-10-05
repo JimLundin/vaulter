@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { defineContract } from './contract.ts';
-import { extensionIn } from './errors.ts';
 import type { Kernel } from './kernel.ts';
 import { startTree } from './testing.ts';
 
@@ -72,7 +71,7 @@ describe('errors', () => {
   it('pass functions across as they are', async () => {
     const r = await startTree(files);
     ({ kernel } = r);
-    expect(await r.storage.get('a', 'same')).toBe(true);
+    expect(await r.out.get('a', 'same')).toBe(true);
   });
 
   it('are kept under the extension whose code threw', async () => {
@@ -91,12 +90,5 @@ describe('errors', () => {
     ]);
     // Kept for the next start's safe mode.
     expect(Object.keys((await r.keep.get<object>('errors')) ?? {})).toContain('a');
-  });
-
-  it('are traced to an extension by the source URL of its modules', () => {
-    const stack =
-      'Error: x\n    at h (vaulter:///abc1234/extensions/wiki/revise.ts:12:3)\n    at run (kernel.ts:1:1)';
-    expect(extensionIn(stack)).toBe('wiki');
-    expect(extensionIn('Error: x\n    at kernel.ts:1:1')).toBeUndefined();
   });
 });

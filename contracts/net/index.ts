@@ -4,8 +4,6 @@
 // each caller. Setting and forgetting a secret, and opening the page's sealed ones, are a person's.
 import { defineContract } from '#kernel';
 
-export type Unsubscribe = () => void;
-
 /** A request through `fetch`. */
 export interface FetchInit {
   method?: string;
@@ -16,7 +14,7 @@ export interface FetchInit {
 }
 
 export interface SecretInfo {
-  ext: string;
+  extension: string;
   name: string;
   set: boolean;
 }
@@ -27,7 +25,7 @@ export interface NetV1 {
   /** Whether one of the caller's declared secrets is set, without revealing it. */
   hasSecret: (name: string) => Promise<boolean>;
   /** Which of these extensions' secrets are set: for the settings screen. */
-  secrets: (of: { ext: string; name: string }[]) => Promise<SecretInfo[]>;
+  secrets: (of: { extension: string; name: string }[]) => Promise<SecretInfo[]>;
   /** Whether the page carries sealed secrets this device hasn't opened yet. */
   sealed: () => Promise<{ present: boolean; locked: boolean }>;
 

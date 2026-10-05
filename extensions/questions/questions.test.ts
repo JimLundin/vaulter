@@ -46,7 +46,7 @@ it('lets only a person answer a question, and hands the answer to the asker', as
   present = 'asker';
   expect(await p.run(id)).toBe('answered');
   await new Promise((ok) => setTimeout(ok, 30));
-  expect(await r.storage.get('asker', 'answer')).toBe('yes');
+  expect(await r.out.get('asker', 'answer')).toBe('yes');
 });
 
 it("keeps a person's answer when the asker's handler fails, and delivers it again later", async () => {
@@ -77,5 +77,5 @@ it("keeps a person's answer when the asker's handler fails, and delivers it agai
   const after = await startRepo(['store-local', 'questions'], files(false));
   ({ kernel } = after);
   await new Promise((ok) => setTimeout(ok, 30));
-  expect(await after.storage.get('asker', 'answer')).toBe('yes');
+  expect(await after.out.get('asker', 'answer')).toBe('yes');
 });

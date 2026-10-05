@@ -29,8 +29,10 @@ export default defineExtension({
           fetch: fetcher(statics, secrets),
           hasSecret: async (name: string) =>
             name in statics.secrets && (await secrets.has(caller, name)),
-          secrets: (of: { ext: string; name: string }[]) =>
-            Promise.all(of.map(async (s) => ({ ...s, set: await secrets.has(s.ext, s.name) }))),
+          secrets: (of: { extension: string; name: string }[]) =>
+            Promise.all(
+              of.map(async (s) => ({ ...s, set: await secrets.has(s.extension, s.name) })),
+            ),
           sealed: async () => ({ present: sealed.present(), locked: sealed.locked() }),
           setSecret: (ext: string, name: string, value: string) => secrets.set(ext, name, value),
           forgetSecret: (ext: string, name: string) => secrets.forget(ext, name),

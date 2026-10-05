@@ -123,7 +123,7 @@ it('revises pages from notes, cites every fact, asks when unsure, and gives Vaul
   ]);
   expect((await wiki.get({ type: dup.type, id: dup.id }))?.id).toBe(ada.id);
 
-  const tools = (await r.storage.get('agent', 'tools')) as {
+  const tools = (await r.out.get('agent', 'tools')) as {
     name: string;
     access: string;
     input: { type: string };

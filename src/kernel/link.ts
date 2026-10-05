@@ -49,16 +49,18 @@ export function linker(url: (code: string) => string, shared: Record<string, obj
         out =
           out.slice(0, start) + (quoted ? JSON.stringify(targets[k]) : targets[k]) + out.slice(end);
       }
-      const u = url(`${out}\n//# sourceURL=vaulter:///${plan.commit.slice(0, 7)}/${path}`);
+      const source = `vaulter:///${plan.commit.slice(0, 7)}/${path}`;
+      const u = url(`${out}\n//# sourceURL=${source}`);
       urls.set(key, u);
       paths.set(u, path);
+      paths.set(source, path);
       return u;
     };
     return visit(plan.entry);
   }
 
-  /** The extension whose module comes first in `stack`, by the module URLs linked here: where a
-   * runtime keeps them in stacks instead of each module's source URL. */
+  /** The extension whose module comes first in `stack`, by the source URL of each module linked here,
+   * or its module URL where a runtime keeps that in stacks instead. */
   const extensionAt = (stack: string): string | undefined => {
     let first: { at: number; path: string } | undefined;
     for (const [u, path] of paths) {

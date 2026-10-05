@@ -27,7 +27,7 @@ export class Policy {
   >();
   private readonly listeners = new Set<(pending: Approval[]) => void>();
   /** Every guard seen, by `extension/label`: what the settings can list. */
-  readonly known = new Map<string, { ext: string; label: string; declared: Access }>();
+  readonly known = new Map<string, { extension: string; label: string; declared: Access }>();
   private n = 0;
 
   private readonly keep: KernelKeep;
@@ -43,7 +43,11 @@ export class Policy {
   }
 
   see(ext: string, guard: Guard) {
-    this.known.set(`${ext}/${guard.label}`, { ext, label: guard.label, declared: guard.access });
+    this.known.set(`${ext}/${guard.label}`, {
+      extension: ext,
+      label: guard.label,
+      declared: guard.access,
+    });
   }
 
   /** Resolves when the call may go ahead; rejects with Declined when the person says no. */

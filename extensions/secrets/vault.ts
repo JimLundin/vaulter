@@ -6,7 +6,7 @@ import type { FetchInit } from '#contracts/net';
 import type { Statics } from '#kernel';
 import type { Store } from './store.ts';
 
-interface Sealed {
+interface Encrypted {
   iv: Uint8Array<ArrayBuffer>;
   data: ArrayBuffer;
 }
@@ -50,7 +50,7 @@ export function vault(keep: Store): Vault {
         await deviceKey(),
         enc.encode(value),
       );
-      await keep.set(id(ext, name), { iv, data } satisfies Sealed);
+      await keep.set(id(ext, name), { iv, data } satisfies Encrypted);
     },
     has: async (ext, name) => (await keep.get(id(ext, name))) !== undefined,
     forget: (ext, name) => keep.delete(id(ext, name)),
@@ -58,7 +58,7 @@ export function vault(keep: Store): Vault {
       for (const [k] of await keep.list(`secret:${ext}/`)) await keep.delete(k);
     },
     async reveal(ext, name) {
-      const s = await keep.get<Sealed>(id(ext, name));
+      const s = await keep.get<Encrypted>(id(ext, name));
       if (!s) return;
       const plain = await crypto.subtle.decrypt(
         { name: 'AES-GCM', iv: s.iv, additionalData: enc.encode(id(ext, name)) },

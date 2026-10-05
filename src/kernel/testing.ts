@@ -1,7 +1,7 @@
 // Running the kernel in tests: the same boot as in the browser (boot.ts), on a test device that stands
 // in for one: modules as data: URLs, the kernel's state in memory, and a source made of strings.
 // Fixture extensions report what they saw through `out`, the shared module #test, which tests
-// read back as `storage`.
+// read back as `out`.
 import { type SourceV1, source } from '#contracts/extensions.source';
 import type { Suite } from '../../contracts/conformance.ts';
 import type { Access } from './access.ts';
@@ -138,7 +138,7 @@ export async function startTree(files: Record<string, string>, opts: TreeOptions
     booted,
     src,
     kernel: booted.kernel,
-    storage: out,
+    out,
     keep: booted.keep,
     refused: booted.refused,
     started: booted.started,

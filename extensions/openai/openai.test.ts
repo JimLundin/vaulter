@@ -19,7 +19,7 @@ const RESPONSE = {
       type: 'function_call',
       id: 'fc_1',
       call_id: 'call_1',
-      name: 'findEntity',
+      name: 'findPages',
       arguments: '{"query":"Ada"}',
     },
   ],
@@ -50,7 +50,7 @@ it('speaks the Responses API, with the key attached by the secrets extension', a
           setup({ chat }) { return { probe: { async run() {
             const first = await chat.complete({
               messages: [{ role: 'system', content: 'Be brief.' }, { role: 'user', content: 'Who is Ada?' }],
-              tools: [{ name: 'findEntity', description: 'Find', parameters: { type: 'object' } }],
+              tools: [{ name: 'findPages', description: 'Find', parameters: { type: 'object' } }],
             });
             await chat.complete({ messages: [
               { role: 'user', content: 'Who is Ada?' },
@@ -74,7 +74,7 @@ it('speaks the Responses API, with the key attached by the secrets extension', a
 
   expect(out.first).toMatchObject({
     content: null,
-    toolCalls: [{ id: 'call_1', name: 'findEntity', arguments: '{"query":"Ada"}' }],
+    toolCalls: [{ id: 'call_1', name: 'findPages', arguments: '{"query":"Ada"}' }],
     usage: { input: 12, output: 7 },
   });
   expect(seen.every((s) => s.auth === 'Bearer sk-test')).toBe(true);
@@ -83,7 +83,7 @@ it('speaks the Responses API, with the key attached by the secrets extension', a
     model: 'gpt-6.1-sol',
     store: false,
     include: ['reasoning.encrypted_content'],
-    tools: [{ type: 'function', name: 'findEntity', strict: false }],
+    tools: [{ type: 'function', name: 'findPages', strict: false }],
     input: [
       { role: 'system', content: 'Be brief.' },
       { role: 'user', content: 'Who is Ada?' },

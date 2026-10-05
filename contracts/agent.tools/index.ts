@@ -6,12 +6,10 @@
 // contract says.
 
 import type { z } from 'zod';
-import { type Access, defineContract, type Guarded } from '#kernel';
-
-export type Unsubscribe = () => void;
+import { type Access, defineContract, type Guarded, type Unsubscribe } from '#kernel';
 
 export interface Tool<I> {
-  /** Unique within the extension: "findEntity". Letters, digits and _. */
+  /** Unique within the extension: "findPages". Letters, digits and _. */
   name: string;
   /** For Vaulter: what it does and when to use it. */
   description: string;

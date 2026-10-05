@@ -2,22 +2,19 @@
 // (ARCHITECTURE.md, "A contract: records"). A type is registered by name once and then passed around
 // as a handle, so another extension refers to it by the handle a contract gives it, never by a string.
 //
-// Handles are plain data: the name. The provider names a type in its caller's
-// namespace and checks and shapes every value with the type's own Zod (defaults and trims included).
-// An extension may read any type it has a handle for, and write only its own.
+// Handles are plain data: the name. The provider names a type in its caller's namespace and checks
+// and shapes every value with the type's own Zod (defaults and trims included). An extension may read
+// any type it has a handle for, and write only its own.
 //
 // Nothing is overwritten or removed for good. Every change makes a new revision and keeps the one
 // before (`history`); changes to one record run one after another, each `update` getting the record as
 // the last one left it, so two changes at once can't lose either. Deleting or merging leaves a
 // tombstone that can be restored. A type's fields may grow with optional fields and defaults; a change
 // that breaks stored records will bring versions and migrations with it, when there is one. Only
-// removing the
-// extension drops its records.
+// removing the extension drops its records.
 
 import { z } from 'zod';
-import { defineContract } from '#kernel';
-
-export type Unsubscribe = () => void;
+import { defineContract, type Unsubscribe } from '#kernel';
 
 export interface RecordType<S extends z.ZodRawShape = z.ZodRawShape> {
   readonly kind: 'record-type';

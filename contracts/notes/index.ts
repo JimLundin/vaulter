@@ -2,27 +2,20 @@
 // page and record built from notes can be rebuilt from them (ARCHITECTURE.md, principles).
 
 import { z } from 'zod';
-import { defineContract } from '#kernel';
-
-export type Unsubscribe = () => void;
-
-export const NoteSource = z.enum(['typed', 'voice', 'import']);
+import { defineContract, type Unsubscribe } from '#kernel';
 
 export const NewNote = z.object({
   text: z.string().trim().min(1),
-  source: NoteSource.default('typed'),
+  source: z.enum(['typed', 'voice', 'import']).default('typed'),
   /** When it was said, if not now (an import). */
   at: z.iso.datetime().optional(),
   /** What was around it: where, on which device, the audio's id. Plain values only. */
   context: z.record(z.string(), z.json()).optional(),
 });
 
-export interface Note {
+export interface Note extends z.output<typeof NewNote> {
   id: string;
-  text: string;
-  source: z.infer<typeof NoteSource>;
   at: string;
-  context?: Record<string, unknown>;
 }
 
 export interface NotesQuery {

@@ -4,9 +4,9 @@
 import { z } from 'zod';
 import type { AgentToolsV1 } from '#contracts/agent.tools';
 import { RecordRef } from '#contracts/records';
-import { type Entity, Kind, type WikiV1 } from '#contracts/wiki';
+import { Kind, type Page, type WikiV1 } from '#contracts/wiki';
 
-const brief = (e: Entity) => ({
+const brief = (e: Page) => ({
   ref: { type: e.type, id: e.id },
   kind: e.kind,
   name: e.name,
@@ -43,7 +43,7 @@ export async function addTools(tools: AgentToolsV1, wiki: WikiV1) {
       description: 'Create a wiki page. Only for something the notes clearly mention.',
       access: 'write',
       input: z.object({ kind: Kind, name: z.string(), aliases: z.array(z.string()).optional() }),
-      run: async ({ kind, ...entity }) => brief(await wiki.create(kind, entity)),
+      run: async ({ kind, ...page }) => brief(await wiki.create(kind, page)),
     }),
     tools.add({
       name: 'addFact',

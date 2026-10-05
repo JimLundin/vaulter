@@ -15,7 +15,7 @@ export interface NotesV1 {
 }
 export const notes = defineContract<NotesV1>({ name: 'notes', version: 1 });`;
 
-// Notes, kept in the kernel's storage for this extension.
+// Notes, kept in the test's `out`.
 const NOTES_EXT = `
 import { defineExtension } from '#kernel';
 import { out } from '#test';
@@ -205,7 +205,7 @@ describe('resolve', () => {
 
 describe('the kernel', () => {
   it('loads each extension and routes calls and callbacks between them', async () => {
-    const { kernel, storage, refused } = await start({
+    const { kernel, out, refused } = await start({
       ...base,
       'extensions/voice/index.ts': VOICE_EXT,
     });
@@ -215,10 +215,10 @@ describe('the kernel', () => {
     expect(await n.count()).toBe(1);
     await n.append('from the kernel');
     // Voice's handler was called back through the kernel.
-    expect(await storage.get('voice', 'seen')).toEqual(['from voice', 'from the kernel']);
-    // Each extension's storage is its own namespace.
-    expect(await storage.get('notes', 'note:2')).toBe('from the kernel');
-    expect(await storage.get('voice', 'n')).toBeUndefined();
+    expect(await out.get('voice', 'seen')).toEqual(['from voice', 'from the kernel']);
+    // What each extension wrote is under its own id.
+    expect(await out.get('notes', 'note:2')).toBe('from the kernel');
+    expect(await out.get('voice', 'n')).toBeUndefined();
   });
 
   it('refuses an extension whose setup fails, and what requires it, but starts the rest', async () => {
@@ -291,7 +291,7 @@ describe('the kernel', () => {
     void kernel.use(toolsContract).call('merge', 'x');
     await vi.waitFor(() => expect(kernel.policy.approvals()).toHaveLength(1));
     expect([...kernel.policy.known.values()]).toEqual([
-      { ext: 'workouts', label: 'tool:merge', declared: 'read' },
+      { extension: 'workouts', label: 'tool:merge', declared: 'read' },
     ]);
     await booted.config.setAccess('workouts', 'tool:merge', null);
     expect(await kernel.use(toolsContract).level('merge')).toBe('read');
@@ -323,7 +323,7 @@ describe('the kernel', () => {
           catch (e) { await out.set('${id}', 'out', e.message); }
           return ${id === 'agent' ? '{ agent: {} }' : 'undefined'};
         } });`;
-    const { storage, refused } = await start(
+    const { out, refused } = await start(
       {
         'contracts/questions/index.ts': `import { defineContract } from '#kernel';
           export const questions = defineContract({ name: 'questions', version: 1, personal: ['answer'] });`,
@@ -346,11 +346,11 @@ describe('the kernel', () => {
       },
     );
     expect(refused).toEqual([]);
-    expect(await storage.get('agent', 'out')).toMatch(
+    expect(await out.get('agent', 'out')).toMatch(
       /is for a person to do; agent is the agent's own/,
     );
-    expect(await storage.get('workouts', 'out')).toMatch(/workouts is the agent's own/);
-    expect(await storage.get('settings', 'out')).toBe('answered');
+    expect(await out.get('workouts', 'out')).toMatch(/workouts is the agent's own/);
+    expect(await out.get('settings', 'out')).toBe('answered');
   });
 
   it("lets a contract's personal methods through only right after a person acted in the caller", async () => {
@@ -414,11 +414,11 @@ describe('the kernel', () => {
       'extensions/wiki/index.ts': user,
     });
     expect(without.refused).toEqual([]);
-    expect(await without.storage.get('wiki', 'had')).toBe('none');
+    expect(await without.out.get('wiki', 'had')).toBe('none');
 
     const withIt = await start({ ...base, 'extensions/wiki/index.ts': user });
     expect(withIt.refused).toEqual([]);
-    expect(await withIt.storage.get('wiki', 'had')).toBe(0);
+    expect(await withIt.out.get('wiki', 'had')).toBe(0);
 
     const broken = await start({
       ...base,
@@ -429,6 +429,6 @@ describe('the kernel', () => {
       'extensions/wiki/index.ts': user,
     });
     expect(broken.kernel.running().map((r) => r.id)).toEqual(['wiki']);
-    expect(await broken.storage.get('wiki', 'had')).toBe('none');
+    expect(await broken.out.get('wiki', 'had')).toBe('none');
   });
 });

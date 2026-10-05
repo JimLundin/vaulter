@@ -35,11 +35,11 @@ export default defineExtension({
       delivered: z.boolean(),
     };
     const question = await records.registerType('question', fields);
-    type Stored = Rec<typeof fields>;
+    type Kept = Rec<typeof fields>;
 
     const handlers = new Map<string, Handler>();
     const watchers = new Set<(open: Question[]) => void>();
-    const strip = ({ delivered: _, meta: _m, ...q }: Stored): Question => q;
+    const strip = ({ delivered: _, meta: _m, ...q }: Kept): Question => q;
     const find = (where: Query['where']) =>
       records.query(question, { where, orderBy: 'at', order: 'asc' });
     const openOnes = async () => (await find({ status: 'open' })).map(strip);
@@ -49,12 +49,12 @@ export default defineExtension({
       for (const w of watchers) queueMicrotask(() => w(list));
     };
     /** The question as it is now, changed by `change` if it may be. */
-    const update = (id: string, change: (q: Stored) => Partial<Stored>) =>
+    const update = (id: string, change: (q: Kept) => Partial<Kept>) =>
       records.update(question, id, (q) => ({ ...q, ...change(q) }));
 
     /** The answer to its asker's handler; one the handler fails on stays undelivered, to go to it
      * again when the asker next registers it. */
-    const deliver = async (q: Stored) => {
+    const deliver = async (q: Kept) => {
       const h = handlers.get(`${q.from}/${q.topic}`);
       if (!(h && q.status === 'answered' && q.answer && !q.delivered)) return;
       try {

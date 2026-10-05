@@ -3,9 +3,7 @@
 // requires it shows that in its static fields, and every change it can make is personal: only a person
 // can make it, right after a tap or key in that extension.
 import type { Checks } from '#contracts/extensions.source';
-import { type Access, defineContract } from '#kernel';
-
-export type Unsubscribe = () => void;
+import { type Access, defineContract, type Unsubscribe } from '#kernel';
 
 export interface ExtensionInfo {
   id: string;
@@ -36,7 +34,7 @@ export interface ErrorEntry {
 }
 
 export interface AccessInfo {
-  ext: string;
+  extension: string;
   label: string;
   declared: Access;
   /** The person's setting, when it differs from what the extension declared. */

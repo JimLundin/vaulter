@@ -4,9 +4,7 @@
 // when it next registers its handler. Answering is personal: Vaulter can't answer its own questions.
 
 import { z } from 'zod';
-import { defineContract } from '#kernel';
-
-export type Unsubscribe = () => void;
+import { defineContract, type Unsubscribe } from '#kernel';
 
 export const NewQuestion = z.object({
   /** The asker's own topic: "merge-people", "unclear-date". */

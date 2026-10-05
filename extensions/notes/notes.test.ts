@@ -25,7 +25,7 @@ it('keeps notes as records, and tells requirers', async () => {
   ({ kernel } = r);
   expect(r.refused).toEqual([]);
   expect(kernel.running().map((x) => x.id)).toEqual(['store-local', 'notes', 'voice']);
-  const out = (await r.storage.get('voice', 'out')) as {
+  const out = (await r.out.get('voice', 'out')) as {
     n: { id: string; text: string };
     list: { id: string }[];
     heard: string[];

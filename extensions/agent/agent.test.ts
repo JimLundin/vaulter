@@ -58,7 +58,7 @@ it('answers with the tools it opens, and waits for the person on a tool that ask
     steps.map((s) => (s.kind === 'open' ? `open ${s.extension}` : `${s.extension}.${s.tool}`)),
   ).toEqual(['open wiki', 'wiki.findPages']);
   // The wiki's tools appear only once it is opened.
-  const offered = (await r.storage.get('fake-ai', 'tools')) as string[][];
+  const offered = (await r.out.get('fake-ai', 'tools')) as string[][];
   expect(offered[0]).toEqual(['open_extension']);
   expect(offered[1]).toContain('wiki__findPages');
 

@@ -67,7 +67,7 @@ export function control({ booted: b, review, restart }: ControlEnv): KernelV1 {
       return Promise.resolve(
         [...kernel.policy.known.values()].map((k) => ({
           ...k,
-          setting: settings[`${k.ext}/${k.label}`],
+          setting: settings[`${k.extension}/${k.label}`],
         })),
       );
     },

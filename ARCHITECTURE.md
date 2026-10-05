@@ -289,7 +289,7 @@ export default defineExtension({
     notes.onAppended((note) => revisePages(note, { records, questions, person, place }));
 
     agentTools.add({
-      name: "findEntity",
+      name: "findPages",
       access: "read",
       input: z.object({ query: z.string() }),
       run: ({ query }) => records.search([person, place], query),

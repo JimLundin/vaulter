@@ -2,17 +2,7 @@
 // From here: choose the repo and branch, pin a commit (a rollback), and turn extensions and drafts
 // off. Secrets are the secrets extension's.
 import type { Booted } from './boot.ts';
-
-type Child = Node | string | null | undefined | false;
-
-function h(tag: string, attrs: Record<string, string | boolean> = {}, ...children: Child[]) {
-  const el = document.createElement(tag);
-  for (const [k, v] of Object.entries(attrs))
-    if (v === true) el.setAttribute(k, '');
-    else if (v !== false) el.setAttribute(k, v);
-  el.append(...children.filter((c): c is Node | string => !!c));
-  return el;
-}
+import { h, root } from './dom.ts';
 
 const css = `
 body { margin: 0; font: 15px/1.5 system-ui, sans-serif; color-scheme: light dark; }
@@ -112,8 +102,6 @@ export async function safeMode(s: Booted) {
     })();
   });
 
-  const style = h('style');
-  style.textContent = css;
-  document.head.append(style);
-  (document.getElementById('vaulter') ?? document.body).replaceChildren(form);
+  document.head.append(h('style', {}, css));
+  root().replaceChildren(form);
 }

@@ -52,7 +52,7 @@ it('starts store-local and serves another extension its records', async () => {
   ({ kernel } = r);
   expect(r.refused).toEqual([]);
   expect(kernel.running().map((x) => x.id)).toEqual(['store-local', 'people']);
-  const result = (await r.storage.get('people', 'result')) as {
+  const result = (await r.out.get('people', 'result')) as {
     ada: Record<string, unknown>;
     all: number;
     seen: string[];

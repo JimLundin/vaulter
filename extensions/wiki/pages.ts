@@ -1,7 +1,7 @@
 // The wiki's pages as records: one record type per kind, facts kept on the page with the notes they
 // came from. Everything here is what wiki@1 offers besides revising.
 import type { RecordRef, RecordsV1, RecordType, Stored } from '#contracts/records';
-import { type Entity, fields, Kind, type WikiV1 } from '#contracts/wiki';
+import { fields, Kind, type Page, type WikiV1 } from '#contracts/wiki';
 
 export const KINDS = Kind.options;
 
@@ -23,7 +23,7 @@ export function pages(records: RecordsV1, types: Types) {
     if (!k) throw new Error(`${ref.type} is not a wiki type`);
     return types[k];
   };
-  const entity = (rec: Stored): Entity => {
+  const page = (rec: Stored): Page => {
     const { meta, ...fields } = rec;
     const kind = kindOf(meta.type);
     if (!kind) throw new Error(`${meta.type} is not a wiki type`);
@@ -33,14 +33,14 @@ export function pages(records: RecordsV1, types: Types) {
       kind,
       created: meta.created,
       updated: meta.updated,
-    } as Entity;
+    } as Page;
   };
   const all = async () =>
-    (await Promise.all(KINDS.map((k) => records.query(types[k])))).flat().map(entity);
+    (await Promise.all(KINDS.map((k) => records.query(types[k])))).flat().map(page);
 
   const get = async (ref: RecordRef) => {
     const rec = await records.get(typeOf(ref), ref.id);
-    return rec && entity(rec);
+    return rec && page(rec);
   };
   const must = async (ref: RecordRef) => {
     const e = await get(ref);
@@ -49,28 +49,28 @@ export function pages(records: RecordsV1, types: Types) {
   };
   /** The page changed by `change`, which gets it as it is now: a change made meanwhile isn't lost.
    * What isn't one of the kind's fields (id, kind, dates) is left out by the type's Zod. */
-  const change = async (ref: RecordRef, f: (e: Entity) => Partial<Entity>) => {
+  const change = async (ref: RecordRef, f: (e: Page) => Partial<Page>) => {
     const rec = await records.update(typeOf(ref), ref.id, (cur) => {
-      const e = entity(cur);
+      const e = page(cur);
       return { ...e, ...f(e) } as never;
     });
-    return entity(rec);
+    return page(rec);
   };
-  const refOf = (e: Entity): RecordRef => ({ type: e.type, id: e.id });
+  const refOf = (e: Page): RecordRef => ({ type: e.type, id: e.id });
 
   const api: Omit<WikiV1, 'revise'> = {
     async find(text, kinds = [...KINDS]) {
       const found = await records.search(kinds.map((k) => types[k]) as RecordType[], text, {
         fields: ['name', 'aliases', 'summary'],
       });
-      return found.map(entity);
+      return found.map(page);
     },
     get,
     // The kind's own Zod fills in what the page doesn't give: no aliases, summary, facts or links.
-    create: async (kind, input) => entity(await records.create(types[kind], input as never)),
+    create: async (kind, input) => page(await records.create(types[kind], input as never)),
     update(ref, patch) {
       const { facts: _, ...rest } = patch;
-      return change(ref, () => rest as Partial<Entity>);
+      return change(ref, () => rest as Partial<Page>);
     },
     addFact(ref, fact) {
       const added = { id: crypto.randomUUID(), added: new Date().toISOString(), ...fact };
@@ -100,7 +100,7 @@ export function pages(records: RecordsV1, types: Types) {
       await records.merge(typeOf(keepRef), keepRef.id, mergeRef.id);
       // What pointed at the merged page now points at the one kept.
       const swap = (r: unknown) => (r && same(r as RecordRef, mergeRef) ? keepRef : r);
-      const swapped = (e: Entity): Partial<Entity> => ({
+      const swapped = (e: Page): Partial<Page> => ({
         related: e.related.map((r) => swap(r) as RecordRef),
         ...(e.kind === 'event'
           ? {

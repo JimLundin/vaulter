@@ -6,7 +6,7 @@ import { z } from 'zod';
 import type { ChatV1 } from '#contracts/ai.chat';
 import type { Note } from '#contracts/notes';
 import type { QuestionsV1 } from '#contracts/questions';
-import type { Entity, Revision, WikiV1 } from '#contracts/wiki';
+import type { Page, Revised, WikiV1 } from '#contracts/wiki';
 import { KINDS } from './pages.ts';
 
 const FactIn = z.object({ text: z.string(), at: z.string().nullable() });
@@ -53,7 +53,7 @@ const tokens = (s: string) =>
     .filter((w) => w.length >= 3);
 
 /** Pages the note may be about: a name or alias word in it, then the most recent, up to 60. */
-function candidates(note: string, pages: Entity[]): Entity[] {
+function candidates(note: string, pages: Page[]): Page[] {
   const said = new Set(tokens(note));
   const named = pages.filter((p) =>
     [p.name, ...p.aliases].some((n) => tokens(n).some((w) => said.has(w))),
@@ -64,7 +64,7 @@ function candidates(note: string, pages: Entity[]): Entity[] {
 
 export interface ReviseDeps {
   wiki: Omit<WikiV1, 'revise'>;
-  all: () => Promise<Entity[]>;
+  all: () => Promise<Page[]>;
   chat: ChatV1;
   questions?: QuestionsV1;
 }
@@ -73,8 +73,8 @@ type Cite = (f: z.infer<typeof FactIn>) => { text: string; sources: string[]; at
 
 export function reviser(deps: ReviseDeps) {
   /** Each page the plan creates, with its facts: by the plan's own ref for it. */
-  const create = async (changes: Changes, cite: Cite, rev: Revision) => {
-    const made = new Map<string, Entity>();
+  const create = async (changes: Changes, cite: Cite, rev: Revised) => {
+    const made = new Map<string, Page>();
     for (const c of changes.create) {
       let e = await deps.wiki.create(c.kind, { name: c.name, aliases: c.aliases });
       for (const f of c.facts) e = await deps.wiki.addFact({ type: e.type, id: e.id }, cite(f));
@@ -84,7 +84,7 @@ export function reviser(deps: ReviseDeps) {
     return made;
   };
 
-  const apply = async (changes: Changes, note: Note, rev: Revision) => {
+  const apply = async (changes: Changes, note: Note, rev: Revised) => {
     const cite: Cite = (f) => ({ text: f.text, sources: [note.id], ...(f.at ? { at: f.at } : {}) });
     const made = await create(changes, cite, rev);
     const known = new Map((await deps.all()).map((e) => [e.id, e]));
@@ -105,7 +105,7 @@ export function reviser(deps: ReviseDeps) {
   };
 
   return {
-    async revise(note: Note): Promise<Revision> {
+    async revise(note: Note): Promise<Revised> {
       const pages = candidates(note.text, await deps.all());
       const context = pages.map((p) => ({
         id: p.id,
@@ -128,13 +128,13 @@ export function reviser(deps: ReviseDeps) {
         },
       });
       const plan = Plan.parse(JSON.parse(result.content ?? '{}'));
-      const rev: Revision = { note: note.id, created: [], updated: [], asked: [] };
+      const rev: Revised = { note: note.id, created: [], updated: [], asked: [] };
       await apply(plan, note, rev);
       for (const q of plan.ask) {
         if (!deps.questions) continue;
         const id = await deps.questions.ask({
           topic: 'revise',
-          // Revising the same note again asks nothing twice.
+          // Revising the same note again doesn't ask again what is still open.
           key: `${note.id}:${q.title}`,
           title: q.title,
           ...(q.body ? { body: q.body } : {}),

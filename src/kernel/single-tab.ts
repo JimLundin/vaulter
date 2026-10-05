@@ -1,6 +1,8 @@
 // One kernel at a time: two tabs running it would share the same IndexedDB with listeners that never
 // hear of each other's changes. The kernel holds a Web Lock while it runs; a second tab waits on a bare
 // screen until the person moves Vaulter there, when the first tab stops its extensions and lets go.
+import { h, root } from './dom.ts';
+
 const LOCK = 'vaulter-kernel';
 const TAKE_OVER = 'take-over';
 
@@ -65,24 +67,27 @@ export type SingleTab = ReturnType<typeof singleTab>;
 /** The bare screen in a tab without the kernel; resolves when the person moves Vaulter here. */
 export function standbyScreen(tab: SingleTab, moved = false): Promise<void> {
   return new Promise((done) => {
-    const root = document.getElementById('vaulter') ?? document.body;
-    const title = document.createElement('h1');
-    title.style.cssText = 'margin:0;font-size:1.3rem';
-    title.textContent = 'Vaulter';
-    const text = document.createElement('p');
-    text.style.margin = '0';
-    text.textContent = moved ? 'Vaulter moved to another tab.' : 'Vaulter is open in another tab.';
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.textContent = 'Use it here';
+    const text = h(
+      'p',
+      { style: 'margin:0' },
+      moved ? 'Vaulter moved to another tab.' : 'Vaulter is open in another tab.',
+    );
+    const button = h('button', { type: 'button' }, 'Use it here');
     button.onclick = () => {
       text.textContent = 'Moving…';
       void tab.takeOver().then(done);
     };
-    const box = document.createElement('div');
-    box.style.cssText =
-      'max-width:24rem;margin:20vh auto;display:grid;gap:.75rem;font:15px/1.5 system-ui,sans-serif';
-    box.append(title, text, button);
-    root.replaceChildren(box);
+    root().replaceChildren(
+      h(
+        'div',
+        {
+          style:
+            'max-width:24rem;margin:20vh auto;display:grid;gap:.75rem;font:15px/1.5 system-ui,sans-serif',
+        },
+        h('h1', { style: 'margin:0;font-size:1.3rem' }, 'Vaulter'),
+        text,
+        button,
+      ),
+    );
   });
 }

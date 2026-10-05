@@ -50,7 +50,7 @@ export const fields = {
   topic: { ...common },
 };
 
-export interface Entity {
+export interface Page {
   id: string;
   type: string;
   kind: Kind;
@@ -64,7 +64,8 @@ export interface Entity {
   [field: string]: unknown;
 }
 
-export interface Revision {
+/** What revising the wiki from a note did. */
+export interface Revised {
   note: string;
   created: RecordRef[];
   updated: RecordRef[];
@@ -73,7 +74,7 @@ export interface Revision {
 }
 
 /** A new page: its name, and any of its kind's other fields. */
-export interface NewEntity {
+export interface NewPage {
   name: string;
   aliases?: string[];
   summary?: string;
@@ -82,22 +83,22 @@ export interface NewEntity {
 
 export interface WikiV1 {
   /** Pages whose name, aliases or summary contain every word of `text`. */
-  find: (text: string, kinds?: Kind[]) => Promise<Entity[]>;
-  get: (ref: RecordRef) => Promise<Entity | undefined>;
-  create: (kind: Kind, entity: NewEntity) => Promise<Entity>;
+  find: (text: string, kinds?: Kind[]) => Promise<Page[]>;
+  get: (ref: RecordRef) => Promise<Page | undefined>;
+  create: (kind: Kind, page: NewPage) => Promise<Page>;
   /** Changes fields other than facts. */
-  update: (ref: RecordRef, patch: Record<string, unknown>) => Promise<Entity>;
+  update: (ref: RecordRef, patch: Record<string, unknown>) => Promise<Page>;
   addFact: (
     ref: RecordRef,
     fact: { text: string; sources: string[]; at?: string },
-  ) => Promise<Entity>;
-  retractFact: (ref: RecordRef, factId: string) => Promise<Entity>;
+  ) => Promise<Page>;
+  retractFact: (ref: RecordRef, factId: string) => Promise<Page>;
   /** Folds `merge` into `keep`: facts, aliases and links together; `merge` then reads as `keep`. */
-  merge: (keep: RecordRef, merge: RecordRef) => Promise<Entity>;
+  merge: (keep: RecordRef, merge: RecordRef) => Promise<Page>;
   /** The pages that cite a note. */
-  citing: (noteId: string) => Promise<Entity[]>;
+  citing: (noteId: string) => Promise<Page[]>;
   /** Revises the pages a note touches (as happens on its own when a note is appended, with a model). */
-  revise: (noteId: string) => Promise<Revision>;
+  revise: (noteId: string) => Promise<Revised>;
 }
 
 export const wiki = defineContract<WikiV1>({
