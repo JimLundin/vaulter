@@ -134,6 +134,8 @@ export function reviser(deps: ReviseDeps) {
         // biome-ignore lint/performance/noAwaitInLoops: questions in order
         const id = await deps.questions.ask({
           topic: 'revise',
+          // Revising the same note again asks nothing twice.
+          key: `${note.id}:${q.title}`,
           title: q.title,
           ...(q.body ? { body: q.body } : {}),
           choices: [

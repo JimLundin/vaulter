@@ -20,8 +20,8 @@ export default defineExtension({
     const tools_ = (from: string): AgentToolsV1 => ({
       add(added) {
         // A tool's name goes to the model as part of the function's name.
-        if (!/^[a-zA-Z][a-zA-Z0-9_]{0,63}$/.test(added.name))
-          throw new Error(`"${added.name}" is not a tool name: letters, digits and _`);
+        if (!/^[a-zA-Z][a-zA-Z0-9_]{0,40}$/.test(added.name) || added.name.includes('__'))
+          throw new Error(`"${added.name}" is not a tool name: letters, digits and single _`);
         const tool = added as unknown as HeldTool;
         const mine = tools.get(from) ?? new Map<string, HeldTool>();
         tools.set(from, mine);

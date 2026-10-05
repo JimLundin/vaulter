@@ -242,18 +242,19 @@ export function localRecords(storage: Store) {
         const [keep, merge] = await Promise.all([get(t, keepId), get(t, mergeId)]);
         if (!(keep && merge)) throw new Error(`${type}: both records must exist to merge`);
         if (keep.id === merge.id) throw new Error(`${type}: a record can't be merged into itself`);
-        await serial(`${type}:${merge.id}`, async () => {
+        // The merged record's fields as its queue last left them, so a change still running isn't lost.
+        const merged = await serial(`${type}:${merge.id}`, async () => {
           const prior = (await current(type, merge.id))!;
           await write(
             type,
             prior,
             revise(prior, fieldsOf(prior), { deleted: stamp(), mergedInto: keep.id }),
           );
+          return fieldsOf(prior);
         });
         return serial(`${type}:${keep.id}`, async () => {
           const prior = (await current(type, keep.id))!;
-          const fields = shape(type, { ...fieldsOf(merge), ...fieldsOf(prior) });
-          return write(type, prior, revise(prior, fields));
+          return write(type, prior, revise(prior, shape(type, { ...merged, ...fieldsOf(prior) })));
         });
       },
 

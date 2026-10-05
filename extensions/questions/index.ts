@@ -104,7 +104,9 @@ export default defineExtension({
           return { status: 'answered', answer };
         });
         await changed();
-        await deliver(saved);
+        // The answer is kept whatever the asker's handler does: if it fails, the answer stays
+        // undelivered and goes to the handler again when the asker next registers it.
+        await deliver(saved).catch(() => undefined);
       },
       async dismiss(id) {
         await update(id, (q) => {

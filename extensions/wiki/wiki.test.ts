@@ -170,3 +170,28 @@ it('keeps both of two facts added at once, and a merged page reads as the one ke
   expect(await wiki.get(ref)).toMatchObject({ id: lovelace.id, aliases: ['Ada'] });
   expect((await wiki.find('ada')).map((e) => e.name)).toEqual(['Ada Lovelace']);
 });
+
+it('revises a note again on the next start when its revision failed', async () => {
+  // A model with no key yet: every request fails.
+  const failing = FAKE_AI.replace(
+    'async complete(req) {',
+    "async complete(req) { throw new Error('OpenAI 401: no key');",
+  );
+  const before = await startRepo(['store-local', 'notes', 'wiki'], {
+    'extensions/fake-ai/index.ts': failing,
+  });
+  await use<NotesV1>(before.kernel, 'notes').append({ text: 'Lunch with Ada at Café Lumière' });
+  await settle();
+  expect(await use<WikiV1>(before.kernel, 'wiki').find('Ada')).toEqual([]);
+  before.kernel.dispose();
+
+  // The key is set, and the app starts again (store-local's database is still this device's).
+  const after = await startRepo(['store-local', 'notes', 'wiki'], {
+    'extensions/fake-ai/index.ts': FAKE_AI,
+  });
+  kernel = after.kernel;
+  await vi.waitFor(
+    async () => expect(await use<WikiV1>(kernel!, 'wiki').find('Ada', ['person'])).toHaveLength(1),
+    { timeout: 2000 },
+  );
+});

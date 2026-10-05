@@ -3,6 +3,7 @@
 // model isn't sure of is asked rather than guessed; with an agent, Vaulter gets the wiki's tools. Without
 // any of them, the wiki still works by hand.
 import { defineExtension } from '@vaulter/kernel';
+import { z } from 'zod';
 import { agentTools } from '@contracts/agent.tools';
 import { chat } from '@contracts/ai.chat';
 import { notes } from '@contracts/notes';
@@ -39,8 +40,21 @@ export default defineExtension({
       return next;
     };
     if (r) {
-      await notes.onAppended((n) => void revise(n.id).catch(() => undefined));
+      // A note whose revision failed (no key yet, offline, a bad answer from the model) is kept, and
+      // revised again on the next start; one that succeeds is put away.
+      const unrevised = await records.registerType('unrevised', { error: z.string() });
+      const attempt = (noteId: string) =>
+        revise(noteId).then(
+          () => records.delete(unrevised, noteId),
+          async (e: Error) => {
+            const left = await records.get(unrevised, noteId);
+            if (left) await records.update(unrevised, noteId, () => ({ error: e.message }));
+            else await records.create(unrevised, { id: noteId, error: e.message });
+          },
+        );
+      await notes.onAppended((n) => void attempt(n.id));
       await questions?.handle('revise', (answer, q) => r.answered(answer.choice, q.data));
+      for (const left of await records.query(unrevised, { order: 'asc' })) void attempt(left.id);
     }
 
     const full: WikiV1 = { ...api, revise };

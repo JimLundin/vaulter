@@ -56,15 +56,20 @@ export async function ask(
 
   for (let i = 0; i < MAX_STEPS; i++) {
     const tools = [
-      {
-        name: 'open_extension',
-        description: 'Load an extension’s tools, by its id from the list.',
-        parameters: {
-          type: 'object',
-          properties: { id: { type: 'string', enum: [...all.keys()] } },
-          required: ['id'],
-        },
-      },
+      // Offered only when there is something to open: a model may refuse an empty choice.
+      ...(all.size
+        ? [
+            {
+              name: 'open_extension',
+              description: 'Load an extension’s tools, by its id from the list.',
+              parameters: {
+                type: 'object',
+                properties: { id: { type: 'string', enum: [...all.keys()] } },
+                required: ['id'],
+              },
+            },
+          ]
+        : []),
       ...[...opened].flatMap((ext) =>
         [...(all.get(ext)?.values() ?? [])].map((t) => ({
           name: name(ext, t.name),
@@ -96,7 +101,9 @@ export async function ask(
           await step({ kind: 'open', extension: id });
           output = { opened: id, tools: [...all.get(id)!.keys()] };
         } else {
-          const [ext, tool] = call.name.split('__');
+          // An extension's id has no _, so the first __ ends it.
+          const at = call.name.indexOf('__');
+          const [ext, tool] = [call.name.slice(0, at), call.name.slice(at + 2)];
           const t = opened.has(ext) ? all.get(ext)?.get(tool) : undefined;
           if (!t) throw new Error(`open ${ext} first, or no tool ${call.name}`);
           try {
