@@ -5,7 +5,7 @@ export interface Store {
   set: (key: string, value: unknown) => Promise<void>;
   delete: (key: string) => Promise<void>;
   /** Entries whose key starts with `prefix`, in key order. */
-  list: <T>(prefix?: string) => Promise<[string, T][]>;
+  list: <T>(prefix: string) => Promise<[string, T][]>;
 }
 
 const done = <T>(r: IDBRequest<T>) =>
@@ -14,11 +14,11 @@ const done = <T>(r: IDBRequest<T>) =>
     r.onerror = () => fail(r.error);
   });
 
-export function idbStore(name = 'secrets'): Store {
+export function idbStore(): Store {
   let db: Promise<IDBDatabase> | undefined;
   const store = async (mode: IDBTransactionMode) => {
     db ??= new Promise((ok, fail) => {
-      const r = indexedDB.open(name, 1);
+      const r = indexedDB.open('secrets', 1);
       r.onupgradeneeded = () => r.result.createObjectStore('data');
       r.onsuccess = () => ok(r.result);
       r.onerror = () => fail(r.error);
@@ -33,7 +33,7 @@ export function idbStore(name = 'secrets'): Store {
     async delete(key) {
       await done((await store('readwrite')).delete(key));
     },
-    async list<T>(prefix = '') {
+    async list<T>(prefix: string) {
       const s = await store('readonly');
       const range = IDBKeyRange.bound(prefix, `${prefix}￿`);
       const [keys, values] = await Promise.all([done(s.getAllKeys(range)), done(s.getAll(range))]);

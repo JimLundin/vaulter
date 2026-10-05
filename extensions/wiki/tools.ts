@@ -4,16 +4,9 @@
 import { z } from 'zod';
 import type { AgentToolsV1 } from '#contracts/agent.tools';
 import { RecordRef } from '#contracts/records';
-import { Kind, type WikiV1 } from '#contracts/wiki';
+import { type Entity, Kind, type WikiV1 } from '#contracts/wiki';
 
-const brief = (e: {
-  id: string;
-  type: string;
-  kind: string;
-  name: string;
-  aliases: string[];
-  summary: string;
-}) => ({
+const brief = (e: Entity) => ({
   ref: { type: e.type, id: e.id },
   kind: e.kind,
   name: e.name,

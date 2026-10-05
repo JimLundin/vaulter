@@ -15,11 +15,11 @@ const done = <T>(r: IDBRequest<T>) =>
   });
 
 /** In IndexedDB, in the browser. */
-export function idbKeep(name = 'vaulter-kernel'): KernelKeep {
+export function idbKeep(): KernelKeep {
   let db: Promise<IDBDatabase> | undefined;
   const store = async (mode: IDBTransactionMode) => {
     db ??= new Promise((ok, fail) => {
-      const r = indexedDB.open(name, 1);
+      const r = indexedDB.open('vaulter-kernel', 1);
       r.onupgradeneeded = () => r.result.createObjectStore('keep');
       r.onsuccess = () => ok(r.result);
       r.onerror = () => fail(r.error);

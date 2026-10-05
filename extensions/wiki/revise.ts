@@ -6,7 +6,7 @@ import { z } from 'zod';
 import type { ChatV1 } from '#contracts/ai.chat';
 import type { Note } from '#contracts/notes';
 import type { QuestionsV1 } from '#contracts/questions';
-import type { Entity, Kind, Revision, WikiV1 } from '#contracts/wiki';
+import type { Entity, Revision, WikiV1 } from '#contracts/wiki';
 import { KINDS } from './pages.ts';
 
 const FactIn = z.object({ text: z.string(), at: z.string().nullable() });
@@ -37,7 +37,7 @@ const Plan = Changes.extend({
 });
 type Changes = z.infer<typeof Changes>;
 
-export const INSTRUCTIONS = `You keep a personal wiki from the notes a person speaks or types through the day.
+const INSTRUCTIONS = `You keep a personal wiki from the notes a person speaks or types through the day.
 Given a new note and the existing pages it may be about, return:
 - create: pages for people, places, events and topics worth a page, with short facts from the note.
 - add: short facts from the note for existing pages (by id). Each fact stands on its own, in the note's language.
@@ -52,14 +52,14 @@ const tokens = (s: string) =>
     .split(/[^\p{L}\p{N}]+/u)
     .filter((w) => w.length >= 3);
 
-/** Pages the note may be about: a name or alias word in it, then the most recent, up to `max`. */
-export function candidates(note: string, pages: Entity[], max = 60): Entity[] {
+/** Pages the note may be about: a name or alias word in it, then the most recent, up to 60. */
+function candidates(note: string, pages: Entity[]): Entity[] {
   const said = new Set(tokens(note));
   const named = pages.filter((p) =>
     [p.name, ...p.aliases].some((n) => tokens(n).some((w) => said.has(w))),
   );
   const recent = [...pages].sort((a, b) => b.updated.localeCompare(a.updated));
-  return [...new Set([...named, ...recent])].slice(0, max);
+  return [...new Set([...named, ...recent])].slice(0, 60);
 }
 
 export interface ReviseDeps {
@@ -76,7 +76,7 @@ export function reviser(deps: ReviseDeps) {
   const create = async (changes: Changes, cite: Cite, rev: Revision) => {
     const made = new Map<string, Entity>();
     for (const c of changes.create) {
-      let e = await deps.wiki.create(c.kind as Kind, { name: c.name, aliases: c.aliases });
+      let e = await deps.wiki.create(c.kind, { name: c.name, aliases: c.aliases });
       for (const f of c.facts) e = await deps.wiki.addFact({ type: e.type, id: e.id }, cite(f));
       made.set(c.ref, e);
       rev.created.push({ type: e.type, id: e.id });

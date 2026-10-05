@@ -35,8 +35,8 @@ export function pages(records: RecordsV1, types: Types) {
       updated: meta.updated,
     } as Entity;
   };
-  const all = async (kinds: readonly Kind[] = KINDS) =>
-    (await Promise.all(kinds.map((k) => records.query(types[k])))).flat().map(entity);
+  const all = async () =>
+    (await Promise.all(KINDS.map((k) => records.query(types[k])))).flat().map(entity);
 
   const get = async (ref: RecordRef) => {
     const rec = await records.get(typeOf(ref), ref.id);
@@ -69,7 +69,7 @@ export function pages(records: RecordsV1, types: Types) {
     // The kind's own Zod fills in what the page doesn't give: no aliases, summary, facts or links.
     create: async (kind, input) => entity(await records.create(types[kind], input as never)),
     update(ref, patch) {
-      const { facts: _f, id: _i, type: _t, kind: _k, ...rest } = patch;
+      const { facts: _, ...rest } = patch;
       return change(ref, () => rest as Partial<Entity>);
     },
     addFact(ref, fact) {

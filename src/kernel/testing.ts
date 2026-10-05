@@ -29,10 +29,6 @@ export function testOut() {
     get: <T = unknown>(ns: string, key: string) =>
       Promise.resolve(of(ns).get(key) as T | undefined),
     set: (ns: string, key: string, value: unknown) => Promise.resolve(void of(ns).set(key, value)),
-    list: (ns: string, prefix = '') =>
-      Promise.resolve(
-        [...of(ns)].filter(([k]) => k.startsWith(prefix)).sort(([a], [b]) => a.localeCompare(b)),
-      ),
   };
 }
 
@@ -141,7 +137,6 @@ export async function startTree(files: Record<string, string>, opts: TreeOptions
   return {
     booted,
     src,
-    device,
     kernel: booted.kernel,
     storage: out,
     keep: booted.keep,

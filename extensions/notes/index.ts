@@ -40,9 +40,8 @@ export default defineExtension({
       },
       // By when it was said, which for an import is not when it was stored.
       async list(q = {}) {
-        const at = { gte: q.since, lt: q.until };
         const found = await records.query(note, {
-          where: q.since || q.until ? { at } : {},
+          where: { at: { gte: q.since, lt: q.until } },
           orderBy: 'at',
           order: q.order === 'oldest' ? 'asc' : 'desc',
           limit: q.limit,

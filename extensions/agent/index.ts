@@ -18,7 +18,7 @@ export default defineExtension({
   agentGuide: 'Vaulter itself.',
   setup({ chat, kernel }) {
     const tools = new Map<string, Map<string, HeldTool>>();
-    const tools_ = (from: string): AgentToolsV1 => ({
+    const toolsFor = (from: string): AgentToolsV1 => ({
       add(added) {
         // A tool's name goes to the model as part of the function's name.
         if (!/^[a-zA-Z][a-zA-Z0-9_]{0,40}$/.test(added.name) || added.name.includes('__'))
@@ -41,13 +41,13 @@ export default defineExtension({
     };
 
     return {
-      agentTools: perCaller(tools_, {
+      agentTools: perCaller(toolsFor, {
         forget: (caller) => {
           tools.delete(caller);
         },
       }),
       agent: {
-        ask: (req, onStep) => ask(chat, { tools: () => tools, guide }, req, onStep),
+        ask: (req, onStep) => ask(chat, { tools, guide }, req, onStep),
       },
     };
   },

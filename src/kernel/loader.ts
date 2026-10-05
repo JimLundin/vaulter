@@ -44,7 +44,6 @@ export interface Stats {
   files: number;
   compiled: number;
   compileMs: number;
-  totalMs: number;
 }
 
 /** Bump when the output changes for the same input, so the cache isn't reused across compilers. */
@@ -62,7 +61,7 @@ export function extensionsIn(tree: Tree): Map<string, string> {
 }
 
 export function planner(tree: Tree, deps: LoaderDeps) {
-  const stats: Stats = { files: 0, compiled: 0, compileMs: 0, totalMs: 0 };
+  const stats: Stats = { files: 0, compiled: 0, compileMs: 0 };
   const compiled = new Map<string, Promise<Compiled>>();
 
   const compileOne = (path: string, sha: string) => {
@@ -111,7 +110,6 @@ export function planner(tree: Tree, deps: LoaderDeps) {
   /** The plan for one entry file and everything it imports. */
   async function plan(entry: string): Promise<Plan> {
     if (!tree.files.has(entry)) throw new Error(`${entry} not found at this commit`);
-    const t0 = performance.now();
     const modules: Record<string, PlannedModule> = {};
     const shas: Record<string, string> = {};
     /** `path` compiled, with each import resolved to a file in the plan or a shared module. */
@@ -135,7 +133,6 @@ export function planner(tree: Tree, deps: LoaderDeps) {
         if (!i.target.startsWith('shared:')) await visit(i.target, [...stack, path]);
     };
     await visit(entry, []);
-    stats.totalMs += performance.now() - t0;
     return { commit: tree.commit, entry, modules, shas };
   }
 

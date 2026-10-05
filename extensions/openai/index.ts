@@ -9,7 +9,7 @@ import { fromResponse, toResponsesBody } from './responses.ts';
 const API = 'https://api.openai.com/v1';
 
 /** The model it asks. */
-export const MODEL = 'gpt-6.1-sol';
+const MODEL = 'gpt-6.1-sol';
 
 export default defineExtension({
   id: 'openai',

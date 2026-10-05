@@ -7,7 +7,7 @@ import type { HeldTool } from '#contracts/agent.tools';
 import type { ChatV1, Message } from '#contracts/ai.chat';
 import { Declined } from '#kernel';
 
-export const INSTRUCTIONS = `You are Vaulter, a personal assistant that keeps a wiki from the notes a person speaks or types.
+const INSTRUCTIONS = `You are Vaulter, a personal assistant that keeps a wiki from the notes a person speaks or types.
 Answer from what the extensions know, using their tools; never guess or invent. Cite the notes facts come from when it helps.
 Open an extension (open_extension) before using its tools; open only what the request needs.
 Some tools wait for the person to approve; if one is declined, say so and do not try another way around.
@@ -18,7 +18,7 @@ const MAX_OUTPUT = 20_000;
 
 export interface Catalog {
   /** Tools by extension. */
-  tools: () => Map<string, Map<string, HeldTool>>;
+  tools: Map<string, Map<string, HeldTool>>;
   /** One line per extension: what it is for. */
   guide: (extension: string) => Promise<string>;
 }
@@ -29,7 +29,7 @@ const show = (v: unknown) => {
   return s.length > MAX_OUTPUT ? `${s.slice(0, MAX_OUTPUT)}… (cut)` : s;
 };
 
-type Tools = ReturnType<Catalog['tools']>;
+type Tools = Catalog['tools'];
 type Call = { id: string; name: string; arguments: string };
 
 /** The functions the model may call now: open an extension, or a tool of one already opened. */
@@ -95,7 +95,7 @@ export async function ask(
   req: AskRequest,
   onStep?: (s: Step) => unknown,
 ): Promise<Answer> {
-  const all = catalog.tools();
+  const all = catalog.tools;
   const lines = await Promise.all(
     [...all].map(
       async ([ext, tools]) => `- ${ext}: ${await catalog.guide(ext)} (${tools.size} tools)`,
@@ -103,8 +103,6 @@ export async function ask(
   );
   const messages: Message[] = [
     { role: 'system', content: `${INSTRUCTIONS}\n\nExtensions:\n${lines.join('\n') || '(none)'}` },
-    ...(req.history ?? []),
-    ...(req.context ? [{ role: 'user' as const, content: `On screen: ${req.context}` }] : []),
     { role: 'user', content: req.prompt },
   ];
   const opened = new Set<string>();

@@ -1,9 +1,8 @@
 // records@1 over store-local's own database (store.ts: IndexedDB in the browser). Keys:
 //   format                       the layout below, so a later store-local can tell what it reads
-//   t:<type>                     the type, registered
 //   r:<type>:<id>                a record as it is now, a tombstone included
 //   h:<type>:<id>:<rev>          each earlier revision of it
-// Each value is checked and shaped by its type's own Zod, given at registration. Queries read a type's
+// Each value is checked and shaped by its type's own Zod, given at registration on this start. Queries read a type's
 // records and filter in memory: plenty for one person's data. Changes to one record run one after
 // another (this page is the only one with the kernel), so an update always starts from the last.
 
@@ -11,10 +10,7 @@ import { z } from 'zod';
 import type { Filter, Query, RecordsV1, RecordType, Stored } from '#contracts/records';
 import type { Store } from './store.ts';
 
-export const FORMAT = 2;
-
-/** What is kept of a type: that it was registered. */
-type TypeEntry = Record<string, never>;
+const FORMAT = 2;
 
 const words = (s: string) =>
   s
@@ -47,14 +43,12 @@ const ordered = (by: string, dir: 1 | -1) => {
   };
 };
 
-export function localRecords(storage: Store) {
+export async function localRecords(storage: Store) {
+  const at = await storage.get<number>('format');
+  if (at === undefined) await storage.set('format', FORMAT);
+  else if (at !== FORMAT)
+    throw new Error(`records are stored in format ${at}; this store-local reads ${FORMAT}`);
   const listeners = new Map<string, Set<(c: Stored) => void>>();
-  const format = (async () => {
-    const at = await storage.get<number>('format');
-    if (at === undefined) await storage.set('format', FORMAT);
-    else if (at !== FORMAT)
-      throw new Error(`records are stored in format ${at}; this store-local reads ${FORMAT}`);
-  })();
   // Each change made after the one before, even within a millisecond, so "latest first" holds.
   let last = 0;
   const stamp = () => {
@@ -75,16 +69,7 @@ export function localRecords(storage: Store) {
     // After the change is kept, and apart from it: a listener that fails is its own error.
     for (const l of listeners.get(type) ?? []) queueMicrotask(() => l(c));
   };
-  const typeOf = async (type: string) => {
-    await format;
-    const t = await storage.get<TypeEntry>(`t:${type}`);
-    if (!t) throw new Error(`no record type "${type}"`);
-    return t;
-  };
-  const all = async (type: string) => {
-    await format;
-    return (await storage.list<Stored>(`r:${type}:`)).map(([, r]) => r);
-  };
+  const all = async (type: string) => (await storage.list<Stored>(`r:${type}:`)).map(([, r]) => r);
   const current = (type: string, id: string) => storage.get<Stored>(`r:${type}:${id}`);
   /** The record `id` reads as: itself, or the one it was merged into. */
   const resolve = async (type: string, id: string) => {
@@ -114,11 +99,14 @@ export function localRecords(storage: Store) {
 
   // Each type's Zod, from its registration on this start.
   const zods = new Map<string, z.ZodType>();
+  const zodOf = (type: string) => {
+    const zod = zods.get(type);
+    if (!zod) throw new Error(`no record type "${type}"`);
+    return zod;
+  };
   /** `fields` checked and shaped by the type's Zod. */
   const shape = (type: string, fields: unknown) => {
-    const zod = zods.get(type);
-    if (!zod) throw new Error(`${type} isn't registered`);
-    const r = zod.safeParse(fields);
+    const r = zodOf(type).safeParse(fields);
     if (!r.success)
       throw new Error(
         `${type}: ${r.error.issues.map((i) => `${i.path.join('.') || 'value'}: ${i.message}`).join('; ')}`,
@@ -133,23 +121,18 @@ export function localRecords(storage: Store) {
       return t.name;
     };
     const get = async (t: RecordType, id: string, opts: { deleted?: boolean } = {}) => {
-      await format;
       if (opts.deleted) return current(t.name, id);
       const rec = await resolve(t.name, id);
       return rec?.meta.deleted ? undefined : rec;
     };
-    const history = async (t: RecordType, id: string) => {
-      await format;
-      return (await storage.list<Stored>(`h:${t.name}:${id}:`)).map(([, r]) => r).reverse();
-    };
+    const history = async (t: RecordType, id: string) =>
+      (await storage.list<Stored>(`h:${t.name}:${id}:`)).map(([, r]) => r).reverse();
 
     const impl = {
-      async registerType(name: string, fields: z.ZodRawShape): Promise<RecordType> {
+      registerType(name: string, fields: z.ZodRawShape): Promise<RecordType> {
         const type = `${caller}/${name}`;
         zods.set(type, z.object(fields));
-        await format;
-        await storage.set(`t:${type}`, {} satisfies TypeEntry);
-        return { kind: 'record-type', name: type };
+        return Promise.resolve({ kind: 'record-type', name: type });
       },
 
       get,
@@ -183,11 +166,10 @@ export function localRecords(storage: Store) {
 
       async create(t: RecordType, value: Record<string, unknown>) {
         const type = mine(t);
-        await typeOf(type);
         const { id: asked, ...fields } = value as { id?: string } & Record<string, unknown>;
         const data = shape(type, fields);
         const id = asked ?? crypto.randomUUID();
-        return serial(`${type}:${id}`, async () => {
+        return await serial(`${type}:${id}`, async () => {
           if (await current(type, id)) throw new Error(`${type}: a record ${id} exists`);
           const now = stamp();
           return write(type, undefined, {
@@ -204,7 +186,7 @@ export function localRecords(storage: Store) {
         change: (current: Stored) => unknown | Promise<unknown>,
       ) {
         const type = mine(t);
-        await typeOf(type);
+        zodOf(type);
         const target = (await resolve(type, id))?.id ?? id;
         return serial(`${type}:${target}`, async () => {
           const prior = await current(type, target);
@@ -215,7 +197,6 @@ export function localRecords(storage: Store) {
 
       async delete(t: RecordType, id: string) {
         const type = mine(t);
-        await format;
         await serial(`${type}:${id}`, async () => {
           const prior = await current(type, id);
           if (!prior || prior.meta.deleted) return;
@@ -225,23 +206,21 @@ export function localRecords(storage: Store) {
 
       async restore(t: RecordType, id: string) {
         const type = mine(t);
-        await format;
-        return serial(`${type}:${id}`, async () => {
+        return await serial(`${type}:${id}`, async () => {
           const prior = await current(type, id);
           if (!prior) throw new Error(`${type}: no record ${id}`);
           if (!prior.meta.deleted) return prior;
-          const { deleted: _, mergedInto: _m, ...meta } = prior.meta;
-          return write(type, prior, {
-            ...fieldsOf(prior),
-            id,
-            meta: { ...meta, updated: stamp(), rev: prior.meta.rev + 1 },
-          } as Stored);
+          return write(
+            type,
+            prior,
+            revise(prior, fieldsOf(prior), { deleted: undefined, mergedInto: undefined }),
+          );
         });
       },
 
       async merge(t: RecordType, keepId: string, mergeId: string) {
         const type = mine(t);
-        await typeOf(type);
+        zodOf(type);
         const [keep, merge] = await Promise.all([get(t, keepId), get(t, mergeId)]);
         if (!(keep && merge)) throw new Error(`${type}: both records must exist to merge`);
         if (keep.id === merge.id) throw new Error(`${type}: a record can't be merged into itself`);
@@ -282,7 +261,7 @@ export function localRecords(storage: Store) {
 
   /** Drops every type the caller registered, and their records. */
   const forget = async (caller: string) => {
-    for (const prefix of ['t:', 'r:', 'h:'])
+    for (const prefix of ['r:', 'h:'])
       for (const [key] of await storage.list(`${prefix}${caller}/`)) await storage.delete(key);
   };
 

@@ -5,8 +5,6 @@
 import type { Checks } from '#contracts/extensions.source';
 import { type Access, defineContract } from '#kernel';
 
-export type { Access } from '#kernel';
-
 export type Unsubscribe = () => void;
 
 export interface ExtensionInfo {

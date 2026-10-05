@@ -72,11 +72,9 @@ describe('sealed secrets', () => {
       env: {
         VAULTER_PASSWORD: 'a-long-enough-password',
         VAULTER_SALT: btoa(String.fromCharCode(...salt)),
-        VAULTER_SECRETS_JSON: JSON.stringify({
-          VAULTER_SECRET__OPENAI__KEY: 'sk-ci',
-          VAULTER_SECRET__SOURCE_GITHUB__TOKEN: 'gh-ci',
-          GITHUB_TOKEN: 'not-sealed',
-        }),
+        VAULTER_SECRET__OPENAI__KEY: 'sk-ci',
+        VAULTER_SECRET__SOURCE_GITHUB__TOKEN: 'gh-ci',
+        GITHUB_TOKEN: 'not-sealed',
       },
     });
     const file = JSON.parse(await readFile(out, 'utf8'));

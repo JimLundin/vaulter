@@ -72,11 +72,7 @@ export function vault(keep: Store): Vault {
 
 /** `fetch` for one extension: https only, to its declared hosts, with a secret attached only when
  * the request names it and goes to one of that secret's hosts. */
-export function fetcher(
-  ext: Pick<Statics, 'id' | 'permissions' | 'secrets'>,
-  secrets: Vault,
-  fetchImpl: typeof fetch = (...a) => fetch(...a),
-) {
+export function fetcher(ext: Pick<Statics, 'id' | 'permissions' | 'secrets'>, secrets: Vault) {
   const allowed = new Set([
     ...ext.permissions.network,
     ...Object.values(ext.secrets).flatMap((s) => s.hosts),
@@ -98,7 +94,7 @@ export function fetcher(
       headers.set('Authorization', `Bearer ${value}`);
     }
     // No credentials or referrer from the app's own origin ride along, and no redirect elsewhere.
-    return fetchImpl(u.href, {
+    return fetch(u.href, {
       method: rest.method,
       body: rest.body as BodyInit | undefined,
       headers,

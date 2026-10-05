@@ -5,7 +5,7 @@ import { isSealedFile, keyFor, open, type SealedFile } from './sealed.ts';
 import type { Store } from './store.ts';
 import type { Vault } from './vault.ts';
 
-export type SealedState = 'none' | 'imported' | 'locked';
+type SealedState = 'none' | 'imported' | 'locked';
 
 const digest = async (file: SealedFile) =>
   [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(file.data)))]

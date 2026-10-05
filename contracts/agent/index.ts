@@ -3,17 +3,8 @@
 // the kernel, not by the agent.
 import { defineContract } from '#kernel';
 
-export interface Turn {
-  role: 'user' | 'assistant';
-  content: string;
-}
-
 export interface AskRequest {
   prompt: string;
-  /** The conversation so far. */
-  history?: Turn[];
-  /** What the person is looking at, for "this" and "here". */
-  context?: string;
 }
 
 export type Step =

@@ -13,8 +13,8 @@ export default defineExtension({
   provides: { records },
   agentGuide:
     'Stores records on this device. Vaulter uses records through the extensions that own them.',
-  setup() {
-    const { make, forget } = localRecords(idbStore());
+  async setup() {
+    const { make, forget } = await localRecords(idbStore());
     return { records: perCaller(make, { forget }) };
   },
 });
