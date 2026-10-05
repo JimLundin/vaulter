@@ -1,10 +1,11 @@
 // Vaulter's loop: the model sees a line about every extension with tools, opens the ones a request needs,
 // and calls their tools until it can answer. Tools reach the model as `<extension>__<tool>`.
-import type { ChatV1, Message } from '#contracts/ai.chat';
-import type { AskRequest, Answer, Step } from '#contracts/agent';
-import type { HeldTool } from '#contracts/agent.tools';
-import { Declined } from '#kernel';
+
 import { z } from 'zod';
+import type { Answer, AskRequest, Step } from '#contracts/agent';
+import type { HeldTool } from '#contracts/agent.tools';
+import type { ChatV1, Message } from '#contracts/ai.chat';
+import { Declined } from '#kernel';
 
 export const INSTRUCTIONS = `You are Vaulter, a personal assistant that keeps a wiki from the notes a person speaks or types.
 Answer from what the extensions know, using their tools; never guess or invent. Cite the notes facts come from when it helps.

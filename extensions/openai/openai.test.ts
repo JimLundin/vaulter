@@ -1,5 +1,5 @@
-import { net } from '#contracts/net';
 import { afterEach, expect, it, vi } from 'vitest';
+import { net } from '#contracts/net';
 import { defineContract } from '../../src/kernel/contract.ts';
 import type { Kernel } from '../../src/kernel/kernel.ts';
 import { startRepo } from '../../src/kernel/testing.ts';

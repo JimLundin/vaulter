@@ -2,13 +2,13 @@ import { execFile } from 'node:child_process';
 import { mkdtemp, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import process from 'node:process';
 import { promisify } from 'node:util';
 import { describe, expect, it } from 'vitest';
 import { keyFor, open, seal } from './sealed.ts';
 import type { Store } from './store.ts';
 import { unsealer } from './unseal.ts';
 import { vault } from './vault.ts';
-import process from 'node:process';
 
 const FAST = { iterations: 1000 };
 

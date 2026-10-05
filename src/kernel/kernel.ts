@@ -7,8 +7,8 @@
 // only right after a person acted in the caller, and a guarded function (a tool's `run`) handed across
 // is wrapped so every call to it goes through Vaulter's access policy. Values otherwise pass as they are: no copying, so components and schemas can cross too.
 import { type Access, applyGuard, type Guard } from './access.ts';
-import { ErrorLog } from './errors.ts';
 import { type AnyContract, type Contract, ContractRef } from './contract.ts';
+import { ErrorLog } from './errors.ts';
 import { type Extension, type KernelApi, readStatics, Statics } from './extension.ts';
 import { linker } from './link.ts';
 import type { Plan } from './loader.ts';

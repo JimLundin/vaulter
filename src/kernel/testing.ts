@@ -3,10 +3,10 @@
 // Fixture extensions report what they saw through `out`, the shared module #test, which tests
 // read back as `storage`.
 import { type SourceV1, source } from '#contracts/extensions.source';
+import type { Suite } from '../../contracts/conformance.ts';
 import type { Access } from './access.ts';
 import { blobSha, boot, type Device } from './boot.ts';
 import { type Config, defaultConfig } from './config.ts';
-import type { Suite } from '../../contracts/conformance.ts';
 import type { AnyContract } from './contract.ts';
 import type { Tree } from './loader.ts';
 import { memoryKeep } from './storage.ts';

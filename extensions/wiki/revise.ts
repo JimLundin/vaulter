@@ -1,11 +1,12 @@
 // Revising the wiki from a note: a model reads the note with the pages it may be about and proposes
 // pages to create, facts to add, summaries to rewrite, and questions where it isn't sure. Sure changes
 // are made at once, citing the note; an unsure one becomes a question, and the answer makes it.
+
+import { z } from 'zod';
 import type { ChatV1 } from '#contracts/ai.chat';
 import type { Note } from '#contracts/notes';
 import type { QuestionsV1 } from '#contracts/questions';
 import type { Entity, Kind, Revision, WikiV1 } from '#contracts/wiki';
-import { z } from 'zod';
 import { KINDS } from './pages.ts';
 
 const FactIn = z.object({ text: z.string(), at: z.string().nullable() });

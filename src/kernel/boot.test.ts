@@ -1,10 +1,9 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import type { Kernel } from './kernel.ts';
-import { REPO, startTree, testOut, testSource } from './testing.ts';
 import { source } from '#contracts/extensions.source';
 import { boot } from './boot.ts';
 import type { AnyContract } from './contract.ts';
-import { testDevice } from './testing.ts';
+import type { Kernel } from './kernel.ts';
+import { REPO, startTree, testDevice, testOut, testSource } from './testing.ts';
 
 const ext = (
   id: string,

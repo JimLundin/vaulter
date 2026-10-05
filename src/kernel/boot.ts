@@ -8,6 +8,7 @@ import { type ConfigStore, configStore } from './config.ts';
 import type { AnyContract } from './contract.ts';
 import { control } from './control.ts';
 import { overlay, review } from './drafts.ts';
+import type { Statics } from './extension.ts';
 import { Kernel } from './kernel.ts';
 import {
   extensionsIn,
@@ -17,7 +18,6 @@ import {
   type Stats,
   type Tree,
 } from './loader.ts';
-import type { Statics } from './extension.ts';
 import type { Presence } from './presence.ts';
 import type { Refused } from './resolve.ts';
 import type { KernelKeep } from './storage.ts';

@@ -2,17 +2,18 @@
 // a restart. An asker handles answers under its own topics; an answer that arrives while the asker isn't
 // running waits until it registers its handler again. Answering is personal (the kernel lets only a
 // person do it), so no extension can answer its own question.
-import { defineExtension, perCaller } from '#kernel';
+
+import { z } from 'zod';
 import {
   Answer,
   NewQuestion,
-  Status,
   type Question,
   type QuestionsV1,
   questions,
+  Status,
 } from '#contracts/questions';
 import { type Query, type Rec, records } from '#contracts/records';
-import { z } from 'zod';
+import { defineExtension, perCaller } from '#kernel';
 
 type Handler = (answer: Answer, question: Question) => void;
 

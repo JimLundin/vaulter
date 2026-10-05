@@ -1,11 +1,12 @@
 // The agent (agent@1): Vaulter. It takes the tools every extension adds (agent.tools), reads each
 // extension's guide from the kernel, and answers with a model (ai.chat). It holds no access of its own:
 // every tool call goes through the kernel, which applies the tool's level.
-import { defineExtension, perCaller } from '#kernel';
+
 import { agent } from '#contracts/agent';
 import { type AgentToolsV1, agentTools, type HeldTool } from '#contracts/agent.tools';
 import { chat } from '#contracts/ai.chat';
 import { kernel } from '#contracts/kernel';
+import { defineExtension, perCaller } from '#kernel';
 import { ask } from './loop.ts';
 
 export default defineExtension({

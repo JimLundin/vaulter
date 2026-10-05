@@ -6,8 +6,9 @@
 // Each value is checked and shaped by its type's own Zod, given at registration. Queries read a type's
 // records and filter in memory: plenty for one person's data. Changes to one record run one after
 // another (this page is the only one with the kernel), so an update always starts from the last.
-import type { Filter, Query, RecordsV1, RecordType, Stored } from '#contracts/records';
+
 import { z } from 'zod';
+import type { Filter, Query, RecordsV1, RecordType, Stored } from '#contracts/records';
 import type { Store } from './store.ts';
 
 export const FORMAT = 2;

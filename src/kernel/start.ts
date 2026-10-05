@@ -1,7 +1,7 @@
 // Starting the app in this browser: one tab at a time has the kernel, then it boots (boot.ts) on this
 // browser as its device, and safe mode takes over when asked for (?safe), when no shell started, or
 // when starting failed outright; it depends on no extension.
-import { boot, type BootOptions, type Device } from './boot.ts';
+import { type BootOptions, boot, type Device } from './boot.ts';
 import { presence } from './presence.ts';
 import { safeMode } from './safe-mode.ts';
 import { singleTab, standbyScreen } from './single-tab.ts';

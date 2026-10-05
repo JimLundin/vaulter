@@ -2,8 +2,9 @@
 // isn't sure of (ARCHITECTURE.md, "Vaulter proposes, you approve"). An extension asks under a topic of its
 // own and handles answers under that topic; answers that arrive while it isn't running are delivered
 // when it next registers its handler. Answering is personal: Vaulter can't answer its own questions.
-import { defineContract } from '#kernel';
+
 import { z } from 'zod';
+import { defineContract } from '#kernel';
 
 export type Unsubscribe = () => void;
 

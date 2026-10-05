@@ -29,66 +29,29 @@
   },
   "linter": {
     "rules": {
-      "preset": "all",
-      "suspicious": {
-        "noUnknownAttribute": "off",
-        "noAlert": "off",
-        "noConsole": "error",
-        "noEqualsToNull": "off",
-        "noBitwiseOperators": "off",
-        "noExplicitAny": "warn"
-      },
-      "style": {
-        "noJsxLiterals": "off",
-        "useComponentExportOnlyModules": "off",
-        "useBlockStatements": "off",
-        "noTernary": "off",
-        "noNestedTernary": "off",
-        "noMagicNumbers": "off",
-        "noHexColors": "off",
-        "noNonNullAssertion": "off",
-        "useExplicitLengthCheck": "off",
-        "useNamingConvention": "off",
-        "noIncrementDecrement": "off",
-        "noContinue": "off",
-        "noNegationElse": "off",
-        "useExportsLast": "off",
-        "noExcessiveClassesPerFile": "off",
-        "noExcessiveLinesPerFile": "off",
-        "useFilenamingConvention": "off"
-      },
+      "preset": "recommended",
       "complexity": {
-        "noImplicitCoercions": "off",
-        "noVoid": "off",
-        "noExcessiveLinesPerFunction": "off",
-        "noExcessiveCognitiveComplexity": "off",
-        "useMaxParams": "off"
-      },
-      "performance": {
-        "useTopLevelRegex": "off",
-        "noJsxPropsBind": "off",
-        "noAwaitInLoops": "off"
-      },
-      "correctness": {
-        "noUndeclaredDependencies": "off"
+        "noExcessiveCognitiveComplexity": "error"
       },
       "nursery": {
-        "useStrictBooleanExpressions": "off",
         "noFloatingPromises": "error",
         "noMisusedPromises": "error"
+      },
+      "style": {
+        "useErrorCause": "error",
+        "useDestructuring": "error",
+        "noExportedImports": "error",
+        "useGlobalThis": "error"
+      },
+      "suspicious": {
+        "noConsole": "error",
+        "useAwait": "error",
+        "noEmptyBlockStatements": "error",
+        "useArraySortCompare": "error",
+        "noUnnecessaryConditions": "error"
       }
     },
     "domains": {
-      "astro": "none",
-      "drizzle": "none",
-      "next": "none",
-      "qwik": "none",
-      "reactNative": "none",
-      "solid": "none",
-      "svelte": "none",
-      "tailwind": "none",
-      "turborepo": "none",
-      "vue": "none",
       "react": "all",
       "project": "all",
       "test": "all",
@@ -98,64 +61,9 @@
   "assist": {
     "actions": {
       "source": {
-        "organizeImports": "off"
+        "organizeImports": "on"
       }
     }
   },
-  "overrides": [
-    {
-      "includes": ["tools/**", "vite.config.ts"],
-      "linter": {
-        "rules": {
-          "correctness": {
-            "noNodejsModules": "off",
-            "noProcessGlobal": "off"
-          },
-          "style": {
-            "noProcessEnv": "off",
-            "noDefaultExport": "off"
-          },
-          "suspicious": {
-            "noConsole": "off"
-          }
-        }
-      }
-    },
-    {
-      "includes": ["**/*.test.ts", "src/kernel/testing.ts"],
-      "linter": {
-        "rules": {
-          "correctness": {
-            "noNodejsModules": "off"
-          }
-        }
-      }
-    },
-    {
-      "includes": ["src/main.ts"],
-      "linter": {
-        "rules": {
-          "correctness": {
-            "noUnresolvedImports": "off"
-          },
-          "performance": {
-            "noNamespaceImport": "off"
-          }
-        }
-      }
-    },
-    {
-      "includes": ["extensions/**", "contracts/**"],
-      "linter": {
-        "rules": {
-          "style": {
-            "noDefaultExport": "off"
-          },
-          "suspicious": {
-            "noShadow": "off"
-          }
-        }
-      }
-    }
-  ]
+  "overrides": []
 }

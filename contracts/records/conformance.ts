@@ -1,7 +1,8 @@
 // What every provider of records@1 must do: CI runs it against each one in the repo
 // (contracts/conformance.test.ts).
-import { defineConformance } from '../conformance.ts';
+
 import { z } from 'zod';
+import { defineConformance } from '../conformance.ts';
 import { records } from './index.ts';
 
 const settle = () => new Promise((ok) => setTimeout(ok, 20));

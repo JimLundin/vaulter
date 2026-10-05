@@ -13,8 +13,9 @@
 // that breaks stored records will bring versions and migrations with it, when there is one. Only
 // removing the
 // extension drops its records.
-import { defineContract } from '#kernel';
+
 import { z } from 'zod';
+import { defineContract } from '#kernel';
 
 export type Unsubscribe = () => void;
 
