@@ -1,5 +1,6 @@
-import { expect, it, vi } from 'vitest';
+import { expect, it } from 'vitest';
 import { agent, type Step } from '#contracts/agent';
+import { questions } from '#contracts/questions';
 import { wiki } from '#contracts/wiki';
 import { startRepo } from '../../src/kernel/testing.ts';
 
@@ -25,12 +26,12 @@ export default defineExtension({ id: 'fake-ai', version: '1.0.0', provides: { ch
       }
       const { keep, merge } = JSON.parse(prompt.slice(prompt.indexOf('{')));
       if (last.opened) return call('wiki__mergePages', { keep, merge });
-      return say(last.error ? 'Not merged: ' + last.error : 'Merged into ' + last.name);
+      return say(last.asked ? 'Asked you first' : 'Not merged: ' + last.error);
     },
   } }; } });`;
 
-it('answers with the tools it opens, and waits for the person on a tool that asks', async () => {
-  const r = await startRepo(['store-local', 'notes', 'wiki', 'agent'], {
+it('answers with the tools it opens, and asks the person before a tool that asks first', async () => {
+  const r = await startRepo(['store-local', 'notes', 'questions', 'wiki', 'agent'], {
     'extensions/fake-ai/index.ts': SCRIPTED,
   });
   const { kernel } = r;
@@ -54,19 +55,44 @@ it('answers with the tools it opens, and waits for the person on a tool that ask
   expect(offered[1]).toContain('wiki__findPages');
 
   const refs = { keep: { type: ada.type, id: ada.id }, merge: { type: dup.type, id: dup.id } };
-  const merging = vaulter.ask({ prompt: `Merge these: ${JSON.stringify(refs)}` });
-  await vi.waitFor(() => expect(r.kernel.policy.approvals()).toHaveLength(1), { timeout: 2000 });
-  expect(kernel.policy.approvals()[0]).toMatchObject({
+  const asked = kernel.use(questions);
+  const merge = () => vaulter.ask({ prompt: `Merge these: ${JSON.stringify(refs)}` });
+  expect((await merge()).text).toBe('Asked you first');
+  // Nothing changes until the person says yes: then the call is made.
+  expect((await pages.get(refs.merge))?.id).toBe(dup.id);
+  const [q] = await asked.open();
+  expect(q).toMatchObject({
     from: 'agent',
-    to: 'wiki',
-    label: 'tool:mergePages',
+    topic: 'approve',
+    title: "May Vaulter use wiki's mergePages?",
   });
-  kernel.policy.decide(kernel.policy.approvals()[0].id, true);
-  expect((await merging).text).toBe('Merged into Ada');
+  await asked.answer(q.id, { choice: 'yes' });
   expect((await pages.get(refs.keep))?.aliases).toEqual(['Ada L.']);
+  expect((await pages.get(refs.merge))?.id).toBe(ada.id);
 
-  const declined = vaulter.ask({ prompt: `Merge these: ${JSON.stringify(refs)}` });
-  await vi.waitFor(() => expect(r.kernel.policy.approvals()).toHaveLength(1), { timeout: 2000 });
-  kernel.policy.decide(kernel.policy.approvals()[0].id, false);
-  expect((await declined).text).toBe('Not merged: the person declined');
+  // Asked again, and the person says no: nothing is made.
+  const other = await pages.create('person', { name: 'Grace' });
+  refs.merge = { type: other.type, id: other.id };
+  await merge();
+  const [again] = await asked.open();
+  await asked.answer(again.id, { choice: 'no' });
+  expect((await pages.get(refs.merge))?.id).toBe(other.id);
+});
+
+it('makes an approved call after a restart, from the question alone', async () => {
+  const repo = ['store-local', 'notes', 'questions', 'wiki', 'agent'];
+  const before = await startRepo(repo, { 'extensions/fake-ai/index.ts': SCRIPTED });
+  const pages = before.kernel.use(wiki);
+  const ada = await pages.create('person', { name: 'Ada' });
+  const dup = await pages.create('person', { name: 'Ada L.' });
+  const refs = { keep: { type: ada.type, id: ada.id }, merge: { type: dup.type, id: dup.id } };
+  await before.kernel.use(agent).ask({ prompt: `Merge these: ${JSON.stringify(refs)}` });
+  before.kernel.dispose();
+
+  // The app starts again (store-local's database is still this device's), and the person says yes.
+  const after = await startRepo(repo, { 'extensions/fake-ai/index.ts': SCRIPTED });
+  const asked = after.kernel.use(questions);
+  const [q] = await asked.open();
+  await asked.answer(q.id, { choice: 'yes' });
+  expect((await after.kernel.use(wiki).get(refs.merge))?.id).toBe(ada.id);
 });

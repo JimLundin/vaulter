@@ -3,25 +3,17 @@
 
 import { z } from 'zod';
 import type { Answer, AskRequest, Step } from '#contracts/agent';
-import type { HeldTool } from '#contracts/agent.tools';
 import type { ChatV1, Message } from '#contracts/ai.chat';
-import { Declined } from '#kernel';
+import type { Catalog } from './catalog.ts';
 
 const INSTRUCTIONS = `You are Vaulter, a personal assistant that keeps a wiki from the notes a person speaks or types.
 Answer from what the extensions know, using their tools; never guess or invent. Cite the notes facts come from when it helps.
 Open an extension (open_extension) before using its tools; open only what the request needs.
-Some tools wait for the person to approve; if one is declined, say so and do not try another way around.
+Some tools ask the person first: the change is made only once they say yes. Say so, and do not try another way around.
 Answer briefly, in the person's language.`;
 
 const MAX_STEPS = 12;
 const MAX_OUTPUT = 20_000;
-
-export interface Catalog {
-  /** Tools by extension. */
-  tools: Map<string, Map<string, HeldTool>>;
-  /** One line per extension: what it is for. */
-  guide: (extension: string) => Promise<string>;
-}
 
 const name = (ext: string, tool: string) => `${ext}__${tool}`;
 const show = (v: unknown) => {
@@ -51,7 +43,7 @@ const offered = (all: Tools, opened: Set<string>) => [
   ...[...opened].flatMap((ext) =>
     [...(all.get(ext)?.values() ?? [])].map((t) => ({
       name: name(ext, t.name),
-      description: `${t.description}${t.run.level === 'ask' ? ' (asks the person first)' : ''}`,
+      description: `${t.description}${t.access === 'ask' ? ' (asks the person first)' : ''}`,
       parameters: z.toJSONSchema(t.input, { io: 'input', unrepresentable: 'any' }),
     })),
   ),
@@ -60,10 +52,11 @@ const offered = (all: Tools, opened: Set<string>) => [
 /** One function call the model made, answered: what goes back to it as the tool's output. */
 async function answer(
   call: Call,
-  all: Tools,
+  catalog: Catalog,
   opened: Set<string>,
   step: (s: Step) => Promise<void>,
 ): Promise<unknown> {
+  const all = catalog.tools;
   const input = JSON.parse(call.arguments || '{}') as Record<string, unknown>;
   if (call.name === 'open_extension') {
     const id = String(input.id);
@@ -81,9 +74,13 @@ async function answer(
   let output: unknown;
   let error: string | undefined;
   try {
-    output = await t.run(t.input.parse(input));
+    const parsed = t.input.parse(input) as Record<string, unknown>;
+    output =
+      t.access === 'ask'
+        ? { asked: await catalog.askFirst({ extension: ext, tool, input: parsed }, t.description) }
+        : await t.run(parsed);
   } catch (e) {
-    error = e instanceof Declined ? 'the person declined' : (e as Error).message;
+    error = (e as Error).message;
   }
   await step({ kind: 'tool', extension: ext, tool, input, ...(error ? { error } : { output }) });
   return error ? { error } : output;
@@ -125,7 +122,7 @@ export async function ask(
     });
     if (!r.toolCalls.length) return { text: r.content ?? '', steps, usage };
     for (const call of r.toolCalls) {
-      const output = await answer(call, all, opened, step).catch((e: Error) => ({
+      const output = await answer(call, catalog, opened, step).catch((e: Error) => ({
         error: e.message,
       }));
       messages.push({ role: 'tool', toolCallId: call.id, content: show(output) });

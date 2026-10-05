@@ -20,7 +20,7 @@ const files: Record<string, string> = {
       setup({ kernel }) { return { probe: { async run() {
         const list = (await kernel.extensions()).map((e) => e.id + ':' + e.status);
         let raised = 'raised';
-        try { await kernel.setAccess('maps', 'tool:x', 'read'); } catch (e) { raised = e.message; }
+        try { await kernel.setEnabled('maps', false); } catch (e) { raised = e.message; }
         return { list, raised };
       } } }; } });`,
 };
@@ -58,12 +58,10 @@ describe('the kernel contract', () => {
     // Through the kernel, from an extension with no person behind the call: reads yes, changes no.
     const out = (await r.kernel.use(probe).run()) as { list: string[]; raised: string };
     expect(out.list).toContain('maps:running');
-    expect(out.raised).toBe('kernel@1.setAccess is for a person to do, right after a tap or key');
+    expect(out.raised).toBe('kernel@1.setEnabled is for a person to do, right after a tap or key');
 
-    await api.setAccess('maps', 'tool:x', 'ask');
     await api.setEnabled('broken', false);
     expect(config.get()).toMatchObject({
-      access: { 'maps/tool:x': 'ask' },
       disabled: ['broken'],
       drafts: ['draft/maps'],
     });

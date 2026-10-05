@@ -55,7 +55,7 @@ export type Statics = z.infer<typeof Statics>;
  * data is records@1's. */
 export interface KernelApi {
   /** Wraps an event handler of the extension's own screen: a person's tap or key on it lets this
-   * extension make one personal call (approving, answering) within a few seconds. */
+   * extension make one personal call (answering a question) within a few seconds. */
   asPerson: <A extends [{ isTrusted?: boolean } | undefined, ...unknown[]], R>(
     handler: (...args: A) => R,
   ) => (...args: A) => R;

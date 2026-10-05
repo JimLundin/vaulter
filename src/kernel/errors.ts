@@ -1,6 +1,6 @@
-// What went wrong, and in which extension: errors thrown through a handle (a call, a guarded callback,
-// setup) and uncaught ones are kept by the kernel under the extension whose code threw, traced by the
-// URLs of its modules in the stack (link.ts). The last few per extension are kept, for safe mode and
+// What went wrong, and in which extension: errors thrown through a handle (a call or a setup) and
+// uncaught ones are kept by the kernel under the extension whose code threw, traced by the URLs of its
+// modules in the stack (link.ts). The last few per extension are kept, for safe mode and
 // the extensions list.
 import type { ErrorEntry } from '#contracts/kernel';
 import type { KernelKeep } from './storage.ts';

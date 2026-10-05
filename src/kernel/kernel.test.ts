@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { defineContract } from './contract.ts';
 import { readStatics, Statics } from './extension.ts';
 import { resolve } from './resolve.ts';
@@ -54,75 +54,14 @@ export default defineExtension({
   },
 });`;
 
-const TOOLS = `
-import { defineContract } from '#kernel';
-export interface Tool { name: string; access: 'read' | 'write' | 'ask'; run: (input: unknown) => Promise<unknown> }
-export interface ToolsV1 {
-  add(tool: Tool): Promise<void>;
-  call(name: string, input: unknown): Promise<unknown>;
-  level(name: string): Promise<string>;
-}
-export const tools = defineContract<ToolsV1>({ name: 'agent.tools', version: 1, guards: {
-  add: { arg: 0, fn: 'run', guard: (t) => ({ label: 'tool:' + t.name, access: t.access }) },
-} });`;
-
-const AGENT_EXT = `
-import { defineExtension } from '#kernel';
-import { tools } from '#contracts/agent.tools';
-export default defineExtension({
-  id: 'agent', version: '1.0.0', provides: { tools },
-  setup() {
-    const all = new Map();
-    return { tools: {
-      async add(t) { all.set(t.name, t); },
-      async call(name, input) { return all.get(name).run(input); },
-      async level(name) { return all.get(name).run.level; },
-    } };
-  },
-});`;
-
-const toolExt = (access: string) => `
-import { defineExtension } from '#kernel';
-import { tools } from '#contracts/agent.tools';
-export default defineExtension({
-  id: 'workouts', version: '0.1.0', requires: { tools },
-  async setup({ tools }) {
-    await tools.add({ name: 'merge', access: '${access}', run: async (x) => 'merged ' + x });
-  },
-});`;
-
-// A draft that brings its own copy of the contract, without the guard on a tool.
-const SNEAKY = `
-import { defineContract, defineExtension } from '#kernel';
-const tools = defineContract({ name: 'agent.tools', version: 1 });
-export default defineExtension({
-  id: 'workouts', version: '0.1.0', requires: { tools },
-  async setup({ tools }) {
-    await tools.add({ name: 'merge', access: 'ask', run: async (x) => 'merged ' + x });
-  },
-});`;
-
 const notesContract = defineContract<{
   append: (t: string) => Promise<number>;
   count: () => Promise<number>;
 }>({ name: 'notes', version: 1 });
-const toolsContract = defineContract<{
-  call: (name: string, input: unknown) => Promise<unknown>;
-  level: (name: string) => Promise<string>;
-}>({
-  name: 'agent.tools',
-  version: 1,
-});
-
 const base = {
   'contracts/notes/index.ts': NOTES,
   'extensions/notes/index.ts': NOTES_EXT,
 };
-const tooling = (access: string) => ({
-  'contracts/agent.tools/index.ts': TOOLS,
-  'extensions/agent/index.ts': AGENT_EXT,
-  'extensions/workouts/index.ts': toolExt(access),
-});
 
 describe('contracts', () => {
   it('are keyed by name and version', () => {
@@ -234,55 +173,6 @@ describe('the kernel', () => {
     expect(await n.append('from a check')).toBe(1);
     await caller.drop();
     await expect(n.append('again')).rejects.toThrow(/check-1 is not running/);
-  });
-
-  it("applies Vaulter's access to a guarded callback: read runs, write is logged, ask waits", async () => {
-    const read = await startTree(tooling('read'));
-    expect(await read.kernel.use(toolsContract).call('merge', 'a')).toBe('merged a');
-    expect(await read.kernel.policy.audit()).toEqual([]);
-
-    const write = await startTree(tooling('write'));
-    await write.kernel.use(toolsContract).call('merge', 'b');
-    expect((await write.kernel.policy.audit()).map((e) => [e.to, e.label, e.outcome])).toEqual([
-      ['workouts', 'tool:merge', 'done'],
-    ]);
-
-    const ask = await startTree(tooling('ask'));
-    const t = ask.kernel.use(toolsContract);
-    const pending = t.call('merge', 'c');
-    await vi.waitFor(() => expect(ask.kernel.policy.approvals()).toHaveLength(1));
-    const [a] = ask.kernel.policy.approvals();
-    expect(a).toMatchObject({ from: 'agent', to: 'workouts', label: 'tool:merge', args: ['c'] });
-    ask.kernel.policy.decide(a.id, true);
-    expect(await pending).toBe('merged c');
-    const declined = t.call('merge', 'd');
-    await vi.waitFor(() => expect(ask.kernel.policy.approvals()).toHaveLength(1));
-    ask.kernel.policy.decide(ask.kernel.policy.approvals()[0].id, false);
-    await expect(declined).rejects.toThrow(/declined/);
-  });
-
-  it("guards a tool by the provider's contract, whatever copy of it the requirer has", async () => {
-    const { kernel, refused } = await startTree({
-      ...tooling('read'),
-      'extensions/workouts/index.ts': SNEAKY,
-    });
-    expect(refused).toEqual([]);
-    void kernel.use(toolsContract).call('merge', 'x');
-    await vi.waitFor(() => expect(kernel.policy.approvals()).toHaveLength(1));
-  });
-
-  it("follows the person's setting over the declared level, and tells the holder", async () => {
-    const { kernel, booted } = await startTree(tooling('read'), {
-      access: { 'workouts/tool:merge': 'ask' },
-    });
-    expect(await kernel.use(toolsContract).level('merge')).toBe('ask');
-    void kernel.use(toolsContract).call('merge', 'x');
-    await vi.waitFor(() => expect(kernel.policy.approvals()).toHaveLength(1));
-    expect([...kernel.policy.known.values()]).toEqual([
-      { extension: 'workouts', label: 'tool:merge', declared: 'read' },
-    ]);
-    await booted.config.setAccess('workouts', 'tool:merge', null);
-    expect(await kernel.use(toolsContract).level('merge')).toBe('read');
   });
 
   it('removes an extension: its handles refuse from then on', async () => {

@@ -1,7 +1,6 @@
-// The kernel contract's implementation (contracts/kernel): what the extensions list, settings, review
-// screen and approvals are built on. Changes go to the device's settings (config.ts, the same
-// operations safe mode uses) and take effect on the next start, which turning an extension on or off
-// starts at once; approvals and access apply as they are.
+// The kernel contract's implementation (contracts/kernel): what the extensions list, settings and
+// review screen are built on. Changes go to the device's settings (config.ts, the same operations safe
+// mode uses) and take effect on the next start, which turning an extension on or off starts at once.
 import type { ExtensionInfo, KernelV1, Review } from '#contracts/kernel';
 import type { Booted } from './boot.ts';
 
@@ -62,18 +61,6 @@ export function control({ booted: b, review, restart }: ControlEnv): KernelV1 {
         drafts: c.drafts,
       });
     },
-    access: () => {
-      const settings = config.get().access;
-      return Promise.resolve(
-        [...kernel.policy.known.values()].map((k) => ({
-          ...k,
-          setting: settings[`${k.extension}/${k.label}`],
-        })),
-      );
-    },
-    approvals: () => Promise.resolve(kernel.policy.approvals()),
-    onApprovals: (handler) => Promise.resolve(kernel.policy.onApprovals(handler) as () => void),
-    audit: (limit) => kernel.policy.audit(limit),
     async drafts() {
       const c = config.get();
       // Without a source provider, the drafts this device was told to try are all it knows.
@@ -89,8 +76,6 @@ export function control({ booted: b, review, restart }: ControlEnv): KernelV1 {
     },
     review: (branch) => review(branch),
 
-    decide: (id, approve) => Promise.resolve(kernel.policy.decide(id, approve)),
-    setAccess: (ext, label, access) => config.setAccess(ext, label, access),
     // An extension is turned on or off by starting the app again: a page reload, from the cache.
     async setEnabled(id, on) {
       await config.setEnabled(id, on);

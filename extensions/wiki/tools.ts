@@ -1,4 +1,4 @@
-// What Vaulter may do with the wiki, as agent tools: looking things up is free, adding is logged, and
+// What Vaulter may do with the wiki, as agent tools: looking things up and adding run on their own, and
 // anything that rewrites what is known (merging pages, retracting a fact) asks first.
 
 import { z } from 'zod';

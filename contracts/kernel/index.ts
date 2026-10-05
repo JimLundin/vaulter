@@ -1,9 +1,8 @@
-// The kernel's own contract: what the extensions list, the settings, the review screen and the
-// approvals need (ARCHITECTURE.md, "UI for extensions"). The kernel provides it; an extension that
+// The kernel's own contract: what the extensions list, the settings and the review screen need (ARCHITECTURE.md, "UI for extensions"). The kernel provides it; an extension that
 // requires it shows that in its static fields, and every change it can make is personal: only a person
 // can make it, right after a tap or key in that extension.
 import type { Checks } from '#contracts/extensions.source';
-import { type Access, defineContract, type Unsubscribe } from '#kernel';
+import { defineContract } from '#kernel';
 
 export interface ExtensionInfo {
   id: string;
@@ -28,36 +27,9 @@ export interface ExtensionInfo {
 export interface ErrorEntry {
   at: string;
   /** Where it surfaced. */
-  where: 'setup' | 'call' | 'callback' | 'uncaught';
+  where: 'setup' | 'call' | 'uncaught';
   message: string;
   stack?: string;
-}
-
-export interface AccessInfo {
-  extension: string;
-  label: string;
-  declared: Access;
-  /** The person's setting, when it differs from what the extension declared. */
-  setting?: Access;
-}
-
-export interface Approval {
-  id: string;
-  /** Who is calling (usually Vaulter's agent) and whose guarded function. */
-  from: string;
-  to: string;
-  label: string;
-  args: unknown[];
-  at: string;
-}
-
-export interface AuditEntry {
-  at: string;
-  from: string;
-  to: string;
-  label: string;
-  access: Access;
-  outcome: 'done' | 'approved' | 'declined';
 }
 
 export interface SourceInfo {
@@ -108,17 +80,10 @@ export interface Review {
 export interface KernelV1 {
   extensions: () => Promise<ExtensionInfo[]>;
   source: () => Promise<SourceInfo>;
-  /** Every guarded function seen, with its level. */
-  access: () => Promise<AccessInfo[]>;
-  approvals: () => Promise<Approval[]>;
-  onApprovals: (handler: (pending: Approval[]) => void) => Promise<Unsubscribe>;
-  audit: (limit?: number) => Promise<AuditEntry[]>;
   drafts: () => Promise<DraftInfo[]>;
   review: (branch: string) => Promise<Review>;
 
   // Personal: a person, right after a tap or key.
-  decide: (id: string, approve: boolean) => Promise<void>;
-  setAccess: (ext: string, label: string, access: Access | null) => Promise<void>;
   /** Turns it on or off, and starts the app again (`restart`) so it takes effect. */
   setEnabled: (id: string, on: boolean) => Promise<void>;
   /** Drops its data (and its secrets, through net@1), turns it off, and starts the app again. */
@@ -133,5 +98,5 @@ export interface KernelV1 {
 export const kernel = defineContract<KernelV1>({
   name: 'kernel',
   version: 1,
-  personal: ['decide', 'setAccess', 'setEnabled', 'remove', 'setSource', 'tryDraft'],
+  personal: ['setEnabled', 'remove', 'setSource', 'tryDraft'],
 });

@@ -1,41 +1,29 @@
 // Tools for Vaulter: what an extension lets Vaulter do, written once and used by both the screens and Vaulter
 // (ARCHITECTURE.md, "How Vaulter uses extensions"). The agent provides it; an extension adds tools with a
-// Zod input and an access level, and the agent hands the input to the model as JSON Schema and checks
-// what the model sends against it. The contract guards `run` with the tool's level, so the kernel
-// applies read, write or ask to every call Vaulter makes, whatever the adding extension's copy of this
-// contract says.
+// Zod input and an access level, and the agent hands the input to the model as JSON Schema, checks
+// what the model sends against it, and applies the level to every call.
 
 import type { z } from 'zod';
-import { type Access, defineContract, type Guarded, type Unsubscribe } from '#kernel';
+import { defineContract, type Unsubscribe } from '#kernel';
+
+/** What Vaulter may do with a tool on its own:
+ *   read   run it
+ *   write  run it, and say so in the answer's steps
+ *   ask    ask the person first (questions@1): it runs when they say yes */
+export type Access = 'read' | 'write' | 'ask';
 
 export interface Tool<I> {
   /** Unique within the extension: "findPages". Letters, digits and _. */
   name: string;
   /** For Vaulter: what it does and when to use it. */
   description: string;
-  /** The level it declares; the person's setting may change it. */
   access: Access;
   input: z.ZodType<I>;
   run: (input: I) => unknown | Promise<unknown>;
 }
 
-/** A tool as the agent holds it: `run` guarded by the kernel, `run.level` the level applied now. */
-export type HeldTool = Omit<Tool<unknown>, 'run'> & {
-  run: Guarded<(input: unknown) => Promise<unknown>>;
-};
-
 export interface AgentToolsV1 {
   add: <I>(tool: Tool<I>) => Promise<Unsubscribe>;
 }
 
-export const agentTools = defineContract<AgentToolsV1>({
-  name: 'agent.tools',
-  version: 1,
-  guards: {
-    add: {
-      arg: 0,
-      fn: 'run',
-      guard: (t: Tool<unknown>) => ({ label: `tool:${t.name}`, access: t.access }),
-    },
-  },
-});
+export const agentTools = defineContract<AgentToolsV1>({ name: 'agent.tools', version: 1 });

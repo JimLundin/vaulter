@@ -4,16 +4,14 @@
 // line; they don't contain hostile code.
 //
 // A handle on a contract is the provider's implementation behind a check: a personal method passes
-// only right after a person acted in the caller, and a guarded function (a tool's `run`) handed across
-// is wrapped so every call to it goes through Vaulter's access policy. Values otherwise pass as they are: no copying, so components and schemas can cross too.
-import { type Access, applyGuard, type Guard, type GuardSpec } from './access.ts';
+// only right after a person acted in the caller. Values pass as they are: no copying, so functions,
+// components and schemas can cross too.
 import { type AnyContract, type Contract, ContractRef } from './contract.ts';
 import { ErrorLog } from './errors.ts';
 import { type Extension, type KernelApi, readStatics, Statics } from './extension.ts';
 import { linker } from './link.ts';
 import type { Plan } from './loader.ts';
 import { isPerCaller, type PerCaller, perCallerDef } from './per-caller.ts';
-import { Policy } from './policy.ts';
 import { asPerson, type Presence } from './presence.ts';
 import { type Refused, resolve } from './resolve.ts';
 import type { KernelKeep } from './storage.ts';
@@ -23,15 +21,13 @@ export class Refusal extends Error {
 }
 
 export interface KernelOptions {
-  /** The kernel's own state: audit and error logs. */
+  /** The kernel's own state: the error log. */
   keep: KernelKeep;
   /** The shared modules extensions import, by specifier (#kernel, zod, react…). */
   shared: Record<string, object>;
   /** A module URL for compiled code: a blob: URL in the browser, a data: URL in Node. */
   url: (code: string) => string;
   load: (url: string) => Promise<Record<string, unknown>>;
-  /** The person's access settings, by `extension/label`. */
-  access?: () => Record<string, Access>;
   /** Which extension a person just acted in (presence.ts): the condition for a contract's personal
    * methods. Without it, no extension may make a personal call. */
   presence?: Presence;
@@ -52,7 +48,6 @@ const NOT_METHODS = new Set(Object.getOwnPropertyNames(Object.prototype));
 export const KERNEL = 'kernel';
 
 export class Kernel {
-  readonly policy: Policy;
   /** The static fields of every extension that loaded, running or not. */
   readonly seen = new Map<string, Statics>();
   private readonly parties = new Map<string, Party>();
@@ -63,7 +58,6 @@ export class Kernel {
 
   constructor(opts: KernelOptions) {
     this.opts = opts;
-    this.policy = new Policy(opts.keep, opts.access ?? (() => ({})));
     const { link, extensionAt } = linker(opts.url, opts.shared);
     this.link = link;
     this.errors = new ErrorLog(opts.keep, extensionAt);
@@ -265,23 +259,13 @@ export class Kernel {
     );
   }
 
-  private async call(from: string, to: string, key: string, method: string, raw: unknown[]) {
+  private async call(from: string, to: string, key: string, method: string, args: unknown[]) {
     const { contract, impl } = this.provider(from, to, key);
     if (contract.personal.includes(method) && from !== KERNEL) this.admitPerson(from, key, method);
     const target = isPerCaller(impl) ? this.perCaller(impl, from, to, key) : impl;
     const fn = (target as Record<string, unknown>)[method];
     if (typeof fn !== 'function' || NOT_METHODS.has(method))
       throw new Refusal(`${key} has no method "${method}"`);
-    // Functions cross as they are, except the guarded one the contract names: it goes through the
-    // policy on every call, as the provider (`to`) calling the extension that handed it over.
-    const guard = (contract.guards as Partial<Record<string, GuardSpec>>)[method];
-    let args = raw;
-    if (guard)
-      try {
-        args = applyGuard(args, guard, (f, g) => this.guardedCall(f, g, from, to));
-      } catch (e) {
-        throw new Refusal(`${from} → ${key}.${method}: ${(e as Error).message}`, { cause: e });
-      }
     try {
       return await (fn as Fn).apply(target, args);
     } catch (e) {
@@ -319,22 +303,6 @@ export class Kernel {
       this.perCallerImpls.set(k, made);
     }
     return made;
-  }
-
-  private guardedCall(fn: Fn, guard: Guard, owner: string, holder: string): Fn {
-    this.policy.see(owner, guard);
-    const wrapped = async (...args: unknown[]) => {
-      if (!this.parties.has(owner)) throw new Refusal(`${owner} is not running`);
-      await this.policy.admit({ from: holder, to: owner, guard, args });
-      try {
-        return await fn(...args);
-      } catch (e) {
-        this.errors.record(owner, 'callback', e);
-        throw e;
-      }
-    };
-    Object.defineProperty(wrapped, 'level', { get: () => this.policy.levelOf(owner, guard) });
-    return wrapped;
   }
 
   /* ---------- What the kernel gives every extension ---------- */

@@ -5,7 +5,6 @@
 import { onTestFinished } from 'vitest';
 import { type SourceV1, source } from '#contracts/extensions.source';
 import type { Suite } from '../../contracts/conformance.ts';
-import type { Access } from './access.ts';
 import { blobSha, boot, type Device } from './boot.ts';
 import { type Config, defaultConfig } from './config.ts';
 import { type AnyContract, defineContract } from './contract.ts';
@@ -104,7 +103,6 @@ export function testDevice(over: Partial<Device> = {}): Device {
 export interface TreeOptions extends Partial<Device> {
   /** This device's settings before it boots. */
   config?: Partial<Config>;
-  access?: Record<string, Access>;
   /** The kernel's own providers, given before anything starts. */
   provide?: [AnyContract, object][];
   /** More branches beside main (drafts), path → text. */
@@ -127,7 +125,7 @@ export async function startTree(files: Record<string, string>, opts: TreeOptions
 }
 
 async function bootTree(files: Record<string, string>, opts: TreeOptions) {
-  const { config, access, provide, branches, safe, ...over } = opts;
+  const { config, provide, branches, safe, ...over } = opts;
 
   const device = testDevice(over);
   const out = testOut();
@@ -135,7 +133,6 @@ async function bootTree(files: Record<string, string>, opts: TreeOptions) {
   await device.keep.set('config', {
     ...defaultConfig(`${REPO}@main`),
     ...config,
-    access: { ...config?.access, ...access },
   });
   // Main is the page's (`files`); the test source has it too, with the branches for drafts and pins.
   const booted = await boot(device, {

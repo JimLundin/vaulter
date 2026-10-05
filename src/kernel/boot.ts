@@ -77,7 +77,6 @@ export async function boot(device: Device, opts: BootOptions): Promise<Booted> {
     url: device.url,
     load: device.load,
     keep,
-    access: () => config.get().access,
     presence: device.presence,
   });
   device.watch?.(kernel);

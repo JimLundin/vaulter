@@ -1,4 +1,4 @@
-// The kernel's own state: settings, trees and compiled output, the audit and error logs. It
+// The kernel's own state: settings, trees and compiled output, the error log. It
 // is the kernel's alone, in a database of its own, because the kernel needs it before any extension
 // has loaded and safe mode needs it when none works. Extensions keep their data through records@1,
 // whose provider owns its own storage.

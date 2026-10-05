@@ -1,7 +1,6 @@
 // What this device loads and allows, kept by the kernel and changed only through the kernel contract
 // (by a person) or in safe mode, both through the operations here. Never synced: each device chooses
 // its own drafts and pins.
-import type { Access } from './access.ts';
 import type { KernelKeep } from './storage.ts';
 
 export interface Config {
@@ -10,15 +9,13 @@ export interface Config {
   /** A commit to stay on instead of `ref`'s latest: a rollback. */
   pin?: string;
   disabled: string[];
-  /** The person's access settings, by `extension/label`. */
-  access: Record<string, Access>;
   /** Draft branches loaded on top of `ref`. */
   drafts: string[];
 }
 
 export function defaultConfig(spec: string): Config {
   const [repo, ref = 'main'] = spec.split('@');
-  return { repo, ref, disabled: [], access: {}, drafts: [] };
+  return { repo, ref, disabled: [], drafts: [] };
 }
 
 export interface SourceChange {
@@ -33,17 +30,10 @@ export interface ConfigStore {
   setEnabled: (id: string, on: boolean) => Promise<void>;
   tryDraft: (branch: string, on: boolean) => Promise<void>;
   setSource: (change: SourceChange) => Promise<void>;
-  /** The person's level for one of an extension's guarded functions; null for the declared one. */
-  setAccess: (ext: string, label: string, access: Access | null) => Promise<void>;
 }
 
 const toggle = (list: string[], x: string, on: boolean) =>
   on ? [...new Set([...list, x])] : list.filter((y) => y !== x);
-
-const without = <V>(m: Record<string, V>, k: string) => {
-  const { [k]: _, ...rest } = m;
-  return rest;
-};
 
 export async function configStore(keep: KernelKeep, fallback: string): Promise<ConfigStore> {
   let config = { ...defaultConfig(fallback), ...(await keep.get<Partial<Config>>('config')) };
@@ -62,13 +52,5 @@ export async function configStore(keep: KernelKeep, fallback: string): Promise<C
         ref: change.ref || c.ref,
         pin: change.pin === null ? undefined : (change.pin ?? c.pin),
       })),
-    setAccess: (ext, label, access) =>
-      update((c) => {
-        const k = `${ext}/${label}`;
-        return {
-          ...c,
-          access: access === null ? without(c.access, k) : { ...c.access, [k]: access },
-        };
-      }),
   };
 }
