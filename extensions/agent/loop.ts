@@ -1,9 +1,9 @@
 // Vaulter's loop: the model sees a line about every extension with tools, opens the ones a request needs,
 // and calls their tools until it can answer. Tools reach the model as `<extension>__<tool>`.
-import type { ChatV1, Message } from '@contracts/ai.chat';
-import type { AskRequest, Answer, Step } from '@contracts/agent';
-import type { HeldTool } from '@contracts/agent.tools';
-import { Declined } from '@vaulter/kernel';
+import type { ChatV1, Message } from '#contracts/ai.chat';
+import type { AskRequest, Answer, Step } from '#contracts/agent';
+import type { HeldTool } from '#contracts/agent.tools';
+import { Declined } from '#kernel';
 import { z } from 'zod';
 
 export const INSTRUCTIONS = `You are Vaulter, a personal assistant that keeps a wiki from the notes a person speaks or types.
@@ -27,6 +27,66 @@ const show = (v: unknown) => {
   const s = JSON.stringify(v ?? null);
   return s.length > MAX_OUTPUT ? `${s.slice(0, MAX_OUTPUT)}… (cut)` : s;
 };
+
+type Tools = ReturnType<Catalog['tools']>;
+type Call = { id: string; name: string; arguments: string };
+
+/** The functions the model may call now: open an extension, or a tool of one already opened. */
+const offered = (all: Tools, opened: Set<string>) => [
+  // Offered only when there is something to open: a model may refuse an empty choice.
+  ...(all.size
+    ? [
+        {
+          name: 'open_extension',
+          description: 'Load an extension’s tools, by its id from the list.',
+          parameters: {
+            type: 'object',
+            properties: { id: { type: 'string', enum: [...all.keys()] } },
+            required: ['id'],
+          },
+        },
+      ]
+    : []),
+  ...[...opened].flatMap((ext) =>
+    [...(all.get(ext)?.values() ?? [])].map((t) => ({
+      name: name(ext, t.name),
+      description: `${t.description}${t.run.level === 'ask' ? ' (asks the person first)' : ''}`,
+      parameters: z.toJSONSchema(t.input, { io: 'input', unrepresentable: 'any' }),
+    })),
+  ),
+];
+
+/** One function call the model made, answered: what goes back to it as the tool's output. */
+async function answer(
+  call: Call,
+  all: Tools,
+  opened: Set<string>,
+  step: (s: Step) => Promise<void>,
+): Promise<unknown> {
+  const input = JSON.parse(call.arguments || '{}') as Record<string, unknown>;
+  if (call.name === 'open_extension') {
+    const id = String(input.id);
+    const tools = all.get(id);
+    if (!tools) throw new Error(`no extension "${id}" with tools`);
+    opened.add(id);
+    await step({ kind: 'open', extension: id });
+    return { opened: id, tools: [...tools.keys()] };
+  }
+  // An extension's id has no _, so the first __ ends it.
+  const at = call.name.indexOf('__');
+  const [ext, tool] = [call.name.slice(0, at), call.name.slice(at + 2)];
+  const t = opened.has(ext) ? all.get(ext)?.get(tool) : undefined;
+  if (!t) throw new Error(`open ${ext} first, or no tool ${call.name}`);
+  let output: unknown;
+  let error: string | undefined;
+  try {
+    output = await t.run(t.input.parse(input));
+  } catch (e) {
+    error = e instanceof Declined ? 'the person declined' : (e as Error).message;
+  }
+  await step({ kind: 'tool', extension: ext, tool, input, ...(error ? { error } : { output }) });
+  return error ? { error } : output;
+}
 
 export async function ask(
   chat: ChatV1,
@@ -55,68 +115,20 @@ export async function ask(
   };
 
   for (let i = 0; i < MAX_STEPS; i++) {
-    const tools = [
-      // Offered only when there is something to open: a model may refuse an empty choice.
-      ...(all.size
-        ? [
-            {
-              name: 'open_extension',
-              description: 'Load an extension’s tools, by its id from the list.',
-              parameters: {
-                type: 'object',
-                properties: { id: { type: 'string', enum: [...all.keys()] } },
-                required: ['id'],
-              },
-            },
-          ]
-        : []),
-      ...[...opened].flatMap((ext) =>
-        [...(all.get(ext)?.values() ?? [])].map((t) => ({
-          name: name(ext, t.name),
-          description: `${t.description}${t.run.level === 'ask' ? ' (asks the person first)' : ''}`,
-          parameters: z.toJSONSchema(t.input, { io: 'input', unrepresentable: 'any' }),
-        })),
-      ),
-    ];
-    const r = await chat.complete({ messages, tools });
+    const r = await chat.complete({ messages, tools: offered(all, opened) });
     usage.input += r.usage.input;
     usage.output += r.usage.output;
     messages.push({
       role: 'assistant',
       content: r.content,
       toolCalls: r.toolCalls,
-      state: r.state as never,
+      state: r.state,
     });
     if (!r.toolCalls.length) return { text: r.content ?? '', steps, usage };
-
     for (const call of r.toolCalls) {
-      let output: unknown;
-      try {
-        const input = JSON.parse(call.arguments || '{}') as Record<string, unknown>;
-        if (call.name === 'open_extension') {
-          const id = String(input.id);
-          if (!all.has(id)) throw new Error(`no extension "${id}" with tools`);
-          opened.add(id);
-          await step({ kind: 'open', extension: id });
-          output = { opened: id, tools: [...all.get(id)!.keys()] };
-        } else {
-          // An extension's id has no _, so the first __ ends it.
-          const at = call.name.indexOf('__');
-          const [ext, tool] = [call.name.slice(0, at), call.name.slice(at + 2)];
-          const t = opened.has(ext) ? all.get(ext)?.get(tool) : undefined;
-          if (!t) throw new Error(`open ${ext} first, or no tool ${call.name}`);
-          try {
-            output = await t.run(t.input.parse(input));
-            await step({ kind: 'tool', extension: ext, tool, input, output });
-          } catch (e) {
-            const error = e instanceof Declined ? 'the person declined' : (e as Error).message;
-            await step({ kind: 'tool', extension: ext, tool, input, error });
-            output = { error };
-          }
-        }
-      } catch (e) {
-        output = { error: (e as Error).message };
-      }
+      const output = await answer(call, all, opened, step).catch((e: Error) => ({
+        error: e.message,
+      }));
       messages.push({ role: 'tool', toolCallId: call.id, content: show(output) });
     }
   }

@@ -2,7 +2,7 @@
 // contracts/<name>/conformance.ts, and CI runs it against every extension in the repo that provides the
 // contract, through real handles (conformance.test.ts), on every push, draft branches included. Only CI
 // uses this: it isn't part of the kernel, and the page doesn't carry the suites.
-import type { Contract } from '@vaulter/kernel';
+import type { Contract } from '#kernel';
 import type { ExpectStatic } from 'vitest';
 
 export interface Check<T> {

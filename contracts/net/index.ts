@@ -2,7 +2,7 @@
 // secrets attached by the provider, so no extension handles a key itself (ARCHITECTURE.md, "Secrets").
 // An extension declares its secrets and hosts in its static fields; the provider is given them with
 // each caller. Setting and forgetting a secret, and opening the page's sealed ones, are a person's.
-import { defineContract } from '@vaulter/kernel';
+import { defineContract } from '#kernel';
 
 export type Unsubscribe = () => void;
 

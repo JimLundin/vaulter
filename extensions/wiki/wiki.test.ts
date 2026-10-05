@@ -13,8 +13,8 @@ afterEach(async () => {
 
 // A model that files notes the way the instructions ask, by looking at the note and the pages sent.
 const FAKE_AI = `
-import { defineExtension } from '@vaulter/kernel';
-import { chat } from '@contracts/ai.chat';
+import { defineExtension } from '#kernel';
+import { chat } from '#contracts/ai.chat';
 const none = { create: [], add: [], summaries: [] };
 export default defineExtension({ id: 'fake-ai', version: '1.0.0', provides: { chat },
   setup(_, kernel) { return { chat: {
@@ -41,9 +41,9 @@ export default defineExtension({ id: 'fake-ai', version: '1.0.0', provides: { ch
 
 // An agent that only keeps the tools it is given.
 const FAKE_AGENT = `
-import { defineExtension } from '@vaulter/kernel';
-import { out } from '@vaulter/test';
-import { agentTools } from '@contracts/agent.tools';
+import { defineExtension } from '#kernel';
+import { out } from '#test';
+import { agentTools } from '#contracts/agent.tools';
 import { z } from 'zod';
 export default defineExtension({ id: 'agent', version: '1.0.0', provides: { agentTools },
   setup(_, kernel) { const tools = []; return { agentTools: {
@@ -191,7 +191,8 @@ it('revises a note again on the next start when its revision failed', async () =
   });
   ({ kernel } = after);
   await vi.waitFor(
-    async () => expect(await use<WikiV1>(kernel!, 'wiki').find('Ada', ['person'])).toHaveLength(1),
+    async () =>
+      expect(await use<WikiV1>(after.kernel, 'wiki').find('Ada', ['person'])).toHaveLength(1),
     { timeout: 2000 },
   );
 });

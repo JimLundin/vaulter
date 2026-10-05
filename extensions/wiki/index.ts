@@ -2,14 +2,14 @@
 // model (ai.chat), each note appended is revised into the pages it touches; with questions, what the
 // model isn't sure of is asked rather than guessed; with an agent, Vaulter gets the wiki's tools. Without
 // any of them, the wiki still works by hand.
-import { defineExtension } from '@vaulter/kernel';
+import { defineExtension } from '#kernel';
 import { z } from 'zod';
-import { agentTools } from '@contracts/agent.tools';
-import { chat } from '@contracts/ai.chat';
-import { notes } from '@contracts/notes';
-import { questions } from '@contracts/questions';
-import { records } from '@contracts/records';
-import { type WikiV1, wiki } from '@contracts/wiki';
+import { agentTools } from '#contracts/agent.tools';
+import { chat } from '#contracts/ai.chat';
+import { notes } from '#contracts/notes';
+import { questions } from '#contracts/questions';
+import { records } from '#contracts/records';
+import { type WikiV1, wiki } from '#contracts/wiki';
 import { pages, registerTypes } from './pages.ts';
 import { reviser } from './revise.ts';
 import { addTools } from './tools.ts';

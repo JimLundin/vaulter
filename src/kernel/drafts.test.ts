@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Checks, SourceV1 } from '@contracts/extensions.source';
+import type { Checks, SourceV1 } from '#contracts/extensions.source';
 import { changedUnits, overlay, raises, review, summary } from './drafts.ts';
 import { Statics } from './extension.ts';
 import type { Tree } from './loader.ts';

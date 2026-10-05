@@ -112,7 +112,7 @@ extensions/
     wiki.test.ts
 ```
 
-An extension imports the kernel as `@vaulter/kernel`, a contract as `@contracts/<name>`, its own files relatively, and the shared `zod`, `react`, `react/jsx-runtime` and `react-dom/client`. Nothing else resolves, so an extension can't reach into another's folder.
+An extension imports the kernel as `#kernel`, a contract as `#contracts/<name>` (the names `package.json` declares under `imports`, which TypeScript, Vite and the in-browser loader all resolve), its own files relatively, and the shared `zod`, `react`, `react/jsx-runtime` and `react-dom/client`. Nothing else resolves, so an extension can't reach into another's folder.
 
 The definition has two parts:
 

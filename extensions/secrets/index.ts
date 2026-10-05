@@ -2,8 +2,8 @@
 // each is for; this one keeps them encrypted on the device, opens the page's sealed ones (secrets.json,
 // sealed by CI) with the password once, and attaches a secret only to a request for its hosts. Remove it
 // and what needs a key stops working; the app still runs.
-import { net } from '@contracts/net';
-import { defineExtension, perCaller } from '@vaulter/kernel';
+import { net } from '#contracts/net';
+import { defineExtension, perCaller } from '#kernel';
 import { unlockDialog } from './dialog.ts';
 import { idbStore } from './store.ts';
 import { unsealer } from './unseal.ts';

@@ -1,7 +1,7 @@
 // Vaulter itself: ask in words, and it uses the extensions' tools (agent.tools) to answer or to act. Each
 // tool's access applies to every call it makes (read, write logged, ask approved first), enforced by
 // the kernel, not by the agent.
-import { defineContract } from '@vaulter/kernel';
+import { defineContract } from '#kernel';
 
 export interface Turn {
   role: 'user' | 'assistant';

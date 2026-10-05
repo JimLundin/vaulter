@@ -2,8 +2,8 @@
 // device that tries a draft loads the main branch with the draft's changed folders on top. Reviewing a
 // draft compares the two trees and each changed extension's static fields, so what it newly asks for
 // (a host, a secret, a device, a powerful contract) is shown to approve on purpose.
-import type { Checks, SourceV1 } from '@contracts/extensions.source';
-import type { Review, StaticsSummary } from '@contracts/kernel';
+import type { Checks, SourceV1 } from '#contracts/extensions.source';
+import type { Review, StaticsSummary } from '#contracts/kernel';
 import type { Statics } from './extension.ts';
 import { extensionsIn, type Tree } from './loader.ts';
 
@@ -24,10 +24,12 @@ const same = (a: [string, string][], b: [string, string][]) =>
 
 /** The extensions (and `contracts`) a draft adds, changes or removes against `main`. */
 export function changedUnits(main: Tree, draft: Tree): string[] {
-  const units = new Set([...main.files.keys(), ...draft.files.keys()].map(unitOf).filter(Boolean));
+  const units = new Set(
+    [...main.files.keys(), ...draft.files.keys()].map(unitOf).filter((u) => u !== null),
+  );
   return [...units]
-    .filter((u) => !same(filesOf(main, u!), filesOf(draft, u!)))
-    .sort((a, b) => a!.localeCompare(b!)) as string[];
+    .filter((u) => !same(filesOf(main, u), filesOf(draft, u)))
+    .sort((a, b) => a.localeCompare(b));
 }
 
 /** The main tree with each draft's changed folders in place of main's; later drafts win. */

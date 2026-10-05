@@ -6,7 +6,7 @@
 // Each value is checked and shaped by its type's own Zod, given at registration. Queries read a type's
 // records and filter in memory: plenty for one person's data. Changes to one record run one after
 // another (this page is the only one with the kernel), so an update always starts from the last.
-import type { Filter, Query, RecordsV1, RecordType, Stored } from '@contracts/records';
+import type { Filter, Query, RecordsV1, RecordType, Stored } from '#contracts/records';
 import { z } from 'zod';
 import type { Store } from './store.ts';
 
@@ -31,6 +31,20 @@ const matches = (v: unknown, f: Filter) => {
 };
 
 const fieldsOf = ({ id: _, meta: _m, ...fields }: Stored) => fields;
+
+/** Records by a field or when, in `dir` (1 up, -1 down); ties by when created, and records without
+ * the field last either way. */
+const ordered = (by: string, dir: 1 | -1) => {
+  const key = (r: Stored) =>
+    by === 'created' || by === 'updated' ? r.meta[by] : (r[by] as string | number | undefined);
+  return (a: Stored, b: Stored) => {
+    const [x, y] = [key(a), key(b)];
+    if (x === y) return dir * a.meta.created.localeCompare(b.meta.created);
+    if (x === undefined) return 1;
+    if (y === undefined) return -1;
+    return dir * (x < y ? -1 : 1);
+  };
+};
 
 export function localRecords(storage: Store) {
   const listeners = new Map<string, Set<(c: Stored) => void>>();
@@ -142,19 +156,7 @@ export function localRecords(storage: Store) {
         let out = (await all(t.name)).filter((r) => q.deleted || !r.meta.deleted);
         for (const [field, f] of Object.entries(q.where ?? {}))
           out = out.filter((r) => matches(r[field], f));
-        const by = q.orderBy ?? 'created';
-        const key = (r: Stored) =>
-          by === 'created' || by === 'updated'
-            ? r.meta[by]
-            : (r[by] as string | number | undefined);
-        const dir = q.order === 'asc' ? 1 : -1;
-        out.sort((a, b) => {
-          const [x, y] = [key(a), key(b)];
-          if (x === y) return dir * a.meta.created.localeCompare(b.meta.created);
-          if (x === undefined) return 1;
-          if (y === undefined) return -1;
-          return dir * (x < y ? -1 : 1);
-        });
+        out.sort(ordered(q.orderBy ?? 'created', q.order === 'asc' ? 1 : -1));
         return out.slice(0, q.limit);
       },
 
@@ -242,8 +244,13 @@ export function localRecords(storage: Store) {
         if (!(keep && merge)) throw new Error(`${type}: both records must exist to merge`);
         if (keep.id === merge.id) throw new Error(`${type}: a record can't be merged into itself`);
         // The merged record's fields as its queue last left them, so a change still running isn't lost.
+        const now = async (id: string) => {
+          const rec = await current(type, id);
+          if (!rec) throw new Error(`${type}: no record ${id}`);
+          return rec;
+        };
         const merged = await serial(`${type}:${merge.id}`, async () => {
-          const prior = (await current(type, merge.id))!;
+          const prior = await now(merge.id);
           await write(
             type,
             prior,
@@ -252,7 +259,7 @@ export function localRecords(storage: Store) {
           return fieldsOf(prior);
         });
         return serial(`${type}:${keep.id}`, async () => {
-          const prior = (await current(type, keep.id))!;
+          const prior = await now(keep.id);
           return write(type, prior, revise(prior, shape(type, { ...merged, ...fieldsOf(prior) })));
         });
       },

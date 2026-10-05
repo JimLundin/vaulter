@@ -2,7 +2,7 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, expect, it } from 'vitest';
-import { records } from '@contracts/records';
+import { records } from '#contracts/records';
 import type { Kernel } from './kernel.ts';
 import { startTree } from './testing.ts';
 
@@ -31,9 +31,9 @@ it('starts store-local and serves another extension its records', async () => {
     ...read('contracts'),
     ...read('extensions/store-local'),
     'extensions/people/index.ts': `
-      import { defineExtension } from '@vaulter/kernel';
-      import { out } from '@vaulter/test';
-      import { records } from '@contracts/records';
+      import { defineExtension } from '#kernel';
+      import { out } from '#test';
+      import { records } from '#contracts/records';
       import { z } from 'zod';
       export default defineExtension({
         id: 'people', version: '1.0.0', requires: { records },

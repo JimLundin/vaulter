@@ -2,8 +2,8 @@
 // reason (ARCHITECTURE.md, "Extension lifecycle"). Main is what this page was built with; a source
 // provider (source-github), when one runs, adds a pinned commit or this device's drafts on top.
 // Every extension is planned, loaded into the page and started. The device is a browser (start.ts); tests boot the same way on a test device.
-import { type SourceV1, source } from '@contracts/extensions.source';
-import { kernel as kernelContract } from '@contracts/kernel';
+import { type SourceV1, source } from '#contracts/extensions.source';
+import { kernel as kernelContract } from '#contracts/kernel';
 import { type ConfigStore, configStore } from './config.ts';
 import type { AnyContract } from './contract.ts';
 import { control } from './control.ts';
@@ -106,27 +106,11 @@ export async function boot(device: Device, opts: BootOptions): Promise<Booted> {
       shared,
     };
     const skip = new Set(disabled);
-
     b.commit = page.tree.commit;
     b.found = [...extensionsIn(page.tree).keys()];
     kernel.provide(
       kernelContract,
-      control({
-        booted: b,
-        restart: device.restart,
-        review: (branch) =>
-          review(
-            {
-              src: need(b.src),
-              repo,
-              ref,
-              treeAt: (commit) => treeAt(keep, need(b.src), repo, commit, true),
-              inspect: async (id, t, entry) =>
-                (await kernel.inspect(id, await planner(t, deps).plan(entry))).statics,
-            },
-            branch,
-          ),
-      }),
+      control({ booted: b, restart: device.restart, review: reviewer(b, deps, repo, ref) }),
     );
     if (opts.safe) {
       b.safe = {};
@@ -135,37 +119,10 @@ export async function boot(device: Device, opts: BootOptions): Promise<Booted> {
 
     // Main is this page's own. A pinned commit or a draft needs a source provider: the extension
     // providing extensions.source starts first, with what it requires, and the rest after.
-    let { tree } = page;
-    if (pin || drafts.length) {
-      const first = await startSource(kernel, page.tree, deps, skip);
-      b.refused.push(...first.refused);
-      b.started.push(...first.started);
-      b.src = running(kernel);
-      if (pin) tree = await treeAt(keep, need(b.src, 'a pinned commit'), repo, pin, true);
-      if (drafts.length && !b.src)
-        b.refused.push({ id: 'drafts', problems: ['no source provider is running'] });
-      else if (drafts.length) {
-        const src = b.src!;
-        const trees = await Promise.all(
-          drafts.map(async (branch) => {
-            try {
-              return { branch, tree: await treeAt(keep, src, repo, branch) };
-            } catch (e) {
-              b.refused.push({ id: branch, problems: [(e as Error).message] });
-            }
-          }),
-        );
-        const overlaid = overlay(
-          tree,
-          trees.filter((t) => t !== undefined),
-        );
-        ({ tree, origins: b.origins } = overlaid);
-      }
-      b.commit = tree.commit;
-      b.found = [...extensionsIn(tree).keys()];
-      for (const id of b.started) skip.add(id);
-    } else b.src = running(kernel);
-
+    const tree =
+      pin || drafts.length
+        ? await withSource(b, page.tree, deps, skip, { repo, pin, drafts })
+        : page.tree;
     const { plans, refused, stats } = await planAll(tree, deps, skip);
     b.stats = stats;
     b.refused.push(...refused);
@@ -181,6 +138,60 @@ export async function boot(device: Device, opts: BootOptions): Promise<Booted> {
     b.safe = { reason: (e as Error).message };
   }
   return b;
+}
+
+/** The kernel contract's review of a draft, through the source provider. */
+const reviewer = (b: Booted, deps: LoaderDeps, repo: string, ref: string) => (branch: string) =>
+  review(
+    {
+      src: need(b.src),
+      repo,
+      ref,
+      treeAt: (commit) => treeAt(b.keep, need(b.src), repo, commit, true),
+      inspect: async (id, t, entry) =>
+        (await b.kernel.inspect(id, await planner(t, deps).plan(entry))).statics,
+    },
+    branch,
+  );
+
+/** The source provider started, and the tree to load: the pinned commit's, or main's, with the
+ * drafts this device tries on top. What started is skipped when the rest start. */
+async function withSource(
+  b: Booted,
+  main: Tree,
+  deps: LoaderDeps,
+  skip: Set<string>,
+  { repo, pin, drafts }: { repo: string; pin?: string; drafts: string[] },
+) {
+  const first = await startSource(b.kernel, main, deps, skip);
+  b.refused.push(...first.refused);
+  b.started.push(...first.started);
+  for (const id of first.started) skip.add(id);
+  b.src = running(b.kernel);
+  let tree = pin ? await treeAt(b.keep, need(b.src, 'a pinned commit'), repo, pin, true) : main;
+  if (drafts.length && !b.src)
+    b.refused.push({ id: 'drafts', problems: ['no source provider is running'] });
+  else if (b.src && drafts.length) {
+    const overlaid = overlay(tree, await draftTrees(b, b.src, repo, drafts));
+    ({ tree, origins: b.origins } = overlaid);
+  }
+  b.commit = tree.commit;
+  b.found = [...extensionsIn(tree).keys()];
+  return tree;
+}
+
+/** The tree of each draft that can be read; one that can't is refused with why. */
+async function draftTrees(b: Booted, src: SourceV1, repo: string, drafts: string[]) {
+  const trees = await Promise.all(
+    drafts.map(async (branch) => {
+      try {
+        return { branch, tree: await treeAt(b.keep, src, repo, branch) };
+      } catch (e) {
+        b.refused.push({ id: branch, problems: [(e as Error).message] });
+      }
+    }),
+  );
+  return trees.filter((t) => t !== undefined);
 }
 
 const need = (src: SourceV1 | undefined, what = 'this') => {
@@ -213,7 +224,7 @@ async function startSource(kernel: Kernel, tree: Tree, deps: LoaderDeps, skip: S
       .map(([id]) => id);
   const want = new Set(providers(source.key));
   for (const id of want)
-    for (const c of Object.values(statics.get(id)!.requires))
+    for (const c of Object.values(statics.get(id)?.requires ?? {}))
       for (const p of providers(c.key)) want.add(p);
   const started = await kernel.start(new Map([...plans].filter(([id]) => want.has(id))));
   return { started: started.started, refused: [...refused, ...started.refused] };

@@ -1,4 +1,4 @@
-import { net } from '@contracts/net';
+import { net } from '#contracts/net';
 import { afterEach, expect, it, vi } from 'vitest';
 import { defineContract } from '../../src/kernel/contract.ts';
 import type { Kernel } from '../../src/kernel/kernel.ts';
@@ -41,11 +41,11 @@ it('speaks the Responses API, with the key attached by the secrets extension', a
   vi.stubGlobal('fetch', fetchImpl);
 
   const r = await startRepo(['secrets', 'openai'], {
-    'contracts/probe/index.ts': `import { defineContract } from '@vaulter/kernel';
+    'contracts/probe/index.ts': `import { defineContract } from '#kernel';
         export const probe = defineContract<{ run(): Promise<unknown> }>({ name: 'probe', version: 1 });`,
-    'extensions/probe/index.ts': `import { defineExtension } from '@vaulter/kernel';
-        import { chat } from '@contracts/ai.chat';
-        import { probe } from '@contracts/probe';
+    'extensions/probe/index.ts': `import { defineExtension } from '#kernel';
+        import { chat } from '#contracts/ai.chat';
+        import { probe } from '#contracts/probe';
         export default defineExtension({ id: 'probe', version: '1.0.0', requires: { chat }, provides: { probe },
           setup({ chat }) { return { probe: { async run() {
             const first = await chat.complete({

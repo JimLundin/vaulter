@@ -1,10 +1,10 @@
 // Revising the wiki from a note: a model reads the note with the pages it may be about and proposes
 // pages to create, facts to add, summaries to rewrite, and questions where it isn't sure. Sure changes
 // are made at once, citing the note; an unsure one becomes a question, and the answer makes it.
-import type { ChatV1 } from '@contracts/ai.chat';
-import type { Note } from '@contracts/notes';
-import type { QuestionsV1 } from '@contracts/questions';
-import type { Entity, Kind, Revision, WikiV1 } from '@contracts/wiki';
+import type { ChatV1 } from '#contracts/ai.chat';
+import type { Note } from '#contracts/notes';
+import type { QuestionsV1 } from '#contracts/questions';
+import type { Entity, Kind, Revision, WikiV1 } from '#contracts/wiki';
 import { z } from 'zod';
 import { KINDS } from './pages.ts';
 
@@ -68,20 +68,24 @@ export interface ReviseDeps {
   questions?: QuestionsV1;
 }
 
+type Cite = (f: z.infer<typeof FactIn>) => { text: string; sources: string[]; at?: string };
+
 export function reviser(deps: ReviseDeps) {
-  const apply = async (changes: Changes, note: Note, rev: Revision) => {
+  /** Each page the plan creates, with its facts: by the plan's own ref for it. */
+  const create = async (changes: Changes, cite: Cite, rev: Revision) => {
     const made = new Map<string, Entity>();
-    const cite = (f: z.infer<typeof FactIn>) => ({
-      text: f.text,
-      sources: [note.id],
-      ...(f.at ? { at: f.at } : {}),
-    });
     for (const c of changes.create) {
       let e = await deps.wiki.create(c.kind as Kind, { name: c.name, aliases: c.aliases });
       for (const f of c.facts) e = await deps.wiki.addFact({ type: e.type, id: e.id }, cite(f));
       made.set(c.ref, e);
       rev.created.push({ type: e.type, id: e.id });
     }
+    return made;
+  };
+
+  const apply = async (changes: Changes, note: Note, rev: Revision) => {
+    const cite: Cite = (f) => ({ text: f.text, sources: [note.id], ...(f.at ? { at: f.at } : {}) });
+    const made = await create(changes, cite, rev);
     const known = new Map((await deps.all()).map((e) => [e.id, e]));
     const refOf = (id: string) => {
       const e = made.get(id) ?? known.get(id);
@@ -99,11 +103,8 @@ export function reviser(deps: ReviseDeps) {
     }
   };
 
-  const noteOf = new Map<string, Note>();
-
   return {
     async revise(note: Note): Promise<Revision> {
-      noteOf.set(note.id, note);
       const pages = candidates(note.text, await deps.all());
       const context = pages.map((p) => ({
         id: p.id,

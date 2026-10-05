@@ -2,9 +2,9 @@
 // drafts a device tries and a pinned commit (main is the page's own), and CI's checks on a commit. The
 // token is optional for a public repo, at GitHub's lower rate limit. Writing drafts comes with the
 // agent that writes them.
-import { defineExtension } from '@vaulter/kernel';
-import { type Checks, source } from '@contracts/extensions.source';
-import { net } from '@contracts/net';
+import { defineExtension } from '#kernel';
+import { type Checks, source } from '#contracts/extensions.source';
+import { net } from '#contracts/net';
 
 const API = 'https://api.github.com';
 const ours = (path: string) =>

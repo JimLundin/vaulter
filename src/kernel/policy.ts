@@ -1,7 +1,7 @@
 // Applying Vaulter's access (access.ts) to a call that reaches a guarded function: the person's setting for
 // that label, or else the level the extension declared. Write calls are logged; ask calls wait in
 // `pending` until the person decides, through the kernel contract (contracts/kernel).
-import type { Approval, AuditEntry } from '@contracts/kernel';
+import type { Approval, AuditEntry } from '#contracts/kernel';
 import type { Access, Guard } from './access.ts';
 import type { KernelKeep } from './storage.ts';
 

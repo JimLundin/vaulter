@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import type { Kernel } from './kernel.ts';
 import { REPO, startTree, testOut, testSource } from './testing.ts';
-import { source } from '@contracts/extensions.source';
+import { source } from '#contracts/extensions.source';
 import { boot } from './boot.ts';
 import type { AnyContract } from './contract.ts';
 import { testDevice } from './testing.ts';
@@ -10,15 +10,15 @@ const ext = (
   id: string,
   version = '1.0.0',
   more = '',
-) => `import { defineExtension } from '@vaulter/kernel';
-    import { out } from '@vaulter/test';
+) => `import { defineExtension } from '#kernel';
+    import { out } from '#test';
   export default defineExtension({ id: '${id}', version: '${version}', ${more}
     async setup(_, kernel) { await out.set('${id}', 'started', '${version}'); } });`;
 
 const shared = async () => ({
-  '@vaulter/kernel': await import('./api.ts'),
+  '#kernel': await import('./api.ts'),
   zod: await import('zod'),
-  '@vaulter/test': { out: testOut() },
+  '#test': { out: testOut() },
 });
 
 let kernels: Kernel[] = [];

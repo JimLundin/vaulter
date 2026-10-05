@@ -1,8 +1,8 @@
 // OpenAI: provides ai.chat, over the Responses API. The account's key is a secret the secrets
 // extension holds and attaches (net@1); this extension never sees it.
-import { defineExtension } from '@vaulter/kernel';
-import { chat } from '@contracts/ai.chat';
-import { net } from '@contracts/net';
+import { defineExtension } from '#kernel';
+import { chat } from '#contracts/ai.chat';
+import { net } from '#contracts/net';
 import { fromResponse, toResponsesBody } from './responses.ts';
 
 const API = 'https://api.openai.com/v1';

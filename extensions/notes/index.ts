@@ -1,9 +1,9 @@
 // Notes: the append-only log of what was said or typed (notes@1), kept as records. Voice appends here;
 // the wiki reads it to build pages. Nothing here changes or removes a note: every page built from notes
 // can be rebuilt from them.
-import { defineExtension } from '@vaulter/kernel';
-import { NewNote, type Note, NoteSource, type NotesV1, notes } from '@contracts/notes';
-import { type Rec, records } from '@contracts/records';
+import { defineExtension } from '#kernel';
+import { NewNote, type Note, NoteSource, type NotesV1, notes } from '#contracts/notes';
+import { type Rec, records } from '#contracts/records';
 import { z } from 'zod';
 
 export default defineExtension({

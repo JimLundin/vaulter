@@ -2,10 +2,10 @@
 // approvals need (ARCHITECTURE.md, "UI for extensions"). The kernel provides it; an extension that
 // requires it shows that in its static fields, and every change it can make is personal: only a person
 // can make it, right after a tap or key in that extension.
-import type { Checks } from '@contracts/extensions.source';
-import { type Access, defineContract } from '@vaulter/kernel';
+import type { Checks } from '#contracts/extensions.source';
+import { type Access, defineContract } from '#kernel';
 
-export type { Access } from '@vaulter/kernel';
+export type { Access } from '#kernel';
 
 export type Unsubscribe = () => void;
 

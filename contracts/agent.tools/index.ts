@@ -4,7 +4,7 @@
 // what the model sends against it. The contract guards `run` with the tool's level, so the kernel
 // applies read, write or ask to every call Vaulter makes, whatever the adding extension's copy of this
 // contract says.
-import { type Access, defineContract, type Guarded } from '@vaulter/kernel';
+import { type Access, defineContract, type Guarded } from '#kernel';
 import type { z } from 'zod';
 
 export type Unsubscribe = () => void;

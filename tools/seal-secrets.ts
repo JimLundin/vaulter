@@ -12,7 +12,7 @@ if (!out) throw new Error('usage: node tools/seal-secrets.ts <out.json>');
 
 const password = process.env.VAULTER_PASSWORD ?? '';
 if (!password) {
-  console.log('No VAULTER_PASSWORD: no sealed secrets in this build.');
+  process.stdout.write('No VAULTER_PASSWORD: no sealed secrets in this build.\n');
   process.exit(0);
 }
 if (password.length < 16)
@@ -36,10 +36,10 @@ const salt = process.env.VAULTER_SALT
   : undefined;
 if (salt && salt.length < 16) throw new Error('VAULTER_SALT must be 16 bytes, base64');
 await writeFile(out, `${JSON.stringify(await seal(password, secrets, { salt }))}\n`);
-console.log(
+process.stdout.write(
   `Sealed ${
     Object.keys(secrets)
       .sort((a, b) => a.localeCompare(b))
       .join(', ') || 'no secrets'
-  } into ${out}.`,
+  } into ${out}.\n`,
 );

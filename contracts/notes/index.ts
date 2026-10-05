@@ -1,6 +1,6 @@
 // Notes: what was said or typed, as it was. Append-only: a note is never changed or removed, and every
 // page and record built from notes can be rebuilt from them (ARCHITECTURE.md, principles).
-import { defineContract } from '@vaulter/kernel';
+import { defineContract } from '#kernel';
 import { z } from 'zod';
 
 export type Unsubscribe = () => void;

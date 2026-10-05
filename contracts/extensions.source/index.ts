@@ -1,7 +1,7 @@
 // Extension source in git, besides main (which is the page's own): drafts on draft/* branches and older
 // commits, read at a commit, and CI's checks on them. source-github provides it; moving to another
 // host means another provider.
-import { defineContract } from '@vaulter/kernel';
+import { defineContract } from '#kernel';
 
 export interface SourceFile {
   path: string;

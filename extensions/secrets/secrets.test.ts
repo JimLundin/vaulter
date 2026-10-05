@@ -1,4 +1,4 @@
-import { net } from '@contracts/net';
+import { net } from '#contracts/net';
 import { afterEach, expect, it, vi } from 'vitest';
 import { defineContract } from '../../src/kernel/contract.ts';
 import type { Kernel } from '../../src/kernel/kernel.ts';
@@ -14,11 +14,11 @@ const probe = defineContract<{ run: () => Promise<unknown> }>({ name: 'probe', v
 
 // An extension with a secret for one host, and another host it may reach without one.
 const CALLER = {
-  'contracts/probe/index.ts': `import { defineContract } from '@vaulter/kernel';
+  'contracts/probe/index.ts': `import { defineContract } from '#kernel';
     export const probe = defineContract({ name: 'probe', version: 1 });`,
-  'extensions/caller/index.ts': `import { defineExtension } from '@vaulter/kernel';
-    import { net } from '@contracts/net';
-    import { probe } from '@contracts/probe';
+  'extensions/caller/index.ts': `import { defineExtension } from '#kernel';
+    import { net } from '#contracts/net';
+    import { probe } from '#contracts/probe';
     export default defineExtension({ id: 'caller', version: '1.0.0', requires: { net }, provides: { probe },
       permissions: { network: ['example.org'] },
       secrets: { key: { label: 'Key', hosts: ['api.openai.com'] } },

@@ -12,9 +12,9 @@ afterEach(async () => {
 
 // A model that follows a script: open the wiki, use a tool, then answer from what came back.
 const SCRIPTED = `
-import { defineExtension } from '@vaulter/kernel';
-import { out } from '@vaulter/test';
-import { chat } from '@contracts/ai.chat';
+import { defineExtension } from '#kernel';
+import { out } from '#test';
+import { chat } from '#contracts/ai.chat';
 const say = (content) => ({ content, toolCalls: [], usage: { input: 1, output: 1 } });
 const call = (name, args) => ({ content: null, toolCalls: [{ id: 'c' + Math.random(), name, arguments: JSON.stringify(args) }], usage: { input: 1, output: 1 }, state: [{ type: 'reasoning', id: 'r1' }] });
 export default defineExtension({ id: 'fake-ai', version: '1.0.0', provides: { chat },
@@ -64,7 +64,7 @@ it('answers with the tools it opens, and waits for the person on a tool that ask
 
   const refs = { keep: { type: ada.type, id: ada.id }, merge: { type: dup.type, id: dup.id } };
   const merging = agent.ask({ prompt: `Merge these: ${JSON.stringify(refs)}` });
-  await vi.waitFor(() => expect(kernel!.policy.approvals()).toHaveLength(1), { timeout: 2000 });
+  await vi.waitFor(() => expect(r.kernel.policy.approvals()).toHaveLength(1), { timeout: 2000 });
   expect(kernel.policy.approvals()[0]).toMatchObject({
     from: 'agent',
     to: 'wiki',
@@ -75,7 +75,7 @@ it('answers with the tools it opens, and waits for the person on a tool that ask
   expect((await wiki.get(refs.keep))?.aliases).toEqual(['Ada L.']);
 
   const declined = agent.ask({ prompt: `Merge these: ${JSON.stringify(refs)}` });
-  await vi.waitFor(() => expect(kernel!.policy.approvals()).toHaveLength(1), { timeout: 2000 });
+  await vi.waitFor(() => expect(r.kernel.policy.approvals()).toHaveLength(1), { timeout: 2000 });
   kernel.policy.decide(kernel.policy.approvals()[0].id, false);
   expect((await declined).text).toBe('Not merged: the person declined');
 });

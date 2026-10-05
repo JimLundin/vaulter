@@ -5,11 +5,6 @@ import { fileURLToPath } from 'node:url';
 import { defineConfig, type Plugin } from 'vite';
 
 const at = (p: string) => fileURLToPath(new URL(p, import.meta.url));
-const alias = [
-  { find: '@vaulter/kernel', replacement: at('src/kernel/api.ts') },
-  { find: /^@contracts\/([^/]+)$/, replacement: at('contracts/$1/index.ts') },
-  { find: /^@contracts\/(.+)$/, replacement: at('contracts/$1') },
-];
 
 // The page's Content Security Policy. Compiled extensions load as blob: modules; network goes only to
 // GitHub (the source) and OpenAI.
@@ -38,7 +33,6 @@ const csp = (): Plugin => ({
 export default defineConfig({
   base: './',
   plugins: [csp()],
-  resolve: { alias },
   build: {
     outDir: 'dist',
     emptyOutDir: true,

@@ -12,7 +12,7 @@ import { type AnyContract, type Contract, ContractRef } from './contract.ts';
 import { type Extension, type KernelApi, readStatics, Statics } from './extension.ts';
 import { linker } from './link.ts';
 import type { Plan } from './loader.ts';
-import { isPerCaller, perCallerDef } from './per-caller.ts';
+import { isPerCaller, type PerCaller, perCallerDef } from './per-caller.ts';
 import { Policy } from './policy.ts';
 import { asPerson, type Presence } from './presence.ts';
 import { type Refused, resolve } from './resolve.ts';
@@ -25,7 +25,7 @@ export class Refusal extends Error {
 export interface KernelOptions {
   /** The kernel's own state: audit and error logs. */
   keep: KernelKeep;
-  /** The shared modules extensions import, by specifier (@vaulter/kernel, zod, react…). */
+  /** The shared modules extensions import, by specifier (#kernel, zod, react…). */
   shared: Record<string, object>;
   /** A module URL for compiled code: a blob: URL in the browser, a data: URL in Node. */
   url: (code: string) => string;
@@ -42,7 +42,6 @@ interface Party {
   statics: Statics;
   /** Requires and optional: contract key → provider id. */
   wiring: Record<string, string>;
-  def?: Extension['def'];
   /** What it provides, by contract key: its contract handle and implementation (or per caller). */
   provided: Map<string, { contract: AnyContract; impl: object }>;
 }
@@ -118,14 +117,14 @@ export class Kernel {
       this.refused.set(id, problems);
     };
 
-    const loaded = new Map<string, { def: Extension['def'] }>();
+    const loaded = new Map<string, Extension['def']>();
     const candidates = (
       await Promise.all(
         [...plans].map(async ([id, plan]) => {
           try {
             const { def, statics } = await this.inspect(id, plan);
             this.seen.set(id, statics);
-            loaded.set(id, { def });
+            loaded.set(id, def);
             return [{ id, statics }];
           } catch (e) {
             refuse(id, [(e as Error).message]);
@@ -149,17 +148,18 @@ export class Kernel {
         refuse(a.id, [`${[...new Set(down)].join(', ')} could not start`]);
         continue;
       }
+      const def = loaded.get(a.id);
+      if (!def) continue;
       const refs = { ...a.statics.requires, ...a.statics.optional };
       const party: Party = {
         id: a.id,
         statics: a.statics,
         wiring: Object.fromEntries(Object.entries(a.wiring).map(([as, p]) => [refs[as].key, p])),
-        ...loaded.get(a.id)!,
         provided: new Map(),
       };
       try {
         this.parties.set(a.id, party);
-        await this.setup(party);
+        await this.setup(party, def);
         this.refused.delete(a.id);
       } catch (e) {
         this.errors.record(a.id, 'setup', e);
@@ -174,8 +174,7 @@ export class Kernel {
   }
 
   /** Runs `setup` with a handle for each contract wired, and keeps what it provides. */
-  private async setup(party: Party) {
-    const def = party.def!;
+  private async setup(party: Party, def: Extension['def']) {
     const ctx: Record<string, unknown> = {};
     const wanted = { ...def.requires, ...def.optional } as Record<string, AnyContract>;
     for (const [alias, c] of Object.entries(wanted)) {
@@ -273,34 +272,16 @@ export class Kernel {
   }
 
   private async call(from: string, to: string, key: string, method: string, raw: unknown[]) {
-    const party = this.parties.get(to);
-    if (!party) throw new Refusal(`${to}, which provides ${key}, is not running`);
-    if (!this.parties.has(from) && from !== KERNEL) throw new Refusal(`${from} is not running`);
-    const p = party.provided.get(key);
-    if (!p) throw new Refusal(`${to} does not provide ${key}`);
-    const { contract } = p;
-    if (contract.personal.includes(method) && from !== KERNEL) {
-      if (isAgent(this.parties.get(from)?.statics))
-        throw new Refusal(`${key}.${method} is for a person to do; ${from} is the agent's own`);
-      if (!this.opts.presence?.take(from))
-        throw new Refusal(`${key}.${method} is for a person to do, right after a tap or key`);
-    }
-    let impl = p.impl as Record<string, unknown>;
-    if (isPerCaller(impl)) {
-      const k = `${to}\n${key}\n${from}`;
-      if (!this.perCallerImpls.has(k)) {
-        const { statics } = this.parties.get(from) ?? this.kernelParty();
-        this.perCallerImpls.set(k, perCallerDef(impl).make(from, statics));
-      }
-      impl = this.perCallerImpls.get(k) as Record<string, unknown>;
-    }
-    const fn = impl[method];
+    const { contract, impl } = this.provider(from, to, key);
+    if (contract.personal.includes(method) && from !== KERNEL) this.admitPerson(from, key, method);
+    const target = isPerCaller(impl) ? this.perCaller(impl, from, to, key) : impl;
+    const fn = (target as Record<string, unknown>)[method];
     if (typeof fn !== 'function' || NOT_METHODS.has(method))
       throw new Refusal(`${key} has no method "${method}"`);
-    let args = raw;
     // Functions cross as they are, except the guarded one the contract names: it goes through the
     // policy on every call, as the provider (`to`) calling the extension that handed it over.
     const guard = contract.guards[method];
+    let args = raw;
     if (guard)
       try {
         args = applyGuard(args, guard, (f, g) => this.guardedCall(f, g, from, to));
@@ -308,12 +289,42 @@ export class Kernel {
         throw new Refusal(`${from} → ${key}.${method}: ${(e as Error).message}`, { cause: e });
       }
     try {
-      return await (fn as Fn).apply(impl, args);
+      return await (fn as Fn).apply(target, args);
     } catch (e) {
       // Kept under whoever's code threw: the provider, or a caller's handler it ran.
       this.errors.record(this.errors.blame(e) ?? to, 'call', e);
       throw e;
     }
+  }
+
+  /** What `to` provides for `key`, with both ends running. */
+  private provider(from: string, to: string, key: string) {
+    const party = this.parties.get(to);
+    if (!party) throw new Refusal(`${to}, which provides ${key}, is not running`);
+    if (!this.parties.has(from) && from !== KERNEL) throw new Refusal(`${from} is not running`);
+    const p = party.provided.get(key);
+    if (!p) throw new Refusal(`${to} does not provide ${key}`);
+    return p;
+  }
+
+  /** A personal method: never for Vaulter's own extensions, and only right after a person acted. */
+  private admitPerson(from: string, key: string, method: string) {
+    if (isAgent(this.parties.get(from)?.statics))
+      throw new Refusal(`${key}.${method} is for a person to do; ${from} is the agent's own`);
+    if (!this.opts.presence?.take(from))
+      throw new Refusal(`${key}.${method} is for a person to do, right after a tap or key`);
+  }
+
+  /** A per-caller provider's implementation for `from`, made the first time `from` calls it. */
+  private perCaller(impl: PerCaller<object>, from: string, to: string, key: string) {
+    const k = `${to}\n${key}\n${from}`;
+    let made = this.perCallerImpls.get(k);
+    if (!made) {
+      const { statics } = this.parties.get(from) ?? this.kernelParty();
+      made = perCallerDef(impl).make(from, statics);
+      this.perCallerImpls.set(k, made);
+    }
+    return made;
   }
 
   private guardedCall(fn: Fn, guard: Guard, owner: string, holder: string): Fn {

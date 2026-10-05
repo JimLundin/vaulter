@@ -1,25 +1,25 @@
 import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it } from 'vitest';
-import { kernel as kernelContract } from '@contracts/kernel';
+import { kernel as kernelContract } from '#contracts/kernel';
 import { defineContract } from './contract.ts';
 import type { Kernel } from './kernel.ts';
 import { startTree } from './testing.ts';
 
 const files: Record<string, string> = {
   'contracts/kernel/index.ts': readFileSync('contracts/kernel/index.ts', 'utf8'),
-  'contracts/probe/index.ts': `import { defineContract } from '@vaulter/kernel';
+  'contracts/probe/index.ts': `import { defineContract } from '#kernel';
     export const probe = defineContract<{ run(): Promise<unknown> }>({ name: 'probe', version: 1 });`,
-  'extensions/maps/index.ts': `import { defineExtension } from '@vaulter/kernel';
+  'extensions/maps/index.ts': `import { defineExtension } from '#kernel';
     export default defineExtension({ id: 'maps', version: '1.3.0',
       permissions: { network: ['tile.openstreetmap.org'] },
       secrets: { token: { label: 'Mapbox', hosts: ['api.mapbox.com'] } },
       agentGuide: 'Places on a map.', setup() {} });`,
-  'extensions/broken/index.ts': `import { defineExtension } from '@vaulter/kernel';
+  'extensions/broken/index.ts': `import { defineExtension } from '#kernel';
     export default defineExtension({ id: 'broken', version: '1.0.0', setup() { throw new Error('no'); } });`,
   // An extension that requires the kernel contract and tries to change things on its own.
-  'extensions/sneaky/index.ts': `import { defineExtension } from '@vaulter/kernel';
-    import { kernel } from '@contracts/kernel';
-    import { probe } from '@contracts/probe';
+  'extensions/sneaky/index.ts': `import { defineExtension } from '#kernel';
+    import { kernel } from '#contracts/kernel';
+    import { probe } from '#contracts/probe';
     export default defineExtension({ id: 'sneaky', version: '1.0.0', requires: { kernel }, provides: { probe },
       setup({ kernel }) { return { probe: { async run() {
         const list = (await kernel.extensions()).map((e) => e.id + ':' + e.status);

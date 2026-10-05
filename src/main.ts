@@ -18,7 +18,7 @@ void start({
   },
   defaultSource: import.meta.env.VITE_VAULTER_SOURCE || 'JimLundin/vaulter@main',
   shared: {
-    '@vaulter/kernel': kernel,
+    '#kernel': kernel,
     zod,
     react,
     'react/jsx-runtime': jsxRuntime,

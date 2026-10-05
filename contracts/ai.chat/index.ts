@@ -1,7 +1,7 @@
 // Chat with a language model: messages in, a message (with any tool calls) out. Provided by an AI
 // extension (openai); the agent and the wiki's reviser require it. The model is the provider's to
 // choose; a request says what to send and, for a JSON answer, its schema.
-import { defineContract } from '@vaulter/kernel';
+import { defineContract } from '#kernel';
 
 export interface ToolCall {
   id: string;

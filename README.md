@@ -20,7 +20,7 @@ Contracts: `kernel` (provided by the kernel), `net`, `extensions.source`, `recor
 and with it `ui.shell`, comes next; until a shell is installed the app opens in safe mode, where the
 OpenAI key is set.
 
-An extension imports the kernel as `@vaulter/kernel`, a contract as `@contracts/<name>`, its own files
+An extension imports the kernel as `#kernel`, a contract as `#contracts/<name>`, its own files
 relatively, and the shared `zod`, `react`, `react/jsx-runtime` and `react-dom/client`; nothing else.
 Every contract method is async, and goes through a kernel handle that checks it (ARCHITECTURE.md,
 "Running in the page"). Extensions run in the kernel's page, with no sandbox.

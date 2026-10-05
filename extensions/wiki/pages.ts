@@ -1,7 +1,7 @@
 // The wiki's pages as records: one record type per kind, facts kept on the page with the notes they
 // came from. Everything here is what wiki@1 offers besides revising.
-import type { RecordRef, RecordsV1, RecordType, Stored } from '@contracts/records';
-import { type Entity, fields, Kind, type WikiV1 } from '@contracts/wiki';
+import type { RecordRef, RecordsV1, RecordType, Stored } from '#contracts/records';
+import { type Entity, fields, Kind, type WikiV1 } from '#contracts/wiki';
 
 export const KINDS = Kind.options;
 
@@ -25,10 +25,12 @@ export function pages(records: RecordsV1, types: Types) {
   };
   const entity = (rec: Stored): Entity => {
     const { meta, ...fields } = rec;
+    const kind = kindOf(meta.type);
+    if (!kind) throw new Error(`${meta.type} is not a wiki type`);
     return {
       ...fields,
       type: meta.type,
-      kind: kindOf(meta.type)!,
+      kind,
       created: meta.created,
       updated: meta.updated,
     } as Entity;

@@ -10,9 +10,9 @@ afterEach(async () => {
 it('keeps notes as records, and tells requirers', async () => {
   const r = await startRepo(['store-local', 'notes'], {
     'extensions/voice/index.ts': `
-      import { defineExtension } from '@vaulter/kernel';
-      import { out } from '@vaulter/test';
-      import { notes } from '@contracts/notes';
+      import { defineExtension } from '#kernel';
+      import { out } from '#test';
+      import { notes } from '#contracts/notes';
       export default defineExtension({ id: 'voice', version: '1.0.0', requires: { notes },
         async setup({ notes }, kernel) {
           const heard = [];

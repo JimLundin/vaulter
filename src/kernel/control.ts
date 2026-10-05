@@ -2,7 +2,7 @@
 // screen and approvals are built on. Changes go to the device's settings (config.ts, the same
 // operations safe mode uses) and take effect on the next start, which turning an extension on or off
 // starts at once; approvals and access apply as they are.
-import type { ExtensionInfo, KernelV1, Review } from '@contracts/kernel';
+import type { ExtensionInfo, KernelV1, Review } from '#contracts/kernel';
 import type { Booted } from './boot.ts';
 
 export interface ControlEnv {

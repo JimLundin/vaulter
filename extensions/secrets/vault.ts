@@ -2,8 +2,8 @@
 // "Secrets"). Each is stored encrypted under a non-extractable per-device key, under its extension's id,
 // and attached to requests for the hosts the extension declared for it. Nothing here syncs or reaches
 // the repo.
-import type { FetchInit } from '@contracts/net';
-import type { Statics } from '@vaulter/kernel';
+import type { FetchInit } from '#contracts/net';
+import type { Statics } from '#kernel';
 import type { Store } from './store.ts';
 
 interface Sealed {

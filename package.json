@@ -2,6 +2,10 @@
   "name": "vaulter",
   "private": true,
   "type": "module",
+  "imports": {
+    "#kernel": "./src/kernel/api.ts",
+    "#contracts/*": "./contracts/*/index.ts"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",

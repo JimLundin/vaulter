@@ -1,8 +1,8 @@
 // Running the kernel in tests: the same boot as in the browser (boot.ts), on a test device that stands
 // in for one: modules as data: URLs, the kernel's state in memory, and a source made of strings.
-// Fixture extensions report what they saw through `out`, the shared module @vaulter/test, which tests
+// Fixture extensions report what they saw through `out`, the shared module #test, which tests
 // read back as `storage`.
-import { type SourceV1, source } from '@contracts/extensions.source';
+import { type SourceV1, source } from '#contracts/extensions.source';
 import type { Access } from './access.ts';
 import { blobSha, boot, type Device } from './boot.ts';
 import { type Config, defaultConfig } from './config.ts';
@@ -12,14 +12,18 @@ import type { Tree } from './loader.ts';
 import { memoryKeep } from './storage.ts';
 
 /** The shared modules tests offer extensions. */
-export const SHARED = ['@vaulter/kernel', 'zod'] as const;
+export const SHARED = ['#kernel', 'zod'] as const;
 
 /** Where fixture extensions write what a test checks: by extension id, then key. */
 export function testOut() {
   const m = new Map<string, Map<string, unknown>>();
   const of = (ns: string) => {
-    if (!m.has(ns)) m.set(ns, new Map());
-    return m.get(ns)!;
+    let entries = m.get(ns);
+    if (!entries) {
+      entries = new Map();
+      m.set(ns, entries);
+    }
+    return entries;
   };
   return {
     get: <T = unknown>(ns: string, key: string) =>
@@ -127,9 +131,9 @@ export async function startTree(files: Record<string, string>, opts: TreeOptions
     page: { commit: await src.source.head(REPO, 'main'), files },
     defaultSource: `${REPO}@main`,
     shared: {
-      '@vaulter/kernel': await import('./api.ts'),
+      '#kernel': await import('./api.ts'),
       zod: await import('zod'),
-      '@vaulter/test': { out },
+      '#test': { out },
     },
     provide: [[source, src.source], ...(provide ?? [])],
     safe,

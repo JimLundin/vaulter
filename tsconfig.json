@@ -1,6 +1,6 @@
 {
   // One config for the kernel (src/), the contracts, the extensions and the CI tools (tools/). Extensions import the kernel as
-  // @vaulter/kernel and contracts as @contracts/<name>; the loader resolves the same names in the browser.
+  // #kernel and contracts as #contracts/<name> (package.json's imports); the loader resolves the same names in the browser.
   "compilerOptions": {
     "target": "ES2023",
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
@@ -19,11 +19,7 @@
     "erasableSyntaxOnly": true,
     "resolveJsonModule": true,
     "skipLibCheck": true,
-    "types": ["node", "vite/client"],
-    "paths": {
-      "@vaulter/kernel": ["./src/kernel/api.ts"],
-      "@contracts/*": ["./contracts/*/index.ts", "./contracts/*"]
-    }
+    "types": ["node", "vite/client"]
   },
   "include": ["src", "contracts", "extensions", "tools", "vite.config.ts"]
 }

@@ -5,7 +5,7 @@ import type { Kernel } from './kernel.ts';
 import { startTree } from './testing.ts';
 
 const BUS = `
-import { defineContract } from '@vaulter/kernel';
+import { defineContract } from '#kernel';
 export interface BusV1 {
   emit(text: string): Promise<number>;
   on(handler: (text: string) => void): Promise<() => void>;
@@ -16,8 +16,8 @@ export const bus = defineContract<BusV1>({ name: 'bus', version: 1 });`;
 
 // A provider that remembers handlers per caller.
 const BUS_EXT = `
-import { defineExtension, perCaller } from '@vaulter/kernel';
-import { bus } from '@contracts/bus';
+import { defineExtension, perCaller } from '#kernel';
+import { bus } from '#contracts/bus';
 export default defineExtension({ id: 'bus', version: '1.0.0', provides: { bus },
   setup(_, kernel) {
     const handlers = new Map();
@@ -34,9 +34,9 @@ export default defineExtension({ id: 'bus', version: '1.0.0', provides: { bus },
   } });`;
 
 const listener = (id: string, extra = '') => `
-import { defineExtension } from '@vaulter/kernel';
-import { out } from '@vaulter/test';
-import { bus } from '@contracts/bus';
+import { defineExtension } from '#kernel';
+import { out } from '#test';
+import { bus } from '#contracts/bus';
 export default defineExtension({ id: '${id}', version: '1.0.0', requires: { bus }, ${extra}
   async setup({ bus }, kernel) {
     const runs = ((await out.get('${id}', 'runs')) ?? 0) + 1;

@@ -66,16 +66,23 @@ export type SingleTab = ReturnType<typeof singleTab>;
 export function standbyScreen(tab: SingleTab, moved = false): Promise<void> {
   return new Promise((done) => {
     const root = document.getElementById('vaulter') ?? document.body;
+    const title = document.createElement('h1');
+    title.style.cssText = 'margin:0;font-size:1.3rem';
+    title.textContent = 'Vaulter';
+    const text = document.createElement('p');
+    text.style.margin = '0';
+    text.textContent = moved ? 'Vaulter moved to another tab.' : 'Vaulter is open in another tab.';
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = 'Use it here';
+    button.onclick = () => {
+      text.textContent = 'Moving…';
+      void tab.takeOver().then(done);
+    };
     const box = document.createElement('div');
     box.style.cssText =
       'max-width:24rem;margin:20vh auto;display:grid;gap:.75rem;font:15px/1.5 system-ui,sans-serif';
-    box.innerHTML = `<h1 style="margin:0;font-size:1.3rem">Vaulter</h1>
-      <p style="margin:0">${moved ? 'Vaulter moved to another tab.' : 'Vaulter is open in another tab.'}</p>
-      <div><button type="button">Use it here</button></div>`;
-    box.querySelector('button')!.onclick = () => {
-      box.querySelector('p')!.textContent = 'Moving…';
-      void tab.takeOver().then(done);
-    };
+    box.append(title, text, button);
     root.replaceChildren(box);
   });
 }

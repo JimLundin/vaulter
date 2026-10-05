@@ -1,26 +1,37 @@
 // ai.chat over OpenAI's Responses API: messages become input items, tools are flat function tools, and a
 // reasoning model's output items (with its encrypted reasoning) come back as the turn's `state`, to be
 // sent back unchanged, since nothing is stored at OpenAI (store: false).
-import type { ChatRequest, ChatResult, ToolCall } from '@contracts/ai.chat';
+import type { ChatRequest, ChatResult, Message, ToolCall } from '#contracts/ai.chat';
 
 type Item = Record<string, unknown>;
 
-export function toResponsesBody(req: ChatRequest, model: string) {
-  const input: Item[] = [];
-  for (const m of req.messages) {
-    if (m.role === 'system' || m.role === 'user') input.push({ role: m.role, content: m.content });
-    else if (m.role === 'tool')
-      input.push({ type: 'function_call_output', call_id: m.toolCallId, output: m.content });
-    else if (Array.isArray(m.state)) input.push(...(m.state as Item[]));
-    else {
-      if (m.content) input.push({ role: 'assistant', content: m.content });
-      for (const c of m.toolCalls ?? [])
-        input.push({ type: 'function_call', call_id: c.id, name: c.name, arguments: c.arguments });
-    }
+/** A message as Responses input items. An assistant turn with the model's own output (its `state`)
+ * goes back as that output, reasoning and tool calls included. */
+function inputOf(m: Message): Item[] {
+  switch (m.role) {
+    case 'system':
+    case 'user':
+      return [{ role: m.role, content: m.content }];
+    case 'tool':
+      return [{ type: 'function_call_output', call_id: m.toolCallId, output: m.content }];
+    default:
+      if (Array.isArray(m.state)) return m.state as Item[];
+      return [
+        ...(m.content ? [{ role: 'assistant', content: m.content }] : []),
+        ...(m.toolCalls ?? []).map((c) => ({
+          type: 'function_call',
+          call_id: c.id,
+          name: c.name,
+          arguments: c.arguments,
+        })),
+      ];
   }
+}
+
+export function toResponsesBody(req: ChatRequest, model: string) {
   return {
     model,
-    input,
+    input: req.messages.flatMap(inputOf),
     store: false,
     include: ['reasoning.encrypted_content'],
     ...(req.tools?.length
@@ -56,19 +67,19 @@ interface Response {
 }
 
 export function fromResponse(r: Response): ChatResult {
-  const toolCalls: ToolCall[] = [];
-  let text = '';
-  for (const item of r.output) {
-    if (item.type === 'function_call')
-      toolCalls.push({
-        id: String(item.call_id),
-        name: String(item.name),
-        arguments: String(item.arguments ?? ''),
-      });
-    if (item.type === 'message')
-      for (const part of (item.content as Item[] | undefined) ?? [])
-        if (part.type === 'output_text') text += String(part.text);
-  }
+  const toolCalls: ToolCall[] = r.output
+    .filter((item) => item.type === 'function_call')
+    .map((item) => ({
+      id: String(item.call_id),
+      name: String(item.name),
+      arguments: String(item.arguments ?? ''),
+    }));
+  const text = r.output
+    .filter((item) => item.type === 'message')
+    .flatMap((item) => (item.content as Item[] | undefined) ?? [])
+    .filter((part) => part.type === 'output_text')
+    .map((part) => String(part.text))
+    .join('');
   return {
     content: text || null,
     toolCalls,

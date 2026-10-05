@@ -14,13 +14,13 @@ describe('the loader', () => {
       'contracts/notes/index.ts':
         "import { z } from 'zod'; export const notes = 1; throw new Error('ran');",
       'extensions/notes/index.ts':
-        "import { notes } from '@contracts/notes'; export * from './a.ts';",
+        "import { notes } from '#contracts/notes'; export * from './a.ts';",
       'extensions/notes/a.ts': "export const a: number = 1; import type { X } from './types.ts';",
       'extensions/notes/types.ts': 'export type X = 1;',
     };
     const { plans, refused } = await planAll(treeOf(files), deps(files));
     expect(refused).toEqual([]);
-    const p = plans.get('notes')!;
+    const p = plans.get('notes') ?? expect.unreachable('notes is planned');
     expect(Object.keys(p.modules).sort((a, b) => a.localeCompare(b))).toEqual([
       'contracts/notes/index.ts',
       'extensions/notes/a.ts',
@@ -38,7 +38,7 @@ describe('the loader', () => {
       'extensions/d/index.ts': "import './x.ts';",
       'extensions/d/x.ts': "import './index.ts';",
       'extensions/e/index.ts': 'import(someVariable);',
-      'extensions/f/index.ts': "import '@vaulter/kernel';",
+      'extensions/f/index.ts': "import '#kernel';",
     };
     const { plans, refused } = await planAll(treeOf(files), deps(files));
     expect([...plans.keys()]).toEqual(['f']);

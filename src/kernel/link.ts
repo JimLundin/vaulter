@@ -12,24 +12,23 @@ export function linker(url: (code: string) => string, shared: Record<string, obj
 
   const shim = (spec: string) => {
     const key = `shared:${spec}`;
-    if (!urls.has(key)) {
+    let u = urls.get(key);
+    if (!u) {
       const ns = shared[spec] as Record<string, unknown> | undefined;
       if (!ns) throw new Error(`the kernel has no shared module "${spec}"`);
       const names = Object.keys(ns).filter((k) => k !== 'default');
       const m = `globalThis[Symbol.for('vaulter.shared')][${JSON.stringify(spec)}]`;
-      urls.set(
-        key,
-        url(
-          [
-            `const m = ${m};`,
-            ...names.map((k, i) => `const _${i} = m[${JSON.stringify(k)}];`),
-            `export default ('default' in m ? m.default : m);`,
-            `export { ${names.map((k, i) => `_${i} as ${JSON.stringify(k)}`).join(', ')} };`,
-          ].join('\n'),
-        ),
+      u = url(
+        [
+          `const m = ${m};`,
+          ...names.map((k, i) => `const _${i} = m[${JSON.stringify(k)}];`),
+          `export default ('default' in m ? m.default : m);`,
+          `export { ${names.map((k, i) => `_${i} as ${JSON.stringify(k)}`).join(', ')} };`,
+        ].join('\n'),
       );
+      urls.set(key, u);
     }
-    return urls.get(key)!;
+    return u;
   };
 
   /** The URL of the plan's entry module. Modules are kept by path and sha, so two plans from the

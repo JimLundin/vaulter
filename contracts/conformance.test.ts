@@ -15,10 +15,9 @@ let n = 0;
 for (const { suite, contract, providers } of repo.suites)
   for (const provider of providers)
     describe(`${suite.contract} by ${provider}`, () => {
-      it.each(suite.checks.map((c) => c.name))('%s', async (name) => {
+      it.each(suite.checks.map((check) => [check.name, check] as const))('%s', async (_, check) => {
         const caller = repo.kernel.caller(`check-${++n}`);
         try {
-          const check = suite.checks.find((c) => c.name === name)!;
           await check.run(caller.use(contract, provider), expect);
         } finally {
           await caller.drop();

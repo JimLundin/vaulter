@@ -1,5 +1,5 @@
 import { afterEach, expect, it } from 'vitest';
-import { questions } from '@contracts/questions';
+import { questions } from '#contracts/questions';
 import { defineContract } from '../../src/kernel/contract.ts';
 import type { Kernel } from '../../src/kernel/kernel.ts';
 import { startRepo } from '../../src/kernel/testing.ts';
@@ -19,12 +19,12 @@ it('lets only a person answer a question, and hands the answer to the asker', as
   const r = await startRepo(
     ['store-local', 'questions'],
     {
-      'contracts/probe/index.ts': `import { defineContract } from '@vaulter/kernel';
+      'contracts/probe/index.ts': `import { defineContract } from '#kernel';
         export const probe = defineContract<{ run(a?: string): Promise<unknown> }>({ name: 'probe', version: 1 });`,
-      'extensions/asker/index.ts': `import { defineExtension } from '@vaulter/kernel';
-    import { out } from '@vaulter/test';
-        import { questions } from '@contracts/questions';
-        import { probe } from '@contracts/probe';
+      'extensions/asker/index.ts': `import { defineExtension } from '#kernel';
+    import { out } from '#test';
+        import { questions } from '#contracts/questions';
+        import { probe } from '#contracts/probe';
         export default defineExtension({ id: 'asker', version: '1.0.0', requires: { questions }, provides: { probe },
           async setup({ questions }, kernel) {
             await questions.handle('merge', async (a) => { await out.set('asker', 'answer', a.choice); });
@@ -50,10 +50,10 @@ it('lets only a person answer a question, and hands the answer to the asker', as
 });
 
 it("keeps a person's answer when the asker's handler fails, and delivers it again later", async () => {
-  const asker = (fails: boolean) => `import { defineExtension } from '@vaulter/kernel';
-    import { out } from '@vaulter/test';
-    import { questions } from '@contracts/questions';
-    import { probe } from '@contracts/probe';
+  const asker = (fails: boolean) => `import { defineExtension } from '#kernel';
+    import { out } from '#test';
+    import { questions } from '#contracts/questions';
+    import { probe } from '#contracts/probe';
     export default defineExtension({ id: 'asker', version: '1.0.0', requires: { questions }, provides: { probe },
       async setup({ questions }) {
         await questions.handle('merge', async (a) => {
@@ -63,7 +63,7 @@ it("keeps a person's answer when the asker's handler fails, and delivers it agai
         return { probe: { run: () => questions.ask({ topic: 'merge', title: 'Same Ada?', choices: [{ id: 'yes', label: 'Yes' }] }) } };
       } });`;
   const files = (fails: boolean) => ({
-    'contracts/probe/index.ts': `import { defineContract } from '@vaulter/kernel';
+    'contracts/probe/index.ts': `import { defineContract } from '#kernel';
       export const probe = defineContract({ name: 'probe', version: 1 });`,
     'extensions/asker/index.ts': asker(fails),
   });

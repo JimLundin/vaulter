@@ -4,8 +4,8 @@
 //
 // What a file may import:
 //   ./x.ts, ../x.ts   a file in the same extension folder (or, from a contract, in contracts/)
-//   @contracts/name   a contract: contracts/name/index.ts (and @contracts/name/file.ts)
-//   the shared modules the kernel offers: @vaulter/kernel, zod, react, react/jsx-runtime, react-dom/client
+//   #contracts/name   a contract: contracts/name/index.ts
+//   the shared modules the kernel offers: #kernel, zod, react, react/jsx-runtime, react-dom/client
 // Anything else is a problem for that extension alone; the others still load.
 import type { Compiled } from './compile.ts';
 import type { Refused } from './resolve.ts';
@@ -65,42 +65,40 @@ export function planner(tree: Tree, deps: LoaderDeps) {
   const stats: Stats = { files: 0, compiled: 0, compileMs: 0, totalMs: 0 };
   const compiled = new Map<string, Promise<Compiled>>();
 
-  const compileOne = (path: string) => {
-    if (!compiled.has(path))
-      compiled.set(
-        path,
-        (async () => {
-          const sha = tree.files.get(path)!;
-          const key = `compiled:${COMPILER}:${sha}`;
-          const hit = await deps.keep?.get<Compiled>(key);
-          if (hit) return hit;
-          const text = await deps.read(path, sha);
-          // The compiler loads only on a cache miss: a start from cache never fetches it.
-          const { compile } = await import('./compile.ts');
-          const t = performance.now();
-          const out = await compile(path, text);
-          stats.compileMs += performance.now() - t;
-          stats.compiled++;
-          await deps.keep?.set(key, out);
-          return out;
-        })(),
-      );
-    return compiled.get(path)!;
+  const compileOne = (path: string, sha: string) => {
+    let done = compiled.get(path);
+    if (!done) {
+      done = (async () => {
+        const key = `compiled:${COMPILER}:${sha}`;
+        const hit = await deps.keep?.get<Compiled>(key);
+        if (hit) return hit;
+        const text = await deps.read(path, sha);
+        // The compiler loads only on a cache miss: a start from cache never fetches it.
+        const { compile } = await import('./compile.ts');
+        const t = performance.now();
+        const out = await compile(path, text);
+        stats.compileMs += performance.now() - t;
+        stats.compiled++;
+        await deps.keep?.set(key, out);
+        return out;
+      })();
+      compiled.set(path, done);
+    }
+    return done;
   };
 
   const resolveSpec = (from: string, spec: string): string => {
     if (deps.shared.includes(spec)) return `shared:${spec}`;
     let target: string;
-    if (spec.startsWith('@contracts/')) {
-      const rest = spec.slice('@contracts/'.length);
-      target = `contracts/${rest.includes('/') ? rest : `${rest}/index.ts`}`;
+    if (spec.startsWith('#contracts/')) {
+      target = `contracts/${spec.slice('#contracts/'.length)}/index.ts`;
     } else if (spec.startsWith('./') || spec.startsWith('../')) {
       target = join(from, spec);
       const scope = from.startsWith('contracts/')
         ? 'contracts/'
         : `${from.split('/', 2).join('/')}/`;
       if (!target.startsWith(scope))
-        throw new Error(`${from}: "${spec}" is outside ${scope} (use @contracts/… for a contract)`);
+        throw new Error(`${from}: "${spec}" is outside ${scope} (use #contracts/… for a contract)`);
     } else
       throw new Error(
         `${from}: "${spec}" is not available; shared modules are ${deps.shared.join(', ')}`,
@@ -115,23 +113,29 @@ export function planner(tree: Tree, deps: LoaderDeps) {
     if (!tree.files.has(entry)) throw new Error(`${entry} not found at this commit`);
     const t0 = performance.now();
     const modules: Record<string, PlannedModule> = {};
+    const shas: Record<string, string> = {};
+    /** `path` compiled, with each import resolved to a file in the plan or a shared module. */
+    const module = async (path: string): Promise<PlannedModule> => {
+      const sha = tree.files.get(path);
+      if (!sha) throw new Error(`${path} not found at this commit`);
+      shas[path] = sha;
+      const { code, imports } = await compileOne(path, sha);
+      stats.files++;
+      return {
+        code,
+        imports: imports.map(({ spec, ...at }) => ({ ...at, target: resolveSpec(path, spec) })),
+      };
+    };
     const visit = async (path: string, stack: string[]): Promise<void> => {
       if (stack.includes(path)) throw new Error(`an import cycle: ${[...stack, path].join(' → ')}`);
       if (path in modules) return;
-      const { code, imports } = await compileOne(path);
-      const m: PlannedModule = { code, imports: [] };
+      const m = await module(path);
       modules[path] = m;
-      stats.files++;
-      for (const i of imports) {
-        const target = resolveSpec(path, i.spec);
-        m.imports.push({ start: i.start, end: i.end, quoted: i.quoted, target });
-      }
       for (const i of m.imports)
         if (!i.target.startsWith('shared:')) await visit(i.target, [...stack, path]);
     };
     await visit(entry, []);
     stats.totalMs += performance.now() - t0;
-    const shas = Object.fromEntries(Object.keys(modules).map((p) => [p, tree.files.get(p)!]));
     return { commit: tree.commit, entry, modules, shas };
   }
 
