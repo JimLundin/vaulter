@@ -6,6 +6,7 @@ import { defineExtension, perCaller } from '@vaulter/kernel';
 import {
   Answer,
   NewQuestion,
+  Status,
   type Question,
   type QuestionsV1,
   questions,
@@ -27,8 +28,8 @@ export default defineExtension({
       ...NewQuestion.shape,
       from: z.string(),
       at: z.iso.datetime(),
-      status: z.enum(['open', 'answered', 'dismissed', 'withdrawn']),
-      answer: z.object({ choice: z.string().optional(), text: z.string().optional() }).optional(),
+      status: Status,
+      answer: Answer.optional(),
       /** Whether the asker's handler has had the answer. */
       delivered: z.boolean(),
     };
@@ -81,13 +82,6 @@ export default defineExtension({
           if (handlers.get(k) === handler) handlers.delete(k);
         };
       },
-      async withdraw(id) {
-        await update(id, (q) => {
-          if (q.from !== from) throw new Error('only the asker can withdraw a question');
-          return q.status === 'open' ? { status: 'withdrawn' } : {};
-        });
-        await changed();
-      },
       open: openOnes,
       async get(id) {
         const q = await records.get(question, id);
@@ -105,8 +99,8 @@ export default defineExtension({
           if (q.status !== 'open') throw new Error('that question is not open');
           if (answer.choice !== undefined && !q.choices?.some((c) => c.id === answer.choice))
             throw new Error(`"${answer.choice}" is not one of its choices`);
-          if (answer.text !== undefined && q.choices?.length && !q.allowText)
-            throw new Error('this question takes a choice, not text');
+          if (answer.choice === undefined && q.choices?.length)
+            throw new Error('this question takes one of its choices');
           return { status: 'answered', answer };
         });
         await changed();

@@ -71,19 +71,19 @@ export interface Revision {
   asked: string[];
 }
 
-export const NewEntity = z
-  .object({
-    name: z.string().trim().min(1),
-    aliases: z.array(z.string()).optional(),
-    summary: z.string().optional(),
-  })
-  .catchall(z.unknown());
+/** A new page: its name, and any of its kind's other fields. */
+export interface NewEntity {
+  name: string;
+  aliases?: string[];
+  summary?: string;
+  [field: string]: unknown;
+}
 
 export interface WikiV1 {
   /** Pages whose name, aliases or summary contain every word of `text`. */
   find: (text: string, kinds?: Kind[]) => Promise<Entity[]>;
   get: (ref: RecordRef) => Promise<Entity | undefined>;
-  create: (kind: Kind, entity: z.input<typeof NewEntity>) => Promise<Entity>;
+  create: (kind: Kind, entity: NewEntity) => Promise<Entity>;
   /** Changes fields other than facts. */
   update: (ref: RecordRef, patch: Record<string, unknown>) => Promise<Entity>;
   addFact: (

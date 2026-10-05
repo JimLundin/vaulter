@@ -4,7 +4,6 @@
 // when it next registers its handler. Answering is personal: Vaulter can't answer its own questions.
 import { defineContract } from '@vaulter/kernel';
 import { z } from 'zod';
-import { RecordRef } from '@contracts/records';
 
 export type Unsubscribe = () => void;
 
@@ -13,12 +12,9 @@ export const NewQuestion = z.object({
   topic: z.string().regex(/^[a-z][a-z0-9-]*$/),
   title: z.string().min(1).max(200),
   body: z.string().max(4000).optional(),
-  /** Choices to pick from; with none, the answer is text. */
+  /** Choices to pick from, one of which is the answer; with none, the answer is text. */
   choices: z.array(z.object({ id: z.string().min(1), label: z.string().min(1) })).optional(),
-  /** Whether text may be given besides (or instead of) a choice. */
-  allowText: z.boolean().default(false),
-  /** What it is about: records, and the notes it came from. */
-  about: z.array(RecordRef).default([]),
+  /** The notes it came from. */
   notes: z.array(z.string()).default([]),
   /** Asking again with the same key while one is open returns that one. */
   key: z.string().optional(),
@@ -31,12 +27,14 @@ export const Answer = z
   .refine((a) => a.choice !== undefined || a.text !== undefined, { message: 'a choice or text' });
 export type Answer = z.infer<typeof Answer>;
 
+export const Status = z.enum(['open', 'answered', 'dismissed']);
+
 export interface Question extends z.output<typeof NewQuestion> {
   id: string;
   /** The extension that asked. */
   from: string;
   at: string;
-  status: 'open' | 'answered' | 'dismissed' | 'withdrawn';
+  status: z.infer<typeof Status>;
   answer?: Answer;
 }
 
@@ -48,8 +46,6 @@ export interface QuestionsV1 {
     topic: string,
     handler: (answer: Answer, question: Question) => void,
   ) => Promise<Unsubscribe>;
-  /** The asker takes back its own question. */
-  withdraw: (id: string) => Promise<void>;
   open: () => Promise<Question[]>;
   get: (id: string) => Promise<Question | undefined>;
   onChanged: (handler: (open: Question[]) => void) => Promise<Unsubscribe>;

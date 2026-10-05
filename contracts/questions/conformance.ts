@@ -70,12 +70,4 @@ export default defineConformance(questions, [
       await expect(q.answer(id, { text: 'free text' })).rejects.toThrow();
     },
   },
-  {
-    name: 'lets the asker withdraw its question',
-    async run(q, expect) {
-      const id = await q.ask({ topic: 'x', title: 'Never mind' });
-      await q.withdraw(id);
-      expect((await q.get(id))?.status).toEqual('withdrawn');
-    },
-  },
 ]);

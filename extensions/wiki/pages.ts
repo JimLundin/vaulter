@@ -1,7 +1,7 @@
 // The wiki's pages as records: one record type per kind, facts kept on the page with the notes they
 // came from. Everything here is what wiki@1 offers besides revising.
 import type { RecordRef, RecordsV1, RecordType, Stored } from '@contracts/records';
-import { type Entity, fields, Kind, NewEntity, type WikiV1 } from '@contracts/wiki';
+import { type Entity, fields, Kind, type WikiV1 } from '@contracts/wiki';
 
 export const KINDS = Kind.options;
 
@@ -64,17 +64,8 @@ export function pages(records: RecordsV1, types: Types) {
       return found.map(entity);
     },
     get,
-    async create(kind, input) {
-      const e = NewEntity.parse(input);
-      const rec = await records.create(types[kind], {
-        aliases: [],
-        summary: '',
-        facts: [],
-        related: [],
-        ...e,
-      } as never);
-      return entity(rec);
-    },
+    // The kind's own Zod fills in what the page doesn't give: no aliases, summary, facts or links.
+    create: async (kind, input) => entity(await records.create(types[kind], input as never)),
     async update(ref, patch) {
       const { facts: _f, id: _i, type: _t, kind: _k, ...rest } = patch;
       return change(ref, () => rest as Partial<Entity>);

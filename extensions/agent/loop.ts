@@ -2,7 +2,6 @@
 // and calls their tools until it can answer. Tools reach the model as `<extension>__<tool>`.
 import type { ChatV1, Message } from '@contracts/ai.chat';
 import type { AskRequest, Answer, Step } from '@contracts/agent';
-import { AskRequest as AskSchema } from '@contracts/agent';
 import type { HeldTool } from '@contracts/agent.tools';
 import { Declined } from '@vaulter/kernel';
 import { z } from 'zod';
@@ -32,10 +31,9 @@ const show = (v: unknown) => {
 export async function ask(
   chat: ChatV1,
   catalog: Catalog,
-  raw: AskRequest,
+  req: AskRequest,
   onStep?: (s: Step) => unknown,
 ): Promise<Answer> {
-  const req = AskSchema.parse(raw);
   const all = catalog.tools();
   const lines = await Promise.all(
     [...all].map(
@@ -44,7 +42,7 @@ export async function ask(
   );
   const messages: Message[] = [
     { role: 'system', content: `${INSTRUCTIONS}\n\nExtensions:\n${lines.join('\n') || '(none)'}` },
-    ...req.history,
+    ...(req.history ?? []),
     ...(req.context ? [{ role: 'user' as const, content: `On screen: ${req.context}` }] : []),
     { role: 'user', content: req.prompt },
   ];
