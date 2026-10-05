@@ -6,7 +6,7 @@
 // A handle on a contract is the provider's implementation behind a check: a personal method passes
 // only right after a person acted in the caller, and a guarded function (a tool's `run`) handed across
 // is wrapped so every call to it goes through Vaulter's access policy. Values otherwise pass as they are: no copying, so components and schemas can cross too.
-import { type Access, applyGuard, type Guard } from './access.ts';
+import { type Access, applyGuard, type Guard, type GuardSpec } from './access.ts';
 import { type AnyContract, type Contract, ContractRef } from './contract.ts';
 import { ErrorLog } from './errors.ts';
 import { type Extension, type KernelApi, readStatics, Statics } from './extension.ts';
@@ -280,7 +280,7 @@ export class Kernel {
       throw new Refusal(`${key} has no method "${method}"`);
     // Functions cross as they are, except the guarded one the contract names: it goes through the
     // policy on every call, as the provider (`to`) calling the extension that handed it over.
-    const guard = contract.guards[method];
+    const guard = (contract.guards as Partial<Record<string, GuardSpec>>)[method];
     let args = raw;
     if (guard)
       try {

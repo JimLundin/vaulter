@@ -25,8 +25,8 @@ export type Guarded<F> = F & { readonly level: Access };
 export interface GuardSpec {
   arg: number;
   fn: string;
-  // biome-ignore lint/suspicious/noExplicitAny: the argument's type is the contract's
-  guard: (value: any) => Guard;
+  /** Reads the guard from the argument, whatever the contract's type for it. */
+  guard: (value: never) => Guard;
 }
 
 /** `args` with the function `spec` names replaced by `wrap`'s guarded one. */
@@ -39,7 +39,7 @@ export function applyGuard(
   const fn = value?.[spec.fn];
   if (typeof fn !== 'function')
     throw new Error(`argument ${spec.arg}: "${spec.fn}" is not a function`);
-  const { label, access } = spec.guard(value);
+  const { label, access } = spec.guard(value as never);
   const out = [...args];
   out[spec.arg] = {
     ...value,

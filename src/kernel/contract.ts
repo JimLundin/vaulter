@@ -40,8 +40,8 @@ export interface Contract<T> {
   readonly _interface?: T;
 }
 
-// biome-ignore lint/suspicious/noExplicitAny: a contract of any interface
-export type AnyContract = Contract<any>;
+/** A contract, whatever its interface. */
+export type AnyContract = Contract<unknown>;
 /** The contract's interface: what a provider implements and a requirer is handed. */
 export type InterfaceOf<C> = C extends Contract<infer T> ? T : never;
 

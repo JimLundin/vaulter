@@ -69,8 +69,8 @@ export type Ctx<R extends Contracts, O extends Contracts = Record<never, never>>
 export type Provided<P extends Contracts> = {
   [K in keyof P]: InterfaceOf<P[K]> | PerCaller<InterfaceOf<P[K]>>;
 };
-// biome-ignore lint/suspicious/noConfusingVoidType: a setup that provides nothing returns nothing
-type SetupResult<P extends Contracts> = keyof P extends never ? void : Provided<P>;
+/** What setup returns: nothing when it provides nothing. */
+type SetupResult<P extends Contracts> = keyof P extends never ? undefined : Provided<P>;
 
 export interface ExtensionDef<
   R extends Contracts,
