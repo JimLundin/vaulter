@@ -27,7 +27,7 @@ The kernel only connects extensions. Checked against the delete test, none of th
 | Record store | `records` contract, implemented by a storage extension such as `store-local` | `records@1` |
 | Agent loop | `agent` extension | `agent@1`, `agent.tools@1` |
 | Shell | `shell-mobile` and `shell-desktop` extensions | `ui.shell@1` |
-| AI provider (new) | `openai` extension | `ai.chat@1`, `ai.realtime@1` (and `ai.transcribe@1`, `ai.embed@1` once something needs them) |
+| AI provider (new) | `openai` extension | `ai.chat@1` (and live speech, transcription and embeddings once something needs them) |
 
 What remains are the jobs an extension can't do for itself:
 
@@ -195,7 +195,7 @@ The deploy seals in a step of its own, after the install, so no dependency's scr
 
 The two secrets to start: a GitHub fine-grained token limited to this one repo, with read and write access to contents, for the source provider (optional while the repo is public); and an OpenAI key, from a project with a spend limit, for the `openai` extension.
 
-Realtime fits the same model: the `openai` extension calls `POST /v1/realtime/client_secrets` through `net.fetch`, which attaches your key, and returns only the short-lived session key through `ai.realtime@1`.
+Live speech will fit the same model when voice is built: the `openai` extension asks `POST /v1/realtime/client_secrets` through `net.fetch`, which attaches your key, and hands a voice extension only the short-lived session key.
 
 ## Stability
 
@@ -378,7 +378,7 @@ Three patterns repeat across these screens:
 | Where extensions live | In the repo, under `extensions/`. Main is built into the page as source; drafts and older commits come through a source provider. The browser compiles them and caches the output. |
 | Vaulter-written extensions | Same format and loader, on a `draft/*` branch; accepting merges it into `main`. |
 | Secrets | Held by the secrets extension (`net@1`), attached only to requests for declared hosts; never in the repo, never synced. |
-| Live transcription | OpenAI Realtime API, inside the `openai` extension behind `ai.realtime@1`, using a short-lived session key minted from your key. |
+| Live transcription | OpenAI Realtime API, inside the `openai` extension, using a short-lived session key minted from your key; its contract comes with voice. |
 | Direct browser calls to OpenAI | Confirmed working in your trial project; no proxy. |
 | Where extensions keep data | Through `records@1` only: the kernel gives no storage. |
 | Storage for records and embeddings | An extension that provides `records@1` (`store-local`, in its own IndexedDB database). Others can replace it by passing the conformance suite in CI. |
@@ -399,7 +399,7 @@ Three patterns repeat across these screens:
 
 1. Kernel with safe mode, the in-browser compiler and loader, and the handles. **Done**; the secret store and sealed secrets, first part of it, are the `secrets` extension since 2026-10-04.
 2. The source provider for GitHub. **Done**, with drafts: commit, merge and checks. (Main moved into the page on 2026-10-04: the provider is optional.)
-3. Contract packages: `records`, `notes` and `questions` with conformance suites, `ai.chat`, `ai.realtime`, `agent.tools` and `kernel`. **Done**, except `ui.shell`, which waits for the UI work. `ai.transcribe` and `ai.embed` were written and taken out again until voice or search needs them (they are in the history).
+3. Contract packages: `records`, `notes` and `questions` with conformance suites, `ai.chat`, `agent.tools`, `net` and `kernel`. **Done**, except `ui.shell`, which waits for the UI work. `ai.transcribe` and `ai.embed` were written and taken out again until voice or search needs them (they are in the history).
 4. Foundation extensions: `store-local`, `notes`, `openai` and `agent` (**done**); `shell-mobile` and `shell-desktop` wait for the UI work.
 5. Voice, Wiki and Questions, which together exercise nearly every contract. **Wiki and Questions done**; voice needs the UI (a microphone button) and the realtime spike.
 6. Today, Search and Map.
@@ -414,7 +414,7 @@ The extensions so far, each tested with the others (`startRepo` in `src/kernel/t
 | `store-local` | `records@1` | | In its own IndexedDB database, with every revision kept and a format number for its layout; passes the records suite |
 | `notes` | `notes@1` | `records` | Append-only; lists by when a note was said |
 | `questions` | `questions@1` | `records` | Answers reach the asker's topic handler, also after a restart; answering is personal |
-| `openai` | `ai.chat`, `ai.realtime` | `net` | The Responses API (tool calling for current models needs it), `store: false` with the encrypted reasoning sent back as a turn's `state`; realtime keys from `/v1/realtime/client_secrets`, WebRTC at `/v1/realtime/calls`. Default models in `extensions/openai/index.ts` |
+| `openai` | `ai.chat` | `net` | The Responses API (tool calling for current models needs it), `store: false` with the encrypted reasoning sent back as a turn's `state`. Its model is in `extensions/openai/index.ts`; streaming, live speech and the rest come with what needs them (the realtime work is in the history) |
 | `wiki` | `wiki@1` | `records`, `notes` (`ai.chat`, `questions`, `agent.tools`) | Person, place, event and topic types; every fact cites its notes; each note is revised into pages by the model, and what it isn't sure of becomes a yes/no question whose answer makes the change |
 | `agent` | `agent@1`, `agent.tools@1` | `ai.chat` (`kernel`) | Sees a line per extension, opens only those a request needs, calls their tools through the kernel |
 
@@ -424,7 +424,7 @@ Where it stands (the `pip` branch): every architecture goal above has an impleme
 
 **Open questions.**
 
-- [ ] Spike: does `POST /v1/realtime/client_secrets` accept browser requests the way the other endpoints do? (It goes through `net.fetch` now, so CORS is the only question.) The `openai` extension is tested against a fake API only: a first run with a real key should confirm it, and the default model names.
+- [ ] Spike: does `POST /v1/realtime/client_secrets` accept browser requests the way the other endpoints do? (It would go through `net.fetch`, so CORS is the only question; the code is in the history, from before 2026-10-05.) The `openai` extension is tested against a fake API only: a first run with a real key should confirm it, and the model name.
 - [x] Spike: how long does compiling every extension in the browser take, and is a CI-built cache needed from the start? (No; see above.)
 - [x] How a device chooses which draft branches to load: per device, through `kernel.tryDraft` (the review screen) or safe mode.
 - [ ] Views: how the shell lays out views and panels from several extensions (`ui.shell`, and its granularity: one contract, or separate ones for slots, keys and the palette). The first job of the UI work.

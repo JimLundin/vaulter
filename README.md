@@ -14,7 +14,7 @@ viewer over the `JimLundin/vault` repo, is in `main`'s history before the `pip` 
 | `extensions/<id>/` | one extension each, exporting `defineExtension({...})`; compiled in the browser from the repo and loaded into the page |
 
 Contracts: `kernel` (provided by the kernel), `net`, `extensions.source`, `records`, `notes`, `questions`,
-`wiki`, `agent`, `agent.tools`, `ai.chat`, `ai.realtime`. Extensions:
+`wiki`, `agent`, `agent.tools`, `ai.chat`. Extensions:
 `secrets`, `source-github` (drafts and older commits), `store-local`, `notes`, `questions`, `openai`,
 `wiki` and `agent` (Vaulter itself); `ARCHITECTURE.md` has a table of what each provides and requires. The UI,
 and with it `ui.shell`, comes next; until a shell is installed the app opens in safe mode, where the

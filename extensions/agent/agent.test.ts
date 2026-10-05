@@ -15,8 +15,8 @@ const SCRIPTED = `
 import { defineExtension } from '@vaulter/kernel';
 import { out } from '@vaulter/test';
 import { chat } from '@contracts/ai.chat';
-const say = (content) => ({ content, toolCalls: [], stop: 'end', usage: { input: 1, output: 1 }, model: 'fake' });
-const call = (name, args) => ({ content: null, toolCalls: [{ id: 'c' + Math.random(), name, arguments: JSON.stringify(args) }], stop: 'tool', usage: { input: 1, output: 1 }, model: 'fake', state: [{ type: 'reasoning', id: 'r1' }] });
+const say = (content) => ({ content, toolCalls: [], usage: { input: 1, output: 1 } });
+const call = (name, args) => ({ content: null, toolCalls: [{ id: 'c' + Math.random(), name, arguments: JSON.stringify(args) }], usage: { input: 1, output: 1 }, state: [{ type: 'reasoning', id: 'r1' }] });
 export default defineExtension({ id: 'fake-ai', version: '1.0.0', provides: { chat },
   setup(_, kernel) { return { chat: {
     async complete(req) {
@@ -34,8 +34,6 @@ export default defineExtension({ id: 'fake-ai', version: '1.0.0', provides: { ch
       if (last.opened) return call('wiki__mergePages', { keep, merge });
       return say(last.error ? 'Not merged: ' + last.error : 'Merged into ' + last.name);
     },
-    async stream() { throw new Error('no'); },
-    async models() { return ['fake']; },
   } }; } });`;
 
 const use = <T>(k: Kernel, name: string) => k.use(defineContract<T>({ name, version: 1 }));

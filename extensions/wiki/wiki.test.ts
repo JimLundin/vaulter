@@ -35,10 +35,8 @@ export default defineExtension({ id: 'fake-ai', version: '1.0.0', provides: { ch
           ask: [{ title: 'Is "the café" Café Lumière?', body: null,
             yes: { ...none, add: [{ id: id('Café Lumière'), facts: [{ text: 'Ada likes it', at: null }] }] },
             no: { ...none, create: [{ ref: 'n3', kind: 'place', name: 'The café', aliases: [], facts: [] }] } }] };
-      return { content: JSON.stringify(plan), toolCalls: [], stop: 'end', usage: { input: 0, output: 0 }, model: 'fake' };
+      return { content: JSON.stringify(plan), toolCalls: [], usage: { input: 0, output: 0 } };
     },
-    async stream() { throw new Error('no'); },
-    async models() { return ['fake']; },
   } }; } });`;
 
 // An agent that only keeps the tools it is given.
