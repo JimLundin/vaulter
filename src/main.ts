@@ -2,9 +2,6 @@
 import type { About } from './kernel/api.ts';
 import { start } from './kernel/start.ts';
 
-if (!import.meta.env.DEV && 'serviceWorker' in navigator)
-  void navigator.serviceWorker.register('sw.js');
-
 const id = (path: string) => path.split('/').at(-2) ?? path;
 const byId = <T>(m: Record<string, T>) =>
   Object.fromEntries(Object.entries(m).map(([path, v]) => [id(path), v]));

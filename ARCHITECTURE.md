@@ -114,7 +114,6 @@ Every extension lives on `main`, and CI builds the page from it: one build, the 
 
 - **Writing an extension** is for now by hand. Vaulter writing them, as pull requests, comes with a focused extension for it.
 - **Rollback** is a revert on `main`, which deploys. A device a preview has left without a working screen opens `?reset`.
-- **Offline,** the service worker serves the page and every extension's chunk with it.
 
 ## Secrets
 
@@ -182,7 +181,7 @@ Three patterns repeat across these screens:
 | Sync and backup of data | Extensions, such as a Git backup importing notes and records, kept separate from the code repo. |
 | Live transcription | OpenAI Realtime API, inside the `openai` extension, using a short-lived session key minted from your key; its interface comes with voice. |
 | Direct browser calls to OpenAI | Confirmed working in your trial project; no proxy. |
-| Offline | A service worker for the page and every extension's chunk. |
+| Offline | Not a goal: Vaulter is an agent, and its data is to follow you across devices. No service worker. |
 | Errors | Kept per extension, for this run, by the stack. |
 | Several tabs | One kernel at a time, by a Web Lock; another tab takes over on request. |
 
