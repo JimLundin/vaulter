@@ -1,15 +1,15 @@
 import { expect, it, vi } from 'vitest';
-import type { Chat } from '#extensions/openai';
+import type { Model } from '#extensions/openai';
 import { startApp } from '../../app.ts';
 
 // A model that files notes the way the instructions ask, by looking at the note and the pages sent;
 // with `offline`, every request fails, as with no key yet.
 let offline = false;
 const none = { create: [], add: [], summaries: [] };
-const fakeChat: Chat = {
-  complete(req) {
+const fake: Pick<Model, 'json'> = {
+  json<T>(req: { input: unknown; schema: { parse: (v: unknown) => T } }) {
     if (offline) return Promise.reject(new Error('OpenAI 401: no key'));
-    const { note, pages } = JSON.parse(String(req.messages[1].content)) as {
+    const { note, pages } = req.input as {
       note: { text: string };
       pages: { id: string; name: string }[];
     };
@@ -49,14 +49,10 @@ const fakeChat: Chat = {
           },
         ],
       };
-    return Promise.resolve({
-      content: JSON.stringify(plan),
-      toolCalls: [],
-      usage: { input: 0, output: 0 },
-    });
+    return Promise.resolve(req.schema.parse(plan));
   },
 };
-vi.doMock('#extensions/openai', () => ({ chat: fakeChat }));
+vi.doMock('#extensions/openai', () => ({ model: fake }));
 
 /** The wiki started, with what it uses. */
 const start = async () => {

@@ -35,8 +35,8 @@ export const notes: Notes = { append, get, list, onAppended };   // what it offe
 ```
 
 - **Starting is importing.** An extension's top-level code is its setup, with top-level `await` for what is async. The module graph is the start order: an extension runs once what it imports has.
-- **What an extension exports** is what it offers others (`notes`, `wiki`, `chat`…), and anything under one of the agreed names below. Nothing else describes it: no manifest, no version, no registration.
-- **Where something is kept per extension, the caller says who it is**: `questionsFor('wiki')`, and `netFor('openai', { key: ['api.openai.com'] })`, which names its secrets and the hosts each is for where it uses them.
+- **What an extension exports** is what it offers others (`notes`, `wiki`, `model`…), and anything under one of the agreed names below. Nothing else describes it: no manifest, no version, no registration.
+- **Where something is kept per extension, the caller says who it is**: `questionsFor('wiki')`.
 - **Zod is only where data comes from outside typed code**: a tool's input (what Vaulter's model sends, and the JSON Schema it reads), a model's structured answer, and what a person types. There the Zod schema is the definition, and its type comes from it (`z.infer`). Everywhere else, the wiki's pages and storage included, types are plain TypeScript and nothing is checked again: Zod is the standard for agent tools (the MCP and OpenAI Agents SDKs take it too), and confined to the edges it doesn't spread.
 
 ```
@@ -56,7 +56,7 @@ export const notes: Notes = { append, get, list, onAppended };   // what it offe
 
 In three ways, and no others.
 
-**Calling what another exports.** A direct import: the wiki calls `notes.get(id)` and `chat.complete(…)`. TypeScript checks the call; nothing sits between the two at runtime.
+**Calling what another exports.** A direct import: the wiki calls `notes.get(id)` and `model.json(…)`. TypeScript checks the call; nothing sits between the two at runtime.
 
 **Hearing back.** A callback handed over: `notes.onAppended(note => …)` for every new note; `questions.handle('revise', answer => …)` for the answers to the questions an extension asked under its own topic, also after a restart.
 
@@ -130,7 +130,7 @@ Every extension on `main` runs. CI builds the page from it: one build, the kerne
 
 ## Secrets
 
-Secrets are held by one extension, `secrets`, never by the extension that uses them. An extension names the secrets it needs and the hosts each one is for when it takes its own net, `netFor('openai', { key: ['api.openai.com'] })`, and asks `net.fetch(url, { secret: 'key' })`, and the secrets extension attaches the value only to requests for those hosts (https only, no credentials, no redirects). Code in the page could reach the secrets directly, so this keeps well-behaved extensions from handling secrets at all, rather than walling them off; the page's Content-Security-Policy is what limits where anything goes (`connect-src` this page and OpenAI, `script-src` this page only).
+Secrets are held by one extension, `secrets`, which opens them and hands them out: `secret('openai/key')`. The extension that uses one uses it as its service wants (`openai` sends it as a bearer token, with no credentials, referrer or redirects of the page's own). There is no wrapper around fetch: code in the page could reach any secret anyway, and the page's Content-Security-Policy is what limits where anything goes (`connect-src` this page and OpenAI, `script-src` this page only).
 
 **Sealed in the page.** Every secret comes from CI: it seals them all into `dist/secrets.json` (`tools/seal-secrets.ts`), one file encrypted with a key derived from a password (PBKDF2, 600,000 rounds; AES-GCM), public like the rest of the page. On a device's first start the secrets extension asks for the password once, in a dialog over whatever the page shows (`extensions/secrets/dialog.ts`). It keeps only the derived key, non-extractable, in its own IndexedDB database (`secrets`), so a later deploy sealed with the same salt opens without asking; the secrets themselves are only ever in the page's memory, opened from the file at each start. A new secret, or a new value, is a new deploy.
 
@@ -144,7 +144,7 @@ The deploy seals in a step of its own, after the install, so no dependency's scr
 
 To start: an OpenAI key, from a project with a spend limit, for the `openai` extension.
 
-Live speech will fit the same model when voice is built: the `openai` extension asks `POST /v1/realtime/client_secrets` through `net.fetch`, which attaches your key, and hands a voice extension only the short-lived session key.
+Live speech will fit the same model when voice is built: the `openai` extension asks `POST /v1/realtime/client_secrets` with your key, and hands a voice extension only the short-lived session key.
 
 ## Stability
 
@@ -201,7 +201,7 @@ The draft screens are on the [Personal Agent UI canvas](https://claude.ai/artifa
 | Vaulter-written extensions | Pull requests to `main`, each tried first in its own preview build of the page. |
 | Turning an extension off | Not a thing: what is on `main` runs. A change is a pull request, tried in its preview. |
 | Isolation | None: every extension runs in the page. Review keeps bad code out of `main`. WebAssembly modules if isolation is ever needed. |
-| Who is calling | A caller names itself where something is kept per extension (`questionsFor('wiki')`, `netFor('openai', …)`). |
+| Who is calling | A caller names itself where something is kept per extension (`questionsFor('wiki')`). |
 | Vaulter's access | Each tool declares `read`, `write` or `ask`; the agent applies it, and `ask` is a question whose yes runs the call. |
 | What only a person may do | Nothing is enforced: the person answers questions on a screen, and the model can only use tools. |
 | Secrets | Sealed into the page by CI with a password, asked once per device; opened into memory at each start, and attached only to requests for declared hosts. Never in the repo. |
@@ -226,10 +226,10 @@ The extensions so far, each tested with the others (`startApp` in `tests/app.ts`
 | Extension | Exports | Imports | Notes |
 | --- | --- | --- | --- |
 | `storage` | `collection`, `idbStore` | | Typed collections in its own IndexedDB database, with every revision kept, and search; tested as its importers use it |
-| `secrets` | `netFor`, `unlock` | `storage` | Opens the page's sealed secrets, and attaches each only to its declared hosts |
+| `secrets` | `secret`, `unlock` | `storage` | Opens the page's sealed secrets, and hands each out by name |
 | `notes` | `notes` | `storage` | Append-only; lists by when a note was said |
 | `questions` | `questionsFor` | `storage` | Answers reach the asker's topic handler, also after a restart |
-| `openai` | `chat` | `secrets` | The Responses API (tool calling for current models needs it), `store: false` with the encrypted reasoning sent back as a turn's `state`. Its model is in `extensions/openai/index.ts`; streaming, live speech and the rest come with what needs them |
+| `openai` | `model` | `secrets` | `model.answer` runs the tool loop (functions in, an answer and its calls out), `model.json` gives a structured answer checked against its Zod schema. Over the Responses API, `store: false`, with the encrypted reasoning sent back each turn; the wire format stays inside. Its model name is in `extensions/openai/index.ts` |
 | `wiki` | `wiki`, `tools` | `storage`, `notes`, `questions`, `openai` | Person, place, event and topic types; every fact cites its notes; each note is revised into pages by the model, and what it isn't sure of becomes a yes/no question whose answer makes the change |
 | `agent` | `agent` | `openai`, `questions`, `#kernel` | Sees every extension's tools, and asks before a tool that asks first |
 
@@ -237,7 +237,7 @@ The extensions so far, each tested with the others (`startApp` in `tests/app.ts`
 
 **Open questions.**
 
-- [ ] Spike: does `POST /v1/realtime/client_secrets` accept browser requests the way the other endpoints do? (It would go through `net.fetch`, so CORS is the only question.) The `openai` extension is tested against a fake API only: a first run with a real key should confirm it, and the model name.
+- [ ] Spike: does `POST /v1/realtime/client_secrets` accept browser requests the way the other endpoints do? (CORS is the only question.) The `openai` extension is tested against a fake API only: a first run with a real key should confirm it, and the model name.
 - [ ] The shell itself, and `#ui`: moving the `pip-ui` work onto the `ui` export.
 - [ ] Cleaning up data left by extensions deleted from the repo.
 

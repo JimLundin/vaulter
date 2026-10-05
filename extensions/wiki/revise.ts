@@ -4,7 +4,7 @@
 
 import { z } from 'zod';
 import type { Note } from '#extensions/notes';
-import type { Chat } from '#extensions/openai';
+import type { Model } from '#extensions/openai';
 import type { Questions } from '#extensions/questions';
 import type { Page, Revised, Wiki } from './api.ts';
 import { KINDS } from './api.ts';
@@ -65,7 +65,7 @@ function candidates(note: string, pages: Page[]): Page[] {
 export interface ReviseDeps {
   wiki: Omit<Wiki, 'revise'>;
   all: () => Promise<Page[]>;
-  chat: Chat;
+  model: Model;
   questions: Questions;
 }
 
@@ -114,20 +114,12 @@ export function reviser(deps: ReviseDeps) {
         aliases: p.aliases,
         facts: p.facts.slice(-10).map((f) => f.text),
       }));
-      const result = await deps.chat.complete({
-        messages: [
-          { role: 'system', content: INSTRUCTIONS },
-          {
-            role: 'user',
-            content: JSON.stringify({ note: { text: note.text, at: note.at }, pages: context }),
-          },
-        ],
-        responseSchema: {
-          name: 'revision',
-          schema: z.toJSONSchema(Plan) as Record<string, unknown>,
-        },
+      const plan = await deps.model.json({
+        instructions: INSTRUCTIONS,
+        input: { note: { text: note.text, at: note.at }, pages: context },
+        schema: Plan,
+        name: 'revision',
       });
-      const plan = Plan.parse(JSON.parse(result.content ?? '{}'));
       const rev: Revised = { note: note.id, created: [], updated: [], asked: [] };
       await apply(plan, note, rev);
       for (const q of plan.ask) {

@@ -1,7 +1,40 @@
-// ai.chat over OpenAI's Responses API: messages become input items, tools are flat function tools, and a
-// reasoning model's output items (with its encrypted reasoning) come back as the turn's `state`, to be
-// sent back unchanged, since nothing is stored at OpenAI (store: false).
-import type { ChatRequest, ChatResult, Message, ToolCall } from './api.ts';
+// OpenAI's Responses API, turn by turn: messages become input items, functions are flat function tools,
+// and a reasoning model's output items (with its encrypted reasoning) come back as the turn's `state`,
+// to be sent back unchanged, since nothing is stored at OpenAI (store: false).
+
+export interface ToolCall {
+  id: string;
+  name: string;
+  /** The arguments as the model wrote them: JSON text. */
+  arguments: string;
+}
+
+export type Message =
+  | { role: 'system'; content: string }
+  | { role: 'user'; content: string }
+  | {
+      role: 'assistant';
+      content: string | null;
+      toolCalls?: ToolCall[];
+      /** This turn's own output, from TurnResult.state: sent back unchanged, so the model keeps its
+       * train of thought across calls. */
+      state?: unknown;
+    }
+  | { role: 'tool'; toolCallId: string; content: string };
+
+export interface TurnRequest {
+  messages: Message[];
+  tools?: { name: string; description: string; parameters: Record<string, unknown> }[];
+  /** A JSON answer matching this schema. */
+  responseSchema?: { name: string; schema: Record<string, unknown> };
+}
+
+export interface TurnResult {
+  content: string | null;
+  toolCalls: ToolCall[];
+  usage: { input: number; output: number };
+  state?: unknown;
+}
 
 type Item = Record<string, unknown>;
 
@@ -28,7 +61,7 @@ function inputOf(m: Message): Item[] {
   }
 }
 
-export function toResponsesBody(req: ChatRequest, model: string) {
+export function toResponsesBody(req: TurnRequest, model: string) {
   return {
     model,
     input: req.messages.flatMap(inputOf),
@@ -66,7 +99,7 @@ interface Response {
   usage?: { input_tokens?: number; output_tokens?: number };
 }
 
-export function fromResponse(r: Response): ChatResult {
+export function fromResponse(r: Response): TurnResult {
   const toolCalls: ToolCall[] = r.output
     .filter((item) => item.type === 'function_call')
     .map((item) => ({

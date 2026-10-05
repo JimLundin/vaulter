@@ -3,7 +3,7 @@
 // is asked (questions) rather than guessed. It gives Vaulter its tools (`tools`).
 
 import { notes } from '#extensions/notes';
-import { chat } from '#extensions/openai';
+import { model } from '#extensions/openai';
 import { questionsFor } from '#extensions/questions';
 import { collection } from '#extensions/storage';
 import type { Wiki } from './api.ts';
@@ -15,7 +15,7 @@ export * from './api.ts';
 
 const questions = questionsFor('wiki');
 const { api, all } = pages();
-const r = reviser({ wiki: api, all, chat, questions });
+const r = reviser({ wiki: api, all, model, questions });
 
 // One revision at a time, in the order the notes came.
 let queue: Promise<unknown> = Promise.resolve();

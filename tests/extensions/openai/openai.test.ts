@@ -1,10 +1,10 @@
 import { expect, it } from 'vitest';
+import { z } from 'zod';
 import { seal } from '../../../extensions/secrets/sealed.ts';
 import { servePage, startApp } from '../../app.ts';
 
-const RESPONSE = {
-  model: 'gpt-6.1-sol',
-  status: 'completed',
+// The model's first turn: its reasoning, and a call to findPages.
+const CALLS = {
   output: [
     { type: 'reasoning', id: 'rs_1', encrypted_content: 'xyz', summary: [] },
     {
@@ -17,48 +17,56 @@ const RESPONSE = {
   ],
   usage: { input_tokens: 12, output_tokens: 7 },
 };
+const says = (text: string) => ({
+  output: [{ type: 'message', content: [{ type: 'output_text', text }] }],
+  usage: { input_tokens: 3, output_tokens: 2 },
+});
 
-it('speaks the Responses API, with the key attached by the secrets extension', async () => {
-  const seen: { url: string; auth: string | null; body: unknown }[] = [];
-  const fake = ((url: string, init?: RequestInit) => {
-    const body = JSON.parse(String(init?.body));
-    seen.push({ url, auth: new Headers(init?.headers).get('Authorization'), body });
-    return Promise.resolve(
-      url.endsWith('/responses')
-        ? Response.json(RESPONSE)
-        : Response.json({ error: { message: 'nope' } }, { status: 400 }),
-    );
-  }) as typeof fetch;
-  // The secrets extension makes the requests, attaching the key: the network is a fake here.
+/** OpenAI, answering with `replies` in turn; what each request sent, and with what key. */
+const openai = async (replies: unknown[]) => {
+  const seen: { auth: string | null; body: { input: unknown; [k: string]: unknown } }[] = [];
   servePage(
     await seal('pw-pw-pw-pw-pw-pw', { 'openai/key': 'sk-test' }, { iterations: 1000 }),
-    fake,
+    (_url, init) => {
+      seen.push({
+        auth: new Headers(init?.headers).get('Authorization'),
+        body: JSON.parse(String(init?.body)),
+      });
+      return Promise.resolve(Response.json(replies[seen.length - 1]));
+    },
   );
   await startApp(['secrets', 'openai']);
   await (await import('#extensions/secrets')).unlock('pw-pw-pw-pw-pw-pw');
-  const ai = (await import('#extensions/openai')).chat;
-  const reply = await ai.complete({
-    messages: [
-      { role: 'system', content: 'Be brief.' },
-      { role: 'user', content: 'Who is Ada?' },
-    ],
-    tools: [{ name: 'findPages', description: 'Find', parameters: { type: 'object' } }],
-  });
-  await ai.complete({
-    messages: [
-      { role: 'user', content: 'Who is Ada?' },
-      { role: 'assistant', content: null, toolCalls: reply.toolCalls, state: reply.state },
-      { role: 'tool', toolCallId: 'call_1', content: '{"name":"Ada Lovelace"}' },
+  return { model: (await import('#extensions/openai')).model, seen };
+};
+
+it('answers, calling the functions it is given, with its reasoning sent back each turn', async () => {
+  const { model, seen } = await openai([CALLS, says('Ada Lovelace, a friend.')]);
+  const asked: unknown[] = [];
+  const answer = await model.answer({
+    instructions: 'Be brief.',
+    prompt: 'Who is Ada?',
+    fns: [
+      {
+        name: 'findPages',
+        description: 'Find',
+        input: z.object({ query: z.string() }),
+        call: (input) => {
+          asked.push(input);
+          return { name: 'Ada Lovelace' };
+        },
+      },
     ],
   });
 
-  expect(reply).toMatchObject({
-    content: null,
-    toolCalls: [{ id: 'call_1', name: 'findPages', arguments: '{"query":"Ada"}' }],
-    usage: { input: 12, output: 7 },
+  expect(answer).toEqual({
+    text: 'Ada Lovelace, a friend.',
+    calls: [{ name: 'findPages', input: { query: 'Ada' }, output: { name: 'Ada Lovelace' } }],
+    usage: { input: 15, output: 9 },
   });
+  expect(asked).toEqual([{ query: 'Ada' }]);
   expect(seen.every((s) => s.auth === 'Bearer sk-test')).toBe(true);
-  const [first, second] = seen.map((s) => s.body as { input: unknown });
+  const [first, second] = seen.map((s) => s.body);
   expect(first).toMatchObject({
     model: 'gpt-6.1-sol',
     store: false,
@@ -69,10 +77,19 @@ it('speaks the Responses API, with the key attached by the secrets extension', a
       { role: 'user', content: 'Who is Ada?' },
     ],
   });
-  // The reasoning item goes back with the tool call, unchanged, then the tool's output.
+  // The reasoning item goes back with the call, unchanged, then the function's output.
   expect(second.input).toEqual([
+    { role: 'system', content: 'Be brief.' },
     { role: 'user', content: 'Who is Ada?' },
-    ...RESPONSE.output,
+    ...CALLS.output,
     { type: 'function_call_output', call_id: 'call_1', output: '{"name":"Ada Lovelace"}' },
   ]);
+});
+
+it('gives a structured answer, checked against its schema', async () => {
+  const { model } = await openai([says('{"name":"Ada"}'), says('{"name":3}')]);
+  const schema = z.object({ name: z.string() });
+  const ask = () => model.json({ instructions: 'Name them.', input: {}, schema, name: 'person' });
+  expect(await ask()).toEqual({ name: 'Ada' });
+  await expect(ask()).rejects.toThrow();
 });

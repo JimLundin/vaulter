@@ -1,42 +1,50 @@
-// Chat with a language model: messages in, a message (with any tool calls) out. The agent and the
-// wiki's reviser use it. The model is this extension's to choose; a request says what to send and, for
-// a JSON answer, its schema.
+// The language model, for what its users do with it: answer a prompt, calling the functions it is
+// given as it needs to (the agent), or give a structured answer (the wiki's reviser). The model, the
+// wire format and the turns between are this extension's own.
 
-export interface ToolCall {
-  id: string;
+import type { z } from 'zod';
+
+/** A function the model may call: what it does, what it takes, and what calling it does. */
+export interface Fn {
+  /** Letters, digits and _: it goes to the model as the function's name. */
   name: string;
-  /** The arguments as the model wrote them: JSON text. */
-  arguments: string;
+  /** For the model: what it does and when to use it. */
+  description: string;
+  /** Checked before `call`: what the model sends is untyped. */
+  input: z.ZodType;
+  call: (input: unknown) => unknown;
 }
 
-export type Message =
-  | { role: 'system'; content: string }
-  | { role: 'user'; content: string }
-  | {
-      role: 'assistant';
-      content: string | null;
-      toolCalls?: ToolCall[];
-      /** The provider's own record of this turn (a reasoning model's reasoning), from ChatResult.state:
-       * sent back unchanged, so the model keeps its train of thought across tool calls. */
-      state?: unknown;
-    }
-  | { role: 'tool'; toolCallId: string; content: string };
-
-export interface ChatRequest {
-  messages: Message[];
-  tools?: { name: string; description: string; parameters: Record<string, unknown> }[];
-  /** A JSON answer matching this schema. */
-  responseSchema?: { name: string; schema: Record<string, unknown> };
+/** A call the model made, with what came of it. */
+export interface Call {
+  name: string;
+  input: unknown;
+  output?: unknown;
+  error?: string;
 }
 
-export interface ChatResult {
-  content: string | null;
-  toolCalls: ToolCall[];
+export interface Answer {
+  text: string;
+  calls: Call[];
   usage: { input: number; output: number };
-  /** To send back with this turn as an assistant message (see Message). */
-  state?: unknown;
 }
 
-export interface Chat {
-  complete: (req: ChatRequest) => Promise<ChatResult>;
+export interface Model {
+  /** Answers `prompt`, calling `fns` as it needs to, for up to `maxSteps` turns; `onCall` hears each
+   * call once it is made. A call that fails goes back to the model as its error. */
+  answer: (req: {
+    instructions: string;
+    prompt: string;
+    fns?: Fn[];
+    maxSteps?: number;
+    onCall?: (call: Call) => unknown;
+  }) => Promise<Answer>;
+  /** An answer shaped by `schema`, and checked against it. */
+  json: <T>(req: {
+    instructions: string;
+    input: unknown;
+    schema: z.ZodType<T>;
+    /** The answer's name, for the model: "revision". */
+    name: string;
+  }) => Promise<T>;
 }

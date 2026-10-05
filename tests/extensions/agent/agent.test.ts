@@ -1,39 +1,34 @@
 import { expect, it, vi } from 'vitest';
 import type { Step } from '#extensions/agent';
-import type { Chat, ChatResult } from '#extensions/openai';
+import type { Fn, Model } from '#extensions/openai';
 import { startApp } from '../../app.ts';
 
-// A model that follows a script: use a tool, then answer from what came back. It keeps the tools it
-// was offered each time.
+// A model that follows a script: call one function, then answer from what came back. It keeps the
+// functions it was offered each time.
 const offered: string[][] = [];
-const say = (content: string): ChatResult => ({
-  content,
-  toolCalls: [],
-  usage: { input: 1, output: 1 },
-});
-const call = (name: string, args: unknown): ChatResult => ({
-  content: null,
-  toolCalls: [{ id: `c${Math.random()}`, name, arguments: JSON.stringify(args) }],
-  usage: { input: 1, output: 1 },
-  state: [{ type: 'reasoning', id: 'r1' }],
-});
-const scripted: Chat = {
-  complete(req) {
-    offered.push((req.tools ?? []).map((t) => t.name));
-    const prompt = String(req.messages.filter((m) => m.role === 'user').at(-1)?.content);
-    const results = req.messages.filter((m) => m.role === 'tool');
-    const last = results.length ? JSON.parse(String(results.at(-1)?.content)) : undefined;
+const scripted: Pick<Model, 'answer'> = {
+  async answer({ prompt, fns = [], onCall }) {
+    offered.push(fns.map((f) => f.name));
+    const call = async (name: string, input: unknown) => {
+      const fn = fns.find((f) => f.name === name) as Fn;
+      const output = await fn.call(fn.input.parse(input));
+      await onCall?.({ name, input, output });
+      return output;
+    };
+    const usage = { input: 1, output: 1 };
     if (prompt.startsWith('Who')) {
-      if (!last) return Promise.resolve(call('wiki__findPages', { query: 'Ada' }));
-      const found = last as { name: string; summary: string }[];
-      return Promise.resolve(say(found.map((p) => `${p.name}: ${p.summary}`).join('; ')));
+      const found = (await call('wiki__findPages', { query: 'Ada' })) as {
+        name: string;
+        summary: string;
+      }[];
+      return { text: found.map((p) => `${p.name}: ${p.summary}`).join('; '), calls: [], usage };
     }
     const { keep, merge } = JSON.parse(prompt.slice(prompt.indexOf('{')));
-    if (!last) return Promise.resolve(call('wiki__mergePages', { keep, merge }));
-    return Promise.resolve(say(last.asked ? 'Asked you first' : `Not merged: ${last.error}`));
+    const out = (await call('wiki__mergePages', { keep, merge })) as { asked?: string };
+    return { text: out.asked ? 'Asked you first' : 'Merged', calls: [], usage };
   },
 };
-vi.doMock('#extensions/openai', () => ({ chat: scripted }));
+vi.doMock('#extensions/openai', () => ({ model: scripted }));
 
 const start = async () => {
   await startApp(['wiki', 'agent']);
