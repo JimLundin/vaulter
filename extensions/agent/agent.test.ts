@@ -1,7 +1,7 @@
 import { expect, it, vi } from 'vitest';
-import type { Step } from '#contracts/agent';
-import type { ChatResult, ChatV1 } from '#contracts/ai.chat';
+import type { Chat, ChatResult } from '#extensions/openai';
 import { startApp } from '../../src/kernel/testing.ts';
+import type { Step } from './api.ts';
 
 // A model that follows a script: open the wiki, use a tool, then answer from what came back. It keeps
 // the tools it was offered each time.
@@ -17,7 +17,7 @@ const call = (name: string, args: unknown): ChatResult => ({
   usage: { input: 1, output: 1 },
   state: [{ type: 'reasoning', id: 'r1' }],
 });
-const scripted: ChatV1 = {
+const scripted: Chat = {
   complete(req) {
     offered.push((req.tools ?? []).map((t) => t.name));
     const prompt = String(req.messages.filter((m) => m.role === 'user').at(-1)?.content);
@@ -34,14 +34,14 @@ const scripted: ChatV1 = {
     return Promise.resolve(say(last.asked ? 'Asked you first' : `Not merged: ${last.error}`));
   },
 };
-vi.doMock('#chat', () => ({ chat: scripted }));
+vi.doMock('#extensions/openai', () => ({ chat: scripted }));
 
 const start = async () => {
   await startApp(['wiki', 'agent']);
   return {
-    pages: (await import('#wiki')).wiki,
-    vaulter: (await import('#agent')).agent,
-    asked: (await import('#questions')).questionsFor('screen'),
+    pages: (await import('#extensions/wiki')).wiki,
+    vaulter: (await import('./index.ts')).agent,
+    asked: (await import('#extensions/questions')).questionsFor('screen'),
   };
 };
 

@@ -1,12 +1,12 @@
 import { expect, it, vi } from 'vitest';
-import type { ChatV1 } from '#contracts/ai.chat';
+import type { Chat } from '#extensions/openai';
 import { startApp } from '../../src/kernel/testing.ts';
 
 // A model that files notes the way the instructions ask, by looking at the note and the pages sent;
 // with `offline`, every request fails, as with no key yet.
 let offline = false;
 const none = { create: [], add: [], summaries: [] };
-const fakeChat: ChatV1 = {
+const fakeChat: Chat = {
   complete(req) {
     if (offline) return Promise.reject(new Error('OpenAI 401: no key'));
     const { note, pages } = JSON.parse(String(req.messages[1].content)) as {
@@ -56,15 +56,15 @@ const fakeChat: ChatV1 = {
     });
   },
 };
-vi.doMock('#chat', () => ({ chat: fakeChat }));
+vi.doMock('#extensions/openai', () => ({ chat: fakeChat }));
 
 /** The wiki started, with what it uses. */
 const start = async () => {
   await startApp(['wiki']);
   return {
-    log: (await import('#notes')).notes,
-    pages: (await import('#wiki')).wiki,
-    asked: (await import('#questions')).questionsFor('screen'),
+    log: (await import('#extensions/notes')).notes,
+    pages: (await import('./index.ts')).wiki,
+    asked: (await import('#extensions/questions')).questionsFor('screen'),
   };
 };
 
@@ -132,7 +132,7 @@ it('revises pages from notes, cites every fact, asks when unsure, and gives Vaul
   ]);
   expect((await pages.get({ type: dup.type, id: dup.id }))?.id).toBe(ada.id);
 
-  const { tools } = await import('#wiki');
+  const { tools } = await import('./index.ts');
   expect(Object.fromEntries(tools.map((t) => [t.name, t.access]))).toEqual({
     findPages: 'read',
     getPage: 'read',

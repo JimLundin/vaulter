@@ -3,10 +3,10 @@
 // are made at once, citing the note; an unsure one becomes a question, and the answer makes it.
 
 import { z } from 'zod';
-import type { ChatV1 } from '#contracts/ai.chat';
-import type { Note } from '#contracts/notes';
-import type { QuestionsV1 } from '#contracts/questions';
-import type { Page, Revised, WikiV1 } from '#contracts/wiki';
+import type { Note } from '#extensions/notes';
+import type { Chat } from '#extensions/openai';
+import type { Questions } from '#extensions/questions';
+import type { Page, Revised, Wiki } from './api.ts';
 import { KINDS } from './pages.ts';
 
 const FactIn = z.object({ text: z.string(), at: z.string().nullable() });
@@ -63,10 +63,10 @@ function candidates(note: string, pages: Page[]): Page[] {
 }
 
 export interface ReviseDeps {
-  wiki: Omit<WikiV1, 'revise'>;
+  wiki: Omit<Wiki, 'revise'>;
   all: () => Promise<Page[]>;
-  chat: ChatV1;
-  questions: QuestionsV1;
+  chat: Chat;
+  questions: Questions;
 }
 
 type Cite = (f: z.infer<typeof FactIn>) => { text: string; sources: string[]; at?: string };

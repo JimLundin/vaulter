@@ -1,10 +1,12 @@
-// OpenAI: the language model (#chat), over the Responses API. The account's key is a secret the secrets
-// extension holds and attaches (#net); this extension never sees it.
+// OpenAI: the language model (openai), over the Responses API. The account's key is a secret the secrets
+// extension holds and attaches (secrets); this extension never sees it.
 
-import type { ChatV1 } from '#contracts/ai.chat';
-import { netFor } from '#net';
+import { netFor } from '#extensions/secrets';
 import { about } from './about.ts';
+import type { Chat } from './api.ts';
 import { fromResponse, toResponsesBody } from './responses.ts';
+
+export * from './api.ts';
 
 const API = 'https://api.openai.com/v1';
 
@@ -27,7 +29,7 @@ const post = async (path: string, json: unknown) => {
   return r;
 };
 
-export const chat: ChatV1 = {
+export const chat: Chat = {
   complete: async (req) =>
     fromResponse(await (await post('/responses', toResponsesBody(req, MODEL))).json()),
 };

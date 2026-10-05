@@ -4,14 +4,7 @@
   "type": "module",
   "imports": {
     "#kernel": "./src/kernel/api.ts",
-    "#contracts/*": "./contracts/*/index.ts",
-    "#records": "./extensions/store-local/index.ts",
-    "#notes": "./extensions/notes/index.ts",
-    "#questions": "./extensions/questions/index.ts",
-    "#net": "./extensions/secrets/index.ts",
-    "#chat": "./extensions/openai/index.ts",
-    "#wiki": "./extensions/wiki/index.ts",
-    "#agent": "./extensions/agent/index.ts"
+    "#extensions/*": "./extensions/*/index.ts"
   },
   "scripts": {
     "dev": "vite",

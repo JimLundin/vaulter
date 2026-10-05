@@ -8,7 +8,7 @@
 // last.
 
 import { z } from 'zod';
-import type { Filter, Query, RecordsV1, RecordType, Stored } from '#contracts/records';
+import type { Filter, Query, Records, RecordType, Stored } from './api.ts';
 import type { Store } from './store.ts';
 
 const FORMAT = 2;
@@ -115,7 +115,7 @@ export async function localRecords(storage: Store) {
     return r.data as Record<string, unknown>;
   };
 
-  const make = (caller: string): RecordsV1 => {
+  const make = (caller: string): Records => {
     /** The type's name, if it is the caller's own to write. */
     const mine = (t: RecordType) => {
       if (!t.name.startsWith(`${caller}/`)) throw new Error(`${caller} may not write ${t.name}`);
@@ -238,7 +238,7 @@ export async function localRecords(storage: Store) {
         });
       },
     };
-    return impl as unknown as RecordsV1;
+    return impl as unknown as Records;
   };
 
   /** Drops every type the caller registered, and their records. */

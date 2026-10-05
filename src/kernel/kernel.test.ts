@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { blame } from './errors.ts';
-import { startApp } from './testing.ts';
+import { REPO, startApp } from './testing.ts';
 
 describe('the kernel', () => {
   it('starts what this device has on, and a preview only once it is turned on', async () => {
@@ -74,4 +74,9 @@ describe('the kernel', () => {
     );
     expect(blame('Error: x\n    at k (https://v.app/assets/index.Cd4.js:1:1)')).toBeUndefined();
   });
+});
+
+it('starts every extension in the repo', async () => {
+  const kernel = await startApp(REPO);
+  expect(kernel.extensions().filter((e) => e.status !== 'running')).toEqual([]);
 });

@@ -26,7 +26,7 @@ export interface NotesQuery {
   order?: 'newest' | 'oldest';
 }
 
-export interface NotesV1 {
+export interface Notes {
   append: (note: z.input<typeof NewNote>) => Promise<Note>;
   get: (id: string) => Promise<Note | undefined>;
   list: (query?: NotesQuery) => Promise<Note[]>;

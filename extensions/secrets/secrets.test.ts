@@ -17,7 +17,7 @@ it('attaches a secret only to requests for its hosts, and forgets it with its ex
   const kernel = await startApp(['secrets'], {
     fixtures: { caller: { about, load: () => Promise.resolve({}) } },
   });
-  const { netFor } = await import('#net');
+  const { netFor } = await import('./index.ts');
   const net = netFor('caller', about);
   await net.setSecret('caller', 'key', 'sk-123');
 

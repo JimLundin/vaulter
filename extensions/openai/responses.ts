@@ -1,7 +1,7 @@
 // ai.chat over OpenAI's Responses API: messages become input items, tools are flat function tools, and a
 // reasoning model's output items (with its encrypted reasoning) come back as the turn's `state`, to be
 // sent back unchanged, since nothing is stored at OpenAI (store: false).
-import type { ChatRequest, ChatResult, Message, ToolCall } from '#contracts/ai.chat';
+import type { ChatRequest, ChatResult, Message, ToolCall } from './api.ts';
 
 type Item = Record<string, unknown>;
 

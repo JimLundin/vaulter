@@ -1,13 +1,13 @@
 // The wiki's pages as records: one record type per kind, facts kept on the page with the notes they
 // came from. Everything here is what the wiki offers besides revising.
-import type { RecordRef, RecordsV1, RecordType, Stored } from '#contracts/records';
-import { fields, Kind, type Page, type WikiV1 } from '#contracts/wiki';
+import type { RecordRef, Records, RecordType, Stored } from '#extensions/store-local';
+import { fields, Kind, type Page, type Wiki } from './api.ts';
 
 export const KINDS = Kind.options;
 
 export type Types = { [K in Kind]: RecordType<(typeof fields)[K]> };
 
-export async function registerTypes(records: RecordsV1): Promise<Types> {
+export async function registerTypes(records: Records): Promise<Types> {
   return {
     person: await records.registerType('person', fields.person),
     place: await records.registerType('place', fields.place),
@@ -16,7 +16,7 @@ export async function registerTypes(records: RecordsV1): Promise<Types> {
   };
 }
 
-export function pages(records: RecordsV1, types: Types) {
+export function pages(records: Records, types: Types) {
   const kindOf = (type: string) => KINDS.find((k) => types[k].name === type);
   const typeOf = (ref: RecordRef) => {
     const k = kindOf(ref.type);
@@ -58,7 +58,7 @@ export function pages(records: RecordsV1, types: Types) {
   };
   const refOf = (e: Page): RecordRef => ({ type: e.type, id: e.id });
 
-  const api: Omit<WikiV1, 'revise'> = {
+  const api: Omit<Wiki, 'revise'> = {
     async find(text, kinds = [...KINDS]) {
       const found = await records.search(kinds.map((k) => types[k]) as RecordType[], text, {
         fields: ['name', 'aliases', 'summary'],

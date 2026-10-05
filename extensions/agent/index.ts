@@ -1,11 +1,13 @@
 // The agent: Vaulter. It takes the tools every extension exports, reads each extension's guide, and
-// answers with a model (#chat). A tool that asks first becomes a question whose yes runs it, also after
+// answers with a model (openai). A tool that asks first becomes a question whose yes runs it, also after
 // a restart.
 
-import { chat } from '#chat';
-import type { AgentV1 } from '#contracts/agent';
+import { chat } from '#extensions/openai';
+import type { Agent } from './api.ts';
 import { ask } from './loop.ts';
 
-export const agent: AgentV1 = {
+export * from './api.ts';
+
+export const agent: Agent = {
   ask: (req, onStep) => ask(chat, req, onStep),
 };

@@ -37,7 +37,7 @@ export interface Question extends z.output<typeof NewQuestion> {
   answer?: Answer;
 }
 
-export interface QuestionsV1 {
+export interface Questions {
   /** Returns the question's id. */
   ask: (q: z.input<typeof NewQuestion>) => Promise<string>;
   /** The asker's handler for its topic; pending answers are delivered on registering. */

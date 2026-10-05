@@ -1,6 +1,6 @@
-// Records: typed data every extension keeps through one storage provider, each in its own namespace
-// (ARCHITECTURE.md, "A contract: records"). A type is registered by name once and then passed around
-// as a handle, so another extension refers to it by the handle a contract gives it, never by a string.
+// Records: typed data every extension keeps here, each in its own namespace. A type is registered by
+// name once and then passed around as a handle, so another extension refers to it by the handle the
+// owner exports, never by a string.
 //
 // Handles are plain data: the name. The provider names a type in its caller's namespace and checks
 // and shapes every value with the type's own Zod (defaults and trims included). An extension may read
@@ -57,7 +57,7 @@ export interface Query {
 }
 
 /** Records as one extension has them (`recordsFor(id)`), which is how a type gets its namespace. */
-export interface RecordsV1 {
+export interface Records {
   registerType: <S extends z.ZodRawShape>(name: string, fields: S) => Promise<RecordType<S>>;
   /** A merged record's id reads as the one it was merged into. */
   get: <S extends z.ZodRawShape>(type: RecordType<S>, id: string) => Promise<Rec<S> | undefined>;

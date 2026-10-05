@@ -1,7 +1,7 @@
 // The kernel: imports the extensions this device has on, and keeps what came of each (ARCHITECTURE.md,
-// "The kernel"). Extensions reach each other by importing one another (package.json's imports name each
-// contract's provider), so the module graph is the wiring and the start order: the kernel only chooses
-// which folders to import. An extension that one that is on imports loads with it, on or not.
+// "The kernel"). Extensions reach each other by importing one another (#extensions/<id>), so the module
+// graph is the wiring and the start order: the kernel only chooses which folders to import. An
+// extension that one that is on imports loads with it, on or not.
 import { record } from './errors.ts';
 
 /** An extension's own description, in its about.ts: read before any of its code runs. */

@@ -2,8 +2,8 @@
 // and calls their tools until it can answer. Tools reach the model as `<extension>__<tool>`.
 
 import { z } from 'zod';
-import type { Answer, AskRequest, Step } from '#contracts/agent';
-import type { ChatV1, Message } from '#contracts/ai.chat';
+import type { Chat, Message } from '#extensions/openai';
+import type { Answer, AskRequest, Step } from './api.ts';
 import { askFirst, guide, tools } from './catalog.ts';
 
 const INSTRUCTIONS = `You are Vaulter, a personal assistant that keeps a wiki from the notes a person speaks or types.
@@ -86,7 +86,7 @@ async function answer(
 }
 
 export async function ask(
-  chat: ChatV1,
+  chat: Chat,
   req: AskRequest,
   onStep?: (s: Step) => unknown,
 ): Promise<Answer> {

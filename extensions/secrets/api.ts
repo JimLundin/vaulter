@@ -18,7 +18,7 @@ export interface SecretInfo {
   set: boolean;
 }
 
-export interface NetV1 {
+export interface Net {
   /** https only, to the caller's declared hosts; a secret only for the hosts declared with it. */
   fetch: (url: string, init?: FetchInit) => Promise<Response>;
   /** Whether one of the caller's declared secrets is set, without revealing it. */

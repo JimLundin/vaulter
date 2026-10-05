@@ -2,10 +2,11 @@
 // approval of the ones that ask first: such a call becomes a question on the agent's own topic, with
 // the call as its data, and a yes runs it. The answer can come after a restart, before everything has
 // started: the call waits until it has.
-import type { Tool } from '#contracts/agent.tools';
-import type { Question } from '#contracts/questions';
+
+import type { Question } from '#extensions/questions';
+import { questionsFor } from '#extensions/questions';
 import { running, started } from '#kernel';
-import { questionsFor } from '#questions';
+import type { Tool } from './api.ts';
 
 const APPROVE = 'approve';
 const questions = questionsFor('agent');

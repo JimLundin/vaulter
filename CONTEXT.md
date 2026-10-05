@@ -9,19 +9,12 @@ The one part that isn't an extension: it imports the extensions a device has on,
 _Avoid_: core, runtime, host
 
 **Extension**:
-A folder in the repo, an ES module and its about; every feature is one, including those Vaulter writes.
+A folder in the repo, an ES module and its about; every feature is one, including those Vaulter writes. One extension per job: others import it by folder.
 _Avoid_: plugin, module, app
 
 **About**:
 An extension's own description (version, agent guide, hosts and secrets, whether it is a preview), which the kernel reads before running any of it.
 _Avoid_: manifest, metadata
-
-**Contract**:
-The TypeScript interface between extensions, with the schemas both sides share; `package.json` names the one extension that provides it.
-_Avoid_: service, API, protocol
-
-**Provider**:
-The extension that implements a contract; what other extensions import for it.
 
 **Preview**:
 An extension on main that is off until a device turns it on: how a new extension, Vaulter's included, is tried.
@@ -58,7 +51,7 @@ Something the person said or wrote, kept for good; everything else can be rebuil
 _Avoid_: entry, memo, transcript
 
 **Record**:
-One item of typed data an extension keeps through the records contract.
+One item of typed data an extension keeps through store-local.
 _Avoid_: row, document, entity
 
 **Record type**:

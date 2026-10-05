@@ -1,16 +1,18 @@
 // The wiki: pages about people, places, events and topics, every fact citing its notes. Each note
-// appended is revised by the model (#chat) into the pages it touches, and what the model isn't sure of
-// is asked (#questions) rather than guessed. It gives Vaulter its tools (`tools`).
+// appended is revised by the model (openai) into the pages it touches, and what the model isn't sure of
+// is asked (questions) rather than guessed. It gives Vaulter its tools (`tools`).
 
 import { z } from 'zod';
-import { chat } from '#chat';
-import type { WikiV1 } from '#contracts/wiki';
-import { notes } from '#notes';
-import { questionsFor } from '#questions';
-import { recordsFor } from '#records';
+import { notes } from '#extensions/notes';
+import { chat } from '#extensions/openai';
+import { questionsFor } from '#extensions/questions';
+import { recordsFor } from '#extensions/store-local';
+import type { Wiki } from './api.ts';
 import { pages, registerTypes } from './pages.ts';
 import { reviser } from './revise.ts';
 import { toolsOf } from './tools.ts';
+
+export * from './api.ts';
 
 const records = recordsFor('wiki');
 const questions = questionsFor('wiki');
@@ -45,5 +47,5 @@ await notes.onAppended((n) => void attempt(n.id));
 await questions.handle('revise', (answer, q) => r.answered(answer.choice, q.data));
 for (const left of await records.query(unrevised, { order: 'asc' })) void attempt(left.id);
 
-export const wiki: WikiV1 = { ...api, revise };
+export const wiki: Wiki = { ...api, revise };
 export const tools = toolsOf(wiki);

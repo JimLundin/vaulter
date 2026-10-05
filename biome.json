@@ -4,7 +4,6 @@
     "includes": [
       "src/**",
       "tools/**",
-      "contracts/**",
       "extensions/**",
       "*.ts",
       "*.json",

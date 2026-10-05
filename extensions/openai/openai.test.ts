@@ -32,10 +32,10 @@ it('speaks the Responses API, with the key attached by the secrets extension', a
   vi.stubGlobal('fetch', fake);
 
   await startApp(['secrets', 'openai']);
-  await (await import('#net'))
+  await (await import('#extensions/secrets'))
     .netFor('settings', { version: '0.0.0' })
     .setSecret('openai', 'key', 'sk-test');
-  const ai = (await import('#chat')).chat;
+  const ai = (await import('./index.ts')).chat;
   const reply = await ai.complete({
     messages: [
       { role: 'system', content: 'Be brief.' },

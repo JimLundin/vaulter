@@ -1,6 +1,6 @@
-// Chat with a language model: messages in, a message (with any tool calls) out. Provided by an AI
-// extension (openai); the agent and the wiki's reviser require it. The model is the provider's to
-// choose; a request says what to send and, for a JSON answer, its schema.
+// Chat with a language model: messages in, a message (with any tool calls) out. The agent and the
+// wiki's reviser use it. The model is this extension's to choose; a request says what to send and, for
+// a JSON answer, its schema.
 
 export interface ToolCall {
   id: string;
@@ -37,6 +37,6 @@ export interface ChatResult {
   state?: unknown;
 }
 
-export interface ChatV1 {
+export interface Chat {
   complete: (req: ChatRequest) => Promise<ChatResult>;
 }

@@ -3,9 +3,11 @@
 // running waits until it registers its handler again.
 
 import { z } from 'zod';
-import { Answer, NewQuestion, type Question, type QuestionsV1, Status } from '#contracts/questions';
-import type { Query, Rec } from '#contracts/records';
-import { recordsFor } from '#records';
+import type { Query, Rec } from '#extensions/store-local';
+import { recordsFor } from '#extensions/store-local';
+import { Answer, NewQuestion, type Question, type Questions, Status } from './api.ts';
+
+export * from './api.ts';
 
 type Handler = (answer: Answer, question: Question) => unknown;
 
@@ -51,7 +53,7 @@ const deliver = async (q: Kept) => {
 };
 
 /** Questions as the asker `from` has them: it asks, and handles the answers, under its own topics. */
-export const questionsFor = (from: string): QuestionsV1 => ({
+export const questionsFor = (from: string): Questions => ({
   async ask(input) {
     const q = NewQuestion.parse(input);
     if (q.key) {

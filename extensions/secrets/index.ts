@@ -1,13 +1,16 @@
-// Secrets: the network with secrets attached (#net). Each extension declares its secrets and the hosts
+// Secrets: the network with secrets attached. Each extension declares its secrets and the hosts
 // each is for in its about.ts; this one keeps them encrypted on the device, opens the page's sealed ones
 // (secrets.json, sealed by CI) with the password once, and attaches a secret only to a request for its
 // hosts.
-import type { NetV1 } from '#contracts/net';
+
 import type { About } from '#kernel';
+import type { Net } from './api.ts';
 import { unlockDialog } from './dialog.ts';
 import { idbStore } from './store.ts';
 import { unsealer } from './unseal.ts';
 import { fetcher, vault } from './vault.ts';
+
+export * from './api.ts';
 
 const store = idbStore();
 const secrets = vault(store);
@@ -18,7 +21,7 @@ const state = await sealed.check(async () =>
 if (state === 'locked' && typeof document !== 'undefined') unlockDialog(sealed);
 
 /** The network as `caller` has it, with what it declared in its about.ts. */
-export const netFor = (caller: string, about: About): NetV1 => ({
+export const netFor = (caller: string, about: About): Net => ({
   fetch: fetcher(caller, about, secrets),
   hasSecret: async (name) => name in (about.secrets ?? {}) && (await secrets.has(caller, name)),
   secrets: (of) =>

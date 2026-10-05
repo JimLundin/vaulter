@@ -11,14 +11,13 @@ rebuild: the previous app, a viewer over the `JimLundin/vault` repo, is in `main
 |---|---|
 | `src/kernel/` | the kernel: importing the extensions a device has on (`kernel.ts`), errors, one tab at a time, starting in the browser (`start.ts`) |
 | `src/main.ts` | the page's entry: every extension's `about.ts`, and its `index.ts` as a lazy import |
-| `contracts/<name>/` | one contract each: its TypeScript interface, the Zod schemas both sides share, and a conformance suite if providers have one to pass |
-| `extensions/<id>/` | one extension each: `index.ts`, an ES module, and `about.ts`, read first |
+| `extensions/<id>/` | one extension each: `index.ts`, an ES module; `api.ts`, the types and schemas others use; and `about.ts`, read first |
 | `tools/` | CI only: `seal-secrets.ts`, which seals the secrets into the built page |
 
-Extensions: `store-local` (`#records`), `secrets` (`#net`), `notes`, `questions`, `openai` (`#chat`),
-`wiki` and `agent` (Vaulter itself); `ARCHITECTURE.md` has a table of what each exports and imports. An
-extension imports another by what it provides (`#records`, `#chat`…, named in `package.json`'s
-`imports`), a contract as `#contracts/<name>`, the kernel as `#kernel`, and its own files relatively.
+Extensions: `store-local` (records), `secrets` (the network with secrets), `notes`, `questions`,
+`openai` (the model), `wiki` and `agent` (Vaulter itself); `ARCHITECTURE.md` has a table of what each
+exports and imports. An extension imports another as `#extensions/<id>`, the kernel as `#kernel`, and
+its own files relatively.
 The UI, and with it the shell, comes next; until a shell is installed the page says so.
 
 ## Commands
@@ -29,14 +28,13 @@ The UI, and with it the shell, comes next; until a shell is installed the page s
 | `npm run dev` | the app on the working tree |
 | `npm run build` | the page into `dist/`, each extension a chunk of its own |
 | `node tools/seal-secrets.ts <out>` | seal the secrets from the environment (what CI runs; see ARCHITECTURE.md, "Secrets") |
-| `npm test` / `npm run typecheck` | Vitest (`src/`, `contracts/`, `extensions/`) and TypeScript over all three |
+| `npm test` / `npm run typecheck` | Vitest (`src/`, `extensions/`) and TypeScript over both |
 | `npm run lint` / `npm run format` | Biome: check (CI), or fix in place. 2 spaces, single quotes, semicolons, trailing commas, 100 columns |
 
 All code is TypeScript with only erasable syntax and `import type` for types (`tsconfig.json`). Tests
 start the app the way the page does, on fresh modules each time (`startApp` in `src/kernel/testing.ts`),
 so starting again within a test is the page's next start; a fixture extension is an about and its
-exports. Every contract's conformance suite runs against every extension in the repo that provides it
-(`contracts/conformance.test.ts`).
+exports.
 
 ## Running it
 

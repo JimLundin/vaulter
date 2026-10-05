@@ -2,9 +2,12 @@
 // anything that rewrites what is known (merging pages, retracting a fact) asks first.
 
 import { z } from 'zod';
-import { type Tool, tool } from '#contracts/agent.tools';
-import { RecordRef } from '#contracts/records';
-import { Kind, type Page, type WikiV1 } from '#contracts/wiki';
+import type { Tool } from '#extensions/agent';
+import { RecordRef } from '#extensions/store-local';
+import { Kind, type Page, type Wiki } from './api.ts';
+
+/** A tool as the list holds it, whatever its input. */
+const tool = <I>(t: Tool<I>) => t as unknown as Tool<unknown>;
 
 const brief = (e: Page) => ({
   ref: { type: e.type, id: e.id },
@@ -15,7 +18,7 @@ const brief = (e: Page) => ({
 });
 
 /** The tools the wiki gives Vaulter. */
-export const toolsOf = (wiki: WikiV1): Tool<unknown>[] => [
+export const toolsOf = (wiki: Wiki): Tool<unknown>[] => [
   tool({
     name: 'findPages',
     description:

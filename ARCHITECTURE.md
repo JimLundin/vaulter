@@ -19,33 +19,19 @@ Principles:
 
 ## Extensions are modules
 
-An extension is a folder in `extensions/`: its `index.ts`, an ordinary ES module, and an `about.ts` the kernel reads before running any of it. Extensions reach each other with ordinary imports. A contract, in `contracts/<name>/`, is the TypeScript interface between them, with the Zod schemas both sides share and a conformance suite for providers; `package.json`'s `imports` name each contract's provider, in one place:
+An extension is a folder in `extensions/`: its `index.ts`, an ordinary ES module, an `api.ts` with the types and Zod schemas other extensions use (re-exported by `index.ts`), and an `about.ts` the kernel reads before running any of it. Extensions reach each other with ordinary imports, by folder: `#extensions/<id>`, the one wildcard in `package.json`'s `imports`, beside `#kernel`.
 
-```jsonc
-"imports": {
-  "#kernel": "./src/kernel/api.ts",
-  "#contracts/*": "./contracts/*/index.ts",
-  "#records": "./extensions/store-local/index.ts",
-  "#notes": "./extensions/notes/index.ts",
-  "#questions": "./extensions/questions/index.ts",
-  "#net": "./extensions/secrets/index.ts",
-  "#chat": "./extensions/openai/index.ts",
-  "#wiki": "./extensions/wiki/index.ts",
-  "#agent": "./extensions/agent/index.ts"
-}
-```
-
-Moving records from IndexedDB to an embedded database, or the model from OpenAI to another provider, is a new provider that exports the same names and passes the same suite, and one line here. TypeScript checks every import against the contract's interface, in the editor and in CI, so nothing checks arguments at runtime.
+There is one extension for each job (one keeps records, one talks to the model) and no layer of contracts over them: what an extension exports is its interface, TypeScript checks every import of it in the editor and in CI, and nothing checks arguments at runtime. Keeping records elsewhere, or using another model, is a change to that extension, or a new one its importers move to: a refactor, done when it's needed.
 
 ```ts
 // extensions/notes/index.ts
-import { NewNote, type NotesV1 } from '#contracts/notes';
-import { recordsFor } from '#records';
+import { recordsFor } from '#extensions/store-local';
+import { NewNote, type Notes } from './api.ts';
 
 const records = recordsFor('notes');          // a caller names itself
 const note = await records.registerType('note', { ...NewNote.shape, at: z.iso.datetime() });
 
-export const notes: NotesV1 = { append, get, list, onAppended };
+export const notes: Notes = { append, get, list, onAppended };
 ```
 
 ```ts
@@ -57,21 +43,19 @@ export const about: About = {
 ```
 
 - **Starting is importing.** An extension's top-level code is its setup, with top-level `await` for what is async. The module graph is the start order: an extension runs once what it imports has.
-- **A provider of something kept per extension** takes the caller's id (`recordsFor('wiki')`, `questionsFor('wiki')`, `netFor('openai', about)`) and exports `forget(id)`, which the kernel calls when that extension is removed.
+- **An extension that keeps something per caller** takes the caller's id (`recordsFor('wiki')`, `questionsFor('wiki')`, `netFor('openai', about)`) and exports `forget(id)`, which the kernel calls when that extension is removed.
 - **What an extension may export:** what it provides (`notes`, `wiki`, `chat`…), `tools` for Vaulter, `forget`, and, for the one shell, `shell`.
-- **`about.ts`** holds `version`, `agentGuide`, `preview`, and for `#net`, the hosts it fetches (`network`) and its `secrets` with the hosts each is for. It has no imports but the type, so the kernel reads every one before importing anything.
+- **`about.ts`** holds `version`, `agentGuide`, `preview`, and for the secrets extension, the hosts it fetches (`network`) and its `secrets` with the hosts each is for. It has no imports but the type, so the kernel reads every one before importing anything.
 - **Zod is for what doesn't come from typed code**: a tool's input (what Vaulter's model sends, and the JSON Schema it reads), a record type's fields (what is stored), a model's structured answer, and what a person types.
 
 ```
  src/kernel/      the kernel: what is on, the extensions list, errors, one tab at a time
  src/main.ts      every extensions/*/about.ts, and every extensions/*/index.ts as a lazy import
- contracts/
-   records/       index.ts: the interface and shared Zod · conformance.ts: what a provider must do
-   notes/ questions/ wiki/ ai.chat/ agent/ agent.tools/ net/
  extensions/
    store-local/ notes/ questions/ secrets/ openai/ wiki/ agent/
      about.ts     read first
      index.ts     the module
+     api.ts       the types and schemas other extensions use
  tools/           CI only: sealing the secrets into the built page
 ```
 
@@ -83,14 +67,14 @@ What is left are the jobs no extension can do for itself (`src/kernel`, under 30
 | --- | --- |
 | Import the extensions this device has on (`kernel.ts`), and list every extension with its status | Nothing has run yet to decide it |
 | Keep this device's choices of what is on, in `localStorage`; `?reset` forgets them | A preview that breaks the shell would otherwise leave no way back |
-| Remove an extension: every running provider's `forget(id)`, then off | Only the kernel knows every provider that exports one |
+| Remove an extension: every running extension's `forget(id)`, then off | Only the kernel knows every extension that exports one |
 | Trace an error to the extension whose code threw it (`errors.ts`) | By the stack: in the build each extension is a chunk of its own, `assets/ext/<id>.<hash>.js`; in dev and tests its files are `extensions/<id>/…` |
 | One tab at a time (`single-tab.ts`) | Two tabs over one IndexedDB would each miss the other's changes, and records' one-change-at-a-time per record holds only within a tab |
 | Hand the page to the shell, or say there is none | Before any screen exists |
 
 Extensions use the kernel as `#kernel`: `extensions()`, `running()` (each running extension's `about` and exports: how the agent finds every extension's tools), `started` (once everything that is on has started), `setEnabled`, `remove` and `errorsOf`.
 
-**On, off and previews.** An extension is on unless this device turned it off, and a preview (`preview: true` in its `about.ts`) is off until a device turns it on. Turning one on or off saves the choice and reloads the page. An extension that another one imports loads with it, whether it is on or not: off means the kernel doesn't import it itself. So a preview is something at the edge, such as a new screen or new tools, and replacing a provider is a change to `package.json` merged to `main`.
+**On, off and previews.** An extension is on unless this device turned it off, and a preview (`preview: true` in its `about.ts`) is off until a device turns it on. Turning one on or off saves the choice and reloads the page. An extension that another one imports loads with it, whether it is on or not: off means the kernel doesn't import it itself. So a preview is something at the edge, such as a new screen or new tools; changing what others import is a change merged to `main`.
 
 **Running in the page.** Every extension runs in the page, with one copy of each module. There is no sandbox, and nothing pretends to be one: an extension can reach anything in the page, secrets included. What keeps bad code out is review before it reaches `main`. An earlier version gave every extension its own opaque-origin iframe, and a later one routed every call through kernel handles that checked callers, guarded tools and gated personal calls; both were dropped, for isolation this app doesn't need. If isolating untrusted code ever matters, the way is WebAssembly modules.
 
@@ -120,11 +104,11 @@ An `ask` call becomes a question on the agent's own topic (`extensions/agent/cat
 
 ## Extension lifecycle
 
-Every extension lives on `main`, and CI builds the page from it: one build, the kernel and every extension together, typechecked and tested, every contract's conformance suite run against every provider in the repo.
+Every extension lives on `main`, and CI builds the page from it: one build, the kernel and every extension together, typechecked and tested.
 
 | Stage | Where | Runs on | Moves on when |
 | --- | --- | --- | --- |
-| Pull request | A branch, with the new extension marked `preview: true` | Nowhere yet | CI passes (types, tests, every conformance suite) and you review it: what it imports, its hosts and secrets in `about.ts` |
+| Pull request | A branch, with the new extension marked `preview: true` | Nowhere yet | CI passes (types and tests) and you review it: what it imports, its hosts and secrets in `about.ts` |
 | Preview | Merged into `main` and deployed | Devices that turn it on | You've tried it |
 | Live | `preview` removed | Every device, on its next start | — |
 
@@ -134,7 +118,7 @@ Every extension lives on `main`, and CI builds the page from it: one build, the 
 
 ## Secrets
 
-Secrets are held by one extension, `secrets` (`#net`), never by the extension that uses them. An extension declares in its `about.ts` the secrets it needs, the hosts each one is for, and the hosts it reaches without one; it takes its own net with `netFor(id, about)` and asks `net.fetch(url, { secret: 'key' })`, and the secrets extension attaches the value only to requests for those hosts (https only, no credentials, no redirects). Code in the page could reach the store directly, so this keeps well-behaved extensions from handling secrets at all, rather than walling them off; the page's Content-Security-Policy is what limits where anything goes (`connect-src` this page and OpenAI, `script-src` this page only).
+Secrets are held by one extension, `secrets`, never by the extension that uses them. An extension declares in its `about.ts` the secrets it needs, the hosts each one is for, and the hosts it reaches without one; it takes its own net with `netFor(id, about)` and asks `net.fetch(url, { secret: 'key' })`, and the secrets extension attaches the value only to requests for those hosts (https only, no credentials, no redirects). Code in the page could reach the store directly, so this keeps well-behaved extensions from handling secrets at all, rather than walling them off; the page's Content-Security-Policy is what limits where anything goes (`connect-src` this page and OpenAI, `script-src` this page only).
 
 **On a device**, secrets are kept in the secrets extension's own IndexedDB database (`secrets`), each under `secret:<extension>/<name>`, encrypted with AES-GCM under a per-device key that can't be exported. They never sync between devices.
 
@@ -154,10 +138,10 @@ Live speech will fit the same model when voice is built: the `openai` extension 
 
 ## Stability
 
-- **Contracts change with their users.** Contracts and providers ship together and CI checks them against each other, so a contract has no version: a change that breaks requirers changes them in the same pull request.
-- **Contracts with a provider to hold to account ship a conformance suite** (records, notes and questions today), found by the export a provider is known by (`recordsFor`, `notes`, `questionsFor`). Any new provider, one Vaulter writes included, passes it in CI before it is merged.
+- **An extension's exports change with their importers.** Everything ships together and CI typechecks it, so nothing has a version: a change that breaks importers changes them in the same pull request.
+- **An extension others build on is tested as they use it** (records, notes and questions: what they keep, in what order, what they tell listeners), so a rewrite of one keeps what its importers rely on.
 - **Record types grow without migrations, for now.** A new field is optional or has a default, so stored records still fit. Versions and migrations come with the first change that breaks stored records, not before: records is not at 1.0 yet.
-- **Nothing is overwritten or removed for good.** Every change to a record is a new revision, and the provider keeps the earlier ones; changes to one record run one after another, each `update` getting it as the last left it, so two changes at once can't lose either. Deleting or merging leaves a tombstone. Reading the earlier revisions and tombstones back comes with the screen that needs it. Only removing an extension drops its data.
+- **Nothing is overwritten or removed for good.** Every change to a record is a new revision, and store-local keeps the earlier ones; changes to one record run one after another, each `update` getting it as the last left it, so two changes at once can't lose either. Deleting or merging leaves a tombstone. Reading the earlier revisions and tombstones back comes with the screen that needs it. Only removing an extension drops its data.
 - **Derived data is disposable.** Wiki pages, records, embeddings and indexes are built from the notes extension's append-only log, so any of them can be rebuilt. A buggy extension can corrupt a view, never what you said.
 
 ## UI for extensions
@@ -185,18 +169,18 @@ Three patterns repeat across these screens:
 | Question | Decision |
 | --- | --- |
 | Extension format | An ES module (`index.ts`) and an `about.ts`; no definition object, no setup function. |
-| How extensions reach each other | Imports. `package.json`'s `imports` name each contract's provider; a contract is a TypeScript interface. |
+| How extensions reach each other | Imports, by folder (`#extensions/<id>`). One extension per job, and no contracts over them: replacing one is a refactor. |
 | Where extensions live, and how they get to a device | In the repo under `extensions/`, built by CI with the kernel into one page; each extension a chunk of its own. |
 | Vaulter-written extensions | Pull requests to `main` with `preview: true`; a device turns a preview on to try it. |
 | Turning an extension off | Per device, saved in `localStorage`, and the page reloads; what another extension imports loads anyway. |
 | Isolation | None: every extension runs in the page. Review keeps bad code out of `main`. WebAssembly modules if isolation is ever needed. |
-| Who is calling | A caller names itself to a provider of something kept per extension (`recordsFor('wiki')`). |
+| Who is calling | A caller names itself to an extension that keeps something per caller (`recordsFor('wiki')`). |
 | Vaulter's access | Each tool declares `read`, `write` or `ask`; the agent applies it, and `ask` is a question whose yes runs the call. |
 | What only a person may do | Nothing is enforced: the person answers questions on a screen, and the model can only use tools. |
 | Secrets | Held by the secrets extension, attached only to requests for declared hosts; never in the repo, never synced. Sealed into the page by CI with a password, asked once per device. |
-| Where extensions keep data | Through records (`#records`): `store-local`, in its own IndexedDB database. |
+| Where extensions keep data | Through `store-local`'s records, in its own IndexedDB database. |
 | Sync and backup of data | Extensions, such as a Git backup importing notes and records, kept separate from the code repo. |
-| Live transcription | OpenAI Realtime API, inside the `openai` extension, using a short-lived session key minted from your key; its contract comes with voice. |
+| Live transcription | OpenAI Realtime API, inside the `openai` extension, using a short-lived session key minted from your key; its interface comes with voice. |
 | Direct browser calls to OpenAI | Confirmed working in your trial project; no proxy. |
 | Offline | A service worker for the page and every extension's chunk. |
 | Errors | Kept per extension, for this run, by the stack. |
@@ -205,7 +189,7 @@ Three patterns repeat across these screens:
 **Build order.**
 
 1. The kernel. **Done**, reworked on 2026-10-05 from an in-browser compiler, loader, resolver and checked handles to importing modules built by CI.
-2. Contracts: `records`, `notes` and `questions` with conformance suites, `ai.chat`, `agent`, `agent.tools`, `net`, `wiki`. **Done**; the shell's comes with the UI work.
+2. The interfaces between extensions, first written as contracts of their own (`contracts/`, with conformance suites), moved into the extensions on 2026-10-05.
 3. Foundation extensions: `store-local`, `secrets`, `notes`, `openai` and `agent` (**done**); the shell waits for the UI work.
 4. Voice, Wiki and Questions. **Wiki and Questions done**; voice needs the UI (a microphone button) and the realtime spike.
 5. Today, Search and Map.
@@ -215,15 +199,15 @@ The extensions so far, each tested with the others (`startApp` in `src/kernel/te
 
 | Extension | Exports | Imports | Notes |
 | --- | --- | --- | --- |
-| `store-local` | `recordsFor`, `forget` (`#records`) | | In its own IndexedDB database, with every revision kept and a format number for its layout; passes the records suite |
-| `secrets` | `netFor`, `forget` (`#net`) | | Holds secrets encrypted on the device, opens the page's sealed ones, attaches each only to its declared hosts |
-| `notes` | `notes` (`#notes`) | `#records` | Append-only; lists by when a note was said |
-| `questions` | `questionsFor`, `forget` (`#questions`) | `#records` | Answers reach the asker's topic handler, also after a restart |
-| `openai` | `chat` (`#chat`) | `#net` | The Responses API (tool calling for current models needs it), `store: false` with the encrypted reasoning sent back as a turn's `state`. Its model is in `extensions/openai/index.ts`; streaming, live speech and the rest come with what needs them |
-| `wiki` | `wiki`, `tools` (`#wiki`) | `#records`, `#notes`, `#questions`, `#chat` | Person, place, event and topic types; every fact cites its notes; each note is revised into pages by the model, and what it isn't sure of becomes a yes/no question whose answer makes the change |
-| `agent` | `agent` (`#agent`) | `#chat`, `#questions`, `#kernel` | Sees a line per extension with tools, opens only those a request needs, asks before a tool that asks first |
+| `store-local` | `recordsFor`, `forget` | | In its own IndexedDB database, with every revision kept and a format number for its layout; tested as its importers use it |
+| `secrets` | `netFor`, `forget` | | Holds secrets encrypted on the device, opens the page's sealed ones, attaches each only to its declared hosts |
+| `notes` | `notes` | `store-local` | Append-only; lists by when a note was said |
+| `questions` | `questionsFor`, `forget` | `store-local` | Answers reach the asker's topic handler, also after a restart |
+| `openai` | `chat` | `secrets` | The Responses API (tool calling for current models needs it), `store: false` with the encrypted reasoning sent back as a turn's `state`. Its model is in `extensions/openai/index.ts`; streaming, live speech and the rest come with what needs them |
+| `wiki` | `wiki`, `tools` | `store-local`, `notes`, `questions`, `openai` | Person, place, event and topic types; every fact cites its notes; each note is revised into pages by the model, and what it isn't sure of becomes a yes/no question whose answer makes the change |
+| `agent` | `agent` | `openai`, `questions`, `#kernel` | Sees a line per extension with tools, opens only those a request needs, asks before a tool that asks first |
 
-**A rebuild, not a refactor.** The first draft planned to wrap the existing app's modules as providers and move features over one at a time. Instead (2026-10-04) Vaulter is rebuilt from scratch on the `pip` branch, with the old app removed there so the two never run side by side.
+**A rebuild, not a refactor.** The first draft planned to wrap the existing app's modules as extensions and move features over one at a time. Instead (2026-10-04) Vaulter is rebuilt from scratch on the `pip` branch, with the old app removed there so the two never run side by side.
 
 **Open questions.**
 

@@ -3,7 +3,7 @@
 // Each kind is a record type of the wiki's, kept through records.
 
 import { z } from 'zod';
-import { RecordRef } from '#contracts/records';
+import { RecordRef } from '#extensions/store-local';
 
 export const Kind = z.enum(['person', 'place', 'event', 'topic']);
 export type Kind = z.infer<typeof Kind>;
@@ -80,7 +80,7 @@ export interface NewPage {
   [field: string]: unknown;
 }
 
-export interface WikiV1 {
+export interface Wiki {
   /** Pages whose name, aliases or summary contain every word of `text`. */
   find: (text: string, kinds?: Kind[]) => Promise<Page[]>;
   get: (ref: RecordRef) => Promise<Page | undefined>;

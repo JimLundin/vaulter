@@ -1,7 +1,7 @@
 // Running the app in tests: the same kernel as in the browser, on a fresh set of modules each start
 // (vi.resetModules), so starting again within a test is the page's next start: the same IndexedDB, new
-// modules. After a start, a test imports what it uses (`await import('#wiki')`) and gets the modules the
-// app has. A fixture extension is an about and the exports it would have.
+// modules. After a start, a test imports what it uses (`await import('#extensions/wiki')`) and gets
+// the modules the app has. A fixture extension is an about and the exports it would have.
 import { vi } from 'vitest';
 import type { About, Exports, Folders, Settings } from './kernel.ts';
 

@@ -3,9 +3,11 @@
 // rebuilt from them.
 
 import { z } from 'zod';
-import { NewNote, type Note, type NotesV1 } from '#contracts/notes';
-import type { Rec } from '#contracts/records';
-import { recordsFor } from '#records';
+import type { Rec } from '#extensions/store-local';
+import { recordsFor } from '#extensions/store-local';
+import { NewNote, type Note, type Notes } from './api.ts';
+
+export * from './api.ts';
 
 const records = recordsFor('notes');
 const fields = { ...NewNote.shape, at: z.iso.datetime() };
@@ -13,7 +15,7 @@ const note = await records.registerType('note', fields);
 const listeners = new Set<(n: Note) => void>();
 const toNote = ({ meta: _, ...n }: Rec<typeof fields>): Note => n;
 
-export const notes: NotesV1 = {
+export const notes: Notes = {
   async append(input) {
     const n = NewNote.parse(input);
     const out = toNote(await records.create(note, { ...n, at: n.at ?? new Date().toISOString() }));
