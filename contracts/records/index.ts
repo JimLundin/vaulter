@@ -6,10 +6,10 @@
 // and shapes every value with the type's own Zod (defaults and trims included). An extension may read
 // any type it has a handle for, and write only its own.
 //
-// Nothing is overwritten or removed for good. Every change makes a new revision and keeps the one
-// before (`history`); changes to one record run one after another, each `update` getting the record as
+// Nothing is overwritten or removed for good. Every change makes a new revision and the provider keeps
+// the one before; changes to one record run one after another, each `update` getting the record as
 // the last one left it, so two changes at once can't lose either. Deleting or merging leaves a
-// tombstone that can be restored. A type's fields may grow with optional fields and defaults; a change
+// tombstone. Reading earlier revisions and tombstones back comes with the screen that needs it. A type's fields may grow with optional fields and defaults; a change
 // that breaks stored records will bring versions and migrations with it, when there is one. Only
 // removing the extension drops its records.
 
@@ -54,20 +54,13 @@ export interface Query {
   /** `desc` (the default): the latest first. */
   order?: 'asc' | 'desc';
   limit?: number;
-  /** Tombstones too. */
-  deleted?: boolean;
 }
 
 /** Records as one extension has them (`recordsFor(id)`), which is how a type gets its namespace. */
 export interface RecordsV1 {
   registerType: <S extends z.ZodRawShape>(name: string, fields: S) => Promise<RecordType<S>>;
-  /** A merged record's id reads as the one it was merged into; with `deleted`, the record itself,
-   * a tombstone included. */
-  get: <S extends z.ZodRawShape>(
-    type: RecordType<S>,
-    id: string,
-    opts?: { deleted?: boolean },
-  ) => Promise<Rec<S> | undefined>;
+  /** A merged record's id reads as the one it was merged into. */
+  get: <S extends z.ZodRawShape>(type: RecordType<S>, id: string) => Promise<Rec<S> | undefined>;
   query: <S extends z.ZodRawShape>(type: RecordType<S>, q?: Query) => Promise<Rec<S>[]>;
   /** Records of `types` whose text fields (or `fields`, strings and arrays of them) contain every
    * word of `text`, the latest created first. */
@@ -90,15 +83,12 @@ export interface RecordsV1 {
   ) => Promise<Rec<S>>;
   /** Leaves a tombstone. */
   delete: (type: RecordType, id: string) => Promise<void>;
-  restore: <S extends z.ZodRawShape>(type: RecordType<S>, id: string) => Promise<Rec<S>>;
   /** Folds `merge` into `keep` (keep's fields win); `merge` becomes a tombstone that reads as `keep`. */
   merge: <S extends z.ZodRawShape>(
     type: RecordType<S>,
     keep: string,
     merge: string,
   ) => Promise<Rec<S>>;
-  /** The record's earlier revisions, the latest first. */
-  history: <S extends z.ZodRawShape>(type: RecordType<S>, id: string) => Promise<Rec<S>[]>;
   onChanged: <S extends z.ZodRawShape>(
     type: RecordType<S>,
     handler: (change: Rec<S>) => void,

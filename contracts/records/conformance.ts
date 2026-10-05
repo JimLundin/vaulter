@@ -38,17 +38,12 @@ export default defineConformance<RecordsV1>('recordsFor', [
     },
   },
   {
-    name: 'updates a record as a new revision, keeping when it was created and every earlier one',
+    name: 'updates a record as a new revision, keeping when it was created',
     async run(r, expect) {
       const thing = await r.registerType('thing', { n: z.number() });
       const a = await r.create(thing, { n: 1 });
       const b = await r.update(thing, a.id, (cur) => ({ n: cur.n + 1 }));
       expect([b.id, b.n, b.meta.rev, b.meta.created]).toEqual([a.id, 2, 2, a.meta.created]);
-      await r.update(thing, a.id, (cur) => ({ n: cur.n * 10 }));
-      expect((await r.history(thing, a.id)).map((h) => [h.n, h.meta.rev])).toEqual([
-        [2, 2],
-        [1, 1],
-      ]);
       expect((await r.query(thing)).length).toEqual(1);
     },
   },
@@ -123,7 +118,7 @@ export default defineConformance<RecordsV1>('recordsFor', [
     },
   },
   {
-    name: 'deletes to a tombstone, hidden unless asked for, which can be restored',
+    name: 'deletes to a hidden tombstone',
     async run(r, expect) {
       const note = await r.registerType('scrap', { text: z.string() });
       const a = await r.create(note, { text: 'keep me' });
@@ -131,11 +126,6 @@ export default defineConformance<RecordsV1>('recordsFor', [
       expect(await r.get(note, a.id)).toEqual(undefined);
       expect(await r.query(note)).toEqual([]);
       expect(await r.search([note], 'keep')).toEqual([]);
-      const tomb = await r.get(note, a.id, { deleted: true });
-      expect(tomb?.meta.deleted, 'the tombstone says when').toBeTruthy();
-      expect((await r.query(note, { deleted: true })).length).toEqual(1);
-      const back = await r.restore(note, a.id);
-      expect([back.text, back.meta.deleted, back.meta.rev]).toEqual(['keep me', undefined, 3]);
     },
   },
   {
@@ -169,7 +159,6 @@ export default defineConformance<RecordsV1>('recordsFor', [
       await r.merge(p, c.id, a.id);
       expect((await r.get(p, b.id))?.id).toEqual(c.id);
       await expect(r.merge(p, c.id, b.id), 'b already reads as c').rejects.toThrow();
-      expect((await r.get(p, b.id, { deleted: true }))?.meta.mergedInto).toEqual(a.id);
     },
   },
   {

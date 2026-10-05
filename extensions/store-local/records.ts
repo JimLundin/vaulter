@@ -2,9 +2,10 @@
 //   format                       the layout below, so a later store-local can tell what it reads
 //   r:<type>:<id>                a record as it is now, a tombstone included
 //   h:<type>:<id>:<rev>          each earlier revision of it
-// Each value is checked and shaped by its type's own Zod, given at registration on this start. Queries read a type's
-// records and filter in memory: plenty for one person's data. Changes to one record run one after
-// another (this page is the only one with the kernel), so an update always starts from the last.
+// Each value is checked and shaped by its type's own Zod, given at registration on this start. Queries
+// read a type's records and filter in memory: plenty for one person's data. Changes to one record run
+// one after another (this page is the only one with the kernel), so an update always starts from the
+// last.
 
 import { z } from 'zod';
 import type { Filter, Query, RecordsV1, RecordType, Stored } from '#contracts/records';
@@ -120,13 +121,10 @@ export async function localRecords(storage: Store) {
       if (!t.name.startsWith(`${caller}/`)) throw new Error(`${caller} may not write ${t.name}`);
       return t.name;
     };
-    const get = async (t: RecordType, id: string, opts: { deleted?: boolean } = {}) => {
-      if (opts.deleted) return current(t.name, id);
+    const get = async (t: RecordType, id: string) => {
       const rec = await resolve(t.name, id);
       return rec?.meta.deleted ? undefined : rec;
     };
-    const history = async (t: RecordType, id: string) =>
-      (await storage.list<Stored>(`h:${t.name}:${id}:`)).map(([, r]) => r).reverse();
 
     const impl = {
       registerType(name: string, fields: z.ZodRawShape): Promise<RecordType> {
@@ -138,7 +136,7 @@ export async function localRecords(storage: Store) {
       get,
 
       async query(t: RecordType, q: Query = {}) {
-        let out = (await all(t.name)).filter((r) => q.deleted || !r.meta.deleted);
+        let out = (await all(t.name)).filter((r) => !r.meta.deleted);
         for (const [field, f] of Object.entries(q.where ?? {}))
           out = out.filter((r) => matches(r[field], f));
         out.sort(ordered(q.orderBy ?? 'created', q.order === 'asc' ? 1 : -1));
@@ -204,20 +202,6 @@ export async function localRecords(storage: Store) {
         });
       },
 
-      async restore(t: RecordType, id: string) {
-        const type = mine(t);
-        return await serial(`${type}:${id}`, async () => {
-          const prior = await current(type, id);
-          if (!prior) throw new Error(`${type}: no record ${id}`);
-          if (!prior.meta.deleted) return prior;
-          return write(
-            type,
-            prior,
-            revise(prior, fieldsOf(prior), { deleted: undefined, mergedInto: undefined }),
-          );
-        });
-      },
-
       async merge(t: RecordType, keepId: string, mergeId: string) {
         const type = mine(t);
         zodOf(type);
@@ -244,8 +228,6 @@ export async function localRecords(storage: Store) {
           return write(type, prior, revise(prior, shape(type, { ...merged, ...fieldsOf(prior) })));
         });
       },
-
-      history,
 
       onChanged(t: RecordType, handler: (c: Stored) => void) {
         const set = listeners.get(t.name) ?? new Set();
