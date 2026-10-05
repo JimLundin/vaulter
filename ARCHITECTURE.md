@@ -19,7 +19,7 @@ Principles:
 
 ## Extensions are modules
 
-An extension is a folder in `extensions/`: its `index.ts`, an ordinary ES module, and if it is large enough to split, an `api.ts` with the types and Zod schemas other extensions use (re-exported by `index.ts`). Extensions reach each other with ordinary imports, by folder: `#extensions/<id>`, the one wildcard in `package.json`'s `imports`, beside `#kernel`.
+An extension is a folder in `extensions/`: its `index.ts`, an ordinary ES module, and if it is large enough to split, an `api.ts` with the types other extensions use (re-exported by `index.ts`). Extensions reach each other with ordinary imports, by folder: `#extensions/<id>`, the one wildcard in `package.json`'s `imports`, beside `#kernel`.
 
 There is one extension for each job (one keeps records, one talks to the model) and no layer of contracts over them: what an extension exports is its interface, TypeScript checks every import of it in the editor and in CI, and nothing checks arguments at runtime. Keeping records elsewhere, or using another model, is a change to that extension, or a new one its importers move to: a refactor, done when it's needed.
 
@@ -37,7 +37,7 @@ export const notes: Notes = { append, get, list, onAppended };   // what it offe
 - **Starting is importing.** An extension's top-level code is its setup, with top-level `await` for what is async. The module graph is the start order: an extension runs once what it imports has.
 - **What an extension exports** is what it offers others (`notes`, `wiki`, `chat`…), and anything under one of the agreed names below. Nothing else describes it: no manifest, no version, no registration.
 - **Where something is kept per extension, the caller says who it is**: `questionsFor('wiki')`, and `netFor('openai', { key: ['api.openai.com'] })`, which names its secrets and the hosts each is for where it uses them.
-- **Zod is for what doesn't come from typed code**: a tool's input (what Vaulter's model sends, and the JSON Schema it reads), a model's structured answer, what a person types, and anything written from them (the wiki shapes each page with its kind's Zod before storing it). Storage itself checks nothing.
+- **Zod is only where data comes from outside typed code**: a tool's input (what Vaulter's model sends, and the JSON Schema it reads), a model's structured answer, and what a person types. There the Zod schema is the definition, and its type comes from it (`z.infer`). Everywhere else, the wiki's pages and storage included, types are plain TypeScript and nothing is checked again: Zod is the standard for agent tools (the MCP and OpenAI Agents SDKs take it too), and confined to the edges it doesn't spread.
 
 ```
  src/kernel/      the kernel: one tab at a time, importing every extension, the list of them

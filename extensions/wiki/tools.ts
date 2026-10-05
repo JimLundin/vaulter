@@ -3,8 +3,23 @@
 
 import { z } from 'zod';
 import type { Tool } from '#extensions/agent';
-import { RecordRef } from '#extensions/storage';
-import { Kind, type Page, type Wiki } from './api.ts';
+import { KINDS, type Page, type Wiki } from './api.ts';
+
+// What the model sends, checked before a tool runs.
+const Kind = z.enum(KINDS);
+const RecordRef = z.object({ type: z.string(), id: z.string() });
+/** What a change may set: a page's own fields, never its facts. */
+const Patch = z.object({
+  name: z.string().trim().min(1).optional(),
+  aliases: z.array(z.string()).optional(),
+  summary: z.string().optional(),
+  related: z.array(RecordRef).optional(),
+  birthday: z.string().optional(),
+  area: z.string().optional(),
+  address: z.string().optional(),
+  date: z.string().optional(),
+  until: z.string().optional(),
+});
 
 /** A tool as the list holds it, whatever its input. */
 const tool = <I>(t: Tool<I>) => t as unknown as Tool<unknown>;
@@ -45,7 +60,11 @@ export const toolsOf = (wiki: Wiki): Tool<unknown>[] => [
     name: 'createPage',
     description: 'Create a wiki page. Only for something the notes clearly mention.',
     access: 'write',
-    input: z.object({ kind: Kind, name: z.string(), aliases: z.array(z.string()).optional() }),
+    input: z.object({
+      kind: Kind,
+      name: z.string().trim().min(1),
+      aliases: z.array(z.string()).optional(),
+    }),
     run: async ({ kind, ...page }) => brief(await wiki.create(kind, page)),
   }),
   tool({
@@ -62,9 +81,10 @@ export const toolsOf = (wiki: Wiki): Tool<unknown>[] => [
   }),
   tool({
     name: 'updatePage',
-    description: "Change a page's name, aliases, summary or other fields (not its facts).",
+    description:
+      "Change a page's name, aliases, summary, links, or its kind's fields (a person's birthday, a place's area or address, an event's date). Not its facts.",
     access: 'write',
-    input: z.object({ ref: RecordRef, patch: z.record(z.string(), z.unknown()) }),
+    input: z.object({ ref: RecordRef, patch: Patch }),
     run: async ({ ref, patch }) => brief(await wiki.update(ref, patch)),
   }),
   tool({

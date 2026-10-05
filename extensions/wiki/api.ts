@@ -2,52 +2,39 @@
 // the notes it came from, so a page can always be checked against what was said, and rebuilt from it.
 // Each kind is a collection of the wiki's, kept in storage.
 
-import { z } from 'zod';
-import { RecordRef } from '#extensions/storage';
+import type { RecordRef } from '#extensions/storage';
 
-export const Kind = z.enum(['person', 'place', 'event', 'topic']);
-export type Kind = z.infer<typeof Kind>;
+export const KINDS = ['person', 'place', 'event', 'topic'] as const;
+export type Kind = (typeof KINDS)[number];
 
-export const Fact = z.object({
-  id: z.string(),
-  text: z.string().min(1),
+export interface Fact {
+  id: string;
+  text: string;
   /** The notes it comes from: never empty for a fact Vaulter added. */
-  sources: z.array(z.string()),
+  sources: string[];
   /** When it was true or happened, if it says. */
-  at: z.string().optional(),
-  added: z.iso.datetime(),
-});
-export type Fact = z.infer<typeof Fact>;
+  at?: string;
+  added: string;
+}
 
-/** The fields every kind has. */
-export const common = {
-  name: z.string().trim().min(1),
-  aliases: z.array(z.string()).default([]),
+/** What every kind has. */
+export interface Common {
+  name: string;
+  aliases: string[];
   /** A short summary in Markdown, kept up to date as facts are added. */
-  summary: z.string().default(''),
-  facts: z.array(Fact).default([]),
-  related: z.array(RecordRef).default([]),
-};
+  summary: string;
+  facts: Fact[];
+  related: RecordRef[];
+}
 
-/** Each kind's own fields, besides `common`. */
-export const fields = {
-  person: { ...common, birthday: z.string().optional() },
-  place: {
-    ...common,
-    area: z.string().optional(),
-    address: z.string().optional(),
-    geo: z.object({ lat: z.number(), lon: z.number() }).optional(),
-  },
-  event: {
-    ...common,
-    /** A date or date-time; `until` for one that lasted. */
-    date: z.string().optional(),
-    until: z.string().optional(),
-    place: RecordRef.optional(),
-    people: z.array(RecordRef).default([]),
-  },
-  topic: { ...common },
-};
+/** What each kind holds. */
+export interface Fields {
+  person: Common & { birthday?: string };
+  place: Common & { area?: string; address?: string; geo?: { lat: number; lon: number } };
+  /** A date or date-time; `until` for one that lasted. */
+  event: Common & { date?: string; until?: string; place?: RecordRef; people: RecordRef[] };
+  topic: Common;
+}
 
 export interface Page {
   id: string;
@@ -80,13 +67,18 @@ export interface NewPage {
   [field: string]: unknown;
 }
 
+/** What a change to a page may set: anything but its facts, and what storage keeps. */
+export type PagePatch = Partial<
+  Omit<Page, 'id' | 'type' | 'kind' | 'created' | 'updated' | 'facts'>
+>;
+
 export interface Wiki {
   /** Pages whose name, aliases or summary contain every word of `text`. */
   find: (text: string, kinds?: Kind[]) => Promise<Page[]>;
   get: (ref: RecordRef) => Promise<Page | undefined>;
   create: (kind: Kind, page: NewPage) => Promise<Page>;
   /** Changes fields other than facts. */
-  update: (ref: RecordRef, patch: Record<string, unknown>) => Promise<Page>;
+  update: (ref: RecordRef, patch: PagePatch) => Promise<Page>;
   addFact: (
     ref: RecordRef,
     fact: { text: string; sources: string[]; at?: string },

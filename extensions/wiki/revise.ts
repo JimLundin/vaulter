@@ -7,7 +7,7 @@ import type { Note } from '#extensions/notes';
 import type { Chat } from '#extensions/openai';
 import type { Questions } from '#extensions/questions';
 import type { Page, Revised, Wiki } from './api.ts';
-import { KINDS } from './pages.ts';
+import { KINDS } from './api.ts';
 
 const FactIn = z.object({ text: z.string(), at: z.string().nullable() });
 const Changes = z.object({

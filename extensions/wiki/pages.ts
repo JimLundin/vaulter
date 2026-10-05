@@ -1,19 +1,10 @@
 // The wiki's pages as records: one collection per kind, facts kept on the page with the notes they
-// came from. Everything here is what the wiki offers besides revising. What a page holds is shaped by
-// its kind's Zod on every write: what comes in may come from the model.
-import { z } from 'zod';
+// came from. Everything here is what the wiki offers besides revising. What the model sends is checked
+// by the tools' and the reviser's Zod before it gets here.
 import { type Collection, collection, type Rec, type RecordRef } from '#extensions/storage';
-import { fields, Kind, type Page, type Wiki } from './api.ts';
-
-export const KINDS = Kind.options;
+import { KINDS, type Kind, type Page, type Wiki } from './api.ts';
 
 type Fields = Record<string, unknown>;
-const shapes: Record<Kind, z.ZodType<Fields>> = {
-  person: z.object(fields.person),
-  place: z.object(fields.place),
-  event: z.object(fields.event),
-  topic: z.object(fields.topic),
-};
 const kept = Object.fromEntries(KINDS.map((k) => [k, collection<Fields>(`wiki/${k}`)])) as Record<
   Kind,
   Collection<Fields>
@@ -50,10 +41,10 @@ export function pages() {
   /** The page changed by `change`, which gets it as it is now: a change made meanwhile isn't lost.
    * What isn't one of the kind's fields (id, kind, dates) is left out by its Zod. */
   const change = async (ref: RecordRef, f: (e: Page) => Partial<Page>) => {
-    const k = of(ref);
-    const rec = await kept[k].update(ref.id, (cur) => {
+    const rec = await kept[of(ref)].update(ref.id, (cur) => {
       const e = page(cur);
-      return shapes[k].parse({ ...e, ...f(e) });
+      const { id: _, type: _t, kind: _k, created: _c, updated: _u, ...held } = { ...e, ...f(e) };
+      return held;
     });
     return page(rec);
   };
@@ -70,11 +61,22 @@ export function pages() {
         .map(page);
     },
     get,
-    // The kind's Zod fills in what the page doesn't give: no aliases, summary, facts or links.
-    create: async (kind, input) => page(await kept[kind].create(shapes[kind].parse(input))),
+    // What the page doesn't give, it starts without: no aliases, summary, facts or links.
+    create: async (kind, input) =>
+      page(
+        await kept[kind].create({
+          aliases: [],
+          summary: '',
+          facts: [],
+          related: [],
+          ...(kind === 'event' ? { people: [] } : {}),
+          ...input,
+          name: input.name.trim(),
+        }),
+      ),
     update(ref, patch) {
-      const { facts: _, ...rest } = patch;
-      return change(ref, () => rest as Partial<Page>);
+      const { facts: _, ...rest } = patch as Partial<Page>;
+      return change(ref, () => rest);
     },
     addFact(ref, fact) {
       const added = { id: crypto.randomUUID(), added: new Date().toISOString(), ...fact };

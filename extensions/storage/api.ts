@@ -7,8 +7,6 @@
 // last one left it, so two changes at once can't lose either. Deleting leaves a tombstone. Reading
 // earlier revisions and tombstones back comes with the screen that needs it.
 
-import { z } from 'zod';
-
 /** What storage keeps about a record, beside what it holds. */
 export interface Meta {
   collection: string;
@@ -52,5 +50,7 @@ export interface Collection<T> {
 }
 
 /** A record, by its collection and id: how one record points at another. */
-export const RecordRef = z.object({ type: z.string(), id: z.string() });
-export type RecordRef = z.infer<typeof RecordRef>;
+export interface RecordRef {
+  type: string;
+  id: string;
+}
