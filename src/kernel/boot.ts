@@ -135,7 +135,7 @@ export async function boot(device: Device, opts: BootOptions): Promise<Booted> {
 
     // Main is this page's own. A pinned commit or a draft needs a source provider: the extension
     // providing extensions.source starts first, with what it requires, and the rest after.
-    let tree = page.tree;
+    let { tree } = page;
     if (pin || drafts.length) {
       const first = await startSource(kernel, page.tree, deps, skip);
       b.refused.push(...first.refused);
@@ -159,8 +159,7 @@ export async function boot(device: Device, opts: BootOptions): Promise<Booted> {
           tree,
           trees.filter((t) => t !== undefined),
         );
-        tree = overlaid.tree;
-        b.origins = overlaid.origins;
+        ({ tree, origins: b.origins } = overlaid);
       }
       b.commit = tree.commit;
       b.found = [...extensionsIn(tree).keys()];

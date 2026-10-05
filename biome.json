@@ -138,7 +138,7 @@
       }
     },
     {
-      "includes": ["src/main.ts", "src/sandbox/bundles.d.ts"],
+      "includes": ["src/main.ts"],
       "linter": {
         "rules": {
           "correctness": {

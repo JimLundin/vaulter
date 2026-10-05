@@ -210,7 +210,7 @@ Five rules keep new features from forcing refactors.
 
 ## Prototype examples
 
-One contract and three extensions show the format end to end. Names and signatures are a proposal, not a finished API.
+One contract and three extensions show the format end to end. Names and signatures are the first draft's proposal, not the API: `records` below is today's, but voice, `aiRealtime`, `shell`, `extract`, `today` and `refTo` don't exist yet.
 
 **A contract: `records`.** Record types are registered by name once and then passed around as typed handles, so other extensions refer to a type by importing its handle, never by a string.
 

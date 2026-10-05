@@ -1,4 +1,4 @@
-// Drafts: extensions Vaulter writes, on draft/* branches (ARCHITECTURE.md, "Extension lifecycle"). A
+// Drafts: extensions changed on draft/* branches (ARCHITECTURE.md, "Extension lifecycle"). A
 // device that tries a draft loads the main branch with the draft's changed folders on top. Reviewing a
 // draft compares the two trees and each changed extension's static fields, so what it newly asks for
 // (a host, a secret, a device, a powerful contract) is shown to approve on purpose.

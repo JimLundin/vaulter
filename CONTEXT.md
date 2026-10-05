@@ -64,7 +64,7 @@ A held ask-level call, waiting for the person to approve or decline it.
 ## Changing Vaulter
 
 **Draft**:
-An extension Vaulter wrote or changed, on a `draft/*` branch; a device may try it before the person accepts it into main.
+An extension written or changed on a `draft/*` branch (by hand for now, by Vaulter later); a device may try it before it is merged into main.
 _Avoid_: proposal, PR
 
 **Secret**:

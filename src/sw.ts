@@ -1,7 +1,7 @@
 // The service worker: the kernel's own files offline (ARCHITECTURE.md, "Offline"). Hashed assets never
 // change, so they come from the cache first; pages come from the network, and from the cache when there
-// is none. Extensions need nothing here: their compiled code and the last tree are in the kernel's
-// IndexedDB.
+// is none. Main's extensions come with the page; their compiled code, and the trees of tried drafts,
+// are in the kernel's IndexedDB.
 /// <reference lib="webworker" />
 const sw = self as unknown as ServiceWorkerGlobalScope;
 

@@ -61,8 +61,6 @@ export function extensionsIn(tree: Tree): Map<string, string> {
   return found;
 }
 
-export type Planner = ReturnType<typeof planner>;
-
 export function planner(tree: Tree, deps: LoaderDeps) {
   const stats: Stats = { files: 0, compiled: 0, compileMs: 0, totalMs: 0 };
   const compiled = new Map<string, Promise<Compiled>>();

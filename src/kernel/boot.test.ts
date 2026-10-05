@@ -28,7 +28,7 @@ afterEach(async () => {
 });
 
 describe('boot', () => {
-  it('starts every extension at the branch, and asks for safe mode when no shell started', async () => {
+  it('starts every extension in the page, and asks for safe mode when no shell started', async () => {
     const r = await startTree({ 'extensions/map/index.ts': ext('map') });
     kernels.push(r.kernel);
     expect(r.started).toEqual(['map']);

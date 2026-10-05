@@ -66,17 +66,16 @@ export function pages(records: RecordsV1, types: Types) {
     get,
     // The kind's own Zod fills in what the page doesn't give: no aliases, summary, facts or links.
     create: async (kind, input) => entity(await records.create(types[kind], input as never)),
-    async update(ref, patch) {
+    update(ref, patch) {
       const { facts: _f, id: _i, type: _t, kind: _k, ...rest } = patch;
       return change(ref, () => rest as Partial<Entity>);
     },
-    async addFact(ref, fact) {
+    addFact(ref, fact) {
       const added = { id: crypto.randomUUID(), added: new Date().toISOString(), ...fact };
       return change(ref, (e) => ({ facts: [...e.facts, added] }));
     },
-    async retractFact(ref, factId) {
-      return change(ref, (e) => ({ facts: e.facts.filter((f) => f.id !== factId) }));
-    },
+    retractFact: (ref, factId) =>
+      change(ref, (e) => ({ facts: e.facts.filter((f) => f.id !== factId) })),
     async merge(keepRef, mergeRef) {
       if (keepRef.type !== mergeRef.type)
         throw new Error('only pages of the same kind can be merged');

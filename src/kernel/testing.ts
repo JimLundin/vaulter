@@ -31,7 +31,6 @@ export function testOut() {
       Promise.resolve([...of(ns)].filter(([k]) => k.startsWith(prefix)).sort()),
   };
 }
-export type TestOut = ReturnType<typeof testOut>;
 
 export const treeOf = (files: Record<string, string>, commit = 'test0000'): Tree => ({
   commit,

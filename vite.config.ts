@@ -1,6 +1,6 @@
 /// <reference types="vitest/config" />
-// The kernel bundle: src/ and the bootstrap source provider it ships with. Every other extension and
-// every contract is compiled in the browser from the repo (ARCHITECTURE.md, "The kernel").
+// The page: the kernel (src/), with main's extensions and contracts as source text, which the browser
+// compiles (ARCHITECTURE.md, "Main is the page's own"); drafts come from the repo at runtime.
 import { fileURLToPath } from 'node:url';
 import { defineConfig, type Plugin } from 'vite';
 
