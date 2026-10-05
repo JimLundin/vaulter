@@ -59,13 +59,15 @@
       },
       "complexity": {
         "noImplicitCoercions": "off",
+        "noVoid": "off",
         "noExcessiveLinesPerFunction": "off",
         "noExcessiveCognitiveComplexity": "off",
         "useMaxParams": "off"
       },
       "performance": {
         "useTopLevelRegex": "off",
-        "noJsxPropsBind": "off"
+        "noJsxPropsBind": "off",
+        "noAwaitInLoops": "off"
       },
       "correctness": {
         "noUndeclaredDependencies": "off"
@@ -84,7 +86,7 @@
       "reactNative": "none",
       "solid": "none",
       "svelte": "none",
-      "tailwind": "all",
+      "tailwind": "none",
       "turborepo": "none",
       "vue": "none",
       "react": "all",
@@ -98,14 +100,6 @@
       "source": {
         "organizeImports": "off"
       }
-    }
-  },
-  "css": {
-    "parser": {
-      "tailwindDirectives": true
-    },
-    "linter": {
-      "enabled": true
     }
   },
   "overrides": [
@@ -143,6 +137,9 @@
         "rules": {
           "correctness": {
             "noUnresolvedImports": "off"
+          },
+          "performance": {
+            "noNamespaceImport": "off"
           }
         }
       }
@@ -153,19 +150,9 @@
         "rules": {
           "style": {
             "noDefaultExport": "off"
-          }
-        }
-      }
-    },
-    {
-      "includes": ["**/*.css"],
-      "linter": {
-        "rules": {
-          "complexity": {
-            "noImportantStyles": "off"
           },
-          "style": {
-            "noDescendingSpecificity": "off"
+          "suspicious": {
+            "noShadow": "off"
           }
         }
       }
