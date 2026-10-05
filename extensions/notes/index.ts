@@ -30,7 +30,8 @@ export default defineExtension({
         const out = toNote(
           await records.create(note, { ...n, at: n.at ?? new Date().toISOString() }),
         );
-        for (const l of listeners) void Promise.resolve(l(out)).catch(() => undefined);
+        // After the note is kept, and apart from it: a listener that fails is its own error.
+        for (const l of listeners) queueMicrotask(() => l(out));
         return out;
       },
       async get(id) {

@@ -31,7 +31,6 @@ export async function safeMode(s: Booted) {
   // The drafts this device tries, and with a source provider every other one there is.
   const drafts = [...new Set([...config.drafts, ...refs.filter((r) => r.startsWith('draft/'))])];
   const problems = new Map(s.refused.map((r) => [r.id, r.problems]));
-  for (const [id, p] of s.kernel.problems()) problems.set(id, p);
   const running = new Set(s.kernel.running().map((r) => r.id));
 
   const field = (label: string, name: string, value: string, extra: Record<string, string> = {}) =>

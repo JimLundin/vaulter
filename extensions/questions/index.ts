@@ -44,17 +44,24 @@ export default defineExtension({
       records.query(question, { where, orderBy: 'at', order: 'asc' });
     const openOnes = async () => (await find({ status: 'open' })).map(strip);
     const changed = async () => {
+      if (!watchers.size) return;
       const list = await openOnes();
-      for (const w of watchers) void Promise.resolve(w(list)).catch(() => undefined);
+      for (const w of watchers) queueMicrotask(() => w(list));
     };
     /** The question as it is now, changed by `change` if it may be. */
     const update = (id: string, change: (q: Stored) => Partial<Stored>) =>
       records.update(question, id, (q) => ({ ...q, ...change(q) }));
 
+    /** The answer to its asker's handler; one the handler fails on stays undelivered, to go to it
+     * again when the asker next registers it. */
     const deliver = async (q: Stored) => {
       const h = handlers.get(`${q.from}/${q.topic}`);
       if (!(h && q.status === 'answered' && q.answer && !q.delivered)) return;
-      await h(q.answer, strip(q));
+      try {
+        await h(q.answer, strip(q));
+      } catch {
+        return;
+      }
       await update(q.id, () => ({ delivered: true }));
     };
 
@@ -78,7 +85,8 @@ export default defineExtension({
       async handle(topic, handler) {
         const k = `${from}/${topic}`;
         handlers.set(k, handler);
-        for (const q of await find({ from, topic })) await deliver(q);
+        for (const q of await find({ from, topic, status: 'answered', delivered: false }))
+          await deliver(q);
         return () => {
           if (handlers.get(k) === handler) handlers.delete(k);
         };
@@ -105,9 +113,7 @@ export default defineExtension({
           return { status: 'answered', answer };
         });
         await changed();
-        // The answer is kept whatever the asker's handler does: if it fails, the answer stays
-        // undelivered and goes to the handler again when the asker next registers it.
-        await deliver(saved).catch(() => undefined);
+        await deliver(saved);
       },
       async dismiss(id) {
         await update(id, (q) => {
@@ -118,6 +124,10 @@ export default defineExtension({
       },
     });
 
-    return { questions: perCaller(make) };
+    // A removed asker's questions go with it: nothing is left to hand their answers to.
+    const forget = async (from: string) => {
+      for (const q of await find({ from })) await records.delete(question, q.id);
+    };
+    return { questions: perCaller(make, { forget }) };
   },
 });

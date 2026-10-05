@@ -72,7 +72,8 @@ export function localRecords(storage: Store) {
     return next;
   };
   const emit = (type: string, c: Stored) => {
-    for (const l of listeners.get(type) ?? []) void Promise.resolve(l(c)).catch(() => undefined);
+    // After the change is kept, and apart from it: a listener that fails is its own error.
+    for (const l of listeners.get(type) ?? []) queueMicrotask(() => l(c));
   };
   const typeOf = async (type: string) => {
     await format;

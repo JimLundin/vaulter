@@ -56,7 +56,6 @@ export class Kernel {
   /** The static fields of every extension that loaded, running or not. */
   readonly seen = new Map<string, Statics>();
   private readonly parties = new Map<string, Party>();
-  private readonly refused = new Map<string, string[]>();
   private readonly perCallerImpls = new Map<string, object>();
   readonly errors: ErrorLog;
   private readonly opts: KernelOptions;
@@ -112,10 +111,7 @@ export class Kernel {
    * suite is CI's to run, against every provider in the repo: testing.ts.) */
   async start(plans: Map<string, Plan>) {
     const refused: Refused[] = [];
-    const refuse = (id: string, problems: string[]) => {
-      refused.push({ id, problems });
-      this.refused.set(id, problems);
-    };
+    const refuse = (id: string, problems: string[]) => refused.push({ id, problems });
 
     const loaded = new Map<string, Extension['def']>();
     const candidates = (
@@ -160,7 +156,6 @@ export class Kernel {
       try {
         this.parties.set(a.id, party);
         await this.setup(party, def);
-        this.refused.delete(a.id);
       } catch (e) {
         this.errors.record(a.id, 'setup', e);
         this.parties.delete(a.id);
@@ -245,7 +240,6 @@ export class Kernel {
     [...this.parties.values()]
       .filter((p) => p.id !== KERNEL)
       .map((p) => ({ id: p.id, statics: p.statics }));
-  problems = () => new Map(this.refused);
 
   /** A handle on a running provider of `contract`, for the kernel's own use (as "kernel"). */
   use<T>(contract: Contract<T>, provider?: string): T {

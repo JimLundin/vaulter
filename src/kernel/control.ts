@@ -22,7 +22,8 @@ export function control({ booted: b, review, restart }: ControlEnv): KernelV1 {
   return {
     extensions() {
       const running = new Set(kernel.running().map((r) => r.id));
-      const problems = kernel.problems();
+      // Every refusal of this start, planning's and starting's: boot keeps them all.
+      const problems = new Map(b.refused.map((r) => [r.id, r.problems]));
       const { disabled } = config.get();
       const ids = [...new Set([...b.found, ...kernel.seen.keys()])].sort();
       return Promise.resolve(
