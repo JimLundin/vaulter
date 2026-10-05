@@ -1,4 +1,4 @@
-// The password prompt for the page's sealed secrets, over whatever the page shows (safe mode too), when
+// The password prompt for the page's sealed secrets, over whatever the page shows, when
 // this device hasn't opened the sealed file yet. "Not now" closes it; it asks again on the next start.
 import type { Unsealer } from './unseal.ts';
 

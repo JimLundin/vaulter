@@ -1,26 +1,35 @@
-// Every contract's conformance suite against every extension in the repo that provides it, through
-// real handles, each check as a fresh caller: what CI runs on every push, draft branches included, so
-// a provider Vaulter writes is held to its contract before anyone accepts it.
-import { afterAll, describe, expect, it } from 'vitest';
-import { repoConformance } from '../src/kernel/testing.ts';
+// Every contract's conformance suite against every extension in the repo that provides it, each check
+// as a fresh caller: what CI runs on every push, so a provider Vaulter writes is held to its contract
+// before anyone merges it.
+import { describe, expect, it } from 'vitest';
+import { REPO, startApp } from '../src/kernel/testing.ts';
+import type { Suite } from './conformance.ts';
 
-const repo = await repoConformance();
-afterAll(() => repo.kernel.dispose());
+// Previews included: they are held to their contracts before anyone turns them on.
+const kernel = await startApp(REPO, {
+  settings: { current: { enabled: Object.fromEntries(REPO.map((id) => [id, true])) } },
+});
+const suites = import.meta.glob<Suite<unknown>>('./*/conformance.ts', {
+  eager: true,
+  import: 'default',
+});
 
 it('starts every extension in the repo', () => {
-  expect(repo.refused).toEqual([]);
+  expect(kernel.extensions().filter((e) => e.status !== 'running')).toEqual([]);
 });
 
 let n = 0;
-for (const { suite, providers } of repo.suites)
-  for (const provider of providers)
-    describe(`${suite.contract.key} by ${provider}`, () => {
+for (const [path, suite] of Object.entries(suites))
+  for (const { id, exports } of kernel.running().filter((r) => suite.provider in r.exports))
+    describe(`${path.split('/')[1]} by ${id}`, () => {
       it.each(suite.checks.map((check) => [check.name, check] as const))('%s', async (_, check) => {
-        const caller = repo.kernel.caller(`check-${++n}`);
+        const caller = `check-${++n}`;
+        const provider = exports[suite.provider];
+        const forget = exports.forget as ((id: string) => Promise<void>) | undefined;
         try {
-          await check.run(caller.use(suite.contract, provider), expect);
+          await check.run(typeof provider === 'function' ? provider(caller) : provider, expect);
         } finally {
-          await caller.drop();
+          await forget?.(caller);
         }
       });
     });

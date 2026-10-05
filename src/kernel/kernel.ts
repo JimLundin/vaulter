@@ -1,320 +1,119 @@
-// The kernel: loads every extension into this page, wires each `requires` to a provider, and hands
-// each extension handles that check every call (ARCHITECTURE.md, "The kernel"). Extensions run in the
-// kernel's own page: there is no sandbox, so these checks keep well-behaved code, and Vaulter's model, in
-// line; they don't contain hostile code.
-//
-// A handle on a contract is the provider's implementation behind a check: a personal method passes
-// only right after a person acted in the caller. Values pass as they are: no copying, so functions,
-// components and schemas can cross too.
-import { type AnyContract, type Contract, ContractRef } from './contract.ts';
-import { ErrorLog } from './errors.ts';
-import { type Extension, type KernelApi, readStatics, Statics } from './extension.ts';
-import { linker } from './link.ts';
-import type { Plan } from './loader.ts';
-import { isPerCaller, type PerCaller, perCallerDef } from './per-caller.ts';
-import { asPerson, type Presence } from './presence.ts';
-import { type Refused, resolve } from './resolve.ts';
-import type { KernelKeep } from './storage.ts';
+// The kernel: imports the extensions this device has on, and keeps what came of each (ARCHITECTURE.md,
+// "The kernel"). Extensions reach each other by importing one another (package.json's imports name each
+// contract's provider), so the module graph is the wiring and the start order: the kernel only chooses
+// which folders to import. An extension that one that is on imports loads with it, on or not.
+import { record } from './errors.ts';
 
-export class Refusal extends Error {
-  override name = 'Refusal';
+/** An extension's own description, in its about.ts: read before any of its code runs. */
+export interface About {
+  version: string;
+  /** When Vaulter should use it; one line at most is always in Vaulter's context. */
+  agentGuide?: string;
+  /** On main but off until a device turns it on. */
+  preview?: boolean;
+  /** Hosts it fetches without a secret (net). */
+  network?: string[];
+  /** Its secrets, and the only hosts each is attached for (net). */
+  secrets?: Record<string, { label: string; hosts: string[] }>;
 }
 
-export interface KernelOptions {
-  /** The kernel's own state: the error log. */
-  keep: KernelKeep;
-  /** The shared modules extensions import, by specifier (#kernel, zod, react…). */
-  shared: Record<string, object>;
-  /** A module URL for compiled code: a blob: URL in the browser, a data: URL in Node. */
-  url: (code: string) => string;
-  load: (url: string) => Promise<Record<string, unknown>>;
-  /** Which extension a person just acted in (presence.ts): the condition for a contract's personal
-   * methods. Without it, no extension may make a personal call. */
-  presence?: Presence;
-}
-
-interface Party {
+export interface ExtensionInfo {
   id: string;
-  statics: Statics;
-  /** Requires and optional: contract key → provider id. */
-  wiring: Record<string, string>;
-  /** What it provides, by contract key: its contract handle and implementation (or per caller). */
-  provided: Map<string, { contract: AnyContract; impl: object }>;
+  about: About;
+  status: 'running' | 'off' | 'failed';
+  /** Why it failed to start. */
+  problem?: string;
 }
 
-type Fn = (...args: unknown[]) => unknown;
-const NOT_METHODS = new Set(Object.getOwnPropertyNames(Object.prototype));
+/** What an extension's index.ts exports. A provider of something kept per extension exports
+ * `forget(id)`, called when that extension is removed. */
+export type Exports = Record<string, unknown>;
 
-export const KERNEL = 'kernel';
+/** This device's choices: extensions turned on or off, against each one's default (on, unless a
+ * preview). */
+export interface Settings {
+  enabled: Record<string, boolean>;
+}
 
-export class Kernel {
-  /** The static fields of every extension that loaded, running or not. */
-  readonly seen = new Map<string, Statics>();
-  private readonly parties = new Map<string, Party>();
-  private readonly perCallerImpls = new Map<string, object>();
-  readonly errors: ErrorLog;
-  private readonly opts: KernelOptions;
-  private readonly link: (plan: Plan) => string;
+export interface Device {
+  /** This device's settings, kept between starts. */
+  settings: { get: () => Settings; set: (s: Settings) => void };
+  /** Starts the app again, so a change takes effect. */
+  reload: () => void;
+}
 
-  constructor(opts: KernelOptions) {
-    this.opts = opts;
-    const { link, extensionAt } = linker(opts.url, opts.shared);
-    this.link = link;
-    this.errors = new ErrorLog(opts.keep, extensionAt);
-  }
+export interface Folders {
+  about: Record<string, About>;
+  /** Imports an extension's index.ts. */
+  load: Record<string, () => Promise<Exports>>;
+}
 
-  private kernelParty(): Party {
-    let me = this.parties.get(KERNEL);
-    if (!me) {
-      me = {
-        id: KERNEL,
-        statics: Statics.parse({ id: KERNEL, version: '1.0.0' }),
-        wiring: {},
-        provided: new Map(),
-      };
-      this.parties.set(KERNEL, me);
-    }
-    return me;
-  }
+interface Entry extends ExtensionInfo {
+  exports?: Exports;
+}
 
-  /* ---------- Starting ---------- */
+let device: Device | undefined;
+const entries = new Map<string, Entry>();
+let done: () => void = () => undefined;
 
-  /** Gives the kernel's own provider of a contract (the kernel contract; the dev source). */
-  provide(contract: AnyContract, impl: object) {
-    const ref = ContractRef.parse(contract);
-    const me = this.kernelParty();
-    me.statics.provides[contract.name.replaceAll('.', '_')] = ref;
-    me.provided.set(ref.key, { contract, impl });
-  }
+/** Resolves once every extension that is on has started, or failed to. */
+export const started = new Promise<void>((ok) => {
+  done = ok;
+});
 
-  /** An extension's definition, from its plan: the module is linked and evaluated, and its static
-   * fields validated, before any `setup` runs. */
-  async inspect(id: string, plan: Plan): Promise<{ def: Extension['def']; statics: Statics }> {
-    const ext = (await this.opts.load(this.link(plan))).default as Extension | undefined;
-    // A module's default export can be anything: check it is what defineExtension made.
-    if (
-      ext?.kind !== 'extension' ||
-      typeof (ext.def as Partial<Extension['def']> | undefined)?.setup !== 'function'
-    )
-      throw new Error('the default export is not defineExtension({...})');
-    return { def: ext.def, statics: readStatics(id, ext.def) };
-  }
-
-  /** Starts the extensions in `plans` beside those already running: each is loaded and its static
-   * fields read; those the resolver accepts are set up in dependency order. (A contract's conformance
-   * suite is CI's to run, against every provider in the repo: testing.ts.) */
-  async start(plans: Map<string, Plan>) {
-    const refused: Refused[] = [];
-    const refuse = (id: string, problems: string[]) => refused.push({ id, problems });
-
-    const loaded = new Map<string, Extension['def']>();
-    const candidates = (
-      await Promise.all(
-        [...plans].map(async ([id, plan]) => {
-          try {
-            const { def, statics } = await this.inspect(id, plan);
-            this.seen.set(id, statics);
-            loaded.set(id, def);
-            return [{ id, statics }];
-          } catch (e) {
-            refuse(id, [(e as Error).message]);
-            return [];
-          }
-        }),
-      )
-    ).flat();
-    const res = resolve(
-      candidates,
-      [...this.parties.values()].map((p) => ({ id: p.id, statics: p.statics })),
-    );
-    for (const r of res.refused) refuse(r.id, r.problems);
-
-    for (const a of res.accepted) {
-      // An optional provider that didn't start is left out; a required one stops this one.
-      for (const [as, p] of Object.entries(a.wiring))
-        if (as in a.statics.optional && !this.parties.has(p)) delete a.wiring[as];
-      const down = Object.values(a.wiring).filter((p) => !this.parties.has(p));
-      if (down.length) {
-        refuse(a.id, [`${[...new Set(down)].join(', ')} could not start`]);
-        continue;
-      }
-      const def = loaded.get(a.id);
-      if (!def) continue;
-      const refs = { ...a.statics.requires, ...a.statics.optional };
-      const party: Party = {
-        id: a.id,
-        statics: a.statics,
-        wiring: Object.fromEntries(Object.entries(a.wiring).map(([as, p]) => [refs[as].key, p])),
-        provided: new Map(),
-      };
+/** Imports every extension this device has on, side by side; one that fails is kept with why. */
+export async function boot(folders: Folders, on: Device) {
+  device = on;
+  const { enabled } = on.settings.get();
+  await Promise.all(
+    Object.entries(folders.about).map(async ([id, about]) => {
+      const entry: Entry = { id, about, status: 'off' };
+      entries.set(id, entry);
+      if (!(enabled[id] ?? !about.preview)) return;
       try {
-        this.parties.set(a.id, party);
-        await this.setup(party, def);
+        entry.exports = await folders.load[id]();
+        entry.status = 'running';
       } catch (e) {
-        this.errors.record(a.id, 'setup', e);
-        this.parties.delete(a.id);
-        refuse(a.id, [`setup failed: ${(e as Error).message}`]);
+        entry.status = 'failed';
+        entry.problem = (e as Error).message;
+        record(id, 'start', e);
       }
-    }
-    return {
-      started: res.accepted.map((a) => a.id).filter((id) => this.parties.has(id)),
-      refused,
-    };
-  }
-
-  /** Runs `setup` with a handle for each contract wired, and keeps what it provides. */
-  private async setup(party: Party, def: Extension['def']) {
-    const ctx: Record<string, unknown> = {};
-    const wanted = { ...def.requires, ...def.optional } as Record<string, AnyContract>;
-    for (const [alias, c] of Object.entries(wanted)) {
-      const to = party.wiring[c.key];
-      // An optional contract nothing provides is undefined in ctx.
-      if (to) ctx[alias] = this.handle(c, to, party.id);
-    }
-    const out = (await def.setup(ctx as never, this.kernelApi(party))) as
-      | Record<string, unknown>
-      | undefined;
-    for (const [alias, c] of Object.entries(def.provides ?? {}) as [string, AnyContract][]) {
-      const impl = out?.[alias];
-      if (typeof impl !== 'object' || impl === null)
-        throw new Error(`provides ${c.key} as "${alias}" but setup returned nothing for it`);
-      party.provided.set(c.key, { contract: c, impl });
-    }
-  }
-
-  /** A caller that isn't an extension, with real handles on running providers: what a contract's
-   * conformance suite runs as in CI (testing.ts), a fresh one per check. `drop` forgets what it left
-   * with the providers and stops it. */
-  caller(id: string) {
-    const party: Party = {
-      id,
-      statics: Statics.parse({ id, version: '0.0.0' }),
-      wiring: {},
-      provided: new Map(),
-    };
-    this.parties.set(id, party);
-    return {
-      use: <T>(contract: Contract<T>, provider: string): T => {
-        party.wiring[contract.key] = provider;
-        return this.handle(contract, provider, id) as T;
-      },
-      drop: async () => {
-        await this.forget(id);
-        this.parties.delete(id);
-      },
-    };
-  }
-
-  /** Drops what `caller` left with the providers it required. */
-  private async forget(caller: string) {
-    const party = this.parties.get(caller);
-    await Promise.all(
-      Object.entries(party?.wiring ?? {}).map(async ([key, to]) => {
-        const impl = this.parties.get(to)?.provided.get(key)?.impl;
-        if (isPerCaller(impl)) await perCallerDef(impl).forget?.(caller);
-        this.perCallerImpls.delete(`${to}\n${key}\n${caller}`);
-      }),
-    );
-  }
-
-  /** Removes an extension's data: what providers keep for it (its records, its secrets). Its handles
-   * refuse from then on; what it set going in the page stops with the page's next start. */
-  async remove(id: string) {
-    await this.forget(id);
-    if (id !== KERNEL) this.parties.delete(id);
-  }
-
-  /** Every handle refuses from now on: before the page goes (another tab takes over), and in tests.
-   * Nothing is stopped one by one; the page's next start is the clean slate. */
-  dispose() {
-    this.parties.clear();
-  }
-
-  running = () =>
-    [...this.parties.values()]
-      .filter((p) => p.id !== KERNEL)
-      .map((p) => ({ id: p.id, statics: p.statics }));
-
-  /** A handle on a running provider of `contract`, for the kernel's own use (as "kernel"). */
-  use<T>(contract: Contract<T>, provider?: string): T {
-    const providers = [...this.parties.values()].filter((p) => p.provided.has(contract.key));
-    const to =
-      provider ?? (providers.find((p) => p.id !== KERNEL) ?? providers[0])?.id ?? undefined;
-    if (!to) throw new Refusal(`nothing running provides ${contract.key}`);
-    return this.handle(contract, to, KERNEL) as T;
-  }
-
-  /* ---------- Handles ---------- */
-
-  /** What `from` holds for `contract`: the provider's implementation behind the kernel's checks. */
-  private handle(contract: AnyContract, to: string, from: string): unknown {
-    return new Proxy(
-      {},
-      {
-        get: (_, method) => {
-          if (typeof method !== 'string' || method === 'then') return;
-          return (...args: unknown[]) => this.call(from, to, contract.key, method, args);
-        },
-      },
-    );
-  }
-
-  private async call(from: string, to: string, key: string, method: string, args: unknown[]) {
-    const { contract, impl } = this.provider(from, to, key);
-    if (contract.personal.includes(method) && from !== KERNEL) this.admitPerson(from, key, method);
-    const target = isPerCaller(impl) ? this.perCaller(impl, from, to, key) : impl;
-    const fn = (target as Record<string, unknown>)[method];
-    if (typeof fn !== 'function' || NOT_METHODS.has(method))
-      throw new Refusal(`${key} has no method "${method}"`);
-    try {
-      return await (fn as Fn).apply(target, args);
-    } catch (e) {
-      // Kept under whoever's code threw: the provider, or a caller's handler it ran.
-      this.errors.record(this.errors.blame(e) ?? to, 'call', e);
-      throw e;
-    }
-  }
-
-  /** What `to` provides for `key`, with both ends running. */
-  private provider(from: string, to: string, key: string) {
-    const party = this.parties.get(to);
-    if (!party) throw new Refusal(`${to}, which provides ${key}, is not running`);
-    if (!this.parties.has(from) && from !== KERNEL) throw new Refusal(`${from} is not running`);
-    const p = party.provided.get(key);
-    if (!p) throw new Refusal(`${to} does not provide ${key}`);
-    return p;
-  }
-
-  /** A personal method: never for Vaulter's own extensions, and only right after a person acted. */
-  private admitPerson(from: string, key: string, method: string) {
-    if (isAgent(this.parties.get(from)?.statics))
-      throw new Refusal(`${key}.${method} is for a person to do; ${from} is the agent's own`);
-    if (!this.opts.presence?.take(from))
-      throw new Refusal(`${key}.${method} is for a person to do, right after a tap or key`);
-  }
-
-  /** A per-caller provider's implementation for `from`, made the first time `from` calls it. */
-  private perCaller(impl: PerCaller<object>, from: string, to: string, key: string) {
-    const k = `${to}\n${key}\n${from}`;
-    let made = this.perCallerImpls.get(k);
-    if (!made) {
-      const { statics } = this.parties.get(from) ?? this.kernelParty();
-      made = perCallerDef(impl).make(from, statics);
-      this.perCallerImpls.set(k, made);
-    }
-    return made;
-  }
-
-  /* ---------- What the kernel gives every extension ---------- */
-
-  private kernelApi(party: Party): KernelApi {
-    return {
-      asPerson: (handler) =>
-        this.opts.presence ? asPerson(this.opts.presence, party.id, handler) : handler,
-    };
-  }
+    }),
+  );
+  done();
 }
 
-/** Vaulter's own extensions are never a person: the agent, and any extension Vaulter wrote. */
-const isAgent = (s: Statics | undefined) =>
-  s?.author.kind === 'agent' || Object.values(s?.provides ?? {}).some((c) => c.key === 'agent@1');
+/** Every extension in the page, in id order. */
+export const extensions = (): ExtensionInfo[] =>
+  [...entries.values()]
+    .sort((a, b) => a.id.localeCompare(b.id))
+    .map(({ exports: _, ...info }) => info);
+
+/** The running extensions' exports: tools for Vaulter, a shell, `forget`. */
+export const running = () =>
+  [...entries.values()]
+    .filter((e) => e.status === 'running')
+    .map((e) => ({ id: e.id, about: e.about, exports: e.exports ?? {} }));
+
+const need = () => {
+  if (!device) throw new Error('the kernel has not started');
+  return device;
+};
+
+/** Turns an extension on or off for this device, and starts the app again. */
+export function setEnabled(id: string, on: boolean) {
+  const d = need();
+  const { enabled } = d.settings.get();
+  d.settings.set({ enabled: { ...enabled, [id]: on } });
+  d.reload();
+}
+
+/** Drops what every provider keeps for `id` (its records, its secrets, its questions), and turns it
+ * off. */
+export async function remove(id: string) {
+  for (const r of running()) {
+    const forget = r.exports.forget as ((id: string) => Promise<void>) | undefined;
+    await forget?.(id);
+  }
+  setEnabled(id, false);
+}

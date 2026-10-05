@@ -1,12 +1,14 @@
-// The tools Vaulter holds, by extension, and the person's approval of the ones that ask first: such a
-// call becomes a question on the agent's own topic, with the call as its data, and a yes runs it. The
-// answer can come after a restart, before the tool's extension has added it again: the call waits for
-// the tool a little while, and an answer it can't run stays undelivered, to be tried on the next start.
+// The tools Vaulter has, from what every running extension exports as `tools`, and the person's
+// approval of the ones that ask first: such a call becomes a question on the agent's own topic, with
+// the call as its data, and a yes runs it. The answer can come after a restart, before everything has
+// started: the call waits until it has.
 import type { Tool } from '#contracts/agent.tools';
-import type { Question, QuestionsV1 } from '#contracts/questions';
+import type { Question } from '#contracts/questions';
+import { running, started } from '#kernel';
+import { questionsFor } from '#questions';
 
 const APPROVE = 'approve';
-const WAIT_MS = 10_000;
+const questions = questionsFor('agent');
 
 interface Call {
   extension: string;
@@ -14,71 +16,46 @@ interface Call {
   input: Record<string, unknown>;
 }
 
-export function catalog(
-  guide: (extension: string) => Promise<string>,
-  questions: QuestionsV1 | undefined,
-) {
-  const tools = new Map<string, Map<string, Tool<unknown>>>();
-  const waiting = new Map<string, (t: Tool<unknown>) => void>();
-  const key = (extension: string, tool: string) => `${extension}__${tool}`;
+// A tool's name goes to the model as part of the function's name.
+const named = (t: Tool<unknown>) =>
+  /^[a-zA-Z][a-zA-Z0-9_]{0,40}$/.test(t.name) && !t.name.includes('__');
 
-  /** The tool, once its extension has added it. */
-  const added = (extension: string, tool: string) =>
-    new Promise<Tool<unknown>>((ok, fail) => {
-      const t = tools.get(extension)?.get(tool);
-      if (t) return ok(t);
-      const k = key(extension, tool);
-      const timer = setTimeout(() => {
-        waiting.delete(k);
-        fail(new Error(`${extension} has no tool ${tool}`));
-      }, WAIT_MS);
-      waiting.set(k, (found) => {
-        clearTimeout(timer);
-        ok(found);
-      });
-    });
+/** Tools by extension, now. */
+export const tools = () =>
+  new Map(
+    running()
+      .filter((r) => Array.isArray(r.exports.tools))
+      .map((r) => [
+        r.id,
+        new Map((r.exports.tools as Tool<unknown>[]).filter(named).map((t) => [t.name, t])),
+      ]),
+  );
 
-  return {
-    tools,
-    guide,
+/** One line per extension: what it is for. */
+export const guide = (id: string) =>
+  running().find((r) => r.id === id)?.about.agentGuide || 'no guide';
 
-    add(extension: string, tool: Tool<unknown>) {
-      const mine = tools.get(extension) ?? new Map<string, Tool<unknown>>();
-      tools.set(extension, mine);
-      mine.set(tool.name, tool);
-      waiting.get(key(extension, tool.name))?.(tool);
-      waiting.delete(key(extension, tool.name));
-      return () => {
-        if (mine.get(tool.name) === tool) mine.delete(tool.name);
-      };
-    },
+/** Asks the person whether Vaulter may make `call`; the question's id. */
+export const askFirst = (call: Call, description: string) =>
+  questions.ask({
+    topic: APPROVE,
+    // The same call asked again while the first is open is the same question.
+    key: JSON.stringify(call),
+    title: `May Vaulter use ${call.extension}'s ${call.tool}?`,
+    body: `${description}\n\n${JSON.stringify(call.input, null, 2)}`.slice(0, 4000),
+    choices: [
+      { id: 'yes', label: 'Yes' },
+      { id: 'no', label: 'No' },
+    ],
+    data: call as never,
+  });
 
-    /** Asks the person whether Vaulter may make `call`; the question's id. */
-    askFirst(call: Call, description: string) {
-      if (!questions) throw new Error('this tool asks the person first, and nothing can ask them');
-      return questions.ask({
-        topic: APPROVE,
-        // The same call asked again while the first is open is the same question.
-        key: JSON.stringify(call),
-        title: `May Vaulter use ${call.extension}'s ${call.tool}?`,
-        body: `${description}\n\n${JSON.stringify(call.input, null, 2)}`.slice(0, 4000),
-        choices: [
-          { id: 'yes', label: 'Yes' },
-          { id: 'no', label: 'No' },
-        ],
-        data: call as never,
-      });
-    },
-
-    /** Handles the person's answers: a yes runs the call. */
-    listen: () =>
-      questions?.handle(APPROVE, async (answer, q: Question) => {
-        if (answer.choice !== 'yes') return;
-        const call = q.data as unknown as Call;
-        const t = await added(call.extension, call.tool);
-        await t.run(t.input.parse(call.input));
-      }),
-  };
-}
-
-export type Catalog = ReturnType<typeof catalog>;
+// Not awaited: an answer waiting from before waits for everything to start, this extension included.
+void questions.handle(APPROVE, async (answer, q: Question) => {
+  if (answer.choice !== 'yes') return;
+  await started;
+  const call = q.data as unknown as Call;
+  const t = tools().get(call.extension)?.get(call.tool);
+  if (!t) throw new Error(`${call.extension} has no tool ${call.tool}`);
+  await t.run(t.input.parse(call.input));
+});

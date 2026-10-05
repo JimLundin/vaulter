@@ -1,4 +1,4 @@
-// The kernel's own screens (safe mode, the standby tab) in plain DOM: an element with its attributes
+// The kernel's own screens (the standby tab, "no shell") in plain DOM: an element with its attributes
 // (true for one without a value, false or missing for none) and children.
 type Child = Node | string | null | undefined | false;
 

@@ -1,27 +1,17 @@
-// The kernel bundle's entry: the page's own extensions (main), the modules every extension shares,
-// and where a source provider finds drafts.
-import * as react from 'react';
-import * as jsxRuntime from 'react/jsx-runtime';
-import * as reactDomClient from 'react-dom/client';
-import * as zod from 'zod';
-import * as kernel from './kernel/api.ts';
-import { pageFiles } from './kernel/page-source.ts';
+// The page's entry: every extension in extensions/, each in a chunk of its own, imported when it is on.
+import type { About } from './kernel/api.ts';
 import { start } from './kernel/start.ts';
 
-const dev = import.meta.env.DEV;
-if (!dev && 'serviceWorker' in navigator) void navigator.serviceWorker.register('sw.js');
+if (!import.meta.env.DEV && 'serviceWorker' in navigator)
+  void navigator.serviceWorker.register('sw.js');
+
+const id = (path: string) => path.split('/').at(-2) ?? path;
+const byId = <T>(m: Record<string, T>) =>
+  Object.fromEntries(Object.entries(m).map(([path, v]) => [id(path), v]));
 
 void start({
-  page: {
-    commit: dev ? 'working-tree' : import.meta.env.VITE_VAULTER_COMMIT || 'page',
-    files: pageFiles,
-  },
-  defaultSource: import.meta.env.VITE_VAULTER_SOURCE || 'JimLundin/vaulter@main',
-  shared: {
-    '#kernel': kernel,
-    zod,
-    react,
-    'react/jsx-runtime': jsxRuntime,
-    'react-dom/client': reactDomClient,
-  },
+  about: byId(
+    import.meta.glob<About>('../extensions/*/about.ts', { eager: true, import: 'about' }),
+  ),
+  load: byId(import.meta.glob<Record<string, unknown>>('../extensions/*/index.ts')),
 });

@@ -1,8 +1,7 @@
 // Seals the secrets into the built page: node tools/seal-secrets.ts dist/secrets.json
 // In CI (deploy.yml), from the repo's secrets: VAULTER_PASSWORD, and one VAULTER_SECRET__<EXTENSION>__<NAME> per
-// secret ("VAULTER_SECRET__OPENAI__KEY" → openai/key, "VAULTER_SECRET__SOURCE_GITHUB__TOKEN" →
-// source-github/token), each named in deploy.yml. VAULTER_SALT
-// (16 bytes, base64; a repo variable, set once) keeps the salt the same across deploys, so devices
+// secret ("VAULTER_SECRET__OPENAI__KEY" → openai/key), each named in deploy.yml. VAULTER_SALT (16 bytes,
+// base64; a repo variable, set once) keeps the salt the same across deploys, so devices
 // that unlocked once take each new file without asking again.
 import { writeFile } from 'node:fs/promises';
 import { seal } from '../extensions/secrets/sealed.ts';

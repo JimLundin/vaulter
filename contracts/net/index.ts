@@ -1,8 +1,7 @@
 // The network with secrets: a request to one of the caller's declared hosts, with one of its declared
 // secrets attached by the provider, so no extension handles a key itself (ARCHITECTURE.md, "Secrets").
-// An extension declares its secrets and hosts in its static fields; the provider is given them with
-// each caller. Setting and forgetting a secret, and opening the page's sealed ones, are a person's.
-import { defineContract } from '#kernel';
+// An extension declares its secrets and hosts in its about.ts, and hands them over with its id when it
+// takes its own net: `netFor(id, about)`.
 
 /** A request through `fetch`. */
 export interface FetchInit {
@@ -29,15 +28,9 @@ export interface NetV1 {
   /** Whether the page carries sealed secrets this device hasn't opened yet. */
   sealed: () => Promise<{ present: boolean; locked: boolean }>;
 
-  // Personal: a person, right after a tap or key.
+  // For the settings screen.
   setSecret: (ext: string, name: string, value: string) => Promise<void>;
   forgetSecret: (ext: string, name: string) => Promise<void>;
   /** Opens the page's sealed secrets with the password and keeps them on this device. */
   unlock: (password: string) => Promise<void>;
 }
-
-export const net = defineContract<NetV1>({
-  name: 'net',
-  version: 1,
-  personal: ['setSecret', 'forgetSecret', 'unlock'],
-});

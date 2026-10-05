@@ -1,9 +1,9 @@
-// What every provider of notes@1 must do: keep each note as it was said, in order, and say when one is
+// What every provider of notes must do: keep each note as it was said, in order, and say when one is
 // appended.
 import { defineConformance, settle } from '../conformance.ts';
-import { notes } from './index.ts';
+import type { NotesV1 } from './index.ts';
 
-export default defineConformance(notes, [
+export default defineConformance<NotesV1>('notes', [
   {
     name: 'keeps a note as it was, with when it was said',
     async run(n, expect) {

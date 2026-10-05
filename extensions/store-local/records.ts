@@ -1,4 +1,4 @@
-// records@1 over store-local's own database (store.ts: IndexedDB in the browser). Keys:
+// Records over store-local's own database (store.ts: IndexedDB in the browser). Keys:
 //   format                       the layout below, so a later store-local can tell what it reads
 //   r:<type>:<id>                a record as it is now, a tombstone included
 //   h:<type>:<id>:<rev>          each earlier revision of it

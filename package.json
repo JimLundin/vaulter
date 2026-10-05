@@ -4,7 +4,14 @@
   "type": "module",
   "imports": {
     "#kernel": "./src/kernel/api.ts",
-    "#contracts/*": "./contracts/*/index.ts"
+    "#contracts/*": "./contracts/*/index.ts",
+    "#records": "./extensions/store-local/index.ts",
+    "#notes": "./extensions/notes/index.ts",
+    "#questions": "./extensions/questions/index.ts",
+    "#net": "./extensions/secrets/index.ts",
+    "#chat": "./extensions/openai/index.ts",
+    "#wiki": "./extensions/wiki/index.ts",
+    "#agent": "./extensions/agent/index.ts"
   },
   "scripts": {
     "dev": "vite",
@@ -16,10 +23,8 @@
     "format": "biome check --write ."
   },
   "dependencies": {
-    "es-module-lexer": "^3.0.2",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
-    "sucrase": "^3.35.1",
     "zod": "^4.6.5"
   },
   "devDependencies": {

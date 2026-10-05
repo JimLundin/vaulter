@@ -1,10 +1,9 @@
 // The wiki: curated pages about people, places, events and topics, built from notes. Every fact cites
 // the notes it came from, so a page can always be checked against what was said, and rebuilt from it.
-// Each kind is a record type of the wiki's, kept through records@1.
+// Each kind is a record type of the wiki's, kept through records.
 
 import { z } from 'zod';
 import { RecordRef } from '#contracts/records';
-import { defineContract } from '#kernel';
 
 export const Kind = z.enum(['person', 'place', 'event', 'topic']);
 export type Kind = z.infer<typeof Kind>;
@@ -100,8 +99,3 @@ export interface WikiV1 {
   /** Revises the pages a note touches (as happens on its own when a note is appended, with a model). */
   revise: (noteId: string) => Promise<Revised>;
 }
-
-export const wiki = defineContract<WikiV1>({
-  name: 'wiki',
-  version: 1,
-});

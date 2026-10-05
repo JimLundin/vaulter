@@ -14,7 +14,7 @@
 // removing the extension drops its records.
 
 import { z } from 'zod';
-import { defineContract, type Unsubscribe } from '#kernel';
+import type { Unsubscribe } from '#kernel';
 
 export interface RecordType<S extends z.ZodRawShape = z.ZodRawShape> {
   readonly kind: 'record-type';
@@ -58,7 +58,7 @@ export interface Query {
   deleted?: boolean;
 }
 
-/** Provided per calling extension (`perCaller`), which is how a type gets its caller's namespace. */
+/** Records as one extension has them (`recordsFor(id)`), which is how a type gets its namespace. */
 export interface RecordsV1 {
   registerType: <S extends z.ZodRawShape>(name: string, fields: S) => Promise<RecordType<S>>;
   /** A merged record's id reads as the one it was merged into; with `deleted`, the record itself,
@@ -107,5 +107,3 @@ export interface RecordsV1 {
 
 export const RecordRef = z.object({ type: z.string(), id: z.string() });
 export type RecordRef = z.infer<typeof RecordRef>;
-
-export const records = defineContract<RecordsV1>({ name: 'records', version: 1 });

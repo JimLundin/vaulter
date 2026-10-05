@@ -2,7 +2,7 @@
 // page and record built from notes can be rebuilt from them (ARCHITECTURE.md, principles).
 
 import { z } from 'zod';
-import { defineContract, type Unsubscribe } from '#kernel';
+import type { Unsubscribe } from '#kernel';
 
 export const NewNote = z.object({
   text: z.string().trim().min(1),
@@ -32,8 +32,3 @@ export interface NotesV1 {
   list: (query?: NotesQuery) => Promise<Note[]>;
   onAppended: (handler: (note: Note) => void) => Promise<Unsubscribe>;
 }
-
-export const notes = defineContract<NotesV1>({
-  name: 'notes',
-  version: 1,
-});

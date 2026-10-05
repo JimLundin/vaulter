@@ -1,6 +1,6 @@
 {
   // One config for the kernel (src/), the contracts, the extensions and the CI tools (tools/). Extensions import the kernel as
-  // #kernel and contracts as #contracts/<name> (package.json's imports); the loader resolves the same names in the browser.
+  // #kernel, contracts as #contracts/<name>, and each other by what they provide (#records, #chat…): package.json's imports.
   "compilerOptions": {
     "target": "ES2023",
     "lib": ["ES2023", "DOM", "DOM.Iterable"],

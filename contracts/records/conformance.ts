@@ -1,11 +1,11 @@
-// What every provider of records@1 must do: CI runs it against each one in the repo
+// What every provider of records must do: CI runs it against each one in the repo
 // (contracts/conformance.test.ts).
 
 import { z } from 'zod';
 import { defineConformance, settle } from '../conformance.ts';
-import { records } from './index.ts';
+import type { RecordsV1 } from './index.ts';
 
-export default defineConformance(records, [
+export default defineConformance<RecordsV1>('recordsFor', [
   {
     name: 'registers a type in the caller’s namespace and checks values against it',
     async run(r, expect) {

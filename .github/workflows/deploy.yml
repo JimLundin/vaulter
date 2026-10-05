@@ -41,9 +41,6 @@ jobs:
       - uses: actions/setup-node@v5
         with: { node-version: 24, cache: npm }
       - name: Build
-        env:
-          VITE_VAULTER_SOURCE: ${{ vars.VAULTER_SOURCE }}
-          VITE_VAULTER_COMMIT: ${{ github.sha }}
         run: |
           npm ci && npm run build
           printf 'User-agent: *\nDisallow: /\n' > dist/robots.txt
@@ -56,7 +53,6 @@ jobs:
           VAULTER_PASSWORD: ${{ secrets.VAULTER_PASSWORD }}
           VAULTER_SALT: ${{ vars.VAULTER_SALT }}
           VAULTER_SECRET__OPENAI__KEY: ${{ secrets.VAULTER_SECRET__OPENAI__KEY }}
-          VAULTER_SECRET__SOURCE_GITHUB__TOKEN: ${{ secrets.VAULTER_SECRET__SOURCE_GITHUB__TOKEN }}
         run: node tools/seal-secrets.ts dist/secrets.json
       - uses: actions/upload-pages-artifact@v4
         with: { path: dist }

@@ -30,14 +30,14 @@ describe('sealed secrets', () => {
     const u = unsealer(keep, secrets);
     const first = await seal(
       'pw-pw-pw-pw-pw-pw',
-      { 'openai/key': 'sk-1', 'source-github/token': 'gh-1' },
+      { 'openai/key': 'sk-1', 'maps/token': 'gh-1' },
       { ...FAST, salt },
     );
     expect(await u.check(async () => first)).toBe('locked');
     await expect(u.unlock('nope')).rejects.toThrow('does not open');
     await u.unlock('pw-pw-pw-pw-pw-pw');
     expect(await secrets.reveal('openai', 'key')).toBe('sk-1');
-    expect(await secrets.reveal('source-github', 'token')).toBe('gh-1');
+    expect(await secrets.reveal('maps', 'token')).toBe('gh-1');
     expect(await u.check(async () => first)).toBe('imported');
 
     // A new deploy, a new key value: no password needed.
@@ -58,14 +58,14 @@ describe('sealed secrets', () => {
         VAULTER_PASSWORD: 'a-long-enough-password',
         VAULTER_SALT: btoa(String.fromCharCode(...salt)),
         VAULTER_SECRET__OPENAI__KEY: 'sk-ci',
-        VAULTER_SECRET__SOURCE_GITHUB__TOKEN: 'gh-ci',
+        VAULTER_SECRET__MAPS__TOKEN: 'gh-ci',
         GITHUB_TOKEN: 'not-sealed',
       },
     });
     const file = JSON.parse(await readFile(out, 'utf8'));
     expect(await open(await keyFor('a-long-enough-password', file.kdf), file)).toEqual({
       'openai/key': 'sk-ci',
-      'source-github/token': 'gh-ci',
+      'maps/token': 'gh-ci',
     });
   });
 });

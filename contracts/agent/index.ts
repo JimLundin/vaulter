@@ -1,7 +1,6 @@
 // Vaulter itself: ask in words, and it uses the extensions' tools (agent.tools) to answer or to act. Each
 // tool's access applies to every call it makes: read and write run, ask asks the person first, as a
 // question, and runs when they say yes.
-import { defineContract } from '#kernel';
 
 export interface AskRequest {
   prompt: string;
@@ -27,5 +26,3 @@ export interface Answer {
 export interface AgentV1 {
   ask: (req: AskRequest, onStep?: (step: Step) => void) => Promise<Answer>;
 }
-
-export const agent = defineContract<AgentV1>({ name: 'agent', version: 1 });

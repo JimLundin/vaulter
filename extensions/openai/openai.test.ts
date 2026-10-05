@@ -1,7 +1,5 @@
 import { expect, it, vi } from 'vitest';
-import { chat } from '#contracts/ai.chat';
-import { net } from '#contracts/net';
-import { startRepo } from '../../src/kernel/testing.ts';
+import { startApp } from '../../src/kernel/testing.ts';
 
 const RESPONSE = {
   model: 'gpt-6.1-sol',
@@ -33,10 +31,11 @@ it('speaks the Responses API, with the key attached by the secrets extension', a
   // The secrets extension makes the requests, attaching the key: the network is a fake here.
   vi.stubGlobal('fetch', fake);
 
-  const { kernel, refused } = await startRepo(['secrets', 'openai']);
-  expect(refused).toEqual([]);
-  await kernel.use(net, 'secrets').setSecret('openai', 'key', 'sk-test');
-  const ai = kernel.use(chat);
+  await startApp(['secrets', 'openai']);
+  await (await import('#net'))
+    .netFor('settings', { version: '0.0.0' })
+    .setSecret('openai', 'key', 'sk-test');
+  const ai = (await import('#chat')).chat;
   const reply = await ai.complete({
     messages: [
       { role: 'system', content: 'Be brief.' },

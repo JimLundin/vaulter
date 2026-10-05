@@ -66,7 +66,7 @@ export interface ReviseDeps {
   wiki: Omit<WikiV1, 'revise'>;
   all: () => Promise<Page[]>;
   chat: ChatV1;
-  questions?: QuestionsV1;
+  questions: QuestionsV1;
 }
 
 type Cite = (f: z.infer<typeof FactIn>) => { text: string; sources: string[]; at?: string };
@@ -131,7 +131,6 @@ export function reviser(deps: ReviseDeps) {
       const rev: Revised = { note: note.id, created: [], updated: [], asked: [] };
       await apply(plan, note, rev);
       for (const q of plan.ask) {
-        if (!deps.questions) continue;
         const id = await deps.questions.ask({
           topic: 'revise',
           // Revising the same note again doesn't ask again what is still open.

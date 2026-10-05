@@ -1,26 +1,25 @@
 // Conformance suites: what every provider of a contract must do. A contract ships one as
 // contracts/<name>/conformance.ts, and CI runs it against every extension in the repo that provides the
-// contract, through real handles (conformance.test.ts), on every push, draft branches included. Only CI
-// uses this: it isn't part of the kernel, and the page doesn't carry the suites.
+// contract (conformance.test.ts), on every push. Only CI uses this: the page doesn't carry the suites.
 
 import type { ExpectStatic } from 'vitest';
-import type { Contract } from '#kernel';
 
 export interface Check<T> {
   name: string;
-  /** `use` is a fresh caller's handle on the provider. */
+  /** `use` is the provider as a fresh caller has it. */
   run: (use: T, expect: ExpectStatic) => unknown;
 }
 
 export interface Suite<T> {
-  readonly contract: Contract<T>;
+  /** The export a provider is found by: a function of the caller's id, or the implementation. */
+  readonly provider: string;
   readonly checks: Check<T>[];
 }
 
 /** Time for what a provider does after a call returns, such as telling its listeners. */
 export const settle = () => new Promise((ok) => setTimeout(ok, 20));
 
-export const defineConformance = <T>(contract: Contract<T>, checks: Check<T>[]): Suite<T> => ({
-  contract,
+export const defineConformance = <T>(provider: string, checks: Check<T>[]): Suite<T> => ({
+  provider,
   checks,
 });

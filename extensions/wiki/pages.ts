@@ -1,5 +1,5 @@
 // The wiki's pages as records: one record type per kind, facts kept on the page with the notes they
-// came from. Everything here is what wiki@1 offers besides revising.
+// came from. Everything here is what the wiki offers besides revising.
 import type { RecordRef, RecordsV1, RecordType, Stored } from '#contracts/records';
 import { fields, Kind, type Page, type WikiV1 } from '#contracts/wiki';
 

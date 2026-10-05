@@ -1,8 +1,8 @@
-// What every provider of questions@1 must do.
+// What every provider of questions must do.
 import { defineConformance, settle } from '../conformance.ts';
-import { questions } from './index.ts';
+import type { QuestionsV1 } from './index.ts';
 
-export default defineConformance(questions, [
+export default defineConformance<QuestionsV1>('questionsFor', [
   {
     name: 'keeps an asked question open until it is answered',
     async run(q, expect) {

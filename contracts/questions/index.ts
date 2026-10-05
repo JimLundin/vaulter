@@ -1,10 +1,10 @@
 // Questions: how Vaulter asks when something is unclear, contradicts what was said before, or is a change it
 // isn't sure of (ARCHITECTURE.md, "Vaulter proposes, you approve"). An extension asks under a topic of its
 // own and handles answers under that topic; answers that arrive while it isn't running are delivered
-// when it next registers its handler. Answering is personal: Vaulter can't answer its own questions.
+// when it next registers its handler. The person answers, on a screen; nothing answers for them.
 
 import { z } from 'zod';
-import { defineContract, type Unsubscribe } from '#kernel';
+import type { Unsubscribe } from '#kernel';
 
 export const NewQuestion = z.object({
   /** The asker's own topic: "merge-people", "unclear-date". */
@@ -43,18 +43,12 @@ export interface QuestionsV1 {
   /** The asker's handler for its topic; pending answers are delivered on registering. */
   handle: (
     topic: string,
-    handler: (answer: Answer, question: Question) => void,
+    handler: (answer: Answer, question: Question) => unknown,
   ) => Promise<Unsubscribe>;
   open: () => Promise<Question[]>;
   get: (id: string) => Promise<Question | undefined>;
   onChanged: (handler: (open: Question[]) => void) => Promise<Unsubscribe>;
-  // Personal: a person answers.
+  // The person's, from a screen.
   answer: (id: string, answer: Answer) => Promise<void>;
   dismiss: (id: string) => Promise<void>;
 }
-
-export const questions = defineContract<QuestionsV1>({
-  name: 'questions',
-  version: 1,
-  personal: ['answer', 'dismiss'],
-});

@@ -3,7 +3,7 @@
 // and attached to requests for the hosts the extension declared for it. Nothing here syncs or reaches
 // the repo.
 import type { FetchInit } from '#contracts/net';
-import type { Statics } from '#kernel';
+import type { About } from '#kernel';
 import type { Store } from './store.ts';
 
 interface Encrypted {
@@ -72,25 +72,26 @@ export function vault(keep: Store): Vault {
 
 /** `fetch` for one extension: https only, to its declared hosts, with a secret attached only when
  * the request names it and goes to one of that secret's hosts. */
-export function fetcher(ext: Pick<Statics, 'id' | 'permissions' | 'secrets'>, secrets: Vault) {
+export function fetcher(id: string, about: About, secrets: Vault) {
+  const declared = about.secrets ?? {};
   const allowed = new Set([
-    ...ext.permissions.network,
-    ...Object.values(ext.secrets).flatMap((s) => s.hosts),
+    ...(about.network ?? []),
+    ...Object.values(declared).flatMap((s) => s.hosts),
   ]);
   return async (url: string, init: FetchInit = {}): Promise<Response> => {
     const u = new URL(url);
-    if (u.protocol !== 'https:') throw new Error(`${ext.id}: only https requests (${u.origin})`);
+    if (u.protocol !== 'https:') throw new Error(`${id}: only https requests (${u.origin})`);
     if (!allowed.has(u.hostname))
-      throw new Error(`${ext.id}: ${u.hostname} is not among its declared hosts`);
+      throw new Error(`${id}: ${u.hostname} is not among its declared hosts`);
     const { secret, ...rest } = init;
     const headers = new Headers(rest.headers);
     if (secret !== undefined) {
-      const spec = ext.secrets[secret];
-      if (!spec) throw new Error(`${ext.id}: no secret named "${secret}" is declared`);
+      const spec = declared[secret];
+      if (!spec) throw new Error(`${id}: no secret named "${secret}" is declared`);
       if (!spec.hosts.includes(u.hostname))
-        throw new Error(`${ext.id}: the secret "${secret}" is not for ${u.hostname}`);
-      const value = await secrets.reveal(ext.id, secret);
-      if (value === undefined) throw new Error(`${ext.id}: the secret "${secret}" is not set`);
+        throw new Error(`${id}: the secret "${secret}" is not for ${u.hostname}`);
+      const value = await secrets.reveal(id, secret);
+      if (value === undefined) throw new Error(`${id}: the secret "${secret}" is not set`);
       headers.set('Authorization', `Bearer ${value}`);
     }
     // No credentials or referrer from the app's own origin ride along, and no redirect elsewhere.

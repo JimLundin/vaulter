@@ -4,7 +4,7 @@
 import { z } from 'zod';
 import type { Answer, AskRequest, Step } from '#contracts/agent';
 import type { ChatV1, Message } from '#contracts/ai.chat';
-import type { Catalog } from './catalog.ts';
+import { askFirst, guide, tools } from './catalog.ts';
 
 const INSTRUCTIONS = `You are Vaulter, a personal assistant that keeps a wiki from the notes a person speaks or types.
 Answer from what the extensions know, using their tools; never guess or invent. Cite the notes facts come from when it helps.
@@ -21,7 +21,7 @@ const show = (v: unknown) => {
   return s.length > MAX_OUTPUT ? `${s.slice(0, MAX_OUTPUT)}… (cut)` : s;
 };
 
-type Tools = Catalog['tools'];
+type Tools = ReturnType<typeof tools>;
 type Call = { id: string; name: string; arguments: string };
 
 /** The functions the model may call now: open an extension, or a tool of one already opened. */
@@ -52,11 +52,10 @@ const offered = (all: Tools, opened: Set<string>) => [
 /** One function call the model made, answered: what goes back to it as the tool's output. */
 async function answer(
   call: Call,
-  catalog: Catalog,
+  all: Tools,
   opened: Set<string>,
   step: (s: Step) => Promise<void>,
 ): Promise<unknown> {
-  const all = catalog.tools;
   const input = JSON.parse(call.arguments || '{}') as Record<string, unknown>;
   if (call.name === 'open_extension') {
     const id = String(input.id);
@@ -77,7 +76,7 @@ async function answer(
     const parsed = t.input.parse(input) as Record<string, unknown>;
     output =
       t.access === 'ask'
-        ? { asked: await catalog.askFirst({ extension: ext, tool, input: parsed }, t.description) }
+        ? { asked: await askFirst({ extension: ext, tool, input: parsed }, t.description) }
         : await t.run(parsed);
   } catch (e) {
     error = (e as Error).message;
@@ -88,16 +87,11 @@ async function answer(
 
 export async function ask(
   chat: ChatV1,
-  catalog: Catalog,
   req: AskRequest,
   onStep?: (s: Step) => unknown,
 ): Promise<Answer> {
-  const all = catalog.tools;
-  const lines = await Promise.all(
-    [...all].map(
-      async ([ext, tools]) => `- ${ext}: ${await catalog.guide(ext)} (${tools.size} tools)`,
-    ),
-  );
+  const all = tools();
+  const lines = [...all].map(([ext, held]) => `- ${ext}: ${guide(ext)} (${held.size} tools)`);
   const messages: Message[] = [
     { role: 'system', content: `${INSTRUCTIONS}\n\nExtensions:\n${lines.join('\n') || '(none)'}` },
     { role: 'user', content: req.prompt },
@@ -122,7 +116,7 @@ export async function ask(
     });
     if (!r.toolCalls.length) return { text: r.content ?? '', steps, usage };
     for (const call of r.toolCalls) {
-      const output = await answer(call, catalog, opened, step).catch((e: Error) => ({
+      const output = await answer(call, all, opened, step).catch((e: Error) => ({
         error: e.message,
       }));
       messages.push({ role: 'tool', toolCallId: call.id, content: show(output) });
