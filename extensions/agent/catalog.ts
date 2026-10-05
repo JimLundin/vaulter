@@ -15,26 +15,39 @@ const Asked = z.object({
 });
 type Asked = z.infer<typeof Asked>;
 
+/** A tool, as another extension's `tools` export is checked to hold. */
+const ToolShape = z.object({
+    // It goes to the model inside the function's name, after a __.
+    name: z
+        .string()
+        .regex(/^[a-zA-Z][a-zA-Z0-9_]{0,40}$/)
+        .refine((name) => !name.includes('__')),
+    description: z.string(),
+    access: z.enum(['read', 'write', 'ask']),
+    input: z.instanceof(z.ZodType),
+    run: z.custom<(input: unknown) => unknown>(
+        (run) => typeof run === 'function',
+    ),
+});
+
 const TOPIC = 'approve';
-/** A tool's name goes to the model inside the function's name. */
-const TOOL_NAME = /^[a-zA-Z][a-zA-Z0-9_]{0,40}$/;
 const questions = questionsFor('agent');
 
-function hasToolName(tool: Tool) {
-    return TOOL_NAME.test(tool.name) && !tool.name.includes('__');
+/** The tools in an extension's `tools` export. One that isn't a tool, or
+ * whose name can't go to the model, is left out. */
+function toolsIn(exported: unknown): Tool[] {
+    const list: unknown[] = Array.isArray(exported) ? exported : [];
+    return list.flatMap((tool) => ToolShape.safeParse(tool).data ?? []);
 }
 
 /** Every extension's tools, by extension and name, as they are now. */
 export function tools() {
     const byExtension = new Map<string, Map<string, Tool>>();
     for (const { id, exports } of extensions()) {
-        if (!Array.isArray(exports.tools)) {
-            continue;
+        const own = toolsIn(exports.tools);
+        if (own.length) {
+            byExtension.set(id, new Map(own.map((tool) => [tool.name, tool])));
         }
-        // An agreed export is trusted as its type, as any import is.
-        const own: Tool[] = exports.tools;
-        const named = own.filter(hasToolName);
-        byExtension.set(id, new Map(named.map((tool) => [tool.name, tool])));
     }
     return byExtension;
 }

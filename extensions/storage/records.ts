@@ -77,11 +77,11 @@ function byField(field: string, direction: 1 | -1) {
 
 /** The words of a record's text: of `fields`, or of every field. */
 function textOf(record: Rec<object>, fields?: string[]) {
-    const values = fields
+    const values: unknown[] = fields
         ? fields.map((field) => valueAt(record, field))
         : Object.values(omit(record, 'id', 'meta'));
     const strings = values
-        .flatMap((value) => (Array.isArray(value) ? value : [value]))
+        .flatMap((value): unknown[] => (Array.isArray(value) ? value : [value]))
         .filter((value) => typeof value === 'string');
     return words(strings.join(' ')).join(' ');
 }
@@ -172,9 +172,9 @@ export function collections(store: Store) {
 
             async query(query: Query<T> = {}) {
                 let found = await live();
-                for (const [field, filter] of Object.entries(
-                    query.where ?? {},
-                )) {
+                for (const [field, filter] of Object.entries<
+                    Filter | undefined
+                >(query.where ?? {})) {
                     if (filter !== undefined) {
                         found = found.filter((record) =>
                             matches(valueAt(record, field), filter),
