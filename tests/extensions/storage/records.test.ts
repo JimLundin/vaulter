@@ -1,10 +1,10 @@
 // Records: what storage keeps, and how.
 import { expect, it } from 'vitest';
-import { startApp } from '../../app.ts';
+import { restart } from '../../app.ts';
 
 /** A collection of `T`, on a freshly started store. */
 async function use<T extends object>(name = 'test/thing') {
-    await startApp(['storage']);
+    restart();
     return (await import('#extensions/storage')).collection<T>(name);
 }
 

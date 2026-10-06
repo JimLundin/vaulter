@@ -1,7 +1,7 @@
 // Notes: each kept as it was said, listed in order, and told to whoever
 // listens.
 import { expect, it } from 'vitest';
-import { startApp } from '../../app.ts';
+import { restart } from '../../app.ts';
 
 /** Time for listeners, which hear of a change after it is kept. */
 function settle() {
@@ -9,7 +9,7 @@ function settle() {
 }
 
 async function use() {
-    await startApp(['notes']);
+    restart();
     return (await import('#extensions/notes')).notes;
 }
 

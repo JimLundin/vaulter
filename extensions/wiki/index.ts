@@ -5,7 +5,7 @@
 import { notes } from '#extensions/notes';
 import { questionsFor } from '#extensions/questions';
 import { collection } from '#extensions/storage';
-import { messageOf } from '#kernel';
+import { queue } from '#kernel';
 import {
     addFact,
     citing,
@@ -21,44 +21,36 @@ import { answered, revise } from './revise.ts';
 export * from './api.ts';
 export { tools } from './tools.ts';
 
-/** Notes whose revision failed (no key yet, offline, a bad answer), to be
- * revised again on the next start. */
-const unrevised = collection<{ error: string }>('wiki/unrevised');
-let queue: Promise<unknown> = Promise.resolve();
+/** The notes revised into the wiki, by note id. A note whose revision
+ * failed (no key yet, offline, a bad answer) isn't here, and is revised
+ * again on the next start. */
+const revised = collection<{ at: string }>('wiki/revised');
+const inOrder = queue();
 
 /** Revises a note after the one before, in the order the notes came. */
 function reviseInTurn(noteId: string) {
-    const next = queue.then(async () => {
+    return inOrder(async () => {
         const note = await notes.get(noteId);
         if (!note) {
             throw new Error(`no note ${noteId}`);
         }
-        return revise(note);
-    });
-    queue = next.catch(() => undefined);
-    return next;
-}
-
-async function attempt(noteId: string) {
-    try {
-        await reviseInTurn(noteId);
-        await unrevised.delete(noteId);
-    } catch (error) {
-        const reason = messageOf(error);
-        if (await unrevised.get(noteId)) {
-            await unrevised.update(noteId, () => ({ error: reason }));
-        } else {
-            await unrevised.create({ id: noteId, error: reason });
+        const result = await revise(note);
+        if (!(await revised.get(noteId))) {
+            await revised.create({ id: noteId, at: new Date().toISOString() });
         }
-    }
+        return result;
+    });
 }
 
-notes.onAppended((note) => void attempt(note.id));
+notes.onAppended((note) => void reviseInTurn(note.id));
 await questionsFor('wiki').handle('revise', (answer, question) =>
     answered(answer.choice, question.data),
 );
-for (const left of await unrevised.query({ order: 'asc' })) {
-    void attempt(left.id);
+const done = new Set((await revised.query()).map((note) => note.id));
+for (const note of await notes.list({ order: 'oldest' })) {
+    if (!done.has(note.id)) {
+        void reviseInTurn(note.id);
+    }
 }
 
 export const wiki = {

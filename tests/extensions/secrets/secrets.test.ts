@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest';
 import { seal } from '../../../extensions/secrets/sealed.ts';
-import { servePage, startApp } from '../../app.ts';
+import { restart, servePage } from '../../app.ts';
 
 const PASSWORD = 'pw-pw-pw-pw-pw-pw';
 const FAST = { iterations: 1000, salt: new Uint8Array(16).fill(7) };
@@ -10,7 +10,7 @@ async function page(values: Record<string, string>) {
     servePage(await seal(PASSWORD, values, FAST), () =>
         Promise.reject(new Error('offline')),
     );
-    await startApp(['secrets']);
+    restart();
     return import('#extensions/secrets');
 }
 

@@ -4,7 +4,7 @@
 // A query reads its whole collection and filters in memory, which is plenty
 // for one person's data.
 
-import { omit } from '#kernel';
+import { omit, queue } from '#kernel';
 import type { Filter, Meta, Query, Rec, Sortable } from './api.ts';
 import type { Store } from './store.ts';
 
@@ -99,14 +99,14 @@ function clock() {
 /** Runs changes to one key one after another: each waits for the one
  * before, so an update always starts from the last. */
 function inTurn() {
-    const tails = new Map<string, Promise<unknown>>();
+    const queues = new Map<string, ReturnType<typeof queue>>();
     return <T>(key: string, change: () => Promise<T>): Promise<T> => {
-        const next = (tails.get(key) ?? Promise.resolve()).then(change, change);
-        tails.set(
-            key,
-            next.catch(() => undefined),
-        );
-        return next;
+        let keyQueue = queues.get(key);
+        if (!keyQueue) {
+            keyQueue = queue();
+            queues.set(key, keyQueue);
+        }
+        return keyQueue(change);
     };
 }
 

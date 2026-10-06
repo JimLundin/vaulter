@@ -10,7 +10,7 @@ You speak notes throughout the day. Vaulter transcribes them, asks when somethin
 
 Principles:
 
-- **The kernel only starts the extensions.** It stores no notes, runs no agent, draws no screens and wires nothing: extensions import one another.
+- **Extensions import one another.** There is no registry, no discovery and no hooks: an extension that uses another imports it and calls it. The kernel only keeps Vaulter to one tab and holds a few shared helpers.
 - **Everything else is an extension**, including voice capture, the wiki, questions and search.
 - **The delete test.** If the app still runs with a feature removed, that feature is an extension. Removing one is removing its folder and the imports of it, which the build and CI check.
 - **One API for people and Vaulter.** Anything a person can do through an extension, Vaulter can do through the same functions, as its tools.
@@ -32,67 +32,51 @@ export type Note = Rec<z.output<typeof NewNote>>;                        // what
 const kept = collection<z.output<typeof NewNote>>('notes/note');   // storage, typed by what it holds
 
 export const notes = { append, get, list, onAppended };   // what it offers
-// optional, found by others: export const tools = […]; export const ui = {…};
+export const tools = […];   // for the agent, which imports them
 ```
 
 - **Starting is importing.** An extension's top-level code is its setup, with top-level `await` for what is async. The module graph is the start order: an extension runs once what it imports has.
-- **What an extension exports** is what it offers others (`notes`, `wiki`, `model`…), and anything under one of the agreed names below. Nothing else describes it: no manifest, no version, no registration.
+- **What an extension exports** is what it offers others (`notes`, `wiki`, `model`, the wiki's `tools`…). Nothing else describes it: no manifest, no version, no registration.
 - **Where something is kept per extension, the caller says who it is**: `questionsFor('wiki')`.
 - **Zod is where data comes from outside typed code, and its type comes from the schema** (`z.infer`): a tool's input (what Vaulter's model sends, and the JSON Schema it reads), a model's structured answer, OpenAI's responses, the sealed secrets file, what a person types, and a question's `data`, which comes back from storage to its asker, perhaps a newer version of it. A shape that is also a tool's input, such as a wiki page, is defined once as a schema, and the tools' inputs are made from it (`Patch`, `NewPage`). Inside typed code nothing is checked again, and nothing is cast: a record is its domain type (`Rec<T>`), with no function converting it, and a list of tools of different inputs fits `Tool[]` because `run` is a method.
 
 ```
- src/kernel/      the kernel: one tab at a time, importing every extension, the list of them
- src/main.ts      every extensions/*/index.ts, imported once this tab has Vaulter
+ src/kernel/      one tab at a time, and helpers (#kernel: omit, queue, messageOf)
+ src/main.ts      claims the tab, then imports the agent, which imports the rest
  extensions/
    storage/ notes/ questions/ secrets/ openai/ wiki/ agent/
      index.ts     the module
      api.ts       the types and schemas other extensions use, when it has many
  tools/           CI only: sealing the secrets into the built page
- tests/           every test: tests/kernel/, tests/extensions/<id>/, and app.ts to start the app in one
+ tests/           every test: tests/kernel/, tests/extensions/<id>/, start.test.ts (every extension starts), and app.ts
 ```
 
 **Storage** is one function: `collection<T>(name)`, a collection named by its owner (`wiki/page`) and typed by what it holds, with `get`, `query` (by a field's value or range, ordered, limited), `search` (by the words in its text fields), `create`, `update` (one change at a time, from the record as it is now) and `delete` (a tombstone). Every revision is kept.
 
 ## How extensions interact
 
-In three ways, and no others.
+In two ways, and no others.
 
-**Calling what another exports.** A direct import: the wiki calls `notes.get(id)` and `model.json(…)`. TypeScript checks the call; nothing sits between the two at runtime.
+**Calling what another exports.** A direct import: the wiki calls `notes.get(id)` and `model.json(…)`, and the agent imports the wiki's `tools`. TypeScript checks the call; nothing sits between the two at runtime.
 
 **Hearing back.** A callback handed over: `notes.onAppended(note => …)` for every new note; `questions.handle('revise', answer => …)` for the answers to the questions an extension asked under its own topic, also after a restart.
 
-**Being found.** An extension that serves others doesn't import them: it finds them through the kernel's `extensions()`, by an export with an agreed name, and each side works without the other. These are the agreed names:
-
-| Export | Read by | What it is |
-| --- | --- | --- |
-| `tools` | the agent | `Tool[]` (`#extensions/agent`): callbacks into the extension, each with a description for the model, a Zod input and an access level |
-| `ui` | the shell | `Ui` (`#extensions/shell`): the extension's screens, navigation, actions, panels and notices |
-| `shell` | the kernel | `{ mount(root) }`: the one extension that owns the page |
-
-An extension imports these types with `import type`, which leaves nothing behind at runtime: the wiki's `tools` and `ui` don't load the agent or the shell, and the wiki runs without either. A screen does import React and `#ui` at runtime; those are libraries, not the shell.
+Tool types are imported with `import type`, which leaves nothing behind at runtime: the wiki's `tools` don't load the agent, and the wiki runs without it.
 
 ```
-start.ts: this tab claims Vaulter, then imports every extension
-   wiki imports storage, notes, questions, openai: they run first, each once
-   wiki's top level subscribes to notes and handles its answers
-every import done → the kernel lists them, and `started`
-start.ts → the extension exporting `shell` mounts on the page; the shell reads every `ui`,
-           and the agent every `tools`, from extensions()
+main.ts: this tab claims Vaulter, then imports the agent
+   the agent imports openai, questions and the wiki's tools
+   the wiki imports storage, notes, questions, openai: each runs once, before what imports it
+   the wiki's top level subscribes to notes and handles its answers
 ```
 
-An extension that throws while it starts stops the start, and the page says why: CI's tests start every extension first.
+An extension that throws while it starts stops the start, and the page says why. A test starts every extension in `extensions/` (`tests/start.test.ts`), so an extension nothing imports yet is still checked.
 
 ## The kernel
 
-What is left are the jobs no extension can do for itself (`src/kernel`, about 60 lines):
+What is left is the one job no extension can do for itself (`src/kernel/single-tab.ts`): one tab at a time. The first tab holds a Web Lock while it is open, and another says Vaulter is open elsewhere. Two tabs over one IndexedDB would each miss the other's changes, and records' one-change-at-a-time per record holds only within a tab. The lock comes before any extension runs, which is why `main.ts` imports the agent only once it has it: the page's one dynamic import.
 
-| Kernel job | Why it can't be an extension |
-| --- | --- |
-| One tab at a time (`single-tab.ts`): the first holds a Web Lock while it is open, and another says Vaulter is open elsewhere | Two tabs over one IndexedDB would each miss the other's changes, and records' one-change-at-a-time per record holds only within a tab |
-| Import every extension once this tab has Vaulter (`start.ts`), and keep the list of them (`kernel.ts`) | The lock comes before any extension runs |
-| Hand the page to the shell, or say there is none | Before any screen exists |
-
-Extensions use the kernel as `#kernel`: `extensions()` (each one's id and exports: how the agent finds every extension's tools) and `started` (once every extension has started).
+`#kernel` is also where the helpers every extension may use live: `omit`, `queue` (tasks one after another) and `messageOf`.
 
 **Running in the page.** Every extension runs in the page, with one copy of each module. There is no sandbox, and nothing pretends to be one: an extension can reach anything in the page, secrets included. What keeps bad code out is review before it reaches `main`. An earlier version gave every extension its own opaque-origin iframe, and a later one routed every call through kernel handles that checked callers, guarded tools and gated personal calls; both were dropped, for isolation this app doesn't need. If isolating untrusted code ever matters, the way is WebAssembly modules.
 
@@ -102,8 +86,8 @@ Vaulter gains every extension's abilities automatically, because an extension's 
 
 From each extension Vaulter gets:
 
-- **Its tools** (`export const tools`): callbacks into it, each with a description that tells the model what it does and when to use it, a Zod input and an access level.
-- **Its views** (its `ui`), once the shell has them: "Where was I on Tuesday?" can return the Map view filtered to Tuesday.
+- **Its tools** (`export const tools`, imported by the agent and listed in `extensions/agent/index.ts`): callbacks into it, each with a description that tells the model what it does and when to use it, a Zod input and an access level.
+- **Its views**, once the shell has them: "Where was I on Tuesday?" can return the Map view filtered to Tuesday.
 
 **Access per tool.** The agent applies it to every call its model makes:
 
@@ -113,7 +97,7 @@ From each extension Vaulter gets:
 | `write` | Runs it, and it shows in the answer's calls | Adding a fact with a clear source |
 | `ask` | Asks you first, as a question: the call runs when you say yes | Merging people, retracting a fact, anything uncertain |
 
-An `ask` call becomes a question on the agent's own topic (`extensions/agent/catalog.ts`), with the call as its data; your yes runs it, also after a restart. The model only acts through tools, and no tool answers questions, so this is the whole boundary. An extension Vaulter writes that tried to answer its own questions would be caught where all code is: in review, before `main`.
+An `ask` call becomes a question on the agent's own topic (`extensions/agent/index.ts`), with the call as its data; your yes runs it, also after a restart. The model only acts through tools, and no tool answers questions, so this is the whole boundary. An extension Vaulter writes that tried to answer its own questions would be caught where all code is: in review, before `main`.
 
 **Every tool, every time.** Vaulter sees every tool, with its description, in every request. When there are enough extensions to crowd a request, it can open them one at a time instead.
 
@@ -157,7 +141,7 @@ Live speech will fit the same model when voice is built: the `openai` extension 
 
 ## The UI
 
-One extension, `shell`, owns the page: the frame, the sidebar and keys on desktop, the controls at the bottom on mobile. It draws nothing of its own subject. Every screen comes from the extension it belongs to (the wiki's pages are in `extensions/wiki/`), exported under the agreed name `ui`:
+One extension, `shell`, owns the page: the frame, the sidebar and keys on desktop, the controls at the bottom on mobile. It draws nothing of its own subject. Every screen comes from the extension it belongs to (the wiki's pages are in `extensions/wiki/`), exported as `ui`, and the shell imports each extension's `ui` the way the agent imports its `tools`:
 
 ```ts
 // extensions/wiki/ui.tsx, exported from its index.ts
@@ -222,7 +206,7 @@ The draft screens are on the [Personal Agent UI canvas](https://claude.ai/artifa
 5. Today, Search and Map.
 6. Vaulter writing extensions, as pull requests: a focused extension of its own.
 
-The extensions so far, each tested with the others (`startApp` in `tests/app.ts`):
+The extensions so far, each tested with the others (`restart` in `tests/app.ts`):
 
 | Extension | Exports | Imports | Notes |
 | --- | --- | --- | --- |
@@ -232,7 +216,7 @@ The extensions so far, each tested with the others (`startApp` in `tests/app.ts`
 | `questions` | `questionsFor` | `storage` | Answers reach the asker's topic handler, also after a restart |
 | `openai` | `model` | `secrets` | `model.answer` runs the tool loop (functions in, an answer and its calls out), `model.json` gives a structured answer checked against its Zod schema. Over the Responses API, `store: false`, with the encrypted reasoning sent back each turn; the wire format stays inside. Its model name is in `extensions/openai/index.ts` |
 | `wiki` | `wiki`, `tools` | `storage`, `notes`, `questions`, `openai` | Pages of four kinds (person, place, event, topic) in one collection, linking each other by id; every fact cites its notes; each note is revised into pages by the model, and what it isn't sure of becomes a yes/no question whose answer makes the change |
-| `agent` | `agent` | `openai`, `questions`, `#kernel` | Sees every extension's tools, and asks before a tool that asks first |
+| `agent` | `agent` | `openai`, `questions`, `wiki` | Has the tools it imports, and asks before a tool that asks first |
 
 **A rebuild, not a refactor.** The first draft planned to wrap the existing app's modules as extensions and move features over one at a time. Instead (2026-10-04) Vaulter is rebuilt from scratch on the `pip` branch, with the old app removed there so the two never run side by side.
 

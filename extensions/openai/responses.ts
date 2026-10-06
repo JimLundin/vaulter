@@ -26,7 +26,6 @@ const Message = z.object({
     type: z.literal('message'),
     content: z.array(z.looseObject({ type: z.string(), text: z.unknown() })),
 });
-const Failure = z.object({ error: z.object({ message: z.string() }) });
 
 export type FunctionCall = z.infer<typeof FunctionCall>;
 
@@ -53,14 +52,10 @@ export async function respond(body: Record<string, unknown>) {
         referrerPolicy: 'no-referrer',
         redirect: 'error',
     });
-    const answer: unknown = await response.json().catch(() => null);
     if (!response.ok) {
-        const reason =
-            Failure.safeParse(answer).data?.error.message ??
-            response.statusText;
-        throw new Error(`OpenAI ${response.status}: ${reason}`);
+        throw new Error(`OpenAI ${response.status}: ${await response.text()}`);
     }
-    return Response.parse(answer);
+    return Response.parse(await response.json());
 }
 
 /** The calls the model asked for in `output`. */

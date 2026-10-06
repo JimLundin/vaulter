@@ -1,12 +1,10 @@
 import { expect, it } from 'vitest';
-import { startApp } from '../../app.ts';
+import { restart } from '../../app.ts';
 
 /** Time for listeners, which hear of a change after it is kept. */
 function settle() {
     return new Promise((resolve) => setTimeout(resolve, 20));
 }
-
-const APP = ['storage', 'questions'];
 const ask = {
     topic: 'merge',
     title: 'Same Ada?',
@@ -14,7 +12,7 @@ const ask = {
 };
 
 it("hands the answer to the asker's handler for its topic", async () => {
-    await startApp(APP);
+    restart();
     const { questionsFor } = await import('#extensions/questions');
     const asker = questionsFor('asker');
     const got: (string | undefined)[] = [];
@@ -28,7 +26,7 @@ it("hands the answer to the asker's handler for its topic", async () => {
 });
 
 it('keeps an answer the handler failed on, for later', async () => {
-    await startApp(APP);
+    restart();
     const before = (await import('#extensions/questions')).questionsFor(
         'asker',
     );
@@ -41,7 +39,7 @@ it('keeps an answer the handler failed on, for later', async () => {
 
     // The app starts again, and the asker registers its handler again: it is
     // handed the answer then.
-    await startApp(APP);
+    restart();
     const after = (await import('#extensions/questions')).questionsFor('asker');
     const got: (string | undefined)[] = [];
     await after.handle('merge', (first) => {
@@ -52,7 +50,7 @@ it('keeps an answer the handler failed on, for later', async () => {
 
 /** Questions as a fresh asker has them. */
 async function use() {
-    await startApp(['questions']);
+    restart();
     return (await import('#extensions/questions')).questionsFor('test');
 }
 

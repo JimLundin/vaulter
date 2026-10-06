@@ -76,12 +76,18 @@ export async function seal(
     return { v: 1, kdf, iv: base64(iv), data: base64(new Uint8Array(data)) };
 }
 
-/** The secrets in a file. Throws on the wrong key. */
+/** The secrets in a file, or null if `key` doesn't open it. */
 export async function open(key: CryptoKey, file: SealedFile) {
-    const plain = await crypto.subtle.decrypt(
-        { name: 'AES-GCM', iv: bytesOf(file.iv), additionalData: AAD },
-        key,
-        bytesOf(file.data),
-    );
+    const plain = await crypto.subtle
+        .decrypt(
+            { name: 'AES-GCM', iv: bytesOf(file.iv), additionalData: AAD },
+            key,
+            bytesOf(file.data),
+        )
+        // WebCrypto says a key is wrong only by failing.
+        .catch(() => null);
+    if (!plain) {
+        return null;
+    }
     return Secrets.parse(JSON.parse(new TextDecoder().decode(plain)));
 }

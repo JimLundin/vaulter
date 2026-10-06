@@ -19,6 +19,11 @@ const store = idbStore('secrets');
 async function readSealedFile() {
     const url = new URL('secrets.json', location.href);
     const response = await fetch(url, { cache: 'no-cache' });
+    // A build without a password has no secrets.json: the host answers with
+    // a page, as the dev server does.
+    if (!response.headers.get('Content-Type')?.includes('json')) {
+        return null;
+    }
     return SealedFile.parse(await response.json());
 }
 
@@ -29,10 +34,10 @@ async function openWithKeptKey(file: SealedFile) {
     if (!fits) {
         return null;
     }
-    return await open(kept.key, file).catch(() => null);
+    return open(kept.key, file);
 }
 
-const file = await readSealedFile().catch(() => null);
+const file = await readSealedFile();
 // Only ever in this page's memory.
 let opened: Record<string, string> = {};
 
@@ -52,11 +57,11 @@ export async function unlock(password: string) {
         throw new Error('this page has no sealed secrets');
     }
     const key = await keyFor(password, file.kdf);
-    try {
-        opened = await open(key, file);
-    } catch (cause) {
-        throw new Error('that password does not open the secrets', { cause });
+    const values = await open(key, file);
+    if (!values) {
+        throw new Error('that password does not open the secrets');
     }
+    opened = values;
     const kept: KeptKey = {
         salt: file.kdf.salt,
         iterations: file.kdf.iterations,

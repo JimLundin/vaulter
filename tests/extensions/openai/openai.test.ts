@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest';
 import { z } from 'zod';
 import { seal } from '../../../extensions/secrets/sealed.ts';
-import { servePage, startApp } from '../../app.ts';
+import { restart, servePage } from '../../app.ts';
 
 // The model's first turn: its reasoning, and a call to findPages.
 const CALLS = {
@@ -48,7 +48,7 @@ async function openai(replies: unknown[]) {
             return Promise.resolve(Response.json(replies[seen.length - 1]));
         },
     );
-    await startApp(['secrets', 'openai']);
+    restart();
     await (await import('#extensions/secrets')).unlock('pw-pw-pw-pw-pw-pw');
     return { model: (await import('#extensions/openai')).model, seen };
 }

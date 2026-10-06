@@ -1,6 +1,6 @@
 import { expect, it, vi } from 'vitest';
 import type { Call, model } from '#extensions/openai';
-import { startApp } from '../../app.ts';
+import { restart } from '../../app.ts';
 
 // A model that follows a script: call one function, then answer from what came
 // back. It keeps the functions it was offered each time.
@@ -43,7 +43,7 @@ const scripted: Pick<typeof model, 'answer'> = {
 vi.doMock('#extensions/openai', () => ({ model: scripted }));
 
 async function start() {
-    await startApp(['wiki', 'agent']);
+    restart();
     return {
         pages: (await import('#extensions/wiki')).wiki,
         vaulter: (await import('#extensions/agent')).agent,

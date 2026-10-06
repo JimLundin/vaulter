@@ -1,23 +1,19 @@
 # Vaulter
 
-A voice-first personal knowledge wiki built as a small kernel plus extensions. Vaulter is both the app and the agent inside it.
+A voice-first personal knowledge wiki built as extensions that import one another. Vaulter is both the app and the agent inside it.
 
 ## The kernel and extensions
 
 **Kernel**:
-The one part that isn't an extension: it imports the extensions a device has on, and lists them.
+The one part that isn't an extension: it keeps Vaulter to one tab, then imports the agent, and holds a few helpers (`#kernel`).
 _Avoid_: core, runtime, host
 
 **Extension**:
 A folder in the repo, an ES module; every feature is one, including those Vaulter writes. One extension per job: others import it by folder.
 _Avoid_: plugin, module, app
 
-**Agreed export**:
-An export by a name others look for, such as `tools` (read by the agent) or `ui` (read by the shell): how an extension plugs into another without either importing the other.
-_Avoid_: hook, registration, contribution point
-
 **Shell**:
-The one extension that owns the page and lays out every extension's `ui` for the device.
+The one extension that owns the page and lays out the `ui` it imports from each extension, for the device.
 
 **Preview**:
 A pull request's own build of the page, on the same site, where a new extension, Vaulter's included, is tried before it reaches main.

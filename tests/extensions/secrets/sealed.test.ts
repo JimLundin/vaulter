@@ -27,9 +27,7 @@ describe('sealed secrets', () => {
         ).toEqual({
             'openai/key': 'sk-1',
         });
-        await expect(
-            open(await keyFor('wrong', file.kdf), file),
-        ).rejects.toThrow();
+        expect(await open(await keyFor('wrong', file.kdf), file)).toBeNull();
     });
 
     it('are sealed in CI from VAULTER_SECRET__ variables', async () => {

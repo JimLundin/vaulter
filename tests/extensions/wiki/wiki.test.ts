@@ -1,6 +1,6 @@
 import { expect, it, vi } from 'vitest';
 import type { model } from '#extensions/openai';
-import { startApp } from '../../app.ts';
+import { restart } from '../../app.ts';
 
 // A model that files notes the way the instructions ask, by looking at the note
 // and the pages sent; with `offline`, every request fails, as with no key yet.
@@ -87,7 +87,7 @@ vi.doMock('#extensions/openai', () => ({ model: fake }));
 
 /** The wiki started, with what it uses. */
 async function start() {
-    await startApp(['wiki']);
+    restart();
     return {
         log: (await import('#extensions/notes')).notes,
         pages: (await import('#extensions/wiki')).wiki,
