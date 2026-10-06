@@ -14,7 +14,7 @@ Principles:
 - **Everything else is an extension**, including voice capture, the wiki, questions and search.
 - **The delete test.** If the app still runs with a feature removed, that feature is an extension. Removing one is removing its folder and the imports of it, which the build and CI check.
 - **One API for people and Vaulter.** Anything a person can do through an extension, Vaulter can do through the same functions, as its tools.
-- **Nothing you said is ever lost.** The notes extension keeps raw notes append-only; every page and record built from them can be rebuilt.
+- **Nothing you said is ever lost.** The notes extension keeps raw notes append-only, and every fact on a wiki page cites the notes it came from.
 - **Vaulter proposes, you approve.** Changes Vaulter is unsure of come to you as a question, and so does every tool call that asks first.
 
 ## Extensions are modules
@@ -137,7 +137,7 @@ Live speech will fit the same model when voice is built: the `openai` extension 
 - **An extension others build on is tested as they use it** (records, notes and questions: what they keep, in what order, what they tell listeners), so a rewrite of one keeps what its importers rely on.
 - **Record types grow without migrations, for now.** A new field is optional or has a default, so stored records still fit. Versions and migrations come with the first change that breaks stored records, not before: records is not at 1.0 yet.
 - **Nothing is overwritten or removed for good.** Every change to a record is a new revision, and storage keeps the earlier ones; changes to one record run one after another, each `update` getting it as the last left it, so two changes at once can't lose either. Deleting leaves a tombstone. Reading the earlier revisions and tombstones back comes with the screen that needs it. Only removing an extension drops its data.
-- **Derived data is disposable.** Wiki pages, records, embeddings and indexes are built from the notes extension's append-only log, so any of them can be rebuilt. A buggy extension can corrupt a view, never what you said.
+- **The wiki is kept, like the notes.** Each note is revised into the wiki once, when it is appended, and the pages are stored for good, with every revision: they also hold what the person approved, merged and corrected, which no note says. Nothing rebuilds them from the notes. A buggy extension can still never change what you said.
 
 ## The UI
 

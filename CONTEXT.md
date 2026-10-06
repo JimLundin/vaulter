@@ -46,7 +46,7 @@ The secrets as CI publishes them with the page, encrypted with a password a devi
 ## Knowledge
 
 **Note**:
-Something the person said or wrote, kept for good; everything else can be rebuilt from notes.
+Something the person said or wrote, kept for good; the wiki's facts cite the notes they came from.
 _Avoid_: entry, memo, transcript
 
 **Record**:

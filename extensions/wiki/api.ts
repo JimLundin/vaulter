@@ -1,6 +1,6 @@
 // The wiki: pages about people, places, events and topics, built from notes.
 // Every fact cites the notes it came from, so a page can always be checked
-// against what was said, and rebuilt from it.
+// against what was said.
 
 import { z } from 'zod';
 import type { Rec } from '#extensions/storage';

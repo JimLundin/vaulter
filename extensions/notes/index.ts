@@ -1,6 +1,6 @@
 // Notes: the append-only log of what was said or typed. Voice appends to
 // it, and the wiki builds its pages from it. A note is never changed or
-// removed, so everything built from notes can be rebuilt from them.
+// removed.
 
 import { z } from 'zod';
 import { collection, type Rec } from '#extensions/storage';

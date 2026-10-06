@@ -241,3 +241,14 @@ it('revises a failed note again on the next start', async () => {
         },
     );
 });
+
+it('leaves alone a note from before the wiki ran', async () => {
+    offline = false;
+    restart();
+    const { notes } = await import('#extensions/notes');
+    await notes.append({ text: 'Lunch with Ada at Café Lumière' });
+
+    const after = await start();
+    await settle();
+    expect(await after.pages.find('Ada')).toEqual([]);
+});
