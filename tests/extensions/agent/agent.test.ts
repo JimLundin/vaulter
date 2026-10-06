@@ -1,113 +1,116 @@
 import { expect, it, vi } from 'vitest';
-import type { Call, model } from '#extensions/openai';
+import type { Operation } from '#core';
+import type { ModelCall } from '#extensions/openai';
 import { restart } from '../../app.ts';
 
-// A model that follows a script: call one function, then answer from what came
-// back. It keeps the functions it was offered each time.
+// A model that follows a script: call one operation, then answer from what
+// came back. It keeps the names of the operations it was offered each time.
 const offered: string[][] = [];
-const scripted: Pick<typeof model, 'answer'> = {
-    async answer({ prompt, fns = [], onCall }) {
-        offered.push(fns.map((f) => f.name));
+const scripted = {
+    async answer({
+        prompt,
+        fns,
+    }: {
+        prompt: string;
+        fns: Record<string, Operation>;
+    }) {
+        offered.push(Object.keys(fns));
+        const calls: ModelCall[] = [];
         const call = async (name: string, input: unknown) => {
-            const fn = fns.find((f) => f.name === name);
-            if (!fn) {
-                throw new Error(`no function ${name}`);
+            const own = Object.entries(fns).find(([n]) => n === name)?.[1];
+            if (!own) {
+                throw new Error(`no operation ${name}`);
             }
-            const output = await fn.call(fn.input.parse(input));
-            await onCall?.({ name, input, output });
+            const output = await own(input);
+            calls.push({ name, input, output });
             return output;
         };
-        const usage = { input: 1, output: 1 };
         if (prompt.startsWith('Who')) {
-            const found = (await call('wiki__findPages', { query: 'Ada' })) as {
+            const found = (await call('wiki__find', { query: 'Ada' })) as {
                 name: string;
                 summary: string;
             }[];
-            return {
-                text: found.map((p) => `${p.name}: ${p.summary}`).join('; '),
-                calls: [],
-                usage,
-            };
+            const text = found
+                .map((p) => `${p.name}: ${p.summary}`)
+                .sort((a, b) => a.localeCompare(b));
+            return { text: text.join('; '), calls };
         }
         const { keep, merge } = JSON.parse(prompt.slice(prompt.indexOf('{')));
-        const out = (await call('wiki__mergePages', { keep, merge })) as {
+        const out = (await call('wiki__merge', { keep, merge })) as {
             asked?: string;
         };
-        return {
-            text: out.asked ? 'Asked you first' : 'Merged',
-            calls: [],
-            usage,
-        };
+        return { text: out.asked ? 'Asked you first' : 'Merged', calls };
     },
 };
-vi.doMock('#extensions/openai', () => ({ model: scripted }));
+// The model, as the core loads it too: an extension that offers nothing.
+vi.doMock('#extensions/openai', () => ({ model: scripted, extension: {} }));
 
 async function start() {
     restart();
     return {
         pages: (await import('#extensions/wiki')).wiki,
         vaulter: (await import('#extensions/agent')).agent,
-        asked: (await import('#extensions/questions')).questionsFor('screen'),
+        asked: (await import('#extensions/questions')).questions,
     };
 }
 
-it('asks the person before a tool that asks first', async () => {
+it('asks the person before an operation that rewrites what is known', async () => {
     const { pages, vaulter, asked } = await start();
-    const ada = await pages.create('person', {
+    const ada = await pages.create({
+        kind: 'person',
         name: 'Ada',
         summary: 'A friend from Uppsala.',
     });
-    const dup = await pages.create('person', { name: 'Ada L.' });
+    const dup = await pages.create({ kind: 'person', name: 'Ada L.' });
 
-    const calls: Call[] = [];
-    const answer = await vaulter.ask('Who is Ada?', (call) => {
-        calls.push(call);
-    });
+    const answer = await vaulter.ask({ prompt: 'Who is Ada?' });
     expect(answer.text).toBe('Ada L.: ; Ada: A friend from Uppsala.');
-    expect(calls.map((call) => call.name)).toEqual(['wiki__findPages']);
-    expect(offered[0]).toContain('wiki__mergePages');
+    expect(answer.calls.map((call) => call.name)).toEqual(['wiki__find']);
+    expect(offered[0]).toContain('wiki__merge');
 
     const refs = {
         keep: ada.id,
         merge: dup.id,
     };
-    const merge = () => vaulter.ask(`Merge these: ${JSON.stringify(refs)}`);
+    const merge = () =>
+        vaulter.ask({ prompt: `Merge these: ${JSON.stringify(refs)}` });
     expect((await merge()).text).toBe('Asked you first');
     // Nothing changes until the person says yes: then the call is made.
-    expect((await pages.get(refs.merge))?.id).toBe(dup.id);
-    const [q] = await asked.open();
+    expect((await pages.get({ id: refs.merge }))?.id).toBe(dup.id);
+    const [q] = await asked.open({});
     expect(q).toMatchObject({
         from: 'agent',
-        topic: 'approve',
-        title: "May Vaulter use wiki's mergePages?",
+        title: "May Vaulter use wiki's merge?",
     });
-    await asked.answer(q.id, { choice: 'yes' });
-    expect((await pages.get(refs.keep))?.aliases).toEqual(['Ada L.']);
-    expect(await pages.get(refs.merge)).toBeUndefined();
+    await asked.answer({ id: q.id, choice: 'yes' });
+    expect((await pages.get({ id: refs.keep }))?.aliases).toEqual(['Ada L.']);
+    expect(await pages.get({ id: refs.merge })).toBeUndefined();
 
     // Asked again, and the person says no: nothing is made.
-    const other = await pages.create('person', { name: 'Grace' });
+    const other = await pages.create({ kind: 'person', name: 'Grace' });
     refs.merge = other.id;
     await merge();
-    const [again] = await asked.open();
-    await asked.answer(again.id, { choice: 'no' });
-    expect((await pages.get(refs.merge))?.id).toBe(other.id);
+    const [again] = await asked.open({});
+    await asked.answer({ id: again.id, choice: 'no' });
+    expect((await pages.get({ id: refs.merge }))?.id).toBe(other.id);
 });
 
 it('makes an approved call after a restart', async () => {
     const before = await start();
-    const ada = await before.pages.create('person', { name: 'Ada' });
-    const dup = await before.pages.create('person', { name: 'Ada L.' });
+    const ada = await before.pages.create({ kind: 'person', name: 'Ada' });
+    const dup = await before.pages.create({ kind: 'person', name: 'Ada L.' });
     const refs = {
         keep: ada.id,
         merge: dup.id,
     };
-    await before.vaulter.ask(`Merge these: ${JSON.stringify(refs)}`);
+    await before.vaulter.ask({
+        prompt: `Merge these: ${JSON.stringify(refs)}`,
+    });
 
     // The app starts again (storage's database is still this device's), and the
     // person says yes.
     const after = await start();
-    const [q] = await after.asked.open();
-    await after.asked.answer(q.id, { choice: 'yes' });
-    expect(await after.pages.get(refs.merge)).toBeUndefined();
+    const [q] = await after.asked.open({});
+    await after.asked.answer({ id: q.id, choice: 'yes' });
+    expect(await after.pages.get({ id: refs.merge })).toBeUndefined();
 });

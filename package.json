@@ -3,7 +3,7 @@
     "private": true,
     "type": "module",
     "imports": {
-        "#kernel": "./src/kernel/api.ts",
+        "#core": "./src/core/index.ts",
         "#extensions/*": "./extensions/*/index.ts"
     },
     "scripts": {
@@ -16,6 +16,9 @@
         "format": "biome check --write ."
     },
     "dependencies": {
+        "@ai-sdk/openai": "^4.0.84",
+        "ai": "^7.0.128",
+        "dexie": "^4.4.6",
         "react": "^19.3.0",
         "react-dom": "^19.3.0",
         "zod": "^4.6.5"

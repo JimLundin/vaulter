@@ -2,19 +2,21 @@
 // device opens them with the password once. An extension asks for its own
 // by name, and uses it as its service wants.
 
-import { idbStore } from '#extensions/storage';
+import { z } from 'zod';
+import { type Extension, type Operation, operation } from '#core';
+import { collection } from '#extensions/storage';
 import { unlockDialog } from './dialog.ts';
 import { keyFor, open, SealedFile } from './sealed.ts';
 
 /** The key this device derived from the password. It can't be exported,
  * and opens every later deploy sealed with the same salt. */
-interface KeptKey {
-    salt: string;
-    iterations: number;
-    key: CryptoKey;
-}
+const KeptKey = z.object({
+    salt: z.string(),
+    iterations: z.number(),
+    key: z.instanceof(CryptoKey),
+});
 
-const store = idbStore('secrets');
+const keys = collection('secrets/key', KeptKey);
 
 async function readSealedFile() {
     const url = new URL('secrets.json', location.href);
@@ -28,7 +30,7 @@ async function readSealedFile() {
 }
 
 async function openWithKeptKey(file: SealedFile) {
-    const kept = await store.get<KeptKey>('key');
+    const kept = await keys.get({ id: 'key' });
     const fits =
         kept?.salt === file.kdf.salt && kept.iterations === file.kdf.iterations;
     if (!fits) {
@@ -46,32 +48,45 @@ if (file) {
     if (values) {
         opened = values;
     } else if (typeof document !== 'undefined') {
-        unlockDialog(unlock);
+        unlockDialog((password) => secrets.unlock({ password }));
     }
 }
 
-/** Opens the page's sealed secrets with the password, and keeps the key on
- * this device. */
-export async function unlock(password: string) {
-    if (!file) {
-        throw new Error('this page has no sealed secrets');
-    }
-    const key = await keyFor(password, file.kdf);
-    const values = await open(key, file);
-    if (!values) {
-        throw new Error('that password does not open the secrets');
-    }
-    opened = values;
-    const kept: KeptKey = {
-        salt: file.kdf.salt,
-        iterations: file.kdf.iterations,
-        key,
-    };
-    await store.set('key', kept);
-}
+export const secrets = {
+    unlock: operation({
+        description:
+            "Opens the page's sealed secrets with the password, and keeps " +
+            'the key on this device.',
+        input: z.object({ password: z.string().min(1) }),
+        run: async ({ password }) => {
+            if (!file) {
+                throw new Error('this page has no sealed secrets');
+            }
+            const key = await keyFor(password, file.kdf);
+            const values = await open(key, file);
+            if (!values) {
+                throw new Error('that password does not open the secrets');
+            }
+            opened = values;
+            await keys.put({
+                id: 'key',
+                salt: file.kdf.salt,
+                iterations: file.kdf.iterations,
+                key,
+            });
+        },
+    }),
 
-/** A secret by its name in the sealed file, such as "openai/key", once
- * this device has opened it. */
-export function secret(name: string): string | undefined {
-    return opened[name];
-}
+    secret: operation({
+        description:
+            'A secret by its name in the sealed file, such as ' +
+            '"openai/key", once this device has opened it.',
+        input: z.object({ name: z.string() }),
+        run: ({ name }): string | undefined => opened[name],
+    }),
+} satisfies Record<string, Operation>;
+
+/** Secrets offers nothing: a secret given to the model would go out with
+ * the model's requests, and a password typed to Vaulter with them too. The
+ * unlock dialog is its own. */
+export const extension = {} satisfies Extension;

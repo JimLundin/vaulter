@@ -1,54 +1,45 @@
-// Questions: how Vaulter asks the person when something is unclear, or a
-// change it isn't sure of. An extension asks under a topic of its own, and
-// handles the answers under that topic, also after a restart.
+// Questions: how Vaulter and other extensions ask the person when something
+// is unclear, or before a change they aren't sure of. Each choice holds what
+// choosing it does: a call of an operation, kept as data.
 
 import { z } from 'zod';
+import { Call } from '#core';
 import type { Rec } from '#extensions/storage';
+
+/** Something the person can pick, and the call picking it makes, if any. */
+const Choice = z.object({
+    id: z.string().min(1),
+    label: z.string().min(1),
+    does: Call.optional(),
+});
 
 /** A question as an extension asks it. */
 export const NewQuestion = z.object({
-    /** The asker's own topic, such as "merge-people". */
-    topic: z.string().regex(/^[a-z][a-z0-9-]*$/),
+    /** The extension asking. */
+    from: z.string().min(1),
     title: z.string().min(1).max(200),
     body: z.string().max(4000).optional(),
-    /** What the person can pick. With none, the answer is text. */
-    choices: z
-        .array(z.object({ id: z.string().min(1), label: z.string().min(1) }))
-        .optional(),
+    choices: z.array(Choice).min(1),
     /** The notes it came from. */
     notes: z.array(z.string()).default([]),
     /** Asking again with the same key, while one is open, returns that one. */
     key: z.string().optional(),
-    /** Anything the asker needs back with the answer. It comes back from
-     * storage, perhaps to a newer version of the asker, so the asker reads
-     * it with a schema of its own. */
-    data: z.unknown().optional(),
 });
 
-/** The person's answer: one of the choices, or text. */
-export const Answer = z
-    .object({ choice: z.string().optional(), text: z.string().optional() })
-    .refine((a) => a.choice !== undefined || a.text !== undefined, {
-        message: 'a choice or text',
-    });
-export type Answer = z.infer<typeof Answer>;
+/** A question as it is kept. */
+export const KeptQuestion = NewQuestion.extend({
+    at: z.string(),
+    status: z.enum(['open', 'answered']),
+    /** The id of the choice the person made. */
+    choice: z.string().optional(),
+});
+export type Question = Rec<z.output<typeof KeptQuestion>>;
 
-export type Question = Rec<
-    z.output<typeof NewQuestion> & {
-        /** The extension that asked. */
-        from: string;
-        at: string;
-        status: 'open' | 'answered';
-        answer?: Answer;
-        /** Whether the asker has had its answer. */
-        delivered: boolean;
-    }
->;
-
-export type Handler = (answer: Answer, question: Question) => unknown;
-
-/** The choices of a yes-or-no question. */
-export const YES_NO = [
-    { id: 'yes', label: 'Yes' },
-    { id: 'no', label: 'No' },
-];
+/** The choices of a yes-or-no question: yes makes `onYes`, and no makes
+ * `onNo`, if there is one. */
+export function yesNo(onYes: Call, onNo?: Call) {
+    return [
+        { id: 'yes', label: 'Yes', does: onYes },
+        { id: 'no', label: 'No', does: onNo },
+    ];
+}

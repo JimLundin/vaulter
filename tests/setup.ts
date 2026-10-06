@@ -2,11 +2,16 @@
 // its own database. It runs in a page with no secrets.json and no network,
 // until it serves one of its own (servePage in app.ts).
 import 'fake-indexeddb/auto';
-import { IDBFactory } from 'fake-indexeddb';
+import { Dexie } from 'dexie';
+import { IDBFactory, IDBKeyRange } from 'fake-indexeddb';
 import { beforeEach, vi } from 'vitest';
 
 beforeEach(() => {
     globalThis.indexedDB = new IDBFactory();
+    // Dexie keeps the factory it found when it loaded, and stays loaded
+    // across restarts.
+    Dexie.dependencies.indexedDB = globalThis.indexedDB;
+    Dexie.dependencies.IDBKeyRange = IDBKeyRange;
     vi.stubGlobal('location', new URL('https://vaulter.test/'));
     vi.stubGlobal('fetch', () =>
         Promise.resolve(

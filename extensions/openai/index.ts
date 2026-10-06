@@ -1,147 +1,103 @@
-// OpenAI: the language model, over the Responses API. Its key is the
-// sealed secret "openai/key".
+// OpenAI: the language model, through the AI SDK, which only this extension
+// uses. Its key is the sealed secret "openai/key".
 
+import { createOpenAI } from '@ai-sdk/openai';
+import { generateText, isStepCount, type ToolSet, tool } from 'ai';
 import { z } from 'zod';
-import { messageOf } from '#kernel';
-import type { Call, Fn } from './api.ts';
-import {
-    callsIn,
-    type FunctionCall,
-    type Item,
-    respond,
-    textIn,
-} from './responses.ts';
+import { type Extension, type Operation, operation } from '#core';
+import { secrets } from '#extensions/secrets';
+import type { ModelCall } from './api.ts';
 
 export * from './api.ts';
 
 /** The model it asks. */
 const MODEL = 'gpt-6.1-sol';
 const MAX_STEPS = 12;
-/** How much of a function's output goes back to the model. */
-const MAX_OUTPUT = 20_000;
 
-/** A function's output as the model gets it, cut if it is long. */
-function shown(value: unknown) {
-    const text = JSON.stringify(value ?? null);
-    if (text.length <= MAX_OUTPUT) {
-        return text;
+/** A request with no cookies or referrer of the page's own, and no
+ * redirect. */
+function fetchPlainly(url: RequestInfo | URL, init?: RequestInit) {
+    return fetch(url, {
+        ...init,
+        credentials: 'omit',
+        referrerPolicy: 'no-referrer',
+        redirect: 'error',
+    });
+}
+
+/** The model, with this device's key. */
+async function languageModel() {
+    const apiKey = await secrets.secret({ name: 'openai/key' });
+    if (!apiKey) {
+        throw new Error('the OpenAI key is not set: unlock this device');
     }
-    return `${text.slice(0, MAX_OUTPUT)}… (cut)`;
+    return createOpenAI({ apiKey, fetch: fetchPlainly })(MODEL);
 }
 
-/** Makes one call the model asked for, and returns what came of it. A call
- * that fails, for any reason, goes back to the model as its error. */
-async function made(fns: Fn[], request: FunctionCall): Promise<Call> {
-    const { name } = request;
-    let input: unknown = request.arguments;
-    try {
-        input = JSON.parse(request.arguments || '{}');
-        const fn = fns.find((candidate) => candidate.name === name);
-        if (!fn) {
-            throw new Error(`no function ${name}`);
-        }
-        return { name, input, output: await fn.call(fn.input.parse(input)) };
-    } catch (error) {
-        return { name, input, error: messageOf(error) };
-    }
+function isOperation(value: unknown): value is Operation {
+    return (
+        typeof value === 'function' &&
+        'input' in value &&
+        'description' in value
+    );
 }
 
-function toolsOf(fns: Fn[]) {
-    return fns.map((fn) => ({
-        type: 'function',
-        name: fn.name,
-        description: fn.description,
-        parameters: z.toJSONSchema(fn.input, {
-            io: 'input',
-            unrepresentable: 'any',
-        }),
-        // A schema made from Zod isn't always a strict-mode schema, because
-        // of its optional fields.
-        strict: false,
-    }));
-}
-
-function opening(instructions: string, prompt: string): Item[] {
-    return [
-        { role: 'system', content: instructions },
-        { role: 'user', content: prompt },
-    ];
+/** The operations, as the AI SDK's tools, by name. */
+function toolsOf(fns: Record<string, Operation>): ToolSet {
+    return Object.fromEntries(
+        Object.entries(fns).map(([name, own]) => [
+            name,
+            tool({
+                description: own.description,
+                inputSchema: own.input,
+                execute: (input) => own(input),
+            }),
+        ]),
+    );
 }
 
 export const model = {
-    /** Answers `prompt`, calling `fns` as it needs to, for up to
-     * `maxSteps` turns. `onCall` hears each call once it is made. */
-    async answer({
-        instructions,
-        prompt,
-        fns = [],
-        maxSteps = MAX_STEPS,
-        onCall,
-    }: {
-        instructions: string;
-        prompt: string;
-        fns?: Fn[];
-        maxSteps?: number;
-        onCall?: (call: Call) => unknown;
-    }) {
-        const input = opening(instructions, prompt);
-        const tools = fns.length ? toolsOf(fns) : undefined;
-        const calls: Call[] = [];
-        const usage = { input: 0, output: 0 };
+    answer: operation({
+        description:
+            'Answers `prompt`, calling the operations in `fns` (by the name ' +
+            'the model knows each by, letters, digits and _) as it needs ' +
+            'to, for up to `maxSteps` turns. A call that fails goes back ' +
+            'to the model as its error.',
+        input: z.object({
+            instructions: z.string(),
+            prompt: z.string(),
+            fns: z
+                .record(z.string(), z.custom<Operation>(isOperation))
+                .default({}),
+            maxSteps: z.number().int().positive().default(MAX_STEPS),
+        }),
+        run: async ({ instructions, prompt, fns, maxSteps }) => {
+            const result = await generateText({
+                model: await languageModel(),
+                instructions,
+                prompt,
+                tools: toolsOf(fns),
+                stopWhen: isStepCount(maxSteps),
+            });
+            const calls = result.steps.flatMap((step) =>
+                step.content.flatMap((part): ModelCall[] => {
+                    const { type } = part;
+                    if (type === 'tool-result') {
+                        const { toolName: name, input, output } = part;
+                        return [{ name, input, output }];
+                    }
+                    if (type === 'tool-error') {
+                        const { toolName: name, input, error } = part;
+                        return [{ name, input, error: String(error) }];
+                    }
+                    return [];
+                }),
+            );
+            return { text: result.text, calls };
+        },
+    }),
+} satisfies Record<string, Operation>;
 
-        for (let step = 0; step < maxSteps; step++) {
-            const turn = await respond({ model: MODEL, input, tools });
-            usage.input += turn.usage.input_tokens;
-            usage.output += turn.usage.output_tokens;
-            input.push(...turn.output);
-            const asked = callsIn(turn.output);
-            if (!asked.length) {
-                return { text: textIn(turn.output), calls, usage };
-            }
-
-            for (const request of asked) {
-                const call = await made(fns, request);
-                calls.push(call);
-                await onCall?.(call);
-                input.push({
-                    type: 'function_call_output',
-                    call_id: request.call_id,
-                    output: shown(
-                        call.error ? { error: call.error } : call.output,
-                    ),
-                });
-            }
-        }
-
-        const text = 'That took too many steps; ask again more narrowly.';
-        return { text, calls, usage };
-    },
-
-    /** An answer shaped by `schema`, and checked against it. `name` is the
-     * answer's name, for the model: "revision". */
-    async json<Schema extends z.ZodType>({
-        instructions,
-        input,
-        schema,
-        name,
-    }: {
-        instructions: string;
-        input: unknown;
-        schema: Schema;
-        name: string;
-    }): Promise<z.output<Schema>> {
-        const turn = await respond({
-            model: MODEL,
-            input: opening(instructions, JSON.stringify(input)),
-            text: {
-                format: {
-                    type: 'json_schema',
-                    name,
-                    schema: z.toJSONSchema(schema),
-                    strict: false,
-                },
-            },
-        });
-        return schema.parse(JSON.parse(textIn(turn.output) || '{}'));
-    },
-};
+/** The model offers nothing to people or Vaulter: it is what Vaulter is
+ * made with. */
+export const extension = {} satisfies Extension;

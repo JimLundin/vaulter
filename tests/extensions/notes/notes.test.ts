@@ -29,8 +29,8 @@ it('keeps a note as it was, with when it was said', async () => {
         !Number.isNaN(Date.parse(note.at)),
         'at is a date-time',
     ).toBeTruthy();
-    expect(await log.get(note.id)).toEqual(note);
-    expect(await log.get('nope')).toEqual(undefined);
+    expect(await log.get({ id: note.id })).toEqual(note);
+    expect(await log.get({ id: 'nope' })).toEqual(undefined);
 });
 it('refuses an empty note', async () => {
     const log = await use();
@@ -77,8 +77,10 @@ it('lists by when they were said, newest first, within a range', async () => {
 it('tells a subscriber about each note appended', async () => {
     const log = await use();
     const seen: string[] = [];
-    const stop = await log.onAppended((x) => {
-        seen.push(x.text);
+    const stop = await log.onAppended({
+        listener: (x) => {
+            seen.push(x.text);
+        },
     });
     await log.append({ text: 'one' });
     await settle();

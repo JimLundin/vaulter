@@ -1,68 +1,54 @@
 // Questions: what Vaulter and other extensions ask the person, kept so they
-// survive a restart. An answer that arrives while its asker isn't handling
-// its topic waits until the asker does.
+// survive a restart. Answering one makes the call its choice holds, through
+// the core, so the asker needn't be listening.
 
-import type { z } from 'zod';
-import { collection, type Query } from '#extensions/storage';
-import { Answer, type Handler, NewQuestion, type Question } from './api.ts';
+import { z } from 'zod';
+import { call, type Extension, type Operation, operation } from '#core';
+import { collection } from '#extensions/storage';
+import { KeptQuestion, NewQuestion } from './api.ts';
 
 export * from './api.ts';
 
-type Fields = Omit<Question, 'id' | 'meta'>;
+const kept = collection('questions/question', KeptQuestion, ['at']);
 
-const kept = collection<Fields>('questions/question');
-const handlers = new Map<string, Handler>();
-
-function find(where: Query<Fields>['where']) {
-    return kept.query({ where, orderBy: 'at', order: 'asc' });
+/** The question `id`, marked answered with `choice`, if it is still open. */
+function close(id: string, choice: string) {
+    return kept.update({
+        id,
+        change: (question) => {
+            if (question.status !== 'open') {
+                throw new Error('that question is not open');
+            }
+            return { ...question, status: 'answered', choice };
+        },
+    });
 }
 
-/** Hands the answer to its asker's handler. If the handler fails, the
- * answer stays undelivered, and goes to it again when the asker next
- * handles its topic. */
-async function deliver(question: Question) {
-    const handler = handlers.get(`${question.from}/${question.topic}`);
-    if (!handler || !question.answer || question.delivered) {
-        return;
-    }
-    try {
-        await handler(question.answer, question);
-    } catch {
-        return;
-    }
-    await kept.update(question.id, (now) => ({ ...now, delivered: true }));
+function reopen(id: string) {
+    return kept.update({
+        id,
+        change: (question) => ({
+            ...question,
+            status: 'open',
+            choice: undefined,
+        }),
+    });
 }
 
-/** The reason `answer` doesn't fit `question`, if it doesn't. */
-function misfit(question: Question, answer: Answer) {
-    if (question.status !== 'open') {
-        return 'that question is not open';
-    }
-    const picked = answer.choice;
-    if (
-        picked !== undefined &&
-        !question.choices?.some((c) => c.id === picked)
-    ) {
-        return `"${picked}" is not one of its choices`;
-    }
-    if (picked === undefined && question.choices?.length) {
-        return 'this question takes one of its choices';
-    }
-    return undefined;
-}
-
-/** Questions as the asker `from` has them: it asks, and handles the
- * answers, under its own topics. */
-export function questionsFor(from: string) {
-    return {
-        /** Asks, and returns the question's id. */
-        async ask(input: z.input<typeof NewQuestion>) {
-            const question = NewQuestion.parse(input);
+export const questions = {
+    ask: operation({
+        description:
+            'Ask the person something, with the choices they can make and ' +
+            "the call each makes. Returns the question's id.",
+        input: NewQuestion,
+        run: async (question) => {
             if (question.key) {
-                const [same] = await find({
-                    from,
-                    key: question.key,
-                    status: 'open',
+                const [same] = await kept.query({
+                    where: {
+                        from: question.from,
+                        key: question.key,
+                        status: 'open',
+                    },
                 });
                 if (same) {
                     return same.id;
@@ -70,54 +56,53 @@ export function questionsFor(from: string) {
             }
             const saved = await kept.create({
                 ...question,
-                from,
                 at: new Date().toISOString(),
                 status: 'open',
-                delivered: false,
             });
             return saved.id;
         },
-
-        /** Handles the answers to the asker's questions on `topic`. Answers
-         * that came while nothing handled them are delivered now. */
-        async handle(topic: string, handler: Handler) {
-            const key = `${from}/${topic}`;
-            handlers.set(key, handler);
-            const waiting = await find({
-                from,
-                topic,
-                status: 'answered',
-                delivered: false,
-            });
-            for (const question of waiting) {
-                await deliver(question);
+    }),
+    open: operation({
+        description: "The questions waiting for the person's answer.",
+        input: z.object({}),
+        run: () =>
+            kept.query({
+                where: { status: 'open' },
+                orderBy: 'at',
+                order: 'asc',
+            }),
+    }),
+    get: operation({
+        description: 'A question, open or answered.',
+        input: z.object({ id: z.string() }),
+        run: ({ id }) => kept.get({ id }),
+    }),
+    answer: operation({
+        description:
+            "The person's answer to an open question, which makes the " +
+            'call its choice holds. Only an answer the person gave, never ' +
+            "one of Vaulter's own.",
+        input: z.object({ id: z.string(), choice: z.string() }),
+        run: async ({ id, choice }) => {
+            const asked = await kept.get({ id });
+            const chosen = asked?.choices.find((c) => c.id === choice);
+            if (!chosen) {
+                throw new Error(`"${choice}" is not one of its choices`);
             }
-            return () => {
-                if (handlers.get(key) === handler) {
-                    handlers.delete(key);
+            // Closed first, so the same answer given twice makes its call
+            // once. If the call fails, the question is open again.
+            const answered = await close(id, choice);
+            try {
+                if (chosen.does) {
+                    await call(chosen.does);
                 }
-            };
+            } catch (error) {
+                await reopen(id);
+                throw error;
+            }
+            return answered;
         },
+    }),
+} satisfies Record<string, Operation>;
 
-        open() {
-            return find({ status: 'open' });
-        },
-
-        get(id: string) {
-            return kept.get(id);
-        },
-
-        /** The person's answer, from a screen. */
-        async answer(id: string, input: Answer) {
-            const answer = Answer.parse(input);
-            const saved = await kept.update(id, (question) => {
-                const reason = misfit(question, answer);
-                if (reason) {
-                    throw new Error(reason);
-                }
-                return { ...question, status: 'answered', answer };
-            });
-            await deliver(saved);
-        },
-    };
-}
+export const extension = { operations: questions } satisfies Extension;

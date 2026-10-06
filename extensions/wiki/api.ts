@@ -3,7 +3,6 @@
 // against what was said.
 
 import { z } from 'zod';
-import type { Rec } from '#extensions/storage';
 
 export const KINDS = ['person', 'place', 'event', 'topic'] as const;
 export type Kind = (typeof KINDS)[number];
@@ -42,7 +41,13 @@ const PageFields = z.object({
     people: z.array(z.string()).optional(),
 });
 export type PageFields = z.infer<typeof PageFields>;
-export type Page = Rec<PageFields>;
+
+/** A page as it is kept. */
+export const KeptPage = PageFields.extend({
+    created: z.string(),
+    updated: z.string(),
+});
+export type Page = z.infer<typeof KeptPage> & { id: string };
 
 /** What a change to a page may set: anything but its kind and its facts. */
 export const Patch = PageFields.omit({ kind: true, facts: true }).partial();
@@ -51,12 +56,3 @@ export type Patch = z.infer<typeof Patch>;
 /** A new page: its name, and any of the other fields a change may set. */
 export const NewPage = Patch.required({ name: true });
 export type NewPage = z.infer<typeof NewPage>;
-
-/** What revising the wiki from a note did, by page id. */
-export interface Revised {
-    note: string;
-    created: string[];
-    updated: string[];
-    /** Questions asked instead of changes it wasn't sure of. */
-    asked: string[];
-}

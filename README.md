@@ -1,6 +1,6 @@
 # Vaulter
 
-A voice-first personal knowledge wiki, built as a small kernel plus extensions; Vaulter is also the
+A voice-first personal knowledge wiki, built as extensions that import one another; Vaulter is also the
 agent inside it. The design is `ARCHITECTURE.md`, the words it uses are in `CONTEXT.md`, and how the
 code is written is `STYLE.md`. This is a full rebuild: the previous app, a viewer over the
 `JimLundin/vault` repo, is in `main`'s history before the `pip` branch.
@@ -9,17 +9,18 @@ code is written is `STYLE.md`. This is a full rebuild: the previous app, a viewe
 
 | Where | What |
 |---|---|
-| `src/kernel/` | one tab at a time (`single-tab.ts`), and helpers for every extension (`api.ts`, as `#kernel`) |
-| `src/main.ts` | the page's entry: claims the tab, then imports the agent, which imports the rest |
+| `src/main.ts` | the page's entry: claims the tab, then has the core start every extension |
+| `src/core/` | the core (`#core`): what an extension offers (`Operation`, `Extension`), and `extensions()`, which starts and collects every one |
 | `extensions/<id>/` | one extension each: `index.ts`, an ES module, and `api.ts`, the schemas and data types others use |
 | `tools/` | CI only: `seal-secrets.ts`, which seals the secrets into the built page |
-| `tests/` | every test, by what it tests (`tests/kernel/`, `tests/extensions/<id>/`), and `app.ts`, which restarts the app in a test |
+| `tests/` | every test, by what it tests (`tests/extensions/<id>/`), and `app.ts`, which restarts the app in a test |
 
-Extensions: `storage` (records), `secrets` (the network with secrets), `notes`, `questions`,
-`openai` (the model), `wiki` and `agent` (Vaulter itself); `ARCHITECTURE.md` has a table of what each
-exports and imports. An extension imports another as `#extensions/<id>`, the kernel as `#kernel`, and
-its own files relatively, and calls what it imports: the agent imports the wiki's `tools`, and the
-shell will import each extension's `ui` (ARCHITECTURE.md, "How extensions interact"). The shell comes
+Extensions: `storage` (records, over Dexie), `secrets`, `notes`, `questions`,
+`openai` (the model, over the AI SDK), `wiki` and `agent` (Vaulter itself); `ARCHITECTURE.md` has a table of what each
+exports and imports. An extension imports another as `#extensions/<id>`, and
+its own files relatively, and calls what it imports. What it offers a person or Vaulter it exports as
+`extension`, which the core collects: the agent reads every extension's operations there, and the
+shell will read each one's `ui` (ARCHITECTURE.md, "The core"). The shell comes
 next, with the UI work; until then the page says Vaulter is running.
 
 ## Commands

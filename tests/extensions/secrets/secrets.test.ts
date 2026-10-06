@@ -16,12 +16,14 @@ async function page(values: Record<string, string>) {
 
 it('opens with the password, then each new deploy on its own', async () => {
     const first = await page({ 'openai/key': 'sk-1' });
-    expect(first.secret('openai/key')).toBeUndefined();
-    await expect(first.unlock('nope')).rejects.toThrow('does not open');
-    await first.unlock(PASSWORD);
-    expect(first.secret('openai/key')).toBe('sk-1');
+    expect(await first.secrets.secret({ name: 'openai/key' })).toBeUndefined();
+    await expect(first.secrets.unlock({ password: 'nope' })).rejects.toThrow(
+        'does not open',
+    );
+    await first.secrets.unlock({ password: PASSWORD });
+    expect(await first.secrets.secret({ name: 'openai/key' })).toBe('sk-1');
 
     // A new deploy with a new value: this device opens it with the key it kept.
     const second = await page({ 'openai/key': 'sk-2' });
-    expect(second.secret('openai/key')).toBe('sk-2');
+    expect(await second.secrets.secret({ name: 'openai/key' })).toBe('sk-2');
 });

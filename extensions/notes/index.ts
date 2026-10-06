@@ -3,8 +3,8 @@
 // removed.
 
 import { z } from 'zod';
+import { type Extension, type Operation, operation } from '#core';
 import { collection, type Rec } from '#extensions/storage';
-import type { Unsubscribe } from '#kernel';
 
 /** A note as a person or an import gives it. */
 export const NewNote = z.object({
@@ -18,46 +18,70 @@ export const NewNote = z.object({
 
 export type Note = Rec<z.output<typeof NewNote>>;
 
-const kept = collection<z.output<typeof NewNote>>('notes/note');
+const kept = collection('notes/note', NewNote, ['at']);
 const listeners = new Set<(note: Note) => void>();
 
+const operations = {
+    append: operation({
+        description:
+            'Keep a note: something the person said or typed, in their ' +
+            "own words, never words of Vaulter's.",
+        input: NewNote,
+        run: async (note) => {
+            const appended = await kept.create(note);
+            // Each listener runs on its own, after the note is kept, so one
+            // that fails can't undo or stop anything.
+            for (const listener of listeners) {
+                queueMicrotask(() => listener(appended));
+            }
+            return appended;
+        },
+    }),
+    get: operation({
+        description: 'A note, as it was said.',
+        input: z.object({ id: z.string() }),
+        run: ({ id }) => kept.get({ id }),
+    }),
+    list: operation({
+        description:
+            'Notes by when each was said, which for an import is not when ' +
+            'it was kept: at or after `since`, and before `until`, newest ' +
+            'first unless `order` is "oldest".',
+        input: z.object({
+            since: z.iso.datetime().optional(),
+            until: z.iso.datetime().optional(),
+            limit: z.number().int().positive().optional(),
+            order: z.enum(['newest', 'oldest']).optional(),
+        }),
+        run: ({ since, until, limit, order }) =>
+            kept.query({
+                where: { at: { gte: since, lt: until } },
+                orderBy: 'at',
+                order: order === 'oldest' ? 'asc' : 'desc',
+                limit,
+            }),
+    }),
+} satisfies Record<string, Operation>;
+
 export const notes = {
-    async append(input: z.input<typeof NewNote>) {
-        const note = await kept.create(NewNote.parse(input));
-        // Each listener runs on its own, after the note is kept, so one that
-        // fails can't undo or stop anything.
-        for (const listener of listeners) {
-            queueMicrotask(() => listener(note));
-        }
-        return note;
-    },
+    ...operations,
+    // Not offered: what it takes is code, a listener.
+    onAppended: operation({
+        description:
+            'Hears of every note appended, after it is kept. Returns what ' +
+            'stops it.',
+        input: z.object({
+            listener: z.custom<(note: Note) => void>(
+                (value) => typeof value === 'function',
+            ),
+        }),
+        run: ({ listener }) => {
+            listeners.add(listener);
+            return () => {
+                listeners.delete(listener);
+            };
+        },
+    }),
+} satisfies Record<string, Operation>;
 
-    get(id: string) {
-        return kept.get(id);
-    },
-
-    /** By when each was said, which for an import is not when it was kept:
-     * at or after `since`, and before `until`. */
-    list(
-        query: {
-            since?: string;
-            until?: string;
-            limit?: number;
-            order?: 'newest' | 'oldest';
-        } = {},
-    ) {
-        return kept.query({
-            where: { at: { gte: query.since, lt: query.until } },
-            orderBy: 'at',
-            order: query.order === 'oldest' ? 'asc' : 'desc',
-            limit: query.limit,
-        });
-    },
-
-    onAppended(listener: (note: Note) => void): Unsubscribe {
-        listeners.add(listener);
-        return () => {
-            listeners.delete(listener);
-        };
-    },
-};
+export const extension = { operations } satisfies Extension;

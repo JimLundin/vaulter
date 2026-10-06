@@ -1,128 +1,115 @@
 import { expect, it } from 'vitest';
 import { restart } from '../../app.ts';
 
-/** Time for listeners, which hear of a change after it is kept. */
-function settle() {
-    return new Promise((resolve) => setTimeout(resolve, 20));
-}
-const ask = {
-    topic: 'merge',
-    title: 'Same Ada?',
-    choices: [{ id: 'yes', label: 'Yes' }],
-};
-
-it("hands the answer to the asker's handler for its topic", async () => {
-    restart();
-    const { questionsFor } = await import('#extensions/questions');
-    const asker = questionsFor('asker');
-    const got: (string | undefined)[] = [];
-    await asker.handle('merge', (first) => {
-        got.push(first.choice);
-    });
-    const id = await asker.ask(ask);
-    // The screen answers, as the person.
-    await questionsFor('screen').answer(id, { choice: 'yes' });
-    expect(got).toEqual(['yes']);
-});
-
-it('keeps an answer the handler failed on, for later', async () => {
-    restart();
-    const before = (await import('#extensions/questions')).questionsFor(
-        'asker',
-    );
-    await before.handle('merge', () => {
-        throw new Error('the asker broke');
-    });
-    const id = await before.ask(ask);
-    await before.answer(id, { choice: 'yes' });
-    expect((await before.get(id))?.status).toBe('answered');
-
-    // The app starts again, and the asker registers its handler again: it is
-    // handed the answer then.
-    restart();
-    const after = (await import('#extensions/questions')).questionsFor('asker');
-    const got: (string | undefined)[] = [];
-    await after.handle('merge', (first) => {
-        got.push(first.choice);
-    });
-    expect(got).toEqual(['yes']);
-});
-
-/** Questions as a fresh asker has them. */
-async function use() {
-    restart();
-    return (await import('#extensions/questions')).questionsFor('test');
+/** A choice's call: keeping a note, which a test can look for. */
+function noting(text: string) {
+    return { extension: 'notes', operation: 'append', input: { text } };
 }
 
-it('keeps an asked question open until it is answered', async () => {
-    const asker = await use();
-    const id = await asker.ask({
-        topic: 'merge',
+async function start() {
+    restart();
+    return {
+        asked: (await import('#extensions/questions')).questions,
+        log: (await import('#extensions/notes')).notes,
+        yesNo: (await import('#extensions/questions')).yesNo,
+    };
+}
+
+async function texts(log: Awaited<ReturnType<typeof start>>['log']) {
+    return (await log.list({})).map((note) => note.text);
+}
+
+it('keeps a question open until it is answered, then makes the chosen call', async () => {
+    const { asked, log, yesNo } = await start();
+    const id = await asked.ask({
+        from: 'test',
         title: 'Is Ada the same as Ada L.?',
-        choices: [
-            { id: 'yes', label: 'Yes' },
-            { id: 'no', label: 'No' },
-        ],
+        choices: yesNo(noting('the same'), noting('not the same')),
     });
-    const got = await asker.get(id);
-    expect([got?.title, got?.status, got?.topic]).toEqual([
-        'Is Ada the same as Ada L.?',
-        'open',
-        'merge',
-    ]);
-    expect(
-        (await asker.open()).some((x) => x.id === id),
-        'listed as open',
-    ).toBeTruthy();
-    await asker.answer(id, { choice: 'yes' });
-    expect((await asker.get(id))?.status).toEqual('answered');
-    expect(
-        !(await asker.open()).some((x) => x.id === id),
-        'no longer open',
-    ).toBeTruthy();
+    expect(await asked.get({ id })).toMatchObject({
+        from: 'test',
+        title: 'Is Ada the same as Ada L.?',
+        status: 'open',
+    });
+    expect((await asked.open({})).map((q) => q.id)).toEqual([id]);
+
+    // The screen answers, as the person.
+    await asked.answer({ id, choice: 'yes' });
+    expect(await asked.get({ id })).toMatchObject({
+        status: 'answered',
+        choice: 'yes',
+    });
+    expect(await asked.open({})).toEqual([]);
+    expect(await texts(log)).toEqual(['the same']);
 });
+
+it('makes the chosen call after a restart', async () => {
+    const before = await start();
+    const id = await before.asked.ask({
+        from: 'test',
+        title: 'Same Ada?',
+        choices: before.yesNo(noting('the same')),
+    });
+
+    // The app starts again (storage's database is still this device's), and
+    // the person says yes.
+    const after = await start();
+    await after.asked.answer({ id, choice: 'yes' });
+    expect(await texts(after.log)).toEqual(['the same']);
+});
+
+it('makes a choice without a call too', async () => {
+    const { asked, log, yesNo } = await start();
+    const id = await asked.ask({
+        from: 'test',
+        title: 'Same Ada?',
+        choices: yesNo(noting('the same')),
+    });
+    await asked.answer({ id, choice: 'no' });
+    expect((await asked.get({ id }))?.choice).toBe('no');
+    expect(await texts(log)).toEqual([]);
+});
+
 it('asks once per key while the question is open', async () => {
-    const asker = await use();
-    const first = await asker.ask({
-        topic: 'date',
+    const { asked } = await start();
+    const question = {
+        from: 'test',
         title: 'When was the trip?',
         key: 'trip-date',
-    });
-    const second = await asker.ask({
-        topic: 'date',
-        title: 'When was the trip?',
-        key: 'trip-date',
-    });
-    expect(first).toEqual(second);
+        choices: [{ id: 'ok', label: 'OK' }],
+    };
+    const first = await asked.ask(question);
+    expect(await asked.ask(question)).toEqual(first);
+    await asked.answer({ id: first, choice: 'ok' });
+    expect(await asked.ask(question)).not.toEqual(first);
 });
-it('delivers an answer to a handler registered after it', async () => {
-    const asker = await use();
-    const id = await asker.ask({
-        topic: 'later',
-        title: 'Which café?',
-        data: { note: 'n1' },
+
+it('makes the call once, and refuses a choice it does not have', async () => {
+    const { asked, log, yesNo } = await start();
+    const id = await asked.ask({
+        from: 'test',
+        title: 'Same Ada?',
+        choices: yesNo(noting('the same')),
     });
-    await asker.answer(id, { text: 'Café Lumière' });
-    const got: unknown[] = [];
-    await asker.handle('later', (first, question) => {
-        got.push([first.text, question.data]);
-    });
-    await settle();
-    expect(got).toEqual([['Café Lumière', { note: 'n1' }]]);
-    // Delivered once, not again on the next registration.
-    await asker.handle('later', () => {
-        got.push('again');
-    });
-    await settle();
-    expect(got.length).toEqual(1);
+    await expect(asked.answer({ id, choice: 'maybe' })).rejects.toThrow(
+        /not one of its choices/,
+    );
+    await asked.answer({ id, choice: 'yes' });
+    await expect(asked.answer({ id, choice: 'yes' })).rejects.toThrow(
+        /not open/,
+    );
+    expect(await texts(log)).toEqual(['the same']);
 });
-it('refuses an answer that is not one of the choices', async () => {
-    const asker = await use();
-    const id = await asker.ask({
-        topic: 'pick',
-        title: 'Pick one',
-        choices: [{ id: 'a', label: 'A' }],
+
+it('leaves the question open when its call fails', async () => {
+    const { asked, yesNo } = await start();
+    const id = await asked.ask({
+        from: 'test',
+        title: 'Keep an empty note?',
+        // notes.append refuses an empty note.
+        choices: yesNo(noting('   ')),
     });
-    await expect(asker.answer(id, { choice: 'b' })).rejects.toThrow();
-    await expect(asker.answer(id, { text: 'free text' })).rejects.toThrow();
+    await expect(asked.answer({ id, choice: 'yes' })).rejects.toThrow();
+    expect(await asked.get({ id })).toMatchObject({ status: 'open' });
+    expect((await asked.get({ id }))?.choice).toBeUndefined();
 });

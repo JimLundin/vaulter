@@ -20,10 +20,10 @@ callback whose meaning is plain from the call (`items.map((i) => i.id)`).
 
 ```ts
 // no
-const h = handlers.get(`${q.from}/${q.topic}`);
+const c = q.choices.find((x) => x.id === a);
 
 // yes
-const handler = handlers.get(`${question.from}/${question.topic}`);
+const chosen = question.choices.find((choice) => choice.id === answer);
 ```
 
 ## Functions
@@ -42,10 +42,11 @@ async function deliver(question: Kept) { … }
 
 - An extension's interface is what it exports. Its types come from the exported objects
   (`typeof notes`), not from an interface that restates them.
-- No casts. Data that comes in untyped (from a model, a fetch, or storage's `data` read back by a
-  question's asker) is parsed with Zod, and its type is the schema's.
+- No casts. Data that comes in untyped (from a model, a fetch, or a call a question kept) is parsed
+  with Zod, and its type is the schema's. An operation parses its own input.
 - A record is its domain type: `type Note = Rec<…>`, with no function that copies it into another
-  shape. Storage sets `id` and `meta` itself, so a change returns the record spread with what changed.
+  shape. Storage sets `id` itself, so a change returns the record spread with what changed, and
+  checks it against the collection's schema.
 
 ```ts
 // no
@@ -55,16 +56,19 @@ const call = question.data as unknown as Asked;
 const call = Asked.parse(question.data);
 ```
 
-## Leaving fields out
+## Exports
 
-`omit` from `#kernel`, not throwaway names.
+Everything an extension exports that does something is an operation (`operation()` from `#core`):
+one input, checked by its schema, and a promise back. Every extension exports `extension`, the
+operations it offers people and Vaulter, if only `{}`. Only what builds a value is a plain function
+(`collection()`, `yesNo()`).
 
 ```ts
 // no
-const { id: _, meta: _m, ...fields } = record;
+export function get(id: string) { … }
 
 // yes
-const fields = omit(record, 'id', 'meta');
+get: operation({ description: 'A note, as it was said.', input: z.object({ id: z.string() }), run }),
 ```
 
 ## Comments
@@ -75,6 +79,6 @@ const fields = omit(record, 'id', 'meta');
 
 ## Prompts
 
-What a model is told lives in a Markdown file beside the code that sends it (`wiki/revise.md`,
-`agent/instructions.md`), imported as text (`import instructions from './revise.md?raw'`), so it
+What a model is told lives in a Markdown file beside the code that sends it
+(`agent/instructions.md`), imported as text (`import instructions from './instructions.md?raw'`), so it
 reads as prose and keeps its own line breaks.

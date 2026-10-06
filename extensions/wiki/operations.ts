@@ -1,33 +1,25 @@
-// What Vaulter may do with the wiki. Looking things up and adding run on
-// their own. Anything that rewrites what is known, such as merging pages or
-// retracting a fact, asks the person first.
+// The wiki's API: what a person, Vaulter or another extension can do with it,
+// each an operation of one input. Lists give pages in brief, and the rest the
+// page. Merging pages and retracting a fact rewrite what is known.
 
 import { z } from 'zod';
-import type { Tool } from '#extensions/agent';
+import { type Operation, operation } from '#core';
 import { KINDS, NewPage, type Page, Patch } from './api.ts';
 import * as pages from './pages.ts';
 
-/** A tool, with its input's type taken from its schema. */
-function tool<Input extends z.ZodType>(definition: Tool<Input>) {
-    return definition;
-}
+const Kind = z.enum(KINDS);
 
-/** A page as the model sees it in a list. */
+/** A page as a list gives it. */
 function brief(page: Page) {
     const { id, kind, name, aliases, summary } = page;
     return { id, kind, name, aliases, summary };
 }
 
-const Kind = z.enum(KINDS);
-
-/** The tools the wiki gives Vaulter. */
-export const tools: Tool[] = [
-    tool({
-        name: 'findPages',
+export const wiki = {
+    find: operation({
         description:
             'Find wiki pages (people, places, events, topics) by ' +
-            'words in their name, aliases or summary.',
-        access: 'read',
+            'words in their name, aliases or summary, latest first.',
         input: z.object({
             query: z.string(),
             kinds: z.array(Kind).optional(),
@@ -35,69 +27,56 @@ export const tools: Tool[] = [
         run: async ({ query, kinds }) =>
             (await pages.find(query, kinds)).map(brief),
     }),
-    tool({
-        name: 'getPage',
+    get: operation({
         description:
             'A wiki page with all its facts and the notes each comes from.',
-        access: 'read',
         input: z.object({ id: z.string() }),
         run: ({ id }) => pages.get(id),
     }),
-    tool({
-        name: 'pagesCiting',
+    citing: operation({
         description: 'The wiki pages that cite a note.',
-        access: 'read',
         input: z.object({ noteId: z.string() }),
         run: async ({ noteId }) => (await pages.citing(noteId)).map(brief),
     }),
-    tool({
-        name: 'createPage',
+    create: operation({
         description:
             'Create a wiki page. Only for something the notes clearly ' +
             'mention.',
-        access: 'write',
         input: NewPage.extend({ kind: Kind }),
-        run: async ({ kind, ...page }) => brief(await pages.create(kind, page)),
+        run: ({ kind, ...page }) => pages.create(kind, page),
     }),
-    tool({
-        name: 'addFact',
+    addFact: operation({
         description:
             'Add a fact to a page, citing the notes it comes from ' +
             '(at least one).',
-        access: 'write',
         input: z.object({
             id: z.string(),
             text: z.string(),
             sources: z.array(z.string()).min(1),
             at: z.string().optional(),
         }),
-        run: async ({ id, ...fact }) => brief(await pages.addFact(id, fact)),
+        run: ({ id, ...fact }) => pages.addFact(id, fact),
     }),
-    tool({
-        name: 'updatePage',
+    update: operation({
         description:
             "Change a page's name, aliases, summary, links, or its " +
             "kind's fields: a person's birthday, a place's area or " +
             "address, an event's date. Not its facts.",
-        access: 'write',
         input: z.object({ id: z.string(), patch: Patch }),
-        run: async ({ id, patch }) => brief(await pages.update(id, patch)),
+        run: ({ id, patch }) => pages.update(id, patch),
     }),
-    tool({
-        name: 'mergePages',
+    merge: operation({
         description:
-            'Merge two pages about the same thing; the person approves ' +
-            'first.',
-        access: 'ask',
+            'Merge two pages about the same thing: `merge` is folded ' +
+            'into `keep`, with its facts, aliases and links, and deleted.',
+        rewrites: true,
         input: z.object({ keep: z.string(), merge: z.string() }),
-        run: async ({ keep, merge }) => brief(await pages.merge(keep, merge)),
+        run: ({ keep, merge }) => pages.merge(keep, merge),
     }),
-    tool({
-        name: 'retractFact',
-        description: 'Take a wrong fact off a page; the person approves first.',
-        access: 'ask',
+    retractFact: operation({
+        description: 'Take a wrong fact off a page.',
+        rewrites: true,
         input: z.object({ id: z.string(), factId: z.string() }),
-        run: async ({ id, factId }) =>
-            brief(await pages.retractFact(id, factId)),
+        run: ({ id, factId }) => pages.retractFact(id, factId),
     }),
-];
+} satisfies Record<string, Operation>;

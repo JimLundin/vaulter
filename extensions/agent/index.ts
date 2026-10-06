@@ -1,89 +1,80 @@
-// The agent: Vaulter. It hands the model the extensions' tools, as functions
-// named `<extension>__<tool>`, and the model calls them until it can answer.
-// A tool that asks first becomes a question on the agent's own topic,
-// holding the call, and the person's yes makes it, also after a restart.
+// The agent: Vaulter. It hands the model every other extension's operations,
+// from the core, as functions named `<extension>__<operation>`, and the model
+// calls them until it can answer. One that rewrites what is known is asked
+// about first: a question whose yes is the call itself.
 
 import { z } from 'zod';
-import { type Call, type Fn, model } from '#extensions/openai';
-import { questionsFor, YES_NO } from '#extensions/questions';
-import { tools as wikiTools } from '#extensions/wiki';
-import type { Tool } from './api.ts';
+import {
+    type Call,
+    type Extension,
+    extensions,
+    type Loaded,
+    type Operation,
+    operation,
+} from '#core';
+import { model } from '#extensions/openai';
+import { questions, yesNo } from '#extensions/questions';
 import instructions from './instructions.md?raw';
 
-export * from './api.ts';
+const ID = 'agent';
 
-/** A call Vaulter asked to make, as its question keeps it. */
-const Asked = z.object({
-    extension: z.string(),
-    tool: z.string(),
-    input: z.unknown(),
-});
-type Asked = z.infer<typeof Asked>;
-
-/** Every tool Vaulter has, with the extension it comes from. */
-const TOOLS = [...wikiTools.map((tool) => ({ extension: 'wiki', tool }))];
-
-const TOPIC = 'approve';
-const questions = questionsFor('agent');
-
-function findTool(extension: string, name: string) {
-    return TOOLS.find(
-        (entry) => entry.extension === extension && entry.tool.name === name,
-    )?.tool;
-}
-
-/** Asks the person whether Vaulter may make `call`. Returns the
- * question's id. */
-function askFirst(call: Asked, description: string) {
-    const input = JSON.stringify(call.input, null, 2);
+/** Asks the person whether Vaulter may make `made`. Returns the question's
+ * id. */
+function askFirst(made: Call, description: string) {
+    const input = JSON.stringify(made.input, null, 2);
     return questions.ask({
-        topic: TOPIC,
+        from: ID,
         // The same call, asked again while the first is open, is the same
         // question.
-        key: JSON.stringify(call),
-        title: `May Vaulter use ${call.extension}'s ${call.tool}?`,
+        key: JSON.stringify(made),
+        title: `May Vaulter use ${made.extension}'s ${made.operation}?`,
         body: `${description}\n\n${input}`.slice(0, 4000),
-        choices: YES_NO,
-        data: call,
+        choices: yesNo(made),
     });
 }
 
-function fnOf(extension: string, tool: Tool): Fn {
-    const asks = tool.access === 'ask';
-    return {
-        name: `${extension}__${tool.name}`,
-        description: asks
-            ? `${tool.description} (asks the person first)`
-            : tool.description,
-        input: tool.input,
-        async call(input) {
-            if (!asks) {
-                return tool.run(input);
-            }
-            const call = { extension, tool: tool.name, input };
-            return { asked: await askFirst(call, tool.description) };
+/** `own` as the model calls it: itself, or, if it rewrites what is known,
+ * an operation that asks the person whether it may. */
+function asCalled(extension: string, name: string, own: Operation) {
+    if (!own.rewrites) {
+        return own;
+    }
+    return operation({
+        description: `${own.description} (asks the person first)`,
+        input: own.input,
+        run: async (input) => {
+            const made = { extension, operation: name, input };
+            return { asked: await askFirst(made, own.description) };
         },
-    };
+    });
 }
 
-const FNS = TOOLS.map(({ extension, tool }) => fnOf(extension, tool));
-
-await questions.handle(TOPIC, async (answer, question) => {
-    if (answer.choice !== 'yes') {
-        return;
-    }
-    const call = Asked.parse(question.data);
-    const tool = findTool(call.extension, call.tool);
-    if (!tool) {
-        throw new Error(`${call.extension} has no tool ${call.tool}`);
-    }
-    await tool.run(tool.input.parse(call.input));
-});
+/** Every other extension's operations, by the names the model knows them
+ * by: `<extension>__<operation>`. */
+function fnsOf(loaded: Loaded[]) {
+    return Object.fromEntries(
+        loaded
+            .filter(({ id }) => id !== ID)
+            .flatMap(({ id, operations }) =>
+                Object.entries(operations).map(([name, own]) => [
+                    `${id}__${name}`,
+                    asCalled(id, name, own),
+                ]),
+            ),
+    );
+}
 
 export const agent = {
-    /** Answers `prompt` with every tool. `onCall` hears each call the model
-     * makes. */
-    ask(prompt: string, onCall?: (call: Call) => unknown) {
-        return model.answer({ instructions, prompt, fns: FNS, onCall });
-    },
-};
+    ask: operation({
+        description:
+            'Ask Vaulter, in words: it answers, using every extension, and ' +
+            'says what it called.',
+        input: z.object({ prompt: z.string().min(1) }),
+        run: async ({ prompt }) => {
+            const fns = fnsOf(await extensions());
+            return await model.answer({ instructions, prompt, fns });
+        },
+    }),
+} satisfies Record<string, Operation>;
+
+export const extension = { operations: agent } satisfies Extension;
