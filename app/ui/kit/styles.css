@@ -619,5 +619,24 @@ body,
 
 .kit-option-strip > [data-slot="scroll-area-viewport"] > div {
   display: block !important;
-  width: 100%;
+  width: max-content;
+}
+.kit-option-strip {
+  --option-fade-start: 0px;
+  --option-fade-end: 0px;
+}
+.kit-option-strip[data-overflow-start="true"] {
+  --option-fade-start: 24px;
+}
+.kit-option-strip[data-overflow-end="true"] {
+  --option-fade-end: 24px;
+}
+.kit-option-strip > [data-slot="scroll-area-viewport"] {
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    black var(--option-fade-start),
+    black calc(100% - var(--option-fade-end)),
+    transparent
+  );
 }

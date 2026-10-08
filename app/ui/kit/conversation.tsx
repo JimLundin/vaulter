@@ -125,12 +125,10 @@ export function ConversationSurface({
   busy,
   composer,
   suggestions,
-  voiceControl,
   children,
 }: ConversationActions & {
   composer: ReactNode;
   suggestions?: ReactNode;
-  voiceControl?: ReactNode;
   children: ReactNode;
 }) {
   const mobile = useIsMobile();
@@ -146,7 +144,6 @@ export function ConversationSurface({
             <Stack grow={true} gap="none">
               {composer}
             </Stack>
-            {mobile && voiceControl}
           </Row>
           {!mobile && page && (
             <Text size="xs" tone="subtle" align="end">
@@ -188,9 +185,7 @@ export function Composer({ children }: { children: ReactNode }) {
 export function ComposerActions({ voice, children }: { voice?: ReactNode; children: ReactNode }) {
   return (
     <InputGroupAddon align="inset-end">
-      <Row visible="expanded" gap="none">
-        {voice}
-      </Row>
+      {voice}
       {children}
     </InputGroupAddon>
   );
@@ -242,8 +237,8 @@ export function VoiceButton({
   return (
     <Button
       type="button"
-      variant="voice"
-      size="voice"
+      variant="ghost"
+      size="icon-lg"
       pending={waiting}
       aria-label={label}
       aria-pressed={recording}
@@ -254,7 +249,6 @@ export function VoiceButton({
         name={
           busy || recording ? 'stop' : phase === 'ready' ? 'arrow-up' : waiting ? 'clock' : 'mic'
         }
-        size="xl"
       />
     </Button>
   );
@@ -332,9 +326,6 @@ export function PromptSuggestions({
   if (!suggestions.length) return null;
   return (
     <Stack as="section" aria-label="Suggested prompts" gap="sm">
-      <Heading level={3} tone="subtle">
-        Ideas to explore
-      </Heading>
       <OptionStrip>
         {suggestions.map((suggestion) => (
           <Button

@@ -125,7 +125,7 @@ test('every feature page centers the same reading column', async ({ page }) => {
   }
 });
 
-test('the mobile message field stays visible beside the microphone before and after focus', async ({
+test('the message field keeps the same inset microphone and send controls through focus and resize', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -152,7 +152,8 @@ test('the mobile message field stays visible beside the microphone before and af
       await expect(microphone).toHaveCount(1);
       const field = (await page.getByRole('group', { name: 'Message composer' }).boundingBox())!;
       const voice = (await microphone.boundingBox())!;
-      expect(voice.x).toBeGreaterThan(field.x + field.width);
+      expect(voice.x).toBeGreaterThan(field.x);
+      expect(voice.x + voice.width).toBeLessThan(field.x + field.width);
       expect(Math.abs(field.y + field.height / 2 - voice.y - voice.height / 2)).toBeLessThanOrEqual(
         1,
       );
@@ -165,6 +166,57 @@ test('the mobile message field stays visible beside the microphone before and af
   await page.getByRole('button', { name: 'New chat', exact: true }).click();
   await expect(input).toBeVisible();
   await expect(input).toHaveValue('');
+});
+
+test('agent controls have even insets and suggestions remain one scrolling row with edge fades', async ({
+  page,
+}) => {
+  await page.goto('/preview/');
+  for (const width of [1440, 390, 320, 768]) {
+    await page.setViewportSize({ width, height: 844 });
+    const field = page.locator('[data-slot="input-group"]');
+    const bounds = (await field.boundingBox())!;
+    const send = (await page.getByRole('button', { name: 'Send', exact: true }).boundingBox())!;
+    expect(send.y - bounds.y).toBeCloseTo(bounds.y + bounds.height - send.y - send.height, 0);
+    expect(send.x + send.width).toBeCloseTo(bounds.x + bounds.width - (send.y - bounds.y), 0);
+    const mic = page.getByRole('button', { name: 'Start voice interaction', exact: true });
+    await expect(mic).toHaveCount(1);
+    await expect(mic).toHaveCSS('border-width', '0px');
+    await expect(mic).toHaveCSS('box-shadow', 'none');
+    expect((await mic.boundingBox())!.height).toBe(send.height);
+    if (width < 768) {
+      const add = page.getByRole('button', { name: 'New chat', exact: true });
+      expect((await add.boundingBox())!.height).toBe(44);
+      const toolbar = page.locator('header').filter({ has: add });
+      const bar = (await toolbar.boundingBox())!;
+      const action = (await add.boundingBox())!;
+      expect(action.y - bar.y).toBeGreaterThanOrEqual(4);
+      expect(bar.y + bar.height - action.y - action.height).toBeGreaterThanOrEqual(4);
+    }
+    await expect(page.getByText('Ideas to explore', { exact: true })).toHaveCount(0);
+    const strip = page.getByRole('region', { name: 'Suggested prompts' });
+    const buttons = strip.getByRole('button');
+    const first = (await buttons.first().boundingBox())!;
+    for (const button of await buttons.all()) {
+      expect((await button.boundingBox())!.y).toBe(first.y);
+      await expect(button).toHaveCSS('white-space', 'nowrap');
+    }
+    const viewport = strip.locator('[data-slot="scroll-area-viewport"]');
+    const scrolling = strip.locator('.kit-option-strip');
+    await expect(scrolling).toHaveAttribute('data-overflow-end', 'true');
+    await expect(scrolling).toHaveAttribute('data-overflow-start', 'false');
+    expect(await viewport.evaluate((node) => getComputedStyle(node).maskImage)).toContain(
+      'gradient',
+    );
+    await viewport.evaluate((node) => {
+      node.scrollLeft = node.scrollWidth;
+    });
+    await expect(scrolling).toHaveAttribute('data-overflow-start', 'true');
+    await expect(scrolling).toHaveAttribute('data-overflow-end', 'false');
+    await viewport.evaluate((node) => {
+      node.scrollLeft = 0;
+    });
+  }
 });
 
 test('settings is a shared drawer that keeps feature fields and focus when resized', async ({

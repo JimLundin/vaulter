@@ -59,7 +59,9 @@ oversized invisible hit areas or fixed absolute offsets.
 Primary create/submit actions use `Button variant="default"`: primary fill and contrasting icon.
 Secondary options use `ghost` or `outline`; the same action retains its role across devices.
 Ordinary controls have 8px corners, and their hover/focus backgrounds follow that shape. Only the
-mobile footer fixtures use `size="square"`; the voice action stays circular.
+mobile footer fixtures use `size="square"`. The Agent microphone uses the same unfilled 44px
+icon control inside the composer on both devices; circular voice controls have no backing border
+or shadow.
 
 Text-entry submission uses `InputGroup` with `InputGroupAddon align="inset-end"`. The action sits
 inside the editable field's bounds; the group reserves its measured width plus an 8px gap, including
@@ -99,9 +101,9 @@ adds one.
 | Side panel (wide) or centered dialog | Full-screen dialog | `ConversationPanel` |
 | Labelled toolbar buttons | Icon buttons with an `aria-label` | `ConversationSurface` |
 | Form rows: label left, control right | The same fields stacked vertically | `SettingsMenu`, `SettingField` |
-| One-row composer with trailing controls | Always-visible field and send control beside the circular microphone | `ConversationSurface`, `Composer`, `ComposerActions` |
+| One-row composer with inset microphone and send | The same always-visible field and inset controls | `ConversationSurface`, `Composer`, `ComposerActions` |
 | History rows with labelled Revert | The same rows with an icon for Revert | `HistoryEntry` |
-| Wrapping prompt strip | Horizontally scrolling prompt strip | `PromptSuggestions` |
+| Single horizontally scrolling prompt row | The same row, with a fade at clipped edges | `PromptSuggestions`, `OptionStrip` |
 
 **Navigation is declared once.** The product lists every place as data (`Navigation` in
 `ui/command.ts`). A *destination* (the default) is a place in a list that may grow without limit: the
@@ -199,8 +201,8 @@ keep stable positions in the React tree across viewport changes. Focus and uncon
 rearrangement. Modal surfaces trap focus, Escape dismisses the topmost surface, and closing returns
 focus to the opening control or its equivalent in the new arrangement. Navigation closes its menu
 when expanding into a sidebar.
-Mobile has a brand/status header, icon toolbar, edge-to-edge live transcript, footer navigation with
-a circular microphone beside the always-visible message field, separate prompt strip, full-screen
+Mobile has a brand/status header, icon toolbar, edge-to-edge live transcript, footer navigation,
+an always-visible message field with inset microphone and send controls, a separate prompt row, full-screen
 agent and search overlays, and bottom-sheet navigation. Desktop has the sidebar, reading column, labeled
 actions and a side panel. Desktop content uses the full height without a shortcut footer. Search
 keeps its shortcut badge; all shortcuts remain available through Search and `?`.

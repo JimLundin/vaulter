@@ -1,5 +1,5 @@
 // Generic surfaces and behavior primitives. Compositions own content; these own presentation.
-import { type ReactNode, useEffect, useRef } from 'react';
+import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { FocusScope } from '@radix-ui/react-focus-scope';
 import { hideOthers } from 'aria-hidden';
 import { useStickToBottom } from 'use-stick-to-bottom';
@@ -44,7 +44,7 @@ export function Surface({
 /** A compact bordered toolbar becomes an open toolbar in expanded space. */
 export function Toolbar({ children }: { children: ReactNode }) {
   return (
-    <header className="flex h-12 shrink-0 items-center justify-between gap-3 border-b px-3 md:h-auto md:border-0 md:px-0">
+    <header className="flex min-h-14 shrink-0 items-center justify-between gap-3 border-b px-3 py-1 md:min-h-0 md:border-0 md:px-0 md:py-0">
       {children}
     </header>
   );
@@ -230,11 +230,39 @@ export function AdaptivePanel({
   );
 }
 
-/** Wrapping options on desktop become a visibly scrollable strip in compact space. */
+/** One horizontal row; fade only the edges with more options outside the viewport. */
 export function OptionStrip({ children }: { children: ReactNode }) {
+  const viewport = useRef<HTMLDivElement>(null);
+  const [edges, setEdges] = useState({ start: false, end: false });
+  useLayoutEffect(() => {
+    const node = viewport.current;
+    if (!node) return;
+    const measure = () => {
+      const start = node.scrollLeft > 1;
+      const end = node.scrollLeft + node.clientWidth < node.scrollWidth - 1;
+      setEdges((current) =>
+        current.start === start && current.end === end ? current : { start, end },
+      );
+    };
+    measure();
+    node.addEventListener('scroll', measure, { passive: true });
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    if (node.firstElementChild) observer.observe(node.firstElementChild);
+    return () => {
+      node.removeEventListener('scroll', measure);
+      observer.disconnect();
+    };
+  }, []);
   return (
-    <ScrollArea axis="horizontal" className="kit-option-strip">
-      <div className="flex flex-nowrap gap-2 md:flex-wrap">{children}</div>
+    <ScrollArea
+      axis="horizontal"
+      className="kit-option-strip"
+      viewportRef={viewport}
+      data-overflow-start={edges.start}
+      data-overflow-end={edges.end}
+    >
+      <div className="flex w-max flex-nowrap gap-[var(--space-row)]">{children}</div>
     </ScrollArea>
   );
 }

@@ -676,7 +676,6 @@ function Agent() {
           setMessages([]);
           setVoice(false);
         }}
-        voiceControl={voiceControl}
         composer={
           <K.Composer>
             <K.Form
@@ -705,20 +704,8 @@ function Agent() {
                     }
                   }}
                 />
-                <K.ComposerActions
-                  voice={
-                    <K.Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      aria-label="Start voice interaction"
-                      onClick={() => setVoice(!voice)}
-                    >
-                      <K.Icon name="mic" />
-                    </K.Button>
-                  }
-                >
-                  <K.Button type="submit" size="icon" aria-label="Send" disabled={!draft.trim()}>
+                <K.ComposerActions voice={voiceControl}>
+                  <K.Button type="submit" size="icon-lg" aria-label="Send" disabled={!draft.trim()}>
                     <K.Icon name="arrow-up" />
                   </K.Button>
                 </K.ComposerActions>
@@ -787,7 +774,7 @@ function AgentPanel() {
                 <K.InputGroup variant="composer">
                   <K.InputGroupTextarea variant="inline" aria-label="Panel message" rows={1} />
                   <K.ComposerActions>
-                    <K.Button size="icon" aria-label="Send panel message">
+                    <K.Button type="submit" size="icon-lg" aria-label="Send panel message">
                       <K.Icon name="arrow-up" />
                     </K.Button>
                   </K.ComposerActions>
@@ -1093,7 +1080,7 @@ function SurfacePrimitives() {
                 placeholder="One-row field…"
               />
               <K.InputGroupAddon align="inset-end">
-                <K.Button type="submit" size="icon" aria-label="Submit example">
+                <K.Button type="submit" size="icon-lg" aria-label="Submit example">
                   <K.Icon name="arrow-up" />
                 </K.Button>
               </K.InputGroupAddon>
@@ -1266,7 +1253,7 @@ export const catalogue: Specimen[] = [
   {
     id: 'option-primitives',
     title: 'Option strip primitive',
-    description: 'The same suggestion buttons wrap or scroll; control styling belongs to Button.',
+    description: 'One unwrapped scrolling row with a fade at each clipped edge.',
     components: ['OptionStrip'],
     Sample: OptionPrimitives,
   },

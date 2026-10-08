@@ -141,7 +141,6 @@ export function Chat({
         type('');
       }}
       busy={busy || recording}
-      voiceControl={<VoiceButton phase={transcript.phase} busy={busy} onClick={voiceAction} />}
       suggestions={
         showSuggestions ? <PromptSuggestions suggestions={suggestions} onSelect={edit} /> : null
       }
@@ -180,34 +179,7 @@ export function Chat({
                 }}
               />
               <ComposerActions
-                voice={
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-lg"
-                    aria-label={
-                      transcript.phase === 'listening'
-                        ? 'Finish recording'
-                        : transcript.phase === 'ready'
-                          ? 'Send transcript'
-                          : 'Dictate'
-                    }
-                    disabled={
-                      busy || transcript.phase === 'connecting' || transcript.phase === 'finishing'
-                    }
-                    onClick={voiceAction}
-                  >
-                    <Icon
-                      name={
-                        transcript.phase === 'listening'
-                          ? 'stop'
-                          : transcript.phase === 'ready'
-                            ? 'arrow-up'
-                            : 'mic'
-                      }
-                    />
-                  </Button>
-                }
+                voice={<VoiceButton phase={transcript.phase} busy={busy} onClick={voiceAction} />}
               >
                 {busy ? (
                   <Button
