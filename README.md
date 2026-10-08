@@ -15,7 +15,7 @@ components (the vault's `meta/conventions.md` §13). The design and its history:
 | `npm run dev` | the app on the vault through GitHub, as built, in any browser, but with no password: it loads right in with the secrets from `.env.local` (gitignored): `VAULT_GITHUB_TOKEN`, and optionally `VAULT_OPENAI_KEY` and `VAULT_JINA_KEY`, the names CI seals. Only dev gets them; a build has none. Its commits go to the vault's `main`, as the app's do |
 | `npm run build` | the app into `dist/` |
 | `npm run lint` / `npm run format` | Biome: lint and format check (CI), or fix both in place. Style: 2 spaces, single quotes, semicolons, trailing commas, 100 columns (`biome.json`) |
-| `npm test` / `npm run typecheck` | the tests (Vitest: `app/`, `core/`) and TypeScript over `app/`, `core/` and `tools/` |
+| `npm test` / `npm run typecheck` | the tests (Vitest: `app/`) and TypeScript over `app/` and `tools/` |
 | `node tools/seal-secrets.ts <out>` | seal the token and key with the password from the environment (what CI runs; see Publishing) |
 
 The vault is worked in the app: the audit, rename (and switching `.md`/`.mdx`) and Captures are pages
@@ -28,31 +28,36 @@ explicit `.ts` imports and `import type` (enforced by `tsconfig.json`).
 
 - `meta/schema.yaml` (in the vault) — the vocabulary: note types, facet values, broad topics, relation
   predicates (with when to use each), the MDX components notes may use. The app reads it at runtime.
-- `app/extensions/notes/model/schema.ts` — reads and validates it (`schemaOf`); frontmatter fields, structure rules.
-- `app/extensions/graph/model/relations.ts` — the checks for `relations`, `dates`, `follow-ups`, `decisions`, `geo`,
-  `address`, `where`.
-- `app/extensions/notes/model/mdx-rules.ts`, `app/extensions/notes/model/safe-url.ts` — what a note may contain beyond Markdown: the three
-  components with literal props, and relative, `http(s)`, `mailto` and `tel` links. Notes are data, never code.
+- `app/extensions/notes/model/` — the notes' rules (`check.ts`): the vocabulary read and validated
+  (`schema.ts`), frontmatter fields and structure, the structured fields' shapes (`structured.ts`:
+  `relations`, `dates`, `follow-ups`, `decisions`, `geo`, `address`, `where`), and what a note may contain
+  beyond Markdown (`mdx-rules.ts`, `safe-url.ts`: the components with literal props; relative, `http(s)`,
+  `mailto` and `tel` links). Notes are data, never code.
+- `app/extensions/graph/model/check.ts` — the graph's rules: every link and #heading resolves, relations
+  are the vocabulary's predicates, every note a field names exists.
+- `app/extensions/check.ts` — both together: what `npm run check` and the vault's CI run.
 
 ## How it fits together
 
 The design, its rules and how to add a feature: `ARCHITECTURE.md`. In short:
 
-- `core/` — the vault model, pure (no DOM, no Node): parse (`vault.ts`), check (`check.ts`), derive
-  (`derive.ts`, plus `facts.ts`, `vault-map.ts`, `similar.ts`, `brief.ts`, `audit.ts`, `rename.ts`),
-  vocabulary (`schema.ts` over `meta/schema.yaml`), formats (`format.ts`), secrets (`sealed.ts`), the
-  day's capture log (`capture.ts`: one per day, its exchanges' metadata in the frontmatter), weather (`weather.ts`).
-- `app/core/` — the shell: `App.tsx`, routing, the top bar and search, the extension host (`host.tsx`,
-  `extension.ts`), the session and backends contract (`session.ts`, `backend.ts`), the writer
-  (`writer.ts`), the encrypted IndexedDB (`store.ts`), unlocking (`unlock.ts`), rendering
-  (`markdown.ts`, `highlight.tsx`), the worker and the service worker.
-- `app/backends/` — GitHub (`github/`: the REST client, sync through the encrypted cache, commits through
-  the Git Data API), memory (`memory.ts`, for tests).
-- `app/extensions/` — every feature, listed in `extensions/index.ts`: notes, home, topics, calendar,
+- `app/core/` — the platform, which knows only files: `App.tsx`, routing, the frame and ⌘K (with its
+  search engine), the extension host (`host.tsx`, `extension.ts`), the session and the backend contract
+  (`session.ts`, `backend.ts`), the writer (`writer.ts`), unlocking and the keys (`unlock.ts`,
+  `crypto.ts`, `idb.ts`), the secrets' format (`sealed.ts`), dates (`format.ts`), the worker and the
+  service worker.
+- `app/backends/` — GitHub (`github/`: the REST client, its encrypted cache, sync, commits through the
+  Git Data API), memory (`memory.ts`, for tests).
+- `app/extensions/notes/` — the note: `model/` (a file as a note, its fields, links and references, the
+  vocabulary, the capture log's format, rename, the rules), the note page and its rendering
+  (`markdown.ts`, `highlight.tsx`), the sidebar's Recent.
+- `app/extensions/graph/` — the knowledge graph: `model/graph.ts` (backlinks, relations, topics,
+  activity, when each note last changed), its check, `useGraph()`.
+- `app/extensions/` — the other features, listed in `extensions/index.ts`: home, topics, calendar,
   decisions, map, similar, places, editor (edit, rename, changes, history), audit, agent, code (the
-  agent's tools over this repo, so the app can change itself), web (search and reading pages, through Jina).
-- `tools/` — the only Node, for CI: `check.ts` (the vault's check) and `seal-secrets.ts` (publishing), over
-  `core/`.
+  agent's tools over this repo, so the app can change itself), web (search and reading pages, through
+  Jina). Each holds its own logic (the brief in home, the layout in map, …).
+- `tools/` — the only Node, for CI: `check.ts` (the vault's check) and `seal-secrets.ts` (publishing).
 
 Security: notes render without eval (MDX props are literals), raw HTML and unsafe URLs are dropped, the
 page has a CSP (script only from the app; network only to GitHub, OpenAI, Jina, the map tiles, and for a capture's metadata OpenStreetMap's geocoder and open-meteo), the cache is

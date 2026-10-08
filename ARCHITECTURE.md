@@ -1,27 +1,49 @@
 # Architecture
 
-How the app is put together, and the rules that keep it adaptable: features are added without touching
-the shell, the app reaches the vault only through one contract, the vault's vocabulary is the vault's own
-data, and nothing the browser runs needs Node.
+How the app is put together. It is three parts: **core**, the platform, which knows only files; **notes**,
+which reads each file as a note; and the **graph**, which connects the notes. Everything else is a
+feature on top. The vault's vocabulary is the vault's own data, and nothing the browser runs needs Node.
 
-## Layers
+## The parts
 
-| Layer | Where | May use | Holds |
+| Part | Where | Knows | Holds |
 |---|---|---|---|
-| Vault model | `core/` | itself and pure libraries (no DOM, no Node) | parsing, the check, derivations, the vocabulary reader, formats, audit, rename |
-| Shell | `app/core/` | `core/`, the DOM, React | routing, the frame (sidebar, header, the panel beside the page, the phone's bottom bar), ⌘K, the keys, the extension host, the writer, the session, the encrypted store, the workers |
-| Backends | `app/backends/<name>` | `core/`, `app/core/backend.ts` | one way to a vault each: GitHub (with the cache), memory (tests) |
-| Features | `app/extensions/<name>/` | `core/`, `app/core/` | everything the user sees beyond the shell |
-| Tools | `tools/` | Node, `core/` | thin CLIs over `core/` for CI: the vault's check and sealing |
+| Core | `app/core/` | files (a path and its text) | the session and keys, the writer, the extension host, routes, slots, the frame (sidebar, header, the panel, the phone's bar), ⌘K and its search engine, the keys, the worker |
+| Backends | `app/backends/<name>/` | where a vault lives | one way to a vault each, with its own storage on the device: GitHub (with its cache), memory (tests) |
+| Notes | `app/extensions/notes/` | files | the note: a file's fields (stored as frontmatter) and body, the vocabulary (`meta/schema.yaml`), the notes' rules, rename, the note page and its rendering |
+| Graph | `app/extensions/graph/` | notes | what the notes connect into: links and backlinks, relations, topics, activity; and the rule that every link and every note a field names exists |
+| Features | `app/extensions/<name>/` | core, and notes or the graph where they need them | everything else: home, calendar, map, editor, agent, … |
+| Tools | `tools/` | Node | CI only: the vault's check (`check.ts`), sealing the secrets (`seal-secrets.ts`) |
 
-Dependencies point one way: `core` knows nothing of the app, the shell nothing of git or GitHub, and a
-feature nothing of another's internals. A feature that adds to another's page imports that feature's
-slot (below), so it depends on what it adds to, never the other way round.
+**Singular and adaptable.** What there is exactly one of is core's: one vault open, one writer every write
+goes through, one host, one frame. What adapts is added beside it: features (a folder each), backends (one
+active), slots (a feature's places for others), and the vocabulary (an edit to the vault).
+
+**Dependencies point one way.** Core imports no feature; the only lists of them are
+`app/extensions/index.ts` (the features) and `app/extensions/heavy.ts` (their slow derivations), which
+`App.tsx` and the worker read. Notes knows nothing of the graph; the graph reads notes only through what
+notes hands it (`links.ts`, `refs.ts`, `fields.ts`), never text or frontmatter. A feature that adds to
+another's page imports that feature's slot (below), so it depends on what it adds to. A feature's own
+logic lives in the feature, pure or not; `model/` holds the pure part (no DOM), which CI runs too.
+
+## Files, the platform's only knowledge
+
+The host gives every feature the vault's **files**, with the staged edits (`host.files`); what they mean is
+each feature's: `graphOf(files)` / `useGraph()` for the graph, `useSchema()` for the vocabulary, both
+computed once per files. A feature says which files it keeps (`files` below), so:
+
+- a backend reads only kept files (`keeps`); the rest of the repo stays where it is;
+- the writer refuses staging a file no feature keeps, and a commit that adds a problem to any feature's
+  rules (notes': each note's format; the graph's: links and fields resolve);
+- `blocked` stops every page while the files can't be read as a feature's (notes: a broken vocabulary).
+
+`app/extensions/check.ts` runs every feature's check together: what CI runs (`tools/check.ts`, on every
+push to the vault) and what the tests hold a whole vault to.
 
 ## Adding a feature: extensions
 
 A feature is a folder in `app/extensions/` exporting an `Extension` (`app/core/extension.ts`) and one line
-in `app/extensions/index.ts`. The shell renders what it contributes to the frame:
+in `app/extensions/index.ts`. Core renders what it contributes:
 
 | Point | What it is | Used by |
 |---|---|---|
@@ -31,23 +53,25 @@ in `app/extensions/index.ts`. The shell renders what it contributes to the frame
 | `panel` | the panel beside every page (docked, a sheet, or a drawer on a phone), with its button's `indicator` and "Ask …" in ⌘K | agent |
 | `sidebar` | groups in the sidebar under the pages, by `order` | home (areas), notes (recent) |
 | `contributes` | entries in other features' slots (below) | notes, calendar, decisions, map, similar, editor |
-| `search(v)` | entries for search and link previews | notes, topics |
+| `search(host)` | entries for search and link previews | notes, topics |
+| `files` | the files it keeps (`keeps`, `what`) and the `problems` a change adds | notes, graph |
+| `blocked(host)` | why no page can be shown now, or null | notes |
 | `mdx` | components notes may use (allowed by `meta/schema.yaml`) | notes |
 | `tools(ctx)` | agent tools, loaded with the agent | agent, editor (`renameNote`), audit (`audit`), code (the app's own source), web (`webSearch`, `fetchPage`) |
 
-A feature's own derived data is computed once per vault with `perVault` (`app/extensions/graph/model/graph.ts`); a slow one is
-registered in `app/extensions/heavy.ts`, computed in the worker, kept per tree, and read with `useHeavy(key)`.
-Contribution points are added when a feature needs one, not before. Rows a list can move through (j/k,
-↑/↓) are marked `data-nav` (`app/core/keys.ts`); passing confirmations are sonner toasts.
+A feature's own derived data is computed once per graph with `perGraph` (`graph/model/graph.ts`); a slow
+one is listed in `app/extensions/heavy.ts`, computed in the worker, kept per tree, and read with
+`useHeavy<T>(key)`. Contribution points are added when a feature needs one, not before. Rows a list can
+move through (j/k, ↑/↓) are marked `data-nav` (`app/core/keys.ts`); passing confirmations are sonner toasts.
 
 Example, a reading list: `app/extensions/reading/index.tsx` with a `page` for `#/reading/` listing notes
-tagged `reading` and `status/active`, a `nav` entry, an entry in the notes' sections
+tagged `reading` and `status/active` (from `useGraph()`), a `nav` entry, an entry in the notes' sections
 (`noteSections.add(…)`, "On the reading list") and, if the agent should use it, a `tools` entry. Nothing
 else changes.
 
 ### A feature's own places: slots
 
-The points above are the shell's: the frame every page is in. A place in a feature's own page, where other
+The points above are core's: the frame every page is in. A place in a feature's own page, where other
 features add to it, is that feature's **slot** (`app/core/slot.ts`). The feature makes it, typed by what an
 entry is, exports it, and draws its entries where they go:
 
@@ -90,13 +114,13 @@ They stay separate, since most commands only move around the UI and Jim's paths 
 agent's don't (the rename's preview, the commit's diff); unify them if most features come to need both
 for the same thing.
 
-What both do is one function, in `core/` or the feature, and a command and a tool are thin over it,
+What both do is one function, in the feature (or core's writer), and a command and a tool are thin over it,
 next to each other when both exist. The function checks what the input means (the note exists, the path
 is a vault file, the check passes), so Jim and the agent are held to the same rules; a tool's schema checks
-only its shape. Rename (`app/extensions/notes/model/rename.ts`), staging (the writer's `stage`, which takes only vault files and
-deletes only files that exist), the commit (the writer, which refuses an empty one and runs the check) and
-the audit (`app/extensions/audit/audit.ts`, over any span; the feature's `weekAudit` is the week the page and the tool
-show) are such functions.
+only its shape. Rename (`notes/model/rename.ts`), staging (the writer's `stage`, which takes only kept files
+and deletes only files that exist), the commit (the writer, which refuses an empty one and runs every
+feature's check) and the audit (`audit/audit.ts`, over any span; `weekAudit` is the week the page and the
+tool show) are such functions.
 
 ## Reaching the vault: backends
 
@@ -111,16 +135,22 @@ The app reaches a vault only through `VaultBackend` (`app/core/backend.ts`):
 | `history` / `patch` / `revert` | steps written from the app, and undoing one | commits with the trailer | ✓ |
 | `since(day)` | what changed since a day, and a file's text then (the audit) | 2 requests + blobs on demand | ✓ |
 | `keep` | the app's own small state (staged edits, worker results) | encrypted | memory |
+| `clear()` | forgets what it keeps on this device (signing out) | its database | — |
 
-The writer (`app/core/writer.ts`) stages edits for any backend and passes the check as `verify`; staged
-files remember their content id, so a change made elsewhere since staging is a conflict, not an overwrite.
+A backend's storage is its own: the GitHub cache (`github/cache.ts`, its own IndexedDB database) holds file
+versions by sha and the snapshot of `main`, encrypted with the cache key, and is cleared when another key
+opens it. Core keeps only the keys (`unlock.ts`) and the encryption (`crypto.ts`, `idb.ts`).
+
+The writer (`app/core/writer.ts`) stages edits for any backend and gates every write with the features'
+`problems` (`verify`); staged files remember their content id, so a change made elsewhere since staging is
+a conflict, not an overwrite.
 
 ## The vocabulary is the vault's
 
 `meta/schema.yaml` holds what is particular to this vault: note types, areas (label, hub), statuses,
-circles, broad topics, the owner, relation predicates, and which MDX components notes may use. The check,
-the audit, the map and every view read it at runtime (`schemaOf(files)`, `useSchema()`); code keeps only
-mechanics (frontmatter fields, filename and tag patterns, rule logic). Changing a label or adding an area is
+circles, broad topics, the owner, relation predicates, and which MDX components notes may use. Notes reads
+it (`schemaFor(files)`, `useSchema()`), and the checks, the graph and every view use it at runtime; code
+keeps only mechanics (frontmatter fields, filename and tag patterns, rule logic). Changing a label or adding an area is
 an edit to the vault, not the app.
 
 ## The app changes itself
@@ -151,7 +181,7 @@ holds personal content), and the repos were renamed the same day (`vault-pages` 
 
 For a vault that isn't this one: area colours keyed by area order instead of
 name (`app/core/base.css`), and the special cases in Home (`active`, `leisure`), the check (`person`, `moc`,
-`place`, `Home`) and the folder layout (`app/extensions/notes/model/note.ts`) moved into `meta/schema.yaml`.
+`place`, `Home`) and the folder layout (`notes/model/note.ts`) moved into `meta/schema.yaml`.
 
 ## Browser only
 
