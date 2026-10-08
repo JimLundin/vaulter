@@ -1,5 +1,46 @@
 import { expect, test } from '@playwright/test';
 
+test('the mobile Menu highlights only while hovered or open, with rounded corners', async ({
+  page,
+}) => {
+  await page.goto('/preview/');
+  await page.getByRole('radio', { name: 'Mobile', exact: true }).click();
+  const menu = page.getByRole('button', { name: 'Menu', exact: true });
+  await page.mouse.move(0, 0);
+  await expect(menu).toHaveAttribute('aria-expanded', 'false');
+  await expect(menu).not.toHaveAttribute('aria-current');
+  await expect(menu).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+  await expect(menu).toHaveCSS('border-radius', '8px');
+  if (!(await page.evaluate(() => matchMedia('(hover: none)').matches))) {
+    await menu.hover();
+    await expect(menu).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+  }
+  await menu.click();
+  await page.mouse.move(0, 0);
+  await expect(menu).toHaveAttribute('aria-expanded', 'true');
+  await expect(menu).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+  const navigation = page.getByRole('navigation', { name: 'Main navigation' });
+  await expect(navigation.getByRole('link', { name: 'Agent', exact: true })).toHaveAttribute(
+    'aria-current',
+    'page',
+  );
+  await navigation.getByRole('link', { name: 'History', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'History', exact: true })).toBeVisible();
+  await page.mouse.move(0, 0);
+  await expect(menu).toHaveAttribute('aria-expanded', 'false');
+  await expect(menu).not.toHaveAttribute('aria-current');
+  await expect(menu).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+  await menu.click();
+  await expect(navigation.getByRole('link', { name: 'History', exact: true })).toHaveAttribute(
+    'aria-current',
+    'page',
+  );
+  await page.keyboard.press('Escape');
+  await page.mouse.move(0, 0);
+  await expect(menu).toBeFocused();
+  await expect(menu).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+});
+
 test('the preview banner stays above the entire workspace and device selection preserves the draft', async ({
   page,
 }) => {

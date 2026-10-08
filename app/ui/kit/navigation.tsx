@@ -94,7 +94,6 @@ export function NavigationSuite({
         action.href ? [{ ...action, href: action.href, current: !!action.current }] : [],
       ),
   ];
-  const onAction = barActions.some((action) => action.current);
 
   return (
     <SidebarProvider>
@@ -195,7 +194,6 @@ export function NavigationSuite({
                 icon="list"
                 label="Menu"
                 expanded={menu}
-                current={!onAction && menuEntries.some((entry) => entry.current)}
                 onClick={() => setMenu(true)}
               />,
               <MobileActionButton

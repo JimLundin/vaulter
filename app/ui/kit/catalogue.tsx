@@ -881,7 +881,14 @@ function Frames() {
   );
   const bar = (
     <K.MobileBar
-      left={<K.MobileActionButton icon="list" label="Menu" onClick={() => setOpen(true)} />}
+      left={
+        <K.MobileActionButton
+          icon="list"
+          label="Menu"
+          expanded={open}
+          onClick={() => setOpen(true)}
+        />
+      }
       center={<K.MobileActionButton icon="search" label="Search" />}
       right={<K.MobileActionButton icon="settings" label="Settings" />}
       floating={<K.MobileActionButton icon="mic" label="Ask agent" primary={true} />}

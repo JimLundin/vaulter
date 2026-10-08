@@ -59,8 +59,9 @@ oversized invisible hit areas or fixed absolute offsets.
 
 Primary create/submit actions use `Button variant="default"`: primary fill and contrasting icon.
 Secondary options use `ghost` or `outline`; the same action retains its role across devices.
-Ordinary controls have 8px corners, and their hover/focus backgrounds follow that shape. Only the
-mobile footer fixtures use `size="square"`. The Agent microphone uses the same unfilled 44px
+Ordinary controls have 8px corners, and their hover/focus backgrounds follow that shape. The
+mobile footer fixtures keep a 44px square target with rounded hover backgrounds.
+The Agent microphone uses the same unfilled 44px
 icon control inside the composer on both devices; circular voice controls have no backing border
 or shadow.
 
@@ -110,7 +111,9 @@ adds one.
 `ui/command.ts`). A *destination* (the default) is a place in a list that may grow without limit: the
 agent, history, a note, a calendar. An *action* (`kind: 'action'`) is one of the few controls every
 screen keeps. The bottom bar keeps the first three actions beside Menu and Search; additional
-actions move into the menu. Ordinary bar controls are square and icon-only; the voice action floats
+actions move into the menu. Ordinary bar controls are square and icon-only with the standard control
+radius on hover and open-state backgrounds; Menu is highlighted only while its drawer is open.
+The current feature is marked in the drawer. The voice action floats
 above them as a circle. `Frame` hands both lists to `NavigationSuite`, which picks the shape. Adding a feature means adding an entry, not editing two
 layouts.
 

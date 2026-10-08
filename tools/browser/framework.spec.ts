@@ -11,7 +11,7 @@ test('navigation has the same destinations and actions in both arrangements', as
     const footer = page.locator('footer').filter({ has: menu });
     await expect(footer).toHaveText('');
     for (const control of await footer.locator(':scope > button, :scope > a').all()) {
-      expect(await control.evaluate((node) => getComputedStyle(node).borderRadius)).toBe('0px');
+      expect(await control.evaluate((node) => getComputedStyle(node).borderRadius)).toBe('8px');
       expect(await control.getAttribute('aria-label')).toBeTruthy();
     }
     const voice = page.getByRole('button', { name: 'Start voice interaction' });

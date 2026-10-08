@@ -257,7 +257,7 @@ export function TimelineItem({
   );
 }
 
-/** Icon-only mobile actions. Only the primary AI action uses a circle; the current place has a tint.
+/** Icon-only mobile actions. Only the primary AI action uses a circle; current or open controls have a tint.
  * With `href` it is a link (an action that is also a screen), otherwise a button. */
 export function MobileActionButton({
   icon,
@@ -285,9 +285,8 @@ export function MobileActionButton({
     'flex size-11 cursor-pointer items-center justify-center border-0 p-0 text-foreground focus-visible:outline-2 focus-visible:outline-ring',
     primary
       ? 'rounded-full bg-primary text-primary-foreground'
-      : current
-        ? 'rounded-none bg-muted'
-        : 'rounded-none bg-transparent text-muted-foreground hover:bg-muted',
+      : 'rounded-md bg-transparent text-muted-foreground hover:bg-muted hover:text-foreground',
+    !primary && (current || expanded) && 'bg-muted text-foreground',
   );
   if (href)
     return (
