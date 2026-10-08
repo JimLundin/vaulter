@@ -4,8 +4,12 @@ import { CheckFailed, Conflict, type Head } from './backend.ts';
 import { writerCore } from './writer.ts';
 import { fileRules } from './extension.ts';
 import { noteFiles } from '../extensions/notes/model/problems.ts';
+import { graphFiles } from '../extensions/graph/model/problems.ts';
 
-const RULES = fileRules([{ id: 'notes', files: noteFiles }]);
+const RULES = fileRules([
+  { id: 'notes', files: noteFiles },
+  { id: 'graph', files: graphFiles },
+]);
 import { SCHEMA } from '../extensions/notes/model/schema.fixture.ts';
 
 const NOTE = (title: string, extra = '') =>

@@ -7,10 +7,11 @@ import { fileRules } from '../../core/extension.ts';
 import type { Host } from '../../core/host.tsx';
 import { SCHEMA } from '../notes/model/schema.fixture.ts';
 import { notes } from '../notes/index.tsx';
+import { graph } from '../graph/index.tsx';
 import { editor } from '../editor/index.tsx';
 import { runAgent } from './tools.ts';
 import { recordExchange } from './record.ts';
-import { checkVault } from '../notes/model/check.ts';
+import { checkVault } from '../check.ts';
 import { capturePath } from '../notes/model/capture.ts';
 import { today } from '../../core/format.ts';
 import { code } from '../code/index.tsx';
@@ -66,7 +67,7 @@ async function writer(extra: Record<string, string> = {}) {
   let head = (await m.backend.refresh())!;
   const core = writerCore(
     m.backend,
-    fileRules([notes]),
+    fileRules([notes, graph]),
     () => head.files,
     (h) => {
       head = h;

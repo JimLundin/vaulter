@@ -9,7 +9,7 @@ import {
   stockholmStamp,
   type Exchange,
 } from './capture.ts';
-import { checkVault } from './check.ts';
+import { checkVault } from '../../check.ts';
 import { renameNote } from './rename.ts';
 import { SCHEMA } from './schema.fixture.ts';
 

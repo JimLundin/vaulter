@@ -7,11 +7,17 @@ import { CheckFailed, Conflict, TRAILER } from '../../core/backend.ts';
 import { gate } from '../../core/writer.ts';
 import { fileRules } from '../../core/extension.ts';
 import { noteFiles } from '../../extensions/notes/model/problems.ts';
+import { graphFiles } from '../../extensions/graph/model/problems.ts';
 import { readCache } from './sync.ts';
 import { githubBackend } from './index.ts';
 import { SCHEMA } from '../../extensions/notes/model/schema.fixture.ts';
 
-const verify = gate(fileRules([{ id: 'notes', files: noteFiles }]));
+const verify = gate(
+  fileRules([
+    { id: 'notes', files: noteFiles },
+    { id: 'graph', files: graphFiles },
+  ]),
+);
 
 const NOTE = (title: string, extra = '') =>
   `---\ntype: topic\naliases: []\ntags: [area/craft, programming]\ncreated: 2026-10-03\nsummary: "${title}."\n---\n# ${title}\n\n${extra}\n\n## See also\n`;

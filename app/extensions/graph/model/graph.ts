@@ -1,24 +1,22 @@
-// What the vault knows beyond single notes, shared by every feature: lookups, backlinks, activity, topics,
-// relations and when each note last changed. Pure; each part computed on first use and kept. Features
-// derive their own data with perGraph (below), so adding one never touches this file.
-import { parseVaultLink } from '../../notes/model/paths.ts';
+// The knowledge graph: the notes as nodes and what connects them: links (backlinks), relations, topics,
+// activity, and when each note last changed. Built from what notes reads out of each note (links.ts,
+// refs.ts, fields.ts), never from the files' text or frontmatter. Pure; each part computed on first use
+// and kept. Features derive their own data with perGraph (below), so adding one never touches this file.
 import {
-  plain,
-  clip,
   kind,
   titleOf,
   hrefOf,
-  asList,
   topicsOf,
+  writtenOf,
+  isTopical,
   type Note,
 } from '../../notes/model/fields.ts';
+import { linksOf } from '../../notes/model/links.ts';
+import { relationsOf } from '../../notes/model/refs.ts';
 import { NO_SCHEMA, schemaFor, type Schema } from '../../notes/model/schema.ts';
 import { loadNotes } from '../../notes/model/note.ts';
-import { type VaultFile } from '../../../core/files.ts';
-import { dateStr, today } from '../../../core/format.ts';
-
-/** Links in the source text: [label](</Path.md#h>) or [label](/Path.md). */
-const LINK_RE = /\[([^\]]*)\]\(<?(\/[^)>]+?\.mdx?(?:#[^)>]*)?)>?\)/g;
+import type { VaultFile } from '../../../core/files.ts';
+import { today } from '../../../core/format.ts';
 
 export interface Backlink {
   from: Note;
@@ -28,9 +26,6 @@ export interface Edge {
   label: string;
   notes: Note[];
 }
-
-/** Topical notes: the vault's subjects, not logs, captures, the conventions or Home. */
-export const isTopical = (n: Note) => kind(n.id) === 'note' && n.id !== 'Home';
 
 export type Graph = ReturnType<typeof deriveGraph>;
 
@@ -50,19 +45,12 @@ export function deriveGraph(notes: Note[], schema: Schema, t = today()) {
 
   const backlinks = once(() => {
     const out = new Map<string, Backlink[]>();
-    for (const n of notes) {
-      const seen = new Set<string>();
-      for (const line of n.body.split('\n')) {
-        for (const m of line.matchAll(LINK_RE)) {
-          const p = parseVaultLink(m[2]);
-          if (!p || p.id === n.id || seen.has(p.id)) continue;
-          seen.add(p.id);
-          const list = out.get(p.id) ?? [];
-          list.push({ from: n, context: clip(plain(line), 260) });
-          out.set(p.id, list);
-        }
+    for (const n of notes)
+      for (const { id, context } of linksOf(n)) {
+        const list = out.get(id) ?? [];
+        list.push({ from: n, context });
+        out.set(id, list);
       }
-    }
     // Topic notes first (alphabetical), then logs newest first.
     const rank = (n: Note) => (kind(n.id) === 'note' ? 0 : 1);
     for (const list of out.values())
@@ -114,12 +102,10 @@ export function deriveGraph(notes: Note[], schema: Schema, t = today()) {
       out.set(from, m);
     };
     for (const n of notes) {
-      const rel = n.data.relations;
-      if (!rel || typeof rel !== 'object') continue;
-      for (const [p, targets] of Object.entries(rel)) {
-        const def = schema.predicates[p];
+      for (const { predicate, targets } of relationsOf(n)) {
+        const def = schema.predicates[predicate];
         if (!def) continue;
-        for (const id of asList(targets)) {
+        for (const id of targets) {
           const target = byId.get(id);
           if (!target) continue;
           add(n.id, def.label, target);
@@ -149,9 +135,7 @@ export function deriveGraph(notes: Note[], schema: Schema, t = today()) {
     const { lastSeen } = signals();
     const map = new Map<string, string>();
     for (const n of notes) {
-      let best = dateStr(n.data.created);
-      for (const [, d] of n.body.matchAll(/\b(20\d\d-[01]\d-[0-3]\d)\b/g))
-        if (d <= t && d > best) best = d;
+      let best = writtenOf(n, t);
       const seen = lastSeen.get(n.id) ?? '';
       if (seen > best) best = seen;
       map.set(n.id, best);

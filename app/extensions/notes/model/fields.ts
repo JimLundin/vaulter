@@ -1,6 +1,7 @@
 // What a note says about itself: title, excerpt, facets, topics. Pure functions of one note.
 import { hrefForId, slugify } from './paths.ts';
 import type { Frontmatter } from './note.ts';
+import { dateStr } from '../../../core/format.ts';
 
 /** A page of the vault, as parsed by app/extensions/notes/model/note.ts. */
 export interface Note {
@@ -34,6 +35,17 @@ export const kind = (id: string) =>
       : id.startsWith('meta/')
         ? 'meta'
         : 'note';
+
+/** Topical notes: the vault's subjects, not logs, captures, the conventions or Home. */
+export const isTopical = (n: Note) => kind(n.id) === 'note' && n.id !== 'Home';
+
+/** The newest day the note itself states, up to `today`: its created date, or a later date in its body. */
+export function writtenOf(n: Note, today: string): string {
+  let best = dateStr(n.data.created);
+  for (const [, d] of n.body.matchAll(/\b(20\d\d-[01]\d-[0-3]\d)\b/g))
+    if (d <= today && d > best) best = d;
+  return best;
+}
 
 export function titleOf(n: Note): string {
   const m = n.body.match(/^#\s+(.+)$/m);

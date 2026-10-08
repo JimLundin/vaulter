@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { schemaOf, parseSchema } from './schema.ts';
-import { checkVault } from './check.ts';
+import { checkVault } from '../../check.ts';
 import { deriveGraph } from '../../graph/model/graph.ts';
 import { loadNotes } from './note.ts';
 import { SCHEMA_YAML } from './schema.fixture.ts';

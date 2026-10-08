@@ -86,8 +86,8 @@ export interface Extension {
   /** The files this feature keeps: which (`keeps`), what they are, and the problems a change adds, which
    * refuse a write. The app reads and writes only files some feature keeps. */
   files?: {
-    keeps: (path: string) => boolean;
-    what: string;
+    keeps?: (path: string) => boolean;
+    what?: string;
     problems?: (before: VaultFile[], after: VaultFile[]) => Promise<string[]>;
   };
   /** Why no page can be shown now (the files are unreadable as this feature's), or null. */
@@ -120,8 +120,8 @@ export interface AgentContext {
 export const fileRules = (extensions: Extension[]): FileRules => {
   const fs = extensions.flatMap((e) => (e.files ? [e.files] : []));
   return {
-    keeps: (path) => fs.some((f) => f.keeps(path)),
-    what: fs.map((f) => f.what).join('; '),
+    keeps: (path) => fs.some((f) => f.keeps?.(path)),
+    what: fs.flatMap((f) => (f.what ? [f.what] : [])).join('; '),
     problems: async (before, after) =>
       (await Promise.all(fs.map((f) => f.problems?.(before, after) ?? []))).flat(),
   };

@@ -2,7 +2,8 @@
 // first, one open question from a live note, and the log a week, a month, three months and a year back.
 import type { Note } from '../notes/model/fields.ts';
 import { facet, kind, plain, titleOf } from '../notes/model/fields.ts';
-import { isTopical, type Graph } from '../graph/model/graph.ts';
+import { type Graph } from '../graph/model/graph.ts';
+import { isTopical } from '../notes/model/fields.ts';
 import { datesOf, followUpsOf, openOf, type DateFact } from '../notes/model/facts.ts';
 
 const DAY = 864e5;

@@ -5,7 +5,7 @@
 // Pure, so the editor's Rename page and the agent's renameNote share it.
 import { load as parseYaml } from 'js-yaml';
 import { FRONT_RE, isVaultPath, type Frontmatter } from './note.ts';
-import { type Change, type VaultFile } from '../../../core/files.ts';
+import type { Change, VaultFile } from '../../../core/files.ts';
 
 const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const idOf = (path: string) => path.replace(/\.mdx?$/, '');

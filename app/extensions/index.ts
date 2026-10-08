@@ -13,6 +13,7 @@ import { agent } from './agent/index.tsx';
 import { audit } from './audit/index.tsx';
 import { code } from './code/index.tsx';
 import { web } from './web/index.tsx';
+import { graph } from './graph/index.tsx';
 import { notes } from './notes/index.tsx';
 
 export const EXTENSIONS: Extension[] = [
@@ -28,5 +29,6 @@ export const EXTENSIONS: Extension[] = [
   audit,
   code,
   web,
+  graph,
   notes,
 ];

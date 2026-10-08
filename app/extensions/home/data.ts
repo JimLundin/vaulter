@@ -2,7 +2,8 @@
 // status/, circle/; conventions §3) and from what the daily log links to.
 import type { Note } from '../notes/model/fields.ts';
 import { facet, titleOf, kind, asList, hrefOf } from '../notes/model/fields.ts';
-import { isTopical, perGraph, type Graph } from '../graph/model/graph.ts';
+import { perGraph, type Graph } from '../graph/model/graph.ts';
+import { isTopical } from '../notes/model/fields.ts';
 import type { Area, Schema } from '../notes/model/schema.ts';
 import { dateStr } from '../../core/format.ts';
 

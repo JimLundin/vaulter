@@ -8,7 +8,7 @@ import { NoteLinks } from '../notes/sections.tsx';
 import { noteSections } from '../notes/slots.tsx';
 import { Section } from '@/components/layout.tsx';
 import { useGraph } from '../graph/use.ts';
-import { similarNotes } from './similar.ts';
+import type { similarNotes } from './similar.ts';
 
 function Similar({ note }: { note: Note }) {
   const v = useGraph();

@@ -1,7 +1,7 @@
 import { expect, test } from 'vitest';
 import { renameNote } from './rename.ts';
 import { applyChanges, type VaultFile } from '../../../core/files.ts';
-import { checkVault } from './check.ts';
+import { checkVault } from '../../check.ts';
 import { SCHEMA_PATH } from './note.ts';
 import { SCHEMA_YAML } from './schema.fixture.ts';
 

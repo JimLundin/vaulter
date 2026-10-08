@@ -4,9 +4,17 @@
 import { load } from 'js-yaml';
 import { dateStr } from '../../../core/format.ts';
 import { SCHEMA_PATH, type Frontmatter } from './note.ts';
-import { type VaultFile } from '../../../core/files.ts';
-import type { Predicate } from '../../graph/model/relations.ts';
+import type { VaultFile } from '../../../core/files.ts';
 import { bodyHeadings, CAPTURE_RE, headingsFor, STAMP_RE } from './capture.ts';
+
+/** A relation predicate (meta/schema.yaml): a note states a relation once, the graph shows it on both
+ * notes, the target's side under the inverse label. */
+export interface Predicate {
+  label: string;
+  inverse?: string;
+  symmetric?: boolean;
+  use: string;
+}
 
 export interface Term {
   key: string;
@@ -31,7 +39,7 @@ export interface Schema {
   /** Broad topics, grouped for reading; `broadTopics` is all of them. */
   broad: Record<string, string[]>;
   broadTopics: Set<string>;
-  /** Relation predicates (app/extensions/graph/model/relations.ts), in display order. */
+  /** Relation predicates, in display order. */
   predicates: Record<string, Predicate>;
   /** MDX components notes may use (conventions §13): the app implements them, the vault allows them. */
   components: string[];
@@ -262,9 +270,9 @@ export function checkNote(file: string, data: Frontmatter | null, body: string, 
   if (id !== 'Home' && !/^## See also\s*$/m.test(body)) bad('no "## See also" section');
   const usesComponent = new RegExp(`<(${s.components.join('|')})\\b`).test(body);
   if (file.endsWith('.mdx') && !usesComponent)
-    bad(`is .mdx but uses no component; switch it to .md with Rename in the app`);
+    bad('is .mdx but uses no component; switch it to .md with Rename in the app');
   if (file.endsWith('.md') && usesComponent)
-    bad(`uses a component, so must be .mdx: switch it with Rename in the app`);
+    bad('uses a component, so must be .mdx: switch it with Rename in the app');
   return out;
 }
 
@@ -283,13 +291,7 @@ export function checkDaily(file: string, data: Frontmatter | null, body = '') {
 
 /** Problems with a day's capture log (app/extensions/notes/model/capture.ts): its frontmatter, and its headings against its
  * exchanges. The turns themselves are verbatim and never checked. */
-export function checkCapture(
-  file: string,
-  data: Frontmatter | null,
-  body: string,
-  ids: Set<string>,
-  s: Schema,
-) {
+export function checkCapture(file: string, data: Frontmatter | null, body: string, s: Schema) {
   const out: string[] = [];
   const bad = (m: string) => out.push(`${file}: ${m}`);
   const day = CAPTURE_RE.exec(file)?.[1];
@@ -336,11 +338,6 @@ export function checkCapture(
       bad(
         `${at}: topics must list the notes it was filed into ([] only for a fragment too garbled to file)`,
       );
-    for (const t of list(e.topics))
-      if (!ids.has(t))
-        bad(
-          `${at}: topics → "${t}" is not a note (renamed? use the current filename without extension)`,
-        );
     if (e.where != null && !Array.isArray(e.where)) bad(`${at}: where must be a list`);
     for (const [k, v] of Object.entries(e))
       if (!EXCHANGE_FIELDS.includes(k) && (!v || typeof v !== 'object' || Array.isArray(v)))

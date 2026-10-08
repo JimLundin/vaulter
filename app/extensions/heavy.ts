@@ -2,7 +2,8 @@
 // thread and the cache can keep them per tree. Like index.ts, the features' list: a feature adds its slow
 // derivation here and reads it with useHeavy<T>(key) (app/core/host.tsx).
 import type { VaultFile } from '../core/files.ts';
-import { graphOf, isTopical, type Graph } from './graph/model/graph.ts';
+import { graphOf, type Graph } from './graph/model/graph.ts';
+import { isTopical } from './notes/model/fields.ts';
 import { layoutMap } from './map/vault-map.ts';
 import { similarNotes } from './similar/similar.ts';
 
