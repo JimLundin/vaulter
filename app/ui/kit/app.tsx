@@ -433,8 +433,7 @@ export function TimelineItem({
   );
 }
 
-/** The mobile footer's buttons: an icon in a circle with its label under it. The primary one is the
- * large black one in the middle. */
+/** Compact mobile controls: a 44px circle and a label. The primary control uses the accent colour. */
 export function RoundButton({
   icon,
   label,
@@ -456,19 +455,15 @@ export function RoundButton({
       onClick={onClick}
       onPointerDown={onPointerDown}
       onPointerUp={onPointerUp}
-      className={cn(
-        'flex cursor-pointer flex-col items-center gap-1 border-0 bg-transparent p-0 font-[inherit] text-xs text-body',
-        primary && 'gap-1.5',
-      )}
+      className="flex cursor-pointer flex-col items-center gap-1 border-0 bg-transparent p-0 font-[inherit] text-xs text-body"
     >
       <span
         className={cn(
-          'flex size-[52px] items-center justify-center rounded-full bg-muted text-foreground',
-          primary &&
-            'size-[76px] bg-primary text-primary-foreground shadow-[0_6px_16px_rgba(24,24,27,0.22)]',
+          'flex size-11 items-center justify-center rounded-full bg-muted text-foreground',
+          primary && 'bg-primary text-primary-foreground',
         )}
       >
-        <Icon name={icon} size={primary ? 'xl' : 'lg'} />
+        <Icon name={icon} size="lg" />
       </span>
       {label}
     </button>
@@ -531,7 +526,7 @@ export function MobileBar({
   right?: ReactNode;
 }) {
   return (
-    <footer className="grid grid-cols-3 items-end border-t border-muted px-5 pt-2.5 pb-[max(28px,env(safe-area-inset-bottom))]">
+    <footer className="grid shrink-0 grid-cols-3 items-center border-t border-muted px-5 pt-1.5 pb-[max(6px,env(safe-area-inset-bottom))]">
       <div className="justify-self-start">{left}</div>
       <div className="justify-self-center">{center}</div>
       <div className="justify-self-end">{right}</div>
