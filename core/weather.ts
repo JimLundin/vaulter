@@ -1,5 +1,5 @@
-// The weather now at a point, from open-meteo.com (free, no key, any origin): for a capture's exchange, from
-// the app (where Jim is) and tools/capture.ts (the place he names). Best effort: null when it doesn't answer.
+// The weather now at a point, from open-meteo.com (free, no key, any origin): for a capture's exchange, where
+// Jim is. Best effort: null when it doesn't answer.
 
 const round = (n: number | null | undefined, d = 0) =>
   n == null || Number.isNaN(n) ? undefined : Math.round(n * 10 ** d) / 10 ** d;

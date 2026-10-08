@@ -12,7 +12,7 @@ export const auditTools = ({ w, since }: AgentContext): ToolSet =>
     ? {
         audit: tool({
           description:
-            "The weekly sweep's audit (conventions §15, what tools/audit.ts prints) over the vault with any staged edits: what changed in the last 8 days and what needs judgement, by section. Changes nothing.",
+            "The weekly sweep's audit (conventions §15) over the vault with any staged edits: what changed in the last 8 days and what needs judgement, by section. Changes nothing.",
           inputSchema: z.object({}),
           execute: async () => {
             const files = w.files();

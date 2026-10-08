@@ -246,11 +246,9 @@ export function checkNote(file: string, data: Frontmatter | null, body: string, 
   if (id !== 'Home' && !/^## See also\s*$/m.test(body)) bad('no "## See also" section');
   const usesComponent = new RegExp(`<(${s.components.join('|')})\\b`).test(body);
   if (file.endsWith('.mdx') && !usesComponent)
-    bad(
-      `is .mdx but uses no component; convert with the app's set-ext (\`tools/set-ext.ts "${id}" md\`)`,
-    );
+    bad(`is .mdx but uses no component; switch it to .md with Rename in the app`);
   if (file.endsWith('.md') && usesComponent)
-    bad(`uses a component, so must be .mdx: the app's set-ext (\`tools/set-ext.ts "${id}" mdx\`)`);
+    bad(`uses a component, so must be .mdx: switch it with Rename in the app`);
   return out;
 }
 

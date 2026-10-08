@@ -12,7 +12,7 @@ data, and nothing the browser runs needs Node.
 | Shell | `app/shell/` | `core/`, the DOM, React | routing, the frame (sidebar, header, the panel beside the page, the phone's bottom bar), ⌘K, the keys, the extension host, the writer, the session, the encrypted store, the workers |
 | Backends | `app/backends/<name>` | `core/`, `app/shell/backend.ts` | one way to a vault each: GitHub (with the cache), a picked folder, memory (tests) |
 | Features | `app/extensions/<name>/` | `core/`, `app/shell/` | everything the user sees beyond the shell |
-| Tools | `tools/` | Node, `core/` | thin CLIs over `core/`: the CI check, sealing, and the audit and rename for shell sessions |
+| Tools | `tools/` | Node, `core/` | thin CLIs over `core/` for CI: the vault's check and sealing |
 
 Dependencies point one way: `core` knows nothing of the app, the shell nothing of git or GitHub, and a
 feature nothing of another's internals. A feature that adds to another's page imports that feature's
@@ -144,7 +144,6 @@ agent changes the app only when Jim asks or agrees (the vault's conventions, §1
 | Runtime | the app reads and writes the vault through the GitHub API (`VITE_VAULT_REPO`, default `JimLundin/vault@main`), with the sealed token, a fine-grained PAT for `vault` and `vaulter` only |
 | Self-change | the agent reads, changes and commits this repo (`app/extensions/code/`, `VITE_APP_REPO`, default `JimLundin/vaulter@main`); the push deploys only if lint, the type check and the tests pass |
 | The vault's CI | `vault`'s check workflow checks out this repo's `main` and runs `tools/check.ts --vault .` |
-| Shell sessions | this repo cloned next to the vault (`../vaulter`); the audit and set-ext run from the vault root |
 
 The app moved here from the vault's `site/` on 2026-10-03, as a fresh first commit (the older history
 holds personal content), and the repos were renamed the same day (`vault-pages` → `vaulter`, `my-vault` →
@@ -160,9 +159,8 @@ Nothing the browser runs uses Node; `npm run dev` serves files only (the folder 
 in the browser). Node remains, outside the app, as:
 - **The toolchain**: Vite, Vitest and TypeScript, in development and CI.
 - **CI**: `tools/check.ts` on every push to the vault, `tools/seal-secrets.ts` when deploying.
-- **Shell sessions**: `tools/audit.ts` and `tools/set-ext.ts` for Claude sessions with a shell; both are
-  thin wrappers, and the app has the same as a page, a command and agent tools. They can go once the
-  in-app agent replaces those sessions.
+
+The vault is worked only in the app: the audit, rename and Captures have no command-line form.
 
 The folder backend is Chromium-only (Safari and Firefox have no directory picker), so GitHub stays the
 main backend; the folder is for development and a local clone.

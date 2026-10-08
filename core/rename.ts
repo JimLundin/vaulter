@@ -2,7 +2,7 @@
 // switching .md/.mdx (§13) is the rename that keeps the name. When the name changes, so do the frontmatter
 // fields that name it. Captures are verbatim records: their bodies stay as written, but their `topics` and
 // `where` are the vault's index into them and must name current notes (schema.ts checkCapture), so they follow.
-// Pure, so the editor, the agent and tools/set-ext.ts share it.
+// Pure, so the editor's Rename page and the agent's renameNote share it.
 import { load as parseYaml } from 'js-yaml';
 import { FRONT_RE, isVaultPath, type Change, type Frontmatter, type VaultFile } from './vault.ts';
 

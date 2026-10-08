@@ -18,12 +18,8 @@ components (the vault's `meta/conventions.md` §13). The design and its history:
 | `npm test` / `npm run typecheck` | the tests (Vitest: `app/`, `core/`) and TypeScript over `app/`, `core/` and `tools/` |
 | `node tools/seal-secrets.ts <out>` | seal the token and key with the password from the environment (what CI runs; see Publishing) |
 
-With this repo cloned next to the vault (`../vaulter`) and `npm ci` run in it, from the vault root:
-`node ../vaulter/tools/check.ts` (the check), `node ../vaulter/tools/audit.ts` (the weekly
-sweep's report, changes nothing), `node ../vaulter/tools/set-ext.ts "Note" md|mdx` (switch a
-note's extension and rewrite every link to it) and `node ../vaulter/tools/capture.ts --source … --procedure …
---summary … --topic … < turns.md` (append a Capture's exchange to the day's log, collecting the time, machine,
-session and weather itself). Each takes `--vault <dir>`, default the working directory.
+The vault is worked in the app: the audit, rename (and switching `.md`/`.mdx`) and Captures are pages
+and agent tools there, not scripts.
 
 All code is TypeScript. Node 24 runs the scripts directly (type stripping), so only erasable syntax,
 explicit `.ts` imports and `import type` (enforced by `tsconfig.json`).
@@ -55,8 +51,8 @@ The design, its rules and how to add a feature: `ARCHITECTURE.md`. In short:
 - `app/extensions/` — every feature, listed in `extensions/index.ts`: notes, home, topics, calendar,
   decisions, map, similar, places, editor (edit, rename, changes, history), audit, agent, code (the
   agent's tools over this repo, so the app can change itself), web (search and reading pages, through Jina).
-- `tools/` — the only Node: `check.ts` (CI), `seal-secrets.ts` (publishing), `audit.ts`, `set-ext.ts`
-  and `capture.ts` (command-line sessions), over `core/`.
+- `tools/` — the only Node, for CI: `check.ts` (the vault's check) and `seal-secrets.ts` (publishing), over
+  `core/`.
 
 Security: notes render without eval (MDX props are literals), raw HTML and unsafe URLs are dropped, the
 page has a CSP (script only from the app; network only to GitHub, OpenAI, Jina, the map tiles, and for a capture's metadata OpenStreetMap's geocoder and open-meteo), the cache is

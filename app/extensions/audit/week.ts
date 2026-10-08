@@ -1,4 +1,4 @@
-// This week's audit, as tools/audit.ts runs it by default: what the page shows and the agent's tool returns.
+// This week's audit: what the page shows and the agent's tool returns.
 import { audit, daysBefore, type History } from '../../../core/audit.ts';
 import { today } from '../../../core/format.ts';
 import type { Note } from '../../../core/note-fields.ts';
