@@ -164,5 +164,7 @@ model to the same Product views, with sample Markdown and an initial sample hist
 receives the model and preview label explicitly; workflows do not import the preview. Conversation
 metadata collection is supplied as an adapter, so preview sends do not request location or weather.
 The preview builds separately, contains no sealed secrets and registers no service worker. Its
-GitHub Pages job adds `/preview/structure/` and the kit gallery to the exact deployed production
-artifact. Design iteration precedes merging the application and migrating private vault content.
+GitHub Pages job runs on `structure` and `design-variants`, refreshing the shared `/preview/structure/`
+and kit gallery links alongside the exact deployed production artifact. The preview version records
+the publishing branch and commit. Design iteration precedes merging the application and migrating
+private vault content.
