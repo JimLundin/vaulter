@@ -168,6 +168,27 @@ test('the message field keeps the same inset microphone and send controls throug
   await expect(input).toHaveValue('');
 });
 
+test('button hit targets resize without animating their geometry', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 844 });
+  await page.goto('/preview/');
+  const add = page.getByRole('button', { name: 'New chat', exact: true });
+  await expect(add).toHaveAttribute('data-size', 'sm');
+  // Slow feedback transitions so a layout transition cannot finish before the measurement.
+  await add.evaluate((node) => {
+    node.style.transitionDuration = '1s';
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(add).toHaveAttribute('data-size', 'icon-lg');
+  const bounds = (await add.boundingBox())!;
+  expect(bounds.width).toBe(44);
+  expect(bounds.height).toBe(44);
+  expect(
+    await add.evaluate((node) =>
+      node.getAnimations().map((animation) => (animation as CSSTransition).transitionProperty),
+    ),
+  ).toEqual([]);
+});
+
 test('agent controls have even insets and suggestions remain one scrolling row with edge fades', async ({
   page,
 }) => {
