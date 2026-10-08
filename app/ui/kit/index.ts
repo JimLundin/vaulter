@@ -383,6 +383,7 @@ export {
   OptionStrip,
 } from './primitives.tsx';
 export { MenuSheet } from './sheet.tsx';
+export { DesignPreview } from './preview.tsx';
 
 import {
   RadioGroup as RadioGroupPart,

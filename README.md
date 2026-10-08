@@ -62,6 +62,9 @@ Review the latest design before merging at **https://jimlundin.github.io/vaulter
 The component gallery is at **https://jimlundin.github.io/vaulter/preview/structure/kit/**.
 Every push to `structure` or `design-variants` runs the checks and refreshes these shared links with
 that branch's design. The banner identifies the preview commit; `version.json` records its branch.
+Use **Mobile** in the top banner to review the phone layout from your desktop. **Desktop** returns
+to the wide layout; **Window** follows your browser size. Switching retains your current page,
+draft and open settings/search fields. The banner stays above the whole app, including the sidebar.
 This preview uses the actual Product views, fictional notes, an in-memory backend,
 and a scripted local model. Try “vault it: leave space for a walk before work” to exercise staging,
 checking, committing and History. Reload or Reset demo starts over. It ships no credentials, reads

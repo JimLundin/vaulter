@@ -25,7 +25,6 @@ import {
   Link,
   Overlay,
   Page,
-  PreviewBar,
   SettingsMenu,
   SettingsSection,
   SettingField,
@@ -90,9 +89,6 @@ export function OpenProduct({
   session: ReturnType<typeof useVaultSession>;
   model?: (name: string) => Promise<LanguageModel>;
   preview?: {
-    label: string;
-    reset: () => void;
-    kitHref?: string;
     suggestions: () => Promise<string[]>;
     transcription: TranscriptionProvider;
   };
@@ -351,13 +347,6 @@ export function OpenProduct({
         }
         closePanel={() => showPanel(false)}
       >
-        {!!preview && (
-          <PreviewBar
-            label={preview.label}
-            kitHref={preview.kitHref ?? './kit/'}
-            onReset={preview.reset}
-          />
-        )}
         {onAgent ? (
           <ChatPage
             conversation={conversation}

@@ -5,7 +5,7 @@ import '../ui/kit/styles.css';
 import { useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { OpenProduct } from '../product.tsx';
-import { startTheme, Text } from '../ui/kit/index.ts';
+import { startTheme, Text, DesignPreview } from '../ui/kit/index.ts';
 import { useWriter, applyOverlay } from '../vault/changes/writer.ts';
 import { liveVault } from '../vault/index.ts';
 import { memoryBackend } from '../vault/storage/memory.ts';
@@ -41,29 +41,32 @@ function Preview({ initialHead }: { initialHead: Head }) {
   const vault = useMemo(() => liveVault(() => current.current), []);
   const files = applyOverlay(head.files, writer.overlay);
   return (
-    <OpenProduct
-      session={{
-        vault,
-        files,
-        status: { kind: 'synced', at: Date.now() },
-        locked: null,
-        signOut: null,
-        secrets: null,
-        blocked: null,
-      }}
-      model={async () => previewModel}
-      preview={{
-        label: `Design preview · ${(import.meta.env.VITE_PREVIEW_COMMIT || 'local').slice(0, 7)}`,
-        reset: () => location.reload(),
-        kitHref: import.meta.env.DEV ? '/ui/kit/' : './kit/',
-        transcription: previewTranscription,
-        suggestions: async () => [
-          'How could I make more room for slow mornings?',
-          'Help me plan an afternoon in the garden studio',
-          'What themes connect the notes in my reading list?',
-        ],
-      }}
-    />
+    <DesignPreview
+      label={`Design preview · ${(import.meta.env.VITE_PREVIEW_COMMIT || 'local').slice(0, 7)}`}
+      onReset={() => location.reload()}
+      kitHref={import.meta.env.DEV ? '/ui/kit/' : './kit/'}
+    >
+      <OpenProduct
+        session={{
+          vault,
+          files,
+          status: { kind: 'synced', at: Date.now() },
+          locked: null,
+          signOut: null,
+          secrets: null,
+          blocked: null,
+        }}
+        model={async () => previewModel}
+        preview={{
+          transcription: previewTranscription,
+          suggestions: async () => [
+            'How could I make more room for slow mornings?',
+            'Help me plan an afternoon in the garden studio',
+            'What themes connect the notes in my reading list?',
+          ],
+        }}
+      />
+    </DesignPreview>
   );
 }
 

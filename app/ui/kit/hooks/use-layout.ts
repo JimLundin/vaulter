@@ -3,6 +3,19 @@ import { usePresentation } from '../presentation.tsx';
 
 export type SizeClass = 'compact' | 'expanded' | 'wide';
 
+/** Bounded previews read the same emitted thresholds as the browser layout. */
+export function sizeClassForWidth(width: number): SizeClass {
+  const style = getComputedStyle(document.documentElement);
+  const pixels = (name: string) => {
+    const token = style.getPropertyValue(name).trim();
+    return (
+      Number.parseFloat(token) * (token.endsWith('rem') ? Number.parseFloat(style.fontSize) : 1)
+    );
+  };
+  if (width >= pixels('--breakpoint-xl')) return 'wide';
+  return width < pixels('--breakpoint-md') ? 'compact' : 'expanded';
+}
+
 // CSS owns the thresholds, including Tailwind's md/xl variants. Read those same tokens for changes
 // that need React structure; callers never need to know a pixel breakpoint.
 function queries() {

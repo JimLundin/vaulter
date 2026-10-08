@@ -7,7 +7,7 @@ interface Presentation {
   layout: SizeClass;
   portal: HTMLDivElement;
 }
-const PresentationContext = createContext<Presentation | null>(null);
+export const PresentationContext = createContext<Presentation | null>(null);
 export const usePresentation = () => useContext(PresentationContext);
 
 /** Live, bounded specimens without a second document or duplicated component implementations. */

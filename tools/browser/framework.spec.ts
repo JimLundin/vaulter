@@ -478,11 +478,22 @@ test('the composer and search stay within the visual viewport when a keyboard op
     Object.defineProperty(window.visualViewport!, 'height', { value: 440, writable: true });
     window.visualViewport!.dispatchEvent(new Event('resize'));
   });
-  await expect(page.locator('[data-layout="mobile-workspace"]')).toHaveCSS('height', '440px');
+  const banner = page.getByRole('complementary', { name: 'Design preview' });
+  await expect
+    .poll(async () => {
+      const workspace = (await page.locator('[data-layout="mobile-workspace"]').boundingBox())!;
+      return Math.abs(workspace.height - (440 - (await banner.boundingBox())!.height));
+    })
+    .toBeLessThanOrEqual(1);
   const send = await page.getByRole('button', { name: 'Send', exact: true }).boundingBox();
   expect(send!.y + send!.height).toBeLessThanOrEqual(440);
   await page.getByRole('button', { name: 'Search', exact: true }).click();
-  await expect(page.getByRole('dialog')).toHaveCSS('height', '440px');
+  await expect
+    .poll(async () => {
+      const search = (await page.getByRole('dialog').boundingBox())!;
+      return Math.abs(search.height - (440 - (await banner.boundingBox())!.height));
+    })
+    .toBeLessThanOrEqual(1);
   await expect(page.getByRole('combobox')).toBeFocused();
   await page.getByRole('button', { name: 'Close search' }).click();
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
@@ -499,7 +510,15 @@ test('the composer and search stay within the visual viewport when a keyboard op
     Object.defineProperty(window.visualViewport!, 'offsetTop', { value: 20, writable: true });
     window.visualViewport!.dispatchEvent(new Event('resize'));
   });
-  await expect(settings).toHaveCSS('max-height', '324px');
+  await expect
+    .poll(async () => {
+      const available = 340 - (await banner.boundingBox())!.height;
+      const maxHeight = await settings.evaluate((node) =>
+        Number.parseFloat(getComputedStyle(node).maxHeight),
+      );
+      return Math.abs(maxHeight - Math.min(available * 0.8, available - 16));
+    })
+    .toBeLessThanOrEqual(1);
   // Vaul transitions the surface; compare its final position with a subpixel allowance.
   await expect
     .poll(async () => {

@@ -18,21 +18,24 @@ export function PreviewBar({
   label,
   kitHref,
   onReset,
+  controls,
 }: {
   label: string;
   kitHref: string;
   onReset: () => void;
+  controls?: ReactNode;
 }) {
   const mobile = useIsMobile();
   return (
     <aside
       aria-label="Design preview"
-      className="flex min-h-9 shrink-0 items-center justify-between gap-2 border-b bg-card px-4 text-foreground"
+      className="flex min-h-9 shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b bg-card px-4 py-1 text-foreground"
     >
       <span className="min-w-0 truncate text-caption text-muted-foreground">
         {mobile ? 'Sample preview' : `${label} · Sample data · Scripted chat`}
       </span>
-      <div className="flex shrink-0 items-center gap-1">
+      <div className="flex shrink-0 flex-wrap items-center gap-2">
+        {controls}
         <a
           data-touch-target=""
           href={kitHref}

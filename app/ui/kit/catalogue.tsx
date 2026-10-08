@@ -1002,7 +1002,21 @@ function Access() {
   );
 }
 function Preview() {
-  return <K.PreviewBar label="Design preview · sample data" kitHref="#navigation" onReset={noop} />;
+  return (
+    <K.DesignPreview label="Design preview · sample data" kitHref="#navigation" onReset={noop}>
+      <K.NavigationSuite
+        status="Synced"
+        search={{ label: 'Search', onSelect: noop }}
+        destinations={[{ label: 'Agent', href: '#agent', icon: 'sparkles', current: true }]}
+        actions={[{ label: 'Settings', icon: 'settings', onSelect: noop }]}
+      >
+        <K.FeaturePage title="Live preview">
+          <K.Input aria-label="Preview draft" placeholder="Keep a draft while switching layouts…" />
+          <K.PreviewBar label="Notice primitive" kitHref="#navigation" onReset={noop} />
+        </K.FeaturePage>
+      </K.NavigationSuite>
+    </K.DesignPreview>
+  );
 }
 function SidePanels() {
   return (
@@ -1576,7 +1590,7 @@ export const catalogue: Specimen[] = [
     id: 'preview',
     title: 'Preview notice',
     description: 'The notice used by the sample-data design preview.',
-    components: ['PreviewBar'],
+    components: ['PreviewBar', 'DesignPreview'],
     Sample: Preview,
     fullBleed: true,
   },

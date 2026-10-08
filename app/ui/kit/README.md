@@ -21,6 +21,7 @@ Markdown/HAST rendering and the vault-link annotation transform remain the expli
 | `index.ts` | public components, icons and theme controls |
 | `catalogue.tsx`, `gallery.tsx` | live examples, component coverage, search and paired catalogue |
 | `presentation.tsx` | private bounded presentation and portal target for live samples |
+| `preview.tsx` | top-level `DesignPreview` banner and live Window/Desktop/Mobile viewport |
 | `parts/`, `hooks/` | shared layout/type primitives, shadcn controls and their hooks |
 | `primitives.tsx` | reusable surfaces, adaptive panel and following scroll container |
 | `composition.ts` | checked building-block dependencies displayed in the gallery |
@@ -155,6 +156,13 @@ portals to that canvas. Touch policy is explicit in the phone sample and follows
 in the app. Sample dialogs remain local and do not lock or hide the catalogue; production modal
 focus, scroll locking and focus return still use the normal browser behavior. These previews show
 layout and control behavior; they do not simulate a phone browser keyboard or microphone.
+
+The sample app uses public `DesignPreview` to place its banner above the entire workspace, including
+the sidebar. **Window** follows the browser width, **Desktop** keeps a minimum 1024px workspace,
+and **Mobile** centers a 390px touch viewport, constrained to the browser width. Switching modes
+rearranges the same mounted product and retains routes, drafts and open settings/search fields.
+Portals stay inside the selected viewport while the banner remains available. The frame follows
+the visual viewport height, reserving space for the banner above the app.
 
 ### How a shape is decided
 
