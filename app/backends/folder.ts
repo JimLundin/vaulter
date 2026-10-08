@@ -5,8 +5,8 @@
 // files (commit with git there). Keep is localStorage, unencrypted like the files themselves.
 import { isVaultPath } from '../../core/vault.ts';
 import { blobSha } from '../../core/blob-sha.ts';
-import { Conflict, type Head, type VaultBackend } from '../core/backend.ts';
-import { applyOverlay } from '../core/writer.ts';
+import { Conflict, type Head, type VaultBackend } from '../shell/backend.ts';
+import { applyOverlay } from '../shell/writer.ts';
 
 // The parts of the API used here (TypeScript's DOM lib lacks iteration, permissions and the picker).
 interface Mode {

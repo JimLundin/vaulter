@@ -4,7 +4,7 @@
 import { useEffect, useState } from 'react';
 import type { ReactNode, RefObject } from 'react';
 import { ChevronDownIcon, ListIcon } from 'lucide-react';
-import { link } from '../../core/route.ts';
+import { link } from '../../shell/route.ts';
 import { cn } from 'cn';
 import { Eyebrow } from '@/components/layout.tsx';
 import {

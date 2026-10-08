@@ -2,8 +2,8 @@
 // (core/similar.ts, computed in the worker).
 import type { Note } from '../../../core/note-fields.ts';
 import { excerptOf, kind } from '../../../core/note-fields.ts';
-import type { Extension } from '../../core/extension.ts';
-import { useHeavy, useVault } from '../../core/host.tsx';
+import type { Extension } from '../../shell/extension.ts';
+import { useHeavy, useVault } from '../../shell/host.tsx';
 import { NoteLinks } from '../notes/sections.tsx';
 import { noteSections } from '../notes/slots.tsx';
 import { Section } from '@/components/layout.tsx';

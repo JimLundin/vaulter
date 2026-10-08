@@ -2,10 +2,10 @@
 // frontmatter follow it (core/rename.ts), to review in Changes and commit as one step.
 import { useId, useMemo, useState } from 'react';
 import { renameNote } from '../../../core/rename.ts';
-import { applyOverlay } from '../../core/writer.ts';
-import { useWriter } from '../../core/host.tsx';
+import { applyOverlay } from '../../shell/writer.ts';
+import { useWriter } from '../../shell/host.tsx';
 import { toast } from 'sonner';
-import { go, link } from '../../core/route.ts';
+import { go, link } from '../../shell/route.ts';
 import { ErrorState, PageHeader, Section } from '@/components/layout.tsx';
 import { Button } from '@/components/ui/button.tsx';
 import { Checkbox } from '@/components/ui/checkbox.tsx';

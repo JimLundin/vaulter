@@ -9,8 +9,8 @@ import {
   type CommitSummary,
   type Head,
   type VaultBackend,
-} from '../core/backend.ts';
-import { applyOverlay } from '../core/writer.ts';
+} from '../shell/backend.ts';
+import { applyOverlay } from '../shell/writer.ts';
 
 export function memoryBackend(initial: Record<string, string>) {
   let files: VaultFile[] = Object.entries(initial).map(([path, text]) => ({ path, text }));

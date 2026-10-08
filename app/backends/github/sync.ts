@@ -10,7 +10,7 @@ import {
   getAll,
   tx,
   type Encrypted,
-} from '../../core/store.ts';
+} from '../../shell/store.ts';
 import type { GitHub } from './api.ts';
 
 export interface Snapshot {

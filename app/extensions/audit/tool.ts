@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { loadNotes } from '../../../core/vault.ts';
 import { report } from '../../../core/audit.ts';
 import { weekAudit } from './week.ts';
-import type { AgentContext } from '../../core/extension.ts';
+import type { AgentContext } from '../../shell/extension.ts';
 import { schemaOf } from '../../../core/schema.ts';
 
 export const auditTools = ({ w, since }: AgentContext): ToolSet =>

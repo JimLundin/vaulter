@@ -6,8 +6,8 @@
 import { lazy, Suspense } from 'react';
 import { PlusIcon, SparklesIcon } from 'lucide-react';
 import { cn } from 'cn';
-import type { Extension, PanelArg } from '../../core/extension.ts';
-import { useHost } from '../../core/host.tsx';
+import type { Extension, PanelArg } from '../../shell/extension.ts';
+import { useHost } from '../../shell/host.tsx';
 import { chat, newChat, useChat } from './chat.ts';
 import { Loading } from '@/components/layout.tsx';
 import { agentPage } from './routes.ts';

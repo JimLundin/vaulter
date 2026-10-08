@@ -47,7 +47,7 @@ export default defineConfig({
     rolldownOptions: {
       input: {
         index: fileURLToPath(new URL('app/index.html', import.meta.url)),
-        sw: fileURLToPath(new URL('app/core/sw.ts', import.meta.url)),
+        sw: fileURLToPath(new URL('app/shell/sw.ts', import.meta.url)),
       },
       output: { entryFileNames: (c) => (c.name === 'sw' ? 'sw.js' : 'assets/[name]-[hash].js') },
     },

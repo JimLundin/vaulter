@@ -7,14 +7,14 @@ import {
   PencilIcon,
   TextCursorInputIcon,
 } from 'lucide-react';
-import type { Extension } from '../../core/extension.ts';
+import type { Extension } from '../../shell/extension.ts';
 import { Edit } from './Edit.tsx';
 import { Changes, focusCommit } from './Changes.tsx';
-import { go } from '../../core/route.ts';
+import { go } from '../../shell/route.ts';
 import { History } from './History.tsx';
 import { Rename } from './Rename.tsx';
-import type { Host } from '../../core/host.tsx';
-import type { Route } from '../../core/route.ts';
+import type { Host } from '../../shell/host.tsx';
+import type { Route } from '../../shell/route.ts';
 import { noteActions } from '../notes/slots.tsx';
 import { changesPage, editPage, historyPage, renamePage } from './routes.ts';
 

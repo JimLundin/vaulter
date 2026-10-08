@@ -5,8 +5,8 @@ import { esc, type Section as AuditSection } from '../../../core/audit.ts';
 import { WEEK, weekAudit } from './week.ts';
 import { perVault, type Vault } from '../../../core/derive.ts';
 import { hrefOf } from '../../../core/note-fields.ts';
-import { useHost, useVault } from '../../core/host.tsx';
-import { link } from '../../core/route.ts';
+import { useHost, useVault } from '../../shell/host.tsx';
+import { link } from '../../shell/route.ts';
 import { Empty, ErrorState, Loading, PageHeader, Section } from '@/components/layout.tsx';
 
 /** Any page path in a row, longest first. */

@@ -16,9 +16,9 @@ import { titleOf, kind } from '../../../core/note-fields.ts';
 import { schemaOf } from '../../../core/schema.ts';
 import { capturePath } from '../../../core/capture.ts';
 import { today } from '../../../core/format.ts';
-import { CheckFailed, Conflict } from '../../core/backend.ts';
-import { newProblems } from '../../core/writer.ts';
-import type { AgentContext } from '../../core/extension.ts';
+import { CheckFailed, Conflict } from '../../shell/backend.ts';
+import { newProblems } from '../../shell/writer.ts';
+import type { AgentContext } from '../../shell/extension.ts';
 
 const LIST_MAX = 200;
 

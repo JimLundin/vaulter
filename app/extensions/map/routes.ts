@@ -1,4 +1,4 @@
 // The map's route.
-import { pattern } from '../../core/route.ts';
+import { pattern } from '../../shell/route.ts';
 
 export const mapPage = pattern('/map/');

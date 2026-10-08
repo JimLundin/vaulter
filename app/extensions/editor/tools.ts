@@ -3,7 +3,7 @@ import { tool, type ToolSet } from 'ai';
 import { z } from 'zod';
 import type { Change } from '../../../core/vault.ts';
 import { renameNote } from '../../../core/rename.ts';
-import type { AgentContext } from '../../core/extension.ts';
+import type { AgentContext } from '../../shell/extension.ts';
 
 export const editorTools = ({ w }: AgentContext) =>
   ({

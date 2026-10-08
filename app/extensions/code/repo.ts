@@ -5,7 +5,7 @@
 import type { GitHub, Repo } from '../../backends/github/api.ts';
 import { NotFastForward } from '../../backends/github/api.ts';
 import { blobSha } from '../../../core/blob-sha.ts';
-import { TRAILER } from '../../core/backend.ts';
+import { TRAILER } from '../../shell/backend.ts';
 
 interface Head {
   commit: string;

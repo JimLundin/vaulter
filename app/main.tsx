@@ -1,10 +1,10 @@
 // The stylesheets first: theme.css declares the cascade layers, which every later stylesheet joins.
-import './core/theme.css';
-import './core/base.css';
-import './core/prose.css';
+import './shell/theme.css';
+import './shell/base.css';
+import './shell/prose.css';
 import { createRoot } from 'react-dom/client';
-import { App } from './core/App.tsx';
-import { applyTheme } from './core/theme.ts';
+import { App } from './shell/App.tsx';
+import { applyTheme } from './shell/theme.ts';
 
 applyTheme();
 createRoot(document.getElementById('app')!).render(<App />);

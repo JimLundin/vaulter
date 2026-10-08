@@ -1,4 +1,4 @@
 // The places' route.
-import { pattern } from '../../core/route.ts';
+import { pattern } from '../../shell/route.ts';
 
 export const placesPage = pattern('/places/');

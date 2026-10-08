@@ -1,7 +1,7 @@
 import { expect, test } from 'vitest';
 import { MockLanguageModelV4, convertArrayToReadableStream } from 'ai/test';
 import { memoryBackend } from '../../backends/memory.ts';
-import { agentWriter, writerCore, type Writer } from '../../core/writer.ts';
+import { agentWriter, writerCore, type Writer } from '../../shell/writer.ts';
 import { search, searchIndex } from '../../../core/search.ts';
 import { vaultOf } from '../../../core/derive.ts';
 import { SCHEMA } from '../../../core/schema.fixture.ts';
@@ -17,7 +17,7 @@ import { codeRepo } from '../code/repo.ts';
 import { codeTools } from '../code/tools.ts';
 import { fakeGitHub } from '../../backends/github/fake-github.ts';
 import { github } from '../../backends/github/api.ts';
-import type { AgentContext } from '../../core/extension.ts';
+import type { AgentContext } from '../../shell/extension.ts';
 
 const NOTE = (title: string, extra = '') =>
   `---\ntype: topic\naliases: []\ntags: [area/craft, programming]\ncreated: 2026-10-03\nsummary: "${title}."\n---\n# ${title}\n\n${extra}\n\n## See also\n`;

@@ -2,8 +2,8 @@
 // most often appear alongside it. Built from tags alone.
 import type { Note } from '../../../core/note-fields.ts';
 import { topicsOf, topicHref, titleOf, excerptOf, facet } from '../../../core/note-fields.ts';
-import { useSchema, useVault } from '../../core/host.tsx';
-import { link } from '../../core/route.ts';
+import { useSchema, useVault } from '../../shell/host.tsx';
+import { link } from '../../shell/route.ts';
 import { NoteLinks } from '../notes/sections.tsx';
 import { cn } from 'cn';
 import { Badge } from '@/components/ui/badge.tsx';

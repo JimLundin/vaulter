@@ -46,7 +46,7 @@ The design, its rules and how to add a feature: `ARCHITECTURE.md`. In short:
   (`derive.ts`, plus `facts.ts`, `vault-map.ts`, `similar.ts`, `brief.ts`, `audit.ts`, `rename.ts`),
   vocabulary (`schema.ts` over `meta/schema.yaml`), formats (`format.ts`), secrets (`sealed.ts`), the
   day's capture log (`capture.ts`: one per day, its exchanges' metadata in the frontmatter), weather (`weather.ts`).
-- `app/core/` — the shell: `App.tsx`, routing, the top bar and search, the extension host (`host.tsx`,
+- `app/shell/` — the shell: `App.tsx`, routing, the top bar and search, the extension host (`host.tsx`,
   `extension.ts`), the session and backends contract (`session.ts`, `backend.ts`), the writer
   (`writer.ts`), the encrypted IndexedDB (`store.ts`), unlocking (`unlock.ts`), rendering
   (`markdown.ts`, `highlight.tsx`), the worker and the service worker.

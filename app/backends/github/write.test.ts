@@ -1,10 +1,10 @@
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, expect, test } from 'vitest';
 import { fakeGitHub } from './fake-github.ts';
-import { closeDb, newCacheKey } from '../../core/store.ts';
-import { forget } from '../../core/unlock.ts';
-import { CheckFailed, Conflict, TRAILER } from '../../core/backend.ts';
-import { verify } from '../../core/writer.ts';
+import { closeDb, newCacheKey } from '../../shell/store.ts';
+import { forget } from '../../shell/unlock.ts';
+import { CheckFailed, Conflict, TRAILER } from '../../shell/backend.ts';
+import { verify } from '../../shell/writer.ts';
 import { readCache } from './sync.ts';
 import { githubBackend } from './index.ts';
 import { SCHEMA } from '../../../core/schema.fixture.ts';

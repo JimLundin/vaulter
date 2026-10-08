@@ -3,8 +3,8 @@
 import { ChevronRightIcon } from 'lucide-react';
 import { cn } from 'cn';
 import { titleOf, hrefOf } from '../../../core/note-fields.ts';
-import { useVault } from '../../core/host.tsx';
-import { link, useRoute } from '../../core/route.ts';
+import { useVault } from '../../shell/host.tsx';
+import { link, useRoute } from '../../shell/route.ts';
 import { areaHref, home } from './data.ts';
 import {
   Collapsible,

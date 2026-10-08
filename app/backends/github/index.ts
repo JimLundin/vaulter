@@ -1,8 +1,14 @@
 // The vault as a GitHub repo: main, read through the encrypted cache (sync.ts) and written with the Git
 // Data API (write.ts). Tabs tell each other when one syncs or commits, so the others read the cache.
 import type { VaultFile } from '../../../core/vault.ts';
-import { Offline, TRAILER, type Head, type VaultBackend, type Verify } from '../../core/backend.ts';
-import { keepWith } from '../../core/store.ts';
+import {
+  Offline,
+  TRAILER,
+  type Head,
+  type VaultBackend,
+  type Verify,
+} from '../../shell/backend.ts';
+import { keepWith } from '../../shell/store.ts';
 import { github, sourceUrl, type Repo } from './api.ts';
 import { readCache, sync, type Snapshot } from './sync.ts';
 import { commitChanges, revertCommit } from './write.ts';

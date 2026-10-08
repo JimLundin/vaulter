@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { Conflict } from '../core/backend.ts';
+import { Conflict } from '../shell/backend.ts';
 import { folderBackend, type FileEntry, type Folder } from './folder.ts';
 
 // A directory in memory, with only what folder.ts uses; every write ticks the clock.

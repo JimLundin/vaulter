@@ -10,9 +10,9 @@ import { titleOf, excerptOf, hrefOf, kind, facet, asList } from '../../../core/n
 import { datesOf } from '../../../core/facts.ts';
 import { fmtDay } from '../../../core/format.ts';
 import type { Place, PlaceEvent, PlacesData } from './places-view.ts';
-import { useVault } from '../../core/host.tsx';
-import { link } from '../../core/route.ts';
-import { later } from '../../core/later.ts';
+import { useVault } from '../../shell/host.tsx';
+import { link } from '../../shell/route.ts';
+import { later } from '../../shell/later.ts';
 import { Field, FieldList, PageHeader, Section } from '@/components/layout.tsx';
 import { Button } from '@/components/ui/button.tsx';
 import './places.css';

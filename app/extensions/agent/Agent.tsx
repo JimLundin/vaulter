@@ -3,12 +3,12 @@
 // conversation takes the height, the composer stays at the bottom. The conversation itself is chat.ts.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PlusIcon, SquareIcon } from 'lucide-react';
-import type { PanelArg } from '../../core/extension.ts';
+import type { PanelArg } from '../../shell/extension.ts';
 import { titleOf } from '../../../core/note-fields.ts';
-import { useHost } from '../../core/host.tsx';
-import { link, useRoute } from '../../core/route.ts';
-import { renderBody } from '../../core/markdown.ts';
-import { later } from '../../core/later.ts';
+import { useHost } from '../../shell/host.tsx';
+import { link, useRoute } from '../../shell/route.ts';
+import { renderBody } from '../../shell/markdown.ts';
+import { later } from '../../shell/later.ts';
 import { chat, MODEL_KEY, model, newChat, ready, send, stop, useChat, viewing } from './chat.ts';
 import type { Part, Turn } from './chat.ts';
 import { Button } from '@/components/ui/button.tsx';

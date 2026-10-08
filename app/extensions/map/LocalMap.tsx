@@ -2,8 +2,8 @@
 // fanned out in two columns, grouped and coloured by area (same colours and edges as the Map). Static
 // SVG; every neighbour is a link. On a phone, a branching list instead.
 import type { Note } from '../../../core/note-fields.ts';
-import { useHeavy, useSchema } from '../../core/host.tsx';
-import { link } from '../../core/route.ts';
+import { useHeavy, useSchema } from '../../shell/host.tsx';
+import { link } from '../../shell/route.ts';
 import { cn } from 'cn';
 import { Section } from '@/components/layout.tsx';
 import './localmap.css';

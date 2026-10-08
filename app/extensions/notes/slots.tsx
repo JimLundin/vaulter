@@ -4,9 +4,9 @@
 import { Fragment } from 'react';
 import type { ComponentType } from 'react';
 import type { Note } from '../../../core/note-fields.ts';
-import { type Host, useHost } from '../../core/host.tsx';
-import { link } from '../../core/route.ts';
-import { slot } from '../../core/slot.ts';
+import { type Host, useHost } from '../../shell/host.tsx';
+import { link } from '../../shell/route.ts';
+import { slot } from '../../shell/slot.ts';
 
 /** Sections under a note's body, by `order`; a section renders null when it has nothing to show. */
 export const noteSections = slot<{ order: number; view: ComponentType<{ note: Note }> }>(

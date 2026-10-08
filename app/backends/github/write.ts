@@ -3,9 +3,9 @@
 // there (a Conflict). `verify` (the app's check) runs on every attempt.
 import type { VaultFile } from '../../../core/vault.ts';
 import { blobSha } from '../../../core/blob-sha.ts';
-import { Conflict, TRAILER, type Change, type Verify } from '../../core/backend.ts';
-import { applyOverlay } from '../../core/writer.ts';
-import { encrypt } from '../../core/store.ts';
+import { Conflict, TRAILER, type Change, type Verify } from '../../shell/backend.ts';
+import { applyOverlay } from '../../shell/writer.ts';
+import { encrypt } from '../../shell/store.ts';
 import { NotFastForward, type GitHub, type TreeChange } from './api.ts';
 import { gc, sync, writeSnapshot, type BlobRecord, type Snapshot } from './sync.ts';
 

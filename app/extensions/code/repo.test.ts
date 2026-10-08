@@ -1,7 +1,7 @@
 import { expect, test } from 'vitest';
 import { fakeGitHub } from '../../backends/github/fake-github.ts';
 import { github } from '../../backends/github/api.ts';
-import { TRAILER } from '../../core/backend.ts';
+import { TRAILER } from '../../shell/backend.ts';
 import { codeRepo } from './repo.ts';
 
 const APP = { owner: 'JimLundin', name: 'vaulter', branch: 'main' };

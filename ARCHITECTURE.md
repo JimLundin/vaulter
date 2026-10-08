@@ -9,9 +9,9 @@ data, and nothing the browser runs needs Node.
 | Layer | Where | May use | Holds |
 |---|---|---|---|
 | Vault model | `core/` | itself and pure libraries (no DOM, no Node) | parsing, the check, derivations, the vocabulary reader, formats, audit, rename |
-| Shell | `app/core/` | `core/`, the DOM, React | routing, the frame (sidebar, header, the panel beside the page, the phone's bottom bar), ⌘K, the keys, the extension host, the writer, the session, the encrypted store, the workers |
-| Backends | `app/backends/<name>` | `core/`, `app/core/backend.ts` | one way to a vault each: GitHub (with the cache), a picked folder, memory (tests) |
-| Features | `app/extensions/<name>/` | `core/`, `app/core/` | everything the user sees beyond the shell |
+| Shell | `app/shell/` | `core/`, the DOM, React | routing, the frame (sidebar, header, the panel beside the page, the phone's bottom bar), ⌘K, the keys, the extension host, the writer, the session, the encrypted store, the workers |
+| Backends | `app/backends/<name>` | `core/`, `app/shell/backend.ts` | one way to a vault each: GitHub (with the cache), a picked folder, memory (tests) |
+| Features | `app/extensions/<name>/` | `core/`, `app/shell/` | everything the user sees beyond the shell |
 | Tools | `tools/` | Node, `core/` | thin CLIs over `core/`: the CI check, sealing, and the audit and rename for shell sessions |
 
 Dependencies point one way: `core` knows nothing of the app, the shell nothing of git or GitHub, and a
@@ -20,7 +20,7 @@ slot (below), so it depends on what it adds to, never the other way round.
 
 ## Adding a feature: extensions
 
-A feature is a folder in `app/extensions/` exporting an `Extension` (`app/core/extension.ts`) and one line
+A feature is a folder in `app/extensions/` exporting an `Extension` (`app/shell/extension.ts`) and one line
 in `app/extensions/index.ts`. The shell renders what it contributes to the frame:
 
 | Point | What it is | Used by |
@@ -38,7 +38,7 @@ in `app/extensions/index.ts`. The shell renders what it contributes to the frame
 A feature's own derived data is computed once per vault with `perVault` (`core/derive.ts`); a slow one is
 registered in `core/heavy.ts`, computed in the worker, kept per tree, and read with `useHeavy(key)`.
 Contribution points are added when a feature needs one, not before. Rows a list can move through (j/k,
-↑/↓) are marked `data-nav` (`app/core/keys.ts`); passing confirmations are sonner toasts.
+↑/↓) are marked `data-nav` (`app/shell/keys.ts`); passing confirmations are sonner toasts.
 
 Example, a reading list: `app/extensions/reading/index.tsx` with a `page` for `#/reading/` listing notes
 tagged `reading` and `status/active`, a `nav` entry, an entry in the notes' sections
@@ -48,7 +48,7 @@ else changes.
 ### A feature's own places: slots
 
 The points above are the shell's: the frame every page is in. A place in a feature's own page, where other
-features add to it, is that feature's **slot** (`app/core/slot.ts`). The feature makes it, typed by what an
+features add to it, is that feature's **slot** (`app/shell/slot.ts`). The feature makes it, typed by what an
 entry is, exports it, and draws its entries where they go:
 
 | Slot | Owner | An entry is | Filled by |
@@ -73,7 +73,7 @@ needs others to add to its page, not before.
 ### A feature's routes
 
 A feature's pages are at routes it owns, in its `routes.ts`, each a typed pattern (`pattern()` in
-`app/core/route.ts`): `editPage = pattern('/edit/:file/')`. The feature finds its page with it
+`app/shell/route.ts`): `editPage = pattern('/edit/:file/')`. The feature finds its page with it
 (`editPage.match(path)` gives `{ file }`, or null), and every link to the page is made by it,
 `editPage.href({ file })`, so its params are typed and encoded once. Another feature that links there
 imports the route (the agent links to the editor's `historyPage`), so a route that moves moves its links,
@@ -100,7 +100,7 @@ show) are such functions.
 
 ## Reaching the vault: backends
 
-The app reaches a vault only through `VaultBackend` (`app/core/backend.ts`):
+The app reaches a vault only through `VaultBackend` (`app/shell/backend.ts`):
 
 | Member | Does | GitHub | Folder | Memory |
 |---|---|---|---|---|
@@ -112,7 +112,7 @@ The app reaches a vault only through `VaultBackend` (`app/core/backend.ts`):
 | `since(day)` | what changed since a day, and a file's text then (the audit) | 2 requests + blobs on demand | — | ✓ |
 | `keep` | the app's own small state (staged edits, worker results) | encrypted | localStorage | memory |
 
-The writer (`app/core/writer.ts`) stages edits for any backend and passes the check as `verify`; staged
+The writer (`app/shell/writer.ts`) stages edits for any backend and passes the check as `verify`; staged
 files remember their content id, so a change made elsewhere since staging is a conflict, not an overwrite.
 
 ## The vocabulary is the vault's
@@ -151,7 +151,7 @@ holds personal content), and the repos were renamed the same day (`vault-pages` 
 `vault`). The app is at https://jimlundin.github.io/vaulter/.
 
 For a vault that isn't this one: area colours keyed by area order instead of
-name (`app/core/base.css`), and the special cases in Home (`active`, `leisure`), the check (`person`, `moc`,
+name (`app/shell/base.css`), and the special cases in Home (`active`, `leisure`), the check (`person`, `moc`,
 `place`, `Home`) and the folder layout (`core/vault.ts`) moved into `meta/schema.yaml`.
 
 ## Browser only
