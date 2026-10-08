@@ -1,7 +1,7 @@
 // A note: its type, facets and tags, the body, and below it what every extension adds (NoteSections, slots.tsx);
 // the footer links to the source and to each extension's actions on it. Where the page is wide enough,
 // a rail beside the body (Rail.tsx) has the headings, the properties and the sections below.
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import type { Ref } from 'react';
 import type { Note } from '../notes/model/fields.ts';
 import { asList, hrefOf, kind, titleOf, topicHref } from '../notes/model/fields.ts';
@@ -9,8 +9,7 @@ import { dateStr } from '../../core/format.ts';
 import { useHost } from '../../core/host.tsx';
 import { NoteSections } from './slots.tsx';
 import { link } from '../../core/route.ts';
-import { renderBody, mdxReady, loadMdx } from './markdown.ts';
-import { later } from '../../core/later.ts';
+import { renderBody } from './markdown.ts';
 import { cn } from 'cn';
 import { Badge } from '@/components/ui/badge.tsx';
 import { Separator } from '@/components/ui/separator.tsx';
@@ -28,14 +27,9 @@ export function NoteBody({
   className?: string;
   ref?: Ref<HTMLElement>;
 }) {
-  const { mdx } = useHost();
-  const [, setMdx] = useState(mdxReady());
-  useEffect(() => {
-    if (note.ext === 'mdx' && !mdxReady()) later(loadMdx().then(() => setMdx(true)));
-  }, [note.ext]);
   return (
     <article ref={ref} className={cn('note prose', className)}>
-      {renderBody(note, mdx)}
+      {renderBody(note)}
     </article>
   );
 }

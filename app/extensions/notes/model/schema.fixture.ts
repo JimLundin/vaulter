@@ -23,7 +23,6 @@ predicates:
   lives-in: { label: Lives in, inverse: Residents, use: a home }
   friend-of: { label: Friend of, symmetric: true, use: friends }
   related-to: { label: Related to, symmetric: true, use: anything }
-components: [Chart, Timeline, NoteList]
 sources:
   vault-app: { label: The app }
   claude-code: { label: Claude Code }

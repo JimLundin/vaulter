@@ -36,7 +36,7 @@ function Row({ text }: { text: string }) {
             // The row's first note is where j/k stop.
             data-nav={i === 1 || undefined}
             className="-mx-0.5 rounded-sm px-0.5 font-medium text-primary no-underline hover:underline data-[nav]:focus-visible:bg-accent data-[nav]:focus-visible:outline-2"
-            href={link(hrefOf({ id: s.replace(/\.mdx?$/, '') }))}
+            href={link(hrefOf({ id: s.replace(/\.md$/, '') }))}
           >
             {s}
           </a>

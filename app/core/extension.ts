@@ -92,8 +92,6 @@ export interface Extension {
   };
   /** Why no page can be shown now (the files are unreadable as this feature's), or null. */
   blocked?: (host: Host) => string | null;
-  /** Components notes can use in MDX (which ones notes may use is the vault's call: components in meta/schema.yaml). */
-  mdx?: Record<string, ComponentType<any>>;
   /** Tools for the agent; async so they can load with it (the AI SDK stays out of the main bundle). */
   tools?: (ctx: AgentContext) => ToolSet | Promise<ToolSet>;
 }

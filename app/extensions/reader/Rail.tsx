@@ -25,7 +25,7 @@ const same = <T,>(a: T[], b: T[]) =>
     Object.entries(x as object).every(([k, v]) => (b[i] as Record<string, unknown>)[k] === v),
   );
 
-/** What's under a container as it renders (MDX loads later; the vault refreshes), re-read on change. */
+/** What's under a container as it renders (the vault refreshes), re-read on change. */
 function useDom<T>(
   ref: RefObject<HTMLElement | null>,
   read: (el: HTMLElement) => T[],

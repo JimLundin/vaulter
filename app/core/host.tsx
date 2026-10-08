@@ -2,7 +2,6 @@
 // App.tsx provides it; what the files mean is the features' (notes, the graph). A feature's own places are its slots (slot.ts).
 import { createContext } from 'react';
 import { useContext } from 'react';
-import type { ComponentType } from 'react';
 import type { Secrets } from './sealed.ts';
 import type { Extension, Page } from './extension.ts';
 import type { Entry } from './search.ts';
@@ -19,8 +18,6 @@ export interface Host {
   writer: Writer;
   secrets: Secrets | null;
   extensions: Extension[];
-  /** Every MDX component the extensions provide. */
-  mdx: Record<string, ComponentType<any>>;
   /** Search and previews: every extension's entries, and the nav's pages. */
   index: Map<string, Entry>;
   /** The backend's history since a day, where it keeps one (the audit). */

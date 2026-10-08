@@ -256,10 +256,7 @@ function UserTurn({ turn }: { turn: Turn }) {
 
 /** The agent's text as vault Markdown: links resolve, and it reads like a note. */
 function Said({ text }: { text: string }) {
-  const body = useMemo(
-    () => renderBody({ id: 'agent', path: 'agent.md', ext: 'md', body: text }),
-    [text],
-  );
+  const body = useMemo(() => renderBody({ id: 'agent', path: 'agent.md', body: text }), [text]);
   return <div className="prose">{body}</div>;
 }
 

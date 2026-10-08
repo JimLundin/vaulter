@@ -10,10 +10,9 @@ export type Frontmatter = Record<string, any>;
 /** The vault's vocabulary (app/extensions/notes/model/schema.ts): data, not a page. */
 export const SCHEMA_PATH = 'meta/schema.yaml';
 
-/** Pages: notes at the root (.md or .mdx), daily logs, captures and the conventions; not the README. */
+/** Pages: notes at the root (.md), daily logs, captures and the conventions; not the README. */
 const isPagePath = (path: string) =>
-  path !== 'README.md' &&
-  /^(?:[^/.][^/]*\.mdx?|(?:daily|captures|meta)\/[^/.][^/]*\.md)$/.test(path);
+  path !== 'README.md' && /^(?:[^/.][^/]*\.md|(?:daily|captures|meta)\/[^/.][^/]*\.md)$/.test(path);
 
 /** What a source supplies: the pages and the schema. */
 export const isVaultPath = (path: string) => path === SCHEMA_PATH || isPagePath(path);
@@ -40,9 +39,8 @@ export function parseNote({ path, text }: VaultFile) {
   }
   const body = (m ? text.replace(`---${m[1]}---`, '') : text).trim();
   return {
-    id: path.replace(/\.mdx?$/, ''),
+    id: path.replace(/\.md$/, ''),
     path,
-    ext: (path.endsWith('.mdx') ? 'mdx' : 'md') as 'md' | 'mdx',
     data,
     body,
     front: !!m,

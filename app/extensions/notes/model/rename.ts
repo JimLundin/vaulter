@@ -1,14 +1,13 @@
-// Renaming a note: the file moves and every vault link to it follows, anchors kept (meta/conventions.md §5);
-// switching .md/.mdx (§13) is the rename that keeps the name. When the name changes, so do the frontmatter
-// fields that name it. Captures are verbatim records: their bodies stay as written, but their `topics` and
-// `where` are the vault's index into them and must name current notes (schema.ts checkCapture), so they follow.
+// Renaming a note: the file moves and every vault link to it follows, anchors kept (meta/conventions.md §5),
+// and the frontmatter fields that name it. Captures are verbatim records: their bodies stay as written,
+// but their `topics` and `where` are the vault's index into them and must name current notes (schema.ts checkCapture), so they follow.
 // Pure; the agent's renameNote (notes/tools.ts) runs it.
 import { load as parseYaml } from 'js-yaml';
 import { FRONT_RE, isVaultPath, type Frontmatter } from './note.ts';
 import type { Change, VaultFile } from '../../../core/files.ts';
 
 const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-const idOf = (path: string) => path.replace(/\.mdx?$/, '');
+const idOf = (path: string) => path.replace(/\.md$/, '');
 
 /** The frontmatter without the fields that hold note ids (relations.ts checkMeta, schema.ts checkCapture). */
 const withoutIds = ({ relations, where, topics, ...d }: Frontmatter) => {
@@ -75,14 +74,14 @@ export function renameNote(files: VaultFile[], from: string, to: string): Change
   if (!files.some((f) => f.path === from)) throw new Error(`no such file: ${from}`);
   if (!isVaultPath(to))
     throw new Error(
-      `${to} isn't a vault page: notes at the root (.md, .mdx), daily/, captures/, meta/ (.md)`,
+      `${to} isn't a vault page: notes at the root (.md), daily/, captures/, meta/ (.md)`,
     );
   if (to === from) throw new Error(`${from} is already called that`);
   const taken = files.find((f) => f.path !== from && idOf(f.path) === idOf(to));
   if (taken) throw new Error(`${taken.path} exists`);
 
-  // "</From.md>", "</From.md#h>", and href "/From.md…" in MDX props.
-  const links = new RegExp(`(</|["']/)${esc(from)}(?=[>#"'])`, 'g');
+  // "</From.md>", "</From.md#h>".
+  const links = new RegExp(`(</)${esc(from)}(?=[>#])`, 'g');
   const ids = idOf(from) !== idOf(to);
   const out: Change[] = [{ path: from, text: null }];
   for (const f of files) {

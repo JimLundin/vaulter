@@ -77,7 +77,7 @@ export function agentTools({ w, search, capture }: AgentContext) {
       inputSchema: z.object({ path: z.string() }),
       execute: ({ path }) => {
         const v = vault();
-        const n = v.byId.get(path.replace(/\.mdx?$/, ''));
+        const n = v.byId.get(path.replace(/\.md$/, ''));
         return n
           ? (v.backlinks.get(n.id) ?? []).map((b) => ({ path: b.from.path, context: b.context }))
           : { error: `no such note: ${path}` };

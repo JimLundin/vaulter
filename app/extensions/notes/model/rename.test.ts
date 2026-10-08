@@ -18,18 +18,11 @@ const FILES: VaultFile[] = [
     path: 'Riverton.md',
     text: NOTE(
       'Riverton',
-      '[Ada](</Ada.md>) and [care](</Ada.md#care>); [Ada.mdx](</Ada.mdx>) is not him.',
+      '[Ada](</Ada.md>) and [care](</Ada.md#care>).',
       'relations:\n  related-to: [Ada, "Ada", Adalind]\ndates:\n  - {date: "2026-07-26", what: "Ada", where: Ada}\nfollow-ups:\n  - {what: "Vet", who: Ada}\ndecisions:\n  - {date: "2026-09-01", what: "Walks", who: \'Ada\'}\n',
     ),
   },
   { path: 'Adalind.md', text: NOTE('Adalind', '', 'relations:\n  friend-of:\n    - Ada\n') },
-  {
-    path: 'Timeline.mdx',
-    text: NOTE(
-      'Timeline',
-      '<Timeline items={[{date: "2026-06-12", text: "Ill", href: "/Ada.md#care"}]} />',
-    ),
-  },
   {
     path: 'daily/2026-10-03.md',
     text: '---\nwhere: [Ada, Riverton]\n---\n# 2026-10-03\n\n- Walked [Ada](</Ada.md>).\n',
@@ -44,55 +37,38 @@ const FILES: VaultFile[] = [
 const byPath = (cs: { path: string; text: string | null }[]) =>
   Object.fromEntries(cs.map((c) => [c.path, c.text]));
 
-test('a rename moves the file and rewrites links, anchors, MDX hrefs and id fields', () => {
+test('a rename moves the file and rewrites links, anchors and id fields', () => {
   const c = byPath(renameNote(FILES, 'Ada.md', 'Ada Lovelace.md'));
   expect(Object.keys(c).sort((a, b) => (a < b ? -1 : 1))).toEqual([
     'Ada Lovelace.md',
     'Ada.md',
     'Adalind.md',
     'Riverton.md',
-    'Timeline.mdx',
     'captures/2026-10-03.md',
     'daily/2026-10-03.md',
   ]);
   expect(c['Ada.md']).toBeNull();
   expect(c['Ada Lovelace.md']).toContain('[Ada](</Ada Lovelace.md#care>)');
   const u = c['Riverton.md']!;
-  expect(u).toContain(
-    '[Ada](</Ada Lovelace.md>) and [care](</Ada Lovelace.md#care>); [Ada.mdx](</Ada.mdx>)',
-  );
+  expect(u).toContain('[Ada](</Ada Lovelace.md>) and [care](</Ada Lovelace.md#care>).');
   expect(u).toContain('related-to: [Ada Lovelace, "Ada Lovelace", Adalind]');
   expect(u).toContain('{date: "2026-07-26", what: "Ada", where: Ada Lovelace}'); // `what` is text, not an id
   expect(u).toContain('{what: "Vet", who: Ada Lovelace}');
   expect(u).toContain("who: 'Ada Lovelace'}");
   expect(c['Adalind.md']).toContain('    - Ada Lovelace\n');
-  expect(c['Timeline.mdx']).toContain('href: "/Ada Lovelace.md#care"');
   expect(c['daily/2026-10-03.md']).toContain('where: [Ada Lovelace, Riverton]');
   expect(c['daily/2026-10-03.md']).toContain('(</Ada Lovelace.md>)');
   // Captures: the body is verbatim; the topics follow, or the check would fail them.
   expect(c['captures/2026-10-03.md']).toBe(
-    FILES[5].text.replace('topics: [Ada,', 'topics: [Ada Lovelace,'),
+    FILES[4].text.replace('topics: [Ada,', 'topics: [Ada Lovelace,'),
   );
 });
 
 test('the check finds no problem the rename adds', () => {
-  const before = checkVault(FILES).problems;
-  expect(before).toEqual([
-    'Riverton.md: /Ada.mdx → missing (the note is Ada.md — fix the extension)',
-  ]);
+  expect(checkVault(FILES).problems).toEqual([]);
   expect(
     checkVault(applyChanges(FILES, renameNote(FILES, 'Ada.md', 'Ada Lovelace.md'))).problems,
-  ).toEqual(['Riverton.md: /Ada.mdx → missing']);
-});
-
-test('switching the extension rewrites links but no ids', () => {
-  const c = byPath(renameNote(FILES, 'Ada.md', 'Ada.mdx'));
-  expect(c['Ada.mdx']).toContain('(</Ada.mdx#care>)');
-  expect(c['Riverton.md']).toContain('[Ada](</Ada.mdx>) and [care](</Ada.mdx#care>)');
-  expect(c['Riverton.md']).toContain('related-to: [Ada, "Ada", Adalind]');
-  expect(c['Timeline.mdx']).toContain('href: "/Ada.mdx#care"');
-  expect(c['captures/2026-10-03.md']).toBeUndefined();
-  expect(c['Adalind.md']).toBeUndefined();
+  ).toEqual([]);
 });
 
 test('a name that YAML would read differently is quoted', () => {
@@ -105,6 +81,5 @@ test('refuses a missing source, a non-vault or taken target', () => {
   expect(() => renameNote(FILES, 'Ada.md', 'site/Ada.md')).toThrow(/isn't a vault page/);
   expect(() => renameNote(FILES, 'Ada.md', 'daily/Ada.mdx')).toThrow(/isn't a vault page/);
   expect(() => renameNote(FILES, 'Ada.md', 'Riverton.md')).toThrow(/Riverton.md exists/);
-  expect(() => renameNote(FILES, 'Ada.md', 'Timeline.md')).toThrow(/Timeline.mdx exists/);
   expect(() => renameNote(FILES, 'Ada.md', 'Ada.md')).toThrow(/already/);
 });

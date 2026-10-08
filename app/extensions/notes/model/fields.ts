@@ -7,7 +7,6 @@ import { dateStr } from '../../../core/format.ts';
 export interface Note {
   id: string;
   path: string;
-  ext: 'md' | 'mdx';
   data: Frontmatter;
   body: string;
 }
@@ -63,7 +62,7 @@ export function excerptOf(n: Note, max = 240): string {
       fence = !fence;
       continue;
     }
-    if (fence || !line || /^(#|\||>|---|import |export |<[A-Z]|\{\/\*)/.test(line)) continue;
+    if (fence || !line || /^(#|\||>|---)/.test(line)) continue;
     return clip(plain(line), max);
   }
   return '';

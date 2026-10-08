@@ -9,7 +9,7 @@ export const notesTools = ({ w }: AgentContext) =>
   ({
     renameNote: tool({
       description:
-        'Stage renaming a note ("Ada.md" → "Ada Lovelace.md"), or switching it between .md and .mdx (same name, other extension): moves the file and rewrites every link and frontmatter reference to it. Structural: only on Jim\'s yes, in its own vault: commit (conventions §16).',
+        'Stage renaming a note ("Ada.md" → "Ada Lovelace.md"): moves the file and rewrites every link and frontmatter reference to it. Structural: only on Jim\'s yes, in its own vault: commit (conventions §16).',
       inputSchema: z.object({ from: z.string(), to: z.string() }),
       execute: async ({ from, to }) => {
         let changes: Change[];

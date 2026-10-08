@@ -1,12 +1,11 @@
 // The notes' check: each file as a note, on its own: its frontmatter against the vocabulary
-// (meta/schema.yaml; the rules in schema.ts and structured.ts), its structure, what MDX it uses, and that
-// its links are links the app may follow. Whether links and fields name notes that exist is the graph's
+// (meta/schema.yaml; the rules in schema.ts and structured.ts), its structure, and that its links are
+// links the app may follow. Whether links and fields name notes that exist is the graph's
 // check. Pure, over `{ path, text }[]`, so it runs in Node (tools/check.ts) and in the browser.
 import type { VaultFile } from '../../../core/files.ts';
 import { checkFields } from './structured.ts';
 import { checkNote, checkDaily, checkCapture, schemaOf, type Schema } from './schema.ts';
 import { loadNotes } from './note.ts';
-import { mdxProblems } from './mdx-rules.ts';
 import { isSafeUrl } from './safe-url.ts';
 import { treeOf, urlsOf, walk } from './links.ts';
 
@@ -31,13 +30,11 @@ export function checkNotes(files: VaultFile[]): { problems: string[]; files: num
       if (x.type === 'text' && x.value.includes('[['))
         for (const m of x.value.matchAll(/\[\[[^\]]+\]\]/g))
           problems.push(`${n.path}: ${m[0]} → use a Markdown link [label](</Note.md>)`);
-      if (x.type === 'html' && n.ext === 'md')
+      if (x.type === 'html')
         problems.push(
-          `${n.path}: raw HTML is not rendered (line ${x.position?.start.line}); use Markdown, or a component in an .mdx note`,
+          `${n.path}: raw HTML is not rendered (line ${x.position?.start.line}); use Markdown`,
         );
     });
-    if (n.ext === 'mdx')
-      for (const p of mdxProblems(n.body, schema.components)) problems.push(`${n.path}: ${p}`);
   }
 
   // Frontmatter and structure.

@@ -25,7 +25,6 @@ export interface Parts {
 }
 
 export function App({ extensions: EXTENSIONS, openBackend }: Parts) {
-  const MDX = useMemo(() => Object.assign({}, ...EXTENSIONS.map((e) => e.mdx ?? {})), [EXTENSIONS]);
   const RULES = useMemo(() => fileRules(EXTENSIONS), [EXTENSIONS]);
   const session = useSession(openBackend, RULES.keeps);
   const writer = useWriter(session.backend, RULES, session.head, session.setHead);
@@ -41,7 +40,6 @@ export function App({ extensions: EXTENSIONS, openBackend }: Parts) {
     writer,
     secrets: session.secrets,
     extensions: EXTENSIONS,
-    mdx: MDX,
     index: new Map(),
     since: session.backend?.since,
     source: session.backend?.source,

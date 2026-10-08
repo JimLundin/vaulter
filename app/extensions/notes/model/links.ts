@@ -26,14 +26,12 @@ export const treeOf = (n: Note): Root => {
   return t;
 };
 
-/** Every URL the body links to: links, definitions and images, and in .mdx a component's href. */
+/** Every URL the body links to: links, definitions and images. */
 export function urlsOf(n: Note): string[] {
   const out: string[] = [];
   walk(treeOf(n), (x) => {
     if (x.type === 'link' || x.type === 'definition' || x.type === 'image') out.push(x.url);
   });
-  if (n.ext === 'mdx')
-    for (const m of n.body.matchAll(/href\s*[:=]\s*["']([^"']+)["']/g)) out.push(m[1]);
   return out;
 }
 
@@ -54,7 +52,7 @@ export const anchorsOf = (n: Note): Set<string> => {
 };
 
 /** Links in the source text: [label](</Path.md#h>) or [label](/Path.md). */
-const LINK_RE = /\[([^\]]*)\]\(<?(\/[^)>]+?\.mdx?(?:#[^)>]*)?)>?\)/g;
+const LINK_RE = /\[([^\]]*)\]\(<?(\/[^)>]+?\.md(?:#[^)>]*)?)>?\)/g;
 
 /** Each note the body links to, once, with the line it's on as plain text: what a backlink shows. */
 export function linksOf(n: Note): { id: string; context: string }[] {

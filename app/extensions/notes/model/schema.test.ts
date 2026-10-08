@@ -38,7 +38,7 @@ describe('schemaOf', () => {
     ['predicates: { uses: { label: Uses, use: x } }', /needs an inverse label or symmetric/],
     ['predicates: { uses: { label: Uses, inverse: U, symmetric: true, use: x } }', /not both/],
     ['broad: { craft: [Programming] }', /broad\.craft must be a list/],
-    ['components: [chart]', /components must be a list/],
+    ['components: [Chart]', /unknown field "components"/],
   ])('rejects %s', (yaml, re) => expect(() => schemaOf(file(yaml))).toThrow(re));
   test('a missing section is empty', () => expect(parseSchema({}).areas).toEqual([]));
 });

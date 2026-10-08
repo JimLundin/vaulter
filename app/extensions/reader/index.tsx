@@ -1,5 +1,5 @@
 // The reader: a note's page (the fallback route), with what the note states and what connects to it (its
-// sections), the components notes use in MDX, copying a note's link and the sidebar's Recent. Other
+// sections), copying a note's link and the sidebar's Recent. Other
 // features add to a note's page through its slots (slots.tsx). It reads notes and the graph.
 import { LinkIcon } from 'lucide-react';
 import { toast } from 'sonner';
@@ -10,12 +10,8 @@ import { titleOf } from '../notes/model/fields.ts';
 import { notesOf } from '../notes/model/notes.ts';
 import { NotePage } from './NotePage.tsx';
 import { OpenQuestions, FollowUps, Connections, LinkedFrom } from './sections.tsx';
-import { NoteList } from './NoteList.tsx';
-import { Timeline } from './Timeline.tsx';
-import { Chart } from './Chart.tsx';
 import { RecentSidebar } from './Recent.tsx';
 import { noteSections } from './slots.tsx';
-import './components.css';
 
 const noteAt = (host: Host, route: Route) => notesOf(host.files).byHref.get(route.path);
 
@@ -50,5 +46,4 @@ export const reader: Extension = {
     noteSections.add({ order: 40, view: Connections }),
     noteSections.add({ order: 80, view: LinkedFrom }),
   ],
-  mdx: { NoteList, Timeline, Chart },
 };

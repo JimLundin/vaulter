@@ -25,7 +25,7 @@ const safeDecode = (s: string) => {
 export const parseVaultLink = (url: string): { id: string; hash: string } | null => {
   if (!url.startsWith('/') || url.startsWith('//')) return null;
   const [path, hash] = safeDecode(url).split('#');
-  const m = path.match(/^\/(.+)\.mdx?$/);
+  const m = path.match(/^\/(.+)\.md$/);
   return m ? { id: m[1], hash: hash || '' } : null;
 };
 

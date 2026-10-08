@@ -18,7 +18,6 @@ export function checkGraph(files: VaultFile[]): { problems: string[]; ok: number
     return { problems: [], ok: 0 }; // the notes' check says why
   }
   const byPath = new Map(notes.map((n) => [n.path, n]));
-  const byId = new Map(notes.map((n) => [n.id, n.path])); // "Ada" -> "Ada.md"
   const problems: string[] = [];
   let ok = 0;
 
@@ -27,14 +26,10 @@ export function checkGraph(files: VaultFile[]): { problems: string[]; ok: number
     for (const url of urlsOf(n)) {
       const p = parseVaultLink(url);
       if (!p) continue;
-      const target = p.id + (/\.mdx$/.test(url.split('#')[0]) ? '.mdx' : '.md');
+      const target = `${p.id}.md`;
       const note = byPath.get(target);
-      if (!note) {
-        const other = byId.get(p.id);
-        problems.push(
-          `${n.path}: ${url} → missing${other ? ` (the note is ${other} — fix the extension)` : ''}`,
-        );
-      } else if (p.hash && !anchorsOf(note).has(p.hash))
+      if (!note) problems.push(`${n.path}: ${url} → missing`);
+      else if (p.hash && !anchorsOf(note).has(p.hash))
         problems.push(`${n.path}: ${url} → no heading #${p.hash} in ${target}`);
       else ok++;
     }

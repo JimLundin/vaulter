@@ -34,7 +34,7 @@ export const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const prose = (b: string) =>
   b.replace(/^## (See also|References)[\s\S]*?(?=^## |$(?![\s\S]))/gm, '');
 const links = (body: string) =>
-  [...body.matchAll(/\]\(<?\/([^)>#]+?)\.mdx?[#>)]/g)].map((m) => decodeURI(m[1]));
+  [...body.matchAll(/\]\(<?\/([^)>#]+?)\.md[#>)]/g)].map((m) => decodeURI(m[1]));
 
 // Words in dated entries (conventions §2): under a heading or a bold bullet that starts with a date.
 const logWords = (body: string) => {

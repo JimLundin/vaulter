@@ -41,8 +41,6 @@ export interface Schema {
   broadTopics: Set<string>;
   /** Relation predicates, in display order. */
   predicates: Record<string, Predicate>;
-  /** MDX components notes may use (conventions §13): the app implements them, the vault allows them. */
-  components: string[];
   /** Where a capture's exchange came from (vault-app, claude-app, …), and what it was (capture, sign-off, …). */
   sources: Term[];
   procedures: Term[];
@@ -71,7 +69,6 @@ const only = (v: Record<string, any>, at: string, fields: string[]) => {
 };
 const KEY = /^[a-z][a-z0-9-]*$/;
 const TAG = /^[a-z0-9][a-z0-9-]*$/;
-const COMPONENT = /^[A-Z][A-Za-z0-9]*$/;
 
 /** A section of `key: {label, use, …}`, in the file's order. */
 function section<T>(
@@ -107,7 +104,6 @@ export function parseSchema(file: unknown): Schema {
     'circles',
     'broad',
     'predicates',
-    'components',
     'sources',
     'procedures',
   ]);
@@ -152,7 +148,6 @@ export function parseSchema(file: unknown): Schema {
     broad,
     predicates,
     broadTopics: new Set(Object.values(broad).flat()),
-    components: names(raw.components ?? [], 'components', COMPONENT),
     sources,
     procedures,
     typeOf: keyed(types),
@@ -221,7 +216,7 @@ const keys = (t: Term[]) => t.map((x) => x.key).join(', ');
 
 /** Problems with a topical note (a file at the vault root). */
 export function checkNote(file: string, data: Frontmatter | null, body: string, s: Schema) {
-  const id = file.replace(/\.mdx?$/, '');
+  const id = file.replace(/\.md$/, '');
   const out: string[] = [];
   const bad = (m: string) => out.push(`${file}: ${m}`);
   if (!data) return [`${file}: no frontmatter`];
@@ -268,11 +263,6 @@ export function checkNote(file: string, data: Frontmatter | null, body: string, 
 
   if (!/^# \S/m.test(body)) bad('no "# Title" heading');
   if (id !== 'Home' && !/^## See also\s*$/m.test(body)) bad('no "## See also" section');
-  const usesComponent = new RegExp(`<(${s.components.join('|')})\\b`).test(body);
-  if (file.endsWith('.mdx') && !usesComponent)
-    bad('is .mdx but uses no component; switch it to .md with Rename in the app');
-  if (file.endsWith('.md') && usesComponent)
-    bad('uses a component, so must be .mdx: switch it with Rename in the app');
   return out;
 }
 
