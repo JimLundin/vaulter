@@ -134,6 +134,7 @@ export function useSession(keeps: (path: string) => boolean): Session {
         : null,
     signOut: secrets
       ? async () => {
+          await backend?.clear?.();
           await forget();
           location.reload();
         }

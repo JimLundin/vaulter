@@ -2,7 +2,7 @@
 // Data API (write.ts). Tabs tell each other when one syncs or commits, so the others read the cache.
 import type { VaultFile } from '../../core/files.ts';
 import { Offline, TRAILER, type Head, type VaultBackend, type Verify } from '../../core/backend.ts';
-import { keepWith } from '../../core/store.ts';
+import { claim, clear, keepWith } from './cache.ts';
 import { github, sourceUrl, type Repo } from './api.ts';
 import { readCache, sync, type Snapshot } from './sync.ts';
 import { commitChanges, revertCommit } from './write.ts';
@@ -42,14 +42,19 @@ export function githubBackend(o: {
     if (!snap) throw new Error('not synced yet');
     return snap;
   };
+  // The cache is this key's before anything is read from it (cache.ts claim).
+  const mine = claim(o.key);
+  const kept = keepWith(o.key);
 
   return {
     async cached() {
+      await mine;
       const c = await readCache(o.key);
       return c && head(c);
     },
     async refresh() {
       try {
+        await mine;
         const r = await sync(o.key, gh, snap);
         if (!r) return null;
         channel?.postMessage('synced');
@@ -62,6 +67,7 @@ export function githubBackend(o: {
     // Another tab synced or committed: its cache is ours too.
     watch(on) {
       const f = async () => {
+        await mine;
         const c = await readCache(o.key);
         if (c) on(head(c));
       };
@@ -93,6 +99,10 @@ export function githubBackend(o: {
       };
     },
     source: (path) => sourceUrl(path, o.repo),
-    keep: keepWith(o.key),
+    keep: {
+      get: async (id) => (await mine, kept.get(id)),
+      set: async (id, value) => (await mine, kept.set(id, value)),
+    },
+    clear,
   };
 }

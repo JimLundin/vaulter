@@ -1,8 +1,8 @@
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, expect, test } from 'vitest';
 import { fakeGitHub } from './fake-github.ts';
-import { closeDb, newCacheKey } from '../../core/store.ts';
-import { forget } from '../../core/unlock.ts';
+import { newCacheKey } from '../../core/crypto.ts';
+import { clear, db } from './cache.ts';
 import { CheckFailed, Conflict, TRAILER } from '../../core/backend.ts';
 import { gate } from '../../core/writer.ts';
 import { fileRules } from '../../core/extension.ts';
@@ -34,8 +34,8 @@ beforeEach(async () => {
   key = await newCacheKey();
 });
 afterEach(async () => {
-  await forget();
-  await closeDb();
+  await clear();
+  await db.close();
 });
 
 async function setup() {

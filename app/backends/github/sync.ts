@@ -1,16 +1,8 @@
 // Keeps the encrypted cache in step with main: render from the cache, ask whether main moved (a 304
 // costs nothing), and if it did, fetch only the blobs not yet cached, each checked against its sha.
-import { type VaultFile } from '../../core/files.ts';
-import {
-  decrypt,
-  decryptJson,
-  encrypt,
-  encryptJson,
-  get,
-  getAll,
-  tx,
-  type Encrypted,
-} from '../../core/store.ts';
+import type { VaultFile } from '../../core/files.ts';
+import { decrypt, decryptJson, encrypt, encryptJson, type Encrypted } from '../../core/crypto.ts';
+import { db } from './cache.ts';
 import type { GitHub } from './api.ts';
 
 export interface Snapshot {
@@ -38,11 +30,11 @@ const text = new TextDecoder();
 export async function readCache(
   key: CryptoKey,
 ): Promise<{ snapshot: Snapshot; files: VaultFile[] } | null> {
-  const rec = await get<SnapshotRecord>('snapshot', 'main');
+  const rec = await db.get<SnapshotRecord>('snapshot', 'main');
   if (!rec) return null;
   try {
     const files = await decryptJson<Record<string, string>>(key, rec, 'snapshot:main');
-    const blobs = new Map((await getAll<BlobRecord>('blobs')).map((b) => [b.sha, b]));
+    const blobs = new Map((await db.getAll<BlobRecord>('blobs')).map((b) => [b.sha, b]));
     const out = await Promise.all(
       Object.entries(files).map(async ([path, sha]) => {
         const b = blobs.get(sha);
@@ -77,7 +69,7 @@ export async function sync(
   const files: Record<string, string> = {};
   for (const e of tree.entries) if (e.type === 'blob') files[e.path] = e.sha;
 
-  const have = new Set((await getAll<BlobRecord>('blobs')).map((b) => b.sha));
+  const have = new Set((await db.getAll<BlobRecord>('blobs')).map((b) => b.sha));
   const missing = [...new Set(Object.values(files))].filter((s) => !have.has(s));
   const fetched: BlobRecord[] = [];
   const texts = new Map<string, string>();
@@ -110,7 +102,7 @@ export async function sync(
 export async function writeSnapshot(key: CryptoKey, s: Snapshot, blobs: BlobRecord[]) {
   const { files, ...head } = s;
   const enc = await encryptJson(key, files, 'snapshot:main');
-  await tx(['blobs', 'snapshot'], 'readwrite', (t) => {
+  await db.tx(['blobs', 'snapshot'], 'readwrite', (t) => {
     for (const b of blobs) t.objectStore('blobs').put(b);
     t.objectStore('snapshot').put({ id: 'main', ...head, ...enc } satisfies SnapshotRecord);
   });
@@ -118,7 +110,7 @@ export async function writeSnapshot(key: CryptoKey, s: Snapshot, blobs: BlobReco
 
 /** Drops blobs nothing refers to. The overlay holds text, not shas, so it pins nothing here. */
 export async function gc(keep: Set<string>) {
-  await tx(
+  await db.tx(
     ['blobs'],
     'readwrite',
     (t) =>

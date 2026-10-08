@@ -1,12 +1,11 @@
 import 'fake-indexeddb/auto';
 import { afterEach, expect, test } from 'vitest';
 import { seal } from './sealed.ts';
-import { closeDb, encrypt, getAll, put } from './store.ts';
-import { forget, remembered, unlock } from './unlock.ts';
+import { closeKeys, forget, remembered, unlock } from './unlock.ts';
 
 afterEach(async () => {
   await forget();
-  await closeDb();
+  await closeKeys();
 });
 const sealed = () => seal({ github: 'github_pat_x' }, 'a long password', undefined, 1000);
 
@@ -23,12 +22,10 @@ test('a wrong password throws and remembers nothing', async () => {
   expect(await remembered(s)).toBeNull();
 });
 
-test('expiry forgets the device and its cache', async () => {
+test('expiry forgets the device', async () => {
   const s = await sealed();
-  const { cacheKey } = await unlock(s, 'a long password', 0);
-  await put('blobs', { sha: 'abc', ...(await encrypt(cacheKey, new Uint8Array([1]), 'abc')) });
+  await unlock(s, 'a long password', 0);
   expect(await remembered(s, 31 * 864e5)).toBeNull();
-  expect(await getAll('blobs')).toEqual([]);
 });
 
 test('re-sealing (a new salt) signs the device out', async () => {

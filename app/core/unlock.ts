@@ -3,7 +3,16 @@
 // Re-sealing (a new salt), expiry or signing out forgets both, which leaves the cached notes unreadable,
 // so they are cleared too.
 import { deriveKey, unseal, type Sealed, type Secrets } from './sealed.ts';
-import { clearCaches, del, get, newCacheKey, put } from './store.ts';
+import { newCacheKey } from './crypto.ts';
+import { database } from './idb.ts';
+
+//   keys  'device' -> { id, key, salt, cacheKey, expires }   what unlocking remembers
+//         'dev' -> { id, cacheKey }                         dev's cache key (no password)
+// The database was the whole cache once (version 3); the upgrade keeps only the keys.
+const db = database('vault', 4, { keys: 'id' }, ['keys']);
+const { get, put, del } = db;
+/** For tests: forget the open connection. */
+export const closeKeys = db.close;
 
 const REMEMBER = 30 * 864e5;
 
@@ -21,7 +30,6 @@ export interface Unlocked {
 
 export async function forget() {
   await del('keys', 'device');
-  await clearCaches();
 }
 
 /** The secrets, if this device remembers a key that still opens them; otherwise null (and forgotten). */
@@ -57,7 +65,7 @@ export async function unlock(
 ): Promise<Unlocked> {
   const key = await deriveKey(password, sealed.kdf.salt, sealed.kdf.iterations);
   const secrets = await unseal(sealed, key);
-  await forget(); // a new cache key: whatever was cached under an old one can't be read
+  await forget(); // a new cache key: what was cached under the old one can't be read, and is cleared
   const cacheKey = await newCacheKey();
   await put('keys', {
     id: 'device',

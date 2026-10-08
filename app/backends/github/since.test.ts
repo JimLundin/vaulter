@@ -1,8 +1,8 @@
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, expect, test } from 'vitest';
 import { fakeGitHub } from './fake-github.ts';
-import { closeDb, newCacheKey } from '../../core/store.ts';
-import { forget } from '../../core/unlock.ts';
+import { newCacheKey } from '../../core/crypto.ts';
+import { clear, db } from './cache.ts';
 import { githubBackend } from './index.ts';
 import { memoryBackend } from '../memory.ts';
 
@@ -11,8 +11,8 @@ beforeEach(async () => {
   key = await newCacheKey();
 });
 afterEach(async () => {
-  await forget();
-  await closeDb();
+  await clear();
+  await db.close();
 });
 
 test('since: the commit on the day, one compare, and old text only for changed files', async () => {

@@ -45,6 +45,8 @@ export interface VaultBackend {
   since?: (day: string) => Promise<History>;
   /** Where a file can be seen at its source, if anywhere ("view on GitHub"). */
   source?: (path: string) => string;
+  /** Forgets everything this backend keeps on this device (signing out). */
+  clear?: () => Promise<void>;
   /** Small state the app keeps for this vault on this device (staged edits, worker results). */
   keep: {
     get: <T>(key: string) => Promise<T | null>;

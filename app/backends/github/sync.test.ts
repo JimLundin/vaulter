@@ -1,8 +1,8 @@
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, expect, test } from 'vitest';
 import { fakeGitHub } from './fake-github.ts';
-import { closeDb, getAll, newCacheKey } from '../../core/store.ts';
-import { forget } from '../../core/unlock.ts';
+import { newCacheKey } from '../../core/crypto.ts';
+import { clear, db } from './cache.ts';
 import { readCache, sync } from './sync.ts';
 import { githubBackend } from './index.ts';
 import { isVaultPath } from '../../extensions/notes/model/note.ts';
@@ -12,8 +12,8 @@ beforeEach(async () => {
   key = await newCacheKey();
 });
 afterEach(async () => {
-  await forget();
-  await closeDb();
+  await clear();
+  await db.close();
 });
 
 test('first sync fetches only the files the app keeps; the cache then reads back', async () => {
@@ -52,7 +52,7 @@ test('a change fetches only the changed blob, and old blobs are collected', asyn
   const r = await sync(key, gh, first!.snapshot);
   expect(state.calls.filter((c) => c.startsWith('GET /git/blobs/'))).toHaveLength(1);
   expect(r!.files.find((f) => f.path === 'Ada.md')!.text).toBe('# Ada, updated');
-  expect(await getAll('blobs')).toHaveLength(2);
+  expect(await db.getAll('blobs')).toHaveLength(2);
 });
 
 test('a blob that does not match its hash is refused', async () => {
@@ -65,8 +65,22 @@ test('a blob that does not match its hash is refused', async () => {
 test('nothing in the store is readable without the key', async () => {
   const { gh } = await fakeGitHub({ 'Private Diagnosis.mdx': 'the diagnosis itself' });
   await sync(key, gh, null);
-  const dump = JSON.stringify(await getAll('snapshot')) + JSON.stringify(await getAll('blobs'));
+  const dump =
+    JSON.stringify(await db.getAll('snapshot')) + JSON.stringify(await db.getAll('blobs'));
   expect(dump).not.toContain('Diagnosis');
   expect(dump).not.toContain('diagnosis itself');
   expect(await readCache(await newCacheKey())).toBeNull();
+});
+
+test('a cache another key wrote is cleared when the backend opens with a new one', async () => {
+  const f = await fakeGitHub({ 'Ada.md': '# Ada' });
+  const open = (k: CryptoKey) =>
+    githubBackend({ token: 'tok', key: k, api: 'https://gh.test', fetch: f.fetchFn });
+  await open(key).refresh();
+  expect(await db.getAll('blobs')).toHaveLength(1);
+  const other = await newCacheKey(); // a new unlock: the old key is gone
+  const b = open(other);
+  expect(await b.cached()).toBeNull();
+  expect(await db.getAll('blobs')).toEqual([]);
+  expect((await b.refresh())!.files.map((x) => x.text)).toEqual(['# Ada']);
 });

@@ -5,7 +5,7 @@ import type { VaultFile } from '../../core/files.ts';
 import { blobSha } from '../../core/blob-sha.ts';
 import { Conflict, TRAILER, type Change, type Verify } from '../../core/backend.ts';
 import { applyOverlay } from '../../core/writer.ts';
-import { encrypt } from '../../core/store.ts';
+import { encrypt } from '../../core/crypto.ts';
 import { NotFastForward, type GitHub, type TreeChange } from './api.ts';
 import { gc, sync, writeSnapshot, type BlobRecord, type Snapshot } from './sync.ts';
 
