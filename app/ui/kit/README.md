@@ -27,6 +27,34 @@ use public exports and workflows avoid ad hoc styling. Markdown content renderin
 exception. Maps require `https://tiles.openfreemap.org` in the consuming page's CSP; the current
 product does not use maps.
 
+## Desktop and mobile variants
+
+A component has one name and, where needed, two placements. What differs between devices is decided
+at three levels, and a component uses the lowest one that works:
+
+1. **Tokens (CSS only).** Type roles carry a phone value and a desktop value in `styles.css`; a
+   component writes `text-display`, never `text-[40px]` or `md:text-…`. Body copy and labels have one
+   size: text on a phone never shrinks.
+
+   | Role | Phone | Desktop | For |
+   |---|---|---|---|
+   | `text-display` | 32 | 40 | a serif page title, the agent's welcome |
+   | `text-title` | 22 | 26 | a sans page title |
+   | `text-lead` | 17 | 19 | long-form serif prose |
+   | `text-copy` | 15 | 15 | body text |
+   | `text-label` | 13 | 13 | secondary text, rows, suggestions |
+   | `text-caption` | 12 | 12 | metadata, hints, speaker names |
+
+   Controls keep shadcn's `text-sm` (14). Keycaps, counts and citation marks are 11px glyph chips.
+   Radii have roles and don't change by device: `rounded-md` controls, `rounded-lg` fields,
+   `rounded-xl` cards and rows, `rounded-2xl` docked surfaces such as the composer.
+2. **Pointer, not width.** Touch sizing follows `pointer-coarse:`, so a touch laptop or tablet gets
+   44px targets too. `Button` does this for every size but `xs`; custom rows add
+   `min-h-9 pointer-coarse:min-h-11`.
+3. **Structure (`useIsMobile`).** Only when the arrangement itself differs: a bordered strip vs. the
+   top of a reading column (`PageHeader`), a sidebar vs. a navigation sheet, a dialog vs. a drawer.
+   Both branches use the same roles and the same copy.
+
 Responsive presentation is owned by the kit. Conversation state stays in the chat workflow; the
 workspace, feed and composer keep stable positions in the React tree across viewport changes.
 Mobile has a brand/status header, icon toolbar, edge-to-edge live transcript, footer navigation with

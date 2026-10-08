@@ -102,7 +102,7 @@ export function ThemeSwitch() {
           value={value}
           aria-label={label}
           className={cn(
-            'flex items-center gap-2 text-[13px] focus-visible:outline-2 focus-visible:outline-ring hover:bg-muted',
+            'flex items-center gap-2 text-label focus-visible:outline-2 focus-visible:outline-ring hover:bg-muted',
             mobile
               ? 'min-h-12 w-full px-2 text-left'
               : 'min-h-9 flex-1 justify-center rounded-md px-2',

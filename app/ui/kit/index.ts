@@ -319,6 +319,7 @@ export {
   Notice,
   Overlay,
   Page,
+  PageHeader,
   Panel,
   Prose,
   Recording,

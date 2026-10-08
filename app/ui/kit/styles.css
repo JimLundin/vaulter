@@ -6,6 +6,8 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
+  /* Radius roles: rounded-md (8) controls, rounded-lg (10) fields, rounded-xl (12) cards and rows,
+   * rounded-2xl (14) docked surfaces such as the composer. The same on every device. */
   /* light-dark(): the light value, then the dark one, by the page's color-scheme. That follows the
    * system until someone chooses (theme.ts sets .light or .dark on <html>). The light values are the
    * design's; the dark ones the same zinc scale turned over. */
@@ -66,6 +68,24 @@
   --sidebar-accent-foreground: light-dark(#18181b, #fafafa);
   --sidebar-border: light-dark(#e4e4e7, #27272a);
   --sidebar-ring: light-dark(#a1a1aa, #71717a);
+
+  /* Type roles. A component names a role (text-display, text-copy…), never a pixel size; each role
+   * carries its phone value here and its desktop value below, so no component branches on the
+   * viewport for its type. Body copy and labels keep one size: text on a phone never shrinks. */
+  --type-display: 2rem; /* 32 → 40: a page's serif title, the agent's welcome */
+  --type-title: 1.375rem; /* 22 → 26: a page's sans title */
+  --type-lead: 1.0625rem; /* 17 → 19: long-form serif prose */
+  --type-copy: 0.9375rem; /* 15: body text */
+  --type-label: 0.8125rem; /* 13: secondary text, list rows, suggestions */
+  --type-caption: 0.75rem; /* 12: metadata, hints, speaker names */
+}
+
+@media (min-width: 768px) {
+  :root {
+    --type-display: 2.5rem;
+    --type-title: 1.625rem;
+    --type-lead: 1.1875rem;
+  }
 }
 
 :root.light {
@@ -80,6 +100,21 @@
   --font-sans: "Geist Variable", system-ui, sans-serif;
   --font-mono: "Geist Mono Variable", ui-monospace, monospace;
   --font-serif: "Newsreader Variable", Georgia, serif;
+
+  --text-display: var(--type-display);
+  --text-display--line-height: 1.15;
+  --text-display--letter-spacing: -0.01em;
+  --text-title: var(--type-title);
+  --text-title--line-height: 1.25;
+  --text-title--letter-spacing: -0.02em;
+  --text-lead: var(--type-lead);
+  --text-lead--line-height: 1.6;
+  --text-copy: var(--type-copy);
+  --text-copy--line-height: 1.5;
+  --text-label: var(--type-label);
+  --text-label--line-height: 1.45;
+  --text-caption: var(--type-caption);
+  --text-caption--line-height: 1.35;
 
   --radius-sm: calc(var(--radius) - 6px);
   --radius-md: calc(var(--radius) - 4px);
@@ -150,7 +185,7 @@
     @apply h-full;
   }
   body {
-    @apply m-0 bg-background font-sans text-[15px] leading-normal text-foreground antialiased;
+    @apply m-0 bg-background font-sans text-copy text-foreground antialiased;
   }
 }
 

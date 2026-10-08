@@ -28,7 +28,7 @@ export function PreviewBar({
       aria-label="Design preview"
       className="flex min-h-9 shrink-0 items-center justify-between gap-2 border-b bg-card px-4 text-foreground"
     >
-      <span className="min-w-0 truncate text-[11px] text-muted-foreground">
+      <span className="min-w-0 truncate text-caption text-muted-foreground">
         {mobile ? 'Sample preview' : `${label} · Sample data · Scripted chat`}
       </span>
       <div className="flex shrink-0 items-center gap-1">
@@ -74,7 +74,7 @@ export function ToolResult({
   output?: ReactNode;
 }) {
   return (
-    <details className="overflow-hidden rounded-xl border bg-surface text-[13px]">
+    <details className="overflow-hidden rounded-xl border bg-surface text-label">
       <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2.5">
         <Icon name={error ? 'warning' : status ? 'check' : 'clock'} size="sm" />
         <span className="min-w-0 flex-1 truncate font-medium">{title}</span>

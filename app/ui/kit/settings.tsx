@@ -2,23 +2,18 @@
 import type { ReactNode } from 'react';
 import { useIsMobile } from './hooks/use-mobile.ts';
 import { Label } from './parts/label.tsx';
+import { PageHeader } from './app.tsx';
 
 export function SettingsPage({ children }: { children: ReactNode }) {
   const mobile = useIsMobile();
   return mobile ? (
     <article data-layout="mobile-settings" className="flex min-h-full flex-col bg-surface">
-      <header className="border-b bg-background px-4 py-4">
-        <h1 className="m-0 text-xl font-semibold">Settings</h1>
-        <p className="mt-1 mb-0 text-[13px] text-muted-foreground">Preferences for this device</p>
-      </header>
+      <PageHeader title="Settings" description="Preferences for this device" />
       <div className="flex flex-col gap-6 py-6">{children}</div>
     </article>
   ) : (
     <article data-layout="desktop-settings" className="flex max-w-4xl flex-col gap-8 px-12 py-9">
-      <header>
-        <h1 className="m-0 text-[26px] font-semibold tracking-tight">Settings</h1>
-        <p className="mt-2 mb-0 text-[15px] text-muted-foreground">Preferences for this device</p>
-      </header>
+      <PageHeader title="Settings" description="Preferences for this device" />
       <div className="flex flex-col gap-8">{children}</div>
     </article>
   );
@@ -33,7 +28,7 @@ export function SettingsSection({ title, children }: { title: string; children: 
     </section>
   ) : (
     <section aria-label={title} className="flex flex-col gap-5 border-t pt-6">
-      <h2 className="m-0 text-[15px] font-semibold">{title}</h2>
+      <h2 className="m-0 text-copy font-semibold">{title}</h2>
       {children}
     </section>
   );
@@ -57,7 +52,7 @@ export function SettingField({
     <div className="flex flex-col gap-3 [&_input]:h-12 [&_input]:text-base">
       <Label htmlFor={htmlFor}>{label}</Label>
       {children}
-      <p id={descriptionId} className="m-0 text-[13px] leading-relaxed text-muted-foreground">
+      <p id={descriptionId} className="m-0 text-label leading-relaxed text-muted-foreground">
         {description}
       </p>
     </div>
@@ -65,7 +60,7 @@ export function SettingField({
     <div className="grid grid-cols-[minmax(0,1fr)_minmax(240px,320px)] items-start gap-8">
       <div className="flex flex-col gap-2">
         <Label htmlFor={htmlFor}>{label}</Label>
-        <p id={descriptionId} className="m-0 text-[13px] leading-relaxed text-muted-foreground">
+        <p id={descriptionId} className="m-0 text-label leading-relaxed text-muted-foreground">
           {description}
         </p>
       </div>

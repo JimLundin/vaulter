@@ -103,7 +103,7 @@ export const Spacer = () => <div className="flex-1" />;
 
 const text = cva('m-0', {
   variants: {
-    size: { xs: 'text-xs', sm: 'text-[13px]', md: 'text-[15px]', lg: 'text-[17px]' },
+    size: { xs: 'text-caption', sm: 'text-label', md: 'text-copy', lg: 'text-lead' },
     tone: {
       default: 'text-foreground',
       muted: 'text-muted-foreground',
@@ -135,13 +135,17 @@ export function Text({ as: As = 'p', size, tone, weight, mono, truncate, childre
 const heading = cva('m-0 text-foreground', {
   variants: {
     level: {
-      1: 'text-[26px] font-semibold tracking-[-0.02em] leading-tight',
-      2: 'text-[15px] font-semibold',
+      1: '',
+      2: 'text-copy font-semibold',
       3: 'text-sm font-medium',
     },
-    serif: { true: 'font-serif font-medium tracking-[-0.01em]' },
+    serif: { true: 'font-serif font-medium', false: '' },
   },
-  compoundVariants: [{ level: 1, serif: true, class: 'text-[32px] md:text-[40px] leading-[1.15]' }],
+  compoundVariants: [
+    { level: 1, serif: true, class: 'text-display' },
+    { level: 1, serif: false, class: 'text-title font-semibold' },
+  ],
+  defaultVariants: { serif: false },
 });
 
 /** A page's title (1), a section's (2), a group's (3). Serif for a page of the wiki's kind. */
@@ -160,11 +164,7 @@ export function Heading({
 
 /** Long-form text: what Vaulter wrote about a person, a place or an event. */
 export function Prose({ children }: { children?: ReactNode }) {
-  return (
-    <div className="font-serif text-[17px] leading-[1.6] md:text-[19px] [&_p]:m-0 [&_p+p]:mt-3">
-      {children}
-    </div>
-  );
+  return <div className="font-serif text-lead [&_p]:m-0 [&_p+p]:mt-3">{children}</div>;
 }
 
 /** A link within the app (a hash route) or out of it. */
@@ -286,7 +286,7 @@ export function KeyHint({
     <span
       className={cn(
         'flex items-center gap-1.5 text-xs text-muted-foreground',
-        strong && 'gap-2 text-[13px] font-medium text-foreground',
+        strong && 'gap-2 text-label font-medium text-foreground',
       )}
     >
       {parts.map((k) => (
@@ -316,7 +316,7 @@ export function Notice({
     <>
       <div className="flex min-w-[min(16rem,100%)] flex-1 flex-col gap-0.5 text-sm md:flex-row md:flex-wrap md:items-baseline md:gap-x-3">
         {title ? <span className="font-medium">{title}</span> : null}
-        {children ? <span className="text-body max-md:text-[13px]">{children}</span> : null}
+        {children ? <span className="text-body max-md:text-label">{children}</span> : null}
       </div>
       {action}
     </>
@@ -366,7 +366,7 @@ export function Panel({
 export const SourceLabel = ({ from, notice }: { from: string; notice?: boolean }) => (
   <div
     className={cn(
-      'border-t px-3 py-1.5 text-[11px] text-muted-foreground',
+      'border-t px-3 py-1.5 text-caption text-muted-foreground',
       notice ? 'border-notice-border text-notice-ink' : 'bg-surface',
     )}
   >
@@ -377,7 +377,7 @@ export const SourceLabel = ({ from, notice }: { from: string; notice?: boolean }
 /** Labels and values: a page's fields, an extension's details. */
 export function Details({ items }: { items: [label: string, value: ReactNode][] }) {
   return (
-    <dl className="m-0 grid grid-cols-[80px_minmax(0,1fr)] gap-x-3 gap-y-2 rounded-xl border bg-surface p-4 text-[13px]">
+    <dl className="m-0 grid grid-cols-[80px_minmax(0,1fr)] gap-x-3 gap-y-2 rounded-xl border bg-surface p-4 text-label">
       {items.map(([label, value]) => (
         <div key={label} className="contents">
           <dt className="text-muted-foreground">{label}</dt>
@@ -493,6 +493,36 @@ export function Page({ aside, children }: { aside?: ReactNode; children?: ReactN
   );
 }
 
+/** A screen's title, what it holds, and its actions. One component, two placements: on a phone a
+ * bordered strip above full-width content, on desktop the top of the reading column. The type roles
+ * and the copy are the same on both; only the placement differs. */
+export function PageHeader({
+  title,
+  description,
+  actions,
+}: {
+  title: string;
+  description?: string;
+  actions?: ReactNode;
+}) {
+  const mobile = useIsMobile();
+  return (
+    <header
+      data-variant={mobile ? 'mobile' : 'desktop'}
+      className={cn(
+        'flex items-start justify-between gap-4',
+        mobile && 'border-b bg-background px-4 py-4',
+      )}
+    >
+      <div className="flex min-w-0 flex-col gap-1">
+        <h1 className="m-0 text-title font-semibold">{title}</h1>
+        {description ? <p className="m-0 text-copy text-muted-foreground">{description}</p> : null}
+      </div>
+      {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
+    </header>
+  );
+}
+
 /** Keeps routed workflow state mounted when the viewport changes. */
 export function WorkspaceFrame({
   header,
@@ -589,7 +619,7 @@ export function NavigationSheet({
               aria-current={entry.active ? 'page' : undefined}
               onClick={onClose}
               className={cn(
-                'flex min-h-14 items-center gap-3 px-4 text-[15px] hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring',
+                'flex min-h-14 items-center gap-3 px-4 text-copy hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring',
                 entry.active && 'bg-muted font-medium',
               )}
             >
@@ -680,7 +710,7 @@ export function SearchButton({
     <button
       type="button"
       onClick={onClick}
-      className="flex h-10 w-full cursor-pointer items-center gap-2 rounded-[10px] border bg-background pr-2 pl-3 text-left font-[inherit] text-sm text-muted-foreground"
+      className="flex h-10 w-full cursor-pointer items-center gap-2 rounded-lg border bg-background pr-2 pl-3 text-left font-[inherit] text-sm text-muted-foreground"
     >
       <Icon name="search" size="sm" />
       {label}
@@ -891,7 +921,7 @@ export function Sources({
   items: { id: string; label: ReactNode; meta?: ReactNode; onClick?: () => void }[];
 }) {
   return (
-    <ol className="m-0 flex list-decimal flex-col gap-0.5 pl-5 text-[13px] text-body">
+    <ol className="m-0 flex list-decimal flex-col gap-0.5 pl-5 text-label text-body">
       {items.map((s) => (
         <li key={s.id}>
           {s.onClick ? <Link onClick={s.onClick}>{s.label}</Link> : s.label}
@@ -938,7 +968,7 @@ export function Avatar({ name, tone = 'people' }: { name: string; tone?: Tone })
     .join('');
   return (
     <AvatarPart className="size-9">
-      <AvatarFallback className={cn('text-[13px] font-semibold', avatar[tone])}>
+      <AvatarFallback className={cn('text-label font-semibold', avatar[tone])}>
         {initials}
       </AvatarFallback>
     </AvatarPart>
@@ -950,7 +980,7 @@ export function Recording({ seconds, label = 'Recording' }: { seconds: number; l
   const m = Math.floor(seconds / 60);
   const s = String(Math.floor(seconds % 60)).padStart(2, '0');
   return (
-    <span className="flex items-center gap-2 text-[13px] font-medium text-destructive">
+    <span className="flex items-center gap-2 text-label font-medium text-destructive">
       <span className="size-2 animate-pulse rounded-full bg-destructive" />
       {label} · {m}:{s}
     </span>
@@ -1009,7 +1039,7 @@ export function Choices({
             type="button"
             onClick={(e) => onChoose(e, c.id)}
             className={cn(
-              'h-8 cursor-pointer rounded-md border bg-background px-3 font-[inherit] text-[13px] font-medium text-foreground outline-none hover:bg-accent focus-visible:ring-[3px] focus-visible:ring-ring/50',
+              'h-8 cursor-pointer rounded-md border bg-background px-3 font-[inherit] text-label font-medium text-foreground outline-none hover:bg-accent focus-visible:ring-[3px] focus-visible:ring-ring/50',
               suggested === c.id && 'border-foreground',
             )}
           >

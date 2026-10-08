@@ -36,24 +36,15 @@ export function ConversationWelcome({
       <span className="mb-1 flex size-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
         <Icon name="sparkles" size="lg" />
       </span>
-      <h1 className="m-0 max-w-[16ch] font-serif text-[24px] leading-[1.2] font-medium tracking-[-0.01em]">
-        {title}
-      </h1>
-      <p className="m-0 max-w-[32ch] text-[13px] leading-relaxed text-muted-foreground">
-        {description}
-      </p>
+      <h1 className="m-0 max-w-[18ch] font-serif text-display font-medium">{title}</h1>
+      <p className="m-0 max-w-[34ch] text-copy text-muted-foreground">{description}</p>
     </div>
   ) : (
     <div className="flex flex-col gap-6 py-4">
-      <h1
-        className={cn(
-          'm-0 font-serif leading-[1.15] font-medium tracking-[-0.01em]',
-          page ? 'text-[40px]' : 'text-[26px]',
-        )}
-      >
+      <h1 className={cn('m-0 font-serif font-medium', page ? 'text-display' : 'text-title')}>
         {title}
       </h1>
-      <p className="m-0 text-[15px] text-muted-foreground">{description}</p>
+      <p className="m-0 text-copy text-muted-foreground">{description}</p>
     </div>
   );
 }
@@ -113,8 +104,8 @@ function DesktopConversationToolbar({ historyHref, onNewChat, busy }: Conversati
     <header className="flex shrink-0 items-center justify-between gap-3">
       {!!page && (
         <div className="flex flex-col gap-1">
-          <h2 className="m-0 text-[15px] font-semibold">Agent</h2>
-          <p className="m-0 text-[13px] text-subtle-foreground">Your vault, in conversation</p>
+          <h2 className="m-0 text-copy font-semibold">Agent</h2>
+          <p className="m-0 text-label text-subtle-foreground">Your vault, in conversation</p>
         </div>
       )}
       <div className={cn('flex items-center gap-2', !page && 'w-full justify-between')}>
@@ -162,7 +153,7 @@ export function ConversationSurface({
       <div
         className={cn(
           'flex min-h-0 min-w-0 flex-1 flex-col',
-          !mobile && page && 'w-full max-w-3xl',
+          !mobile && page && 'mx-auto w-full max-w-3xl',
         )}
       >
         {mobile ? (
@@ -180,7 +171,7 @@ export function ConversationSurface({
           {composer}
           {mobile && !page && <div className="absolute right-5 bottom-3">{voiceControl}</div>}
           {!mobile && page && (
-            <p className="mt-2 mb-0 text-right text-[11px] text-subtle-foreground">
+            <p className="mt-2 mb-0 text-right text-caption text-subtle-foreground">
               Enter to send · Shift + Enter for a new line
             </p>
           )}
@@ -199,6 +190,9 @@ export function ConversationFeed({ empty, children }: { empty?: boolean; childre
       resize="smooth"
     >
       <StickToBottom.Content
+        // The library reserves a scrollbar gutter on both edges, which indents the feed past the
+        // toolbar and composer wherever scrollbars take space; one edge keeps the left edges aligned.
+        scrollClassName="[scrollbar-gutter:stable]!"
         className={cn(
           'flex flex-col',
           mobile ? 'gap-4 px-4 py-4' : 'gap-6 px-1 py-7',
@@ -236,14 +230,14 @@ export function Message({ user, children }: { user?: boolean; children: ReactNod
       className={cn('flex min-w-0 flex-col', user ? 'ml-auto max-w-[85%] items-end' : 'gap-2')}
     >
       {!mobile && (
-        <span className="text-[11px] font-medium text-subtle-foreground">
+        <span className="text-caption font-medium text-subtle-foreground">
           {user ? 'You' : 'Agent'}
         </span>
       )}
       <div
         className={cn(
           user ? 'whitespace-pre-wrap bg-muted text-body' : 'flex min-w-0 flex-col gap-3',
-          user && (mobile ? 'rounded-xl px-3 py-2.5 text-[15px]' : 'mt-1 rounded-2xl px-4 py-3'),
+          user && (mobile ? 'rounded-xl px-3 py-2.5 text-copy' : 'mt-1 rounded-2xl px-4 py-3'),
         )}
       >
         {children}
@@ -252,9 +246,7 @@ export function Message({ user, children }: { user?: boolean; children: ReactNod
   );
 }
 export function Markdown({ children }: { children: ReactNode }) {
-  return (
-    <div className="prose font-serif text-[17px] leading-relaxed md:text-[19px]">{children}</div>
-  );
+  return <div className="prose font-serif text-lead">{children}</div>;
 }
 export function Composer({ children }: { children: ReactNode }) {
   const mobile = useIsMobile();
@@ -263,9 +255,10 @@ export function Composer({ children }: { children: ReactNode }) {
       aria-label="Message composer"
       className={cn(
         'relative min-w-0 shrink-0 border bg-background p-1 shadow-xs focus-within:ring-2 focus-within:ring-ring/50 [&_textarea]:max-h-64 [&_textarea]:resize-none [&_textarea]:border-0 [&_textarea]:bg-transparent [&_textarea]:px-3 [&_textarea]:pt-3 [&_textarea]:placeholder:text-subtle-foreground [&_textarea]:placeholder:text-sm [&_textarea]:shadow-none [&_textarea]:focus-visible:ring-0',
-        mobile ? 'rounded-xl [&_textarea]:rounded-lg' : 'rounded-2xl [&_textarea]:rounded-xl',
+        'rounded-2xl [&_textarea]:rounded-xl',
+        // The bottom padding clears the actions' row: 44px touch buttons on a phone.
         mobile
-          ? '[&_textarea]:min-h-28 [&_textarea]:pb-12'
+          ? '[&_textarea]:min-h-28 [&_textarea]:pb-14'
           : '[&_textarea]:min-h-32 [&_textarea]:pb-16',
       )}
     >

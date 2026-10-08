@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogTitle } from './parts/dialog.tsx';
 import { Button } from './parts/button.tsx';
 import { Icon } from './icons.tsx';
 import { useIsMobile } from './hooks/use-mobile.ts';
-import { Overlay } from './app.tsx';
+import { Overlay, PageHeader } from './app.tsx';
 
 /** Phone search uses the screen for results and touch targets, desktop uses the command dialog. */
 export function SearchSurface({
@@ -73,23 +73,9 @@ export function HistorySurface({ children }: { children: ReactNode }) {
   return (
     <article
       data-layout={mobile ? 'mobile-history' : 'desktop-history'}
-      className={mobile ? 'flex flex-col' : 'flex max-w-4xl flex-col px-12 py-9'}
+      className={mobile ? 'flex flex-col' : 'flex max-w-4xl flex-col gap-6 px-12 py-9'}
     >
-      {mobile ? (
-        <header className="border-b px-4 py-4">
-          <h1 className="m-0 text-xl font-semibold">History</h1>
-          <p className="mt-1 mb-0 text-[13px] text-muted-foreground">
-            Changes to your vault, newest first
-          </p>
-        </header>
-      ) : (
-        <header className="pb-6">
-          <h1 className="m-0 font-serif text-[40px] leading-tight font-medium">History</h1>
-          <p className="mt-3 mb-0 text-[15px] text-muted-foreground">
-            Commits made from this app, newest first.
-          </p>
-        </header>
-      )}
+      <PageHeader title="History" description="Changes to your vault, newest first." />
       <div className={mobile ? 'flex flex-col gap-4 py-3' : 'flex flex-col gap-4'}>{children}</div>
     </article>
   );
@@ -121,7 +107,7 @@ export function HistoryEntry({
           aria-label={title}
           aria-expanded={expanded}
           onClick={onExpand}
-          className="flex min-h-13 min-w-0 flex-1 items-start gap-2 py-3 text-left text-[15px] font-medium focus-visible:outline-2 focus-visible:outline-ring"
+          className="flex min-h-13 min-w-0 flex-1 items-start gap-2 py-3 text-left text-copy font-medium focus-visible:outline-2 focus-visible:outline-ring"
         >
           <span className="min-w-0 flex-1 break-words">{title}</span>
           <Icon name={expanded ? 'chevron-left' : 'chevron-right'} />
@@ -138,7 +124,7 @@ export function HistoryEntry({
           </Button>
         )}
       </div>
-      <p className="m-0 text-[11px] text-muted-foreground">
+      <p className="m-0 text-caption text-muted-foreground">
         {date} · <span className="font-mono">{sha}</span>
       </p>
       {!!expanded && <div className="flex flex-col gap-3 pt-4">{children}</div>}
@@ -152,7 +138,7 @@ export function HistoryEntry({
             aria-label={title}
             aria-expanded={expanded}
             onClick={onExpand}
-            className="flex min-w-0 items-center gap-2 text-left text-[15px] font-medium hover:underline focus-visible:outline-2 focus-visible:outline-ring"
+            className="flex min-w-0 items-center gap-2 text-left text-copy font-medium hover:underline focus-visible:outline-2 focus-visible:outline-ring"
           >
             <Icon name={expanded ? 'chevron-left' : 'chevron-right'} />
             <span className="min-w-0 break-words">{title}</span>

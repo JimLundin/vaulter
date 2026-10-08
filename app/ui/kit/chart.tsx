@@ -62,7 +62,7 @@ export function Bars({ data, label, unit, highlight = data.length - 1, size = 's
                   className="flex h-full min-w-0 flex-1 cursor-default flex-col items-center justify-end gap-1 border-0 bg-transparent p-0 outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
                 >
                   {i === highlight ? (
-                    <span className="text-[11px] font-medium text-foreground tabular-nums">
+                    <span className="text-caption font-medium text-foreground tabular-nums">
                       {number(d.value)}
                     </span>
                   ) : null}
@@ -87,7 +87,7 @@ export function Bars({ data, label, unit, highlight = data.length - 1, size = 's
           {data.map((d, i) => (
             <span
               key={d.label}
-              className="min-w-0 flex-1 truncate text-center text-[11px] text-muted-foreground"
+              className="min-w-0 flex-1 truncate text-center text-caption text-muted-foreground"
             >
               {shown(i) ? d.label : ''}
             </span>
