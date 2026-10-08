@@ -434,11 +434,14 @@ export function TimelineItem({
   );
 }
 
-/** Icon-only mobile actions. Only the primary AI action uses a circle. */
+/** Icon-only mobile actions. Only the primary AI action uses a circle; the current place has a tint.
+ * With `href` it is a link (an action that is also a screen), otherwise a button. */
 export function MobileActionButton({
   icon,
   label,
   primary,
+  current,
+  href,
   onClick,
   onPointerDown,
   onPointerUp,
@@ -446,10 +449,33 @@ export function MobileActionButton({
   icon: IconName;
   label: string;
   primary?: boolean;
+  /** This control leads to the screen being shown. */
+  current?: boolean;
+  href?: string;
   onClick?: () => void;
   onPointerDown?: () => void;
   onPointerUp?: () => void;
 }) {
+  const className = cn(
+    'flex size-11 cursor-pointer items-center justify-center border-0 p-0 text-foreground focus-visible:outline-2 focus-visible:outline-ring',
+    primary
+      ? 'rounded-full bg-primary text-primary-foreground'
+      : current
+        ? 'rounded-xl bg-muted'
+        : 'rounded-xl bg-transparent text-muted-foreground hover:bg-muted',
+  );
+  if (href)
+    return (
+      <a
+        href={href}
+        aria-label={label}
+        aria-current={current ? 'page' : undefined}
+        onClick={onClick}
+        className={className}
+      >
+        <Icon name={icon} size="lg" />
+      </a>
+    );
   return (
     <button
       type="button"
@@ -457,12 +483,8 @@ export function MobileActionButton({
       onPointerDown={onPointerDown}
       onPointerUp={onPointerUp}
       aria-label={label}
-      className={cn(
-        'flex size-11 cursor-pointer items-center justify-center border-0 p-0 text-foreground focus-visible:outline-2 focus-visible:outline-ring',
-        primary
-          ? 'rounded-full bg-primary text-primary-foreground'
-          : 'rounded-none bg-transparent hover:bg-muted',
-      )}
+      aria-current={current ? 'page' : undefined}
+      className={className}
     >
       <Icon name={icon} size="lg" />
     </button>
@@ -656,23 +678,35 @@ export function MobileFrame({
   );
 }
 
-/** Footer navigation and an independent circular agent control floating above it. */
+/** Footer navigation and an independent circular agent control floating above it. Either three
+ * fixed places (`left`, `center`, `right`) or `items` spread evenly across the bar. */
 export function MobileBar({
   left,
   center,
   right,
+  items,
   floating,
 }: {
   left?: ReactNode;
   center?: ReactNode;
   right?: ReactNode;
+  items?: ReactNode[];
   floating?: ReactNode;
 }) {
   return (
-    <footer className="relative grid shrink-0 grid-cols-3 items-center border-t border-muted px-5 pt-1.5 pb-[max(6px,env(safe-area-inset-bottom))]">
-      <div className="justify-self-start">{left}</div>
-      <div className="justify-self-center">{center}</div>
-      <div className="justify-self-end">{right}</div>
+    <footer
+      className={cn(
+        'relative shrink-0 border-t border-muted px-5 pt-1.5 pb-[max(6px,env(safe-area-inset-bottom))]',
+        items ? 'flex items-center justify-between' : 'grid grid-cols-3 items-center',
+      )}
+    >
+      {items ?? (
+        <>
+          <div className="justify-self-start">{left}</div>
+          <div className="justify-self-center">{center}</div>
+          <div className="justify-self-end">{right}</div>
+        </>
+      )}
       {!!floating && (
         <div data-floating-agent="" className="absolute right-5 bottom-[calc(100%+12px)] z-20">
           {floating}

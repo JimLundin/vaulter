@@ -437,9 +437,11 @@ function Gallery() {
 
       <Section title="Mobile controls">
         <MobileBar
-          left={<MobileActionButton icon="search" label="Search" />}
-          center={<MobileActionButton icon="sparkles" label="Agent" />}
-          right={<MobileActionButton icon="list" label="Menu" />}
+          items={[
+            <MobileActionButton key="menu" icon="list" label="Menu" current={true} />,
+            <MobileActionButton key="search" icon="search" label="Search" />,
+            <MobileActionButton key="settings" icon="settings" label="Settings" />,
+          ]}
           floating={
             <VoiceButton
               phase="idle"

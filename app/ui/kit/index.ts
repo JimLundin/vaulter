@@ -373,3 +373,8 @@ export {
 } from './conversation.tsx';
 export { HistorySurface, HistoryEntry, SearchSurface } from './screens.tsx';
 export { SettingsPage, SettingsSection, SettingField } from './settings.tsx';
+export {
+  NavigationSuite,
+  type NavigationAction,
+  type NavigationDestination,
+} from './navigation.tsx';

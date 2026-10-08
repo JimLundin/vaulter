@@ -32,7 +32,6 @@ import {
   SettingsSection,
   SettingField,
   VoiceButton,
-  MobileActionButton,
   Row,
   Stack,
   Text,
@@ -150,7 +149,7 @@ export function OpenProduct({
     ...(vault.history
       ? [{ label: 'History', href: historyRoute.href(), icon: 'history' as const }]
       : []),
-    { label: 'Settings', href: settingsRoute.href(), icon: 'settings' },
+    { label: 'Settings', href: settingsRoute.href(), icon: 'settings', kind: 'action' },
   ];
   const index = useMemo(() => noteSearchIndex(files!), [files]);
   const ask = (text?: string) => {
@@ -322,24 +321,21 @@ export function OpenProduct({
             : null
         }
         onSearch={() => setSearch(true)}
-        actions={
-          <Button
-            variant={panel ? 'secondary' : 'ghost'}
-            size="sm"
-            aria-pressed={panel}
-            onClick={() => showPanel(!panel)}
-          >
-            <Icon name="sparkles" />
-            {preview ? 'Try a conversation' : 'Ask the agent'}
-            <ChatIndicator conversation={conversation} />
-          </Button>
-        }
-        mobileNavigation={
-          <MobileActionButton icon="sparkles" label="Agent" onClick={() => go(agentRoute.href())} />
-        }
-        mobileAction={
-          <VoiceButton phase={transcript.phase} busy={agentBusy} onClick={voiceAction} />
-        }
+        primary={{
+          expanded: (
+            <Button
+              variant={panel ? 'secondary' : 'ghost'}
+              size="sm"
+              aria-pressed={panel}
+              onClick={() => showPanel(!panel)}
+            >
+              <Icon name="sparkles" />
+              {preview ? 'Try a conversation' : 'Ask the agent'}
+              <ChatIndicator conversation={conversation} />
+            </Button>
+          ),
+          compact: <VoiceButton phase={transcript.phase} busy={agentBusy} onClick={voiceAction} />,
+        }}
         panel={
           panel ? (
             <ChatPanel

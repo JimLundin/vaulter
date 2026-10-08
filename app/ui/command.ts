@@ -10,8 +10,12 @@ export interface Command {
   hidden?: boolean;
   run: () => void;
 }
+/** A place in the app. A destination (the default) is listed in the sidebar and the phone's menu sheet,
+ * a list that may grow without limit; an action is one of the few controls every screen keeps, at the
+ * sidebar's foot and in the phone's bottom bar. */
 export interface Navigation {
   label: string;
   href: string;
   icon?: IconName;
+  kind?: 'destination' | 'action';
 }
