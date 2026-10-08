@@ -358,7 +358,7 @@ export {
   ConversationSurface,
   PromptSuggestions,
   VoiceButton,
-  VoiceTranscript,
+  VoiceStatus,
   ConversationWelcome,
   Markdown,
   Message,

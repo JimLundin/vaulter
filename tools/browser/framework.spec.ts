@@ -545,7 +545,7 @@ test('Escape closes the nested review before closing the agent panel', async ({ 
   await expect(page.getByRole('dialog', { name: 'Agent', exact: true })).toBeHidden();
 });
 
-test('live transcription survives rearrangement and remains separate from the keyboard draft', async ({
+test('live transcription updates the shared message field and uses the normal send path', async ({
   page,
 }) => {
   const errors: string[] = [];
@@ -556,21 +556,51 @@ test('live transcription survives rearrangement and remains separate from the ke
   });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/preview/');
+  const input = page.getByRole('textbox', { name: 'Message', exact: true });
+  await input.fill('A typed introduction.');
   await page.getByRole('button', { name: 'Start voice interaction' }).click();
-  const transcript = page.getByRole('region', { name: 'Live transcription' });
-  await expect(transcript).toContainText('Leave');
+  await expect(input).toHaveValue(/^A typed introduction\. Leave/);
+  await expect(input).not.toBeFocused();
+  await expect(input).toHaveAttribute('readonly');
+  expect((await input.boundingBox())!.height).toBe(44);
+  await expect
+    .poll(() => input.evaluate((node) => node.scrollHeight - node.clientHeight - node.scrollTop))
+    .toBeLessThanOrEqual(1);
+  await expect(page.locator('[data-message="user"]')).toHaveCount(0);
   await page.setViewportSize({ width: 1440, height: 1000 });
-  await expect(transcript).toContainText('Leave space');
+  await expect(input).toHaveValue(/^A typed introduction\. Leave space/);
   await page.setViewportSize({ width: 320, height: 640 });
   await page.getByRole('button', { name: 'Finish recording' }).click();
-  await expect(transcript).toContainText('Ready to send');
-  const text = await transcript.locator('[aria-live]').innerText();
-  await page.getByRole('button', { name: 'Edit text' }).click();
-  const input = page.getByRole('textbox', { name: 'Message', exact: true });
-  await expect(input).toHaveValue(text);
+  await expect(input).toBeEditable();
+  const text = await input.inputValue();
+  await expect(page.getByRole('button', { name: 'Send', exact: true })).toBeEnabled();
+  await expect(page.getByRole('region', { name: 'Live transcription' })).toHaveCount(0);
+  await input.fill(`${text} Edited before sending.`);
+  await page.getByRole('link', { name: 'History', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'History', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Start voice interaction' }).click();
+  await expect(input).toHaveValue(/Edited before sending\. Leave/);
+  await page.getByRole('button', { name: 'Finish recording' }).click();
+  await expect(input).toBeEditable();
   await page.setViewportSize({ width: 1440, height: 1000 });
-  await expect(input).toHaveValue(text);
-  await expect(input).toBeFocused();
+  const final = await input.inputValue();
+  await input.press('Enter');
+  await expect(page.locator('[data-message="user"] [data-surface="bubble"]')).toHaveText(final);
+  await expect(input).toHaveValue('');
+  await expect(page.getByRole('button', { name: 'Start voice interaction' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Send', exact: true })).toBeDisabled();
+  await expect(input).toBeEditable();
+  await page.getByRole('button', { name: 'Start voice interaction' }).click();
+  await expect(input).toHaveValue(/^Leave/);
+  await page.getByRole('button', { name: 'Finish recording' }).click();
+  await expect(input).toBeEditable();
+  const second = await input.inputValue();
+  await page.getByRole('button', { name: 'Send', exact: true }).click();
+  await expect(page.locator('[data-message="user"] [data-surface="bubble"]')).toHaveText([
+    final,
+    second,
+  ]);
+  await expect(input).toHaveValue('');
   expect(errors).toEqual([]);
   expect(external).toEqual([]);
 });

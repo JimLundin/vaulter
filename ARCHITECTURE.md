@@ -121,6 +121,13 @@ contains only message entry and dictation/send controls, with Enter to send and 
 new line. The kit owns their placement and keeps text clear of the controls. Sync status appears
 with the app name in the sidebar header.
 
+Product binds the transcription controller to the conversation's shared draft above route selection.
+Each recording retains the draft it starts with and replaces only that recording's partial words
+with corrected final text. Failure or interruption retains the last draft; cleared capture ignores
+late events. A subsequent recording appends to manual edits. Capture never submits a turn: Send and
+Enter use the same reviewed submission path for dictated and typed text. The kit's compact voice
+status sits in the composer dock; unsubmitted speech has no separate feed entry.
+
 `suggestions.ts` generates short prompts from a bounded set of note titles/summaries and recent
 conversation text using the selected model. It has no agent tools or write capability. The controller
 caches suggestions per chat, completed turn and model, cancels them when sending/starting over or
@@ -153,7 +160,7 @@ preserving its route and draft: a centered dialog on desktop, the same bottom dr
 phone. Open settings fields keep their DOM and focus through resizing. `/settings/` remains a direct
 entry to that menu over Agent. Feature screens use the kit's centered `FeaturePage` reading column;
 Agent shares its width token. The composer is a fixed single row with trailing controls; on mobile
-its always-visible field sits beside the circular microphone above the footer. Focusing opens the
+its always-visible field contains the same inset microphone and Send controls as desktop. Focusing opens the
 normal device keyboard without revealing another form. Shift+Enter can still insert newlines, which
 scroll inside the field. Other features retain the floating voice action above their footer.
 

@@ -22,7 +22,6 @@ export const compositions = [
       'ReadingColumn',
       'Row',
       'Stack',
-      'StatusMark',
       'Surface',
       'Text',
       'Toolbar',

@@ -7,6 +7,7 @@ import type { Transcription } from './transcription.ts';
 export { createConversation, useConversation, useChat } from './conversation.ts';
 export { openAIModel } from './model.ts';
 export { openAITranscription } from './openai-transcription.ts';
+export { useVoiceDraft } from './dictation.ts';
 export {
   useTranscription,
   useTranscript,
@@ -21,23 +22,15 @@ export function ChatPanel({
   prompt = null,
   historyHref,
   voice,
-  previewVoice,
 }: {
   conversation: Conversation;
   prompt?: Prompt | null;
   historyHref?: string;
   voice: Transcription;
-  previewVoice?: boolean;
 }) {
   return (
     <Suspense fallback={<Text tone="subtle">Loading conversation…</Text>}>
-      <Chat
-        conversation={conversation}
-        arg={prompt}
-        historyHref={historyHref}
-        voice={voice}
-        previewVoice={previewVoice}
-      />
+      <Chat conversation={conversation} arg={prompt} historyHref={historyHref} voice={voice} />
     </Suspense>
   );
 }
@@ -46,13 +39,11 @@ export function ChatPage({
   prompt = null,
   historyHref,
   voice,
-  previewVoice,
 }: {
   conversation: Conversation;
   prompt?: Prompt | null;
   historyHref?: string;
   voice: Transcription;
-  previewVoice?: boolean;
 }) {
   return (
     <ConversationPage>
@@ -61,7 +52,6 @@ export function ChatPage({
         prompt={prompt}
         historyHref={historyHref}
         voice={voice}
-        previewVoice={previewVoice}
       />
     </ConversationPage>
   );

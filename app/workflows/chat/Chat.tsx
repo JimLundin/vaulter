@@ -10,7 +10,7 @@ import {
   ConversationSurface,
   ConversationWelcome,
   PromptSuggestions,
-  VoiceTranscript,
+  VoiceStatus,
   VoiceButton,
   Icon,
   Json,
@@ -42,17 +42,14 @@ export function Chat({
   arg,
   historyHref,
   voice,
-  previewVoice,
 }: {
   conversation: Conversation;
   arg: Prompt | null;
   historyHref?: string;
   voice: Transcription;
-  previewVoice?: boolean;
 }) {
   const { chat, newChat, send, stop, viewing } = conversation;
-  const { turns, suggestions, busy } = useChat(conversation);
-  const [input, setInput] = useState(chat.draft);
+  const { draft: input, turns, suggestions, busy } = useChat(conversation);
   const [focused, setFocused] = useState(false);
   const transcript = useTranscript(voice);
   const recording = ['connecting', 'listening', 'finishing'].includes(transcript.phase);
@@ -61,13 +58,7 @@ export function Chat({
     files: ReturnType<Conversation['stagedChanges']>;
   } | null>(null);
   const ref = useRef<HTMLTextAreaElement>(null);
-  const type = useCallback(
-    (text: string) => {
-      chat.draft = text;
-      setInput(text);
-    },
-    [chat],
-  );
+  const type = conversation.setDraft;
   const say = useCallback(
     (text: string) => {
       const files = conversation.stagedChanges();
@@ -88,8 +79,7 @@ export function Chat({
   useEffect(() => {
     if (!(focused || input || busy || recording)) later(conversation.suggest());
   }, [conversation, focused, input, busy, chat.id, turns.length, selectedModel, recording]);
-  const showSuggestions =
-    !(focused || input || busy || recording || transcript.text) && suggestions.length > 0;
+  const showSuggestions = !(focused || input || busy || recording) && suggestions.length > 0;
   useEffect(() => {
     if (!arg || arg.n === chat.arg) return;
     chat.arg = arg.n;
@@ -113,11 +103,7 @@ export function Chat({
       return;
     }
     if (transcript.phase === 'listening') later(voice.finish());
-    else if (transcript.phase === 'ready') {
-      const { text } = transcript;
-      voice.clear();
-      say(text);
-    } else later(voice.start());
+    else later(voice.start());
   };
   if (!conversation.ready())
     return (
@@ -141,6 +127,7 @@ export function Chat({
         type('');
       }}
       busy={busy || recording}
+      status={<VoiceStatus phase={transcript.phase} error={transcript.error} />}
       suggestions={
         showSuggestions ? <PromptSuggestions suggestions={suggestions} onSelect={edit} /> : null
       }
@@ -159,10 +146,15 @@ export function Chat({
                 ref={ref}
                 rows={1}
                 aria-label="Message"
-                placeholder={busy ? 'Working…' : 'Type a message…'}
+                placeholder={busy ? 'Working…' : recording ? 'Start speaking…' : 'Type a message…'}
                 value={input}
-                disabled={busy || recording}
-                onChange={(event) => type(event.currentTarget.value)}
+                disabled={busy}
+                readOnly={recording}
+                aria-busy={recording}
+                onChange={(event) => {
+                  voice.clear();
+                  type(event.currentTarget.value);
+                }}
                 onFocus={() => setFocused(true)}
                 onBlur={() => setFocused(false)}
                 onKeyDown={(event) => {
@@ -207,8 +199,8 @@ export function Chat({
         </Composer>
       }
     >
-      <ConversationFeed empty={!turns.length && transcript.phase === 'idle'}>
-        {!turns.length && transcript.phase === 'idle' && (
+      <ConversationFeed empty={!turns.length}>
+        {!turns.length && (
           <ConversationWelcome
             title="What’s on your mind?"
             description="Speak to the agent, or type what to file and ask what your vault knows."
@@ -228,19 +220,6 @@ export function Chat({
             )}
           </Message>
         ))}
-        {transcript.phase !== 'idle' && (
-          <VoiceTranscript
-            phase={transcript.phase}
-            text={transcript.text}
-            error={transcript.error}
-            preview={previewVoice}
-            onEdit={() => {
-              edit(transcript.text);
-              voice.clear();
-            }}
-            onDiscard={() => voice.clear()}
-          />
-        )}
       </ConversationFeed>
 
       <Overlay

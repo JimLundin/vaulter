@@ -588,7 +588,9 @@ export function SearchButton({
 
 /** The desktop sidebar: the full height of the window, with the design's border. */
 export function Sidebar(props: Unstyled<ComponentProps<typeof SidebarPart>>) {
-  return <SidebarPart {...props} data-region="nav" className="h-svh border-r px-1 py-2" />;
+  return (
+    <SidebarPart {...props} data-region="nav" className="h-svh border-r bg-sidebar px-1 py-2" />
+  );
 }
 
 /** The sidebar's list: moved through with the arrow keys, as every list is. */

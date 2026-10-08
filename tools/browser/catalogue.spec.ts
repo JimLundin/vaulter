@@ -96,6 +96,20 @@ test('paired agent samples keep independent drafts and send through the shared o
     'A desktop thought',
   );
   await expect(desktop.locator('[data-message="user"]')).toHaveCount(0);
+  await mobile.getByRole('button', { name: 'Start voice interaction' }).click();
+  await expect(mobile.getByRole('textbox', { name: 'Message', exact: true })).toHaveValue(/^Leave/);
+  await expect(desktop.getByRole('textbox', { name: 'Message', exact: true })).toHaveValue(
+    'A desktop thought',
+  );
+  await mobile.getByRole('button', { name: 'Finish recording' }).click();
+  await mobile
+    .getByRole('textbox', { name: 'Message', exact: true })
+    .fill('Edited dictated thought');
+  await mobile.getByRole('button', { name: 'Send', exact: true }).click();
+  await expect(mobile.locator('[data-message="user"] [data-surface="bubble"]').last()).toHaveText(
+    'Edited dictated thought',
+  );
+  await expect(mobile.getByRole('textbox', { name: 'Message', exact: true })).toHaveValue('');
   const field = (await mobile
     .getByRole('textbox', { name: 'Message', exact: true })
     .boundingBox())!;

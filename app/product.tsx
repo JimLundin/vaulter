@@ -45,6 +45,7 @@ import {
   openAITranscription,
   useTranscription,
   useTranscript,
+  useVoiceDraft,
   type TranscriptionProvider,
   useConversation,
   useChat,
@@ -144,6 +145,7 @@ export function OpenProduct({
     page: note ? { title: titleOf(note), path: note.path } : onAgent ? undefined : { title },
   });
   const { busy: agentBusy } = useChat(conversation);
+  useVoiceDraft(conversation, voice);
   const navigation: Navigation[] = [
     { label: 'Agent', href: agentRoute.href(), icon: 'sparkles' },
     ...(vault.history
@@ -179,16 +181,6 @@ export function OpenProduct({
         go(agentRoute.href());
       }
       later(voice.finish());
-      return;
-    }
-    if (transcript.phase === 'ready') {
-      const { text } = transcript;
-      voice.clear();
-      setPrompt((current) => ({ text, send: true, n: (current?.n ?? 0) + 1 }));
-      if (mobile) {
-        showPanel(false);
-        go(agentRoute.href());
-      } else showPanel(true);
       return;
     }
     if (mobile) {
@@ -241,6 +233,7 @@ export function OpenProduct({
             group: 'Agent',
             icon: 'plus' as const,
             run: () => {
+              voice.clear();
               conversation.newChat();
               ask();
             },
@@ -341,7 +334,6 @@ export function OpenProduct({
               prompt={prompt}
               historyHref={historyHref}
               voice={voice}
-              previewVoice={!!preview}
             />
           ) : null
         }
@@ -353,7 +345,6 @@ export function OpenProduct({
             prompt={prompt}
             historyHref={historyHref}
             voice={voice}
-            previewVoice={!!preview}
           />
         ) : onHistory ? (
           <HistoryPage vault={vault} />

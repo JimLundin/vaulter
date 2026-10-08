@@ -11,7 +11,6 @@ import {
   Dock,
   AutoScrollArea,
   AdaptivePanel,
-  StatusMark,
   OptionStrip,
 } from './primitives.tsx';
 import { useIsMobile } from './hooks/use-mobile.ts';
@@ -125,10 +124,12 @@ export function ConversationSurface({
   busy,
   composer,
   suggestions,
+  status,
   children,
 }: ConversationActions & {
   composer: ReactNode;
   suggestions?: ReactNode;
+  status?: ReactNode;
   children: ReactNode;
 }) {
   const mobile = useIsMobile();
@@ -145,6 +146,7 @@ export function ConversationSurface({
               {composer}
             </Stack>
           </Row>
+          {status}
           {!mobile && page && (
             <Text size="xs" tone="subtle" align="end">
               Enter to send · Shift + Enter for a new line
@@ -229,11 +231,9 @@ export function VoiceButton({
         ? 'Stop agent'
         : recording
           ? 'Finish recording'
-          : phase === 'ready'
-            ? 'Send transcript'
-            : waiting
-              ? 'Finishing transcript'
-              : 'Start voice interaction';
+          : waiting
+            ? 'Finishing transcript'
+            : 'Start voice interaction';
   return (
     <Button
       type="button"
@@ -245,75 +245,26 @@ export function VoiceButton({
       disabled={disabled || phase === 'finishing'}
       onClick={onClick}
     >
-      <Icon
-        name={
-          busy || recording ? 'stop' : phase === 'ready' ? 'arrow-up' : waiting ? 'clock' : 'mic'
-        }
-      />
+      <Icon name={busy || recording ? 'stop' : waiting ? 'clock' : 'mic'} />
     </Button>
   );
 }
-export function VoiceTranscript({
-  phase,
-  text,
-  error,
-  preview,
-  onEdit,
-  onDiscard,
-}: {
-  phase: VoicePhase;
-  text: string;
-  error: string;
-  preview?: boolean;
-  onEdit: () => void;
-  onDiscard: () => void;
-}) {
-  const active = ['connecting', 'listening', 'finishing'].includes(phase);
+export function VoiceStatus({ phase, error }: { phase: VoicePhase; error: string }) {
+  if (phase === 'idle') return null;
   const label =
     phase === 'connecting'
       ? 'Connecting microphone…'
       : phase === 'listening'
-        ? 'Listening'
+        ? 'Listening… Tap the microphone to finish.'
         : phase === 'finishing'
           ? 'Finishing transcript…'
           : phase === 'ready'
             ? 'Ready to send'
-            : 'Recording stopped';
+            : 'Recording stopped. Your text is ready to edit or send.';
   return (
-    <Stack as="section" aria-label="Live transcription" gap="lg" block="md">
-      <Row>
-        <StatusMark active={active} />
-        <Text as="span" role="status" size="xs" tone="muted">
-          {!!preview && 'Demo · '}
-          {label}
-        </Text>
-      </Row>
-      <Text aria-live="polite" aria-atomic={false} size="title" weight="medium" preserve={true}>
-        {text || (phase === 'connecting' ? 'Getting ready…' : 'Start speaking…')}
-        {phase === 'listening' && <StatusMark active={true} cursor={true} />}
-      </Text>
-      {!!error && (
-        <Text role="alert" size="sm" tone="danger">
-          {error}
-        </Text>
-      )}
-      {!active && !!text && (
-        <Row>
-          <Button variant="outline" size="sm" onClick={onEdit}>
-            <Icon name="edit" />
-            Edit text
-          </Button>
-          <Button variant="ghost" size="sm" onClick={onDiscard}>
-            Discard
-          </Button>
-        </Row>
-      )}
-      {phase === 'ready' && (
-        <Text size="sm" tone="muted">
-          Tap the arrow to send, or edit your words first.
-        </Text>
-      )}
-    </Stack>
+    <Text role={error ? 'alert' : 'status'} size="xs" tone={error ? 'danger' : 'muted'}>
+      {error || label}
+    </Text>
   );
 }
 export function PromptSuggestions({

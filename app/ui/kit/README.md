@@ -212,7 +212,7 @@ keep stable positions in the React tree across viewport changes. Focus and uncon
 rearrangement. Modal surfaces trap focus, Escape dismisses the topmost surface, and closing returns
 focus to the opening control or its equivalent in the new arrangement. Navigation closes its menu
 when expanding into a sidebar.
-Mobile has a brand/status header, icon toolbar, edge-to-edge live transcript, footer navigation,
+Mobile has a brand/status header, icon toolbar, conversation feed, footer navigation,
 an always-visible message field with inset microphone and send controls, a separate prompt row, full-screen
 agent and search overlays, and bottom-sheet navigation. Desktop has the sidebar, reading column, labeled
 actions and a side panel. Desktop content uses the full height without a shortcut footer. Search
@@ -226,6 +226,12 @@ retain the floating voice action above the footer.
 
 OpenAI WebRTC capture, transcript reconciliation and microphone lifecycle belong to the chat workflow.
 The kit presents voice states and actions without accessing microphone permissions or credentials.
+Speech updates the same persistent message draft as typing. The microphone starts or finishes capture;
+Send and Enter submit the shared draft. Corrected final text replaces the current recording's partial
+words while retaining the preceding draft. Further recordings append to manual corrections.
+`VoiceStatus` shows capture state and errors beside the composer; the conversation feed contains
+submitted messages only. Read-only fields follow incoming words without taking focus. Drafts remain
+available when the Chat view closes or switches between a panel and page.
 
 ## Verifying a kit change
 

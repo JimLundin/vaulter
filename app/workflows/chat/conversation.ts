@@ -42,6 +42,8 @@ export interface Turn {
 
 /** What views render: replaced on every change, so it's its own snapshot. */
 export interface ChatState {
+  /** Typed or dictated text awaiting submission, shared by every view of this chat. */
+  draft: string;
   turns: Turn[];
   suggestions: string[];
   busy: boolean;
@@ -67,7 +69,7 @@ export function createConversation(initial: ConversationOptions) {
   const chat = {
     /** This chat, in its exchanges' session: a random id per chat. */
     id: crypto.randomUUID().slice(0, 8),
-    state: { turns: [], suggestions: [], busy: false, unread: false } as ChatState,
+    state: { draft: '', turns: [], suggestions: [], busy: false, unread: false } as ChatState,
     /** Turns before this one are in a capture already. */
     captured: 0,
     /** What the device says about the current turn, collected while the agent works. */
@@ -77,8 +79,6 @@ export function createConversation(initial: ConversationOptions) {
 
     /** Views open on the chat: a reply that finishes with none is unread. */
     views: 0,
-    /** What's typed and not sent yet, kept when the panel closes. */
-    draft: '',
     /** The last panel opening (PanelArg.n) taken in. */
     arg: 0,
     listeners: new Set<() => void>(),
@@ -144,10 +144,9 @@ export function createConversation(initial: ConversationOptions) {
     chat.captured = 0;
     chat.history = [];
     chat.meta = null;
-    chat.draft = '';
     suggestionAbort?.abort();
     suggestedFor = null;
-    set({ turns: [], suggestions: [], unread: false });
+    set({ draft: '', turns: [], suggestions: [], unread: false });
   }
 
   /** The tool call in a line: its path or query, not the whole file. */
@@ -316,6 +315,9 @@ export function createConversation(initial: ConversationOptions) {
     chat,
     subscribe,
     snapshot: () => chat.state,
+    setDraft: (draft: string) => {
+      if (draft !== chat.state.draft) set({ draft });
+    },
     ready,
     vaultFiles: () => options.vault.files(),
     stagedChanges: () => {

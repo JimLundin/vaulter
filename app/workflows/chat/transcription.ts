@@ -118,7 +118,8 @@ export function createTranscription(initial: TranscriptionProvider | null) {
       release();
       set({
         phase: 'error',
-        error: 'Recording stopped. Your transcript is kept here; check it before sending.',
+        error:
+          'Recording stopped. Your text is kept in the message field; check it before sending.',
       });
     },
     dispose() {

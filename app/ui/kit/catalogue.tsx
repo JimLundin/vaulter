@@ -1,5 +1,5 @@
 // Every public presentation component has a live example here. CI checks this against index.ts.
-import { type ComponentType, useId, useRef, useState } from 'react';
+import { type ComponentType, useEffect, useId, useRef, useState } from 'react';
 // biome-ignore lint/performance/noNamespaceImport: the standalone catalogue deliberately renders the whole public kit.
 import * as K from './index.ts';
 
@@ -658,15 +658,38 @@ function History() {
 function Agent() {
   const [draft, setDraft] = useState('');
   const [messages, setMessages] = useState<{ id: string; text: string }[]>([]);
-  const [voice, setVoice] = useState(false);
+  const [voice, setVoice] = useState<'idle' | 'listening' | 'ready'>('idle');
+  const prefix = useRef('');
+  useEffect(() => {
+    if (voice !== 'listening') return;
+    const words = 'Leave space for slow mornings.'.split(' ');
+    let count = 0;
+    const timer = setInterval(() => {
+      count++;
+      setDraft([prefix.current, words.slice(0, count).join(' ')].filter(Boolean).join(' '));
+      if (count === words.length) clearInterval(timer);
+    }, 280);
+    return () => clearInterval(timer);
+  }, [voice]);
   const send = () => {
     if (draft.trim()) {
       setMessages([...messages, { id: crypto.randomUUID(), text: draft.trim() }]);
       setDraft('');
+      setVoice('idle');
     }
   };
   const voiceControl = (
-    <K.VoiceButton phase={voice ? 'ready' : 'idle'} busy={false} onClick={() => setVoice(!voice)} />
+    <K.VoiceButton
+      phase={voice}
+      busy={false}
+      onClick={() => {
+        if (voice === 'listening') setVoice('ready');
+        else {
+          prefix.current = draft;
+          setVoice('listening');
+        }
+      }}
+    />
   );
   return (
     <K.ConversationPage>
@@ -674,8 +697,10 @@ function Agent() {
         busy={false}
         onNewChat={() => {
           setMessages([]);
-          setVoice(false);
+          setVoice('idle');
+          setDraft('');
         }}
+        status={<K.VoiceStatus phase={voice} error="" />}
         composer={
           <K.Composer>
             <K.Form
@@ -692,12 +717,17 @@ function Agent() {
                   aria-label="Message"
                   placeholder="Message…"
                   value={draft}
-                  onChange={(event) => setDraft(event.currentTarget.value)}
+                  readOnly={voice === 'listening'}
+                  onChange={(event) => {
+                    setVoice('idle');
+                    setDraft(event.currentTarget.value);
+                  }}
                   onKeyDown={(event) => {
                     if (
                       event.key === 'Enter' &&
                       !event.shiftKey &&
-                      !event.nativeEvent.isComposing
+                      !event.nativeEvent.isComposing &&
+                      voice !== 'listening'
                     ) {
                       event.preventDefault();
                       send();
@@ -705,7 +735,12 @@ function Agent() {
                   }}
                 />
                 <K.ComposerActions voice={voiceControl}>
-                  <K.Button type="submit" size="icon-lg" aria-label="Send" disabled={!draft.trim()}>
+                  <K.Button
+                    type="submit"
+                    size="icon-lg"
+                    aria-label="Send"
+                    disabled={!draft.trim() || voice === 'listening'}
+                  >
                     <K.Icon name="arrow-up" />
                   </K.Button>
                 </K.ComposerActions>
@@ -714,7 +749,7 @@ function Agent() {
           </K.Composer>
         }
         suggestions={
-          !(draft || messages.length) && (
+          !(draft || messages.length || voice === 'listening') && (
             <K.PromptSuggestions
               suggestions={['Make room for slow mornings', 'What have I noticed this week?']}
               onSelect={setDraft}
@@ -723,19 +758,7 @@ function Agent() {
         }
       >
         <K.ConversationFeed empty={!messages.length}>
-          {voice ? (
-            <K.VoiceTranscript
-              error=""
-              phase="ready"
-              preview={true}
-              text="Leave space for slow mornings."
-              onEdit={() => {
-                setDraft('Leave space for slow mornings.');
-                setVoice(false);
-              }}
-              onDiscard={() => setVoice(false)}
-            />
-          ) : messages.length ? (
+          {messages.length ? (
             messages.map((message) => (
               <K.Stack key={message.id}>
                 <K.Message user={true}>{message.text}</K.Message>
@@ -795,31 +818,21 @@ function AgentPanel() {
   );
 }
 function Voice() {
-  const [phase, setPhase] = useState<'idle' | 'listening' | 'ready'>('idle');
   return (
     <K.Stack>
       <K.Row>
-        <K.VoiceButton
-          phase={phase}
-          busy={false}
-          onClick={() =>
-            setPhase(phase === 'idle' ? 'listening' : phase === 'listening' ? 'ready' : 'idle')
-          }
-        />
+        <K.VoiceButton phase="idle" busy={false} onClick={noop} />
+        <K.VoiceButton phase="listening" busy={false} onClick={noop} />
         <K.Text size="sm" tone="muted">
           Scripted sample · no microphone access
         </K.Text>
       </K.Row>
-      {phase !== 'idle' && (
-        <K.VoiceTranscript
-          error=""
-          phase={phase}
-          preview={true}
-          text="Leave space for slow mornings."
-          onEdit={noop}
-          onDiscard={() => setPhase('idle')}
-        />
-      )}
+      <K.VoiceStatus phase="listening" error="" />
+      <K.VoiceStatus phase="ready" error="" />
+      <K.VoiceStatus
+        phase="error"
+        error="The microphone disconnected. Your text remains in the message field."
+      />
       <K.Choices
         choices={[
           { label: 'Keep this thought', id: 'keep' },
@@ -1236,8 +1249,9 @@ export const catalogue: Specimen[] = [
   {
     id: 'voice',
     title: 'Voice & choices',
-    description: 'Listening and ready states, with a scripted transcript.',
-    components: ['VoiceButton', 'VoiceTranscript', 'Choices'],
+    description:
+      'Microphone controls, compact status and error messages; speech fills the Agent message field.',
+    components: ['VoiceButton', 'VoiceStatus', 'Choices'],
     Sample: Voice,
   },
   {

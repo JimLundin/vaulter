@@ -1,5 +1,19 @@
 import { expect, test } from '@playwright/test';
 
+test('the desktop sidebar paints its full surface including the outer spacing', async ({
+  page,
+}) => {
+  await page.goto('/preview/');
+  await page.getByRole('radio', { name: 'Desktop', exact: true }).click();
+  const sidebar = page.locator('[data-region="nav"]');
+  const colors = await sidebar.evaluate((node) => ({
+    outer: getComputedStyle(node).backgroundColor,
+    inner: getComputedStyle(node.querySelector('[data-slot="sidebar-inner"]')!).backgroundColor,
+  }));
+  expect(colors.outer).toBe(colors.inner);
+  expect(colors.outer).not.toBe('rgba(0, 0, 0, 0)');
+});
+
 test('the mobile Menu highlights only while hovered or open, with rounded corners', async ({
   page,
 }) => {

@@ -4,10 +4,21 @@ import { cn } from '../lib/utils.ts';
 function Textarea({
   className,
   variant = 'default',
+  ref: forwardedRef,
   ...props
 }: React.ComponentProps<'textarea'> & { variant?: 'default' | 'inline' }) {
+  const ref = React.useRef<HTMLTextAreaElement>(null);
+  React.useLayoutEffect(() => {
+    // Dictated input follows incoming words without focusing the field or opening a keyboard.
+    if (props.readOnly && ref.current) ref.current.scrollTop = ref.current.scrollHeight;
+  }, [props.value, props.readOnly]);
   return (
     <textarea
+      ref={(node) => {
+        ref.current = node;
+        if (typeof forwardedRef === 'function') return forwardedRef(node);
+        if (forwardedRef) forwardedRef.current = node;
+      }}
       data-slot="textarea"
       className={cn(
         'flex field-sizing-content min-h-16 w-full rounded-md border border-input bg-transparent px-3 py-2 text-field shadow-xs transition-[color,box-shadow] outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:bg-input/30 dark:aria-invalid:ring-destructive/40',
