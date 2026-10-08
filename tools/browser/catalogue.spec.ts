@@ -24,7 +24,7 @@ test('the entire catalogue renders paired live components without requests to ex
   });
   await page.goto('/ui/kit/');
   const families = page.locator('[data-kit-comparison]');
-  await expect(families).toHaveCount(33);
+  await expect(families).toHaveCount(37);
   for (const family of await families.all()) {
     await expect(specimen(family, 'desktop')).toHaveCount(1);
     await expect(specimen(family, 'mobile')).toHaveCount(1);
@@ -194,4 +194,41 @@ test('component-name search keeps comparisons side by side and scopes dropdown p
   }
   await filter.fill('not-a-component');
   await expect(page.getByText('No matching components.')).toBeVisible();
+});
+
+test('composition links reveal the catalogued primitive even when filtering', async ({ page }) => {
+  await page.goto('/ui/kit/');
+  const filter = page.getByRole('searchbox', { name: 'Find a component' });
+  await filter.fill('Agent conversation');
+  await page
+    .locator('[data-kit-comparison="agent"] .kit-building-blocks')
+    .getByRole('link', { name: 'Button', exact: true })
+    .click();
+  await expect(filter).toHaveValue('');
+  await expect(page).toHaveURL(/#buttons$/);
+  await expect(page.locator('[data-kit-comparison="buttons"]')).toBeInViewport();
+});
+
+test('paired Agent panels remain independently editable and Escape closes the active sample', async ({
+  page,
+}) => {
+  await page.goto('/ui/kit/');
+  await page.getByRole('searchbox', { name: 'Find a component' }).fill('Agent panel');
+  const family = page.locator('[data-kit-comparison="agent-panel"]');
+  const desktop = specimen(family, 'desktop');
+  const mobile = specimen(family, 'mobile');
+  for (const sample of [desktop, mobile])
+    await sample.getByRole('button', { name: 'Open agent panel' }).click();
+  await desktop.getByRole('textbox', { name: 'Panel message' }).fill('Desktop draft');
+  await mobile.getByRole('textbox', { name: 'Panel message' }).fill('Phone draft');
+  await expect(desktop.getByRole('textbox', { name: 'Panel message' })).toHaveValue(
+    'Desktop draft',
+  );
+  await page.keyboard.press('Escape');
+  await expect(mobile.getByRole('dialog', { name: 'Agent', exact: true })).toBeHidden();
+  await expect(desktop.getByRole('dialog', { name: 'Agent', exact: true })).toBeVisible();
+  await desktop.getByRole('textbox', { name: 'Panel message' }).focus();
+  await page.keyboard.press('Escape');
+  await expect(desktop.getByRole('button', { name: 'Open agent panel' })).toBeFocused();
+  expect(await page.locator('body').evaluate((node) => node.style.overflow)).toBe('');
 });

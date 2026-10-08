@@ -87,8 +87,9 @@ function DrawerOverlay({
 function DrawerContent({
   className,
   children,
+  variant = 'default',
   ...props
-}: React.ComponentProps<typeof DrawerPrimitive.Content>) {
+}: React.ComponentProps<typeof DrawerPrimitive.Content> & { variant?: 'default' | 'menu' }) {
   const onInteractOutside = usePreviewInteraction(props.onInteractOutside);
   return (
     <DrawerPortal data-slot="drawer-portal">
@@ -101,6 +102,7 @@ function DrawerContent({
           'data-[vaul-drawer-direction=bottom]:inset-x-0 data-[vaul-drawer-direction=bottom]:bottom-0 data-[vaul-drawer-direction=bottom]:mt-24 data-[vaul-drawer-direction=bottom]:max-h-[80vh] data-[vaul-drawer-direction=bottom]:rounded-t-lg data-[vaul-drawer-direction=bottom]:border-t',
           'data-[vaul-drawer-direction=right]:inset-y-0 data-[vaul-drawer-direction=right]:right-0 data-[vaul-drawer-direction=right]:w-3/4 data-[vaul-drawer-direction=right]:border-l data-[vaul-drawer-direction=right]:sm:max-w-sm',
           'data-[vaul-drawer-direction=left]:inset-y-0 data-[vaul-drawer-direction=left]:left-0 data-[vaul-drawer-direction=left]:w-3/4 data-[vaul-drawer-direction=left]:border-r data-[vaul-drawer-direction=left]:sm:max-w-sm',
+          variant === 'menu' && 'menu-sheet pb-[max(16px,env(safe-area-inset-bottom))]',
           className,
         )}
         {...props}
@@ -113,12 +115,18 @@ function DrawerContent({
   );
 }
 
-function DrawerHeader({ className, ...props }: React.ComponentProps<'div'>) {
+function DrawerHeader({
+  className,
+  variant = 'default',
+  ...props
+}: React.ComponentProps<'div'> & { variant?: 'default' | 'toolbar' }) {
   return (
     <div
       data-slot="drawer-header"
       className={cn(
         'flex flex-col gap-0.5 p-4 group-data-[vaul-drawer-direction=bottom]/drawer-content:text-center group-data-[vaul-drawer-direction=top]/drawer-content:text-center md:gap-1.5 md:text-left',
+        variant === 'toolbar' &&
+          'flex-row shrink-0 items-center justify-between gap-3 px-4 pt-4 pb-5 text-left group-data-[vaul-drawer-direction=bottom]/drawer-content:text-left group-data-[vaul-drawer-direction=top]/drawer-content:text-left md:px-6',
         className,
       )}
       {...props}
@@ -136,11 +144,15 @@ function DrawerFooter({ className, ...props }: React.ComponentProps<'div'>) {
   );
 }
 
-function DrawerTitle({ className, ...props }: React.ComponentProps<typeof DrawerPrimitive.Title>) {
+function DrawerTitle({
+  className,
+  hidden,
+  ...props
+}: React.ComponentProps<typeof DrawerPrimitive.Title> & { hidden?: boolean }) {
   return (
     <DrawerPrimitive.Title
       data-slot="drawer-title"
-      className={cn('font-semibold text-foreground', className)}
+      className={cn('text-copy font-semibold text-foreground', hidden && 'sr-only', className)}
       {...props}
     />
   );

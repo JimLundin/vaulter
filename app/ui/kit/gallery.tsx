@@ -1,12 +1,27 @@
 // The live catalogue uses one sample implementation at both presentation sizes, without iframes.
 import { createRoot } from 'react-dom/client';
 import { useState } from 'react';
+import { compositions } from './composition.ts';
 import { catalogue, type Specimen } from './catalogue.tsx';
+import { ScrollArea } from './parts/scroll-area.tsx';
 import { PresentationPreview } from './presentation.tsx';
 import { Brand, Input, Text, ThemeSwitch } from './index.ts';
 
-function Comparison({ specimen }: { specimen: Specimen }) {
+function Comparison({
+  specimen,
+  onLocate,
+}: {
+  specimen: Specimen;
+  onLocate: (id: string) => void;
+}) {
   const { Sample } = specimen;
+  const buildingBlocks = [
+    ...new Set(
+      compositions
+        .filter((item) => (item.families as readonly string[]).includes(specimen.id))
+        .flatMap((item) => item.primitives),
+    ),
+  ];
   const height = [
     'navigation',
     'agent',
@@ -23,13 +38,36 @@ function Comparison({ specimen }: { specimen: Specimen }) {
       <header className="kit-comparison-heading">
         <h2>{specimen.title}</h2>
         <p>{specimen.description}</p>
+        <Text size="xs" tone="subtle">
+          {buildingBlocks.length ? 'Composition' : 'Component family'} ·{' '}
+          {specimen.components.length} components
+        </Text>
         <div className="kit-component-names">
           {specimen.components.map((name) => (
             <code key={name}>{name}</code>
           ))}
         </div>
+        {!!buildingBlocks.length && (
+          <div className="kit-building-blocks">
+            <span>Built from</span>
+            {buildingBlocks.map((name) => (
+              <a
+                key={name}
+                href={`#${catalogue.find((item) => (item.components as string[]).includes(name))?.id}`}
+                onClick={() =>
+                  onLocate(
+                    catalogue.find((item) => (item.components as string[]).includes(name))!.id,
+                  )
+                }
+              >
+                {name}
+              </a>
+            ))}
+          </div>
+        )}
       </header>
-      <section
+      <ScrollArea
+        axis="horizontal"
         className="kit-comparison-scroll"
         // biome-ignore lint/a11y/noNoninteractiveTabindex: keyboard scrolling for the wide comparison canvas.
         tabIndex={0}
@@ -50,7 +88,7 @@ function Comparison({ specimen }: { specimen: Specimen }) {
             </div>
           ))}
         </div>
-      </section>
+      </ScrollArea>
     </section>
   );
 }
@@ -97,7 +135,16 @@ function Gallery() {
       </div>
       <main className="kit-gallery-main">
         {visible.map((specimen) => (
-          <Comparison key={specimen.id} specimen={specimen} />
+          <Comparison
+            key={specimen.id}
+            specimen={specimen}
+            onLocate={(id) => {
+              setFilter('');
+              requestAnimationFrame(() =>
+                document.getElementById(id)?.scrollIntoView({ block: 'start' }),
+              );
+            }}
+          />
         ))}
         {!visible.length && <Text>No matching components.</Text>}
       </main>

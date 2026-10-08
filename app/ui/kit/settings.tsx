@@ -1,18 +1,21 @@
-// One settings tree: rows stack in compact space and form two columns when expanded.
+// Settings compose shared layout, typography and field primitives; features supply their controls.
 import type { ReactNode } from 'react';
-import { Label } from './parts/label.tsx';
+import { Field, FieldContent, FieldDescription, FieldLabel } from './parts/field.tsx';
 import { FeaturePage } from './app.tsx';
+import { Heading, Stack } from './parts/layout.tsx';
+import { Surface } from './primitives.tsx';
 import { MenuSheet } from './sheet.tsx';
 
 export function SettingsPage({ children }: { children: ReactNode }) {
   return (
     <FeaturePage title="Settings" description="Preferences for this device">
-      <div className="flex flex-col gap-6 py-6 md:gap-8 md:py-0">{children}</div>
+      <Stack gap="xl" block="md">
+        {children}
+      </Stack>
     </FeaturePage>
   );
 }
-
-/** Product supplies feature-owned fields. This menu guarantees each is grouped under its name. */
+/** Product supplies feature-owned fields, grouped under each feature's name. */
 export function SettingsMenu({
   open,
   onClose,
@@ -31,31 +34,27 @@ export function SettingsMenu({
       title="Settings"
       description="Preferences for this device"
     >
-      <div className="flex flex-col gap-6 bg-surface py-4 md:gap-8 md:bg-background md:px-6">
+      <Surface variant="preferences">
         {children}
         {features.map((feature) => (
           <SettingsSection key={feature.name} title={feature.name}>
             {feature.content}
           </SettingsSection>
         ))}
-      </div>
+      </Surface>
     </MenuSheet>
   );
 }
-
 export function SettingsSection({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section aria-label={title} className="flex flex-col gap-2 md:gap-5 md:border-t md:pt-6">
-      <h2 className="m-0 px-[var(--page-inset)] text-label font-semibold text-muted-foreground md:px-0 md:text-copy md:text-foreground">
-        {title}
-      </h2>
-      <div className="flex flex-col gap-5 border-y bg-background px-[var(--page-inset)] py-4 md:border-0 md:p-0">
-        {children}
-      </div>
-    </section>
+    <Surface as="section" aria-label={title} variant="grouped">
+      <Surface variant="groupHeading">
+        <Heading level={2}>{title}</Heading>
+      </Surface>
+      <Surface variant="inset">{children}</Surface>
+    </Surface>
   );
 }
-
 export function SettingField({
   label,
   htmlFor,
@@ -70,15 +69,10 @@ export function SettingField({
   children: ReactNode;
 }) {
   return (
-    <div className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1fr)_minmax(240px,320px)] md:items-start md:gap-x-8 md:gap-y-2">
-      <Label htmlFor={htmlFor}>{label}</Label>
-      <div className="min-w-0 md:col-start-2 md:row-span-2 md:row-start-1">{children}</div>
-      <p
-        id={descriptionId}
-        className="m-0 text-label leading-relaxed text-muted-foreground md:col-start-1"
-      >
-        {description}
-      </p>
-    </div>
+    <Field orientation="setting">
+      <FieldLabel htmlFor={htmlFor}>{label}</FieldLabel>
+      <FieldContent>{children}</FieldContent>
+      <FieldDescription id={descriptionId}>{description}</FieldDescription>
+    </Field>
   );
 }

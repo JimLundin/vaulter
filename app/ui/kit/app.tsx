@@ -2,7 +2,6 @@
 // tones (people, places, events), panels with their source, the timeline, the mobile action buttons, and
 // the frames the shell lays screens out in. Like the rest of the kit, none takes a className or style
 // (lib/unstyled.tsx).
-import { cva } from 'class-variance-authority';
 import type { ComponentProps, ReactNode } from 'react';
 import { Icon, type IconName } from './icons.tsx';
 import { type Unstyled, unstyled } from './lib/unstyled.tsx';
@@ -17,175 +16,7 @@ import { Kbd as KbdPart } from './parts/kbd.tsx';
 import { SidebarMenu as SidebarMenuPart, Sidebar as SidebarPart } from './parts/sidebar.tsx';
 
 export type Tone = 'neutral' | 'people' | 'places' | 'events';
-export type Gap = 'none' | 'xs' | 'sm' | 'md' | 'lg' | 'xl';
-
-const gap = {
-  none: 'gap-0',
-  xs: 'gap-1',
-  sm: 'gap-2',
-  md: 'gap-3',
-  lg: 'gap-4',
-  xl: 'gap-6',
-} satisfies Record<Gap, string>;
-
-const align = {
-  start: 'items-start',
-  center: 'items-center',
-  end: 'items-end',
-  stretch: 'items-stretch',
-  baseline: 'items-baseline',
-} as const;
-
-const justify = {
-  start: 'justify-start',
-  center: 'justify-center',
-  end: 'justify-end',
-  between: 'justify-between',
-} as const;
-
-interface FlexProps {
-  gap?: Gap;
-  align?: keyof typeof align;
-  /** Takes the space left in its parent. */
-  grow?: boolean;
-  children?: ReactNode;
-}
-
-/** Children one under another. */
-export function Stack({ gap: g = 'md', align: a = 'stretch', grow, children }: FlexProps) {
-  return (
-    <div className={cn('flex min-w-0 flex-col', gap[g], align[a], grow && 'flex-1')}>
-      {children}
-    </div>
-  );
-}
-
-/** Children side by side. */
-export function Row({
-  gap: g = 'sm',
-  align: a = 'center',
-  justify: j = 'start',
-  wrap,
-  grow,
-  children,
-}: FlexProps & { justify?: keyof typeof justify; wrap?: boolean }) {
-  return (
-    <div
-      className={cn(
-        'flex min-w-0',
-        gap[g],
-        align[a],
-        justify[j],
-        wrap && 'flex-wrap',
-        grow && 'flex-1',
-      )}
-    >
-      {children}
-    </div>
-  );
-}
-
-/** Pushes what follows it in a Row to the far end. */
-export const Spacer = () => <div className="flex-1" />;
-
-const text = cva('m-0', {
-  variants: {
-    size: { xs: 'text-caption', sm: 'text-label', md: 'text-copy', lg: 'text-lead' },
-    tone: {
-      default: 'text-foreground',
-      muted: 'text-muted-foreground',
-      subtle: 'text-subtle-foreground',
-      body: 'text-body',
-      danger: 'text-destructive',
-    },
-    weight: { normal: 'font-normal', medium: 'font-medium', semibold: 'font-semibold' },
-    mono: { true: 'font-mono' },
-    truncate: { true: 'truncate' },
-  },
-  defaultVariants: { size: 'md', tone: 'default', weight: 'normal' },
-});
-
-export interface TextProps {
-  size?: 'xs' | 'sm' | 'md' | 'lg';
-  tone?: 'default' | 'muted' | 'subtle' | 'body' | 'danger';
-  weight?: 'normal' | 'medium' | 'semibold';
-  mono?: boolean;
-  truncate?: boolean;
-  as?: 'p' | 'span' | 'div';
-  children?: ReactNode;
-}
-
-export function Text({ as: As = 'p', size, tone, weight, mono, truncate, children }: TextProps) {
-  return <As className={text({ size, tone, weight, mono, truncate })}>{children}</As>;
-}
-
-const heading = cva('m-0 text-foreground', {
-  variants: {
-    level: {
-      1: '',
-      2: 'text-copy font-semibold',
-      3: 'text-sm font-medium',
-    },
-    serif: { true: 'font-serif font-medium', false: '' },
-  },
-  compoundVariants: [
-    { level: 1, serif: true, class: 'text-display' },
-    { level: 1, serif: false, class: 'text-title font-semibold' },
-  ],
-  defaultVariants: { serif: false },
-});
-
-/** A page's title (1), a section's (2), a group's (3). Serif for a page of the wiki's kind. */
-export function Heading({
-  level = 2,
-  serif,
-  children,
-}: {
-  level?: 1 | 2 | 3;
-  serif?: boolean;
-  children?: ReactNode;
-}) {
-  const H = `h${level}` as const;
-  return <H className={heading({ level, serif })}>{children}</H>;
-}
-
-/** Long-form text: what Vaulter wrote about a person, a place or an event. */
-export function Prose({ children }: { children?: ReactNode }) {
-  return <div className="font-serif text-lead [&_p]:m-0 [&_p+p]:mt-3">{children}</div>;
-}
-
-/** A link within the app (a hash route) or out of it. */
-export function Link({
-  href,
-  onClick,
-  plain,
-  children,
-}: {
-  href?: string;
-  onClick?: () => void;
-  /** In the text's colour, for lists of things rather than links in prose. */
-  plain?: boolean;
-  children?: ReactNode;
-}) {
-  return (
-    <a
-      href={href ?? '#'}
-      onClick={
-        onClick &&
-        ((e) => {
-          e.preventDefault();
-          onClick();
-        })
-      }
-      className={cn(
-        'no-underline underline-offset-2 hover:underline',
-        plain ? 'text-foreground hover:text-muted-foreground' : 'text-link',
-      )}
-    >
-      {children}
-    </a>
-  );
-}
+import { Link, gap, type Gap } from './parts/layout.tsx';
 
 const chip = {
   neutral: 'bg-muted text-foreground',
@@ -1034,4 +865,11 @@ export function Choices({
 }
 
 /** A semantic form: behavior stays with its caller, presentation stays in the kit. */
-export const Form = unstyled((props: ComponentProps<'form'>) => <form {...props} />);
+export const Form = unstyled(
+  ({
+    layout = 'default',
+    ...props
+  }: ComponentProps<'form'> & { layout?: 'default' | 'inline' }) => (
+    <form {...props} className={layout === 'inline' ? 'flex min-w-0 items-center' : undefined} />
+  ),
+);

@@ -21,7 +21,9 @@ Markdown/HAST rendering and the vault-link annotation transform remain the expli
 | `index.ts` | public components, icons and theme controls |
 | `catalogue.tsx`, `gallery.tsx` | live examples, component coverage, search and paired catalogue |
 | `presentation.tsx` | private bounded presentation and portal target for live samples |
-| `parts/`, `hooks/` | private shadcn primitives and their hooks |
+| `parts/`, `hooks/` | shared layout/type primitives, shadcn controls and their hooks |
+| `primitives.tsx` | reusable surfaces, adaptive panel and following scroll container |
+| `composition.ts` | checked building-block dependencies displayed in the gallery |
 | `app.tsx` | spacing, typography, pages, sidebar and mobile frame |
 | `overlay.tsx` | one dialog tree, centered or bottom-aligned; full-screen search in compact space |
 | `sheet.tsx` | shared menu drawer, centered in expanded space and draggable from the bottom in compact space |
@@ -91,6 +93,31 @@ settings view; the kit owns grouping and arrangement. Appearance stays an applic
 Settings opens over the current destination without changing its route or discarding its draft.
 `FeaturePage` centers History and other screens on the same `--reading-width` as Agent. Page text
 remains left aligned within that centered column.
+
+### Primitive composition
+
+Agent and Settings contain no intrinsic HTML, CSS classes or inline styling. They assemble public
+building blocks. `Button` owns square, suggestion and voice variants; `Form layout="inline"` and
+`Textarea variant="inline"` own the one-row input. `Field orientation="setting"` owns responsive
+label/control/description placement. Theme choices use the shared `RadioGroup` primitives.
+
+`parts/layout.tsx` owns Stack, Row, Text, Heading, Link and Prose independently of application frames.
+
+`Surface`, `Toolbar`, `ReadingColumn`, `Dock`, `StatusMark`, `OptionStrip`, `AutoScrollArea` and
+`AdaptivePanel` provide reusable containers and behavior. Each has a separate paired example.
+`MenuSheet` assembles Drawer, typography, Button and ScrollArea for both navigation and settings.
+The gallery shows **Built from** links on these compositions. `composition.ts` lists their direct
+building blocks; `tools/composition.test.ts` resolves their real JSX through the compiler and rejects
+uncatalogued controls, raw HTML, styling and intrinsic factories inside `conversation.tsx`,
+`settings.tsx`, `sheet.tsx` and `theme.tsx`. Local composition helpers and context providers are
+checked within the same source. Primitive implementations own DOM, styles and interaction libraries.
+This check covers these compositions, while the app-wide rule continues to cover all kit callers.
+
+Preview canvases, long examples, option strips, settings bodies and conversation feeds share
+`ScrollArea`. Overflow gets a visible 12px track without requiring hover. Full-height samples use
+the interior canvas height, excluding borders, and avoid an extra outer scrollbar. The conversation
+feed connects the follow-to-end behavior to that same viewport, so wheel/touch scrolling and
+**Latest reply** operate on one scroll owner.
 
 ### Live comparisons
 

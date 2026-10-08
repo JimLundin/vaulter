@@ -61,6 +61,8 @@ const fieldVariants = cva('group/field flex w-full gap-3 data-[invalid=true]:tex
         '[&>[data-slot=field-label]]:flex-auto',
         'has-[>[data-slot=field-content]]:items-start has-[>[data-slot=field-content]]:[&>[role=checkbox],[role=radio]]:mt-px',
       ],
+      setting:
+        'grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(240px,320px)] md:items-start md:gap-x-8 md:gap-y-2 [&>[data-slot=field-content]]:min-w-0 md:[&>[data-slot=field-content]]:col-start-2 md:[&>[data-slot=field-content]]:row-span-2 md:[&>[data-slot=field-content]]:row-start-1 [&>[data-slot=field-description]]:m-0 [&>[data-slot=field-description]]:text-label md:[&>[data-slot=field-description]]:col-start-1',
       responsive: [
         'flex-col @md/field-group:flex-row @md/field-group:items-center [&>*]:w-full @md/field-group:[&>*]:w-auto [&>.sr-only]:w-auto',
         '@md/field-group:[&>[data-slot=field-label]]:flex-auto',

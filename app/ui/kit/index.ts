@@ -300,13 +300,10 @@ export {
   DesktopMain,
   Details,
   Dot,
-  type Gap,
-  Heading,
   Item,
   ItemGroup,
   Kbd,
   KeyHint,
-  Link,
   List,
   ListDetail,
   ListItem,
@@ -322,19 +319,13 @@ export {
   Form,
   PageHeader,
   Panel,
-  Prose,
   Recording,
   MobileActionButton,
-  Row,
   SearchButton,
   Sidebar,
   SidebarMenu,
   SourceLabel,
   Sources,
-  Spacer,
-  Stack,
-  Text,
-  type TextProps,
   Timeline,
   TimelineItem,
   type Tone,
@@ -380,3 +371,36 @@ export {
   type NavigationDestination,
 } from './navigation.tsx';
 export { Overlay } from './overlay.tsx';
+
+export {
+  Surface,
+  Toolbar,
+  ReadingColumn,
+  Dock,
+  StatusMark,
+  AutoScrollArea,
+  AdaptivePanel,
+  OptionStrip,
+} from './primitives.tsx';
+export { MenuSheet } from './sheet.tsx';
+
+import {
+  RadioGroup as RadioGroupPart,
+  RadioGroupItem as RadioGroupItemPart,
+  RadioGroupIndicator as RadioGroupIndicatorPart,
+} from './parts/radio-group.tsx';
+export const RadioGroup = unstyled(RadioGroupPart);
+export const RadioGroupItem = unstyled(RadioGroupItemPart);
+export const RadioGroupIndicator = unstyled(RadioGroupIndicatorPart);
+
+import {
+  Stack as StackPart,
+  Row as RowPart,
+  Text as TextPart,
+  Link as LinkPart,
+} from './parts/layout.tsx';
+export const Stack = unstyled(StackPart);
+export const Row = unstyled(RowPart);
+export const Text = unstyled(TextPart);
+export const Link = unstyled(LinkPart);
+export { Spacer, Heading, Prose, type Gap, type TextProps } from './parts/layout.tsx';

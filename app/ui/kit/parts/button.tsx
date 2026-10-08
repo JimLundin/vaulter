@@ -15,6 +15,10 @@ const buttonVariants = cva(
           'border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50',
         secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
         ghost: 'hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50',
+        suggestion:
+          'h-auto whitespace-normal rounded-lg border bg-background px-3 py-2 text-left text-label leading-snug text-muted-foreground hover:bg-muted md:max-w-64 max-md:min-h-16 max-md:w-52',
+        voice:
+          'rounded-full border-4 border-background bg-primary text-primary-foreground shadow-lg aria-pressed:bg-destructive',
         link: 'text-primary underline-offset-4 hover:underline',
       },
       // Visual sizes; styles.css gives every standalone control a 44px touch target.
@@ -27,6 +31,8 @@ const buttonVariants = cva(
         'icon-xs': "size-6 rounded-md [&_svg:not([class*='size-'])]:size-3",
         'icon-sm': 'size-8',
         'icon-lg': 'size-10',
+        square: 'size-11 rounded-none',
+        voice: 'size-16',
       },
     },
     defaultVariants: {
@@ -41,10 +47,12 @@ function Button({
   variant = 'default',
   size = 'default',
   asChild = false,
+  pending = false,
   ...props
 }: React.ComponentProps<'button'> &
   VariantProps<typeof buttonVariants> & {
     asChild?: boolean;
+    pending?: boolean;
   }) {
   const Comp = asChild ? Slot.Root : 'button';
 
@@ -53,7 +61,7 @@ function Button({
       data-slot="button"
       data-variant={variant}
       data-size={size}
-      className={cn(buttonVariants({ variant, size, className }))}
+      className={cn(buttonVariants({ variant, size, className }), pending && 'animate-pulse')}
       {...props}
     />
   );

@@ -147,12 +147,14 @@ export function Chat({
       composer={
         <Composer>
           <Form
+            layout="inline"
             onSubmit={(event) => {
               event.preventDefault();
               if (input.trim() && !(busy || recording)) say(input);
             }}
           >
             <Textarea
+              variant="inline"
               ref={ref}
               rows={1}
               aria-label="Message"

@@ -1,5 +1,6 @@
 // Kit-internal presentation scope. The gallery supplies bounds; the app uses the browser normally.
 import { createContext, type ReactNode, useContext, useMemo, useState } from 'react';
+import { ScrollArea } from './parts/scroll-area.tsx';
 import type { SizeClass } from './hooks/use-layout.ts';
 
 interface Presentation {
@@ -35,12 +36,14 @@ export function PresentationPreview({
         className="kit-presentation"
         data-kit-pointer={device === 'mobile' ? 'coarse' : 'fine'}
         style={
-          { '--viewport-height': `${height}px`, '--viewport-top': '0px' } as React.CSSProperties
+          { '--viewport-height': `${height - 2}px`, '--viewport-top': '0px' } as React.CSSProperties
         }
       >
         {value && (
           <PresentationContext.Provider value={value}>
-            <div className="kit-specimen-content">{children}</div>
+            <ScrollArea fill={true} className="kit-specimen-content">
+              {children}
+            </ScrollArea>
           </PresentationContext.Provider>
         )}
       </div>

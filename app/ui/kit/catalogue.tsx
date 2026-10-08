@@ -62,6 +62,12 @@ function Buttons() {
       <K.Row wrap={true}>
         <K.Button size="sm">Small</K.Button>
         <K.Button size="lg">Large</K.Button>
+        <K.Button variant="ghost" size="square" aria-label="Square action">
+          <K.Icon name="settings" />
+        </K.Button>
+        <K.Button variant="voice" size="voice" aria-label="Voice action">
+          <K.Icon name="mic" size="xl" />
+        </K.Button>
         <K.Button size="icon" aria-label="Add note">
           <K.Icon name="plus" />
         </K.Button>
@@ -133,6 +139,16 @@ function Fields() {
         setSaved(true);
       }}
     >
+      <K.RadioGroup variant="choices" aria-label="Reminder frequency" defaultValue="daily">
+        {['daily', 'weekly'].map((value) => (
+          <K.RadioGroupItem key={value} value={value}>
+            <K.Text as="span">{value}</K.Text>
+            <K.RadioGroupIndicator>
+              <K.Icon name="check" />
+            </K.RadioGroupIndicator>
+          </K.RadioGroupItem>
+        ))}
+      </K.RadioGroup>
       <K.FieldSet>
         <K.FieldLegend>Note preferences</K.FieldLegend>
         <K.FieldGroup>
@@ -159,6 +175,13 @@ function Fields() {
             <K.Label htmlFor={`${id}-email`}>Email</K.Label>
             <K.Input id={`${id}-email`} aria-invalid={true} defaultValue="anna@" />
             <K.FieldError>Enter a complete email address.</K.FieldError>
+          </K.Field>
+          <K.Field orientation="setting">
+            <K.FieldLabel htmlFor={`${id}-model`}>Model</K.FieldLabel>
+            <K.FieldContent>
+              <K.Input id={`${id}-model`} defaultValue="example-model" />
+            </K.FieldContent>
+            <K.FieldDescription>The shared settings arrangement.</K.FieldDescription>
           </K.Field>
           <K.Button type="submit">Save preferences</K.Button>
           {!!saved && <K.Text>Preferences saved.</K.Text>}
@@ -658,12 +681,14 @@ function Agent() {
         composer={
           <K.Composer>
             <K.Form
+              layout="inline"
               onSubmit={(event) => {
                 event.preventDefault();
                 send();
               }}
             >
               <K.Textarea
+                variant="inline"
                 rows={1}
                 aria-label="Message"
                 placeholder="Message…"
@@ -753,8 +778,8 @@ function AgentPanel() {
           onNewChat={noop}
           composer={
             <K.Composer>
-              <K.Form onSubmit={(event) => event.preventDefault()}>
-                <K.Textarea aria-label="Panel message" rows={1} />
+              <K.Form layout="inline" onSubmit={(event) => event.preventDefault()}>
+                <K.Textarea variant="inline" aria-label="Panel message" rows={1} />
                 <K.ComposerActions>
                   <K.Button size="icon" aria-label="Send panel message">
                     <K.Icon name="arrow-up" />
@@ -1003,6 +1028,116 @@ function Scrolling() {
   );
 }
 
+function SurfacePrimitives() {
+  return (
+    <K.ReadingColumn>
+      <K.Toolbar>
+        <K.Heading>Shared toolbar</K.Heading>
+        <K.Button variant="ghost" size="square" aria-label="Close example">
+          <K.Icon name="close" />
+        </K.Button>
+      </K.Toolbar>
+      <K.AutoScrollArea>
+        <K.Stack>
+          <K.Surface variant="grouped">
+            <K.Surface variant="groupHeading">
+              <K.Heading>Grouped section</K.Heading>
+            </K.Surface>
+            <K.Surface variant="inset">
+              <K.Text>Inset content</K.Text>
+            </K.Surface>
+          </K.Surface>
+          <K.Surface variant="bubble">A message-sized surface</K.Surface>
+          <K.Surface variant="emblem">
+            <K.Icon name="sparkles" />
+          </K.Surface>
+          <K.Row>
+            <K.StatusMark active={true} />
+            <K.Text size="sm">Active status</K.Text>
+          </K.Row>
+          <K.Surface variant="preferences">
+            <K.Text>Preference surface</K.Text>
+          </K.Surface>
+        </K.Stack>
+      </K.AutoScrollArea>
+      <K.Dock>
+        <K.Surface variant="input">
+          <K.Form layout="inline">
+            <K.Textarea
+              variant="inline"
+              rows={1}
+              aria-label="Inline primitive field"
+              placeholder="One-row field…"
+            />
+            <K.Button size="icon" aria-label="Submit example">
+              <K.Icon name="arrow-up" />
+            </K.Button>
+          </K.Form>
+        </K.Surface>
+      </K.Dock>
+    </K.ReadingColumn>
+  );
+}
+function PanelPrimitive() {
+  const [open, setOpen] = useState(false);
+  const [menu, setMenu] = useState(false);
+  return (
+    <K.Stack>
+      <K.Button variant="outline" onClick={() => setMenu(true)}>
+        Open menu surface
+      </K.Button>
+      <K.MenuSheet open={menu} onClose={() => setMenu(false)} title="Shared menu">
+        <K.Text>Navigation and Settings share this surface.</K.Text>
+      </K.MenuSheet>
+      <K.Button onClick={() => setOpen(true)}>Open adaptive panel</K.Button>
+      <K.AdaptivePanel title="Supporting content" open={open} onClose={() => setOpen(false)}>
+        <K.Toolbar>
+          <K.Heading>Supporting content</K.Heading>
+          <K.Button
+            variant="ghost"
+            size="square"
+            aria-label="Close supporting content"
+            onClick={() => setOpen(false)}
+          >
+            <K.Icon name="close" />
+          </K.Button>
+        </K.Toolbar>
+        <K.Textarea aria-label="Supporting draft" defaultValue="Same content through a resize" />
+      </K.AdaptivePanel>
+    </K.Stack>
+  );
+}
+function OptionPrimitives() {
+  return (
+    <K.Stack>
+      <K.OptionStrip>
+        {[
+          'An option with a little more detail',
+          'Another option to explore',
+          'Something to keep for later',
+        ].map((option) => (
+          <K.Button key={option} variant="suggestion">
+            {option}
+          </K.Button>
+        ))}
+      </K.OptionStrip>
+    </K.Stack>
+  );
+}
+function FollowingPrimitive() {
+  const [count, setCount] = useState(30);
+  return (
+    <K.Stack fill={true}>
+      <K.Button onClick={() => setCount(count + 1)}>Append item</K.Button>
+      <K.AutoScrollArea>
+        {Array.from({ length: count }, (_, i) => `Item ${i + 1}`).map((item) => (
+          <K.Text key={item}>{item} · followed to the end</K.Text>
+        ))}
+      </K.AutoScrollArea>
+    </K.Stack>
+  );
+}
+
 export const catalogue: Specimen[] = [
   {
     id: 'navigation',
@@ -1086,6 +1221,37 @@ export const catalogue: Specimen[] = [
     Sample: Review,
   },
   {
+    id: 'surface-primitives',
+    title: 'Surface & layout primitives',
+    description:
+      'Building blocks used by Agent and Settings: toolbar, reading column, dock and surface roles.',
+    components: ['Surface', 'Toolbar', 'ReadingColumn', 'Dock', 'StatusMark'],
+    Sample: SurfacePrimitives,
+    fullBleed: true,
+  },
+  {
+    id: 'panel-primitive',
+    title: 'Adaptive panel primitive',
+    description:
+      'One supporting content tree, with shared focus, dismissal and responsive placement.',
+    components: ['AdaptivePanel', 'MenuSheet'],
+    Sample: PanelPrimitive,
+  },
+  {
+    id: 'option-primitives',
+    title: 'Option strip primitive',
+    description: 'The same suggestion buttons wrap or scroll; control styling belongs to Button.',
+    components: ['OptionStrip'],
+    Sample: OptionPrimitives,
+  },
+  {
+    id: 'following-primitive',
+    title: 'Following scroll primitive',
+    description: 'Append content, scroll back, then use Latest reply to resume following.',
+    components: ['AutoScrollArea'],
+    Sample: FollowingPrimitive,
+  },
+  {
     id: 'typography',
     title: 'Type & spacing',
     description: 'Shared roles for titles, copy, links, rows and stacks.',
@@ -1133,6 +1299,9 @@ export const catalogue: Specimen[] = [
     title: 'Forms & fields',
     description: 'Labels, descriptions, validation, keyboard submission and selection.',
     components: [
+      'RadioGroup',
+      'RadioGroupItem',
+      'RadioGroupIndicator',
       'Form',
       'FieldSet',
       'FieldLegend',

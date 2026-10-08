@@ -1,7 +1,15 @@
 // Navigation and settings share a bottom drawer. In expanded space the same tree is a dialog.
 import { type ReactNode, useId, useRef } from 'react';
 import { Button } from './parts/button.tsx';
-import { Drawer, DrawerContent, DrawerDescription, DrawerTitle } from './parts/drawer.tsx';
+import {
+  Drawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerTitle,
+  DrawerHeader,
+} from './parts/drawer.tsx';
+import { Stack } from './parts/layout.tsx';
+import { ScrollArea } from './parts/scroll-area.tsx';
 import { Icon } from './icons.tsx';
 import { useIsMobile } from './hooks/use-mobile.ts';
 import { useRestoreFocus } from './hooks/use-restore-focus.ts';
@@ -44,29 +52,26 @@ export function MenuSheet({
           event.preventDefault();
           ref.current?.querySelector<HTMLButtonElement>('button')?.focus();
         }}
-        className="menu-sheet pb-[max(16px,env(safe-area-inset-bottom))]"
+        variant="menu"
       >
-        <header className="flex shrink-0 items-center justify-between gap-3 px-4 pt-4 pb-5 md:px-6">
-          <div className="flex min-w-0 flex-col gap-1">
-            <DrawerTitle className={header ? 'sr-only' : 'text-copy font-semibold'}>
-              {title}
-            </DrawerTitle>
+        <DrawerHeader variant="toolbar">
+          <Stack gap="xs">
+            <DrawerTitle hidden={!!header}>{title}</DrawerTitle>
             {header}
             {!!description && (
               <DrawerDescription id={descriptionId}>{description}</DrawerDescription>
             )}
-          </div>
+          </Stack>
           <Button
             variant="ghost"
-            size="icon-lg"
-            className="size-11 rounded-none"
+            size="square"
             aria-label={`Close ${title.toLowerCase()}`}
             onClick={onClose}
           >
             <Icon name="close" size="lg" />
           </Button>
-        </header>
-        <div className="flex min-h-0 flex-col overflow-y-auto">{children}</div>
+        </DrawerHeader>
+        <ScrollArea grow={true}>{children}</ScrollArea>
       </DrawerContent>
     </Drawer>
   );

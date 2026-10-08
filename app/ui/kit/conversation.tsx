@@ -1,17 +1,20 @@
-// A single conversation state can be presented as a phone screen or a desktop reading column.
-import { createContext, type ReactNode, useContext, useEffect, useRef } from 'react';
-import { FocusScope } from '@radix-ui/react-focus-scope';
-import { hideOthers } from 'aria-hidden';
-import { StickToBottom, useStickToBottomContext } from 'use-stick-to-bottom';
+// Agent compositions: content and actions assembled exclusively from catalogued primitives.
+import { createContext, type ReactNode, useContext } from 'react';
+import { Stack, Row, Heading, Text, Link, Prose } from './parts/layout.tsx';
 import { Button } from './parts/button.tsx';
 import { Icon } from './icons.tsx';
-import { cn } from './lib/utils.ts';
+import {
+  Surface,
+  Toolbar,
+  ReadingColumn,
+  Dock,
+  AutoScrollArea,
+  AdaptivePanel,
+  StatusMark,
+  OptionStrip,
+} from './primitives.tsx';
 import { useIsMobile } from './hooks/use-mobile.ts';
-import { useLayout } from './hooks/use-layout.ts';
-import { usePresentation } from './presentation.tsx';
-import { useRestoreFocus } from './hooks/use-restore-focus.ts';
 
-// Layout can change without moving conversation state into either device's presentation.
 const ConversationPresentation = createContext<{ page: boolean; close?: () => void }>({
   page: false,
 });
@@ -33,21 +36,28 @@ export function ConversationWelcome({
 }) {
   const mobile = useIsMobile();
   const { page } = useContext(ConversationPresentation);
-  return mobile ? (
-    <div className="flex flex-col items-center gap-3 px-2 py-6 text-center">
-      <span className="mb-1 flex size-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
-        <Icon name="sparkles" size="lg" />
-      </span>
-      <h1 className="m-0 max-w-[18ch] font-serif text-display font-medium">{title}</h1>
-      <p className="m-0 max-w-[34ch] text-copy text-muted-foreground">{description}</p>
-    </div>
-  ) : (
-    <div className="flex flex-col gap-6 py-4">
-      <h1 className={cn('m-0 font-serif font-medium', page ? 'text-display' : 'text-title')}>
+  return (
+    <Stack
+      gap={mobile ? 'md' : 'xl'}
+      align={mobile ? 'center' : 'stretch'}
+      inset={mobile ? 'sm' : 'none'}
+      block={mobile ? 'lg' : 'md'}
+      centerText={mobile}
+    >
+      {mobile && (
+        <Surface variant="emblem">
+          <Icon name="sparkles" size="lg" />
+        </Surface>
+      )}
+      <Heading
+        level={page || mobile ? 1 : 2}
+        serif={true}
+        size={page || mobile ? 'display' : 'title'}
+      >
         {title}
-      </h1>
-      <p className="m-0 text-copy text-muted-foreground">{description}</p>
-    </div>
+      </Heading>
+      <Text tone="muted">{description}</Text>
+    </Stack>
   );
 }
 
@@ -56,84 +66,58 @@ interface ConversationActions {
   onNewChat: () => void;
   busy: boolean;
 }
-
-function MobileConversationToolbar({ historyHref, onNewChat, busy }: ConversationActions) {
+function ConversationToolbar({ historyHref, onNewChat, busy }: ConversationActions) {
+  const mobile = useIsMobile();
   const { page, close } = useContext(ConversationPresentation);
   return (
-    <header className="flex h-12 shrink-0 items-center justify-between border-b px-3">
-      <div className="flex items-center gap-1">
-        {!!close && (
-          <Button
-            variant="ghost"
-            size="icon-lg"
-            className="size-11 rounded-none"
-            aria-label="Close"
-            onClick={close}
-          >
+    <Toolbar>
+      <Row gap="xs">
+        {mobile && !!close && (
+          <Button variant="ghost" size="square" aria-label="Close" onClick={close}>
             <Icon name="arrow-left" size="lg" />
           </Button>
         )}
-        <h2 className="m-0 px-1 text-sm font-semibold">
-          {page || close ? 'Agent' : 'Conversation'}
-        </h2>
-      </div>
-      <div className="flex items-center">
+        {(mobile || page || !!close) && (
+          <Stack gap="xs">
+            <Heading level={2}>{page || close ? 'Agent' : 'Conversation'}</Heading>
+            {!mobile && (
+              <Text size="sm" tone="subtle">
+                Your vault, in conversation
+              </Text>
+            )}
+          </Stack>
+        )}
+      </Row>
+      <Row>
         {!!historyHref && (
-          <Button variant="ghost" size="icon-lg" className="size-11 rounded-none" asChild={true}>
-            <a href={historyHref} aria-label="History" onClick={close}>
-              <Icon name="history" size="lg" />
-            </a>
+          <Button variant="ghost" size={mobile ? 'square' : 'sm'} asChild={true}>
+            <Link href={historyHref} aria-label="History">
+              <Icon name="history" size={mobile ? 'lg' : 'md'} />
+              {!mobile && 'History'}
+            </Link>
           </Button>
         )}
         <Button
-          variant="ghost"
-          size="icon-lg"
-          className="size-11 rounded-none"
+          variant={mobile ? 'ghost' : 'outline'}
+          size={mobile ? 'square' : 'sm'}
           aria-label="New chat"
           disabled={busy}
           onClick={onNewChat}
         >
-          <Icon name="plus" size="lg" />
+          <Icon name="plus" size={mobile ? 'lg' : 'md'} />
+          {!mobile && 'New chat'}
         </Button>
-      </div>
-    </header>
-  );
-}
-
-function DesktopConversationToolbar({ historyHref, onNewChat, busy }: ConversationActions) {
-  const { page, close } = useContext(ConversationPresentation);
-  return (
-    <header className="flex shrink-0 items-center justify-between gap-3">
-      {!!(page || close) && (
-        <div className="flex flex-col gap-1">
-          <h2 className="m-0 text-copy font-semibold">Agent</h2>
-          <p className="m-0 text-label text-subtle-foreground">Your vault, in conversation</p>
-        </div>
-      )}
-      <div className={cn('flex items-center gap-2', !page && 'w-full justify-between')}>
-        {!!historyHref && (
-          <Button variant="ghost" size="sm" asChild={true}>
-            <a href={historyHref} onClick={close}>
-              <Icon name="history" />
-              History
-            </a>
-          </Button>
-        )}
-        <Button variant="outline" size="sm" disabled={busy} onClick={onNewChat}>
-          <Icon name="plus" />
-          New chat
-        </Button>
-        {!!close && (
+        {!mobile && !!close && (
           <Button variant="ghost" size="icon-sm" aria-label="Close panel" onClick={close}>
             <Icon name="close" />
           </Button>
         )}
-      </div>
-    </header>
+      </Row>
+    </Toolbar>
   );
 }
 
-/** Device-specific toolbar and composer dock; the feed and draft have a stable place on resize. */
+/** The feed and draft keep a stable position while the toolbar and dock rearrange. */
 export function ConversationSurface({
   historyHref,
   onNewChat,
@@ -150,135 +134,66 @@ export function ConversationSurface({
 }) {
   const mobile = useIsMobile();
   const { page } = useContext(ConversationPresentation);
-  const actions = { historyHref, onNewChat, busy };
   return (
-    <section
-      aria-label="Conversation"
-      data-layout={mobile ? 'mobile-conversation' : 'desktop-conversation'}
-      className={cn(
-        'flex min-h-0 min-w-0 flex-1 flex-col',
-        !mobile && page && 'px-[var(--page-inset)] pt-[var(--page-block)] pb-4',
-      )}
-    >
-      <div
-        data-reading-column={page ? '' : undefined}
-        className={cn(
-          'flex min-h-0 min-w-0 flex-1 flex-col',
-          !mobile && page && 'mx-auto w-full max-w-[var(--reading-width)]',
-        )}
-      >
-        {mobile ? (
-          <MobileConversationToolbar {...actions} />
-        ) : (
-          <DesktopConversationToolbar {...actions} />
-        )}
-        {children}
-        <div className={mobile ? 'shrink-0 border-t bg-surface px-4 py-3' : 'shrink-0 pt-3'}>
+    <ReadingColumn page={page} label="Conversation">
+      <ConversationToolbar historyHref={historyHref} onNewChat={onNewChat} busy={busy} />
+      {children}
+      <Dock>
+        <Stack gap="sm">
           {suggestions}
-          <div data-conversation-input="" className="flex min-w-0 items-center gap-2">
-            <div className="min-w-0 flex-1">{composer}</div>
+          <Row data-conversation-input="">
+            <Stack grow={true} gap="none">
+              {composer}
+            </Stack>
             {mobile && voiceControl}
-          </div>
+          </Row>
           {!mobile && page && (
-            <p className="mt-2 mb-0 text-right text-caption text-subtle-foreground">
+            <Text size="xs" tone="subtle" align="end">
               Enter to send · Shift + Enter for a new line
-            </p>
+            </Text>
           )}
-        </div>
-      </div>
-    </section>
+        </Stack>
+      </Dock>
+    </ReadingColumn>
   );
 }
 
 export function ConversationFeed({ empty, children }: { empty?: boolean; children: ReactNode }) {
-  const mobile = useIsMobile();
-  return (
-    <StickToBottom
-      className="relative min-h-0 flex-1 overflow-y-auto"
-      initial="smooth"
-      resize="smooth"
-    >
-      <StickToBottom.Content
-        // The library reserves a scrollbar gutter on both edges, which indents the feed past the
-        // toolbar and composer wherever scrollbars take space; one edge keeps the left edges aligned.
-        scrollClassName="[scrollbar-gutter:stable]!"
-        className={cn(
-          'flex flex-col',
-          mobile ? 'gap-4 px-4 py-4' : 'gap-6 px-1 py-7',
-          mobile && empty && 'min-h-full justify-center',
-        )}
-      >
-        {children}
-      </StickToBottom.Content>
-      <ScrollDown />
-    </StickToBottom>
-  );
+  return <AutoScrollArea empty={empty}>{children}</AutoScrollArea>;
 }
-function ScrollDown() {
-  const { isAtBottom, scrollToBottom } = useStickToBottomContext();
-  if (isAtBottom) return null;
-  return (
-    <Button
-      className="absolute right-3 bottom-3 rounded-full"
-      variant="outline"
-      size="sm"
-      onClick={() => {
-        void scrollToBottom();
-      }}
-    >
-      Latest reply
-    </Button>
-  );
-}
-
 export function Message({ user, children }: { user?: boolean; children: ReactNode }) {
   const mobile = useIsMobile();
   return (
-    <div
-      data-message={user ? 'user' : 'agent'}
-      className={cn('flex min-w-0 flex-col', user ? 'ml-auto max-w-[85%] items-end' : 'gap-2')}
-    >
+    <Stack data-message={user ? 'user' : 'agent'} align={user ? 'end' : 'stretch'} gap="sm">
       {!mobile && (
-        <span className="text-caption font-medium text-subtle-foreground">
+        <Text as="span" size="xs" weight="medium" tone="subtle">
           {user ? 'You' : 'Agent'}
-        </span>
+        </Text>
       )}
-      <div
-        className={cn(
-          user ? 'whitespace-pre-wrap bg-muted text-body' : 'flex min-w-0 flex-col gap-3',
-          user && (mobile ? 'rounded-2xl px-3 py-2.5 text-copy' : 'mt-1 rounded-2xl px-4 py-3'),
-        )}
-      >
-        {children}
-      </div>
-    </div>
+      {user ? <Surface variant="bubble">{children}</Surface> : <Stack>{children}</Stack>}
+    </Stack>
   );
 }
 export function Markdown({ children }: { children: ReactNode }) {
-  return <div className="prose font-serif text-lead">{children}</div>;
+  return <Prose markdown={true}>{children}</Prose>;
 }
 export function Composer({ children }: { children: ReactNode }) {
   return (
-    <fieldset
-      aria-label="Message composer"
-      className={cn(
-        'min-w-0 shrink-0 border bg-background p-1 shadow-xs focus-within:ring-2 focus-within:ring-ring/50 [&_form]:flex [&_form]:min-w-0 [&_form]:items-center [&_textarea]:h-11 [&_textarea]:min-h-11 [&_textarea]:min-w-0 [&_textarea]:flex-1 [&_textarea]:field-sizing-fixed [&_textarea]:resize-none [&_textarea]:border-0 [&_textarea]:bg-transparent [&_textarea]:px-3 [&_textarea]:py-3 [&_textarea]:leading-5 [&_textarea]:placeholder:text-subtle-foreground [&_textarea]:placeholder:text-sm [&_textarea]:shadow-none [&_textarea]:focus-visible:ring-0',
-        'rounded-2xl [&_textarea]:rounded-xl',
-      )}
-    >
+    <Surface variant="input" as="fieldset" aria-label="Message composer">
       {children}
-    </fieldset>
+    </Surface>
   );
 }
 export function ComposerActions({ voice, children }: { voice?: ReactNode; children: ReactNode }) {
   return (
-    <div className="flex shrink-0 items-center gap-1">
-      <div className="hidden md:contents">{voice}</div>
+    <Row gap="xs">
+      <Row visible="expanded" gap="none">
+        {voice}
+      </Row>
       {children}
-    </div>
+    </Row>
   );
 }
-/** An agent sheet on phones, a reading panel or dialog on desktop. */
 export function ConversationPanel({
   open,
   onClose,
@@ -288,83 +203,23 @@ export function ConversationPanel({
   onClose: () => void;
   children?: ReactNode;
 }) {
-  const presentation = usePresentation();
-  const layout = useLayout();
-  const mobile = layout === 'compact';
-  const wide = layout === 'wide';
-  const ref = useRef<HTMLDivElement>(null);
-  const restoreFocus = useRestoreFocus(open);
-  useEffect(() => {
-    if (!open) return;
-    const dismissOnEscape = (event: KeyboardEvent) => {
-      if (
-        event.key === 'Escape' &&
-        !event.defaultPrevented &&
-        !(presentation?.portal ?? document).querySelector(
-          '[data-slot="dialog-content"], [data-slot="drawer-content"]',
-        )
-      )
-        onClose();
-    };
-    document.addEventListener('keydown', dismissOnEscape);
-    return () => document.removeEventListener('keydown', dismissOnEscape);
-  }, [open, onClose, presentation]);
-  useEffect(() => {
-    if (!open || wide || !ref.current) return;
-    const restoreAria = hideOthers(ref.current, presentation?.portal);
-    const scrollRoot = presentation?.portal ?? document.body;
-    const previous = scrollRoot.style.overflow;
-    scrollRoot.style.overflow = 'hidden';
-    if (!ref.current.contains(document.activeElement))
-      ref.current.querySelector<HTMLElement>('button, a, textarea')?.focus();
-    return () => {
-      restoreAria();
-      scrollRoot.style.overflow = previous;
-    };
-  }, [open, wide, presentation]);
-  if (!open) return null;
   return (
-    <>
-      {!wide && (
-        <div
-          aria-hidden={true}
-          onPointerDown={onClose}
-          className="fixed inset-0 z-40 bg-black/50"
-        />
-      )}
-      <FocusScope asChild={true} trapped={!wide} loop={!wide} onUnmountAutoFocus={restoreFocus}>
-        {/* biome-ignore lint/a11y/useAriaPropsSupportedByRole: role and modal semantics adapt together; both roles support a label. */}
-        <div
-          ref={ref}
-          role={wide ? 'complementary' : 'dialog'}
-          aria-label="Agent"
-          aria-modal={wide ? undefined : true}
-          className={cn(
-            'flex min-h-0 flex-col bg-background outline-none',
-            wide
-              ? 'h-dvh w-[26rem] shrink-0 gap-3 border-l p-5'
-              : mobile
-                ? 'fixed inset-x-0 top-[var(--viewport-top,0px)] z-50 h-[var(--viewport-height,100dvh)] pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]'
-                : 'fixed top-1/2 left-1/2 z-50 h-[80dvh] max-h-[90dvh] w-[min(32rem,calc(100%-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-lg border p-5 shadow-lg',
-          )}
-        >
-          <ConversationPresentation.Provider value={{ page: false, close: onClose }}>
-            {children}
-          </ConversationPresentation.Provider>
-        </div>
-      </FocusScope>
-    </>
+    <AdaptivePanel open={open} onClose={onClose} title="Agent">
+      <ConversationPresentation.Provider value={{ page: false, close: onClose }}>
+        {children}
+      </ConversationPresentation.Provider>
+    </AdaptivePanel>
   );
 }
 
-/** Voice input is the primary phone interaction; no label is placed under the circle. */
+type VoicePhase = 'idle' | 'connecting' | 'listening' | 'finishing' | 'ready' | 'error';
 export function VoiceButton({
   phase,
   busy,
   disabled,
   onClick,
 }: {
-  phase: 'idle' | 'connecting' | 'listening' | 'finishing' | 'ready' | 'error';
+  phase: VoicePhase;
   busy: boolean;
   disabled?: boolean;
   onClick: () => void;
@@ -384,17 +239,15 @@ export function VoiceButton({
               ? 'Finishing transcript'
               : 'Start voice interaction';
   return (
-    <button
+    <Button
       type="button"
+      variant="voice"
+      size="voice"
+      pending={waiting}
       aria-label={label}
       aria-pressed={recording}
       disabled={disabled || phase === 'finishing'}
       onClick={onClick}
-      className={cn(
-        'flex size-16 items-center justify-center rounded-full border-4 border-background bg-primary text-primary-foreground shadow-lg focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-60',
-        recording && 'bg-destructive',
-        waiting && 'animate-pulse',
-      )}
     >
       <Icon
         name={
@@ -402,10 +255,9 @@ export function VoiceButton({
         }
         size="xl"
       />
-    </button>
+    </Button>
   );
 }
-
 export function VoiceTranscript({
   phase,
   text,
@@ -414,7 +266,7 @@ export function VoiceTranscript({
   onEdit,
   onDiscard,
 }: {
-  phase: 'idle' | 'connecting' | 'listening' | 'finishing' | 'ready' | 'error';
+  phase: VoicePhase;
   text: string;
   error: string;
   preview?: boolean;
@@ -433,39 +285,25 @@ export function VoiceTranscript({
             ? 'Ready to send'
             : 'Recording stopped';
   return (
-    <section aria-label="Live transcription" className="flex min-w-0 flex-col gap-5 py-4">
-      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-        <span
-          className={cn(
-            'size-2 rounded-full',
-            active ? 'animate-pulse bg-destructive' : 'bg-subtle-foreground',
-          )}
-        />
-        <span role="status">
+    <Stack as="section" aria-label="Live transcription" gap="lg" block="md">
+      <Row>
+        <StatusMark active={active} />
+        <Text as="span" role="status" size="xs" tone="muted">
           {!!preview && 'Demo · '}
           {label}
-        </span>
-      </div>
-      <p
-        aria-live="polite"
-        aria-atomic={false}
-        className="m-0 whitespace-pre-wrap break-words text-title leading-relaxed font-medium tracking-tight"
-      >
+        </Text>
+      </Row>
+      <Text aria-live="polite" aria-atomic={false} size="title" weight="medium" preserve={true}>
         {text || (phase === 'connecting' ? 'Getting ready…' : 'Start speaking…')}
-        {phase === 'listening' && (
-          <span
-            aria-hidden={true}
-            className="ml-1 inline-block h-5 w-0.5 animate-pulse bg-primary align-middle"
-          />
-        )}
-      </p>
+        {phase === 'listening' && <StatusMark active={true} cursor={true} />}
+      </Text>
       {!!error && (
-        <p role="alert" className="m-0 text-label leading-relaxed text-destructive">
+        <Text role="alert" size="sm" tone="danger">
           {error}
-        </p>
+        </Text>
       )}
       {!active && !!text && (
-        <div className="flex gap-2">
+        <Row>
           <Button variant="outline" size="sm" onClick={onEdit}>
             <Icon name="edit" />
             Edit text
@@ -473,17 +311,16 @@ export function VoiceTranscript({
           <Button variant="ghost" size="sm" onClick={onDiscard}>
             Discard
           </Button>
-        </div>
+        </Row>
       )}
       {phase === 'ready' && (
-        <p className="m-0 text-label text-muted-foreground">
+        <Text size="sm" tone="muted">
           Tap the arrow to send, or edit your words first.
-        </p>
+        </Text>
       )}
-    </section>
+    </Stack>
   );
 }
-
 export function PromptSuggestions({
   suggestions,
   onSelect,
@@ -491,27 +328,24 @@ export function PromptSuggestions({
   suggestions: string[];
   onSelect: (text: string) => void;
 }) {
-  const mobile = useIsMobile();
   if (!suggestions.length) return null;
   return (
-    <section aria-label="Suggested prompts" className="mb-4 flex flex-col gap-2">
-      <h3 className="m-0 text-caption font-medium text-subtle-foreground">Ideas to explore</h3>
-      <div className={mobile ? 'flex gap-2 overflow-x-auto pb-1' : 'flex flex-wrap gap-2'}>
+    <Stack as="section" aria-label="Suggested prompts" gap="sm">
+      <Heading level={3} tone="subtle">
+        Ideas to explore
+      </Heading>
+      <OptionStrip>
         {suggestions.map((suggestion) => (
-          <button
+          <Button
             key={suggestion}
             type="button"
-            data-touch-target=""
+            variant="suggestion"
             onClick={() => onSelect(suggestion)}
-            className={cn(
-              'border bg-background px-3 py-2 text-left text-label leading-snug text-muted-foreground hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring',
-              mobile ? 'min-h-16 w-52 shrink-0 rounded-lg' : 'max-w-64 rounded-lg',
-            )}
           >
             {suggestion}
-          </button>
+          </Button>
         ))}
-      </div>
-    </section>
+      </OptionStrip>
+    </Stack>
   );
 }

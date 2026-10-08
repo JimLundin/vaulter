@@ -57,7 +57,6 @@ body,
 }
 .kit-specimen-content {
   height: 100%;
-  overflow: auto;
 }
 /* biome-ignore lint/correctness/noUnknownFunction: Tailwind resolves the shared breakpoint token. */
 @container kit (width >= theme(--breakpoint-md)) {
@@ -524,8 +523,7 @@ body,
   color: var(--subtle-foreground);
 }
 .kit-comparison-scroll {
-  overflow-x: auto;
-  padding-bottom: 8px;
+  padding-bottom: 12px;
 }
 .kit-comparison-pair {
   display: flex;
@@ -561,7 +559,7 @@ body,
   position: absolute;
 }
 /* Primitive supporting panels fit their container without imposing a minimum phone width. */
-.kit-presentation > .kit-specimen-content .kit-sample > aside {
+.kit-presentation .kit-specimen-content .kit-sample > aside {
   max-width: 100%;
 }
 @media (width < 48rem) {
@@ -575,4 +573,37 @@ body,
   .kit-gallery-heading {
     min-width: 150px;
   }
+}
+
+/* A scroll owner has one visible track per overflowing axis, independent of OS overlay settings.
+   Radix measures the viewport; its table wrapper must not dictate a flex surface's height. */
+.kit-scroll-fill > [data-slot="scroll-area-viewport"] > div {
+  display: flex !important;
+  height: 100%;
+  flex-direction: column;
+}
+.kit-scroll-area:has(> [data-orientation="vertical"][data-state="visible"])
+  > [data-slot="scroll-area-viewport"] {
+  padding-right: 12px;
+}
+.kit-scroll-area:has(> [data-orientation="horizontal"][data-state="visible"])
+  > [data-slot="scroll-area-viewport"] {
+  padding-bottom: 12px;
+}
+
+.kit-building-blocks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-bottom: 20px;
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+.kit-building-blocks a {
+  text-underline-offset: 3px;
+}
+
+.kit-option-strip > [data-slot="scroll-area-viewport"] > div {
+  display: block !important;
+  width: 100%;
 }

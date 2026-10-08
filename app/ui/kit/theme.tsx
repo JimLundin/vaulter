@@ -3,9 +3,9 @@
 // so shadcn's dark: variants apply too. The choice is this device's, kept in localStorage.
 import { useSyncExternalStore } from 'react';
 import { Icon, type IconName } from './icons.tsx';
-import { RadioGroup } from 'radix-ui';
+import { Text } from './parts/layout.tsx';
+import { RadioGroup, RadioGroupItem, RadioGroupIndicator } from './parts/radio-group.tsx';
 import { useIsMobile } from './hooks/use-mobile.ts';
-import { cn } from './lib/utils.ts';
 
 export type Theme = 'system' | 'light' | 'dark';
 
@@ -88,37 +88,23 @@ export function ThemeSwitch() {
   const theme = useTheme();
   const mobile = useIsMobile();
   return (
-    <RadioGroup.Root
+    <RadioGroup
+      variant="choices"
       value={theme}
       onValueChange={(value) => setTheme(value as Theme)}
       aria-label="Appearance"
-      className={
-        mobile ? 'flex flex-col divide-y border-y' : 'flex flex-wrap gap-1 rounded-lg border p-1'
-      }
     >
       {CHOICES.map(([value, icon, label]) => (
-        <RadioGroup.Item
-          data-touch-target=""
-          key={value}
-          value={value}
-          aria-label={label}
-          className={cn(
-            'flex items-center gap-2 text-label focus-visible:outline-2 focus-visible:outline-ring hover:bg-muted',
-            mobile
-              ? 'min-h-12 w-full px-2 text-left'
-              : 'min-h-9 flex-1 justify-center rounded-md px-2',
-            !mobile && theme === value && 'bg-muted font-medium',
-          )}
-        >
+        <RadioGroupItem key={value} value={value} aria-label={label}>
           <Icon name={icon} size={mobile ? 'md' : 'sm'} />
-          <span className={mobile ? 'flex-1' : ''}>{label.replace('As the system', 'System')}</span>
-          {mobile && (
-            <RadioGroup.Indicator>
-              <Icon name="check" />
-            </RadioGroup.Indicator>
-          )}
-        </RadioGroup.Item>
+          <Text as="span" size="sm">
+            {label.replace('As the system', 'System')}
+          </Text>
+          <RadioGroupIndicator>
+            <Icon name="check" />
+          </RadioGroupIndicator>
+        </RadioGroupItem>
       ))}
-    </RadioGroup.Root>
+    </RadioGroup>
   );
 }
