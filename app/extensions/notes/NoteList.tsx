@@ -1,11 +1,11 @@
 // Live list of notes matching frontmatter. <NoteList type="person" tag="work" sort="created" />
-import { useVault } from '../../core/host.tsx';
 import { link } from '../../core/route.ts';
 import { titleOf, excerptOf, hrefOf, kind, asList } from './model/fields.ts';
 import { dateStr } from '../../core/format.ts';
 import { cn } from 'cn';
 import { Empty } from '@/components/layout.tsx';
 import { navRow } from './sections.tsx';
+import { useGraph } from '../graph/use.ts';
 
 interface Props {
   type?: string;
@@ -15,7 +15,7 @@ interface Props {
 }
 
 export function NoteList({ type, tag, sort = 'title', excerpt = true }: Props) {
-  const { notes } = useVault();
+  const { notes } = useGraph();
   const hits = notes
     .filter((n) => kind(n.id) === 'note')
     .filter((n) => !type || (n.data as any).type === type)

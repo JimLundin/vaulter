@@ -2,7 +2,7 @@
 // first, one open question from a live note, and the log a week, a month, three months and a year back.
 import type { Note } from '../notes/model/fields.ts';
 import { facet, kind, plain, titleOf } from '../notes/model/fields.ts';
-import { isTopical, type Vault } from '../graph/model/graph.ts';
+import { isTopical, type Graph } from '../graph/model/graph.ts';
 import { datesOf, followUpsOf, openOf, type DateFact } from '../notes/model/facts.ts';
 
 const DAY = 864e5;
@@ -23,7 +23,7 @@ const gist = (n: Note) => {
   return first.length > 220 ? `${first.slice(0, 219).trimEnd()}…` : first;
 };
 
-export function computeBrief(v: Vault, today: string) {
+export function computeBrief(v: Graph, today: string) {
   const topical = v.notes.filter(isTopical);
   const week = addDays(today, 7);
   const on: DateFact[] = [];

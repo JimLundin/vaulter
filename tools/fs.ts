@@ -2,7 +2,8 @@
 
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { isVaultPath, type VaultFile } from '../app/extensions/notes/model/note.ts';
+import { isVaultPath } from '../app/extensions/notes/model/note.ts';
+import { type VaultFile } from '../app/core/files.ts';
 
 const paths = (root: string) =>
   ['', 'daily', 'captures', 'meta']

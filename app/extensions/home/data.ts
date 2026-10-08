@@ -2,7 +2,7 @@
 // status/, circle/; conventions §3) and from what the daily log links to.
 import type { Note } from '../notes/model/fields.ts';
 import { facet, titleOf, kind, asList, hrefOf } from '../notes/model/fields.ts';
-import { isTopical, perVault, type Vault } from '../graph/model/graph.ts';
+import { isTopical, perGraph, type Graph } from '../graph/model/graph.ts';
 import type { Area, Schema } from '../notes/model/schema.ts';
 import { dateStr } from '../../core/format.ts';
 
@@ -13,7 +13,7 @@ export interface AreaView extends Omit<Area, 'hub'> {
   active: Note[];
 }
 
-export const home = perVault((v: Vault) => {
+export const home = perGraph((v: Graph) => {
   const { lastSeen, degree } = v.signals;
   const topical = v.notes.filter(isTopical);
   const seen = (n: Note) => lastSeen.get(n.id) ?? '';

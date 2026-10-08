@@ -3,7 +3,6 @@
 import { ChevronRightIcon } from 'lucide-react';
 import { cn } from 'cn';
 import { titleOf, hrefOf } from '../notes/model/fields.ts';
-import { useVault } from '../../core/host.tsx';
 import { link, useRoute } from '../../core/route.ts';
 import { areaHref, home } from './data.ts';
 import {
@@ -22,11 +21,12 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
 } from '@/components/ui/sidebar.tsx';
+import { useGraph } from '../graph/use.ts';
 
 const MAX = 6;
 
 export function AreasSidebar() {
-  const { areas } = home(useVault());
+  const { areas } = home(useGraph());
   const { path, anchor } = useRoute();
   const shown = areas.filter((a) => a.notes.length);
   if (!shown.length) return null;

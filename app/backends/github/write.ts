@@ -1,7 +1,7 @@
 // Writing through the Git Data API: blobs, a tree on main's, a commit, and main moved to it, never by
 // force. When main moved meanwhile, the commit is rebuilt on it, unless one of the same files changed
 // there (a Conflict). `verify` (the app's check) runs on every attempt.
-import type { VaultFile } from '../../extensions/notes/model/note.ts';
+import type { VaultFile } from '../../core/files.ts';
 import { blobSha } from '../../core/blob-sha.ts';
 import { Conflict, TRAILER, type Change, type Verify } from '../../core/backend.ts';
 import { applyOverlay } from '../../core/writer.ts';

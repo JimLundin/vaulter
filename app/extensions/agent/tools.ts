@@ -11,19 +11,18 @@ import {
   type ToolSet,
 } from 'ai';
 import { z } from 'zod';
-import { vaultOf } from '../graph/model/graph.ts';
+import { graphOf } from '../graph/model/graph.ts';
 import { titleOf, kind } from '../notes/model/fields.ts';
 import { schemaOf } from '../notes/model/schema.ts';
 import { capturePath } from '../notes/model/capture.ts';
 import { today } from '../../core/format.ts';
 import { CheckFailed, Conflict } from '../../core/backend.ts';
-import { newProblems } from '../../core/writer.ts';
 import type { AgentContext } from '../../core/extension.ts';
 
 const LIST_MAX = 200;
 
 export function agentTools({ w, search, capture }: AgentContext) {
-  const vault = () => vaultOf(w.files());
+  const vault = () => graphOf(w.files());
   const byPath = (path: string) => w.files().find((f) => f.path === path);
   // The writer refuses what isn't a vault file, or deleting what doesn't exist; the model gets why.
   const stage = async (path: string, text: string | null) => {
@@ -101,7 +100,7 @@ export function agentTools({ w, search, capture }: AgentContext) {
       inputSchema: z.object({}),
       execute: async () => ({
         staged: w.staged(),
-        problems: await newProblems(w.base(), w.files()),
+        problems: await w.problems(),
       }),
     }),
     commit: tool({

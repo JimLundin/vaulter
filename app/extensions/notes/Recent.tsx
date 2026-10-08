@@ -1,6 +1,5 @@
 // The sidebar's Recent: the notes opened lately on this device (core/recent.ts), the one on screen marked.
 // Hidden when there are none, and when the sidebar is down to its icons.
-import { useHost } from '../../core/host.tsx';
 import { useRecent } from '../../core/recent.ts';
 import { link, useRoute } from '../../core/route.ts';
 import { titleOf } from './model/fields.ts';
@@ -12,11 +11,12 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar.tsx';
+import { useGraph } from '../graph/use.ts';
 
 const SHOWN = 8;
 
 export function RecentSidebar() {
-  const { vault } = useHost();
+  const vault = useGraph();
   const { path } = useRoute();
   const recent = useRecent()
     .flatMap((href) => {

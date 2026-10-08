@@ -2,27 +2,7 @@
 // runs in Node (check, audit, build) and in the browser. A source supplies `{ path, text }[]` with
 // paths relative to the vault root ("Ada.md", "daily/2026-06-06.md").
 import { load } from 'js-yaml';
-
-/** A file as a source supplies it. */
-export interface VaultFile {
-  path: string;
-  text: string;
-}
-
-/** One file's new text, or null to delete it: what an edit, a rename or a commit is made of. */
-export interface Change {
-  path: string;
-  text: string | null;
-}
-
-/** The files with the changes made. */
-export function applyChanges(files: VaultFile[], changes: Change[]): VaultFile[] {
-  const out = new Map(files.map((f) => [f.path, f.text]));
-  for (const c of changes)
-    if (c.text === null) out.delete(c.path);
-    else out.set(c.path, c.text);
-  return [...out].map(([path, text]) => ({ path, text }));
-}
+import type { VaultFile } from '../../../core/files.ts';
 
 /** Parsed YAML frontmatter: whatever the note says; the check holds it to the schema. */
 export type Frontmatter = Record<string, any>;

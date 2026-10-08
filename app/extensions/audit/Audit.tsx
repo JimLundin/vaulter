@@ -3,15 +3,16 @@
 import { useEffect, useState } from 'react';
 import { esc, type Section as AuditSection } from './audit.ts';
 import { WEEK, weekAudit } from './week.ts';
-import { perVault, type Vault } from '../graph/model/graph.ts';
+import { perGraph, type Graph } from '../graph/model/graph.ts';
 import { hrefOf } from '../notes/model/fields.ts';
-import { useHost, useVault } from '../../core/host.tsx';
+import { useHost } from '../../core/host.tsx';
 import { link } from '../../core/route.ts';
 import { Empty, ErrorState, Loading, PageHeader, Section } from '@/components/layout.tsx';
+import { useGraph } from '../graph/use.ts';
 
 /** Any page path in a row, longest first. */
-const paths = perVault(
-  (v: Vault) =>
+const paths = perGraph(
+  (v: Graph) =>
     new RegExp(
       `(${
         v.notes
@@ -24,7 +25,7 @@ const paths = perVault(
 );
 
 function Row({ text }: { text: string }) {
-  const v = useVault();
+  const v = useGraph();
   return (
     <li className="px-3 py-2 text-sm [overflow-wrap:anywhere] has-[[data-nav]:focus-visible]:bg-accent/60">
       {text.split(paths(v)).map((s, i) =>
@@ -48,7 +49,8 @@ function Row({ text }: { text: string }) {
 }
 
 export function Audit() {
-  const { vault, since } = useHost();
+  const { since } = useHost();
+  const vault = useGraph();
   const [state, setState] = useState<{ sections?: AuditSection[]; error?: string }>({});
   useEffect(() => {
     if (!since) return;

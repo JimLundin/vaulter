@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 import { computeBrief } from './brief.ts';
-import { deriveVault } from '../graph/model/graph.ts';
+import { deriveGraph } from '../graph/model/graph.ts';
 import { loadNotes } from '../notes/model/note.ts';
 import { schemaOf } from '../notes/model/schema.ts';
 import { SCHEMA } from '../notes/model/schema.fixture.ts';
@@ -27,7 +27,7 @@ const files = [
 ];
 
 test('today, the week, follow-ups due first, and a week back', () => {
-  const v = deriveVault(loadNotes(files), schemaOf(files));
+  const v = deriveGraph(loadNotes(files), schemaOf(files));
   const b = computeBrief(v, '2026-10-03');
   expect(b.on.map((x) => x.what)).toEqual(['Trip']);
   expect(b.soon.map((x) => [x.what, x.date])).toEqual([['Birthday', '2026-10-05']]);

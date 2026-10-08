@@ -16,6 +16,7 @@ import { recordExchange, type ChatTurn, type Collected } from './record.ts';
 import type { OnScreen } from './tools.ts';
 import { agentPage } from './routes.ts';
 import { historyPage } from '../editor/routes.ts';
+import { graphOf } from '../graph/model/graph.ts';
 
 export const MODEL_KEY = 'vault.agent.model';
 export const DEFAULT_MODEL = 'gpt-6-astra';
@@ -108,7 +109,7 @@ export function newChat() {
 
 /** What Jim is looking at: the note on screen, or the page's name (none on the agent's own page). */
 export function onScreen(host: Host, path = parseRoute(location.hash).path): OnScreen | undefined {
-  const n = host.vault.byHref.get(path);
+  const n = graphOf(host.files).byHref.get(path);
   if (n) return { title: titleOf(n), path: n.path };
   if (agentPage.match(path)) return undefined;
   const title = host.extensions.map((e) => e.page?.(path, host)).find(Boolean)?.title;
@@ -137,7 +138,7 @@ const chatTurn = (t: Turn): ChatTurn => ({
 
 /** The vault's place notes with coordinates, to match a location fix against. */
 const placesOf = (host: Host): Place[] =>
-  host.vault.notes.flatMap((n) => {
+  graphOf(host.files).notes.flatMap((n) => {
     const g = n.data.geo;
     return n.data.type === 'place' && typeof g?.lat === 'number' && typeof g?.lon === 'number'
       ? [{ id: n.id, lat: g.lat, lon: g.lon }]

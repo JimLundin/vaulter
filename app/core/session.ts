@@ -31,7 +31,8 @@ const EVERY = 30_000;
 declare const __DEV_SECRETS__: Secrets | null;
 const DEV_SECRETS = typeof __DEV_SECRETS__ === 'undefined' ? null : __DEV_SECRETS__;
 
-export function useSession(): Session {
+/** `keeps`: the files the app reads (extension.ts fileRules). */
+export function useSession(keeps: (path: string) => boolean): Session {
   const [backend, setBackend] = useState<VaultBackend | null>(null);
   const [head, setHead] = useState<Head | null>(null);
   const [status, setStatus] = useState<Status>({ kind: 'loading' });
@@ -73,6 +74,7 @@ export function useSession(): Session {
         token: u.secrets.github,
         key: u.cacheKey,
         api: import.meta.env.VITE_GITHUB_API || undefined,
+        keeps,
       }),
     );
   };

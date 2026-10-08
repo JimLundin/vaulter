@@ -1,10 +1,10 @@
 // Every dated entry as an occurrence; yearly ones repeat for each year in a range.
 import { datesOf, type DateFact } from '../notes/model/facts.ts';
-import type { Vault } from '../graph/model/graph.ts';
+import type { Graph } from '../graph/model/graph.ts';
 
 export interface Occurrence extends DateFact {}
 
-export const occurrences = (v: Vault, fromYear: number, toYear: number): Occurrence[] =>
+export const occurrences = (v: Graph, fromYear: number, toYear: number): Occurrence[] =>
   v.notes
     .flatMap(datesOf)
     .flatMap((d) => {

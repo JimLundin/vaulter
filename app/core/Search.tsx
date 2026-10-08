@@ -4,7 +4,6 @@
 import { useMemo, useState } from 'react';
 import { FileTextIcon, HashIcon, SparklesIcon } from 'lucide-react';
 import { search } from './search.ts';
-import { titleOf } from '../extensions/notes/model/fields.ts';
 import type { Command } from './extension.ts';
 import { useHost } from './host.tsx';
 import { showKeys } from './keys.ts';
@@ -44,8 +43,8 @@ export function Search({ commands }: { commands: Command[] }) {
   const hits = useMemo(() => (query ? search(host.index, query) : []), [host.index, query]);
   const recent = useRecent()
     .flatMap((h) => {
-      const n = host.vault.byHref.get(h);
-      return n && h !== route.path ? [{ href: h, title: titleOf(n) }] : [];
+      const e = host.index.get(h);
+      return e && h !== route.path ? [{ href: h, title: e.t }] : [];
     })
     .slice(0, 6);
   const shown = commands.filter(

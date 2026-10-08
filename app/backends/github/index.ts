@@ -1,6 +1,6 @@
 // The vault as a GitHub repo: main, read through the encrypted cache (sync.ts) and written with the Git
 // Data API (write.ts). Tabs tell each other when one syncs or commits, so the others read the cache.
-import type { VaultFile } from '../../extensions/notes/model/note.ts';
+import type { VaultFile } from '../../core/files.ts';
 import { Offline, TRAILER, type Head, type VaultBackend, type Verify } from '../../core/backend.ts';
 import { keepWith } from '../../core/store.ts';
 import { github, sourceUrl, type Repo } from './api.ts';
@@ -13,8 +13,19 @@ export function githubBackend(o: {
   repo?: Repo;
   api?: string;
   fetch?: typeof fetch;
+  /** The files the app keeps (extension.ts fileRules); the rest of the repo is never read. A commit's tree
+   * is built on main's, so what isn't read is kept as it is. */
+  keeps?: (path: string) => boolean;
 }): VaultBackend {
-  const gh = github(o.token, o.repo, o.api, o.fetch);
+  const client = github(o.token, o.repo, o.api, o.fetch);
+  const keeps = o.keeps ?? (() => true);
+  const gh: typeof client = {
+    ...client,
+    tree: async (commit) => {
+      const t = await client.tree(commit);
+      return { ...t, entries: t.entries.filter((e) => keeps(e.path)) };
+    },
+  };
   const channel = typeof BroadcastChannel === 'undefined' ? null : new BroadcastChannel('vault');
   let snap: Snapshot | null = null;
   let files: VaultFile[] = [];

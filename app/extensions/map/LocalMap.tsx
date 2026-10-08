@@ -2,12 +2,14 @@
 // fanned out in two columns, grouped and coloured by area (same colours and edges as the Map). Static
 // SVG; every neighbour is a link. On a phone, a branching list instead.
 import type { Note } from '../notes/model/fields.ts';
-import { useHeavy, useSchema } from '../../core/host.tsx';
+import { useHeavy } from '../../core/host.tsx';
 import { link } from '../../core/route.ts';
 import { cn } from 'cn';
 import { Section } from '@/components/layout.tsx';
 import './localmap.css';
 import { mapPage } from './routes.ts';
+import { useSchema } from '../notes/use.ts';
+import { layoutMap } from './vault-map.ts';
 
 const MAX = 24;
 const ROW = 26;
@@ -16,7 +18,7 @@ const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1).trim
 const f = (v: number) => Math.round(v * 10) / 10;
 
 export function LocalMap({ note }: { note: Note }) {
-  const map = useHeavy('map');
+  const map = useHeavy<ReturnType<typeof layoutMap>>('map');
   const { areas, areaOf } = useSchema();
   const areaOrder = (a: string) => {
     const k = areas.findIndex((x) => x.key === a);

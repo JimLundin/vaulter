@@ -3,16 +3,13 @@
 // active items, unlinked mentions, long logs, thin notes and places. Pure: what changed since a day, and
 // a file's text before it, come from the caller (git in tools/audit.ts, the backend's `since` in the app).
 // Reports; changes nothing. The sweep reads each flagged note and fixes it by hand.
+import type { History } from '../../core/backend.ts';
 import type { Schema } from '../notes/model/schema.ts';
-import { deriveVault } from '../graph/model/graph.ts';
+import { deriveGraph } from '../graph/model/graph.ts';
 import { asList, titleOf, type Note } from '../notes/model/fields.ts';
 import { datesOf, followUpsOf, openOf, type FollowUp } from '../notes/model/facts.ts';
 
 /** What changed since the day: the paths, and a file's text as it was then (null if it didn't exist). */
-export interface History {
-  changed: Set<string>;
-  before: (path: string) => Promise<string | null>;
-}
 export interface Section {
   title: string;
   rows: string[];
@@ -61,7 +58,7 @@ export async function audit(
   since: string,
   label = since,
 ): Promise<Section[]> {
-  const v = deriveVault(pages, schema, today);
+  const v = deriveGraph(pages, schema, today);
   const notes = pages
     .filter((p) => !p.id.includes('/') && p.id !== 'Home')
     .map((n) => {
@@ -255,3 +252,5 @@ export async function audit(
   );
   return out;
 }
+
+export type { History };

@@ -2,27 +2,27 @@
 // with its reason when the note gives one.
 import type { Note } from '../notes/model/fields.ts';
 import { facet, hrefOf, titleOf } from '../notes/model/fields.ts';
-import { perVault, type Vault } from '../graph/model/graph.ts';
+import { perGraph, type Graph } from '../graph/model/graph.ts';
 import { decisionsOf, type Decision } from '../notes/model/facts.ts';
 import { dayMonth, fmtDay, monthName } from '../../core/format.ts';
-import { useVault } from '../../core/host.tsx';
 import { link } from '../../core/route.ts';
 import { cn } from 'cn';
 import { Field, FieldList, PageHeader, Section } from '@/components/layout.tsx';
 import { decisionsPage } from './routes.ts';
+import { useGraph } from '../graph/use.ts';
 
 const lnk = 'text-primary no-underline hover:underline';
 const day = (d: string) => (d.length === 10 ? dayMonth(d) : fmtDay(d));
 
 /** Every decision in the vault, newest first. */
-const allDecisions = perVault((v: Vault) =>
+const allDecisions = perGraph((v: Graph) =>
   v.notes
     .flatMap((n) => decisionsOf(n, v.byId))
     .sort((a, b) => b.date.localeCompare(a.date) || titleOf(a.note).localeCompare(titleOf(b.note))),
 );
 
 export function Decisions() {
-  const all = allDecisions(useVault());
+  const all = allDecisions(useGraph());
   const groups = new Map<string, Decision[]>();
   for (const d of all) {
     const k = d.date.slice(0, 7);
@@ -90,7 +90,7 @@ export function Decisions() {
 
 /** On a note: the decisions it records, newest first. */
 export function NoteDecisions({ note }: { note: Note }) {
-  const ds = decisionsOf(note, useVault().byId);
+  const ds = decisionsOf(note, useGraph().byId);
   if (!ds.length) return null;
   return (
     // biome-ignore lint/correctness/useUniqueElementIds: a page-unique anchor that a route's #decisions scrolls to

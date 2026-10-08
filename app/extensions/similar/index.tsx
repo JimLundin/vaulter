@@ -3,14 +3,16 @@
 import type { Note } from '../notes/model/fields.ts';
 import { excerptOf, kind } from '../notes/model/fields.ts';
 import type { Extension } from '../../core/extension.ts';
-import { useHeavy, useVault } from '../../core/host.tsx';
+import { useHeavy } from '../../core/host.tsx';
 import { NoteLinks } from '../notes/sections.tsx';
 import { noteSections } from '../notes/slots.tsx';
 import { Section } from '@/components/layout.tsx';
+import { useGraph } from '../graph/use.ts';
+import { similarNotes } from './similar.ts';
 
 function Similar({ note }: { note: Note }) {
-  const v = useVault();
-  const similar = useHeavy('similar');
+  const v = useGraph();
+  const similar = useHeavy<ReturnType<typeof similarNotes>>('similar');
   const alike =
     kind(note.id) === 'note'
       ? (similar?.[note.id] ?? []).map((x) => v.byId.get(x.id)).filter((n) => n !== undefined)

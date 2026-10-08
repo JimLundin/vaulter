@@ -2,10 +2,9 @@
 // files, says when they changed, and writes a set of changes as one step. GitHub (backends/github) is
 // one; the tests use an in-memory one (backends/memory). Keeping the app to this contract is what lets
 // the frontend and the vault live apart.
-import type { Change, VaultFile } from '../extensions/notes/model/note.ts';
-import type { History } from '../extensions/audit/audit.ts';
+import type { Change, VaultFile } from './files.ts';
 
-export type { Change } from '../extensions/notes/model/note.ts';
+export type { Change } from './files.ts';
 
 /** The vault's files at one version (a tree sha, or anything that changes when the files do). */
 export interface Head {
@@ -71,4 +70,10 @@ export class Conflict extends Error {
 export class Offline extends Error {}
 
 /** Marks a step as written from the app (by hand or by the agent); history() lists these. */
+/** What changed since a day: the paths, and a file's text as it was then (the audit reads it). */
+export interface History {
+  changed: Set<string>;
+  before: (path: string) => Promise<string | null>;
+}
+
 export const TRAILER = 'Committed-From: vault app';

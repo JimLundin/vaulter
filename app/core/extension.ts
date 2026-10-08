@@ -5,7 +5,7 @@
 import type { ComponentType, ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import type { ToolSet } from 'ai';
-import type { Vault } from '../extensions/graph/model/graph.ts';
+import type { FileRules, VaultFile } from './files.ts';
 import type { Entry, Hit } from './search.ts';
 import type { Host } from './host.tsx';
 import type { AgentWriter } from './writer.ts';
@@ -82,7 +82,16 @@ export interface Extension {
    * made by the slot's `add`, imported from the feature that owns it. */
   contributes?: Contribution[];
   /** Entries for search and link previews (notes, topics, …). */
-  search?: (v: Vault) => Entry[];
+  search?: (host: Host) => Entry[];
+  /** The files this feature keeps: which (`keeps`), what they are, and the problems a change adds, which
+   * refuse a write. The app reads and writes only files some feature keeps. */
+  files?: {
+    keeps: (path: string) => boolean;
+    what: string;
+    problems?: (before: VaultFile[], after: VaultFile[]) => Promise<string[]>;
+  };
+  /** Why no page can be shown now (the files are unreadable as this feature's), or null. */
+  blocked?: (host: Host) => string | null;
   /** Components notes can use in MDX (which ones notes may use is the vault's call: components in meta/schema.yaml). */
   mdx?: Record<string, ComponentType<any>>;
   /** Tools for the agent; async so they can load with it (the AI SDK stays out of the main bundle). */
@@ -105,3 +114,15 @@ export interface AgentContext {
     where?: string[];
   }) => Promise<{ path: string; at: string; raw: string }>;
 }
+
+/** Every feature's `files`, as one rule set: a file is kept if any feature keeps it, and a change's
+ * problems are all of theirs. */
+export const fileRules = (extensions: Extension[]): FileRules => {
+  const fs = extensions.flatMap((e) => (e.files ? [e.files] : []));
+  return {
+    keeps: (path) => fs.some((f) => f.keeps(path)),
+    what: fs.map((f) => f.what).join('; '),
+    problems: async (before, after) =>
+      (await Promise.all(fs.map((f) => f.problems?.(before, after) ?? []))).flat(),
+  };
+};

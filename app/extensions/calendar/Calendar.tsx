@@ -5,11 +5,11 @@ import { hrefOf, titleOf, kind } from '../notes/model/fields.ts';
 import { datesOf } from '../notes/model/facts.ts';
 import { fmtDay, lastDay, monthName, today, weekdayDay } from '../../core/format.ts';
 import { occurrences, type Occurrence } from './dates.ts';
-import { useVault } from '../../core/host.tsx';
 import { link } from '../../core/route.ts';
 import { cn } from 'cn';
 import { Field, FieldList, PageHeader, Section } from '@/components/layout.tsx';
 import { calendarPage } from './routes.ts';
+import { useGraph } from '../graph/use.ts';
 
 const lnk = 'text-primary no-underline hover:underline';
 /** A row's link that j/k stop at: highlighted when focused. */
@@ -31,7 +31,7 @@ const dayLabel = (o: Occurrence) =>
   o.date.length === 10 ? weekdayDay(o.date) : o.date.length === 7 ? 'month' : 'year';
 
 export function Calendar() {
-  const v = useVault();
+  const v = useGraph();
   const t = today();
   const year = +t.slice(0, 4);
   const all = occurrences(v, year - 3, year + 1);
@@ -147,7 +147,7 @@ export function NoteDates({ note }: { note: Note }) {
   const dates = datesOf(note).sort(
     (a, b) => Number(b.yearly) - Number(a.yearly) || b.date.localeCompare(a.date),
   );
-  const v = useVault();
+  const v = useGraph();
   if (!dates.length) return null;
   /** The day's daily note, for a one-off date that has one: where the row links. */
   const daily = (d: string) => (d.length === 10 ? v.byId.get(`daily/${d}`) : undefined);

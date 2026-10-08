@@ -3,7 +3,7 @@
 import { beforeAll, expect, test } from 'vitest';
 import { renderToStaticMarkup as render } from 'react-dom/server';
 import { renderBody, loadMdx } from './markdown.ts';
-import { notes } from '../extensions/notes/index.tsx';
+import { notes } from './index.tsx';
 
 beforeAll(() => loadMdx());
 

@@ -1,6 +1,6 @@
 // Keeps the encrypted cache in step with main: render from the cache, ask whether main moved (a 304
 // costs nothing), and if it did, fetch only the blobs not yet cached, each checked against its sha.
-import { isVaultPath, type VaultFile } from '../../extensions/notes/model/note.ts';
+import { type VaultFile } from '../../core/files.ts';
 import {
   decrypt,
   decryptJson,
@@ -75,7 +75,7 @@ export async function sync(
   }
   const tree = await gh.tree(ref.commit);
   const files: Record<string, string> = {};
-  for (const e of tree.entries) if (e.type === 'blob' && isVaultPath(e.path)) files[e.path] = e.sha;
+  for (const e of tree.entries) if (e.type === 'blob') files[e.path] = e.sha;
 
   const have = new Set((await getAll<BlobRecord>('blobs')).map((b) => b.sha));
   const missing = [...new Set(Object.values(files))].filter((s) => !have.has(s));

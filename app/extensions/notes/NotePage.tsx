@@ -9,13 +9,14 @@ import { dateStr } from '../../core/format.ts';
 import { useHost } from '../../core/host.tsx';
 import { NoteActions, NoteSections } from './slots.tsx';
 import { link } from '../../core/route.ts';
-import { renderBody, mdxReady, loadMdx } from '../../core/markdown.ts';
+import { renderBody, mdxReady, loadMdx } from './markdown.ts';
 import { later } from '../../core/later.ts';
 import { cn } from 'cn';
 import { Badge } from '@/components/ui/badge.tsx';
 import { Separator } from '@/components/ui/separator.tsx';
 import { PageHeader } from '@/components/layout.tsx';
 import { Jumps, OnThisPage, RailGroup, Toc, useHeadings, useJumps } from './Rail.tsx';
+import { useGraph } from '../graph/use.ts';
 
 /** The rendered body, in prose. */
 export function NoteBody({
@@ -42,7 +43,8 @@ export function NoteBody({
 const FACET = /^(area|status|circle)\//;
 
 export function NotePage({ note }: { note: Note }) {
-  const { vault: v, source } = useHost();
+  const { source } = useHost();
+  const v = useGraph();
   const d = note.data;
   const tags = asList(d.tags);
   const type = d.type ? String(d.type) : kind(note.id) === 'daily' ? 'daily' : '';

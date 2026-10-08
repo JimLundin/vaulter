@@ -8,11 +8,11 @@ import type { Note } from './model/fields.ts';
 import { titleOf, hrefOf } from './model/fields.ts';
 import { followUpsOf, openOf } from './model/facts.ts';
 import { fmtDay } from '../../core/format.ts';
-import { useVault } from '../../core/host.tsx';
 import { link } from '../../core/route.ts';
 import { cn } from 'cn';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert.tsx';
 import { Field, FieldList, Section } from '@/components/layout.tsx';
+import { useGraph } from '../graph/use.ts';
 
 export const to = (n: Note) => link(hrefOf(n));
 
@@ -72,7 +72,7 @@ export function OpenQuestions({ note }: { note: Note }) {
 }
 
 export function FollowUps({ note }: { note: Note }) {
-  const fu = followUpsOf(note, useVault().byId);
+  const fu = followUpsOf(note, useGraph().byId);
   if (!fu.length) return null;
   return (
     // biome-ignore lint/correctness/useUniqueElementIds: a stable fragment target (#follow-ups); useId would break it
@@ -106,7 +106,7 @@ export function FollowUps({ note }: { note: Note }) {
 }
 
 export function Connections({ note }: { note: Note }) {
-  const edges = useVault().graph.get(note.id) ?? [];
+  const edges = useGraph().graph.get(note.id) ?? [];
   if (!edges.length) return null;
   return (
     // biome-ignore lint/correctness/useUniqueElementIds: a stable fragment target (#connections); useId would break it
@@ -134,7 +134,7 @@ export function Connections({ note }: { note: Note }) {
 }
 
 export function LinkedFrom({ note }: { note: Note }) {
-  const inbound = useVault().backlinks.get(note.id) ?? [];
+  const inbound = useGraph().backlinks.get(note.id) ?? [];
   if (note.id === 'Home' || !inbound.length) return null;
   return (
     // biome-ignore lint/correctness/useUniqueElementIds: a stable fragment target (#linked-from); useId would break it

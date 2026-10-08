@@ -5,17 +5,19 @@ import { go } from '../../core/route.ts';
 import { HomePage } from './Home.tsx';
 import { AreasSidebar } from './Sidebar.tsx';
 import { areaHref, home as homeData } from './data.ts';
+import { graphOf } from '../graph/model/graph.ts';
 
 export const home: Extension = {
   id: 'home',
-  page(path, { vault }) {
+  page(path, host) {
+    const vault = graphOf(host.files);
     const note = vault.byId.get('Home');
     if (path !== '/' || !note) return null;
     return { title: 'Home', width: 'wide', body: <HomePage note={note} /> };
   },
   sidebar: [{ order: 10, view: AreasSidebar }],
-  commands: ({ vault }) =>
-    homeData(vault)
+  commands: (host) =>
+    homeData(graphOf(host.files))
       .areas.filter((a) => a.notes.length)
       .map((a) => ({
         id: `home.area.${a.key}`,

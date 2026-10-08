@@ -5,19 +5,19 @@
 import { Fragment } from 'react';
 import { useEffect, useMemo, useRef } from 'react';
 import { MapPinIcon } from 'lucide-react';
-import type { Vault } from '../graph/model/graph.ts';
+import type { Graph } from '../graph/model/graph.ts';
 import { titleOf, excerptOf, hrefOf, kind, facet, asList } from '../notes/model/fields.ts';
 import { datesOf } from '../notes/model/facts.ts';
 import { fmtDay } from '../../core/format.ts';
 import type { Place, PlaceEvent, PlacesData } from './places-view.ts';
-import { useVault } from '../../core/host.tsx';
 import { link } from '../../core/route.ts';
 import { later } from '../../core/later.ts';
 import { Field, FieldList, PageHeader, Section } from '@/components/layout.tsx';
 import { Button } from '@/components/ui/button.tsx';
 import './places.css';
+import { useGraph } from '../graph/use.ts';
 
-function placesData(v: Vault): PlacesData {
+function placesData(v: Graph): PlacesData {
   // Days: each daily note's `where`, in order. Events: `dates` entries with a `where`.
   const trail = v.notes
     .filter((n) => kind(n.id) === 'daily' && asList(n.data.where).length)
@@ -61,7 +61,7 @@ const daysLabel = (p: Place) =>
 const linkCls = 'text-primary no-underline hover:underline';
 
 export function Places() {
-  const v = useVault();
+  const v = useGraph();
   const data = useMemo(() => placesData(v), [v]);
   // The whole page, so the list's map buttons fly too (places-view.ts listens for data-fly in it).
   const box = useRef<HTMLDivElement>(null);

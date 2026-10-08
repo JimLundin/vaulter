@@ -1,6 +1,6 @@
 // What the vault knows beyond single notes, shared by every feature: lookups, backlinks, activity, topics,
 // relations and when each note last changed. Pure; each part computed on first use and kept. Features
-// derive their own data with perVault (below), so adding one never touches this file.
+// derive their own data with perGraph (below), so adding one never touches this file.
 import { parseVaultLink } from '../../notes/model/paths.ts';
 import {
   plain,
@@ -12,8 +12,9 @@ import {
   topicsOf,
   type Note,
 } from '../../notes/model/fields.ts';
-import { schemaOf, type Schema } from '../../notes/model/schema.ts';
-import { loadNotes, type VaultFile } from '../../notes/model/note.ts';
+import { NO_SCHEMA, schemaFor, type Schema } from '../../notes/model/schema.ts';
+import { loadNotes } from '../../notes/model/note.ts';
+import { type VaultFile } from '../../../core/files.ts';
 import { dateStr, today } from '../../../core/format.ts';
 
 /** Links in the source text: [label](</Path.md#h>) or [label](/Path.md). */
@@ -31,11 +32,11 @@ export interface Edge {
 /** Topical notes: the vault's subjects, not logs, captures, the conventions or Home. */
 export const isTopical = (n: Note) => kind(n.id) === 'note' && n.id !== 'Home';
 
-export type Vault = ReturnType<typeof deriveVault>;
+export type Graph = ReturnType<typeof deriveGraph>;
 
 /** The vault over its notes and its schema (meta/schema.yaml), which every view reads from here.
  * `t`: today, for when notes last changed (dates past it don't count). */
-export function deriveVault(notes: Note[], schema: Schema, t = today()) {
+export function deriveGraph(notes: Note[], schema: Schema, t = today()) {
   const byId = new Map(notes.map((n) => [n.id, n]));
   /** Site href ("/janne/") -> note: what a route points at. */
   const byHref = new Map(notes.map((n) => [hrefOf(n), n]));
@@ -181,12 +182,22 @@ export function deriveVault(notes: Note[], schema: Schema, t = today()) {
   };
 }
 
-/** The vault from its files. Throws if the schema is missing or invalid (app/extensions/notes/model/schema.ts). */
-export const vaultOf = (files: VaultFile[]) => deriveVault(loadNotes(files), schemaOf(files));
+/** The graph of the files' notes, once per files (the host's change only when a file does). A broken
+ * vocabulary file gives an empty one; notes says why (its `blocked`). */
+const graphs = new WeakMap<VaultFile[], Graph>();
+export function graphOf(files: VaultFile[]): Graph {
+  let g = graphs.get(files);
+  if (!g) {
+    const schema = schemaFor(files);
+    g = deriveGraph(loadNotes(files), schema instanceof Error ? NO_SCHEMA : schema);
+    graphs.set(files, g);
+  }
+  return g;
+}
 
-/** A feature's own derived data, computed once per vault: `const datesOf = perVault((v) => ...)`. */
-export function perVault<T>(f: (v: Vault) => T): (v: Vault) => T {
-  const cache = new WeakMap<Vault, T>();
+/** A feature's own derived data, computed once per graph: `const datesOf = perGraph((v) => ...)`. */
+export function perGraph<T>(f: (v: Graph) => T): (v: Graph) => T {
+  const cache = new WeakMap<Graph, T>();
   return (v) => {
     if (!cache.has(v)) cache.set(v, f(v));
     return cache.get(v)!;

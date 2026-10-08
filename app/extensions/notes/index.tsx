@@ -15,13 +15,24 @@ import { Chart } from './Chart.tsx';
 import { RecentSidebar } from './Recent.tsx';
 import { noteSections } from './slots.tsx';
 import './components.css';
+import { graphOf } from '../graph/model/graph.ts';
+import { noteFiles } from './model/problems.ts';
+import { schemaFor } from './model/schema.ts';
 
-const onNote = (host: Host, route: Route) => host.vault.byHref.has(route.path);
-const noteAt = (host: Host, route: Route) => host.vault.byHref.get(route.path)!;
+const onNote = (host: Host, route: Route) => graphOf(host.files).byHref.has(route.path);
+const noteAt = (host: Host, route: Route) => graphOf(host.files).byHref.get(route.path)!;
 
 export const notes: Extension = {
   id: 'notes',
-  page(path, { vault }) {
+  // The vault's files: the notes and the vocabulary. A write that adds a problem to them is refused.
+  files: noteFiles,
+  // Without a readable vocabulary nothing can be shown as it is meant.
+  blocked: (host) => {
+    const s = schemaFor(host.files);
+    return s instanceof Error ? s.message : null;
+  },
+  page(path, host) {
+    const vault = graphOf(host.files);
     const note = vault.byHref.get(path);
     return note
       ? { title: titleOf(note), width: 'wide', body: <NotePage key={note.id} note={note} /> }
@@ -51,8 +62,8 @@ export const notes: Extension = {
     noteSections.add({ order: 80, view: LinkedFrom }),
   ],
   mdx: { NoteList, Timeline, Chart },
-  search: (v) =>
-    v.notes.map((n) => ({
+  search: ({ files }) =>
+    graphOf(files).notes.map((n) => ({
       href: hrefOf(n),
       t: titleOf(n),
       e: excerptOf(n),

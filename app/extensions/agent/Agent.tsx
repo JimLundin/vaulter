@@ -7,7 +7,7 @@ import type { PanelArg } from '../../core/extension.ts';
 import { titleOf } from '../notes/model/fields.ts';
 import { useHost } from '../../core/host.tsx';
 import { link, useRoute } from '../../core/route.ts';
-import { renderBody } from '../../core/markdown.ts';
+import { renderBody } from '../notes/markdown.ts';
 import { later } from '../../core/later.ts';
 import { chat, MODEL_KEY, model, newChat, ready, send, stop, useChat, viewing } from './chat.ts';
 import type { Part, Turn } from './chat.ts';
@@ -36,6 +36,7 @@ import {
   ToolOutput,
 } from '@/components/ai-elements/tool.tsx';
 import { historyPage } from '../editor/routes.ts';
+import { graphOf } from '../graph/model/graph.ts';
 
 const dictates = 'SpeechRecognition' in globalThis || 'webkitSpeechRecognition' in globalThis;
 const VAULT_IT = 'vault it: ';
@@ -45,7 +46,7 @@ export function AgentChat({ arg }: { arg: PanelArg | null; close?: () => void })
   chat.host = host;
   const { turns, busy } = useChat();
   const { path } = useRoute();
-  const note = host.vault.byHref.get(path);
+  const note = graphOf(host.files).byHref.get(path);
   const [input, setInput] = useState(chat.draft);
   const ref = useRef<HTMLTextAreaElement>(null);
   const type = useCallback((t: string) => {

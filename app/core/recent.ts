@@ -1,5 +1,5 @@
-// The notes opened lately on this device, newest first: ⌘K's and the sidebar's Recent. The shell records
-// each route that is a note; what's kept is its href, so a renamed note just drops out.
+// The pages opened lately on this device, newest first: ⌘K's Recent, and the notes' in the sidebar. The
+// shell records each route search knows; what's kept is its href, so a renamed note just drops out.
 import { useSyncExternalStore } from 'react';
 
 const KEY = 'vault-recent';

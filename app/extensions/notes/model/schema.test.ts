@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { schemaOf, parseSchema } from './schema.ts';
 import { checkVault } from './check.ts';
-import { deriveVault } from '../../graph/model/graph.ts';
+import { deriveGraph } from '../../graph/model/graph.ts';
 import { loadNotes } from './note.ts';
 import { SCHEMA_YAML } from './schema.fixture.ts';
 
@@ -72,7 +72,7 @@ describe("the check uses the vault's schema", () => {
       { path: 'B.md', text: NOTE('craft').replace(/# A/, '# B') },
     ];
     expect(checkVault(files).problems).toEqual([]);
-    const v = deriveVault(loadNotes(files), schemaOf(files));
+    const v = deriveGraph(loadNotes(files), schemaOf(files));
     expect(v.graph.get('B')).toEqual([{ label: 'Parts', notes: [v.byId.get('A')] }]);
   });
 });

@@ -10,7 +10,8 @@ import { toString as textOf } from 'mdast-util-to-string';
 import { parseVaultLink } from './paths.ts';
 import { checkMeta } from '../../graph/model/relations.ts';
 import { checkNote, checkDaily, checkCapture, schemaOf, type Schema } from './schema.ts';
-import { loadNotes, type VaultFile } from './note.ts';
+import { loadNotes } from './note.ts';
+import { type VaultFile } from '../../../core/files.ts';
 import { mdxProblems } from './mdx-rules.ts';
 import { isSafeUrl } from './safe-url.ts';
 

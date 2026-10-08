@@ -11,7 +11,7 @@ import {
   type Exchange,
   type Turn,
 } from '../notes/model/capture.ts';
-import type { VaultFile } from '../notes/model/note.ts';
+import type { VaultFile } from '../../core/files.ts';
 
 /** A turn of the chat as the record needs it. */
 export interface ChatTurn {

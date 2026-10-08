@@ -1,6 +1,6 @@
 // A vault in memory: for tests, and a reference for what a backend must do. Writes are steps with
 // history and revert, like git, without the network.
-import type { VaultFile } from '../extensions/notes/model/note.ts';
+import type { VaultFile } from '../core/files.ts';
 import { blobSha } from '../core/blob-sha.ts';
 import {
   Conflict,

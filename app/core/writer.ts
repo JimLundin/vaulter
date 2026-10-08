@@ -1,8 +1,9 @@
 // Staging and committing, for any backend: what the editor and the agent write through. Edits wait in an
 // overlay over the head (kept on the device by the backend, so a reload loses nothing); a commit writes
-// them as one step, refused if the check finds a problem they add, or if a staged file changed meanwhile.
+// them as one step, refused if they add a problem (the features' `files` rules), or if a staged file
+// changed meanwhile.
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { applyChanges, isVaultPath, type VaultFile } from '../extensions/notes/model/note.ts';
+import { applyChanges, type FileRules, type VaultFile } from './files.ts';
 import { blobSha } from './blob-sha.ts';
 import { CheckFailed, Conflict, type Head, type VaultBackend, type Verify } from './backend.ts';
 
@@ -21,18 +22,13 @@ export const applyOverlay = (files: VaultFile[], o: Overlay | null): VaultFile[]
       )
     : files;
 
-/** Problems `after` has that `before` didn't. The check (and the MDX parser it needs) loads on first use. */
-export async function newProblems(before: VaultFile[], after: VaultFile[]): Promise<string[]> {
-  const { checkVault } = await import('../extensions/notes/model/check.ts');
-  const old = new Set(checkVault(before).problems);
-  return checkVault(after).problems.filter((p) => !old.has(p));
-}
-
-/** The gate every write passes: a new problem refuses it. */
-export const verify: Verify = async (before, after) => {
-  const problems = await newProblems(before, after);
-  if (problems.length) throw new CheckFailed(problems);
-};
+/** The gate every write passes: a problem the change adds refuses it. */
+export const gate =
+  (rules: FileRules): Verify =>
+  async (before, after) => {
+    const problems = await rules.problems(before, after);
+    if (problems.length) throw new CheckFailed(problems);
+  };
 
 export interface Writer {
   /** The files at the head, before staged edits. */
@@ -48,6 +44,8 @@ export interface Writer {
   patch: VaultBackend['patch'];
   /** The latest base and overlay, outside render: for code that runs between renders (the agent's tools). */
   current: () => { base: VaultFile[]; overlay: Overlay | null };
+  /** The problems the staged edits add (empty: a commit will pass). */
+  problems: () => Promise<string[]>;
 }
 
 /** The writer as the agent's tools see it: always the latest state, never a render's snapshot. */
@@ -57,6 +55,7 @@ export interface AgentWriter {
   staged: () => string[];
   stage: (path: string, text: string | null) => Promise<void>;
   commit: ((message: string) => Promise<string>) | null;
+  problems: () => Promise<string[]>;
 }
 export const agentWriter = (w: () => Writer): AgentWriter => ({
   base: () => w().current().base,
@@ -67,11 +66,13 @@ export const agentWriter = (w: () => Writer): AgentWriter => ({
   staged: () => Object.keys(w().current().overlay?.files ?? {}),
   stage: (p, t) => w().stage(p, t),
   commit: w().commit ? (m) => w().commit!(m) : null,
+  problems: () => w().problems(),
 });
 
 /** The writer without React: the overlay, staging and the commit over a backend. useWriter wraps it. */
 export function writerCore(
   backend: VaultBackend | null,
+  rules: FileRules,
   base: () => VaultFile[],
   onWritten: (h: Head) => void,
   onOverlay: (o: Overlay | null) => void = () => undefined,
@@ -87,6 +88,7 @@ export function writerCore(
     return r.commit;
   };
   const write = backend?.write;
+  const verify = gate(rules);
   return {
     get overlay() {
       return overlay;
@@ -95,15 +97,13 @@ export function writerCore(
       overlay = (await backend?.keep.get<Overlay>('overlay')) ?? null;
       onOverlay(overlay);
     },
-    /** Refused for a path that isn't a vault file, or deleting a file that doesn't exist: the same rules
-     * for the editor and the agent. */
+    /** Refused for a file no feature keeps, or deleting a file that doesn't exist: the same rules for the
+     * editor and the agent. */
     async stage(path: string, text: string | null) {
       const o = overlay ?? { version: 0, files: {}, from: {} };
       const original = base().find((f) => f.path === path)?.text;
-      if (text !== null && !isVaultPath(path))
-        throw new Error(
-          `${path} isn't a vault file: notes at the root (.md, .mdx), daily/, captures/, meta/ (.md), meta/schema.yaml`,
-        );
+      if (text !== null && !rules.keeps(path))
+        throw new Error(`${path} isn't a file the app keeps: ${rules.what}`);
       if (text === null && original === undefined && typeof o.files[path] !== 'string')
         throw new Error(`no such file: ${path}`);
       const files = { ...o.files };
@@ -149,11 +149,13 @@ export function writerCore(
     revert: backend?.revert
       ? async (sha: string) => written(await backend.revert!(sha, verify))
       : null,
+    problems: () => rules.problems(base(), applyOverlay(base(), overlay)),
   };
 }
 
 export function useWriter(
   backend: VaultBackend | null,
+  rules: FileRules,
   head: Head | null,
   onWritten: (h: Head) => void,
 ): Writer {
@@ -164,6 +166,7 @@ export function useWriter(
     () =>
       writerCore(
         backend,
+        rules,
         () => base.current,
         (h) => {
           base.current = h.files;
@@ -171,7 +174,7 @@ export function useWriter(
         },
         setOverlay,
       ),
-    [backend, onWritten],
+    [backend, rules, onWritten],
   );
   useEffect(() => {
     core.load();
@@ -187,5 +190,6 @@ export function useWriter(
     history: backend?.history ?? null,
     patch: backend?.patch ?? null,
     current: () => ({ base: base.current, overlay: core.overlay }),
+    problems: core.problems,
   };
 }

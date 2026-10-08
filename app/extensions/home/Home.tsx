@@ -5,7 +5,6 @@ import type { Note } from '../notes/model/fields.ts';
 import { facet, titleOf, excerptOf } from '../notes/model/fields.ts';
 import { dayMonth, longDay, shortDay, today } from '../../core/format.ts';
 import { computeBrief } from './brief.ts';
-import { useSchema, useVault } from '../../core/host.tsx';
 import { link, useRoute } from '../../core/route.ts';
 // biome-ignore lint/correctness/noUnresolvedImports: Fragment is in @types/react's namespace, which Biome doesn't follow
 import { Fragment, type ReactNode, useEffect, useRef, useState } from 'react';
@@ -24,6 +23,8 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs.tsx';
 import { Eyebrow, Field, FieldList, Section } from '@/components/layout.tsx';
 import { calendarPage } from '../calendar/routes.ts';
+import { useGraph } from '../graph/use.ts';
+import { useSchema } from '../notes/use.ts';
 
 const lnk = 'text-primary no-underline hover:underline';
 const flat = 'm-0 list-none p-0 [&_li]:m-0';
@@ -107,7 +108,7 @@ const Dated = ({ rows }: { rows: Row[] }) => (
 );
 
 export function Today() {
-  const v = useVault();
+  const v = useGraph();
   const b = computeBrief(v, today());
   const a = (n: Note | null, t: string) =>
     n ? (
@@ -208,7 +209,7 @@ export function Today() {
 }
 
 export function InFocus() {
-  const { active, seen } = home(useVault());
+  const { active, seen } = home(useGraph());
   const { areaOf } = useSchema();
   if (!active.length) return null;
   return (
@@ -270,7 +271,7 @@ export function InFocus() {
 
 /** What else the log mentioned lately (data.ts). */
 export function Recent() {
-  const { recent, seen } = home(useVault());
+  const { recent, seen } = home(useGraph());
   if (!recent.length) return null;
   return (
     <Section title="Recently touched">
@@ -323,7 +324,7 @@ const Opens = ({
 
 /** Every open question, by note (data.ts orders them); each note opens to its questions. */
 export function OpenQuestions() {
-  const { questions } = home(useVault());
+  const { questions } = home(useGraph());
   const [all, setAll] = useState(false);
   if (!questions.length) return null;
   const total = questions.reduce((s, x) => s + x.q.length, 0);
@@ -361,7 +362,7 @@ export function OpenQuestions() {
 
 /** The latest days of the log, then the rest behind a toggle. */
 export function DailyLog() {
-  const { dailies } = home(useVault());
+  const { dailies } = home(useGraph());
   if (!dailies.length) return null;
   const entries = (n: Note) => (n.body.match(/^\s*[-*] /gm) ?? []).length;
   const day = (n: Note) => (
@@ -399,7 +400,7 @@ export function DailyLog() {
 /** Every area, the people and anything untagged, one tab each; the tab is the route's anchor
  * ("#/#work"), so a link can open one and back returns to it. */
 export function AreaTabs() {
-  const v = useVault();
+  const v = useGraph();
   const { areas, people, untagged, byWeight } = home(v);
   const tabs = [
     ...areas

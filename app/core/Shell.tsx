@@ -154,10 +154,10 @@ export function Shell({
         : [],
     ),
   );
-  // Notes opened, for Recent.
+  // Pages opened that search knows (notes, topics, pages), for Recent.
   useEffect(() => {
-    if (host.vault.byHref.has(route.path)) opened(route.path);
-  }, [route.path, host.vault]);
+    if (host.index.has(route.path)) opened(route.path);
+  }, [route.path, host.index]);
   const panels = host.extensions.flatMap((e) =>
     e.panel && (!e.panel.when || e.panel.when(host)) ? [e.panel] : [],
   );

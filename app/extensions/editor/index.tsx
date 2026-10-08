@@ -17,9 +17,10 @@ import type { Host } from '../../core/host.tsx';
 import type { Route } from '../../core/route.ts';
 import { noteActions } from '../notes/slots.tsx';
 import { changesPage, editPage, historyPage, renamePage } from './routes.ts';
+import { graphOf } from '../graph/model/graph.ts';
 
-const onNote = (host: Host, route: Route) => host.vault.byHref.has(route.path);
-const fileAt = (host: Host, route: Route) => host.vault.byHref.get(route.path)?.path ?? '';
+const onNote = (host: Host, route: Route) => graphOf(host.files).byHref.has(route.path);
+const fileAt = (host: Host, route: Route) => graphOf(host.files).byHref.get(route.path)?.path ?? '';
 
 export const editor: Extension = {
   id: 'editor',

@@ -4,7 +4,6 @@ import { CheckIcon } from 'lucide-react';
 import { structuredPatch } from 'diff';
 import { toast } from 'sonner';
 import { hrefForId } from '../notes/model/paths.ts';
-import { applyOverlay, newProblems } from '../../core/writer.ts';
 import { CheckFailed, Conflict } from '../../core/backend.ts';
 import { useWriter } from '../../core/host.tsx';
 import { go, link } from '../../core/route.ts';
@@ -43,11 +42,12 @@ export function Changes() {
   const [message, setMessage] = useState('');
   const id = useId();
   const [state, setState] = useState<{ busy?: boolean; error?: string; done?: string }>({});
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the overlay and the base are the triggers (an edit, a sync); w.problems reads both itself
   useEffect(() => {
     setProblems(null);
     if (!w.overlay) return;
     let live = true;
-    later(newProblems(w.base, applyOverlay(w.base, w.overlay)).then((p) => live && setProblems(p)));
+    later(w.problems().then((p) => live && setProblems(p)));
     return () => {
       live = false;
     };

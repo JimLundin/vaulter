@@ -4,10 +4,14 @@ import { fakeGitHub } from './fake-github.ts';
 import { closeDb, newCacheKey } from '../../core/store.ts';
 import { forget } from '../../core/unlock.ts';
 import { CheckFailed, Conflict, TRAILER } from '../../core/backend.ts';
-import { verify } from '../../core/writer.ts';
+import { gate } from '../../core/writer.ts';
+import { fileRules } from '../../core/extension.ts';
+import { noteFiles } from '../../extensions/notes/model/problems.ts';
 import { readCache } from './sync.ts';
 import { githubBackend } from './index.ts';
 import { SCHEMA } from '../../extensions/notes/model/schema.fixture.ts';
+
+const verify = gate(fileRules([{ id: 'notes', files: noteFiles }]));
 
 const NOTE = (title: string, extra = '') =>
   `---\ntype: topic\naliases: []\ntags: [area/craft, programming]\ncreated: 2026-10-03\nsummary: "${title}."\n---\n# ${title}\n\n${extra}\n\n## See also\n`;

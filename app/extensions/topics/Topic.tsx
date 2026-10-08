@@ -2,15 +2,16 @@
 // most often appear alongside it. Built from tags alone.
 import type { Note } from '../notes/model/fields.ts';
 import { topicsOf, topicHref, titleOf, excerptOf, facet } from '../notes/model/fields.ts';
-import { useSchema, useVault } from '../../core/host.tsx';
 import { link } from '../../core/route.ts';
 import { NoteLinks } from '../notes/sections.tsx';
 import { cn } from 'cn';
 import { Badge } from '@/components/ui/badge.tsx';
 import { PageHeader, Section } from '@/components/layout.tsx';
+import { useGraph } from '../graph/use.ts';
+import { useSchema } from '../notes/use.ts';
 
 export function Topic({ name }: { name: string }) {
-  const v = useVault();
+  const v = useGraph();
   const { areaOf, types, statusRank } = useSchema();
   const list = v.topics.get(name) ?? [];
   const { degree } = v.signals;

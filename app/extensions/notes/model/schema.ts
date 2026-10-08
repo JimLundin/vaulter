@@ -3,7 +3,8 @@
 // meta/schema.yaml, read by schemaOf; what stays here is mechanics: the frontmatter fields and the rules.
 import { load } from 'js-yaml';
 import { dateStr } from '../../../core/format.ts';
-import { SCHEMA_PATH, type Frontmatter, type VaultFile } from './note.ts';
+import { SCHEMA_PATH, type Frontmatter } from './note.ts';
+import { type VaultFile } from '../../../core/files.ts';
 import type { Predicate } from '../../graph/model/relations.ts';
 import { bodyHeadings, CAPTURE_RE, headingsFor, STAMP_RE } from './capture.ts';
 
@@ -156,6 +157,21 @@ export function parseSchema(file: unknown): Schema {
 
 /** No vocabulary: what the app has before the vault loads. */
 export const NO_SCHEMA = parseSchema({});
+
+/** schemaOf, once per files, with what's wrong as an Error instead of a throw. */
+const schemas = new WeakMap<VaultFile[], Schema | Error>();
+export function schemaFor(files: VaultFile[]): Schema | Error {
+  let s = schemas.get(files);
+  if (!s) {
+    try {
+      s = schemaOf(files);
+    } catch (e) {
+      s = e as Error;
+    }
+    schemas.set(files, s);
+  }
+  return s;
+}
 
 /** The vault's schema, from meta/schema.yaml among its files. Throws, naming the file, if it's missing or wrong. */
 export function schemaOf(files: VaultFile[]): Schema {

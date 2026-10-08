@@ -2,6 +2,10 @@ import { expect, test } from 'vitest';
 import { memoryBackend } from '../backends/memory.ts';
 import { CheckFailed, Conflict, type Head } from './backend.ts';
 import { writerCore } from './writer.ts';
+import { fileRules } from './extension.ts';
+import { noteFiles } from '../extensions/notes/model/problems.ts';
+
+const RULES = fileRules([{ id: 'notes', files: noteFiles }]);
 import { SCHEMA } from '../extensions/notes/model/schema.fixture.ts';
 
 const NOTE = (title: string, extra = '') =>
@@ -16,6 +20,7 @@ async function setup() {
   let head = (await m.backend.refresh())!;
   const w = writerCore(
     m.backend,
+    RULES,
     () => head.files,
     (h: Head) => {
       head = h;
@@ -47,7 +52,9 @@ test('staging the original text again unstages it', async () => {
 
 test('staging is refused for a path that is not a vault file, or deleting a file that does not exist', async () => {
   const { w } = await setup();
-  await expect(w.stage('notes/Gamma.md', NOTE('Gamma'))).rejects.toThrow(/isn't a vault file/);
+  await expect(w.stage('notes/Gamma.md', NOTE('Gamma'))).rejects.toThrow(
+    /isn't a file the app keeps/,
+  );
   await expect(w.stage('Nobody.md', null)).rejects.toThrow(/no such file: Nobody.md/);
   expect(w.overlay).toBeNull();
   // A new file staged, then deleted: unstaged.
@@ -73,6 +80,7 @@ test('a file changed on the vault since it was staged is a conflict, for any bac
   let head = (await m.backend.refresh())!;
   const w = writerCore(
     m.backend,
+    RULES,
     () => head.files,
     (h) => {
       head = h;

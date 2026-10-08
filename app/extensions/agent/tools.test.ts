@@ -3,7 +3,8 @@ import { MockLanguageModelV4, convertArrayToReadableStream } from 'ai/test';
 import { memoryBackend } from '../../backends/memory.ts';
 import { agentWriter, writerCore, type Writer } from '../../core/writer.ts';
 import { search, searchIndex } from '../../core/search.ts';
-import { vaultOf } from '../graph/model/graph.ts';
+import { fileRules } from '../../core/extension.ts';
+import type { Host } from '../../core/host.tsx';
 import { SCHEMA } from '../notes/model/schema.fixture.ts';
 import { notes } from '../notes/index.tsx';
 import { editor } from '../editor/index.tsx';
@@ -65,6 +66,7 @@ async function writer(extra: Record<string, string> = {}) {
   let head = (await m.backend.refresh())!;
   const core = writerCore(
     m.backend,
+    fileRules([notes]),
     () => head.files,
     (h) => {
       head = h;
@@ -81,11 +83,12 @@ async function writer(extra: Record<string, string> = {}) {
     history: m.backend.history,
     patch: m.backend.patch,
     current: () => ({ base: head.files, overlay: core.overlay }),
+    problems: core.problems,
   });
   const aw = agentWriter(w);
   const ctx: AgentContext = {
     w: aw,
-    search: (q) => search(searchIndex(notes.search!(vaultOf(aw.files()))), q),
+    search: (q) => search(searchIndex(notes.search!({ files: aw.files() } as Host)), q),
   };
   return { ...m, ctx };
 }
@@ -139,7 +142,7 @@ test('writeFile refuses a path outside the vault', async () => {
   let out = '';
   for await (const p of run.stream) if (p.type === 'tool-result') out = JSON.stringify(p.output);
   await run.done;
-  expect(out).toMatch(/isn't a vault file/);
+  expect(out).toMatch(/isn't a file the app keeps/);
   expect(ctx.w.staged()).toEqual([]);
 });
 
