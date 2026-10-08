@@ -167,9 +167,10 @@ export function ConversationSurface({
       )}
     >
       <div
+        data-reading-column={page ? '' : undefined}
         className={cn(
           'flex min-h-0 min-w-0 flex-1 flex-col',
-          !mobile && page && 'mx-auto w-full max-w-3xl',
+          !mobile && page && 'mx-auto w-full max-w-[var(--reading-width)]',
         )}
       >
         {mobile ? (
@@ -269,9 +270,8 @@ export function Composer({ children }: { children: ReactNode }) {
     <fieldset
       aria-label="Message composer"
       className={cn(
-        'relative min-w-0 shrink-0 border bg-background p-1 shadow-xs focus-within:ring-2 focus-within:ring-ring/50 [&_textarea]:max-h-64 [&_textarea]:resize-none [&_textarea]:border-0 [&_textarea]:bg-transparent [&_textarea]:px-3 [&_textarea]:pt-3 [&_textarea]:placeholder:text-subtle-foreground [&_textarea]:placeholder:text-sm [&_textarea]:shadow-none [&_textarea]:focus-visible:ring-0',
+        'min-w-0 shrink-0 border bg-background p-1 shadow-xs focus-within:ring-2 focus-within:ring-ring/50 [&_form]:flex [&_form]:min-w-0 [&_form]:items-center [&_textarea]:h-11 [&_textarea]:min-h-11 [&_textarea]:min-w-0 [&_textarea]:flex-1 [&_textarea]:field-sizing-fixed [&_textarea]:resize-none [&_textarea]:border-0 [&_textarea]:bg-transparent [&_textarea]:px-3 [&_textarea]:py-3 [&_textarea]:leading-5 [&_textarea]:placeholder:text-subtle-foreground [&_textarea]:placeholder:text-sm [&_textarea]:shadow-none [&_textarea]:focus-visible:ring-0',
         'rounded-2xl [&_textarea]:rounded-xl',
-        '[&_textarea]:min-h-[var(--composer-height)] [&_textarea]:pb-[var(--composer-clearance)]',
       )}
     >
       {children}
@@ -280,7 +280,7 @@ export function Composer({ children }: { children: ReactNode }) {
 }
 export function ComposerActions({ voice, children }: { voice?: ReactNode; children: ReactNode }) {
   return (
-    <div className="absolute right-2 bottom-2 flex items-center gap-1">
+    <div className="flex shrink-0 items-center gap-1">
       <div className="hidden md:contents">{voice}</div>
       {children}
     </div>

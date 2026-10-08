@@ -25,6 +25,7 @@ import {
   SearchSurface,
   SettingField,
   SettingsPage,
+  SettingsMenu,
   SettingsSection,
   ThemeSwitch,
   Stack,
@@ -43,6 +44,8 @@ function Fixture() {
   const [search, setSearch] = useState(false);
   const [review, setReview] = useState(false);
   const [panel, setPanel] = useState(false);
+  const [settings, setSettings] = useState(false);
+  const [calendar, setCalendar] = useState('Initial preference');
   return (
     <NavigationSuite
       status="Synced"
@@ -50,9 +53,11 @@ function Fixture() {
       destinations={[{ label: 'Agent', href: '#agent', icon: 'sparkles', current: true }]}
       actions={['Settings', 'Help', 'Account', 'Extra'].map((label) => ({
         label,
-        href: `#${label}`,
+        href: label === 'Settings' ? undefined : `#${label}`,
+        onSelect: label === 'Settings' ? () => setSettings(true) : undefined,
         icon: 'settings',
-        current: false,
+        current: label === 'Settings' && settings,
+        expanded: label === 'Settings' ? settings : undefined,
       }))}
       primary={{
         expanded: <Button onClick={() => setPanel(true)}>Open agent</Button>,
@@ -117,6 +122,22 @@ function Fixture() {
           <Button onClick={() => setReview(true)}>Open review</Button>
         </SettingsSection>
       </SettingsPage>
+      <SettingsMenu
+        open={settings}
+        onClose={() => setSettings(false)}
+        features={[
+          {
+            name: 'Calendar',
+            content: (
+              <Input
+                aria-label="Calendar preference"
+                value={calendar}
+                onChange={(event) => setCalendar(event.currentTarget.value)}
+              />
+            ),
+          },
+        ]}
+      />
       <SearchSurface open={search} onClose={() => setSearch(false)}>
         <Command>
           <CommandInput aria-label="Search query" />

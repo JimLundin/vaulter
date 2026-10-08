@@ -4,16 +4,14 @@
 // (lib/unstyled.tsx).
 import { cva } from 'class-variance-authority';
 import type { ComponentProps, ReactNode } from 'react';
-import { Button } from './parts/button.tsx';
 import { Icon, type IconName } from './icons.tsx';
 import type { Unstyled } from './lib/unstyled.tsx';
 import { cn } from './lib/utils.ts';
 import { AvatarFallback, Avatar as AvatarPart } from './parts/avatar.tsx';
 import { Badge } from './parts/badge.tsx';
-import { Drawer, DrawerContent, DrawerTitle } from './parts/drawer.tsx';
 import { useIsMobile } from './hooks/use-mobile.ts';
-import { useRestoreFocus } from './hooks/use-restore-focus.ts';
 import { useViewport } from './hooks/use-viewport.ts';
+import { MenuSheet } from './sheet.tsx';
 import { ItemGroup as ItemGroupPart, Item as ItemPart } from './parts/item.tsx';
 import { Kbd as KbdPart } from './parts/kbd.tsx';
 import { SidebarMenu as SidebarMenuPart, Sidebar as SidebarPart } from './parts/sidebar.tsx';
@@ -505,10 +503,40 @@ export const Brand = ({ status }: { status?: ReactNode }) => (
  * on mobile (a page's fields, its links). */
 export function Page({ aside, children }: { aside?: ReactNode; children?: ReactNode }) {
   return (
-    <div className="flex flex-col gap-8 px-[var(--page-inset)] py-[var(--page-block)] md:flex-row md:gap-12">
-      <article className="flex min-w-0 flex-1 flex-col gap-4 md:max-w-3xl">{children}</article>
+    <div className="flex w-full flex-col justify-center gap-8 px-[var(--page-inset)] py-[var(--page-block)] md:flex-row md:gap-12">
+      <article
+        data-reading-column=""
+        className="mx-auto flex w-full min-w-0 flex-1 flex-col gap-4 md:mx-0 md:max-w-[var(--reading-width)]"
+      >
+        {children}
+      </article>
       {aside ? <aside className="flex shrink-0 flex-col gap-5 md:w-[260px]">{aside}</aside> : null}
     </div>
+  );
+}
+
+/** Feature screens share a centered reading column; compact space uses its full width. */
+export function FeaturePage({
+  title,
+  description,
+  actions,
+  children,
+}: {
+  title: string;
+  description?: string;
+  actions?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <article className="w-full md:px-[var(--page-inset)] md:py-[var(--page-block)]">
+      <div
+        data-reading-column=""
+        className="mx-auto flex w-full max-w-[var(--reading-width)] flex-col md:gap-6"
+      >
+        <PageHeader title={title} description={description} actions={actions} />
+        {children}
+      </div>
+    </article>
   );
 }
 
@@ -607,56 +635,31 @@ export function NavigationSheet({
   entries: { href: string; label: string; icon: IconName; active: boolean }[];
   footer?: ReactNode;
 }) {
-  const restoreFocus = useRestoreFocus(open);
   return (
-    <Drawer
-      open={open}
-      onOpenChange={(next) => {
-        if (!next) onClose();
-      }}
-    >
-      <DrawerContent
-        aria-describedby={undefined}
-        onCloseAutoFocus={restoreFocus}
-        className="pb-[max(16px,env(safe-area-inset-bottom))]"
+    <MenuSheet open={open} onClose={onClose} title="Menu" header={brand}>
+      <nav
+        aria-label="Main navigation"
+        className="flex min-h-0 flex-col overflow-y-auto border-y px-2 py-2"
       >
-        <DrawerTitle className="sr-only">Menu</DrawerTitle>
-        <div data-brand="" className="flex items-center justify-between gap-3 px-4 pt-4 pb-5">
-          {brand}
-          <Button
-            variant="ghost"
-            size="icon-lg"
-            className="size-11 rounded-none"
-            aria-label="Close menu"
+        {entries.map((entry) => (
+          <a
+            key={entry.href}
+            href={entry.href}
+            aria-current={entry.active ? 'page' : undefined}
             onClick={onClose}
+            className={cn(
+              'flex min-h-14 items-center gap-3 px-4 text-copy hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring',
+              entry.active && 'bg-muted font-medium',
+            )}
           >
-            <Icon name="close" size="lg" />
-          </Button>
-        </div>
-        <nav
-          aria-label="Main navigation"
-          className="flex min-h-0 flex-col overflow-y-auto border-y px-2 py-2"
-        >
-          {entries.map((entry) => (
-            <a
-              key={entry.href}
-              href={entry.href}
-              aria-current={entry.active ? 'page' : undefined}
-              onClick={onClose}
-              className={cn(
-                'flex min-h-14 items-center gap-3 px-4 text-copy hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring',
-                entry.active && 'bg-muted font-medium',
-              )}
-            >
-              <Icon name={entry.icon} size="lg" />
-              <span className="flex-1">{entry.label}</span>
-              <Icon name="chevron-right" size="sm" />
-            </a>
-          ))}
-        </nav>
-        {!!footer && <div className="flex flex-col px-4 pt-3">{footer}</div>}
-      </DrawerContent>
-    </Drawer>
+            <Icon name={entry.icon} size="lg" />
+            <span className="flex-1">{entry.label}</span>
+            <Icon name="chevron-right" size="sm" />
+          </a>
+        ))}
+      </nav>
+      {!!footer && <div className="flex flex-col px-4 pt-3">{footer}</div>}
+    </MenuSheet>
   );
 }
 

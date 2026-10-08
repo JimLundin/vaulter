@@ -18,4 +18,8 @@ export interface Navigation {
   href: string;
   icon?: IconName;
   kind?: 'destination' | 'action';
+  /** An action can open a menu over the current destination instead of following its href. */
+  onSelect?: () => void;
+  current?: boolean;
+  expanded?: boolean;
 }

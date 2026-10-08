@@ -30,8 +30,8 @@ export function Frame({
   failed: boolean;
   signOut: (() => Promise<void>) | null;
   onSearch: () => void;
-  /** The primary action: at the sidebar's foot on desktop, floating above the bar on a phone. */
-  primary?: { expanded: ReactNode; compact: ReactNode };
+  /** Optional primary controls: a sidebar control and/or a floating phone control. */
+  primary?: { expanded?: ReactNode; compact?: ReactNode };
   panel?: ReactNode;
   closePanel: () => void;
   children: ReactNode;
@@ -55,7 +55,15 @@ export function Frame({
         }
         search={{ label: 'Search or ask…', keys: '⌘K', onSelect: onSearch }}
         destinations={navigation.filter((entry) => entry.kind !== 'action').map(place)}
-        actions={navigation.filter((entry) => entry.kind === 'action').map(place)}
+        actions={navigation
+          .filter((entry) => entry.kind === 'action')
+          .map((entry) => ({
+            ...place(entry),
+            href: entry.onSelect ? undefined : link(entry.href),
+            onSelect: entry.onSelect,
+            current: entry.current ?? current(entry.href),
+            expanded: entry.expanded,
+          }))}
         primary={primary}
         footer={
           !!signOut && (

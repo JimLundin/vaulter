@@ -51,6 +51,7 @@ export interface NavigationAction {
   onSelect?: () => void;
   keys?: string;
   current?: boolean;
+  expanded?: boolean;
 }
 
 export function NavigationSuite({
@@ -70,9 +71,9 @@ export function NavigationSuite({
   search: { label: string; keys?: string; onSelect: () => void };
   destinations: NavigationDestination[];
   actions: NavigationAction[];
-  /** The one primary action: at the sidebar's foot on desktop, floating above the bar on a phone. A
-   * product may fill the two places differently (a labelled button, a voice control). */
-  primary?: { expanded: ReactNode; compact: ReactNode };
+  /** Optional primary controls: at the sidebar's foot and floating above the phone bar. A product
+   * can supply only the phone control when the desktop destination already covers the action. */
+  primary?: { expanded?: ReactNode; compact?: ReactNode };
   /** Account controls under everything else (sign out). */
   footer?: ReactNode;
   /** Keyboard hints under the screen; desktop only. */
@@ -160,6 +161,8 @@ export function NavigationSuite({
               {actions.map((action) => (
                 <SidebarMenuItem key={action.label}>
                   <SidebarMenuButton
+                    aria-label={action.label}
+                    aria-expanded={action.expanded}
                     asChild={!!action.href}
                     isActive={!!action.current}
                     onClick={action.href ? undefined : action.onSelect}
@@ -210,6 +213,7 @@ export function NavigationSuite({
                   icon={action.icon}
                   label={action.label}
                   current={action.current}
+                  expanded={action.expanded}
                   href={action.href}
                   onClick={action.href ? undefined : action.onSelect}
                 />

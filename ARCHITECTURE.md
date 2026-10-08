@@ -48,6 +48,11 @@ needed. Product passes dependencies and optional links explicitly. A workflow ne
 workflow, including in tests. For example, chat receives an optional history URL; it does not know
 where History lives. Product also supplies rename's tool factory to chat.
 
+Keep a workflow's configurable fields in its own settings view, exported alongside its other views.
+Product passes `{ name, content }` entries to `SettingsMenu`; the kit groups each entry under that
+feature's name. Removing the feature also removes that entry. Application preferences such as
+Appearance are separate sections. Features without preferences need no empty settings section.
+
 To remove History, delete `workflows/history/` and remove its import, route, navigation, command,
 page branch and optional history URLs from `product.tsx`. To remove rename, delete
 `workflows/rename-note/` and remove the lazy tool binding from Product. Run typecheck, tests and build.
@@ -138,6 +143,12 @@ Conversation containers have separate mobile and desktop compositions. Mobile us
 viewport with tighter padding, smaller heading/feed spacing and a compact composer; desktop keeps
 a reading-width column. `MobileActionButton` has an accessible label but no visible text; only its
 primary AI variant is circular. The bottom bar retains 44px touch targets and device safe-area padding.
+Menu, Search and Settings are the fixed phone controls. Settings opens over the current feature,
+preserving its route and draft: a centered dialog on desktop, the same bottom drawer as Menu on a
+phone. Open settings fields keep their DOM and focus through resizing. `/settings/` remains a direct
+entry to that menu over Agent. Feature screens use the kit's centered `FeaturePage` reading column;
+Agent shares its width token. The composer is a fixed single row with trailing controls; Shift+Enter
+can still insert newlines, which scroll inside the field.
 
 ## Browser and deployment
 

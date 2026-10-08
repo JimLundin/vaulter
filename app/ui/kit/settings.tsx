@@ -1,19 +1,45 @@
 // One settings tree: rows stack in compact space and form two columns when expanded.
 import type { ReactNode } from 'react';
-import { useIsMobile } from './hooks/use-mobile.ts';
 import { Label } from './parts/label.tsx';
-import { PageHeader } from './app.tsx';
+import { FeaturePage } from './app.tsx';
+import { MenuSheet } from './sheet.tsx';
 
 export function SettingsPage({ children }: { children: ReactNode }) {
-  const mobile = useIsMobile();
   return (
-    <article
-      data-layout={mobile ? 'mobile-settings' : 'desktop-settings'}
-      className="flex min-h-full flex-col bg-surface md:max-w-4xl md:gap-8 md:bg-background md:px-[var(--page-inset)] md:py-[var(--page-block)]"
-    >
-      <PageHeader title="Settings" description="Preferences for this device" />
+    <FeaturePage title="Settings" description="Preferences for this device">
       <div className="flex flex-col gap-6 py-6 md:gap-8 md:py-0">{children}</div>
-    </article>
+    </FeaturePage>
+  );
+}
+
+/** Product supplies feature-owned fields. This menu guarantees each is grouped under its name. */
+export function SettingsMenu({
+  open,
+  onClose,
+  features,
+  children,
+}: {
+  open: boolean;
+  onClose: () => void;
+  features: { name: string; content: ReactNode }[];
+  children?: ReactNode;
+}) {
+  return (
+    <MenuSheet
+      open={open}
+      onClose={onClose}
+      title="Settings"
+      description="Preferences for this device"
+    >
+      <div className="flex flex-col gap-6 bg-surface py-4 md:gap-8 md:bg-background md:px-6">
+        {children}
+        {features.map((feature) => (
+          <SettingsSection key={feature.name} title={feature.name}>
+            {feature.content}
+          </SettingsSection>
+        ))}
+      </div>
+    </MenuSheet>
   );
 }
 

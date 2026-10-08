@@ -13,10 +13,11 @@ reference screens illustrate the design; they do not register app features.
 | `parts/`, `hooks/` | private shadcn primitives and their hooks |
 | `app.tsx` | spacing, typography, pages, sidebar and mobile frame |
 | `overlay.tsx` | one dialog tree, centered or bottom-aligned; full-screen search in compact space |
+| `sheet.tsx` | shared menu drawer, centered in expanded space and draggable from the bottom in compact space |
 | `navigation.tsx` | `NavigationSuite`: one navigation as a sidebar or a bottom bar |
 | `conversation.tsx` | mobile agent screen, desktop reading column, composer and message presentation |
 | `screens.tsx` | mobile search screen and history touch rows, desktop palette and commit list |
-| `settings.tsx` | mobile full-width settings sections and desktop form rows |
+| `settings.tsx` | feature-named settings menu and shared form rows |
 | `surfaces.tsx` | gates, preview notice, tool results, panels and unified diffs |
 | `chart.tsx`, `diff.tsx`, `map.tsx` | accessible charts, code diffs, lazy map presentation |
 | `styles.css`, `theme.tsx` | zinc color tokens, light/dark/system theme |
@@ -53,14 +54,16 @@ adds one.
 | Sidebar list of destinations | Menu sheet rising from the bar | `NavigationSuite` → `NavigationSheet` |
 | Sidebar search field (⌘K) | Search icon in the bar | `NavigationSuite` `search` |
 | Sidebar footer rows (Settings) | Icons in the bar | `NavigationSuite` `actions` |
-| Primary action at the sidebar's foot | Floating control above the bar | `NavigationSuite` `primary` |
+| Optional primary sidebar control | Optional floating control above the bar | `NavigationSuite` `primary` |
 | Brand and sync status at the sidebar's top | Header strip | `Brand`, `MobileHeader` |
 | Keyboard-hint footer | Not shown | `WorkspaceFrame` `hints` |
 | Page header at the top of the reading column | Bordered header strip | `PageHeader` |
 | Centered dialog | Bottom-aligned dialog | `Overlay` |
+| Settings dialog over the current feature | Settings drawer, sharing Menu's surface | `SettingsMenu` → `MenuSheet` |
 | Side panel (wide) or centered dialog | Full-screen dialog | `ConversationPanel` |
 | Labelled toolbar buttons | Icon buttons with an `aria-label` | `ConversationSurface` |
-| Form rows: label left, control right | The same fields stacked vertically | `SettingsPage`, `SettingField` |
+| Form rows: label left, control right | The same fields stacked vertically | `SettingsMenu`, `SettingField` |
+| One-row composer with trailing controls | The same row behind the keyboard control | `Composer`, `ComposerActions` |
 | History rows with labelled Revert | The same rows with an icon for Revert | `HistoryEntry` |
 | Wrapping prompt strip | Horizontally scrolling prompt strip | `PromptSuggestions` |
 
@@ -71,6 +74,13 @@ screen keeps. The bottom bar keeps the first three actions beside Menu and Searc
 actions move into the menu. Ordinary bar controls are square and icon-only; the voice action floats
 above them as a circle. `Frame` hands both lists to `NavigationSuite`, which picks the shape. Adding a feature means adding an entry, not editing two
 layouts.
+
+**Feature preferences are assembled once.** `SettingsMenu` takes `{ name, content }` entries from
+Product, using each name as its section heading. Fields and persistence remain in the feature's
+settings view; the kit owns grouping and arrangement. Appearance stays an application section.
+Settings opens over the current destination without changing its route or discarding its draft.
+`FeaturePage` centers History and other screens on the same `--reading-width` as Agent. Page text
+remains left aligned within that centered column.
 
 ### How a shape is decided
 
@@ -92,8 +102,10 @@ that works:
 
    Controls use `text-control` / `text-sm` (14). Fields use `text-field` (14 with a mouse, 16
    when touch is available, preventing mobile focus zoom). Keycaps, counts and citations use
-   `text-glyph` (11). `--page-inset`, `--page-block`, `--composer-height` and
-   `--composer-clearance` resize spacing and the composer centrally.
+   `text-glyph` (11). `--page-inset` and `--page-block` resize spacing centrally;
+   `--reading-width` gives feature screens one centered content width. The composer stays 44px high
+   inside a 54px surface at every size, with controls beside the field. Long drafts and explicit
+   newlines scroll inside that single row.
    Radii have roles and don't change by device: `rounded-md` controls, `rounded-lg` fields,
    `rounded-xl` cards and rows, `rounded-2xl` docked surfaces such as the composer.
 2. **Pointer, not width.** `styles.css` applies a 44px minimum target whenever **any pointer** is
@@ -118,7 +130,8 @@ when expanding into a sidebar.
 Mobile has a brand/status header, icon toolbar, edge-to-edge live transcript, footer navigation with
 an independent floating microphone, optional keyboard composer, separate prompt strip, full-screen
 agent and search overlays, and bottom-sheet navigation. Desktop has the sidebar, reading column, labeled
-actions, keyboard hints and a side panel. Settings and history use device-specific form and list
+actions, keyboard hints and a side panel. Settings shares Menu's bottom drawer on mobile and centers
+as a dialog on desktop; the same feature-named sections rearrange inside it. History uses shared list
 compositions. The thresholds live in `styles.css`; React reads the same emitted CSS tokens. The
 workspace and full-screen dialogs follow `visualViewport` so a mobile keyboard can reduce their available height.
 An active keyboard draft remains when its composer is collapsed.
@@ -134,6 +147,7 @@ server on port 4179 and leaves the design-review server on 4178 running. It uses
 at `tests/browser.html` and the sample preview, with no private vault or paid API.
 
 The suite runs at phone, desktop and touch-desktop sizes. It checks touch targets, navigation/current
-state, growing action lists, keyboard tab/checkbox behavior, Escape and focus return, search selection
+state, centered feature columns, feature-named settings drawers, growing action lists, keyboard
+tab/checkbox behavior, Escape and focus return, search selection
 and drafts through size changes, collapsed typing, Enter/Shift+Enter/IME, and a simulated visual
 viewport resize. A physical phone keyboard and microphone still need device validation.

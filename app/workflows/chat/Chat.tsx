@@ -174,6 +174,7 @@ export function Chat({
             >
               <Textarea
                 ref={ref}
+                rows={1}
                 aria-label="Message"
                 placeholder={busy ? 'Working…' : 'Type a message…'}
                 value={input}

@@ -20,15 +20,13 @@ import { later } from './ui/later.ts';
 import {
   Alert,
   AlertDescription,
-  Button,
   Gate,
   Heading,
-  Icon,
   Link,
   Overlay,
   Page,
   PreviewBar,
-  SettingsPage,
+  SettingsMenu,
   SettingsSection,
   SettingField,
   VoiceButton,
@@ -44,7 +42,6 @@ import type { Command, Navigation } from './ui/command.ts';
 import {
   ChatPage,
   ChatPanel,
-  ChatIndicator,
   ChatSettings,
   openAITranscription,
   useTranscription,
@@ -106,6 +103,7 @@ export function OpenProduct({
   const layout = useLayout();
   const [search, setSearch] = useState(false);
   const [help, setHelp] = useState(false);
+  const [settings, setSettings] = useState(false);
   const [panel, setPanel] = useState(
     () => layout === 'wide' && localStorage.getItem('vault-panel') === 'agent',
   );
@@ -115,10 +113,15 @@ export function OpenProduct({
     if (open) localStorage.setItem('vault-panel', 'agent');
     else localStorage.removeItem('vault-panel');
   };
-  const onAgent = route.path === '/' || !!agentRoute.match(route.path);
-  const onHistory = !!historyRoute.match(route.path);
   const onSettings = !!settingsRoute.match(route.path);
-  const title = onAgent ? 'Agent' : onHistory ? 'History' : onSettings ? 'Settings' : 'Not found';
+  const onAgent = route.path === '/' || !!agentRoute.match(route.path) || onSettings;
+  const onHistory = !!historyRoute.match(route.path);
+  const settingsOpen = settings || onSettings;
+  const closeSettings = () => {
+    setSettings(false);
+    if (onSettings) go(agentRoute.href());
+  };
+  const title = settingsOpen ? 'Settings' : onAgent ? 'Agent' : onHistory ? 'History' : 'Not found';
   const remoteModel = useMemo(
     () =>
       session.secrets?.openai
@@ -150,7 +153,15 @@ export function OpenProduct({
     ...(vault.history
       ? [{ label: 'History', href: historyRoute.href(), icon: 'history' as const }]
       : []),
-    { label: 'Settings', href: settingsRoute.href(), icon: 'settings', kind: 'action' },
+    {
+      label: 'Settings',
+      href: settingsRoute.href(),
+      icon: 'settings',
+      kind: 'action',
+      onSelect: () => setSettings(true),
+      current: settingsOpen,
+      expanded: settingsOpen,
+    },
   ];
   const index = useMemo(() => noteSearchIndex(files!), [files]);
   const ask = (text?: string) => {
@@ -216,7 +227,7 @@ export function OpenProduct({
       label: 'Settings',
       group: 'Go to',
       icon: 'settings',
-      run: () => go(settingsRoute.href()),
+      run: () => setSettings(true),
     },
     {
       id: 'agent.ask',
@@ -323,18 +334,6 @@ export function OpenProduct({
         }
         onSearch={() => setSearch(true)}
         primary={{
-          expanded: (
-            <Button
-              variant={panel ? 'secondary' : 'ghost'}
-              size="sm"
-              aria-pressed={panel}
-              onClick={() => showPanel(!panel)}
-            >
-              <Icon name="sparkles" />
-              {preview ? 'Try a conversation' : 'Ask the agent'}
-              <ChatIndicator conversation={conversation} />
-            </Button>
-          ),
           compact: <VoiceButton phase={transcript.phase} busy={agentBusy} onClick={voiceAction} />,
         }}
         panel={
@@ -367,18 +366,6 @@ export function OpenProduct({
           />
         ) : onHistory ? (
           <HistoryPage vault={vault} />
-        ) : onSettings ? (
-          <SettingsPage>
-            <SettingsSection title="Appearance">
-              <SettingField
-                label="Theme"
-                description="Choose a theme, or follow your device's appearance."
-              >
-                <ThemeSwitch />
-              </SettingField>
-            </SettingsSection>
-            <ChatSettings />
-          </SettingsPage>
         ) : (
           <Page>
             <Heading level={1}>Not found</Heading>
@@ -387,6 +374,20 @@ export function OpenProduct({
           </Page>
         )}
       </Frame>
+      <SettingsMenu
+        open={settingsOpen}
+        onClose={closeSettings}
+        features={[{ name: 'Agent', content: <ChatSettings /> }]}
+      >
+        <SettingsSection title="Appearance">
+          <SettingField
+            label="Theme"
+            description="Choose a theme, or follow your device's appearance."
+          >
+            <ThemeSwitch />
+          </SettingField>
+        </SettingsSection>
+      </SettingsMenu>
       <Search commands={commands} index={index} open={search} setSearch={setSearch} onAsk={ask} />
       <Previews index={index} />
       <Overlay

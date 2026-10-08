@@ -26,17 +26,136 @@ test('navigation has the same destinations and actions in both arrangements', as
     await expect(page.getByRole('link', { name: 'Agent', exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Close menu' }).click();
     await expect(menu).toBeFocused();
+  } else {
+    await expect(page.getByRole('link', { name: 'Agent', exact: true })).toHaveCount(1);
+    await expect(page.getByRole('button', { name: 'Try a conversation', exact: true })).toHaveCount(
+      0,
+    );
+    await expect(page.getByRole('button', { name: 'Ask the agent', exact: true })).toHaveCount(0);
   }
-  await page.getByRole('link', { name: 'Settings', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Settings', exact: true })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Settings', exact: true })).toHaveAttribute(
-    'aria-current',
-    'page',
-  );
+  const beforeSettings = page.url();
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  const settings = page.getByRole('dialog', { name: 'Settings', exact: true });
+  await expect(settings).toBeVisible();
+  await expect(settings.getByRole('region', { name: 'Agent', exact: true })).toBeVisible();
+  await expect(settings.getByRole('textbox', { name: 'Model', exact: true })).toBeVisible();
+  expect(page.url()).toBe(beforeSettings);
+  await expect(
+    page.getByRole('button', { name: 'Settings', exact: true, includeHidden: true }),
+  ).toHaveAttribute('aria-expanded', 'true');
+  await page.getByRole('button', { name: 'Close settings' }).click();
+  await expect(settings).toBeHidden();
+  await expect(page.getByRole('button', { name: 'Settings', exact: true })).toBeFocused();
   if (compact) await page.getByRole('button', { name: 'Menu', exact: true }).click();
-  await page.getByRole('link', { name: 'History', exact: true }).click();
+  const historyLink = compact
+    ? page
+        .getByRole('navigation', { name: 'Main navigation' })
+        .getByRole('link', { name: 'History', exact: true })
+    : page.locator('[data-sidebar="menu-button"]').filter({ hasText: 'History' });
+  await historyLink.click();
   await expect(page.getByRole('heading', { name: 'History', exact: true })).toBeVisible();
+  const historyURL = page.url();
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await expect(settings).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(settings).toBeHidden();
+  expect(page.url()).toBe(historyURL);
+  await expect(page.getByRole('heading', { name: 'History', exact: true })).toBeVisible();
+  // Settings reached through Search uses the same menu and leaves History underneath.
+  await page.getByRole('button', { name: 'Search', exact: true }).click();
+  await page.getByRole('combobox').fill('Settings');
+  await page.getByRole('option', { name: 'Settings', exact: true }).click();
+  await expect(settings).toBeVisible();
+  expect(page.url()).toBe(historyURL);
+  await expect(page.getByRole('button', { name: 'Close settings' })).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(settings).toBeHidden();
+  await expect(page.getByRole('button', { name: 'Search', exact: true })).toBeFocused();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+test('a direct settings URL opens the same menu and preserves the agent draft', async ({
+  page,
+}, info) => {
+  await page.goto('/preview/#/settings/');
+  const settings = page.getByRole('dialog', { name: 'Settings', exact: true });
+  await expect(settings.getByRole('textbox', { name: 'Model', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Close settings' }).click();
+  await expect(page).toHaveURL(/#\/agent\/$/);
+  if (info.project.name === 'phone')
+    await page.getByRole('button', { name: 'Type a message' }).click();
+  const draft = page.getByRole('textbox', { name: 'Message', exact: true });
+  await draft.fill('Keep this message while changing preferences');
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await expect(settings).toBeVisible();
+  const model = settings.getByRole('textbox', { name: 'Model', exact: true });
+  await model.fill('example-model');
+  await page.keyboard.press('Escape');
+  await expect(draft).toHaveValue('Keep this message while changing preferences');
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await expect(model).toHaveValue('example-model');
+});
+
+test('every feature page centers the same reading column', async ({ page }) => {
+  for (const width of [390, 768, 1440, 1920]) {
+    await page.setViewportSize({ width, height: 1000 });
+    for (const path of ['/preview/', '/preview/#/history/', '/ui/kit/tests/browser.html']) {
+      await page.goto(path);
+      const main = page.locator('main[data-region]');
+      const column = main.locator('[data-reading-column]');
+      await expect(column).toBeVisible();
+      const parent = (await main.boundingBox())!;
+      const child = (await column.boundingBox())!;
+      expect(
+        Math.abs(child.x + child.width / 2 - (parent.x + parent.width / 2)),
+      ).toBeLessThanOrEqual(1);
+      expect(child.width).toBeLessThanOrEqual(768);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+        true,
+      );
+    }
+  }
+});
+
+test('settings is a shared drawer that keeps feature fields and focus when resized', async ({
+  page,
+}) => {
+  await page.goto('/ui/kit/tests/browser.html');
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  const settings = page.getByRole('dialog', { name: 'Settings', exact: true });
+  const field = settings.getByRole('textbox', { name: 'Calendar preference' });
+  await expect(page.getByRole('button', { name: 'Close settings' })).toBeFocused();
+  await expect(settings.getByRole('region', { name: 'Calendar', exact: true })).toBeVisible();
+  await field.fill('Keep this draft');
+  await field.evaluate((node) => {
+    node.setAttribute('data-original-field', '');
+  });
+  for (const width of [390, 768, 320, 1440]) {
+    await page.setViewportSize({ width, height: 844 });
+    await expect(field).toHaveValue('Keep this draft');
+    await expect(field).toHaveAttribute('data-original-field', '');
+    await expect(field).toBeFocused();
+    await expect(settings).toHaveCSS('border-top-left-radius', width < 768 ? '10px' : '12px');
+    // Wait for the drawer's opening transition before comparing the visible surface.
+    await expect
+      .poll(async () => {
+        const box = (await settings.boundingBox())!;
+        return box.y + box.height;
+      })
+      .toBeLessThanOrEqual(845);
+    const box = (await settings.boundingBox())!;
+    if (width < 768) expect(box.y + box.height).toBeCloseTo(844, 0);
+    else expect(box.y + box.height / 2).toBeCloseTo(422, 0);
+    await page.keyboard.press('Tab');
+    expect(await settings.evaluate((node) => node.contains(document.activeElement))).toBe(true);
+    await field.focus();
+  }
+  await page.keyboard.press('Escape');
+  await expect(settings).toBeHidden();
+  await expect(page.getByRole('button', { name: 'Settings', exact: true })).toBeFocused();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await expect(field).toHaveValue('Keep this draft');
 });
 
 test('touch controls grow on phones and touch desktops while retaining keyboard behavior', async ({
@@ -214,6 +333,10 @@ test('Enter sends, Shift+Enter and IME keep editing, and suggestions live outsid
   await suggestion.click();
   const input = page.getByRole('textbox', { name: 'Message', exact: true });
   await expect(input).toBeFocused();
+  await expect(input).toHaveAttribute('rows', '1');
+  const composer = page.getByRole('group', { name: 'Message composer' });
+  expect((await composer.boundingBox())!.height).toBeLessThanOrEqual(56);
+  expect((await input.boundingBox())!.height).toBe(44);
   if (info.project.name === 'phone') {
     await page.getByRole('button', { name: 'Close keyboard' }).click();
     await expect(input).toBeHidden();
@@ -227,6 +350,7 @@ test('Enter sends, Shift+Enter and IME keep editing, and suggestions live outsid
   await input.press('End');
   await input.press('Shift+Enter');
   await expect(input).toHaveValue('First line\n');
+  expect((await composer.boundingBox())!.height).toBeLessThanOrEqual(56);
   await input.fill('Composing');
   await input.dispatchEvent('keydown', { key: 'Enter', isComposing: true, bubbles: true });
   await expect(input).toHaveValue('Composing');
@@ -265,6 +389,32 @@ test('the composer and search stay within the visual viewport when a keyboard op
   await page.getByRole('button', { name: 'Search', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCSS('height', '440px');
   await expect(page.getByRole('combobox')).toBeFocused();
+  await page.getByRole('button', { name: 'Close search' }).click();
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  const settings = page.getByRole('dialog', { name: 'Settings', exact: true });
+  await settings.getByRole('textbox', { name: 'Model', exact: true }).fill('Keyboard preference');
+  await expect
+    .poll(async () => {
+      const box = (await settings.boundingBox())!;
+      return box.y + box.height;
+    })
+    .toBeLessThanOrEqual(441);
+  await page.evaluate(() => {
+    Object.defineProperty(window.visualViewport!, 'height', { value: 340, writable: true });
+    Object.defineProperty(window.visualViewport!, 'offsetTop', { value: 20, writable: true });
+    window.visualViewport!.dispatchEvent(new Event('resize'));
+  });
+  await expect(settings).toHaveCSS('max-height', '324px');
+  // Vaul transitions the surface; compare its final position with a subpixel allowance.
+  await expect
+    .poll(async () => {
+      const box = (await settings.boundingBox())!;
+      return box.y + box.height;
+    })
+    .toBeLessThanOrEqual(361);
+  const sheet = (await settings.boundingBox())!;
+  expect(sheet.y).toBeGreaterThanOrEqual(20);
+  expect(sheet.y + sheet.height).toBeLessThanOrEqual(361);
 });
 
 test('Escape closes the nested review before closing the agent panel', async ({ page }) => {

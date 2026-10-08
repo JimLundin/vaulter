@@ -318,6 +318,7 @@ export {
   WorkspaceFrame,
   Notice,
   Page,
+  FeaturePage,
   PageHeader,
   Panel,
   Prose,
@@ -372,7 +373,7 @@ export {
   Message,
 } from './conversation.tsx';
 export { HistorySurface, HistoryEntry, SearchSurface } from './screens.tsx';
-export { SettingsPage, SettingsSection, SettingField } from './settings.tsx';
+export { SettingsMenu, SettingsPage, SettingsSection, SettingField } from './settings.tsx';
 export {
   NavigationSuite,
   type NavigationAction,

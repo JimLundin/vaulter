@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { Button } from './parts/button.tsx';
 import { Icon } from './icons.tsx';
 import { useIsMobile } from './hooks/use-mobile.ts';
-import { PageHeader } from './app.tsx';
+import { FeaturePage } from './app.tsx';
 import { AdaptiveDialog } from './overlay.tsx';
 
 /** Phone search uses the screen for results and touch targets, desktop uses the command dialog. */
@@ -43,17 +43,9 @@ export function SearchSurface({
 export function HistorySurface({ children }: { children: ReactNode }) {
   const mobile = useIsMobile();
   return (
-    <article
-      data-layout={mobile ? 'mobile-history' : 'desktop-history'}
-      className={
-        mobile
-          ? 'flex flex-col'
-          : 'flex max-w-4xl flex-col gap-6 px-[var(--page-inset)] py-[var(--page-block)]'
-      }
-    >
-      <PageHeader title="History" description="Changes to your vault, newest first." />
+    <FeaturePage title="History" description="Changes to your vault, newest first.">
       <div className={mobile ? 'flex flex-col gap-4 py-3' : 'flex flex-col gap-4'}>{children}</div>
-    </article>
+    </FeaturePage>
   );
 }
 

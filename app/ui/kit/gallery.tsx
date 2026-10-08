@@ -1,6 +1,7 @@
 // The kit on one page (`npm run kit`): every piece, with the design's own content, to compare with
 // design/screens/.
 import { createRoot } from 'react-dom/client';
+import { useState } from 'react';
 import {
   Avatar,
   Bars,
@@ -18,6 +19,8 @@ import {
   CodeDiff,
   Columns,
   Count,
+  Composer,
+  ComposerActions,
   Details,
   Dot,
   Empty,
@@ -26,6 +29,7 @@ import {
   EmptyTitle,
   Heading,
   Icon,
+  Input,
   InputGroup,
   InputGroupAddon,
   InputGroupButton,
@@ -56,6 +60,9 @@ import {
   Row,
   SearchButton,
   Separator,
+  SettingsMenu,
+  SettingsSection,
+  SettingField,
   Sources,
   Sparkline,
   Stack,
@@ -107,6 +114,8 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 function Gallery() {
+  const [settings, setSettings] = useState(false);
+  const [model, setModel] = useState('gpt-6-astra');
   return (
     <Page
       aside={
@@ -436,11 +445,70 @@ function Gallery() {
       </Section>
 
       <Section title="Mobile controls">
+        <Composer>
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              toast('Send a message');
+            }}
+          >
+            <Textarea rows={1} aria-label="Example message" placeholder="Type a message…" />
+            <ComposerActions
+              voice={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-lg"
+                  aria-label="Example microphone"
+                  onClick={() => toast('Start dictation')}
+                >
+                  <Icon name="mic" />
+                </Button>
+              }
+            >
+              <Button type="submit" size="icon-lg" aria-label="Send example message">
+                <Icon name="arrow-up" />
+              </Button>
+            </ComposerActions>
+          </form>
+        </Composer>
+        <Button variant="outline" onClick={() => setSettings(true)}>
+          Open settings
+        </Button>
+        <SettingsMenu
+          open={settings}
+          onClose={() => setSettings(false)}
+          features={[
+            {
+              name: 'Agent',
+              content: (
+                <SettingField label="Model" description="Used for new messages.">
+                  <Input
+                    aria-label="Example model"
+                    value={model}
+                    onChange={(event) => setModel(event.currentTarget.value)}
+                  />
+                </SettingField>
+              ),
+            },
+          ]}
+        >
+          <SettingsSection title="Appearance">
+            <SettingField label="Theme" description="Follow the device, or choose a theme.">
+              <ThemeSwitch />
+            </SettingField>
+          </SettingsSection>
+        </SettingsMenu>
         <MobileBar
           items={[
             <MobileActionButton key="menu" icon="list" label="Menu" current={true} />,
             <MobileActionButton key="search" icon="search" label="Search" />,
-            <MobileActionButton key="settings" icon="settings" label="Settings" />,
+            <MobileActionButton
+              key="settings"
+              icon="settings"
+              label="Settings"
+              onClick={() => setSettings(true)}
+            />,
           ]}
           floating={
             <VoiceButton

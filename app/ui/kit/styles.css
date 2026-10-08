@@ -92,8 +92,7 @@
   --target-touch: 2.75rem;
   --page-inset: 1rem;
   --page-block: 1rem;
-  --composer-height: 7rem;
-  --composer-clearance: 3.5rem;
+  --reading-width: 48rem;
 }
 
 /* biome-ignore lint/correctness/noUnknownFunction: Tailwind resolves its theme function at build time. */
@@ -104,8 +103,31 @@
     --type-lead: 1.1875rem;
     --page-inset: 3rem;
     --page-block: 2.25rem;
-    --composer-height: 8rem;
-    --composer-clearance: 4rem;
+  }
+}
+
+/* The same menu surface and contents stay mounted through a resize. Vaul owns compact dragging. */
+.menu-sheet[data-vaul-drawer-direction="bottom"] {
+  max-height: min(80dvh, calc(var(--viewport-height, 100dvh) - 16px));
+  bottom: calc(100dvh - var(--viewport-height, 100dvh) - var(--viewport-top, 0px));
+}
+
+/* biome-ignore lint/correctness/noUnknownFunction: Tailwind resolves its theme function at build time. */
+@media (width >= theme(--breakpoint-md)) {
+  .menu-sheet[data-vaul-drawer-direction="bottom"] {
+    inset: 0;
+    width: min(40rem, calc(100% - 6rem));
+    height: fit-content;
+    margin: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    animation: none;
+    transform: none !important;
+  }
+
+  .menu-sheet > div:first-child,
+  .menu-sheet::after {
+    display: none;
   }
 }
 
