@@ -80,6 +80,22 @@ imports the route (the agent links to the editor's `historyPage`), so a route th
 and a feature that goes fails the build where it was linked to. Notes, topics and areas are the vault's
 own hrefs (`core/paths.ts`, `topicHref`), not a feature's.
 
+### Commands and tools
+
+A command (`commands`) is what Jim does from the UI: it takes no input, reads the screen it is on (the
+route, the host) and acts, often by opening a page that asks for more. A tool (`tools`) is what the agent
+does: its input comes from the model, so it is outside typed code, and each tool declares a Zod
+`inputSchema`, which the AI SDK checks before the tool runs (the model gets the error back otherwise).
+They stay separate, since most commands only move around the UI and Jim's paths have review steps the
+agent's don't (the rename's preview, the commit's diff); unify them if most features come to need both
+for the same thing.
+
+What both do is one function, in `core/` or the feature, and a command and a tool are thin over it,
+next to each other when both exist. The function checks what the input means (the note exists, the path
+is a vault file, the check passes), so Jim and the agent are held to the same rules; a tool's schema checks
+only its shape. Rename (`core/rename.ts`), the commit (the writer, which runs the check) and the audit
+(`core/audit.ts`) are such functions.
+
 ## Reaching the vault: backends
 
 The app reaches a vault only through `VaultBackend` (`app/core/backend.ts`):
