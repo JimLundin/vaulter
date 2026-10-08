@@ -54,6 +54,7 @@ function Preview({ initialHead }: { initialHead: Head }) {
       preview={{
         label: `Design preview · ${(import.meta.env.VITE_PREVIEW_COMMIT || 'local').slice(0, 7)}`,
         reset: () => location.reload(),
+        kitHref: import.meta.env.DEV ? '/ui/kit/' : './kit/',
       }}
     />
   );

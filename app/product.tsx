@@ -80,7 +80,7 @@ export function OpenProduct({
 }: {
   session: ReturnType<typeof useVaultSession>;
   model?: (name: string) => Promise<LanguageModel>;
-  preview?: { label: string; reset: () => void };
+  preview?: { label: string; reset: () => void; kitHref?: string };
 }) {
   const { vault, files, status } = session;
   const route = useRoute();
@@ -280,7 +280,7 @@ export function OpenProduct({
           <PreviewBar>
             <Text size="xs">{preview.label} · Sample data · Scripted chat</Text>
             <Row>
-              <Link href="./kit/">Component kit</Link>
+              <Link href={preview.kitHref ?? './kit/'}>Component kit</Link>
               <Button variant="ghost" size="sm" onClick={preview.reset}>
                 Reset demo
               </Button>
