@@ -657,6 +657,7 @@ function History() {
 }
 function Agent() {
   const [draft, setDraft] = useState('');
+  const [focused, setFocused] = useState(false);
   const [messages, setMessages] = useState<{ id: string; text: string }[]>([]);
   const [voice, setVoice] = useState<'idle' | 'listening' | 'ready'>('idle');
   const prefix = useRef('');
@@ -718,6 +719,8 @@ function Agent() {
                   placeholder="Message…"
                   value={draft}
                   readOnly={voice === 'listening'}
+                  onFocus={() => setFocused(true)}
+                  onBlur={() => setFocused(false)}
                   onChange={(event) => {
                     setVoice('idle');
                     setDraft(event.currentTarget.value);
@@ -735,21 +738,17 @@ function Agent() {
                   }}
                 />
                 <K.ComposerActions voice={voiceControl}>
-                  <K.Button
-                    type="submit"
-                    size="icon-lg"
-                    aria-label="Send"
+                  <K.SendButton
+                    focused={focused}
                     disabled={!draft.trim() || voice === 'listening'}
-                  >
-                    <K.Icon name="arrow-up" />
-                  </K.Button>
+                  />
                 </K.ComposerActions>
               </K.InputGroup>
             </K.Form>
           </K.Composer>
         }
         suggestions={
-          !(draft || messages.length || voice === 'listening') && (
+          !(focused || draft || messages.length || voice === 'listening') && (
             <K.PromptSuggestions
               suggestions={['Make room for slow mornings', 'What have I noticed this week?']}
               onSelect={setDraft}
@@ -782,6 +781,7 @@ function Agent() {
 }
 function AgentPanel() {
   const [open, setOpen] = useState(false);
+  const [focused, setFocused] = useState(false);
   return (
     <K.Stack>
       <K.Button variant="outline" onClick={() => setOpen(true)}>
@@ -795,11 +795,15 @@ function AgentPanel() {
             <K.Composer>
               <K.Form layout="inline" onSubmit={(event) => event.preventDefault()}>
                 <K.InputGroup variant="composer">
-                  <K.InputGroupTextarea variant="inline" aria-label="Panel message" rows={1} />
+                  <K.InputGroupTextarea
+                    variant="inline"
+                    aria-label="Panel message"
+                    rows={1}
+                    onFocus={() => setFocused(true)}
+                    onBlur={() => setFocused(false)}
+                  />
                   <K.ComposerActions>
-                    <K.Button type="submit" size="icon-lg" aria-label="Send panel message">
-                      <K.Icon name="arrow-up" />
-                    </K.Button>
+                    <K.SendButton label="Send panel message" focused={focused} />
                   </K.ComposerActions>
                 </K.InputGroup>
               </K.Form>
@@ -823,9 +827,15 @@ function Voice() {
       <K.Row>
         <K.VoiceButton phase="idle" busy={false} onClick={noop} />
         <K.VoiceButton phase="listening" busy={false} onClick={noop} />
-        <K.Text size="sm" tone="muted">
-          Scripted sample · no microphone access
-        </K.Text>
+        <K.VoiceButton phase="idle" busy={true} onClick={noop} />
+      </K.Row>
+      <K.Text size="sm" tone="muted">
+        Scripted sample · no microphone access
+      </K.Text>
+      <K.Row>
+        <K.SendButton />
+        <K.SendButton focused={true} />
+        <K.SendButton busy={true} onStop={noop} />
       </K.Row>
       <K.VoiceStatus phase="listening" error="" />
       <K.VoiceStatus phase="ready" error="" />
@@ -1207,6 +1217,7 @@ export const catalogue: Specimen[] = [
       'Markdown',
       'Composer',
       'ComposerActions',
+      'SendButton',
       'PromptSuggestions',
     ],
     Sample: Agent,

@@ -229,8 +229,10 @@ The kit presents voice states and actions without accessing microphone permissio
 Speech updates the same persistent message draft as typing. The microphone starts or finishes capture;
 Send and Enter submit the shared draft. Corrected final text replaces the current recording's partial
 words while retaining the preceding draft. Further recordings append to manual corrections.
-`VoiceStatus` shows capture state and errors beside the composer; the conversation feed contains
-submitted messages only. Read-only fields follow incoming words without taking focus. Drafts remain
+`VoiceStatus` shows capture state and errors above the dock without changing the field's position.
+`SendButton` shows the Enter arrow while the field has focus and becomes the sole Stop control during
+an agent response; the microphone keeps its icon and is disabled until the response finishes.
+The conversation feed contains submitted messages only. Read-only fields follow incoming words without taking focus. Drafts remain
 available when the Chat view closes or switches between a panel and page.
 
 ## Verifying a kit change

@@ -126,7 +126,9 @@ Each recording retains the draft it starts with and replaces only that recording
 with corrected final text. Failure or interruption retains the last draft; cleared capture ignores
 late events. A subsequent recording appends to manual edits. Capture never submits a turn: Send and
 Enter use the same reviewed submission path for dictated and typed text. The kit's compact voice
-status sits in the composer dock; unsubmitted speech has no separate feed entry.
+status grows above the anchored composer; unsubmitted speech has no separate feed entry.
+The shared SendButton shows the Enter arrow on field focus and becomes the sole response Stop
+control. VoiceButton stays a microphone, disabled during an agent response.
 
 `suggestions.ts` generates short prompts from a bounded set of note titles/summaries and recent
 conversation text using the selected model. It has no agent tools or write capability. The controller

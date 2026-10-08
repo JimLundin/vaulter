@@ -352,6 +352,7 @@ export {
 export {
   Composer,
   ComposerActions,
+  SendButton,
   ConversationFeed,
   ConversationPage,
   ConversationPanel,

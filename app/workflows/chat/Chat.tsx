@@ -6,13 +6,13 @@ import {
   CodeDiff,
   Composer,
   ComposerActions,
+  SendButton,
   ConversationFeed,
   ConversationSurface,
   ConversationWelcome,
   PromptSuggestions,
   VoiceStatus,
   VoiceButton,
-  Icon,
   Json,
   Link,
   Markdown,
@@ -99,7 +99,6 @@ export function Chat({
       return;
     }
     if (busy) {
-      stop();
       return;
     }
     if (transcript.phase === 'listening') later(voice.finish());
@@ -173,26 +172,12 @@ export function Chat({
               <ComposerActions
                 voice={<VoiceButton phase={transcript.phase} busy={busy} onClick={voiceAction} />}
               >
-                {busy ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon-lg"
-                    aria-label="Stop"
-                    onClick={stop}
-                  >
-                    <Icon name="stop" />
-                  </Button>
-                ) : (
-                  <Button
-                    type="submit"
-                    size="icon-lg"
-                    aria-label="Send"
-                    disabled={!input.trim() || recording}
-                  >
-                    <Icon name="arrow-up" />
-                  </Button>
-                )}
+                <SendButton
+                  busy={busy}
+                  focused={focused}
+                  disabled={!input.trim() || recording}
+                  onStop={stop}
+                />
               </ComposerActions>
             </InputGroup>
           </Form>

@@ -172,7 +172,6 @@ export function OpenProduct({
       return;
     }
     if (conversation.chat.state.busy) {
-      conversation.stop();
       return;
     }
     if (transcript.phase === 'listening') {

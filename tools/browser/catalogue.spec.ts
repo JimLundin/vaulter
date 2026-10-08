@@ -89,15 +89,30 @@ test('paired agent samples keep independent drafts and send through the shared o
   const desktop = specimen(family, 'desktop');
   const mobile = specimen(family, 'mobile');
   await desktop.getByRole('textbox', { name: 'Message', exact: true }).fill('A desktop thought');
+  await expect(
+    desktop.getByRole('button', { name: 'Send', exact: true }).locator('svg'),
+  ).toHaveClass(/lucide-corner-down-left/);
   await mobile.getByRole('textbox', { name: 'Message', exact: true }).fill('A phone thought');
+  await expect(
+    mobile.getByRole('button', { name: 'Send', exact: true }).locator('svg'),
+  ).toHaveClass(/lucide-corner-down-left/);
+  await expect(
+    desktop.getByRole('button', { name: 'Send', exact: true }).locator('svg'),
+  ).toHaveClass(/lucide-arrow-up/);
   await mobile.getByRole('textbox', { name: 'Message', exact: true }).press('Enter');
   await expect(mobile.locator('[data-message="user"]')).toContainText('A phone thought');
   await expect(desktop.getByRole('textbox', { name: 'Message', exact: true })).toHaveValue(
     'A desktop thought',
   );
   await expect(desktop.locator('[data-message="user"]')).toHaveCount(0);
+  const beforeDictation = (await mobile
+    .getByRole('group', { name: 'Message composer' })
+    .boundingBox())!;
   await mobile.getByRole('button', { name: 'Start voice interaction' }).click();
   await expect(mobile.getByRole('textbox', { name: 'Message', exact: true })).toHaveValue(/^Leave/);
+  expect((await mobile.getByRole('group', { name: 'Message composer' }).boundingBox())!.y).toBe(
+    beforeDictation.y,
+  );
   await expect(desktop.getByRole('textbox', { name: 'Message', exact: true })).toHaveValue(
     'A desktop thought',
   );

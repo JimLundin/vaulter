@@ -11,6 +11,7 @@ import {
   ChevronRight,
   CircleHelp,
   Clock,
+  CornerDownLeft,
   Ellipsis,
   FileText,
   Footprints,
@@ -47,6 +48,7 @@ import {
 const ICONS = {
   'arrow-left': ArrowLeft,
   'arrow-up': ArrowUp,
+  enter: CornerDownLeft,
   book: BookOpen,
   calendar: Calendar,
   check: Check,

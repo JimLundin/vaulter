@@ -132,13 +132,12 @@ export function ConversationSurface({
   status?: ReactNode;
   children: ReactNode;
 }) {
-  const mobile = useIsMobile();
   const { page } = useContext(ConversationPresentation);
   return (
     <ReadingColumn page={page} label="Conversation">
       <ConversationToolbar historyHref={historyHref} onNewChat={onNewChat} busy={busy} />
       {children}
-      <Dock>
+      <Dock status={status}>
         <Stack gap="sm">
           {suggestions}
           <Row data-conversation-input="">
@@ -146,12 +145,6 @@ export function ConversationSurface({
               {composer}
             </Stack>
           </Row>
-          {status}
-          {!mobile && page && (
-            <Text size="xs" tone="subtle" align="end">
-              Enter to send · Shift + Enter for a new line
-            </Text>
-          )}
         </Stack>
       </Dock>
     </ReadingColumn>
@@ -192,6 +185,32 @@ export function ComposerActions({ voice, children }: { voice?: ReactNode; childr
     </InputGroupAddon>
   );
 }
+export function SendButton({
+  busy,
+  focused,
+  disabled,
+  onStop,
+  label = 'Send',
+}: {
+  busy?: boolean;
+  focused?: boolean;
+  disabled?: boolean;
+  onStop?: () => void;
+  label?: string;
+}) {
+  return (
+    <Button
+      type={busy ? 'button' : 'submit'}
+      variant={busy ? 'outline' : 'default'}
+      size="icon-lg"
+      aria-label={busy ? 'Stop' : label}
+      disabled={!busy && disabled}
+      onClick={busy ? onStop : undefined}
+    >
+      <Icon name={busy ? 'stop' : focused ? 'enter' : 'arrow-up'} />
+    </Button>
+  );
+}
 export function ConversationPanel({
   open,
   onClose,
@@ -227,13 +246,11 @@ export function VoiceButton({
   const label =
     phase === 'connecting'
       ? 'Cancel recording'
-      : busy
-        ? 'Stop agent'
-        : recording
-          ? 'Finish recording'
-          : waiting
-            ? 'Finishing transcript'
-            : 'Start voice interaction';
+      : recording
+        ? 'Finish recording'
+        : waiting
+          ? 'Finishing transcript'
+          : 'Start voice interaction';
   return (
     <Button
       type="button"
@@ -242,10 +259,10 @@ export function VoiceButton({
       pending={waiting}
       aria-label={label}
       aria-pressed={recording}
-      disabled={disabled || phase === 'finishing'}
+      disabled={disabled || busy || phase === 'finishing'}
       onClick={onClick}
     >
-      <Icon name={busy || recording ? 'stop' : waiting ? 'clock' : 'mic'} />
+      <Icon name={recording ? 'stop' : waiting ? 'clock' : 'mic'} />
     </Button>
   );
 }

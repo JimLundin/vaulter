@@ -566,6 +566,59 @@ test('Escape closes the nested review before closing the agent panel', async ({ 
   await expect(page.getByRole('dialog', { name: 'Agent', exact: true })).toBeHidden();
 });
 
+test('dictation keeps the composer anchored and only submission stops an agent response', async ({
+  page,
+}) => {
+  await page.goto('/preview/');
+  const input = page.getByRole('textbox', { name: 'Message', exact: true });
+  await input.fill('A typed introduction.');
+  const composer = page.getByRole('group', { name: 'Message composer' });
+  const before = (await composer.boundingBox())!;
+  await page.getByRole('button', { name: 'Start voice interaction' }).click();
+  await expect(input).toHaveValue(/^A typed introduction\. Leave/);
+  const listening = (await composer.boundingBox())!;
+  expect(listening.y).toBe(before.y);
+  expect(listening.height).toBe(before.height);
+  await page.getByRole('button', { name: 'Finish recording' }).click();
+  await expect(input).toBeEditable();
+  expect((await composer.boundingBox())!.y).toBe(before.y);
+  await page.getByRole('button', { name: 'Send', exact: true }).click();
+  const stop = page.getByRole('button', { name: 'Stop', exact: true });
+  await expect(stop).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Stop agent', exact: true })).toHaveCount(0);
+  const microphone = page.getByRole('button', { name: 'Start voice interaction' });
+  await expect(microphone).toBeDisabled();
+  await expect(microphone.locator('svg')).toHaveClass(/lucide-mic/);
+  expect((await composer.boundingBox())!.y).toBe(before.y);
+  await stop.click();
+  await expect(input).toBeEditable();
+  await expect(microphone).toBeEnabled();
+  expect((await composer.boundingBox())!.y).toBe(before.y);
+  await page.getByRole('button', { name: 'New chat', exact: true }).click();
+  await expect(page.getByRole('region', { name: 'Suggested prompts' })).toBeVisible();
+  const empty = (await composer.boundingBox())!;
+  await microphone.click();
+  await expect(input).toHaveValue(/^Leave/);
+  expect((await composer.boundingBox())!.y).toBe(empty.y);
+  await page.getByRole('button', { name: 'Finish recording' }).click();
+});
+
+test('the send icon reflects text field focus without a keyboard hint below the composer', async ({
+  page,
+}) => {
+  await page.goto('/preview/');
+  const input = page.getByRole('textbox', { name: 'Message', exact: true });
+  const send = page.getByRole('button', { name: 'Send', exact: true });
+  await expect(send.locator('svg')).toHaveClass(/lucide-arrow-up/);
+  await input.fill('A typed thought');
+  await expect(send.locator('svg')).toHaveClass(/lucide-corner-down-left/);
+  await page.getByRole('button', { name: 'New chat', exact: true }).focus();
+  await expect(send.locator('svg')).toHaveClass(/lucide-arrow-up/);
+  await expect(
+    page.getByText('Enter to send · Shift + Enter for a new line', { exact: true }),
+  ).toHaveCount(0);
+});
+
 test('live transcription updates the shared message field and uses the normal send path', async ({
   page,
 }) => {
