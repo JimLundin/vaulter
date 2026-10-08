@@ -362,10 +362,13 @@ export {
   ConversationPage,
   ConversationPanel,
   ConversationSurface,
+  ConversationInput,
+  PromptSuggestions,
+  VoiceButton,
+  VoiceTranscript,
   ConversationWelcome,
   Markdown,
   Message,
 } from './conversation.tsx';
 export { HistorySurface, HistoryEntry, SearchSurface } from './screens.tsx';
-export { DictateButton } from './dictation.tsx';
 export { SettingsPage, SettingsSection, SettingField } from './settings.tsx';

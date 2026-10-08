@@ -46,6 +46,7 @@ import {
   MapView,
   Mark,
   MobileBar,
+  VoiceButton,
   Notice,
   Page,
   Panel,
@@ -437,8 +438,15 @@ function Gallery() {
       <Section title="Mobile controls">
         <MobileBar
           left={<MobileActionButton icon="search" label="Search" />}
-          center={<MobileActionButton primary={true} icon="mic" label="New note" />}
-          right={<MobileActionButton icon="book" label="Wiki" />}
+          center={<MobileActionButton icon="sparkles" label="Agent" />}
+          right={<MobileActionButton icon="list" label="Menu" />}
+          floating={
+            <VoiceButton
+              phase="idle"
+              busy={false}
+              onClick={() => toast('Start a voice interaction')}
+            />
+          }
         />
       </Section>
     </Page>

@@ -13,6 +13,7 @@ import { vaultRules } from '../vault/validation/rules.ts';
 import type { Head } from '../vault/storage/backend.ts';
 import { sampleFiles, note } from './data.ts';
 import { previewModel } from './model.ts';
+import { previewTranscription } from './transcription.ts';
 
 const memory = memoryBackend(sampleFiles);
 const initial = memory.backend.write!(
@@ -55,6 +56,7 @@ function Preview({ initialHead }: { initialHead: Head }) {
         label: `Design preview · ${(import.meta.env.VITE_PREVIEW_COMMIT || 'local').slice(0, 7)}`,
         reset: () => location.reload(),
         kitHref: import.meta.env.DEV ? '/ui/kit/' : './kit/',
+        transcription: previewTranscription,
         suggestions: async () => [
           'How could I make more room for slow mornings?',
           'Help me plan an afternoon in the garden studio',

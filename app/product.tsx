@@ -31,6 +31,7 @@ import {
   SettingsPage,
   SettingsSection,
   SettingField,
+  VoiceButton,
   MobileActionButton,
   Row,
   Stack,
@@ -45,7 +46,12 @@ import {
   ChatPanel,
   ChatIndicator,
   ChatSettings,
+  openAITranscription,
+  useTranscription,
+  useTranscript,
+  type TranscriptionProvider,
   useConversation,
+  useChat,
   openAIModel,
   type Prompt,
 } from './workflows/chat/index.tsx';
@@ -91,6 +97,7 @@ export function OpenProduct({
     reset: () => void;
     kitHref?: string;
     suggestions: () => Promise<string[]>;
+    transcription: TranscriptionProvider;
   };
 }) {
   const { vault, files, status } = session;
@@ -119,6 +126,15 @@ export function OpenProduct({
         : null,
     [session.secrets?.openai],
   );
+  const speechProvider = useMemo(
+    () =>
+      session.secrets?.openai
+        ? openAITranscription(session.secrets.openai, import.meta.env.VITE_OPENAI_API || undefined)
+        : null,
+    [session.secrets?.openai],
+  );
+  const voice = useTranscription(preview?.transcription ?? speechProvider);
+  const transcript = useTranscript(voice);
   const note = files ? notesOf(files).byHref.get(route.path) : undefined;
   const conversation = useConversation({
     vault,
@@ -128,6 +144,7 @@ export function OpenProduct({
     suggestions: preview?.suggestions,
     page: note ? { title: titleOf(note), path: note.path } : onAgent ? undefined : { title },
   });
+  const { busy: agentBusy } = useChat(conversation);
   const navigation: Navigation[] = [
     { label: 'Agent', href: agentRoute.href(), icon: 'sparkles' },
     ...(vault.history
@@ -139,6 +156,39 @@ export function OpenProduct({
   const ask = (text?: string) => {
     if (text) setPrompt((current) => ({ text, send: true, n: (current?.n ?? 0) + 1 }));
     showPanel(true);
+  };
+  const voiceAction = () => {
+    if (transcript.phase === 'connecting') {
+      voice.clear();
+      return;
+    }
+    if (conversation.chat.state.busy) {
+      conversation.stop();
+      return;
+    }
+    if (transcript.phase === 'listening') {
+      if (mobile) {
+        showPanel(false);
+        go(agentRoute.href());
+      }
+      later(voice.finish());
+      return;
+    }
+    if (transcript.phase === 'ready') {
+      const { text } = transcript;
+      voice.clear();
+      setPrompt((current) => ({ text, send: true, n: (current?.n ?? 0) + 1 }));
+      if (mobile) {
+        showPanel(false);
+        go(agentRoute.href());
+      } else showPanel(true);
+      return;
+    }
+    if (mobile) {
+      showPanel(false);
+      go(agentRoute.href());
+    }
+    later(voice.start());
   };
   const commands: Command[] = [
     {
@@ -224,6 +274,7 @@ export function OpenProduct({
             label: 'Sign out',
             group: 'Actions',
             run: () => {
+              voice.dispose();
               conversation.dispose();
               later(session.signOut!());
             },
@@ -264,6 +315,7 @@ export function OpenProduct({
         signOut={
           session.signOut
             ? async () => {
+                voice.dispose();
                 conversation.dispose();
                 await session.signOut!();
               }
@@ -282,17 +334,21 @@ export function OpenProduct({
             <ChatIndicator conversation={conversation} />
           </Button>
         }
+        mobileNavigation={
+          <MobileActionButton icon="sparkles" label="Agent" onClick={() => go(agentRoute.href())} />
+        }
         mobileAction={
-          <MobileActionButton
-            icon="sparkles"
-            label="Ask"
-            primary={true}
-            onClick={() => showPanel(!panel)}
-          />
+          <VoiceButton phase={transcript.phase} busy={agentBusy} onClick={voiceAction} />
         }
         panel={
           panel ? (
-            <ChatPanel conversation={conversation} prompt={prompt} historyHref={historyHref} />
+            <ChatPanel
+              conversation={conversation}
+              prompt={prompt}
+              historyHref={historyHref}
+              voice={voice}
+              previewVoice={!!preview}
+            />
           ) : null
         }
         closePanel={() => showPanel(false)}
@@ -305,7 +361,13 @@ export function OpenProduct({
           />
         )}
         {onAgent ? (
-          <ChatPage conversation={conversation} historyHref={historyHref} />
+          <ChatPage
+            conversation={conversation}
+            prompt={prompt}
+            historyHref={historyHref}
+            voice={voice}
+            previewVoice={!!preview}
+          />
         ) : onHistory ? (
           <HistoryPage vault={vault} />
         ) : onSettings ? (

@@ -49,6 +49,7 @@ export function Frame({
   onSearch,
   actions,
   mobileAction,
+  mobileNavigation,
   panel,
   closePanel,
   children,
@@ -60,6 +61,7 @@ export function Frame({
   onSearch: () => void;
   actions?: ReactNode;
   mobileAction?: ReactNode;
+  mobileNavigation?: ReactNode;
   panel?: ReactNode;
   closePanel: () => void;
   children: ReactNode;
@@ -135,7 +137,8 @@ export function Frame({
           bar={
             <MobileBar
               left={<MobileActionButton icon="search" label="Search" onClick={onSearch} />}
-              center={mobileAction}
+              center={mobileNavigation}
+              floating={mobileAction}
               right={<MobileActionButton icon="list" label="Menu" onClick={() => setMenu(true)} />}
             />
           }

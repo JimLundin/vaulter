@@ -24,11 +24,17 @@ schema; remaining legacy MDX content will be migrated after design review and me
 The app currently contains chat, rename-note, and history workflows. The agent reads and writes the
 vault through its permanent checks; rename stages the complete move and reference rewrites.
 Settings holds the theme and agent model preferences, saved on this device. Enter sends an agent
-message; Shift+Enter adds a new line. Dictation and send controls sit inside the message box.
-The agent generates suggestions from note summaries and recent conversation. They appear inside an
-empty, unfocused message box; selecting one creates an editable draft. The sample preview supplies
-scripted suggestions and makes no model requests. Mobile uses a compact conversation container,
-smaller heading and icon-only bottom navigation.
+message; Shift+Enter adds a new line. Send controls sit inside the optional message box.
+On phones, the agent starts with voice: tap the circular microphone floating above the icon-only
+footer, watch the transcript appear as you speak, tap to finish, then send or edit it. “Type a
+message” opens the optional keyboard composer. Suggested prompts live in a separate strip and open
+an editable draft. Desktop keeps its visible composer and microphone control.
+
+Live transcription uses OpenAI's transcription-only WebRTC session with `gpt-live-transcribe` and
+the already-unlocked OpenAI key. Partial deltas print immediately; final text replaces the partial
+transcript before sending. Audio goes to OpenAI only after starting the microphone; it is not stored
+in the vault. Errors and interruptions preserve partial text for editing. The sample preview uses a
+scripted transcript and makes no microphone or model requests.
 
 All code is TypeScript. Node 24 runs the scripts directly (type stripping), so only erasable syntax,
 explicit `.ts` imports and `import type` (enforced by `tsconfig.json`).

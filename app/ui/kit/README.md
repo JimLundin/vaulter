@@ -16,7 +16,6 @@ reference screens illustrate the design; they do not register app features.
 | `screens.tsx` | mobile search screen and history touch rows, desktop palette and commit list |
 | `settings.tsx` | mobile full-width settings sections and desktop form rows |
 | `surfaces.tsx` | gates, preview notice, tool results, panels and unified diffs |
-| `dictation.tsx` | browser speech control |
 | `chart.tsx`, `diff.tsx`, `map.tsx` | accessible charts, code diffs, lazy map presentation |
 | `styles.css`, `theme.tsx` | zinc color tokens, light/dark/system theme |
 | `design/` | original canvases and standalone screen references |
@@ -30,7 +29,11 @@ product does not use maps.
 
 Responsive presentation is owned by the kit. Conversation state stays in the chat workflow; the
 workspace, feed and composer keep stable positions in the React tree across viewport changes.
-Mobile has a brand/status header, icon toolbar, edge-to-edge feed, docked composer, full-screen agent
-and search overlays, and bottom-sheet navigation. Desktop has the sidebar, reading column, labeled
+Mobile has a brand/status header, icon toolbar, edge-to-edge live transcript, footer navigation with
+an independent floating microphone, optional keyboard composer, separate prompt strip, full-screen
+agent and search overlays, and bottom-sheet navigation. Desktop has the sidebar, reading column, labeled
 actions, keyboard hints and a side panel. Settings and history use device-specific form and list
 compositions. The breakpoint is 768px; desktop side panels start at 1280px.
+
+OpenAI WebRTC capture, transcript reconciliation and microphone lifecycle belong to the chat workflow.
+The kit presents voice states and actions without accessing microphone permissions or credentials.

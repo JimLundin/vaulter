@@ -8,6 +8,10 @@ import {
   ConversationFeed,
   ConversationSurface,
   ConversationWelcome,
+  ConversationInput,
+  PromptSuggestions,
+  VoiceTranscript,
+  VoiceButton,
   Icon,
   Json,
   Link,
@@ -19,7 +23,6 @@ import {
   Text,
   Textarea,
   ToolResult,
-  DictateButton,
   useIsMobile,
 } from '../../ui/kit/index.ts';
 import { link } from '../../ui/routing.ts';
@@ -27,6 +30,7 @@ import { later } from '../../ui/later.ts';
 import { renderBody } from './rendering/markdown.ts';
 import { type Conversation, type Part, type Turn, useChat } from './conversation.ts';
 import { model } from './model.ts';
+import { useTranscript, type Transcription } from './transcription.ts';
 
 export interface Prompt {
   text: string;
@@ -37,15 +41,22 @@ export function Chat({
   conversation,
   arg,
   historyHref,
+  voice,
+  previewVoice,
 }: {
   conversation: Conversation;
   arg: Prompt | null;
   historyHref?: string;
+  voice: Transcription;
+  previewVoice?: boolean;
 }) {
   const { chat, newChat, send, stop, viewing } = conversation;
   const { turns, suggestions, busy } = useChat(conversation);
   const [input, setInput] = useState(chat.draft);
   const [focused, setFocused] = useState(false);
+  const [typing, setTyping] = useState(!!chat.draft);
+  const transcript = useTranscript(voice);
+  const recording = ['connecting', 'listening', 'finishing'].includes(transcript.phase);
   const [review, setReview] = useState<{
     text: string;
     files: ReturnType<Conversation['stagedChanges']>;
@@ -63,30 +74,59 @@ export function Chat({
     (text: string) => {
       const files = conversation.stagedChanges();
       if (files.length) {
+        type(text);
+        setTyping(true);
         setReview({ text, files });
         return;
       }
       type('');
+      voice.clear();
       later(send(text));
     },
-    [type, send, conversation],
+    [type, send, conversation, voice],
   );
   useEffect(viewing, [viewing]);
+  useEffect(() => {
+    if (recording) setTyping(false);
+  }, [recording]);
   const selectedModel = model();
   // biome-ignore lint/correctness/useExhaustiveDependencies: a new chat or model invalidates cached suggestions
   useEffect(() => {
-    if (!(focused || input || busy)) later(conversation.suggest());
-  }, [conversation, focused, input, busy, chat.id, turns.length, selectedModel]);
-  const showSuggestions = !(focused || input || busy) && suggestions.length > 0;
+    if (!(focused || input || busy || recording)) later(conversation.suggest());
+  }, [conversation, focused, input, busy, chat.id, turns.length, selectedModel, recording]);
+  const showSuggestions =
+    !(focused || input || busy || recording || transcript.text) && suggestions.length > 0;
   useEffect(() => {
     if (!arg || arg.n === chat.arg) return;
     chat.arg = arg.n;
     if (arg.send && !chat.state.busy) say(arg.text);
     else {
       type(arg.text);
-      ref.current?.focus();
+      setTyping(true);
+      requestAnimationFrame(() => ref.current?.focus());
     }
   }, [arg, chat, say, type]);
+  const edit = (text: string) => {
+    type(text);
+    setTyping(true);
+    requestAnimationFrame(() => ref.current?.focus());
+  };
+  const voiceAction = () => {
+    if (transcript.phase === 'connecting') {
+      voice.clear();
+      return;
+    }
+    if (busy) {
+      stop();
+      return;
+    }
+    if (transcript.phase === 'listening') later(voice.finish());
+    else if (transcript.phase === 'ready') {
+      const { text } = transcript;
+      voice.clear();
+      say(text);
+    } else later(voice.start());
+  };
   if (!conversation.ready())
     return (
       <ConversationSurface
@@ -104,69 +144,122 @@ export function Chat({
     <ConversationSurface
       historyHref={historyHref ? link(historyHref) : undefined}
       onNewChat={() => {
+        voice.clear();
         newChat();
         type('');
+        setTyping(false);
       }}
-      busy={busy}
+      busy={busy || recording}
+      voiceControl={<VoiceButton phase={transcript.phase} busy={busy} onClick={voiceAction} />}
+      suggestions={
+        showSuggestions ? <PromptSuggestions suggestions={suggestions} onSelect={edit} /> : null
+      }
       composer={
-        <Composer>
-          <form
-            onSubmit={(event) => {
-              event.preventDefault();
-              if (input.trim() && !busy) say(input);
-            }}
-          >
-            <Textarea
-              ref={ref}
-              aria-label="Message"
-              placeholder={
-                busy ? 'Working…' : showSuggestions ? suggestions[0] : 'Say what to file, or ask…'
-              }
-              value={input}
-              disabled={busy}
-              onChange={(event) => type(event.currentTarget.value)}
-              onFocus={() => setFocused(true)}
-              onBlur={() => setFocused(false)}
-              onKeyDown={(event) => {
-                // Safari can report Enter confirming composed text with keyCode 229.
-                if (
-                  event.key === 'Enter' &&
-                  !event.shiftKey &&
-                  !event.nativeEvent.isComposing &&
-                  event.nativeEvent.keyCode !== 229
-                ) {
-                  event.preventDefault();
-                  event.currentTarget.form?.requestSubmit();
-                }
+        <ConversationInput
+          open={typing}
+          onOpen={() => {
+            if (recording) voice.interrupt();
+            setTyping(true);
+            requestAnimationFrame(() => ref.current?.focus());
+          }}
+          onClose={() => {
+            setTyping(false);
+            ref.current?.blur();
+          }}
+        >
+          <Composer>
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                if (input.trim() && !(busy || recording)) say(input);
               }}
-            />
-            <ComposerActions>
-              <DictateButton textareaRef={ref} onText={type} disabled={busy} />
-              {busy ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon-lg"
-                  aria-label="Stop"
-                  onClick={stop}
-                >
-                  <Icon name="stop" />
-                </Button>
-              ) : (
-                <Button type="submit" size="icon-lg" aria-label="Send" disabled={!input.trim()}>
-                  <Icon name="arrow-up" />
-                </Button>
-              )}
-            </ComposerActions>
-          </form>
-        </Composer>
+            >
+              <Textarea
+                ref={ref}
+                aria-label="Message"
+                placeholder={busy ? 'Working…' : 'Type a message…'}
+                value={input}
+                disabled={busy || recording}
+                onChange={(event) => type(event.currentTarget.value)}
+                onFocus={() => setFocused(true)}
+                onBlur={() => setFocused(false)}
+                onKeyDown={(event) => {
+                  // Safari can report Enter confirming composed text with keyCode 229.
+                  if (
+                    event.key === 'Enter' &&
+                    !event.shiftKey &&
+                    !event.nativeEvent.isComposing &&
+                    event.nativeEvent.keyCode !== 229
+                  ) {
+                    event.preventDefault();
+                    event.currentTarget.form?.requestSubmit();
+                  }
+                }}
+              />
+              <ComposerActions>
+                {!mobile && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-lg"
+                    aria-label={
+                      transcript.phase === 'listening'
+                        ? 'Finish recording'
+                        : transcript.phase === 'ready'
+                          ? 'Send transcript'
+                          : 'Dictate'
+                    }
+                    disabled={
+                      busy || transcript.phase === 'connecting' || transcript.phase === 'finishing'
+                    }
+                    onClick={voiceAction}
+                  >
+                    <Icon
+                      name={
+                        transcript.phase === 'listening'
+                          ? 'stop'
+                          : transcript.phase === 'ready'
+                            ? 'arrow-up'
+                            : 'mic'
+                      }
+                    />
+                  </Button>
+                )}
+                {busy ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon-lg"
+                    aria-label="Stop"
+                    onClick={stop}
+                  >
+                    <Icon name="stop" />
+                  </Button>
+                ) : (
+                  <Button
+                    type="submit"
+                    size="icon-lg"
+                    aria-label="Send"
+                    disabled={!input.trim() || recording}
+                  >
+                    <Icon name="arrow-up" />
+                  </Button>
+                )}
+              </ComposerActions>
+            </form>
+          </Composer>
+        </ConversationInput>
       }
     >
-      <ConversationFeed empty={!turns.length}>
-        {!turns.length && (
+      <ConversationFeed empty={!turns.length && transcript.phase === 'idle'}>
+        {!turns.length && transcript.phase === 'idle' && (
           <ConversationWelcome
-            title="What would you like to remember?"
-            description="Tell the agent what to file, or ask what your vault knows."
+            title={mobile ? 'What’s on your mind?' : 'What would you like to remember?'}
+            description={
+              mobile
+                ? 'Tap the microphone and speak. Your words appear here as you go.'
+                : 'Speak to the agent, or type what to file and ask what your vault knows.'
+            }
           />
         )}
         {turns.map((turn, i) => (
@@ -183,6 +276,19 @@ export function Chat({
             )}
           </Message>
         ))}
+        {transcript.phase !== 'idle' && (
+          <VoiceTranscript
+            phase={transcript.phase}
+            text={transcript.text}
+            error={transcript.error}
+            preview={previewVoice}
+            onEdit={() => {
+              edit(transcript.text);
+              voice.clear();
+            }}
+            onDiscard={() => voice.clear()}
+          />
+        )}
       </ConversationFeed>
 
       <Overlay
@@ -212,6 +318,7 @@ export function Chat({
                 const pending = review;
                 setReview(null);
                 type('');
+                voice.clear();
                 later(
                   send(
                     pending.text,

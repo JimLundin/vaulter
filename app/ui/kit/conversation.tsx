@@ -141,8 +141,15 @@ export function ConversationSurface({
   onNewChat,
   busy,
   composer,
+  suggestions,
+  voiceControl,
   children,
-}: ConversationActions & { composer: ReactNode; children: ReactNode }) {
+}: ConversationActions & {
+  composer: ReactNode;
+  suggestions?: ReactNode;
+  voiceControl?: ReactNode;
+  children: ReactNode;
+}) {
   const mobile = useIsMobile();
   const { page } = useContext(ConversationPresentation);
   const actions = { historyHref, onNewChat, busy };
@@ -164,8 +171,14 @@ export function ConversationSurface({
           <DesktopConversationToolbar {...actions} />
         )}
         {children}
-        <div className={mobile ? 'shrink-0 border-t bg-surface px-3 pt-2 pb-3' : 'shrink-0 pt-3'}>
+        <div
+          className={
+            mobile ? 'relative shrink-0 border-t bg-surface px-4 pt-3 pb-22' : 'shrink-0 pt-3'
+          }
+        >
+          {suggestions}
           {composer}
+          {mobile && !page && <div className="absolute right-5 bottom-3">{voiceControl}</div>}
           {!mobile && page && (
             <p className="mt-2 mb-0 text-right text-[11px] text-subtle-foreground">
               Enter to send · Shift + Enter for a new line
@@ -311,5 +324,191 @@ export function ConversationPanel({
         {children}
       </ConversationPresentation.Provider>
     </Overlay>
+  );
+}
+
+/** Voice input is the primary phone interaction; no label is placed under the circle. */
+export function VoiceButton({
+  phase,
+  busy,
+  disabled,
+  onClick,
+}: {
+  phase: 'idle' | 'connecting' | 'listening' | 'finishing' | 'ready' | 'error';
+  busy: boolean;
+  disabled?: boolean;
+  onClick: () => void;
+}) {
+  const waiting = phase === 'connecting' || phase === 'finishing';
+  const recording = phase === 'listening';
+  const label =
+    phase === 'connecting'
+      ? 'Cancel recording'
+      : busy
+        ? 'Stop agent'
+        : recording
+          ? 'Finish recording'
+          : phase === 'ready'
+            ? 'Send transcript'
+            : waiting
+              ? 'Finishing transcript'
+              : 'Start voice interaction';
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      aria-pressed={recording}
+      disabled={disabled || phase === 'finishing'}
+      onClick={onClick}
+      className={cn(
+        'flex size-16 items-center justify-center rounded-full border-4 border-background bg-primary text-primary-foreground shadow-lg focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-60',
+        recording && 'bg-destructive',
+        waiting && 'animate-pulse',
+      )}
+    >
+      <Icon
+        name={
+          busy || recording ? 'stop' : phase === 'ready' ? 'arrow-up' : waiting ? 'clock' : 'mic'
+        }
+        size="xl"
+      />
+    </button>
+  );
+}
+
+export function VoiceTranscript({
+  phase,
+  text,
+  error,
+  preview,
+  onEdit,
+  onDiscard,
+}: {
+  phase: 'idle' | 'connecting' | 'listening' | 'finishing' | 'ready' | 'error';
+  text: string;
+  error: string;
+  preview?: boolean;
+  onEdit: () => void;
+  onDiscard: () => void;
+}) {
+  const active = ['connecting', 'listening', 'finishing'].includes(phase);
+  const label =
+    phase === 'connecting'
+      ? 'Connecting microphone…'
+      : phase === 'listening'
+        ? 'Listening'
+        : phase === 'finishing'
+          ? 'Finishing transcript…'
+          : phase === 'ready'
+            ? 'Ready to send'
+            : 'Recording stopped';
+  return (
+    <section aria-label="Live transcription" className="flex min-w-0 flex-col gap-5 py-4">
+      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        <span
+          className={cn(
+            'size-2 rounded-full',
+            active ? 'animate-pulse bg-destructive' : 'bg-subtle-foreground',
+          )}
+        />
+        <span role="status">
+          {!!preview && 'Demo · '}
+          {label}
+        </span>
+      </div>
+      <p
+        aria-live="polite"
+        aria-atomic={false}
+        className="m-0 whitespace-pre-wrap break-words text-[22px] leading-[1.5] font-medium tracking-tight"
+      >
+        {text || (phase === 'connecting' ? 'Getting ready…' : 'Start speaking…')}
+        {phase === 'listening' && (
+          <span
+            aria-hidden={true}
+            className="ml-1 inline-block h-5 w-0.5 animate-pulse bg-primary align-middle"
+          />
+        )}
+      </p>
+      {!!error && (
+        <p role="alert" className="m-0 text-[13px] leading-relaxed text-destructive">
+          {error}
+        </p>
+      )}
+      {!active && !!text && (
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={onEdit}>
+            <Icon name="edit" />
+            Edit text
+          </Button>
+          <Button variant="ghost" size="sm" onClick={onDiscard}>
+            Discard
+          </Button>
+        </div>
+      )}
+      {phase === 'ready' && (
+        <p className="m-0 text-[13px] text-muted-foreground">
+          Tap the arrow to send, or edit your words first.
+        </p>
+      )}
+    </section>
+  );
+}
+
+export function PromptSuggestions({
+  suggestions,
+  onSelect,
+}: {
+  suggestions: string[];
+  onSelect: (text: string) => void;
+}) {
+  const mobile = useIsMobile();
+  if (!suggestions.length) return null;
+  return (
+    <section aria-label="Suggested prompts" className="mb-4 flex flex-col gap-2">
+      <h3 className="m-0 text-[11px] font-medium text-subtle-foreground">Ideas to explore</h3>
+      <div className={mobile ? 'flex gap-2 overflow-x-auto pb-1' : 'flex flex-wrap gap-2'}>
+        {suggestions.map((suggestion) => (
+          <button
+            key={suggestion}
+            type="button"
+            onClick={() => onSelect(suggestion)}
+            className={cn(
+              'border bg-background px-3 py-2 text-left text-[13px] leading-snug text-muted-foreground hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring',
+              mobile ? 'min-h-16 w-52 shrink-0 rounded-lg' : 'max-w-64 rounded-lg',
+            )}
+          >
+            {suggestion}
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/** Typing is an explicit secondary mode on mobile; the desktop composer stays visible. */
+export function ConversationInput({
+  open,
+  onOpen,
+  onClose,
+  children,
+}: {
+  open: boolean;
+  onOpen: () => void;
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  const mobile = useIsMobile();
+  return (
+    <div>
+      {mobile && (
+        <div className="flex min-h-11 items-center justify-start">
+          <Button variant="ghost" size="sm" onClick={open ? onClose : onOpen}>
+            <Icon name={open ? 'close' : 'keyboard'} />
+            {open ? 'Close keyboard' : 'Type a message'}
+          </Button>
+        </div>
+      )}
+      <div hidden={mobile && !open}>{children}</div>
+    </div>
   );
 }

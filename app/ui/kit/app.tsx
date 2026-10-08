@@ -626,21 +626,28 @@ export function MobileFrame({
   );
 }
 
-/** The mobile controls: three places, the primary one in the middle. */
+/** Footer navigation and an independent circular agent control floating above it. */
 export function MobileBar({
   left,
   center,
   right,
+  floating,
 }: {
   left?: ReactNode;
   center?: ReactNode;
   right?: ReactNode;
+  floating?: ReactNode;
 }) {
   return (
-    <footer className="grid shrink-0 grid-cols-3 items-center border-t border-muted px-5 pt-1.5 pb-[max(6px,env(safe-area-inset-bottom))]">
+    <footer className="relative grid shrink-0 grid-cols-3 items-center border-t border-muted px-5 pt-1.5 pb-[max(6px,env(safe-area-inset-bottom))]">
       <div className="justify-self-start">{left}</div>
       <div className="justify-self-center">{center}</div>
       <div className="justify-self-end">{right}</div>
+      {!!floating && (
+        <div data-floating-agent="" className="absolute right-5 bottom-[calc(100%+12px)] z-20">
+          {floating}
+        </div>
+      )}
     </footer>
   );
 }

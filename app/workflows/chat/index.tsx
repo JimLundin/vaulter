@@ -3,8 +3,16 @@ import { lazy, Suspense } from 'react';
 import { Activity, ConversationPage, Text } from '../../ui/kit/index.ts';
 import { type Conversation, useChat } from './conversation.ts';
 import type { Prompt } from './Chat.tsx';
-export { createConversation, useConversation } from './conversation.ts';
+import type { Transcription } from './transcription.ts';
+export { createConversation, useConversation, useChat } from './conversation.ts';
 export { openAIModel } from './model.ts';
+export { openAITranscription } from './openai-transcription.ts';
+export {
+  useTranscription,
+  useTranscript,
+  type Transcription,
+  type TranscriptionProvider,
+} from './transcription.ts';
 export { ChatSettings } from './settings.tsx';
 export type { Prompt } from './Chat.tsx';
 const Chat = lazy(() => import('./Chat.tsx').then((module) => ({ default: module.Chat })));
@@ -12,27 +20,49 @@ export function ChatPanel({
   conversation,
   prompt = null,
   historyHref,
+  voice,
+  previewVoice,
 }: {
   conversation: Conversation;
   prompt?: Prompt | null;
   historyHref?: string;
+  voice: Transcription;
+  previewVoice?: boolean;
 }) {
   return (
     <Suspense fallback={<Text tone="subtle">Loading conversation…</Text>}>
-      <Chat conversation={conversation} arg={prompt} historyHref={historyHref} />
+      <Chat
+        conversation={conversation}
+        arg={prompt}
+        historyHref={historyHref}
+        voice={voice}
+        previewVoice={previewVoice}
+      />
     </Suspense>
   );
 }
 export function ChatPage({
   conversation,
+  prompt = null,
   historyHref,
+  voice,
+  previewVoice,
 }: {
   conversation: Conversation;
+  prompt?: Prompt | null;
   historyHref?: string;
+  voice: Transcription;
+  previewVoice?: boolean;
 }) {
   return (
     <ConversationPage>
-      <ChatPanel conversation={conversation} historyHref={historyHref} />
+      <ChatPanel
+        conversation={conversation}
+        prompt={prompt}
+        historyHref={historyHref}
+        voice={voice}
+        previewVoice={previewVoice}
+      />
     </ConversationPage>
   );
 }
