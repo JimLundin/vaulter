@@ -352,6 +352,7 @@ export {
   Json,
   Markdown,
   Message,
+  PreviewBar,
   SidePanel,
   ToolResult,
   UnifiedDiff,

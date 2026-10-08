@@ -1,5 +1,6 @@
 // The product's explicit assembly. Only this file imports optional workflows.
 import { useEffect, useMemo, useState } from 'react';
+import type { LanguageModel } from 'ai';
 import {
   useVaultSession,
   noteSearchIndex,
@@ -26,6 +27,7 @@ import {
   Link,
   Overlay,
   Page,
+  PreviewBar,
   RoundButton,
   Row,
   Stack,
@@ -70,7 +72,16 @@ export function Product({ openBackend }: { openBackend: OpenBackend }) {
   return <OpenProduct session={session} />;
 }
 
-function OpenProduct({ session }: { session: ReturnType<typeof useVaultSession> }) {
+/** The same product views with supplied session/model adapters, including the design preview. */
+export function OpenProduct({
+  session,
+  model: suppliedModel,
+  preview,
+}: {
+  session: ReturnType<typeof useVaultSession>;
+  model?: (name: string) => Promise<LanguageModel>;
+  preview?: { label: string; reset: () => void };
+}) {
   const { vault, files, status } = session;
   const route = useRoute();
   const mobile = useIsMobile();
@@ -89,7 +100,7 @@ function OpenProduct({ session }: { session: ReturnType<typeof useVaultSession> 
   const onAgent = route.path === '/' || !!agentRoute.match(route.path);
   const onHistory = !!historyRoute.match(route.path);
   const title = onAgent ? 'Agent' : onHistory ? 'History' : 'Not found';
-  const model = useMemo(
+  const remoteModel = useMemo(
     () =>
       session.secrets?.openai
         ? openAIModel(session.secrets.openai, import.meta.env.VITE_OPENAI_API || undefined)
@@ -99,8 +110,9 @@ function OpenProduct({ session }: { session: ReturnType<typeof useVaultSession> 
   const note = files ? notesOf(files).byHref.get(route.path) : undefined;
   const conversation = useConversation({
     vault,
-    model,
+    model: suppliedModel ?? remoteModel,
     tools: renameTools,
+    collect: preview ? async () => ({ groups: {} }) : undefined,
     page: note ? { title: titleOf(note), path: note.path } : onAgent ? undefined : { title },
   });
   const navigation: Navigation[] = [
@@ -245,7 +257,7 @@ function OpenProduct({ session }: { session: ReturnType<typeof useVaultSession> 
             onClick={() => showPanel(!panel)}
           >
             <Icon name="sparkles" />
-            Ask the agent
+            {preview ? 'Try a conversation' : 'Ask the agent'}
             <ChatIndicator conversation={conversation} />
           </Button>
         }
@@ -264,6 +276,17 @@ function OpenProduct({ session }: { session: ReturnType<typeof useVaultSession> 
         }
         closePanel={() => showPanel(false)}
       >
+        {!!preview && (
+          <PreviewBar>
+            <Text size="xs">{preview.label} · Sample data · Scripted chat</Text>
+            <Row>
+              <Link href="./kit/">Component kit</Link>
+              <Button variant="ghost" size="sm" onClick={preview.reset}>
+                Reset demo
+              </Button>
+            </Row>
+          </PreviewBar>
+        )}
         {onAgent ? (
           <ChatPage conversation={conversation} historyHref={historyHref} />
         ) : onHistory ? (

@@ -53,6 +53,7 @@ export interface ConversationOptions {
   tools?: (vault: OwnedVault) => ToolSet | Promise<ToolSet>;
   page?: OnScreen;
   onCommit?: (sha: string) => void;
+  collect?: () => Promise<Collected>;
 }
 
 export function createConversation(initial: ConversationOptions) {
@@ -196,7 +197,9 @@ export function createConversation(initial: ConversationOptions) {
         agentTurn,
       ],
     });
-    chat.meta = collect(placesOf(options.vault)).catch(() => ({ groups: {} }));
+    chat.meta = (options.collect ? options.collect() : collect(placesOf(options.vault))).catch(
+      () => ({ groups: {} }),
+    );
     chat.history = [...chat.history, { role: 'user', content: said }];
     const abort = new AbortController();
     chat.abort = abort;

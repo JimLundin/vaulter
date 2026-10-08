@@ -129,3 +129,11 @@ The browser uses GitHub through an encrypted IndexedDB cache, including offline 
 edits. Memory is the test adapter. No browser source depends on Node. The toolchain and `tools/` use
 Node 24. Deployment seals `dist/secrets.json`, which the app loads relative to its published root.
 Notes remain in the private vault; this repository ships application code only.
+
+`app/preview/` is an alternate bootstrap for design review. It supplies a memory backend and scripted
+model to the same Product views, with sample Markdown and an initial sample history entry. Product
+receives the model and preview label explicitly; workflows do not import the preview. Conversation
+metadata collection is supplied as an adapter, so preview sends do not request location or weather.
+The preview builds separately, contains no sealed secrets and registers no service worker. Its
+GitHub Pages job adds `/preview/structure/` and the kit gallery to the exact deployed production
+artifact. Design iteration precedes merging the application and migrating private vault content.

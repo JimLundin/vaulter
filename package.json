@@ -11,7 +11,9 @@
     "typecheck": "tsc",
     "lint": "biome ci .",
     "format": "biome check --write .",
-    "kit": "vite app/ui/kit"
+    "kit": "vite app/ui/kit",
+    "design": "vite --mode design --open /preview/",
+    "build:design": "vite build --mode design && node tools/prepare-design.ts && vite build app/ui/kit --outDir ../../../dist-preview/kit --emptyOutDir"
   },
   "dependencies": {
     "@ai-sdk/openai": "^4.0.83",

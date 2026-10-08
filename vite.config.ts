@@ -47,6 +47,14 @@ const devSecrets = (mode: string) => {
     : null;
 };
 
+const entries = (design: boolean): Record<string, string> =>
+  design
+    ? { preview: fileURLToPath(new URL('app/preview/index.html', import.meta.url)) }
+    : {
+        index: fileURLToPath(new URL('app/index.html', import.meta.url)),
+        sw: fileURLToPath(new URL('app/ui/sw.ts', import.meta.url)),
+      };
+
 export default defineConfig(({ command, mode }) => ({
   root: 'app',
   base: './',
@@ -54,21 +62,20 @@ export default defineConfig(({ command, mode }) => ({
   // shadcn/ui's imports: @/components/ui/…, @/lib/utils.
   resolve: { alias: { '@': fileURLToPath(new URL('app', import.meta.url)) } },
   build: {
-    outDir: '../dist',
+    outDir: mode === 'design' ? '../dist-preview' : '../dist',
     emptyOutDir: true,
     // The service worker is its own entry at the root (its scope is the app); everything else is hashed.
     rolldownOptions: {
-      input: {
-        index: fileURLToPath(new URL('app/index.html', import.meta.url)),
-        sw: fileURLToPath(new URL('app/ui/sw.ts', import.meta.url)),
-      },
+      input: entries(mode === 'design'),
       output: { entryFileNames: (c) => (c.name === 'sw' ? 'sw.js' : 'assets/[name]-[hash].js') },
     },
   },
   define: {
     __BUILD__: JSON.stringify(Date.now().toString(36)),
     __COMMIT__: JSON.stringify((process.env.GITHUB_SHA ?? '').slice(0, 7)),
-    __DEV_SECRETS__: JSON.stringify(command === 'serve' ? devSecrets(mode) : null),
+    __DEV_SECRETS__: JSON.stringify(
+      command === 'serve' && mode !== 'design' ? devSecrets(mode) : null,
+    ),
   },
   test: { root: SITE, include: ['app/**/*.test.{ts,tsx}', 'tools/**/*.test.ts'] },
 }));

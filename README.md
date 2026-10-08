@@ -2,8 +2,8 @@
 
 The browser app Jim reads the vault in, at **https://jimlundin.github.io/vaulter/**. It holds no notes:
 behind a password it reads them at runtime from the vault, the private repo `JimLundin/vault`, keeps
-them encrypted on the device, and works offline. Notes never depend on anything here except the MDX
-components (the vault's `meta/conventions.md` §13). The design and its history: `PLAN-browser-app.md`
+them encrypted on the device, and works offline. The current branch reads Markdown and the vault's
+schema; remaining legacy MDX content will be migrated after design review and merge. The design and its history: `PLAN-browser-app.md`
 (written while the app still lived in the vault, as `site/`, and the repos were `my-vault` and `vault-pages`).
 
 ## Commands
@@ -14,6 +14,8 @@ components (the vault's `meta/conventions.md` §13). The design and its history:
 | `npm run check` | the permanent note, schema and graph integrity checks over `../vault`, or `node tools/check.ts --vault <dir>`; the vault's CI uses the same check |
 | `npm run dev` | the app on the vault through GitHub, as built, in any browser, but with no password: it loads right in with the secrets from `.env.local` (gitignored): `VAULT_GITHUB_TOKEN`, and optionally `VAULT_OPENAI_KEY` and `VAULT_JINA_KEY`, the names CI seals. Only dev gets them; a build has none. Its commits go to the vault's `main`, as the app's do |
 | `npm run kit` | the component kit gallery and reference design |
+| `npm run design` | the current branch UI at `http://localhost:5173/preview/`, with fictional notes and scripted chat; no password, keys or vault connection |
+| `npm run build:design` | the sample preview and component gallery into `dist-preview/` |
 | `npm run build` | the app into `dist/` |
 | `npm run lint` / `npm run format` | Biome: lint and format check (CI), or fix both in place. Style: 2 spaces, single quotes, semicolons, trailing commas, 100 columns (`biome.json`) |
 | `npm test` / `npm run typecheck` | the tests (Vitest: `app/`) and TypeScript over `app/` and `tools/` |
@@ -42,6 +44,28 @@ note format and graph integrity checks; `tools/check.ts` runs them over a vault 
 commit passes the same rules and carries `Committed-From: vault app`.
 
 ## Publishing
+
+Review `structure` before merging at **https://jimlundin.github.io/vaulter/preview/structure/**.
+The component gallery is at **https://jimlundin.github.io/vaulter/preview/structure/kit/**.
+Every push to `structure` runs the checks and refreshes these links. The banner identifies the
+preview commit. This preview uses the actual Product views, fictional notes, an in-memory backend,
+and a scripted local model. Try “vault it: leave space for a walk before work” to exercise staging,
+checking, committing and History. Reload or Reset demo starts over. It ships no credentials, reads
+no private vault contents, and registers no service worker. Search links still expose the current
+branch's missing reader routes; that remains an architecture review finding.
+
+For local iteration, run `npm ci` then `npm run design` on `structure`. Edit the kit or workflow views
+and Vite updates the browser. Use `npm run kit` separately for the kit's full gallery. The development
+preview lives at `/preview/`; the built preview moves its entry to the deploy root and includes the
+gallery under `kit/`.
+
+GitHub Pages accepts one site artifact. The preview job downloads the successful artifact for the
+currently deployed production commit, preserves its root files, and adds `preview/structure/`.
+`tools/publish-design.ts` refuses to publish if that exact production artifact is unavailable or if
+the preview contains `secrets.json` or `sw.js`. The `github-pages` environment allows `structure`
+for this preview. Preview publishing does not merge the application branch or migrate vault data.
+An ordinary main deployment replaces the whole site, so it removes the preview until the next
+`structure` preview publish.
 
 Notes don't publish: the app reads the vault's `main` itself. Every push here runs
 `.github/workflows/deploy.yml`: lint, the type check and the tests; on `main` it then builds, seals

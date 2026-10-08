@@ -13,6 +13,17 @@ export function Gate({ children }: { children: ReactNode }) {
   );
 }
 
+export function PreviewBar({ children }: { children: ReactNode }) {
+  return (
+    <aside
+      aria-label="Design preview"
+      className="flex min-h-10 flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b bg-card px-4 py-1 text-foreground"
+    >
+      {children}
+    </aside>
+  );
+}
+
 export function ConversationSurface({ page, children }: { page?: boolean; children: ReactNode }) {
   return (
     <section
