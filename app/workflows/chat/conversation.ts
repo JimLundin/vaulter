@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import type { ModelMessage, ToolSet } from 'ai';
 
 import type { AgentContext } from './context.ts';
-import { searchNotes, type Vault } from '../../vault/index.ts';
+import { searchNotes, type Change, type OwnedVault, type Vault } from '../../vault/index.ts';
 import { model, type ModelProvider } from './model.ts';
 
 import { appVersion, collect, type Place } from './meta.ts';
@@ -50,7 +50,7 @@ export interface ChatState {
 export interface ConversationOptions {
   vault: Vault;
   model: ModelProvider | null;
-  tools?: (vault: Vault) => ToolSet | Promise<ToolSet>;
+  tools?: (vault: OwnedVault) => ToolSet | Promise<ToolSet>;
   page?: OnScreen;
   onCommit?: (sha: string) => void;
 }
@@ -156,20 +156,25 @@ export function createConversation(initial: ConversationOptions) {
             : 'ok';
 
   /** The tools: the latest writer and search, also between renders and with no view open. */
-  function context(): AgentContext {
-    const aw = options.vault;
+  function context(aw: OwnedVault): AgentContext {
     return {
       w: aw,
       search: (q: string) => searchNotes(aw, q),
       capture: async (judged) => {
-        const r = recordExchange({
-          turns: chat.state.turns.slice(chat.captured).map(chatTurn),
-          judged,
-          collected: (await chat.meta) ?? { groups: {} },
-          session: { chat: chat.id, model: model(), app: appVersion() },
-          files: aw.files(),
+        const collected = (await chat.meta) ?? { groups: {} };
+        let recorded: ReturnType<typeof recordExchange> | undefined;
+        await aw.update((files) => {
+          const r = recordExchange({
+            turns: chat.state.turns.slice(chat.captured).map(chatTurn),
+            judged,
+            collected,
+            session: { chat: chat.id, model: model(), app: appVersion() },
+            files,
+          });
+          recorded = r;
+          return [{ path: r.path, text: r.text }];
         });
-        await aw.stage(r.path, r.text);
+        const r = recorded!;
         chat.captured = chat.state.turns.length;
         return { path: r.path, at: r.exchange.at, raw: r.raw };
       },
@@ -177,7 +182,7 @@ export function createConversation(initial: ConversationOptions) {
   }
 
   /** Says `text` to the agent, as Jim on `page` (the one on screen by default). */
-  async function send(text: string, page = options.page) {
+  async function send(text: string, page = options.page, staged: Change[] | 'reject' = 'reject') {
     const said = text.trim();
     if (!said || chat.state.busy || !ready()) return;
     const now = new Date().toISOString();
@@ -200,53 +205,58 @@ export function createConversation(initial: ConversationOptions) {
       if (abort.signal.aborted || disposed) return;
       const languageModel = await options.model!(model());
       if (abort.signal.aborted || disposed) return;
-      const ctx = context();
-      const tools = (await options.tools?.(options.vault)) ?? {};
-      if (abort.signal.aborted || disposed) return;
-      const run = runAgent(languageModel, ctx, chat.history, tools, abort.signal, page);
-      const calls = new Map<string, Part & { kind: 'tool' }>();
-      for await (const p of run.stream) {
-        if (disposed) break;
-        if (p.type === 'text-delta') {
-          const last = agentTurn.parts.at(-1);
-          if (last?.kind === 'text') last.text += p.text;
-          else agentTurn.parts.push({ kind: 'text', text: p.text });
-        } else if (p.type === 'tool-call') {
-          const part: Part & { kind: 'tool' } = {
-            kind: 'tool',
-            name: p.toolName,
-            input: brief(p.toolName, p.input),
-            args: p.input,
-          };
-          calls.set(p.toolCallId, part);
-          agentTurn.parts.push(part);
-        } else if (p.type === 'tool-result' || p.type === 'tool-error') {
-          const part = calls.get(p.toolCallId);
-          if (part) {
-            const out: any = p.type === 'tool-result' ? p.output : { error: String(p.error) };
-            part.output = out;
-            part.error = !!out?.error;
-            part.commit = out?.committed;
-            part.result = resultOf(out);
-            if (part.commit) {
-              toast.success(`Committed ${part.commit}`);
-              options.onCommit?.(part.commit);
+      await options.vault.write(
+        async (owned) => {
+          const ctx = context(owned);
+          const tools = (await options.tools?.(owned)) ?? {};
+          if (abort.signal.aborted || disposed) return;
+          const run = runAgent(languageModel, ctx, chat.history, tools, abort.signal, page);
+          const calls = new Map<string, Part & { kind: 'tool' }>();
+          for await (const p of run.stream) {
+            if (disposed || abort.signal.aborted) break;
+            if (p.type === 'text-delta') {
+              const last = agentTurn.parts.at(-1);
+              if (last?.kind === 'text') last.text += p.text;
+              else agentTurn.parts.push({ kind: 'text', text: p.text });
+            } else if (p.type === 'tool-call') {
+              const part: Part & { kind: 'tool' } = {
+                kind: 'tool',
+                name: p.toolName,
+                input: brief(p.toolName, p.input),
+                args: p.input,
+              };
+              calls.set(p.toolCallId, part);
+              agentTurn.parts.push(part);
+            } else if (p.type === 'tool-result' || p.type === 'tool-error') {
+              const part = calls.get(p.toolCallId);
+              if (part) {
+                const out: any = p.type === 'tool-result' ? p.output : { error: String(p.error) };
+                part.output = out;
+                part.error = !!out?.error;
+                part.commit = out?.committed;
+                part.result = resultOf(out);
+                if (part.commit) {
+                  toast.success(`Committed ${part.commit}`);
+                  options.onCommit?.(part.commit);
+                }
+              }
+            } else if (p.type === 'finish-step') {
+              const t = agentTurn.tokens ?? { in: 0, out: 0 };
+              agentTurn.tokens = {
+                in: t.in + (p.usage.inputTokens ?? 0),
+                out: t.out + (p.usage.outputTokens ?? 0),
+              };
+              agentTurn.model = p.response.modelId || agentTurn.model;
+            } else if (p.type === 'error') {
+              agentTurn.error = String((p.error as any)?.message ?? p.error);
             }
+            update();
           }
-        } else if (p.type === 'finish-step') {
-          const t = agentTurn.tokens ?? { in: 0, out: 0 };
-          agentTurn.tokens = {
-            in: t.in + (p.usage.inputTokens ?? 0),
-            out: t.out + (p.usage.outputTokens ?? 0),
-          };
-          agentTurn.model = p.response.modelId || agentTurn.model;
-        } else if (p.type === 'error') {
-          agentTurn.error = String((p.error as any)?.message ?? p.error);
-        }
-        update();
-      }
-      if (!disposed) chat.history = await run.done;
-      else await run.done.catch(() => undefined);
+          const history = await run.done;
+          if (!(disposed || abort.signal.aborted)) chat.history = history;
+        },
+        { staged, signal: abort.signal },
+      );
     } catch (e) {
       agentTurn.error = (e as Error).name === 'AbortError' ? 'Stopped.' : (e as Error).message;
     } finally {
@@ -265,6 +275,15 @@ export function createConversation(initial: ConversationOptions) {
     snapshot: () => chat.state,
     ready,
     vaultFiles: () => options.vault.files(),
+    stagedChanges: () => {
+      const before = new Map(options.vault.base().map((file) => [file.path, file.text]));
+      const after = new Map(options.vault.files().map((file) => [file.path, file.text]));
+      return options.vault.staged().map((path) => ({
+        path,
+        before: before.get(path) ?? '',
+        text: after.get(path) ?? null,
+      }));
+    },
     viewing,
     newChat,
     send,

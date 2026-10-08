@@ -69,6 +69,8 @@ async function writer(extra: Record<string, string> = {}) {
     overlay: core.overlay,
     stage: core.stage,
     stageMany: core.stageMany,
+    update: core.update,
+    write: core.write,
     unstage: core.unstage,
     discard: core.discard,
     commit: core.commit,

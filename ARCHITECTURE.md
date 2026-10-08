@@ -71,16 +71,35 @@ selection and write checks no longer depend on which workflows are installed.
 another view rendering. Workflows receive no backend handle or raw secrets. Bootstrap selects a
 storage adapter; Product supplies only the model dependency to chat.
 
-Confirmed changes enter one persisted overlay. `stageMany()` builds an entire change set, persists it,
-then publishes it. A failed validation or persistence operation exposes none of a partial rename.
-Staging, commit, discard, unstage and revert are queued so overlapping calls cannot silently lose
-edits. Commits reject newly introduced integrity problems and changed source identities; GitHub also
-requires a fast-forward write. Full-vault CI retains its existing check semantics.
+Use `vault.update(files => changes)` for a change calculated from vault contents. The vault acquires
+exclusive ownership, reloads the cached head and persisted overlay, calculates against that preview,
+then persists and publishes the complete change set. Rename uses this operation; it cannot calculate
+from files that an earlier queued edit is about to replace. `stage()` and `stageMany()` remain useful
+for prepared text; they do not make an earlier, separate read atomic.
 
-Queuing individual writes does not establish ownership across an entire conversation. Before adding
-another writing workflow, add explicit ownership of multi-step write sequences and resolve existing
-staged edits. Human forms keep unconfirmed input locally. This migration retains the current shared
-staging model.
+Use `vault.write(async owned => ..., { staged, signal })` for a sequence that reads and writes across
+multiple steps. Use the supplied `OwnedVault` throughout, including optional tool factories. It has
+the same operations without `write()`, so nested operations reuse ownership. Reads stay on the
+sequence's head and staged preview. Another writer waits until the callback completes or fails.
+Choose `staged: 'reject'`, explicitly include all existing staging, or supply the exact reviewed
+`Change[]`. A reviewed set must still match persisted staging after ownership is acquired. Chat shows
+the diffs and requires “Include changes and send” before including existing edits. Revert refuses
+to run with pending staging.
+
+Ownership belongs to the backend's persisted state, shared across writer instances. Memory uses one
+queue; GitHub uses the origin's Web Locks. Cache replacement by sync and commit has its own Web Lock,
+and adopts the latest cached snapshot before proceeding. BroadcastChannel tells other tabs to reload
+staging; notifications are hints, and every mutation reloads under ownership. GitHub refuses writes
+when Web Locks are unavailable. These locks cover one browser origin; remote writers still rely on
+source identity checks and GitHub's fast-forward requirement.
+
+Cancellation expires the owned handle, rejects queued tools and drops late calculations. Ownership
+waits for any persistence or remote write already in progress to settle before admitting another
+writer. A completed remote write cannot be undone by cancellation. Failed and stopped sequences keep
+their staged edits for review. A failed staging validation or persistence operation publishes none of
+a partial rename. Commits check source identities against the backend's actual write base, including
+when sync advances during a sequence, and reject newly introduced integrity problems. Full-vault CI
+retains its existing check semantics.
 
 ## Conversation lifetime
 
@@ -88,6 +107,9 @@ Product creates one conversation above route selection. Closing its panel or mov
 not cancel a turn. Each controller owns its turns, draft, model history, subscriptions and capture
 position. Opening a view clears its unread state. Sign-out and unmount dispose it, aborting work and
 suppressing later UI notifications. Separate controllers never share a global current host.
+Each turn acquires vault ownership before constructing tools and holds it through streaming and
+capture. Stopping or disposing a turn expires the vault supplied to its tools, even if a tool factory
+ignores cancellation. Capture appends through `update()` so overlapping tools calculate in order.
 
 ## UI kit
 

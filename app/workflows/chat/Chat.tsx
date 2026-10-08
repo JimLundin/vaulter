@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import {
   Button,
+  CodeDiff,
   Composer,
   ConversationFeed,
   ConversationSurface,
@@ -13,12 +14,14 @@ import {
   Link,
   Markdown,
   Message,
+  Overlay,
   Row,
   Stack,
   Text,
   Textarea,
   ToolResult,
   DictateButton,
+  useIsMobile,
 } from '../../ui/kit/index.ts';
 import { link } from '../../ui/routing.ts';
 import { later } from '../../ui/later.ts';
@@ -43,6 +46,11 @@ export function Chat({
   const { chat, newChat, send, stop, viewing } = conversation;
   const { turns, busy } = useChat(conversation);
   const [input, setInput] = useState(chat.draft);
+  const [review, setReview] = useState<{
+    text: string;
+    files: ReturnType<Conversation['stagedChanges']>;
+  } | null>(null);
+  const mobile = useIsMobile();
   const ref = useRef<HTMLTextAreaElement>(null);
   const type = useCallback(
     (text: string) => {
@@ -53,10 +61,15 @@ export function Chat({
   );
   const say = useCallback(
     (text: string) => {
+      const files = conversation.stagedChanges();
+      if (files.length) {
+        setReview({ text, files });
+        return;
+      }
       type('');
       later(send(text));
     },
-    [type, send],
+    [type, send, conversation],
   );
   useEffect(viewing, [viewing]);
   useEffect(() => {
@@ -175,6 +188,47 @@ export function Chat({
           </Stack>
         </form>
       </Composer>
+      <Overlay
+        mobile={mobile}
+        open={!!review}
+        onClose={() => setReview(null)}
+        title="Review pending changes"
+        description="These edits are already staged. The agent can change and commit them during this turn."
+      >
+        <Stack>
+          {review?.files.map((file) => (
+            <CodeDiff
+              key={file.path}
+              path={file.path}
+              before={file.before}
+              after={file.text ?? ''}
+            />
+          ))}
+          <Row justify="end">
+            <Button variant="outline" onClick={() => setReview(null)}>
+              Cancel
+            </Button>
+            <Button
+              disabled={busy}
+              onClick={() => {
+                if (!review) return;
+                const pending = review;
+                setReview(null);
+                type('');
+                later(
+                  send(
+                    pending.text,
+                    undefined,
+                    pending.files.map(({ path, text }) => ({ path, text })),
+                  ),
+                );
+              }}
+            >
+              Include changes and send
+            </Button>
+          </Row>
+        </Stack>
+      </Overlay>
     </ConversationSurface>
   );
 }

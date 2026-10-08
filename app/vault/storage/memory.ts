@@ -11,6 +11,7 @@ import {
   type VaultBackend,
 } from './backend.ts';
 import { applyOverlay } from '../changes/writer.ts';
+import { serial } from './coordination.ts';
 
 export function memoryBackend(initial: Record<string, string>) {
   let files: VaultFile[] = Object.entries(initial).map(([path, text]) => ({ path, text }));
@@ -22,6 +23,7 @@ export function memoryBackend(initial: Record<string, string>) {
   let version = 0;
   let seen = -1;
   const kept = new Map<string, unknown>();
+  const keptListeners = new Set<() => void>();
   const listeners = new Set<() => void>();
   const head = (): Head => ({ files, version: String(version) });
   const apply = (changes: Change[]) =>
@@ -50,7 +52,8 @@ export function memoryBackend(initial: Record<string, string>) {
   };
 
   const backend: VaultBackend = {
-    cached: async () => null,
+    coordinate: serial(),
+    cached: async () => head(),
     refresh: () => {
       const fresh = seen !== version;
       seen = version;
@@ -95,7 +98,14 @@ export function memoryBackend(initial: Record<string, string>) {
       set: (k, v) => {
         if (v == null) kept.delete(k);
         else kept.set(k, v);
+        if (k === 'overlay') for (const on of keptListeners) on();
         return Promise.resolve();
+      },
+      watch: (on) => {
+        keptListeners.add(on);
+        return () => {
+          keptListeners.delete(on);
+        };
       },
     },
   };

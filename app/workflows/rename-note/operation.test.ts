@@ -33,6 +33,8 @@ async function setup(keep?: VaultBackend['keep']) {
     overlay: core.overlay,
     stage: core.stage,
     stageMany: core.stageMany,
+    update: core.update,
+    write: core.write,
     unstage: core.unstage,
     discard: core.discard,
     commit: core.commit,
@@ -83,4 +85,29 @@ test('the model adapter calls the same operation and reports task errors', async
   expect(await execute({ from: 'Missing.md', to: 'Gamma.md' }, options)).toHaveProperty('error');
   expect(vault.staged()).toEqual([]);
   expect(await execute({ from: 'Alpha.md', to: 'Gamma.md' }, options)).toHaveProperty('staged');
+});
+
+test('rename calculates its changes after an earlier pending edit is persisted', async () => {
+  const { vault, backend } = await setup();
+  const keep = backend.keep.set;
+  let entered!: () => void;
+  let release!: () => void;
+  const started = new Promise<void>((resolve) => {
+    entered = resolve;
+  });
+  const waiting = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  backend.keep.set = async (id, value) => {
+    entered();
+    await waiting;
+    await keep(id, value);
+  };
+  const latest = note('Alpha', 'The latest edit must survive.');
+  const editing = vault.stage('Alpha.md', latest);
+  await started;
+  const renaming = renameNote(vault, { from: 'Alpha.md', to: 'Gamma.md' });
+  release();
+  await Promise.all([editing, renaming]);
+  expect(vault.files().find((file) => file.path === 'Gamma.md')?.text).toBe(latest);
 });

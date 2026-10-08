@@ -1,8 +1,8 @@
 import type { Hit } from '../../vault/documents/search.ts';
-import type { Vault } from '../../vault/index.ts';
+import type { OwnedVault } from '../../vault/index.ts';
 
 export interface AgentContext {
-  w: Vault;
+  w: OwnedVault;
   search: (query: string) => Hit[];
   capture?: (judged: {
     procedure: string;

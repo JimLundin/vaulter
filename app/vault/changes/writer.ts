@@ -5,6 +5,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { applyChanges, type Change, type FileRules, type VaultFile } from '../files.ts';
 import { blobSha } from '../storage/blob-sha.ts';
+import { StagedChanges, type Vault, type OwnedVault, type WriteOptions } from './operations.ts';
+import { cancellable, serial } from '../storage/coordination.ts';
 import {
   CheckFailed,
   Conflict,
@@ -41,7 +43,9 @@ export interface Writer {
   base: VaultFile[];
   overlay: Overlay | null;
   stage: (path: string, text: string | null) => Promise<void>;
-  stageMany: (changes: Change[]) => Promise<void>;
+  stageMany: Vault['stageMany'];
+  update: Vault['update'];
+  write: Vault['write'];
   unstage: (path: string) => Promise<void>;
   discard: () => Promise<void>;
   /** Null where the backend can't write. */
@@ -64,96 +68,204 @@ export function writerCore(
   onOverlay: (o: Overlay | null) => void = () => undefined,
 ) {
   let overlay: Overlay | null = null;
-  const change = async (o: Overlay | null) => {
-    const next = o && Object.keys(o.files).length ? o : null;
-    await backend?.keep.set('overlay', next);
+  const publish = (next: Overlay | null) => {
+    if (JSON.stringify(overlay) === JSON.stringify(next)) return;
     overlay = next;
     onOverlay(overlay);
   };
-  const written = (r: { head: Head; commit: string }) => {
-    onWritten(r.head);
-    return r.commit;
+  const change = async (o: Overlay | null) => {
+    const next = o && Object.keys(o.files).length ? o : null;
+    await backend?.keep.set('overlay', next);
+    publish(next);
   };
-  const write = backend?.write;
+  const local = serial();
+  const coordinate = backend?.coordinate ?? serial();
   const verify = gate(rules);
-  let pending: Promise<unknown> = Promise.resolve();
-  const enqueue = <T>(action: () => Promise<T>): Promise<T> => {
-    const run = pending.then(action);
-    pending = run.catch(() => undefined);
-    return run;
-  };
-  const stageMany = (changes: Change[]): Promise<void> =>
-    enqueue(async () => {
-      const o = overlay ?? { version: 0, files: {}, from: {} };
-      const source = base();
-      const files = { ...o.files };
-      const from = { ...o.from };
-      for (const { path, text } of changes) {
-        const original = source.find((f) => f.path === path)?.text;
-        if (text !== null && !rules.keeps(path))
-          throw new Error(`${path} isn't a file the app keeps: ${rules.what}`);
-        if (text === null && original === undefined && typeof files[path] !== 'string')
-          throw new Error(`no such file: ${path}`);
-        // biome-ignore lint/performance/noAwaitInLoops: each change builds on the previous one
-        if (!(path in files)) from[path] = original === undefined ? null : await blobSha(original);
-        if (text === original || (text === null && original === undefined)) {
-          delete files[path];
-          delete from[path];
-        } else files[path] = text;
-      }
-      await change({ version: o.version + 1, files, from });
-    });
+
+  const write = <T>(
+    operation: (vault: OwnedVault) => Promise<T>,
+    options: WriteOptions,
+  ): Promise<T> =>
+    local(
+      () =>
+        coordinate(async () => {
+          let source = base();
+          const readHead = async () => {
+            const head = await backend?.cached();
+            if (head) {
+              source = head.files;
+              onWritten(head);
+            }
+          };
+          await readHead();
+          if (backend) publish((await backend.keep.get<Overlay>('overlay')) ?? null);
+          options.signal?.throwIfAborted();
+          if (options.staged === 'reject' && overlay)
+            throw new StagedChanges(Object.keys(overlay.files));
+          if (Array.isArray(options.staged)) {
+            const reviewed = new Map(options.staged.map(({ path, text }) => [path, text]));
+            const current = Object.entries(overlay?.files ?? {});
+            if (
+              reviewed.size !== current.length ||
+              current.some(([path, text]) => reviewed.get(path) !== text)
+            )
+              throw new Error(
+                'The staged changes changed after review. Review them again before sending.',
+              );
+          }
+
+          let active = true;
+          let pending: Promise<unknown> = Promise.resolve();
+          const guard = () => {
+            options.signal?.throwIfAborted();
+            if (!active) throw new Error('This vault write operation has finished.');
+          };
+          const enqueue = <R>(action: () => Promise<R>): Promise<R> => {
+            const run = pending.then(() => {
+              guard();
+              return action();
+            });
+            pending = run.catch(() => undefined);
+            return run;
+          };
+          const stageMany = async (changes: Change[]) => {
+            const o = overlay ?? { version: 0, files: {}, from: {} };
+            const files = { ...o.files };
+            const from = { ...o.from };
+            for (const { path, text } of changes) {
+              const original = source.find((f) => f.path === path)?.text;
+              if (text !== null && !rules.keeps(path))
+                throw new Error(`${path} isn't a file the app keeps: ${rules.what}`);
+              if (text === null && original === undefined && typeof files[path] !== 'string')
+                throw new Error(`no such file: ${path}`);
+              if (!(path in files)) {
+                // biome-ignore lint/performance/noAwaitInLoops: each change builds on the previous one
+                from[path] = original === undefined ? null : await blobSha(original);
+              }
+              if (text === original || (text === null && original === undefined)) {
+                delete files[path];
+                delete from[path];
+              } else files[path] = text;
+            }
+            guard();
+            await change({ version: o.version + 1, files, from });
+          };
+          const written = (r: { head: Head; commit: string }) => {
+            source = r.head.files;
+            onWritten(r.head);
+            return r.commit;
+          };
+          const vault: OwnedVault = {
+            base: () => {
+              guard();
+              return source;
+            },
+            files: () => {
+              guard();
+              return applyOverlay(source, overlay);
+            },
+            staged: () => {
+              guard();
+              return Object.keys(overlay?.files ?? {});
+            },
+            stage: (path, text) => enqueue(() => stageMany([{ path, text }])),
+            stageMany: (changes) => enqueue(() => stageMany(changes)),
+            update: (calculate) =>
+              enqueue(async () =>
+                stageMany(
+                  await cancellable(
+                    Promise.resolve().then(() => calculate(vault.files())),
+                    options.signal,
+                  ),
+                ),
+              ),
+            commit: backend?.write
+              ? (message) =>
+                  enqueue(async () => {
+                    const o = overlay;
+                    if (!o) throw new Error('nothing is staged');
+                    // Check identities inside backend verification as well: cache sync can advance the head
+                    // between starting this sequence and writing it, even in the same tab.
+                    const checked: Verify = async (before, after) => {
+                      const now = new Map(before.map((f) => [f.path, f.text]));
+                      const paths = Object.keys(o.from);
+                      const shas = await Promise.all(
+                        paths.map((p) => {
+                          const text = now.get(p);
+                          return text === undefined ? null : blobSha(text);
+                        }),
+                      );
+                      const stale = paths.filter((p, i) => shas[i] !== o.from[p]);
+                      if (stale.length) throw new Conflict(stale);
+                      await verify(before, after);
+                      guard();
+                    };
+                    const result = await backend.write!(
+                      Object.entries(o.files).map(([path, text]) => ({ path, text })),
+                      message,
+                      checked,
+                    );
+                    await change(null);
+                    return written(result);
+                  })
+              : null,
+            revert: backend?.revert
+              ? (sha) =>
+                  enqueue(async () => {
+                    if (overlay) throw new StagedChanges(Object.keys(overlay.files));
+                    return written(
+                      await backend.revert!(sha, async (before, after) => {
+                        await verify(before, after);
+                        guard();
+                      }),
+                    );
+                  })
+              : null,
+            history: backend?.history ?? null,
+            patch: backend?.patch ?? null,
+            problems: () => enqueue(() => rules.problems(source, applyOverlay(source, overlay))),
+          };
+          try {
+            return await cancellable(
+              Promise.resolve().then(() => operation(vault)),
+              options.signal,
+            );
+          } finally {
+            active = false;
+            // In-flight persistence/remote writes settle before another owner can enter. Queued calls
+            // and producers that finish late see an expired handle and cannot start a new mutation.
+            await pending;
+          }
+        }, options.signal),
+      options.signal,
+    );
+
+  const run = <T>(operation: (vault: OwnedVault) => Promise<T>) =>
+    write(operation, { staged: 'include' });
   return {
     get overlay() {
       return overlay;
     },
-    load: () =>
-      enqueue(async () => {
-        overlay = (await backend?.keep.get<Overlay>('overlay')) ?? null;
-        onOverlay(overlay);
-      }),
-    stage: (path: string, text: string | null) => stageMany([{ path, text }]),
-    stageMany,
+    load: () => run(async () => undefined),
+    watch: () =>
+      backend?.keep.watch?.(() => {
+        run(async () => undefined).catch((error: unknown) => reportError(error));
+      }) ?? (() => undefined),
+    stage: (path: string, text: string | null) => run((vault) => vault.stage(path, text)),
+    stageMany: (changes: Change[]) => run((vault) => vault.stageMany(changes)),
+    update: (calculate: Parameters<Vault['update']>[0]) => run((vault) => vault.update(calculate)),
+    write,
     unstage: (path: string) =>
-      enqueue(async () => {
+      run(async () => {
         if (!overlay) return;
         const { [path]: _, ...files } = overlay.files;
         const { [path]: __, ...from } = overlay.from;
         await change({ version: overlay.version + 1, files, from });
       }),
-    discard: () => enqueue(() => change(null)),
-    commit: write
-      ? (message: string) =>
-          enqueue(async () => {
-            const o = overlay;
-            if (!o) throw new Error('nothing is staged');
-            // A file changed on the vault since it was staged: committing would overwrite that change.
-            const now = new Map(base().map((f) => [f.path, f.text]));
-            const paths = Object.keys(o.from);
-            const shas = await Promise.all(
-              paths.map((p) => {
-                const t = now.get(p);
-                return t === undefined ? null : blobSha(t);
-              }),
-            );
-            const stale = paths.filter((p, i) => shas[i] !== o.from[p]);
-            if (stale.length) throw new Conflict(stale);
-            const r = await write(
-              Object.entries(o.files).map(([path, text]) => ({ path, text })),
-              message,
-              verify,
-            );
-            await change(null);
-            return written(r);
-          })
-      : null,
-    revert: backend?.revert
-      ? (sha: string) => enqueue(async () => written(await backend.revert!(sha, verify)))
-      : null,
-    problems: async () => {
-      await pending;
-      return rules.problems(base(), applyOverlay(base(), overlay));
-    },
+    discard: () => run(() => change(null)),
+    commit: backend?.write ? (message: string) => run((vault) => vault.commit!(message)) : null,
+    revert: backend?.revert ? (sha: string) => run((vault) => vault.revert!(sha)) : null,
+    problems: () => run((vault) => vault.problems()),
   };
 }
 
@@ -182,12 +294,15 @@ export function useWriter(
   );
   useEffect(() => {
     core.load().catch((error: unknown) => reportError(error));
+    return core.watch();
   }, [core]);
   return {
     base: base.current,
     overlay,
     stage: core.stage,
     stageMany: core.stageMany,
+    update: core.update,
+    write: core.write,
     unstage: core.unstage,
     discard: core.discard,
     commit: core.commit,

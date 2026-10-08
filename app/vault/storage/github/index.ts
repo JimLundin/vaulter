@@ -6,6 +6,7 @@ import { claim, clear, keepWith } from './cache.ts';
 import { github, sourceUrl, type Repo } from '../github-client/api.ts';
 import { readCache, sync, type Snapshot } from './sync.ts';
 import { commitChanges, revertCommit } from './write.ts';
+import { browserCache, browserWrites } from '../coordination.ts';
 
 export function githubBackend(o: {
   token: string;
@@ -43,41 +44,61 @@ export function githubBackend(o: {
     return snap;
   };
   // The cache is this key's before anything is read from it (cache.ts claim).
-  const mine = claim(o.key);
+  const mine = browserCache(() => claim(o.key));
   const kept = keepWith(o.key);
+  const adoptCache = async () => {
+    const cached = await readCache(o.key);
+    return cached && head(cached);
+  };
 
   return {
-    async cached() {
-      await mine;
-      const c = await readCache(o.key);
-      return c && head(c);
-    },
-    async refresh() {
-      try {
+    coordinate: browserWrites,
+    cached: () =>
+      browserCache(async () => {
         await mine;
-        const r = await sync(o.key, gh, snap);
-        if (!r) return null;
-        channel?.postMessage('synced');
-        return head(r);
-      } catch (e) {
-        if (e instanceof TypeError && !navigator.onLine) throw new Offline('offline', { cause: e });
-        throw e;
-      }
-    },
+        return adoptCache();
+      }),
+    refresh: () =>
+      browserCache(async () => {
+        try {
+          await mine;
+          const before = snap?.tree;
+          const cached = await adoptCache();
+          const r = await sync(o.key, gh, snap);
+          if (!r) return cached && cached.version !== before ? cached : null;
+          channel?.postMessage('synced');
+          return head(r);
+        } catch (e) {
+          if (e instanceof TypeError && !navigator.onLine)
+            throw new Offline('offline', { cause: e });
+          throw e;
+        }
+      }),
     // Another tab synced or committed: its cache is ours too.
     watch(on) {
-      const f = async () => {
-        await mine;
-        const c = await readCache(o.key);
-        if (c) on(head(c));
+      const f = (event: MessageEvent) => {
+        if (event.data !== 'synced') return;
+        browserCache(async () => {
+          await mine;
+          const cached = await adoptCache();
+          if (cached) on(cached);
+        }).catch((error: unknown) => reportError(error));
       };
       channel?.addEventListener('message', f);
       return () => channel?.removeEventListener('message', f);
     },
-    write: async (changes, message, verify: Verify) =>
-      wrote(await commitChanges(o.key, gh, ready(), files, changes, message, verify)),
-    revert: async (sha, verify) =>
-      wrote(await revertCommit(o.key, gh, ready(), files, sha, verify)),
+    write: (changes, message, verify: Verify) =>
+      browserCache(async () => {
+        await mine;
+        await adoptCache();
+        return wrote(await commitChanges(o.key, gh, ready(), files, changes, message, verify));
+      }),
+    revert: (sha, verify) =>
+      browserCache(async () => {
+        await mine;
+        await adoptCache();
+        return wrote(await revertCommit(o.key, gh, ready(), files, sha, verify));
+      }),
     history: async () => (await gh.commits()).filter((c) => c.message.includes(TRAILER)),
     patch: async (sha) => (await gh.commit(sha)).files,
     // Two requests (the commit on the day, the compare), and for a changed file's old text the base tree once and its blob.
@@ -101,8 +122,19 @@ export function githubBackend(o: {
     source: (path) => sourceUrl(path, o.repo),
     keep: {
       get: async (id) => (await mine, kept.get(id)),
-      set: async (id, value) => (await mine, kept.set(id, value)),
+      set: async (id, value) => {
+        await mine;
+        await kept.set(id, value);
+        if (id === 'overlay') channel?.postMessage('staged');
+      },
+      watch: (on) => {
+        const changed = (event: MessageEvent) => {
+          if (event.data === 'staged') on();
+        };
+        channel?.addEventListener('message', changed);
+        return () => channel?.removeEventListener('message', changed);
+      },
     },
-    clear,
+    clear: () => browserWrites(() => browserCache(clear)),
   };
 }

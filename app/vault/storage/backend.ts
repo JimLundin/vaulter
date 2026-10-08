@@ -27,6 +27,8 @@ export interface CommitSummary {
 }
 
 export interface VaultBackend {
+  /** Exclusive write ownership, shared by all writers and tabs using this backend's persisted state. */
+  coordinate: <T>(operation: () => Promise<T>, signal?: AbortSignal) => Promise<T>;
   /** The head as last kept on this device, if any: the app opens with it at once, offline too. */
   cached: () => Promise<Head | null>;
   /** The latest head, or null when it hasn't changed since the last one this backend returned. */
@@ -52,6 +54,8 @@ export interface VaultBackend {
   keep: {
     get: <T>(key: string) => Promise<T | null>;
     set: (key: string, value: unknown) => Promise<void>;
+    /** Another writer changed persisted staging. Notifications are hints; reload under ownership. */
+    watch?: (onChange: () => void) => () => void;
   };
 }
 

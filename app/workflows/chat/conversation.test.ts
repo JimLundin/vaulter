@@ -2,7 +2,7 @@
 import { afterEach, expect, test, vi } from 'vitest';
 import { MockLanguageModelV4, convertArrayToReadableStream } from 'ai/test';
 import { createConversation } from './conversation.ts';
-import { liveVault } from '../../vault/index.ts';
+import { liveVault, type OwnedVault } from '../../vault/index.ts';
 import { writerCore, type Writer } from '../../vault/changes/writer.ts';
 import { memoryBackend } from '../../vault/storage/memory.ts';
 import { vaultRules } from '../../vault/validation/rules.ts';
@@ -40,6 +40,8 @@ async function setup() {
     overlay: core.overlay,
     stage: core.stage,
     stageMany: core.stageMany,
+    update: core.update,
+    write: core.write,
     unstage: core.unstage,
     discard: core.discard,
     commit: core.commit,
@@ -49,7 +51,7 @@ async function setup() {
     current: () => ({ base: head.files, overlay: core.overlay }),
     problems: core.problems,
   });
-  return { vault: liveVault(writer), core };
+  return { vault: liveVault(writer), core, ...memory };
 }
 
 test('a controller keeps its turn after the view closes, reads it on reopening, and isolates other conversations', async () => {
@@ -81,7 +83,12 @@ test('a controller reads the live staged vault without needing an open view or a
     'meta/conventions.md',
     '# Updated conventions\nRULE ADDED AFTER THE CONTROLLER WAS CREATED',
   );
-  await conversation.send('what are the rules?');
+  await conversation.send('what are the rules?', undefined, [
+    {
+      path: 'meta/conventions.md',
+      text: '# Updated conventions\nRULE ADDED AFTER THE CONTROLLER WAS CREATED',
+    },
+  ]);
   expect(JSON.stringify(languageModel.doStreamCalls[0].prompt)).toContain(
     'RULE ADDED AFTER THE CONTROLLER WAS CREATED',
   );
@@ -115,4 +122,74 @@ test('disposing while the model loads cancels the turn and prevents tools, notif
   expect(conversation.ready()).toBe(false);
   await conversation.send('another');
   expect(conversation.snapshot().turns).toHaveLength(2);
+});
+
+test('a turn refuses unrelated staging before constructing tools, and accepts the reviewed changes', async () => {
+  const { vault, core } = await setup();
+  await core.stage('meta/pending.md', '# Pending');
+  const languageModel = new MockLanguageModelV4({ doStream: [textStep('Reviewed')] });
+  const tools = vi.fn(() => ({}));
+  const conversation = createConversation({ vault, model: async () => languageModel, tools });
+  await conversation.send('file this');
+  expect(conversation.snapshot().turns.at(-1)?.error).toContain('Review the staged changes');
+  expect(tools).not.toHaveBeenCalled();
+  expect(languageModel.doStreamCalls).toHaveLength(0);
+  expect(vault.staged()).toEqual(['meta/pending.md']);
+  const reviewed = conversation.stagedChanges();
+  expect(reviewed).toEqual([{ path: 'meta/pending.md', before: '', text: '# Pending' }]);
+  await conversation.send('include these', undefined, reviewed);
+  expect(tools).toHaveBeenCalledOnce();
+  expect(languageModel.doStreamCalls).toHaveLength(1);
+  conversation.dispose();
+});
+
+test('a running turn owns optional tools and releases them on stop even if a tool factory is stuck', async () => {
+  const { vault, core } = await setup();
+  const languageModel = new MockLanguageModelV4({ doStream: [textStep('Must not run')] });
+  let release!: () => void;
+  const loading = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let owned!: OwnedVault;
+  const tools = vi.fn(async (current: OwnedVault) => {
+    owned = current;
+    await loading;
+    return {};
+  });
+  const conversation = createConversation({ vault, model: async () => languageModel, tools });
+  const sent = conversation.send('file this');
+  await vi.waitFor(() => expect(tools).toHaveBeenCalledOnce());
+  let nextEntered = false;
+  const waiting = core.update(() => {
+    nextEntered = true;
+    return [{ path: 'meta/next.md', text: '# Next owner' }];
+  });
+  await Promise.resolve();
+  expect(nextEntered).toBe(false);
+  expect(owned).not.toBe(vault);
+  conversation.stop();
+  await sent;
+  await waiting;
+  await expect(owned.stage('meta/late.md', '# Late')).rejects.toThrow(/abort/i);
+  release();
+  await Promise.resolve();
+  expect(languageModel.doStreamCalls).toHaveLength(0);
+  expect(vault.staged()).toEqual(['meta/next.md']);
+  expect(conversation.snapshot().busy).toBe(false);
+  conversation.dispose();
+});
+
+test('a failed tool factory releases ownership for another sequence', async () => {
+  const { vault, core } = await setup();
+  const languageModel = new MockLanguageModelV4({ doStream: [textStep('Must not run')] });
+  const conversation = createConversation({
+    vault,
+    model: async () => languageModel,
+    tools: () => Promise.reject(new Error('tools failed')),
+  });
+  await conversation.send('file this');
+  expect(conversation.snapshot().turns.at(-1)?.error).toBe('tools failed');
+  await core.stage('meta/next.md', '# Next');
+  expect(vault.staged()).toEqual(['meta/next.md']);
+  conversation.dispose();
 });

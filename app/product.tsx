@@ -6,7 +6,7 @@ import {
   notesOf,
   titleOf,
   type OpenBackend,
-  type Vault,
+  type OwnedVault,
 } from './vault/index.ts';
 import { Frame } from './ui/Frame.tsx';
 import { Unlock } from './ui/Unlock.tsx';
@@ -47,7 +47,7 @@ import './workflows/chat/rendering/prose.css';
 
 const agentRoute = pattern('/agent/');
 const historyRoute = pattern('/history/');
-const renameTools = async (vault: Vault) =>
+const renameTools = async (vault: OwnedVault) =>
   (await import('./workflows/rename-note/agent.ts')).renameTools(vault);
 
 export function Product({ openBackend }: { openBackend: OpenBackend }) {

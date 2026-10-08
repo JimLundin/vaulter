@@ -1,10 +1,10 @@
 // Model input adapter to the named rename operation.
 import { tool, type ToolSet } from 'ai';
 import { z } from 'zod';
-import type { Vault } from '../../vault/index.ts';
+import type { OwnedVault } from '../../vault/index.ts';
 import { renameNote } from './index.ts';
 
-export const renameTools = (vault: Vault) =>
+export const renameTools = (vault: OwnedVault) =>
   ({
     renameNote: tool({
       description:
