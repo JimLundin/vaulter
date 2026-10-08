@@ -1,10 +1,10 @@
 // What Home and its sidebar group show, derived once per vault: from each note's facet tags (area/,
 // status/, circle/; conventions §3) and from what the daily log links to.
-import type { Note } from '../../../core/note-fields.ts';
-import { facet, titleOf, kind, asList, hrefOf } from '../../../core/note-fields.ts';
-import { isTopical, perVault, type Vault } from '../../../core/derive.ts';
-import type { Area, Schema } from '../../../core/schema.ts';
-import { dateStr } from '../../../core/format.ts';
+import type { Note } from '../notes/model/fields.ts';
+import { facet, titleOf, kind, asList, hrefOf } from '../notes/model/fields.ts';
+import { isTopical, perVault, type Vault } from '../graph/model/graph.ts';
+import type { Area, Schema } from '../notes/model/schema.ts';
+import { dateStr } from '../../core/format.ts';
 
 /** An area as Home shows it: its notes (people aside), its hub, and what in it is active now. */
 export interface AreaView extends Omit<Area, 'hub'> {

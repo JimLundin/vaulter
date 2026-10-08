@@ -4,12 +4,12 @@
 import { Fragment } from 'react';
 import type { ReactNode } from 'react';
 import { CircleHelp } from 'lucide-react';
-import type { Note } from '../../../core/note-fields.ts';
-import { titleOf, hrefOf } from '../../../core/note-fields.ts';
-import { followUpsOf, openOf } from '../../../core/facts.ts';
-import { fmtDay } from '../../../core/format.ts';
-import { useVault } from '../../shell/host.tsx';
-import { link } from '../../shell/route.ts';
+import type { Note } from './model/fields.ts';
+import { titleOf, hrefOf } from './model/fields.ts';
+import { followUpsOf, openOf } from './model/facts.ts';
+import { fmtDay } from '../../core/format.ts';
+import { useVault } from '../../core/host.tsx';
+import { link } from '../../core/route.ts';
 import { cn } from 'cn';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert.tsx';
 import { Field, FieldList, Section } from '@/components/layout.tsx';

@@ -1,9 +1,9 @@
 // Similar, not yet linked: under a note, the notes most alike in text that nothing connects yet
-// (core/similar.ts, computed in the worker).
-import type { Note } from '../../../core/note-fields.ts';
-import { excerptOf, kind } from '../../../core/note-fields.ts';
-import type { Extension } from '../../shell/extension.ts';
-import { useHeavy, useVault } from '../../shell/host.tsx';
+// (app/extensions/similar/similar.ts, computed in the worker).
+import type { Note } from '../notes/model/fields.ts';
+import { excerptOf, kind } from '../notes/model/fields.ts';
+import type { Extension } from '../../core/extension.ts';
+import { useHeavy, useVault } from '../../core/host.tsx';
 import { NoteLinks } from '../notes/sections.tsx';
 import { noteSections } from '../notes/slots.tsx';
 import { Section } from '@/components/layout.tsx';

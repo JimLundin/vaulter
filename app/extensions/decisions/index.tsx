@@ -1,6 +1,6 @@
 // Decisions: every `decisions` entry with its reason (#/decisions/), and a note's own under it.
 import { ScaleIcon } from 'lucide-react';
-import type { Extension } from '../../shell/extension.ts';
+import type { Extension } from '../../core/extension.ts';
 import { Decisions, NoteDecisions } from './Decisions.tsx';
 import { noteSections } from '../notes/slots.tsx';
 import { decisionsPage } from './routes.ts';

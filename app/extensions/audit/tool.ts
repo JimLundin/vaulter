@@ -1,11 +1,11 @@
 // The agent's `audit` tool: the weekly sweep's audit as the report the conventions read. Loads with the agent.
 import { tool, type ToolSet } from 'ai';
 import { z } from 'zod';
-import { loadNotes } from '../../../core/vault.ts';
-import { report } from '../../../core/audit.ts';
+import { loadNotes } from '../notes/model/note.ts';
+import { report } from './audit.ts';
 import { weekAudit } from './week.ts';
-import type { AgentContext } from '../../shell/extension.ts';
-import { schemaOf } from '../../../core/schema.ts';
+import type { AgentContext } from '../../core/extension.ts';
+import { schemaOf } from '../notes/model/schema.ts';
 
 export const auditTools = ({ w, since }: AgentContext): ToolSet =>
   since

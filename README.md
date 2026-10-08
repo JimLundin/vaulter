@@ -11,7 +11,7 @@ components (the vault's `meta/conventions.md` §13). The design and its history:
 | Command | Does |
 |---|---|
 | `npm ci` | install |
-| `npm run check` | the vault's check (`tools/check.ts`) over `../vault` (or `node tools/check.ts --vault <dir>`): links, heading anchors, wikilinks, raw HTML, what MDX may contain (`core/mdx-rules.ts`), and the vault's schema (`meta/schema.yaml`, held to it by `core/schema.ts` and `core/relations.ts`). Fast; run before every push to the vault. The vault's CI runs it on every push too, from this repo's `main` |
+| `npm run check` | the vault's check (`tools/check.ts`) over `../vault` (or `node tools/check.ts --vault <dir>`): links, heading anchors, wikilinks, raw HTML, what MDX may contain (`app/extensions/notes/model/mdx-rules.ts`), and the vault's schema (`meta/schema.yaml`, held to it by `app/extensions/notes/model/schema.ts` and `app/extensions/graph/model/relations.ts`). Fast; run before every push to the vault. The vault's CI runs it on every push too, from this repo's `main` |
 | `npm run dev` | the app on the vault through GitHub, as built, in any browser, but with no password: it loads right in with the secrets from `.env.local` (gitignored): `VAULT_GITHUB_TOKEN`, and optionally `VAULT_OPENAI_KEY` and `VAULT_JINA_KEY`, the names CI seals. Only dev gets them; a build has none. Its commits go to the vault's `main`, as the app's do |
 | `npm run build` | the app into `dist/` |
 | `npm run lint` / `npm run format` | Biome: lint and format check (CI), or fix both in place. Style: 2 spaces, single quotes, semicolons, trailing commas, 100 columns (`biome.json`) |
@@ -28,10 +28,10 @@ explicit `.ts` imports and `import type` (enforced by `tsconfig.json`).
 
 - `meta/schema.yaml` (in the vault) — the vocabulary: note types, facet values, broad topics, relation
   predicates (with when to use each), the MDX components notes may use. The app reads it at runtime.
-- `core/schema.ts` — reads and validates it (`schemaOf`); frontmatter fields, structure rules.
-- `core/relations.ts` — the checks for `relations`, `dates`, `follow-ups`, `decisions`, `geo`,
+- `app/extensions/notes/model/schema.ts` — reads and validates it (`schemaOf`); frontmatter fields, structure rules.
+- `app/extensions/graph/model/relations.ts` — the checks for `relations`, `dates`, `follow-ups`, `decisions`, `geo`,
   `address`, `where`.
-- `core/mdx-rules.ts`, `core/safe-url.ts` — what a note may contain beyond Markdown: the three
+- `app/extensions/notes/model/mdx-rules.ts`, `app/extensions/notes/model/safe-url.ts` — what a note may contain beyond Markdown: the three
   components with literal props, and relative, `http(s)`, `mailto` and `tel` links. Notes are data, never code.
 
 ## How it fits together
@@ -42,7 +42,7 @@ The design, its rules and how to add a feature: `ARCHITECTURE.md`. In short:
   (`derive.ts`, plus `facts.ts`, `vault-map.ts`, `similar.ts`, `brief.ts`, `audit.ts`, `rename.ts`),
   vocabulary (`schema.ts` over `meta/schema.yaml`), formats (`format.ts`), secrets (`sealed.ts`), the
   day's capture log (`capture.ts`: one per day, its exchanges' metadata in the frontmatter), weather (`weather.ts`).
-- `app/shell/` — the shell: `App.tsx`, routing, the top bar and search, the extension host (`host.tsx`,
+- `app/core/` — the shell: `App.tsx`, routing, the top bar and search, the extension host (`host.tsx`,
   `extension.ts`), the session and backends contract (`session.ts`, `backend.ts`), the writer
   (`writer.ts`), the encrypted IndexedDB (`store.ts`), unlocking (`unlock.ts`), rendering
   (`markdown.ts`, `highlight.tsx`), the worker and the service worker.

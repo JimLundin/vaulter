@@ -1,23 +1,23 @@
 import { expect, test } from 'vitest';
 import { MockLanguageModelV4, convertArrayToReadableStream } from 'ai/test';
 import { memoryBackend } from '../../backends/memory.ts';
-import { agentWriter, writerCore, type Writer } from '../../shell/writer.ts';
-import { search, searchIndex } from '../../../core/search.ts';
-import { vaultOf } from '../../../core/derive.ts';
-import { SCHEMA } from '../../../core/schema.fixture.ts';
+import { agentWriter, writerCore, type Writer } from '../../core/writer.ts';
+import { search, searchIndex } from '../../core/search.ts';
+import { vaultOf } from '../graph/model/graph.ts';
+import { SCHEMA } from '../notes/model/schema.fixture.ts';
 import { notes } from '../notes/index.tsx';
 import { editor } from '../editor/index.tsx';
 import { runAgent } from './tools.ts';
 import { recordExchange } from './record.ts';
-import { checkVault } from '../../../core/check.ts';
-import { capturePath } from '../../../core/capture.ts';
-import { today } from '../../../core/format.ts';
+import { checkVault } from '../notes/model/check.ts';
+import { capturePath } from '../notes/model/capture.ts';
+import { today } from '../../core/format.ts';
 import { code } from '../code/index.tsx';
 import { codeRepo } from '../code/repo.ts';
 import { codeTools } from '../code/tools.ts';
 import { fakeGitHub } from '../../backends/github/fake-github.ts';
 import { github } from '../../backends/github/api.ts';
-import type { AgentContext } from '../../shell/extension.ts';
+import type { AgentContext } from '../../core/extension.ts';
 
 const NOTE = (title: string, extra = '') =>
   `---\ntype: topic\naliases: []\ntags: [area/craft, programming]\ncreated: 2026-10-03\nsummary: "${title}."\n---\n# ${title}\n\n${extra}\n\n## See also\n`;

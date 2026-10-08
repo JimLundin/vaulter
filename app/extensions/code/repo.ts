@@ -4,8 +4,8 @@
 // CI (lint, type check, tests) and deploys only if it passes; `status` reads that back.
 import type { GitHub, Repo } from '../../backends/github/api.ts';
 import { NotFastForward } from '../../backends/github/api.ts';
-import { blobSha } from '../../../core/blob-sha.ts';
-import { TRAILER } from '../../shell/backend.ts';
+import { blobSha } from '../../core/blob-sha.ts';
+import { TRAILER } from '../../core/backend.ts';
 
 interface Head {
   commit: string;

@@ -1,6 +1,6 @@
 // The calendar: every `dates` entry (#/calendar/), and a note's own dates under it.
 import { CalendarDaysIcon } from 'lucide-react';
-import type { Extension } from '../../shell/extension.ts';
+import type { Extension } from '../../core/extension.ts';
 import { Calendar, NoteDates } from './Calendar.tsx';
 import { noteSections } from '../notes/slots.tsx';
 import { calendarPage } from './routes.ts';

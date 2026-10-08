@@ -4,7 +4,7 @@
 // a Referer (GitHub Pages sends one; a page opened from a local file gets blocked tiles). Dark mode inverts
 // the tiles in CSS, since OSM has no dark style. Leaflet is passed in, so it loads with the view.
 import type * as Leaflet from 'leaflet';
-import { onThemeChange } from '../../shell/theme.ts';
+import { onThemeChange } from '../../core/theme.ts';
 
 export interface PlaceEvent {
   d: string;

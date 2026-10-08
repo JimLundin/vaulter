@@ -3,14 +3,14 @@
 // a rail beside the body (Rail.tsx) has the headings, the properties and the sections below.
 import { useEffect, useRef, useState } from 'react';
 import type { Ref } from 'react';
-import type { Note } from '../../../core/note-fields.ts';
-import { asList, hrefOf, kind, titleOf, topicHref } from '../../../core/note-fields.ts';
-import { dateStr } from '../../../core/format.ts';
-import { useHost } from '../../shell/host.tsx';
+import type { Note } from './model/fields.ts';
+import { asList, hrefOf, kind, titleOf, topicHref } from './model/fields.ts';
+import { dateStr } from '../../core/format.ts';
+import { useHost } from '../../core/host.tsx';
 import { NoteActions, NoteSections } from './slots.tsx';
-import { link } from '../../shell/route.ts';
-import { renderBody, mdxReady, loadMdx } from '../../shell/markdown.ts';
-import { later } from '../../shell/later.ts';
+import { link } from '../../core/route.ts';
+import { renderBody, mdxReady, loadMdx } from '../../core/markdown.ts';
+import { later } from '../../core/later.ts';
 import { cn } from 'cn';
 import { Badge } from '@/components/ui/badge.tsx';
 import { Separator } from '@/components/ui/separator.tsx';

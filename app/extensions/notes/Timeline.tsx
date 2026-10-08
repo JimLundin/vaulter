@@ -1,7 +1,7 @@
 // Dated events in order. <Timeline items={[{date: "2026-06-12", text: "…", href: "/Ada.md"}]} />
-import { siteHref } from '../../../core/paths.ts';
-import { isSafeUrl } from '../../../core/safe-url.ts';
-import { link } from '../../shell/route.ts';
+import { siteHref } from './model/paths.ts';
+import { isSafeUrl } from './model/safe-url.ts';
+import { link } from '../../core/route.ts';
 
 interface Item {
   date: string;

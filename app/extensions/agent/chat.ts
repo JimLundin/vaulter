@@ -5,12 +5,12 @@
 import { useSyncExternalStore } from 'react';
 import { toast } from 'sonner';
 import type { ModelMessage, ToolSet } from 'ai';
-import { search } from '../../../core/search.ts';
-import { titleOf } from '../../../core/note-fields.ts';
-import type { AgentContext } from '../../shell/extension.ts';
-import type { Host } from '../../shell/host.tsx';
-import { agentWriter, type Writer } from '../../shell/writer.ts';
-import { go, parseRoute } from '../../shell/route.ts';
+import { search } from '../../core/search.ts';
+import { titleOf } from '../notes/model/fields.ts';
+import type { AgentContext } from '../../core/extension.ts';
+import type { Host } from '../../core/host.tsx';
+import { agentWriter, type Writer } from '../../core/writer.ts';
+import { go, parseRoute } from '../../core/route.ts';
 import { appVersion, collect, type Place } from './meta.ts';
 import { recordExchange, type ChatTurn, type Collected } from './record.ts';
 import type { OnScreen } from './tools.ts';

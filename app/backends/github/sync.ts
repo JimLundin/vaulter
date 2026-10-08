@@ -1,6 +1,6 @@
 // Keeps the encrypted cache in step with main: render from the cache, ask whether main moved (a 304
 // costs nothing), and if it did, fetch only the blobs not yet cached, each checked against its sha.
-import { isVaultPath, type VaultFile } from '../../../core/vault.ts';
+import { isVaultPath, type VaultFile } from '../../extensions/notes/model/note.ts';
 import {
   decrypt,
   decryptJson,
@@ -10,7 +10,7 @@ import {
   getAll,
   tx,
   type Encrypted,
-} from '../../shell/store.ts';
+} from '../../core/store.ts';
 import type { GitHub } from './api.ts';
 
 export interface Snapshot {

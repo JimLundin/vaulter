@@ -1,12 +1,12 @@
 // Every dated entry (the `dates` field, conventions §3): upcoming first, then the past newest first.
 // Yearly entries repeat. A day with a daily note links to it.
-import type { Note } from '../../../core/note-fields.ts';
-import { hrefOf, titleOf, kind } from '../../../core/note-fields.ts';
-import { datesOf } from '../../../core/facts.ts';
-import { fmtDay, lastDay, monthName, today, weekdayDay } from '../../../core/format.ts';
+import type { Note } from '../notes/model/fields.ts';
+import { hrefOf, titleOf, kind } from '../notes/model/fields.ts';
+import { datesOf } from '../notes/model/facts.ts';
+import { fmtDay, lastDay, monthName, today, weekdayDay } from '../../core/format.ts';
 import { occurrences, type Occurrence } from './dates.ts';
-import { useVault } from '../../shell/host.tsx';
-import { link } from '../../shell/route.ts';
+import { useVault } from '../../core/host.tsx';
+import { link } from '../../core/route.ts';
 import { cn } from 'cn';
 import { Field, FieldList, PageHeader, Section } from '@/components/layout.tsx';
 import { calendarPage } from './routes.ts';

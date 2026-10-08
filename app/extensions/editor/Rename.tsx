@@ -1,11 +1,11 @@
 // Rename a note, or switch it between .md and .mdx: stages the move and every file whose links or
-// frontmatter follow it (core/rename.ts), to review in Changes and commit as one step.
+// frontmatter follow it (app/extensions/notes/model/rename.ts), to review in Changes and commit as one step.
 import { useId, useMemo, useState } from 'react';
-import { renameNote } from '../../../core/rename.ts';
-import { applyOverlay } from '../../shell/writer.ts';
-import { useWriter } from '../../shell/host.tsx';
+import { renameNote } from '../notes/model/rename.ts';
+import { applyOverlay } from '../../core/writer.ts';
+import { useWriter } from '../../core/host.tsx';
 import { toast } from 'sonner';
-import { go, link } from '../../shell/route.ts';
+import { go, link } from '../../core/route.ts';
 import { ErrorState, PageHeader, Section } from '@/components/layout.tsx';
 import { Button } from '@/components/ui/button.tsx';
 import { Checkbox } from '@/components/ui/checkbox.tsx';

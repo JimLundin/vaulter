@@ -1,6 +1,6 @@
 // The app's features, in the order their pages are tried (the first page that claims a path wins; notes
 // claim any note's path, so they come last). A feature is a folder here and a line in this list.
-import type { Extension } from '../shell/extension.ts';
+import type { Extension } from '../core/extension.ts';
 import { home } from './home/index.tsx';
 import { topics } from './topics/index.tsx';
 import { calendar } from './calendar/index.tsx';

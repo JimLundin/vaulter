@@ -10,8 +10,8 @@ import {
   stockholmStamp,
   type Exchange,
   type Turn,
-} from '../../../core/capture.ts';
-import type { VaultFile } from '../../../core/vault.ts';
+} from '../notes/model/capture.ts';
+import type { VaultFile } from '../notes/model/note.ts';
 
 /** A turn of the chat as the record needs it. */
 export interface ChatTurn {

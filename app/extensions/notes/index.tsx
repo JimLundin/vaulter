@@ -3,10 +3,10 @@
 // note's page through its slots (slots.tsx).
 import { LinkIcon } from 'lucide-react';
 import { toast } from 'sonner';
-import type { Extension } from '../../shell/extension.ts';
-import type { Host } from '../../shell/host.tsx';
-import type { Route } from '../../shell/route.ts';
-import { titleOf, excerptOf, hrefOf, kind, asList, topicsOf } from '../../../core/note-fields.ts';
+import type { Extension } from '../../core/extension.ts';
+import type { Host } from '../../core/host.tsx';
+import type { Route } from '../../core/route.ts';
+import { titleOf, excerptOf, hrefOf, kind, asList, topicsOf } from './model/fields.ts';
 import { NotePage } from './NotePage.tsx';
 import { OpenQuestions, FollowUps, Connections, LinkedFrom } from './sections.tsx';
 import { NoteList } from './NoteList.tsx';

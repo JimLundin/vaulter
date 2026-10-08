@@ -1,12 +1,12 @@
-// The weekly sweep's audit (core/audit.ts) as a page: every section, the notes in it linked. The week's
+// The weekly sweep's audit (app/extensions/audit/audit.ts) as a page: every section, the notes in it linked. The week's
 // history comes from the backend (`since`), so the page shows only where the backend keeps one.
 import { useEffect, useState } from 'react';
-import { esc, type Section as AuditSection } from '../../../core/audit.ts';
+import { esc, type Section as AuditSection } from './audit.ts';
 import { WEEK, weekAudit } from './week.ts';
-import { perVault, type Vault } from '../../../core/derive.ts';
-import { hrefOf } from '../../../core/note-fields.ts';
-import { useHost, useVault } from '../../shell/host.tsx';
-import { link } from '../../shell/route.ts';
+import { perVault, type Vault } from '../graph/model/graph.ts';
+import { hrefOf } from '../notes/model/fields.ts';
+import { useHost, useVault } from '../../core/host.tsx';
+import { link } from '../../core/route.ts';
 import { Empty, ErrorState, Loading, PageHeader, Section } from '@/components/layout.tsx';
 
 /** Any page path in a row, longest first. */

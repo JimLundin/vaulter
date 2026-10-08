@@ -1,12 +1,12 @@
 // Every decision recorded in a note (the `decisions` field, conventions §3), newest first, by month,
 // with its reason when the note gives one.
-import type { Note } from '../../../core/note-fields.ts';
-import { facet, hrefOf, titleOf } from '../../../core/note-fields.ts';
-import { perVault, type Vault } from '../../../core/derive.ts';
-import { decisionsOf, type Decision } from '../../../core/facts.ts';
-import { dayMonth, fmtDay, monthName } from '../../../core/format.ts';
-import { useVault } from '../../shell/host.tsx';
-import { link } from '../../shell/route.ts';
+import type { Note } from '../notes/model/fields.ts';
+import { facet, hrefOf, titleOf } from '../notes/model/fields.ts';
+import { perVault, type Vault } from '../graph/model/graph.ts';
+import { decisionsOf, type Decision } from '../notes/model/facts.ts';
+import { dayMonth, fmtDay, monthName } from '../../core/format.ts';
+import { useVault } from '../../core/host.tsx';
+import { link } from '../../core/route.ts';
 import { cn } from 'cn';
 import { Field, FieldList, PageHeader, Section } from '@/components/layout.tsx';
 import { decisionsPage } from './routes.ts';

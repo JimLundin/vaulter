@@ -1,4 +1,4 @@
 // The calendar's route.
-import { pattern } from '../../shell/route.ts';
+import { pattern } from '../../core/route.ts';
 
 export const calendarPage = pattern('/calendar/');

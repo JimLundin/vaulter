@@ -1,7 +1,7 @@
 // A vault in memory: for tests, and a reference for what a backend must do. Writes are steps with
 // history and revert, like git, without the network.
-import type { VaultFile } from '../../core/vault.ts';
-import { blobSha } from '../../core/blob-sha.ts';
+import type { VaultFile } from '../extensions/notes/model/note.ts';
+import { blobSha } from '../core/blob-sha.ts';
 import {
   Conflict,
   TRAILER,
@@ -9,8 +9,8 @@ import {
   type CommitSummary,
   type Head,
   type VaultBackend,
-} from '../shell/backend.ts';
-import { applyOverlay } from '../shell/writer.ts';
+} from '../core/backend.ts';
+import { applyOverlay } from '../core/writer.ts';
 
 export function memoryBackend(initial: Record<string, string>) {
   let files: VaultFile[] = Object.entries(initial).map(([path, text]) => ({ path, text }));

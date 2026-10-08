@@ -1,7 +1,7 @@
 // Interaction for the vault map: area filters, pan/zoom and focusing a note's neighbourhood, over the SVG
 // that MapView.tsx renders (every dot is already a link).
 
-import type { Area } from '../../../core/schema.ts';
+import type { Area } from '../notes/model/schema.ts';
 
 /** Per dot, in node order: t title, h href, s summary, a area, y type, d degree. */
 export interface MapCard {

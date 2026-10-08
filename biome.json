@@ -3,7 +3,6 @@
   "files": {
     "includes": [
       "app/**",
-      "core/**",
       "tools/**",
       "*.ts",
       "*.json",

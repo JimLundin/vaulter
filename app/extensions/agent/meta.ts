@@ -1,9 +1,9 @@
-// What the browser can say about an exchange on its own, for its capture (core/capture.ts): the device, the
+// What the browser can say about an exchange on its own, for its capture (app/extensions/notes/model/capture.ts): the device, the
 // connection and battery, where Jim is (one-time permission; matched to the nearest place note, or an address
 // from OpenStreetMap), and the weather there (open-meteo.com). Every part is best effort: what the browser
 // doesn't offer, or doesn't answer in time, is left out, never guessed.
 
-import { weather } from '../../../core/weather.ts';
+import { weather } from './weather.ts';
 
 type Group = Record<string, unknown>;
 

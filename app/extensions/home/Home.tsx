@@ -1,12 +1,12 @@
 // Home's dashboard, under the Home note: today and what's in focus beside what was touched lately, the
 // open questions and the log; then every area, the people and anything untagged as tabs. Laid out from
 // the notes' tags (data.ts): nothing is hand-maintained, tag a note and it appears.
-import type { Note } from '../../../core/note-fields.ts';
-import { facet, titleOf, excerptOf } from '../../../core/note-fields.ts';
-import { dayMonth, longDay, shortDay, today } from '../../../core/format.ts';
-import { computeBrief } from '../../../core/brief.ts';
-import { useSchema, useVault } from '../../shell/host.tsx';
-import { link, useRoute } from '../../shell/route.ts';
+import type { Note } from '../notes/model/fields.ts';
+import { facet, titleOf, excerptOf } from '../notes/model/fields.ts';
+import { dayMonth, longDay, shortDay, today } from '../../core/format.ts';
+import { computeBrief } from './brief.ts';
+import { useSchema, useVault } from '../../core/host.tsx';
+import { link, useRoute } from '../../core/route.ts';
 // biome-ignore lint/correctness/noUnresolvedImports: Fragment is in @types/react's namespace, which Biome doesn't follow
 import { Fragment, type ReactNode, useEffect, useRef, useState } from 'react';
 import { ChevronRightIcon } from 'lucide-react';

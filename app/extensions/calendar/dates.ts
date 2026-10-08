@@ -1,6 +1,6 @@
 // Every dated entry as an occurrence; yearly ones repeat for each year in a range.
-import { datesOf, type DateFact } from '../../../core/facts.ts';
-import type { Vault } from '../../../core/derive.ts';
+import { datesOf, type DateFact } from '../notes/model/facts.ts';
+import type { Vault } from '../graph/model/graph.ts';
 
 export interface Occurrence extends DateFact {}
 

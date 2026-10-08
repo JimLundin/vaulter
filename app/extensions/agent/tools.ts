@@ -11,14 +11,14 @@ import {
   type ToolSet,
 } from 'ai';
 import { z } from 'zod';
-import { vaultOf } from '../../../core/derive.ts';
-import { titleOf, kind } from '../../../core/note-fields.ts';
-import { schemaOf } from '../../../core/schema.ts';
-import { capturePath } from '../../../core/capture.ts';
-import { today } from '../../../core/format.ts';
-import { CheckFailed, Conflict } from '../../shell/backend.ts';
-import { newProblems } from '../../shell/writer.ts';
-import type { AgentContext } from '../../shell/extension.ts';
+import { vaultOf } from '../graph/model/graph.ts';
+import { titleOf, kind } from '../notes/model/fields.ts';
+import { schemaOf } from '../notes/model/schema.ts';
+import { capturePath } from '../notes/model/capture.ts';
+import { today } from '../../core/format.ts';
+import { CheckFailed, Conflict } from '../../core/backend.ts';
+import { newProblems } from '../../core/writer.ts';
+import type { AgentContext } from '../../core/extension.ts';
 
 const LIST_MAX = 200;
 

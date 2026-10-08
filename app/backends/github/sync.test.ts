@@ -1,8 +1,8 @@
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, expect, test } from 'vitest';
 import { fakeGitHub } from './fake-github.ts';
-import { closeDb, getAll, newCacheKey } from '../../shell/store.ts';
-import { forget } from '../../shell/unlock.ts';
+import { closeDb, getAll, newCacheKey } from '../../core/store.ts';
+import { forget } from '../../core/unlock.ts';
 import { readCache, sync } from './sync.ts';
 
 let key: CryptoKey;

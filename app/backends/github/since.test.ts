@@ -1,8 +1,8 @@
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, expect, test } from 'vitest';
 import { fakeGitHub } from './fake-github.ts';
-import { closeDb, newCacheKey } from '../../shell/store.ts';
-import { forget } from '../../shell/unlock.ts';
+import { closeDb, newCacheKey } from '../../core/store.ts';
+import { forget } from '../../core/unlock.ts';
 import { githubBackend } from './index.ts';
 import { memoryBackend } from '../memory.ts';
 

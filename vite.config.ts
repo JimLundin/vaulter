@@ -1,5 +1,5 @@
 /// <reference types="vitest/config" />
-// The browser app (app/) and the tests for it and for the shared vault code (core/).
+// The browser app (app/) and the tests for it.
 import { defineConfig, loadEnv, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
@@ -60,7 +60,7 @@ export default defineConfig(({ command, mode }) => ({
     rolldownOptions: {
       input: {
         index: fileURLToPath(new URL('app/index.html', import.meta.url)),
-        sw: fileURLToPath(new URL('app/shell/sw.ts', import.meta.url)),
+        sw: fileURLToPath(new URL('app/core/sw.ts', import.meta.url)),
       },
       output: { entryFileNames: (c) => (c.name === 'sw' ? 'sw.js' : 'assets/[name]-[hash].js') },
     },
@@ -70,5 +70,5 @@ export default defineConfig(({ command, mode }) => ({
     __COMMIT__: JSON.stringify((process.env.GITHUB_SHA ?? '').slice(0, 7)),
     __DEV_SECRETS__: JSON.stringify(command === 'serve' ? devSecrets(mode) : null),
   },
-  test: { root: SITE, include: ['app/**/*.test.{ts,tsx}', 'core/**/*.test.ts'] },
+  test: { root: SITE, include: ['app/**/*.test.{ts,tsx}', 'tools/**/*.test.ts'] },
 }));

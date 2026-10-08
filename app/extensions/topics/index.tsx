@@ -1,9 +1,9 @@
 // Topics: one page per tag, area and circle (#/topic/<tag>/), and the topics in search.
-import type { Extension } from '../../shell/extension.ts';
-import { topicHref } from '../../../core/note-fields.ts';
-import { slugify } from '../../../core/paths.ts';
+import type { Extension } from '../../core/extension.ts';
+import { topicHref } from '../notes/model/fields.ts';
+import { slugify } from '../notes/model/paths.ts';
 import { Topic } from './Topic.tsx';
-import { pattern } from '../../shell/route.ts';
+import { pattern } from '../../core/route.ts';
 
 // A topic's href is the vault model's (topicHref); this is how its page is found again
 const topicPage = pattern('/topic/:slug/');

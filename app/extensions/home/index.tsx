@@ -1,7 +1,7 @@
 // Home: the Home note as the lede over a dashboard of the vault's own sections (Home.tsx), with the
 // areas in the sidebar and as commands ("Go to area: Work").
-import type { Extension } from '../../shell/extension.ts';
-import { go } from '../../shell/route.ts';
+import type { Extension } from '../../core/extension.ts';
+import { go } from '../../core/route.ts';
 import { HomePage } from './Home.tsx';
 import { AreasSidebar } from './Sidebar.tsx';
 import { areaHref, home as homeData } from './data.ts';

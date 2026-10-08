@@ -1,9 +1,9 @@
 // The sidebar's Recent: the notes opened lately on this device (core/recent.ts), the one on screen marked.
 // Hidden when there are none, and when the sidebar is down to its icons.
-import { useHost } from '../../shell/host.tsx';
-import { useRecent } from '../../shell/recent.ts';
-import { link, useRoute } from '../../shell/route.ts';
-import { titleOf } from '../../../core/note-fields.ts';
+import { useHost } from '../../core/host.tsx';
+import { useRecent } from '../../core/recent.ts';
+import { link, useRoute } from '../../core/route.ts';
+import { titleOf } from './model/fields.ts';
 import {
   SidebarGroup,
   SidebarGroupContent,

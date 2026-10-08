@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { logData } from '../../../core/capture.ts';
+import { logData } from '../notes/model/capture.ts';
 import { recordExchange, type ChatTurn } from './record.ts';
 
 const turns: ChatTurn[] = [

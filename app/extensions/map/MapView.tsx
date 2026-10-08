@@ -1,14 +1,14 @@
 // The vault as a map: every topical note a dot coloured by area and sized by connections, links and
-// relations as edges (layout: core/vault-map.ts). graph-view.ts adds filters, pan/zoom and focus.
+// relations as edges (layout: app/extensions/map/vault-map.ts). graph-view.ts adds filters, pan/zoom and focus.
 // biome-ignore lint/correctness/noUnresolvedImports: Fragment is in @types/react's namespace, which Biome doesn't follow
 import { Fragment } from 'react';
 import { useEffect, useRef } from 'react';
 import { MinusIcon, PlusIcon, RotateCcwIcon } from 'lucide-react';
-import type { VaultMap } from '../../../core/vault-map.ts';
-import { topicHref } from '../../../core/note-fields.ts';
+import type { VaultMap } from './vault-map.ts';
+import { topicHref } from '../notes/model/fields.ts';
 import { initMap } from './graph-view.ts';
-import { useHeavy, useSchema } from '../../shell/host.tsx';
-import { link } from '../../shell/route.ts';
+import { useHeavy, useSchema } from '../../core/host.tsx';
+import { link } from '../../core/route.ts';
 import { Loading, PageHeader } from '@/components/layout.tsx';
 import { Button } from '@/components/ui/button.tsx';
 import './map.css';

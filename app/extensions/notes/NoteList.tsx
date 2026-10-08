@@ -1,8 +1,8 @@
 // Live list of notes matching frontmatter. <NoteList type="person" tag="work" sort="created" />
-import { useVault } from '../../shell/host.tsx';
-import { link } from '../../shell/route.ts';
-import { titleOf, excerptOf, hrefOf, kind, asList } from '../../../core/note-fields.ts';
-import { dateStr } from '../../../core/format.ts';
+import { useVault } from '../../core/host.tsx';
+import { link } from '../../core/route.ts';
+import { titleOf, excerptOf, hrefOf, kind, asList } from './model/fields.ts';
+import { dateStr } from '../../core/format.ts';
 import { cn } from 'cn';
 import { Empty } from '@/components/layout.tsx';
 import { navRow } from './sections.tsx';

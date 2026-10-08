@@ -1,7 +1,7 @@
 // An in-memory GitHub for tests: blobs by real git sha, flat trees, commits with parents, and a main
 // ref that only fast-forwards — the REST surface app/github.ts uses, behind a fake fetch.
 import { github } from './api.ts';
-import { blobSha } from '../../../core/blob-sha.ts';
+import { blobSha } from '../../core/blob-sha.ts';
 
 const enc = new TextEncoder();
 const b64 = (t: string) => btoa(String.fromCharCode(...enc.encode(t)));

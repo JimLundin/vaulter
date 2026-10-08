@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 import { deviceId, distanceM, fromUserAgent, nearestPlace, shortAddress } from './meta.ts';
-import { weather } from '../../../core/weather.ts';
+import { weather } from './weather.ts';
 
 test('the user agent string, where Client Hints are missing', () => {
   expect(
