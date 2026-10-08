@@ -1,5 +1,5 @@
 // The kit's own pieces, for what shadcn has no component for: layout by the design's spacing, type, the
-// tones (people, places, events), panels with their source, the timeline, the mobile round buttons, and
+// tones (people, places, events), panels with their source, the timeline, the mobile action buttons, and
 // the frames the shell lays screens out in. Like the rest of the kit, none takes a className or style
 // (lib/unstyled.tsx).
 import { cva } from 'class-variance-authority';
@@ -24,6 +24,7 @@ import {
   DrawerHeader,
   DrawerTitle,
 } from './parts/drawer.tsx';
+import { useIsMobile } from './hooks/use-mobile.ts';
 import { ItemGroup as ItemGroupPart, Item as ItemPart } from './parts/item.tsx';
 import { Kbd as KbdPart } from './parts/kbd.tsx';
 import { SidebarMenu as SidebarMenuPart, Sidebar as SidebarPart } from './parts/sidebar.tsx';
@@ -489,6 +490,118 @@ export function Page({ aside, children }: { aside?: ReactNode; children?: ReactN
       <article className="flex min-w-0 flex-1 flex-col gap-4 md:max-w-3xl">{children}</article>
       {aside ? <aside className="flex shrink-0 flex-col gap-5 md:w-[260px]">{aside}</aside> : null}
     </div>
+  );
+}
+
+/** Keeps routed workflow state mounted when the viewport changes. */
+export function WorkspaceFrame({
+  header,
+  bar,
+  hints,
+  children,
+}: {
+  header: ReactNode;
+  bar: ReactNode;
+  hints: ReactNode;
+  children: ReactNode;
+}) {
+  const mobile = useIsMobile();
+  return (
+    <div
+      data-layout={mobile ? 'mobile-workspace' : 'desktop-workspace'}
+      className="flex h-dvh min-w-0 flex-1 flex-col bg-background"
+    >
+      {mobile && header}
+      <main data-region="" className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+        {children}
+      </main>
+      {mobile ? (
+        bar
+      ) : (
+        <footer className="flex shrink-0 items-center gap-5 border-t bg-surface px-12 py-3">
+          {hints}
+        </footer>
+      )}
+    </div>
+  );
+}
+
+export function MobileHeader({ status }: { status: ReactNode }) {
+  return (
+    <header
+      data-brand=""
+      className="flex min-h-11 shrink-0 items-center justify-between gap-3 border-b px-4 pt-[env(safe-area-inset-top)]"
+    >
+      <span className="flex items-center gap-2 text-sm font-semibold">
+        <span className="flex size-6 items-center justify-center rounded-md bg-primary text-xs text-primary-foreground">
+          V
+        </span>
+        Vaulter
+      </span>
+      <div className="min-w-0 truncate">{status}</div>
+    </header>
+  );
+}
+
+/** Phone navigation has touch rows in a bottom sheet rather than a desktop sidebar. */
+export function NavigationSheet({
+  open,
+  onClose,
+  brand,
+  entries,
+  footer,
+}: {
+  open: boolean;
+  onClose: () => void;
+  brand: ReactNode;
+  entries: { href: string; label: string; icon: IconName; active: boolean }[];
+  footer?: ReactNode;
+}) {
+  return (
+    <Drawer
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) onClose();
+      }}
+    >
+      <DrawerContent
+        aria-describedby={undefined}
+        className="pb-[max(16px,env(safe-area-inset-bottom))]"
+      >
+        <DrawerTitle className="sr-only">Menu</DrawerTitle>
+        <div data-brand="" className="flex items-center justify-between gap-3 px-4 pt-4 pb-5">
+          {brand}
+          <Button
+            variant="ghost"
+            size="icon-lg"
+            className="size-11 rounded-none"
+            aria-label="Close menu"
+            onClick={onClose}
+          >
+            <Icon name="close" size="lg" />
+          </Button>
+        </div>
+        <nav aria-label="Main navigation" className="flex flex-col border-y px-2 py-2">
+          {entries.map((entry) => (
+            <a
+              key={entry.href}
+              href={entry.href}
+              aria-current={entry.active ? 'page' : undefined}
+              onClick={onClose}
+              className={cn(
+                'flex min-h-14 items-center gap-3 px-4 text-[15px] hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring',
+                entry.active && 'bg-muted font-medium',
+              )}
+            >
+              <Icon name={entry.icon} size="lg" />
+              <span className="flex-1">{entry.label}</span>
+              <Icon name="chevron-right" size="sm" />
+            </a>
+          ))}
+        </nav>
+        {!!footer && <div className="flex flex-col px-4 pt-3">{footer}</div>}
+      </DrawerContent>
+    </Drawer>
   );
 }
 

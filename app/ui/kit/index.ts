@@ -313,6 +313,9 @@ export {
   Mark,
   MobileBar,
   MobileFrame,
+  MobileHeader,
+  NavigationSheet,
+  WorkspaceFrame,
   Notice,
   Overlay,
   Page,
@@ -344,21 +347,26 @@ export { useSidebar } from './parts/sidebar.tsx';
 export { startTheme, setTheme, type Theme, ThemeSwitch, useTheme } from './theme.tsx';
 export {
   Activity,
-  Composer,
-  ComposerActions,
-  ComposerSuggestions,
-  ConversationFeed,
-  ConversationPage,
-  ConversationSurface,
-  ConversationWelcome,
   Gate,
   HoverPreview,
   Json,
-  Markdown,
-  Message,
   PreviewBar,
   SidePanel,
   ToolResult,
   UnifiedDiff,
 } from './surfaces.tsx';
+export {
+  Composer,
+  ComposerActions,
+  ComposerSuggestions,
+  ConversationFeed,
+  ConversationPage,
+  ConversationPanel,
+  ConversationSurface,
+  ConversationWelcome,
+  Markdown,
+  Message,
+} from './conversation.tsx';
+export { HistorySurface, HistoryEntry, SearchSurface } from './screens.tsx';
 export { DictateButton } from './dictation.tsx';
+export { SettingsPage, SettingsSection, SettingField } from './settings.tsx';

@@ -28,6 +28,9 @@ import {
   Overlay,
   Page,
   PreviewBar,
+  SettingsPage,
+  SettingsSection,
+  SettingField,
   MobileActionButton,
   Row,
   Stack,
@@ -295,29 +298,28 @@ export function OpenProduct({
         closePanel={() => showPanel(false)}
       >
         {!!preview && (
-          <PreviewBar>
-            <Text size="xs">{preview.label} · Sample data · Scripted chat</Text>
-            <Row>
-              <Link href={preview.kitHref ?? './kit/'}>Component kit</Link>
-              <Button variant="ghost" size="sm" onClick={preview.reset}>
-                Reset demo
-              </Button>
-            </Row>
-          </PreviewBar>
+          <PreviewBar
+            label={preview.label}
+            kitHref={preview.kitHref ?? './kit/'}
+            onReset={preview.reset}
+          />
         )}
         {onAgent ? (
           <ChatPage conversation={conversation} historyHref={historyHref} />
         ) : onHistory ? (
           <HistoryPage vault={vault} />
         ) : onSettings ? (
-          <Page>
-            <Heading level={1}>Settings</Heading>
-            <Stack gap="sm">
-              <Heading level={2}>Appearance</Heading>
-              <ThemeSwitch />
-            </Stack>
+          <SettingsPage>
+            <SettingsSection title="Appearance">
+              <SettingField
+                label="Theme"
+                description="Choose a theme, or follow your device's appearance."
+              >
+                <ThemeSwitch />
+              </SettingField>
+            </SettingsSection>
             <ChatSettings />
-          </Page>
+          </SettingsPage>
         ) : (
           <Page>
             <Heading level={1}>Not found</Heading>

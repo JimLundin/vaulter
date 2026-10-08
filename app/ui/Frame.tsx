@@ -1,14 +1,15 @@
 // Direct composition of the kit's desktop and mobile frames.
-import type { ComponentProps, ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import {
   Brand,
   Button,
-  DesktopMain,
   Icon,
   KeyHint,
   MobileBar,
-  MobileFrame,
-  Overlay,
+  MobileHeader,
+  NavigationSheet,
+  WorkspaceFrame,
+  ConversationPanel,
   MobileActionButton,
   SearchButton,
   Sidebar,
@@ -23,8 +24,6 @@ import {
   Toaster,
   TooltipProvider,
   useIsMobile,
-  useSidebar,
-  SidePanel,
 } from './kit/index.ts';
 import { useEffect, useState } from 'react';
 import type { Navigation } from './command.ts';
@@ -68,108 +67,93 @@ export function Frame({
   const mobile = useIsMobile();
   const wide = useMedia('(min-width: 1280px)');
   const route = useRoute();
+  const [menu, setMenu] = useState(false);
+  useEffect(() => {
+    if (!mobile) setMenu(false);
+  }, [mobile]);
+  const statusText = (
+    <Text size="xs" tone={failed ? 'danger' : 'subtle'}>
+      {status}
+    </Text>
+  );
+  const active = (href: string) =>
+    route.path === href || (route.path === '/' && href === '/agent/');
   return (
     <TooltipProvider>
       <SidebarProvider>
-        <Sidebar>
-          <SidebarHeader>
-            <Brand
-              status={
-                <Text size="xs" tone={failed ? 'danger' : 'subtle'}>
-                  {status}
-                </Text>
-              }
-            />
-            <SearchButton label="Search or ask…" keys="⌘K" onClick={onSearch} />
-          </SidebarHeader>
-          <SidebarContent>
-            <SidebarMenu>
-              {navigation.map((entry) => (
-                <SidebarMenuItem key={entry.href}>
-                  <SidebarMenuButton
-                    asChild={true}
-                    isActive={
-                      route.path === entry.href || (route.path === '/' && entry.href === '/agent/')
-                    }
-                  >
-                    <NavigationLink href={entry.href}>
-                      <Icon name={entry.icon ?? 'file'} />
-                      {entry.label}
-                    </NavigationLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarContent>
-          <SidebarFooter>
-            {actions}
-            {!!signOut && (
-              <Button variant="ghost" size="sm" onClick={() => later(signOut())}>
-                Sign out
-              </Button>
-            )}
-          </SidebarFooter>
-        </Sidebar>
         {mobile ? (
-          <MobileFrame
-            bar={
-              <MobileBar
-                left={<MobileActionButton icon="search" label="Search" onClick={onSearch} />}
-                center={mobileAction}
-                right={<MenuButton />}
-              />
+          <NavigationSheet
+            open={menu}
+            onClose={() => setMenu(false)}
+            brand={<Brand status={statusText} />}
+            entries={navigation.map((entry) => ({
+              ...entry,
+              href: link(entry.href),
+              icon: entry.icon ?? 'file',
+              active: active(entry.href),
+            }))}
+            footer={
+              !!signOut && (
+                <Button variant="ghost" onClick={() => later(signOut())}>
+                  Sign out
+                </Button>
+              )
             }
-          >
-            {children}
-          </MobileFrame>
+          />
         ) : (
-          <DesktopMain
-            hints={
-              <>
-                <KeyHint keys="⌘K" label="Search" />
-                <KeyHint keys="⌘J" label="Ask" />
-                <KeyHint keys="?" label="Shortcuts" />
-              </>
-            }
-          >
-            {children}
-          </DesktopMain>
+          <Sidebar>
+            <SidebarHeader>
+              <Brand status={statusText} />
+              <SearchButton label="Search or ask…" keys="⌘K" onClick={onSearch} />
+            </SidebarHeader>
+            <SidebarContent>
+              <SidebarMenu>
+                {navigation.map((entry) => (
+                  <SidebarMenuItem key={entry.href}>
+                    <SidebarMenuButton asChild={true} isActive={active(entry.href)}>
+                      <a href={link(entry.href)}>
+                        <Icon name={entry.icon ?? 'file'} />
+                        {entry.label}
+                      </a>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarContent>
+            <SidebarFooter>
+              {actions}
+              {!!signOut && (
+                <Button variant="ghost" size="sm" onClick={() => later(signOut())}>
+                  Sign out
+                </Button>
+              )}
+            </SidebarFooter>
+          </Sidebar>
         )}
-        {panel && wide ? (
-          <SidePanel title="Agent" onClose={closePanel}>
-            {panel}
-          </SidePanel>
-        ) : (
-          <Overlay
-            mobile={mobile}
-            open={!!panel}
-            onClose={closePanel}
-            title="Ask the agent"
-            tall={true}
-          >
-            {panel}
-          </Overlay>
-        )}
+        <WorkspaceFrame
+          header={<MobileHeader status={statusText} />}
+          bar={
+            <MobileBar
+              left={<MobileActionButton icon="search" label="Search" onClick={onSearch} />}
+              center={mobileAction}
+              right={<MobileActionButton icon="list" label="Menu" onClick={() => setMenu(true)} />}
+            />
+          }
+          hints={
+            <>
+              <KeyHint keys="⌘K" label="Search" />
+              <KeyHint keys="⌘J" label="Ask" />
+              <KeyHint keys="?" label="Shortcuts" />
+            </>
+          }
+        >
+          {children}
+        </WorkspaceFrame>
+        <ConversationPanel mobile={mobile} wide={wide} open={!!panel} onClose={closePanel}>
+          {panel}
+        </ConversationPanel>
       </SidebarProvider>
       <Toaster position="bottom-right" />
     </TooltipProvider>
-  );
-}
-function MenuButton() {
-  const { setOpenMobile } = useSidebar();
-  return <MobileActionButton icon="list" label="Menu" onClick={() => setOpenMobile(true)} />;
-}
-
-function NavigationLink({ href, onClick, ...props }: ComponentProps<'a'> & { href: string }) {
-  const { setOpenMobile } = useSidebar();
-  return (
-    <a
-      {...props}
-      href={link(href)}
-      onClick={(event) => {
-        onClick?.(event);
-        setOpenMobile(false);
-      }}
-    />
   );
 }

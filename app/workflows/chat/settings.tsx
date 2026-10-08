@@ -1,6 +1,6 @@
 // The agent's preferences stay with the removable chat workflow.
 import { useId, useState } from 'react';
-import { FieldDescription, Heading, Input, Label, Stack } from '../../ui/kit/index.ts';
+import { Input, SettingField, SettingsSection } from '../../ui/kit/index.ts';
 import { DEFAULT_MODEL, MODEL_KEY, model } from './model.ts';
 
 export function ChatSettings() {
@@ -8,10 +8,13 @@ export function ChatSettings() {
   const description = `${id}-description`;
   const [value, setValue] = useState(model);
   return (
-    <Stack>
-      <Heading level={2}>Agent</Heading>
-      <Stack gap="xs">
-        <Label htmlFor={id}>Model</Label>
+    <SettingsSection title="Agent">
+      <SettingField
+        label="Model"
+        htmlFor={id}
+        descriptionId={description}
+        description="Used for new messages. Saved on this device."
+      >
         <Input
           id={id}
           aria-describedby={description}
@@ -24,10 +27,7 @@ export function ChatSettings() {
             else localStorage.removeItem(MODEL_KEY);
           }}
         />
-        <FieldDescription id={description}>
-          Used for new messages. Saved on this device.
-        </FieldDescription>
-      </Stack>
-    </Stack>
+      </SettingField>
+    </SettingsSection>
   );
 }

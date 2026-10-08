@@ -17,7 +17,7 @@ import {
   CommandShortcut,
   Icon,
   Kbd,
-  Overlay,
+  SearchSurface,
   Row,
   Text,
   useIsMobile,
@@ -77,14 +77,7 @@ export function Search({
   };
 
   return (
-    <Overlay
-      mobile={mobile}
-      open={open}
-      onClose={close}
-      title="Search or ask"
-      hideTitle={true}
-      description="Search your notes and commands."
-    >
+    <SearchSurface open={open} onClose={close}>
       <Palette shouldFilter={false} loop={true}>
         <CommandInput
           value={q}
@@ -146,7 +139,7 @@ export function Search({
                   <CommandItem key={c.id} value={`cmd ${c.id}`} onSelect={() => run(c)}>
                     {!!c.icon && <Icon name={c.icon} />}
                     {c.label}
-                    {!!c.keys && (
+                    {!!c.keys && !mobile && (
                       <CommandShortcut>
                         <Keys keys={c.keys} />
                       </CommandShortcut>
@@ -157,6 +150,6 @@ export function Search({
           ))}
         </CommandList>
       </Palette>
-    </Overlay>
+    </SearchSurface>
   );
 }

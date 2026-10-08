@@ -4,10 +4,9 @@ import {
   Alert,
   AlertDescription,
   Button,
-  Heading,
-  Icon,
+  HistoryEntry,
+  HistorySurface,
   Overlay,
-  Page,
   Row,
   Stack,
   Text,
@@ -73,11 +72,7 @@ export function HistoryPage({ vault }: { vault: Vault }) {
     }
   };
   return (
-    <Page>
-      <Heading level={1} serif={true}>
-        History
-      </Heading>
-      <Text tone="muted">Commits made from this app, newest first.</Text>
+    <HistorySurface>
       {!!error && (
         <Alert variant="destructive">
           <AlertDescription>{error}</AlertDescription>
@@ -92,34 +87,24 @@ export function HistoryPage({ vault }: { vault: Vault }) {
       ) : (
         <Stack gap="xl">
           {list.map((commit) => (
-            <Stack key={commit.sha}>
-              <Row justify="between">
-                <Button
-                  variant="ghost"
-                  onClick={() => show(commit.sha)}
-                  aria-expanded={!!open[commit.sha]}
-                >
-                  <Icon name={open[commit.sha] ? 'chevron-left' : 'chevron-right'} />
-                  {commit.message.split('\n')[0]}
-                </Button>
-                {!!vault.revert && (
-                  <Button variant="outline" size="sm" onClick={() => setConfirm(commit)}>
-                    <Icon name="undo" />
-                    Revert
-                  </Button>
-                )}
-              </Row>
-              <Text size="xs" tone="subtle" mono={true}>
-                {new Date(commit.date).toLocaleString('en-GB', {
-                  dateStyle: 'medium',
-                  timeStyle: 'short',
-                })}{' '}
-                · {shortSha(commit.sha)}
-              </Text>
+            <HistoryEntry
+              key={commit.sha}
+              title={commit.message.split('\n')[0]}
+              date={new Date(commit.date).toLocaleString('en-GB', {
+                dateStyle: 'medium',
+                timeStyle: 'short',
+              })}
+              sha={shortSha(commit.sha)}
+              expanded={!!open[commit.sha]}
+              onExpand={() => {
+                show(commit.sha).catch((e) => setError(String(e)));
+              }}
+              onRevert={vault.revert ? () => setConfirm(commit) : undefined}
+            >
               {open[commit.sha]?.map((file) => (
                 <UnifiedDiff key={file.filename} path={file.filename} patch={file.patch} />
               ))}
-            </Stack>
+            </HistoryEntry>
           ))}
         </Stack>
       )}
@@ -141,6 +126,6 @@ export function HistoryPage({ vault }: { vault: Vault }) {
           </Button>
         </Row>
       </Overlay>
-    </Page>
+    </HistorySurface>
   );
 }

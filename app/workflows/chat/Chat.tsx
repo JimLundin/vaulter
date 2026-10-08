@@ -89,23 +89,88 @@ export function Chat({
     }
   }, [arg, chat, say, type]);
   if (!conversation.ready())
-    return <Text tone="muted">The agent needs an OpenAI key and a writable vault.</Text>;
+    return (
+      <ConversationSurface
+        historyHref={historyHref ? link(historyHref) : undefined}
+        onNewChat={newChat}
+        busy={false}
+        composer={null}
+      >
+        <ConversationFeed>
+          <Text tone="muted">The agent needs an OpenAI key and a writable vault.</Text>
+        </ConversationFeed>
+      </ConversationSurface>
+    );
   return (
-    <ConversationSurface>
-      <Row justify="between">
-        {historyHref ? (
-          <Link href={link(historyHref)}>History</Link>
-        ) : (
-          <Text size="sm" tone="subtle">
-            Your conversation
-          </Text>
-        )}
-        <Button variant="ghost" size="sm" disabled={busy} onClick={newChat}>
-          <Icon name="plus" />
-          New chat
-        </Button>
-      </Row>
-      <ConversationFeed>
+    <ConversationSurface
+      historyHref={historyHref ? link(historyHref) : undefined}
+      onNewChat={() => {
+        newChat();
+        type('');
+      }}
+      busy={busy}
+      composer={
+        <Composer suggestions={showSuggestions}>
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (input.trim() && !busy) say(input);
+            }}
+          >
+            <Textarea
+              ref={ref}
+              aria-label="Message"
+              placeholder={busy ? 'Working…' : showSuggestions ? '' : 'Say what to file, or ask…'}
+              value={input}
+              disabled={busy}
+              onChange={(event) => type(event.currentTarget.value)}
+              onFocus={() => setFocused(true)}
+              onBlur={() => setFocused(false)}
+              onKeyDown={(event) => {
+                // Safari can report Enter confirming composed text with keyCode 229.
+                if (
+                  event.key === 'Enter' &&
+                  !event.shiftKey &&
+                  !event.nativeEvent.isComposing &&
+                  event.nativeEvent.keyCode !== 229
+                ) {
+                  event.preventDefault();
+                  event.currentTarget.form?.requestSubmit();
+                }
+              }}
+            />
+            {showSuggestions ? (
+              <ComposerSuggestions
+                suggestions={suggestions}
+                onSelect={(text) => {
+                  type(text);
+                  ref.current?.focus();
+                }}
+              />
+            ) : null}
+            <ComposerActions>
+              <DictateButton textareaRef={ref} onText={type} disabled={busy} />
+              {busy ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon-lg"
+                  aria-label="Stop"
+                  onClick={stop}
+                >
+                  <Icon name="stop" />
+                </Button>
+              ) : (
+                <Button type="submit" size="icon-lg" aria-label="Send" disabled={!input.trim()}>
+                  <Icon name="arrow-up" />
+                </Button>
+              )}
+            </ComposerActions>
+          </form>
+        </Composer>
+      }
+    >
+      <ConversationFeed empty={!turns.length}>
         {!turns.length && (
           <ConversationWelcome
             title="What would you like to remember?"
@@ -127,64 +192,7 @@ export function Chat({
           </Message>
         ))}
       </ConversationFeed>
-      <Composer suggestions={showSuggestions}>
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            if (input.trim() && !busy) say(input);
-          }}
-        >
-          <Textarea
-            ref={ref}
-            aria-label="Message"
-            placeholder={busy ? 'Working…' : showSuggestions ? '' : 'Say what to file, or ask…'}
-            value={input}
-            disabled={busy}
-            onChange={(event) => type(event.currentTarget.value)}
-            onFocus={() => setFocused(true)}
-            onBlur={() => setFocused(false)}
-            onKeyDown={(event) => {
-              // Safari can report Enter confirming composed text with keyCode 229.
-              if (
-                event.key === 'Enter' &&
-                !event.shiftKey &&
-                !event.nativeEvent.isComposing &&
-                event.nativeEvent.keyCode !== 229
-              ) {
-                event.preventDefault();
-                event.currentTarget.form?.requestSubmit();
-              }
-            }}
-          />
-          {showSuggestions ? (
-            <ComposerSuggestions
-              suggestions={suggestions}
-              onSelect={(text) => {
-                type(text);
-                ref.current?.focus();
-              }}
-            />
-          ) : null}
-          <ComposerActions>
-            <DictateButton textareaRef={ref} onText={type} disabled={busy} />
-            {busy ? (
-              <Button
-                type="button"
-                variant="outline"
-                size="icon-lg"
-                aria-label="Stop"
-                onClick={stop}
-              >
-                <Icon name="stop" />
-              </Button>
-            ) : (
-              <Button type="submit" size="icon-lg" aria-label="Send" disabled={!input.trim()}>
-                <Icon name="arrow-up" />
-              </Button>
-            )}
-          </ComposerActions>
-        </form>
-      </Composer>
+
       <Overlay
         mobile={mobile}
         open={!!review}

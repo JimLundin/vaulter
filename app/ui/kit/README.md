@@ -12,7 +12,10 @@ reference screens illustrate the design; they do not register app features.
 | `index.ts` | public components, icons and theme controls |
 | `parts/`, `hooks/` | private shadcn primitives and their hooks |
 | `app.tsx` | spacing, typography, pages, sidebar, mobile frame, overlays |
-| `surfaces.tsx` | conversation, tool-result, overlay panel and unified-diff presentation |
+| `conversation.tsx` | mobile agent screen, desktop reading column, composer and message presentation |
+| `screens.tsx` | mobile search screen and history touch rows, desktop palette and commit list |
+| `settings.tsx` | mobile full-width settings sections and desktop form rows |
+| `surfaces.tsx` | gates, preview notice, tool results, panels and unified diffs |
 | `dictation.tsx` | browser speech control |
 | `chart.tsx`, `diff.tsx`, `map.tsx` | accessible charts, code diffs, lazy map presentation |
 | `styles.css`, `theme.tsx` | zinc color tokens, light/dark/system theme |
@@ -24,3 +27,10 @@ presentation here and keep domain behavior in its workflow. `tools/layout.test.t
 use public exports and workflows avoid ad hoc styling. Markdown content rendering is a scoped
 exception. Maps require `https://tiles.openfreemap.org` in the consuming page's CSP; the current
 product does not use maps.
+
+Responsive presentation is owned by the kit. Conversation state stays in the chat workflow; the
+workspace, feed and composer keep stable positions in the React tree across viewport changes.
+Mobile has a brand/status header, icon toolbar, edge-to-edge feed, docked composer, full-screen agent
+and search overlays, and bottom-sheet navigation. Desktop has the sidebar, reading column, labeled
+actions, keyboard hints and a side panel. Settings and history use device-specific form and list
+compositions. The breakpoint is 768px; desktop side panels start at 1280px.

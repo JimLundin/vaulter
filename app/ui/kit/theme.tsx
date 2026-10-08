@@ -3,7 +3,9 @@
 // so shadcn's dark: variants apply too. The choice is this device's, kept in localStorage.
 import { useSyncExternalStore } from 'react';
 import { Icon, type IconName } from './icons.tsx';
-import { ToggleGroup, ToggleGroupItem } from './parts/toggle-group.tsx';
+import { RadioGroup } from 'radix-ui';
+import { useIsMobile } from './hooks/use-mobile.ts';
+import { cn } from './lib/utils.ts';
 
 export type Theme = 'system' | 'light' | 'dark';
 
@@ -81,25 +83,41 @@ const CHOICES: [Theme, IconName, string][] = [
   ['dark', 'dark', 'Dark'],
 ];
 
-/** Choosing light, dark or the system's. */
+/** Full-width touch choices on phones, compact choices in the desktop form column. */
 export function ThemeSwitch() {
   const theme = useTheme();
+  const mobile = useIsMobile();
   return (
-    <ToggleGroup
-      type="single"
-      variant="outline"
-      size="sm"
+    <RadioGroup.Root
       value={theme}
-      onValueChange={(v) => {
-        if (v) setTheme(v as Theme);
-      }}
+      onValueChange={(value) => setTheme(value as Theme)}
       aria-label="Appearance"
+      className={
+        mobile ? 'flex flex-col divide-y border-y' : 'flex flex-wrap gap-1 rounded-lg border p-1'
+      }
     >
       {CHOICES.map(([value, icon, label]) => (
-        <ToggleGroupItem key={value} value={value} aria-label={label} title={label}>
-          <Icon name={icon} size="sm" />
-        </ToggleGroupItem>
+        <RadioGroup.Item
+          key={value}
+          value={value}
+          aria-label={label}
+          className={cn(
+            'flex items-center gap-2 text-[13px] focus-visible:outline-2 focus-visible:outline-ring hover:bg-muted',
+            mobile
+              ? 'min-h-12 w-full px-2 text-left'
+              : 'min-h-9 flex-1 justify-center rounded-md px-2',
+            !mobile && theme === value && 'bg-muted font-medium',
+          )}
+        >
+          <Icon name={icon} size={mobile ? 'md' : 'sm'} />
+          <span className={mobile ? 'flex-1' : ''}>{label.replace('As the system', 'System')}</span>
+          {mobile && (
+            <RadioGroup.Indicator>
+              <Icon name="check" />
+            </RadioGroup.Indicator>
+          )}
+        </RadioGroup.Item>
       ))}
-    </ToggleGroup>
+    </RadioGroup.Root>
   );
 }
