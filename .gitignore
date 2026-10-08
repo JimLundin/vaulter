@@ -2,5 +2,8 @@ node_modules/
 dist/
 # Sealed in CI, never committed.
 app/public/secrets.json
+# Dev's secrets (vite.config.ts), never committed.
+.env
+.env.*
 # Claude Code's own worktrees and settings, never the app's.
 .claude/

@@ -1,20 +1,12 @@
-// Which vault the app is on, and its state. Dev, or built without secrets.json: a folder on this device
-// (backends/folder.ts). Built: the secrets are unlocked (unlock.ts), then GitHub through the encrypted
-// cache. Opens from what the device kept, then refreshes: at once, when the tab comes back (at most every
+// Which vault the app is on, and its state: GitHub through the encrypted cache, in every browser. Built, the
+// secrets are unlocked with the password (unlock.ts); in dev they come from the environment (vite.config.ts)
+// and it loads right in. Opens from what the device kept, then refreshes: at once, when the tab comes back (at most every
 // 30 s), and when the backend says something changed.
 import { useEffect, useRef, useState } from 'react';
 import type { Sealed, Secrets } from '../../core/sealed.ts';
 import { Offline, type Head, type VaultBackend } from './backend.ts';
-import { forget, remembered, unlock, type Unlocked } from './unlock.ts';
+import { devUnlocked, forget, remembered, unlock, type Unlocked } from './unlock.ts';
 import { githubBackend } from '../backends/github/index.ts';
-import {
-  canPickFolder,
-  folderBackend,
-  permitted,
-  pickFolder,
-  savedFolder,
-  type Folder,
-} from '../backends/folder.ts';
 import { later } from './later.ts';
 
 export type Status =
@@ -33,12 +25,11 @@ export interface Session {
   /** Set while the secrets wait for the password. */
   locked: { unlock: (password: string) => Promise<void> } | null;
   signOut: (() => Promise<void>) | null;
-  /** Set while the app waits for the vault folder: the one kept from last time (asked again), or a new pick. */
-  folder: { saved: string | null; open: (pick: boolean) => Promise<void> } | null;
 }
 
 const EVERY = 30_000;
-const DEV = import.meta.env.DEV && !import.meta.env.VITE_GITHUB_API;
+declare const __DEV_SECRETS__: Secrets | null;
+const DEV_SECRETS = typeof __DEV_SECRETS__ === 'undefined' ? null : __DEV_SECRETS__;
 
 export function useSession(): Session {
   const [backend, setBackend] = useState<VaultBackend | null>(null);
@@ -46,7 +37,6 @@ export function useSession(): Session {
   const [status, setStatus] = useState<Status>({ kind: 'loading' });
   const [sealed, setSealed] = useState<Sealed | null>(null);
   const [secrets, setSecrets] = useState<Secrets | null>(null);
-  const [folder, setFolder] = useState<{ saved: Folder | null } | null>(null);
   const last = useRef(0);
   const busy = useRef<boolean>(false);
 
@@ -76,20 +66,6 @@ export function useSession(): Session {
     if (h) setHead(h);
     await refresh(b, true);
   };
-  const openFolder = (root: Folder) => {
-    setFolder(null);
-    return open(folderBackend(root));
-  };
-  const askFolder = async () => {
-    if (!canPickFolder())
-      return setStatus({
-        kind: 'error',
-        message: 'Opening a vault folder needs a Chromium browser (File System Access).',
-      });
-    const saved = await savedFolder();
-    if (saved && (await permitted(saved))) return openFolder(saved);
-    setFolder({ saved });
-  };
   const begin = (u: Unlocked) => {
     setSecrets(u.secrets);
     return open(
@@ -103,19 +79,16 @@ export function useSession(): Session {
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: once, on mount; what it calls reads only refs and state setters
   useEffect(() => {
-    if (DEV) {
-      later(askFolder());
-      return;
-    }
     const start = async () => {
+      if (DEV_SECRETS) return begin(await devUnlocked(DEV_SECRETS));
       const res = await fetch('./secrets.json').catch(() => null);
       if (!res?.ok)
-        return canPickFolder()
-          ? askFolder()
-          : setStatus({
-              kind: 'error',
-              message: 'No secrets.json: the publish workflow seals it from the repo secrets.',
-            });
+        return setStatus({
+          kind: 'error',
+          message: import.meta.env.DEV
+            ? 'No secrets in dev: set VAULT_GITHUB_TOKEN in .env.local (README, Commands).'
+            : 'No secrets.json: the publish workflow seals it from the repo secrets.',
+        });
       const s: Sealed = await res.json();
       const u = await remembered(s);
       if (u) await begin(u);
@@ -163,14 +136,5 @@ export function useSession(): Session {
           location.reload();
         }
       : null,
-    folder: folder && {
-      saved: folder.saved?.name ?? null,
-      async open(pick) {
-        const root = pick || !folder.saved ? await pickFolder() : folder.saved;
-        if (!(await permitted(root, true)))
-          throw new Error('The browser was not allowed to read and write the folder.');
-        await openFolder(root);
-      },
-    },
   };
 }

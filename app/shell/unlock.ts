@@ -39,6 +39,16 @@ export async function remembered(sealed: Sealed, now = Date.now()): Promise<Unlo
   return null;
 }
 
+/** Dev: the secrets from the environment (vite.config.ts), no password; this device keeps one cache key, so
+ * the cache outlives a reload. */
+export async function devUnlocked(secrets: Secrets): Promise<Unlocked> {
+  const kept = await get<{ id: 'dev'; cacheKey: CryptoKey }>('keys', 'dev');
+  if (kept) return { secrets, cacheKey: kept.cacheKey };
+  const cacheKey = await newCacheKey();
+  await put('keys', { id: 'dev', cacheKey });
+  return { secrets, cacheKey };
+}
+
 /** Opens the secrets with the password (throws if it's wrong) and remembers this device. */
 export async function unlock(
   sealed: Sealed,

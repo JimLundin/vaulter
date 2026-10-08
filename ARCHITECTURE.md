@@ -10,7 +10,7 @@ data, and nothing the browser runs needs Node.
 |---|---|---|---|
 | Vault model | `core/` | itself and pure libraries (no DOM, no Node) | parsing, the check, derivations, the vocabulary reader, formats, audit, rename |
 | Shell | `app/shell/` | `core/`, the DOM, React | routing, the frame (sidebar, header, the panel beside the page, the phone's bottom bar), ⌘K, the keys, the extension host, the writer, the session, the encrypted store, the workers |
-| Backends | `app/backends/<name>` | `core/`, `app/shell/backend.ts` | one way to a vault each: GitHub (with the cache), a picked folder, memory (tests) |
+| Backends | `app/backends/<name>` | `core/`, `app/shell/backend.ts` | one way to a vault each: GitHub (with the cache), memory (tests) |
 | Features | `app/extensions/<name>/` | `core/`, `app/shell/` | everything the user sees beyond the shell |
 | Tools | `tools/` | Node, `core/` | thin CLIs over `core/` for CI: the vault's check and sealing |
 
@@ -102,15 +102,15 @@ show) are such functions.
 
 The app reaches a vault only through `VaultBackend` (`app/shell/backend.ts`):
 
-| Member | Does | GitHub | Folder | Memory |
-|---|---|---|---|---|
-| `cached()` | the head kept on this device, to open at once and offline | encrypted IndexedDB | — | — |
-| `refresh()` | the latest head, or null if unchanged | 304 on main's ETag, then only new blobs | re-reads changed files (mtime, size) | ✓ |
-| `watch(on)` | changes made elsewhere, with the head when at hand | other tabs (BroadcastChannel) | FileSystemObserver, else polling | ✓ |
-| `write(changes, message, verify)` | one atomic step after `verify` (the check) | Git Data API, fast-forward only, rebuilt if main moved | writes the files (not atomic across files) | ✓ |
-| `history` / `patch` / `revert` | steps written from the app, and undoing one | commits with the trailer | — | ✓ |
-| `since(day)` | what changed since a day, and a file's text then (the audit) | 2 requests + blobs on demand | — | ✓ |
-| `keep` | the app's own small state (staged edits, worker results) | encrypted | localStorage | memory |
+| Member | Does | GitHub | Memory |
+|---|---|---|---|
+| `cached()` | the head kept on this device, to open at once and offline | encrypted IndexedDB | — |
+| `refresh()` | the latest head, or null if unchanged | 304 on main's ETag, then only new blobs | ✓ |
+| `watch(on)` | changes made elsewhere, with the head when at hand | other tabs (BroadcastChannel) | ✓ |
+| `write(changes, message, verify)` | one atomic step after `verify` (the check) | Git Data API, fast-forward only, rebuilt if main moved | ✓ |
+| `history` / `patch` / `revert` | steps written from the app, and undoing one | commits with the trailer | ✓ |
+| `since(day)` | what changed since a day, and a file's text then (the audit) | 2 requests + blobs on demand | ✓ |
+| `keep` | the app's own small state (staged edits, worker results) | encrypted | memory |
 
 The writer (`app/shell/writer.ts`) stages edits for any backend and passes the check as `verify`; staged
 files remember their content id, so a change made elsewhere since staging is a conflict, not an overwrite.
@@ -155,12 +155,12 @@ name (`app/shell/base.css`), and the special cases in Home (`active`, `leisure`)
 
 ## Browser only
 
-Nothing the browser runs uses Node; `npm run dev` serves files only (the folder backend reads the vault
-in the browser). Node remains, outside the app, as:
+Nothing the browser runs uses Node; `npm run dev` serves files only, and runs the app as built (GitHub
+through the encrypted cache) without the password. Node remains, outside the app, as:
 - **The toolchain**: Vite, Vitest and TypeScript, in development and CI.
 - **CI**: `tools/check.ts` on every push to the vault, `tools/seal-secrets.ts` when deploying.
 
 The vault is worked only in the app: the audit, rename and Captures have no command-line form.
 
-The folder backend is Chromium-only (Safari and Firefox have no directory picker), so GitHub stays the
-main backend; the folder is for development and a local clone.
+The app runs the same in every browser, Safari included: GitHub through IndexedDB, nothing that needs
+Chromium (no directory picker).

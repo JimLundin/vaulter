@@ -1,6 +1,6 @@
 /// <reference types="vitest/config" />
 // The browser app (app/) and the tests for it and for the shared vault code (core/).
-import { defineConfig, type Plugin } from 'vite';
+import { defineConfig, loadEnv, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { fileURLToPath } from 'node:url';
@@ -34,7 +34,20 @@ const csp = (): Plugin => ({
   },
 });
 
-export default defineConfig({
+// Dev skips the password: the secrets come from the environment or .env.local (the names CI seals), and only
+// `npm run dev` gets them; a build has none, so no token reaches dist/.
+const devSecrets = (mode: string) => {
+  const env = { ...loadEnv(mode, SITE, 'VAULT_'), ...process.env };
+  return env.VAULT_GITHUB_TOKEN
+    ? {
+        github: env.VAULT_GITHUB_TOKEN,
+        openai: env.VAULT_OPENAI_KEY || undefined,
+        jina: env.VAULT_JINA_KEY || undefined,
+      }
+    : null;
+};
+
+export default defineConfig(({ command, mode }) => ({
   root: 'app',
   base: './',
   plugins: [react(), tailwindcss(), csp()],
@@ -55,6 +68,7 @@ export default defineConfig({
   define: {
     __BUILD__: JSON.stringify(Date.now().toString(36)),
     __COMMIT__: JSON.stringify((process.env.GITHUB_SHA ?? '').slice(0, 7)),
+    __DEV_SECRETS__: JSON.stringify(command === 'serve' ? devSecrets(mode) : null),
   },
   test: { root: SITE, include: ['app/**/*.test.{ts,tsx}', 'core/**/*.test.ts'] },
-});
+}));

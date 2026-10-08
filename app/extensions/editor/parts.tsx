@@ -73,5 +73,5 @@ export function Confirm({
   );
 }
 
-/** A commit as shown: a git sha's first 7, or a backend's own id whole (the folder's "folder-…"). */
+/** A commit as shown: a git sha's first 7, or any other id whole. */
 export const shortSha = (sha: string) => (/^[0-9a-f]{8,}$/i.test(sha) ? sha.slice(0, 7) : sha);

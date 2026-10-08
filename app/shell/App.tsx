@@ -17,7 +17,6 @@ import { Shell } from './Shell.tsx';
 import { useUi } from './ui.ts';
 import { Previews } from './Previews.tsx';
 import { Unlock } from './Unlock.tsx';
-import { OpenFolder } from './OpenFolder.tsx';
 import { later } from './later.ts';
 import { ErrorState, Loading } from '@/components/layout.tsx';
 
@@ -99,12 +98,6 @@ export function App() {
     return (
       <main className="px-4">
         <Unlock unlock={session.locked.unlock} />
-      </main>
-    );
-  if (session.folder)
-    return (
-      <main className="px-4">
-        <OpenFolder {...session.folder} />
       </main>
     );
   const { status } = session;

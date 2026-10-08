@@ -112,7 +112,7 @@ export function agentTools({ w, search, capture }: AgentContext) {
         if (!w.commit) return { error: 'committing is not available here (dev: use git)' };
         try {
           const sha = await w.commit(message);
-          // A commit sha shortened; a backend's own id (the folder's "folder-…") whole.
+          // A commit sha shortened; any other id whole.
           return { committed: /^[0-9a-f]{8,}$/i.test(sha) ? sha.slice(0, 7) : sha };
         } catch (e) {
           if (e instanceof CheckFailed)

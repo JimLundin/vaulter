@@ -12,7 +12,7 @@ components (the vault's `meta/conventions.md` §13). The design and its history:
 |---|---|
 | `npm ci` | install |
 | `npm run check` | the vault's check (`tools/check.ts`) over `../vault` (or `node tools/check.ts --vault <dir>`): links, heading anchors, wikilinks, raw HTML, what MDX may contain (`core/mdx-rules.ts`), and the vault's schema (`meta/schema.yaml`, held to it by `core/schema.ts` and `core/relations.ts`). Fast; run before every push to the vault. The vault's CI runs it on every push too, from this repo's `main` |
-| `npm run dev` | the app on a vault folder you pick (`app/backends/folder.ts`, Chromium only), live: edits to notes show without a reload; no password, no Node at runtime |
+| `npm run dev` | the app on the vault through GitHub, as built, in any browser, but with no password: it loads right in with the secrets from `.env.local` (gitignored): `VAULT_GITHUB_TOKEN`, and optionally `VAULT_OPENAI_KEY` and `VAULT_JINA_KEY`, the names CI seals. Only dev gets them; a build has none. Its commits go to the vault's `main`, as the app's do |
 | `npm run build` | the app into `dist/` |
 | `npm run lint` / `npm run format` | Biome: lint and format check (CI), or fix both in place. Style: 2 spaces, single quotes, semicolons, trailing commas, 100 columns (`biome.json`) |
 | `npm test` / `npm run typecheck` | the tests (Vitest: `app/`, `core/`) and TypeScript over `app/`, `core/` and `tools/` |
@@ -47,7 +47,7 @@ The design, its rules and how to add a feature: `ARCHITECTURE.md`. In short:
   (`writer.ts`), the encrypted IndexedDB (`store.ts`), unlocking (`unlock.ts`), rendering
   (`markdown.ts`, `highlight.tsx`), the worker and the service worker.
 - `app/backends/` — GitHub (`github/`: the REST client, sync through the encrypted cache, commits through
-  the Git Data API), a picked folder (`folder.ts`, Chromium only), memory (`memory.ts`, for tests).
+  the Git Data API), memory (`memory.ts`, for tests).
 - `app/extensions/` — every feature, listed in `extensions/index.ts`: notes, home, topics, calendar,
   decisions, map, similar, places, editor (edit, rename, changes, history), audit, agent, code (the
   agent's tools over this repo, so the app can change itself), web (search and reading pages, through Jina).
