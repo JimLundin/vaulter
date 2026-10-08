@@ -2,14 +2,15 @@
 import { MapPinIcon } from 'lucide-react';
 import type { Extension } from '../../core/extension.ts';
 import { Places } from './Places.tsx';
+import { placesPage } from './routes.ts';
 
 export const places: Extension = {
   id: 'places',
-  page: (path) => (path === '/places/' ? { title: 'Places', body: <Places /> } : null),
+  page: (path) => (placesPage.match(path) ? { title: 'Places', body: <Places /> } : null),
   nav: [
     {
       label: 'Places',
-      href: '/places/',
+      href: placesPage.href(),
       icon: MapPinIcon,
       keys: 'g p',
       order: 30,

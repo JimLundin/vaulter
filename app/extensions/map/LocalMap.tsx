@@ -7,6 +7,7 @@ import { link } from '../../core/route.ts';
 import { cn } from 'cn';
 import { Section } from '@/components/layout.tsx';
 import './localmap.css';
+import { mapPage } from './routes.ts';
 
 const MAX = 24;
 const ROW = 26;
@@ -122,7 +123,7 @@ export function LocalMap({ note }: { note: Note }) {
       title="Neighbourhood"
       count={all.length}
       action={
-        <a className="text-primary hover:underline" href={link('/map/')}>
+        <a className="text-primary hover:underline" href={link(mapPage.href())}>
           full map →
         </a>
       }
@@ -204,7 +205,7 @@ export function LocalMap({ note }: { note: Note }) {
       {more > 0 && (
         <p className="m-0 mt-2 text-center text-xs text-faint">
           Showing the {shown.length} strongest connections; {more} more are on the{' '}
-          <a className="text-primary no-underline hover:underline" href={link('/map/')}>
+          <a className="text-primary no-underline hover:underline" href={link(mapPage.href())}>
             map
           </a>{' '}
           and listed below.

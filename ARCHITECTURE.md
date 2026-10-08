@@ -70,6 +70,16 @@ a feature has one outcome: what it added is gone from every page, and nothing el
 feature that owns a slot fails the build at every import of it. A new slot is made when a feature first
 needs others to add to its page, not before.
 
+### A feature's routes
+
+A feature's pages are at routes it owns, in its `routes.ts`, each a typed pattern (`pattern()` in
+`app/core/route.ts`): `editPage = pattern('/edit/:file/')`. The feature finds its page with it
+(`editPage.match(path)` gives `{ file }`, or null), and every link to the page is made by it,
+`editPage.href({ file })`, so its params are typed and encoded once. Another feature that links there
+imports the route (the agent links to the editor's `historyPage`), so a route that moves moves its links,
+and a feature that goes fails the build where it was linked to. Notes, topics and areas are the vault's
+own hrefs (`core/paths.ts`, `topicHref`), not a feature's.
+
 ## Reaching the vault: backends
 
 The app reaches a vault only through `VaultBackend` (`app/core/backend.ts`):

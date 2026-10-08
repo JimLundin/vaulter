@@ -16,27 +16,33 @@ import { Rename } from './Rename.tsx';
 import type { Host } from '../../core/host.tsx';
 import type { Route } from '../../core/route.ts';
 import { noteActions } from '../notes/slots.tsx';
+import { changesPage, editPage, historyPage, renamePage } from './routes.ts';
 
 const onNote = (host: Host, route: Route) => host.vault.byHref.has(route.path);
-const pathAt = (host: Host, route: Route) =>
-  encodeURIComponent(host.vault.byHref.get(route.path)?.path ?? '');
+const fileAt = (host: Host, route: Route) => host.vault.byHref.get(route.path)?.path ?? '';
 
 export const editor: Extension = {
   id: 'editor',
   page(path) {
-    if (path === '/changes/') return { title: 'Changes', body: <Changes /> };
-    if (path === '/history/') return { title: 'History', body: <History /> };
-    const m = /^\/(edit|rename)\/([^/]+)\/$/.exec(path);
-    if (!m) return null;
-    const file = decodeURIComponent(m[2]);
-    return m[1] === 'edit'
-      ? { title: `Edit ${file}`, body: <Edit key={file} path={file} />, width: 'wide' }
-      : { title: `Rename ${file}`, body: <Rename key={file} path={file} /> };
+    if (changesPage.match(path)) return { title: 'Changes', body: <Changes /> };
+    if (historyPage.match(path)) return { title: 'History', body: <History /> };
+    const edit = editPage.match(path);
+    if (edit) {
+      return {
+        title: `Edit ${edit.file}`,
+        body: <Edit key={edit.file} path={edit.file} />,
+        width: 'wide',
+      };
+    }
+    const rename = renamePage.match(path);
+    return rename
+      ? { title: `Rename ${rename.file}`, body: <Rename key={rename.file} path={rename.file} /> }
+      : null;
   },
   nav: [
     {
       label: 'History',
-      href: '/history/',
+      href: historyPage.href(),
       icon: HistoryIcon,
       keys: 'g y',
       order: 80,
@@ -45,7 +51,7 @@ export const editor: Extension = {
     },
     {
       label: 'Changes',
-      href: '/changes/',
+      href: changesPage.href(),
       icon: GitCommitVerticalIcon,
       keys: 'g s',
       order: 90,
@@ -60,7 +66,7 @@ export const editor: Extension = {
       icon: PencilIcon,
       keys: 'e',
       when: onNote,
-      run: (h, r) => go(`/edit/${pathAt(h, r)}/`),
+      run: (h, r) => go(editPage.href({ file: fileAt(h, r) })),
     },
     {
       id: 'note.rename',
@@ -69,7 +75,7 @@ export const editor: Extension = {
       icon: TextCursorInputIcon,
       keys: 'r',
       when: onNote,
-      run: (h, r) => go(`/rename/${pathAt(h, r)}/`),
+      run: (h, r) => go(renamePage.href({ file: fileAt(h, r) })),
     },
     {
       id: 'editor.review',
@@ -77,7 +83,7 @@ export const editor: Extension = {
       group: 'Actions',
       icon: GitCompareIcon,
       when: (h) => Object.keys(h.writer.overlay?.files ?? {}).length > 0,
-      run: () => go('/changes/'),
+      run: () => go(changesPage.href()),
     },
     {
       id: 'editor.commit',
@@ -86,14 +92,14 @@ export const editor: Extension = {
       icon: GitCommitVerticalIcon,
       when: (h) => !!h.writer.commit && Object.keys(h.writer.overlay?.files ?? {}).length > 0,
       run: () => {
-        go('/changes/');
+        go(changesPage.href());
         focusCommit();
       },
     },
   ],
   contributes: [
-    noteActions.add({ label: 'edit', href: (n) => `/edit/${encodeURIComponent(n.path)}/` }),
-    noteActions.add({ label: 'rename', href: (n) => `/rename/${encodeURIComponent(n.path)}/` }),
+    noteActions.add({ label: 'edit', href: (n) => editPage.href({ file: n.path }) }),
+    noteActions.add({ label: 'rename', href: (n) => renamePage.href({ file: n.path }) }),
   ],
   tools: async (ctx) => (await import('./tools.ts')).editorTools(ctx),
 };

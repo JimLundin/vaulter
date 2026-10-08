@@ -9,6 +9,7 @@ import { useVault } from '../../core/host.tsx';
 import { link } from '../../core/route.ts';
 import { cn } from 'cn';
 import { Field, FieldList, PageHeader, Section } from '@/components/layout.tsx';
+import { calendarPage } from './routes.ts';
 
 const lnk = 'text-primary no-underline hover:underline';
 /** A row's link that j/k stop at: highlighted when focused. */
@@ -154,7 +155,7 @@ export function NoteDates({ note }: { note: Note }) {
     <Section
       title="Dates"
       action={
-        <a className={lnk} href={link('/calendar/')}>
+        <a className={lnk} href={link(calendarPage.href())}>
           calendar →
         </a>
       }

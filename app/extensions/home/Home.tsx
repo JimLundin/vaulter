@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/collapsible.tsx';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs.tsx';
 import { Eyebrow, Field, FieldList, Section } from '@/components/layout.tsx';
+import { calendarPage } from '../calendar/routes.ts';
 
 const lnk = 'text-primary no-underline hover:underline';
 const flat = 'm-0 list-none p-0 [&_li]:m-0';
@@ -128,7 +129,7 @@ export function Today() {
       title="Today"
       count={longDay(b.today)}
       action={
-        <a className={lnk} href={link('/calendar/')}>
+        <a className={lnk} href={link(calendarPage.href())}>
           Calendar →
         </a>
       }

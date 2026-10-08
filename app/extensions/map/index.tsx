@@ -5,14 +5,15 @@ import type { Extension } from '../../core/extension.ts';
 import { MapView } from './MapView.tsx';
 import { LocalMap } from './LocalMap.tsx';
 import { noteSections } from '../notes/slots.tsx';
+import { mapPage } from './routes.ts';
 
 export const map: Extension = {
   id: 'map',
-  page: (path) => (path === '/map/' ? { title: 'Map', body: <MapView />, width: 'wide' } : null),
+  page: (path) => (mapPage.match(path) ? { title: 'Map', body: <MapView />, width: 'wide' } : null),
   nav: [
     {
       label: 'Map',
-      href: '/map/',
+      href: mapPage.href(),
       icon: WaypointsIcon,
       keys: 'g m',
       order: 20,

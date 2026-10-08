@@ -3,14 +3,15 @@ import { ScaleIcon } from 'lucide-react';
 import type { Extension } from '../../core/extension.ts';
 import { Decisions, NoteDecisions } from './Decisions.tsx';
 import { noteSections } from '../notes/slots.tsx';
+import { decisionsPage } from './routes.ts';
 
 export const decisions: Extension = {
   id: 'decisions',
-  page: (path) => (path === '/decisions/' ? { title: 'Decisions', body: <Decisions /> } : null),
+  page: (path) => (decisionsPage.match(path) ? { title: 'Decisions', body: <Decisions /> } : null),
   nav: [
     {
       label: 'Decisions',
-      href: '/decisions/',
+      href: decisionsPage.href(),
       icon: ScaleIcon,
       keys: 'g d',
       order: 40,

@@ -15,6 +15,7 @@ import { Badge } from '@/components/ui/badge.tsx';
 import { Button } from '@/components/ui/button.tsx';
 import { Input } from '@/components/ui/input.tsx';
 import { Label } from '@/components/ui/label.tsx';
+import { editPage, historyPage } from './routes.ts';
 
 function Diff({ before, after }: { before: string; after: string }) {
   const p = structuredPatch('a', 'b', before, after, '', '', { context: 2 });
@@ -61,7 +62,7 @@ export function Changes() {
       setMessage('');
       setState({ done: sha });
       toast.success(`Committed ${shortSha(sha)}`, {
-        action: w.history ? { label: 'History', onClick: () => go('/history/') } : undefined,
+        action: w.history ? { label: 'History', onClick: () => go(historyPage.href()) } : undefined,
       });
     } catch (e) {
       setState({
@@ -146,7 +147,7 @@ export function Changes() {
                     <Button asChild={true} size="sm" variant="outline">
                       <a
                         className="text-foreground no-underline"
-                        href={link(`/edit/${encodeURIComponent(path)}/`)}
+                        href={link(editPage.href({ file: path }))}
                       >
                         edit
                       </a>

@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button.tsx';
 import { Checkbox } from '@/components/ui/checkbox.tsx';
 import { Input } from '@/components/ui/input.tsx';
 import { Label } from '@/components/ui/label.tsx';
+import { changesPage } from './routes.ts';
 
 const code = 'rounded-sm bg-surface px-1 py-0.5 font-mono text-sm';
 
@@ -33,9 +34,9 @@ export function Rename({ path }: { path: string }) {
     // biome-ignore lint/performance/noAwaitInLoops: one at a time; each stage builds on the overlay the last one wrote
     for (const c of plan.changes) await w.stage(c.path, c.text);
     toast.success(`Staged the rename to ${to}`, {
-      action: { label: 'Review', onClick: () => go('/changes/') },
+      action: { label: 'Review', onClick: () => go(changesPage.href()) },
     });
-    go('/changes/');
+    go(changesPage.href());
   };
   const others = plan.changes.filter((c) => c.path !== path && c.path !== to);
   return (
@@ -92,7 +93,7 @@ export function Rename({ path }: { path: string }) {
           Stage
         </Button>
         <Button asChild={true} variant="ghost">
-          <a className="text-foreground no-underline" href={link('/changes/')}>
+          <a className="text-foreground no-underline" href={link(changesPage.href())}>
             Changes
           </a>
         </Button>

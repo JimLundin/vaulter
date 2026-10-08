@@ -3,14 +3,15 @@ import { CalendarDaysIcon } from 'lucide-react';
 import type { Extension } from '../../core/extension.ts';
 import { Calendar, NoteDates } from './Calendar.tsx';
 import { noteSections } from '../notes/slots.tsx';
+import { calendarPage } from './routes.ts';
 
 export const calendar: Extension = {
   id: 'calendar',
-  page: (path) => (path === '/calendar/' ? { title: 'Calendar', body: <Calendar /> } : null),
+  page: (path) => (calendarPage.match(path) ? { title: 'Calendar', body: <Calendar /> } : null),
   nav: [
     {
       label: 'Calendar',
-      href: '/calendar/',
+      href: calendarPage.href(),
       icon: CalendarDaysIcon,
       keys: 'g c',
       tab: true,

@@ -35,6 +35,7 @@ import {
   ToolInput,
   ToolOutput,
 } from '@/components/ai-elements/tool.tsx';
+import { historyPage } from '../editor/routes.ts';
 
 const dictates = 'SpeechRecognition' in globalThis || 'webkitSpeechRecognition' in globalThis;
 const VAULT_IT = 'vault it: ';
@@ -110,7 +111,7 @@ export function AgentChat({ arg }: { arg: PanelArg | null; close?: () => void })
     <div className="flex min-h-0 flex-1 flex-col">
       {turns.length > 0 && (
         <div className="flex h-10 shrink-0 items-center gap-2 border-b px-3 text-xs">
-          <a href={link('/history/')} className="text-muted-foreground">
+          <a href={link(historyPage.href())} className="text-muted-foreground">
             History
           </a>
           <Button
@@ -132,7 +133,7 @@ export function AgentChat({ arg }: { arg: PanelArg | null; close?: () => void })
               <p className="text-muted-foreground text-sm">
                 Tell it what to file, ask what the vault knows, or say "sign-off". It follows
                 meta/conventions.md and commits on its own; everything it commits is in{' '}
-                <a href={link('/history/')}>History</a>, with a revert.
+                <a href={link(historyPage.href())}>History</a>, with a revert.
               </p>
               <div className="flex flex-wrap gap-2">
                 {suggestions.map((s) => (
@@ -286,7 +287,7 @@ function AgentTurn({ turn, live }: { turn: Turn; live: boolean }) {
                   output={
                     p.commit ? (
                       <p className="p-3">
-                        <a href={link('/history/')}>{p.result}</a>
+                        <a href={link(historyPage.href())}>{p.result}</a>
                       </p>
                     ) : (
                       p.output

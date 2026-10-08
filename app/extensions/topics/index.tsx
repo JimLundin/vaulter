@@ -3,12 +3,16 @@ import type { Extension } from '../../core/extension.ts';
 import { topicHref } from '../../../core/note-fields.ts';
 import { slugify } from '../../../core/paths.ts';
 import { Topic } from './Topic.tsx';
+import { pattern } from '../../core/route.ts';
+
+// A topic's href is the vault model's (topicHref); this is how its page is found again
+const topicPage = pattern('/topic/:slug/');
 
 export const topics: Extension = {
   id: 'topics',
   page(path, { vault }) {
-    const m = /^\/topic\/([^/]+)\/$/.exec(path);
-    const name = m && [...vault.topics.keys()].find((t) => slugify(t) === m[1]);
+    const at = topicPage.match(path);
+    const name = at && [...vault.topics.keys()].find((t) => slugify(t) === at.slug);
     return name ? { title: name.replace(/-/g, ' '), body: <Topic key={name} name={name} /> } : null;
   },
   search: (v) =>

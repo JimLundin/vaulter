@@ -10,6 +10,7 @@ import type { Extension, PanelArg } from '../../core/extension.ts';
 import { useHost } from '../../core/host.tsx';
 import { chat, newChat, useChat } from './chat.ts';
 import { Loading } from '@/components/layout.tsx';
+import { agentPage } from './routes.ts';
 
 const Chat = lazy(() => import('./Agent.tsx').then((m) => ({ default: m.AgentChat })));
 
@@ -42,7 +43,7 @@ function AgentIndicator() {
 export const agent: Extension = {
   id: 'agent',
   page: (path) =>
-    path === '/agent/'
+    agentPage.match(path)
       ? {
           title: 'Agent',
           body: (

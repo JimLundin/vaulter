@@ -9,6 +9,7 @@ import { useVault } from '../../core/host.tsx';
 import { link } from '../../core/route.ts';
 import { cn } from 'cn';
 import { Field, FieldList, PageHeader, Section } from '@/components/layout.tsx';
+import { decisionsPage } from './routes.ts';
 
 const lnk = 'text-primary no-underline hover:underline';
 const day = (d: string) => (d.length === 10 ? dayMonth(d) : fmtDay(d));
@@ -97,7 +98,7 @@ export function NoteDecisions({ note }: { note: Note }) {
       id="decisions"
       title="Decisions"
       action={
-        <a className={lnk} href={link('/decisions/')}>
+        <a className={lnk} href={link(decisionsPage.href())}>
           all decisions →
         </a>
       }

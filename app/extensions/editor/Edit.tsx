@@ -20,6 +20,7 @@ import { Kbd } from '@/components/ui/kbd.tsx';
 import { Label } from '@/components/ui/label.tsx';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs.tsx';
 import { Textarea } from '@/components/ui/textarea.tsx';
+import { changesPage } from './routes.ts';
 
 /** A new note's starting point (meta/conventions.md): the frontmatter fields, the title, See also. */
 const template = (path: string) => {
@@ -98,7 +99,7 @@ export function Edit({ path }: { path: string }) {
     dropDraft(path);
     await w.stage(path, t);
     toast.success(`Staged ${path}`, {
-      action: { label: 'Review', onClick: () => go('/changes/') },
+      action: { label: 'Review', onClick: () => go(changesPage.href()) },
     });
     go(href);
   };
@@ -138,9 +139,9 @@ export function Edit({ path }: { path: string }) {
     dropDraft(path);
     await w.stage(path, null);
     toast(`Deletion of ${path} staged`, {
-      action: { label: 'Review', onClick: () => go('/changes/') },
+      action: { label: 'Review', onClick: () => go(changesPage.href()) },
     });
-    go('/changes/');
+    go(changesPage.href());
   };
   const pane = 'data-[state=inactive]:hidden @4xl:data-[state=inactive]:block';
   const heading = 'mb-2 hidden text-sm font-medium @4xl:block';
@@ -230,7 +231,7 @@ export function Edit({ path }: { path: string }) {
       </div>
       <p className="mt-3 text-sm text-faint">
         Staged edits show at once; commit them in{' '}
-        <a className="text-primary no-underline hover:underline" href={link('/changes/')}>
+        <a className="text-primary no-underline hover:underline" href={link(changesPage.href())}>
           Changes
         </a>
         . Unstaged text is kept as a draft.

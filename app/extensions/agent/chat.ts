@@ -14,6 +14,8 @@ import { go, parseRoute } from '../../core/route.ts';
 import { appVersion, collect, type Place } from './meta.ts';
 import { recordExchange, type ChatTurn, type Collected } from './record.ts';
 import type { OnScreen } from './tools.ts';
+import { agentPage } from './routes.ts';
+import { historyPage } from '../editor/routes.ts';
 
 export const MODEL_KEY = 'vault.agent.model';
 export const DEFAULT_MODEL = 'gpt-6-astra';
@@ -108,7 +110,7 @@ export function newChat() {
 export function onScreen(host: Host, path = parseRoute(location.hash).path): OnScreen | undefined {
   const n = host.vault.byHref.get(path);
   if (n) return { title: titleOf(n), path: n.path };
-  if (path === '/agent/') return undefined;
+  if (agentPage.match(path)) return undefined;
   const title = host.extensions.map((e) => e.page?.(path, host)).find(Boolean)?.title;
   return title ? { title } : undefined;
 }
@@ -239,7 +241,7 @@ export async function send(text: string, page = chat.host ? onScreen(chat.host) 
           part.result = resultOf(out);
           if (part.commit)
             toast.success(`Committed ${part.commit}`, {
-              action: { label: 'History', onClick: () => go('/history/') },
+              action: { label: 'History', onClick: () => go(historyPage.href()) },
             });
         }
       } else if (p.type === 'finish-step') {

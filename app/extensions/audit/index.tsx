@@ -3,14 +3,15 @@
 import { ClipboardCheckIcon } from 'lucide-react';
 import type { Extension } from '../../core/extension.ts';
 import { Audit } from './Audit.tsx';
+import { auditPage } from './routes.ts';
 
 export const audit: Extension = {
   id: 'audit',
-  page: (path) => (path === '/audit/' ? { title: 'Audit', body: <Audit /> } : null),
+  page: (path) => (auditPage.match(path) ? { title: 'Audit', body: <Audit /> } : null),
   nav: [
     {
       label: 'Audit',
-      href: '/audit/',
+      href: auditPage.href(),
       icon: ClipboardCheckIcon,
       keys: 'g a',
       order: 65,
