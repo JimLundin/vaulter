@@ -1,17 +1,18 @@
 // What a feature adds to the app. Every feature, from the note page to the agent, is an Extension listed in
 // extensions/index.ts; the shell only renders what they contribute. A new feature is a folder there and a
-// line in that list; nothing else changes. Contribution points exist because a feature uses each one.
+// line in that list; nothing else changes. Contribution points exist because a feature uses each one:
+// these are the shell's, and a place in a feature's own screens is that feature's slot (slot.ts).
 import type { ComponentType, ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import type { ToolSet } from 'ai';
 import type { Vault } from '../../core/derive.ts';
-import type { Note } from '../../core/note-fields.ts';
 import type { Entry, Hit } from '../../core/search.ts';
 import type { Host } from './host.tsx';
 import type { AgentWriter } from './writer.ts';
 import type { VaultBackend } from './backend.ts';
 import type { Secrets } from '../../core/sealed.ts';
 import type { Route } from './route.ts';
+import type { Contribution } from './slot.ts';
 
 export interface Page {
   title: string;
@@ -77,10 +78,9 @@ export interface Extension {
   };
   /** Groups in the sidebar under the pages (areas, recent notes), by `order`. */
   sidebar?: { order: number; view: ComponentType }[];
-  /** Sections under a note's body, by `order`; a section renders null when it has nothing to show. */
-  noteSections?: { order: number; view: ComponentType<{ note: Note }> }[];
-  /** Links in a note's footer ("edit"). */
-  noteActions?: { label: string; href: (note: Note) => string; when?: (host: Host) => boolean }[];
+  /** Entries in other features' slots (slot.ts): a note's sections, the links in its footer. Each is
+   * made by the slot's `add`, imported from the feature that owns it. */
+  contributes?: Contribution[];
   /** Entries for search and link previews (notes, topics, …). */
   search?: (v: Vault) => Entry[];
   /** Components notes can use in MDX (which ones notes may use is the vault's call: components in meta/schema.yaml). */

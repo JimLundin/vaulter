@@ -1,12 +1,25 @@
 // Editing: a file as text (#/edit/<path>/), a rename (#/rename/<path>/, and the agent's renameNote), the staged edits with their diffs, the check and the commit
 // (#/changes/), and what the app committed, with a revert (#/history/).
-import { HistoryIcon, GitCommitVerticalIcon, GitCompareIcon } from 'lucide-react';
+import {
+  HistoryIcon,
+  GitCommitVerticalIcon,
+  GitCompareIcon,
+  PencilIcon,
+  TextCursorInputIcon,
+} from 'lucide-react';
 import type { Extension } from '../../core/extension.ts';
 import { Edit } from './Edit.tsx';
 import { Changes, focusCommit } from './Changes.tsx';
 import { go } from '../../core/route.ts';
 import { History } from './History.tsx';
 import { Rename } from './Rename.tsx';
+import type { Host } from '../../core/host.tsx';
+import type { Route } from '../../core/route.ts';
+import { noteActions } from '../notes/slots.tsx';
+
+const onNote = (host: Host, route: Route) => host.vault.byHref.has(route.path);
+const pathAt = (host: Host, route: Route) =>
+  encodeURIComponent(host.vault.byHref.get(route.path)?.path ?? '');
 
 export const editor: Extension = {
   id: 'editor',
@@ -41,6 +54,24 @@ export const editor: Extension = {
   ],
   commands: () => [
     {
+      id: 'note.edit',
+      label: 'Edit note',
+      group: 'Note',
+      icon: PencilIcon,
+      keys: 'e',
+      when: onNote,
+      run: (h, r) => go(`/edit/${pathAt(h, r)}/`),
+    },
+    {
+      id: 'note.rename',
+      label: 'Rename note',
+      group: 'Note',
+      icon: TextCursorInputIcon,
+      keys: 'r',
+      when: onNote,
+      run: (h, r) => go(`/rename/${pathAt(h, r)}/`),
+    },
+    {
       id: 'editor.review',
       label: 'Review changes',
       group: 'Actions',
@@ -60,9 +91,9 @@ export const editor: Extension = {
       },
     },
   ],
-  noteActions: [
-    { label: 'edit', href: (n) => `/edit/${encodeURIComponent(n.path)}/` },
-    { label: 'rename', href: (n) => `/rename/${encodeURIComponent(n.path)}/` },
+  contributes: [
+    noteActions.add({ label: 'edit', href: (n) => `/edit/${encodeURIComponent(n.path)}/` }),
+    noteActions.add({ label: 'rename', href: (n) => `/rename/${encodeURIComponent(n.path)}/` }),
   ],
   tools: async (ctx) => (await import('./tools.ts')).editorTools(ctx),
 };

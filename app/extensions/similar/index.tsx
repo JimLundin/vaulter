@@ -5,6 +5,7 @@ import { excerptOf, kind } from '../../../core/note-fields.ts';
 import type { Extension } from '../../core/extension.ts';
 import { useHeavy, useVault } from '../../core/host.tsx';
 import { NoteLinks } from '../notes/sections.tsx';
+import { noteSections } from '../notes/slots.tsx';
 import { Section } from '@/components/layout.tsx';
 
 function Similar({ note }: { note: Note }) {
@@ -23,4 +24,7 @@ function Similar({ note }: { note: Note }) {
   );
 }
 
-export const similar: Extension = { id: 'similar', noteSections: [{ order: 90, view: Similar }] };
+export const similar: Extension = {
+  id: 'similar',
+  contributes: [noteSections.add({ order: 90, view: Similar })],
+};

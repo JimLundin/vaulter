@@ -2,6 +2,7 @@
 import { ScaleIcon } from 'lucide-react';
 import type { Extension } from '../../core/extension.ts';
 import { Decisions, NoteDecisions } from './Decisions.tsx';
+import { noteSections } from '../notes/slots.tsx';
 
 export const decisions: Extension = {
   id: 'decisions',
@@ -16,5 +17,5 @@ export const decisions: Extension = {
       summary: 'Every decision recorded in the vault, and why',
     },
   ],
-  noteSections: [{ order: 30, view: NoteDecisions }],
+  contributes: [noteSections.add({ order: 30, view: NoteDecisions })],
 };

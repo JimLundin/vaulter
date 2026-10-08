@@ -1,11 +1,9 @@
-// What every view can reach: the vault (and its schema), the writer, the secrets and the extensions, plus
-// the slots where extensions render (note sections, note actions). The shell (App.tsx) provides it.
-// biome-ignore lint/correctness/noUnresolvedImports: Fragment is in @types/react's namespace, which Biome doesn't follow
-import { createContext, Fragment } from 'react';
+// What every view can reach: the vault (and its schema), the writer, the secrets and the extensions. The
+// shell (App.tsx) provides it. A feature's own places are its slots (slot.ts).
+import { createContext } from 'react';
 import { useContext } from 'react';
 import type { ComponentType } from 'react';
 import type { Vault } from '../../core/derive.ts';
-import type { Note } from '../../core/note-fields.ts';
 import type { Secrets } from '../../core/sealed.ts';
 import type { Heavy, HeavyKey } from '../../core/heavy.ts';
 import type { Extension, Page } from './extension.ts';
@@ -45,41 +43,6 @@ export const useWriter = () => useHost().writer;
 export const useHeavy = <K extends HeavyKey>(k: K): Heavy[K] | null => useHost().heavy[k] ?? null;
 
 const sorted = <T extends { order: number }>(xs: T[]) => [...xs].sort((a, b) => a.order - b.order);
-/** The extensions' entries in one slot, by order, each keyed by its extension and its place there. */
-const slot = <T extends { order: number }>(
-  extensions: Extension[],
-  of: (e: Extension) => T[] | undefined,
-) =>
-  sorted(extensions.flatMap((e) => (of(e) ?? []).map((s, i) => ({ ...s, key: `${e.id}.${i}` }))));
-
-export function NoteSections({ note }: { note: Note }) {
-  const { extensions } = useHost();
-  return (
-    <>
-      {slot(extensions, (e) => e.noteSections).map(({ view: V, key }) => (
-        <V key={key} note={note} />
-      ))}
-    </>
-  );
-}
-
-export function NoteActions({ note }: { note: Note }) {
-  const host = useHost();
-  return (
-    <>
-      {host.extensions
-        .flatMap((e) => e.noteActions ?? [])
-        .filter((a) => !a.when || a.when(host))
-        .map((a) => (
-          <Fragment key={a.label}>
-            {' '}
-            · <a href={link(a.href(note))}>{a.label}</a>
-          </Fragment>
-        ))}
-    </>
-  );
-}
-
 export const navOf = (host: Host) =>
   sorted(host.extensions.flatMap((e) => e.nav ?? []).filter((n) => !n.when || n.when(host)));
 

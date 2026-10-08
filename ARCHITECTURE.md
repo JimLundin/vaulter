@@ -14,13 +14,14 @@ data, and nothing the browser runs needs Node.
 | Features | `app/extensions/<name>/` | `core/`, `app/core/` | everything the user sees beyond the shell |
 | Tools | `tools/` | Node, `core/` | thin CLIs over `core/`: the CI check, sealing, and the audit and rename for shell sessions |
 
-Dependencies point one way: `core` knows nothing of the app, the shell nothing of git or GitHub, features
-nothing of each other's internals (a few share a small view, e.g. the notes' `to()` link).
+Dependencies point one way: `core` knows nothing of the app, the shell nothing of git or GitHub, and a
+feature nothing of another's internals. A feature that adds to another's page imports that feature's
+slot (below), so it depends on what it adds to, never the other way round.
 
 ## Adding a feature: extensions
 
 A feature is a folder in `app/extensions/` exporting an `Extension` (`app/core/extension.ts`) and one line
-in `app/extensions/index.ts`. The shell renders what it contributes:
+in `app/extensions/index.ts`. The shell renders what it contributes to the frame:
 
 | Point | What it is | Used by |
 |---|---|---|
@@ -29,8 +30,7 @@ in `app/extensions/index.ts`. The shell renders what it contributes:
 | `commands(host)` | what Jim can do: in ⌘K, on their keys, in the shortcuts list (?) | home, notes, agent, editor |
 | `panel` | the panel beside every page (docked, a sheet, or a drawer on a phone), with its button's `indicator` and "Ask …" in ⌘K | agent |
 | `sidebar` | groups in the sidebar under the pages, by `order` | home (areas), notes (recent) |
-| `noteSections` | sections under a note's body, by `order` | notes, calendar, decisions, map, similar |
-| `noteActions` | links in a note's footer | editor (edit, rename) |
+| `contributes` | entries in other features' slots (below) | notes, calendar, decisions, map, similar, editor |
 | `search(v)` | entries for search and link previews | notes, topics |
 | `mdx` | components notes may use (allowed by `meta/schema.yaml`) | notes |
 | `tools(ctx)` | agent tools, loaded with the agent | agent, editor (`renameNote`), audit (`audit`), code (the app's own source), web (`webSearch`, `fetchPage`) |
@@ -41,8 +41,34 @@ Contribution points are added when a feature needs one, not before. Rows a list 
 ↑/↓) are marked `data-nav` (`app/core/keys.ts`); passing confirmations are sonner toasts.
 
 Example, a reading list: `app/extensions/reading/index.tsx` with a `page` for `#/reading/` listing notes
-tagged `reading` and `status/active`, a `nav` entry, a `noteSections` entry ("On the reading list") and,
-if the agent should use it, a `tools` entry. Nothing else changes.
+tagged `reading` and `status/active`, a `nav` entry, an entry in the notes' sections
+(`noteSections.add(…)`, "On the reading list") and, if the agent should use it, a `tools` entry. Nothing
+else changes.
+
+### A feature's own places: slots
+
+The points above are the shell's: the frame every page is in. A place in a feature's own page, where other
+features add to it, is that feature's **slot** (`app/core/slot.ts`). The feature makes it, typed by what an
+entry is, exports it, and draws its entries where they go:
+
+| Slot | Owner | An entry is | Filled by |
+|---|---|---|---|
+| `noteSections` | notes (`notes/slots.tsx`) | `{ order, view }`: a section under a note's body; it renders null when it has nothing to show | notes, decisions, calendar, map, similar |
+| `noteActions` | notes | `{ label, href(note), when? }`: a link in a note's footer | editor (edit, rename) |
+
+A feature fills one by importing it and listing what it adds in `contributes`:
+
+```tsx
+// app/extensions/calendar/index.tsx
+import { noteSections } from '../notes/slots.tsx';
+export const calendar: Extension = { id: 'calendar', /* … */ contributes: [noteSections.add({ order: 50, view: NoteDates })] };
+```
+
+The entry is checked against the slot's type where it is written, and read back typed by its owner
+(`noteSections.of(extensions)`), with the feature it came from. The owner decides the order. So removing
+a feature has one outcome: what it added is gone from every page, and nothing else changes. Removing a
+feature that owns a slot fails the build at every import of it. A new slot is made when a feature first
+needs others to add to its page, not before.
 
 ## Reaching the vault: backends
 

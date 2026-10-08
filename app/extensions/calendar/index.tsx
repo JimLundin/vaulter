@@ -2,6 +2,7 @@
 import { CalendarDaysIcon } from 'lucide-react';
 import type { Extension } from '../../core/extension.ts';
 import { Calendar, NoteDates } from './Calendar.tsx';
+import { noteSections } from '../notes/slots.tsx';
 
 export const calendar: Extension = {
   id: 'calendar',
@@ -17,5 +18,5 @@ export const calendar: Extension = {
       summary: 'Every dated entry across the vault',
     },
   ],
-  noteSections: [{ order: 50, view: NoteDates }],
+  contributes: [noteSections.add({ order: 50, view: NoteDates })],
 };

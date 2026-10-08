@@ -4,6 +4,7 @@ import { WaypointsIcon } from 'lucide-react';
 import type { Extension } from '../../core/extension.ts';
 import { MapView } from './MapView.tsx';
 import { LocalMap } from './LocalMap.tsx';
+import { noteSections } from '../notes/slots.tsx';
 
 export const map: Extension = {
   id: 'map',
@@ -18,5 +19,5 @@ export const map: Extension = {
       summary: 'Every note and how it connects, coloured by area',
     },
   ],
-  noteSections: [{ order: 60, view: LocalMap }],
+  contributes: [noteSections.add({ order: 60, view: LocalMap })],
 };
