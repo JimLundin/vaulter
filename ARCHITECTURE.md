@@ -1,196 +1,109 @@
 # Architecture
 
-How the app is put together. It is three parts: **core**, the platform, which knows only files; **notes**,
-which reads each file as a note; and the **graph**, which connects the notes. Everything else is a
-feature on top. The vault's vocabulary is the vault's own data, and nothing the browser runs needs Node.
+Features are user workflows, composed directly in `app/product.tsx`. Each workflow exports the named
+functions and views it needs. There is no extension descriptor, host, slot registration, or runtime
+feature toggle.
 
-## The parts
-
-| Part | Where | Knows | Holds |
-|---|---|---|---|
-| Core | `app/core/` | files (a path and its text) | the session and keys, the writer, the extension host, routes, slots, the frame (sidebar, header, the panel, the phone's bar), ⌘K and its search engine, the keys, the worker |
-| Backends | `app/backends/<name>/` | where a vault lives | one way to a vault each, with its own storage on the device: GitHub (with its cache), memory (tests) |
-| Notes | `app/extensions/notes/` | files | the note: a file's fields (stored as frontmatter) and body, the vocabulary (`meta/schema.yaml`), the notes' rules, rename, the note page and its rendering |
-| Graph | `app/extensions/graph/` | notes | what the notes connect into: links and backlinks, relations, topics, activity; and the rule that every link and every note a field names exists |
-| Features | `app/extensions/<name>/` | core, and notes or the graph where they need them | everything else: home, calendar, map, editor, agent, … |
-| Tools | `tools/` | Node | CI only: the vault's check (`check.ts`), sealing the secrets (`seal-secrets.ts`) |
-
-**Singular and adaptable.** What there is exactly one of is core's: one vault open, one writer every write
-goes through, one host, one frame. What adapts is added beside it: features (a folder each), backends (one
-active), slots (a feature's places for others), and the vocabulary (an edit to the vault).
-
-**Dependencies point one way.** Core imports no feature; the only lists of them are
-`app/extensions/index.ts` (the features) and `app/extensions/heavy.ts` (their slow derivations), which
-`App.tsx` and the worker read. Notes knows nothing of the graph; the graph reads notes only through what
-notes hands it (`links.ts`, `refs.ts`, `fields.ts`), never text or frontmatter. A feature that adds to
-another's page imports that feature's slot (below), so it depends on what it adds to. A feature's own
-logic lives in the feature, pure or not; `model/` holds the pure part (no DOM), which CI runs too.
-
-## Files, the platform's only knowledge
-
-The host gives every feature the vault's **files**, with the staged edits (`host.files`); what they mean is
-each feature's: `graphOf(files)` / `useGraph()` for the graph, `useSchema()` for the vocabulary, both
-computed once per files. A feature says which files it keeps (`files` below), so:
-
-- a backend reads only kept files (`keeps`); the rest of the repo stays where it is;
-- the writer refuses staging a file no feature keeps, and a commit that adds a problem to any feature's
-  rules (notes': each note's format; the graph's: links and fields resolve);
-- `blocked` stops every page while the files can't be read as a feature's (notes: a broken vocabulary).
-
-`app/extensions/check.ts` runs every feature's check together: what CI runs (`tools/check.ts`, on every
-push to the vault) and what the tests hold a whole vault to.
-
-## Adding a feature: extensions
-
-A feature is a folder in `app/extensions/` exporting an `Extension` (`app/core/extension.ts`) and one line
-in `app/extensions/index.ts`. Core renders what it contributes:
-
-| Point | What it is | Used by |
-|---|---|---|
-| `page(path, host)` | the page for a route, or null; asked in list order; `width` reading or wide | every feature with a page |
-| `nav` | pages in the sidebar, with `when` (only if it applies), `badge`, an `icon`, go-to `keys` ("g c") and `tab` (the phone's bottom bar); searchable as pages | calendar, map, places, decisions, audit, editor |
-| `commands(host)` | what Jim can do: in ⌘K, on their keys, in the shortcuts list (?) | home, notes, agent, editor |
-| `panel` | the panel beside every page (docked, a sheet, or a drawer on a phone), with its button's `indicator` and "Ask …" in ⌘K | agent |
-| `sidebar` | groups in the sidebar under the pages, by `order` | home (areas), notes (recent) |
-| `contributes` | entries in other features' slots (below) | notes, calendar, decisions, map, similar, editor |
-| `search(host)` | entries for search and link previews | notes, topics |
-| `files` | the files it keeps (`keeps`, `what`) and the `problems` a change adds | notes, graph |
-| `blocked(host)` | why no page can be shown now, or null | notes |
-| `mdx` | components notes may use (allowed by `meta/schema.yaml`) | notes |
-| `tools(ctx)` | agent tools, loaded with the agent | agent, editor (`renameNote`), audit (`audit`), code (the app's own source), web (`webSearch`, `fetchPage`) |
-
-A feature's own derived data is computed once per graph with `perGraph` (`graph/model/graph.ts`); a slow
-one is listed in `app/extensions/heavy.ts`, computed in the worker, kept per tree, and read with
-`useHeavy<T>(key)`. Contribution points are added when a feature needs one, not before. Rows a list can
-move through (j/k, ↑/↓) are marked `data-nav` (`app/core/keys.ts`); passing confirmations are sonner toasts.
-
-Example, a reading list: `app/extensions/reading/index.tsx` with a `page` for `#/reading/` listing notes
-tagged `reading` and `status/active` (from `useGraph()`), a `nav` entry, an entry in the notes' sections
-(`noteSections.add(…)`, "On the reading list") and, if the agent should use it, a `tools` entry. Nothing
-else changes.
-
-### A feature's own places: slots
-
-The points above are core's: the frame every page is in. A place in a feature's own page, where other
-features add to it, is that feature's **slot** (`app/core/slot.ts`). The feature makes it, typed by what an
-entry is, exports it, and draws its entries where they go:
-
-| Slot | Owner | An entry is | Filled by |
-|---|---|---|---|
-| `noteSections` | notes (`notes/slots.tsx`) | `{ order, view }`: a section under a note's body; it renders null when it has nothing to show | notes, decisions, calendar, map, similar |
-| `noteActions` | notes | `{ label, href(note), when? }`: a link in a note's footer | editor (edit, rename) |
-
-A feature fills one by importing it and listing what it adds in `contributes`:
-
-```tsx
-// app/extensions/calendar/index.tsx
-import { noteSections } from '../notes/slots.tsx';
-export const calendar: Extension = { id: 'calendar', /* … */ contributes: [noteSections.add({ order: 50, view: NoteDates })] };
+```text
+app/
+  main.tsx                   bootstrap, fonts, theme, GitHub adapter
+  product.tsx                optional workflow imports and all product wiring
+  workflows/
+    chat/                    conversation lifetime, streaming, capture orchestration, views, tests
+    rename-note/             rename operation, reference rewrites, model adapter, tests
+    history/                 history and revert presentation
+  vault/
+    index.ts                 live vault interface and session
+    documents/               notes, schema, links, graph, capture format, search
+    validation/              permanent note and graph rules
+    changes/                 persisted shared staging and checked writes
+    session/                 unlocking, encryption, synchronization
+    storage/                 GitHub and memory adapters
+  ui/
+    kit/                     component kit and reference design from ui-kit
+    Frame.tsx                direct desktop/mobile layout composition
+    Search.tsx                search and already bound commands
+    routing.ts               generic hash-route mechanics
+    keys.ts                  shortcuts and list navigation
+    Unlock.tsx               password form
+    Previews.tsx             delegated hover previews
+    recent.ts                local navigation history
+    sw.ts                    offline application cache
+ tools/
+  check.ts                   the same vault integrity checks over files on disk
+  layout.ts                  resolved dependency and kit-use policy
+  layout.test.ts             enforces the policy in CI
+  seal-secrets.ts            deployment secret sealing
 ```
 
-The entry is checked against the slot's type where it is written, and read back typed by its owner
-(`noteSections.of(extensions)`), with the feature it came from. The owner decides the order. So removing
-a feature has one outcome: what it added is gone from every page, and nothing else changes. Removing a
-feature that owns a slot fails the build at every import of it. A new slot is made when a feature first
-needs others to add to its page, not before.
+## Adding or removing a workflow
 
-### A feature's routes
+Create a folder under `app/workflows/` for the task, including its views, operations, state, adapters,
+and tests. Small tasks need only a few files. Give callers ordinary named exports: for example,
+`renameNote(vault, { from, to })`. Model adapters validate external inputs with Zod and call the same
+operation. No common workflow manifest is required.
 
-A feature's pages are at routes it owns, in its `routes.ts`, each a typed pattern (`pattern()` in
-`app/core/route.ts`): `editPage = pattern('/edit/:file/')`. The feature finds its page with it
-(`editPage.match(path)` gives `{ file }`, or null), and every link to the page is made by it,
-`editPage.href({ file })`, so its params are typed and encoded once. Another feature that links there
-imports the route (the agent links to the editor's `historyPage`), so a route that moves moves its links,
-and a feature that goes fails the build where it was linked to. Notes, topics and areas are the vault's
-own hrefs (`app/extensions/notes/model/paths.ts`, `topicHref`), not a feature's.
+Wire the task in `product.tsx`: imports, routes, navigation, commands, callbacks, and model tools as
+needed. Product passes dependencies and optional links explicitly. A workflow never imports another
+workflow, including in tests. For example, chat receives an optional history URL; it does not know
+where History lives. Product also supplies rename's tool factory to chat.
 
-### Commands and tools
+To remove History, delete `workflows/history/` and remove its import, route, navigation, command,
+page branch and optional history URLs from `product.tsx`. To remove rename, delete
+`workflows/rename-note/` and remove the lazy tool binding from Product. Run typecheck, tests and build.
+No vault, kit, or other workflow edit is required. Old routes show “Not found”. Persisted data remains
+readable and checked. These two removals have been verified in disposable copies.
 
-A command (`commands`) is what Jim does from the UI: it takes no input, reads the screen it is on (the
-route, the host) and acts, often by opening a page that asks for more. A tool (`tools`) is what the agent
-does: its input comes from the model, so it is outside typed code, and each tool declares a Zod
-`inputSchema`, which the AI SDK checks before the tool runs (the model gets the error back otherwise).
-They stay separate, since most commands only move around the UI and Jim's paths have review steps the
-agent's don't (the rename's preview, the commit's diff); unify them if most features come to need both
-for the same thing.
+`tools/layout.test.ts` inspects the TypeScript AST and compiler-resolved targets, including aliased
+imports, dynamic imports and re-exports. Only Product may compose different workflows. Literal module
+paths make this check complete for source imports. The checker also prevents vault from importing UI
+and keeps callers on the kit's public exports. Cross-workflow integration tests should be kept with
+Product and removed with the corresponding wiring.
 
-What both do is one function, in the feature (or core's writer), and a command and a tool are thin over it,
-next to each other when both exist. The function checks what the input means (the note exists, the path
-is a vault file, the check passes), so Jim and the agent are held to the same rules; a tool's schema checks
-only its shape. Rename (`notes/model/rename.ts`), staging (the writer's `stage`, which takes only kept files
-and deletes only files that exist), the commit (the writer, which refuses an empty one and runs every
-feature's check) and the audit (`audit/audit.ts`, over any span; `weekAudit` is the week the page and the
-tool show) are such functions.
+## Vault owns data integrity
 
-## Reaching the vault: backends
+The vault is mandatory infrastructure. It owns note parsing, `meta/schema.yaml`, link and reference
+validation, graph derivation, encryption, synchronization, and the shared staged preview. File
+selection and write checks no longer depend on which workflows are installed.
 
-The app reaches a vault only through `VaultBackend` (`app/core/backend.ts`):
+`Vault` exposes current files, staged paths, staging, checked commit/revert, history and patch queries.
+`liveVault()` binds once and reads the latest writer for each call; asynchronous tools do not depend on
+another view rendering. Workflows receive no backend handle or raw secrets. Bootstrap selects a
+storage adapter; Product supplies only the model dependency to chat.
 
-| Member | Does | GitHub | Memory |
-|---|---|---|---|
-| `cached()` | the head kept on this device, to open at once and offline | encrypted IndexedDB | — |
-| `refresh()` | the latest head, or null if unchanged | 304 on main's ETag, then only new blobs | ✓ |
-| `watch(on)` | changes made elsewhere, with the head when at hand | other tabs (BroadcastChannel) | ✓ |
-| `write(changes, message, verify)` | one atomic step after `verify` (the check) | Git Data API, fast-forward only, rebuilt if main moved | ✓ |
-| `history` / `patch` / `revert` | steps written from the app, and undoing one | commits with the trailer | ✓ |
-| `since(day)` | what changed since a day, and a file's text then (the audit) | 2 requests + blobs on demand | ✓ |
-| `keep` | the app's own small state (staged edits, worker results) | encrypted | memory |
-| `clear()` | forgets what it keeps on this device (signing out) | its database | — |
+Confirmed changes enter one persisted overlay. `stageMany()` builds an entire change set, persists it,
+then publishes it. A failed validation or persistence operation exposes none of a partial rename.
+Staging, commit, discard, unstage and revert are queued so overlapping calls cannot silently lose
+edits. Commits reject newly introduced integrity problems and changed source identities; GitHub also
+requires a fast-forward write. Full-vault CI retains its existing check semantics.
 
-A backend's storage is its own: the GitHub cache (`github/cache.ts`, its own IndexedDB database) holds file
-versions by sha and the snapshot of `main`, encrypted with the cache key, and is cleared when another key
-opens it. Core keeps only the keys (`unlock.ts`) and the encryption (`crypto.ts`, `idb.ts`).
+Queuing individual writes does not establish ownership across an entire conversation. Before adding
+another writing workflow, add explicit ownership of multi-step write sequences and resolve existing
+staged edits. Human forms keep unconfirmed input locally. This migration retains the current shared
+staging model.
 
-The writer (`app/core/writer.ts`) stages edits for any backend and gates every write with the features'
-`problems` (`verify`); staged files remember their content id, so a change made elsewhere since staging is
-a conflict, not an overwrite.
+## Conversation lifetime
 
-## The vocabulary is the vault's
+Product creates one conversation above route selection. Closing its panel or moving to History does
+not cancel a turn. Each controller owns its turns, draft, model history, subscriptions and capture
+position. Opening a view clears its unread state. Sign-out and unmount dispose it, aborting work and
+suppressing later UI notifications. Separate controllers never share a global current host.
 
-`meta/schema.yaml` holds what is particular to this vault: note types, areas (label, hub), statuses,
-circles, broad topics, the owner, relation predicates, and which MDX components notes may use. Notes reads
-it (`schemaFor(files)`, `useSchema()`), and the checks, the graph and every view use it at runtime; code
-keeps only mechanics (frontmatter fields, filename and tag patterns, rule logic). Changing a label or adding an area is
-an edit to the vault, not the app.
+## UI kit
 
-## The app changes itself
+`app/ui/kit/` comes from branch `ui-kit` at `2c30183`. Its design references, Geist / Geist Mono /
+Newsreader fonts, zinc colors, desktop sidebar, mobile controls and overlays are used by the app.
+`npm run kit` opens the standalone gallery. The exported design screens remain reference artifacts;
+they do not install workflows or restore previously deleted features.
 
-The agent can change this repo as it does the vault (`app/extensions/code/`): list, read and search the
-source, stage whole files, and commit them to `main` as one commit, never by force (rebuilt on `main` when
-it moved, a conflict when the same file did). There are no pull requests: `main` is the gate's input, and
-`.github/workflows/deploy.yml` deploys a push only after lint, the type check and the tests pass, so a
-broken change stays on `main` until a fix, never on devices. `codeStatus` reads a commit's CI runs (the
-public API, no token) with the failures' annotations, and `version.json` the commit that is live. The
-agent changes the app only when Jim asks or agrees (the vault's conventions, §16), and its commits carry
-`Committed-From: vault app`. Jim gets a new version on the next reload.
+Screens compose `ui/kit/index.ts`. Public components take no `className` or `style`; Tailwind scans only
+the kit. Add missing generic presentation to the kit, and keep task logic in its workflow.
+`surfaces.tsx` supplies conversation, tool-result and unified-diff presentation. Content renderers
+keep their scoped Markdown styling and safety tests; that is an explicit policy exception.
 
-## Two repos
+## Browser and deployment
 
-`JimLundin/vaulter` (public, this repo) holds the app's source and serves it from GitHub Pages;
-`JimLundin/vault` (private) holds only the vault. They meet in three places:
-
-| Where | What |
-|---|---|
-| Runtime | the app reads and writes the vault through the GitHub API (`VITE_VAULT_REPO`, default `JimLundin/vault@main`), with the sealed token, a fine-grained PAT for `vault` and `vaulter` only |
-| Self-change | the agent reads, changes and commits this repo (`app/extensions/code/`, `VITE_APP_REPO`, default `JimLundin/vaulter@main`); the push deploys only if lint, the type check and the tests pass |
-| The vault's CI | `vault`'s check workflow checks out this repo's `main` and runs `tools/check.ts --vault .` |
-
-The app moved here from the vault's `site/` on 2026-10-03, as a fresh first commit (the older history
-holds personal content), and the repos were renamed the same day (`vault-pages` → `vaulter`, `my-vault` →
-`vault`). The app is at https://jimlundin.github.io/vaulter/.
-
-For a vault that isn't this one: area colours keyed by area order instead of
-name (`app/core/base.css`), and the special cases in Home (`active`, `leisure`), the check (`person`, `moc`,
-`place`, `Home`) and the folder layout (`notes/model/note.ts`) moved into `meta/schema.yaml`.
-
-## Browser only
-
-Nothing the browser runs uses Node; `npm run dev` serves files only, and runs the app as built (GitHub
-through the encrypted cache) without the password. Node remains, outside the app, as:
-- **The toolchain**: Vite, Vitest and TypeScript, in development and CI.
-- **CI**: `tools/check.ts` on every push to the vault, `tools/seal-secrets.ts` when deploying.
-
-The vault is worked only in the app: the audit, rename and Captures have no command-line form.
-
-The app runs the same in every browser, Safari included: GitHub through IndexedDB, nothing that needs
-Chromium (no directory picker).
+The browser uses GitHub through an encrypted IndexedDB cache, including offline snapshots and staged
+edits. Memory is the test adapter. No browser source depends on Node. The toolchain and `tools/` use
+Node 24. Deployment seals `dist/secrets.json`, which the app loads relative to its published root.
+Notes remain in the private vault; this repository ships application code only.

@@ -8,6 +8,7 @@
       "*.json",
       "!**/dist",
       "!.claude",
+      "!app/ui/kit/design",
       "!package-lock.json"
     ]
   },
@@ -105,7 +106,7 @@
   },
   "overrides": [
     {
-      "includes": ["tools/**", "vite.config.ts"],
+      "includes": ["tools/**", "**/vite.config.ts"],
       "linter": {
         "rules": {
           "correctness": {
@@ -136,7 +137,7 @@
       }
     },
     {
-      "includes": ["app/components/ui/**", "app/components/ai-elements/**", "app/hooks/**"],
+      "includes": ["app/ui/kit/parts/**", "app/ui/kit/hooks/**"],
       "linter": {
         "enabled": false
       }

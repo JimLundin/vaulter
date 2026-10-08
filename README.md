@@ -11,58 +11,35 @@ components (the vault's `meta/conventions.md` §13). The design and its history:
 | Command | Does |
 |---|---|
 | `npm ci` | install |
-| `npm run check` | the vault's check (`tools/check.ts`) over `../vault` (or `node tools/check.ts --vault <dir>`): links, heading anchors, wikilinks, raw HTML, what MDX may contain (`app/extensions/notes/model/mdx-rules.ts`), and the vault's schema (`meta/schema.yaml`, held to it by `app/extensions/notes/model/schema.ts` and `app/extensions/graph/model/relations.ts`). Fast; run before every push to the vault. The vault's CI runs it on every push too, from this repo's `main` |
+| `npm run check` | the permanent note, schema and graph integrity checks over `../vault`, or `node tools/check.ts --vault <dir>`; the vault's CI uses the same check |
 | `npm run dev` | the app on the vault through GitHub, as built, in any browser, but with no password: it loads right in with the secrets from `.env.local` (gitignored): `VAULT_GITHUB_TOKEN`, and optionally `VAULT_OPENAI_KEY` and `VAULT_JINA_KEY`, the names CI seals. Only dev gets them; a build has none. Its commits go to the vault's `main`, as the app's do |
+| `npm run kit` | the component kit gallery and reference design |
 | `npm run build` | the app into `dist/` |
 | `npm run lint` / `npm run format` | Biome: lint and format check (CI), or fix both in place. Style: 2 spaces, single quotes, semicolons, trailing commas, 100 columns (`biome.json`) |
 | `npm test` / `npm run typecheck` | the tests (Vitest: `app/`) and TypeScript over `app/` and `tools/` |
 | `node tools/seal-secrets.ts <out>` | seal the token and key with the password from the environment (what CI runs; see Publishing) |
 
-The vault is worked in the app: the audit, rename (and switching `.md`/`.mdx`) and Captures are pages
-and agent tools there, not scripts.
+The app currently contains chat, rename-note, and history workflows. The agent reads and writes the
+vault through its permanent checks; rename stages the complete move and reference rewrites.
 
 All code is TypeScript. Node 24 runs the scripts directly (type stripping), so only erasable syntax,
 explicit `.ts` imports and `import type` (enforced by `tsconfig.json`).
 
-## Where the rules live
+## Project layout
 
-- `meta/schema.yaml` (in the vault) — the vocabulary: note types, facet values, broad topics, relation
-  predicates (with when to use each), the MDX components notes may use. The app reads it at runtime.
-- `app/extensions/notes/model/` — the notes' rules (`check.ts`): the vocabulary read and validated
-  (`schema.ts`), frontmatter fields and structure, the structured fields' shapes (`structured.ts`:
-  `relations`, `dates`, `follow-ups`, `decisions`, `geo`, `address`, `where`), and what a note may contain
-  beyond Markdown (`mdx-rules.ts`, `safe-url.ts`: the components with literal props; relative, `http(s)`,
-  `mailto` and `tel` links). Notes are data, never code.
-- `app/extensions/graph/model/check.ts` — the graph's rules: every link and #heading resolves, relations
-  are the vocabulary's predicates, every note a field names exists.
-- `app/extensions/check.ts` — both together: what `npm run check` and the vault's CI run.
+`app/product.tsx` composes the optional workflows in `app/workflows/`. Each task owns its behavior,
+views and tests. Removing a feature means deleting its folder and its wiring in Product. The
+permanent `app/vault/` module owns notes, schema, graph, validation, encryption and checked writes.
+See [ARCHITECTURE.md](ARCHITECTURE.md) for the interfaces and dependency rules.
 
-## How it fits together
+The app uses the component kit and reference design from branch `ui-kit`, in `app/ui/kit/`. Run
+`npm run kit` to open its gallery. Workflow views compose its public components; styles stay in the
+kit, with a scoped exception for Markdown rendering. `tools/layout.test.ts` enforces the import rules
+in CI, including dynamic imports and aliases.
 
-The design, its rules and how to add a feature: `ARCHITECTURE.md`. In short:
-
-- `app/core/` — the platform, which knows only files: `App.tsx`, routing, the frame and ⌘K (with its
-  search engine), the extension host (`host.tsx`, `extension.ts`), the session and the backend contract
-  (`session.ts`, `backend.ts`), the writer (`writer.ts`), unlocking and the keys (`unlock.ts`,
-  `crypto.ts`, `idb.ts`), the secrets' format (`sealed.ts`), dates (`format.ts`), the worker and the
-  service worker.
-- `app/backends/` — GitHub (`github/`: the REST client, its encrypted cache, sync, commits through the
-  Git Data API), memory (`memory.ts`, for tests).
-- `app/extensions/notes/` — the note: `model/` (a file as a note, its fields, links and references, the
-  vocabulary, the capture log's format, rename, the rules), the note page and its rendering
-  (`markdown.ts`, `highlight.tsx`), the sidebar's Recent.
-- `app/extensions/graph/` — the knowledge graph: `model/graph.ts` (backlinks, relations, topics,
-  activity, when each note last changed), its check, `useGraph()`.
-- `app/extensions/` — the other features, listed in `extensions/index.ts`: home, topics, calendar,
-  decisions, map, similar, places, editor (edit, rename, changes, history), audit, agent, code (the
-  agent's tools over this repo, so the app can change itself), web (search and reading pages, through
-  Jina). Each holds its own logic (the brief in home, the layout in map, …).
-- `tools/` — the only Node, for CI: `check.ts` (the vault's check) and `seal-secrets.ts` (publishing).
-
-Security: notes render without eval (MDX props are literals), raw HTML and unsafe URLs are dropped, the
-page has a CSP (script only from the app; network only to GitHub, OpenAI, Jina, the map tiles, and for a capture's metadata OpenStreetMap's geocoder and open-meteo), the cache is
-encrypted with a per-device key, and every commit from the app passes the check and carries
-`Committed-From: vault app`.
+The vault's vocabulary remains in its own `meta/schema.yaml`. `app/vault/validation/check.ts` combines
+note format and graph integrity checks; `tools/check.ts` runs them over a vault on disk. Every app
+commit passes the same rules and carries `Committed-From: vault app`.
 
 ## Publishing
 
@@ -80,9 +57,9 @@ What the seal needs, in this repo's settings:
 | | Kind | What |
 |---|---|---|
 | `VAULT_PASSWORD` | secret | the app's password (12+ characters; long and random is best: the sealed file is public) |
-| `VAULT_GITHUB_TOKEN` | secret | a fine-grained PAT for `vault` and `vaulter` only (Contents read/write, Metadata read), with an expiry; `vaulter` is for the agent changing the app (`app/extensions/code/`) |
+| `VAULT_GITHUB_TOKEN` | secret | a fine-grained PAT for `vault` and `vaulter` only (Contents read/write, Metadata read), with an expiry; only the vault is needed by the current workflows |
 | `VAULT_OPENAI_KEY` | secret | optional: the agent's key, from a project with a spend limit |
-| `VAULT_JINA_KEY` | secret | optional: the agent's web search (jina.ai); reading pages works without it, at a lower rate |
+| `VAULT_JINA_KEY` | secret | optional: retained sealed field for deployments that supply it |
 | `VAULT_SALT` | variable | 16 random bytes, base64 (`openssl rand -base64 16`); set once |
 | `VAULT_OPENAI_API` | variable | optional: the agent's OpenAI-compatible endpoint (an API proxy); empty means api.openai.com |
 | `VAULT_REPO` | variable | optional: the vault the app reads, `owner/name@branch`; default `JimLundin/vault@main` |

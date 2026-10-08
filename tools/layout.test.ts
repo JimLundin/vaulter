@@ -1,0 +1,61 @@
+import { fileURLToPath } from 'node:url';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { expect, test } from 'vitest';
+import { checkLayout, importProblem } from './layout.ts';
+
+test('optional workflows are composed only by Product and use the public kit', () => {
+  expect(checkLayout(fileURLToPath(new URL('..', import.meta.url)))).toEqual([]);
+});
+test('the dependency policy rejects cross-workflow imports and private kit access', () => {
+  expect(importProblem('app/workflows/chat/Chat.tsx', 'app/workflows/history/index.tsx')).toContain(
+    'compose',
+  );
+  expect(importProblem('app/vault/index.ts', 'app/workflows/rename-note/index.ts')).toContain(
+    'optional workflow',
+  );
+  expect(importProblem('app/ui/Frame.tsx', 'app/workflows/chat/index.tsx')).toContain(
+    'optional workflow',
+  );
+  expect(importProblem('app/product.tsx', 'app/workflows/history/index.tsx')).toBeNull();
+  expect(
+    importProblem('app/workflows/history/index.tsx', 'app/workflows/history/HistoryPage.tsx'),
+  ).toBeNull();
+  expect(importProblem('app/workflows/chat/Chat.tsx', 'app/ui/kit/parts/button.tsx')).toContain(
+    'private kit',
+  );
+});
+
+test('compiler-resolved aliases, dynamic imports and re-exports cannot hide a workflow dependency', () => {
+  const root = mkdtempSync(join(tmpdir(), 'vaulter-import-policy-'));
+  try {
+    mkdirSync(join(root, 'app/workflows/first'), { recursive: true });
+    mkdirSync(join(root, 'app/workflows/second'), { recursive: true });
+    writeFileSync(
+      join(root, 'tsconfig.json'),
+      JSON.stringify({
+        compilerOptions: {
+          module: 'ESNext',
+          moduleResolution: 'Bundler',
+          paths: { '@/*': ['./app/*'] },
+        },
+        include: ['app'],
+      }),
+    );
+    writeFileSync(join(root, 'app/workflows/second/index.ts'), 'export const value = 1;');
+    const imports = [
+      "import { value } from '@/workflows/second/index.ts'; export { value };",
+      "export { value } from '@/workflows/second/index.ts';",
+      "export const load = () => import('@/workflows/second/index.ts');",
+    ];
+    for (const [i, source] of imports.entries()) {
+      writeFileSync(join(root, `app/workflows/first/case${i}.ts`), source);
+    }
+    const problems = checkLayout(root);
+    expect(problems).toHaveLength(3);
+    expect(problems.every((problem) => problem.includes('optional workflow second'))).toBe(true);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
