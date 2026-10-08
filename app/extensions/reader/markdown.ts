@@ -15,11 +15,11 @@ import { toJsxRuntime } from 'hast-util-to-jsx-runtime';
 // biome-ignore lint/correctness/noUnresolvedImports: Fragment is in @types/react's namespace, which Biome doesn't follow
 import { Fragment, jsx, jsxs } from 'react/jsx-runtime';
 import type { ComponentType, ReactNode } from 'react';
-import { remarkVaultLinks } from './model/remark-vault-links.ts';
-import { literal, isComment } from './model/mdx-literal.ts';
+import { remarkVaultLinks } from '../notes/model/remark-vault-links.ts';
+import { literal, isComment } from '../notes/model/mdx-literal.ts';
 import { remove } from 'unist-util-remove';
-import { isSafeUrl } from './model/safe-url.ts';
-import { hrefOf, type Note } from './model/fields.ts';
+import { isSafeUrl } from '../notes/model/safe-url.ts';
+import { hrefOf, type Note } from '../notes/model/fields.ts';
 import { link } from '../../core/route.ts';
 import { Pre } from './highlight.tsx';
 

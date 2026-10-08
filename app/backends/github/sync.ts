@@ -3,7 +3,7 @@
 import type { VaultFile } from '../../core/files.ts';
 import { decrypt, decryptJson, encrypt, encryptJson, type Encrypted } from '../../core/crypto.ts';
 import { db } from './cache.ts';
-import type { GitHub } from './api.ts';
+import type { GitHub } from '../../github/api.ts';
 
 export interface Snapshot {
   commit: string;

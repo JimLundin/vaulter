@@ -7,7 +7,7 @@ import type { PanelArg } from '../../core/extension.ts';
 import { titleOf } from '../notes/model/fields.ts';
 import { useHost } from '../../core/host.tsx';
 import { link, useRoute } from '../../core/route.ts';
-import { renderBody } from '../notes/markdown.ts';
+import { renderBody } from '../reader/markdown.ts';
 import { later } from '../../core/later.ts';
 import { chat, MODEL_KEY, model, newChat, ready, send, stop, useChat, viewing } from './chat.ts';
 import type { Part, Turn } from './chat.ts';

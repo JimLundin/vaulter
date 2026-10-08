@@ -15,7 +15,7 @@ import { History } from './History.tsx';
 import { Rename } from './Rename.tsx';
 import type { Host } from '../../core/host.tsx';
 import type { Route } from '../../core/route.ts';
-import { noteActions } from '../notes/slots.tsx';
+import { noteActions } from '../reader/slots.tsx';
 import { changesPage, editPage, historyPage, renamePage } from './routes.ts';
 import { graphOf } from '../graph/model/graph.ts';
 

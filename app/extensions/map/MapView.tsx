@@ -7,18 +7,18 @@ import { MinusIcon, PlusIcon, RotateCcwIcon } from 'lucide-react';
 import type { VaultMap } from './vault-map.ts';
 import { topicHref } from '../notes/model/fields.ts';
 import { initMap } from './graph-view.ts';
-import { useHeavy } from '../../core/host.tsx';
+import { mapOf } from './layout.ts';
+import { useGraph } from '../graph/use.ts';
 import { link } from '../../core/route.ts';
 import { Loading, PageHeader } from '@/components/layout.tsx';
 import { Button } from '@/components/ui/button.tsx';
 import './map.css';
 import { useSchema } from '../notes/use.ts';
-import { layoutMap } from './vault-map.ts';
 
 const f = (v: number) => Math.round(v * 10) / 10;
 
 export function MapView() {
-  const map = useHeavy<ReturnType<typeof layoutMap>>('map');
+  const map = mapOf(useGraph());
   if (!map)
     return (
       <div className="v-map">

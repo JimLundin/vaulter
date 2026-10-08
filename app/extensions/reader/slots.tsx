@@ -3,7 +3,7 @@
 // biome-ignore lint/correctness/noUnresolvedImports: Fragment is in @types/react's namespace, which Biome doesn't follow
 import { Fragment } from 'react';
 import type { ComponentType } from 'react';
-import type { Note } from './model/fields.ts';
+import type { Note } from '../notes/model/fields.ts';
 import { type Host, useHost } from '../../core/host.tsx';
 import { link } from '../../core/route.ts';
 import { slot } from '../../core/slot.ts';

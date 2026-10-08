@@ -3,8 +3,8 @@
 // a rail beside the body (Rail.tsx) has the headings, the properties and the sections below.
 import { useEffect, useRef, useState } from 'react';
 import type { Ref } from 'react';
-import type { Note } from './model/fields.ts';
-import { asList, hrefOf, kind, titleOf, topicHref } from './model/fields.ts';
+import type { Note } from '../notes/model/fields.ts';
+import { asList, hrefOf, kind, titleOf, topicHref } from '../notes/model/fields.ts';
 import { dateStr } from '../../core/format.ts';
 import { useHost } from '../../core/host.tsx';
 import { NoteActions, NoteSections } from './slots.tsx';

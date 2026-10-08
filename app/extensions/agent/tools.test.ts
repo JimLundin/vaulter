@@ -17,8 +17,8 @@ import { today } from '../../core/format.ts';
 import { code } from '../code/index.tsx';
 import { codeRepo } from '../code/repo.ts';
 import { codeTools } from '../code/tools.ts';
-import { fakeGitHub } from '../../backends/github/fake-github.ts';
-import { github } from '../../backends/github/api.ts';
+import { fakeGitHub } from '../../github/fake-github.ts';
+import { github } from '../../github/api.ts';
 import type { AgentContext } from '../../core/extension.ts';
 
 const NOTE = (title: string, extra = '') =>

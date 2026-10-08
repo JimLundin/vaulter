@@ -10,7 +10,7 @@ import { useWriter } from '../../core/host.tsx';
 import { showKeys } from '../../core/keys.ts';
 import { go, link } from '../../core/route.ts';
 import { later } from '../../core/later.ts';
-import { NoteBody } from '../notes/NotePage.tsx';
+import { NoteBody } from '../reader/NotePage.tsx';
 import { Confirm } from './parts.tsx';
 import { Empty, ErrorState, PageHeader } from '@/components/layout.tsx';
 import { Alert, AlertDescription } from '@/components/ui/alert.tsx';

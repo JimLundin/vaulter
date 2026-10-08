@@ -3,13 +3,13 @@
 import { beforeAll, expect, test } from 'vitest';
 import { renderToStaticMarkup as render } from 'react-dom/server';
 import { renderBody, loadMdx } from './markdown.ts';
-import { notes } from './index.tsx';
+import { reader } from './index.tsx';
 
 beforeAll(() => loadMdx());
 
 const html = (body: string, ext: 'md' | 'mdx' = 'mdx') =>
   // biome-ignore lint/complexity/noUselessFragments: render() needs a node; renderBody may return a string
-  render(<>{renderBody({ id: 'X', path: `X.${ext}`, ext, body }, notes.mdx)}</>);
+  render(<>{renderBody({ id: 'X', path: `X.${ext}`, ext, body }, reader.mdx)}</>);
 
 test.each([
   ['{globalThis.pwned = 1}'],

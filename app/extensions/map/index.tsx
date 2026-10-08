@@ -1,10 +1,10 @@
 // The map: every topical note as a dot, by area, with links and relations as edges (#/map/); under each
-// note, its neighbourhood. The layout is computed in the worker (app/extensions/heavy.ts, app/extensions/map/vault-map.ts).
+// note, its neighbourhood. The layout is computed once per graph (layout.ts, vault-map.ts).
 import { WaypointsIcon } from 'lucide-react';
 import type { Extension } from '../../core/extension.ts';
 import { MapView } from './MapView.tsx';
 import { LocalMap } from './LocalMap.tsx';
-import { noteSections } from '../notes/slots.tsx';
+import { noteSections } from '../reader/slots.tsx';
 import { mapPage } from './routes.ts';
 
 export const map: Extension = {

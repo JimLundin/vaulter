@@ -1,9 +1,10 @@
-// The GitHub REST calls the app uses. Reading: the ref of main (conditional on its ETag), the recursive
+// The GitHub REST client, a library with no app state: the GitHub backend uses it for the vault, the code
+// feature for the app's own repo. Reading: the ref of main (conditional on its ETag), the recursive
 // tree, and blobs, each checked against git's own hash before it is trusted. Writing (Git Data API): blobs,
 // a tree on a base, a commit, and moving main, never by force. History: recent commits and their files; the commit
 // main was at on a day, and what changed since.
 
-import { blobSha } from '../../core/blob-sha.ts';
+import { blobSha } from '../core/blob-sha.ts';
 
 export interface Repo {
   owner: string;

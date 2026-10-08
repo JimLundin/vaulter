@@ -3,7 +3,7 @@
 import type { Note } from '../notes/model/fields.ts';
 import { topicsOf, topicHref, titleOf, excerptOf, facet } from '../notes/model/fields.ts';
 import { link } from '../../core/route.ts';
-import { NoteLinks } from '../notes/sections.tsx';
+import { NoteLinks } from '../reader/sections.tsx';
 import { cn } from 'cn';
 import { Badge } from '@/components/ui/badge.tsx';
 import { PageHeader, Section } from '@/components/layout.tsx';

@@ -4,9 +4,9 @@
 import { Fragment } from 'react';
 import type { ReactNode } from 'react';
 import { CircleHelp } from 'lucide-react';
-import type { Note } from './model/fields.ts';
-import { titleOf, hrefOf } from './model/fields.ts';
-import { followUpsOf, openOf } from './model/facts.ts';
+import type { Note } from '../notes/model/fields.ts';
+import { titleOf, hrefOf } from '../notes/model/fields.ts';
+import { followUpsOf, openOf } from '../notes/model/facts.ts';
 import { fmtDay } from '../../core/format.ts';
 import { link } from '../../core/route.ts';
 import { cn } from 'cn';

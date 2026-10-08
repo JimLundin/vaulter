@@ -2,7 +2,7 @@
 // changes to the agent itself. Loaded with the agent, when the sealed token can write to vaulter.
 import { tool, type ToolSet } from 'ai';
 import { z } from 'zod';
-import { API, APP_REPO, github } from '../../backends/github/api.ts';
+import { API, APP_REPO, github } from '../../github/api.ts';
 import { codeRepo, type CodeRepo } from './repo.ts';
 
 const LIST_MAX = 400;

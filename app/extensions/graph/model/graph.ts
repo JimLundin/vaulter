@@ -14,7 +14,7 @@ import {
 import { linksOf } from '../../notes/model/links.ts';
 import { relationsOf } from '../../notes/model/refs.ts';
 import { NO_SCHEMA, schemaFor, type Schema } from '../../notes/model/schema.ts';
-import { loadNotes } from '../../notes/model/note.ts';
+import { notesOf } from '../../notes/model/notes.ts';
 import type { VaultFile } from '../../../core/files.ts';
 import { today } from '../../../core/format.ts';
 
@@ -173,7 +173,7 @@ export function graphOf(files: VaultFile[]): Graph {
   let g = graphs.get(files);
   if (!g) {
     const schema = schemaFor(files);
-    g = deriveGraph(loadNotes(files), schema instanceof Error ? NO_SCHEMA : schema);
+    g = deriveGraph(notesOf(files).notes, schema instanceof Error ? NO_SCHEMA : schema);
     graphs.set(files, g);
   }
   return g;

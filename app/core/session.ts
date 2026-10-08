@@ -4,9 +4,8 @@
 // 30 s), and when the backend says something changed.
 import { useEffect, useRef, useState } from 'react';
 import type { Sealed, Secrets } from './sealed.ts';
-import { Offline, type Head, type VaultBackend } from './backend.ts';
+import { Offline, type Head, type OpenBackend, type VaultBackend } from './backend.ts';
 import { devUnlocked, forget, remembered, unlock, type Unlocked } from './unlock.ts';
-import { githubBackend } from '../backends/github/index.ts';
 import { later } from './later.ts';
 
 export type Status =
@@ -31,8 +30,8 @@ const EVERY = 30_000;
 declare const __DEV_SECRETS__: Secrets | null;
 const DEV_SECRETS = typeof __DEV_SECRETS__ === 'undefined' ? null : __DEV_SECRETS__;
 
-/** `keeps`: the files the app reads (extension.ts fileRules). */
-export function useSession(keeps: (path: string) => boolean): Session {
+/** `openBackend`: the app's backend (main.tsx); `keeps`: the files the app reads (extension.ts fileRules). */
+export function useSession(openBackend: OpenBackend, keeps: (path: string) => boolean): Session {
   const [backend, setBackend] = useState<VaultBackend | null>(null);
   const [head, setHead] = useState<Head | null>(null);
   const [status, setStatus] = useState<Status>({ kind: 'loading' });
@@ -69,14 +68,7 @@ export function useSession(keeps: (path: string) => boolean): Session {
   };
   const begin = (u: Unlocked) => {
     setSecrets(u.secrets);
-    return open(
-      githubBackend({
-        token: u.secrets.github,
-        key: u.cacheKey,
-        api: import.meta.env.VITE_GITHUB_API || undefined,
-        keeps,
-      }),
-    );
+    return open(openBackend({ secrets: u.secrets, key: u.cacheKey, keeps }));
   };
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: once, on mount; what it calls reads only refs and state setters

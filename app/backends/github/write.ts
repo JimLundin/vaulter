@@ -6,7 +6,7 @@ import { blobSha } from '../../core/blob-sha.ts';
 import { Conflict, TRAILER, type Change, type Verify } from '../../core/backend.ts';
 import { applyOverlay } from '../../core/writer.ts';
 import { encrypt } from '../../core/crypto.ts';
-import { NotFastForward, type GitHub, type TreeChange } from './api.ts';
+import { NotFastForward, type GitHub, type TreeChange } from '../../github/api.ts';
 import { gc, sync, writeSnapshot, type BlobRecord, type Snapshot } from './sync.ts';
 
 /** What a commit does to one path: a blob (with its text) or a deletion. */

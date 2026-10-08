@@ -2,8 +2,8 @@
 // staged in memory, and one commit to main for all of them, never by force. When main moved meanwhile the
 // commit is rebuilt on it, unless one of the same files changed there. Every push to main runs the app's
 // CI (lint, type check, tests) and deploys only if it passes; `status` reads that back.
-import type { GitHub, Repo } from '../../backends/github/api.ts';
-import { NotFastForward } from '../../backends/github/api.ts';
+import type { GitHub, Repo } from '../../github/api.ts';
+import { NotFastForward } from '../../github/api.ts';
 import { blobSha } from '../../core/blob-sha.ts';
 import { TRAILER } from '../../core/backend.ts';
 

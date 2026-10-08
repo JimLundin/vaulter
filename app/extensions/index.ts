@@ -1,5 +1,5 @@
-// The app's features, in the order their pages are tried (the first page that claims a path wins; notes
-// claim any note's path, so they come last). A feature is a folder here and a line in this list.
+// The app's features, in the order their pages are tried (the first page that claims a path wins; the
+// reader claims any note's path, so it comes last). A feature is a folder here and a line in this list.
 import type { Extension } from '../core/extension.ts';
 import { home } from './home/index.tsx';
 import { topics } from './topics/index.tsx';
@@ -15,6 +15,7 @@ import { code } from './code/index.tsx';
 import { web } from './web/index.tsx';
 import { graph } from './graph/index.tsx';
 import { notes } from './notes/index.tsx';
+import { reader } from './reader/index.tsx';
 
 export const EXTENSIONS: Extension[] = [
   home,
@@ -31,4 +32,5 @@ export const EXTENSIONS: Extension[] = [
   web,
   graph,
   notes,
+  reader,
 ];

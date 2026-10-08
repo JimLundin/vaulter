@@ -3,7 +3,7 @@
 import type { VaultFile } from '../../core/files.ts';
 import { Offline, TRAILER, type Head, type VaultBackend, type Verify } from '../../core/backend.ts';
 import { claim, clear, keepWith } from './cache.ts';
-import { github, sourceUrl, type Repo } from './api.ts';
+import { github, sourceUrl, type Repo } from '../../github/api.ts';
 import { readCache, sync, type Snapshot } from './sync.ts';
 import { commitChanges, revertCommit } from './write.ts';
 

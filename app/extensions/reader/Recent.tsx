@@ -2,7 +2,7 @@
 // Hidden when there are none, and when the sidebar is down to its icons.
 import { useRecent } from '../../core/recent.ts';
 import { link, useRoute } from '../../core/route.ts';
-import { titleOf } from './model/fields.ts';
+import { titleOf } from '../notes/model/fields.ts';
 import {
   SidebarGroup,
   SidebarGroupContent,

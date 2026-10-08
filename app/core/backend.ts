@@ -3,6 +3,7 @@
 // one; the tests use an in-memory one (backends/memory). Keeping the app to this contract is what lets
 // the frontend and the vault live apart.
 import type { Change, VaultFile } from './files.ts';
+import type { Secrets } from './sealed.ts';
 
 export type { Change } from './files.ts';
 
@@ -77,5 +78,13 @@ export interface History {
   changed: Set<string>;
   before: (path: string) => Promise<string | null>;
 }
+
+/** Opens the vault with the unlocked secrets: the app's one backend, chosen where the app is put together
+ * (main.tsx). `key` encrypts what it keeps on the device; `keeps`, the files the features keep. */
+export type OpenBackend = (o: {
+  secrets: Secrets;
+  key: CryptoKey;
+  keeps: (path: string) => boolean;
+}) => VaultBackend;
 
 export const TRAILER = 'Committed-From: vault app';

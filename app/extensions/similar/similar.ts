@@ -1,5 +1,5 @@
 // Similar notes: for each topical note, the notes whose text is most alike and that nothing connects yet.
-// Slow (O(n²)); the app runs it in the worker (app/extensions/heavy.ts).
+// O(n²): computed once per graph (perGraph in index.tsx).
 import { asList, titleOf, type Note } from '../notes/model/fields.ts';
 import type { Backlink, Edge } from '../graph/model/graph.ts';
 

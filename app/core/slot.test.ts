@@ -2,7 +2,7 @@
 // only to the slot it was added to.
 import { expect, test } from 'vitest';
 import { EXTENSIONS } from '../extensions/index.ts';
-import { noteActions, noteSections } from '../extensions/notes/slots.tsx';
+import { noteActions, noteSections } from '../extensions/reader/slots.tsx';
 import { slot } from './slot.ts';
 
 test('an entry comes back from its slot, with the extension that added it', () => {
@@ -32,13 +32,13 @@ test("a note's sections come from the features that add them, in order", () => {
     .sort((a, b) => a.entry.order - b.entry.order)
     .map(({ from, entry }) => `${entry.order} ${from}`);
   expect(sections).toEqual([
-    '10 notes',
-    '20 notes',
+    '10 reader',
+    '20 reader',
     '30 decisions',
-    '40 notes',
+    '40 reader',
     '50 calendar',
     '60 map',
-    '80 notes',
+    '80 reader',
     '90 similar',
   ]);
 });

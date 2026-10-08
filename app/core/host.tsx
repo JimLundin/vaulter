@@ -19,8 +19,6 @@ export interface Host {
   writer: Writer;
   secrets: Secrets | null;
   extensions: Extension[];
-  /** The worker's results for this vault, as they arrive. */
-  heavy: Record<string, unknown>;
   /** Every MDX component the extensions provide. */
   mdx: Record<string, ComponentType<any>>;
   /** Search and previews: every extension's entries, and the nav's pages. */
@@ -36,8 +34,6 @@ export interface Host {
 export const HostContext = createContext<Host>(null!);
 export const useHost = () => useContext(HostContext);
 export const useWriter = () => useHost().writer;
-/** A feature's slow derivation (app/extensions/heavy.ts), or null until the worker has it. */
-export const useHeavy = <T,>(key: string): T | null => (useHost().heavy[key] as T) ?? null;
 
 const sorted = <T extends { order: number }>(xs: T[]) => [...xs].sort((a, b) => a.order - b.order);
 export const navOf = (host: Host) =>

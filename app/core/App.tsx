@@ -1,38 +1,37 @@
-// The app: the session's files with the staged edits; the worker's results; the writer, held to the
+// The app: the session's files with the staged edits; the writer, held to the
 // features' file rules; and the page the route points at, from whichever extension claims it, in the Shell.
 // What the files mean is the features' own: the platform hands them the files.
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import { searchIndex } from './search.ts';
 import type { VaultFile } from './files.ts';
-import type { VaultBackend } from './backend.ts';
-import { EXTENSIONS } from '../extensions/index.ts';
+import type { OpenBackend } from './backend.ts';
 import { useSession } from './session.ts';
 import { useWriter, applyOverlay } from './writer.ts';
 import { useRoute } from './route.ts';
 import { HostContext, navOf, pageFor, type Host } from './host.tsx';
-import { fileRules } from './extension.ts';
+import { fileRules, type Extension } from './extension.ts';
 import { Shell } from './Shell.tsx';
 import { useUi } from './ui.ts';
 import { Previews } from './Previews.tsx';
 import { Unlock } from './Unlock.tsx';
-import { later } from './later.ts';
 import { ErrorState, Loading } from '@/components/layout.tsx';
 
-const MDX = Object.assign({}, ...EXTENSIONS.map((e) => e.mdx ?? {}));
-const RULES = fileRules(EXTENSIONS);
 const NONE: VaultFile[] = [];
 
-export function App() {
-  const session = useSession(RULES.keeps);
+/** What the app is made of, given where it is put together (main.tsx): the features and the backend. */
+export interface Parts {
+  extensions: Extension[];
+  openBackend: OpenBackend;
+}
+
+export function App({ extensions: EXTENSIONS, openBackend }: Parts) {
+  const MDX = useMemo(() => Object.assign({}, ...EXTENSIONS.map((e) => e.mdx ?? {})), [EXTENSIONS]);
+  const RULES = useMemo(() => fileRules(EXTENSIONS), [EXTENSIONS]);
+  const session = useSession(openBackend, RULES.keeps);
   const writer = useWriter(session.backend, RULES, session.head, session.setHead);
   const files = useMemo(
     () => (session.head ? applyOverlay(session.head.files, writer.overlay) : null),
     [session.head, writer.overlay],
-  );
-  const heavy = useHeavyResults(
-    session.backend,
-    files,
-    writer.overlay ? null : (session.head?.version ?? null),
   );
 
   const ui = useUi();
@@ -42,7 +41,6 @@ export function App() {
     writer,
     secrets: session.secrets,
     extensions: EXTENSIONS,
-    heavy: heavy.files === files ? heavy.value : {},
     mdx: MDX,
     index: new Map(),
     since: session.backend?.since,
@@ -109,48 +107,4 @@ export function App() {
       {ready && <Previews index={host.index} />}
     </HostContext.Provider>
   );
-}
-
-/** The slow derivations: kept for a version when one was saved for it, otherwise from the worker. */
-function useHeavyResults(
-  backend: VaultBackend | null,
-  files: VaultFile[] | null,
-  version: string | null,
-) {
-  type Heavy = Record<string, unknown>;
-  const [state, setState] = useState<{ files: VaultFile[] | null; value: Heavy }>({
-    files: null,
-    value: {},
-  });
-  const worker = useRef<Worker | null>(null);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: keyed on files, the result's identity; version and backend change only along with it
-  useEffect(() => {
-    if (!files) return;
-    let live = true;
-    later(
-      (async () => {
-        // Saved results that can't be read are recomputed, like ones never saved.
-        const kept = version
-          ? await backend?.keep.get<{ version: string; heavy: Heavy }>('heavy').catch(() => null)
-          : null;
-        if (kept?.version === version) return live && setState({ files, value: kept.heavy });
-        worker.current ??= new Worker(new URL('./heavy.worker.ts', import.meta.url), {
-          type: 'module',
-        });
-        const w = worker.current;
-        const id = Math.random();
-        w.onmessage = (e) => {
-          if (e.data.id !== id || !live) return;
-          setState({ files, value: e.data.heavy });
-          if (version && backend)
-            later(backend.keep.set('heavy', { version, heavy: e.data.heavy }));
-        };
-        w.postMessage({ id, files });
-      })(),
-    );
-    return () => {
-      live = false;
-    };
-  }, [files]);
-  return state;
 }

@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
-import { fakeGitHub } from '../../backends/github/fake-github.ts';
-import { github } from '../../backends/github/api.ts';
+import { fakeGitHub } from '../../github/fake-github.ts';
+import { github } from '../../github/api.ts';
 import { TRAILER } from '../../core/backend.ts';
 import { codeRepo } from './repo.ts';
 

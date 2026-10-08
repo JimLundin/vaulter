@@ -2,7 +2,7 @@
 import { ScaleIcon } from 'lucide-react';
 import type { Extension } from '../../core/extension.ts';
 import { Decisions, NoteDecisions } from './Decisions.tsx';
-import { noteSections } from '../notes/slots.tsx';
+import { noteSections } from '../reader/slots.tsx';
 import { decisionsPage } from './routes.ts';
 
 export const decisions: Extension = {

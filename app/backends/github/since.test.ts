@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, expect, test } from 'vitest';
-import { fakeGitHub } from './fake-github.ts';
+import { fakeGitHub } from '../../github/fake-github.ts';
 import { newCacheKey } from '../../core/crypto.ts';
 import { clear, db } from './cache.ts';
 import { githubBackend } from './index.ts';
