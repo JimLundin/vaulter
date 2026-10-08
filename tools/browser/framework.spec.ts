@@ -14,7 +14,7 @@ test('navigation has the same destinations and actions in both arrangements', as
       expect(await control.evaluate((node) => getComputedStyle(node).borderRadius)).toBe('0px');
       expect(await control.getAttribute('aria-label')).toBeTruthy();
     }
-    const voice = footer.getByRole('button', { name: 'Start voice interaction' });
+    const voice = page.getByRole('button', { name: 'Start voice interaction' });
     const voiceBox = await voice.boundingBox();
     const footerBox = await footer.boundingBox();
     expect(voiceBox!.y + voiceBox!.height).toBeLessThan(footerBox!.y);
@@ -76,14 +76,12 @@ test('navigation has the same destinations and actions in both arrangements', as
 
 test('a direct settings URL opens the same menu and preserves the agent draft', async ({
   page,
-}, info) => {
+}) => {
   await page.goto('/preview/#/settings/');
   const settings = page.getByRole('dialog', { name: 'Settings', exact: true });
   await expect(settings.getByRole('textbox', { name: 'Model', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Close settings' }).click();
   await expect(page).toHaveURL(/#\/agent\/$/);
-  if (info.project.name === 'phone')
-    await page.getByRole('button', { name: 'Type a message' }).click();
   const draft = page.getByRole('textbox', { name: 'Message', exact: true });
   await draft.fill('Keep this message while changing preferences');
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
@@ -115,6 +113,48 @@ test('every feature page centers the same reading column', async ({ page }) => {
       );
     }
   }
+});
+
+test('the mobile message field stays visible beside the microphone before and after focus', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/preview/');
+  const input = page.getByRole('textbox', { name: 'Message', exact: true });
+  await expect(input).toBeVisible();
+  await expect(input).not.toBeFocused();
+  await expect(page.getByRole('button', { name: 'Type a message', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Close keyboard', exact: true })).toHaveCount(0);
+  await input.evaluate((node) => node.setAttribute('data-original-field', ''));
+  await input.click();
+  await expect(input).toBeFocused();
+  await input.fill('A message I can type directly');
+  for (const width of [390, 320, 768, 1440, 390]) {
+    await page.setViewportSize({ width, height: 844 });
+    await expect(input).toBeVisible();
+    await expect(input).toBeFocused();
+    await expect(input).toHaveAttribute('data-original-field', '');
+    await expect(input).toHaveValue('A message I can type directly');
+    const row = page.locator('[data-conversation-input]');
+    expect((await row.boundingBox())!.height).toBeLessThanOrEqual(64);
+    if (width < 768) {
+      const microphone = page.getByRole('button', { name: 'Start voice interaction', exact: true });
+      await expect(microphone).toHaveCount(1);
+      const field = (await page.getByRole('group', { name: 'Message composer' }).boundingBox())!;
+      const voice = (await microphone.boundingBox())!;
+      expect(voice.x).toBeGreaterThan(field.x + field.width);
+      expect(Math.abs(field.y + field.height / 2 - voice.y - voice.height / 2)).toBeLessThanOrEqual(
+        1,
+      );
+      expect(voice.x + voice.width).toBeLessThanOrEqual(width);
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
+    );
+  }
+  await page.getByRole('button', { name: 'New chat', exact: true }).click();
+  await expect(input).toBeVisible();
+  await expect(input).toHaveValue('');
 });
 
 test('settings is a shared drawer that keeps feature fields and focus when resized', async ({
@@ -318,7 +358,7 @@ test('a growing navigation keeps overflow actions available without making the f
 
 test('Enter sends, Shift+Enter and IME keep editing, and suggestions live outside the composer', async ({
   page,
-}, info) => {
+}) => {
   await page.goto('/preview/');
   const suggestion = page.getByRole('button', {
     name: 'How could I make more room for slow mornings?',
@@ -337,12 +377,6 @@ test('Enter sends, Shift+Enter and IME keep editing, and suggestions live outsid
   const composer = page.getByRole('group', { name: 'Message composer' });
   expect((await composer.boundingBox())!.height).toBeLessThanOrEqual(56);
   expect((await input.boundingBox())!.height).toBe(44);
-  if (info.project.name === 'phone') {
-    await page.getByRole('button', { name: 'Close keyboard' }).click();
-    await expect(input).toBeHidden();
-    await page.getByRole('button', { name: 'Type a message' }).click();
-    await expect(input).toHaveValue('How could I make more room for slow mornings?');
-  }
   await input.fill('   ');
   await input.press('Enter');
   await expect(input).toHaveValue('   ');
@@ -376,7 +410,6 @@ test('the composer and search stay within the visual viewport when a keyboard op
   });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/preview/');
-  await page.getByRole('button', { name: 'Type a message' }).click();
   const input = page.getByRole('textbox', { name: 'Message', exact: true });
   await input.fill('Keyboard draft');
   await page.evaluate(() => {

@@ -1,12 +1,5 @@
 // A single conversation state can be presented as a phone screen or a desktop reading column.
-import {
-  createContext,
-  type ReactNode,
-  useContext,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-} from 'react';
+import { createContext, type ReactNode, useContext, useEffect, useRef } from 'react';
 import { FocusScope } from '@radix-ui/react-focus-scope';
 import { hideOthers } from 'aria-hidden';
 import { StickToBottom, useStickToBottomContext } from 'use-stick-to-bottom';
@@ -179,14 +172,12 @@ export function ConversationSurface({
           <DesktopConversationToolbar {...actions} />
         )}
         {children}
-        <div
-          className={
-            mobile ? 'relative shrink-0 border-t bg-surface px-4 pt-3 pb-22' : 'shrink-0 pt-3'
-          }
-        >
+        <div className={mobile ? 'shrink-0 border-t bg-surface px-4 py-3' : 'shrink-0 pt-3'}>
           {suggestions}
-          {composer}
-          {mobile && !page && <div className="absolute right-5 bottom-3">{voiceControl}</div>}
+          <div data-conversation-input="" className="flex min-w-0 items-center gap-2">
+            <div className="min-w-0 flex-1">{composer}</div>
+            {mobile && voiceControl}
+          </div>
           {!mobile && page && (
             <p className="mt-2 mb-0 text-right text-caption text-subtle-foreground">
               Enter to send · Shift + Enter for a new line
@@ -517,37 +508,5 @@ export function PromptSuggestions({
         ))}
       </div>
     </section>
-  );
-}
-
-/** Typing is an explicit secondary mode on mobile; the desktop composer stays visible. */
-export function ConversationInput({
-  open,
-  onOpen,
-  onClose,
-  children,
-}: {
-  open: boolean;
-  onOpen: () => void;
-  onClose: () => void;
-  children: ReactNode;
-}) {
-  const mobile = useIsMobile();
-  const composer = useRef<HTMLDivElement>(null);
-  useLayoutEffect(() => {
-    if (open) composer.current?.querySelector<HTMLTextAreaElement>('textarea')?.focus();
-  }, [open]);
-  return (
-    <div ref={composer}>
-      {mobile && (
-        <div className="flex min-h-11 items-center justify-start">
-          <Button variant="ghost" size="sm" onClick={open ? onClose : onOpen}>
-            <Icon name={open ? 'close' : 'keyboard'} />
-            {open ? 'Close keyboard' : 'Type a message'}
-          </Button>
-        </div>
-      )}
-      <div hidden={mobile && !open}>{children}</div>
-    </div>
   );
 }

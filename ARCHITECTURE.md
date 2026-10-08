@@ -147,8 +147,10 @@ Menu, Search and Settings are the fixed phone controls. Settings opens over the 
 preserving its route and draft: a centered dialog on desktop, the same bottom drawer as Menu on a
 phone. Open settings fields keep their DOM and focus through resizing. `/settings/` remains a direct
 entry to that menu over Agent. Feature screens use the kit's centered `FeaturePage` reading column;
-Agent shares its width token. The composer is a fixed single row with trailing controls; Shift+Enter
-can still insert newlines, which scroll inside the field.
+Agent shares its width token. The composer is a fixed single row with trailing controls; on mobile
+its always-visible field sits beside the circular microphone above the footer. Focusing opens the
+normal device keyboard without revealing another form. Shift+Enter can still insert newlines, which
+scroll inside the field. Other features retain the floating voice action above their footer.
 
 ## Browser and deployment
 

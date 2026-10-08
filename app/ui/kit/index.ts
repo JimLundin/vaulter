@@ -364,7 +364,6 @@ export {
   ConversationPage,
   ConversationPanel,
   ConversationSurface,
-  ConversationInput,
   PromptSuggestions,
   VoiceButton,
   VoiceTranscript,

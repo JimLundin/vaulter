@@ -34,8 +34,8 @@ product does not use maps.
 
 Mobile and desktop are the **same UI, resized and rearranged**. Components share their content,
 state, actions and design roles. Compact space stacks and moves those same pieces; expanded space
-spreads them out. Text labels can collapse to accessible icons, and the composer can collapse behind
-its keyboard control, without introducing different features or a second product design.
+spreads them out. Text labels can collapse to accessible icons; the message field stays visible in
+both arrangements without introducing different features or a second product design.
 
 The size classes are **compact** (under 48rem), **expanded** (48rem and up), and **wide** (80rem and
 up, enough for a side panel). Width and input method are independent: a wide screen may use touch.
@@ -63,7 +63,7 @@ adds one.
 | Side panel (wide) or centered dialog | Full-screen dialog | `ConversationPanel` |
 | Labelled toolbar buttons | Icon buttons with an `aria-label` | `ConversationSurface` |
 | Form rows: label left, control right | The same fields stacked vertically | `SettingsMenu`, `SettingField` |
-| One-row composer with trailing controls | The same row behind the keyboard control | `Composer`, `ComposerActions` |
+| One-row composer with trailing controls | Always-visible field and send control beside the circular microphone | `ConversationSurface`, `Composer`, `ComposerActions` |
 | History rows with labelled Revert | The same rows with an icon for Revert | `HistoryEntry` |
 | Wrapping prompt strip | Horizontally scrolling prompt strip | `PromptSuggestions` |
 
@@ -128,13 +128,14 @@ rearrangement. Modal surfaces trap focus, Escape dismisses the topmost surface, 
 focus to the opening control or its equivalent in the new arrangement. Navigation closes its menu
 when expanding into a sidebar.
 Mobile has a brand/status header, icon toolbar, edge-to-edge live transcript, footer navigation with
-an independent floating microphone, optional keyboard composer, separate prompt strip, full-screen
+a circular microphone beside the always-visible message field, separate prompt strip, full-screen
 agent and search overlays, and bottom-sheet navigation. Desktop has the sidebar, reading column, labeled
 actions, keyboard hints and a side panel. Settings shares Menu's bottom drawer on mobile and centers
 as a dialog on desktop; the same feature-named sections rearrange inside it. History uses shared list
 compositions. The thresholds live in `styles.css`; React reads the same emitted CSS tokens. The
 workspace and full-screen dialogs follow `visualViewport` so a mobile keyboard can reduce their available height.
-An active keyboard draft remains when its composer is collapsed.
+The message field is present before focus and stays one row high while typing. Other feature pages
+retain the floating voice action above the footer.
 
 OpenAI WebRTC capture, transcript reconciliation and microphone lifecycle belong to the chat workflow.
 The kit presents voice states and actions without accessing microphone permissions or credentials.
@@ -149,5 +150,6 @@ at `tests/browser.html` and the sample preview, with no private vault or paid AP
 The suite runs at phone, desktop and touch-desktop sizes. It checks touch targets, navigation/current
 state, centered feature columns, feature-named settings drawers, growing action lists, keyboard
 tab/checkbox behavior, Escape and focus return, search selection
-and drafts through size changes, collapsed typing, Enter/Shift+Enter/IME, and a simulated visual
+and drafts through size changes, the mobile field/microphone row before and after focus,
+Enter/Shift+Enter/IME, and a simulated visual
 viewport resize. A physical phone keyboard and microphone still need device validation.

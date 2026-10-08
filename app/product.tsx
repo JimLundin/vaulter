@@ -334,7 +334,9 @@ export function OpenProduct({
         }
         onSearch={() => setSearch(true)}
         primary={{
-          compact: <VoiceButton phase={transcript.phase} busy={agentBusy} onClick={voiceAction} />,
+          compact: !onAgent && (
+            <VoiceButton phase={transcript.phase} busy={agentBusy} onClick={voiceAction} />
+          ),
         }}
         panel={
           panel ? (

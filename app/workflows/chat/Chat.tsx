@@ -8,7 +8,6 @@ import {
   ConversationFeed,
   ConversationSurface,
   ConversationWelcome,
-  ConversationInput,
   PromptSuggestions,
   VoiceTranscript,
   VoiceButton,
@@ -53,7 +52,6 @@ export function Chat({
   const { turns, suggestions, busy } = useChat(conversation);
   const [input, setInput] = useState(chat.draft);
   const [focused, setFocused] = useState(false);
-  const [typing, setTyping] = useState(!!chat.draft);
   const transcript = useTranscript(voice);
   const recording = ['connecting', 'listening', 'finishing'].includes(transcript.phase);
   const [review, setReview] = useState<{
@@ -73,7 +71,6 @@ export function Chat({
       const files = conversation.stagedChanges();
       if (files.length) {
         type(text);
-        setTyping(true);
         setReview({ text, files });
         return;
       }
@@ -84,9 +81,6 @@ export function Chat({
     [type, send, conversation, voice],
   );
   useEffect(viewing, [viewing]);
-  useEffect(() => {
-    if (recording) setTyping(false);
-  }, [recording]);
   const selectedModel = model();
   // biome-ignore lint/correctness/useExhaustiveDependencies: a new chat or model invalidates cached suggestions
   useEffect(() => {
@@ -100,13 +94,11 @@ export function Chat({
     if (arg.send && !chat.state.busy) say(arg.text);
     else {
       type(arg.text);
-      setTyping(true);
       requestAnimationFrame(() => ref.current?.focus());
     }
   }, [arg, chat, say, type]);
   const edit = (text: string) => {
     type(text);
-    setTyping(true);
     requestAnimationFrame(() => ref.current?.focus());
   };
   const voiceAction = () => {
@@ -145,7 +137,6 @@ export function Chat({
         voice.clear();
         newChat();
         type('');
-        setTyping(false);
       }}
       busy={busy || recording}
       voiceControl={<VoiceButton phase={transcript.phase} busy={busy} onClick={voiceAction} />}
@@ -153,102 +144,89 @@ export function Chat({
         showSuggestions ? <PromptSuggestions suggestions={suggestions} onSelect={edit} /> : null
       }
       composer={
-        <ConversationInput
-          open={typing}
-          onOpen={() => {
-            if (recording) voice.interrupt();
-            setTyping(true);
-            requestAnimationFrame(() => ref.current?.focus());
-          }}
-          onClose={() => {
-            setTyping(false);
-            ref.current?.blur();
-          }}
-        >
-          <Composer>
-            <form
-              onSubmit={(event) => {
-                event.preventDefault();
-                if (input.trim() && !(busy || recording)) say(input);
-              }}
-            >
-              <Textarea
-                ref={ref}
-                rows={1}
-                aria-label="Message"
-                placeholder={busy ? 'Working…' : 'Type a message…'}
-                value={input}
-                disabled={busy || recording}
-                onChange={(event) => type(event.currentTarget.value)}
-                onFocus={() => setFocused(true)}
-                onBlur={() => setFocused(false)}
-                onKeyDown={(event) => {
-                  // Safari can report Enter confirming composed text with keyCode 229.
-                  if (
-                    event.key === 'Enter' &&
-                    !event.shiftKey &&
-                    !event.nativeEvent.isComposing &&
-                    event.nativeEvent.keyCode !== 229
-                  ) {
-                    event.preventDefault();
-                    event.currentTarget.form?.requestSubmit();
-                  }
-                }}
-              />
-              <ComposerActions
-                voice={
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-lg"
-                    aria-label={
-                      transcript.phase === 'listening'
-                        ? 'Finish recording'
-                        : transcript.phase === 'ready'
-                          ? 'Send transcript'
-                          : 'Dictate'
-                    }
-                    disabled={
-                      busy || transcript.phase === 'connecting' || transcript.phase === 'finishing'
-                    }
-                    onClick={voiceAction}
-                  >
-                    <Icon
-                      name={
-                        transcript.phase === 'listening'
-                          ? 'stop'
-                          : transcript.phase === 'ready'
-                            ? 'arrow-up'
-                            : 'mic'
-                      }
-                    />
-                  </Button>
+        <Composer>
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (input.trim() && !(busy || recording)) say(input);
+            }}
+          >
+            <Textarea
+              ref={ref}
+              rows={1}
+              aria-label="Message"
+              placeholder={busy ? 'Working…' : 'Type a message…'}
+              value={input}
+              disabled={busy || recording}
+              onChange={(event) => type(event.currentTarget.value)}
+              onFocus={() => setFocused(true)}
+              onBlur={() => setFocused(false)}
+              onKeyDown={(event) => {
+                // Safari can report Enter confirming composed text with keyCode 229.
+                if (
+                  event.key === 'Enter' &&
+                  !event.shiftKey &&
+                  !event.nativeEvent.isComposing &&
+                  event.nativeEvent.keyCode !== 229
+                ) {
+                  event.preventDefault();
+                  event.currentTarget.form?.requestSubmit();
                 }
-              >
-                {busy ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon-lg"
-                    aria-label="Stop"
-                    onClick={stop}
-                  >
-                    <Icon name="stop" />
-                  </Button>
-                ) : (
-                  <Button
-                    type="submit"
-                    size="icon-lg"
-                    aria-label="Send"
-                    disabled={!input.trim() || recording}
-                  >
-                    <Icon name="arrow-up" />
-                  </Button>
-                )}
-              </ComposerActions>
-            </form>
-          </Composer>
-        </ConversationInput>
+              }}
+            />
+            <ComposerActions
+              voice={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-lg"
+                  aria-label={
+                    transcript.phase === 'listening'
+                      ? 'Finish recording'
+                      : transcript.phase === 'ready'
+                        ? 'Send transcript'
+                        : 'Dictate'
+                  }
+                  disabled={
+                    busy || transcript.phase === 'connecting' || transcript.phase === 'finishing'
+                  }
+                  onClick={voiceAction}
+                >
+                  <Icon
+                    name={
+                      transcript.phase === 'listening'
+                        ? 'stop'
+                        : transcript.phase === 'ready'
+                          ? 'arrow-up'
+                          : 'mic'
+                    }
+                  />
+                </Button>
+              }
+            >
+              {busy ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon-lg"
+                  aria-label="Stop"
+                  onClick={stop}
+                >
+                  <Icon name="stop" />
+                </Button>
+              ) : (
+                <Button
+                  type="submit"
+                  size="icon-lg"
+                  aria-label="Send"
+                  disabled={!input.trim() || recording}
+                >
+                  <Icon name="arrow-up" />
+                </Button>
+              )}
+            </ComposerActions>
+          </form>
+        </Composer>
       }
     >
       <ConversationFeed empty={!turns.length && transcript.phase === 'idle'}>
