@@ -66,9 +66,6 @@ The vault is mandatory infrastructure. It owns note parsing, `meta/schema.yaml`,
 validation, graph derivation, encryption, synchronization, and the shared staged preview. File
 selection and write checks no longer depend on which workflows are installed.
 
-Existing schemas may retain the legacy `components` list. The vault validates its names and leaves
-the file intact; the list does not enable MDX rendering or install a workflow.
-
 `Vault` exposes current files, staged paths, staging, checked commit/revert, history and patch queries.
 `liveVault()` binds once and reads the latest writer for each call; asynchronous tools do not depend on
 another view rendering. Workflows receive no backend handle or raw secrets. Bootstrap selects a

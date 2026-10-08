@@ -104,13 +104,9 @@ export function parseSchema(file: unknown): Schema {
     'circles',
     'broad',
     'predicates',
-    'components',
     'sources',
     'procedures',
   ]);
-  // Older vaults keep this MDX vocabulary. Validate it without enabling components
-  // or rewriting the vault when the installed workflows only use Markdown.
-  if (raw.components != null) names(raw.components, 'components', /^[A-Z][A-Za-z0-9]*$/);
   const types = section(raw, 'types', ['label', 'use'], term);
   const areas: Area[] = section(raw, 'areas', ['label', 'hub', 'use'], (v, at) => ({
     ...term(v, at),
