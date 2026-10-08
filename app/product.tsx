@@ -32,6 +32,7 @@ import {
   Row,
   Stack,
   Text,
+  ThemeSwitch,
   setTheme,
   useIsMobile,
 } from './ui/kit/index.ts';
@@ -40,6 +41,7 @@ import {
   ChatPage,
   ChatPanel,
   ChatIndicator,
+  ChatSettings,
   useConversation,
   openAIModel,
   type Prompt,
@@ -49,6 +51,7 @@ import './workflows/chat/rendering/prose.css';
 
 const agentRoute = pattern('/agent/');
 const historyRoute = pattern('/history/');
+const settingsRoute = pattern('/settings/');
 const renameTools = async (vault: OwnedVault) =>
   (await import('./workflows/rename-note/agent.ts')).renameTools(vault);
 
@@ -99,7 +102,8 @@ export function OpenProduct({
   };
   const onAgent = route.path === '/' || !!agentRoute.match(route.path);
   const onHistory = !!historyRoute.match(route.path);
-  const title = onAgent ? 'Agent' : onHistory ? 'History' : 'Not found';
+  const onSettings = !!settingsRoute.match(route.path);
+  const title = onAgent ? 'Agent' : onHistory ? 'History' : onSettings ? 'Settings' : 'Not found';
   const remoteModel = useMemo(
     () =>
       session.secrets?.openai
@@ -120,6 +124,7 @@ export function OpenProduct({
     ...(vault.history
       ? [{ label: 'History', href: historyRoute.href(), icon: 'history' as const }]
       : []),
+    { label: 'Settings', href: settingsRoute.href(), icon: 'settings' },
   ];
   const index = useMemo(() => noteSearchIndex(files!), [files]);
   const ask = (text?: string) => {
@@ -147,6 +152,13 @@ export function OpenProduct({
           },
         ]
       : []),
+    {
+      id: 'go.settings',
+      label: 'Settings',
+      group: 'Go to',
+      icon: 'settings',
+      run: () => go(settingsRoute.href()),
+    },
     {
       id: 'agent.ask',
       label: 'Ask the agent',
@@ -291,6 +303,15 @@ export function OpenProduct({
           <ChatPage conversation={conversation} historyHref={historyHref} />
         ) : onHistory ? (
           <HistoryPage vault={vault} />
+        ) : onSettings ? (
+          <Page>
+            <Heading level={1}>Settings</Heading>
+            <Stack gap="sm">
+              <Heading level={2}>Appearance</Heading>
+              <ThemeSwitch />
+            </Stack>
+            <ChatSettings />
+          </Page>
         ) : (
           <Page>
             <Heading level={1}>Not found</Heading>

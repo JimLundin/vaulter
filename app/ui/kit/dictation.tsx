@@ -68,13 +68,13 @@ export function DictateButton({
   useEffect(() => {
     if (disabled) recognition.current?.stop();
   }, [disabled]);
-  if (!Constructor) return null;
   return (
     <Button
       type="button"
       variant={listening ? 'secondary' : 'ghost'}
-      size="icon"
-      disabled={disabled}
+      size="icon-lg"
+      disabled={disabled || !Constructor}
+      title={!Constructor ? 'Dictation is unavailable in this browser' : undefined}
       aria-label={listening ? 'Stop dictation' : 'Dictate'}
       aria-pressed={listening}
       onClick={() => {

@@ -345,6 +345,7 @@ export { startTheme, setTheme, type Theme, ThemeSwitch, useTheme } from './theme
 export {
   Activity,
   Composer,
+  ComposerActions,
   ConversationFeed,
   ConversationSurface,
   Gate,

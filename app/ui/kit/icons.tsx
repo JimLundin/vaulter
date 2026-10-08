@@ -3,6 +3,7 @@
 import { cva } from 'class-variance-authority';
 import {
   ArrowLeft,
+  ArrowUp,
   BookOpen,
   Calendar,
   Check,
@@ -45,6 +46,7 @@ import {
 
 const ICONS = {
   'arrow-left': ArrowLeft,
+  'arrow-up': ArrowUp,
   book: BookOpen,
   calendar: Calendar,
   check: Check,

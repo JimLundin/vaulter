@@ -10,7 +10,6 @@ import {
   MobileFrame,
   Overlay,
   RoundButton,
-  Row,
   SearchButton,
   Sidebar,
   SidebarContent,
@@ -21,7 +20,6 @@ import {
   SidebarMenuItem,
   SidebarProvider,
   Text,
-  ThemeSwitch,
   Toaster,
   TooltipProvider,
   useIsMobile,
@@ -75,7 +73,13 @@ export function Frame({
       <SidebarProvider>
         <Sidebar>
           <SidebarHeader>
-            <Brand />
+            <Brand
+              status={
+                <Text size="xs" tone={failed ? 'danger' : 'subtle'}>
+                  {status}
+                </Text>
+              }
+            />
             <SearchButton label="Search or ask…" keys="⌘K" onClick={onSearch} />
           </SidebarHeader>
           <SidebarContent>
@@ -99,17 +103,11 @@ export function Frame({
           </SidebarContent>
           <SidebarFooter>
             {actions}
-            <Text size="xs" tone={failed ? 'danger' : 'subtle'}>
-              {status}
-            </Text>
-            <Row justify="between">
-              <ThemeSwitch />
-              {!!signOut && (
-                <Button variant="ghost" size="sm" onClick={() => later(signOut())}>
-                  Sign out
-                </Button>
-              )}
-            </Row>
+            {!!signOut && (
+              <Button variant="ghost" size="sm" onClick={() => later(signOut())}>
+                Sign out
+              </Button>
+            )}
           </SidebarFooter>
         </Sidebar>
         {mobile ? (

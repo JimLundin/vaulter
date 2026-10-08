@@ -110,6 +110,11 @@ suppressing later UI notifications. Separate controllers never share a global cu
 Each turn acquires vault ownership before constructing tools and holds it through streaming and
 capture. Stopping or disposing a turn expires the vault supplied to its tools, even if a tool factory
 ignores cancellation. Capture appends through `update()` so overlapping tools calculate in order.
+Product assembles the Settings route from the kit's theme control and chat's `ChatSettings` view.
+Chat owns its model preference; the controller reads it at the start of each new turn. The composer
+contains only message entry and dictation/send controls, with Enter to send and Shift+Enter for a
+new line. The kit owns their placement and keeps text clear of the controls. Sync status appears
+with the app name in the sidebar header.
 
 ## UI kit
 

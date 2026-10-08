@@ -5,6 +5,7 @@ import { type Conversation, useChat } from './conversation.ts';
 import type { Prompt } from './Chat.tsx';
 export { createConversation, useConversation } from './conversation.ts';
 export { openAIModel } from './model.ts';
+export { ChatSettings } from './settings.tsx';
 export type { Prompt } from './Chat.tsx';
 const Chat = lazy(() => import('./Chat.tsx').then((module) => ({ default: module.Chat })));
 export function ChatPanel({

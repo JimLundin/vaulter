@@ -23,6 +23,8 @@ schema; remaining legacy MDX content will be migrated after design review and me
 
 The app currently contains chat, rename-note, and history workflows. The agent reads and writes the
 vault through its permanent checks; rename stages the complete move and reference rewrites.
+Settings holds the theme and agent model preferences, saved on this device. Enter sends an agent
+message; Shift+Enter adds a new line. Dictation and send controls sit inside the message box.
 
 All code is TypeScript. Node 24 runs the scripts directly (type stripping), so only erasable syntax,
 explicit `.ts` imports and `import type` (enforced by `tsconfig.json`).

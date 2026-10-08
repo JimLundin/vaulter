@@ -476,12 +476,15 @@ export function RoundButton({
 }
 
 /** The app's mark and name, at the top of the sidebar. */
-export const Brand = () => (
+export const Brand = ({ status }: { status?: ReactNode }) => (
   <div className="flex items-center gap-2.5 px-1.5">
     <div className="flex size-[30px] items-center justify-center rounded-[9px] bg-primary text-sm font-semibold text-primary-foreground">
       V
     </div>
-    <div className="text-base font-semibold">Vaulter</div>
+    <div className="flex min-w-0 flex-col gap-0.5">
+      <div className="text-base font-semibold">Vaulter</div>
+      {status}
+    </div>
   </div>
 );
 

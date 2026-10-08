@@ -146,10 +146,16 @@ export function Json({ value }: { value: unknown }) {
 }
 export function Composer({ children }: { children: ReactNode }) {
   return (
-    <div className="mt-3 shrink-0 rounded-2xl border bg-background p-3 shadow-xs [&_textarea]:min-h-20 [&_textarea]:resize-none [&_textarea]:border-0 [&_textarea]:shadow-none [&_textarea]:focus-visible:ring-0 [&_input]:w-32">
+    <fieldset
+      aria-label="Message composer"
+      className="relative mt-3 min-w-0 shrink-0 rounded-2xl border bg-background p-1 shadow-xs focus-within:ring-2 focus-within:ring-ring/50 [&_textarea]:max-h-64 [&_textarea]:min-h-32 [&_textarea]:resize-none [&_textarea]:rounded-xl [&_textarea]:border-0 [&_textarea]:bg-transparent [&_textarea]:px-3 [&_textarea]:pt-3 [&_textarea]:pb-16 [&_textarea]:shadow-none [&_textarea]:focus-visible:ring-0"
+    >
       {children}
-    </div>
+    </fieldset>
   );
+}
+export function ComposerActions({ children }: { children: ReactNode }) {
+  return <div className="absolute right-2 bottom-2 flex items-center gap-1">{children}</div>;
 }
 export function SidePanel({
   title,

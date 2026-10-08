@@ -1,16 +1,15 @@
 // Chat behaviour composes the public kit; presentation and styling stay in the kit.
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Button,
   CodeDiff,
   Composer,
+  ComposerActions,
   ConversationFeed,
   ConversationSurface,
   Heading,
   Icon,
-  Input,
   Json,
-  Label,
   Link,
   Markdown,
   Message,
@@ -27,7 +26,6 @@ import { link } from '../../ui/routing.ts';
 import { later } from '../../ui/later.ts';
 import { renderBody } from './rendering/markdown.ts';
 import { type Conversation, type Part, type Turn, useChat } from './conversation.ts';
-import { MODEL_KEY, model } from './model.ts';
 
 export interface Prompt {
   text: string;
@@ -148,44 +146,44 @@ export function Chat({
             if (input.trim() && !busy) say(input);
           }}
         >
-          <Stack gap="sm">
-            <Textarea
-              ref={ref}
-              aria-label="Message"
-              placeholder={busy ? 'Working…' : 'Say what to file, or ask…'}
-              value={input}
-              disabled={busy}
-              onChange={(event) => type(event.currentTarget.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
-                  event.preventDefault();
-                  event.currentTarget.form?.requestSubmit();
-                }
-              }}
-            />
-            <Row justify="between">
-              <Model />
-              <Row>
-                <DictateButton textareaRef={ref} onText={type} disabled={busy} />
-                {busy ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    aria-label="Stop"
-                    onClick={stop}
-                  >
-                    <Icon name="stop" />
-                  </Button>
-                ) : (
-                  <Button type="submit" disabled={!input.trim()}>
-                    <Icon name="sparkles" />
-                    Send
-                  </Button>
-                )}
-              </Row>
-            </Row>
-          </Stack>
+          <Textarea
+            ref={ref}
+            aria-label="Message"
+            placeholder={busy ? 'Working…' : 'Say what to file, or ask…'}
+            value={input}
+            disabled={busy}
+            onChange={(event) => type(event.currentTarget.value)}
+            onKeyDown={(event) => {
+              // Safari can report Enter confirming composed text with keyCode 229.
+              if (
+                event.key === 'Enter' &&
+                !event.shiftKey &&
+                !event.nativeEvent.isComposing &&
+                event.nativeEvent.keyCode !== 229
+              ) {
+                event.preventDefault();
+                event.currentTarget.form?.requestSubmit();
+              }
+            }}
+          />
+          <ComposerActions>
+            <DictateButton textareaRef={ref} onText={type} disabled={busy} />
+            {busy ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="icon-lg"
+                aria-label="Stop"
+                onClick={stop}
+              >
+                <Icon name="stop" />
+              </Button>
+            ) : (
+              <Button type="submit" size="icon-lg" aria-label="Send" disabled={!input.trim()}>
+                <Icon name="arrow-up" />
+              </Button>
+            )}
+          </ComposerActions>
         </form>
       </Composer>
       <Overlay
@@ -230,28 +228,6 @@ export function Chat({
         </Stack>
       </Overlay>
     </ConversationSurface>
-  );
-}
-function Model() {
-  const id = useId();
-  const [value, setValue] = useState(model);
-  return (
-    <Stack gap="xs">
-      <Label htmlFor={id}>
-        <Text as="span" size="xs" tone="subtle">
-          Model
-        </Text>
-      </Label>
-      <Input
-        id={id}
-        aria-label="Model"
-        value={value}
-        onChange={(event) => {
-          setValue(event.currentTarget.value);
-          localStorage.setItem(MODEL_KEY, event.currentTarget.value);
-        }}
-      />
-    </Stack>
   );
 }
 function Said({ text }: { text: string }) {
