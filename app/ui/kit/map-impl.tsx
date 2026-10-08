@@ -90,13 +90,19 @@ function addMarkers(
     el.type = 'button';
     el.title = p.label;
     el.setAttribute('aria-label', p.label);
+    el.setAttribute('data-touch-target', '');
     el.className = cn(
-      'flex cursor-pointer items-center justify-center rounded-full border-0 font-sans font-semibold shadow-md ring-2 ring-background',
+      'flex cursor-pointer items-center justify-center border-0 bg-transparent p-0 outline-none focus-visible:ring-2 focus-visible:ring-ring',
+    );
+    const mark = document.createElement('span');
+    mark.className = cn(
+      'flex items-center justify-center rounded-full font-sans font-semibold shadow-md ring-2 ring-background',
       p.n === undefined ? 'size-3.5' : 'size-7 text-xs',
       tone[p.tone ?? 'neutral'],
       selected === p.id && 'ring-4 ring-ring',
     );
-    if (p.n !== undefined) el.textContent = String(p.n);
+    if (p.n !== undefined) mark.textContent = String(p.n);
+    el.append(mark);
     el.addEventListener('click', (e) => {
       e.stopPropagation();
       onSelect(p.id);

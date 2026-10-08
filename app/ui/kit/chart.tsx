@@ -1,7 +1,7 @@
 // Charts: one series each, drawn the same way everywhere (thin marks, the current period in the accent
 // and the rest a step quieter, one label where the story is, a tooltip on every mark, and a table for
 // screen readers). What an extension charts is its own; how it looks is the kit's.
-import { type PointerEvent, useState } from 'react';
+import { type CSSProperties, type PointerEvent, useState } from 'react';
 import { cn } from './lib/utils.ts';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './parts/tooltip.tsx';
 
@@ -47,51 +47,56 @@ export function Bars({ data, label, unit, highlight = data.length - 1, size = 's
   return (
     <TooltipProvider delayDuration={0}>
       <figure aria-label={label} className="m-0 flex flex-col gap-1.5">
-        <div
-          className={cn(
-            'flex items-end gap-0.5 border-b border-border',
-            size === 'sm' ? 'h-24' : 'h-40',
-          )}
-        >
-          {data.map((d, i) => (
-            <Tooltip key={d.label}>
-              <TooltipTrigger asChild={true}>
-                <button
-                  type="button"
-                  aria-label={`${d.label}: ${said(d.value)}`}
-                  className="flex h-full min-w-0 flex-1 cursor-default flex-col items-center justify-end gap-1 border-0 bg-transparent p-0 outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-                >
-                  {i === highlight ? (
-                    <span className="text-caption font-medium text-foreground tabular-nums">
-                      {number(d.value)}
-                    </span>
-                  ) : null}
-                  <span
-                    className={cn(
-                      'w-full max-w-6 rounded-t-[4px]',
-                      i === highlight ? 'bg-chart-accent' : 'bg-chart-muted',
-                    )}
-                    style={{
-                      height: d.value > 0 ? `max(2px, ${(d.value / max) * 82}%)` : 0,
-                    }}
-                  />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <span className="font-semibold">{said(d.value)}</span> · {d.label}
-              </TooltipContent>
-            </Tooltip>
-          ))}
-        </div>
-        <div className="flex gap-0.5" aria-hidden={true}>
-          {data.map((d, i) => (
-            <span
-              key={d.label}
-              className="min-w-0 flex-1 truncate text-center text-caption text-muted-foreground"
+        <div className="overflow-x-auto">
+          <div data-chart-columns="" style={{ '--chart-count': data.length } as CSSProperties}>
+            <div
+              className={cn(
+                'flex items-end gap-0.5 border-b border-border',
+                size === 'sm' ? 'h-24' : 'h-40',
+              )}
             >
-              {shown(i) ? d.label : ''}
-            </span>
-          ))}
+              {data.map((d, i) => (
+                <Tooltip key={d.label}>
+                  <TooltipTrigger asChild={true}>
+                    <button
+                      data-touch-target=""
+                      type="button"
+                      aria-label={`${d.label}: ${said(d.value)}`}
+                      className="flex h-full min-w-0 flex-1 cursor-default flex-col items-center justify-end gap-1 border-0 bg-transparent p-0 outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                    >
+                      {i === highlight ? (
+                        <span className="text-caption font-medium text-foreground tabular-nums">
+                          {number(d.value)}
+                        </span>
+                      ) : null}
+                      <span
+                        className={cn(
+                          'w-full max-w-6 rounded-t-[4px]',
+                          i === highlight ? 'bg-chart-accent' : 'bg-chart-muted',
+                        )}
+                        style={{
+                          height: d.value > 0 ? `max(2px, ${(d.value / max) * 82}%)` : 0,
+                        }}
+                      />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <span className="font-semibold">{said(d.value)}</span> · {d.label}
+                  </TooltipContent>
+                </Tooltip>
+              ))}
+            </div>
+            <div className="flex gap-0.5" aria-hidden={true}>
+              {data.map((d, i) => (
+                <span
+                  key={d.label}
+                  className="min-w-0 flex-1 truncate text-center text-caption text-muted-foreground"
+                >
+                  {shown(i) ? d.label : ''}
+                </span>
+              ))}
+            </div>
+          </div>
         </div>
         <Table caption={label} rows={data.map((d) => [d.label, said(d.value)])} />
       </figure>

@@ -38,6 +38,7 @@ import {
   ThemeSwitch,
   setTheme,
   useIsMobile,
+  useLayout,
 } from './ui/kit/index.ts';
 import type { Command, Navigation } from './ui/command.ts';
 import {
@@ -102,11 +103,11 @@ export function OpenProduct({
   const { vault, files, status } = session;
   const route = useRoute();
   const mobile = useIsMobile();
+  const layout = useLayout();
   const [search, setSearch] = useState(false);
   const [help, setHelp] = useState(false);
   const [panel, setPanel] = useState(
-    () =>
-      matchMedia('(min-width: 1280px)').matches && localStorage.getItem('vault-panel') === 'agent',
+    () => layout === 'wide' && localStorage.getItem('vault-panel') === 'agent',
   );
   const [prompt, setPrompt] = useState<Prompt | null>(null);
   const showPanel = (open: boolean) => {
@@ -389,7 +390,6 @@ export function OpenProduct({
       <Search commands={commands} index={index} open={search} setSearch={setSearch} onAsk={ask} />
       <Previews index={index} />
       <Overlay
-        mobile={mobile}
         open={help}
         onClose={() => setHelp(false)}
         title="Keyboard shortcuts"

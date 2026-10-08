@@ -23,7 +23,6 @@ import {
   Text,
   Textarea,
   ToolResult,
-  useIsMobile,
 } from '../../ui/kit/index.ts';
 import { link } from '../../ui/routing.ts';
 import { later } from '../../ui/later.ts';
@@ -61,7 +60,6 @@ export function Chat({
     text: string;
     files: ReturnType<Conversation['stagedChanges']>;
   } | null>(null);
-  const mobile = useIsMobile();
   const ref = useRef<HTMLTextAreaElement>(null);
   const type = useCallback(
     (text: string) => {
@@ -196,8 +194,8 @@ export function Chat({
                   }
                 }}
               />
-              <ComposerActions>
-                {!mobile && (
+              <ComposerActions
+                voice={
                   <Button
                     type="button"
                     variant="ghost"
@@ -224,7 +222,8 @@ export function Chat({
                       }
                     />
                   </Button>
-                )}
+                }
+              >
                 {busy ? (
                   <Button
                     type="button"
@@ -254,12 +253,8 @@ export function Chat({
       <ConversationFeed empty={!turns.length && transcript.phase === 'idle'}>
         {!turns.length && transcript.phase === 'idle' && (
           <ConversationWelcome
-            title={mobile ? 'What’s on your mind?' : 'What would you like to remember?'}
-            description={
-              mobile
-                ? 'Tap the microphone and speak. Your words appear here as you go.'
-                : 'Speak to the agent, or type what to file and ask what your vault knows.'
-            }
+            title="What’s on your mind?"
+            description="Speak to the agent, or type what to file and ask what your vault knows."
           />
         )}
         {turns.map((turn, i) => (
@@ -292,7 +287,6 @@ export function Chat({
       </ConversationFeed>
 
       <Overlay
-        mobile={mobile}
         open={!!review}
         onClose={() => setReview(null)}
         title="Review pending changes"

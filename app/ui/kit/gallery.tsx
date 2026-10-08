@@ -206,7 +206,7 @@ function Gallery() {
           <ToggleGroupItem value="ask">Ask me</ToggleGroupItem>
         </ToggleGroup>
         <Row gap="sm">
-          <Checkbox defaultChecked={true} />
+          <Checkbox aria-label="Allow this network access" defaultChecked={true} />
           <Text as="span" size="sm">
             Allow this network access
           </Text>

@@ -5,6 +5,14 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* The only size thresholds. React reads these emitted tokens, and Tailwind uses them directly. */
+@theme static {
+  --breakpoint-*: initial;
+  --breakpoint-md: 48rem;
+  --breakpoint-sm: 48rem;
+  --breakpoint-xl: 80rem;
+}
+
 :root {
   /* Radius roles: rounded-md (8) controls, rounded-lg (10) fields, rounded-xl (12) cards and rows,
    * rounded-2xl (14) docked surfaces such as the composer. The same on every device. */
@@ -78,13 +86,33 @@
   --type-copy: 0.9375rem; /* 15: body text */
   --type-label: 0.8125rem; /* 13: secondary text, list rows, suggestions */
   --type-caption: 0.75rem; /* 12: metadata, hints, speaker names */
+  --type-control: 0.875rem;
+  --type-input: 0.875rem;
+  --type-glyph: 0.6875rem; /* Small counts, keycaps and citation marks. */
+  --target-touch: 2.75rem;
+  --page-inset: 1rem;
+  --page-block: 1rem;
+  --composer-height: 7rem;
+  --composer-clearance: 3.5rem;
 }
 
-@media (min-width: 768px) {
+/* biome-ignore lint/correctness/noUnknownFunction: Tailwind resolves its theme function at build time. */
+@media (width >= theme(--breakpoint-md)) {
   :root {
     --type-display: 2.5rem;
     --type-title: 1.625rem;
     --type-lead: 1.1875rem;
+    --page-inset: 3rem;
+    --page-block: 2.25rem;
+    --composer-height: 8rem;
+    --composer-clearance: 4rem;
+  }
+}
+
+@media (any-pointer: coarse) {
+  :root {
+    /* 16px also prevents mobile browsers zooming the viewport when an input gets focus. */
+    --type-input: 1rem;
   }
 }
 
@@ -115,6 +143,11 @@
   --text-label--line-height: 1.45;
   --text-caption: var(--type-caption);
   --text-caption--line-height: 1.35;
+  --text-control: var(--type-control);
+  --text-sm: var(--type-control);
+  --text-xs: var(--type-caption);
+  --text-field: var(--type-input);
+  --text-glyph: var(--type-glyph);
 
   --radius-sm: calc(var(--radius) - 6px);
   --radius-md: calc(var(--radius) - 4px);
@@ -173,6 +206,58 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+}
+
+/* Every standalone control gets the same touch target, including small buttons on a touch desktop.
+ * Visual marks (checkboxes, icons) can remain small inside that target. Inline prose links and
+ * citations keep the text's line box; they aren't standalone controls. */
+@layer components {
+  @media (any-pointer: coarse) {
+    [data-chart-columns] {
+      min-width: calc(var(--chart-count) * 2.875rem);
+    }
+    :where(
+        [data-touch-target],
+        [data-slot="button"],
+        [data-slot="checkbox"],
+        [data-slot="input"],
+        [data-slot="textarea"],
+        [data-slot="input-group"],
+        [data-slot="input-group-control"],
+        [data-slot="tabs-trigger"],
+        [data-slot="toggle"],
+        [data-slot="toggle-group-item"],
+        [data-slot="command-input-wrapper"],
+        [data-slot="command-input"],
+        [data-slot="command-item"],
+        [data-slot="dropdown-menu-item"],
+        [data-slot="dropdown-menu-checkbox-item"],
+        [data-slot="dropdown-menu-radio-item"],
+        [data-slot="dropdown-menu-sub-trigger"],
+        [data-slot="dialog-close"],
+        [data-slot="sheet-close"],
+        [data-slot="sidebar-menu-button"],
+        [data-slot="sidebar-menu-sub-button"],
+        [data-slot="sidebar-menu-action"],
+        [data-slot="sidebar-group-action"]
+      ) {
+      min-width: var(--target-touch) !important;
+      min-height: var(--target-touch) !important;
+    }
+    [data-slot="tabs"][data-orientation="horizontal"] [data-slot="tabs-list"] {
+      min-height: calc(var(--target-touch) + 6px) !important;
+    }
+    [data-slot="dialog-close"],
+    [data-slot="sheet-close"] {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .maplibregl-ctrl-group button {
+      width: var(--target-touch);
+      height: var(--target-touch);
+    }
+  }
 }
 
 @layer base {

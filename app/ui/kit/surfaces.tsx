@@ -33,6 +33,7 @@ export function PreviewBar({
       </span>
       <div className="flex shrink-0 items-center gap-1">
         <a
+          data-touch-target=""
           href={kitHref}
           aria-label="Component kit"
           className="flex min-h-9 items-center gap-1 px-2 text-xs text-link hover:underline"
@@ -75,7 +76,10 @@ export function ToolResult({
 }) {
   return (
     <details className="overflow-hidden rounded-xl border bg-surface text-label">
-      <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2.5">
+      <summary
+        data-touch-target=""
+        className="flex cursor-pointer list-none items-center gap-2 px-3 py-2.5"
+      >
         <Icon name={error ? 'warning' : status ? 'check' : 'clock'} size="sm" />
         <span className="min-w-0 flex-1 truncate font-medium">{title}</span>
         {!!status && (

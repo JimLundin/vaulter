@@ -106,7 +106,7 @@
   },
   "overrides": [
     {
-      "includes": ["tools/**", "**/vite.config.ts"],
+      "includes": ["tools/**", "**/vite.config.ts", "playwright.config.ts"],
       "linter": {
         "rules": {
           "correctness": {
@@ -120,6 +120,14 @@
           "suspicious": {
             "noConsole": "off"
           }
+        }
+      }
+    },
+    {
+      "includes": ["tools/browser/**"],
+      "linter": {
+        "rules": {
+          "performance": { "noAwaitInLoops": "off" }
         }
       }
     },

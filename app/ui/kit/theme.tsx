@@ -98,6 +98,7 @@ export function ThemeSwitch() {
     >
       {CHOICES.map(([value, icon, label]) => (
         <RadioGroup.Item
+          data-touch-target=""
           key={value}
           value={value}
           aria-label={label}

@@ -27,6 +27,9 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
+      - name: Install browser for UI checks
+        run: npx playwright install --with-deps chromium
+      - run: npm run test:ui
 
   deploy:
     needs: test

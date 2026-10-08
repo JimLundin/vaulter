@@ -9,23 +9,10 @@ import {
   Text,
   Toaster,
   TooltipProvider,
-  useIsMobile,
 } from './kit/index.ts';
-import { useEffect, useState } from 'react';
 import type { Navigation } from './command.ts';
 import { link, useRoute } from './routing.ts';
 import { later } from './later.ts';
-
-export function useMedia(query: string) {
-  const [matches, setMatches] = useState(() => matchMedia(query).matches);
-  useEffect(() => {
-    const media = matchMedia(query);
-    const changed = () => setMatches(media.matches);
-    media.addEventListener('change', changed);
-    return () => media.removeEventListener('change', changed);
-  }, [query]);
-  return matches;
-}
 
 export function Frame({
   navigation,
@@ -49,8 +36,6 @@ export function Frame({
   closePanel: () => void;
   children: ReactNode;
 }) {
-  const mobile = useIsMobile();
-  const wide = useMedia('(min-width: 1280px)');
   const route = useRoute();
   const current = (href: string) =>
     route.path === href || (route.path === '/' && href === '/agent/');
@@ -74,11 +59,7 @@ export function Frame({
         primary={primary}
         footer={
           !!signOut && (
-            <Button
-              variant="ghost"
-              size={mobile ? 'default' : 'sm'}
-              onClick={() => later(signOut())}
-            >
+            <Button variant="ghost" size="sm" onClick={() => later(signOut())}>
               Sign out
             </Button>
           )
@@ -91,7 +72,7 @@ export function Frame({
           </>
         }
         aside={
-          <ConversationPanel mobile={mobile} wide={wide} open={!!panel} onClose={closePanel}>
+          <ConversationPanel open={!!panel} onClose={closePanel}>
             {panel}
           </ConversationPanel>
         }

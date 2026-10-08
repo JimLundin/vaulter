@@ -317,7 +317,6 @@ export {
   NavigationSheet,
   WorkspaceFrame,
   Notice,
-  Overlay,
   Page,
   PageHeader,
   Panel,
@@ -341,6 +340,7 @@ export {
 export { Bars, type BarsProps, Sparkline, type SparklineProps } from './chart.tsx';
 export { CodeDiff, type CodeDiffProps } from './diff.tsx';
 export { useIsMobile } from './hooks/use-mobile.ts';
+export { useLayout, type SizeClass } from './hooks/use-layout.ts';
 export { Icon, type IconName, type IconProps, iconNames } from './icons.tsx';
 export type { Unstyled } from './lib/unstyled.tsx';
 export { type LatLon, type MapPoint, type MapRoute, MapView, type MapViewProps } from './map.tsx';
@@ -378,3 +378,4 @@ export {
   type NavigationAction,
   type NavigationDestination,
 } from './navigation.tsx';
+export { Overlay } from './overlay.tsx';

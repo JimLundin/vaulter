@@ -20,7 +20,6 @@ import {
   SearchSurface,
   Row,
   Text,
-  useIsMobile,
 } from './kit/index.ts';
 
 export function Keys({ keys }: { keys: string }) {
@@ -50,7 +49,6 @@ export function Search({
   onAsk?: (text: string) => void;
 }) {
   const route = useRoute();
-  const mobile = useIsMobile();
 
   const [q, setQ] = useState('');
   const query = q.trim();
@@ -139,7 +137,7 @@ export function Search({
                   <CommandItem key={c.id} value={`cmd ${c.id}`} onSelect={() => run(c)}>
                     {!!c.icon && <Icon name={c.icon} />}
                     {c.label}
-                    {!!c.keys && !mobile && (
+                    {!!c.keys && (
                       <CommandShortcut>
                         <Keys keys={c.keys} />
                       </CommandShortcut>

@@ -1,13 +1,21 @@
 // A single conversation state can be presented as a phone screen or a desktop reading column.
-import { createContext, type ReactNode, useContext } from 'react';
+import {
+  createContext,
+  type ReactNode,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+} from 'react';
+import { FocusScope } from '@radix-ui/react-focus-scope';
+import { hideOthers } from 'aria-hidden';
 import { StickToBottom, useStickToBottomContext } from 'use-stick-to-bottom';
 import { Button } from './parts/button.tsx';
-import { Dialog, DialogContent, DialogTitle } from './parts/dialog.tsx';
 import { Icon } from './icons.tsx';
 import { cn } from './lib/utils.ts';
 import { useIsMobile } from './hooks/use-mobile.ts';
-import { Overlay } from './app.tsx';
-import { SidePanel } from './surfaces.tsx';
+import { useLayout } from './hooks/use-layout.ts';
+import { useRestoreFocus } from './hooks/use-restore-focus.ts';
 
 // Layout can change without moving conversation state into either device's presentation.
 const ConversationPresentation = createContext<{ page: boolean; close?: () => void }>({
@@ -102,7 +110,7 @@ function DesktopConversationToolbar({ historyHref, onNewChat, busy }: Conversati
   const { page, close } = useContext(ConversationPresentation);
   return (
     <header className="flex shrink-0 items-center justify-between gap-3">
-      {!!page && (
+      {!!(page || close) && (
         <div className="flex flex-col gap-1">
           <h2 className="m-0 text-copy font-semibold">Agent</h2>
           <p className="m-0 text-label text-subtle-foreground">Your vault, in conversation</p>
@@ -121,6 +129,11 @@ function DesktopConversationToolbar({ historyHref, onNewChat, busy }: Conversati
           <Icon name="plus" />
           New chat
         </Button>
+        {!!close && (
+          <Button variant="ghost" size="icon-sm" aria-label="Close panel" onClick={close}>
+            <Icon name="close" />
+          </Button>
+        )}
       </div>
     </header>
   );
@@ -148,7 +161,10 @@ export function ConversationSurface({
     <section
       aria-label="Conversation"
       data-layout={mobile ? 'mobile-conversation' : 'desktop-conversation'}
-      className={cn('flex min-h-0 min-w-0 flex-1 flex-col', !mobile && page && 'px-12 pt-9 pb-4')}
+      className={cn(
+        'flex min-h-0 min-w-0 flex-1 flex-col',
+        !mobile && page && 'px-[var(--page-inset)] pt-[var(--page-block)] pb-4',
+      )}
     >
       <div
         className={cn(
@@ -237,7 +253,7 @@ export function Message({ user, children }: { user?: boolean; children: ReactNod
       <div
         className={cn(
           user ? 'whitespace-pre-wrap bg-muted text-body' : 'flex min-w-0 flex-col gap-3',
-          user && (mobile ? 'rounded-xl px-3 py-2.5 text-copy' : 'mt-1 rounded-2xl px-4 py-3'),
+          user && (mobile ? 'rounded-2xl px-3 py-2.5 text-copy' : 'mt-1 rounded-2xl px-4 py-3'),
         )}
       >
         {children}
@@ -249,74 +265,99 @@ export function Markdown({ children }: { children: ReactNode }) {
   return <div className="prose font-serif text-lead">{children}</div>;
 }
 export function Composer({ children }: { children: ReactNode }) {
-  const mobile = useIsMobile();
   return (
     <fieldset
       aria-label="Message composer"
       className={cn(
         'relative min-w-0 shrink-0 border bg-background p-1 shadow-xs focus-within:ring-2 focus-within:ring-ring/50 [&_textarea]:max-h-64 [&_textarea]:resize-none [&_textarea]:border-0 [&_textarea]:bg-transparent [&_textarea]:px-3 [&_textarea]:pt-3 [&_textarea]:placeholder:text-subtle-foreground [&_textarea]:placeholder:text-sm [&_textarea]:shadow-none [&_textarea]:focus-visible:ring-0',
         'rounded-2xl [&_textarea]:rounded-xl',
-        // The bottom padding clears the actions' row: 44px touch buttons on a phone.
-        mobile
-          ? '[&_textarea]:min-h-28 [&_textarea]:pb-14'
-          : '[&_textarea]:min-h-32 [&_textarea]:pb-16',
+        '[&_textarea]:min-h-[var(--composer-height)] [&_textarea]:pb-[var(--composer-clearance)]',
       )}
     >
       {children}
     </fieldset>
   );
 }
-export function ComposerActions({ children }: { children: ReactNode }) {
-  return <div className="absolute right-2 bottom-2 flex items-center gap-1">{children}</div>;
+export function ComposerActions({ voice, children }: { voice?: ReactNode; children: ReactNode }) {
+  return (
+    <div className="absolute right-2 bottom-2 flex items-center gap-1">
+      <div className="hidden md:contents">{voice}</div>
+      {children}
+    </div>
+  );
 }
 /** An agent sheet on phones, a reading panel or dialog on desktop. */
 export function ConversationPanel({
-  mobile,
-  wide,
   open,
   onClose,
   children,
 }: {
-  mobile: boolean;
-  wide: boolean;
   open: boolean;
   onClose: () => void;
   children?: ReactNode;
 }) {
-  if (mobile)
-    return (
-      <Dialog
-        open={open}
-        onOpenChange={(next) => {
-          if (!next) onClose();
-        }}
-      >
-        <DialogContent
-          showCloseButton={false}
-          aria-describedby={undefined}
-          className="inset-0 flex h-dvh max-h-none w-full max-w-none translate-x-0 translate-y-0 flex-col gap-0 rounded-none border-0 p-0 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] sm:max-w-none"
+  const layout = useLayout();
+  const mobile = layout === 'compact';
+  const wide = layout === 'wide';
+  const ref = useRef<HTMLDivElement>(null);
+  const restoreFocus = useRestoreFocus(open);
+  useEffect(() => {
+    if (!open) return;
+    const dismissOnEscape = (event: KeyboardEvent) => {
+      if (
+        event.key === 'Escape' &&
+        !event.defaultPrevented &&
+        !document.querySelector('[data-slot="dialog-content"], [data-slot="drawer-content"]')
+      )
+        onClose();
+    };
+    document.addEventListener('keydown', dismissOnEscape);
+    return () => document.removeEventListener('keydown', dismissOnEscape);
+  }, [open, onClose]);
+  useEffect(() => {
+    if (!open || wide || !ref.current) return;
+    const restoreAria = hideOthers(ref.current);
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    if (!ref.current.contains(document.activeElement))
+      ref.current.querySelector<HTMLElement>('button, a, textarea')?.focus();
+    return () => {
+      restoreAria();
+      document.body.style.overflow = previous;
+    };
+  }, [open, wide]);
+  if (!open) return null;
+  return (
+    <>
+      {!wide && (
+        <div
+          aria-hidden={true}
+          onPointerDown={onClose}
+          className="fixed inset-0 z-40 bg-black/50"
+        />
+      )}
+      <FocusScope asChild={true} trapped={!wide} loop={!wide} onUnmountAutoFocus={restoreFocus}>
+        {/* biome-ignore lint/a11y/useAriaPropsSupportedByRole: role and modal semantics adapt together; both roles support a label. */}
+        <div
+          ref={ref}
+          role={wide ? 'complementary' : 'dialog'}
+          aria-label="Agent"
+          aria-modal={wide ? undefined : true}
+          className={cn(
+            'flex min-h-0 flex-col bg-background outline-none',
+            wide
+              ? 'h-dvh w-[26rem] shrink-0 gap-3 border-l p-5'
+              : mobile
+                ? 'fixed inset-x-0 top-[var(--viewport-top,0px)] z-50 h-[var(--viewport-height,100dvh)] pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]'
+                : 'fixed top-1/2 left-1/2 z-50 h-[80dvh] max-h-[90dvh] w-[min(32rem,calc(100%-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-lg border p-5 shadow-lg',
+          )}
         >
-          <DialogTitle className="sr-only">Ask the agent</DialogTitle>
           <ConversationPresentation.Provider value={{ page: false, close: onClose }}>
             {children}
           </ConversationPresentation.Provider>
-        </DialogContent>
-      </Dialog>
-    );
-  if (wide)
-    return open ? (
-      <SidePanel title="Agent" onClose={onClose}>
-        <ConversationPresentation.Provider value={{ page: false, close: onClose }}>
-          {children}
-        </ConversationPresentation.Provider>
-      </SidePanel>
-    ) : null;
-  return (
-    <Overlay mobile={false} open={open} onClose={onClose} title="Ask the agent" tall={true}>
-      <ConversationPresentation.Provider value={{ page: false, close: onClose }}>
-        {children}
-      </ConversationPresentation.Provider>
-    </Overlay>
+        </div>
+      </FocusScope>
+    </>
   );
 }
 
@@ -412,7 +453,7 @@ export function VoiceTranscript({
       <p
         aria-live="polite"
         aria-atomic={false}
-        className="m-0 whitespace-pre-wrap break-words text-[22px] leading-[1.5] font-medium tracking-tight"
+        className="m-0 whitespace-pre-wrap break-words text-title leading-relaxed font-medium tracking-tight"
       >
         {text || (phase === 'connecting' ? 'Getting ready…' : 'Start speaking…')}
         {phase === 'listening' && (
@@ -423,7 +464,7 @@ export function VoiceTranscript({
         )}
       </p>
       {!!error && (
-        <p role="alert" className="m-0 text-[13px] leading-relaxed text-destructive">
+        <p role="alert" className="m-0 text-label leading-relaxed text-destructive">
           {error}
         </p>
       )}
@@ -439,7 +480,7 @@ export function VoiceTranscript({
         </div>
       )}
       {phase === 'ready' && (
-        <p className="m-0 text-[13px] text-muted-foreground">
+        <p className="m-0 text-label text-muted-foreground">
           Tap the arrow to send, or edit your words first.
         </p>
       )}
@@ -458,15 +499,16 @@ export function PromptSuggestions({
   if (!suggestions.length) return null;
   return (
     <section aria-label="Suggested prompts" className="mb-4 flex flex-col gap-2">
-      <h3 className="m-0 text-[11px] font-medium text-subtle-foreground">Ideas to explore</h3>
+      <h3 className="m-0 text-caption font-medium text-subtle-foreground">Ideas to explore</h3>
       <div className={mobile ? 'flex gap-2 overflow-x-auto pb-1' : 'flex flex-wrap gap-2'}>
         {suggestions.map((suggestion) => (
           <button
             key={suggestion}
             type="button"
+            data-touch-target=""
             onClick={() => onSelect(suggestion)}
             className={cn(
-              'border bg-background px-3 py-2 text-left text-[13px] leading-snug text-muted-foreground hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring',
+              'border bg-background px-3 py-2 text-left text-label leading-snug text-muted-foreground hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring',
               mobile ? 'min-h-16 w-52 shrink-0 rounded-lg' : 'max-w-64 rounded-lg',
             )}
           >
@@ -491,8 +533,12 @@ export function ConversationInput({
   children: ReactNode;
 }) {
   const mobile = useIsMobile();
+  const composer = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    if (open) composer.current?.querySelector<HTMLTextAreaElement>('textarea')?.focus();
+  }, [open]);
   return (
-    <div>
+    <div ref={composer}>
       {mobile && (
         <div className="flex min-h-11 items-center justify-start">
           <Button variant="ghost" size="sm" onClick={open ? onClose : onOpen}>

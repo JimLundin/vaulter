@@ -11,7 +11,6 @@ import {
   Stack,
   Text,
   UnifiedDiff,
-  useIsMobile,
   toast,
 } from '../../ui/kit/index.ts';
 import { type Vault, Conflict, CheckFailed } from '../../vault/index.ts';
@@ -23,7 +22,6 @@ export function HistoryPage({ vault }: { vault: Vault }) {
   const [error, setError] = useState('');
   const [confirm, setConfirm] = useState<Commit | null>(null);
   const [busy, setBusy] = useState(false);
-  const mobile = useIsMobile();
   useEffect(() => {
     let active = true;
     vault.history?.().then(
@@ -109,7 +107,6 @@ export function HistoryPage({ vault }: { vault: Vault }) {
         </Stack>
       )}
       <Overlay
-        mobile={mobile}
         open={!!confirm}
         onClose={() => {
           if (!busy) setConfirm(null);

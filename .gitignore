@@ -9,3 +9,5 @@ app/public/secrets.json
 .env.*
 # Claude Code's own worktrees and settings, never the app's.
 .claude/
+test-results/
+playwright-report/

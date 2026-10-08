@@ -59,3 +59,27 @@ test('compiler-resolved aliases, dynamic imports and re-exports cannot hide a wo
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test('workflow screens cannot choose a device layout or query a viewport', () => {
+  const root = mkdtempSync(join(tmpdir(), 'vaulter-presentation-policy-'));
+  try {
+    mkdirSync(join(root, 'app/workflows/example'), { recursive: true });
+    writeFileSync(
+      join(root, 'tsconfig.json'),
+      JSON.stringify({
+        compilerOptions: { module: 'ESNext', moduleResolution: 'Bundler' },
+        include: ['app'],
+      }),
+    );
+    writeFileSync(
+      join(root, 'app/workflows/example/view.ts'),
+      "import { useLayout as size } from 'kit'; export const layout = size(); export const wide = window.matchMedia('(min-width: 1000px)');",
+    );
+    expect(checkLayout(root)).toEqual([
+      'app/workflows/example/view.ts: size-dependent presentation belongs in the kit',
+      'app/workflows/example/view.ts: viewport queries belong in the kit',
+    ]);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});

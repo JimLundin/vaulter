@@ -86,7 +86,17 @@ export function NavigationSuite({
   useEffect(() => {
     if (!compact) setMenu(false);
   }, [compact]);
-  const onAction = actions.some((action) => action.current);
+  // The footer stays finite as features grow. Further linked actions remain available in the menu.
+  const barActions = actions.slice(0, 3);
+  const menuEntries = [
+    ...destinations,
+    ...actions
+      .slice(3)
+      .flatMap((action) =>
+        action.href ? [{ ...action, href: action.href, current: !!action.current }] : [],
+      ),
+  ];
+  const onAction = barActions.some((action) => action.current);
 
   return (
     <SidebarProvider>
@@ -95,14 +105,41 @@ export function NavigationSuite({
           open={menu}
           onClose={() => setMenu(false)}
           brand={<Brand status={status} />}
-          entries={destinations.map((entry) => ({ ...entry, active: entry.current }))}
-          footer={footer}
+          entries={menuEntries.map((entry) => ({ ...entry, active: entry.current }))}
+          footer={
+            <>
+              {actions
+                .slice(3)
+                .filter((action) => !action.href)
+                .map((action) => (
+                  <button
+                    type="button"
+                    data-touch-target=""
+                    key={action.label}
+                    onClick={() => {
+                      setMenu(false);
+                      action.onSelect?.();
+                    }}
+                    className="flex items-center gap-2 px-2 text-control"
+                  >
+                    <Icon name={action.icon} />
+                    {action.label}
+                  </button>
+                ))}
+              {footer}
+            </>
+          }
         />
       ) : (
         <Sidebar>
           <SidebarHeader>
             <Brand status={status} />
-            <SearchButton label={search.label} keys={search.keys} onClick={search.onSelect} />
+            <SearchButton
+              label={search.label}
+              name="Search"
+              keys={search.keys}
+              onClick={search.onSelect}
+            />
           </SidebarHeader>
           <SidebarContent>
             <SidebarMenu>
@@ -157,7 +194,8 @@ export function NavigationSuite({
                 key="menu"
                 icon="list"
                 label="Menu"
-                current={!onAction && destinations.some((entry) => entry.current)}
+                expanded={menu}
+                current={!onAction && menuEntries.some((entry) => entry.current)}
                 onClick={() => setMenu(true)}
               />,
               <MobileActionButton
@@ -166,7 +204,7 @@ export function NavigationSuite({
                 label="Search"
                 onClick={search.onSelect}
               />,
-              ...actions.map((action) => (
+              ...barActions.map((action) => (
                 <MobileActionButton
                   key={action.label}
                   icon={action.icon}
