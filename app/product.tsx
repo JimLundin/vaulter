@@ -28,7 +28,7 @@ import {
   Overlay,
   Page,
   PreviewBar,
-  RoundButton,
+  MobileActionButton,
   Row,
   Stack,
   Text,
@@ -83,7 +83,12 @@ export function OpenProduct({
 }: {
   session: ReturnType<typeof useVaultSession>;
   model?: (name: string) => Promise<LanguageModel>;
-  preview?: { label: string; reset: () => void; kitHref?: string };
+  preview?: {
+    label: string;
+    reset: () => void;
+    kitHref?: string;
+    suggestions: () => Promise<string[]>;
+  };
 }) {
   const { vault, files, status } = session;
   const route = useRoute();
@@ -117,6 +122,7 @@ export function OpenProduct({
     model: suppliedModel ?? remoteModel,
     tools: renameTools,
     collect: preview ? async () => ({ groups: {} }) : undefined,
+    suggestions: preview?.suggestions,
     page: note ? { title: titleOf(note), path: note.path } : onAgent ? undefined : { title },
   });
   const navigation: Navigation[] = [
@@ -274,7 +280,7 @@ export function OpenProduct({
           </Button>
         }
         mobileAction={
-          <RoundButton
+          <MobileActionButton
             icon="sparkles"
             label="Ask"
             primary={true}

@@ -51,7 +51,7 @@ import {
   Panel,
   Prose,
   Recording,
-  RoundButton,
+  MobileActionButton,
   Row,
   SearchButton,
   Separator,
@@ -436,9 +436,9 @@ function Gallery() {
 
       <Section title="Mobile controls">
         <MobileBar
-          left={<RoundButton icon="search" label="Search" />}
-          center={<RoundButton primary={true} icon="mic" label="New note" />}
-          right={<RoundButton icon="book" label="Wiki" />}
+          left={<MobileActionButton icon="search" label="Search" />}
+          center={<MobileActionButton primary={true} icon="mic" label="New note" />}
+          right={<MobileActionButton icon="book" label="Wiki" />}
         />
       </Section>
     </Page>

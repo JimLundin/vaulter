@@ -433,8 +433,8 @@ export function TimelineItem({
   );
 }
 
-/** Compact mobile controls: a 44px circle and a label. The primary control uses the accent colour. */
-export function RoundButton({
+/** Icon-only mobile actions. Only the primary AI action uses a circle. */
+export function MobileActionButton({
   icon,
   label,
   primary,
@@ -455,17 +455,15 @@ export function RoundButton({
       onClick={onClick}
       onPointerDown={onPointerDown}
       onPointerUp={onPointerUp}
-      className="flex cursor-pointer flex-col items-center gap-1 border-0 bg-transparent p-0 font-[inherit] text-xs text-body"
+      aria-label={label}
+      className={cn(
+        'flex size-11 cursor-pointer items-center justify-center border-0 p-0 text-foreground focus-visible:outline-2 focus-visible:outline-ring',
+        primary
+          ? 'rounded-full bg-primary text-primary-foreground'
+          : 'rounded-none bg-transparent hover:bg-muted',
+      )}
     >
-      <span
-        className={cn(
-          'flex size-11 items-center justify-center rounded-full bg-muted text-foreground',
-          primary && 'bg-primary text-primary-foreground',
-        )}
-      >
-        <Icon name={icon} size="lg" />
-      </span>
-      {label}
+      <Icon name={icon} size="lg" />
     </button>
   );
 }
@@ -506,7 +504,7 @@ export function MobileFrame({
 }) {
   return (
     <div className="flex h-dvh flex-col bg-background">
-      <main data-region="" className="min-h-0 flex-1 overflow-y-auto">
+      <main data-region="" className="flex min-h-0 flex-1 flex-col overflow-y-auto">
         {children}
       </main>
       {notices ? <div className="flex flex-col gap-2 px-4 pb-2.5">{notices}</div> : null}
@@ -538,7 +536,7 @@ export function MobileBar({
 export function DesktopMain({ hints, children }: { hints?: ReactNode; children?: ReactNode }) {
   return (
     <div className="flex h-svh min-w-0 flex-1 flex-col">
-      <main data-region="" className="min-h-0 flex-1 overflow-y-auto">
+      <main data-region="" className="flex min-h-0 flex-1 flex-col overflow-y-auto">
         {children}
       </main>
       {hints ? (

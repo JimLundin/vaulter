@@ -5,9 +5,10 @@ import {
   CodeDiff,
   Composer,
   ComposerActions,
+  ComposerSuggestions,
   ConversationFeed,
   ConversationSurface,
-  Heading,
+  ConversationWelcome,
   Icon,
   Json,
   Link,
@@ -26,6 +27,7 @@ import { link } from '../../ui/routing.ts';
 import { later } from '../../ui/later.ts';
 import { renderBody } from './rendering/markdown.ts';
 import { type Conversation, type Part, type Turn, useChat } from './conversation.ts';
+import { model } from './model.ts';
 
 export interface Prompt {
   text: string;
@@ -42,8 +44,9 @@ export function Chat({
   historyHref?: string;
 }) {
   const { chat, newChat, send, stop, viewing } = conversation;
-  const { turns, busy } = useChat(conversation);
+  const { turns, suggestions, busy } = useChat(conversation);
   const [input, setInput] = useState(chat.draft);
+  const [focused, setFocused] = useState(false);
   const [review, setReview] = useState<{
     text: string;
     files: ReturnType<Conversation['stagedChanges']>;
@@ -70,6 +73,12 @@ export function Chat({
     [type, send, conversation],
   );
   useEffect(viewing, [viewing]);
+  const selectedModel = model();
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a new chat or model invalidates cached suggestions
+  useEffect(() => {
+    if (!(focused || input || busy)) later(conversation.suggest());
+  }, [conversation, focused, input, busy, chat.id, turns.length, selectedModel]);
+  const showSuggestions = !(focused || input || busy) && suggestions.length > 0;
   useEffect(() => {
     if (!arg || arg.n === chat.arg) return;
     chat.arg = arg.n;
@@ -98,31 +107,10 @@ export function Chat({
       </Row>
       <ConversationFeed>
         {!turns.length && (
-          <Stack gap="xl">
-            <Heading level={1} serif={true}>
-              What would you like to remember?
-            </Heading>
-            <Text tone="muted">
-              Tell the agent what to file, ask what your vault knows, or say “sign-off”.
-            </Text>
-            <Row wrap={true}>
-              {['vault it: ', "What's due this week?", 'sign-off'].map((suggestion) => (
-                <Button
-                  key={suggestion}
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    if (suggestion === 'vault it: ') {
-                      type(suggestion);
-                      ref.current?.focus();
-                    } else say(suggestion);
-                  }}
-                >
-                  {suggestion}
-                </Button>
-              ))}
-            </Row>
-          </Stack>
+          <ConversationWelcome
+            title="What would you like to remember?"
+            description="Tell the agent what to file, or ask what your vault knows."
+          />
         )}
         {turns.map((turn, i) => (
           // biome-ignore lint/suspicious/noArrayIndexKey: turns only append
@@ -139,7 +127,7 @@ export function Chat({
           </Message>
         ))}
       </ConversationFeed>
-      <Composer>
+      <Composer suggestions={showSuggestions}>
         <form
           onSubmit={(event) => {
             event.preventDefault();
@@ -149,10 +137,12 @@ export function Chat({
           <Textarea
             ref={ref}
             aria-label="Message"
-            placeholder={busy ? 'Working…' : 'Say what to file, or ask…'}
+            placeholder={busy ? 'Working…' : showSuggestions ? '' : 'Say what to file, or ask…'}
             value={input}
             disabled={busy}
             onChange={(event) => type(event.currentTarget.value)}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
             onKeyDown={(event) => {
               // Safari can report Enter confirming composed text with keyCode 229.
               if (
@@ -166,6 +156,15 @@ export function Chat({
               }
             }}
           />
+          {showSuggestions ? (
+            <ComposerSuggestions
+              suggestions={suggestions}
+              onSelect={(text) => {
+                type(text);
+                ref.current?.focus();
+              }}
+            />
+          ) : null}
           <ComposerActions>
             <DictateButton textareaRef={ref} onText={type} disabled={busy} />
             {busy ? (

@@ -9,7 +9,7 @@ import {
   MobileBar,
   MobileFrame,
   Overlay,
-  RoundButton,
+  MobileActionButton,
   SearchButton,
   Sidebar,
   SidebarContent,
@@ -114,7 +114,7 @@ export function Frame({
           <MobileFrame
             bar={
               <MobileBar
-                left={<RoundButton icon="search" label="Search" onClick={onSearch} />}
+                left={<MobileActionButton icon="search" label="Search" onClick={onSearch} />}
                 center={mobileAction}
                 right={<MenuButton />}
               />
@@ -157,7 +157,7 @@ export function Frame({
 }
 function MenuButton() {
   const { setOpenMobile } = useSidebar();
-  return <RoundButton icon="list" label="Menu" onClick={() => setOpenMobile(true)} />;
+  return <MobileActionButton icon="list" label="Menu" onClick={() => setOpenMobile(true)} />;
 }
 
 function NavigationLink({ href, onClick, ...props }: ComponentProps<'a'> & { href: string }) {

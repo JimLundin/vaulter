@@ -13,6 +13,7 @@ import { model, type ModelProvider } from './model.ts';
 import { appVersion, collect, type Place } from './meta.ts';
 import { recordExchange, type ChatTurn, type Collected } from './record.ts';
 import type { OnScreen } from './tools.ts';
+import { generateSuggestions, type SuggestionProvider } from './suggestions.ts';
 
 import { graphOf } from '../../vault/documents/graph.ts';
 
@@ -42,6 +43,7 @@ export interface Turn {
 /** What views render: replaced on every change, so it's its own snapshot. */
 export interface ChatState {
   turns: Turn[];
+  suggestions: string[];
   busy: boolean;
   /** A reply finished while no view was open. */
   unread: boolean;
@@ -54,15 +56,18 @@ export interface ConversationOptions {
   page?: OnScreen;
   onCommit?: (sha: string) => void;
   collect?: () => Promise<Collected>;
+  suggestions?: SuggestionProvider;
 }
 
 export function createConversation(initial: ConversationOptions) {
   let options = initial;
   let disposed = false;
+  let suggestedFor: string | null = null;
+  let suggestionAbort: AbortController | null = null;
   const chat = {
     /** This chat, in its exchanges' session: a random id per chat. */
     id: crypto.randomUUID().slice(0, 8),
-    state: { turns: [], busy: false, unread: false } as ChatState,
+    state: { turns: [], suggestions: [], busy: false, unread: false } as ChatState,
     /** Turns before this one are in a capture already. */
     captured: 0,
     /** What the device says about the current turn, collected while the agent works. */
@@ -93,6 +98,36 @@ export function createConversation(initial: ConversationOptions) {
   /** Whether the agent can run here: the sealed OpenAI key and a backend that commits. */
   const ready = () => !disposed && !!options.model && !!options.vault.commit;
 
+  /** Cached for this turn and model; never runs agent tools or modifies the conversation. */
+  async function suggest() {
+    if (!ready() || chat.state.busy) return;
+    const name = model();
+    const key = `${chat.id}:${chat.state.turns.length}:${name}`;
+    if (suggestedFor === key) return;
+    suggestionAbort?.abort();
+    const abort = new AbortController();
+    suggestionAbort = abort;
+    suggestedFor = key;
+    set({ suggestions: [] });
+    try {
+      const context = {
+        files: options.vault.files(),
+        turns: chat.state.turns.map((turn) => ({
+          role: turn.role,
+          text: turn.parts.flatMap((part) => (part.kind === 'text' ? [part.text] : [])).join(''),
+        })),
+      };
+      const suggestions = options.suggestions
+        ? await options.suggestions(context, abort.signal)
+        : await generateSuggestions(options.model!, name, context, abort.signal);
+      if (!(disposed || abort.signal.aborted)) set({ suggestions });
+    } catch {
+      // Suggestions are optional; message entry remains available if generation fails.
+    } finally {
+      if (suggestionAbort === abort) suggestionAbort = null;
+    }
+  }
+
   /** A view on the chat is open; the returned function closes it. Opening one reads the reply. */
   function viewing() {
     chat.views++;
@@ -110,7 +145,9 @@ export function createConversation(initial: ConversationOptions) {
     chat.history = [];
     chat.meta = null;
     chat.draft = '';
-    set({ turns: [], unread: false });
+    suggestionAbort?.abort();
+    suggestedFor = null;
+    set({ turns: [], suggestions: [], unread: false });
   }
 
   /** The tool call in a line: its path or query, not the whole file. */
@@ -186,11 +223,14 @@ export function createConversation(initial: ConversationOptions) {
   async function send(text: string, page = options.page, staged: Change[] | 'reject' = 'reject') {
     const said = text.trim();
     if (!said || chat.state.busy || !ready()) return;
+    suggestionAbort?.abort();
+    suggestedFor = null;
     const now = new Date().toISOString();
     const agentTurn: Turn = { role: 'agent', parts: [], at: now };
     const update = () => set({ turns: [...chat.state.turns] });
     set({
       busy: true,
+      suggestions: [],
       turns: [
         ...chat.state.turns,
         { role: 'user', parts: [{ kind: 'text', text: said }], at: now },
@@ -289,6 +329,7 @@ export function createConversation(initial: ConversationOptions) {
     },
     viewing,
     newChat,
+    suggest,
     send,
     stop,
     update: (next: ConversationOptions) => {
@@ -296,6 +337,7 @@ export function createConversation(initial: ConversationOptions) {
     },
     dispose: () => {
       disposed = true;
+      suggestionAbort?.abort();
       stop();
       chat.listeners.clear();
     },

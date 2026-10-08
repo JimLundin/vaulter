@@ -1,6 +1,6 @@
 // biome-ignore lint/correctness/noUnresolvedImports: React 19 exposes Suspense; TypeScript and the build verify it
 import { lazy, Suspense } from 'react';
-import { Activity, ConversationSurface, Heading, Page, Stack, Text } from '../../ui/kit/index.ts';
+import { Activity, ConversationPage, Text } from '../../ui/kit/index.ts';
 import { type Conversation, useChat } from './conversation.ts';
 import type { Prompt } from './Chat.tsx';
 export { createConversation, useConversation } from './conversation.ts';
@@ -31,17 +31,9 @@ export function ChatPage({
   historyHref?: string;
 }) {
   return (
-    <Page>
-      <Stack gap="xs">
-        <Heading level={2}>Agent</Heading>
-        <Text size="sm" tone="subtle">
-          Your vault, in conversation
-        </Text>
-      </Stack>
-      <ConversationSurface page={true}>
-        <ChatPanel conversation={conversation} historyHref={historyHref} />
-      </ConversationSurface>
-    </Page>
+    <ConversationPage>
+      <ChatPanel conversation={conversation} historyHref={historyHref} />
+    </ConversationPage>
   );
 }
 export function ChatIndicator({ conversation }: { conversation: Conversation }) {

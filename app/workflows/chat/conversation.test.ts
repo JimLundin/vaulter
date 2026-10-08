@@ -8,9 +8,13 @@ import { memoryBackend } from '../../vault/storage/memory.ts';
 import { vaultRules } from '../../vault/validation/rules.ts';
 import { SCHEMA } from '../../vault/documents/notes/schema.fixture.ts';
 import { toast } from 'sonner';
+import type { SuggestionProvider } from './suggestions.ts';
 vi.mock('./meta.ts', () => ({ collect: async () => ({ groups: {} }), appVersion: () => 'test' }));
 vi.mock('sonner', () => ({ toast: Object.assign(vi.fn(), { success: vi.fn() }) }));
-afterEach(() => vi.clearAllMocks());
+afterEach(() => {
+  vi.clearAllMocks();
+  localStorage.clear();
+});
 const usage = {
   inputTokens: { total: 1, noCache: 1, cacheRead: 0, cacheWrite: 0 },
   outputTokens: { total: 1, text: 1, reasoning: 0 },
@@ -191,5 +195,112 @@ test('a failed tool factory releases ownership for another sequence', async () =
   expect(conversation.snapshot().turns.at(-1)?.error).toBe('tools failed');
   await core.stage('meta/next.md', '# Next');
   expect(vault.staged()).toEqual(['meta/next.md']);
+  conversation.dispose();
+});
+
+test('suggestions are cached per model and turn without changing staging or history', async () => {
+  const { vault, core } = await setup();
+  await core.stage('meta/pending.md', '# Pending');
+  const languageModel = new MockLanguageModelV4({ doStream: [textStep('Look at Alpha')] });
+  const suggestions = vi.fn<SuggestionProvider>(async () => ['What connects my notes?']);
+  const tools = vi.fn(() => ({}));
+  const conversation = createConversation({
+    vault,
+    model: async () => languageModel,
+    suggestions,
+    tools,
+  });
+  await conversation.suggest();
+  await conversation.suggest();
+  expect(suggestions).toHaveBeenCalledOnce();
+  expect(conversation.snapshot().suggestions).toEqual(['What connects my notes?']);
+  expect(conversation.snapshot().turns).toEqual([]);
+  expect(conversation.chat.history).toEqual([]);
+  expect(tools).not.toHaveBeenCalled();
+  expect(vault.staged()).toEqual(['meta/pending.md']);
+  localStorage.setItem('vault.agent.model', 'another-model');
+  await conversation.suggest();
+  expect(suggestions).toHaveBeenCalledTimes(2);
+  await core.discard();
+  await conversation.send('What do I know?');
+  await conversation.suggest();
+  expect(suggestions).toHaveBeenCalledTimes(3);
+  expect(suggestions.mock.calls[2]?.[0].turns).toEqual([
+    { role: 'user', text: 'What do I know?' },
+    { role: 'agent', text: 'Look at Alpha' },
+  ]);
+  conversation.dispose();
+});
+
+test('new chats and disposal discard late suggestions', async () => {
+  const { vault } = await setup();
+  const languageModel = new MockLanguageModelV4();
+  let release!: (suggestions: string[]) => void;
+  const pending = new Promise<string[]>((resolve) => {
+    release = resolve;
+  });
+  let releaseAfterDispose!: (suggestions: string[]) => void;
+  const afterDispose = new Promise<string[]>((resolve) => {
+    releaseAfterDispose = resolve;
+  });
+  const suggestions = vi
+    .fn<SuggestionProvider>()
+    .mockReturnValueOnce(pending)
+    .mockReturnValueOnce(afterDispose);
+  const conversation = createConversation({ vault, model: async () => languageModel, suggestions });
+  const requested = conversation.suggest();
+  const signal = suggestions.mock.calls[0]?.[1];
+  conversation.newChat();
+  expect(signal?.aborted).toBe(true);
+  release(['Old chat suggestion']);
+  await requested;
+  expect(conversation.snapshot().suggestions).toEqual([]);
+  const next = conversation.suggest();
+  expect(suggestions).toHaveBeenCalledTimes(2);
+  const nextSignal = suggestions.mock.calls[1]?.[1];
+  conversation.dispose();
+  expect(nextSignal?.aborted).toBe(true);
+  releaseAfterDispose(['Disposed suggestion']);
+  await next;
+  expect(conversation.snapshot().suggestions).toEqual([]);
+  await conversation.suggest();
+  expect(suggestions).toHaveBeenCalledTimes(2);
+});
+
+test('sending a message cancels pending suggestions without delaying the agent', async () => {
+  const { vault } = await setup();
+  const languageModel = new MockLanguageModelV4({ doStream: [textStep('Hello')] });
+  let release!: (suggestions: string[]) => void;
+  const pending = new Promise<string[]>((resolve) => {
+    release = resolve;
+  });
+  const suggestions = vi.fn<SuggestionProvider>(() => pending);
+  const conversation = createConversation({ vault, model: async () => languageModel, suggestions });
+  const requested = conversation.suggest();
+  const signal = suggestions.mock.calls[0]?.[1];
+  await conversation.send('Hello');
+  expect(signal?.aborted).toBe(true);
+  expect(conversation.snapshot().busy).toBe(false);
+  release(['Stale suggestion']);
+  await requested;
+  expect(conversation.snapshot().suggestions).toEqual([]);
+  conversation.dispose();
+});
+
+test('a failed suggestion request keeps message entry and agent turns available', async () => {
+  const { vault } = await setup();
+  const languageModel = new MockLanguageModelV4({ doStream: [textStep('Still works')] });
+  const conversation = createConversation({
+    vault,
+    model: async () => languageModel,
+    suggestions: () => Promise.reject(new Error('offline')),
+  });
+  await conversation.suggest();
+  expect(conversation.snapshot().suggestions).toEqual([]);
+  expect(conversation.snapshot().busy).toBe(false);
+  await conversation.send('Hello');
+  expect(conversation.snapshot().turns.at(-1)?.parts).toEqual([
+    { kind: 'text', text: 'Still works' },
+  ]);
   conversation.dispose();
 });

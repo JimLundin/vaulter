@@ -4,6 +4,53 @@ import { StickToBottom, useStickToBottomContext } from 'use-stick-to-bottom';
 import { Button } from './parts/button.tsx';
 import { Icon } from './icons.tsx';
 import { cn } from './lib/utils.ts';
+import { useIsMobile } from './hooks/use-mobile.ts';
+
+/** Mobile fills the viewport; desktop keeps a reading-width conversation column. */
+export function ConversationPage({ children }: { children: ReactNode }) {
+  const mobile = useIsMobile();
+  return mobile ? (
+    <article className="flex min-h-0 flex-1 flex-col gap-2 px-4 pt-3 pb-2">
+      <header className="text-sm font-medium">Agent</header>
+      {children}
+    </article>
+  ) : (
+    <article className="flex min-h-0 flex-1 flex-col gap-3 px-12 pt-9 pb-4">
+      <header className="flex flex-col gap-1">
+        <h2 className="m-0 text-[15px] font-semibold">Agent</h2>
+        <p className="m-0 text-[13px] text-subtle-foreground">Your vault, in conversation</p>
+      </header>
+      <div className="flex min-h-0 max-w-3xl flex-1 flex-col">{children}</div>
+    </article>
+  );
+}
+
+export function ConversationWelcome({
+  title,
+  description,
+}: {
+  title: string;
+  description: string;
+}) {
+  const mobile = useIsMobile();
+  return mobile ? (
+    <div className="flex flex-col gap-3 py-2">
+      <h1 className="m-0 max-w-xs font-serif text-[24px] leading-[1.2] font-medium tracking-[-0.01em]">
+        {title}
+      </h1>
+      <p className="m-0 max-w-sm text-[13px] leading-relaxed text-muted-foreground">
+        {description}
+      </p>
+    </div>
+  ) : (
+    <div className="flex flex-col gap-7 py-4">
+      <h1 className="m-0 font-serif text-[40px] leading-[1.15] font-medium tracking-[-0.01em]">
+        {title}
+      </h1>
+      <p className="m-0 text-[15px] text-muted-foreground">{description}</p>
+    </div>
+  );
+}
 
 export function Gate({ children }: { children: ReactNode }) {
   return (
@@ -24,28 +71,25 @@ export function PreviewBar({ children }: { children: ReactNode }) {
   );
 }
 
-export function ConversationSurface({ page, children }: { page?: boolean; children: ReactNode }) {
+export function ConversationSurface({ children }: { children: ReactNode }) {
   return (
-    <section
-      aria-label="Conversation"
-      className={cn(
-        'flex min-h-0 flex-col',
-        page ? 'h-[calc(100dvh-16rem)] min-h-80 shrink-0 md:h-[calc(100svh-12rem)]' : 'flex-1',
-      )}
-    >
+    <section aria-label="Conversation" className="flex min-h-0 flex-1 flex-col">
       {children}
     </section>
   );
 }
 
 export function ConversationFeed({ children }: { children: ReactNode }) {
+  const mobile = useIsMobile();
   return (
     <StickToBottom
       className="relative min-h-0 flex-1 overflow-y-auto"
       initial="smooth"
       resize="smooth"
     >
-      <StickToBottom.Content className="flex flex-col gap-6 px-1 py-5">
+      <StickToBottom.Content
+        className={mobile ? 'flex flex-col gap-4 py-3' : 'flex flex-col gap-6 px-1 py-5'}
+      >
         {children}
       </StickToBottom.Content>
       <ScrollDown />
@@ -144,14 +188,55 @@ export function Json({ value }: { value: unknown }) {
     </pre>
   );
 }
-export function Composer({ children }: { children: ReactNode }) {
+export function Composer({
+  suggestions,
+  children,
+}: {
+  suggestions?: boolean;
+  children: ReactNode;
+}) {
+  const mobile = useIsMobile();
   return (
     <fieldset
       aria-label="Message composer"
-      className="relative mt-3 min-w-0 shrink-0 rounded-2xl border bg-background p-1 shadow-xs focus-within:ring-2 focus-within:ring-ring/50 [&_textarea]:max-h-64 [&_textarea]:min-h-32 [&_textarea]:resize-none [&_textarea]:rounded-xl [&_textarea]:border-0 [&_textarea]:bg-transparent [&_textarea]:px-3 [&_textarea]:pt-3 [&_textarea]:pb-16 [&_textarea]:shadow-none [&_textarea]:focus-visible:ring-0"
+      className={cn(
+        'relative min-w-0 shrink-0 border bg-background p-1 shadow-xs focus-within:ring-2 focus-within:ring-ring/50 [&_textarea]:max-h-64 [&_textarea]:resize-none [&_textarea]:border-0 [&_textarea]:bg-transparent [&_textarea]:px-3 [&_textarea]:pt-3 [&_textarea]:pb-16 [&_textarea]:shadow-none [&_textarea]:focus-visible:ring-0',
+        mobile
+          ? 'mt-2 rounded-xl [&_textarea]:rounded-lg'
+          : 'mt-3 rounded-2xl [&_textarea]:rounded-xl',
+        suggestions
+          ? '[&_textarea]:min-h-44'
+          : mobile
+            ? '[&_textarea]:min-h-28'
+            : '[&_textarea]:min-h-32',
+      )}
     >
       {children}
     </fieldset>
+  );
+}
+export function ComposerSuggestions({
+  suggestions,
+  onSelect,
+}: {
+  suggestions: string[];
+  onSelect: (text: string) => void;
+}) {
+  const mobile = useIsMobile();
+  return (
+    <div className="absolute inset-x-2 top-2 bottom-14 flex flex-col overflow-y-auto">
+      {(mobile ? suggestions.slice(0, 2) : suggestions).map((suggestion) => (
+        <button
+          key={suggestion}
+          type="button"
+          onClick={() => onSelect(suggestion)}
+          className="flex min-h-9 items-center justify-between gap-3 rounded-md px-2 py-2 text-left text-[13px] text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+        >
+          <span className="min-w-0 flex-1">{suggestion}</span>
+          <Icon name="arrow-up" size="sm" />
+        </button>
+      ))}
+    </div>
   );
 }
 export function ComposerActions({ children }: { children: ReactNode }) {

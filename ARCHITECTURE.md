@@ -116,6 +116,13 @@ contains only message entry and dictation/send controls, with Enter to send and 
 new line. The kit owns their placement and keeps text clear of the controls. Sync status appears
 with the app name in the sidebar header.
 
+`suggestions.ts` generates short prompts from a bounded set of note titles/summaries and recent
+conversation text using the selected model. It has no agent tools or write capability. The controller
+caches suggestions per chat, completed turn and model, cancels them when sending/starting over or
+disposing, and ignores late results. A failed request leaves the composer usable. Suggestions appear
+only when the draft is empty and unfocused; selecting one fills the draft rather than sending it.
+Preview supplies a scripted suggestion adapter alongside its scripted conversation model.
+
 ## UI kit
 
 `app/ui/kit/` comes from branch `ui-kit` at `2c30183`. Its design references, Geist / Geist Mono /
@@ -127,6 +134,10 @@ Screens compose `ui/kit/index.ts`. Public components take no `className` or `sty
 the kit. Add missing generic presentation to the kit, and keep task logic in its workflow.
 `surfaces.tsx` supplies conversation, tool-result and unified-diff presentation. Content renderers
 keep their scoped Markdown styling and safety tests; that is an explicit policy exception.
+Conversation containers have separate mobile and desktop compositions. Mobile uses the available
+viewport with tighter padding, smaller heading/feed spacing and a compact composer; desktop keeps
+a reading-width column. `MobileActionButton` has an accessible label but no visible text; only its
+primary AI variant is circular. The bottom bar retains 44px touch targets and device safe-area padding.
 
 ## Browser and deployment
 
