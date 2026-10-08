@@ -358,7 +358,6 @@ export {
 export {
   Composer,
   ComposerActions,
-  ComposerSuggestions,
   ConversationFeed,
   ConversationPage,
   ConversationPanel,

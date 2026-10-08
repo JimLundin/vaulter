@@ -243,58 +243,21 @@ export function Markdown({ children }: { children: ReactNode }) {
     <div className="prose font-serif text-[17px] leading-relaxed md:text-[19px]">{children}</div>
   );
 }
-export function Composer({
-  suggestions,
-  children,
-}: {
-  suggestions?: boolean;
-  children: ReactNode;
-}) {
+export function Composer({ children }: { children: ReactNode }) {
   const mobile = useIsMobile();
   return (
     <fieldset
       aria-label="Message composer"
       className={cn(
-        'relative min-w-0 shrink-0 border bg-background p-1 shadow-xs focus-within:ring-2 focus-within:ring-ring/50 [&_textarea]:max-h-64 [&_textarea]:resize-none [&_textarea]:border-0 [&_textarea]:bg-transparent [&_textarea]:px-3 [&_textarea]:pt-3 [&_textarea]:pb-16 [&_textarea]:shadow-none [&_textarea]:focus-visible:ring-0',
+        'relative min-w-0 shrink-0 border bg-background p-1 shadow-xs focus-within:ring-2 focus-within:ring-ring/50 [&_textarea]:max-h-64 [&_textarea]:resize-none [&_textarea]:border-0 [&_textarea]:bg-transparent [&_textarea]:px-3 [&_textarea]:pt-3 [&_textarea]:placeholder:text-subtle-foreground [&_textarea]:placeholder:text-sm [&_textarea]:shadow-none [&_textarea]:focus-visible:ring-0',
         mobile ? 'rounded-xl [&_textarea]:rounded-lg' : 'rounded-2xl [&_textarea]:rounded-xl',
-        suggestions
-          ? mobile
-            ? '[&_textarea]:min-h-36'
-            : '[&_textarea]:min-h-44'
-          : mobile
-            ? '[&_textarea]:min-h-24'
-            : '[&_textarea]:min-h-32',
+        mobile
+          ? '[&_textarea]:min-h-28 [&_textarea]:pb-12'
+          : '[&_textarea]:min-h-32 [&_textarea]:pb-16',
       )}
     >
       {children}
     </fieldset>
-  );
-}
-export function ComposerSuggestions({
-  suggestions,
-  onSelect,
-}: {
-  suggestions: string[];
-  onSelect: (text: string) => void;
-}) {
-  const mobile = useIsMobile();
-  return (
-    <div className="absolute inset-x-2 top-2 bottom-14 flex flex-col overflow-y-auto">
-      {(mobile ? suggestions.slice(0, 2) : suggestions).map((suggestion) => (
-        <button
-          key={suggestion}
-          type="button"
-          onClick={() => onSelect(suggestion)}
-          className={cn(
-            'flex items-center justify-between gap-3 rounded-md px-2 py-2 text-left text-[13px] leading-snug text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring',
-            mobile ? 'min-h-11' : 'min-h-9',
-          )}
-        >
-          <span className="min-w-0 flex-1">{suggestion}</span>
-          <Icon name="arrow-up" size="sm" />
-        </button>
-      ))}
-    </div>
   );
 }
 export function ComposerActions({ children }: { children: ReactNode }) {

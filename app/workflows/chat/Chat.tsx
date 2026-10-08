@@ -5,7 +5,6 @@ import {
   CodeDiff,
   Composer,
   ComposerActions,
-  ComposerSuggestions,
   ConversationFeed,
   ConversationSurface,
   ConversationWelcome,
@@ -110,7 +109,7 @@ export function Chat({
       }}
       busy={busy}
       composer={
-        <Composer suggestions={showSuggestions}>
+        <Composer>
           <form
             onSubmit={(event) => {
               event.preventDefault();
@@ -120,7 +119,9 @@ export function Chat({
             <Textarea
               ref={ref}
               aria-label="Message"
-              placeholder={busy ? 'Working…' : showSuggestions ? '' : 'Say what to file, or ask…'}
+              placeholder={
+                busy ? 'Working…' : showSuggestions ? suggestions[0] : 'Say what to file, or ask…'
+              }
               value={input}
               disabled={busy}
               onChange={(event) => type(event.currentTarget.value)}
@@ -139,15 +140,6 @@ export function Chat({
                 }
               }}
             />
-            {showSuggestions ? (
-              <ComposerSuggestions
-                suggestions={suggestions}
-                onSelect={(text) => {
-                  type(text);
-                  ref.current?.focus();
-                }}
-              />
-            ) : null}
             <ComposerActions>
               <DictateButton textareaRef={ref} onText={type} disabled={busy} />
               {busy ? (
