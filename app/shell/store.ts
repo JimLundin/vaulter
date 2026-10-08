@@ -3,6 +3,7 @@
 //   snapshot  'main' -> { id, commit, tree, etag, fetchedAt, iv, data }   data: { path: sha }, encrypted
 //   keep      key -> { id, iv, data }                                    the app's own state (staged edits, worker results)
 //   keys      'device' -> { id, key, salt, cacheKey, expires }            what unlocking remembers
+//             'dev' -> { id, cacheKey }                                  dev's cache key (no password)
 // Every store but keys is a cache: a schema change bumps VERSION and clears them; the next sync refills.
 
 const NAME = 'vault';
