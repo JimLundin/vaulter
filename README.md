@@ -47,8 +47,9 @@ permanent `app/vault/` module owns notes, schema, graph, validation, encryption 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for the interfaces and dependency rules.
 
 The app uses the component kit and reference design from branch `ui-kit`, in `app/ui/kit/`. Run
-`npm run kit` to open its gallery. Workflow views compose its public components; styles stay in the
-kit, with a scoped exception for Markdown rendering. `tools/layout.test.ts` enforces the import rules
+`npm run kit` to open its searchable catalogue, with live desktop and mobile examples side by side.
+Every public component must have an example; CI checks coverage and app-wide kit composition.
+Workflow views compose its public components; styles stay in the kit, with a scoped exception for Markdown rendering. `tools/layout.test.ts` enforces the import rules
 in CI, including dynamic imports and aliases.
 
 The vault's vocabulary remains in its own `meta/schema.yaml`. `app/vault/validation/check.ts` combines

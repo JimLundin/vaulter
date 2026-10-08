@@ -1,4 +1,6 @@
 import * as React from 'react';
+import { usePresentation } from '../presentation.tsx';
+import { usePreviewInteraction } from '../hooks/use-preview-interaction.ts';
 import { cn } from '../lib/utils.ts';
 import { XIcon } from 'lucide-react';
 import { Dialog as DialogPrimitive } from 'radix-ui';
@@ -6,7 +8,14 @@ import { Dialog as DialogPrimitive } from 'radix-ui';
 import { Button } from './button.tsx';
 
 function Dialog({ ...props }: React.ComponentProps<typeof DialogPrimitive.Root>) {
-  return <DialogPrimitive.Root data-slot="dialog" {...props} />;
+  const presentation = usePresentation();
+  return (
+    <DialogPrimitive.Root
+      data-slot="dialog"
+      {...props}
+      {...(presentation ? { modal: false } : {})}
+    />
+  );
 }
 
 function DialogTrigger({ ...props }: React.ComponentProps<typeof DialogPrimitive.Trigger>) {
@@ -14,7 +23,14 @@ function DialogTrigger({ ...props }: React.ComponentProps<typeof DialogPrimitive
 }
 
 function DialogPortal({ ...props }: React.ComponentProps<typeof DialogPrimitive.Portal>) {
-  return <DialogPrimitive.Portal data-slot="dialog-portal" {...props} />;
+  const presentation = usePresentation();
+  return (
+    <DialogPrimitive.Portal
+      data-slot="dialog-portal"
+      {...props}
+      container={presentation?.portal ?? props.container}
+    />
+  );
 }
 
 function DialogClose({ ...props }: React.ComponentProps<typeof DialogPrimitive.Close>) {
@@ -25,6 +41,14 @@ function DialogOverlay({
   className,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Overlay>) {
+  const presentation = usePresentation();
+  if (presentation)
+    return (
+      <div
+        data-slot="dialog-overlay"
+        className="pointer-events-none fixed inset-0 z-50 bg-black/50"
+      />
+    );
   return (
     <DialogPrimitive.Overlay
       data-slot="dialog-overlay"
@@ -45,6 +69,7 @@ function DialogContent({
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean;
 }) {
+  const onInteractOutside = usePreviewInteraction(props.onInteractOutside);
   return (
     <DialogPortal data-slot="dialog-portal">
       <DialogOverlay />
@@ -55,6 +80,7 @@ function DialogContent({
           className,
         )}
         {...props}
+        onInteractOutside={onInteractOutside}
       >
         {children}
         {showCloseButton && (

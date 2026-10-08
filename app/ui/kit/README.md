@@ -4,12 +4,23 @@ The app's component kit, imported from branch `ui-kit` at `2c30183`. Its referen
 `design/`. Product, shared UI and workflow screens compose `index.ts`; no public component takes
 `className` or `style`. Tailwind scans only this folder.
 
-`npm run kit` opens the standalone gallery, using the same local fonts and theme as the app. The
-reference screens illustrate the design; they do not register app features.
+`npm run kit` opens the live catalogue, using the same local fonts and theme as the app. Every
+public presentation component appears in a component family with an 800px desktop sample beside a
+390px touch sample. Both run the same sample implementation. Search by component or family name;
+on narrow screens, each comparison scrolls horizontally. Reference screens remain design artifacts.
+
+`catalogue.tsx` contains the sample data and component coverage. `tools/catalogue.test.ts` compares
+its registrations and rendered JSX against all public component exports, so adding a component
+without a live example fails CI. `tools/layout.test.ts` rejects intrinsic JSX, styling props (including
+object spreads), intrinsic element factories, private kit imports and direct presentation dependency
+imports throughout Product, shared UI and workflows. Semantic forms use the public `Form` component.
+Markdown/HAST rendering and the vault-link annotation transform remain the explicit content exception.
 
 | Where | What |
 |---|---|
 | `index.ts` | public components, icons and theme controls |
+| `catalogue.tsx`, `gallery.tsx` | live examples, component coverage, search and paired catalogue |
+| `presentation.tsx` | private bounded presentation and portal target for live samples |
 | `parts/`, `hooks/` | private shadcn primitives and their hooks |
 | `app.tsx` | spacing, typography, pages, sidebar and mobile frame |
 | `overlay.tsx` | one dialog tree, centered or bottom-aligned; full-screen search in compact space |
@@ -25,8 +36,8 @@ reference screens illustrate the design; they do not register app features.
 | `tests/`, `tools/browser/` | markup/theme checks and browser interaction coverage |
 
 Fonts are Geist, Geist Mono and Newsreader, loaded locally from `@fontsource-variable`. Add generic
-presentation here and keep domain behavior in its workflow. `tools/layout.test.ts` checks that callers
-use public exports and workflows avoid ad hoc styling. Markdown content rendering is a scoped
+presentation here and keep domain behavior in its workflow. `tools/layout.test.ts` checks that all app
+views compose public exports and avoid ad hoc styling. Markdown content rendering is a scoped
 exception. Maps require `https://tiles.openfreemap.org` in the consuming page's CSP; the current
 product does not use maps.
 
@@ -81,6 +92,16 @@ Settings opens over the current destination without changing its route or discar
 `FeaturePage` centers History and other screens on the same `--reading-width` as Agent. Page text
 remains left aligned within that centered column.
 
+### Live comparisons
+
+The gallery does not embed another document. CSS responsive utilities query the nearest named
+`kit` container: the browser body for the app, or the sample canvas in the catalogue. The private
+presentation scope supplies the matching React size class and bounds viewport-sized pieces and
+portals to that canvas. Touch policy is explicit in the phone sample and follows the actual pointer
+in the app. Sample dialogs remain local and do not lock or hide the catalogue; production modal
+focus, scroll locking and focus return still use the normal browser behavior. These previews show
+layout and control behavior; they do not simulate a phone browser keyboard or microphone.
+
 ### How a shape is decided
 
 What differs between size classes is decided at three levels, and a component uses the lowest one
@@ -117,8 +138,8 @@ that works:
 3. **Structure (`useLayout`, the size class).** Only when the arrangement itself differs, which is
    every row of the table above. Both shapes take the same props, use the same roles and show the
    same copy; only the kit branches, never a workflow. `useLayout` reads the breakpoint tokens
-   emitted by Tailwind, so CSS and React share the thresholds. Product may use the size class to
-   choose a route or restore a panel; workflow views do not query the viewport.
+   emitted by Tailwind, so CSS and React share the thresholds; the gallery supplies its local presentation class. Product may
+   use the size class to choose a route or restore a panel; workflow views do not query the viewport.
 
 Responsive presentation is owned by the kit. Conversation state stays in the chat workflow; the
 workspace, feed, composer, settings fields, history rows and open search/review/panel contents
@@ -148,8 +169,10 @@ Run `npm run typecheck`, `npm test`, `npm run lint` and `npm run test:ui`. Insta
 server on port 4179 and leaves the design-review server on 4178 running. It uses the public kit fixture
 at `tests/browser.html` and the sample preview, with no private vault or paid API.
 
-The suite runs at phone, desktop and touch-desktop sizes. It checks touch targets, navigation/current
-state, centered feature columns, feature-named settings drawers, growing action lists, keyboard
+The suite runs at phone, desktop and touch-desktop sizes. Catalogue coverage checks paired samples,
+independent drafts, scoped settings/search/menu portals, component search, CSS and touch density
+independent of outer browser size, and no iframe or automatic external service requests. It checks
+touch targets, navigation/current state, centered feature columns, feature-named settings drawers, growing action lists, keyboard
 tab/checkbox behavior, Escape and focus return, search selection
 and drafts through size changes, the mobile field/microphone row before and after focus,
 Enter/Shift+Enter/IME, and a simulated visual

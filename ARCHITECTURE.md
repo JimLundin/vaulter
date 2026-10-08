@@ -132,11 +132,16 @@ Preview supplies a scripted suggestion adapter alongside its scripted conversati
 
 `app/ui/kit/` comes from branch `ui-kit` at `2c30183`. Its design references, Geist / Geist Mono /
 Newsreader fonts, zinc colors, desktop sidebar, mobile controls and overlays are used by the app.
-`npm run kit` opens the standalone gallery. The exported design screens remain reference artifacts;
-they do not install workflows or restore previously deleted features.
+`npm run kit` opens a searchable catalogue: every public component has a live desktop and mobile
+example side by side, using the same sample implementation. `tools/catalogue.test.ts` checks public
+export coverage and actual rendered JSX. The private presentation scope bounds responsive CSS,
+React size classes and portals to each example without an iframe. The exported design screens remain
+reference artifacts; they do not install workflows or restore previously deleted features.
 
 Screens compose `ui/kit/index.ts`. Public components take no `className` or `style`; Tailwind scans only
-the kit. Add missing generic presentation to the kit, and keep task logic in its workflow.
+the kit. CI rejects custom HTML, styling props, intrinsic element factories and direct presentation
+library imports throughout Product, shared UI and workflows. Semantic forms use the kit's `Form`.
+Add missing generic presentation and its paired example to the kit; keep task logic in its workflow.
 `surfaces.tsx` supplies conversation, tool-result and unified-diff presentation. Content renderers
 keep their scoped Markdown styling and safety tests; that is an explicit policy exception.
 Conversation containers have separate mobile and desktop compositions. Mobile uses the available

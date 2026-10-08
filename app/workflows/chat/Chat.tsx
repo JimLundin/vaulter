@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Button,
+  Form,
   CodeDiff,
   Composer,
   ComposerActions,
@@ -145,7 +146,7 @@ export function Chat({
       }
       composer={
         <Composer>
-          <form
+          <Form
             onSubmit={(event) => {
               event.preventDefault();
               if (input.trim() && !(busy || recording)) say(input);
@@ -225,7 +226,7 @@ export function Chat({
                 </Button>
               )}
             </ComposerActions>
-          </form>
+          </Form>
         </Composer>
       }
     >

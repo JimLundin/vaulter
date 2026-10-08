@@ -4,6 +4,85 @@
 @source "./";
 
 @custom-variant dark (&:is(.dark *));
+@custom-variant sm {
+  /* biome-ignore lint/correctness/noUnknownFunction: Tailwind resolves the shared breakpoint token. */
+  @container kit (width >= theme(--breakpoint-md)) {
+    @slot;
+  }
+}
+@custom-variant md {
+  /* biome-ignore lint/correctness/noUnknownFunction: Tailwind resolves the shared breakpoint token. */
+  @container kit (width >= theme(--breakpoint-md)) {
+    @slot;
+  }
+}
+@custom-variant xl {
+  /* biome-ignore lint/correctness/noUnknownFunction: Tailwind resolves the shared breakpoint token. */
+  @container kit (width >= theme(--breakpoint-xl)) {
+    @slot;
+  }
+}
+@custom-variant max-md {
+  /* biome-ignore lint/correctness/noUnknownFunction: Tailwind resolves the shared breakpoint token. */
+  @container kit (width < theme(--breakpoint-md)) {
+    @slot;
+  }
+}
+
+body,
+.kit-preview {
+  container: kit / inline-size;
+}
+.kit-preview {
+  flex: none;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--background);
+}
+.kit-presentation {
+  position: relative;
+  height: 100%;
+  transform: translateZ(0);
+  isolation: isolate;
+  --type-display: 2rem;
+  --type-title: 1.375rem;
+  --type-lead: 1.0625rem;
+  --page-inset: 1rem;
+  --page-block: 1rem;
+  --type-input: 0.875rem;
+}
+.kit-presentation[data-kit-pointer="coarse"] {
+  --type-input: 1rem;
+}
+.kit-specimen-content {
+  height: 100%;
+  overflow: auto;
+}
+/* biome-ignore lint/correctness/noUnknownFunction: Tailwind resolves the shared breakpoint token. */
+@container kit (width >= theme(--breakpoint-md)) {
+  .kit-presentation {
+    --type-display: 2.5rem;
+    --type-title: 1.625rem;
+    --type-lead: 1.1875rem;
+    --page-inset: 3rem;
+    --page-block: 2.25rem;
+  }
+}
+/* Viewport-sized pieces retain their real layout, bounded by the specimen's height. */
+.kit-presentation :is(.h-dvh, .h-svh) {
+  height: var(--viewport-height);
+}
+.kit-presentation .min-h-svh {
+  min-height: var(--viewport-height);
+}
+.kit-presentation .menu-sheet[data-vaul-drawer-direction="bottom"] {
+  bottom: 0;
+  max-height: calc(var(--viewport-height) - 16px);
+}
+.kit-presentation [data-slot="drawer-content"] {
+  max-height: calc(var(--viewport-height) * 0.8);
+}
 
 /* The only size thresholds. React reads these emitted tokens, and Tailwind uses them directly. */
 @theme static {
@@ -112,8 +191,8 @@
   bottom: calc(100dvh - var(--viewport-height, 100dvh) - var(--viewport-top, 0px));
 }
 
-/* biome-ignore lint/correctness/noUnknownFunction: Tailwind resolves its theme function at build time. */
-@media (width >= theme(--breakpoint-md)) {
+/* biome-ignore lint/correctness/noUnknownFunction: Tailwind resolves the shared breakpoint token. */
+@container kit (width >= theme(--breakpoint-md)) {
   .menu-sheet[data-vaul-drawer-direction="bottom"] {
     inset: 0;
     width: min(40rem, calc(100% - 6rem));
@@ -235,6 +314,53 @@
  * citations keep the text's line box; they aren't standalone controls. */
 @layer components {
   @media (any-pointer: coarse) {
+    [data-chart-columns]:not([data-kit-preview] *) {
+      min-width: calc(var(--chart-count) * 2.875rem);
+    }
+    :where(
+        [data-touch-target],
+        [data-slot="button"],
+        [data-slot="checkbox"],
+        [data-slot="input"],
+        [data-slot="textarea"],
+        [data-slot="input-group"],
+        [data-slot="input-group-control"],
+        [data-slot="tabs-trigger"],
+        [data-slot="toggle"],
+        [data-slot="toggle-group-item"],
+        [data-slot="command-input-wrapper"],
+        [data-slot="command-input"],
+        [data-slot="command-item"],
+        [data-slot="dropdown-menu-item"],
+        [data-slot="dropdown-menu-checkbox-item"],
+        [data-slot="dropdown-menu-radio-item"],
+        [data-slot="dropdown-menu-sub-trigger"],
+        [data-slot="dialog-close"]:not([data-kit-preview] *),
+        [data-slot="sheet-close"],
+        [data-slot="sidebar-menu-button"],
+        [data-slot="sidebar-menu-sub-button"],
+        [data-slot="sidebar-menu-action"],
+        [data-slot="sidebar-group-action"]
+      ):not([data-kit-preview] *) {
+      min-width: var(--target-touch) !important;
+      min-height: var(--target-touch) !important;
+    }
+    [data-slot="tabs"][data-orientation="horizontal"]
+      [data-slot="tabs-list"]:not([data-kit-preview] *) {
+      min-height: calc(var(--target-touch) + 6px) !important;
+    }
+    [data-slot="dialog-close"]:not([data-kit-preview] *),
+    [data-slot="sheet-close"]:not([data-kit-preview] *) {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .maplibregl-ctrl-group button:not([data-kit-preview] *) {
+      width: var(--target-touch);
+      height: var(--target-touch);
+    }
+  }
+  .kit-presentation[data-kit-pointer="coarse"] {
     [data-chart-columns] {
       min-width: calc(var(--chart-count) * 2.875rem);
     }
@@ -316,4 +442,137 @@
 :root.dark .maplibregl-ctrl-icon,
 :root.dark .maplibregl-ctrl-attrib-button {
   filter: invert(1);
+}
+
+/* Catalogue chrome is private to the kit. Samples always render public components. */
+.kit-gallery {
+  margin: 0 auto;
+  max-width: 1360px;
+  padding: 32px;
+}
+.kit-gallery-header {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  padding-bottom: 32px;
+  border-bottom: 1px solid var(--border);
+}
+.kit-gallery-heading {
+  flex: 1;
+}
+.kit-gallery-heading h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.kit-gallery-heading p {
+  margin: 4px 0 0;
+  color: var(--muted-foreground);
+  font-size: 14px;
+}
+.kit-gallery-intro {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 28px 0;
+}
+.kit-gallery-intro > input {
+  max-width: 400px;
+}
+.kit-gallery-index {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+}
+.kit-gallery-index a {
+  font-size: 13px;
+  color: var(--muted-foreground);
+  text-underline-offset: 4px;
+}
+.kit-gallery-index a:hover {
+  color: var(--foreground);
+}
+.kit-gallery-main {
+  display: flex;
+  flex-direction: column;
+  gap: 56px;
+}
+.kit-comparison {
+  min-width: 0;
+  scroll-margin-top: 24px;
+}
+.kit-comparison-heading h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+.kit-comparison-heading p {
+  margin: 6px 0 12px;
+  max-width: 65ch;
+  color: var(--muted-foreground);
+  font-size: 14px;
+}
+.kit-component-names {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-bottom: 20px;
+}
+.kit-component-names code {
+  font-size: 11px;
+  color: var(--subtle-foreground);
+}
+.kit-comparison-scroll {
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+.kit-comparison-pair {
+  display: flex;
+  gap: 24px;
+  width: max-content;
+}
+.kit-device-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  font-size: 12px;
+}
+.kit-device-label strong {
+  font-weight: 600;
+}
+.kit-device-label span {
+  color: var(--subtle-foreground);
+}
+.kit-sample {
+  height: 100%;
+  padding: 24px;
+}
+.kit-sample-full {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+}
+.kit-sample > [data-slot="scroll-area"] {
+  height: 100%;
+}
+.kit-presentation [data-sonner-toaster] {
+  position: absolute;
+}
+/* Primitive supporting panels fit their container without imposing a minimum phone width. */
+.kit-presentation > .kit-specimen-content .kit-sample > aside {
+  max-width: 100%;
+}
+@media (width < 48rem) {
+  .kit-gallery {
+    padding: 16px;
+  }
+  .kit-gallery-header {
+    flex-wrap: wrap;
+    gap: 20px;
+  }
+  .kit-gallery-heading {
+    min-width: 150px;
+  }
 }

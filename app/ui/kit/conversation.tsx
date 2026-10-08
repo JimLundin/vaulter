@@ -8,6 +8,7 @@ import { Icon } from './icons.tsx';
 import { cn } from './lib/utils.ts';
 import { useIsMobile } from './hooks/use-mobile.ts';
 import { useLayout } from './hooks/use-layout.ts';
+import { usePresentation } from './presentation.tsx';
 import { useRestoreFocus } from './hooks/use-restore-focus.ts';
 
 // Layout can change without moving conversation state into either device's presentation.
@@ -287,6 +288,7 @@ export function ConversationPanel({
   onClose: () => void;
   children?: ReactNode;
 }) {
+  const presentation = usePresentation();
   const layout = useLayout();
   const mobile = layout === 'compact';
   const wide = layout === 'wide';
@@ -298,25 +300,28 @@ export function ConversationPanel({
       if (
         event.key === 'Escape' &&
         !event.defaultPrevented &&
-        !document.querySelector('[data-slot="dialog-content"], [data-slot="drawer-content"]')
+        !(presentation?.portal ?? document).querySelector(
+          '[data-slot="dialog-content"], [data-slot="drawer-content"]',
+        )
       )
         onClose();
     };
     document.addEventListener('keydown', dismissOnEscape);
     return () => document.removeEventListener('keydown', dismissOnEscape);
-  }, [open, onClose]);
+  }, [open, onClose, presentation]);
   useEffect(() => {
     if (!open || wide || !ref.current) return;
-    const restoreAria = hideOthers(ref.current);
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+    const restoreAria = hideOthers(ref.current, presentation?.portal);
+    const scrollRoot = presentation?.portal ?? document.body;
+    const previous = scrollRoot.style.overflow;
+    scrollRoot.style.overflow = 'hidden';
     if (!ref.current.contains(document.activeElement))
       ref.current.querySelector<HTMLElement>('button, a, textarea')?.focus();
     return () => {
       restoreAria();
-      document.body.style.overflow = previous;
+      scrollRoot.style.overflow = previous;
     };
-  }, [open, wide]);
+  }, [open, wide, presentation]);
   if (!open) return null;
   return (
     <>

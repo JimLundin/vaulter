@@ -5,7 +5,7 @@
 import { cva } from 'class-variance-authority';
 import type { ComponentProps, ReactNode } from 'react';
 import { Icon, type IconName } from './icons.tsx';
-import type { Unstyled } from './lib/unstyled.tsx';
+import { type Unstyled, unstyled } from './lib/unstyled.tsx';
 import { cn } from './lib/utils.ts';
 import { AvatarFallback, Avatar as AvatarPart } from './parts/avatar.tsx';
 import { Badge } from './parts/badge.tsx';
@@ -1032,3 +1032,6 @@ export function Choices({
     </div>
   );
 }
+
+/** A semantic form: behavior stays with its caller, presentation stays in the kit. */
+export const Form = unstyled((props: ComponentProps<'form'>) => <form {...props} />);

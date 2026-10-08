@@ -1,11 +1,44 @@
 'use client';
 
 import * as React from 'react';
+import { usePresentation } from '../presentation.tsx';
+import { usePreviewInteraction } from '../hooks/use-preview-interaction.ts';
 import { cn } from '../lib/utils.ts';
 import { Drawer as DrawerPrimitive } from 'vaul';
+import { Dialog as DialogPrimitive } from 'radix-ui';
 
-function Drawer({ ...props }: React.ComponentProps<typeof DrawerPrimitive.Root>) {
-  return <DrawerPrimitive.Root data-slot="drawer" {...props} />;
+function Drawer(props: React.ComponentProps<typeof DrawerPrimitive.Root>) {
+  const presentation = usePresentation();
+  return presentation ? (
+    <PreviewDrawer {...props} container={presentation.portal} />
+  ) : (
+    <DrawerPrimitive.Root data-slot="drawer" {...props} />
+  );
+}
+
+// Vaul's modal=false suppresses its own body effects, but its internal Radix Root still defaults to
+// modal. A local Radix context uses the same controlled open state and the very same Vaul contents.
+function PreviewDrawer({ children, ...props }: React.ComponentProps<typeof DrawerPrimitive.Root>) {
+  const [open, setOpen] = React.useState(props.defaultOpen ?? false);
+  const current = props.open ?? open;
+  const change = (next: boolean) => {
+    setOpen(next);
+    props.onOpenChange?.(next);
+  };
+  return (
+    <DrawerPrimitive.Root
+      {...props}
+      open={current}
+      onOpenChange={change}
+      modal={false}
+      noBodyStyles={true}
+      disablePreventScroll={true}
+    >
+      <DialogPrimitive.Root modal={false} open={current} onOpenChange={change}>
+        {children}
+      </DialogPrimitive.Root>
+    </DrawerPrimitive.Root>
+  );
 }
 
 function DrawerTrigger({ ...props }: React.ComponentProps<typeof DrawerPrimitive.Trigger>) {
@@ -13,7 +46,14 @@ function DrawerTrigger({ ...props }: React.ComponentProps<typeof DrawerPrimitive
 }
 
 function DrawerPortal({ ...props }: React.ComponentProps<typeof DrawerPrimitive.Portal>) {
-  return <DrawerPrimitive.Portal data-slot="drawer-portal" {...props} />;
+  const presentation = usePresentation();
+  return (
+    <DrawerPrimitive.Portal
+      data-slot="drawer-portal"
+      {...props}
+      container={presentation?.portal ?? props.container}
+    />
+  );
 }
 
 function DrawerClose({ ...props }: React.ComponentProps<typeof DrawerPrimitive.Close>) {
@@ -24,6 +64,14 @@ function DrawerOverlay({
   className,
   ...props
 }: React.ComponentProps<typeof DrawerPrimitive.Overlay>) {
+  const presentation = usePresentation();
+  if (presentation)
+    return (
+      <div
+        data-slot="drawer-overlay"
+        className="pointer-events-none fixed inset-0 z-50 bg-black/50"
+      />
+    );
   return (
     <DrawerPrimitive.Overlay
       data-slot="drawer-overlay"
@@ -41,6 +89,7 @@ function DrawerContent({
   children,
   ...props
 }: React.ComponentProps<typeof DrawerPrimitive.Content>) {
+  const onInteractOutside = usePreviewInteraction(props.onInteractOutside);
   return (
     <DrawerPortal data-slot="drawer-portal">
       <DrawerOverlay />
@@ -55,6 +104,7 @@ function DrawerContent({
           className,
         )}
         {...props}
+        onInteractOutside={onInteractOutside}
       >
         <div className="mx-auto mt-4 hidden h-2 w-[100px] shrink-0 rounded-full bg-muted group-data-[vaul-drawer-direction=bottom]/drawer-content:block" />
         {children}

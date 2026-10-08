@@ -1,3 +1,4 @@
+import { usePresentation } from './presentation.tsx';
 // Shared gates, notices, tool results and diffs. No vault or workflow logic.
 import { type ReactNode, useEffect, useRef } from 'react';
 import { Button } from './parts/button.tsx';
@@ -170,12 +171,19 @@ export function HoverPreview({
   anchor: DOMRect;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const presentation = usePresentation();
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    el.style.left = `${Math.max(8, Math.min(anchor.left, innerWidth - el.offsetWidth - 8))}px`;
-    el.style.top = `${anchor.bottom + el.offsetHeight + 16 > innerHeight ? Math.max(8, anchor.top - el.offsetHeight - 8) : anchor.bottom + 8}px`;
-  }, [anchor]);
+    const bounds = presentation?.portal.getBoundingClientRect();
+    const left = anchor.left - (bounds?.left ?? 0);
+    const top = anchor.top - (bounds?.top ?? 0);
+    const bottom = anchor.bottom - (bounds?.top ?? 0);
+    const width = bounds?.width ?? innerWidth;
+    const height = bounds?.height ?? innerHeight;
+    el.style.left = `${Math.max(8, Math.min(left, width - el.offsetWidth - 8))}px`;
+    el.style.top = `${bottom + el.offsetHeight + 16 > height ? Math.max(8, top - el.offsetHeight - 8) : bottom + 8}px`;
+  }, [anchor, presentation]);
   return (
     <div
       ref={ref}

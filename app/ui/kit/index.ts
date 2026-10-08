@@ -319,6 +319,7 @@ export {
   Notice,
   Page,
   FeaturePage,
+  Form,
   PageHeader,
   Panel,
   Prose,

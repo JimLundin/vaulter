@@ -1,10 +1,15 @@
 import * as React from 'react';
+import { usePresentation } from '../presentation.tsx';
+import { usePreviewInteraction } from '../hooks/use-preview-interaction.ts';
 import { cn } from '../lib/utils.ts';
 import { XIcon } from 'lucide-react';
 import { Dialog as SheetPrimitive } from 'radix-ui';
 
 function Sheet({ ...props }: React.ComponentProps<typeof SheetPrimitive.Root>) {
-  return <SheetPrimitive.Root data-slot="sheet" {...props} />;
+  const presentation = usePresentation();
+  return (
+    <SheetPrimitive.Root data-slot="sheet" {...props} {...(presentation ? { modal: false } : {})} />
+  );
 }
 
 function SheetTrigger({ ...props }: React.ComponentProps<typeof SheetPrimitive.Trigger>) {
@@ -16,13 +21,28 @@ function SheetClose({ ...props }: React.ComponentProps<typeof SheetPrimitive.Clo
 }
 
 function SheetPortal({ ...props }: React.ComponentProps<typeof SheetPrimitive.Portal>) {
-  return <SheetPrimitive.Portal data-slot="sheet-portal" {...props} />;
+  const presentation = usePresentation();
+  return (
+    <SheetPrimitive.Portal
+      data-slot="sheet-portal"
+      {...props}
+      container={presentation?.portal ?? props.container}
+    />
+  );
 }
 
 function SheetOverlay({
   className,
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Overlay>) {
+  const presentation = usePresentation();
+  if (presentation)
+    return (
+      <div
+        data-slot="sheet-overlay"
+        className="pointer-events-none fixed inset-0 z-50 bg-black/50"
+      />
+    );
   return (
     <SheetPrimitive.Overlay
       data-slot="sheet-overlay"
@@ -45,6 +65,7 @@ function SheetContent({
   side?: 'top' | 'right' | 'bottom' | 'left';
   showCloseButton?: boolean;
 }) {
+  const onInteractOutside = usePreviewInteraction(props.onInteractOutside);
   return (
     <SheetPortal>
       <SheetOverlay />
@@ -63,6 +84,7 @@ function SheetContent({
           className,
         )}
         {...props}
+        onInteractOutside={onInteractOutside}
       >
         {children}
         {showCloseButton && (

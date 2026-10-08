@@ -1,10 +1,14 @@
 // Resolved import rules for removable workflows. Used by CI through tools/layout.test.ts.
-import { API } from 'typescript/unstable/sync';
+import { API, SymbolFlags } from 'typescript/unstable/sync';
 import * as ts from 'typescript/unstable/ast';
 import { readdirSync } from 'node:fs';
 import { dirname, relative, resolve } from 'node:path';
 
 const slash = (path: string) => path.replaceAll('\\', '/');
+const contentRenderer = (path: string) =>
+  path.startsWith('app/workflows/chat/rendering/') ||
+  path === 'app/vault/documents/notes/remark-vault-links.ts';
+const kit = (path: string) => path.startsWith('app/ui/kit/');
 const workflow = (path: string) => /^app\/workflows\/([^/]+)\//.exec(path)?.[1];
 export function importProblem(from: string, to: string): string | null {
   const target = workflow(to);
@@ -53,7 +57,23 @@ export function checkLayout(root: string): string[] {
         const symbol = project.checker.getSymbolAtLocation(value);
         const resolved = symbol?.declarations[0]?.resolve()?.getSourceFile().fileName;
         const target =
-          resolved ?? (value.text.startsWith('.') ? resolve(dirname(filename), value.text) : null);
+          (/\.css$/.test(value.text) && value.text.startsWith('.')
+            ? resolve(dirname(filename), value.text)
+            : resolved) ??
+          (value.text.startsWith('.') ? resolve(dirname(filename), value.text) : null);
+        if (
+          !(kit(from) || contentRenderer(from) || /\.test\.[cm]?tsx?$/.test(from)) &&
+          /^(?:lucide-react|radix-ui|vaul|cmdk|sonner)(?:\/|$)/.test(value.text)
+        )
+          problems.push(`${from}: presentation dependencies belong behind app/ui/kit/index.ts`);
+        if (
+          !(kit(from) || contentRenderer(from)) &&
+          /\.css$/.test(value.text) &&
+          target &&
+          slash(relative(root, target)) !== 'app/ui/kit/styles.css' &&
+          !(from === 'app/product.tsx' && contentRenderer(slash(relative(root, target))))
+        )
+          problems.push(`${from}: app styles belong in the kit or content renderer`);
         if (!target) return;
         const problem = importProblem(from, slash(relative(root, target)));
         if (problem) problems.push(problem);
@@ -68,7 +88,49 @@ export function checkLayout(root: string): string[] {
           node.arguments[0]
         )
           check(node.arguments[0]);
-        if (workflow(from) && !from.includes('/rendering/')) {
+        if (!(kit(from) || contentRenderer(from))) {
+          if (
+            (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) &&
+            ts.isIdentifier(node.tagName) &&
+            /^[a-z]/.test(node.tagName.text)
+          )
+            problems.push(`${from}: <${node.tagName.text}> must be a public kit component`);
+          if (
+            ts.isJsxAttribute(node) &&
+            ['className', 'style', 'dangerouslySetInnerHTML'].includes(node.name.getText(file))
+          )
+            problems.push(
+              `${from}: app views must compose the public kit instead of styling elements`,
+            );
+          if (
+            ts.isObjectLiteralExpression(node) &&
+            node.properties.some(
+              (property) =>
+                ts.isPropertyAssignment(property) &&
+                ['className', 'style', 'dangerouslySetInnerHTML'].includes(
+                  property.name.getText(file).replace(/['"]/g, ''),
+                ),
+            )
+          )
+            problems.push(`${from}: presentation props belong in the kit or content renderer`);
+          if (
+            ts.isCallExpression(node) &&
+            node.arguments[0] &&
+            ts.isStringLiteral(node.arguments[0])
+          ) {
+            const symbol = project.checker.getSymbolAtLocation(node.expression);
+            const resolved =
+              symbol &&
+              (symbol.flags & SymbolFlags.Alias
+                ? project.checker.getAliasedSymbol(symbol)
+                : symbol);
+            if (['createElement', 'jsx', 'jsxs', 'jsxDEV'].includes(resolved?.name ?? ''))
+              problems.push(
+                `${from}: intrinsic element factories belong in the kit or content renderer`,
+              );
+          }
+        }
+        if (workflow(from) && !contentRenderer(from)) {
           if (
             ts.isImportSpecifier(node) &&
             ['useIsMobile', 'useLayout', 'useMedia'].includes((node.propertyName ?? node.name).text)
@@ -84,16 +146,6 @@ export function checkLayout(root: string): string[] {
             /\b(?:width|height|orientation|pointer|hover)\b/.test(node.arguments[0].text)
           )
             problems.push(`${from}: viewport queries belong in the kit`);
-          if (ts.isJsxAttribute(node) && ['className', 'style'].includes(node.name.getText(file)))
-            problems.push(
-              `${from}: workflow views must compose the public kit instead of styling elements`,
-            );
-          if (
-            ts.isImportDeclaration(node) &&
-            ts.isStringLiteral(node.moduleSpecifier) &&
-            /\.css$/.test(node.moduleSpecifier.text)
-          )
-            problems.push(`${from}: workflow styles belong in the kit or content renderer`);
         }
         node.forEachChild(visit);
       };

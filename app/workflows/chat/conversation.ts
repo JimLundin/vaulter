@@ -3,7 +3,7 @@
 // controller owns its live vault dependency. The model and the SDK load on the
 // first send.
 import { useEffect, useRef, useSyncExternalStore } from 'react';
-import { toast } from 'sonner';
+import { toast } from '../../ui/kit/index.ts';
 import type { ModelMessage, ToolSet } from 'ai';
 
 import type { AgentContext } from './context.ts';

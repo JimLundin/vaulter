@@ -4,6 +4,7 @@ import {
   AlertDescription,
   Brand,
   Button,
+  Form,
   Card,
   CardContent,
   CardDescription,
@@ -38,7 +39,7 @@ export function Unlock({ unlock }: { unlock: (password: string) => Promise<void>
           <CardDescription>Open your vault. This device remembers it for 30 days.</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={submit}>
+          <Form onSubmit={submit}>
             <Stack>
               <Label htmlFor={id}>Password</Label>
               <Input
@@ -59,7 +60,7 @@ export function Unlock({ unlock }: { unlock: (password: string) => Promise<void>
                 {busy ? 'Opening…' : 'Open vault'}
               </Button>
             </Stack>
-          </form>
+          </Form>
         </CardContent>
       </Card>
     </Gate>

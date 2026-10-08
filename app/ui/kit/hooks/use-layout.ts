@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react';
+import { usePresentation } from '../presentation.tsx';
 
 export type SizeClass = 'compact' | 'expanded' | 'wide';
 
@@ -28,5 +29,11 @@ function subscribe(changed: () => void) {
 }
 
 export function useLayout(): SizeClass {
-  return useSyncExternalStore(subscribe, snapshot, () => 'expanded');
+  const presentation = usePresentation();
+  const windowLayout = useSyncExternalStore<SizeClass>(
+    presentation ? () => () => {} : subscribe,
+    presentation ? () => presentation.layout : snapshot,
+    () => 'expanded',
+  );
+  return windowLayout;
 }
