@@ -112,6 +112,97 @@ test('paired agent samples keep independent drafts and send through the shared o
   );
 });
 
+test('sidebar labels, badges and actions have separate slots at mouse and touch density', async ({
+  page,
+}) => {
+  await page.goto('/ui/kit/');
+  await page.getByRole('searchbox', { name: 'Find a component' }).fill('Sidebar primitives');
+  const family = page.locator('[data-kit-comparison="sidebar"]');
+  for (const device of ['desktop', 'mobile'] as const) {
+    const sample = specimen(family, device);
+    const bounds = async (slot: string) =>
+      (await sample.locator(`[data-slot="${slot}"]`).first().boundingBox())!;
+    const label = await bounds('sidebar-group-label');
+    const add = await bounds('sidebar-group-action');
+    const button = await bounds('sidebar-menu-button');
+    const badge = await bounds('sidebar-menu-badge');
+    const action = await bounds('sidebar-menu-action');
+    const nested = await bounds('sidebar-menu-sub-button');
+    expect(label.x + label.width).toBeLessThanOrEqual(add.x);
+    expect(add.y + add.height).toBeLessThanOrEqual(button.y);
+    expect(badge.x + badge.width).toBeLessThanOrEqual(action.x);
+    expect(action.y + action.height).toBeLessThanOrEqual(nested.y);
+    expect(Math.abs(button.y + button.height / 2 - action.y - action.height / 2)).toBeLessThan(1);
+    if (device === 'mobile') {
+      expect(add.height).toBeGreaterThanOrEqual(44);
+      expect(action.height).toBeGreaterThanOrEqual(44);
+      expect(label.height).toBeGreaterThanOrEqual(44);
+      expect((await bounds('sidebar-menu-skeleton')).height).toBeGreaterThanOrEqual(44);
+    }
+    await sample.getByRole('button', { name: 'Add feature' }).hover();
+    await expect(sample.getByRole('button', { name: 'Add feature' })).toHaveCSS(
+      'color',
+      'rgb(255, 255, 255)',
+    );
+    expect(
+      await sample
+        .getByRole('button', { name: 'Add feature' })
+        .evaluate((node) => Number.parseFloat(getComputedStyle(node).borderRadius)),
+    ).toBeGreaterThan(0);
+  }
+  await page.getByRole('searchbox', { name: 'Find a component' }).fill('Buttons & selection');
+  for (const device of ['desktop', 'mobile'] as const) {
+    const sample = specimen(page.locator('[data-kit-comparison="buttons"]'), device);
+    await expect(sample.getByRole('button', { name: 'Add note' })).toHaveCSS(
+      'background-color',
+      'rgb(24, 24, 27)',
+    );
+    await expect(sample.getByRole('button', { name: 'Add note' })).toHaveCSS(
+      'color',
+      'rgb(255, 255, 255)',
+    );
+    await expect(sample.getByRole('button', { name: 'Square action' })).toHaveCSS(
+      'border-radius',
+      '0px',
+    );
+  }
+});
+
+test('submit actions sit inside fields and reserve room for editable text', async ({ page }) => {
+  await page.goto('/ui/kit/');
+  const filter = page.getByRole('searchbox', { name: 'Find a component' });
+  await filter.fill('Agent conversation');
+  const agent = page.locator('[data-kit-comparison="agent"]');
+  for (const device of ['desktop', 'mobile'] as const) {
+    const sample = specimen(agent, device);
+    const input = sample.getByRole('textbox', { name: 'Message', exact: true });
+    const send = sample.getByRole('button', { name: 'Send', exact: true });
+    await input.fill('A message long enough to reach the inset send control');
+    await contained(input, send);
+    await expect
+      .poll(async () => {
+        const box = (await input.boundingBox())!;
+        const action = (await send.boundingBox())!;
+        const padding = await input.evaluate((node) =>
+          Number.parseFloat(getComputedStyle(node).paddingRight),
+        );
+        return box.x + box.width - padding - action.x;
+      })
+      .toBeLessThanOrEqual(-4);
+    await send.click();
+    await expect(sample.locator('[data-message="user"]')).toHaveCount(1);
+  }
+  await filter.fill('Grouped inputs');
+  const fields = page.locator('[data-kit-comparison="grouped-fields"]');
+  for (const device of ['desktop', 'mobile'] as const) {
+    const sample = specimen(fields, device);
+    await contained(
+      sample.getByRole('textbox', { name: 'Quick note' }),
+      sample.getByRole('button', { name: 'Save quick note' }),
+    );
+  }
+});
+
 test('settings and search portals remain inside their example without locking the catalogue', async ({
   page,
 }) => {

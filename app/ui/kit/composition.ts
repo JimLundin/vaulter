@@ -15,6 +15,7 @@ export const compositions = [
       'Dock',
       'Heading',
       'Icon',
+      'InputGroupAddon',
       'Link',
       'OptionStrip',
       'Prose',

@@ -43,6 +43,30 @@ views compose public exports and avoid ad hoc styling. Markdown content renderin
 exception. Maps require `https://tiles.openfreemap.org` in the consuming page's CSP; the current
 product does not use maps.
 
+## Foundation and spacing
+
+Controls originate from **shadcn/ui**, backed by **Radix UI** for accessible interactions, **Tailwind**
+for styling and **Vaul** for drawers. They are owned source in `parts/`, not a separately themed
+component library. Vaulter defines the layout, type, colors and responsive roles on top of them.
+
+Spacing uses a 4px scale: 4px between inset actions, 8px between related controls, 16px within
+content and 24px between sections. `--space-control`, `--space-row`, `--space-content` and
+`--space-section` define those roles in `styles.css`; Stack and Row use the same scale. Pointer
+density changes the control size from 32px to at least 44px without enlarging the gaps. Sidebar
+labels, badges, options and nested content occupy separate grid slots; touch actions never rely on
+oversized invisible hit areas or fixed absolute offsets.
+
+Primary create/submit actions use `Button variant="default"`: primary fill and contrasting icon.
+Secondary options use `ghost` or `outline`; the same action retains its role across devices.
+Ordinary controls have 8px corners, and their hover/focus backgrounds follow that shape. Only the
+mobile footer fixtures use `size="square"`; the voice action stays circular.
+
+Text-entry submission uses `InputGroup` with `InputGroupAddon align="inset-end"`. The action sits
+inside the editable field's bounds; the group reserves its measured width plus an 8px gap, including
+when labels, touch targets or visible actions change size. `InputGroupTextarea variant="inline"`
+remains 44px high; `InputGroup variant="composer"` supplies the composer's outer shape. Agent,
+quick-note and vault-access examples use the same primitives.
+
 ## Desktop and mobile variants
 
 Mobile and desktop are the **same UI, resized and rearranged**. Components share their content,
@@ -97,8 +121,9 @@ remains left aligned within that centered column.
 ### Primitive composition
 
 Agent and Settings contain no intrinsic HTML, CSS classes or inline styling. They assemble public
-building blocks. `Button` owns square, suggestion and voice variants; `Form layout="inline"` and
-`Textarea variant="inline"` own the one-row input. `Field orientation="setting"` owns responsive
+building blocks. `Button` owns square, suggestion and voice variants; `InputGroup`,
+`InputGroupTextarea variant="inline"` and `InputGroupAddon align="inset-end"` own the one-row
+field and inset actions. `Field orientation="setting"` owns responsive
 label/control/description placement. Theme choices use the shared `RadioGroup` primitives.
 
 `parts/layout.tsx` owns Stack, Row, Text, Heading, Link and Prose independently of application frames.

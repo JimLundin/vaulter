@@ -68,7 +68,7 @@ function Buttons() {
         <K.Button variant="voice" size="voice" aria-label="Voice action">
           <K.Icon name="mic" size="xl" />
         </K.Button>
-        <K.Button size="icon" aria-label="Add note">
+        <K.Button size="icon-sm" aria-label="Add note">
           <K.Icon name="plus" />
         </K.Button>
       </K.Row>
@@ -204,9 +204,8 @@ function GroupedFields() {
       </K.InputGroup>
       <K.InputGroup>
         <K.InputGroupTextarea aria-label="Quick note" placeholder="Write a quick note…" />
-        <K.InputGroupAddon align="block-end">
-          <K.InputGroupText>Only on this device</K.InputGroupText>
-          <K.InputGroupButton aria-label="Save quick note">
+        <K.InputGroupAddon align="inset-end">
+          <K.InputGroupButton variant="default" size="icon-sm" aria-label="Save quick note">
             <K.Icon name="arrow-up" />
           </K.InputGroupButton>
         </K.InputGroupAddon>
@@ -687,37 +686,43 @@ function Agent() {
                 send();
               }}
             >
-              <K.Textarea
-                variant="inline"
-                rows={1}
-                aria-label="Message"
-                placeholder="Message…"
-                value={draft}
-                onChange={(event) => setDraft(event.currentTarget.value)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
-                    event.preventDefault();
-                    send();
+              <K.InputGroup variant="composer">
+                <K.InputGroupTextarea
+                  variant="inline"
+                  rows={1}
+                  aria-label="Message"
+                  placeholder="Message…"
+                  value={draft}
+                  onChange={(event) => setDraft(event.currentTarget.value)}
+                  onKeyDown={(event) => {
+                    if (
+                      event.key === 'Enter' &&
+                      !event.shiftKey &&
+                      !event.nativeEvent.isComposing
+                    ) {
+                      event.preventDefault();
+                      send();
+                    }
+                  }}
+                />
+                <K.ComposerActions
+                  voice={
+                    <K.Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      aria-label="Start voice interaction"
+                      onClick={() => setVoice(!voice)}
+                    >
+                      <K.Icon name="mic" />
+                    </K.Button>
                   }
-                }}
-              />
-              <K.ComposerActions
-                voice={
-                  <K.Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    aria-label="Start voice interaction"
-                    onClick={() => setVoice(!voice)}
-                  >
-                    <K.Icon name="mic" />
+                >
+                  <K.Button type="submit" size="icon" aria-label="Send" disabled={!draft.trim()}>
+                    <K.Icon name="arrow-up" />
                   </K.Button>
-                }
-              >
-                <K.Button type="submit" size="icon" aria-label="Send" disabled={!draft.trim()}>
-                  <K.Icon name="arrow-up" />
-                </K.Button>
-              </K.ComposerActions>
+                </K.ComposerActions>
+              </K.InputGroup>
             </K.Form>
           </K.Composer>
         }
@@ -779,12 +784,14 @@ function AgentPanel() {
           composer={
             <K.Composer>
               <K.Form layout="inline" onSubmit={(event) => event.preventDefault()}>
-                <K.Textarea variant="inline" aria-label="Panel message" rows={1} />
-                <K.ComposerActions>
-                  <K.Button size="icon" aria-label="Send panel message">
-                    <K.Icon name="arrow-up" />
-                  </K.Button>
-                </K.ComposerActions>
+                <K.InputGroup variant="composer">
+                  <K.InputGroupTextarea variant="inline" aria-label="Panel message" rows={1} />
+                  <K.ComposerActions>
+                    <K.Button size="icon" aria-label="Send panel message">
+                      <K.Icon name="arrow-up" />
+                    </K.Button>
+                  </K.ComposerActions>
+                </K.InputGroup>
               </K.Form>
             </K.Composer>
           }
@@ -925,8 +932,10 @@ function SidebarParts() {
     <K.SidebarProvider>
       <K.Sidebar collapsible="none">
         <K.SidebarHeader>
-          <K.Brand />
-          <K.SidebarTrigger />
+          <K.Row justify="between">
+            <K.Brand />
+            <K.SidebarTrigger />
+          </K.Row>
         </K.SidebarHeader>
         <K.SidebarContent>
           <K.SidebarGroup>
@@ -964,7 +973,9 @@ function SidebarParts() {
         </K.SidebarFooter>
       </K.Sidebar>
       <K.SidebarInset>
-        <K.Text>Page content</K.Text>
+        <K.Stack inset="md" block="md">
+          <K.Text>Page content</K.Text>
+        </K.Stack>
       </K.SidebarInset>
     </K.SidebarProvider>
   );
@@ -983,8 +994,19 @@ function Access() {
           <K.Form onSubmit={(event) => event.preventDefault()}>
             <K.Stack>
               <K.Label htmlFor={id}>Password</K.Label>
-              <K.Input id={id} type="password" autoComplete="off" />
-              <K.Button type="submit">Open vault</K.Button>
+              <K.InputGroup>
+                <K.InputGroupInput id={id} type="password" autoComplete="off" />
+                <K.InputGroupAddon align="inset-end">
+                  <K.InputGroupButton
+                    variant="default"
+                    type="submit"
+                    size="icon-sm"
+                    aria-label="Open vault"
+                  >
+                    <K.Icon name="chevron-right" />
+                  </K.InputGroupButton>
+                </K.InputGroupAddon>
+              </K.InputGroup>
             </K.Stack>
           </K.Form>
         </K.CardContent>
@@ -1033,7 +1055,7 @@ function SurfacePrimitives() {
     <K.ReadingColumn>
       <K.Toolbar>
         <K.Heading>Shared toolbar</K.Heading>
-        <K.Button variant="ghost" size="square" aria-label="Close example">
+        <K.Button variant="ghost" size="icon-lg" aria-label="Close example">
           <K.Icon name="close" />
         </K.Button>
       </K.Toolbar>
@@ -1061,17 +1083,21 @@ function SurfacePrimitives() {
         </K.Stack>
       </K.AutoScrollArea>
       <K.Dock>
-        <K.Surface variant="input">
-          <K.Form layout="inline">
-            <K.Textarea
-              variant="inline"
-              rows={1}
-              aria-label="Inline primitive field"
-              placeholder="One-row field…"
-            />
-            <K.Button size="icon" aria-label="Submit example">
-              <K.Icon name="arrow-up" />
-            </K.Button>
+        <K.Surface variant="plain">
+          <K.Form layout="inline" onSubmit={(event) => event.preventDefault()}>
+            <K.InputGroup variant="composer">
+              <K.InputGroupTextarea
+                variant="inline"
+                rows={1}
+                aria-label="Inline primitive field"
+                placeholder="One-row field…"
+              />
+              <K.InputGroupAddon align="inset-end">
+                <K.Button type="submit" size="icon" aria-label="Submit example">
+                  <K.Icon name="arrow-up" />
+                </K.Button>
+              </K.InputGroupAddon>
+            </K.InputGroup>
           </K.Form>
         </K.Surface>
       </K.Dock>
@@ -1095,7 +1121,7 @@ function PanelPrimitive() {
           <K.Heading>Supporting content</K.Heading>
           <K.Button
             variant="ghost"
-            size="square"
+            size="icon-lg"
             aria-label="Close supporting content"
             onClick={() => setOpen(false)}
           >

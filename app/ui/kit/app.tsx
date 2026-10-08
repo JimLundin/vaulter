@@ -471,7 +471,7 @@ export function NavigationSheet({
             aria-current={entry.active ? 'page' : undefined}
             onClick={onClose}
             className={cn(
-              'flex min-h-14 items-center gap-3 px-4 text-copy hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring',
+              'flex min-h-14 items-center gap-3 rounded-md px-4 text-copy hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring',
               entry.active && 'bg-muted font-medium',
             )}
           >
@@ -870,6 +870,9 @@ export const Form = unstyled(
     layout = 'default',
     ...props
   }: ComponentProps<'form'> & { layout?: 'default' | 'inline' }) => (
-    <form {...props} className={layout === 'inline' ? 'flex min-w-0 items-center' : undefined} />
+    <form
+      {...props}
+      className={layout === 'inline' ? 'flex min-w-0 w-full items-center' : undefined}
+    />
   ),
 );

@@ -41,6 +41,7 @@ body,
   background: var(--background);
 }
 .kit-presentation {
+  --control-size: 2rem;
   position: relative;
   height: 100%;
   transform: translateZ(0);
@@ -54,6 +55,7 @@ body,
 }
 .kit-presentation[data-kit-pointer="coarse"] {
   --type-input: 1rem;
+  --control-size: var(--target-touch);
 }
 .kit-specimen-content {
   height: 100%;
@@ -92,6 +94,12 @@ body,
 }
 
 :root {
+  /* Spacing roles share the 4px scale. Touch density changes controls, not the gaps. */
+  --space-control: 0.25rem;
+  --space-row: 0.5rem;
+  --space-content: 1rem;
+  --space-section: 1.5rem;
+  --control-size: 2rem;
   /* Radius roles: rounded-md (8) controls, rounded-lg (10) fields, rounded-xl (12) cards and rows,
    * rounded-2xl (14) docked surfaces such as the composer. The same on every device. */
   /* light-dark(): the light value, then the dark one, by the page's color-scheme. That follows the
@@ -171,6 +179,12 @@ body,
   --page-inset: 1rem;
   --page-block: 1rem;
   --reading-width: 48rem;
+}
+
+@media (any-pointer: coarse) {
+  :root {
+    --control-size: var(--target-touch);
+  }
 }
 
 /* biome-ignore lint/correctness/noUnknownFunction: Tailwind resolves its theme function at build time. */

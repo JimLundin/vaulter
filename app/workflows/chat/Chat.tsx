@@ -21,7 +21,8 @@ import {
   Row,
   Stack,
   Text,
-  Textarea,
+  InputGroup,
+  InputGroupTextarea,
   ToolResult,
 } from '../../ui/kit/index.ts';
 import { link } from '../../ui/routing.ts';
@@ -153,81 +154,83 @@ export function Chat({
               if (input.trim() && !(busy || recording)) say(input);
             }}
           >
-            <Textarea
-              variant="inline"
-              ref={ref}
-              rows={1}
-              aria-label="Message"
-              placeholder={busy ? 'Working…' : 'Type a message…'}
-              value={input}
-              disabled={busy || recording}
-              onChange={(event) => type(event.currentTarget.value)}
-              onFocus={() => setFocused(true)}
-              onBlur={() => setFocused(false)}
-              onKeyDown={(event) => {
-                // Safari can report Enter confirming composed text with keyCode 229.
-                if (
-                  event.key === 'Enter' &&
-                  !event.shiftKey &&
-                  !event.nativeEvent.isComposing &&
-                  event.nativeEvent.keyCode !== 229
-                ) {
-                  event.preventDefault();
-                  event.currentTarget.form?.requestSubmit();
-                }
-              }}
-            />
-            <ComposerActions
-              voice={
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-lg"
-                  aria-label={
-                    transcript.phase === 'listening'
-                      ? 'Finish recording'
-                      : transcript.phase === 'ready'
-                        ? 'Send transcript'
-                        : 'Dictate'
+            <InputGroup variant="composer">
+              <InputGroupTextarea
+                variant="inline"
+                ref={ref}
+                rows={1}
+                aria-label="Message"
+                placeholder={busy ? 'Working…' : 'Type a message…'}
+                value={input}
+                disabled={busy || recording}
+                onChange={(event) => type(event.currentTarget.value)}
+                onFocus={() => setFocused(true)}
+                onBlur={() => setFocused(false)}
+                onKeyDown={(event) => {
+                  // Safari can report Enter confirming composed text with keyCode 229.
+                  if (
+                    event.key === 'Enter' &&
+                    !event.shiftKey &&
+                    !event.nativeEvent.isComposing &&
+                    event.nativeEvent.keyCode !== 229
+                  ) {
+                    event.preventDefault();
+                    event.currentTarget.form?.requestSubmit();
                   }
-                  disabled={
-                    busy || transcript.phase === 'connecting' || transcript.phase === 'finishing'
-                  }
-                  onClick={voiceAction}
-                >
-                  <Icon
-                    name={
+                }}
+              />
+              <ComposerActions
+                voice={
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-lg"
+                    aria-label={
                       transcript.phase === 'listening'
-                        ? 'stop'
+                        ? 'Finish recording'
                         : transcript.phase === 'ready'
-                          ? 'arrow-up'
-                          : 'mic'
+                          ? 'Send transcript'
+                          : 'Dictate'
                     }
-                  />
-                </Button>
-              }
-            >
-              {busy ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon-lg"
-                  aria-label="Stop"
-                  onClick={stop}
-                >
-                  <Icon name="stop" />
-                </Button>
-              ) : (
-                <Button
-                  type="submit"
-                  size="icon-lg"
-                  aria-label="Send"
-                  disabled={!input.trim() || recording}
-                >
-                  <Icon name="arrow-up" />
-                </Button>
-              )}
-            </ComposerActions>
+                    disabled={
+                      busy || transcript.phase === 'connecting' || transcript.phase === 'finishing'
+                    }
+                    onClick={voiceAction}
+                  >
+                    <Icon
+                      name={
+                        transcript.phase === 'listening'
+                          ? 'stop'
+                          : transcript.phase === 'ready'
+                            ? 'arrow-up'
+                            : 'mic'
+                      }
+                    />
+                  </Button>
+                }
+              >
+                {busy ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon-lg"
+                    aria-label="Stop"
+                    onClick={stop}
+                  >
+                    <Icon name="stop" />
+                  </Button>
+                ) : (
+                  <Button
+                    type="submit"
+                    size="icon-lg"
+                    aria-label="Send"
+                    disabled={!input.trim() || recording}
+                  >
+                    <Icon name="arrow-up" />
+                  </Button>
+                )}
+              </ComposerActions>
+            </InputGroup>
           </Form>
         </Composer>
       }

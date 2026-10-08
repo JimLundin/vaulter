@@ -14,14 +14,13 @@ import { useRestoreFocus } from './hooks/use-restore-focus.ts';
 
 const surfaces = {
   plain: '',
-  input:
-    'shrink-0 rounded-2xl border bg-background p-1 shadow-xs focus-within:ring-2 focus-within:ring-ring/50',
   bubble:
     'max-w-[85%] whitespace-pre-wrap rounded-2xl bg-muted px-3 py-2.5 text-body text-copy md:px-4 md:py-3',
-  inset: 'gap-5 border-y bg-background px-[var(--page-inset)] py-4 md:border-0 md:p-0',
+  inset:
+    'gap-[var(--space-content)] border-y bg-background px-[var(--page-inset)] py-4 md:border-0 md:p-0',
   groupHeading: 'px-[var(--page-inset)] md:px-0',
-  grouped: 'gap-2 md:gap-5 md:border-t md:pt-6',
-  preferences: 'gap-6 bg-surface py-4 md:gap-8 md:bg-background md:px-6',
+  grouped: 'gap-[var(--space-row)] md:gap-[var(--space-content)] md:border-t md:pt-6',
+  preferences: 'gap-[var(--space-section)] bg-surface py-4 md:bg-background md:px-6',
   emblem: 'size-10 items-center justify-center rounded-full bg-muted text-muted-foreground',
 };
 /** Bordered, inset and grouped surfaces reuse the same responsive roles. */

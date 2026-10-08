@@ -2,6 +2,7 @@
 import { createContext, type ReactNode, useContext } from 'react';
 import { Stack, Row, Heading, Text, Link, Prose } from './parts/layout.tsx';
 import { Button } from './parts/button.tsx';
+import { InputGroupAddon } from './parts/input-group.tsx';
 import { Icon } from './icons.tsx';
 import {
   Surface,
@@ -73,7 +74,7 @@ function ConversationToolbar({ historyHref, onNewChat, busy }: ConversationActio
     <Toolbar>
       <Row gap="xs">
         {mobile && !!close && (
-          <Button variant="ghost" size="square" aria-label="Close" onClick={close}>
+          <Button variant="ghost" size="icon-lg" aria-label="Close" onClick={close}>
             <Icon name="arrow-left" size="lg" />
           </Button>
         )}
@@ -90,16 +91,16 @@ function ConversationToolbar({ historyHref, onNewChat, busy }: ConversationActio
       </Row>
       <Row>
         {!!historyHref && (
-          <Button variant="ghost" size={mobile ? 'square' : 'sm'} asChild={true}>
-            <Link href={historyHref} aria-label="History">
+          <Button variant="ghost" size={mobile ? 'icon-lg' : 'sm'} asChild={true}>
+            <Link href={historyHref} aria-label="History" plain={true}>
               <Icon name="history" size={mobile ? 'lg' : 'md'} />
               {!mobile && 'History'}
             </Link>
           </Button>
         )}
         <Button
-          variant={mobile ? 'ghost' : 'outline'}
-          size={mobile ? 'square' : 'sm'}
+          variant="default"
+          size={mobile ? 'icon-lg' : 'sm'}
           aria-label="New chat"
           disabled={busy}
           onClick={onNewChat}
@@ -179,19 +180,19 @@ export function Markdown({ children }: { children: ReactNode }) {
 }
 export function Composer({ children }: { children: ReactNode }) {
   return (
-    <Surface variant="input" as="fieldset" aria-label="Message composer">
+    <Surface as="fieldset" aria-label="Message composer">
       {children}
     </Surface>
   );
 }
 export function ComposerActions({ voice, children }: { voice?: ReactNode; children: ReactNode }) {
   return (
-    <Row gap="xs">
+    <InputGroupAddon align="inset-end">
       <Row visible="expanded" gap="none">
         {voice}
       </Row>
       {children}
-    </Row>
+    </InputGroupAddon>
   );
 }
 export function ConversationPanel({
