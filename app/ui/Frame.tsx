@@ -4,7 +4,6 @@ import type { ReactNode } from 'react';
 import {
   Button,
   ConversationPanel,
-  KeyHint,
   NavigationSuite,
   Text,
   Toaster,
@@ -71,13 +70,6 @@ export function Frame({
               Sign out
             </Button>
           )
-        }
-        hints={
-          <>
-            <KeyHint keys="⌘K" label="Search" />
-            <KeyHint keys="⌘J" label="Ask" />
-            <KeyHint keys="?" label="Shortcuts" />
-          </>
         }
         aside={
           <ConversationPanel open={!!panel} onClose={closePanel}>

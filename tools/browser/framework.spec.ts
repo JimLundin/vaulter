@@ -27,6 +27,16 @@ test('navigation has the same destinations and actions in both arrangements', as
     await page.getByRole('button', { name: 'Close menu' }).click();
     await expect(menu).toBeFocused();
   } else {
+    const workspace = page.locator('[data-layout="desktop-workspace"]');
+    await expect(workspace.locator('footer')).toHaveCount(0);
+    const mainBox = (await workspace.locator('main').boundingBox())!;
+    const workspaceBox = (await workspace.boundingBox())!;
+    expect(mainBox.y + mainBox.height).toBeCloseTo(workspaceBox.y + workspaceBox.height, 0);
+    await page.keyboard.press('?');
+    await expect(
+      page.getByRole('dialog', { name: 'Keyboard shortcuts', exact: true }),
+    ).toBeVisible();
+    await page.keyboard.press('Escape');
     await expect(page.getByRole('link', { name: 'Agent', exact: true })).toHaveCount(1);
     await expect(page.getByRole('button', { name: 'Try a conversation', exact: true })).toHaveCount(
       0,

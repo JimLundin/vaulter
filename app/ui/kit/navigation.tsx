@@ -2,7 +2,7 @@
 // Material 3's NavigationSuiteScaffold and SwiftUI's sidebar-adaptable TabView. Two size classes:
 //
 //   expanded (≥768px)   a sidebar: brand and search field on top, destinations in the middle, actions
-//                       and the primary action at the foot, keyboard hints under the screen
+//                       and the primary action at the foot
 //   compact (<768px)    a bottom bar: Menu, search and the actions as icons; the destinations in a menu
 //                       sheet that rises from the bar; the primary action floating above the bar
 //
@@ -61,7 +61,6 @@ export function NavigationSuite({
   actions,
   primary,
   footer,
-  hints,
   aside,
   children,
 }: {
@@ -76,8 +75,6 @@ export function NavigationSuite({
   primary?: { expanded?: ReactNode; compact?: ReactNode };
   /** Account controls under everything else (sign out). */
   footer?: ReactNode;
-  /** Keyboard hints under the screen; desktop only. */
-  hints?: ReactNode;
   /** A panel beside the screen (desktop) or over it (phone). */
   aside?: ReactNode;
   children: ReactNode;
@@ -222,7 +219,6 @@ export function NavigationSuite({
             floating={primary?.compact}
           />
         }
-        hints={hints}
       >
         {children}
       </WorkspaceFrame>

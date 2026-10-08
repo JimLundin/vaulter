@@ -574,12 +574,10 @@ export function PageHeader({
 export function WorkspaceFrame({
   header,
   bar,
-  hints,
   children,
 }: {
   header: ReactNode;
   bar: ReactNode;
-  hints: ReactNode;
   children: ReactNode;
 }) {
   const mobile = useIsMobile();
@@ -593,13 +591,7 @@ export function WorkspaceFrame({
       <main data-region="" className="flex min-h-0 flex-1 flex-col overflow-y-auto">
         {children}
       </main>
-      {mobile ? (
-        bar
-      ) : (
-        <footer className="flex shrink-0 items-center gap-5 border-t bg-surface px-12 py-3">
-          {hints}
-        </footer>
-      )}
+      {mobile && bar}
     </div>
   );
 }
@@ -722,16 +714,13 @@ export function MobileBar({
   );
 }
 
-/** The desktop frame beside the sidebar: the screen, and the bar of keys under it. */
-export function DesktopMain({ hints, children }: { hints?: ReactNode; children?: ReactNode }) {
+/** The desktop content beside the sidebar. */
+export function DesktopMain({ children }: { children?: ReactNode }) {
   return (
     <div className="flex h-svh min-w-0 flex-1 flex-col">
       <main data-region="" className="flex min-h-0 flex-1 flex-col overflow-y-auto">
         {children}
       </main>
-      {hints ? (
-        <footer className="flex items-center gap-5 border-t bg-surface px-12 py-3">{hints}</footer>
-      ) : null}
     </div>
   );
 }

@@ -56,7 +56,6 @@ adds one.
 | Sidebar footer rows (Settings) | Icons in the bar | `NavigationSuite` `actions` |
 | Optional primary sidebar control | Optional floating control above the bar | `NavigationSuite` `primary` |
 | Brand and sync status at the sidebar's top | Header strip | `Brand`, `MobileHeader` |
-| Keyboard-hint footer | Not shown | `WorkspaceFrame` `hints` |
 | Page header at the top of the reading column | Bordered header strip | `PageHeader` |
 | Centered dialog | Bottom-aligned dialog | `Overlay` |
 | Settings dialog over the current feature | Settings drawer, sharing Menu's surface | `SettingsMenu` → `MenuSheet` |
@@ -130,7 +129,9 @@ when expanding into a sidebar.
 Mobile has a brand/status header, icon toolbar, edge-to-edge live transcript, footer navigation with
 a circular microphone beside the always-visible message field, separate prompt strip, full-screen
 agent and search overlays, and bottom-sheet navigation. Desktop has the sidebar, reading column, labeled
-actions, keyboard hints and a side panel. Settings shares Menu's bottom drawer on mobile and centers
+actions and a side panel. Desktop content uses the full height without a shortcut footer. Search
+keeps its shortcut badge; all shortcuts remain available through Search and `?`.
+Settings shares Menu's bottom drawer on mobile and centers
 as a dialog on desktop; the same feature-named sections rearrange inside it. History uses shared list
 compositions. The thresholds live in `styles.css`; React reads the same emitted CSS tokens. The
 workspace and full-screen dialogs follow `visualViewport` so a mobile keyboard can reduce their available height.
