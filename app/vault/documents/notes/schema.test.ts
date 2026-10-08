@@ -38,8 +38,16 @@ describe('schemaOf', () => {
     ['predicates: { uses: { label: Uses, use: x } }', /needs an inverse label or symmetric/],
     ['predicates: { uses: { label: Uses, inverse: U, symmetric: true, use: x } }', /not both/],
     ['broad: { craft: [Programming] }', /broad\.craft must be a list/],
-    ['components: [Chart]', /unknown field "components"/],
+    ['components: Chart', /components must be a list/],
+    ['components: [chart]', /components must be a list/],
+    ['components: [42]', /components must be a list/],
   ])('rejects %s', (yaml, re) => expect(() => schemaOf(file(yaml))).toThrow(re));
+  test('existing vaults may keep their legacy component names without changing the vocabulary', () => {
+    const files = file(`${SCHEMA_YAML}\ncomponents: [Chart, LocalMap]\n`);
+    expect(schemaOf(files).types).toEqual(schemaOf(file(SCHEMA_YAML)).types);
+    expect(checkVault([...files, { path: 'A.md', text: NOTE('craft') }]).problems).toEqual([]);
+    expect(files[0].text).toContain('components: [Chart, LocalMap]');
+  });
   test('a missing section is empty', () => expect(parseSchema({}).areas).toEqual([]));
 });
 

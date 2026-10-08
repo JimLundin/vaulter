@@ -7,6 +7,10 @@
   # Public endpoint: keep this aligned with the GitHub VAULT_OPENAI_API variable.
   VITE_OPENAI_API = "https://fcg.palantirfoundry.com/language-model-service/api/proxy/openai/v1"
 
+[context.deploy-preview.environment]
+  # The app's CSP blocks the injected toolbar iframe, leaving an empty bottom bar.
+  NETLIFY_DISABLE_CDP = "true"
+
 # GitHub Pages publishes the password-encrypted secrets. Proxy that public file
 # through this origin so previews use the same password without build credentials.
 # A deployment's own secrets.json takes precedence when present.
@@ -14,4 +18,3 @@
   from = "/secrets.json"
   to = "https://jimlundin.github.io/vaulter/secrets.json"
   status = 200
-
