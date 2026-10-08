@@ -49,6 +49,12 @@ Notes don't publish: the app reads the vault's `main` itself. Every push here ru
 Source: GitHub Actions). This repo is public: never commit a `secrets.json`, notes, or anything personal
 (test fixtures and examples are fictional).
 
+Netlify PR previews build the app using `netlify.toml`. Its `/secrets.json` proxy serves the
+password-encrypted file already published on GitHub Pages, so previews use the same vault password
+without needing credentials in Netlify's build environment. A local `secrets.json`, when present,
+takes precedence. Keep Netlify's public `VITE_OPENAI_API` setting aligned with the GitHub
+`VAULT_OPENAI_API` variable; set `VITE_VAULT_REPO` too if the vault differs from the default.
+
 The vault's own CI (`vault/.github/workflows/check.yml`) checks out this repo's `main` and runs its
 check over the notes, so a change to the rules here applies to the vault's next push.
 
