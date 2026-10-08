@@ -12,7 +12,6 @@ import {
 } from 'ai';
 import { z } from 'zod';
 import { vaultOf } from '../../../core/derive.ts';
-import { isVaultPath } from '../../../core/vault.ts';
 import { titleOf, kind } from '../../../core/note-fields.ts';
 import { schemaOf } from '../../../core/schema.ts';
 import { capturePath } from '../../../core/capture.ts';
@@ -26,6 +25,15 @@ const LIST_MAX = 200;
 export function agentTools({ w, search, capture }: AgentContext) {
   const vault = () => vaultOf(w.files());
   const byPath = (path: string) => w.files().find((f) => f.path === path);
+  // The writer refuses what isn't a vault file, or deleting what doesn't exist; the model gets why.
+  const stage = async (path: string, text: string | null) => {
+    try {
+      await w.stage(path, text);
+      return { staged: w.staged() };
+    } catch (e) {
+      return { error: (e as Error).message };
+    }
+  };
   return {
     search: tool({
       description:
@@ -80,23 +88,12 @@ export function agentTools({ w, search, capture }: AgentContext) {
       description:
         "Stage a whole file's new text (create or replace). Nothing reaches the vault until commit.",
       inputSchema: z.object({ path: z.string(), text: z.string() }),
-      execute: async ({ path, text }) => {
-        if (!isVaultPath(path))
-          return {
-            error: `${path} isn't a vault file: notes at the root (.md, .mdx), daily/, captures/, meta/ (.md), meta/schema.yaml`,
-          };
-        await w.stage(path, text);
-        return { staged: w.staged() };
-      },
+      execute: ({ path, text }) => stage(path, text),
     }),
     deleteFile: tool({
       description: 'Stage deleting a file.',
       inputSchema: z.object({ path: z.string() }),
-      execute: async ({ path }) => {
-        if (!byPath(path)) return { error: `no such file: ${path}` };
-        await w.stage(path, null);
-        return { staged: w.staged() };
-      },
+      execute: ({ path }) => stage(path, null),
     }),
     check: tool({
       description:
@@ -113,7 +110,6 @@ export function agentTools({ w, search, capture }: AgentContext) {
       inputSchema: z.object({ message: z.string() }),
       execute: async ({ message }) => {
         if (!w.commit) return { error: 'committing is not available here (dev: use git)' };
-        if (!w.staged().length) return { error: 'nothing is staged' };
         try {
           const sha = await w.commit(message);
           // A commit sha shortened; a backend's own id (the folder's "folder-…") whole.

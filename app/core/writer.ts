@@ -2,7 +2,7 @@
 // overlay over the head (kept on the device by the backend, so a reload loses nothing); a commit writes
 // them as one step, refused if the check finds a problem they add, or if a staged file changed meanwhile.
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { applyChanges, type VaultFile } from '../../core/vault.ts';
+import { applyChanges, isVaultPath, type VaultFile } from '../../core/vault.ts';
 import { blobSha } from '../../core/blob-sha.ts';
 import { CheckFailed, Conflict, type Head, type VaultBackend, type Verify } from './backend.ts';
 
@@ -95,9 +95,17 @@ export function writerCore(
       overlay = (await backend?.keep.get<Overlay>('overlay')) ?? null;
       onOverlay(overlay);
     },
+    /** Refused for a path that isn't a vault file, or deleting a file that doesn't exist: the same rules
+     * for the editor and the agent. */
     async stage(path: string, text: string | null) {
       const o = overlay ?? { version: 0, files: {}, from: {} };
       const original = base().find((f) => f.path === path)?.text;
+      if (text !== null && !isVaultPath(path))
+        throw new Error(
+          `${path} isn't a vault file: notes at the root (.md, .mdx), daily/, captures/, meta/ (.md), meta/schema.yaml`,
+        );
+      if (text === null && original === undefined && typeof o.files[path] !== 'string')
+        throw new Error(`no such file: ${path}`);
       const files = { ...o.files };
       const from = { ...o.from };
       if (!(path in files)) from[path] = original === undefined ? null : await blobSha(original);

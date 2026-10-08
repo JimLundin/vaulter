@@ -45,6 +45,22 @@ test('staging the original text again unstages it', async () => {
   expect(w.overlay).toBeNull();
 });
 
+test('staging is refused for a path that is not a vault file, or deleting a file that does not exist', async () => {
+  const { w } = await setup();
+  await expect(w.stage('notes/Gamma.md', NOTE('Gamma'))).rejects.toThrow(/isn't a vault file/);
+  await expect(w.stage('Nobody.md', null)).rejects.toThrow(/no such file: Nobody.md/);
+  expect(w.overlay).toBeNull();
+  // A new file staged, then deleted: unstaged.
+  await w.stage('Gamma.md', NOTE('Gamma'));
+  await w.stage('Gamma.md', null);
+  expect(w.overlay).toBeNull();
+});
+
+test('a commit with nothing staged is refused', async () => {
+  const { w } = await setup();
+  await expect(w.commit!('empty')).rejects.toThrow('nothing is staged');
+});
+
 test('a commit that adds a problem is refused; nothing is written', async () => {
   const { w, backend } = await setup();
   await w.stage('Alpha.md', NOTE('Alpha', 'See [Nobody](</Nobody.md>).'));

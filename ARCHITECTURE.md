@@ -93,8 +93,10 @@ for the same thing.
 What both do is one function, in `core/` or the feature, and a command and a tool are thin over it,
 next to each other when both exist. The function checks what the input means (the note exists, the path
 is a vault file, the check passes), so Jim and the agent are held to the same rules; a tool's schema checks
-only its shape. Rename (`core/rename.ts`), the commit (the writer, which runs the check) and the audit
-(`core/audit.ts`) are such functions.
+only its shape. Rename (`core/rename.ts`), staging (the writer's `stage`, which takes only vault files and
+deletes only files that exist), the commit (the writer, which refuses an empty one and runs the check) and
+the audit (`core/audit.ts`, over any span; the feature's `weekAudit` is the week the page and the tool
+show) are such functions.
 
 ## Reaching the vault: backends
 

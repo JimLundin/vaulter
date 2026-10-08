@@ -1,28 +1,13 @@
 // The weekly sweep's audit (core/audit.ts) as a page: every section, the notes in it linked. The week's
 // history comes from the backend (`since`), so the page shows only where the backend keeps one.
 import { useEffect, useState } from 'react';
-import { audit, daysBefore, esc, type Section as AuditSection } from '../../../core/audit.ts';
+import { esc, type Section as AuditSection } from '../../../core/audit.ts';
+import { WEEK, weekAudit } from './week.ts';
 import { perVault, type Vault } from '../../../core/derive.ts';
-import { today } from '../../../core/format.ts';
-import { hrefOf, type Note } from '../../../core/note-fields.ts';
-import type { Schema } from '../../../core/schema.ts';
-import type { VaultBackend } from '../../core/backend.ts';
+import { hrefOf } from '../../../core/note-fields.ts';
 import { useHost, useVault } from '../../core/host.tsx';
 import { link } from '../../core/route.ts';
 import { Empty, ErrorState, Loading, PageHeader, Section } from '@/components/layout.tsx';
-
-const DAYS = 8;
-
-/** This week's audit, as tools/audit.ts runs it by default. */
-export async function weekAudit(
-  notes: Note[],
-  schema: Schema,
-  since: NonNullable<VaultBackend['since']>,
-) {
-  const t = today();
-  const day = daysBefore(t, DAYS);
-  return audit(notes, schema, await since(day), t, day, `${DAYS} days ago`);
-}
 
 /** Any page path in a row, longest first. */
 const paths = perVault(
@@ -81,7 +66,7 @@ export function Audit() {
     <div className="v-audit">
       <PageHeader
         title="Audit"
-        lede={`What the weekly sweep (conventions §15) must judge, the last ${DAYS} days. It changes nothing; fix each by hand.`}
+        lede={`What the weekly sweep (conventions §15) must judge, the last ${WEEK} days. It changes nothing; fix each by hand.`}
       />
       {error ? (
         <ErrorState>{error}</ErrorState>
