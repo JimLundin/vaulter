@@ -7,7 +7,6 @@ import { Button } from './parts/button.tsx';
 import { ScrollArea } from './parts/scroll-area.tsx';
 import type { Unstyled } from './lib/unstyled.tsx';
 import { cn } from './lib/utils.ts';
-import { useIsMobile } from './hooks/use-mobile.ts';
 import { useLayout } from './hooks/use-layout.ts';
 import { usePresentation } from './presentation.tsx';
 import { useRestoreFocus } from './hooks/use-restore-focus.ts';
@@ -60,7 +59,7 @@ export function ReadingColumn({
   label?: string;
   children: ReactNode;
 }) {
-  const mobile = useIsMobile();
+  const mobile = useLayout() === 'compact';
   return (
     <section
       aria-label={label}

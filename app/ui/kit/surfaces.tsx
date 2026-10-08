@@ -4,7 +4,7 @@ import { type ReactNode, useEffect, useRef } from 'react';
 import { Button } from './parts/button.tsx';
 import { Icon } from './icons.tsx';
 import { cn } from './lib/utils.ts';
-import { useIsMobile } from './hooks/use-mobile.ts';
+import { useLayout } from './hooks/use-layout.ts';
 
 export function Gate({ children }: { children: ReactNode }) {
   return (
@@ -25,7 +25,7 @@ export function PreviewBar({
   onReset: () => void;
   controls?: ReactNode;
 }) {
-  const mobile = useIsMobile();
+  const mobile = useLayout() === 'compact';
   return (
     <aside
       aria-label="Design preview"

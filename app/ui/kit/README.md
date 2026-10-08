@@ -204,7 +204,8 @@ that works:
    every row of the table above. Both shapes take the same props, use the same roles and show the
    same copy; only the kit branches, never a workflow. `useLayout` reads the breakpoint tokens
    emitted by Tailwind, so CSS and React share the thresholds; the gallery supplies its local presentation class. Product may
-   use the size class to choose a route or restore a panel; workflow views do not query the viewport.
+   use the size class to choose a route or restore a panel; no other file outside the kit reads it
+   or queries the viewport, which `tools/layout.test.ts` enforces. There is no phone/desktop boolean.
 
 Responsive presentation is owned by the kit. Conversation state stays in the chat workflow; the
 workspace, feed, composer, settings fields, history rows and open search/review/panel contents

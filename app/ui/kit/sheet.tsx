@@ -11,7 +11,7 @@ import {
 import { Stack } from './parts/layout.tsx';
 import { ScrollArea } from './parts/scroll-area.tsx';
 import { Icon } from './icons.tsx';
-import { useIsMobile } from './hooks/use-mobile.ts';
+import { useLayout } from './hooks/use-layout.ts';
 import { useRestoreFocus } from './hooks/use-restore-focus.ts';
 
 export function MenuSheet({
@@ -29,7 +29,7 @@ export function MenuSheet({
   header?: ReactNode;
   children: ReactNode;
 }) {
-  const compact = useIsMobile();
+  const compact = useLayout() === 'compact';
   const restoreFocus = useRestoreFocus(open);
   const descriptionId = useId();
   const ref = useRef<HTMLDivElement>(null);

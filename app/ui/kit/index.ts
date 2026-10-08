@@ -332,7 +332,6 @@ export {
 } from './app.tsx';
 export { Bars, type BarsProps, Sparkline, type SparklineProps } from './chart.tsx';
 export { CodeDiff, type CodeDiffProps } from './diff.tsx';
-export { useIsMobile } from './hooks/use-mobile.ts';
 export { useLayout, type SizeClass } from './hooks/use-layout.ts';
 export { Icon, type IconName, type IconProps, iconNames } from './icons.tsx';
 export type { Unstyled } from './lib/unstyled.tsx';

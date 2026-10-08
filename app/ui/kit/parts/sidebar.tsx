@@ -6,7 +6,7 @@ import { cn } from '../lib/utils.ts';
 import { PanelLeftIcon } from 'lucide-react';
 import { Slot } from 'radix-ui';
 
-import { useIsMobile } from '../hooks/use-mobile.ts';
+import { useLayout } from '../hooks/use-layout.ts';
 import { Button, buttonVariants } from './button.tsx';
 import { Input } from './input.tsx';
 import { Separator } from './separator.tsx';
@@ -55,7 +55,7 @@ function SidebarProvider({
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
 }) {
-  const isMobile = useIsMobile();
+  const isMobile = useLayout() === 'compact';
   const [openMobile, setOpenMobile] = React.useState(false);
 
   // This is the internal state of the sidebar.

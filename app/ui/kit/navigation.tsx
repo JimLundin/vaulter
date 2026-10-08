@@ -12,7 +12,7 @@
 import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import { Icon, type IconName } from './icons.tsx';
-import { useIsMobile } from './hooks/use-mobile.ts';
+import { useLayout } from './hooks/use-layout.ts';
 import {
   Brand,
   Kbd,
@@ -79,7 +79,7 @@ export function NavigationSuite({
   aside?: ReactNode;
   children: ReactNode;
 }) {
-  const compact = useIsMobile();
+  const compact = useLayout() === 'compact';
   const [menu, setMenu] = useState(false);
   useEffect(() => {
     if (!compact) setMenu(false);

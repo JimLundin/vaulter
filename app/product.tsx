@@ -34,7 +34,6 @@ import {
   Text,
   ThemeSwitch,
   setTheme,
-  useIsMobile,
   useLayout,
 } from './ui/kit/index.ts';
 import type { Command, Navigation } from './ui/command.ts';
@@ -96,8 +95,8 @@ export function OpenProduct({
 }) {
   const { vault, files, status } = session;
   const route = useRoute();
-  const mobile = useIsMobile();
   const layout = useLayout();
+  const mobile = layout === 'compact';
   const [search, setSearch] = useState(false);
   const [help, setHelp] = useState(false);
   const [settings, setSettings] = useState(false);

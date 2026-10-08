@@ -130,23 +130,31 @@ export function checkLayout(root: string): string[] {
               );
           }
         }
-        if (workflow(from) && !contentRenderer(from)) {
-          if (
-            ts.isImportSpecifier(node) &&
-            ['useIsMobile', 'useLayout', 'useMedia'].includes((node.propertyName ?? node.name).text)
-          )
-            problems.push(`${from}: size-dependent presentation belongs in the kit`);
-          if (
-            ts.isCallExpression(node) &&
-            ((ts.isIdentifier(node.expression) && node.expression.text === 'matchMedia') ||
-              (ts.isPropertyAccessExpression(node.expression) &&
-                node.expression.name.text === 'matchMedia')) &&
-            node.arguments[0] &&
-            ts.isStringLiteral(node.arguments[0]) &&
-            /\b(?:width|height|orientation|pointer|hover)\b/.test(node.arguments[0].text)
-          )
-            problems.push(`${from}: viewport queries belong in the kit`);
-        }
+        // The size class is the kit's: views outside it never branch on the viewport. Product may
+        // read it to choose a route or restore a panel.
+        if (
+          !(
+            kit(from) ||
+            contentRenderer(from) ||
+            from === 'app/product.tsx' ||
+            /\.test\.[cm]?tsx?$/.test(from)
+          ) &&
+          ts.isImportSpecifier(node) &&
+          ['useIsMobile', 'useLayout', 'useMedia'].includes((node.propertyName ?? node.name).text)
+        )
+          problems.push(`${from}: size-dependent presentation belongs in the kit`);
+        if (
+          workflow(from) &&
+          !contentRenderer(from) &&
+          ts.isCallExpression(node) &&
+          ((ts.isIdentifier(node.expression) && node.expression.text === 'matchMedia') ||
+            (ts.isPropertyAccessExpression(node.expression) &&
+              node.expression.name.text === 'matchMedia')) &&
+          node.arguments[0] &&
+          ts.isStringLiteral(node.arguments[0]) &&
+          /\b(?:width|height|orientation|pointer|hover)\b/.test(node.arguments[0].text)
+        )
+          problems.push(`${from}: viewport queries belong in the kit`);
         node.forEachChild(visit);
       };
       visit(file);
