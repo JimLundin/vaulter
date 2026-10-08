@@ -8,7 +8,6 @@ import { map } from './map/index.tsx';
 import { places } from './places/index.tsx';
 import { decisions } from './decisions/index.tsx';
 import { similar } from './similar/index.tsx';
-import { editor } from './editor/index.tsx';
 import { agent } from './agent/index.tsx';
 import { audit } from './audit/index.tsx';
 import { code } from './code/index.tsx';
@@ -25,7 +24,6 @@ export const EXTENSIONS: Extension[] = [
   places,
   decisions,
   similar,
-  editor,
   agent,
   audit,
   code,

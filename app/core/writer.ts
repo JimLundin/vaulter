@@ -1,4 +1,4 @@
-// Staging and committing, for any backend: what the editor and the agent write through. Edits wait in an
+// Staging and committing, for any backend: what the agent writes through. Edits wait in an
 // overlay over the head (kept on the device by the backend, so a reload loses nothing); a commit writes
 // them as one step, refused if they add a problem (the features' `files` rules), or if a staged file
 // changed meanwhile.
@@ -98,7 +98,7 @@ export function writerCore(
       onOverlay(overlay);
     },
     /** Refused for a file no feature keeps, or deleting a file that doesn't exist: the same rules for the
-     * editor and the agent. */
+     * agent and any feature that writes. */
     async stage(path: string, text: string | null) {
       const o = overlay ?? { version: 0, files: {}, from: {} };
       const original = base().find((f) => f.path === path)?.text;

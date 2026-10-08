@@ -15,7 +15,7 @@ import { appVersion, collect, type Place } from './meta.ts';
 import { recordExchange, type ChatTurn, type Collected } from './record.ts';
 import type { OnScreen } from './tools.ts';
 import { agentPage } from './routes.ts';
-import { historyPage } from '../editor/routes.ts';
+import { historyPage } from './routes.ts';
 import { graphOf } from '../graph/model/graph.ts';
 
 export const MODEL_KEY = 'vault.agent.model';

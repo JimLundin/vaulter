@@ -7,7 +7,7 @@ import type { Note } from '../notes/model/fields.ts';
 import { asList, hrefOf, kind, titleOf, topicHref } from '../notes/model/fields.ts';
 import { dateStr } from '../../core/format.ts';
 import { useHost } from '../../core/host.tsx';
-import { NoteActions, NoteSections } from './slots.tsx';
+import { NoteSections } from './slots.tsx';
 import { link } from '../../core/route.ts';
 import { renderBody, mdxReady, loadMdx } from './markdown.ts';
 import { later } from '../../core/later.ts';
@@ -163,7 +163,6 @@ export function NotePage({ note }: { note: Note }) {
         <Separator className="mt-12" />
         <footer className="mt-3 text-xs text-faint [&_a]:text-faint [&_a]:no-underline [&_a:hover]:text-primary">
           {source ? <a href={source(note.path)}>{note.path}</a> : note.path}
-          <NoteActions note={note} />
         </footer>
       </div>
       <aside aria-label="On this note" className="hidden @4xl:block">

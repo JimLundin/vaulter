@@ -1,4 +1,4 @@
-// What Changes, History and Edit share: a diff's lines, the dialog that confirms a step, a short sha.
+// History's parts: a diff's lines, the dialog that confirms a revert, a short sha.
 import type { ReactNode } from 'react';
 import { cn } from 'cn';
 import {

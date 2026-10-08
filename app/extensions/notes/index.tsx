@@ -24,4 +24,5 @@ export const notes: Extension = {
       k: kind(n.id),
       g: kind(n.id) === 'note' ? topicsOf(n) : [],
     })),
+  tools: async (ctx) => (await import('./tools.ts')).notesTools(ctx),
 };

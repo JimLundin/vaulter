@@ -1,11 +1,11 @@
-// The editor's tools for the agent, loaded with the agent: renaming a note (app/extensions/notes/model/rename.ts), staged like any edit.
+// Notes' tools for the agent, loaded with it: renaming a note (model/rename.ts), staged like any edit.
 import { tool, type ToolSet } from 'ai';
 import { z } from 'zod';
 import type { Change } from '../../core/files.ts';
-import { renameNote } from '../notes/model/rename.ts';
+import { renameNote } from './model/rename.ts';
 import type { AgentContext } from '../../core/extension.ts';
 
-export const editorTools = ({ w }: AgentContext) =>
+export const notesTools = ({ w }: AgentContext) =>
   ({
     renameNote: tool({
       description:

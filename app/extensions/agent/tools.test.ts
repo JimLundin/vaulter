@@ -8,7 +8,6 @@ import type { Host } from '../../core/host.tsx';
 import { SCHEMA } from '../notes/model/schema.fixture.ts';
 import { notes } from '../notes/index.tsx';
 import { graph } from '../graph/index.tsx';
-import { editor } from '../editor/index.tsx';
 import { runAgent } from './tools.ts';
 import { recordExchange } from './record.ts';
 import { checkVault } from '../check.ts';
@@ -147,7 +146,7 @@ test('writeFile refuses a path outside the vault', async () => {
   expect(ctx.w.staged()).toEqual([]);
 });
 
-test('renameNote, from the editor, stages the move and the links that follow it', async () => {
+test('renameNote, from notes, stages the move and the links that follow it', async () => {
   const { ctx } = await writer({
     'Beta.md': NOTE('Beta', 'See [Alpha](</Alpha.md#see-also>).').replace(
       '---\n# Beta',
@@ -166,7 +165,7 @@ test('renameNote, from the editor, stages the move and the links that follow it'
     model,
     ctx,
     [{ role: 'user', content: 'rename Alpha to Alpha Centauri' }],
-    await editor.tools!(ctx),
+    await notes.tools!(ctx),
   );
   const out: string[] = [];
   for await (const p of run.stream)

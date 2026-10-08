@@ -35,7 +35,7 @@ import {
   ToolInput,
   ToolOutput,
 } from '@/components/ai-elements/tool.tsx';
-import { historyPage } from '../editor/routes.ts';
+import { historyPage } from './routes.ts';
 import { graphOf } from '../graph/model/graph.ts';
 
 const dictates = 'SpeechRecognition' in globalThis || 'webkitSpeechRecognition' in globalThis;

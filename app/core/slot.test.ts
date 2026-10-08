@@ -2,7 +2,7 @@
 // only to the slot it was added to.
 import { expect, test } from 'vitest';
 import { EXTENSIONS } from '../extensions/index.ts';
-import { noteActions, noteSections } from '../extensions/reader/slots.tsx';
+import { noteSections } from '../extensions/reader/slots.tsx';
 import { slot } from './slot.ts';
 
 test('an entry comes back from its slot, with the extension that added it', () => {
@@ -40,12 +40,5 @@ test("a note's sections come from the features that add them, in order", () => {
     '60 map',
     '80 reader',
     '90 similar',
-  ]);
-});
-
-test("a note's footer links come from the editor", () => {
-  expect(noteActions.of(EXTENSIONS).map(({ from, entry }) => `${from} ${entry.label}`)).toEqual([
-    'editor edit',
-    'editor rename',
   ]);
 });

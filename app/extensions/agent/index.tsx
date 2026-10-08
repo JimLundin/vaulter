@@ -4,13 +4,14 @@
 // opened (its components stay out of the main bundle), like the SDK it loads in turn.
 // biome-ignore lint/correctness/noUnresolvedImports: Suspense is in @types/react's namespace, which Biome doesn't follow
 import { lazy, Suspense } from 'react';
-import { PlusIcon, SparklesIcon } from 'lucide-react';
+import { HistoryIcon, PlusIcon, SparklesIcon } from 'lucide-react';
 import { cn } from 'cn';
 import type { Extension, PanelArg } from '../../core/extension.ts';
 import { useHost } from '../../core/host.tsx';
 import { chat, newChat, useChat } from './chat.ts';
 import { Loading } from '@/components/layout.tsx';
-import { agentPage } from './routes.ts';
+import { agentPage, historyPage } from './routes.ts';
+import { History } from './History.tsx';
 
 const Chat = lazy(() => import('./Agent.tsx').then((m) => ({ default: m.AgentChat })));
 
@@ -43,16 +44,29 @@ function AgentIndicator() {
 export const agent: Extension = {
   id: 'agent',
   page: (path) =>
-    agentPage.match(path)
-      ? {
-          title: 'Agent',
-          body: (
-            <div className="flex h-[calc(100svh-13rem)] min-h-96 flex-col rounded-xl border bg-background md:h-[calc(100svh-8rem)]">
-              <AgentView arg={null} close={() => undefined} />
-            </div>
-          ),
-        }
-      : null,
+    historyPage.match(path)
+      ? { title: 'History', body: <History /> }
+      : agentPage.match(path)
+        ? {
+            title: 'Agent',
+            body: (
+              <div className="flex h-[calc(100svh-13rem)] min-h-96 flex-col rounded-xl border bg-background md:h-[calc(100svh-8rem)]">
+                <AgentView arg={null} close={() => undefined} />
+              </div>
+            ),
+          }
+        : null,
+  nav: [
+    {
+      label: 'History',
+      href: historyPage.href(),
+      icon: HistoryIcon,
+      keys: 'g y',
+      order: 80,
+      summary: 'What the agent committed, with a revert',
+      when: (h) => !!h.writer.history,
+    },
+  ],
   panel: {
     id: 'agent',
     label: 'Agent',

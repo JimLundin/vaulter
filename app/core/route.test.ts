@@ -1,7 +1,9 @@
 // Route patterns: a page is found by its pattern, and a link made by it comes back to the same page.
 import { expect, test } from 'vitest';
-import { editPage, historyPage } from '../extensions/editor/routes.ts';
+import { historyPage } from '../extensions/agent/routes.ts';
 import { pattern } from './route.ts';
+
+const filePage = pattern('/file/:file/');
 
 test('a pattern with no params matches only its own path', () => {
   expect(historyPage.match('/history/')).toEqual({});
@@ -12,14 +14,14 @@ test('a pattern with no params matches only its own path', () => {
 
 test('a link made by a pattern is matched by it again, with its params', () => {
   const file = 'people/Ada Lovelace.md';
-  const href = editPage.href({ file });
-  expect(href).toBe('/edit/people%2FAda%20Lovelace.md/');
-  expect(editPage.match(href)).toEqual({ file });
+  const href = filePage.href({ file });
+  expect(href).toBe('/file/people%2FAda%20Lovelace.md/');
+  expect(filePage.match(href)).toEqual({ file });
 });
 
 test('a param must be there', () => {
-  expect(editPage.match('/edit//')).toBeNull();
-  expect(editPage.match('/edit/')).toBeNull();
+  expect(filePage.match('/file//')).toBeNull();
+  expect(filePage.match('/file/')).toBeNull();
 });
 
 test('every param of a pattern is named', () => {
