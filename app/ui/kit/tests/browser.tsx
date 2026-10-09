@@ -62,6 +62,7 @@ function PolicyFixture() {
       </Overlay>
       <Drawer open={parent} onClose={() => setParent(false)} title="Parent">
         <Input aria-label="Parent draft" defaultValue="Parent task" />
+        <Button onClick={() => setPeer(true)}>Open peer task</Button>
         <Button onClick={() => setChild(true)}>Open nested review</Button>
         <DropdownMenu>
           <DropdownMenuTrigger render={<Button>Parent options</Button>} />
@@ -76,7 +77,13 @@ function PolicyFixture() {
       </Drawer>
       <Drawer open={peer} onClose={() => setPeer(false)} title="Peer">
         <Input aria-label="Peer draft" defaultValue="Peer task" />
+        <Button onClick={() => setParent(false)}>Close earlier drawer</Button>
       </Drawer>
+      {Array.from({ length: 30 }, (_, index) => `Background task details ${index + 1}`).map(
+        (detail) => (
+          <Text key={detail}>{detail}</Text>
+        ),
+      )}
     </Stack>
   );
 }
