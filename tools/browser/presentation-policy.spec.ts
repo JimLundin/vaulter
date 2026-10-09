@@ -1,5 +1,43 @@
 import { expect, test } from '@playwright/test';
 
+test('closing a review skips a disabled opener and restores useful focus in its scope', async ({
+  page,
+}) => {
+  await page.goto('/ui/kit/tests/browser.html?policy');
+  const background = page.getByRole('textbox', { name: 'Background draft' });
+  await background.fill('Continue this task');
+  const opener = page.getByRole('button', { name: 'Open standalone review' });
+  await opener.click();
+  const review = page.getByRole('dialog', { name: 'Standalone review' });
+  await review.getByRole('button', { name: 'Disable opening control' }).click();
+  await page.keyboard.press('Escape');
+  await expect(review).toBeHidden();
+  await expect(opener).toBeDisabled();
+  await expect(background).toBeFocused();
+  await expect(background).toHaveValue('Continue this task');
+});
+
+test('closing a review skips an invisible opener and restores the previous task control', async ({
+  page,
+}) => {
+  await page.goto('/ui/kit/tests/browser.html?policy');
+  const background = page.getByRole('textbox', { name: 'Background draft' });
+  await background.fill('Continue after rearrangement');
+  const opener = page.getByRole('button', {
+    name: 'Open standalone review',
+    includeHidden: true,
+  });
+  await opener.click();
+  const review = page.getByRole('dialog', { name: 'Standalone review' });
+  await opener.evaluate((node) => {
+    node.style.visibility = 'hidden';
+  });
+  await page.keyboard.press('Escape');
+  await expect(review).toBeHidden();
+  await expect(background).toBeFocused();
+  await expect(background).toHaveValue('Continue after rearrangement');
+});
+
 test('a nested review closes before its drawer and leaves the parent usable', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/ui/kit/tests/browser.html');

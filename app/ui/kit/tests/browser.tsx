@@ -47,11 +47,19 @@ function PolicyFixture() {
   const [parent, setParent] = useState(false);
   const [child, setChild] = useState(false);
   const [peer, setPeer] = useState(false);
+  const [review, setReview] = useState(false);
+  const [openerDisabled, setOpenerDisabled] = useState(false);
   return (
     <Stack>
       <Input aria-label="Background draft" defaultValue="Background remains usable" />
       <Button onClick={() => setParent(true)}>Open parent drawer</Button>
       <Button onClick={() => setPeer(true)}>Open peer drawer</Button>
+      <Button disabled={openerDisabled} onClick={() => setReview(true)}>
+        Open standalone review
+      </Button>
+      <Overlay open={review} onClose={() => setReview(false)} title="Standalone review">
+        <Button onClick={() => setOpenerDisabled(true)}>Disable opening control</Button>
+      </Overlay>
       <Drawer open={parent} onClose={() => setParent(false)} title="Parent">
         <Input aria-label="Parent draft" defaultValue="Parent task" />
         <Button onClick={() => setChild(true)}>Open nested review</Button>
