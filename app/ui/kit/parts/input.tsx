@@ -1,7 +1,9 @@
 import * as React from 'react';
 import { cn } from '../lib/utils.ts';
+import { useFieldTextAssociation } from '../field-association.ts';
 
 function Input({ className, type, ...props }: React.ComponentProps<'input'>) {
+  const association = useFieldTextAssociation(props);
   return (
     <input
       type={type}
@@ -13,6 +15,7 @@ function Input({ className, type, ...props }: React.ComponentProps<'input'>) {
         className,
       )}
       {...props}
+      {...association}
     />
   );
 }
