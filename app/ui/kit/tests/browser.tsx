@@ -12,6 +12,7 @@ import {
   CommandList,
   ConversationPanel,
   Composer,
+  Drawer,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -41,6 +42,36 @@ import {
   ToggleGroup,
   ToggleGroupItem,
 } from '../index.ts';
+
+function PolicyFixture() {
+  const [parent, setParent] = useState(false);
+  const [child, setChild] = useState(false);
+  const [peer, setPeer] = useState(false);
+  return (
+    <Stack>
+      <Input aria-label="Background draft" defaultValue="Background remains usable" />
+      <Button onClick={() => setParent(true)}>Open parent drawer</Button>
+      <Button onClick={() => setPeer(true)}>Open peer drawer</Button>
+      <Drawer open={parent} onClose={() => setParent(false)} title="Parent">
+        <Input aria-label="Parent draft" defaultValue="Parent task" />
+        <Button onClick={() => setChild(true)}>Open nested review</Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger render={<Button>Parent options</Button>} />
+          <DropdownMenuContent>
+            <DropdownMenuItem>Keep task</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <Overlay open={child} onClose={() => setChild(false)} title="Nested review">
+          <Input aria-label="Child draft" defaultValue="Child task" />
+          <Button onClick={() => setParent(false)}>Close parent from child</Button>
+        </Overlay>
+      </Drawer>
+      <Drawer open={peer} onClose={() => setPeer(false)} title="Peer">
+        <Input aria-label="Peer draft" defaultValue="Peer task" />
+      </Drawer>
+    </Stack>
+  );
+}
 
 function Fixture() {
   const [search, setSearch] = useState(false);
@@ -284,7 +315,9 @@ function FieldFixture() {
 }
 
 createRoot(document.getElementById('app')!).render(
-  new URLSearchParams(location.search).has('setting-fields') ? (
+  new URLSearchParams(location.search).has('policy') ? (
+    <PolicyFixture />
+  ) : new URLSearchParams(location.search).has('setting-fields') ? (
     <FieldFixture />
   ) : new URLSearchParams(location.search).has('composer') ? (
     <ComposerFixture />
