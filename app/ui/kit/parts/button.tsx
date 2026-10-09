@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '../lib/utils.ts';
-import { Slot } from 'radix-ui';
+import { Button as ButtonPrimitive } from '@base-ui/react/button';
 
 // Responsive sizes change hit targets immediately; only visual feedback should animate.
 const buttonVariants = cva(
@@ -46,18 +46,14 @@ function Button({
   className,
   variant = 'default',
   size = 'default',
-  asChild = false,
   pending = false,
   ...props
-}: React.ComponentProps<'button'> &
+}: React.ComponentProps<typeof ButtonPrimitive> &
   VariantProps<typeof buttonVariants> & {
-    asChild?: boolean;
     pending?: boolean;
   }) {
-  const Comp = asChild ? Slot.Root : 'button';
-
   return (
-    <Comp
+    <ButtonPrimitive
       data-slot="button"
       data-variant={variant}
       data-size={size}

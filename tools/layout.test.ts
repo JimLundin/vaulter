@@ -84,6 +84,34 @@ test('workflow screens cannot choose a device layout or query a viewport', () =>
   }
 });
 
+test('Base UI presentation dependencies stay inside the kit', () => {
+  const root = mkdtempSync(join(tmpdir(), 'vaulter-base-ui-policy-'));
+  try {
+    mkdirSync(join(root, 'app/ui/kit'), { recursive: true });
+    mkdirSync(join(root, 'app/workflows/example'), { recursive: true });
+    writeFileSync(
+      join(root, 'tsconfig.json'),
+      JSON.stringify({
+        compilerOptions: { module: 'ESNext', moduleResolution: 'Bundler' },
+        include: ['app'],
+      }),
+    );
+    writeFileSync(
+      join(root, 'app/ui/kit/drawer.ts'),
+      "export { Drawer } from '@base-ui/react/drawer';",
+    );
+    writeFileSync(
+      join(root, 'app/workflows/example/view.ts'),
+      "import { Drawer } from '@base-ui/react/drawer'; export const view = Drawer;",
+    );
+    expect(checkLayout(root)).toEqual([
+      'app/workflows/example/view.ts: presentation dependencies belong behind app/ui/kit/index.ts',
+    ]);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('Product, shared views and features must compose the kit, including aliased factories and spread props', () => {
   const root = mkdtempSync(join(tmpdir(), 'vaulter-kit-policy-'));
   try {

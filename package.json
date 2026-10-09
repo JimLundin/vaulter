@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "@ai-sdk/openai": "^4.0.83",
+    "@base-ui/react": "^1.9.0",
     "@fontsource-variable/geist": "^5.3.0",
     "@fontsource-variable/geist-mono": "^5.3.0",
     "@fontsource-variable/newsreader": "^5.3.0",
@@ -54,7 +55,6 @@
     "unified": "^11.0.5",
     "unist-util-visit": "^5.1.0",
     "use-stick-to-bottom": "^1.1.6",
-    "vaul": "^1.1.2",
     "zod": "^4.6.5"
   },
   "devDependencies": {

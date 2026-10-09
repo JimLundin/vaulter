@@ -1,154 +1,113 @@
 'use client';
 
+// Base UI structure and gesture variables follow shadcn's current Base UI drawer.
 import * as React from 'react';
-import { usePresentation } from '../presentation.tsx';
-import { usePreviewInteraction } from '../hooks/use-preview-interaction.ts';
+import { Drawer as DrawerPrimitive } from '@base-ui/react/drawer';
+import {
+  PresentationSurface,
+  usePresentationPolicy,
+  usePresentationSurface,
+} from '../presentation-policy.tsx';
 import { cn } from '../lib/utils.ts';
-import { Drawer as DrawerPrimitive } from 'vaul';
-import { Dialog as DialogPrimitive } from 'radix-ui';
 
-function Drawer(props: React.ComponentProps<typeof DrawerPrimitive.Root>) {
-  const presentation = usePresentation();
-  return presentation ? (
-    <PreviewDrawer {...props} container={presentation.portal} />
-  ) : (
-    <DrawerPrimitive.Root data-slot="drawer" {...props} />
-  );
-}
-
-// Vaul's modal=false suppresses its own body effects, but its internal Radix Root still defaults to
-// modal. A local Radix context uses the same controlled open state and the very same Vaul contents.
-function PreviewDrawer({ children, ...props }: React.ComponentProps<typeof DrawerPrimitive.Root>) {
-  const [open, setOpen] = React.useState(props.defaultOpen ?? false);
-  const current = props.open ?? open;
-  const change = (next: boolean) => {
-    setOpen(next);
-    props.onOpenChange?.(next);
-  };
+function DrawerRoot({ modal = true, onOpenChange, ...props }: DrawerPrimitive.Root.Props) {
+  const surface = usePresentationSurface(props.open ?? false);
   return (
-    <DrawerPrimitive.Root
-      {...props}
-      open={current}
-      onOpenChange={change}
-      modal={false}
-      noBodyStyles={true}
-      disablePreventScroll={true}
-    >
-      <DialogPrimitive.Root modal={false} open={current} onOpenChange={change}>
-        {children}
-      </DialogPrimitive.Root>
-    </DrawerPrimitive.Root>
-  );
-}
-
-function DrawerTrigger({ ...props }: React.ComponentProps<typeof DrawerPrimitive.Trigger>) {
-  return <DrawerPrimitive.Trigger data-slot="drawer-trigger" {...props} />;
-}
-
-function DrawerPortal({ ...props }: React.ComponentProps<typeof DrawerPrimitive.Portal>) {
-  const presentation = usePresentation();
-  return (
-    <DrawerPrimitive.Portal
-      data-slot="drawer-portal"
-      {...props}
-      container={presentation?.portal ?? props.container}
-    />
-  );
-}
-
-function DrawerClose({ ...props }: React.ComponentProps<typeof DrawerPrimitive.Close>) {
-  return <DrawerPrimitive.Close data-slot="drawer-close" {...props} />;
-}
-
-function DrawerOverlay({
-  className,
-  ...props
-}: React.ComponentProps<typeof DrawerPrimitive.Overlay>) {
-  const presentation = usePresentation();
-  if (presentation)
-    return (
-      <div
-        data-slot="drawer-overlay"
-        className="pointer-events-none fixed inset-0 z-50 bg-black/50"
+    <PresentationSurface id={surface.id}>
+      <DrawerPrimitive.Root
+        {...props}
+        swipeDirection="down"
+        modal={surface.policy.bounded ? false : modal}
+        disablePointerDismissal={surface.policy.bounded ? true : props.disablePointerDismissal}
+        onOpenChange={(open, details) => {
+          if (!open && !surface.allowClose(details)) return;
+          onOpenChange?.(open, details);
+        }}
       />
-    );
-  return (
-    <DrawerPrimitive.Overlay
-      data-slot="drawer-overlay"
-      className={cn(
-        'fixed inset-0 z-50 bg-black/50 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0',
-        className,
-      )}
-      {...props}
-    />
+    </PresentationSurface>
   );
 }
 
 function DrawerContent({
-  className,
   children,
-  variant = 'default',
+  className,
+  arrangement = 'menu',
+  inline = false,
+  compact = true,
   ...props
-}: React.ComponentProps<typeof DrawerPrimitive.Content> & { variant?: 'default' | 'menu' }) {
-  const onInteractOutside = usePreviewInteraction(props.onInteractOutside);
-  return (
-    <DrawerPortal data-slot="drawer-portal">
-      <DrawerOverlay />
-      <DrawerPrimitive.Content
-        data-slot="drawer-content"
+}: DrawerPrimitive.Popup.Props & {
+  arrangement?: 'menu' | 'panel';
+  inline?: boolean;
+  compact?: boolean;
+}) {
+  const policy = usePresentationPolicy();
+  const [anchor, setAnchor] = React.useState<HTMLDivElement | null>(null);
+  const content = (
+    <>
+      <DrawerPrimitive.Backdrop
+        data-slot="drawer-overlay"
         className={cn(
-          'group/drawer-content fixed z-50 flex h-auto flex-col bg-background',
-          'data-[vaul-drawer-direction=top]:inset-x-0 data-[vaul-drawer-direction=top]:top-0 data-[vaul-drawer-direction=top]:mb-24 data-[vaul-drawer-direction=top]:max-h-[80vh] data-[vaul-drawer-direction=top]:rounded-b-lg data-[vaul-drawer-direction=top]:border-b',
-          'data-[vaul-drawer-direction=bottom]:inset-x-0 data-[vaul-drawer-direction=bottom]:bottom-0 data-[vaul-drawer-direction=bottom]:mt-24 data-[vaul-drawer-direction=bottom]:max-h-[80vh] data-[vaul-drawer-direction=bottom]:rounded-t-lg data-[vaul-drawer-direction=bottom]:border-t',
-          'data-[vaul-drawer-direction=right]:inset-y-0 data-[vaul-drawer-direction=right]:right-0 data-[vaul-drawer-direction=right]:w-3/4 data-[vaul-drawer-direction=right]:border-l data-[vaul-drawer-direction=right]:sm:max-w-sm',
-          'data-[vaul-drawer-direction=left]:inset-y-0 data-[vaul-drawer-direction=left]:left-0 data-[vaul-drawer-direction=left]:w-3/4 data-[vaul-drawer-direction=left]:border-r data-[vaul-drawer-direction=left]:sm:max-w-sm',
-          variant === 'menu' && 'menu-sheet pb-[max(16px,env(safe-area-inset-bottom))]',
-          className,
+          'kit-drawer-backdrop fixed inset-0 z-40 bg-black/50',
+          policy.bounded && 'pointer-events-none',
         )}
-        {...props}
-        onInteractOutside={onInteractOutside}
+      />
+      <DrawerPrimitive.Viewport
+        data-slot="drawer-viewport"
+        className="kit-drawer-viewport pointer-events-none"
       >
-        <div className="mx-auto mt-4 hidden h-2 w-[100px] shrink-0 rounded-full bg-muted group-data-[vaul-drawer-direction=bottom]/drawer-content:block" />
-        {children}
-      </DrawerPrimitive.Content>
-    </DrawerPortal>
+        <DrawerPrimitive.Popup
+          data-slot="drawer-content"
+          data-arrangement={arrangement}
+          data-compact={compact}
+          className={cn(
+            'kit-drawer pointer-events-auto flex min-h-0 flex-col bg-background outline-none',
+            className,
+          )}
+          {...props}
+        >
+          <div
+            data-slot="drawer-swipe-handle"
+            aria-hidden={true}
+            className="kit-drawer-handle mx-auto mt-4 h-2 w-[100px] shrink-0 rounded-full bg-muted"
+          />
+          <DrawerPrimitive.Content
+            data-slot="drawer-body"
+            data-base-ui-swipe-ignore={compact ? undefined : ''}
+            className="flex min-h-0 flex-1 flex-col"
+          >
+            {children}
+          </DrawerPrimitive.Content>
+        </DrawerPrimitive.Popup>
+      </DrawerPrimitive.Viewport>
+    </>
+  );
+  // The supporting panel stays at its original place in the workspace even as its geometry changes.
+  return inline ? (
+    <div ref={setAnchor} className="kit-supporting-drawer-anchor">
+      {anchor && <DrawerPrimitive.Portal container={anchor}>{content}</DrawerPrimitive.Portal>}
+    </div>
+  ) : (
+    <DrawerPrimitive.Portal container={policy.portal}>{content}</DrawerPrimitive.Portal>
   );
 }
 
-function DrawerHeader({
-  className,
-  variant = 'default',
-  ...props
-}: React.ComponentProps<'div'> & { variant?: 'default' | 'toolbar' }) {
+function DrawerHeader({ className, ...props }: React.ComponentProps<'div'>) {
   return (
     <div
       data-slot="drawer-header"
       className={cn(
-        'flex flex-col gap-0.5 p-4 group-data-[vaul-drawer-direction=bottom]/drawer-content:text-center group-data-[vaul-drawer-direction=top]/drawer-content:text-center md:gap-1.5 md:text-left',
-        variant === 'toolbar' &&
-          'flex-row shrink-0 items-center justify-between gap-3 px-4 pt-4 pb-5 text-left group-data-[vaul-drawer-direction=bottom]/drawer-content:text-left group-data-[vaul-drawer-direction=top]/drawer-content:text-left md:px-6',
+        'flex shrink-0 items-center justify-between gap-3 px-4 pt-4 pb-5 text-left md:px-6',
         className,
       )}
       {...props}
     />
   );
 }
-
-function DrawerFooter({ className, ...props }: React.ComponentProps<'div'>) {
-  return (
-    <div
-      data-slot="drawer-footer"
-      className={cn('mt-auto flex flex-col gap-2 p-4', className)}
-      {...props}
-    />
-  );
-}
-
 function DrawerTitle({
-  className,
   hidden,
+  className,
   ...props
-}: React.ComponentProps<typeof DrawerPrimitive.Title> & { hidden?: boolean }) {
+}: DrawerPrimitive.Title.Props & { hidden?: boolean }) {
   return (
     <DrawerPrimitive.Title
       data-slot="drawer-title"
@@ -157,11 +116,7 @@ function DrawerTitle({
     />
   );
 }
-
-function DrawerDescription({
-  className,
-  ...props
-}: React.ComponentProps<typeof DrawerPrimitive.Description>) {
+function DrawerDescription({ className, ...props }: DrawerPrimitive.Description.Props) {
   return (
     <DrawerPrimitive.Description
       data-slot="drawer-description"
@@ -171,15 +126,4 @@ function DrawerDescription({
   );
 }
 
-export {
-  Drawer,
-  DrawerPortal,
-  DrawerOverlay,
-  DrawerTrigger,
-  DrawerClose,
-  DrawerContent,
-  DrawerHeader,
-  DrawerFooter,
-  DrawerTitle,
-  DrawerDescription,
-};
+export { DrawerRoot, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription };

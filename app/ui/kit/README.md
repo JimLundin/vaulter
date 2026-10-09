@@ -8,6 +8,9 @@ The [UI kit architecture plan](../../../PLAN-ui-kit-architecture.md) tracks four
 deepening changes: private composition verification, Composer interaction, accessible field
 association and shared presentation policy. The
 [individual specs](../../../docs/specs/ui-kit/README.md) define their implementation and tests.
+The [Base UI migration](https://github.com/JimLundin/vaulter/issues/18) comes before
+[presentation policy](https://github.com/JimLundin/vaulter/issues/8): its first change establishes
+the single public `Drawer` used by compact side panels, navigation and settings.
 
 `npm run kit` opens the live catalogue, using the same local fonts and theme as the app. Every
 public presentation component appears in a component family with an 800px desktop sample beside a
@@ -32,7 +35,7 @@ Markdown/HAST rendering and the vault-link annotation transform remain the expli
 | `composition.ts` | checked building-block dependencies displayed in the gallery |
 | `app.tsx` | spacing, typography, pages, sidebar and mobile frame |
 | `overlay.tsx` | one dialog tree, centered or bottom-aligned; full-screen search in compact space |
-| `sheet.tsx` | shared menu drawer, centered in expanded space and draggable from the bottom in compact space |
+| `drawer.tsx` | the public `Drawer`, centered in expanded space and rising from the bottom in compact space |
 | `navigation.tsx` | `NavigationSuite`: one navigation as a sidebar or a bottom bar |
 | `conversation.tsx` | mobile agent screen, desktop reading column, composer and message presentation |
 | `screens.tsx` | mobile search screen and history touch rows, desktop palette and commit list |
@@ -52,8 +55,8 @@ product does not use maps.
 
 ## Foundation and spacing
 
-Controls originate from **shadcn/ui**, backed by **Radix UI** for accessible interactions, **Tailwind**
-for styling and **Vaul** for drawers. They are owned source in `parts/`, not a separately themed
+Controls originate from **shadcn/ui**, with **Base UI** for drawers and **Radix UI** for the remaining
+interactions during the Base UI migration, and **Tailwind** for styling. They are owned source in `parts/`, not a separately themed
 component library. Vaulter defines the layout, type, colors and responsive roles on top of them.
 
 Spacing uses a 4px scale: 4px between inset actions, 8px between related controls, 16px within
@@ -97,16 +100,16 @@ adds one.
 
 | Expanded (desktop) | Compact (phone) | Kit |
 |---|---|---|
-| Sidebar | Bottom bar, plus the menu sheet it opens | `NavigationSuite` |
-| Sidebar list of destinations | Menu sheet rising from the bar | `NavigationSuite` → `NavigationSheet` |
+| Sidebar | Bottom bar, plus the menu drawer it opens | `NavigationSuite` |
+| Sidebar list of destinations | Menu drawer rising from the bar | `NavigationSuite` → `NavigationSheet` → `Drawer` |
 | Sidebar search field (⌘K) | Search icon in the bar | `NavigationSuite` `search` |
 | Sidebar footer rows (Settings) | Icons in the bar | `NavigationSuite` `actions` |
 | Optional primary sidebar control | Optional floating control above the bar | `NavigationSuite` `primary` |
 | Brand and sync status at the sidebar's top | Header strip | `Brand`, `MobileHeader` |
 | Page header at the top of the reading column | Bordered header strip | `PageHeader` |
 | Centered dialog | Bottom-aligned dialog | `Overlay` |
-| Settings dialog over the current feature | Settings drawer, sharing Menu's surface | `SettingsMenu` → `MenuSheet` |
-| Side panel (wide) or centered dialog | Full-screen dialog | `ConversationPanel` |
+| Settings dialog over the current feature | Settings drawer, sharing Menu's surface | `SettingsMenu` → `Drawer` |
+| Side panel (wide) or centered dialog | Full-height bottom drawer | `ConversationPanel` → `AdaptivePanel` → `Drawer` |
 | Labelled toolbar buttons | Icon buttons with an `aria-label` | `ConversationSurface` |
 | Form rows: label left, control right | The same fields stacked vertically | `SettingsMenu`, `SettingField` |
 | One-row composer with inset microphone and send | The same always-visible field and inset controls | `ConversationSurface`, `Composer` |
@@ -142,10 +145,13 @@ label/control/description placement. Theme choices use the shared `RadioGroup` p
 
 `Surface`, `Toolbar`, `ReadingColumn`, `Dock`, `StatusMark`, `OptionStrip`, `AutoScrollArea` and
 `AdaptivePanel` provide reusable containers and behavior. Each has a separate paired example.
-`MenuSheet` assembles Drawer, typography, Button and ScrollArea for both navigation and settings.
+`Drawer` owns the drawer adapter, header, close button, typography and scrolling body for navigation,
+settings and supporting panels. Callers supply `open`, `onClose`, `title` and content; bare drawer
+parts and side sheets remain outside the public interface. The desktop sidebar has no mobile
+overlay path: `NavigationSuite` owns its compact bottom bar and navigation drawer.
 The gallery shows **Built from** links on these compositions. `composition.ts` lists their
 building blocks, including usage through private helpers. `tools/composition.ts` checks the configured
-roots in `conversation.tsx`, `settings.tsx`, `sheet.tsx` and `theme.tsx` as whole sources, then follows
+roots in `conversation.tsx`, `settings.tsx` and `theme.tsx` as whole sources, then follows
 reachable private presentation helpers and state-only React context providers. Named imports, aliases
 and re-exports resolve through the compiler; extracted helpers need no public export or catalogue
 registration. Raw HTML, styling props and spreads, intrinsic factories and unapproved or unresolved
@@ -225,8 +231,8 @@ rearrangement. Modal surfaces trap focus, Escape dismisses the topmost surface, 
 focus to the opening control or its equivalent in the new arrangement. Navigation closes its menu
 when expanding into a sidebar.
 Mobile has a brand/status header, icon toolbar, conversation feed, footer navigation,
-an always-visible message field with inset microphone and send controls, a separate prompt row, full-screen
-agent and search overlays, and bottom-sheet navigation. Desktop has the sidebar, reading column, labeled
+an always-visible message field with inset microphone and send controls, a separate prompt row, a full-height
+agent panel drawer, full-screen search and bottom-drawer navigation. Desktop has the sidebar, reading column, labeled
 actions and a side panel. Desktop content uses the full height without a shortcut footer. Search
 keeps its shortcut badge; all shortcuts remain available through Search and `?`.
 Settings shares Menu's bottom drawer on mobile and centers

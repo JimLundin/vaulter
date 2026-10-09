@@ -15,7 +15,7 @@ import { Field, FieldContent, FieldDescription, FieldLabel, FieldTitle } from '.
 import { FeaturePage } from './app.tsx';
 import { Heading, Stack } from './parts/layout.tsx';
 import { Surface } from './primitives.tsx';
-import { MenuSheet } from './sheet.tsx';
+import { Drawer } from './drawer.tsx';
 
 export function SettingsPage({ children }: { children: ReactNode }) {
   return (
@@ -39,7 +39,7 @@ export function SettingsMenu({
   children?: ReactNode;
 }) {
   return (
-    <MenuSheet
+    <Drawer
       open={open}
       onClose={onClose}
       title="Settings"
@@ -53,7 +53,7 @@ export function SettingsMenu({
           </SettingsSection>
         ))}
       </Surface>
-    </MenuSheet>
+    </Drawer>
   );
 }
 export function SettingsSection({ title, children }: { title: string; children: ReactNode }) {

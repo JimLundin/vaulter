@@ -142,11 +142,18 @@ export function NavigationSuite({
             <SidebarMenu>
               {destinations.map((entry) => (
                 <SidebarMenuItem key={entry.href}>
-                  <SidebarMenuButton asChild={true} isActive={entry.current}>
-                    <a href={entry.href} aria-current={entry.current ? 'page' : undefined}>
-                      <Icon name={entry.icon} />
-                      {entry.label}
-                    </a>
+                  <SidebarMenuButton
+                    render={
+                      <a
+                        href={entry.href}
+                        aria-label={entry.label}
+                        aria-current={entry.current ? 'page' : undefined}
+                      />
+                    }
+                    isActive={entry.current}
+                  >
+                    <Icon name={entry.icon} />
+                    {entry.label}
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
@@ -159,22 +166,22 @@ export function NavigationSuite({
                   <SidebarMenuButton
                     aria-label={action.label}
                     aria-expanded={action.expanded}
-                    asChild={!!action.href}
+                    render={
+                      action.href ? (
+                        // biome-ignore lint/a11y/useAnchorContent: useRender supplies the SidebarMenuButton children to this anchor.
+                        <a
+                          href={action.href}
+                          aria-label={action.label}
+                          aria-current={action.current ? 'page' : undefined}
+                        />
+                      ) : undefined
+                    }
                     isActive={!!action.current}
                     onClick={action.href ? undefined : action.onSelect}
                   >
-                    {action.href ? (
-                      <a href={action.href} aria-current={action.current ? 'page' : undefined}>
-                        <Icon name={action.icon} />
-                        {action.label}
-                      </a>
-                    ) : (
-                      <>
-                        <Icon name={action.icon} />
-                        <span className="flex-1">{action.label}</span>
-                        {action.keys ? <Kbd>{action.keys}</Kbd> : null}
-                      </>
-                    )}
+                    <Icon name={action.icon} />
+                    <span className="flex-1">{action.label}</span>
+                    {!action.href && action.keys ? <Kbd>{action.keys}</Kbd> : null}
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}

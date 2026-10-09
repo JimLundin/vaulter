@@ -83,16 +83,6 @@ body,
 .kit-presentation .min-h-svh {
   min-height: var(--viewport-height);
 }
-.kit-presentation .menu-sheet[data-vaul-drawer-direction="bottom"] {
-  bottom: 0;
-  max-height: calc(var(--viewport-height) - 16px);
-}
-.kit-presentation [data-slot="drawer-content"] {
-  max-height: calc(var(--viewport-height) * 0.8);
-}
-.design-viewport .menu-sheet[data-vaul-drawer-direction="bottom"] {
-  max-height: min(calc(var(--viewport-height) * 0.8), calc(var(--viewport-height) - 16px));
-}
 .design-viewport {
   /* A bounded frame must not scroll itself when a portalled drawer moves focus. */
   overflow: clip;
@@ -212,27 +202,99 @@ body,
   }
 }
 
-/* The same menu surface and contents stay mounted through a resize. Vaul owns compact dragging. */
-.menu-sheet[data-vaul-drawer-direction="bottom"] {
-  max-height: min(80dvh, calc(var(--viewport-height, 100dvh) - 16px));
-  bottom: calc(100dvh - var(--viewport-height, 100dvh) - var(--viewport-top, 0px));
+/* A visual-viewport-sized drawer; Base UI owns gestures, never input repositioning. */
+.kit-drawer-backdrop {
+  opacity: calc(1 - var(--drawer-swipe-progress, 0));
+  transition: opacity 250ms;
 }
-
+.kit-drawer-backdrop:is([data-starting-style], [data-ending-style]) {
+  opacity: 0;
+}
+.kit-drawer {
+  position: fixed;
+  inset-inline: 0;
+  bottom: calc(100dvh - var(--viewport-height, 100dvh) - var(--viewport-top, 0px));
+  z-index: 50;
+  max-height: min(80dvh, calc(var(--viewport-height, 100dvh) - 16px));
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+  border-top: 1px solid var(--border);
+  border-radius: 10px 10px 0 0;
+  transform: translate3d(0, var(--drawer-swipe-movement-y, 0px), 0);
+  transition: transform 250ms;
+}
+.kit-drawer:is([data-starting-style], [data-ending-style]) {
+  transform: translate3d(0, 100%, 0);
+}
+.kit-drawer[data-swiping],
+.kit-drawer-backdrop[data-swiping] {
+  transition-duration: 0ms;
+}
+.kit-drawer[data-arrangement="panel"][data-layout="compact"] {
+  height: var(--viewport-height, 100dvh);
+  max-height: var(--viewport-height, 100dvh);
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.kit-drawer[data-arrangement="panel"][data-layout="expanded"] {
+  inset: 0;
+  margin: auto;
+  height: calc(var(--viewport-height, 100dvh) * 0.8);
+  max-height: calc(var(--viewport-height, 100dvh) * 0.9);
+  width: min(32rem, calc(100% - 2rem));
+  padding: 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+}
+.kit-supporting-drawer-anchor,
+.kit-supporting-drawer-anchor > div {
+  display: contents;
+}
+.kit-drawer-viewport:has([data-layout="wide"]) {
+  display: flex;
+}
+.kit-drawer[data-arrangement="panel"][data-layout="wide"] {
+  position: relative;
+  inset: auto;
+  height: var(--viewport-height, 100dvh);
+  max-height: none;
+  width: 26rem;
+  flex-shrink: 0;
+  gap: 0.75rem;
+  padding: 1.25rem;
+  border: 0;
+  border-left: 1px solid var(--border);
+  border-radius: 0;
+}
+.kit-drawer[data-layout="wide"],
+.kit-drawer[data-layout="expanded"] {
+  transform: none;
+}
+.kit-drawer-backdrop:has(+ .kit-drawer-viewport [data-layout="wide"]) {
+  display: none;
+}
+.kit-drawer[data-arrangement="panel"]:not([data-layout="compact"]) > .kit-drawer-handle {
+  display: none;
+}
+.kit-presentation .kit-drawer {
+  bottom: 0;
+  max-height: min(calc(var(--viewport-height) * 0.8), calc(var(--viewport-height) - 16px));
+}
+.kit-presentation .kit-drawer[data-layout="compact"] {
+  max-height: var(--viewport-height);
+}
 /* biome-ignore lint/correctness/noUnknownFunction: Tailwind resolves the shared breakpoint token. */
 @container kit (width >= theme(--breakpoint-md)) {
-  .menu-sheet[data-vaul-drawer-direction="bottom"] {
+  .kit-drawer[data-arrangement="menu"] {
     inset: 0;
     width: min(40rem, calc(100% - 6rem));
     height: fit-content;
     margin: auto;
     border: 1px solid var(--border);
     border-radius: var(--radius);
-    animation: none;
-    transform: none !important;
+    transform: none;
   }
-
-  .menu-sheet > div:first-child,
-  .menu-sheet::after {
+  .kit-drawer[data-arrangement="menu"] > .kit-drawer-handle {
     display: none;
   }
 }
@@ -445,6 +507,7 @@ body,
     @apply h-full;
   }
   body {
+    position: relative;
     @apply m-0 bg-background font-sans text-copy text-foreground antialiased;
   }
 }
@@ -604,17 +667,17 @@ body,
 }
 
 /* A scroll owner has one visible track per overflowing axis, independent of OS overlay settings.
-   Radix measures the viewport; its table wrapper must not dictate a flex surface's height. */
+   Base UI measures the viewport and its content wrapper follows the flex surface's height. */
 .kit-scroll-fill > [data-slot="scroll-area-viewport"] > div {
   display: flex !important;
   height: 100%;
   flex-direction: column;
 }
-.kit-scroll-area:has(> [data-orientation="vertical"][data-state="visible"])
+.kit-scroll-area:has(> [data-orientation="vertical"]:not([data-hidden]))
   > [data-slot="scroll-area-viewport"] {
   padding-right: 12px;
 }
-.kit-scroll-area:has(> [data-orientation="horizontal"][data-state="visible"])
+.kit-scroll-area:has(> [data-orientation="horizontal"]:not([data-hidden]))
   > [data-slot="scroll-area-viewport"] {
   padding-bottom: 12px;
 }
