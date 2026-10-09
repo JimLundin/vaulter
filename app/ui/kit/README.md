@@ -56,6 +56,11 @@ views compose public exports and avoid ad hoc styling. Markdown content renderin
 exception. Maps require `https://tiles.openfreemap.org` in the consuming page's CSP; the current
 product does not use maps.
 
+`DesignPreview` includes the input-style picker in its top bar during design builds. The A/B/C
+query parameter selects matching microphone and Enter treatments without resetting drafts or
+dictation. Inside this preview the composer shows one action according to focus; ordinary app
+and catalogue composers retain their current controls. See [preview-input-variants.md](preview-input-variants.md).
+
 ## Foundation and spacing
 
 Controls originate from **shadcn/ui**, with **Base UI** for interactions and **Tailwind** for styling.

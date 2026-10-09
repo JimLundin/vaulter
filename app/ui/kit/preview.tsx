@@ -5,6 +5,7 @@ import { sizeClassForWidth } from './hooks/use-layout.ts';
 import { RadioGroup, RadioGroupItem } from './parts/radio-group.tsx';
 import { PreviewBar } from './surfaces.tsx';
 import { cn } from './lib/utils.ts';
+import { InputPreviewVariants, InputPreviewSwitcher } from './preview-input-variants.tsx';
 
 type Device = 'window' | 'desktop' | 'mobile';
 
@@ -58,59 +59,64 @@ export function DesignPreview({
     [portal, bounds.width, bounds.height],
   );
   return (
-    <div
-      ref={root}
-      data-design-preview={device}
-      className="flex h-[var(--design-height,var(--viewport-height,100dvh))] min-h-0 flex-col overflow-hidden bg-surface"
-    >
-      <PreviewBar
-        label={label}
-        kitHref={kitHref}
-        onReset={onReset}
-        controls={
-          <RadioGroup
-            variant="segmented"
-            aria-label="Preview device"
-            value={device}
-            onValueChange={(value) => setDevice(value as Device)}
-          >
-            <RadioGroupItem value="window">Window</RadioGroupItem>
-            <RadioGroupItem value="desktop">Desktop</RadioGroupItem>
-            <RadioGroupItem value="mobile">Mobile</RadioGroupItem>
-          </RadioGroup>
-        }
-      />
-      <div className="flex min-h-0 min-w-0 flex-1 overflow-x-auto">
-        <div
-          data-design-viewport=""
-          className={cn(
-            'kit-preview design-viewport mx-auto h-full',
-            device === 'mobile'
-              ? 'w-[min(390px,100%)]'
-              : device === 'desktop'
-                ? 'w-full min-w-[1024px]'
-                : 'w-full',
-          )}
-        >
+    <InputPreviewVariants>
+      <div
+        ref={root}
+        data-design-preview={device}
+        className="flex h-[var(--design-height,var(--viewport-height,100dvh))] min-h-0 flex-col overflow-hidden bg-surface"
+      >
+        <PreviewBar
+          label={label}
+          kitHref={kitHref}
+          onReset={onReset}
+          controls={
+            <>
+              <RadioGroup
+                variant="segmented"
+                aria-label="Preview device"
+                value={device}
+                onValueChange={(value) => setDevice(value as Device)}
+              >
+                <RadioGroupItem value="window">Window</RadioGroupItem>
+                <RadioGroupItem value="desktop">Desktop</RadioGroupItem>
+                <RadioGroupItem value="mobile">Mobile</RadioGroupItem>
+              </RadioGroup>
+              <InputPreviewSwitcher />
+            </>
+          }
+        />
+        <div className="flex min-h-0 min-w-0 flex-1 overflow-x-auto">
           <div
-            ref={setPortal}
-            className="kit-presentation"
-            data-kit-pointer={device === 'mobile' ? 'coarse' : undefined}
-            style={
-              {
-                '--viewport-height': `${bounds.height}px`,
-                '--viewport-top': '0px',
-              } as React.CSSProperties
-            }
-          >
-            {presentation && (
-              <PresentationContext.Provider value={presentation}>
-                {children}
-              </PresentationContext.Provider>
+            data-design-viewport=""
+            className={cn(
+              'kit-preview design-viewport mx-auto h-full',
+              device === 'mobile'
+                ? 'w-[min(390px,100%)]'
+                : device === 'desktop'
+                  ? 'w-full min-w-[1024px]'
+                  : 'w-full',
             )}
+          >
+            <div
+              ref={setPortal}
+              className="kit-presentation"
+              data-kit-pointer={device === 'mobile' ? 'coarse' : undefined}
+              style={
+                {
+                  '--viewport-height': `${bounds.height}px`,
+                  '--viewport-top': '0px',
+                } as React.CSSProperties
+              }
+            >
+              {presentation && (
+                <PresentationContext.Provider value={presentation}>
+                  {children}
+                </PresentationContext.Provider>
+              )}
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </InputPreviewVariants>
   );
 }

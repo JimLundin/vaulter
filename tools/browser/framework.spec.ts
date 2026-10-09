@@ -157,7 +157,7 @@ test('every feature page centers the same reading column', async ({ page }) => {
   }
 });
 
-test('the message field keeps the same inset microphone and send controls through focus and resize', async ({
+test('the preview field keeps one inset action and its draft through focus and resize', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -180,10 +180,10 @@ test('the message field keeps the same inset microphone and send controls throug
     const row = page.locator('[data-conversation-input]');
     expect((await row.boundingBox())!.height).toBeLessThanOrEqual(64);
     if (width < 768) {
-      const microphone = page.getByRole('button', { name: 'Start voice interaction', exact: true });
-      await expect(microphone).toHaveCount(1);
+      const action = page.getByRole('button', { name: 'Send', exact: true });
+      await expect(action).toHaveCount(1);
       const field = (await page.getByRole('group', { name: 'Message composer' }).boundingBox())!;
-      const voice = (await microphone.boundingBox())!;
+      const voice = (await action.boundingBox())!;
       expect(voice.x).toBeGreaterThan(field.x);
       expect(voice.x + voice.width).toBeLessThan(field.x + field.width);
       expect(Math.abs(field.y + field.height / 2 - voice.y - voice.height / 2)).toBeLessThanOrEqual(
@@ -229,13 +229,12 @@ test('agent controls have even insets and suggestions remain one scrolling row w
     await page.setViewportSize({ width, height: 844 });
     const field = page.locator('[data-slot="input-group"]');
     const bounds = (await field.boundingBox())!;
-    const send = (await page.getByRole('button', { name: 'Send', exact: true }).boundingBox())!;
+    const mic = page.getByRole('button', { name: 'Start voice interaction', exact: true });
+    const send = (await mic.boundingBox())!;
     expect(send.y - bounds.y).toBeCloseTo(bounds.y + bounds.height - send.y - send.height, 0);
     expect(send.x + send.width).toBeCloseTo(bounds.x + bounds.width - (send.y - bounds.y), 0);
-    const mic = page.getByRole('button', { name: 'Start voice interaction', exact: true });
     await expect(mic).toHaveCount(1);
-    await expect(mic).toHaveCSS('border-width', '0px');
-    await expect(mic).toHaveCSS('box-shadow', 'none');
+    await expect(mic).toHaveCSS('border-width', '1px');
     expect((await mic.boundingBox())!.height).toBe(send.height);
     if (width < 768) {
       const add = page.getByRole('button', { name: 'New chat', exact: true });
@@ -609,6 +608,7 @@ test('dictation keeps the composer anchored and only submission stops an agent r
   await input.fill('A typed introduction.');
   const composer = page.getByRole('group', { name: 'Message composer' });
   const before = (await composer.boundingBox())!;
+  await input.blur();
   await page.getByRole('button', { name: 'Start voice interaction' }).click();
   await expect(input).toHaveValue(/^A typed introduction\. Leave/);
   const listening = (await composer.boundingBox())!;
@@ -617,13 +617,14 @@ test('dictation keeps the composer anchored and only submission stops an agent r
   await page.getByRole('button', { name: 'Finish recording' }).click();
   await expect(input).toBeEditable();
   expect((await composer.boundingBox())!.y).toBe(before.y);
+  await input.focus();
   await page.getByRole('button', { name: 'Send', exact: true }).click();
   const stop = page.getByRole('button', { name: 'Stop', exact: true });
   await expect(stop).toBeVisible();
   await expect(page.getByRole('button', { name: 'Stop agent', exact: true })).toHaveCount(0);
   const microphone = page.getByRole('button', { name: 'Start voice interaction' });
-  await expect(microphone).toBeDisabled();
-  await expect(microphone.locator('svg')).toHaveClass(/lucide-mic/);
+  await expect(microphone).toBeHidden();
+  await expect(composer.getByRole('button')).toHaveCount(1);
   const submitted = await page.locator('[data-message="user"]').count();
   await input.dispatchEvent('keydown', { key: 'Enter', bubbles: true });
   await expect(stop).toBeVisible();
@@ -649,11 +650,13 @@ test('the send icon reflects text field focus without a keyboard hint below the 
   await page.goto('/preview/');
   const input = page.getByRole('textbox', { name: 'Message', exact: true });
   const send = page.getByRole('button', { name: 'Send', exact: true });
-  await expect(send.locator('svg')).toHaveClass(/lucide-arrow-up/);
+  await expect(page.getByRole('button', { name: 'Start voice interaction' })).toBeVisible();
+  await expect(send).toBeHidden();
   await input.fill('A typed thought');
   await expect(send.locator('svg')).toHaveClass(/lucide-corner-down-left/);
   await page.getByRole('button', { name: 'New chat', exact: true }).focus();
-  await expect(send.locator('svg')).toHaveClass(/lucide-arrow-up/);
+  await expect(page.getByRole('button', { name: 'Start voice interaction' })).toBeVisible();
+  await expect(send).toBeHidden();
   await expect(
     page.getByText('Enter to send · Shift + Enter for a new line', { exact: true }),
   ).toHaveCount(0);
@@ -673,6 +676,7 @@ test('live transcription updates the shared message field and uses the normal se
   await page.goto('/preview/');
   const input = page.getByRole('textbox', { name: 'Message', exact: true });
   await input.fill('A typed introduction.');
+  await input.blur();
   await page.getByRole('button', { name: 'Start voice interaction' }).click();
   await expect(input).toHaveValue(/^A typed introduction\. Leave/);
   await expect(input).not.toBeFocused();
@@ -688,7 +692,7 @@ test('live transcription updates the shared message field and uses the normal se
   await page.getByRole('button', { name: 'Finish recording' }).click();
   await expect(input).toBeEditable();
   const text = await input.inputValue();
-  await expect(page.getByRole('button', { name: 'Send', exact: true })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Start voice interaction' })).toBeVisible();
   await expect(page.getByRole('region', { name: 'Live transcription' })).toHaveCount(0);
   await input.fill(`${text} Edited before sending.`);
   await page.getByRole('button', { name: 'Menu', exact: true }).click();
@@ -704,13 +708,14 @@ test('live transcription updates the shared message field and uses the normal se
   await expect(page.locator('[data-message="user"] [data-surface="bubble"]')).toHaveText(final);
   await expect(input).toHaveValue('');
   await expect(page.getByRole('button', { name: 'Start voice interaction' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Send', exact: true })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Send', exact: true })).toBeHidden();
   await expect(input).toBeEditable();
   await page.getByRole('button', { name: 'Start voice interaction' }).click();
   await expect(input).toHaveValue(/^Leave/);
   await page.getByRole('button', { name: 'Finish recording' }).click();
   await expect(input).toBeEditable();
   const second = await input.inputValue();
+  await input.focus();
   await page.getByRole('button', { name: 'Send', exact: true }).click();
   await expect(page.locator('[data-message="user"] [data-surface="bubble"]')).toHaveText([
     final,
