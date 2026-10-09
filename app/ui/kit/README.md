@@ -4,7 +4,7 @@ The app's component kit, imported from branch `ui-kit` at `2c30183`. Its referen
 `design/`. Product, shared UI and workflow screens compose `index.ts`; no public component takes
 `className` or `style`. Tailwind scans only this folder.
 
-The [UI kit architecture plan](../../../PLAN-ui-kit-architecture.md) records the next four
+The [UI kit architecture plan](../../../PLAN-ui-kit-architecture.md) tracks four
 deepening changes: private composition verification, Composer interaction, accessible field
 association and shared presentation policy. The
 [individual specs](../../../docs/specs/ui-kit/README.md) define their implementation and tests.
