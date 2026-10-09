@@ -294,7 +294,7 @@ function LinkedContent() {
   const [anchor, setAnchor] = useState<DOMRect | null>(null);
   useEffect(() => {
     const source = ref.current;
-    if (!hover || !source) return;
+    if (!(hover && source)) return;
     const measure = () => setAnchor(source.getBoundingClientRect());
     measure();
     const observer = new ResizeObserver(measure);

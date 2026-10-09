@@ -9,6 +9,7 @@ import {
 import { cn } from '../lib/utils.ts';
 import { CheckIcon, ChevronRightIcon, CircleIcon } from 'lucide-react';
 import { Menu as DropdownMenuPrimitive } from '@base-ui/react/menu';
+import { useAnchoredPositioning } from './use-anchored-positioning.ts';
 
 function DropdownMenu({
   open: controlled,
@@ -65,6 +66,7 @@ function DropdownMenuContent({
   ...props
 }: MenuContentProps) {
   const policy = usePresentationPolicy();
+  const positioning = useAnchoredPositioning();
   return (
     <DropdownMenuPrimitive.Portal container={policy.portal}>
       <DropdownMenuPrimitive.Positioner
@@ -73,7 +75,7 @@ function DropdownMenuContent({
         align={align}
         sideOffset={sideOffset}
         alignOffset={alignOffset}
-        {...policy.positioning}
+        {...positioning}
       >
         <DropdownMenuPrimitive.Popup
           data-slot="dropdown-menu-content"

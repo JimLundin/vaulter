@@ -1,6 +1,7 @@
 import { usePresentationPolicy } from './presentation-policy.tsx';
 // Shared gates, notices, tool results and diffs. No vault or workflow logic.
 import { type ReactNode, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Button } from './parts/button.tsx';
 import { Icon } from './icons.tsx';
 import { cn } from './lib/utils.ts';
@@ -178,16 +179,24 @@ export function HoverPreview({
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const bounds = policy.bounds();
-    const left = anchor.left - (policy.bounded ? bounds.left : 0);
-    const top = anchor.top - (policy.bounded ? bounds.top : 0);
-    const bottom = anchor.bottom - (bounds?.top ?? 0);
-    const width = bounds.width;
-    const height = bounds.height;
-    el.style.left = `${Math.max(8, Math.min(left, width - el.offsetWidth - 8))}px`;
-    el.style.top = `${bottom + el.offsetHeight + 16 > height ? Math.max(8, top - el.offsetHeight - 8) : bottom + 8}px`;
+    const position = () => {
+      const bounds = policy.bounds();
+      const originLeft = policy.bounded ? bounds.left : 0;
+      const originTop = policy.bounded ? bounds.top : 0;
+      const left = anchor.left - originLeft;
+      const top = anchor.top - originTop;
+      const bottom = anchor.bottom - originTop;
+      const minLeft = bounds.left - originLeft + 8;
+      const minTop = bounds.top - originTop + 8;
+      const maxLeft = bounds.right - originLeft - el.offsetWidth - 8;
+      const maxTop = bounds.bottom - originTop - el.offsetHeight - 8;
+      el.style.left = `${Math.max(minLeft, Math.min(left, maxLeft))}px`;
+      el.style.top = `${bottom + 8 > maxTop ? Math.max(minTop, top - el.offsetHeight - 8) : bottom + 8}px`;
+    };
+    position();
+    return policy.watchBounds(position);
   }, [anchor, policy]);
-  return (
+  const content = (
     <div
       ref={ref}
       role="tooltip"
@@ -197,4 +206,5 @@ export function HoverPreview({
       {!!text && <p className="mt-1 mb-0 text-muted-foreground">{text}</p>}
     </div>
   );
+  return policy.portal ? createPortal(content, policy.portal) : content;
 }
