@@ -14,7 +14,10 @@ or network request is required. Choose Memory or IndexedDB, try actions, or sele
 walkthrough. The panels show visible content, all recorded node identities at the selected cutoff
 (including tombstones and unreachable nodes), complete differences, and transaction History.
 
-The demo uses fictional data in `PROTOTYPE-vaulter-node-storage-wipe-me`. Walkthroughs reset the
+This revision uses a new scratch database name because earlier spike transactions did not record
+authorship. It does not invent authors for those old records or migrate real data.
+
+The demo uses fictional data in `PROTOTYPE-vaulter-node-storage-authorship-wipe-me`. Walkthroughs reset the
 selected store. Use only one demo tab when resetting. After a page reload, choose IndexedDB to
 reopen its retained records; Memory starts fresh. Reopening a store does not resume a running model
 request. The spike's reply buttons simulate a terminal response without invoking an agent.
@@ -49,6 +52,10 @@ excluded from Biome because it embeds third-party library code; its authored sou
 | Make an appearance independent | New content identity plus retargeted appearance |
 | Stale multi-node write / read dependency | Whole request rejected without advancing history |
 | Undo after an intervening affected-node edit | Whole compensation rejected |
+| User Send / agent edit | Different recordedBy actor nodes, same exchange origin |
+| Rename or delete an author | Attribution identity retained; historical snapshot preserves the old name |
+| Unknown author/origin or empty kind | Whole transaction rejected |
+| New operation kind with null message | Accepted without a storage schema change; filterable alongside known kinds |
 | Retry an accepted request | Original acceptance returned; changed contents under that ID rejected |
 | Concurrent independent writes | Both accepted with distinct sequential transactions |
 | Concurrent writes to the same node | One acceptance, one expected-version conflict |
@@ -58,15 +65,18 @@ frozen. Target cycles terminate through a visited set; containment cycles are re
 container at the latest snapshot restores reachability, not its descendants' old contents. Reading
 an old snapshot is how to see that earlier closure.
 
-The parity probe finishes with 17 transactions, 15 identities, 30 immutable version rows, and
-15 current rows. Retrying does not add rows. Chrome exercised all six browser walkthroughs, selecting
+The parity probe finishes with 20 transactions, 17 identities, 35 immutable version rows, and
+17 current rows. Retrying does not add rows. Chrome exercised all six browser walkthroughs, selecting
 History, encrypted scratch storage, close/reopen, and full page reload, with no page errors.
 TypeScript, Biome CI, and the existing layout/composition checks (33 assertions) passed.
 
 ## Implementation shape
 
 [prototype.ts](prototype.ts) implements both adapters through the existing
-[NodeStore contract](../store.ts). Callers submit complete proposed states and expected last
+[NodeStore contract](../store.ts). [Transaction](../model.ts) is one persisted shape including
+required recordedBy, extensible kind, nullable message, originNodeId, and undoOfTransactionId.
+There is no RecordedTransaction extension. The author is an ordinary node; the origin identifies
+context, not the author. Callers submit complete proposed states and expected last
 transaction IDs. They read immutable snapshots and transaction differences without table access.
 [scenarios.ts](scenarios.ts) demonstrates the chat payloads and commit boundaries.
 

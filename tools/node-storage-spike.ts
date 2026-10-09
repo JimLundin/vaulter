@@ -48,7 +48,8 @@ try {
         id,
         changes,
         message: id,
-        kind: 'content' as const,
+        kind: 'node.update',
+        recordedBy: 'actor-user',
         originNodeId: null,
         undoOfTransactionId: null,
       });

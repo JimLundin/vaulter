@@ -1,18 +1,11 @@
 // PROTOTYPE: shared acceptance logic and two stores. No production wiring or remote synchronization.
 import { Dexie } from 'dexie';
-import type { NodeVersion } from '../model.ts';
-import type {
-  NodeChange,
-  NodeCommit,
-  NodeDifference,
-  NodeSnapshot,
-  NodeStore,
-  RecordedTransaction,
-} from '../store.ts';
+import type { NodeVersion, Transaction } from '../model.ts';
+import type { NodeChange, NodeCommit, NodeDifference, NodeSnapshot, NodeStore } from '../store.ts';
 import { decryptJson, encryptJson, newCacheKey, type Encrypted } from '../../session/crypto.ts';
 
 interface Accepted {
-  readonly transaction: RecordedTransaction;
+  readonly transaction: Transaction;
   readonly versions: readonly NodeVersion[];
   readonly fingerprint: string;
 }
@@ -90,6 +83,10 @@ function accept(records: readonly Accepted[], request: NodeCommit): Accepted {
   }
   if (!(request.id && request.changes.length))
     throw new Error('A transaction needs an ID and changes');
+  if (typeof request.kind !== 'string' || !request.kind.trim())
+    throw new Error('A transaction needs a nonempty operation kind');
+  if (typeof request.recordedBy !== 'string' || !request.recordedBy.trim())
+    throw new Error('A transaction needs an author');
   const current = snapshotOf(records);
   const selected = new Map<string, NodeVersion>();
   for (const r of records) for (const v of r.versions) selected.set(v.nodeId, v);
@@ -125,6 +122,7 @@ function accept(records: readonly Accepted[], request: NodeCommit): Accepted {
   for (const version of versions)
     for (const ref of [version.parentNodeId, version.targetNodeId])
       if (ref !== null && !selected.has(ref)) throw new Error(`Unknown node identity: ${ref}`);
+  if (!selected.has(request.recordedBy)) throw new Error('Unknown transaction author');
   if (request.originNodeId !== null && !selected.has(request.originNodeId))
     throw new Error('Unknown originating node');
   if (
@@ -150,6 +148,7 @@ function accept(records: readonly Accepted[], request: NodeCommit): Accepted {
         id: request.id,
         sequence: current.sequence + 1,
         recordedAt: new Date().toISOString(),
+        recordedBy: request.recordedBy,
         message: request.message,
         kind: request.kind,
         originNodeId: request.originNodeId,
@@ -193,7 +192,7 @@ function interfaceOf(
         .filter(
           (t) =>
             t.sequence < (options.beforeSequence ?? Number.POSITIVE_INFINITY) &&
-            (!options.kind || t.kind === options.kind),
+            (!options.kinds || options.kinds.includes(t.kind)),
         )
         .reverse()
         .slice(0, options.limit ?? 50),
@@ -303,7 +302,7 @@ function spikeDatabase(name: string) {
  * Parent/target/data stay encrypted; opaque identity, version membership and sequence are indexed.
  */
 export async function dexieSpikeStore(
-  name = 'PROTOTYPE-vaulter-node-storage-wipe-me',
+  name = 'PROTOTYPE-vaulter-node-storage-authorship-wipe-me',
 ): Promise<SpikeStore> {
   if (!name.startsWith('PROTOTYPE-')) throw new Error('Use a dedicated PROTOTYPE- database');
   const tables = spikeDatabase(name);
@@ -435,7 +434,11 @@ export function closure(snapshot: NodeSnapshot, rootId: string): readonly NodeVe
 }
 
 /** Guarded compensation; restoring a group reveals descendants at their current states. */
-export async function undo(store: NodeStore, transactionId: string): Promise<RecordedTransaction> {
+export async function undo(
+  store: NodeStore,
+  transactionId: string,
+  recordedBy: string,
+): Promise<Transaction> {
   const differences = await store.changes(transactionId);
   const changes: NodeChange[] = differences.map(({ nodeId, before, after }) => ({
     nodeId,
@@ -448,7 +451,8 @@ export async function undo(store: NodeStore, transactionId: string): Promise<Rec
   return store.commit({
     id: crypto.randomUUID(),
     message: `Undo ${transactionId}`,
-    kind: 'undo',
+    kind: 'transaction.undo',
+    recordedBy,
     originNodeId: null,
     undoOfTransactionId: transactionId,
     changes,

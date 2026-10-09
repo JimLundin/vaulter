@@ -14,7 +14,7 @@ import {
 const showError = (error: unknown) => {
   get('outcome').textContent = String(error);
 };
-const databaseName = 'PROTOTYPE-vaulter-node-storage-wipe-me';
+const databaseName = 'PROTOTYPE-vaulter-node-storage-authorship-wipe-me';
 const get = (id: string) => {
   const element = document.getElementById(id);
   if (!element) throw new Error(`Missing demo element: ${id}`);
@@ -61,6 +61,9 @@ async function render() {
     `Viewing transaction ${snapshot.sequence} · latest is ${current.sequence}`;
   const transactions = await store.history({ limit: 100 });
   const differences = await Promise.all(transactions.map((t) => store.changes(t.id)));
+  const transactionSnapshots = await Promise.all(
+    transactions.map((t) => store.snapshot(t.sequence)),
+  );
   const identities = new Set(differences.flatMap((changes) => changes.map((d) => d.nodeId)));
   const nodes = [...identities].sort().map((id) => snapshot.get(id));
   const table = get('nodes');
@@ -121,7 +124,7 @@ async function render() {
     const changes = differences[index];
     const item = document.createElement('li');
     const pick = button(
-      `${transaction.sequence} · ${transaction.kind} · ${transaction.message}`,
+      `${transaction.sequence} · ${transaction.kind}${transaction.message === null ? '' : ` · ${transaction.message}`}`,
       () => {
         selectedSequence = transaction.sequence;
         get('outcome').textContent = `Historical view at ${transaction.sequence}`;
@@ -129,7 +132,7 @@ async function render() {
       },
     );
     const label = document.createElement('small');
-    label.textContent = `Changed nodes: ${changes.map((d) => d.nodeId).join(', ')}`;
+    label.textContent = `By ${transactionSnapshots[index].get(transaction.recordedBy)?.data?.name ?? transaction.recordedBy} · Origin ${transaction.originNodeId ?? 'direct action'} · Changed nodes: ${changes.map((d) => d.nodeId).join(', ')}`;
     item.append(pick, label);
     history.append(item);
   }
