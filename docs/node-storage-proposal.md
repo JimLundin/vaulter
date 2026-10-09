@@ -39,7 +39,8 @@ if (!message || message.data === null) throw new Error('Message is unavailable')
 await store.commit({
   id: crypto.randomUUID(),
   message: 'Record the completed reply',
-  kind: 'chat',
+  kind: 'chat.response.complete',
+  recordedBy: agentNodeId,
   originNodeId: message.parentNodeId,
   undoOfTransactionId: null,
   changes: [{
@@ -64,8 +65,22 @@ complete before/after node states for History. subscribe notifies callers to rel
 after commits. A later content write module adds reviewable staging and guarded undo over this store;
 those do not belong in the raw database tables.
 
-RecordedTransaction supplements Transaction with History's title, kind, originating node, and undo
-source. A domain transaction is one logical change group; a Dexie/IndexedDB transaction is the short
+Transaction is the single persisted definition in model.ts. It includes required recordedBy (an
+author Node identity), an extensible kind, optional message, originNodeId (context Node), and
+undoOfTransactionId, alongside identity, order and acceptance time. NodeCommit derives from it and
+adds proposed changes and expectations; it is a write request, not a second stored shape.
+
+The writer context supplies recordedBy, not untrusted tool arguments. A user submission records
+the user; agent output/content changes record the agent and reference their exchange as origin.
+A direct user move has no origin. Imports and automations can record system authors and reference
+import/run nodes. Actors and context use the same versioned Node model as all other data.
+
+Kinds name operations specifically: chat.submit, chat.response.complete, chat.response.stop,
+node.update, node.move, node.delete, node.restore, import.apply, transaction.undo. New features
+can introduce kinds without changing a storage enum. History can filter a set of kinds and retain
+unknown operations using their message or kind as a label.
+
+A domain transaction is one logical change group; a Dexie/IndexedDB transaction is the short
 storage operation used to publish that group atomically. Neither stays open across a model request.
 
 ## Logical IndexedDB layout
@@ -75,7 +90,7 @@ For a plaintext development store, the suggested tables and indexes are:
 ```ts
 db.version(1).stores({
   nodes: 'id',
-  transactions: 'id, &sequence, [kind+sequence], originNodeId',
+  transactions: 'id, &sequence, [kind+sequence], recordedBy, originNodeId',
   versions: '[nodeId+transactionId], transactionId, nodeId, [nodeId+sequence]',
   current: 'nodeId, parentNodeId, targetNodeId, data.kind',
 });
@@ -95,6 +110,9 @@ A commit runs in one readwrite transaction spanning these tables:
 3. Allocate the next unique sequence under the same transaction's ownership.
 4. Add new identities, the recorded transaction, and immutable versions.
 5. Replace only the changed current rows, then publish notifications after successful commit.
+
+Validate recordedBy and originNodeId as Node identity references, including identities created in
+the same transaction. Deleted actors/contexts retain their identities and historical attribution.
 
 Failure aborts all steps. Reuse of a retry ID with different contents fails; implementing that check
 requires retaining the normalized accepted request or its digest as private storage metadata. Never

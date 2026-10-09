@@ -126,38 +126,16 @@ to save the terminal response separately from failure of the model run.
 
 ## Storage and staging interface sketch
 
-```ts
-type NodeChange = Omit<NodeVersion, 'transactionId'>;
+The accepted application contract is [NodeStore](app/vault/nodes/store.ts): commit accepts complete
+NodeChange states with per-node expectedTransactionId, optional expectedReads, a stable request ID,
+and provenance. Transaction is one shared definition: identity, sequence, recordedAt, recordedBy,
+kind, nullable message, originNodeId and undoOfTransactionId. recordedBy references the author Node;
+originNodeId references the context Node. Kinds are extensible operation names such as chat.submit,
+node.move and transaction.undo. The caller receives the recorded acceptance; snapshot,
+children, history, changes and subscribe expose projections without database-table access.
 
-type TransactionRequest = {
-  id: TransactionId; // allocated once, retained across retries
-  changes: readonly NodeChange[];
-  expected: Readonly<Record<NodeId, TransactionId | null>>;
-  details: {
-    message: string;
-    kind: 'chat' | 'content' | 'undo';
-    originNodeId: NodeId | null;
-    undoOfTransactionId: TransactionId | null;
-  };
-};
-
-type RecordedTransaction = {
-  transaction: Transaction;
-  nodes: readonly Node[]; // new identities, each with its initial version
-  versions: readonly NodeVersion[];
-};
-
-interface NodeStorage {
-  read(afterSequence?: number): Promise<readonly RecordedTransaction[]>;
-  append(request: TransactionRequest): Promise<RecordedTransaction>;
-}
-```
-
-This is a proposed seam, not an implemented contract. History needs persistent transaction details
-for message, kind, originating exchange, and undo source. Those would extend Transaction with
-explicit fields: originNodeId is an optional FK to Node and undoOfTransactionId an optional FK to
-Transaction. Update Transaction alongside this request when accepting the application contract;
-the current foundation does not yet include those details.
+The interface is defined here; the throwaway spike/node-storage branch exercises it with Maps
+and encrypted Dexie. Production staging and ownership remain above the store.
 
 Append checks expectations, assigns definitive sequence/time, creates identities, attaches its
 transaction ID to proposed complete states, and atomically publishes all records. A null expectation
@@ -174,8 +152,9 @@ cannot mutate history. Choose insertion-friendly order keys and deterministic eq
 
 ## History and undo
 
-History reads the same recorded transactions. Default the existing History view to content and undo
-transactions, so chat acceptance/checkpoint/completion writes do not bury content edits. Chat views
+History reads the same recorded transactions. Default the existing History view to the relevant node-operation and transaction.undo
+kinds, so chat.submit and chat.response.* writes do not bury content edits. Features own their
+operation names; storage does not impose a closed chat/content/undo classification. Chat views
 derive their transcript from conversation nodes. These are projections of one history.
 
 Show complete before/after node state, including parent, target, order, data, and deletion. Find the
