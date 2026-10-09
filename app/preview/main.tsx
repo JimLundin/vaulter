@@ -14,6 +14,10 @@ import type { Head } from '../vault/storage/backend.ts';
 import { sampleFiles, note } from './data.ts';
 import { previewModel } from './model.ts';
 import { previewTranscription } from './transcription.ts';
+import {
+  UnifiedInputPrototype,
+  UnifiedInputPrototypeSwitcher,
+} from '../ui/kit/unified-input-button.prototype.tsx';
 
 const memory = memoryBackend(sampleFiles);
 const initial = memory.backend.write!(
@@ -41,32 +45,35 @@ function Preview({ initialHead }: { initialHead: Head }) {
   const vault = useMemo(() => liveVault(() => current.current), []);
   const files = applyOverlay(head.files, writer.overlay);
   return (
-    <DesignPreview
-      label={`Design preview · ${(import.meta.env.VITE_PREVIEW_COMMIT || 'local').slice(0, 7)}`}
-      onReset={() => location.reload()}
-      kitHref={import.meta.env.DEV ? '/ui/kit/' : './kit/'}
-    >
-      <OpenProduct
-        session={{
-          vault,
-          files,
-          status: { kind: 'synced', at: Date.now() },
-          locked: null,
-          signOut: null,
-          secrets: null,
-          blocked: null,
-        }}
-        model={async () => previewModel}
-        preview={{
-          transcription: previewTranscription,
-          suggestions: async () => [
-            'How could I make more room for slow mornings?',
-            'Help me plan an afternoon in the garden studio',
-            'What themes connect the notes in my reading list?',
-          ],
-        }}
-      />
-    </DesignPreview>
+    <UnifiedInputPrototype>
+      <DesignPreview
+        label={`Design preview · ${(import.meta.env.VITE_PREVIEW_COMMIT || 'local').slice(0, 7)}`}
+        onReset={() => location.reload()}
+        kitHref={import.meta.env.DEV ? '/ui/kit/' : './kit/'}
+        prototypeControls={<UnifiedInputPrototypeSwitcher />}
+      >
+        <OpenProduct
+          session={{
+            vault,
+            files,
+            status: { kind: 'synced', at: Date.now() },
+            locked: null,
+            signOut: null,
+            secrets: null,
+            blocked: null,
+          }}
+          model={async () => previewModel}
+          preview={{
+            transcription: previewTranscription,
+            suggestions: async () => [
+              'How could I make more room for slow mornings?',
+              'Help me plan an afternoon in the garden studio',
+              'What themes connect the notes in my reading list?',
+            ],
+          }}
+        />
+      </DesignPreview>
+    </UnifiedInputPrototype>
   );
 }
 

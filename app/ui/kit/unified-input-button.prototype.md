@@ -2,8 +2,23 @@
 
 Throwaway interaction preview based on `structure` at `9e7f4d6`.
 
-Run `npm run design -- --port 5181`, then open <http://localhost:5181/preview/>.
+Run `npm run design -- --port 5181`, then open <http://localhost:5181/preview/?variant=A>.
 Use the existing Mobile toggle to check the phone layout. Dictation is scripted.
+
+The arrow switcher follows the merged UI prototype's pattern and sits inside the
+preview bar alongside the device controls. It cycles
+the `variant` query parameter without resetting drafts or active transcription.
+Left/right keys switch options outside text fields.
+
+The user requested matching light treatments for microphone and Enter and a visual
+comparison before choosing. Three variants use existing kit colors and shapes:
+
+- A: white background, black icon, subtle outline. This is the default.
+- B: black background, white icon, filled button.
+- C: white background, black icon, no outline.
+
+Colors follow the kit's theme. All states share the selected treatment; disabled
+Enter is faded. The comparison is limited to the requested button styling.
 
 The question: does one inset action feel right when microphone and submission
 share the same position?
@@ -24,6 +39,8 @@ Validated with Chromium on desktop and touch phone: state transitions, retained
 drafts on blur, speech appending, no focus during speech, one submission per mouse
 or touch activation, and one button throughout recording and agent responses.
 TypeScript and the changed file's Biome check pass.
+The three variants also pass mouse/touch checks for URL selection, draft
+preservation, transcription during switches, and unchanged composer geometry.
 
 Awaiting user review before applying the behavior to `structure`. Production work
 should update the shared Composer and its browser acceptance checks, then update

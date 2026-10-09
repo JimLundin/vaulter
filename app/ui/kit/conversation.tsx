@@ -15,6 +15,7 @@ import {
   OptionStrip,
 } from './primitives.tsx';
 import { useIsMobile } from './hooks/use-mobile.ts';
+import { usePrototypeInputStyle } from './unified-input-button.prototype.tsx';
 
 const ConversationPresentation = createContext<{ page: boolean; close?: () => void }>({
   page: false,
@@ -293,10 +294,11 @@ export function SendButton({
   onStop?: () => void;
   label?: string;
 }) {
+  const prototypeStyle = usePrototypeInputStyle();
   return (
     <Button
       type={busy ? 'button' : 'submit'}
-      variant={busy ? 'outline' : 'default'}
+      variant={prototypeStyle ?? (busy ? 'outline' : 'default')}
       size="icon-lg"
       aria-label={busy ? 'Stop' : label}
       disabled={!busy && disabled}
@@ -337,6 +339,7 @@ export function VoiceButton({
   disabled?: boolean;
   onClick: () => void;
 }) {
+  const prototypeStyle = usePrototypeInputStyle();
   const waiting = phase === 'connecting' || phase === 'finishing';
   const recording = phase === 'listening';
   const label =
@@ -350,7 +353,7 @@ export function VoiceButton({
   return (
     <Button
       type="button"
-      variant="ghost"
+      variant={prototypeStyle ?? 'ghost'}
       size="icon-lg"
       pending={waiting}
       aria-label={label}

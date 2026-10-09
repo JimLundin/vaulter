@@ -12,11 +12,13 @@ export function DesignPreview({
   label,
   kitHref,
   onReset,
+  prototypeControls,
   children,
 }: {
   label: string;
   kitHref: string;
   onReset: () => void;
+  prototypeControls?: ReactNode;
   children: ReactNode;
 }) {
   const [device, setDevice] = useState<Device>('window');
@@ -68,16 +70,19 @@ export function DesignPreview({
         kitHref={kitHref}
         onReset={onReset}
         controls={
-          <RadioGroup
-            variant="segmented"
-            aria-label="Preview device"
-            value={device}
-            onValueChange={(value) => setDevice(value as Device)}
-          >
-            <RadioGroupItem value="window">Window</RadioGroupItem>
-            <RadioGroupItem value="desktop">Desktop</RadioGroupItem>
-            <RadioGroupItem value="mobile">Mobile</RadioGroupItem>
-          </RadioGroup>
+          <>
+            <RadioGroup
+              variant="segmented"
+              aria-label="Preview device"
+              value={device}
+              onValueChange={(value) => setDevice(value as Device)}
+            >
+              <RadioGroupItem value="window">Window</RadioGroupItem>
+              <RadioGroupItem value="desktop">Desktop</RadioGroupItem>
+              <RadioGroupItem value="mobile">Mobile</RadioGroupItem>
+            </RadioGroup>
+            {prototypeControls}
+          </>
         }
       />
       <div className="flex min-h-0 min-w-0 flex-1 overflow-x-auto">
