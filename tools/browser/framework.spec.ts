@@ -297,12 +297,9 @@ test('settings is a shared drawer that keeps feature fields and focus when resiz
     await expect
       .poll(async () => {
         const box = (await settings.boundingBox())!;
-        return box.y + box.height;
+        return Math.abs(width < 768 ? box.y + box.height - 844 : box.y + box.height / 2 - 422);
       })
-      .toBeLessThanOrEqual(845);
-    const box = (await settings.boundingBox())!;
-    if (width < 768) expect(box.y + box.height).toBeCloseTo(844, 0);
-    else expect(box.y + box.height / 2).toBeCloseTo(422, 0);
+      .toBeLessThan(0.5);
     await page.keyboard.press('Tab');
     await expect
       .poll(() => settings.evaluate((node) => node.contains(document.activeElement)))
