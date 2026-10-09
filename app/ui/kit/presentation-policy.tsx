@@ -52,7 +52,9 @@ function retainInteractionScope(portal: HTMLElement) {
   };
   document.addEventListener('pointerdown', remember, true);
   document.addEventListener('focusin', remember, true);
-  if (portal.contains(document.activeElement)) current.active = portal;
+  if (portal.contains(document.activeElement)) {
+    current.active = interactionScope(current, document.activeElement);
+  }
   return () => {
     document.removeEventListener('pointerdown', remember, true);
     document.removeEventListener('focusin', remember, true);
