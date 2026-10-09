@@ -97,6 +97,69 @@ test('closing nested modal children preserves parent focus protection and releas
   expect(await page.evaluate(() => document.body.style.overflow)).not.toBe('hidden');
 });
 
+test('closing a drawer from its nested review releases both surfaces and leaves the next drawer usable', async ({
+  page,
+}) => {
+  await page.goto('/ui/kit/tests/browser.html?policy');
+  const opener = page.getByRole('button', { name: 'Open parent drawer' });
+  await opener.click();
+  const parent = page.getByRole('dialog', { name: 'Parent', exact: true });
+  await parent.getByRole('button', { name: 'Open nested review' }).click();
+  const child = page.getByRole('dialog', { name: 'Nested review', exact: true });
+  await child.getByRole('button', { name: 'Close parent from child' }).click();
+  await expect(child).toBeHidden();
+  await expect(parent).toBeHidden();
+  await expect(opener).toBeFocused();
+  const background = page.getByRole('textbox', { name: 'Background draft' });
+  await background.fill('Continue after parent closure');
+  await page.getByRole('button', { name: 'Open peer drawer' }).click();
+  const peer = page.getByRole('dialog', { name: 'Peer', exact: true });
+  await expect(background).toBeHidden();
+  await peer.getByRole('textbox', { name: 'Peer draft' }).fill('Independent next task');
+  await page.keyboard.press('Escape');
+  await expect(peer).toBeHidden();
+  await expect(page.getByRole('button', { name: 'Open peer drawer' })).toBeFocused();
+  await expect(background).toHaveValue('Continue after parent closure');
+});
+
+for (const firstClosed of ['earlier', 'later']) {
+  test(`closing the ${firstClosed} overlapping drawer preserves the remaining modal task`, async ({
+    page,
+  }) => {
+    await page.goto('/ui/kit/tests/browser.html?policy');
+    const background = page.getByRole('textbox', { name: 'Background draft' });
+    await page.getByRole('button', { name: 'Open parent drawer' }).click();
+    const parent = page.getByRole('dialog', { name: 'Parent', exact: true });
+    await parent.getByRole('button', { name: 'Open peer task' }).click();
+    const peer = page.getByRole('dialog', { name: 'Peer', exact: true });
+    await expect(peer).toBeVisible();
+    const remaining = firstClosed === 'earlier' ? peer : parent;
+    const closed = firstClosed === 'earlier' ? parent : peer;
+    await peer
+      .getByRole('button', {
+        name: firstClosed === 'earlier' ? 'Close earlier drawer' : 'Close peer',
+      })
+      .click();
+    await expect(closed).toBeHidden();
+    await expect(remaining).toBeVisible();
+    await expect(background).toBeHidden();
+    await remaining.getByRole('textbox').fill('Remaining task is editable');
+    for (let step = 0; step < 8; step++) {
+      await page.keyboard.press('Tab');
+      expect(await remaining.evaluate((node) => node.contains(document.activeElement))).toBe(true);
+    }
+    await page.mouse.move(5, 5);
+    await page.mouse.wheel(0, 600);
+    expect(await page.evaluate(() => scrollY)).toBe(0);
+    await page.keyboard.press('Escape');
+    await expect(remaining).toBeHidden();
+    await expect(background).toBeVisible();
+    await background.fill('Background usable after final closure');
+    await page.mouse.wheel(0, 600);
+    await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(0);
+  });
+}
+
 test('paired sample Escape closes only the focused sample and keeps the other editable', async ({
   page,
 }) => {
@@ -125,4 +188,47 @@ test('paired sample Escape closes only the focused sample and keeps the other ed
   await page.keyboard.press('Escape');
   await expect(desktop.getByRole('dialog', { name: 'Settings', exact: true })).toBeHidden();
   await expect(desktop.getByRole('button', { name: 'Open settings' })).toBeFocused();
+});
+
+test('unmounting open settings samples leaves replacement surfaces and reopened drawers usable', async ({
+  page,
+}) => {
+  await page.goto('/ui/kit/');
+  const filter = page.getByRole('searchbox', { name: 'Find a component' });
+  const settings = page.locator('[data-kit-comparison="settings"]');
+  for (let cycle = 0; cycle < 2; cycle++) {
+    await filter.fill('Settings');
+    for (const device of ['desktop', 'mobile']) {
+      const sample = settings.locator(`[data-kit-preview="${device}"]`);
+      await sample.getByRole('button', { name: 'Open settings' }).click();
+      await sample
+        .getByRole('dialog', { name: 'Settings', exact: true })
+        .getByRole('textbox', { name: 'Model', exact: true })
+        .fill(`Task before unmount ${cycle}`);
+    }
+    await filter.fill('Search & commands');
+    await expect(settings).toHaveCount(0);
+    const replacement = page.locator('[data-kit-comparison="search"] [data-kit-preview="mobile"]');
+    const opener = replacement.getByRole('button', { name: 'Search your vault', exact: true });
+    await opener.click();
+    const search = replacement.getByRole('dialog');
+    await search.getByRole('combobox').fill('Coffee');
+    await expect(search.getByRole('option', { name: 'Coffee with Anna' })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(search).toBeHidden();
+    await expect(opener).toBeFocused();
+  }
+  await filter.fill('Settings');
+  const mobile = settings.locator('[data-kit-preview="mobile"]');
+  const opener = mobile.getByRole('button', { name: 'Open settings' });
+  await opener.click();
+  await mobile
+    .getByRole('dialog', { name: 'Settings', exact: true })
+    .getByRole('textbox', { name: 'Model', exact: true })
+    .fill('Task after unmount');
+  await page.keyboard.press('Escape');
+  await expect(mobile.getByRole('dialog', { name: 'Settings', exact: true })).toBeHidden();
+  await expect(opener).toBeFocused();
+  await filter.fill('Buttons & selection');
+  await expect(page.locator('[data-kit-comparison="buttons"]')).toBeVisible();
 });

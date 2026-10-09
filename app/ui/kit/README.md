@@ -161,6 +161,10 @@ label/control/description placement. Theme choices use the shared `RadioGroup` p
 settings and supporting panels. Callers supply `open`, `onClose`, `title` and content; bare drawer
 parts and side sheets remain outside the public interface. The desktop sidebar has no mobile
 overlay path: `NavigationSuite` owns its compact bottom bar and navigation drawer.
+The private presentation owner chooses portal scope, modal policy, dismissal ownership and
+focus return; the Base UI adapter owns focus trapping, background effects and swipe mechanics.
+Closing nested or overlapping drawers preserves any remaining modal task. Bounded Settings
+examples stay independently editable and release their scope when catalogue filtering unmounts them.
 The gallery shows **Built from** links on these compositions. `composition.ts` lists their
 building blocks, including usage through private helpers. `tools/composition.ts` checks the configured
 roots in `conversation.tsx`, `settings.tsx` and `theme.tsx` as whole sources, then follows
