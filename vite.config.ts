@@ -24,6 +24,8 @@ const csp = (): Plugin => ({
       "img-src 'self' data: https://tile.openstreetmap.org",
       `connect-src 'self' ${api} ${ai} https://s.jina.ai https://r.jina.ai https://nominatim.openstreetmap.org https://api.open-meteo.com`,
       "font-src 'self'",
+      // The Home Screen install reads the manifest; default-src 'none' would refuse it.
+      "manifest-src 'self'",
       "base-uri 'none'",
       "form-action 'none'",
     ].join('; ');
