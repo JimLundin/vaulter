@@ -173,7 +173,10 @@ test('closing nested modal children preserves parent focus protection and releas
   await expect(background).toBeHidden();
   for (let step = 0; step < 8; step++) {
     await page.keyboard.press('Tab');
-    expect(await parent.evaluate((node) => node.contains(document.activeElement))).toBe(true);
+    // Base UI's focus guard returns focus on the next animation frame.
+    await expect
+      .poll(() => parent.evaluate((node) => node.contains(document.activeElement)))
+      .toBe(true);
   }
   await parent.getByRole('button', { name: 'Parent options' }).click();
   await expect(page.getByRole('menuitem', { name: 'Keep task' })).toBeVisible();
@@ -238,7 +241,9 @@ for (const firstClosed of ['earlier', 'later']) {
     await remaining.getByRole('textbox').fill('Remaining task is editable');
     for (let step = 0; step < 8; step++) {
       await page.keyboard.press('Tab');
-      expect(await remaining.evaluate((node) => node.contains(document.activeElement))).toBe(true);
+      await expect
+        .poll(() => remaining.evaluate((node) => node.contains(document.activeElement)))
+        .toBe(true);
     }
     await page.mouse.move(5, 5);
     await page.mouse.wheel(0, 600);
