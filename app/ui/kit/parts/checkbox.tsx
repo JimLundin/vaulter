@@ -1,4 +1,5 @@
 'use client';
+import { useFieldUnsupportedControl } from '../field-association.ts';
 
 import * as React from 'react';
 import { cn } from '../lib/utils.ts';
@@ -6,6 +7,7 @@ import { CheckIcon } from 'lucide-react';
 import { Checkbox as CheckboxPrimitive } from 'radix-ui';
 
 function Checkbox({ className, ...props }: React.ComponentProps<typeof CheckboxPrimitive.Root>) {
+  useFieldUnsupportedControl();
   return (
     <CheckboxPrimitive.Root
       data-slot="checkbox"

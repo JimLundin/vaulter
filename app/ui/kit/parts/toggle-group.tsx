@@ -1,3 +1,4 @@
+import { useFieldUnsupportedControl } from '../field-association.ts';
 import * as React from 'react';
 import { type VariantProps } from 'class-variance-authority';
 import { cn } from '../lib/utils.ts';
@@ -26,6 +27,7 @@ function ToggleGroup({
   VariantProps<typeof toggleVariants> & {
     spacing?: number;
   }) {
+  useFieldUnsupportedControl();
   return (
     <ToggleGroupPrimitive.Root
       data-slot="toggle-group"

@@ -79,3 +79,49 @@ test('a nested textarea receives field meaning and native label activation', asy
   await page.getByText('Conversation notes', { exact: true }).click();
   await expect(notes).toBeFocused();
 });
+
+test('field theme choices have group meaning and standalone Appearance retains its name', async ({
+  page,
+}) => {
+  await page.goto('/ui/kit/tests/browser.html?setting-fields');
+  const group = page.getByRole('radiogroup', { name: 'Field theme', exact: true });
+  await expect(group).toHaveAccessibleDescription('Choose how this device looks.');
+  await expect(
+    group.getByRole('radio', { name: 'As the system', exact: true }),
+  ).toHaveAccessibleName('As the system');
+  for (const choice of ['Light', 'Dark']) {
+    await expect(
+      group.getByRole('radio', { name: choice, exact: true }),
+    ).toHaveAccessibleDescription('');
+  }
+  await expect(page.getByRole('radiogroup', { name: 'Appearance', exact: true })).toBeVisible();
+});
+
+test('nested repeated groups retain independent associations and radio keyboard behavior through resizing', async ({
+  page,
+}) => {
+  await page.goto('/ui/kit/tests/browser.html?setting-fields');
+  const first = page.getByRole('radiogroup', { name: 'First mode', exact: true });
+  const second = page.getByRole('radiogroup', { name: 'Second mode', exact: true });
+  expect(await first.getAttribute('id')).not.toBe(await second.getAttribute('id'));
+  expect(await first.getAttribute('aria-describedby')).not.toBe(
+    await second.getAttribute('aria-describedby'),
+  );
+  for (const group of [first, second]) {
+    await expect(group).toHaveAccessibleDescription('Additional mode guidance. Choose one mode.');
+    const references = (await group.getAttribute('aria-describedby'))!.split(/\s+/);
+    expect(new Set(references).size).toBe(2);
+  }
+  await first.getByRole('radio', { name: 'One', exact: true }).focus();
+  await page.keyboard.press('ArrowDown');
+  const selected = first.getByRole('radio', { name: 'Two', exact: true });
+  await expect(selected).toBeChecked();
+  await expect(selected).toBeFocused();
+  for (const width of [390, 1440, 768]) {
+    await page.setViewportSize({ width, height: 1000 });
+    await expect(selected).toBeChecked();
+    await expect(selected).toBeFocused();
+    await expect(first).toHaveAccessibleDescription('Additional mode guidance. Choose one mode.');
+  }
+  await expect(second.getByRole('radio', { name: 'One', exact: true })).toBeChecked();
+});

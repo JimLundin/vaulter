@@ -1,7 +1,17 @@
 // Settings compose shared layout, typography and field primitives; features supply their controls.
-import { type ReactNode, useCallback, useId, useMemo, useState } from 'react';
-import { FieldAssociation } from './field-association.ts';
-import { Field, FieldContent, FieldDescription, FieldLabel } from './parts/field.tsx';
+import * as React from 'react';
+import {
+  isValidElement,
+  type ReactNode,
+  useCallback,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import { FieldAssociation, type FieldControl } from './field-association.ts';
+import { Field, FieldContent, FieldDescription, FieldLabel, FieldTitle } from './parts/field.tsx';
 import { FeaturePage } from './app.tsx';
 import { Heading, Stack } from './parts/layout.tsx';
 import { Surface } from './primitives.tsx';
@@ -56,25 +66,88 @@ export function SettingsSection({ title, children }: { title: string; children: 
     </Surface>
   );
 }
+// Ordinary React children can be inspected without cloning controls or searching the DOM.
+// Opaque feature components are validated by their mounted supported-control registration.
+function hasUnsupportedControl(children: ReactNode): boolean {
+  return React.Children.toArray(children).some((child) => {
+    if (
+      !isValidElement<{ children?: ReactNode; role?: string; contentEditable?: boolean | string }>(
+        child,
+      )
+    )
+      return false;
+    if (
+      typeof child.type === 'string' &&
+      (['input', 'textarea', 'select'].includes(child.type) ||
+        child.props.contentEditable === true ||
+        child.props.contentEditable === 'true' ||
+        [
+          'checkbox',
+          'switch',
+          'combobox',
+          'slider',
+          'spinbutton',
+          'textbox',
+          'radio',
+          'radiogroup',
+          'listbox',
+        ].includes(child.props.role ?? ''))
+    )
+      return true;
+    return hasUnsupportedControl(child.props.children);
+  });
+}
+
 export function SettingField({
   label,
-  htmlFor,
   description,
-  descriptionId,
   children,
 }: {
   label: string;
-  htmlFor?: string;
   description: string;
-  descriptionId?: string;
   children: ReactNode;
 }) {
   const generatedId = useId();
   const controlId = `${generatedId}-control`;
   const labelId = `${generatedId}-label`;
-  const effectiveDescriptionId = descriptionId ?? `${generatedId}-description`;
-  const [registeredId, setRegisteredId] = useState<string>();
-  const registerControl = useCallback((id: string) => setRegisteredId(id), []);
+  const effectiveDescriptionId = `${generatedId}-description`;
+  const controls = useRef(new Map<string, FieldControl>());
+  const mounted = useRef(false);
+  const [, notify] = useState(0);
+  const [registeredControl, setRegisteredControl] = useState<FieldControl>();
+  const registerControl = useCallback((key: string, control: FieldControl) => {
+    controls.current.set(key, control);
+    if (mounted.current) notify((version) => version + 1);
+    return () => {
+      controls.current.delete(key);
+      if (mounted.current) notify((version) => version + 1);
+    };
+  }, []);
+  useLayoutEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+  useLayoutEffect(() => {
+    if (
+      hasUnsupportedControl(children) ||
+      [...controls.current.values()].some((candidate) => candidate.kind === 'unsupported')
+    ) {
+      throw new Error(
+        `SettingField "${label}" contains an unsupported semantic control; use one supported text control or radio group.`,
+      );
+    }
+    if (controls.current.size !== 1) {
+      throw new Error(
+        `SettingField "${label}" requires exactly one supported text control or radio group; found ${controls.current.size}.`,
+      );
+    }
+    const control = controls.current.values().next().value;
+    if (control?.id !== registeredControl?.id || control?.kind !== registeredControl?.kind) {
+      setRegisteredControl(control);
+    }
+  });
   const association = useMemo(
     () => ({ controlId, labelId, descriptionId: effectiveDescriptionId, registerControl }),
     [controlId, labelId, effectiveDescriptionId, registerControl],
@@ -82,9 +155,13 @@ export function SettingField({
   return (
     <FieldAssociation.Provider value={association}>
       <Field orientation="setting">
-        <FieldLabel id={labelId} htmlFor={registeredId ?? htmlFor ?? controlId}>
-          {label}
-        </FieldLabel>
+        {registeredControl?.kind === 'group' ? (
+          <FieldTitle id={labelId}>{label}</FieldTitle>
+        ) : (
+          <FieldLabel id={labelId} htmlFor={registeredControl?.id ?? controlId}>
+            {label}
+          </FieldLabel>
+        )}
         <FieldContent>{children}</FieldContent>
         <FieldDescription id={effectiveDescriptionId}>{description}</FieldDescription>
       </Field>

@@ -1,21 +1,27 @@
 // Private state shared by SettingField and its supported controls through ordinary layouts.
-import { createContext, useContext, useLayoutEffect } from 'react';
+import { createContext, useContext, useId, useLayoutEffect } from 'react';
+
+export type FieldControl = { id: string; kind: 'text' | 'group' | 'unsupported' };
 
 export const FieldAssociation = createContext<{
   controlId: string;
   labelId: string;
   descriptionId: string;
-  registerControl: (id: string) => void;
+  registerControl: (key: string, control: FieldControl) => () => void;
 } | null>(null);
 
-export function useFieldTextAssociation(props: { id?: string; 'aria-describedby'?: string }) {
+function useFieldAssociation(
+  kind: 'text' | 'group' | 'unsupported',
+  props: { id?: string; 'aria-describedby'?: string },
+) {
   const field = useContext(FieldAssociation);
+  const key = useId();
   const id = props.id ?? field?.controlId;
   const registerControl = field?.registerControl;
   useLayoutEffect(() => {
-    if (id) registerControl?.(id);
-  }, [id, registerControl]);
-  if (!field) return {};
+    if (id) return registerControl?.(key, { id, kind });
+  }, [id, key, kind, registerControl]);
+  if (!field || kind === 'unsupported') return {};
   return {
     id,
     'aria-label': undefined,
@@ -27,3 +33,22 @@ export function useFieldTextAssociation(props: { id?: string; 'aria-describedby'
     ].join(' '),
   };
 }
+
+export const useFieldTextAssociation = (props: {
+  id?: string;
+  type?: string;
+  'aria-describedby'?: string;
+}) =>
+  useFieldAssociation(
+    !props.type || ['text', 'email', 'password', 'search', 'tel', 'url'].includes(props.type)
+      ? 'text'
+      : 'unsupported',
+    props,
+  );
+export const useFieldGroupAssociation = (props: { id?: string; 'aria-describedby'?: string }) =>
+  useFieldAssociation('group', props);
+
+/** Unsupported kit controls register only to diagnose invalid field composition. */
+export const useFieldUnsupportedControl = () => {
+  useFieldAssociation('unsupported', {});
+};
