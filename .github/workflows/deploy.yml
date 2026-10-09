@@ -55,6 +55,7 @@ jobs:
           printf 'User-agent: *\nDisallow: /\n' > dist/robots.txt
           printf '{"commit":"%s"}\n' "$GITHUB_SHA" > dist/version.json
       - uses: actions/upload-pages-artifact@v4
-        with: { path: dist }
+        # Preview deployments reuse this exact production artifact.
+        with: { path: dist, retention-days: 90 }
       - id: deploy
         uses: actions/deploy-pages@v4
