@@ -85,6 +85,26 @@ restoration depend on retaining them.
 
 ## Transaction application
 
+There is one persisted `Transaction` definition for every feature. It records identity, definitive
+sequence, acceptance time, required `recordedBy`, an extensible operation `kind`, and nullable
+`message`, `originNodeId`, and `undoOfTransactionId`. The write request derives these fields from
+Transaction; it adds proposed changes and expectations, while the store assigns sequence and time.
+There is no separate RecordedTransaction or feature-specific transaction record.
+
+`recordedBy` references the stable Node identity of the author: a user, agent, or system. It means
+who produced the change, not which database adapter wrote it. `originNodeId` references a context
+Node, such as an exchange, import, or automation run; direct actions can have no origin. Attribution
+comes from trusted writer context and cannot be chosen by arbitrary agent-tool arguments. Initial
+transactions can create their own author node atomically. Both references remain valid after their
+nodes are deleted; historical attribution resolves them at the selected transaction cutoff.
+
+Kinds are feature-owned operation names such as `chat.submit`, `chat.response.stop`, `node.move`,
+`node.delete`, `import.apply`, and `transaction.undo`, rather than a closed chat/content/undo enum.
+Storage validates that the kind is nonempty, but assigns no feature semantics to it. Consumers
+choose which kinds they understand or present and retain unknown kinds. A compensation is linked
+by `undoOfTransactionId`; its kind alone does not establish that link. Message is a presentation
+description; identities, kind, and references do not depend on parsing it.
+
 The write operation validates the complete proposed snapshot, then publishes new identities,
 the transaction, and its node versions atomically. It checks unique composite keys, known foreign
 keys, valid JSON (including finite numbers), placement, and containment rules. It permits references

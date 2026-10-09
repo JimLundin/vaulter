@@ -1,6 +1,8 @@
 /** Stable identities; their encoding is chosen independently of storage. */
 export type NodeId = string;
 export type TransactionId = string;
+/** Feature-owned operation name, for example chat.submit, node.move, or import.apply. */
+export type TransactionKind = string;
 
 /** Nested JSON content. Structural references use the fields on NodeVersion. */
 export type JsonValue = string | number | boolean | null | JsonObject | readonly JsonValue[];
@@ -20,6 +22,16 @@ export interface Transaction {
   readonly sequence: number;
   /** ISO timestamp; sequence, rather than this timestamp, orders history. */
   readonly recordedAt: string;
+  /** Foreign key to the user, agent, or system Node that authored the change. Required. */
+  readonly recordedBy: NodeId;
+  /** Specific operation name. The storage model accepts new kinds without a schema change. */
+  readonly kind: TransactionKind;
+  /** Optional human-readable description; never used to determine operation semantics. */
+  readonly message: string | null;
+  /** Foreign key to the context Node that produced this change; null for direct actions. */
+  readonly originNodeId: NodeId | null;
+  /** Foreign key to the Transaction compensated by this operation, if any. */
+  readonly undoOfTransactionId: TransactionId | null;
 }
 
 /**

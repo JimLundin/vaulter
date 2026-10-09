@@ -22,7 +22,18 @@ refer to the same content node.
 An immutable record of a node's state at a point in its history.
 
 **Transaction**:
-A group of changes recorded and applied together as one unit.
+A group of changes recorded and applied together as one unit, with its author and originating
+context retained in history.
+
+**Transaction author**:
+The user, agent, or system responsible for producing a transaction's changes, represented by a node.
+
+**Transaction origin**:
+The context from which a transaction arose, such as a chat exchange or import. It is distinct from
+the author of the changes.
+
+**Transaction kind**:
+A specific name for the operation recorded by a transaction, interpreted by the feature that owns it.
 
 **Closure**:
 The live nodes reachable from a root through containment and references at a particular point in
