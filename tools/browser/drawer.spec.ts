@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { choosePreviewDevice } from './preview-controls.ts';
 // biome-ignore lint/correctness/noUnresolvedImports: Playwright re-exports these browser types.
 import type { Locator, Page } from '@playwright/test';
 
@@ -42,7 +43,7 @@ test('Mobile design preview keeps touch dismissal inside its frame and leaves re
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto('/preview/');
   const controls = page.getByRole('complementary', { name: 'Design preview' });
-  await controls.getByRole('radio', { name: 'Mobile', exact: true }).click();
+  await choosePreviewDevice(controls, 'Mobile');
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   const drawer = page.getByRole('dialog', { name: 'Settings', exact: true });
   await expect(drawer).toBeVisible();
@@ -55,6 +56,8 @@ test('Mobile design preview keeps touch dismissal inside its frame and leaves re
     .toBe(true);
   await swipeDown(page, drawer);
   await expect(drawer).toBeHidden();
-  await controls.getByRole('radio', { name: 'Desktop', exact: true }).click();
-  await expect(controls.getByRole('radio', { name: 'Desktop', exact: true })).toBeChecked();
+  await choosePreviewDevice(controls, 'Desktop');
+  const compactPicker = controls.getByRole('combobox', { name: 'Preview device', exact: true });
+  if (await compactPicker.count()) await expect(compactPicker).toHaveValue('desktop');
+  else await expect(controls.getByRole('radio', { name: 'Desktop', exact: true })).toBeChecked();
 });

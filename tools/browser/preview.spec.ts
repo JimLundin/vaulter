@@ -1,10 +1,75 @@
 import { expect, test } from '@playwright/test';
+import { choosePreviewDevice } from './preview-controls.ts';
+
+test('phone preview controls use one touch row and follow the visible browser height', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => {
+    const viewport = new EventTarget();
+    Object.defineProperties(viewport, {
+      height: { value: 664, writable: true },
+      width: { value: 390 },
+      offsetTop: { value: 0, writable: true },
+      offsetLeft: { value: 0 },
+    });
+    Object.defineProperty(globalThis, 'visualViewport', { value: viewport });
+  });
+  await page.goto('/preview/');
+  const banner = page.getByRole('complementary', { name: 'Design preview' });
+  await expect(page.getByRole('textbox', { name: 'Message', exact: true })).toBeVisible();
+  for (const width of [320, 390, 430]) {
+    await page.setViewportSize({ width, height: 844 });
+    await expect.poll(async () => (await banner.boundingBox())!.height).toBeLessThanOrEqual(56);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
+    );
+    const frame = (await page.locator('[data-design-preview]').boundingBox())!;
+    expect(frame.y + frame.height).toBeLessThanOrEqual(664);
+  }
+  const field = page.getByRole('textbox', { name: 'Message', exact: true });
+  await field.fill('Keep this mobile draft');
+  await banner
+    .getByRole('combobox', { name: 'Preview device', exact: true })
+    .selectOption('mobile');
+  await banner.getByRole('combobox', { name: 'Input button variant' }).selectOption('B');
+  await expect(field).toHaveValue('Keep this mobile draft');
+  await expect(page).toHaveURL(/variant=B/);
+  await banner
+    .getByRole('combobox', { name: 'Preview device', exact: true })
+    .dispatchEvent('keydown', {
+      key: 'ArrowRight',
+      bubbles: true,
+    });
+  await expect(page).toHaveURL(/variant=B/);
+  await page.evaluate(() => {
+    Object.defineProperty(window.visualViewport, 'height', { value: 500 });
+    window.visualViewport!.dispatchEvent(new Event('resize'));
+  });
+  await expect
+    .poll(async () => (await page.locator('[data-design-preview]').boundingBox())!.height)
+    .toBe(500);
+  const composer = (await page.getByRole('group', { name: 'Message composer' }).boundingBox())!;
+  expect(composer.y + composer.height).toBeLessThanOrEqual(500);
+  await page.evaluate(() => {
+    Object.defineProperty(window.visualViewport, 'offsetTop', { value: 90 });
+    window.visualViewport!.dispatchEvent(new Event('scroll'));
+  });
+  await expect.poll(async () => (await banner.boundingBox())!.y).toBe(90);
+  const pannedComposer = (await page
+    .getByRole('group', { name: 'Message composer' })
+    .boundingBox())!;
+  expect(pannedComposer.y + pannedComposer.height).toBeLessThanOrEqual(590);
+  expect(await page.evaluate(() => getComputedStyle(document.documentElement).overflowY)).toBe(
+    'hidden',
+  );
+});
 
 test('the desktop sidebar paints its full surface including the outer spacing', async ({
   page,
 }) => {
   await page.goto('/preview/');
-  await page.getByRole('radio', { name: 'Desktop', exact: true }).click();
+  await choosePreviewDevice(page.locator('body'), 'Desktop');
   const sidebar = page.locator('[data-region="nav"]');
   const colors = await sidebar.evaluate((node) => ({
     outer: getComputedStyle(node).backgroundColor,
@@ -18,7 +83,7 @@ test('the mobile Menu highlights only while hovered or open, with rounded corner
   page,
 }) => {
   await page.goto('/preview/');
-  await page.getByRole('radio', { name: 'Mobile', exact: true }).click();
+  await choosePreviewDevice(page.locator('body'), 'Mobile');
   const menu = page.getByRole('button', { name: 'Menu', exact: true });
   await page.mouse.move(0, 0);
   await expect(menu).toHaveAttribute('aria-expanded', 'false');
@@ -74,7 +139,7 @@ test('the preview banner stays above the entire workspace and device selection p
   await input.fill('Keep my draft while reviewing the phone layout');
   await input.evaluate((node) => node.setAttribute('data-original-preview-draft', ''));
   const route = page.url();
-  await banner.getByRole('radio', { name: 'Mobile', exact: true }).click();
+  await choosePreviewDevice(banner, 'Mobile');
   await expect(page.locator('[data-layout="mobile-workspace"]')).toBeVisible();
   const phone = page.locator('[data-design-viewport]');
   expect((await phone.boundingBox())!.width).toBe(390);
@@ -82,11 +147,11 @@ test('the preview banner stays above the entire workspace and device selection p
   await expect(input).toHaveValue('Keep my draft while reviewing the phone layout');
   await expect(input).toHaveAttribute('data-original-preview-draft', '');
   expect(page.url()).toBe(route);
-  await banner.getByRole('radio', { name: 'Desktop', exact: true }).click();
+  await choosePreviewDevice(banner, 'Desktop');
   await expect(workspace).toBeVisible();
   await expect(input).toHaveValue('Keep my draft while reviewing the phone layout');
   await expect(input).toHaveAttribute('data-original-preview-draft', '');
-  await banner.getByRole('radio', { name: 'Window', exact: true }).click();
+  await choosePreviewDevice(banner, 'Window');
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.locator('[data-layout="mobile-workspace"]')).toBeVisible();
   const compactBar = (await banner.boundingBox())!;
@@ -109,7 +174,7 @@ test('preview device changes keep open settings and search inside the app frame'
   await model.fill('A model selected during design review');
   await model.evaluate((node) => node.setAttribute('data-preview-model', ''));
   for (const mode of ['Mobile', 'Desktop', 'Mobile']) {
-    await banner.getByRole('radio', { name: mode, exact: true }).click();
+    await choosePreviewDevice(banner, mode);
     await expect(settings).toBeVisible();
     await expect(model).toHaveValue('A model selected during design review');
     await expect(model).toHaveAttribute('data-preview-model', '');
@@ -134,10 +199,10 @@ test('preview device changes keep open settings and search inside the app frame'
   const search = page.getByRole('dialog', { name: 'Search or ask', exact: true });
   const query = search.getByRole('combobox');
   await query.fill('Garden');
-  await banner.getByRole('radio', { name: 'Desktop', exact: true }).click();
+  await choosePreviewDevice(banner, 'Desktop');
   await expect(query).toHaveValue('Garden');
   await expect(search.getByRole('option', { name: /Garden studio/ })).toBeVisible();
-  await banner.getByRole('radio', { name: 'Mobile', exact: true }).click();
+  await choosePreviewDevice(banner, 'Mobile');
   await expect(query).toHaveValue('Garden');
   await expect
     .poll(async () => {

@@ -88,6 +88,33 @@ body,
   overflow: clip;
   border: 0;
 }
+.kit-preview-select {
+  min-width: 0;
+  min-height: var(--target-touch);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--foreground);
+  padding: 0 4px;
+  font: inherit;
+  font-size: 16px;
+}
+.kit-preview-select:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+/* The full-page review owns the visible viewport; only the app's content should scroll.
+ * Safari can pan that viewport when focusing a field, independently of its height. */
+html:has(.kit-design-window),
+body:has(.kit-design-window) {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+.kit-design-window {
+  position: fixed;
+  inset-inline: 0;
+  top: var(--design-top, 0px);
+}
 
 /* The only size thresholds. React reads these emitted tokens, and Tailwind uses them directly. */
 @theme static {

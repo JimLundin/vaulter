@@ -1,4 +1,19 @@
 import { expect, test } from '@playwright/test';
+// biome-ignore lint/correctness/noUnresolvedImports: Playwright re-exports these browser types.
+import type { Locator } from '@playwright/test';
+
+async function changeVariant(picker: Locator, current: string, direction: number) {
+  const select = picker.getByRole('combobox', { name: 'Input button variant' });
+  if (await select.count()) {
+    const variants = ['A', 'B', 'C'];
+    await select.selectOption(
+      variants[(variants.indexOf(current) + direction + variants.length) % variants.length],
+    );
+  } else
+    await picker
+      .getByRole('button', { name: direction > 0 ? 'Next variant' : 'Previous variant' })
+      .click();
+}
 
 for (const variant of ['A', 'B', 'C']) {
   test(`input preview ${variant} preserves drafts, recording and one focus-dependent action`, async ({
@@ -29,10 +44,10 @@ for (const variant of ['A', 'B', 'C']) {
     await expect(send).toBeEnabled();
     await field.blur();
     await expect(mic).toBeVisible();
-    await picker.getByRole('button', { name: 'Next variant' }).click();
+    await changeVariant(picker, new URL(page.url()).searchParams.get('variant')!, 1);
     await expect(field).toHaveValue('Keep my draft');
     expect(new URL(page.url()).searchParams.get('variant')).not.toBe(variant);
-    await picker.getByRole('button', { name: 'Previous variant' }).click();
+    await changeVariant(picker, new URL(page.url()).searchParams.get('variant')!, -1);
     expect(new URL(page.url()).searchParams.get('variant')).toBe(variant);
     await field.focus();
     await expect(send).toHaveAttribute('data-variant', treatment);
@@ -41,7 +56,7 @@ for (const variant of ['A', 'B', 'C']) {
     await field.blur();
     await mic.click();
     await expect(field).toHaveValue(/^Keep my draft Leave/);
-    await picker.getByRole('button', { name: 'Next variant' }).click();
+    await changeVariant(picker, new URL(page.url()).searchParams.get('variant')!, 1);
     const finish = page.getByRole('button', { name: 'Finish recording' });
     await expect(finish).toBeVisible();
     await expect(field).not.toBeFocused();
@@ -54,11 +69,15 @@ for (const variant of ['A', 'B', 'C']) {
     await expect(page.locator('[data-message="user"]')).toHaveCount(1);
     await expect(mic).toBeVisible();
     await page.reload();
-    await expect(picker).toContainText(`${new URL(page.url()).searchParams.get('variant')} ·`);
+    const select = picker.getByRole('combobox', { name: 'Input button variant' });
+    if (await select.count())
+      await expect(select).toHaveValue(new URL(page.url()).searchParams.get('variant')!);
+    else await expect(picker).toContainText(`${new URL(page.url()).searchParams.get('variant')} ·`);
   });
 }
 
 test('the preview variant shortcut yields to device radio navigation', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto('/preview/?variant=A');
   const windowMode = page.getByRole('radio', { name: 'Window', exact: true });
   await windowMode.focus();

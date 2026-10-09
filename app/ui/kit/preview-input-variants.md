@@ -5,6 +5,11 @@ bar beside Window, Desktop and Mobile. It preserves drafts and recording while
 switching between A (white with a subtle border), B (black filled) and C (white
 without a border). Colors follow the selected appearance.
 
+On phones, device and variant choices use native selectors in a single touch row;
+the kit and reset actions use icons. The full sample-data notice remains available
+to assistive technology. The preview fits the visible browser viewport and follows
+Safari's viewport panning, while scrolling stays inside the app content.
+
 In DesignPreview, the composer has one action: microphone when the field is
 unfocused, including with a draft; Enter while focused, disabled for empty or
 whitespace-only text. Recording uses finish/cancel, and an agent response uses

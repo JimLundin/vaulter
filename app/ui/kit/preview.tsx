@@ -1,7 +1,7 @@
 // Design review frame: the live product retains its state while its bounded viewport rearranges.
 import { type ReactNode, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { PresentationContext, usePresentation } from './presentation.tsx';
-import { sizeClassForWidth } from './hooks/use-layout.ts';
+import { sizeClassForWidth, useLayout } from './hooks/use-layout.ts';
 import { RadioGroup, RadioGroupItem } from './parts/radio-group.tsx';
 import { PreviewBar } from './surfaces.tsx';
 import { cn } from './lib/utils.ts';
@@ -21,6 +21,7 @@ export function DesignPreview({
   children: ReactNode;
 }) {
   const [device, setDevice] = useState<Device>('window');
+  const compact = useLayout() === 'compact';
   const parent = usePresentation();
   const [portal, setPortal] = useState<HTMLDivElement | null>(null);
   const [bounds, setBounds] = useState({ width: 0, height: 0 });
@@ -33,6 +34,10 @@ export function DesignPreview({
         '--design-height',
         `${parent?.portal.clientHeight ?? window.visualViewport?.height ?? window.innerHeight}px`,
       );
+      node.style.setProperty(
+        '--design-top',
+        `${parent ? 0 : (window.visualViewport?.offsetTop ?? 0)}px`,
+      );
       setBounds((current) =>
         current.width === portal.clientWidth && current.height === portal.clientHeight
           ? current
@@ -44,10 +49,12 @@ export function DesignPreview({
     observer.observe(portal);
     if (parent) observer.observe(parent.portal);
     window.visualViewport?.addEventListener('resize', measure);
+    window.visualViewport?.addEventListener('scroll', measure);
     window.addEventListener('resize', measure);
     return () => {
       observer.disconnect();
       window.visualViewport?.removeEventListener('resize', measure);
+      window.visualViewport?.removeEventListener('scroll', measure);
       window.removeEventListener('resize', measure);
     };
   }, [portal, parent]);
@@ -63,7 +70,10 @@ export function DesignPreview({
       <div
         ref={root}
         data-design-preview={device}
-        className="flex h-[var(--design-height,var(--viewport-height,100dvh))] min-h-0 flex-col overflow-hidden bg-surface"
+        className={cn(
+          'flex h-[var(--design-height,var(--viewport-height,100dvh))] min-h-0 flex-col overflow-hidden bg-surface',
+          !parent && 'kit-design-window',
+        )}
       >
         <PreviewBar
           label={label}
@@ -71,16 +81,29 @@ export function DesignPreview({
           onReset={onReset}
           controls={
             <>
-              <RadioGroup
-                variant="segmented"
-                aria-label="Preview device"
-                value={device}
-                onValueChange={(value) => setDevice(value as Device)}
-              >
-                <RadioGroupItem value="window">Window</RadioGroupItem>
-                <RadioGroupItem value="desktop">Desktop</RadioGroupItem>
-                <RadioGroupItem value="mobile">Mobile</RadioGroupItem>
-              </RadioGroup>
+              {compact ? (
+                <select
+                  aria-label="Preview device"
+                  className="kit-preview-select"
+                  value={device}
+                  onChange={(event) => setDevice(event.target.value as Device)}
+                >
+                  <option value="window">Window</option>
+                  <option value="desktop">Desktop</option>
+                  <option value="mobile">Mobile</option>
+                </select>
+              ) : (
+                <RadioGroup
+                  variant="segmented"
+                  aria-label="Preview device"
+                  value={device}
+                  onValueChange={(value) => setDevice(value as Device)}
+                >
+                  <RadioGroupItem value="window">Window</RadioGroupItem>
+                  <RadioGroupItem value="desktop">Desktop</RadioGroupItem>
+                  <RadioGroupItem value="mobile">Mobile</RadioGroupItem>
+                </RadioGroup>
+              )}
               <InputPreviewSwitcher />
             </>
           }

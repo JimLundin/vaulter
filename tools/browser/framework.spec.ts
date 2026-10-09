@@ -73,7 +73,10 @@ test('navigation has the same destinations and actions in both arrangements', as
   await expect(page.getByRole('heading', { name: 'History', exact: true })).toBeVisible();
   // Settings reached through Search uses the same menu and leaves History underneath.
   await page.getByRole('button', { name: 'Search', exact: true }).click();
-  await page.getByRole('combobox').fill('Settings');
+  await page
+    .getByRole('dialog', { name: 'Search or ask', exact: true })
+    .getByRole('combobox')
+    .fill('Settings');
   await page.getByRole('option', { name: 'Settings', exact: true }).click();
   await expect(settings).toBeVisible();
   expect(page.url()).toBe(historyURL);
@@ -549,7 +552,9 @@ test('the composer and search stay within the visual viewport when a keyboard op
       return Math.abs(search.height - (440 - (await banner.boundingBox())!.height));
     })
     .toBeLessThanOrEqual(1);
-  await expect(page.getByRole('combobox')).toBeFocused();
+  await expect(
+    page.getByRole('dialog', { name: 'Search or ask', exact: true }).getByRole('combobox'),
+  ).toBeFocused();
   await page.getByRole('button', { name: 'Close search' }).click();
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   const settings = page.getByRole('dialog', { name: 'Settings', exact: true });

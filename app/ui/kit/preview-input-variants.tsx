@@ -3,6 +3,7 @@
 import { createContext, type ReactNode, useContext, useEffect, useState } from 'react';
 import { Button } from './parts/button.tsx';
 import { Icon } from './icons.tsx';
+import { useLayout } from './hooks/use-layout.ts';
 
 const options = [
   { key: 'A', name: 'White · outlined', button: 'preview-input-outline' },
@@ -48,7 +49,7 @@ function SelectedInputVariants({ children }: { children: ReactNode }) {
       if (
         target instanceof Element &&
         target.closest(
-          'input, textarea, [contenteditable], [role=combobox], [role=radio], [role=tab]',
+          'input, textarea, select, [contenteditable], [role=combobox], [role=radio], [role=tab]',
         )
       )
         return;
@@ -76,7 +77,25 @@ function SelectedInputVariants({ children }: { children: ReactNode }) {
 
 export function InputPreviewSwitcher() {
   const { index, select } = useContext(InputButtonSelection);
+  const compact = useLayout() === 'compact';
   if (import.meta.env.MODE !== 'design') return null;
+  if (compact)
+    return (
+      <fieldset aria-label="Input button style preview" className="min-w-0 flex-1">
+        <select
+          aria-label="Input button variant"
+          className="kit-preview-select w-full"
+          value={options[index].key}
+          onChange={(event) =>
+            select(options.findIndex((option) => option.key === event.target.value))
+          }
+        >
+          <option value="A">A · Outline</option>
+          <option value="B">B · Filled</option>
+          <option value="C">C · Plain</option>
+        </select>
+      </fieldset>
+    );
   return (
     <fieldset
       aria-label="Input button style preview"

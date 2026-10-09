@@ -30,12 +30,20 @@ export function PreviewBar({
   return (
     <aside
       aria-label="Design preview"
-      className="flex min-h-9 shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b bg-card px-4 py-1 text-foreground"
+      className={cn(
+        'flex min-h-9 shrink-0 items-center justify-between border-b bg-card py-1 text-foreground',
+        mobile ? 'gap-1 px-2' : 'flex-wrap gap-x-4 gap-y-2 px-4',
+      )}
     >
-      <span className="min-w-0 truncate text-caption text-muted-foreground">
-        {mobile ? 'Sample preview' : `${label} · Sample data · Scripted chat`}
+      <span className={mobile ? 'sr-only' : 'min-w-0 truncate text-caption text-muted-foreground'}>
+        {label} · Sample data · Scripted chat
       </span>
-      <div className="flex max-w-full shrink-0 flex-wrap items-center gap-2">
+      <div
+        className={cn(
+          'flex items-center',
+          mobile ? 'min-w-0 flex-1 gap-1' : 'max-w-full shrink-0 flex-wrap gap-2',
+        )}
+      >
         {controls}
         <a
           data-touch-target=""
@@ -44,7 +52,7 @@ export function PreviewBar({
           className="flex min-h-9 items-center gap-1 px-2 text-xs text-link hover:underline"
         >
           <Icon name="extension" size="sm" />
-          {mobile ? 'Kit' : 'Component kit'}
+          {!mobile && 'Component kit'}
         </a>
         <Button variant="ghost" size="sm" aria-label="Reset demo" onClick={onReset}>
           {mobile ? <Icon name="undo" size="sm" /> : 'Reset demo'}
