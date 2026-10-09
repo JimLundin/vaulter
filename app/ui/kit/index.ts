@@ -343,8 +343,10 @@ export {
   Gate,
   HoverPreview,
   Json,
+  LiveStatus,
   PreviewBar,
   SidePanel,
+  ToolGroup,
   ToolResult,
   UnifiedDiff,
 } from './surfaces.tsx';
