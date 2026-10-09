@@ -4,6 +4,11 @@ The app's component kit, imported from branch `ui-kit` at `2c30183`. Its referen
 `design/`. Product, shared UI and workflow screens compose `index.ts`; no public component takes
 `className` or `style`. Tailwind scans only this folder.
 
+The [UI kit architecture plan](../../../PLAN-ui-kit-architecture.md) records the next four
+deepening changes: private composition verification, Composer interaction, accessible field
+association and shared presentation policy. The
+[individual specs](../../../docs/specs/ui-kit/README.md) define their implementation and tests.
+
 `npm run kit` opens the live catalogue, using the same local fonts and theme as the app. Every
 public presentation component appears in a component family with an 800px desktop sample beside a
 390px touch sample. Both run the same sample implementation. Search by component or family name;
