@@ -1,5 +1,5 @@
 // Browser fixture exercising the public kit, without a vault or workflow dependency.
-import { useId, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import '../styles.css';
 import {
@@ -11,6 +11,7 @@ import {
   CommandItem,
   CommandList,
   ConversationPanel,
+  Composer,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -157,4 +158,61 @@ function Fixture() {
   );
 }
 
-createRoot(document.getElementById('app')!).render(<Fixture />);
+function ComposerFixture() {
+  const [draft, setDraft] = useState('');
+  const [submitted, setSubmitted] = useState<string[]>([]);
+  const [allowed, setAllowed] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [stops, setStops] = useState(0);
+  const [focused, setFocused] = useState(false);
+  const [phase, setPhase] = useState<'idle' | 'connecting' | 'listening' | 'finishing'>('idle');
+  const fieldRef = useRef<HTMLTextAreaElement>(null);
+  const recording = phase !== 'idle';
+  return (
+    <Stack>
+      <Composer
+        draft={draft}
+        onDraftChange={setDraft}
+        onSubmit={(text) => setSubmitted([...submitted, text])}
+        label="Fixture message"
+        placeholder="Write a controlled draft"
+        canSubmit={allowed && !recording}
+        busy={busy}
+        readOnly={recording}
+        voice={{ phase, onClick: () => setPhase(phase === 'idle' ? 'listening' : 'idle') }}
+        onStop={() => {
+          setStops(stops + 1);
+          setBusy(false);
+        }}
+        fieldRef={fieldRef}
+        onFocusChange={setFocused}
+      />
+      <Text>Submitted drafts: {JSON.stringify(submitted)}</Text>
+      <Text>Stop actions: {stops}</Text>
+      <Text>Field focused: {String(focused)}</Text>
+      <Button onClick={() => setAllowed(!allowed)}>
+        {allowed ? 'Deny submission' : 'Allow submission'}
+      </Button>
+      <Button onClick={() => setBusy(true)}>Begin response</Button>
+      <Row wrap={true}>
+        {(['connecting', 'listening', 'finishing', 'idle'] as const).map((state) => (
+          <Button key={state} onClick={() => setPhase(state)}>
+            {state} capture
+          </Button>
+        ))}
+      </Row>
+      <Button
+        onClick={() => {
+          setDraft('A suggested thought');
+          fieldRef.current?.focus();
+        }}
+      >
+        Use suggested thought
+      </Button>
+    </Stack>
+  );
+}
+
+createRoot(document.getElementById('app')!).render(
+  new URLSearchParams(location.search).has('composer') ? <ComposerFixture /> : <Fixture />,
+);

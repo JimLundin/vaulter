@@ -661,6 +661,7 @@ function Agent() {
   const [messages, setMessages] = useState<{ id: string; text: string }[]>([]);
   const [voice, setVoice] = useState<'idle' | 'listening' | 'ready'>('idle');
   const prefix = useRef('');
+  const fieldRef = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
     if (voice !== 'listening') return;
     const words = 'Leave space for slow mornings.'.split(' ');
@@ -672,26 +673,20 @@ function Agent() {
     }, 280);
     return () => clearInterval(timer);
   }, [voice]);
-  const send = () => {
-    if (draft.trim()) {
-      setMessages([...messages, { id: crypto.randomUUID(), text: draft.trim() }]);
+  const send = (text: string) => {
+    if (text.trim() && voice !== 'listening') {
+      setMessages([...messages, { id: crypto.randomUUID(), text: text.trim() }]);
       setDraft('');
       setVoice('idle');
     }
   };
-  const voiceControl = (
-    <K.VoiceButton
-      phase={voice}
-      busy={false}
-      onClick={() => {
-        if (voice === 'listening') setVoice('ready');
-        else {
-          prefix.current = draft;
-          setVoice('listening');
-        }
-      }}
-    />
-  );
+  const voiceAction = () => {
+    if (voice === 'listening') setVoice('ready');
+    else {
+      prefix.current = draft;
+      setVoice('listening');
+    }
+  };
   return (
     <K.ConversationPage>
       <K.ConversationSurface
@@ -703,55 +698,30 @@ function Agent() {
         }}
         status={<K.VoiceStatus phase={voice} error="" />}
         composer={
-          <K.Composer>
-            <K.Form
-              layout="inline"
-              onSubmit={(event) => {
-                event.preventDefault();
-                send();
-              }}
-            >
-              <K.InputGroup variant="composer">
-                <K.InputGroupTextarea
-                  variant="inline"
-                  rows={1}
-                  aria-label="Message"
-                  placeholder="Message…"
-                  value={draft}
-                  readOnly={voice === 'listening'}
-                  onFocus={() => setFocused(true)}
-                  onBlur={() => setFocused(false)}
-                  onChange={(event) => {
-                    setVoice('idle');
-                    setDraft(event.currentTarget.value);
-                  }}
-                  onKeyDown={(event) => {
-                    if (
-                      event.key === 'Enter' &&
-                      !event.shiftKey &&
-                      !event.nativeEvent.isComposing &&
-                      voice !== 'listening'
-                    ) {
-                      event.preventDefault();
-                      send();
-                    }
-                  }}
-                />
-                <K.ComposerActions voice={voiceControl}>
-                  <K.SendButton
-                    focused={focused}
-                    disabled={!draft.trim() || voice === 'listening'}
-                  />
-                </K.ComposerActions>
-              </K.InputGroup>
-            </K.Form>
-          </K.Composer>
+          <K.Composer
+            draft={draft}
+            onDraftChange={(text) => {
+              setVoice('idle');
+              setDraft(text);
+            }}
+            onSubmit={send}
+            label="Message"
+            placeholder="Message…"
+            canSubmit={voice !== 'listening'}
+            readOnly={voice === 'listening'}
+            voice={{ phase: voice, onClick: voiceAction }}
+            fieldRef={fieldRef}
+            onFocusChange={setFocused}
+          />
         }
         suggestions={
           !(focused || draft || messages.length || voice === 'listening') && (
             <K.PromptSuggestions
               suggestions={['Make room for slow mornings', 'What have I noticed this week?']}
-              onSelect={setDraft}
+              onSelect={(text) => {
+                setDraft(text);
+                requestAnimationFrame(() => fieldRef.current?.focus());
+              }}
             />
           )
         }
@@ -781,7 +751,8 @@ function Agent() {
 }
 function AgentPanel() {
   const [open, setOpen] = useState(false);
-  const [focused, setFocused] = useState(false);
+  const [draft, setDraft] = useState('');
+  const [messages, setMessages] = useState<{ id: string; text: string }[]>([]);
   return (
     <K.Stack>
       <K.Button variant="outline" onClick={() => setOpen(true)}>
@@ -790,31 +761,38 @@ function AgentPanel() {
       <K.ConversationPanel open={open} onClose={() => setOpen(false)}>
         <K.ConversationSurface
           busy={false}
-          onNewChat={noop}
+          onNewChat={() => {
+            setMessages([]);
+            setDraft('');
+          }}
           composer={
-            <K.Composer>
-              <K.Form layout="inline" onSubmit={(event) => event.preventDefault()}>
-                <K.InputGroup variant="composer">
-                  <K.InputGroupTextarea
-                    variant="inline"
-                    aria-label="Panel message"
-                    rows={1}
-                    onFocus={() => setFocused(true)}
-                    onBlur={() => setFocused(false)}
-                  />
-                  <K.ComposerActions>
-                    <K.SendButton label="Send panel message" focused={focused} />
-                  </K.ComposerActions>
-                </K.InputGroup>
-              </K.Form>
-            </K.Composer>
+            <K.Composer
+              draft={draft}
+              onDraftChange={setDraft}
+              onSubmit={(text) => {
+                if (!text.trim()) return;
+                setMessages([...messages, { id: crypto.randomUUID(), text: text.trim() }]);
+                setDraft('');
+              }}
+              label="Panel message"
+              sendLabel="Send panel message"
+              canSubmit={true}
+            />
           }
         >
-          <K.ConversationFeed>
-            <K.ConversationWelcome
-              title="A thought for later?"
-              description="Keep the page open while you ask."
-            />
+          <K.ConversationFeed empty={!messages.length}>
+            {messages.length ? (
+              messages.map((message) => (
+                <K.Message key={message.id} user={true}>
+                  {message.text}
+                </K.Message>
+              ))
+            ) : (
+              <K.ConversationWelcome
+                title="A thought for later?"
+                description="Keep the page open while you ask."
+              />
+            )}
           </K.ConversationFeed>
         </K.ConversationSurface>
       </K.ConversationPanel>
@@ -1216,7 +1194,6 @@ export const catalogue: Specimen[] = [
       'Message',
       'Markdown',
       'Composer',
-      'ComposerActions',
       'SendButton',
       'PromptSuggestions',
     ],

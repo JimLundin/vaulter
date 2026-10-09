@@ -462,7 +462,8 @@ test('Enter sends, Shift+Enter and IME keep editing, and suggestions live outsid
   expect((await input.boundingBox())!.height).toBe(44);
   await input.fill('   ');
   await input.press('Enter');
-  await expect(input).toHaveValue('   ');
+  await expect(input).toHaveValue('   \n');
+  await expect(page.locator('[data-message="user"]')).toHaveCount(0);
   await input.fill('First line');
   await input.press('End');
   await input.press('Shift+Enter');
@@ -589,6 +590,11 @@ test('dictation keeps the composer anchored and only submission stops an agent r
   const microphone = page.getByRole('button', { name: 'Start voice interaction' });
   await expect(microphone).toBeDisabled();
   await expect(microphone.locator('svg')).toHaveClass(/lucide-mic/);
+  const submitted = await page.locator('[data-message="user"]').count();
+  await input.dispatchEvent('keydown', { key: 'Enter', bubbles: true });
+  await expect(stop).toBeVisible();
+  await expect(input).toBeDisabled();
+  await expect(page.locator('[data-message="user"]')).toHaveCount(submitted);
   expect((await composer.boundingBox())!.y).toBe(before.y);
   await stop.click();
   await expect(input).toBeEditable();
@@ -677,4 +683,53 @@ test('live transcription updates the shared message field and uses the normal se
   await expect(input).toHaveValue('');
   expect(errors).toEqual([]);
   expect(external).toEqual([]);
+});
+
+test('Chat retains the shared draft when its view closes and reopens', async ({ page }) => {
+  await page.goto('/preview/');
+  const field = page.getByRole('textbox', { name: 'Message', exact: true });
+  await field.fill('An unfinished workflow thought');
+  await page.getByRole('link', { name: 'History', exact: true }).last().click();
+  await expect(page.getByRole('heading', { name: 'History', exact: true })).toBeVisible();
+  const menu = page.getByRole('button', { name: 'Menu', exact: true });
+  if (await menu.isVisible()) await menu.click();
+  await page.getByRole('link', { name: 'Agent', exact: true }).click();
+  await expect(field).toHaveValue('An unfinished workflow thought');
+  await field.press('Enter');
+  await expect(page.locator('[data-message="user"] [data-surface="bubble"]')).toHaveText(
+    'An unfinished workflow thought',
+  );
+});
+
+test('Enter and Send both open staged-change review and cancellation keeps the workflow draft', async ({
+  page,
+}) => {
+  test.setTimeout(60_000);
+  await page.goto('/preview/');
+  const field = page.getByRole('textbox', { name: 'Message', exact: true });
+  // The real scripted model stages an invalid wiki link; check refuses to commit the change.
+  await field.fill('vault it: [[Missing sample note]]');
+  await field.press('Enter');
+  await expect(
+    page.getByText('The sample check found problems in this text.', { exact: false }),
+  ).toBeVisible();
+  await expect(field).toBeEditable();
+  const submitted = await page.locator('[data-message="user"]').count();
+  const review = page.getByRole('dialog', { name: 'Review pending changes', exact: true });
+  for (const method of ['Enter', 'Send']) {
+    await field.fill(`Keep this ${method} draft pending review`);
+    if (method === 'Enter') await field.press('Enter');
+    else await page.getByRole('button', { name: 'Send', exact: true }).click();
+    await expect(review).toBeVisible();
+    await expect(review.getByText('Preview thought.md', { exact: false })).toBeVisible();
+    await expect(field).toHaveValue(`Keep this ${method} draft pending review`);
+    await expect(page.locator('[data-message="user"]')).toHaveCount(submitted);
+    await review.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await expect(review).toBeHidden();
+    await expect(field).toHaveValue(`Keep this ${method} draft pending review`);
+  }
+  await field.press('Enter');
+  await review.getByRole('button', { name: 'Include changes and send' }).click();
+  await expect(page.locator('[data-message="user"]')).toHaveCount(submitted + 1);
+  await expect(field).toHaveValue('');
 });

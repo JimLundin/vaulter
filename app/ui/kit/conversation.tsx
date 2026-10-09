@@ -1,8 +1,9 @@
 // Agent compositions: content and actions assembled exclusively from catalogued primitives.
-import { createContext, type ReactNode, useContext } from 'react';
+import { createContext, type ReactNode, type Ref, useContext, useState } from 'react';
 import { Stack, Row, Heading, Text, Link, Prose } from './parts/layout.tsx';
+import { Form } from './app.tsx';
 import { Button } from './parts/button.tsx';
-import { InputGroupAddon } from './parts/input-group.tsx';
+import { InputGroup, InputGroupAddon, InputGroupTextarea } from './parts/input-group.tsx';
 import { Icon } from './icons.tsx';
 import {
   Surface,
@@ -170,19 +171,101 @@ export function Message({ user, children }: { user?: boolean; children: ReactNod
 export function Markdown({ children }: { children: ReactNode }) {
   return <Prose markdown={true}>{children}</Prose>;
 }
-export function Composer({ children }: { children: ReactNode }) {
+/** Controlled entry: the owner retains draft lifetime and the authority to accept submission. */
+export function Composer({
+  draft,
+  onDraftChange,
+  onSubmit,
+  label,
+  placeholder,
+  canSubmit,
+  busy = false,
+  disabled = false,
+  readOnly = false,
+  voice,
+  onStop,
+  fieldRef,
+  onFocusChange,
+  sendLabel,
+}: {
+  draft: string;
+  onDraftChange: (text: string) => void;
+  onSubmit: (text: string) => void;
+  label: string;
+  placeholder?: string;
+  canSubmit: boolean;
+  busy?: boolean;
+  disabled?: boolean;
+  readOnly?: boolean;
+  voice?: { phase: VoicePhase; onClick: () => void; disabled?: boolean };
+  onStop?: () => void;
+  fieldRef?: Ref<HTMLTextAreaElement>;
+  onFocusChange?: (focused: boolean) => void;
+  sendLabel?: string;
+}) {
+  const [focused, setFocused] = useState(false);
+  const eligible = !!draft.trim() && canSubmit && !busy;
+  const focus = (value: boolean) => {
+    setFocused(value);
+    onFocusChange?.(value);
+  };
   return (
     <Surface as="fieldset" aria-label="Message composer">
-      {children}
+      <Form
+        layout="inline"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (eligible) onSubmit(draft);
+        }}
+      >
+        <InputGroup variant="composer">
+          <InputGroupTextarea
+            variant="inline"
+            ref={fieldRef}
+            rows={1}
+            aria-label={label}
+            placeholder={placeholder}
+            value={draft}
+            disabled={busy || disabled}
+            readOnly={readOnly}
+            aria-busy={readOnly}
+            onChange={(event) => onDraftChange(event.currentTarget.value)}
+            onFocus={() => focus(true)}
+            onBlur={() => focus(false)}
+            onKeyDown={(event) => {
+              // Safari reports Enter confirming composed text with keyCode 229.
+              if (
+                eligible &&
+                event.key === 'Enter' &&
+                !event.shiftKey &&
+                !event.nativeEvent.isComposing &&
+                event.nativeEvent.keyCode !== 229
+              ) {
+                event.preventDefault();
+                event.currentTarget.form?.requestSubmit();
+              }
+            }}
+          />
+          <InputGroupAddon align="inset-end">
+            {!!voice && (
+              <VoiceButton
+                phase={voice.phase}
+                onClick={voice.onClick}
+                disabled={voice.disabled}
+                busy={busy}
+              />
+            )}
+            <SendButton
+              busy={busy}
+              focused={focused}
+              disabled={!eligible}
+              onStop={onStop}
+              label={sendLabel}
+            />
+          </InputGroupAddon>
+        </InputGroup>
+      </Form>
     </Surface>
-  );
-}
-export function ComposerActions({ voice, children }: { voice?: ReactNode; children: ReactNode }) {
-  return (
-    <InputGroupAddon align="inset-end">
-      {voice}
-      {children}
-    </InputGroupAddon>
   );
 }
 export function SendButton({

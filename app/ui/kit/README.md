@@ -108,7 +108,7 @@ adds one.
 | Side panel (wide) or centered dialog | Full-screen dialog | `ConversationPanel` |
 | Labelled toolbar buttons | Icon buttons with an `aria-label` | `ConversationSurface` |
 | Form rows: label left, control right | The same fields stacked vertically | `SettingsMenu`, `SettingField` |
-| One-row composer with inset microphone and send | The same always-visible field and inset controls | `ConversationSurface`, `Composer`, `ComposerActions` |
+| One-row composer with inset microphone and send | The same always-visible field and inset controls | `ConversationSurface`, `Composer` |
 | History rows with labelled Revert | The same rows with an icon for Revert | `HistoryEntry` |
 | Single horizontally scrolling prompt row | The same row, with a fade at clipped edges | `PromptSuggestions`, `OptionStrip` |
 
@@ -241,10 +241,53 @@ Speech updates the same persistent message draft as typing. The microphone start
 Send and Enter submit the shared draft. Corrected final text replaces the current recording's partial
 words while retaining the preceding draft. Further recordings append to manual corrections.
 `VoiceStatus` shows capture state and errors above the dock without changing the field's position.
-`SendButton` shows the Enter arrow while the field has focus and becomes the sole Stop control during
+`Composer` shows the Enter arrow while the field has focus and becomes the sole Stop control during
 an agent response; the microphone keeps its icon and is disabled until the response finishes.
 The conversation feed contains submitted messages only. Read-only fields follow incoming words without taking focus. Drafts remain
 available when the Chat view closes or switches between a panel and page.
+
+## Composer interface
+
+`Composer` owns the form, one-row textarea, inset actions, keyboard submission and focus-dependent
+Send icon. Every Chat and catalogue caller supplies the same controlled interaction:
+
+```tsx
+const fieldRef = useRef<HTMLTextAreaElement>(null);
+<Composer
+  draft={draft}
+  onDraftChange={setDraft}
+  onSubmit={submitDraft}
+  label="Message"
+  placeholder="Type a message…"
+  canSubmit={!recording}
+  busy={responding}
+  readOnly={recording}
+  voice={{ phase: capturePhase, onClick: toggleCapture }}
+  onStop={stopResponse}
+  fieldRef={fieldRef}
+  onFocusChange={observeFocus}
+/>
+```
+
+`draft`, `onDraftChange`, `onSubmit`, `label` and `canSubmit` are required. Draft changes report the
+complete value; submission reports the current text without clearing or normalizing it. The owner
+accepts or rejects submission, opens staged-change review, and clears the draft only when appropriate.
+`canSubmit` carries workflow restrictions such as capture. Composer also blocks whitespace-only
+text and response-busy submission. Enter and Send use the same form callback once per action.
+Shift+Enter, native IME composition and Safari key code 229 keep editing. An ineligible Enter remains
+unhandled, so editable fields retain native newline behavior.
+
+Optional `busy` disables the field and microphone and replaces Send with an explicit Stop button;
+Enter never invokes Stop. `disabled` and `readOnly` control field editability. `placeholder`,
+`sendLabel`, `voice` (phase, click action, optional disabled state), `onStop`, `fieldRef` and
+`onFocusChange` support existing adapters without exposing keyboard or icon coordination.
+Suggestions remain outside Composer; fill the controlled draft and use `fieldRef` to focus it.
+Transcripts update the owner’s draft without focusing the field. Status stays above the anchored dock.
+The same textarea survives responsive and preview presentation changes.
+
+Public `SendButton` remains for standalone action-state catalogue coverage. `ComposerActions` has no
+remaining callers and is removed; ordinary callers use Composer without assembling forms or actions.
+The paired Agent and Agent panel samples retain independent controlled drafts and scripted actions.
 
 ## Verifying a kit change
 
