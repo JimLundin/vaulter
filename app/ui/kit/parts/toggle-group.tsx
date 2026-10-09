@@ -2,7 +2,8 @@ import { useFieldUnsupportedControl } from '../field-association.ts';
 import * as React from 'react';
 import { type VariantProps } from 'class-variance-authority';
 import { cn } from '../lib/utils.ts';
-import { ToggleGroup as ToggleGroupPrimitive } from 'radix-ui';
+import { ToggleGroup as ToggleGroupPrimitive } from '@base-ui/react/toggle-group';
+import { Toggle as TogglePrimitive } from '@base-ui/react/toggle';
 
 import { toggleVariants } from './toggle.tsx';
 
@@ -16,20 +17,47 @@ const ToggleGroupContext = React.createContext<
   spacing: 0,
 });
 
+type ToggleGroupProps = Omit<
+  ToggleGroupPrimitive.Props,
+  'className' | 'value' | 'defaultValue' | 'onValueChange' | 'multiple' | 'loopFocus'
+> &
+  VariantProps<typeof toggleVariants> & {
+    className?: string;
+    spacing?: number;
+    loop?: boolean;
+    rovingFocus?: boolean;
+  } & (
+    | {
+        type: 'single';
+        value?: string;
+        defaultValue?: string;
+        onValueChange?: (value: string) => void;
+      }
+    | {
+        type: 'multiple';
+        value?: string[];
+        defaultValue?: string[];
+        onValueChange?: (value: string[]) => void;
+      }
+  );
+
 function ToggleGroup({
   className,
   variant,
   size,
   spacing = 0,
   children,
+  type,
+  value,
+  defaultValue,
+  onValueChange,
+  loop = true,
+  rovingFocus: _rovingFocus,
   ...props
-}: React.ComponentProps<typeof ToggleGroupPrimitive.Root> &
-  VariantProps<typeof toggleVariants> & {
-    spacing?: number;
-  }) {
+}: ToggleGroupProps) {
   useFieldUnsupportedControl();
   return (
-    <ToggleGroupPrimitive.Root
+    <ToggleGroupPrimitive
       data-slot="toggle-group"
       data-variant={variant}
       data-size={size}
@@ -40,11 +68,29 @@ function ToggleGroup({
         className,
       )}
       {...props}
+      multiple={type === 'multiple'}
+      value={
+        value === undefined ? undefined : typeof value === 'string' ? (value ? [value] : []) : value
+      }
+      defaultValue={
+        defaultValue === undefined
+          ? undefined
+          : typeof defaultValue === 'string'
+            ? defaultValue
+              ? [defaultValue]
+              : []
+            : defaultValue
+      }
+      loopFocus={loop}
+      onValueChange={(nextValue) => {
+        if (type === 'single') onValueChange?.(nextValue[0] ?? '');
+        else onValueChange?.(nextValue);
+      }}
     >
       <ToggleGroupContext.Provider value={{ variant, size, spacing }}>
         {children}
       </ToggleGroupContext.Provider>
-    </ToggleGroupPrimitive.Root>
+    </ToggleGroupPrimitive>
   );
 }
 
@@ -54,11 +100,13 @@ function ToggleGroupItem({
   variant,
   size,
   ...props
-}: React.ComponentProps<typeof ToggleGroupPrimitive.Item> & VariantProps<typeof toggleVariants>) {
+}: Omit<TogglePrimitive.Props, 'className'> & { className?: string; value: string } & VariantProps<
+    typeof toggleVariants
+  >) {
   const context = React.useContext(ToggleGroupContext);
 
   return (
-    <ToggleGroupPrimitive.Item
+    <TogglePrimitive
       data-slot="toggle-group-item"
       data-variant={context.variant || variant}
       data-size={context.size || size}
@@ -75,7 +123,7 @@ function ToggleGroupItem({
       {...props}
     >
       {children}
-    </ToggleGroupPrimitive.Item>
+    </TogglePrimitive>
   );
 }
 
