@@ -1,5 +1,5 @@
 // Agent compositions: content and actions assembled exclusively from catalogued primitives.
-import { createContext, type ReactNode, type Ref, useContext, useState } from 'react';
+import { createContext, type ReactNode, type Ref, useContext, useEffect, useState } from 'react';
 import { Stack, Row, Heading, Text, Link, Prose } from './parts/layout.tsx';
 import { Form } from './app.tsx';
 import { Button } from './parts/button.tsx';
@@ -174,7 +174,7 @@ export function Message({ user, children }: { user?: boolean; children: ReactNod
 export function Markdown({ children }: { children: ReactNode }) {
   return <Prose markdown={true}>{children}</Prose>;
 }
-/** Controlled entry: the owner retains draft lifetime and the authority to accept submission. */
+/** PROTOTYPE: preview of a single voice/send action on top of structure. */
 export function Composer({
   draft,
   onDraftChange,
@@ -208,6 +208,14 @@ export function Composer({
 }) {
   const [focused, setFocused] = useState(false);
   const eligible = !!draft.trim() && canSubmit && !busy;
+  const voiceActive = voice && ['connecting', 'listening', 'finishing'].includes(voice.phase);
+  const showVoice = voice && !busy && (voiceActive || !focused);
+  useEffect(() => {
+    if (busy) {
+      setFocused(false);
+      onFocusChange?.(false);
+    }
+  }, [busy, onFocusChange]);
   const focus = (value: boolean) => {
     setFocused(value);
     onFocusChange?.(value);
@@ -250,21 +258,22 @@ export function Composer({
             }}
           />
           <InputGroupAddon align="inset-end">
-            {!!voice && (
+            {showVoice ? (
               <VoiceButton
                 phase={voice.phase}
                 onClick={voice.onClick}
-                disabled={voice.disabled}
+                disabled={disabled || voice.disabled}
                 busy={busy}
               />
+            ) : (
+              <SendButton
+                busy={busy}
+                focused={true}
+                disabled={disabled || !eligible}
+                onStop={onStop}
+                label={sendLabel}
+              />
             )}
-            <SendButton
-              busy={busy}
-              focused={focused}
-              disabled={!eligible}
-              onStop={onStop}
-              label={sendLabel}
-            />
           </InputGroupAddon>
         </InputGroup>
       </Form>
@@ -291,6 +300,7 @@ export function SendButton({
       size="icon-lg"
       aria-label={busy ? 'Stop' : label}
       disabled={!busy && disabled}
+      onPointerDown={(event) => event.preventDefault()}
       onClick={busy ? onStop : undefined}
     >
       <Icon name={busy ? 'stop' : focused ? 'enter' : 'arrow-up'} />
