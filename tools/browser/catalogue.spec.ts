@@ -251,6 +251,27 @@ test('submit actions sit inside fields and reserve room for editable text', asyn
   }
 });
 
+test('paired settings fields keep independent accessible meaning and native label targets', async ({
+  page,
+}) => {
+  await page.goto('/ui/kit/');
+  await page.getByRole('searchbox', { name: 'Find a component' }).fill('Settings');
+  const family = page.locator('[data-kit-comparison="settings"]');
+  const desktop = specimen(family, 'desktop');
+  const mobile = specimen(family, 'mobile');
+  const first = desktop.getByRole('textbox', { name: 'Model', exact: true });
+  const second = mobile.getByRole('textbox', { name: 'Model', exact: true });
+  expect(await first.getAttribute('id')).not.toBe(await second.getAttribute('id'));
+  for (const sample of [desktop, mobile]) {
+    const input = sample.getByRole('textbox', { name: 'Model', exact: true });
+    await expect(input).toHaveAccessibleDescription('Used for conversations on this device.');
+    await sample.getByText('Model', { exact: true }).click();
+    await expect(input).toBeFocused();
+  }
+  await expect(first).not.toBeFocused();
+  await expect(second).toBeFocused();
+});
+
 test('settings and search portals remain inside their example without locking the catalogue', async ({
   page,
 }) => {
@@ -273,6 +294,9 @@ test('settings and search portals remain inside their example without locking th
       .toBeLessThanOrEqual(1);
     await contained(sample, dialog);
     const input = dialog.getByRole('textbox', { name: 'Model', exact: true });
+    await expect(input).toHaveAccessibleDescription('Used for conversations on this device.');
+    await dialog.getByText('Model', { exact: true }).click();
+    await expect(input).toBeFocused();
     await input.fill(`${device} model`);
     await page.keyboard.press('Escape');
     await expect(dialog).toBeHidden();

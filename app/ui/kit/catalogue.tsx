@@ -592,11 +592,9 @@ function Search() {
   );
 }
 function Preferences({ model, onChange }: { model?: string; onChange?: (value: string) => void }) {
-  const id = useId();
   return (
-    <K.SettingField label="Model" htmlFor={id} description="Used for conversations on this device.">
+    <K.SettingField label="Model" description="Used for conversations on this device.">
       <K.Input
-        id={id}
         {...(model === undefined
           ? { defaultValue: 'example-model' }
           : { value: model, onChange: (event) => onChange?.(event.currentTarget.value) })}
@@ -1203,7 +1201,8 @@ export const catalogue: Specimen[] = [
   {
     id: 'settings',
     title: 'Settings',
-    description: 'Feature-owned fields: desktop dialog and phone bottom drawer.',
+    description:
+      'Feature-owned fields with shared text association: desktop dialog and phone drawer.',
     components: ['SettingsMenu', 'SettingsPage', 'SettingsSection', 'SettingField', 'ThemeSwitch'],
     Sample: Settings,
   },

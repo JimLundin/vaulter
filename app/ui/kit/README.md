@@ -37,6 +37,7 @@ Markdown/HAST rendering and the vault-link annotation transform remain the expli
 | `conversation.tsx` | mobile agent screen, desktop reading column, composer and message presentation |
 | `screens.tsx` | mobile search screen and history touch rows, desktop palette and commit list |
 | `settings.tsx` | feature-named settings menu and shared form rows |
+| `field-association.ts` | private association state consumed by text controls through nested layouts |
 | `surfaces.tsx` | gates, preview notice, tool results, panels and unified diffs |
 | `chart.tsx`, `diff.tsx`, `map.tsx` | accessible charts, code diffs, lazy map presentation |
 | `styles.css`, `theme.tsx` | zinc color tokens, light/dark/system theme |
@@ -245,6 +246,26 @@ words while retaining the preceding draft. Further recordings append to manual c
 an agent response; the microphone keeps its icon and is disabled until the response finishes.
 The conversation feed contains submitted messages only. Read-only fields follow incoming words without taking focus. Drafts remain
 available when the Chat view closes or switches between a panel and page.
+
+## SettingField text interface
+
+`SettingField` declares a text field's meaning once and owns the visible label, description and
+native label activation. Supported text controls are `Input`, `Textarea`, `InputGroupInput` and
+`InputGroupTextarea`; ordinary layout helpers may nest between the field and its control.
+
+```tsx
+<SettingField label="Model" description="Used for new messages. Saved on this device.">
+  <Input value={model} onChange={(event) => setModel(event.currentTarget.value)} />
+</SettingField>
+```
+
+The field generates stable identities independently for each instance. An explicit control `id`
+is preserved and becomes the label target. The visible field label supplies the accessible name,
+and existing `aria-describedby` references compose with the field description without duplicates.
+Standalone controls retain their existing names, identities and descriptions. State, persistence
+and validation remain with the caller, and the same mounted control survives responsive changes.
+`htmlFor` and `descriptionId` remain available for compatibility during choice-field migration;
+ordinary text callers need neither. Choice fields continue using their existing group behavior.
 
 ## Composer interface
 

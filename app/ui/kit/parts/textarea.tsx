@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { cn } from '../lib/utils.ts';
+import { useFieldTextAssociation } from '../field-association.ts';
 
 function Textarea({
   className,
@@ -7,6 +8,7 @@ function Textarea({
   ref: forwardedRef,
   ...props
 }: React.ComponentProps<'textarea'> & { variant?: 'default' | 'inline' }) {
+  const association = useFieldTextAssociation(props);
   const ref = React.useRef<HTMLTextAreaElement>(null);
   React.useLayoutEffect(() => {
     // Dictated input follows incoming words without focusing the field or opening a keyboard.
@@ -27,6 +29,7 @@ function Textarea({
         className,
       )}
       {...props}
+      {...association}
     />
   );
 }

@@ -1,5 +1,6 @@
 // Settings compose shared layout, typography and field primitives; features supply their controls.
-import type { ReactNode } from 'react';
+import { type ReactNode, useCallback, useId, useMemo, useState } from 'react';
+import { FieldAssociation } from './field-association.ts';
 import { Field, FieldContent, FieldDescription, FieldLabel } from './parts/field.tsx';
 import { FeaturePage } from './app.tsx';
 import { Heading, Stack } from './parts/layout.tsx';
@@ -68,11 +69,25 @@ export function SettingField({
   descriptionId?: string;
   children: ReactNode;
 }) {
+  const generatedId = useId();
+  const controlId = `${generatedId}-control`;
+  const labelId = `${generatedId}-label`;
+  const effectiveDescriptionId = descriptionId ?? `${generatedId}-description`;
+  const [registeredId, setRegisteredId] = useState<string>();
+  const registerControl = useCallback((id: string) => setRegisteredId(id), []);
+  const association = useMemo(
+    () => ({ controlId, labelId, descriptionId: effectiveDescriptionId, registerControl }),
+    [controlId, labelId, effectiveDescriptionId, registerControl],
+  );
   return (
-    <Field orientation="setting">
-      <FieldLabel htmlFor={htmlFor}>{label}</FieldLabel>
-      <FieldContent>{children}</FieldContent>
-      <FieldDescription id={descriptionId}>{description}</FieldDescription>
-    </Field>
+    <FieldAssociation.Provider value={association}>
+      <Field orientation="setting">
+        <FieldLabel id={labelId} htmlFor={registeredId ?? htmlFor ?? controlId}>
+          {label}
+        </FieldLabel>
+        <FieldContent>{children}</FieldContent>
+        <FieldDescription id={effectiveDescriptionId}>{description}</FieldDescription>
+      </Field>
+    </FieldAssociation.Provider>
   );
 }

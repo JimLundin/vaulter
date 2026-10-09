@@ -1,5 +1,5 @@
 // Browser fixture exercising the public kit, without a vault or workflow dependency.
-import { useId, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import '../styles.css';
 import {
@@ -41,7 +41,6 @@ import {
 } from '../index.ts';
 
 function Fixture() {
-  const preference = useId();
   const [search, setSearch] = useState(false);
   const [review, setReview] = useState(false);
   const [panel, setPanel] = useState(false);
@@ -73,12 +72,8 @@ function Fixture() {
     >
       <SettingsPage>
         <SettingsSection title="Controls">
-          <SettingField
-            label="Preference"
-            htmlFor={preference}
-            description="The same field at every size"
-          >
-            <Input id={preference} defaultValue="Keep this value" />
+          <SettingField label="Preference" description="The same field at every size">
+            <Input defaultValue="Keep this value" />
           </SettingField>
           <Row wrap={true}>
             <Button size="xs">Small button</Button>
@@ -130,11 +125,15 @@ function Fixture() {
           {
             name: 'Calendar',
             content: (
-              <Input
-                aria-label="Calendar preference"
-                value={calendar}
-                onChange={(event) => setCalendar(event.currentTarget.value)}
-              />
+              <SettingField
+                label="Calendar preference"
+                description="Saved for the current calendar."
+              >
+                <Input
+                  value={calendar}
+                  onChange={(event) => setCalendar(event.currentTarget.value)}
+                />
+              </SettingField>
             ),
           },
         ]}
@@ -213,6 +212,63 @@ function ComposerFixture() {
   );
 }
 
+function FieldFixture() {
+  return (
+    <SettingsPage>
+      <SettingsSection title="Text association">
+        <SettingField label="Default model" description="Used for new conversations.">
+          <Input defaultValue="Initial model" />
+        </SettingField>
+        <SettingField label="Conversation notes" description="Keep context for the next message.">
+          <Stack>
+            <InputGroup>
+              <Textarea defaultValue="Initial notes" />
+            </InputGroup>
+          </Stack>
+        </SettingField>
+        <SettingField label="Identified model" description="An existing reference still works.">
+          {/* biome-ignore lint/correctness/useUniqueElementIds: Singleton fixture verifies preservation of an explicit control identity. */}
+          <Input id="identified-model" aria-label="Overridden control name" />
+        </SettingField>
+        {/* biome-ignore lint/correctness/useUniqueElementIds: Singleton fixture supplies a known additional description reference. */}
+        <Text id="model-guidance">Additional model guidance.</Text>
+        <SettingField
+          label="Nested model"
+          description="Use the recommended model."
+          descriptionId="nested-model-description"
+        >
+          <Stack>
+            <Row>
+              <InputGroup>
+                <InputGroupInput aria-describedby="model-guidance model-guidance nested-model-description" />
+              </InputGroup>
+            </Row>
+          </Stack>
+        </SettingField>
+        {['First repeated model', 'Second repeated model'].map((label) => (
+          <SettingField key={label} label={label} description="Each field keeps its own meaning.">
+            <Input defaultValue="Separate value" />
+          </SettingField>
+        ))}
+        {/* biome-ignore lint/correctness/useUniqueElementIds: Singleton fixture supplies a known standalone description reference. */}
+        <Text id="standalone-guidance">Standalone instructions.</Text>
+        {/* biome-ignore lint/correctness/useUniqueElementIds: Singleton fixture verifies a standalone explicit identity remains intact. */}
+        <Input
+          id="standalone-model"
+          aria-label="Standalone model"
+          aria-describedby="standalone-guidance"
+        />
+      </SettingsSection>
+    </SettingsPage>
+  );
+}
+
 createRoot(document.getElementById('app')!).render(
-  new URLSearchParams(location.search).has('composer') ? <ComposerFixture /> : <Fixture />,
+  new URLSearchParams(location.search).has('setting-fields') ? (
+    <FieldFixture />
+  ) : new URLSearchParams(location.search).has('composer') ? (
+    <ComposerFixture />
+  ) : (
+    <Fixture />
+  ),
 );

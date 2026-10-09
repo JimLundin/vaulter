@@ -97,9 +97,15 @@ test('a direct settings URL opens the same menu and preserves the agent draft', 
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   await expect(settings).toBeVisible();
   const model = settings.getByRole('textbox', { name: 'Model', exact: true });
+  await expect(model).toHaveAccessibleDescription('Used for new messages. Saved on this device.');
+  await settings.getByText('Model', { exact: true }).click();
+  await expect(model).toBeFocused();
   await model.fill('example-model');
   await page.keyboard.press('Escape');
   await expect(draft).toHaveValue('Keep this message while changing preferences');
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await expect(model).toHaveValue('example-model');
+  await page.reload();
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   await expect(model).toHaveValue('example-model');
 });
