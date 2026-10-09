@@ -16,7 +16,8 @@ tests assert observable behavior and documented interface requirements. Composer
 immediate payoff; the verification change comes first to enable useful private helper extraction.
 
 Private composition verification (#5, ticket #9) is implemented on
-`spec/5-private-composition-verification`. Composer interaction, field association and presentation
+`spec/5-private-composition-verification`. Composer interaction (#6, ticket #10) is implemented on
+`spec/6-composer-interaction`, based on that verification branch. Field association and presentation
 policy remain pending. Interface mechanics must satisfy the decisions and acceptance behavior in
 each spec; these documents supersede the roadmap's earlier unresolved design questions.
 

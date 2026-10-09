@@ -120,8 +120,12 @@ ignores cancellation. Capture appends through `update()` so overlapping tools ca
 Product assembles the Settings route from the kit's theme control and chat's `ChatSettings` view.
 Chat owns its model preference; the controller reads it at the start of each new turn. The composer
 contains only message entry and dictation/send controls, with Enter to send and Shift+Enter for a
-new line. The kit owns their placement and keeps text clear of the controls. Sync status appears
-with the app name in the sidebar header.
+new line. Public `Composer` owns the form, one-row textarea, inset actions, keyboard submission and
+send-icon focus presentation for both Chat and catalogue samples. Its controlled draft and action
+callbacks keep conversation lifetime in the workflow. Enter and Send share the form callback;
+native IME confirmation and Safari key code 229 remain editing events. Non-whitespace text, caller
+permission and an idle response are required to submit. Sync status appears with the app name in
+the sidebar header.
 
 Product binds the transcription controller to the conversation's shared draft above route selection.
 Each recording retains the draft it starts with and replaces only that recording's partial words

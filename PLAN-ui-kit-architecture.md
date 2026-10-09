@@ -5,7 +5,8 @@ to iterate on the mini UI framework with confidence: callers learn less coordina
 have better locality, and tests exercise the same interface as the product and catalogue.
 
 This document records scope and completion checks. Private composition verification is implemented
-on `spec/5-private-composition-verification`; the other three changes remain pending. The
+on `spec/5-private-composition-verification` and Composer interaction on `spec/6-composer-interaction`;
+field association and presentation policy remain pending. The
 [four individual specs](docs/specs/ui-kit/README.md) define ownership, interface behavior and
 acceptance tests; they supersede this roadmap's earlier unresolved design questions.
 Current architecture is documented in [ARCHITECTURE.md](ARCHITECTURE.md); the kit's presentation
@@ -99,27 +100,27 @@ compiler-resolved traversal, approved stopping points, diagnostics and checked m
 
 ## 2. Deepen Composer interaction
 
-### Current friction
+### Friction addressed
 
-`Composer` currently presents a fieldset and `ComposerActions` an inset addon. Callers still
-coordinate `Form`, the composer input group, a one-row textarea, focus state, keyboard submission
+Before this change, `Composer` presented a fieldset and `ComposerActions` an inset addon. Callers
+coordinated `Form`, the composer input group, a one-row textarea, focus state, keyboard submission
 and Send behavior.
 
-`app/workflows/chat/Chat.tsx` submits through `requestSubmit()` and guards Safari's IME
-`keyCode 229`. The Agent example in `catalogue.tsx` calls its send function directly and omits
-that guard. The catalogue Agent panel has another assembly without the same keyboard behavior.
-The interface is shallow because callers must know those implementation details.
+`app/workflows/chat/Chat.tsx` submitted through `requestSubmit()` and guarded Safari's IME
+`keyCode 229`. The Agent example in `catalogue.tsx` called its send function directly and omitted
+that guard. The catalogue Agent panel had another assembly without the same keyboard behavior.
+The interface was shallow because callers had to know those implementation details.
 
-### Intended ownership
+### Implemented ownership
 
-Put shared text-entry arrangement, keyboard submission and focus presentation behind the Composer
-module's seam. Real Chat and catalogue adapters supply their values and actions to the same
+Shared text-entry arrangement, keyboard submission and focus presentation belong to the public
+Composer. Real Chat and catalogue adapters supply their values and actions to the same
 implementation. The workflow continues to own draft persistence, speech capture, transcript
 reconciliation, staged-change review, sending and cancellation.
 
-Submission from Enter and the button must follow the same workflow callback. Retain one stable
-textarea, inset actions and the existing responsive roles. Suggestions and voice status retain
-their current positions outside and above the anchored message field.
+Submission from Enter and the button follows the same workflow callback. One stable textarea,
+inset actions and the existing responsive roles remain in place. Suggestions and voice status retain
+their positions outside and above the anchored message field.
 
 ### Migration scope
 
@@ -129,23 +130,23 @@ their current positions outside and above the anchored message field.
 - Public exports and composition metadata affected by the final design.
 - Existing Composer checks in `tools/browser/framework.spec.ts` and `catalogue.spec.ts`.
 
-Migrate all current Composer callers in the same change. Remove duplicated keyboard and focus
-coordination once the shared implementation owns it. Continue using existing input-group and
-button primitives for their measured insets and touch targets.
+All current Composer callers use the shared implementation. Chat observes focus for suggestion
+visibility; Composer owns the send icon's focus rule. Existing input-group and button primitives
+retain their measured insets and touch targets.
 
 ### Completion checks
 
-- [ ] Enter submits; Shift+Enter inserts a newline without growing the composer.
-- [ ] IME composition and Safari `keyCode 229` never submit, in product and catalogue adapters.
-- [ ] Enter and Send use the same submission path and cannot bypass workflow review.
-- [ ] Empty or whitespace-only drafts, recording and busy states retain current submission rules.
-- [ ] Send shows the focus-dependent icon and becomes the sole response Stop control when busy.
-- [ ] The microphone and editable/read-only field retain their existing behavior.
-- [ ] Typed and dictated text continue to share the persistent workflow draft.
-- [ ] Resizing, panel rearrangement and preview mode changes preserve the field and draft.
-- [ ] The field remains one row with clear inset actions at mouse and touch density.
-- [ ] Catalogue samples retain independent drafts while using the same interaction implementation.
-- [ ] Caller code no longer repeats Composer keyboard submission and focus bookkeeping.
+- [x] Enter submits; Shift+Enter inserts a newline without growing the composer.
+- [x] IME composition and Safari `keyCode 229` never submit, in product and catalogue adapters.
+- [x] Enter and Send use the same submission path and cannot bypass workflow review.
+- [x] Empty or whitespace-only drafts, recording and busy states retain current submission rules.
+- [x] Send shows the focus-dependent icon and becomes the sole response Stop control when busy.
+- [x] The microphone and editable/read-only field retain their existing behavior.
+- [x] Typed and dictated text continue to share the persistent workflow draft.
+- [x] Resizing, panel rearrangement and preview mode changes preserve the field and draft.
+- [x] The field remains one row with clear inset actions at mouse and touch density.
+- [x] Catalogue samples retain independent drafts while using the same interaction implementation.
+- [x] Caller code no longer repeats Composer keyboard submission and focus bookkeeping.
 
 The interface is the test surface: test observable input behavior in a browser through the shared
 module and its real callers. Retain meaningful workflow integration checks. A separately tested
@@ -295,7 +296,7 @@ physical phone keyboard and microphone behavior still need device validation.
 ### Overall completion
 
 - [x] Composition verification supports checked private helpers without weakening kit-use rules.
-- [ ] All Composer callers share input interaction behavior.
+- [x] All Composer callers share input interaction behavior.
 - [ ] Supported settings fields own their accessible associations.
 - [ ] Shared presentation policy has one owner with library mechanics retained in their adapters.
 - [ ] Required checks and both builds pass; documentation and live examples match the implementation.
