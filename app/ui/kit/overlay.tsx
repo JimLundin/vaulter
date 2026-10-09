@@ -65,7 +65,13 @@ export function AdaptiveDialog({
             <DialogTitle className="text-copy font-semibold">{title}</DialogTitle>
             {description ? <DialogDescription>{description}</DialogDescription> : null}
           </div>
-          <Button variant="ghost" size="icon-sm" aria-label={closeLabel} onClick={onClose}>
+          <Button
+            variant="ghost"
+            size="compact"
+            iconOnly={true}
+            aria-label={closeLabel}
+            onClick={onClose}
+          >
             <Icon name={fullScreen && compact ? 'arrow-left' : 'close'} />
           </Button>
         </header>

@@ -8,6 +8,7 @@ import { type Unstyled, unstyled } from './lib/unstyled.tsx';
 import { cn } from './lib/utils.ts';
 import { AvatarFallback, Avatar as AvatarPart } from './parts/avatar.tsx';
 import { Badge } from './parts/badge.tsx';
+import { buttonVariants } from './parts/button.tsx';
 import { useLayout } from './hooks/use-layout.ts';
 import { useViewport } from './hooks/use-viewport.ts';
 import { Drawer } from './drawer.tsx';
@@ -834,8 +835,9 @@ export function Choices({
             data-touch-target=""
             onClick={(e) => onChoose(e, c.id)}
             className={cn(
-              'h-8 cursor-pointer rounded-md border bg-background px-3 font-[inherit] text-label font-medium text-foreground outline-none hover:bg-accent focus-visible:ring-[3px] focus-visible:ring-ring/50',
-              suggested === c.id && 'border-foreground',
+              buttonVariants({ variant: 'outline', size: 'compact' }),
+              'cursor-pointer font-[inherit] text-label text-foreground shadow-none dark:bg-background dark:hover:bg-accent',
+              suggested === c.id && 'border-foreground dark:border-foreground',
             )}
           >
             {c.label}

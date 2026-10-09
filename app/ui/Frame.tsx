@@ -66,7 +66,7 @@ export function Frame({
         primary={primary}
         footer={
           !!signOut && (
-            <Button variant="ghost" size="sm" onClick={() => later(signOut())}>
+            <Button variant="ghost" size="compact" onClick={() => later(signOut())}>
               Sign out
             </Button>
           )

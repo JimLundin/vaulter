@@ -19,5 +19,9 @@ These choices apply only to design previews. The real app and ordinary catalogue
 samples keep their current composer controls pending a design choice. The original
 experiment is preserved on `prototype/unified-input-button` at `26eddbb`.
 
+The preview owns these temporary color treatments. They are not styles in the
+public Button interface, which shares four action styles and two sizes with
+InputGroupButton. Both microphone and Enter use the standard icon-only layout.
+
 Left/right arrows switch variants outside editable fields and controls that own
 arrow-key navigation. The URL makes each variant shareable and reload-stable.

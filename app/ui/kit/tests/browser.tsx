@@ -129,8 +129,8 @@ function Fixture() {
             <Input defaultValue="Keep this value" />
           </SettingField>
           <Row wrap={true}>
-            <Button size="xs">Small button</Button>
-            <Button size="icon-xs" aria-label="Small icon">
+            <Button size="compact">Small button</Button>
+            <Button size="compact" iconOnly={true} aria-label="Small icon">
               +
             </Button>
             <Checkbox aria-label="Remember" />

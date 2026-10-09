@@ -729,6 +729,34 @@ body:has(.kit-design-window) {
   --option-fade-start: 0px;
   --option-fade-end: 0px;
 }
+/* Prompt options own their row layout, rather than expanding the general Button interface. */
+.kit-option-strip [data-slot="button"] {
+  height: var(--target-touch);
+  padding-inline: 12px;
+  border-radius: 8px;
+  background: var(--background);
+  color: var(--muted-foreground);
+  font-size: var(--type-label);
+  text-align: left;
+  box-shadow: none;
+}
+.kit-option-strip [data-slot="button"]:hover {
+  background: var(--muted);
+}
+/* A/C are temporary design-preview treatments. Public Button only has production styles. */
+[data-preview-input="A"],
+[data-preview-input="C"] {
+  background: var(--background);
+  color: var(--foreground);
+}
+[data-preview-input="A"] {
+  border: 1px solid var(--input);
+  box-shadow: var(--shadow-xs);
+}
+[data-preview-input="A"]:hover,
+[data-preview-input="C"]:hover {
+  background: var(--accent);
+}
 .kit-option-strip[data-overflow-start="true"] {
   --option-fade-start: 24px;
 }

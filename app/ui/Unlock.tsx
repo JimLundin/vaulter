@@ -57,9 +57,10 @@ export function Unlock({ unlock }: { unlock: (password: string) => Promise<void>
                 />
                 <InputGroupAddon align="inset-end">
                   <InputGroupButton
-                    variant="default"
+                    variant="filled"
                     type="submit"
-                    size="icon-sm"
+                    size="compact"
+                    iconOnly={true}
                     aria-label={busy ? 'Opening vault' : 'Open vault'}
                     disabled={busy || !pw}
                     pending={busy}

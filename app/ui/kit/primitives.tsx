@@ -131,7 +131,7 @@ export function AutoScrollArea({ empty, children }: { empty?: boolean; children:
         <div className="absolute right-3 bottom-3">
           <Button
             variant="outline"
-            size="sm"
+            size="compact"
             onClick={() => {
               Promise.resolve(follow.scrollToBottom()).catch(() => undefined);
             }}

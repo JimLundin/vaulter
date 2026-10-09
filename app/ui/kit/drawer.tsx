@@ -57,7 +57,8 @@ export function Drawer({
           </Stack>
           <Button
             variant="ghost"
-            size="square"
+            size="standard"
+            iconOnly={true}
             aria-label={`Close ${title.toLowerCase()}`}
             onClick={onClose}
           >

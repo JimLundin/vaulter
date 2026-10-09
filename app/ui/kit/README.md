@@ -83,8 +83,12 @@ density changes the control size from 32px to at least 44px without enlarging th
 labels, badges, options and nested content occupy separate grid slots; touch actions never rely on
 oversized invisible hit areas or fixed absolute offsets.
 
-Primary create/submit actions use `Button variant="default"`: primary fill and contrasting icon.
-Secondary options use `ghost` or `outline`; the same action retains its role across devices.
+Button has four styles: `filled` for primary create/submit actions, `outline` for secondary actions,
+`ghost` for quiet controls and `destructive` for destructive actions. Its two sizes are `standard`
+(44px) and `compact` (32px); `iconOnly` makes either size square without changing its corners.
+Touch controls retain a minimum 44px target. `InputGroupButton` uses these same sizes, defaulting to
+compact ghost, and only removes the shadow for its inset placement. The same action retains its
+role across devices. Navigation uses `Link` rather than a link-colored Button.
 Ordinary controls have 8px corners, and their hover/focus backgrounds follow that shape. The
 mobile footer fixtures keep a 44px square target with rounded hover backgrounds.
 The Agent microphone uses the same unfilled 44px
@@ -153,7 +157,9 @@ remains left aligned within that centered column.
 ### Primitive composition
 
 Agent and Settings contain no intrinsic HTML, CSS classes or inline styling. They assemble public
-building blocks. `Button` owns square, suggestion and voice variants; `InputGroup`,
+building blocks. `Button` owns shared action styles, sizes and icon-only layout. `OptionStrip` owns
+prompt-option presentation; temporary input style comparisons remain private to the design preview.
+`InputGroup`,
 `InputGroupTextarea variant="inline"` and `InputGroupAddon align="inset-end"` own the one-row
 field and inset actions. `Field orientation="setting"` owns responsive
 label/control/description placement. Theme choices use the shared `RadioGroup` primitives.

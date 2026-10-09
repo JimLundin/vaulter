@@ -207,13 +207,14 @@ test('button hit targets resize without animating their geometry', async ({ page
   await page.setViewportSize({ width: 1440, height: 844 });
   await page.goto('/preview/');
   const add = page.getByRole('button', { name: 'New chat', exact: true });
-  await expect(add).toHaveAttribute('data-size', 'sm');
+  await expect(add).toHaveAttribute('data-size', 'compact');
   // Slow feedback transitions so a layout transition cannot finish before the measurement.
   await add.evaluate((node) => {
     node.style.transitionDuration = '1s';
   });
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(add).toHaveAttribute('data-size', 'icon-lg');
+  await expect(add).toHaveAttribute('data-size', 'standard');
+  await expect(add).toHaveAttribute('data-icon-only', 'true');
   const bounds = (await add.boundingBox())!;
   expect(bounds.width).toBe(44);
   expect(bounds.height).toBe(44);
@@ -318,7 +319,20 @@ test('touch controls grow on phones and touch desktops while retaining keyboard 
   page,
 }, info) => {
   await page.goto('/ui/kit/tests/browser.html');
-  await expect(page.getByRole('button', { name: 'Small button' })).toBeVisible();
+  const compact = page.getByRole('button', { name: 'Small button' });
+  const icon = page.getByRole('button', { name: 'Small icon' });
+  const grouped = page.getByRole('button', { name: 'Go', exact: true });
+  await expect(compact).toBeVisible();
+  const compactBox = (await compact.boundingBox())!;
+  const iconBox = (await icon.boundingBox())!;
+  expect(compactBox.height).toBe(info.project.name === 'desktop' ? 32 : 44);
+  expect((await grouped.boundingBox())!.height).toBe(compactBox.height);
+  expect(iconBox.width).toBe(compactBox.height);
+  expect(iconBox.height).toBe(compactBox.height);
+  await expect(icon).toHaveCSS('border-radius', '8px');
+  expect(
+    (await page.getByRole('button', { name: 'Open agent', exact: true }).boundingBox())!.height,
+  ).toBe(44);
   const slots = [
     'button',
     'checkbox',

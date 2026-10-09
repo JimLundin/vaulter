@@ -54,7 +54,13 @@ export function PreviewBar({
           <Icon name="extension" size="sm" />
           {!mobile && 'Component kit'}
         </a>
-        <Button variant="ghost" size="sm" aria-label="Reset demo" onClick={onReset}>
+        <Button
+          variant="ghost"
+          size="compact"
+          iconOnly={mobile}
+          aria-label="Reset demo"
+          onClick={onReset}
+        >
           {mobile ? <Icon name="undo" size="sm" /> : 'Reset demo'}
         </Button>
       </div>
@@ -191,7 +197,13 @@ export function SidePanel({
     >
       <div className="flex items-center justify-between">
         <h2 className="m-0 text-sm font-semibold">{title}</h2>
-        <Button variant="ghost" size="icon-sm" aria-label="Close panel" onClick={onClose}>
+        <Button
+          variant="ghost"
+          size="compact"
+          iconOnly={true}
+          aria-label="Close panel"
+          onClick={onClose}
+        >
           <Icon name="close" />
         </Button>
       </div>

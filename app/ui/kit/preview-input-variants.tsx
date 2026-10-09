@@ -6,11 +6,11 @@ import { Icon } from './icons.tsx';
 import { useLayout } from './hooks/use-layout.ts';
 
 const options = [
-  { key: 'A', name: 'White · outlined', button: 'preview-input-outline' },
-  { key: 'B', name: 'Black · filled', button: 'default' },
-  { key: 'C', name: 'Plain · no border', button: 'preview-input-plain' },
+  { key: 'A', name: 'White · outlined' },
+  { key: 'B', name: 'Black · filled' },
+  { key: 'C', name: 'Plain · no border' },
 ] as const;
-const InputButtonStyle = createContext<(typeof options)[number]['button'] | undefined>(undefined);
+const InputButtonStyle = createContext<(typeof options)[number]['key'] | undefined>(undefined);
 const InputButtonSelection = createContext<{ index: number; select: (index: number) => void }>({
   index: 0,
   select: (_index) => undefined,
@@ -68,9 +68,7 @@ function SelectedInputVariants({ children }: { children: ReactNode }) {
   });
   return (
     <InputButtonSelection.Provider value={{ index, select }}>
-      <InputButtonStyle.Provider value={options[index].button}>
-        {children}
-      </InputButtonStyle.Provider>
+      <InputButtonStyle.Provider value={options[index].key}>{children}</InputButtonStyle.Provider>
     </InputButtonSelection.Provider>
   );
 }
@@ -103,8 +101,10 @@ export function InputPreviewSwitcher() {
     >
       <Button
         type="button"
-        variant="preview-switcher"
-        size="icon-sm"
+        variant="ghost"
+        className="text-background hover:bg-background/15 hover:text-background dark:hover:bg-background/15"
+        size="compact"
+        iconOnly={true}
         aria-label="Previous variant"
         onClick={() => select(index - 1)}
       >
@@ -115,8 +115,10 @@ export function InputPreviewSwitcher() {
       </span>
       <Button
         type="button"
-        variant="preview-switcher"
-        size="icon-sm"
+        variant="ghost"
+        className="text-background hover:bg-background/15 hover:text-background dark:hover:bg-background/15"
+        size="compact"
+        iconOnly={true}
         aria-label="Next variant"
         onClick={() => select(index + 1)}
       >

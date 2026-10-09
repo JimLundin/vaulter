@@ -13,6 +13,7 @@ import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import { Icon, type IconName } from './icons.tsx';
 import { useLayout } from './hooks/use-layout.ts';
+import { Button } from './parts/button.tsx';
 import {
   Brand,
   Kbd,
@@ -109,19 +110,20 @@ export function NavigationSuite({
                 .slice(3)
                 .filter((action) => !action.href)
                 .map((action) => (
-                  <button
+                  <Button
                     type="button"
-                    data-touch-target=""
+                    variant="ghost"
+                    size="compact"
                     key={action.label}
                     onClick={() => {
                       setMenu(false);
                       action.onSelect?.();
                     }}
-                    className="flex items-center gap-2 px-2 text-control"
+                    className="w-full justify-start"
                   >
                     <Icon name={action.icon} />
                     {action.label}
-                  </button>
+                  </Button>
                 ))}
               {footer}
             </>

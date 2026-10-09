@@ -47,6 +47,10 @@ test('Mobile design preview keeps touch dismissal inside its frame and leaves re
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   const drawer = page.getByRole('dialog', { name: 'Settings', exact: true });
   await expect(drawer).toBeVisible();
+  await expect(drawer.getByRole('button', { name: 'Close settings' })).toHaveCSS(
+    'border-radius',
+    '8px',
+  );
   await expect
     .poll(async () => {
       const frame = (await page.locator('[data-design-viewport]').boundingBox())!;

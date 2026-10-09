@@ -211,8 +211,9 @@ function SidebarTrigger({ className, onClick, ...props }: React.ComponentProps<t
       data-sidebar="trigger"
       data-slot="sidebar-trigger"
       variant="ghost"
-      size="icon"
-      className={cn('size-7', className)}
+      size="compact"
+      iconOnly={true}
+      className={className}
       onClick={(event) => {
         onClick?.(event);
         toggleSidebar();
@@ -362,7 +363,7 @@ function SidebarGroupAction({ className, render, ...props }: useRender.Component
     props: mergeProps<'button'>(
       {
         className: cn(
-          buttonVariants({ variant: 'default', size: 'icon-sm' }),
+          buttonVariants({ variant: 'filled', size: 'compact', iconOnly: true }),
           'col-start-2 row-start-1 size-[var(--control-size)]',
           'group-data-[collapsible=icon]:hidden',
           className,
@@ -492,7 +493,7 @@ function SidebarMenuAction({
     props: mergeProps<'button'>(
       {
         className: cn(
-          buttonVariants({ variant: 'ghost', size: 'icon-sm' }),
+          buttonVariants({ variant: 'ghost', size: 'compact', iconOnly: true }),
           'col-start-3 row-start-1 size-[var(--control-size)] text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
           'group-data-[collapsible=icon]:hidden',
           showOnHover &&

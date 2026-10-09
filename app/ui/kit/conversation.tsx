@@ -75,7 +75,13 @@ function ConversationToolbar({ historyHref, onNewChat, busy }: ConversationActio
     <Toolbar>
       <Row gap="xs">
         {mobile && !!close && (
-          <Button variant="ghost" size="icon-lg" aria-label="Close" onClick={close}>
+          <Button
+            variant="ghost"
+            size="standard"
+            iconOnly={true}
+            aria-label="Close"
+            onClick={close}
+          >
             <Icon name="arrow-left" size="lg" />
           </Button>
         )}
@@ -94,7 +100,8 @@ function ConversationToolbar({ historyHref, onNewChat, busy }: ConversationActio
         {!!historyHref && (
           <Button
             variant="ghost"
-            size={mobile ? 'icon-lg' : 'sm'}
+            size={mobile ? 'standard' : 'compact'}
+            iconOnly={mobile}
             nativeButton={false}
             render={<Link href={historyHref} aria-label="History" plain={true} />}
           >
@@ -103,8 +110,9 @@ function ConversationToolbar({ historyHref, onNewChat, busy }: ConversationActio
           </Button>
         )}
         <Button
-          variant="default"
-          size={mobile ? 'icon-lg' : 'sm'}
+          variant="filled"
+          size={mobile ? 'standard' : 'compact'}
+          iconOnly={mobile}
           aria-label="New chat"
           disabled={busy}
           onClick={onNewChat}
@@ -113,7 +121,13 @@ function ConversationToolbar({ historyHref, onNewChat, busy }: ConversationActio
           {!mobile && 'New chat'}
         </Button>
         {!mobile && !!close && (
-          <Button variant="ghost" size="icon-sm" aria-label="Close panel" onClick={close}>
+          <Button
+            variant="ghost"
+            size="compact"
+            iconOnly={true}
+            aria-label="Close panel"
+            onClick={close}
+          >
             <Icon name="close" />
           </Button>
         )}
@@ -300,8 +314,10 @@ export function SendButton({
   return (
     <Button
       type={busy ? 'button' : 'submit'}
-      variant={previewStyle ?? (busy ? 'outline' : 'default')}
-      size="icon-lg"
+      variant={busy && !previewStyle ? 'outline' : 'filled'}
+      data-preview-input={previewStyle}
+      size="standard"
+      iconOnly={true}
       aria-label={busy ? 'Stop' : label}
       disabled={!busy && disabled}
       onPointerDown={previewStyle ? (event) => event.preventDefault() : undefined}
@@ -355,8 +371,10 @@ export function VoiceButton({
   return (
     <Button
       type="button"
-      variant={previewStyle ?? 'ghost'}
-      size="icon-lg"
+      variant={previewStyle ? 'filled' : 'ghost'}
+      data-preview-input={previewStyle}
+      size="standard"
+      iconOnly={true}
       pending={waiting}
       aria-label={label}
       aria-pressed={recording}
@@ -400,7 +418,7 @@ export function PromptSuggestions({
           <Button
             key={suggestion}
             type="button"
-            variant="suggestion"
+            variant="outline"
             onClick={() => onSelect(suggestion)}
           >
             {suggestion}

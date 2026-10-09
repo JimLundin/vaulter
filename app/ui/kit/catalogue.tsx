@@ -53,22 +53,18 @@ function Buttons() {
       <K.Row wrap={true}>
         <K.Button onClick={() => setCount(count + 1)}>Save note</K.Button>
         <K.Button variant="outline">Cancel</K.Button>
-        <K.Button variant="secondary">Later</K.Button>
         <K.Button variant="ghost">More</K.Button>
-        <K.Button variant="link">Open note</K.Button>
+        <K.Link href="#typography">Open note</K.Link>
         <K.Button variant="destructive">Delete</K.Button>
         <K.Button disabled={true}>Unavailable</K.Button>
       </K.Row>
       <K.Row wrap={true}>
-        <K.Button size="sm">Small</K.Button>
-        <K.Button size="lg">Large</K.Button>
-        <K.Button variant="ghost" size="square" aria-label="Square action">
+        <K.Button size="compact">Compact</K.Button>
+        <K.Button size="standard">Standard</K.Button>
+        <K.Button variant="ghost" size="standard" iconOnly={true} aria-label="Square action">
           <K.Icon name="settings" />
         </K.Button>
-        <K.Button variant="voice" size="voice" aria-label="Voice action">
-          <K.Icon name="mic" size="xl" />
-        </K.Button>
-        <K.Button size="icon-sm" aria-label="Add note">
+        <K.Button size="compact" iconOnly={true} aria-label="Add note">
           <K.Icon name="plus" />
         </K.Button>
       </K.Row>
@@ -205,7 +201,12 @@ function GroupedFields() {
       <K.InputGroup>
         <K.InputGroupTextarea aria-label="Quick note" placeholder="Write a quick note…" />
         <K.InputGroupAddon align="inset-end">
-          <K.InputGroupButton variant="default" size="icon-sm" aria-label="Save quick note">
+          <K.InputGroupButton
+            variant="filled"
+            size="compact"
+            iconOnly={true}
+            aria-label="Save quick note"
+          >
             <K.Icon name="arrow-up" />
           </K.InputGroupButton>
         </K.InputGroupAddon>
@@ -220,7 +221,7 @@ function Cards() {
         <K.CardTitle>Slow mornings</K.CardTitle>
         <K.CardDescription>A little room before the day begins.</K.CardDescription>
         <K.CardAction>
-          <K.Button variant="ghost" size="icon" aria-label="More options">
+          <K.Button variant="ghost" size="compact" iconOnly={true} aria-label="More options">
             <K.Icon name="more" />
           </K.Button>
         </K.CardAction>
@@ -249,7 +250,7 @@ function Items() {
           <K.ItemDescription>With Anna · Today</K.ItemDescription>
         </K.ItemContent>
         <K.ItemActions>
-          <K.Button variant="ghost" size="icon" aria-label="Open morning walk">
+          <K.Button variant="ghost" size="compact" iconOnly={true} aria-label="Open morning walk">
             <K.Icon name="chevron-right" />
           </K.Button>
         </K.ItemActions>
@@ -1004,9 +1005,10 @@ function Access() {
                 <K.InputGroupInput id={id} type="password" autoComplete="off" />
                 <K.InputGroupAddon align="inset-end">
                   <K.InputGroupButton
-                    variant="default"
+                    variant="filled"
                     type="submit"
-                    size="icon-sm"
+                    size="compact"
+                    iconOnly={true}
                     aria-label="Open vault"
                   >
                     <K.Icon name="chevron-right" />
@@ -1075,7 +1077,7 @@ function SurfacePrimitives() {
     <K.ReadingColumn>
       <K.Toolbar>
         <K.Heading>Shared toolbar</K.Heading>
-        <K.Button variant="ghost" size="icon-lg" aria-label="Close example">
+        <K.Button variant="ghost" size="standard" iconOnly={true} aria-label="Close example">
           <K.Icon name="close" />
         </K.Button>
       </K.Toolbar>
@@ -1113,7 +1115,7 @@ function SurfacePrimitives() {
                 placeholder="One-row field…"
               />
               <K.InputGroupAddon align="inset-end">
-                <K.Button type="submit" size="icon-lg" aria-label="Submit example">
+                <K.Button type="submit" size="standard" iconOnly={true} aria-label="Submit example">
                   <K.Icon name="arrow-up" />
                 </K.Button>
               </K.InputGroupAddon>
@@ -1143,7 +1145,8 @@ function PanelPrimitive() {
           <K.Heading>Supporting content</K.Heading>
           <K.Button
             variant="ghost"
-            size="icon-lg"
+            size="standard"
+            iconOnly={true}
             aria-label="Close supporting content"
             onClick={() => setOpen(false)}
           >
@@ -1172,7 +1175,7 @@ function OptionPrimitives() {
           'Another option to explore',
           'Something to keep for later',
         ].map((option) => (
-          <K.Button key={option} variant="suggestion">
+          <K.Button key={option} variant="outline">
             {option}
           </K.Button>
         ))}

@@ -19,6 +19,7 @@ for (const variant of ['A', 'B', 'C']) {
   test(`input preview ${variant} preserves drafts, recording and one focus-dependent action`, async ({
     page,
   }) => {
+    await page.emulateMedia({ colorScheme: 'light' });
     await page.goto(`/preview/?variant=${variant}`);
     const banner = page.getByRole('complementary', { name: 'Design preview' });
     const picker = banner.getByRole('group', { name: 'Input button style preview' });
@@ -27,13 +28,19 @@ for (const variant of ['A', 'B', 'C']) {
     const field = page.getByRole('textbox', { name: 'Message', exact: true });
     const mic = page.getByRole('button', { name: 'Start voice interaction' });
     const send = page.getByRole('button', { name: 'Send', exact: true });
-    const treatment =
-      variant === 'A'
-        ? 'preview-input-outline'
-        : variant === 'B'
-          ? 'default'
-          : 'preview-input-plain';
-    await expect(mic).toHaveAttribute('data-variant', treatment);
+    await expect(mic).toHaveAttribute('data-preview-input', variant);
+    await expect(mic).toHaveAttribute('data-variant', 'filled');
+    const treatment = await mic.evaluate((node) => {
+      const style = getComputedStyle(node);
+      return {
+        background: style.backgroundColor,
+        color: style.color,
+        border: style.borderTopWidth,
+      };
+    });
+    expect(treatment.border).toBe(variant === 'A' ? '1px' : '0px');
+    expect(treatment.background).toBe(variant === 'B' ? 'rgb(24, 24, 27)' : 'rgb(255, 255, 255)');
+    expect(treatment.color).toBe(variant === 'B' ? 'rgb(255, 255, 255)' : 'rgb(24, 24, 27)');
     await expect(composer.getByRole('button')).toHaveCount(1);
     await field.focus();
     await expect(send).toBeDisabled();
@@ -50,7 +57,19 @@ for (const variant of ['A', 'B', 'C']) {
     await changeVariant(picker, new URL(page.url()).searchParams.get('variant')!, -1);
     expect(new URL(page.url()).searchParams.get('variant')).toBe(variant);
     await field.focus();
-    await expect(send).toHaveAttribute('data-variant', treatment);
+    await expect(send).toHaveAttribute('data-preview-input', variant);
+    await expect
+      .poll(() =>
+        send.evaluate((node) => {
+          const style = getComputedStyle(node);
+          return {
+            background: style.backgroundColor,
+            color: style.color,
+            border: style.borderTopWidth,
+          };
+        }),
+      )
+      .toEqual(treatment);
     await field.press('ArrowLeft');
     expect(new URL(page.url()).searchParams.get('variant')).toBe(variant);
     await field.blur();

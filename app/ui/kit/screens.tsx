@@ -86,7 +86,12 @@ export function HistoryEntry({
           </p>
         </div>
         {!!onRevert && (
-          <Button variant="outline" size="sm" aria-label={`Revert ${title}`} onClick={onRevert}>
+          <Button
+            variant="outline"
+            size="compact"
+            aria-label={`Revert ${title}`}
+            onClick={onRevert}
+          >
             <Icon name="undo" />
             <span className="hidden md:inline">Revert</span>
           </Button>

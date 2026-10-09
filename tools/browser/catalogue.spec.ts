@@ -65,8 +65,8 @@ test('each sample retains its own responsive CSS, touch density and navigation a
   }
   await filter.fill('Buttons & selection');
   const buttons = page.locator('[data-kit-comparison="buttons"]');
-  const mouse = specimen(buttons, 'desktop').getByRole('button', { name: 'Small', exact: true });
-  const touch = specimen(buttons, 'mobile').getByRole('button', { name: 'Small', exact: true });
+  const mouse = specimen(buttons, 'desktop').getByRole('button', { name: 'Compact', exact: true });
+  const touch = specimen(buttons, 'mobile').getByRole('button', { name: 'Compact', exact: true });
   expect((await mouse.boundingBox())!.height).toBeLessThan(44);
   expect((await touch.boundingBox())!.height).toBeGreaterThanOrEqual(44);
   await filter.fill('Type & spacing');
@@ -212,7 +212,7 @@ test('sidebar labels, badges and actions have separate slots at mouse and touch 
     );
     await expect(sample.getByRole('button', { name: 'Square action' })).toHaveCSS(
       'border-radius',
-      '0px',
+      '8px',
     );
   }
 });
