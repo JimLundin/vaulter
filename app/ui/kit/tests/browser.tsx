@@ -91,6 +91,7 @@ function PolicyFixture() {
 function Fixture() {
   const [search, setSearch] = useState(false);
   const [review, setReview] = useState(false);
+  const [panelReview, setPanelReview] = useState(false);
   const [panel, setPanel] = useState(false);
   const [settings, setSettings] = useState(false);
   const [calendar, setCalendar] = useState('Initial preference');
@@ -114,7 +115,11 @@ function Fixture() {
       aside={
         <ConversationPanel open={panel} onClose={() => setPanel(false)}>
           <Textarea aria-label="Panel draft" defaultValue="Preserved panel draft" />
-          <Button onClick={() => setReview(true)}>Review in panel</Button>
+          <Button onClick={() => setPanelReview(true)}>Review in panel</Button>
+          <Overlay open={panelReview} onClose={() => setPanelReview(false)} title="Review">
+            <Input aria-label="Review draft" defaultValue="Preserved review draft" />
+            <Button onClick={() => setPanelReview(false)}>Done</Button>
+          </Overlay>
         </ConversationPanel>
       }
     >

@@ -1,5 +1,94 @@
 import { expect, test } from '@playwright/test';
 
+for (const childTitle of ['Supporting review', 'Supporting details']) {
+  test(`paired panels dismiss their active nested ${childTitle.toLowerCase()} independently`, async ({
+    page,
+  }) => {
+    await page.goto('/ui/kit/');
+    await page.getByRole('searchbox', { name: 'Find a component' }).fill('AdaptivePanel');
+    const family = page.locator('[data-kit-comparison="panel-primitive"]');
+    const desktop = family.locator('[data-kit-preview="desktop"]');
+    const mobile = family.locator('[data-kit-preview="mobile"]');
+    for (const sample of [desktop, mobile])
+      await sample.getByRole('button', { name: 'Open adaptive panel' }).click();
+    const parent = mobile.getByRole('dialog', { name: 'Supporting content', exact: true });
+    await parent
+      .getByRole('button', {
+        name:
+          childTitle === 'Supporting review'
+            ? 'Review supporting draft'
+            : 'Open supporting details',
+      })
+      .click();
+    const child = mobile.getByRole('dialog', { name: childTitle, exact: true });
+    await expect(child).toBeVisible();
+    await desktop.getByRole('textbox', { name: 'Supporting draft' }).fill('Desktop task');
+    await page.keyboard.press('Escape');
+    await expect(
+      desktop.getByRole('dialog', { name: 'Supporting content', exact: true }),
+    ).toBeHidden();
+    await expect(child).toBeVisible();
+    await child.getByRole('textbox').fill('Mobile child task');
+    await page.keyboard.press('Escape');
+    await expect(child).toBeHidden();
+    await expect(parent).toBeVisible();
+    await parent.getByRole('textbox', { name: 'Supporting draft' }).fill('Mobile parent continues');
+    await page.keyboard.press('Escape');
+    await expect(parent).toBeHidden();
+    await expect(mobile.getByRole('button', { name: 'Open adaptive panel' })).toBeFocused();
+  });
+}
+
+for (const targetWidth of [1440, 900]) {
+  test(`a nested review retains its task while its panel becomes ${targetWidth === 1440 ? 'wide' : 'modal'}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: targetWidth === 1440 ? 900 : 1440, height: 844 });
+    await page.goto('/ui/kit/tests/browser.html');
+    await page.getByRole('button', { name: 'Open agent', exact: true }).click();
+    const draft = page.getByRole('textbox', { name: 'Panel draft' });
+    await draft.fill('Keep parent draft');
+    const original = await draft.elementHandle();
+    await page.getByRole('button', { name: 'Review in panel' }).click();
+    const child = page.getByRole('dialog', { name: 'Review', exact: true });
+    const childDraft = child.getByRole('textbox', { name: 'Review draft' });
+    await childDraft.fill('Keep child draft');
+    await page.setViewportSize({ width: targetWidth, height: 844 });
+    await expect(childDraft).toBeFocused();
+    await expect(childDraft).toHaveValue('Keep child draft');
+    await expect(page.getByRole('textbox', { name: 'Preference' })).toBeHidden();
+    await page.keyboard.press('Escape');
+    await expect(child).toBeHidden();
+    await expect(page.getByRole('button', { name: 'Review in panel' })).toBeFocused();
+    expect(
+      await original!.evaluate(
+        (node) => node === document.querySelector('[aria-label="Panel draft"]'),
+      ),
+    ).toBe(true);
+    await expect(draft).toHaveValue('Keep parent draft');
+    const background = page.getByRole('textbox', { name: 'Preference' });
+    if (targetWidth === 1440) {
+      await expect(background).toBeVisible();
+      await background.fill('Background available beside wide panel');
+      await expect(background).toBeFocused();
+      expect(await page.evaluate(() => document.body.style.overflow)).not.toBe('hidden');
+      await draft.focus();
+    } else {
+      await expect(background).toBeHidden();
+      const parent = page.getByRole('dialog', { name: 'Agent', exact: true });
+      for (let step = 0; step < 6; step++) {
+        await page.keyboard.press('Tab');
+        expect(await parent.evaluate((node) => node.contains(document.activeElement))).toBe(true);
+      }
+      expect(await page.evaluate(() => document.body.style.overflow)).toBe('hidden');
+    }
+    await page.keyboard.press('Escape');
+    await expect(draft).toBeHidden();
+    await expect(background).toBeVisible();
+    await background.fill('Background available after final closure');
+  });
+}
+
 test('closing a review skips a disabled opener and restores useful focus in its scope', async ({
   page,
 }) => {

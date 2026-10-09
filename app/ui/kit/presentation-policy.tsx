@@ -18,6 +18,56 @@ const environments = new WeakMap<object, Environment>();
 const serverEnvironment = {};
 const SurfaceContext = createContext<string | undefined>(undefined);
 
+interface InteractionScopes {
+  roots: Map<HTMLElement, number>;
+  active?: HTMLElement;
+}
+const interactionScopes = new WeakMap<Document, InteractionScopes>();
+
+function interactionScope(scopes: InteractionScopes | undefined, target: EventTarget | null) {
+  let owner: HTMLElement | undefined;
+  for (const root of scopes?.roots.keys() ?? []) {
+    if (target instanceof Node && root.contains(target) && (!owner || owner.contains(root))) {
+      owner = root;
+    }
+  }
+  return owner;
+}
+
+/** Focus can fall back to the body when a task disables its focused control. */
+function retainInteractionScope(portal: HTMLElement) {
+  const document = portal.ownerDocument;
+  let scopes = interactionScopes.get(document);
+  if (!scopes) {
+    scopes = { roots: new Map() };
+    interactionScopes.set(document, scopes);
+  }
+  const current = scopes;
+  current.roots.set(portal, (current.roots.get(portal) ?? 0) + 1);
+  const remember = (event: Event) => {
+    const { target } = event;
+    // Losing a disabled or removed control is not a new interaction with the catalogue.
+    if (event.type === 'focusin' && target === document.body) return;
+    current.active = interactionScope(current, target);
+  };
+  document.addEventListener('pointerdown', remember, true);
+  document.addEventListener('focusin', remember, true);
+  if (portal.contains(document.activeElement)) {
+    current.active = interactionScope(current, document.activeElement);
+  }
+  return () => {
+    document.removeEventListener('pointerdown', remember, true);
+    document.removeEventListener('focusin', remember, true);
+    const remaining = (current.roots.get(portal) ?? 1) - 1;
+    if (remaining) current.roots.set(portal, remaining);
+    else {
+      current.roots.delete(portal);
+      if (current.active === portal) current.active = undefined;
+    }
+    if (!current.roots.size) interactionScopes.delete(document);
+  };
+}
+
 type ChangeDetails = { reason: string; event: Event; cancel: () => void };
 
 export function usePresentationPolicy() {
@@ -91,19 +141,34 @@ export function usePresentationSurface(open: boolean) {
     if (!open) return;
     const surface = { id, parent };
     policy.environment.surfaces.push(surface);
+    const releaseInteraction = policy.portal && retainInteractionScope(policy.portal);
     return () => {
+      releaseInteraction?.();
       policy.environment.surfaces = policy.environment.surfaces.filter(
         (entry) => entry !== surface,
       );
     };
-  }, [open, id, parent, policy.environment]);
+  }, [open, id, parent, policy.environment, policy.portal]);
   return {
     id,
     policy,
     allowClose(details: ChangeDetails) {
       if (details.reason === 'escape-key') {
         const active = document.activeElement;
-        if (!policy.owns(active) || policy.environment.surfaces.at(-1)?.id !== id) {
+        const focused =
+          active instanceof HTMLElement &&
+          active !== document.body &&
+          active !== document.documentElement &&
+          active.isConnected &&
+          !active.matches(':disabled') &&
+          active.getClientRects().length > 0 &&
+          getComputedStyle(active).visibility === 'visible';
+        const ownsKeyboard =
+          !policy.portal ||
+          (focused
+            ? interactionScope(interactionScopes.get(document), active) === policy.portal
+            : interactionScopes.get(document)?.active === policy.portal);
+        if (!ownsKeyboard || policy.environment.surfaces.at(-1)?.id !== id) {
           details.cancel();
           return false;
         }

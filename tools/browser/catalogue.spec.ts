@@ -431,12 +431,66 @@ test('paired panel composers submit once with the shared keyboard path and retai
     await expect(field).toHaveValue('');
     await field.fill(`${device} unfinished thought`);
     await page.keyboard.press('Escape');
+    await expect(sample.getByRole('dialog', { name: 'Agent', exact: true })).toBeHidden();
+    await expect(sample.getByRole('button', { name: 'Open agent panel' })).toBeFocused();
     await sample.getByRole('button', { name: 'Open agent panel' }).click();
     await expect(field).toHaveValue(`${device} unfinished thought`);
     await sample.getByRole('button', { name: 'Send panel message' }).click();
     await expect(sample.locator('[data-message="user"]')).toHaveCount(2);
     await page.keyboard.press('Escape');
+    await expect(sample.getByRole('dialog', { name: 'Agent', exact: true })).toBeHidden();
   }
+});
+
+test('catalogue focus and outside interaction revoke a panel’s keyboard ownership after sending', async ({
+  page,
+}) => {
+  await page.goto('/ui/kit/');
+  const filter = page.getByRole('searchbox', { name: 'Find a component' });
+  await filter.fill('Agent panel');
+  const family = page.locator('[data-kit-comparison="agent-panel"]');
+  const desktop = specimen(family, 'desktop');
+  const mobile = specimen(family, 'mobile');
+  for (const sample of [desktop, mobile])
+    await sample.getByRole('button', { name: 'Open agent panel' }).click();
+  await mobile.getByRole('textbox', { name: 'Panel message' }).fill('Completed mobile task');
+  await mobile.getByRole('button', { name: 'Send panel message' }).click();
+  await desktop.getByRole('textbox', { name: 'Panel message' }).focus();
+  await page.keyboard.press('Escape');
+  await expect(desktop.getByRole('dialog', { name: 'Agent', exact: true })).toBeHidden();
+  await expect(mobile.getByRole('dialog', { name: 'Agent', exact: true })).toBeVisible();
+  await filter.focus();
+  await page.keyboard.press('Escape');
+  await expect(mobile.getByRole('dialog', { name: 'Agent', exact: true })).toBeVisible();
+  await filter.evaluate((node) => node.blur());
+  await page.keyboard.press('Escape');
+  await expect(mobile.getByRole('dialog', { name: 'Agent', exact: true })).toBeVisible();
+});
+
+test('Escape after sending closes the last interacted panel while another sample stays editable', async ({
+  page,
+}) => {
+  await page.goto('/ui/kit/');
+  await page.getByRole('searchbox', { name: 'Find a component' }).fill('Agent panel');
+  const family = page.locator('[data-kit-comparison="agent-panel"]');
+  const desktop = specimen(family, 'desktop');
+  const mobile = specimen(family, 'mobile');
+  for (const sample of [desktop, mobile])
+    await sample.getByRole('button', { name: 'Open agent panel' }).click();
+  await desktop.getByRole('textbox', { name: 'Panel message' }).fill('Desktop draft');
+  await mobile.getByRole('textbox', { name: 'Panel message' }).fill('Send this thought');
+  const send = mobile.getByRole('button', { name: 'Send panel message' });
+  await send.click();
+  await expect(send).toBeDisabled();
+  await expect(mobile.locator('[data-message="user"]')).toHaveCount(1);
+  await page.keyboard.press('Escape');
+  await expect(mobile.getByRole('dialog', { name: 'Agent', exact: true })).toBeHidden();
+  await expect(mobile.getByRole('button', { name: 'Open agent panel' })).toBeFocused();
+  await expect(desktop.getByRole('dialog', { name: 'Agent', exact: true })).toBeVisible();
+  await desktop.getByRole('textbox', { name: 'Panel message' }).fill('Still editable');
+  await expect(desktop.getByRole('textbox', { name: 'Panel message' })).toHaveValue(
+    'Still editable',
+  );
 });
 
 test('catalogue suggestions fill and focus their own public Composer field', async ({ page }) => {
