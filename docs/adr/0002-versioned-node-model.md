@@ -23,7 +23,7 @@ The expected write locality is:
 
 `Node.id` anchors identity, including after deletion. `Transaction.id` anchors a recorded operation;
 its unique sequence orders committed history within a vault. The timestamp describes when the
-transaction was recorded. A node version's composite primary key is `(nodeId, transactionId)`;
+transaction was recorded. A node version's composite primary key is `(node, transaction)`;
 both are foreign keys. A transaction records at most one version per node. Versions store complete
 states and remain immutable. Undo and restoration create new transactions.
 
@@ -36,8 +36,8 @@ merging histories would require revisiting transaction ordering.
 ## Content and structure
 
 `data` holds arbitrary nested JSON objects. Node types and application behavior interpret this JSON.
-`parentNodeId` and `targetNodeId` are model-aware foreign keys to stable Node identities. A string
-inside JSON is not automatically a structural reference. `orderKey` orders a node among children
+`parent` and `target` are model-aware foreign keys to stable Node identities. A string
+inside JSON is not automatically a structural reference. `order` orders a node among children
 of its parent. A live placed node has a parent and an order key; a live unplaced node has neither.
 Containment is acyclic. Parents' children are derived from the selected child versions.
 
@@ -87,23 +87,37 @@ restoration depend on retaining them.
 
 There is one persisted `Transaction` definition for every feature. It records identity, definitive
 sequence, acceptance time, required `recordedBy`, an extensible operation `kind`, and nullable
-`message`, `originNodeId`, and `undoOfTransactionId`. The write request derives these fields from
+`message`, `origin`, and `undoOf`. The write request derives these fields from
 Transaction; it adds proposed changes and expectations, while the store assigns sequence and time.
 There is no separate RecordedTransaction or feature-specific transaction record.
 
 `recordedBy` references the stable Node identity of the author: a user, agent, or system. It means
-who produced the change, not which database adapter wrote it. `originNodeId` references a context
+who produced the change, not which database adapter wrote it. `origin` references a context
 Node, such as an exchange, import, or automation run; direct actions can have no origin. Attribution
 comes from trusted writer context and cannot be chosen by arbitrary agent-tool arguments. Initial
 transactions can create their own author node atomically. Both references remain valid after their
 nodes are deleted; historical attribution resolves them at the selected transaction cutoff.
 
-Kinds are feature-owned operation names such as `chat.submit`, `chat.response.stop`, `node.move`,
-`node.delete`, `import.apply`, and `transaction.undo`, rather than a closed chat/content/undo enum.
-Storage validates that the kind is nonempty, but assigns no feature semantics to it. Consumers
-choose which kinds they understand or present and retain unknown kinds. A compensation is linked
-by `undoOfTransactionId`; its kind alone does not establish that link. Message is a presentation
-description; identities, kind, and references do not depend on parsing it.
+Kinds are structured `{ scope, action }` values from a typed operation catalogue. Each scope
+specifies its allowed actions; feature modules extend the catalogue and expose named operation
+constants. Callers use `nodeOperations.move` or `chatOperations.submit`, without parsing dotted
+strings or using unrestricted string fallback types. Storage validates the two nonempty fields;
+feature schemas validate registered operation semantics on external input. Matching is by field
+values so deserialized kinds work. Readers can display unknown well-formed future kinds without
+pretending their feature behavior is available.
+
+`Transaction<Metadata>` supports optional typed JSON metadata. Accepted metadata is immutable and
+part of retry identity. This is recorded context, not independently editable state. New optional
+payload fields can be added through feature schemas without another transaction representation.
+Unknown metadata is retained. New required fields or changed meanings need explicit decoding and
+migration; generics do not perform migrations. References requiring integrity checks belong in
+explicit model fields or reference nodes, rather than hiding in metadata strings.
+
+The agent author can be the same stable agent node presented in the wiki. Its name, instructions,
+and configuration are versioned payload/children, not a second author record. A particular run is
+an origin context. The writer supplies the authenticated/owned author identity; a wiki presentation
+alone is not an authentication or permission check. Attribution at a historical cutoff resolves
+the author's historical node version.
 
 The write operation validates the complete proposed snapshot, then publishes new identities,
 the transaction, and its node versions atomically. It checks unique composite keys, known foreign

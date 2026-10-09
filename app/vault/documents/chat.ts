@@ -1,5 +1,21 @@
 // Application payloads stored in the common node model, independent of model SDKs and storage.
 import type { JsonObject, JsonValue, NodeVersion } from '../nodes/model.ts';
+import type { TransactionKind } from '../nodes/operations.ts';
+
+declare module '../nodes/operations.ts' {
+  interface TransactionActions {
+    readonly chat: 'submit' | 'completeResponse' | 'stopResponse' | 'checkpointResponse';
+  }
+}
+
+export const chatOperations = {
+  submit: { scope: 'chat', action: 'submit' },
+  completeResponse: { scope: 'chat', action: 'completeResponse' },
+  stopResponse: { scope: 'chat', action: 'stopResponse' },
+  checkpointResponse: { scope: 'chat', action: 'checkpointResponse' },
+} as const satisfies Readonly<
+  Record<'submit' | 'completeResponse' | 'stopResponse' | 'checkpointResponse', TransactionKind>
+>;
 
 // biome-ignore lint/style/useConsistentTypeDefinitions: type aliases satisfy JsonObject structurally
 export type ConversationData = {
@@ -52,7 +68,7 @@ export type MessageData =
       readonly error?: string;
     };
 
-/** Structural endpoints are held in parentNodeId and targetNodeId, outside this JSON. */
+/** Structural endpoints are held in parent and target, outside this JSON. */
 // biome-ignore lint/style/useConsistentTypeDefinitions: type aliases satisfy JsonObject structurally
 export type ChatReferenceData = {
   readonly kind: 'reference';

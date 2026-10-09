@@ -48,7 +48,7 @@ Conversation
 
 All entries use Node/NodeVersion. Exchanges own their parent and order within the conversation;
 messages own theirs within the exchange. Appending a message does not version any ancestor.
-References are children of the exchange with an explicit targetNodeId; JSON identifies their role.
+References are children of the exchange with an explicit target; JSON identifies their role.
 Several topic or place references use several nodes.
 
 Illustrative application payloads, to be typed and validated during implementation:
@@ -77,7 +77,7 @@ Illustrative application payloads, to be typed and validated during implementati
   model: '...', tokens: { in: 1200, out: 80 },
 }
 
-// Reference: the actual subject ID is its targetNodeId.
+// Reference: the actual subject ID is its target.
 { kind: 'reference', role: 'topic' }
 ```
 
@@ -134,11 +134,11 @@ to save the terminal response separately from failure of the model run.
 ## Storage and staging interface sketch
 
 The accepted application contract is [NodeStore](app/vault/nodes/store.ts): commit accepts complete
-NodeChange states with per-node expectedTransactionId, optional expectedReads, a stable request ID,
+NodeChange states with per-node expected, optional expectedReads, a stable request ID,
 and provenance. Transaction is one shared definition: identity, sequence, recordedAt, recordedBy,
-kind, nullable message, originNodeId and undoOfTransactionId. recordedBy references the author Node;
-originNodeId references the context Node. Kinds are extensible operation names such as chat.submit,
-node.move and transaction.undo. The caller receives the recorded acceptance; snapshot,
+kind, nullable message, origin and undoOf. recordedBy references the author Node;
+origin references the context Node. Kinds are typed scope/action objects supplied through
+feature operation constants; Transaction<Metadata> supports optional typed immutable JSON context. The caller receives the recorded acceptance; snapshot,
 children, history, changes and subscribe expose projections without database-table access.
 
 The [spike](app/vault/nodes/spike/README.md) implements that contract for Maps and Dexie. Production
@@ -159,8 +159,8 @@ cannot mutate history. Choose insertion-friendly order keys and deterministic eq
 
 ## History and undo
 
-History reads the same recorded transactions. Default the existing History view to the relevant node-operation and transaction.undo
-kinds, so chat.submit and chat.response.* writes do not bury content edits. Features own their
+History reads the same recorded transactions. Default the existing History view to relevant node
+operations and transactionOperations.undo, so chat operations do not bury content edits. Features own their
 operation names; storage does not impose a closed chat/content/undo classification. Chat views
 derive their transcript from conversation nodes. These are projections of one history.
 

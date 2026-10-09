@@ -33,7 +33,8 @@ The context from which a transaction arose, such as a chat exchange or import. I
 the author of the changes.
 
 **Transaction kind**:
-A specific name for the operation recorded by a transaction, interpreted by the feature that owns it.
+A classification of the operation recorded by a transaction, with a scope and an action,
+interpreted by the feature that owns it.
 
 **Closure**:
 The live nodes reachable from a root through containment and references at a particular point in
