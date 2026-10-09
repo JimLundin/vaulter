@@ -190,7 +190,7 @@ export const EmptyTitle = unstyled(EmptyTitlePart);
 export const EmptyDescription = unstyled(EmptyDescriptionPart);
 export const EmptyContent = unstyled(EmptyContentPart);
 export const EmptyMedia = unstyled(EmptyMediaPart);
-export const Input = unstyled(InputPart);
+export const Input = unstyled(InputPart, ['textbox', 'searchbox']);
 export const Field = unstyled(FieldPart);
 export const FieldContent = unstyled(FieldContentPart);
 export const FieldDescription = unstyled(FieldDescriptionPart);
@@ -204,11 +204,11 @@ export const FieldTitle = unstyled(FieldTitlePart);
 export const InputGroup = unstyled(InputGroupPart);
 export const InputGroupAddon = unstyled(InputGroupAddonPart);
 export const InputGroupButton = unstyled(InputGroupButtonPart);
-export const InputGroupInput = unstyled(InputGroupInputPart);
+export const InputGroupInput = unstyled(InputGroupInputPart, ['textbox', 'searchbox']);
 export const InputGroupText = unstyled(InputGroupTextPart);
-export const InputGroupTextarea = unstyled(InputGroupTextareaPart);
+export const InputGroupTextarea = unstyled(InputGroupTextareaPart, ['textbox', 'searchbox']);
 export const Label = unstyled(LabelPart);
-export const Textarea = unstyled(TextareaPart);
+export const Textarea = unstyled(TextareaPart, ['textbox', 'searchbox']);
 export const Toaster = unstyled(ToasterPart);
 export const ItemMedia = unstyled(ItemMediaPart);
 export const ItemContent = unstyled(ItemContentPart);
@@ -354,8 +354,8 @@ import {
   RadioGroupItem as RadioGroupItemPart,
   RadioGroupIndicator as RadioGroupIndicatorPart,
 } from './parts/radio-group.tsx';
-export const RadioGroup = unstyled(RadioGroupPart);
-export const RadioGroupItem = unstyled(RadioGroupItemPart);
+export const RadioGroup = unstyled(RadioGroupPart, ['radiogroup']);
+export const RadioGroupItem = unstyled(RadioGroupItemPart, ['radio']);
 export const RadioGroupIndicator = unstyled(RadioGroupIndicatorPart);
 
 import {

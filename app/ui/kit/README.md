@@ -312,9 +312,10 @@ keeps its own choices and device preference, and retains its Appearance name out
 
 Zero or multiple mounted controls and unsupported control families produce a clear diagnostic.
 `Input` supports text, email, password, search, tel and URL entry; other input types need their own
-field interface. Current unsupported kit controls also diagnose composition through nested feature
-components. Raw value controls supplied as children are rejected; raw controls hidden in an opaque
-feature component are outside the kit composition policy. Declare identifiers only on a control
+field interface. Unsupported kit controls and semantic control roles or editable props on public
+primitives diagnose composition through nested feature components. Raw value controls supplied as
+children are rejected; raw controls hidden in an opaque feature component are outside the kit
+composition policy. Declare identifiers only on a control
 when another reference needs them; field labels and descriptions require no identifier plumbing.
 
 ## Composer interface

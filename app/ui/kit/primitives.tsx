@@ -7,6 +7,7 @@ import type { Unstyled } from './lib/unstyled.tsx';
 import { cn } from './lib/utils.ts';
 import { useIsMobile } from './hooks/use-mobile.ts';
 import { SupportingDrawer } from './drawer.tsx';
+import { useFieldSemanticDiagnostic } from './field-association.ts';
 
 const surfaces = {
   plain: '',
@@ -28,6 +29,7 @@ export function Surface({
   variant?: keyof typeof surfaces;
   as?: 'div' | 'section' | 'fieldset';
 }) {
+  useFieldSemanticDiagnostic(props);
   return (
     <As
       {...props}

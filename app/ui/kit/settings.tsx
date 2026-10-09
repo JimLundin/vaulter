@@ -10,7 +10,11 @@ import {
   useRef,
   useState,
 } from 'react';
-import { FieldAssociation, type FieldControl } from './field-association.ts';
+import {
+  FieldAssociation,
+  type FieldControl,
+  hasFieldControlSemantics,
+} from './field-association.ts';
 import { Field, FieldContent, FieldDescription, FieldLabel, FieldTitle } from './parts/field.tsx';
 import { FeaturePage } from './app.tsx';
 import { Heading, Stack } from './parts/layout.tsx';
@@ -67,7 +71,7 @@ export function SettingsSection({ title, children }: { title: string; children: 
   );
 }
 // Ordinary React children can be inspected without cloning controls or searching the DOM.
-// Opaque feature components are validated by their mounted supported-control registration.
+// Public kit props and opaque feature components are validated by mounted registration.
 function hasUnsupportedControl(children: ReactNode): boolean {
   return React.Children.toArray(children).some((child) => {
     if (
@@ -77,15 +81,9 @@ function hasUnsupportedControl(children: ReactNode): boolean {
     )
       return false;
     if (
-      child.props.contentEditable === true ||
-      child.props.contentEditable === 'true' ||
-      child.props.contentEditable === 'plaintext-only' ||
-      ['checkbox', 'switch', 'combobox', 'slider', 'spinbutton', 'radio', 'listbox'].includes(
-        child.props.role ?? '',
-      ) ||
-      (typeof child.type === 'string' &&
-        (['input', 'textarea', 'select'].includes(child.type) ||
-          ['textbox', 'searchbox', 'radiogroup'].includes(child.props.role ?? '')))
+      typeof child.type === 'string' &&
+      (['input', 'textarea', 'select'].includes(child.type) ||
+        hasFieldControlSemantics(child.props))
     )
       return true;
     return hasUnsupportedControl(child.props.children);

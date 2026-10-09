@@ -11,7 +11,7 @@ export const FieldAssociation = createContext<{
 } | null>(null);
 
 function useFieldAssociation(
-  kind: 'text' | 'group' | 'unsupported',
+  kind: 'text' | 'group' | 'unsupported' | undefined,
   props: { id?: string; 'aria-describedby'?: string },
 ) {
   const field = useContext(FieldAssociation);
@@ -19,9 +19,9 @@ function useFieldAssociation(
   const id = props.id ?? field?.controlId;
   const registerControl = field?.registerControl;
   useLayoutEffect(() => {
-    if (id) return registerControl?.(key, { id, kind });
+    if (id && kind) return registerControl?.(key, { id, kind });
   }, [id, key, kind, registerControl]);
-  if (!field || kind === 'unsupported') return {};
+  if (!field || !kind || kind === 'unsupported') return {};
   return {
     id,
     'aria-label': undefined,
@@ -58,3 +58,34 @@ export const useFieldGroupAssociation = (props: {
 export const useFieldUnsupportedControl = () => {
   useFieldAssociation('unsupported', {});
 };
+
+type SemanticProps = { role?: string; contentEditable?: boolean | string };
+
+export function hasFieldControlSemantics({ role, contentEditable }: SemanticProps) {
+  return (
+    contentEditable === true ||
+    contentEditable === 'true' ||
+    contentEditable === 'plaintext-only' ||
+    [
+      'textbox',
+      'searchbox',
+      'radiogroup',
+      'checkbox',
+      'switch',
+      'combobox',
+      'slider',
+      'spinbutton',
+      'radio',
+      'listbox',
+    ].includes(role ?? '')
+  );
+}
+
+/** Public primitive props diagnose value controls even through opaque feature components. */
+export function useFieldSemanticDiagnostic(props: object, supportedRoles: readonly string[] = []) {
+  const { role, contentEditable } = props as SemanticProps;
+  const unsupported =
+    hasFieldControlSemantics({ contentEditable }) ||
+    (hasFieldControlSemantics({ role }) && !supportedRoles.includes(role ?? ''));
+  useFieldAssociation(unsupported ? 'unsupported' : undefined, {});
+}

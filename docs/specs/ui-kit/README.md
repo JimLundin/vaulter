@@ -18,13 +18,16 @@ immediate payoff; the verification change comes first to enable useful private h
 Private composition verification (#5, ticket #9) is implemented on
 `spec/5-private-composition-verification`. Composer interaction (#6, ticket #10) is implemented on
 `spec/6-composer-interaction`, based on that verification branch. Accessible field association
-(#7, tickets #11 and #12) is implemented on `spec/7-accessible-field-association`, based on the
+(#7, tickets #11 and #12) is implemented on `spec/7-accessible-field-association-complete`, based on the
 Composer branch. The Base UI migration (#18, including #17) and initial presentation policy
 implementation are on `spec/18-base-ui-and-presentation-policy`. Presentation policy completion is on
 `spec/8-presentation-policy-complete`; see its [acceptance record](04-presentation-policy-acceptance.md),
 the scope update in the policy spec and the [Search library decision](../../adr/0001-base-ui-search.md).
 Interface mechanics must satisfy the decisions and acceptance behavior in
 each spec; these documents supersede the roadmap's earlier unresolved design questions.
+
+Final field-association fixes cover nested public semantic-control diagnostics and keyboard
+acceptance through deferred radio focus.
 
 The specs are published to the configured GitHub tracker. Use the
 linked issues to track implementation; these local documents retain the published specification.
