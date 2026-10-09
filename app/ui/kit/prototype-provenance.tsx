@@ -555,11 +555,11 @@ type Hover = { claim?: ClaimId; evidence?: string };
 function Prose({ content, render }: { content: Inline[]; render: (claim: Claim) => ReactNode }) {
   return (
     <>
-      {content.map((i, n) =>
+      {content.map((i) =>
         i.type === 'text' ? (
-          <span key={n}>{i.text}</span>
+          <span key={i.text}>{i.text}</span>
         ) : i.type === 'ref' ? (
-          <a key={n} className="text-link" href={`#/${i.to}/`}>
+          <a key={i.to} className="text-link" href={`#/${i.to}/`}>
             {i.label}
           </a>
         ) : (
@@ -621,8 +621,8 @@ function EvidencePanel({ claim }: { claim: Claim }) {
   return (
     <>
       <p className="m-0 font-serif text-copy">{claim.text}</p>
-      {claim.evidence.map((e, n) => (
-        <EvidenceCard key={n} evidence={e} />
+      {claim.evidence.map((e) => (
+        <EvidenceCard key={`${evidenceKey(e.anchor)}:${e.anchor.start}`} evidence={e} />
       ))}
       {claim.supersedes ? <RetractedNote id={claim.supersedes} /> : null}
     </>
@@ -638,12 +638,10 @@ function VariantA() {
   const [uncited, setUncited] = useState(false);
   const claim = selected ? claimById.get(selected) : undefined;
   const render = (cl: Claim) => (
-    <span
+    <button
       data-claim=""
-      role="button"
-      tabIndex={0}
+      type="button"
       onClick={() => setSelected(cl.id)}
-      onKeyDown={(e) => e.key === 'Enter' && setSelected(cl.id)}
       className={
         selected === cl.id
           ? 'cursor-pointer rounded-sm bg-people-soft decoration-people underline decoration-2 underline-offset-4'
@@ -651,7 +649,7 @@ function VariantA() {
       }
     >
       {cl.text}
-    </span>
+    </button>
   );
   return (
     <div className="flex w-full flex-col gap-8 px-[var(--page-inset)] py-[var(--page-block)] md:flex-row md:gap-10">
@@ -667,8 +665,11 @@ function VariantA() {
         {page.sections.map((s) => (
           <section key={s.id} className="flex flex-col gap-3">
             <h2 className="m-0 text-title">{s.heading}</h2>
-            {s.blocks.map((b, n) => (
-              <p key={n} className={`m-0 font-serif text-lead ${uncitedClass(uncited)}`}>
+            {s.blocks.map((b) => (
+              <p
+                key={JSON.stringify(b.content)}
+                className={`m-0 font-serif text-lead ${uncitedClass(uncited)}`}
+              >
                 <Prose content={b.content} render={render} />
               </p>
             ))}
@@ -720,6 +721,7 @@ function VariantB() {
   const numbers = new Map(allClaims.map((cl, n) => [cl.id, n + 1]));
   const render = (cl: Claim) => (
     <span
+      role="mark"
       data-claim=""
       onMouseEnter={() => setHover(cl.id)}
       onMouseLeave={() => setHover(undefined)}
@@ -766,15 +768,19 @@ function VariantB() {
             </button>
             {open === cl.id ? (
               <div className="flex flex-col gap-2">
-                {cl.evidence.map((e, n) => (
-                  <EvidenceCard key={n} evidence={e} compact />
+                {cl.evidence.map((e) => (
+                  <EvidenceCard
+                    key={`${evidenceKey(e.anchor)}:${e.anchor.start}`}
+                    evidence={e}
+                    compact={true}
+                  />
                 ))}
                 {cl.supersedes ? <RetractedNote id={cl.supersedes} /> : null}
               </div>
             ) : (
-              cl.evidence.map((e, n) => (
+              cl.evidence.map((e) => (
                 <span
-                  key={n}
+                  key={`${evidenceKey(e.anchor)}:${e.anchor.start}`}
                   className={`border-l-2 pl-2 font-serif italic ${e.anchor.in === 'event' ? 'border-people' : 'border-places'}`}
                 >
                   “{e.anchor.exact}”
@@ -819,10 +825,9 @@ function VariantC() {
   const render = (cl: Claim) => {
     const kinds = new Set(cl.evidence.map((e) => e.anchor.in));
     return (
-      <span
+      <button
         data-claim=""
-        role="button"
-        tabIndex={0}
+        type="button"
         onMouseEnter={() => setHover({ claim: cl.id })}
         onMouseLeave={() => setHover({})}
         onClick={() => setPinned(pinned === cl.id ? undefined : cl.id)}
@@ -835,7 +840,7 @@ function VariantC() {
         }`}
       >
         {cl.text}
-      </span>
+      </button>
     );
   };
   const marksFor = (key: string, text: string): Mark[] =>
@@ -936,6 +941,7 @@ function VariantC() {
                   return (
                     <div
                       key={e.id}
+                      role="group"
                       id={`trace-${e.id}`}
                       className={frame}
                       onMouseEnter={enter}
@@ -962,6 +968,7 @@ function VariantC() {
                   return (
                     <div
                       key={e.id}
+                      role="group"
                       id={`trace-${s.id}`}
                       className={`flex flex-col gap-1 rounded-lg border p-3 ${u ? 'border-places bg-card' : 'border-border bg-card'}`}
                       onMouseEnter={() => setHover({ evidence: s.id })}

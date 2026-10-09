@@ -57,27 +57,31 @@ export function Bars({ data, label, unit, highlight = data.length - 1, size = 's
             >
               {data.map((d, i) => (
                 <Tooltip key={d.label}>
-                  <TooltipTrigger render={<button
-                      data-touch-target=""
-                      type="button"
-                      aria-label={`${d.label}: ${said(d.value)}`}
-                      className="flex h-full min-w-0 flex-1 cursor-default flex-col items-center justify-end gap-1 border-0 bg-transparent p-0 outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-                    >
-                      {i === highlight ? (
-                        <span className="text-caption font-medium text-foreground tabular-nums">
-                          {number(d.value)}
-                        </span>
-                      ) : null}
-                      <span
-                        className={cn(
-                          'w-full max-w-6 rounded-t-[4px]',
-                          i === highlight ? 'bg-chart-accent' : 'bg-chart-muted',
-                        )}
-                        style={{
-                          height: d.value > 0 ? `max(2px, ${(d.value / max) * 82}%)` : 0,
-                        }}
-                      />
-                    </button>} />
+                  <TooltipTrigger
+                    render={
+                      <button
+                        data-touch-target=""
+                        type="button"
+                        aria-label={`${d.label}: ${said(d.value)}`}
+                        className="flex h-full min-w-0 flex-1 cursor-default flex-col items-center justify-end gap-1 border-0 bg-transparent p-0 outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                      >
+                        {i === highlight ? (
+                          <span className="text-caption font-medium text-foreground tabular-nums">
+                            {number(d.value)}
+                          </span>
+                        ) : null}
+                        <span
+                          className={cn(
+                            'w-full max-w-6 rounded-t-[4px]',
+                            i === highlight ? 'bg-chart-accent' : 'bg-chart-muted',
+                          )}
+                          style={{
+                            height: d.value > 0 ? `max(2px, ${(d.value / max) * 82}%)` : 0,
+                          }}
+                        />
+                      </button>
+                    }
+                  />
                   <TooltipContent>
                     <span className="font-semibold">{said(d.value)}</span> · {d.label}
                   </TooltipContent>
