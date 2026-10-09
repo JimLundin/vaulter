@@ -1,5 +1,6 @@
 import type { ComponentProps } from 'react';
 import { RadioGroup as Primitive } from 'radix-ui';
+import { useFieldGroupAssociation } from '../field-association.ts';
 import { cn } from '../lib/utils.ts';
 
 function RadioGroup({
@@ -7,9 +8,11 @@ function RadioGroup({
   variant = 'default',
   ...props
 }: ComponentProps<typeof Primitive.Root> & { variant?: 'default' | 'choices' | 'segmented' }) {
+  const association = useFieldGroupAssociation(props);
   return (
     <Primitive.Root
       {...props}
+      {...association}
       data-slot="radio-group"
       data-variant={variant}
       className={cn(

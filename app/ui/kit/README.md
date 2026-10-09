@@ -247,11 +247,12 @@ an agent response; the microphone keeps its icon and is disabled until the respo
 The conversation feed contains submitted messages only. Read-only fields follow incoming words without taking focus. Drafts remain
 available when the Chat view closes or switches between a panel and page.
 
-## SettingField text interface
+## SettingField interface
 
-`SettingField` declares a text field's meaning once and owns the visible label, description and
-native label activation. Supported text controls are `Input`, `Textarea`, `InputGroupInput` and
-`InputGroupTextarea`; ordinary layout helpers may nest between the field and its control.
+`SettingField` declares a field's meaning once and owns its visible label and description. Each
+field contains exactly one semantic control: a text-entry `Input`, `Textarea`, `InputGroupInput`,
+`InputGroupTextarea`, `RadioGroup` or `ThemeSwitch`. A radio group's choices count as one control.
+Ordinary layout helpers and feature components may nest between the field and its control.
 
 ```tsx
 <SettingField label="Model" description="Used for new messages. Saved on this device.">
@@ -264,8 +265,22 @@ is preserved and becomes the label target. The visible field label supplies the 
 and existing `aria-describedby` references compose with the field description without duplicates.
 Standalone controls retain their existing names, identities and descriptions. State, persistence
 and validation remain with the caller, and the same mounted control survives responsive changes.
-`htmlFor` and `descriptionId` remain available for compatibility during choice-field migration;
-ordinary text callers need neither. Choice fields continue using their existing group behavior.
+Text labels activate their input through native semantics. A choice field uses a visible group
+title; its name and description belong to the radio group rather than each choice. `ThemeSwitch`
+keeps its own choices and device preference, and retains its Appearance name outside a field.
+
+```tsx
+<SettingField label="Theme" description="Choose how Vaulter looks.">
+  <ThemeSwitch />
+</SettingField>
+```
+
+Zero or multiple mounted controls and unsupported control families produce a clear diagnostic.
+`Input` supports text, email, password, search, tel and URL entry; other input types need their own
+field interface. Current unsupported kit controls also diagnose composition through nested feature
+components. Raw value controls supplied as children are rejected; raw controls hidden in an opaque
+feature component are outside the kit composition policy. Declare identifiers only on a control
+when another reference needs them; field labels and descriptions require no identifier plumbing.
 
 ## Composer interface
 

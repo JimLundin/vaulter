@@ -110,6 +110,26 @@ test('a direct settings URL opens the same menu and preserves the agent draft', 
   await expect(model).toHaveValue('example-model');
 });
 
+test('Appearance group retains keyboard selection and device preference after reopening and reload', async ({
+  page,
+}) => {
+  await page.goto('/preview/#/settings/');
+  const settings = page.getByRole('dialog', { name: 'Settings', exact: true });
+  const group = settings.getByRole('radiogroup', { name: 'Theme', exact: true });
+  await expect(group).toHaveAccessibleDescription(
+    "Choose a theme, or follow your device's appearance.",
+  );
+  await group.getByRole('radio', { name: 'Light', exact: true }).click();
+  await page.keyboard.press('ArrowDown');
+  await expect(group.getByRole('radio', { name: 'Dark', exact: true })).toBeChecked();
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('vaulter.theme'))).toBe('dark');
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await expect(group.getByRole('radio', { name: 'Dark', exact: true })).toBeChecked();
+  await page.reload();
+  await expect(group.getByRole('radio', { name: 'Dark', exact: true })).toBeChecked();
+});
+
 test('every feature page centers the same reading column', async ({ page }) => {
   for (const width of [390, 768, 1440, 1920]) {
     await page.setViewportSize({ width, height: 1000 });

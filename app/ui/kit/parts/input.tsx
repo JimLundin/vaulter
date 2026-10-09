@@ -3,7 +3,7 @@ import { cn } from '../lib/utils.ts';
 import { useFieldTextAssociation } from '../field-association.ts';
 
 function Input({ className, type, ...props }: React.ComponentProps<'input'>) {
-  const association = useFieldTextAssociation(props);
+  const association = useFieldTextAssociation({ ...props, type });
   return (
     <input
       type={type}

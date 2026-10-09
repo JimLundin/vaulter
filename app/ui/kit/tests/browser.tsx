@@ -22,6 +22,8 @@ import {
   InputGroupButton,
   NavigationSuite,
   Overlay,
+  RadioGroup,
+  RadioGroupItem,
   Row,
   SearchSurface,
   SettingField,
@@ -232,15 +234,11 @@ function FieldFixture() {
         </SettingField>
         {/* biome-ignore lint/correctness/useUniqueElementIds: Singleton fixture supplies a known additional description reference. */}
         <Text id="model-guidance">Additional model guidance.</Text>
-        <SettingField
-          label="Nested model"
-          description="Use the recommended model."
-          descriptionId="nested-model-description"
-        >
+        <SettingField label="Nested model" description="Use the recommended model.">
           <Stack>
             <Row>
               <InputGroup>
-                <InputGroupInput aria-describedby="model-guidance model-guidance nested-model-description" />
+                <InputGroupInput aria-describedby="model-guidance model-guidance" />
               </InputGroup>
             </Row>
           </Stack>
@@ -250,6 +248,30 @@ function FieldFixture() {
             <Input defaultValue="Separate value" />
           </SettingField>
         ))}
+        <SettingField label="Field theme" description="Choose how this device looks.">
+          <Stack>
+            <ThemeSwitch />
+          </Stack>
+        </SettingField>
+        {/* biome-ignore lint/correctness/useUniqueElementIds: Singleton fixture supplies an additional group description. */}
+        <Text id="mode-guidance">Additional mode guidance.</Text>
+        {['First mode', 'Second mode'].map((label) => (
+          <SettingField key={label} label={label} description="Choose one mode.">
+            <Stack>
+              <Row>
+                <RadioGroup
+                  defaultValue="one"
+                  aria-label="Conflicting mode"
+                  aria-describedby="mode-guidance mode-guidance"
+                >
+                  <RadioGroupItem value="one">One</RadioGroupItem>
+                  <RadioGroupItem value="two">Two</RadioGroupItem>
+                </RadioGroup>
+              </Row>
+            </Stack>
+          </SettingField>
+        ))}
+        <ThemeSwitch />
         {/* biome-ignore lint/correctness/useUniqueElementIds: Singleton fixture supplies a known standalone description reference. */}
         <Text id="standalone-guidance">Standalone instructions.</Text>
         {/* biome-ignore lint/correctness/useUniqueElementIds: Singleton fixture verifies a standalone explicit identity remains intact. */}

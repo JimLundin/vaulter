@@ -1202,8 +1202,15 @@ export const catalogue: Specimen[] = [
     id: 'settings',
     title: 'Settings',
     description:
-      'Feature-owned fields with shared text association: desktop dialog and phone drawer.',
-    components: ['SettingsMenu', 'SettingsPage', 'SettingsSection', 'SettingField', 'ThemeSwitch'],
+      'Feature-owned text and choice fields with shared association: desktop dialog and phone drawer.',
+    components: [
+      'SettingsMenu',
+      'SettingsPage',
+      'SettingsSection',
+      'SettingField',
+      'ThemeSwitch',
+      'RadioGroup',
+    ],
     Sample: Settings,
   },
   {
