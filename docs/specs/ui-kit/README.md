@@ -29,6 +29,16 @@ each spec; these documents supersede the roadmap's earlier unresolved design que
 Final field-association fixes cover nested public semantic-control diagnostics and keyboard
 acceptance through deferred radio focus.
 
+The completed specs, final field-association fixes and Base UI migration are integrated on
+`structure` at merge commit `ec3fac6`. The `prototype/wiki-provenance` branch is also included:
+its selected design shows claim evidence beside the page on desktop and in the shared Drawer
+on mobile. Open `#/prototype/provenance/` in the design preview to review the fictional example.
+
+Integration validation passed: typecheck, lint, all 207 Vitest tests, all 246 browser cases across
+phone, desktop and touch-desktop, and both product and design builds. A separate phone/desktop
+wiki smoke check passed page rendering, claim selection, evidence dismissal and no page errors.
+Existing lint/build warnings remain; physical iOS Safari keyboard/swipe validation is outstanding.
+
 The specs are published to the configured GitHub tracker. Use the
 linked issues to track implementation; these local documents retain the published specification.
 Tracker operations and triage vocabulary are documented in
