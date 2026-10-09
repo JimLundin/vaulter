@@ -653,12 +653,13 @@ test('the send icon reflects text field focus without a keyboard hint below the 
 
 test('live transcription updates the shared message field and uses the normal send path', async ({
   page,
+  baseURL,
 }) => {
   const errors: string[] = [];
   const external: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   page.on('request', (request) => {
-    if (new URL(request.url()).origin !== 'http://127.0.0.1:4179') external.push(request.url());
+    if (new URL(request.url()).origin !== new URL(baseURL!).origin) external.push(request.url());
   });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/preview/');
