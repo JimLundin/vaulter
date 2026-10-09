@@ -18,6 +18,7 @@ import { opened } from './ui/recent.ts';
 import { go, link, pattern, useRoute } from './ui/routing.ts';
 import { later } from './ui/later.ts';
 import {
+  ProvenancePrototype,
   Alert,
   AlertDescription,
   Gate,
@@ -58,6 +59,8 @@ import './workflows/chat/rendering/prose.css';
 const agentRoute = pattern('/agent/');
 const historyRoute = pattern('/history/');
 const settingsRoute = pattern('/settings/');
+// PROTOTYPE, throwaway: wiki provenance variants.
+const provenanceRoute = pattern('/prototype/provenance/');
 const renameTools = async (vault: OwnedVault) =>
   (await import('./workflows/rename-note/agent.ts')).renameTools(vault);
 
@@ -118,7 +121,15 @@ export function OpenProduct({
     setSettings(false);
     if (onSettings) go(agentRoute.href());
   };
-  const title = settingsOpen ? 'Settings' : onAgent ? 'Agent' : onHistory ? 'History' : 'Not found';
+  const title = settingsOpen
+    ? 'Settings'
+    : onAgent
+      ? 'Agent'
+      : onHistory
+        ? 'History'
+        : provenanceRoute.match(route.path)
+          ? 'Provenance prototype'
+          : 'Not found';
   const remoteModel = useMemo(
     () =>
       session.secrets?.openai
@@ -347,6 +358,8 @@ export function OpenProduct({
           />
         ) : onHistory ? (
           <HistoryPage vault={vault} />
+        ) : provenanceRoute.match(route.path) && import.meta.env.MODE !== 'production' ? (
+          <ProvenancePrototype />
         ) : (
           <Page>
             <Heading level={1}>Not found</Heading>
