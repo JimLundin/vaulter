@@ -80,15 +80,22 @@ export function checkCompositions(
         ? [declaration]
         : [];
     }) ?? [];
+  const presentationFactory = (node: ts.Node): node is ts.CallExpression =>
+    ts.isCallExpression(node) &&
+    ['createElement', 'jsx', 'jsxs', 'jsxDEV'].includes(target(node.expression)?.name ?? '');
   const containsPresentation = (node: ts.Node, seen = new Set<string>()): boolean => {
     const identity = `${node.getSourceFile().fileName}:${node.kind}:${node.pos}:${node.end}`;
     if (seen.has(identity)) return false;
     seen.add(identity);
     if (ts.isJsxElement(node) || ts.isJsxSelfClosingElement(node) || ts.isJsxFragment(node))
       return true;
+    if (presentationFactory(node)) return true;
     if (
-      ts.isCallExpression(node) &&
-      ['createElement', 'jsx', 'jsxs', 'jsxDEV'].includes(target(node.expression)?.name ?? '')
+      (ts.isIdentifier(node) || ts.isPropertyAccessExpression(node)) &&
+      !publicTargets.has(key(target(node))) &&
+      privateDeclarations(target(node)).some((declaration) =>
+        containsPresentation(declaration, seen),
+      )
     )
       return true;
     if (
@@ -105,6 +112,17 @@ export function checkCompositions(
     if (!source) throw new Error(`${composition.source} is outside the checked TypeScript project`);
     const used = new Set<string>();
     const visited = new Set<string>();
+    const recordApproved = (symbol: CompilerSymbol | undefined): boolean => {
+      const publicName = publicTargets.get(key(symbol));
+      if (!publicName) return false;
+      if (
+        !symbol?.declarations.some(
+          (declaration) => declaration.resolve()?.getSourceFile().fileName === source.fileName,
+        )
+      )
+        used.add(publicName);
+      return true;
+    };
     const followHelper = (
       name: ts.Node,
       location: ts.Node,
@@ -113,16 +131,7 @@ export function checkCompositions(
     ) => {
       const resolved = target(name);
       const identity = key(resolved);
-      const publicName = publicTargets.get(identity);
-      if (publicName) {
-        if (
-          !resolved?.declarations.some(
-            (declaration) => declaration.resolve()?.getSourceFile().fileName === source.fileName,
-          )
-        )
-          used.add(publicName);
-        return;
-      }
+      if (recordApproved(resolved)) return;
       if (seen.has(identity)) return;
       seen.add(identity);
       const declarations = privateDeclarations(resolved);
@@ -141,15 +150,32 @@ export function checkCompositions(
         } else report(location, reason);
       }
     };
+    // Follow prop-producing calls only from a spread or element-factory props position.
     const visitProps = (expression: ts.Node, seen = new Set<string>()) => {
-      const identity = key(target(expression));
+      const value = ts.isCallExpression(expression) ? expression.expression : expression;
+      const identity = key(target(value));
       if (seen.has(identity)) return;
       seen.add(identity);
-      for (const declaration of privateDeclarations(target(expression))) {
+      for (const declaration of privateDeclarations(target(value))) {
         visit(declaration);
+        const returns = (node: ts.Node) => {
+          if (ts.isReturnStatement(node) && node.expression) visitProps(node.expression, seen);
+          if (ts.isArrowFunction(node) && !ts.isBlock(node.body)) visitProps(node.body, seen);
+          node.forEachChild(returns);
+        };
         if (ts.isVariableDeclaration(declaration) && declaration.initializer)
           visitProps(declaration.initializer, seen);
+        returns(declaration);
       }
+    };
+    // Value references enter traversal only from returned content or an initializer;
+    // discovery checks for presentation before admitting their private declarations.
+    const visitPresentationValue = (expression: ts.Node) => {
+      if (!publicTargets.has(key(target(expression))))
+        privateDeclarations(target(expression))
+          .filter((declaration) => containsPresentation(declaration))
+          .forEach(visit);
+      expression.forEachChild(visitPresentationValue);
     };
     const visit = (node: ts.Node) => {
       const file = node.getSourceFile();
@@ -172,21 +198,21 @@ export function checkCompositions(
         )
       )
         report(node, 'custom presentation spread');
+      if (ts.isReturnStatement(node) && node.expression) visitPresentationValue(node.expression);
+      if (ts.isArrowFunction(node) && !ts.isBlock(node.body)) visitPresentationValue(node.body);
+      if (ts.isVariableDeclaration(node) && node.initializer)
+        visitPresentationValue(node.initializer);
       if (ts.isJsxSpreadAttribute(node) || ts.isSpreadAssignment(node)) {
         visitProps(node.expression);
       }
       if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) {
         const name = node.tagName;
         const resolved = target(name);
-        const publicName = publicTargets.get(key(resolved));
-        if (publicName) {
-          if (
-            !resolved?.declarations.some(
-              (declaration) => declaration.resolve()?.getSourceFile().fileName === source.fileName,
-            )
-          )
-            used.add(publicName);
-        } else if (ts.isIdentifier(name) && /^[a-z]/.test(name.text))
+        if (recordApproved(resolved)) {
+          node.forEachChild(visit);
+          return;
+        }
+        if (ts.isIdentifier(name) && /^[a-z]/.test(name.text))
           report(node, `intrinsic <${name.text}>`);
         else {
           const provider = ts.isPropertyAccessExpression(name) && name.name.text === 'Provider';
@@ -210,10 +236,7 @@ export function checkCompositions(
           } else followHelper(name, node);
         }
       }
-      if (
-        ts.isCallExpression(node) &&
-        ['createElement', 'jsx', 'jsxs', 'jsxDEV'].includes(target(node.expression)?.name ?? '')
-      ) {
+      if (presentationFactory(node)) {
         const [argument, props] = node.arguments;
         if (props) visitProps(props);
         if (argument && ts.isStringLiteral(argument)) report(node, 'intrinsic factory');

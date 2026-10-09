@@ -470,3 +470,118 @@ export const Block = unstyled(MissingPart);`,
     { source: 'kit/root.tsx', line: 2, column: 10, reason: 'uncatalogued <Missing>' },
   ]);
 });
+
+test('inline and extracted presentation values retain equivalent raw DOM diagnostics', () => {
+  const result = checkFixture(
+    {
+      'kit/inline.tsx': `const content = <section />;
+function Helper() { return content; }
+export function Inline() { return <Helper />; }`,
+      'kit/value.tsx': 'export const content = <section />;',
+      'kit/private.tsx': `import { content } from './value.tsx';
+export function Helper() { return content; }`,
+      'kit/extracted.tsx': `import { Helper } from './private.tsx';
+export function Extracted() { return <Helper />; }`,
+    },
+    [
+      { source: 'kit/inline.tsx', primitives: [] },
+      { source: 'kit/extracted.tsx', primitives: [] },
+    ],
+  );
+  expect(result.violations).toEqual(
+    expect.arrayContaining([
+      { source: 'kit/inline.tsx', line: 1, column: 17, reason: 'intrinsic <section>' },
+      { source: 'kit/value.tsx', line: 1, column: 24, reason: 'intrinsic <section>' },
+    ]),
+  );
+  expect(result.violations).toHaveLength(2);
+});
+
+test('aliased private presentation values preserve building-block usage in concise helpers', () => {
+  const result = checkFixture(
+    {
+      'kit/inline.tsx': `import { Block } from './index.ts';
+const content = <Block />;
+const Helper = () => content;
+export function Inline() { return <Helper />; }`,
+      'kit/value.tsx': `import { Block } from './index.ts';
+const original = <Block />;
+export const content = original;`,
+      'kit/private.tsx': `import { content } from './value.tsx';
+export const Helper = () => content;`,
+      'kit/extracted.tsx': `import { Helper } from './private.tsx';
+export function Extracted() { return <Helper />; }`,
+    },
+    [
+      { source: 'kit/inline.tsx', primitives: ['Block'] },
+      { source: 'kit/extracted.tsx', primitives: ['Block'] },
+    ],
+  );
+  expect(result).toEqual({
+    violations: [],
+    usages: [
+      { source: 'kit/inline.tsx', primitives: ['Block'] },
+      { source: 'kit/extracted.tsx', primitives: ['Block'] },
+    ],
+  });
+});
+
+test('called private aliases cannot hide presentation returned by their target', () => {
+  const result = checkFixture(
+    {
+      'kit/inline.tsx': `function render() { return <section />; }
+const alias = render;
+export function Inline() { return alias(); }`,
+      'kit/private.tsx': `function render() {
+  return <section />;
+}
+export const alias = render;`,
+      'kit/extracted.tsx': `import { alias } from './private.tsx';
+export function Extracted() { return alias(); }`,
+    },
+    [
+      { source: 'kit/inline.tsx', primitives: [] },
+      { source: 'kit/extracted.tsx', primitives: [] },
+    ],
+  );
+  expect(result.violations).toEqual(
+    expect.arrayContaining([
+      { source: 'kit/inline.tsx', line: 1, column: 28, reason: 'intrinsic <section>' },
+      { source: 'kit/private.tsx', line: 2, column: 10, reason: 'intrinsic <section>' },
+    ]),
+  );
+  expect(result.violations).toHaveLength(2);
+});
+
+test('inline and extracted prop-producing helpers report the same styling violation', () => {
+  const result = checkFixture(
+    {
+      'kit/inline.tsx': `import { Block } from './index.ts';
+function getProps() { return { style: { color: 'red' } }; }
+export function Inline() { return <Block {...getProps()} />; }`,
+      'kit/props.ts': `export function getProps() {
+  return { style: { color: 'red' } };
+}`,
+      'kit/private.tsx': `import { Block } from './index.ts';
+import { getProps } from './props.ts';
+export function Helper() { return <Block {...getProps()} />; }`,
+      'kit/extracted.tsx': `import { Helper } from './private.tsx';
+export function Extracted() { return <Helper />; }`,
+    },
+    [
+      { source: 'kit/inline.tsx', primitives: ['Block'] },
+      { source: 'kit/extracted.tsx', primitives: ['Block'] },
+    ],
+  );
+  expect(result).toEqual({
+    violations: expect.arrayContaining([
+      { source: 'kit/inline.tsx', line: 2, column: 30, reason: 'custom presentation spread' },
+      { source: 'kit/props.ts', line: 2, column: 10, reason: 'custom presentation spread' },
+    ]),
+    usages: [
+      { source: 'kit/inline.tsx', primitives: ['Block'] },
+      { source: 'kit/extracted.tsx', primitives: ['Block'] },
+    ],
+  });
+  expect(result.violations).toHaveLength(2);
+});
