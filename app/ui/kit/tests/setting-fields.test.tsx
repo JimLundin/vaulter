@@ -6,6 +6,7 @@ import { act, Component, useState, type ReactNode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, expect, it } from 'vitest';
 import {
+  Button,
   Checkbox,
   Input,
   RadioGroup,
@@ -346,11 +347,69 @@ it('diagnoses an unsupported public control added by state in a nested feature c
   expect(errors.map(String).join(' ')).toMatch(/Mixed dynamic.*unsupported/);
 });
 
-it('accepts a supported input with its explicit textbox role', () => {
-  const { errors } = render(
+it.each([
+  ['textbox', <Input role="textbox" />],
+  ['searchbox', <Input type="search" role="searchbox" />],
+  [
+    'radiogroup',
+    <RadioGroup role="radiogroup">
+      <RadioGroupItem value="light">Light</RadioGroupItem>
+    </RadioGroup>,
+  ],
+] as const)('accepts a supported control with its explicit %s role', (_name, control) => {
+  const { host, errors } = render(
     <SettingField label="Model" description="Instructions.">
-      <Input role="textbox" />
+      {control}
     </SettingField>,
   );
+  expect(referencedText(host.querySelector('[aria-labelledby]')!, 'aria-labelledby')).toBe('Model');
+  expect(referencedText(host.querySelector('[aria-describedby]')!, 'aria-describedby')).toBe(
+    'Instructions.',
+  );
   expect(errors).toEqual([]);
+});
+
+it.each([
+  ['input', <Input role="checkbox" aria-checked={false} />],
+  ['textarea', <Textarea role="switch" aria-checked={false} />],
+  [
+    'radio group',
+    <RadioGroup role="listbox">
+      <RadioGroupItem value="light">Light</RadioGroupItem>
+    </RadioGroup>,
+  ],
+] as const)(
+  'rejects a conflicting %s role inside an opaque feature component',
+  (_name, control) => {
+    function FeatureControl() {
+      return control;
+    }
+    const { errors } = render(
+      <SettingField label="Conflicting field" description="Instructions.">
+        <FeatureControl />
+      </SettingField>,
+    );
+    expect(errors.map(String).join(' ')).toMatch(/Conflicting field.*unsupported/);
+  },
+);
+
+it.each([
+  [
+    'switch',
+    <Button role="switch" aria-checked={false}>
+      Remember
+    </Button>,
+  ],
+  ['editable region', <Stack contentEditable={true} />],
+  ['plaintext region', <Stack contentEditable="plaintext-only" />],
+] as const)('rejects a supplied %s alongside its supported text control', (_name, control) => {
+  const { errors } = render(
+    <SettingField label="Mixed supplied field" description="Instructions.">
+      <Stack>
+        <Input />
+        {control}
+      </Stack>
+    </SettingField>,
+  );
+  expect(errors.map(String).join(' ')).toMatch(/Mixed supplied field.*unsupported/);
 });

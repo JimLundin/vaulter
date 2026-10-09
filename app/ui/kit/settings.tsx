@@ -77,21 +77,15 @@ function hasUnsupportedControl(children: ReactNode): boolean {
     )
       return false;
     if (
-      typeof child.type === 'string' &&
-      (['input', 'textarea', 'select'].includes(child.type) ||
-        child.props.contentEditable === true ||
-        child.props.contentEditable === 'true' ||
-        [
-          'checkbox',
-          'switch',
-          'combobox',
-          'slider',
-          'spinbutton',
-          'textbox',
-          'radio',
-          'radiogroup',
-          'listbox',
-        ].includes(child.props.role ?? ''))
+      child.props.contentEditable === true ||
+      child.props.contentEditable === 'true' ||
+      child.props.contentEditable === 'plaintext-only' ||
+      ['checkbox', 'switch', 'combobox', 'slider', 'spinbutton', 'radio', 'listbox'].includes(
+        child.props.role ?? '',
+      ) ||
+      (typeof child.type === 'string' &&
+        (['input', 'textarea', 'select'].includes(child.type) ||
+          ['textbox', 'searchbox', 'radiogroup'].includes(child.props.role ?? '')))
     )
       return true;
     return hasUnsupportedControl(child.props.children);
