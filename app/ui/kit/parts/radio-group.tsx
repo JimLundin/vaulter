@@ -1,5 +1,6 @@
 import type { ComponentProps } from 'react';
-import { RadioGroup as Primitive } from 'radix-ui';
+import { RadioGroup as GroupPrimitive } from '@base-ui/react/radio-group';
+import { Radio as Primitive } from '@base-ui/react/radio';
 import { useFieldGroupAssociation } from '../field-association.ts';
 import { cn } from '../lib/utils.ts';
 
@@ -7,10 +8,13 @@ function RadioGroup({
   className,
   variant = 'default',
   ...props
-}: ComponentProps<typeof Primitive.Root> & { variant?: 'default' | 'choices' | 'segmented' }) {
+}: Omit<GroupPrimitive.Props<string>, 'className'> & {
+  className?: string;
+  variant?: 'default' | 'choices' | 'segmented';
+}) {
   const association = useFieldGroupAssociation(props);
   return (
-    <Primitive.Root
+    <GroupPrimitive
       {...props}
       {...association}
       data-slot="radio-group"
@@ -27,21 +31,27 @@ function RadioGroup({
     />
   );
 }
-function RadioGroupItem({ className, ...props }: ComponentProps<typeof Primitive.Item>) {
+function RadioGroupItem({
+  className,
+  ...props
+}: Omit<Primitive.Root.Props<string>, 'className'> & { className?: string }) {
   return (
-    <Primitive.Item
+    <Primitive.Root
       {...props}
       data-slot="radio-group-item"
       data-touch-target=""
       className={cn(
-        'flex min-h-12 w-full items-center gap-2 px-2 text-left text-label focus-visible:outline-2 focus-visible:outline-ring hover:bg-muted md:min-h-9 md:w-auto md:flex-1 md:justify-center md:rounded-md md:data-[state=checked]:bg-muted md:data-[state=checked]:font-medium',
-        'group-data-[variant=segmented]/radio-group:min-h-8 group-data-[variant=segmented]/radio-group:w-auto group-data-[variant=segmented]/radio-group:rounded-md group-data-[variant=segmented]/radio-group:px-3 group-data-[variant=segmented]/radio-group:data-[state=checked]:bg-muted group-data-[variant=segmented]/radio-group:data-[state=checked]:font-medium',
+        'flex min-h-12 w-full items-center gap-2 px-2 text-left text-label focus-visible:outline-2 focus-visible:outline-ring hover:bg-muted md:min-h-9 md:w-auto md:flex-1 md:justify-center md:rounded-md md:data-checked:bg-muted md:data-checked:font-medium',
+        'group-data-[variant=segmented]/radio-group:min-h-8 group-data-[variant=segmented]/radio-group:w-auto group-data-[variant=segmented]/radio-group:rounded-md group-data-[variant=segmented]/radio-group:px-3 group-data-[variant=segmented]/radio-group:data-checked:bg-muted group-data-[variant=segmented]/radio-group:data-checked:font-medium',
         className,
       )}
     />
   );
 }
-function RadioGroupIndicator({ className, ...props }: ComponentProps<typeof Primitive.Indicator>) {
+function RadioGroupIndicator({
+  className,
+  ...props
+}: Omit<ComponentProps<typeof Primitive.Indicator>, 'className'> & { className?: string }) {
   return (
     <Primitive.Indicator
       {...props}
