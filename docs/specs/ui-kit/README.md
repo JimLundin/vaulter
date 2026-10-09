@@ -22,6 +22,11 @@ Private composition verification (#5, ticket #9) is implemented on
 Composer branch. Presentation policy remains pending. Interface mechanics must satisfy the decisions and acceptance behavior in
 each spec; these documents supersede the roadmap's earlier unresolved design questions.
 
+Spec #7 completion validation passed: typecheck, lint, 205 Vitest tests, all 168 browser tests
+across phone, desktop and touch-desktop, and the product, design-preview and kit builds.
+Standards and Spec review findings are resolved, including nested public semantic-control
+diagnostics and keyboard acceptance through deferred radio focus.
+
 All four specs are published to the configured GitHub tracker with `ready-for-agent`. Use the
 linked issues to track implementation; these local documents retain the published specification.
 Tracker operations and triage vocabulary are documented in
