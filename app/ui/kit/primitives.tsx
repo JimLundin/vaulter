@@ -11,6 +11,7 @@ import { useIsMobile } from './hooks/use-mobile.ts';
 import { useLayout } from './hooks/use-layout.ts';
 import { usePresentation } from './presentation.tsx';
 import { useRestoreFocus } from './hooks/use-restore-focus.ts';
+import { useFieldSemanticDiagnostic } from './field-association.ts';
 
 const surfaces = {
   plain: '',
@@ -32,6 +33,7 @@ export function Surface({
   variant?: keyof typeof surfaces;
   as?: 'div' | 'section' | 'fieldset';
 }) {
+  useFieldSemanticDiagnostic(props);
   return (
     <As
       {...props}
