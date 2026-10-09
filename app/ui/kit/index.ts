@@ -351,7 +351,6 @@ export {
 } from './surfaces.tsx';
 export {
   Composer,
-  ComposerActions,
   SendButton,
   ConversationFeed,
   ConversationPage,

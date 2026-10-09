@@ -2,17 +2,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Button,
-  Form,
   CodeDiff,
   Composer,
-  ComposerActions,
-  SendButton,
   ConversationFeed,
   ConversationSurface,
   ConversationWelcome,
   PromptSuggestions,
   VoiceStatus,
-  VoiceButton,
   Json,
   Link,
   Markdown,
@@ -21,8 +17,6 @@ import {
   Row,
   Stack,
   Text,
-  InputGroup,
-  InputGroupTextarea,
   ToolResult,
 } from '../../ui/kit/index.ts';
 import { link } from '../../ui/routing.ts';
@@ -131,57 +125,25 @@ export function Chat({
         showSuggestions ? <PromptSuggestions suggestions={suggestions} onSelect={edit} /> : null
       }
       composer={
-        <Composer>
-          <Form
-            layout="inline"
-            onSubmit={(event) => {
-              event.preventDefault();
-              if (input.trim() && !(busy || recording)) say(input);
-            }}
-          >
-            <InputGroup variant="composer">
-              <InputGroupTextarea
-                variant="inline"
-                ref={ref}
-                rows={1}
-                aria-label="Message"
-                placeholder={busy ? 'Working…' : recording ? 'Start speaking…' : 'Type a message…'}
-                value={input}
-                disabled={busy}
-                readOnly={recording}
-                aria-busy={recording}
-                onChange={(event) => {
-                  voice.clear();
-                  type(event.currentTarget.value);
-                }}
-                onFocus={() => setFocused(true)}
-                onBlur={() => setFocused(false)}
-                onKeyDown={(event) => {
-                  // Safari can report Enter confirming composed text with keyCode 229.
-                  if (
-                    event.key === 'Enter' &&
-                    !event.shiftKey &&
-                    !event.nativeEvent.isComposing &&
-                    event.nativeEvent.keyCode !== 229
-                  ) {
-                    event.preventDefault();
-                    event.currentTarget.form?.requestSubmit();
-                  }
-                }}
-              />
-              <ComposerActions
-                voice={<VoiceButton phase={transcript.phase} busy={busy} onClick={voiceAction} />}
-              >
-                <SendButton
-                  busy={busy}
-                  focused={focused}
-                  disabled={!input.trim() || recording}
-                  onStop={stop}
-                />
-              </ComposerActions>
-            </InputGroup>
-          </Form>
-        </Composer>
+        <Composer
+          draft={input}
+          onDraftChange={(text) => {
+            voice.clear();
+            type(text);
+          }}
+          onSubmit={(text) => {
+            if (text.trim() && !(busy || recording)) say(text);
+          }}
+          label="Message"
+          placeholder={busy ? 'Working…' : recording ? 'Start speaking…' : 'Type a message…'}
+          canSubmit={!recording}
+          busy={busy}
+          readOnly={recording}
+          voice={{ phase: transcript.phase, onClick: voiceAction }}
+          onStop={stop}
+          fieldRef={ref}
+          onFocusChange={setFocused}
+        />
       }
     >
       <ConversationFeed empty={!turns.length}>
