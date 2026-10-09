@@ -59,3 +59,97 @@ test('compiler-resolved aliases, dynamic imports and re-exports cannot hide a wo
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test('workflow screens cannot choose a device layout or query a viewport', () => {
+  const root = mkdtempSync(join(tmpdir(), 'vaulter-presentation-policy-'));
+  try {
+    mkdirSync(join(root, 'app/workflows/example'), { recursive: true });
+    writeFileSync(
+      join(root, 'tsconfig.json'),
+      JSON.stringify({
+        compilerOptions: { module: 'ESNext', moduleResolution: 'Bundler' },
+        include: ['app'],
+      }),
+    );
+    writeFileSync(
+      join(root, 'app/workflows/example/view.ts'),
+      "import { useLayout as size } from 'kit'; export const layout = size(); export const wide = window.matchMedia('(min-width: 1000px)');",
+    );
+    expect(checkLayout(root)).toEqual([
+      'app/workflows/example/view.ts: size-dependent presentation belongs in the kit',
+      'app/workflows/example/view.ts: viewport queries belong in the kit',
+    ]);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('Base UI presentation dependencies stay inside the kit', () => {
+  const root = mkdtempSync(join(tmpdir(), 'vaulter-base-ui-policy-'));
+  try {
+    mkdirSync(join(root, 'app/ui/kit'), { recursive: true });
+    mkdirSync(join(root, 'app/workflows/example'), { recursive: true });
+    writeFileSync(
+      join(root, 'tsconfig.json'),
+      JSON.stringify({
+        compilerOptions: { module: 'ESNext', moduleResolution: 'Bundler' },
+        include: ['app'],
+      }),
+    );
+    writeFileSync(
+      join(root, 'app/ui/kit/drawer.ts'),
+      "export { Drawer } from '@base-ui/react/drawer';",
+    );
+    writeFileSync(
+      join(root, 'app/workflows/example/view.ts'),
+      "import { Drawer } from '@base-ui/react/drawer'; export const view = Drawer;",
+    );
+    expect(checkLayout(root)).toEqual([
+      'app/workflows/example/view.ts: presentation dependencies belong behind app/ui/kit/index.ts',
+    ]);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('Product, shared views and features must compose the kit, including aliased factories and spread props', () => {
+  const root = mkdtempSync(join(tmpdir(), 'vaulter-kit-policy-'));
+  try {
+    mkdirSync(join(root, 'app/ui'), { recursive: true });
+    writeFileSync(
+      join(root, 'tsconfig.json'),
+      JSON.stringify({
+        compilerOptions: { module: 'ESNext', moduleResolution: 'Bundler', jsx: 'preserve' },
+        include: ['app'],
+      }),
+    );
+    writeFileSync(
+      join(root, 'app/factory.ts'),
+      'export function createElement(tag: string) { return tag; }',
+    );
+    writeFileSync(
+      join(root, 'app/product.tsx'),
+      `import { createElement as element } from './factory.ts';
+      const props = { className: 'custom' }; export const view = <div {...props} style={{color:'red'}} />;
+      export const hidden = element('section');`,
+    );
+    writeFileSync(
+      join(root, 'app/ui/custom.tsx'),
+      "import { Button } from 'radix-ui'; import './custom.css'; export const view = <button>Custom</button>;",
+    );
+    const problems = checkLayout(root);
+    expect(problems).toEqual(
+      expect.arrayContaining([
+        'app/product.tsx: <div> must be a public kit component',
+        'app/product.tsx: app views must compose the public kit instead of styling elements',
+        'app/product.tsx: presentation props belong in the kit or content renderer',
+        'app/product.tsx: intrinsic element factories belong in the kit or content renderer',
+        'app/ui/custom.tsx: <button> must be a public kit component',
+        'app/ui/custom.tsx: presentation dependencies belong behind app/ui/kit/index.ts',
+        'app/ui/custom.tsx: app styles belong in the kit or content renderer',
+      ]),
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});

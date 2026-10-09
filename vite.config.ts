@@ -77,5 +77,10 @@ export default defineConfig(({ command, mode }) => ({
       command === 'serve' && mode !== 'design' ? devSecrets(mode) : null,
     ),
   },
-  test: { root: SITE, include: ['app/**/*.test.{ts,tsx}', 'tools/**/*.test.ts'] },
+  test: {
+    root: SITE,
+    include: ['app/**/*.test.{ts,tsx}', 'tools/**/*.test.ts'],
+    // Concurrent compiler-backed policy checks each load the full TypeScript project.
+    maxWorkers: 2,
+  },
 }));

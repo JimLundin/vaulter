@@ -4,8 +4,108 @@
 @source "./";
 
 @custom-variant dark (&:is(.dark *));
+@custom-variant sm {
+  /* biome-ignore lint/correctness/noUnknownFunction: Tailwind resolves the shared breakpoint token. */
+  @container kit (width >= theme(--breakpoint-md)) {
+    @slot;
+  }
+}
+@custom-variant md {
+  /* biome-ignore lint/correctness/noUnknownFunction: Tailwind resolves the shared breakpoint token. */
+  @container kit (width >= theme(--breakpoint-md)) {
+    @slot;
+  }
+}
+@custom-variant xl {
+  /* biome-ignore lint/correctness/noUnknownFunction: Tailwind resolves the shared breakpoint token. */
+  @container kit (width >= theme(--breakpoint-xl)) {
+    @slot;
+  }
+}
+@custom-variant max-md {
+  /* biome-ignore lint/correctness/noUnknownFunction: Tailwind resolves the shared breakpoint token. */
+  @container kit (width < theme(--breakpoint-md)) {
+    @slot;
+  }
+}
+
+body,
+.kit-preview {
+  container: kit / inline-size;
+}
+.kit-preview {
+  flex: none;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--background);
+}
+.kit-presentation {
+  --control-size: 2rem;
+  position: relative;
+  height: 100%;
+  transform: translateZ(0);
+  isolation: isolate;
+  --type-display: 2rem;
+  --type-title: 1.375rem;
+  --type-lead: 1.0625rem;
+  --page-inset: 1rem;
+  --page-block: 1rem;
+  --type-input: 0.875rem;
+}
+.kit-presentation[data-kit-pointer="coarse"] {
+  --type-input: 1rem;
+  --control-size: var(--target-touch);
+}
+@media (any-pointer: coarse) {
+  .design-viewport .kit-presentation {
+    --type-input: 1rem;
+    --control-size: var(--target-touch);
+  }
+}
+.kit-specimen-content {
+  height: 100%;
+}
+/* biome-ignore lint/correctness/noUnknownFunction: Tailwind resolves the shared breakpoint token. */
+@container kit (width >= theme(--breakpoint-md)) {
+  .kit-presentation {
+    --type-display: 2.5rem;
+    --type-title: 1.625rem;
+    --type-lead: 1.1875rem;
+    --page-inset: 3rem;
+    --page-block: 2.25rem;
+  }
+}
+/* Viewport-sized pieces retain their real layout, bounded by the specimen's height. */
+.kit-presentation :is(.h-dvh, .h-svh) {
+  height: var(--viewport-height);
+}
+.kit-presentation .min-h-svh {
+  min-height: var(--viewport-height);
+}
+.design-viewport {
+  /* A bounded frame must not scroll itself when a portalled drawer moves focus. */
+  overflow: clip;
+  border: 0;
+}
+
+/* The only size thresholds. React reads these emitted tokens, and Tailwind uses them directly. */
+@theme static {
+  --breakpoint-*: initial;
+  --breakpoint-md: 48rem;
+  --breakpoint-sm: 48rem;
+  --breakpoint-xl: 80rem;
+}
 
 :root {
+  /* Spacing roles share the 4px scale. Touch density changes controls, not the gaps. */
+  --space-control: 0.25rem;
+  --space-row: 0.5rem;
+  --space-content: 1rem;
+  --space-section: 1.5rem;
+  --control-size: 2rem;
+  /* Radius roles: rounded-md (8) controls, rounded-lg (10) fields, rounded-xl (12) cards and rows,
+   * rounded-2xl (14) docked surfaces such as the composer. The same on every device. */
   /* light-dark(): the light value, then the dark one, by the page's color-scheme. That follows the
    * system until someone chooses (theme.ts sets .light or .dark on <html>). The light values are the
    * design's; the dark ones the same zinc scale turned over. */
@@ -66,6 +166,144 @@
   --sidebar-accent-foreground: light-dark(#18181b, #fafafa);
   --sidebar-border: light-dark(#e4e4e7, #27272a);
   --sidebar-ring: light-dark(#a1a1aa, #71717a);
+
+  /* Type roles. A component names a role (text-display, text-copy…), never a pixel size; each role
+   * carries its phone value here and its desktop value below, so no component branches on the
+   * viewport for its type. Body copy and labels keep one size: text on a phone never shrinks. */
+  --type-display: 2rem; /* 32 → 40: a page's serif title, the agent's welcome */
+  --type-title: 1.375rem; /* 22 → 26: a page's sans title */
+  --type-lead: 1.0625rem; /* 17 → 19: long-form serif prose */
+  --type-copy: 0.9375rem; /* 15: body text */
+  --type-label: 0.8125rem; /* 13: secondary text, list rows, suggestions */
+  --type-caption: 0.75rem; /* 12: metadata, hints, speaker names */
+  --type-control: 0.875rem;
+  --type-input: 0.875rem;
+  --type-glyph: 0.6875rem; /* Small counts, keycaps and citation marks. */
+  --target-touch: 2.75rem;
+  --page-inset: 1rem;
+  --page-block: 1rem;
+  --reading-width: 48rem;
+}
+
+@media (any-pointer: coarse) {
+  :root {
+    --control-size: var(--target-touch);
+  }
+}
+
+/* biome-ignore lint/correctness/noUnknownFunction: Tailwind resolves its theme function at build time. */
+@media (width >= theme(--breakpoint-md)) {
+  :root {
+    --type-display: 2.5rem;
+    --type-title: 1.625rem;
+    --type-lead: 1.1875rem;
+    --page-inset: 3rem;
+    --page-block: 2.25rem;
+  }
+}
+
+/* A visual-viewport-sized drawer; Base UI owns gestures, never input repositioning. */
+.kit-drawer-backdrop {
+  opacity: calc(1 - var(--drawer-swipe-progress, 0));
+  transition: opacity 250ms;
+}
+.kit-drawer-backdrop:is([data-starting-style], [data-ending-style]) {
+  opacity: 0;
+}
+.kit-drawer {
+  position: fixed;
+  inset-inline: 0;
+  bottom: calc(100dvh - var(--viewport-height, 100dvh) - var(--viewport-top, 0px));
+  z-index: 50;
+  max-height: min(80dvh, calc(var(--viewport-height, 100dvh) - 16px));
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+  border-top: 1px solid var(--border);
+  border-radius: 10px 10px 0 0;
+  transform: translate3d(0, var(--drawer-swipe-movement-y, 0px), 0);
+  transition: transform 250ms;
+}
+.kit-drawer:is([data-starting-style], [data-ending-style]) {
+  transform: translate3d(0, 100%, 0);
+}
+.kit-drawer[data-swiping],
+.kit-drawer-backdrop[data-swiping] {
+  transition-duration: 0ms;
+}
+.kit-drawer[data-arrangement="panel"][data-layout="compact"] {
+  height: var(--viewport-height, 100dvh);
+  max-height: var(--viewport-height, 100dvh);
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.kit-drawer[data-arrangement="panel"][data-layout="expanded"] {
+  inset: 0;
+  margin: auto;
+  height: calc(var(--viewport-height, 100dvh) * 0.8);
+  max-height: calc(var(--viewport-height, 100dvh) * 0.9);
+  width: min(32rem, calc(100% - 2rem));
+  padding: 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+}
+.kit-supporting-drawer-anchor,
+.kit-supporting-drawer-anchor > div {
+  display: contents;
+}
+.kit-drawer-viewport:has([data-layout="wide"]) {
+  display: flex;
+}
+.kit-drawer[data-arrangement="panel"][data-layout="wide"] {
+  position: relative;
+  inset: auto;
+  height: var(--viewport-height, 100dvh);
+  max-height: none;
+  width: 26rem;
+  flex-shrink: 0;
+  gap: 0.75rem;
+  padding: 1.25rem;
+  border: 0;
+  border-left: 1px solid var(--border);
+  border-radius: 0;
+}
+.kit-drawer[data-layout="wide"],
+.kit-drawer[data-layout="expanded"] {
+  transform: none;
+}
+.kit-drawer-backdrop:has(+ .kit-drawer-viewport [data-layout="wide"]) {
+  display: none;
+}
+.kit-drawer[data-arrangement="panel"]:not([data-layout="compact"]) > .kit-drawer-handle {
+  display: none;
+}
+.kit-presentation .kit-drawer {
+  bottom: 0;
+  max-height: min(calc(var(--viewport-height) * 0.8), calc(var(--viewport-height) - 16px));
+}
+.kit-presentation .kit-drawer[data-layout="compact"] {
+  max-height: var(--viewport-height);
+}
+/* biome-ignore lint/correctness/noUnknownFunction: Tailwind resolves the shared breakpoint token. */
+@container kit (width >= theme(--breakpoint-md)) {
+  .kit-drawer[data-arrangement="menu"] {
+    inset: 0;
+    width: min(40rem, calc(100% - 6rem));
+    height: fit-content;
+    margin: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    transform: none;
+  }
+  .kit-drawer[data-arrangement="menu"] > .kit-drawer-handle {
+    display: none;
+  }
+}
+
+@media (any-pointer: coarse) {
+  :root {
+    /* 16px also prevents mobile browsers zooming the viewport when an input gets focus. */
+    --type-input: 1rem;
+  }
 }
 
 :root.light {
@@ -80,6 +318,26 @@
   --font-sans: "Geist Variable", system-ui, sans-serif;
   --font-mono: "Geist Mono Variable", ui-monospace, monospace;
   --font-serif: "Newsreader Variable", Georgia, serif;
+
+  --text-display: var(--type-display);
+  --text-display--line-height: 1.15;
+  --text-display--letter-spacing: -0.01em;
+  --text-title: var(--type-title);
+  --text-title--line-height: 1.25;
+  --text-title--letter-spacing: -0.02em;
+  --text-lead: var(--type-lead);
+  --text-lead--line-height: 1.6;
+  --text-copy: var(--type-copy);
+  --text-copy--line-height: 1.5;
+  --text-label: var(--type-label);
+  --text-label--line-height: 1.45;
+  --text-caption: var(--type-caption);
+  --text-caption--line-height: 1.35;
+  --text-control: var(--type-control);
+  --text-sm: var(--type-control);
+  --text-xs: var(--type-caption);
+  --text-field: var(--type-input);
+  --text-glyph: var(--type-glyph);
 
   --radius-sm: calc(var(--radius) - 6px);
   --radius-md: calc(var(--radius) - 4px);
@@ -140,6 +398,105 @@
   --color-sidebar-ring: var(--sidebar-ring);
 }
 
+/* Every standalone control gets the same touch target, including small buttons on a touch desktop.
+ * Visual marks (checkboxes, icons) can remain small inside that target. Inline prose links and
+ * citations keep the text's line box; they aren't standalone controls. */
+@layer components {
+  @media (any-pointer: coarse) {
+    [data-chart-columns]:not([data-kit-preview] *) {
+      min-width: calc(var(--chart-count) * 2.875rem);
+    }
+    :where(
+        [data-touch-target],
+        [data-slot="button"],
+        [data-slot="checkbox"],
+        [data-slot="input"],
+        [data-slot="textarea"],
+        [data-slot="input-group"],
+        [data-slot="input-group-control"],
+        [data-slot="tabs-trigger"],
+        [data-slot="toggle"],
+        [data-slot="toggle-group-item"],
+        [data-slot="command-input-wrapper"],
+        [data-slot="command-input"],
+        [data-slot="command-item"],
+        [data-slot="dropdown-menu-item"],
+        [data-slot="dropdown-menu-checkbox-item"],
+        [data-slot="dropdown-menu-radio-item"],
+        [data-slot="dropdown-menu-sub-trigger"],
+        [data-slot="dialog-close"]:not([data-kit-preview] *),
+        [data-slot="sheet-close"],
+        [data-slot="sidebar-menu-button"],
+        [data-slot="sidebar-menu-sub-button"],
+        [data-slot="sidebar-menu-action"],
+        [data-slot="sidebar-group-action"]
+      ):not([data-kit-preview] *) {
+      min-width: var(--target-touch) !important;
+      min-height: var(--target-touch) !important;
+    }
+    [data-slot="tabs"][data-orientation="horizontal"]
+      [data-slot="tabs-list"]:not([data-kit-preview] *) {
+      min-height: calc(var(--target-touch) + 6px) !important;
+    }
+    [data-slot="dialog-close"]:not([data-kit-preview] *),
+    [data-slot="sheet-close"]:not([data-kit-preview] *) {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .maplibregl-ctrl-group button:not([data-kit-preview] *) {
+      width: var(--target-touch);
+      height: var(--target-touch);
+    }
+  }
+  .kit-presentation[data-kit-pointer="coarse"] {
+    [data-chart-columns] {
+      min-width: calc(var(--chart-count) * 2.875rem);
+    }
+    :where(
+        [data-touch-target],
+        [data-slot="button"],
+        [data-slot="checkbox"],
+        [data-slot="input"],
+        [data-slot="textarea"],
+        [data-slot="input-group"],
+        [data-slot="input-group-control"],
+        [data-slot="tabs-trigger"],
+        [data-slot="toggle"],
+        [data-slot="toggle-group-item"],
+        [data-slot="command-input-wrapper"],
+        [data-slot="command-input"],
+        [data-slot="command-item"],
+        [data-slot="dropdown-menu-item"],
+        [data-slot="dropdown-menu-checkbox-item"],
+        [data-slot="dropdown-menu-radio-item"],
+        [data-slot="dropdown-menu-sub-trigger"],
+        [data-slot="dialog-close"],
+        [data-slot="sheet-close"],
+        [data-slot="sidebar-menu-button"],
+        [data-slot="sidebar-menu-sub-button"],
+        [data-slot="sidebar-menu-action"],
+        [data-slot="sidebar-group-action"]
+      ) {
+      min-width: var(--target-touch) !important;
+      min-height: var(--target-touch) !important;
+    }
+    [data-slot="tabs"][data-orientation="horizontal"] [data-slot="tabs-list"] {
+      min-height: calc(var(--target-touch) + 6px) !important;
+    }
+    [data-slot="dialog-close"],
+    [data-slot="sheet-close"] {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .maplibregl-ctrl-group button {
+      width: var(--target-touch);
+      height: var(--target-touch);
+    }
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -150,7 +507,8 @@
     @apply h-full;
   }
   body {
-    @apply m-0 bg-background font-sans text-[15px] leading-normal text-foreground antialiased;
+    position: relative;
+    @apply m-0 bg-background font-sans text-copy text-foreground antialiased;
   }
 }
 
@@ -174,4 +532,188 @@
 :root.dark .maplibregl-ctrl-icon,
 :root.dark .maplibregl-ctrl-attrib-button {
   filter: invert(1);
+}
+
+/* Catalogue chrome is private to the kit. Samples always render public components. */
+.kit-gallery {
+  margin: 0 auto;
+  max-width: 1360px;
+  padding: 32px;
+}
+.kit-gallery-header {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  padding-bottom: 32px;
+  border-bottom: 1px solid var(--border);
+}
+.kit-gallery-heading {
+  flex: 1;
+}
+.kit-gallery-heading h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.kit-gallery-heading p {
+  margin: 4px 0 0;
+  color: var(--muted-foreground);
+  font-size: 14px;
+}
+.kit-gallery-intro {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 28px 0;
+}
+.kit-gallery-intro > input {
+  max-width: 400px;
+}
+.kit-gallery-index {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+}
+.kit-gallery-index a {
+  font-size: 13px;
+  color: var(--muted-foreground);
+  text-underline-offset: 4px;
+}
+.kit-gallery-index a:hover {
+  color: var(--foreground);
+}
+.kit-gallery-main {
+  display: flex;
+  flex-direction: column;
+  gap: 56px;
+}
+.kit-comparison {
+  min-width: 0;
+  scroll-margin-top: 24px;
+}
+.kit-comparison-heading h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+.kit-comparison-heading p {
+  margin: 6px 0 12px;
+  max-width: 65ch;
+  color: var(--muted-foreground);
+  font-size: 14px;
+}
+.kit-component-names {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-bottom: 20px;
+}
+.kit-component-names code {
+  font-size: 11px;
+  color: var(--subtle-foreground);
+}
+.kit-comparison-scroll {
+  padding-bottom: 12px;
+}
+.kit-comparison-pair {
+  display: flex;
+  gap: 24px;
+  width: max-content;
+}
+.kit-device-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  font-size: 12px;
+}
+.kit-device-label strong {
+  font-weight: 600;
+}
+.kit-device-label span {
+  color: var(--subtle-foreground);
+}
+.kit-sample {
+  height: 100%;
+  padding: 24px;
+}
+.kit-sample-full {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+}
+.kit-sample > [data-slot="scroll-area"] {
+  height: 100%;
+}
+.kit-presentation [data-sonner-toaster] {
+  position: absolute;
+}
+/* Primitive supporting panels fit their container without imposing a minimum phone width. */
+.kit-presentation .kit-specimen-content .kit-sample > aside {
+  max-width: 100%;
+}
+@media (width < 48rem) {
+  .kit-gallery {
+    padding: 16px;
+  }
+  .kit-gallery-header {
+    flex-wrap: wrap;
+    gap: 20px;
+  }
+  .kit-gallery-heading {
+    min-width: 150px;
+  }
+}
+
+/* A scroll owner has one visible track per overflowing axis, independent of OS overlay settings.
+   Base UI measures the viewport and its content wrapper follows the flex surface's height. */
+.kit-scroll-fill > [data-slot="scroll-area-viewport"] > div {
+  display: flex !important;
+  height: 100%;
+  flex-direction: column;
+}
+.kit-scroll-area:has(> [data-orientation="vertical"]:not([data-hidden]))
+  > [data-slot="scroll-area-viewport"] {
+  padding-right: 12px;
+}
+.kit-scroll-area:has(> [data-orientation="horizontal"]:not([data-hidden]))
+  > [data-slot="scroll-area-viewport"] {
+  padding-bottom: 12px;
+}
+
+.kit-building-blocks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-bottom: 20px;
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+.kit-building-blocks a {
+  text-underline-offset: 3px;
+}
+
+.kit-option-strip > [data-slot="scroll-area-viewport"] > div {
+  display: block !important;
+  width: max-content;
+}
+.kit-option-strip {
+  --option-fade-start: 0px;
+  --option-fade-end: 0px;
+}
+.kit-option-strip[data-overflow-start="true"] {
+  --option-fade-start: 24px;
+}
+.kit-option-strip[data-overflow-end="true"] {
+  --option-fade-end: 24px;
+}
+.kit-option-strip > [data-slot="scroll-area-viewport"] {
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    black var(--option-fade-start),
+    black calc(100% - var(--option-fade-end)),
+    transparent
+  );
 }

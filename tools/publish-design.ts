@@ -17,7 +17,11 @@ import { createHash } from 'node:crypto';
 
 const repo = process.env.GITHUB_REPOSITORY;
 const commit = process.env.GITHUB_SHA;
-if (!(repo && commit)) throw new Error('GITHUB_REPOSITORY and GITHUB_SHA are required.');
+const branch = process.env.GITHUB_REF_NAME;
+if (!(repo && commit && branch))
+  throw new Error('GITHUB_REPOSITORY, GITHUB_SHA and GITHUB_REF_NAME are required.');
+if (!['structure', 'design-variants'].includes(branch))
+  throw new Error('Only the structure and design-variants branches publish the design preview.');
 const api = <T>(path: string): T =>
   JSON.parse(execFileSync('gh', ['api', path], { encoding: 'utf8' }));
 const site = api<{ html_url: string }>(`repos/${repo}/pages`).html_url;
@@ -100,10 +104,7 @@ try {
     );
   if (files(preview).some((name) => name === 'secrets.json' || name === 'sw.js'))
     throw new Error('The sample preview must not contain credentials or a service worker.');
-  writeFileSync(
-    join(preview, 'version.json'),
-    JSON.stringify({ commit, branch: 'structure', sample: true }),
-  );
+  writeFileSync(join(preview, 'version.json'), JSON.stringify({ commit, branch, sample: true }));
   if (digest(output) !== original) throw new Error('Preview packaging changed production files.');
   const summary = process.env.GITHUB_STEP_SUMMARY;
   if (summary)

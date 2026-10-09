@@ -42,16 +42,6 @@ import {
   DialogTrigger as DialogTriggerPart,
 } from './parts/dialog.tsx';
 import {
-  DrawerClose as DrawerClosePart,
-  DrawerContent as DrawerContentPart,
-  DrawerDescription as DrawerDescriptionPart,
-  DrawerFooter as DrawerFooterPart,
-  DrawerHeader as DrawerHeaderPart,
-  Drawer as DrawerPart,
-  DrawerTitle as DrawerTitlePart,
-  DrawerTrigger as DrawerTriggerPart,
-} from './parts/drawer.tsx';
-import {
   DropdownMenuCheckboxItem as DropdownMenuCheckboxItemPart,
   DropdownMenuContent as DropdownMenuContentPart,
   DropdownMenuGroup as DropdownMenuGroupPart,
@@ -109,16 +99,6 @@ import {
 import { Label as LabelPart } from './parts/label.tsx';
 import { ScrollArea as ScrollAreaPart } from './parts/scroll-area.tsx';
 import { Separator as SeparatorPart } from './parts/separator.tsx';
-import {
-  SheetClose as SheetClosePart,
-  SheetContent as SheetContentPart,
-  SheetDescription as SheetDescriptionPart,
-  SheetFooter as SheetFooterPart,
-  SheetHeader as SheetHeaderPart,
-  Sheet as SheetPart,
-  SheetTitle as SheetTitlePart,
-  SheetTrigger as SheetTriggerPart,
-} from './parts/sheet.tsx';
 import {
   SidebarContent as SidebarContentPart,
   SidebarFooter as SidebarFooterPart,
@@ -190,14 +170,6 @@ export const DialogFooter = unstyled(DialogFooterPart);
 export const DialogHeader = unstyled(DialogHeaderPart);
 export const DialogTitle = unstyled(DialogTitlePart);
 export const DialogTrigger = unstyled(DialogTriggerPart);
-export const Drawer = unstyled(DrawerPart);
-export const DrawerTrigger = unstyled(DrawerTriggerPart);
-export const DrawerClose = unstyled(DrawerClosePart);
-export const DrawerContent = unstyled(DrawerContentPart);
-export const DrawerHeader = unstyled(DrawerHeaderPart);
-export const DrawerFooter = unstyled(DrawerFooterPart);
-export const DrawerTitle = unstyled(DrawerTitlePart);
-export const DrawerDescription = unstyled(DrawerDescriptionPart);
 export const DropdownMenu = unstyled(DropdownMenuPart);
 export const DropdownMenuTrigger = unstyled(DropdownMenuTriggerPart);
 export const DropdownMenuContent = unstyled(DropdownMenuContentPart);
@@ -218,7 +190,7 @@ export const EmptyTitle = unstyled(EmptyTitlePart);
 export const EmptyDescription = unstyled(EmptyDescriptionPart);
 export const EmptyContent = unstyled(EmptyContentPart);
 export const EmptyMedia = unstyled(EmptyMediaPart);
-export const Input = unstyled(InputPart);
+export const Input = unstyled(InputPart, ['textbox', 'searchbox']);
 export const Field = unstyled(FieldPart);
 export const FieldContent = unstyled(FieldContentPart);
 export const FieldDescription = unstyled(FieldDescriptionPart);
@@ -232,11 +204,11 @@ export const FieldTitle = unstyled(FieldTitlePart);
 export const InputGroup = unstyled(InputGroupPart);
 export const InputGroupAddon = unstyled(InputGroupAddonPart);
 export const InputGroupButton = unstyled(InputGroupButtonPart);
-export const InputGroupInput = unstyled(InputGroupInputPart);
+export const InputGroupInput = unstyled(InputGroupInputPart, ['textbox', 'searchbox']);
 export const InputGroupText = unstyled(InputGroupTextPart);
-export const InputGroupTextarea = unstyled(InputGroupTextareaPart);
+export const InputGroupTextarea = unstyled(InputGroupTextareaPart, ['textbox', 'searchbox']);
 export const Label = unstyled(LabelPart);
-export const Textarea = unstyled(TextareaPart);
+export const Textarea = unstyled(TextareaPart, ['textbox', 'searchbox']);
 export const Toaster = unstyled(ToasterPart);
 export const ItemMedia = unstyled(ItemMediaPart);
 export const ItemContent = unstyled(ItemContentPart);
@@ -248,14 +220,6 @@ export const ItemHeader = unstyled(ItemHeaderPart);
 export const ItemFooter = unstyled(ItemFooterPart);
 export const ScrollArea = unstyled(ScrollAreaPart);
 export const Separator = unstyled(SeparatorPart);
-export const Sheet = unstyled(SheetPart);
-export const SheetTrigger = unstyled(SheetTriggerPart);
-export const SheetClose = unstyled(SheetClosePart);
-export const SheetContent = unstyled(SheetContentPart);
-export const SheetHeader = unstyled(SheetHeaderPart);
-export const SheetFooter = unstyled(SheetFooterPart);
-export const SheetTitle = unstyled(SheetTitlePart);
-export const SheetDescription = unstyled(SheetDescriptionPart);
 export const SidebarContent = unstyled(SidebarContentPart);
 export const SidebarFooter = unstyled(SidebarFooterPart);
 export const SidebarGroup = unstyled(SidebarGroupPart);
@@ -300,13 +264,10 @@ export {
   DesktopMain,
   Details,
   Dot,
-  type Gap,
-  Heading,
   Item,
   ItemGroup,
   Kbd,
   KeyHint,
-  Link,
   List,
   ListDetail,
   ListItem,
@@ -317,22 +278,18 @@ export {
   NavigationSheet,
   WorkspaceFrame,
   Notice,
-  Overlay,
   Page,
+  FeaturePage,
+  Form,
+  PageHeader,
   Panel,
-  Prose,
   Recording,
   MobileActionButton,
-  Row,
   SearchButton,
   Sidebar,
   SidebarMenu,
   SourceLabel,
   Sources,
-  Spacer,
-  Stack,
-  Text,
-  type TextProps,
   Timeline,
   TimelineItem,
   type Tone,
@@ -340,6 +297,7 @@ export {
 export { Bars, type BarsProps, Sparkline, type SparklineProps } from './chart.tsx';
 export { CodeDiff, type CodeDiffProps } from './diff.tsx';
 export { useIsMobile } from './hooks/use-mobile.ts';
+export { useLayout, type SizeClass } from './hooks/use-layout.ts';
 export { Icon, type IconName, type IconProps, iconNames } from './icons.tsx';
 export type { Unstyled } from './lib/unstyled.tsx';
 export { type LatLon, type MapPoint, type MapRoute, MapView, type MapViewProps } from './map.tsx';
@@ -357,18 +315,59 @@ export {
 } from './surfaces.tsx';
 export {
   Composer,
-  ComposerActions,
+  SendButton,
   ConversationFeed,
   ConversationPage,
   ConversationPanel,
   ConversationSurface,
-  ConversationInput,
   PromptSuggestions,
   VoiceButton,
-  VoiceTranscript,
+  VoiceStatus,
   ConversationWelcome,
   Markdown,
   Message,
 } from './conversation.tsx';
 export { HistorySurface, HistoryEntry, SearchSurface } from './screens.tsx';
-export { SettingsPage, SettingsSection, SettingField } from './settings.tsx';
+export { SettingsMenu, SettingsPage, SettingsSection, SettingField } from './settings.tsx';
+export {
+  NavigationSuite,
+  type NavigationAction,
+  type NavigationDestination,
+} from './navigation.tsx';
+export { Overlay } from './overlay.tsx';
+
+export {
+  Surface,
+  Toolbar,
+  ReadingColumn,
+  Dock,
+  StatusMark,
+  AutoScrollArea,
+  AdaptivePanel,
+  OptionStrip,
+} from './primitives.tsx';
+export { Drawer } from './drawer.tsx';
+export { DesignPreview } from './preview.tsx';
+
+import {
+  RadioGroup as RadioGroupPart,
+  RadioGroupItem as RadioGroupItemPart,
+  RadioGroupIndicator as RadioGroupIndicatorPart,
+} from './parts/radio-group.tsx';
+export const RadioGroup = unstyled(RadioGroupPart, ['radiogroup']);
+export const RadioGroupItem = unstyled(RadioGroupItemPart, ['radio']);
+export const RadioGroupIndicator = unstyled(RadioGroupIndicatorPart);
+
+import {
+  Stack as StackPart,
+  Row as RowPart,
+  Text as TextPart,
+  Link as LinkPart,
+} from './parts/layout.tsx';
+export const Stack = unstyled(StackPart);
+export const Row = unstyled(RowPart);
+export const Text = unstyled(TextPart);
+export const Link = unstyled(LinkPart);
+export { Spacer, Heading, Prose, type Gap, type TextProps } from './parts/layout.tsx';
+// PROTOTYPE, throwaway (branch prototype/wiki-provenance).
+export { ProvenancePrototype } from './prototype-provenance.tsx';

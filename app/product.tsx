@@ -18,37 +18,35 @@ import { opened } from './ui/recent.ts';
 import { go, link, pattern, useRoute } from './ui/routing.ts';
 import { later } from './ui/later.ts';
 import {
+  ProvenancePrototype,
   Alert,
   AlertDescription,
-  Button,
   Gate,
   Heading,
-  Icon,
   Link,
   Overlay,
   Page,
-  PreviewBar,
-  SettingsPage,
+  SettingsMenu,
   SettingsSection,
   SettingField,
   VoiceButton,
-  MobileActionButton,
   Row,
   Stack,
   Text,
   ThemeSwitch,
   setTheme,
   useIsMobile,
+  useLayout,
 } from './ui/kit/index.ts';
 import type { Command, Navigation } from './ui/command.ts';
 import {
   ChatPage,
   ChatPanel,
-  ChatIndicator,
   ChatSettings,
   openAITranscription,
   useTranscription,
   useTranscript,
+  useVoiceDraft,
   type TranscriptionProvider,
   useConversation,
   useChat,
@@ -61,6 +59,8 @@ import './workflows/chat/rendering/prose.css';
 const agentRoute = pattern('/agent/');
 const historyRoute = pattern('/history/');
 const settingsRoute = pattern('/settings/');
+// PROTOTYPE, throwaway: wiki provenance variants.
+const provenanceRoute = pattern('/prototype/provenance/');
 const renameTools = async (vault: OwnedVault) =>
   (await import('./workflows/rename-note/agent.ts')).renameTools(vault);
 
@@ -93,9 +93,6 @@ export function OpenProduct({
   session: ReturnType<typeof useVaultSession>;
   model?: (name: string) => Promise<LanguageModel>;
   preview?: {
-    label: string;
-    reset: () => void;
-    kitHref?: string;
     suggestions: () => Promise<string[]>;
     transcription: TranscriptionProvider;
   };
@@ -103,11 +100,12 @@ export function OpenProduct({
   const { vault, files, status } = session;
   const route = useRoute();
   const mobile = useIsMobile();
+  const layout = useLayout();
   const [search, setSearch] = useState(false);
   const [help, setHelp] = useState(false);
+  const [settings, setSettings] = useState(false);
   const [panel, setPanel] = useState(
-    () =>
-      matchMedia('(min-width: 1280px)').matches && localStorage.getItem('vault-panel') === 'agent',
+    () => layout === 'wide' && localStorage.getItem('vault-panel') === 'agent',
   );
   const [prompt, setPrompt] = useState<Prompt | null>(null);
   const showPanel = (open: boolean) => {
@@ -115,10 +113,23 @@ export function OpenProduct({
     if (open) localStorage.setItem('vault-panel', 'agent');
     else localStorage.removeItem('vault-panel');
   };
-  const onAgent = route.path === '/' || !!agentRoute.match(route.path);
-  const onHistory = !!historyRoute.match(route.path);
   const onSettings = !!settingsRoute.match(route.path);
-  const title = onAgent ? 'Agent' : onHistory ? 'History' : onSettings ? 'Settings' : 'Not found';
+  const onAgent = route.path === '/' || !!agentRoute.match(route.path) || onSettings;
+  const onHistory = !!historyRoute.match(route.path);
+  const settingsOpen = settings || onSettings;
+  const closeSettings = () => {
+    setSettings(false);
+    if (onSettings) go(agentRoute.href());
+  };
+  const title = settingsOpen
+    ? 'Settings'
+    : onAgent
+      ? 'Agent'
+      : onHistory
+        ? 'History'
+        : provenanceRoute.match(route.path)
+          ? 'Provenance prototype'
+          : 'Not found';
   const remoteModel = useMemo(
     () =>
       session.secrets?.openai
@@ -145,12 +156,21 @@ export function OpenProduct({
     page: note ? { title: titleOf(note), path: note.path } : onAgent ? undefined : { title },
   });
   const { busy: agentBusy } = useChat(conversation);
+  useVoiceDraft(conversation, voice);
   const navigation: Navigation[] = [
     { label: 'Agent', href: agentRoute.href(), icon: 'sparkles' },
     ...(vault.history
       ? [{ label: 'History', href: historyRoute.href(), icon: 'history' as const }]
       : []),
-    { label: 'Settings', href: settingsRoute.href(), icon: 'settings' },
+    {
+      label: 'Settings',
+      href: settingsRoute.href(),
+      icon: 'settings',
+      kind: 'action',
+      onSelect: () => setSettings(true),
+      current: settingsOpen,
+      expanded: settingsOpen,
+    },
   ];
   const index = useMemo(() => noteSearchIndex(files!), [files]);
   const ask = (text?: string) => {
@@ -163,7 +183,6 @@ export function OpenProduct({
       return;
     }
     if (conversation.chat.state.busy) {
-      conversation.stop();
       return;
     }
     if (transcript.phase === 'listening') {
@@ -172,16 +191,6 @@ export function OpenProduct({
         go(agentRoute.href());
       }
       later(voice.finish());
-      return;
-    }
-    if (transcript.phase === 'ready') {
-      const { text } = transcript;
-      voice.clear();
-      setPrompt((current) => ({ text, send: true, n: (current?.n ?? 0) + 1 }));
-      if (mobile) {
-        showPanel(false);
-        go(agentRoute.href());
-      } else showPanel(true);
       return;
     }
     if (mobile) {
@@ -216,7 +225,7 @@ export function OpenProduct({
       label: 'Settings',
       group: 'Go to',
       icon: 'settings',
-      run: () => go(settingsRoute.href()),
+      run: () => setSettings(true),
     },
     {
       id: 'agent.ask',
@@ -234,6 +243,7 @@ export function OpenProduct({
             group: 'Agent',
             icon: 'plus' as const,
             run: () => {
+              voice.clear();
               conversation.newChat();
               ask();
             },
@@ -322,24 +332,11 @@ export function OpenProduct({
             : null
         }
         onSearch={() => setSearch(true)}
-        actions={
-          <Button
-            variant={panel ? 'secondary' : 'ghost'}
-            size="sm"
-            aria-pressed={panel}
-            onClick={() => showPanel(!panel)}
-          >
-            <Icon name="sparkles" />
-            {preview ? 'Try a conversation' : 'Ask the agent'}
-            <ChatIndicator conversation={conversation} />
-          </Button>
-        }
-        mobileNavigation={
-          <MobileActionButton icon="sparkles" label="Agent" onClick={() => go(agentRoute.href())} />
-        }
-        mobileAction={
-          <VoiceButton phase={transcript.phase} busy={agentBusy} onClick={voiceAction} />
-        }
+        primary={{
+          compact: !onAgent && (
+            <VoiceButton phase={transcript.phase} busy={agentBusy} onClick={voiceAction} />
+          ),
+        }}
         panel={
           panel ? (
             <ChatPanel
@@ -347,41 +344,22 @@ export function OpenProduct({
               prompt={prompt}
               historyHref={historyHref}
               voice={voice}
-              previewVoice={!!preview}
             />
           ) : null
         }
         closePanel={() => showPanel(false)}
       >
-        {!!preview && (
-          <PreviewBar
-            label={preview.label}
-            kitHref={preview.kitHref ?? './kit/'}
-            onReset={preview.reset}
-          />
-        )}
         {onAgent ? (
           <ChatPage
             conversation={conversation}
             prompt={prompt}
             historyHref={historyHref}
             voice={voice}
-            previewVoice={!!preview}
           />
         ) : onHistory ? (
           <HistoryPage vault={vault} />
-        ) : onSettings ? (
-          <SettingsPage>
-            <SettingsSection title="Appearance">
-              <SettingField
-                label="Theme"
-                description="Choose a theme, or follow your device's appearance."
-              >
-                <ThemeSwitch />
-              </SettingField>
-            </SettingsSection>
-            <ChatSettings />
-          </SettingsPage>
+        ) : provenanceRoute.match(route.path) && import.meta.env.MODE !== 'production' ? (
+          <ProvenancePrototype />
         ) : (
           <Page>
             <Heading level={1}>Not found</Heading>
@@ -390,10 +368,23 @@ export function OpenProduct({
           </Page>
         )}
       </Frame>
+      <SettingsMenu
+        open={settingsOpen}
+        onClose={closeSettings}
+        features={[{ name: 'Agent', content: <ChatSettings /> }]}
+      >
+        <SettingsSection title="Appearance">
+          <SettingField
+            label="Theme"
+            description="Choose a theme, or follow your device's appearance."
+          >
+            <ThemeSwitch />
+          </SettingField>
+        </SettingsSection>
+      </SettingsMenu>
       <Search commands={commands} index={index} open={search} setSearch={setSearch} onAsk={ask} />
       <Previews index={index} />
       <Overlay
-        mobile={mobile}
         open={help}
         onClose={() => setHelp(false)}
         title="Keyboard shortcuts"

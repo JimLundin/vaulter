@@ -3,13 +3,17 @@ import {
   Alert,
   AlertDescription,
   Brand,
-  Button,
+  Icon,
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+  Form,
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   Gate,
-  Input,
   Label,
   Stack,
 } from './kit/index.ts';
@@ -38,28 +42,39 @@ export function Unlock({ unlock }: { unlock: (password: string) => Promise<void>
           <CardDescription>Open your vault. This device remembers it for 30 days.</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={submit}>
+          <Form onSubmit={submit}>
             <Stack>
               <Label htmlFor={id}>Password</Label>
-              <Input
-                id={id}
-                type="password"
-                autoComplete="current-password"
-                autoFocus={true}
-                value={pw}
-                disabled={busy}
-                onChange={(event) => setPw(event.currentTarget.value)}
-              />
+              <InputGroup>
+                <InputGroupInput
+                  id={id}
+                  type="password"
+                  autoComplete="current-password"
+                  autoFocus={true}
+                  value={pw}
+                  disabled={busy}
+                  onChange={(event) => setPw(event.currentTarget.value)}
+                />
+                <InputGroupAddon align="inset-end">
+                  <InputGroupButton
+                    variant="default"
+                    type="submit"
+                    size="icon-sm"
+                    aria-label={busy ? 'Opening vault' : 'Open vault'}
+                    disabled={busy || !pw}
+                    pending={busy}
+                  >
+                    <Icon name="chevron-right" />
+                  </InputGroupButton>
+                </InputGroupAddon>
+              </InputGroup>
               {!!wrong && (
                 <Alert variant="destructive">
                   <AlertDescription>That isn't the password.</AlertDescription>
                 </Alert>
               )}
-              <Button type="submit" disabled={busy || !pw}>
-                {busy ? 'Opening…' : 'Open vault'}
-              </Button>
             </Stack>
-          </form>
+          </Form>
         </CardContent>
       </Card>
     </Gate>

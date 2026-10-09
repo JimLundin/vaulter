@@ -2,203 +2,22 @@
 // tones (people, places, events), panels with their source, the timeline, the mobile action buttons, and
 // the frames the shell lays screens out in. Like the rest of the kit, none takes a className or style
 // (lib/unstyled.tsx).
-import { cva } from 'class-variance-authority';
-import { useEffect, type ComponentProps, type ReactNode } from 'react';
-import { Button } from './parts/button.tsx';
+import type { ComponentProps, ReactNode } from 'react';
 import { Icon, type IconName } from './icons.tsx';
-import type { Unstyled } from './lib/unstyled.tsx';
+import { type Unstyled, unstyled } from './lib/unstyled.tsx';
 import { cn } from './lib/utils.ts';
 import { AvatarFallback, Avatar as AvatarPart } from './parts/avatar.tsx';
 import { Badge } from './parts/badge.tsx';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from './parts/dialog.tsx';
-import {
-  Drawer,
-  DrawerContent,
-  DrawerDescription,
-  DrawerHeader,
-  DrawerTitle,
-} from './parts/drawer.tsx';
 import { useIsMobile } from './hooks/use-mobile.ts';
+import { useViewport } from './hooks/use-viewport.ts';
+import { Drawer } from './drawer.tsx';
 import { ItemGroup as ItemGroupPart, Item as ItemPart } from './parts/item.tsx';
 import { Kbd as KbdPart } from './parts/kbd.tsx';
 import { SidebarMenu as SidebarMenuPart, Sidebar as SidebarPart } from './parts/sidebar.tsx';
+import { useFieldSemanticDiagnostic } from './field-association.ts';
 
 export type Tone = 'neutral' | 'people' | 'places' | 'events';
-export type Gap = 'none' | 'xs' | 'sm' | 'md' | 'lg' | 'xl';
-
-const gap = {
-  none: 'gap-0',
-  xs: 'gap-1',
-  sm: 'gap-2',
-  md: 'gap-3',
-  lg: 'gap-4',
-  xl: 'gap-6',
-} satisfies Record<Gap, string>;
-
-const align = {
-  start: 'items-start',
-  center: 'items-center',
-  end: 'items-end',
-  stretch: 'items-stretch',
-  baseline: 'items-baseline',
-} as const;
-
-const justify = {
-  start: 'justify-start',
-  center: 'justify-center',
-  end: 'justify-end',
-  between: 'justify-between',
-} as const;
-
-interface FlexProps {
-  gap?: Gap;
-  align?: keyof typeof align;
-  /** Takes the space left in its parent. */
-  grow?: boolean;
-  children?: ReactNode;
-}
-
-/** Children one under another. */
-export function Stack({ gap: g = 'md', align: a = 'stretch', grow, children }: FlexProps) {
-  return (
-    <div className={cn('flex min-w-0 flex-col', gap[g], align[a], grow && 'flex-1')}>
-      {children}
-    </div>
-  );
-}
-
-/** Children side by side. */
-export function Row({
-  gap: g = 'sm',
-  align: a = 'center',
-  justify: j = 'start',
-  wrap,
-  grow,
-  children,
-}: FlexProps & { justify?: keyof typeof justify; wrap?: boolean }) {
-  return (
-    <div
-      className={cn(
-        'flex min-w-0',
-        gap[g],
-        align[a],
-        justify[j],
-        wrap && 'flex-wrap',
-        grow && 'flex-1',
-      )}
-    >
-      {children}
-    </div>
-  );
-}
-
-/** Pushes what follows it in a Row to the far end. */
-export const Spacer = () => <div className="flex-1" />;
-
-const text = cva('m-0', {
-  variants: {
-    size: { xs: 'text-xs', sm: 'text-[13px]', md: 'text-[15px]', lg: 'text-[17px]' },
-    tone: {
-      default: 'text-foreground',
-      muted: 'text-muted-foreground',
-      subtle: 'text-subtle-foreground',
-      body: 'text-body',
-      danger: 'text-destructive',
-    },
-    weight: { normal: 'font-normal', medium: 'font-medium', semibold: 'font-semibold' },
-    mono: { true: 'font-mono' },
-    truncate: { true: 'truncate' },
-  },
-  defaultVariants: { size: 'md', tone: 'default', weight: 'normal' },
-});
-
-export interface TextProps {
-  size?: 'xs' | 'sm' | 'md' | 'lg';
-  tone?: 'default' | 'muted' | 'subtle' | 'body' | 'danger';
-  weight?: 'normal' | 'medium' | 'semibold';
-  mono?: boolean;
-  truncate?: boolean;
-  as?: 'p' | 'span' | 'div';
-  children?: ReactNode;
-}
-
-export function Text({ as: As = 'p', size, tone, weight, mono, truncate, children }: TextProps) {
-  return <As className={text({ size, tone, weight, mono, truncate })}>{children}</As>;
-}
-
-const heading = cva('m-0 text-foreground', {
-  variants: {
-    level: {
-      1: 'text-[26px] font-semibold tracking-[-0.02em] leading-tight',
-      2: 'text-[15px] font-semibold',
-      3: 'text-sm font-medium',
-    },
-    serif: { true: 'font-serif font-medium tracking-[-0.01em]' },
-  },
-  compoundVariants: [{ level: 1, serif: true, class: 'text-[32px] md:text-[40px] leading-[1.15]' }],
-});
-
-/** A page's title (1), a section's (2), a group's (3). Serif for a page of the wiki's kind. */
-export function Heading({
-  level = 2,
-  serif,
-  children,
-}: {
-  level?: 1 | 2 | 3;
-  serif?: boolean;
-  children?: ReactNode;
-}) {
-  const H = `h${level}` as const;
-  return <H className={heading({ level, serif })}>{children}</H>;
-}
-
-/** Long-form text: what Vaulter wrote about a person, a place or an event. */
-export function Prose({ children }: { children?: ReactNode }) {
-  return (
-    <div className="font-serif text-[17px] leading-[1.6] md:text-[19px] [&_p]:m-0 [&_p+p]:mt-3">
-      {children}
-    </div>
-  );
-}
-
-/** A link within the app (a hash route) or out of it. */
-export function Link({
-  href,
-  onClick,
-  plain,
-  children,
-}: {
-  href?: string;
-  onClick?: () => void;
-  /** In the text's colour, for lists of things rather than links in prose. */
-  plain?: boolean;
-  children?: ReactNode;
-}) {
-  return (
-    <a
-      href={href ?? '#'}
-      onClick={
-        onClick &&
-        ((e) => {
-          e.preventDefault();
-          onClick();
-        })
-      }
-      className={cn(
-        'no-underline underline-offset-2 hover:underline',
-        plain ? 'text-foreground hover:text-muted-foreground' : 'text-link',
-      )}
-    >
-      {children}
-    </a>
-  );
-}
+import { Link, gap, type Gap } from './parts/layout.tsx';
 
 const chip = {
   neutral: 'bg-muted text-foreground',
@@ -221,19 +40,13 @@ export function Chip({
     <Badge
       variant="secondary"
       className={cn(
-        'h-auto rounded-full border-0 px-[7px] py-px text-[11px] font-medium',
+        'h-auto rounded-full border-0 px-[7px] py-px text-glyph font-medium',
         chip[tone],
         onClick && 'cursor-pointer',
       )}
-      asChild={true}
+      render={onClick ? <button type="button" data-touch-target="" onClick={onClick} /> : <span />}
     >
-      {onClick ? (
-        <button type="button" onClick={onClick}>
-          {children}
-        </button>
-      ) : (
-        <span>{children}</span>
-      )}
+      {children}
     </Badge>
   );
 }
@@ -252,7 +65,7 @@ export const Dot = ({ tone = 'neutral' }: { tone?: Tone }) => (
 
 /** How many: open questions beside "Questions". */
 export const Count = ({ n }: { n: number }) => (
-  <span className="rounded-full bg-primary px-[7px] text-[11px] font-semibold text-primary-foreground">
+  <span className="rounded-full bg-primary px-[7px] text-glyph font-semibold text-primary-foreground">
     {n}
   </span>
 );
@@ -262,7 +75,7 @@ export function Kbd({ children, large }: { children?: ReactNode; large?: boolean
   return (
     <KbdPart
       className={cn(
-        'h-auto rounded-[5px] border border-b-2 border-border bg-background px-[5px] font-mono text-[11px] font-normal text-foreground',
+        'h-auto rounded-[5px] border border-b-2 border-border bg-background px-[5px] font-mono text-glyph font-normal text-foreground',
         large && 'rounded-md border-key-border border-b-[3px] px-[18px] py-px text-xs',
       )}
     >
@@ -286,7 +99,7 @@ export function KeyHint({
     <span
       className={cn(
         'flex items-center gap-1.5 text-xs text-muted-foreground',
-        strong && 'gap-2 text-[13px] font-medium text-foreground',
+        strong && 'gap-2 text-label font-medium text-foreground',
       )}
     >
       {parts.map((k) => (
@@ -316,15 +129,20 @@ export function Notice({
     <>
       <div className="flex min-w-[min(16rem,100%)] flex-1 flex-col gap-0.5 text-sm md:flex-row md:flex-wrap md:items-baseline md:gap-x-3">
         {title ? <span className="font-medium">{title}</span> : null}
-        {children ? <span className="text-body max-md:text-[13px]">{children}</span> : null}
+        {children ? <span className="text-body text-label">{children}</span> : null}
       </div>
       {action}
     </>
   );
   const box =
-    'flex w-full flex-wrap items-center gap-3 rounded-[14px] border border-notice-border bg-notice px-3.5 py-3 text-left text-foreground md:rounded-[10px] md:py-2.5';
+    'flex w-full flex-wrap items-center gap-3 rounded-2xl border border-notice-border bg-notice px-3.5 py-3 text-left text-foreground md:py-2.5';
   return onClick ? (
-    <button type="button" onClick={onClick} className={cn(box, 'cursor-pointer font-[inherit]')}>
+    <button
+      data-touch-target=""
+      type="button"
+      onClick={onClick}
+      className={cn(box, 'cursor-pointer font-[inherit]')}
+    >
       {body}
     </button>
   ) : (
@@ -366,7 +184,7 @@ export function Panel({
 export const SourceLabel = ({ from, notice }: { from: string; notice?: boolean }) => (
   <div
     className={cn(
-      'border-t px-3 py-1.5 text-[11px] text-muted-foreground',
+      'border-t px-3 py-1.5 text-caption text-muted-foreground',
       notice ? 'border-notice-border text-notice-ink' : 'bg-surface',
     )}
   >
@@ -377,7 +195,7 @@ export const SourceLabel = ({ from, notice }: { from: string; notice?: boolean }
 /** Labels and values: a page's fields, an extension's details. */
 export function Details({ items }: { items: [label: string, value: ReactNode][] }) {
   return (
-    <dl className="m-0 grid grid-cols-[80px_minmax(0,1fr)] gap-x-3 gap-y-2 rounded-xl border bg-surface p-4 text-[13px]">
+    <dl className="m-0 grid grid-cols-[80px_minmax(0,1fr)] gap-x-3 gap-y-2 rounded-xl border bg-surface p-4 text-label">
       {items.map(([label, value]) => (
         <div key={label} className="contents">
           <dt className="text-muted-foreground">{label}</dt>
@@ -434,11 +252,15 @@ export function TimelineItem({
   );
 }
 
-/** Icon-only mobile actions. Only the primary AI action uses a circle. */
+/** Icon-only mobile actions. Only the primary AI action uses a circle; current or open controls have a tint.
+ * With `href` it is a link (an action that is also a screen), otherwise a button. */
 export function MobileActionButton({
   icon,
   label,
   primary,
+  current,
+  href,
+  expanded,
   onClick,
   onPointerDown,
   onPointerUp,
@@ -446,10 +268,33 @@ export function MobileActionButton({
   icon: IconName;
   label: string;
   primary?: boolean;
+  /** This control leads to the screen being shown. */
+  current?: boolean;
+  href?: string;
+  expanded?: boolean;
   onClick?: () => void;
   onPointerDown?: () => void;
   onPointerUp?: () => void;
 }) {
+  const className = cn(
+    'flex size-11 cursor-pointer items-center justify-center border-0 p-0 text-foreground focus-visible:outline-2 focus-visible:outline-ring',
+    primary
+      ? 'rounded-full bg-primary text-primary-foreground'
+      : 'rounded-md bg-transparent text-muted-foreground hover:bg-muted hover:text-foreground',
+    !primary && (current || expanded) && 'bg-muted text-foreground',
+  );
+  if (href)
+    return (
+      <a
+        href={href}
+        aria-label={label}
+        aria-current={current ? 'page' : undefined}
+        onClick={onClick}
+        className={className}
+      >
+        <Icon name={icon} size="lg" />
+      </a>
+    );
   return (
     <button
       type="button"
@@ -457,12 +302,9 @@ export function MobileActionButton({
       onPointerDown={onPointerDown}
       onPointerUp={onPointerUp}
       aria-label={label}
-      className={cn(
-        'flex size-11 cursor-pointer items-center justify-center border-0 p-0 text-foreground focus-visible:outline-2 focus-visible:outline-ring',
-        primary
-          ? 'rounded-full bg-primary text-primary-foreground'
-          : 'rounded-none bg-transparent hover:bg-muted',
-      )}
+      aria-expanded={expanded}
+      aria-current={current ? 'page' : undefined}
+      className={className}
     >
       <Icon name={icon} size="lg" />
     </button>
@@ -486,10 +328,70 @@ export const Brand = ({ status }: { status?: ReactNode }) => (
  * on mobile (a page's fields, its links). */
 export function Page({ aside, children }: { aside?: ReactNode; children?: ReactNode }) {
   return (
-    <div className="flex flex-col gap-8 px-5 pt-7 pb-4 md:flex-row md:gap-12 md:px-12 md:py-9">
-      <article className="flex min-w-0 flex-1 flex-col gap-4 md:max-w-3xl">{children}</article>
+    <div className="flex w-full flex-col justify-center gap-8 px-[var(--page-inset)] py-[var(--page-block)] md:flex-row md:gap-12">
+      <article
+        data-reading-column=""
+        className="mx-auto flex w-full min-w-0 flex-1 flex-col gap-4 md:mx-0 md:max-w-[var(--reading-width)]"
+      >
+        {children}
+      </article>
       {aside ? <aside className="flex shrink-0 flex-col gap-5 md:w-[260px]">{aside}</aside> : null}
     </div>
+  );
+}
+
+/** Feature screens share a centered reading column; compact space uses its full width. */
+export function FeaturePage({
+  title,
+  description,
+  actions,
+  children,
+}: {
+  title: string;
+  description?: string;
+  actions?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <article className="w-full md:px-[var(--page-inset)] md:py-[var(--page-block)]">
+      <div
+        data-reading-column=""
+        className="mx-auto flex w-full max-w-[var(--reading-width)] flex-col md:gap-6"
+      >
+        <PageHeader title={title} description={description} actions={actions} />
+        {children}
+      </div>
+    </article>
+  );
+}
+
+/** A screen's title, what it holds, and its actions. One component, two placements: on a phone a
+ * bordered strip above full-width content, on desktop the top of the reading column. The type roles
+ * and the copy are the same on both; only the placement differs. */
+export function PageHeader({
+  title,
+  description,
+  actions,
+}: {
+  title: string;
+  description?: string;
+  actions?: ReactNode;
+}) {
+  const mobile = useIsMobile();
+  return (
+    <header
+      data-variant={mobile ? 'mobile' : 'desktop'}
+      className={cn(
+        'flex items-start justify-between gap-4',
+        mobile && 'border-b bg-background px-[var(--page-inset)] py-[var(--page-block)]',
+      )}
+    >
+      <div className="flex min-w-0 flex-col gap-1">
+        <h1 className="m-0 text-title font-semibold">{title}</h1>
+        {description ? <p className="m-0 text-copy text-muted-foreground">{description}</p> : null}
+      </div>
+      {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
+    </header>
   );
 }
 
@@ -497,31 +399,24 @@ export function Page({ aside, children }: { aside?: ReactNode; children?: ReactN
 export function WorkspaceFrame({
   header,
   bar,
-  hints,
   children,
 }: {
   header: ReactNode;
   bar: ReactNode;
-  hints: ReactNode;
   children: ReactNode;
 }) {
   const mobile = useIsMobile();
+  useViewport();
   return (
     <div
       data-layout={mobile ? 'mobile-workspace' : 'desktop-workspace'}
-      className="flex h-dvh min-w-0 flex-1 flex-col bg-background"
+      className="flex h-[var(--viewport-height,100dvh)] min-w-0 flex-1 flex-col bg-background"
     >
       {mobile && header}
       <main data-region="" className="flex min-h-0 flex-1 flex-col overflow-y-auto">
         {children}
       </main>
-      {mobile ? (
-        bar
-      ) : (
-        <footer className="flex shrink-0 items-center gap-5 border-t bg-surface px-12 py-3">
-          {hints}
-        </footer>
-      )}
+      {mobile && bar}
     </div>
   );
 }
@@ -558,49 +453,29 @@ export function NavigationSheet({
   footer?: ReactNode;
 }) {
   return (
-    <Drawer
-      open={open}
-      onOpenChange={(next) => {
-        if (!next) onClose();
-      }}
-    >
-      <DrawerContent
-        aria-describedby={undefined}
-        className="pb-[max(16px,env(safe-area-inset-bottom))]"
+    <Drawer open={open} onClose={onClose} title="Menu" header={brand}>
+      <nav
+        aria-label="Main navigation"
+        className="flex min-h-0 flex-col overflow-y-auto border-y px-2 py-2"
       >
-        <DrawerTitle className="sr-only">Menu</DrawerTitle>
-        <div data-brand="" className="flex items-center justify-between gap-3 px-4 pt-4 pb-5">
-          {brand}
-          <Button
-            variant="ghost"
-            size="icon-lg"
-            className="size-11 rounded-none"
-            aria-label="Close menu"
+        {entries.map((entry) => (
+          <a
+            key={entry.href}
+            href={entry.href}
+            aria-current={entry.active ? 'page' : undefined}
             onClick={onClose}
+            className={cn(
+              'flex min-h-14 items-center gap-3 rounded-md px-4 text-copy hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring',
+              entry.active && 'bg-muted font-medium',
+            )}
           >
-            <Icon name="close" size="lg" />
-          </Button>
-        </div>
-        <nav aria-label="Main navigation" className="flex flex-col border-y px-2 py-2">
-          {entries.map((entry) => (
-            <a
-              key={entry.href}
-              href={entry.href}
-              aria-current={entry.active ? 'page' : undefined}
-              onClick={onClose}
-              className={cn(
-                'flex min-h-14 items-center gap-3 px-4 text-[15px] hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring',
-                entry.active && 'bg-muted font-medium',
-              )}
-            >
-              <Icon name={entry.icon} size="lg" />
-              <span className="flex-1">{entry.label}</span>
-              <Icon name="chevron-right" size="sm" />
-            </a>
-          ))}
-        </nav>
-        {!!footer && <div className="flex flex-col px-4 pt-3">{footer}</div>}
-      </DrawerContent>
+            <Icon name={entry.icon} size="lg" />
+            <span className="flex-1">{entry.label}</span>
+            <Icon name="chevron-right" size="sm" />
+          </a>
+        ))}
+      </nav>
+      {!!footer && <div className="flex flex-col px-4 pt-3">{footer}</div>}
     </Drawer>
   );
 }
@@ -626,23 +501,35 @@ export function MobileFrame({
   );
 }
 
-/** Footer navigation and an independent circular agent control floating above it. */
+/** Footer navigation and an independent circular agent control floating above it. Either three
+ * fixed places (`left`, `center`, `right`) or `items` spread evenly across the bar. */
 export function MobileBar({
   left,
   center,
   right,
+  items,
   floating,
 }: {
   left?: ReactNode;
   center?: ReactNode;
   right?: ReactNode;
+  items?: ReactNode[];
   floating?: ReactNode;
 }) {
   return (
-    <footer className="relative grid shrink-0 grid-cols-3 items-center border-t border-muted px-5 pt-1.5 pb-[max(6px,env(safe-area-inset-bottom))]">
-      <div className="justify-self-start">{left}</div>
-      <div className="justify-self-center">{center}</div>
-      <div className="justify-self-end">{right}</div>
+    <footer
+      className={cn(
+        'relative shrink-0 border-t border-muted px-5 pt-1.5 pb-[max(6px,env(safe-area-inset-bottom))]',
+        items ? 'flex items-center justify-between' : 'grid grid-cols-3 items-center',
+      )}
+    >
+      {items ?? (
+        <>
+          <div className="justify-self-start">{left}</div>
+          <div className="justify-self-center">{center}</div>
+          <div className="justify-self-end">{right}</div>
+        </>
+      )}
       {!!floating && (
         <div data-floating-agent="" className="absolute right-5 bottom-[calc(100%+12px)] z-20">
           {floating}
@@ -652,16 +539,13 @@ export function MobileBar({
   );
 }
 
-/** The desktop frame beside the sidebar: the screen, and the bar of keys under it. */
-export function DesktopMain({ hints, children }: { hints?: ReactNode; children?: ReactNode }) {
+/** The desktop content beside the sidebar. */
+export function DesktopMain({ children }: { children?: ReactNode }) {
   return (
     <div className="flex h-svh min-w-0 flex-1 flex-col">
       <main data-region="" className="flex min-h-0 flex-1 flex-col overflow-y-auto">
         {children}
       </main>
-      {hints ? (
-        <footer className="flex items-center gap-5 border-t bg-surface px-12 py-3">{hints}</footer>
-      ) : null}
     </div>
   );
 }
@@ -669,10 +553,12 @@ export function DesktopMain({ hints, children }: { hints?: ReactNode; children?:
 /** The sidebar's search field: a button that opens search, with its key. */
 export function SearchButton({
   label,
+  name = label,
   keys,
   onClick,
 }: {
   label: string;
+  name?: string;
   keys?: string;
   onClick: () => void;
 }) {
@@ -680,7 +566,9 @@ export function SearchButton({
     <button
       type="button"
       onClick={onClick}
-      className="flex h-10 w-full cursor-pointer items-center gap-2 rounded-[10px] border bg-background pr-2 pl-3 text-left font-[inherit] text-sm text-muted-foreground"
+      data-touch-target=""
+      aria-label={name}
+      className="flex h-10 w-full cursor-pointer items-center gap-2 rounded-lg border bg-background pr-2 pl-3 text-left font-[inherit] text-sm text-muted-foreground"
     >
       <Icon name="search" size="sm" />
       {label}
@@ -693,83 +581,17 @@ export function SearchButton({
   );
 }
 
-/** Something over the screen: from the bottom on mobile, a dialog on desktop. The title is read out
- * always, and shown unless `hideTitle`. */
-export function Overlay({
-  mobile,
-  open,
-  onClose,
-  title,
-  description,
-  hideTitle,
-  tall,
-  children,
-}: {
-  mobile: boolean;
-  open: boolean;
-  onClose: () => void;
-  title: string;
-  description?: string;
-  hideTitle?: boolean;
-  tall?: boolean;
-  children?: ReactNode;
-}) {
-  useEffect(() => {
-    if (!(open && mobile)) return;
-    const dismissOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
-    };
-    addEventListener('keydown', dismissOnEscape);
-    return () => removeEventListener('keydown', dismissOnEscape);
-  }, [mobile, open, onClose]);
-  const onOpenChange = (o: boolean) => {
-    if (!o) onClose();
-  };
-  if (mobile)
-    return (
-      <Drawer open={open} onOpenChange={onOpenChange}>
-        <DrawerContent
-          className={cn('max-h-[90dvh]', tall && 'h-[90dvh]')}
-          {...(description ? {} : { 'aria-describedby': undefined })}
-        >
-          <DrawerHeader className="flex shrink-0 flex-row items-start justify-between gap-3 text-left">
-            <div className={cn('flex flex-col gap-1', hideTitle && 'sr-only')}>
-              <DrawerTitle>{title}</DrawerTitle>
-              {description ? <DrawerDescription>{description}</DrawerDescription> : null}
-            </div>
-            <Button variant="ghost" size="icon-sm" aria-label="Close" onClick={onClose}>
-              <Icon name="close" />
-            </Button>
-          </DrawerHeader>
-          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 pb-[max(24px,env(safe-area-inset-bottom))]">
-            {children}
-          </div>
-        </DrawerContent>
-      </Drawer>
-    );
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        className={cn('max-h-[90dvh] overflow-y-auto', tall && 'flex h-[80dvh] flex-col')}
-        {...(description ? {} : { 'aria-describedby': undefined })}
-      >
-        <DialogHeader className={cn(hideTitle && 'sr-only')}>
-          <DialogTitle>{title}</DialogTitle>
-          {description ? <DialogDescription>{description}</DialogDescription> : null}
-        </DialogHeader>
-        {children}
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 /** The desktop sidebar: the full height of the window, with the design's border. */
 export function Sidebar(props: Unstyled<ComponentProps<typeof SidebarPart>>) {
-  return <SidebarPart {...props} data-region="nav" className="h-svh border-r px-1 py-2" />;
+  useFieldSemanticDiagnostic(props);
+  return (
+    <SidebarPart {...props} data-region="nav" className="h-svh border-r bg-sidebar px-1 py-2" />
+  );
 }
 
 /** The sidebar's list: moved through with the arrow keys, as every list is. */
 export function SidebarMenu(props: Unstyled<ComponentProps<typeof SidebarMenuPart>>) {
+  useFieldSemanticDiagnostic(props);
   return <SidebarMenuPart {...props} data-arrows="" />;
 }
 
@@ -863,7 +685,7 @@ export function Mark({
 /** A fact's sources, as footnote numbers: 1, or 2,3. */
 export function Cite({ n, onClick }: { n: number[]; onClick?: (n: number) => void }) {
   return (
-    <sup className="font-sans text-[11px] text-link">
+    <sup className="font-sans text-glyph text-link">
       {n.map((x, i) => (
         <span key={x}>
           {i > 0 ? ',' : null}
@@ -891,7 +713,7 @@ export function Sources({
   items: { id: string; label: ReactNode; meta?: ReactNode; onClick?: () => void }[];
 }) {
   return (
-    <ol className="m-0 flex list-decimal flex-col gap-0.5 pl-5 text-[13px] text-body">
+    <ol className="m-0 flex list-decimal flex-col gap-0.5 pl-5 text-label text-body">
       {items.map((s) => (
         <li key={s.id}>
           {s.onClick ? <Link onClick={s.onClick}>{s.label}</Link> : s.label}
@@ -938,7 +760,7 @@ export function Avatar({ name, tone = 'people' }: { name: string; tone?: Tone })
     .join('');
   return (
     <AvatarPart className="size-9">
-      <AvatarFallback className={cn('text-[13px] font-semibold', avatar[tone])}>
+      <AvatarFallback className={cn('text-label font-semibold', avatar[tone])}>
         {initials}
       </AvatarFallback>
     </AvatarPart>
@@ -950,19 +772,20 @@ export function Recording({ seconds, label = 'Recording' }: { seconds: number; l
   const m = Math.floor(seconds / 60);
   const s = String(Math.floor(seconds % 60)).padStart(2, '0');
   return (
-    <span className="flex items-center gap-2 text-[13px] font-medium text-destructive">
+    <span className="flex items-center gap-2 text-label font-medium text-destructive">
       <span className="size-2 animate-pulse rounded-full bg-destructive" />
       {label} · {m}:{s}
     </span>
   );
 }
 
-/** A row in a list; as a button or a link (asChild) too, reading from the left. `current` marks the
+/** A row in a list; as a button or a link too, reading from the left. `current` marks the
  * one shown now, where the arrow keys start from. */
 export function Item({
   current,
   ...props
 }: Unstyled<ComponentProps<typeof ItemPart>> & { current?: boolean }) {
+  useFieldSemanticDiagnostic(props);
   return (
     <ItemPart
       {...props}
@@ -975,6 +798,7 @@ export function Item({
 
 /** Rows one under another, moved through with the arrow keys. */
 export function ItemGroup(props: Unstyled<ComponentProps<typeof ItemGroupPart>>) {
+  useFieldSemanticDiagnostic(props);
   return <ItemGroupPart {...props} data-arrows="" />;
 }
 
@@ -1007,9 +831,10 @@ export function Choices({
           <button
             key={c.id}
             type="button"
+            data-touch-target=""
             onClick={(e) => onChoose(e, c.id)}
             className={cn(
-              'h-8 cursor-pointer rounded-md border bg-background px-3 font-[inherit] text-[13px] font-medium text-foreground outline-none hover:bg-accent focus-visible:ring-[3px] focus-visible:ring-ring/50',
+              'h-8 cursor-pointer rounded-md border bg-background px-3 font-[inherit] text-label font-medium text-foreground outline-none hover:bg-accent focus-visible:ring-[3px] focus-visible:ring-ring/50',
               suggested === c.id && 'border-foreground',
             )}
           >
@@ -1022,11 +847,12 @@ export function Choices({
     <div data-arrows="" className="flex w-full max-w-md flex-col gap-1.5">
       {choices.map((c, i) => (
         <button
+          data-touch-target=""
           key={c.id}
           type="button"
           onClick={(e) => onChoose(e, c.id)}
           className={cn(
-            'flex cursor-pointer items-center gap-3 rounded-[10px] border bg-background px-3.5 py-3 text-left font-[inherit] text-sm text-foreground outline-none hover:bg-accent focus-visible:border-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50',
+            'flex cursor-pointer items-center gap-3 rounded-lg border bg-background px-3.5 py-3 text-left font-[inherit] text-sm text-foreground outline-none hover:bg-accent focus-visible:border-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50',
             suggested === c.id && 'border-foreground',
           )}
         >
@@ -1037,3 +863,16 @@ export function Choices({
     </div>
   );
 }
+
+/** A semantic form: behavior stays with its caller, presentation stays in the kit. */
+export const Form = unstyled(
+  ({
+    layout = 'default',
+    ...props
+  }: ComponentProps<'form'> & { layout?: 'default' | 'inline' }) => (
+    <form
+      {...props}
+      className={layout === 'inline' ? 'flex min-w-0 w-full items-center' : undefined}
+    />
+  ),
+);

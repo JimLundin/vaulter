@@ -9,6 +9,8 @@ import { vaultRules } from '../../vault/validation/rules.ts';
 import { SCHEMA } from '../../vault/documents/notes/schema.fixture.ts';
 import { toast } from 'sonner';
 import type { SuggestionProvider } from './suggestions.ts';
+import { bindVoiceDraft } from './dictation.ts';
+import { createTranscription, type TranscriptionEvents } from './transcription.ts';
 vi.mock('./meta.ts', () => ({ collect: async () => ({ groups: {} }), appVersion: () => 'test' }));
 vi.mock('sonner', () => ({ toast: Object.assign(vi.fn(), { success: vi.fn() }) }));
 afterEach(() => {
@@ -57,6 +59,74 @@ async function setup() {
   });
   return { vault: liveVault(writer), core, ...memory };
 }
+
+test('dictation updates the shared draft with corrected final text and appends after manual edits', async () => {
+  const { vault } = await setup();
+  const conversation = createConversation({ vault, model: null });
+  let events!: TranscriptionEvents;
+  const voice = createTranscription((callbacks) => {
+    events = callbacks;
+    return Promise.resolve({
+      close: vi.fn(),
+      finish: () => Promise.resolve('Corrected sentence.'),
+    });
+  });
+  const unbind = bindVoiceDraft(conversation, voice);
+  conversation.setDraft('Typed introduction.');
+  await voice.start();
+  events.text('Partial');
+  expect(conversation.snapshot().draft).toBe('Typed introduction. Partial');
+  events.text('Partial sentence');
+  await voice.finish();
+  expect(conversation.snapshot().draft).toBe('Typed introduction. Corrected sentence.');
+  expect(conversation.snapshot().turns).toEqual([]);
+  voice.clear();
+  conversation.setDraft('Manually edited.\n');
+  await voice.start();
+  events.text('More words');
+  expect(conversation.snapshot().draft).toBe('Manually edited.\nMore words');
+  voice.clear();
+  events.text('Late words');
+  expect(conversation.snapshot().draft).toBe('Manually edited.\nMore words');
+  unbind();
+  voice.dispose();
+  conversation.dispose();
+});
+
+test('capture failures and interruption preserve dictated text without replacing manual corrections', async () => {
+  const { vault } = await setup();
+  const conversation = createConversation({ vault, model: null });
+  let events!: TranscriptionEvents;
+  let final!: (text: string) => void;
+  const voice = createTranscription((callbacks) => {
+    events = callbacks;
+    return Promise.resolve({
+      close: vi.fn(),
+      finish: () =>
+        new Promise<string>((resolve) => {
+          final = resolve;
+        }),
+    });
+  });
+  const unbind = bindVoiceDraft(conversation, voice);
+  await voice.start();
+  events.text('Keep these words');
+  events.error(new Error('Disconnected'));
+  expect(conversation.snapshot().draft).toBe('Keep these words');
+  conversation.setDraft('Edited after failure.');
+  await voice.start();
+  events.text('More speech');
+  const finishing = voice.finish();
+  voice.interrupt();
+  conversation.setDraft('Corrected after interruption.');
+  final('Late corrected transcript');
+  await finishing;
+  expect(conversation.snapshot().draft).toBe('Corrected after interruption.');
+  expect(conversation.snapshot().turns).toEqual([]);
+  unbind();
+  voice.dispose();
+  conversation.dispose();
+});
 
 test('a controller keeps its turn after the view closes, reads it on reopening, and isolates other conversations', async () => {
   const { vault } = await setup();

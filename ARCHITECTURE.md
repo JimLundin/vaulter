@@ -33,6 +33,8 @@ app/
   check.ts                   the same vault integrity checks over files on disk
   layout.ts                  resolved dependency and kit-use policy
   layout.test.ts             enforces the policy in CI
+  composition.ts             private-helper composition policy and building-block usage
+  composition.test.ts        CI policy check and temporary source-project acceptance tests
   seal-secrets.ts            deployment secret sealing
 ```
 
@@ -47,6 +49,11 @@ Wire the task in `product.tsx`: imports, routes, navigation, commands, callbacks
 needed. Product passes dependencies and optional links explicitly. A workflow never imports another
 workflow, including in tests. For example, chat receives an optional history URL; it does not know
 where History lives. Product also supplies rename's tool factory to chat.
+
+Keep a workflow's configurable fields in its own settings view, exported alongside its other views.
+Product passes `{ name, content }` entries to `SettingsMenu`; the kit groups each entry under that
+feature's name. Removing the feature also removes that entry. Application preferences such as
+Appearance are separate sections. Features without preferences need no empty settings section.
 
 To remove History, delete `workflows/history/` and remove its import, route, navigation, command,
 page branch and optional history URLs from `product.tsx`. To remove rename, delete
@@ -113,8 +120,21 @@ ignores cancellation. Capture appends through `update()` so overlapping tools ca
 Product assembles the Settings route from the kit's theme control and chat's `ChatSettings` view.
 Chat owns its model preference; the controller reads it at the start of each new turn. The composer
 contains only message entry and dictation/send controls, with Enter to send and Shift+Enter for a
-new line. The kit owns their placement and keeps text clear of the controls. Sync status appears
-with the app name in the sidebar header.
+new line. Public `Composer` owns the form, one-row textarea, inset actions, keyboard submission and
+send-icon focus presentation for both Chat and catalogue samples. Its controlled draft and action
+callbacks keep conversation lifetime in the workflow. Enter and Send share the form callback;
+native IME confirmation and Safari key code 229 remain editing events. Non-whitespace text, caller
+permission and an idle response are required to submit. Sync status appears with the app name in
+the sidebar header.
+
+Product binds the transcription controller to the conversation's shared draft above route selection.
+Each recording retains the draft it starts with and replaces only that recording's partial words
+with corrected final text. Failure or interruption retains the last draft; cleared capture ignores
+late events. A subsequent recording appends to manual edits. Capture never submits a turn: Send and
+Enter use the same reviewed submission path for dictated and typed text. The kit's compact voice
+status grows above the anchored composer; unsubmitted speech has no separate feed entry.
+The shared SendButton shows the Enter arrow on field focus and becomes the sole response Stop
+control. VoiceButton stays a microphone, disabled during an agent response.
 
 `suggestions.ts` generates short prompts from a bounded set of note titles/summaries and recent
 conversation text using the selected model. It has no agent tools or write capability. The controller
@@ -127,17 +147,53 @@ Preview supplies a scripted suggestion adapter alongside its scripted conversati
 
 `app/ui/kit/` comes from branch `ui-kit` at `2c30183`. Its design references, Geist / Geist Mono /
 Newsreader fonts, zinc colors, desktop sidebar, mobile controls and overlays are used by the app.
-`npm run kit` opens the standalone gallery. The exported design screens remain reference artifacts;
-they do not install workflows or restore previously deleted features.
+`npm run kit` opens a searchable catalogue: every public component has a live desktop and mobile
+example side by side, using the same sample implementation. `tools/catalogue.test.ts` checks public
+export coverage and actual rendered JSX. The private presentation scope bounds responsive CSS,
+React size classes and portals to each example without an iframe. The exported design screens remain
+reference artifacts; they do not install workflows or restore previously deleted features.
+
+Owned shadcn controls use Base UI as their interaction library. Dialog, Drawer, Menu and Tooltip
+share its layering, focus and gesture mechanics. Search uses inline Base UI Autocomplete behind
+the existing Command interface; [the decision](docs/adr/0001-base-ui-search.md) records the removal
+of cmdk and its transitive Radix dependency. The private `presentation-policy.tsx` owns browser
+and bounded-preview choices for portals, bounds, modal behavior, dismissal and focus restoration.
+Adapters consume those choices while retaining library mechanics. AdaptivePanel keeps the same
+mounted drawer content as it becomes a compact drawer, expanded dialog or wide nonmodal panel.
 
 Screens compose `ui/kit/index.ts`. Public components take no `className` or `style`; Tailwind scans only
-the kit. Add missing generic presentation to the kit, and keep task logic in its workflow.
+the kit. CI rejects custom HTML, styling props, intrinsic element factories and direct presentation
+library imports throughout Product, shared UI and workflows. Semantic forms use the kit's `Form`.
+Add missing generic presentation and its paired example to the kit; keep task logic in its workflow.
+`tools/composition.ts` checks the configured kit composition sources and their reachable private
+presentation helpers and state-only React context providers. Compiler resolution follows imports,
+aliases and re-exports without requiring new public exports or catalogue entries. Approved public
+building blocks, including wrapped `unstyled()` parts, stop traversal and retain ownership of DOM,
+styles and library mechanics. Private helpers obey the composition's existing presentation rules;
+diagnostics identify their offending source and location. The policy reports each root's actual
+building-block usage and checks `composition.ts` metadata, keeping the gallery's **Built from** links
+accurate through private extraction. CI and temporary TypeScript project tests call the same Node-only
+policy interface; product callers gain no runtime dependency.
+
 `surfaces.tsx` supplies conversation, tool-result and unified-diff presentation. Content renderers
 keep their scoped Markdown styling and safety tests; that is an explicit policy exception.
 Conversation containers have separate mobile and desktop compositions. Mobile uses the available
 viewport with tighter padding, smaller heading/feed spacing and a compact composer; desktop keeps
 a reading-width column. `MobileActionButton` has an accessible label but no visible text; only its
 primary AI variant is circular. The bottom bar retains 44px touch targets and device safe-area padding.
+Menu, Search and Settings are the fixed phone controls. Settings opens over the current feature,
+preserving its route and draft: a centered dialog on desktop, the same bottom drawer as Menu on a
+phone. Open settings fields keep their DOM and focus through resizing. `/settings/` remains a direct
+entry to that menu over Agent. `SettingField` declares the visible label and description once;
+private association state connects supported text controls and radio groups through nested layouts.
+Native text labels target each control's effective identifier; choice fields name and describe the
+group. Explicit identifiers and additional descriptions are retained, and repeated fields remain
+independent. Model and Appearance values and persistence stay with their existing adapters.
+Feature screens use the kit's centered `FeaturePage` reading column;
+Agent shares its width token. The composer is a fixed single row with trailing controls; on mobile
+its always-visible field contains the same inset microphone and Send controls as desktop. Focusing opens the
+normal device keyboard without revealing another form. Shift+Enter can still insert newlines, which
+scroll inside the field. Other features retain the floating voice action above their footer.
 
 ## Browser and deployment
 
@@ -151,5 +207,7 @@ model to the same Product views, with sample Markdown and an initial sample hist
 receives the model and preview label explicitly; workflows do not import the preview. Conversation
 metadata collection is supplied as an adapter, so preview sends do not request location or weather.
 The preview builds separately, contains no sealed secrets and registers no service worker. Its
-GitHub Pages job adds `/preview/structure/` and the kit gallery to the exact deployed production
-artifact. Design iteration precedes merging the application and migrating private vault content.
+GitHub Pages job runs on `structure` and `design-variants`, refreshing the shared `/preview/structure/`
+and kit gallery links alongside the exact deployed production artifact. The preview version records
+the publishing branch and commit. Design iteration precedes merging the application and migrating
+private vault content.

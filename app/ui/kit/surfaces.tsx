@@ -1,5 +1,7 @@
+import { usePresentationPolicy } from './presentation-policy.tsx';
 // Shared gates, notices, tool results and diffs. No vault or workflow logic.
 import { type ReactNode, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Button } from './parts/button.tsx';
 import { Icon } from './icons.tsx';
 import { cn } from './lib/utils.ts';
@@ -17,22 +19,26 @@ export function PreviewBar({
   label,
   kitHref,
   onReset,
+  controls,
 }: {
   label: string;
   kitHref: string;
   onReset: () => void;
+  controls?: ReactNode;
 }) {
   const mobile = useIsMobile();
   return (
     <aside
       aria-label="Design preview"
-      className="flex min-h-9 shrink-0 items-center justify-between gap-2 border-b bg-card px-4 text-foreground"
+      className="flex min-h-9 shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b bg-card px-4 py-1 text-foreground"
     >
-      <span className="min-w-0 truncate text-[11px] text-muted-foreground">
+      <span className="min-w-0 truncate text-caption text-muted-foreground">
         {mobile ? 'Sample preview' : `${label} · Sample data · Scripted chat`}
       </span>
-      <div className="flex shrink-0 items-center gap-1">
+      <div className="flex shrink-0 flex-wrap items-center gap-2">
+        {controls}
         <a
+          data-touch-target=""
           href={kitHref}
           aria-label="Component kit"
           className="flex min-h-9 items-center gap-1 px-2 text-xs text-link hover:underline"
@@ -74,8 +80,11 @@ export function ToolResult({
   output?: ReactNode;
 }) {
   return (
-    <details className="overflow-hidden rounded-xl border bg-surface text-[13px]">
-      <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2.5">
+    <details className="overflow-hidden rounded-xl border bg-surface text-label">
+      <summary
+        data-touch-target=""
+        className="flex cursor-pointer list-none items-center gap-2 px-3 py-2.5"
+      >
         <Icon name={error ? 'warning' : status ? 'check' : 'clock'} size="sm" />
         <span className="min-w-0 flex-1 truncate font-medium">{title}</span>
         {!!status && (
@@ -166,13 +175,28 @@ export function HoverPreview({
   anchor: DOMRect;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const policy = usePresentationPolicy();
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    el.style.left = `${Math.max(8, Math.min(anchor.left, innerWidth - el.offsetWidth - 8))}px`;
-    el.style.top = `${anchor.bottom + el.offsetHeight + 16 > innerHeight ? Math.max(8, anchor.top - el.offsetHeight - 8) : anchor.bottom + 8}px`;
-  }, [anchor]);
-  return (
+    const position = () => {
+      const bounds = policy.bounds();
+      const originLeft = policy.bounded ? bounds.left : 0;
+      const originTop = policy.bounded ? bounds.top : 0;
+      const left = anchor.left - originLeft;
+      const top = anchor.top - originTop;
+      const bottom = anchor.bottom - originTop;
+      const minLeft = bounds.left - originLeft + 8;
+      const minTop = bounds.top - originTop + 8;
+      const maxLeft = bounds.right - originLeft - el.offsetWidth - 8;
+      const maxTop = bounds.bottom - originTop - el.offsetHeight - 8;
+      el.style.left = `${Math.max(minLeft, Math.min(left, maxLeft))}px`;
+      el.style.top = `${bottom + 8 > maxTop ? Math.max(minTop, top - el.offsetHeight - 8) : bottom + 8}px`;
+    };
+    position();
+    return policy.watchBounds(position);
+  }, [anchor, policy]);
+  const content = (
     <div
       ref={ref}
       role="tooltip"
@@ -182,4 +206,5 @@ export function HoverPreview({
       {!!text && <p className="mt-1 mb-0 text-muted-foreground">{text}</p>}
     </div>
   );
+  return policy.portal ? createPortal(content, policy.portal) : content;
 }

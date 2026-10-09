@@ -1,75 +1,162 @@
-// Settings share preference state; phone controls and desktop form rows are different compositions.
-import type { ReactNode } from 'react';
-import { useIsMobile } from './hooks/use-mobile.ts';
-import { Label } from './parts/label.tsx';
+// Settings compose shared layout, typography and field primitives; features supply their controls.
+import * as React from 'react';
+import {
+  isValidElement,
+  type ReactNode,
+  useCallback,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import {
+  FieldAssociation,
+  type FieldControl,
+  hasFieldControlSemantics,
+} from './field-association.ts';
+import { Field, FieldContent, FieldDescription, FieldLabel, FieldTitle } from './parts/field.tsx';
+import { FeaturePage } from './app.tsx';
+import { Heading, Stack } from './parts/layout.tsx';
+import { Surface } from './primitives.tsx';
+import { Drawer } from './drawer.tsx';
 
 export function SettingsPage({ children }: { children: ReactNode }) {
-  const mobile = useIsMobile();
-  return mobile ? (
-    <article data-layout="mobile-settings" className="flex min-h-full flex-col bg-surface">
-      <header className="border-b bg-background px-4 py-4">
-        <h1 className="m-0 text-xl font-semibold">Settings</h1>
-        <p className="mt-1 mb-0 text-[13px] text-muted-foreground">Preferences for this device</p>
-      </header>
-      <div className="flex flex-col gap-6 py-6">{children}</div>
-    </article>
-  ) : (
-    <article data-layout="desktop-settings" className="flex max-w-4xl flex-col gap-8 px-12 py-9">
-      <header>
-        <h1 className="m-0 text-[26px] font-semibold tracking-tight">Settings</h1>
-        <p className="mt-2 mb-0 text-[15px] text-muted-foreground">Preferences for this device</p>
-      </header>
-      <div className="flex flex-col gap-8">{children}</div>
-    </article>
+  return (
+    <FeaturePage title="Settings" description="Preferences for this device">
+      <Stack gap="xl" block="md">
+        {children}
+      </Stack>
+    </FeaturePage>
   );
 }
-
-export function SettingsSection({ title, children }: { title: string; children: ReactNode }) {
-  const mobile = useIsMobile();
-  return mobile ? (
-    <section aria-label={title} className="flex flex-col gap-2">
-      <h2 className="m-0 px-4 text-xs font-semibold text-muted-foreground">{title}</h2>
-      <div className="border-y bg-background px-4 py-4">{children}</div>
-    </section>
-  ) : (
-    <section aria-label={title} className="flex flex-col gap-5 border-t pt-6">
-      <h2 className="m-0 text-[15px] font-semibold">{title}</h2>
-      {children}
-    </section>
+/** Product supplies feature-owned fields, grouped under each feature's name. */
+export function SettingsMenu({
+  open,
+  onClose,
+  features,
+  children,
+}: {
+  open: boolean;
+  onClose: () => void;
+  features: { name: string; content: ReactNode }[];
+  children?: ReactNode;
+}) {
+  return (
+    <Drawer
+      open={open}
+      onClose={onClose}
+      title="Settings"
+      description="Preferences for this device"
+    >
+      <Surface variant="preferences">
+        {children}
+        {features.map((feature) => (
+          <SettingsSection key={feature.name} title={feature.name}>
+            {feature.content}
+          </SettingsSection>
+        ))}
+      </Surface>
+    </Drawer>
   );
+}
+export function SettingsSection({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <Surface as="section" aria-label={title} variant="grouped">
+      <Surface variant="groupHeading">
+        <Heading level={2}>{title}</Heading>
+      </Surface>
+      <Surface variant="inset">{children}</Surface>
+    </Surface>
+  );
+}
+// Ordinary React children can be inspected without cloning controls or searching the DOM.
+// Public kit props and opaque feature components are validated by mounted registration.
+function hasUnsupportedControl(children: ReactNode): boolean {
+  return React.Children.toArray(children).some((child) => {
+    if (
+      !isValidElement<{ children?: ReactNode; role?: string; contentEditable?: boolean | string }>(
+        child,
+      )
+    )
+      return false;
+    if (
+      typeof child.type === 'string' &&
+      (['input', 'textarea', 'select'].includes(child.type) ||
+        hasFieldControlSemantics(child.props))
+    )
+      return true;
+    return hasUnsupportedControl(child.props.children);
+  });
 }
 
 export function SettingField({
   label,
-  htmlFor,
   description,
-  descriptionId,
   children,
 }: {
   label: string;
-  htmlFor?: string;
   description: string;
-  descriptionId?: string;
   children: ReactNode;
 }) {
-  const mobile = useIsMobile();
-  return mobile ? (
-    <div className="flex flex-col gap-3 [&_input]:h-12 [&_input]:text-base">
-      <Label htmlFor={htmlFor}>{label}</Label>
-      {children}
-      <p id={descriptionId} className="m-0 text-[13px] leading-relaxed text-muted-foreground">
-        {description}
-      </p>
-    </div>
-  ) : (
-    <div className="grid grid-cols-[minmax(0,1fr)_minmax(240px,320px)] items-start gap-8">
-      <div className="flex flex-col gap-2">
-        <Label htmlFor={htmlFor}>{label}</Label>
-        <p id={descriptionId} className="m-0 text-[13px] leading-relaxed text-muted-foreground">
-          {description}
-        </p>
-      </div>
-      <div className="min-w-0">{children}</div>
-    </div>
+  const generatedId = useId();
+  const controlId = `${generatedId}-control`;
+  const labelId = `${generatedId}-label`;
+  const effectiveDescriptionId = `${generatedId}-description`;
+  const controls = useRef(new Map<string, FieldControl>());
+  const mounted = useRef(false);
+  const [, notify] = useState(0);
+  const [registeredControl, setRegisteredControl] = useState<FieldControl>();
+  const registerControl = useCallback((key: string, control: FieldControl) => {
+    controls.current.set(key, control);
+    if (mounted.current) notify((version) => version + 1);
+    return () => {
+      controls.current.delete(key);
+      if (mounted.current) notify((version) => version + 1);
+    };
+  }, []);
+  useLayoutEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+  useLayoutEffect(() => {
+    if (
+      hasUnsupportedControl(children) ||
+      [...controls.current.values()].some((candidate) => candidate.kind === 'unsupported')
+    ) {
+      throw new Error(
+        `SettingField "${label}" contains an unsupported semantic control; use one supported text control or radio group.`,
+      );
+    }
+    if (controls.current.size !== 1) {
+      throw new Error(
+        `SettingField "${label}" requires exactly one supported text control or radio group; found ${controls.current.size}.`,
+      );
+    }
+    const control = controls.current.values().next().value;
+    if (control?.id !== registeredControl?.id || control?.kind !== registeredControl?.kind) {
+      setRegisteredControl(control);
+    }
+  });
+  const association = useMemo(
+    () => ({ controlId, labelId, descriptionId: effectiveDescriptionId, registerControl }),
+    [controlId, labelId, effectiveDescriptionId, registerControl],
+  );
+  return (
+    <FieldAssociation.Provider value={association}>
+      <Field orientation="setting">
+        {registeredControl?.kind === 'group' ? (
+          <FieldTitle id={labelId}>{label}</FieldTitle>
+        ) : (
+          <FieldLabel id={labelId} htmlFor={registeredControl?.id ?? controlId}>
+            {label}
+          </FieldLabel>
+        )}
+        <FieldContent>{children}</FieldContent>
+        <FieldDescription id={effectiveDescriptionId}>{description}</FieldDescription>
+      </Field>
+    </FieldAssociation.Provider>
   );
 }

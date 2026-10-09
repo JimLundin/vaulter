@@ -1,15 +1,21 @@
-// A single conversation state can be presented as a phone screen or a desktop reading column.
-import { createContext, type ReactNode, useContext } from 'react';
-import { StickToBottom, useStickToBottomContext } from 'use-stick-to-bottom';
+// Agent compositions: content and actions assembled exclusively from catalogued primitives.
+import { createContext, type ReactNode, type Ref, useContext, useState } from 'react';
+import { Stack, Row, Heading, Text, Link, Prose } from './parts/layout.tsx';
+import { Form } from './app.tsx';
 import { Button } from './parts/button.tsx';
-import { Dialog, DialogContent, DialogTitle } from './parts/dialog.tsx';
+import { InputGroup, InputGroupAddon, InputGroupTextarea } from './parts/input-group.tsx';
 import { Icon } from './icons.tsx';
-import { cn } from './lib/utils.ts';
+import {
+  Surface,
+  Toolbar,
+  ReadingColumn,
+  Dock,
+  AutoScrollArea,
+  AdaptivePanel,
+  OptionStrip,
+} from './primitives.tsx';
 import { useIsMobile } from './hooks/use-mobile.ts';
-import { Overlay } from './app.tsx';
-import { SidePanel } from './surfaces.tsx';
 
-// Layout can change without moving conversation state into either device's presentation.
 const ConversationPresentation = createContext<{ page: boolean; close?: () => void }>({
   page: false,
 });
@@ -31,30 +37,28 @@ export function ConversationWelcome({
 }) {
   const mobile = useIsMobile();
   const { page } = useContext(ConversationPresentation);
-  return mobile ? (
-    <div className="flex flex-col items-center gap-3 px-2 py-6 text-center">
-      <span className="mb-1 flex size-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
-        <Icon name="sparkles" size="lg" />
-      </span>
-      <h1 className="m-0 max-w-[16ch] font-serif text-[24px] leading-[1.2] font-medium tracking-[-0.01em]">
-        {title}
-      </h1>
-      <p className="m-0 max-w-[32ch] text-[13px] leading-relaxed text-muted-foreground">
-        {description}
-      </p>
-    </div>
-  ) : (
-    <div className="flex flex-col gap-6 py-4">
-      <h1
-        className={cn(
-          'm-0 font-serif leading-[1.15] font-medium tracking-[-0.01em]',
-          page ? 'text-[40px]' : 'text-[26px]',
-        )}
+  return (
+    <Stack
+      gap={mobile ? 'md' : 'xl'}
+      align={mobile ? 'center' : 'stretch'}
+      inset={mobile ? 'sm' : 'none'}
+      block={mobile ? 'lg' : 'md'}
+      centerText={mobile}
+    >
+      {mobile && (
+        <Surface variant="emblem">
+          <Icon name="sparkles" size="lg" />
+        </Surface>
+      )}
+      <Heading
+        level={page || mobile ? 1 : 2}
+        serif={true}
+        size={page || mobile ? 'display' : 'title'}
       >
         {title}
-      </h1>
-      <p className="m-0 text-[15px] text-muted-foreground">{description}</p>
-    </div>
+      </Heading>
+      <Text tone="muted">{description}</Text>
+    </Stack>
   );
 }
 
@@ -63,278 +67,262 @@ interface ConversationActions {
   onNewChat: () => void;
   busy: boolean;
 }
-
-function MobileConversationToolbar({ historyHref, onNewChat, busy }: ConversationActions) {
+function ConversationToolbar({ historyHref, onNewChat, busy }: ConversationActions) {
+  const mobile = useIsMobile();
   const { page, close } = useContext(ConversationPresentation);
   return (
-    <header className="flex h-12 shrink-0 items-center justify-between border-b px-3">
-      <div className="flex items-center gap-1">
-        {!!close && (
-          <Button
-            variant="ghost"
-            size="icon-lg"
-            className="size-11 rounded-none"
-            aria-label="Close"
-            onClick={close}
-          >
+    <Toolbar>
+      <Row gap="xs">
+        {mobile && !!close && (
+          <Button variant="ghost" size="icon-lg" aria-label="Close" onClick={close}>
             <Icon name="arrow-left" size="lg" />
           </Button>
         )}
-        <h2 className="m-0 px-1 text-sm font-semibold">
-          {page || close ? 'Agent' : 'Conversation'}
-        </h2>
-      </div>
-      <div className="flex items-center">
+        {(mobile || page || !!close) && (
+          <Stack gap="xs">
+            <Heading level={2}>{page || close ? 'Agent' : 'Conversation'}</Heading>
+            {!mobile && (
+              <Text size="sm" tone="subtle">
+                Your vault, in conversation
+              </Text>
+            )}
+          </Stack>
+        )}
+      </Row>
+      <Row>
         {!!historyHref && (
-          <Button variant="ghost" size="icon-lg" className="size-11 rounded-none" asChild={true}>
-            <a href={historyHref} aria-label="History" onClick={close}>
-              <Icon name="history" size="lg" />
-            </a>
+          <Button
+            variant="ghost"
+            size={mobile ? 'icon-lg' : 'sm'}
+            nativeButton={false}
+            render={<Link href={historyHref} aria-label="History" plain={true} />}
+          >
+            <Icon name="history" size={mobile ? 'lg' : 'md'} />
+            {!mobile && 'History'}
           </Button>
         )}
         <Button
-          variant="ghost"
-          size="icon-lg"
-          className="size-11 rounded-none"
+          variant="default"
+          size={mobile ? 'icon-lg' : 'sm'}
           aria-label="New chat"
           disabled={busy}
           onClick={onNewChat}
         >
-          <Icon name="plus" size="lg" />
+          <Icon name="plus" size={mobile ? 'lg' : 'md'} />
+          {!mobile && 'New chat'}
         </Button>
-      </div>
-    </header>
-  );
-}
-
-function DesktopConversationToolbar({ historyHref, onNewChat, busy }: ConversationActions) {
-  const { page, close } = useContext(ConversationPresentation);
-  return (
-    <header className="flex shrink-0 items-center justify-between gap-3">
-      {!!page && (
-        <div className="flex flex-col gap-1">
-          <h2 className="m-0 text-[15px] font-semibold">Agent</h2>
-          <p className="m-0 text-[13px] text-subtle-foreground">Your vault, in conversation</p>
-        </div>
-      )}
-      <div className={cn('flex items-center gap-2', !page && 'w-full justify-between')}>
-        {!!historyHref && (
-          <Button variant="ghost" size="sm" asChild={true}>
-            <a href={historyHref} onClick={close}>
-              <Icon name="history" />
-              History
-            </a>
+        {!mobile && !!close && (
+          <Button variant="ghost" size="icon-sm" aria-label="Close panel" onClick={close}>
+            <Icon name="close" />
           </Button>
         )}
-        <Button variant="outline" size="sm" disabled={busy} onClick={onNewChat}>
-          <Icon name="plus" />
-          New chat
-        </Button>
-      </div>
-    </header>
+      </Row>
+    </Toolbar>
   );
 }
 
-/** Device-specific toolbar and composer dock; the feed and draft have a stable place on resize. */
+/** The feed and draft keep a stable position while the toolbar and dock rearrange. */
 export function ConversationSurface({
   historyHref,
   onNewChat,
   busy,
   composer,
   suggestions,
-  voiceControl,
+  status,
   children,
 }: ConversationActions & {
   composer: ReactNode;
   suggestions?: ReactNode;
-  voiceControl?: ReactNode;
+  status?: ReactNode;
   children: ReactNode;
 }) {
-  const mobile = useIsMobile();
   const { page } = useContext(ConversationPresentation);
-  const actions = { historyHref, onNewChat, busy };
   return (
-    <section
-      aria-label="Conversation"
-      data-layout={mobile ? 'mobile-conversation' : 'desktop-conversation'}
-      className={cn('flex min-h-0 min-w-0 flex-1 flex-col', !mobile && page && 'px-12 pt-9 pb-4')}
-    >
-      <div
-        className={cn(
-          'flex min-h-0 min-w-0 flex-1 flex-col',
-          !mobile && page && 'w-full max-w-3xl',
-        )}
-      >
-        {mobile ? (
-          <MobileConversationToolbar {...actions} />
-        ) : (
-          <DesktopConversationToolbar {...actions} />
-        )}
-        {children}
-        <div
-          className={
-            mobile ? 'relative shrink-0 border-t bg-surface px-4 pt-3 pb-22' : 'shrink-0 pt-3'
-          }
-        >
+    <ReadingColumn page={page} label="Conversation">
+      <ConversationToolbar historyHref={historyHref} onNewChat={onNewChat} busy={busy} />
+      {children}
+      <Dock status={status}>
+        <Stack gap="sm">
           {suggestions}
-          {composer}
-          {mobile && !page && <div className="absolute right-5 bottom-3">{voiceControl}</div>}
-          {!mobile && page && (
-            <p className="mt-2 mb-0 text-right text-[11px] text-subtle-foreground">
-              Enter to send · Shift + Enter for a new line
-            </p>
-          )}
-        </div>
-      </div>
-    </section>
+          <Row data-conversation-input="">
+            <Stack grow={true} gap="none">
+              {composer}
+            </Stack>
+          </Row>
+        </Stack>
+      </Dock>
+    </ReadingColumn>
   );
 }
 
 export function ConversationFeed({ empty, children }: { empty?: boolean; children: ReactNode }) {
-  const mobile = useIsMobile();
-  return (
-    <StickToBottom
-      className="relative min-h-0 flex-1 overflow-y-auto"
-      initial="smooth"
-      resize="smooth"
-    >
-      <StickToBottom.Content
-        className={cn(
-          'flex flex-col',
-          mobile ? 'gap-4 px-4 py-4' : 'gap-6 px-1 py-7',
-          mobile && empty && 'min-h-full justify-center',
-        )}
-      >
-        {children}
-      </StickToBottom.Content>
-      <ScrollDown />
-    </StickToBottom>
-  );
+  return <AutoScrollArea empty={empty}>{children}</AutoScrollArea>;
 }
-function ScrollDown() {
-  const { isAtBottom, scrollToBottom } = useStickToBottomContext();
-  if (isAtBottom) return null;
-  return (
-    <Button
-      className="absolute right-3 bottom-3 rounded-full"
-      variant="outline"
-      size="sm"
-      onClick={() => {
-        void scrollToBottom();
-      }}
-    >
-      Latest reply
-    </Button>
-  );
-}
-
 export function Message({ user, children }: { user?: boolean; children: ReactNode }) {
   const mobile = useIsMobile();
   return (
-    <div
-      data-message={user ? 'user' : 'agent'}
-      className={cn('flex min-w-0 flex-col', user ? 'ml-auto max-w-[85%] items-end' : 'gap-2')}
-    >
+    <Stack data-message={user ? 'user' : 'agent'} align={user ? 'end' : 'stretch'} gap="sm">
       {!mobile && (
-        <span className="text-[11px] font-medium text-subtle-foreground">
+        <Text as="span" size="xs" weight="medium" tone="subtle">
           {user ? 'You' : 'Agent'}
-        </span>
+        </Text>
       )}
-      <div
-        className={cn(
-          user ? 'whitespace-pre-wrap bg-muted text-body' : 'flex min-w-0 flex-col gap-3',
-          user && (mobile ? 'rounded-xl px-3 py-2.5 text-[15px]' : 'mt-1 rounded-2xl px-4 py-3'),
-        )}
-      >
-        {children}
-      </div>
-    </div>
+      {user ? <Surface variant="bubble">{children}</Surface> : <Stack>{children}</Stack>}
+    </Stack>
   );
 }
 export function Markdown({ children }: { children: ReactNode }) {
+  return <Prose markdown={true}>{children}</Prose>;
+}
+/** Controlled entry: the owner retains draft lifetime and the authority to accept submission. */
+export function Composer({
+  draft,
+  onDraftChange,
+  onSubmit,
+  label,
+  placeholder,
+  canSubmit,
+  busy = false,
+  disabled = false,
+  readOnly = false,
+  voice,
+  onStop,
+  fieldRef,
+  onFocusChange,
+  sendLabel,
+}: {
+  draft: string;
+  onDraftChange: (text: string) => void;
+  onSubmit: (text: string) => void;
+  label: string;
+  placeholder?: string;
+  canSubmit: boolean;
+  busy?: boolean;
+  disabled?: boolean;
+  readOnly?: boolean;
+  voice?: { phase: VoicePhase; onClick: () => void; disabled?: boolean };
+  onStop?: () => void;
+  fieldRef?: Ref<HTMLTextAreaElement>;
+  onFocusChange?: (focused: boolean) => void;
+  sendLabel?: string;
+}) {
+  const [focused, setFocused] = useState(false);
+  const eligible = !!draft.trim() && canSubmit && !busy;
+  const focus = (value: boolean) => {
+    setFocused(value);
+    onFocusChange?.(value);
+  };
   return (
-    <div className="prose font-serif text-[17px] leading-relaxed md:text-[19px]">{children}</div>
+    <Surface as="fieldset" aria-label="Message composer">
+      <Form
+        layout="inline"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (eligible) onSubmit(draft);
+        }}
+      >
+        <InputGroup variant="composer">
+          <InputGroupTextarea
+            variant="inline"
+            ref={fieldRef}
+            rows={1}
+            aria-label={label}
+            placeholder={placeholder}
+            value={draft}
+            disabled={busy || disabled}
+            readOnly={readOnly}
+            aria-busy={readOnly}
+            onChange={(event) => onDraftChange(event.currentTarget.value)}
+            onFocus={() => focus(true)}
+            onBlur={() => focus(false)}
+            onKeyDown={(event) => {
+              // Safari reports Enter confirming composed text with keyCode 229.
+              if (
+                eligible &&
+                event.key === 'Enter' &&
+                !event.shiftKey &&
+                !event.nativeEvent.isComposing &&
+                event.nativeEvent.keyCode !== 229
+              ) {
+                event.preventDefault();
+                event.currentTarget.form?.requestSubmit();
+              }
+            }}
+          />
+          <InputGroupAddon align="inset-end">
+            {!!voice && (
+              <VoiceButton
+                phase={voice.phase}
+                onClick={voice.onClick}
+                disabled={voice.disabled}
+                busy={busy}
+              />
+            )}
+            <SendButton
+              busy={busy}
+              focused={focused}
+              disabled={!eligible}
+              onStop={onStop}
+              label={sendLabel}
+            />
+          </InputGroupAddon>
+        </InputGroup>
+      </Form>
+    </Surface>
   );
 }
-export function Composer({ children }: { children: ReactNode }) {
-  const mobile = useIsMobile();
+export function SendButton({
+  busy,
+  focused,
+  disabled,
+  onStop,
+  label = 'Send',
+}: {
+  busy?: boolean;
+  focused?: boolean;
+  disabled?: boolean;
+  onStop?: () => void;
+  label?: string;
+}) {
   return (
-    <fieldset
-      aria-label="Message composer"
-      className={cn(
-        'relative min-w-0 shrink-0 border bg-background p-1 shadow-xs focus-within:ring-2 focus-within:ring-ring/50 [&_textarea]:max-h-64 [&_textarea]:resize-none [&_textarea]:border-0 [&_textarea]:bg-transparent [&_textarea]:px-3 [&_textarea]:pt-3 [&_textarea]:placeholder:text-subtle-foreground [&_textarea]:placeholder:text-sm [&_textarea]:shadow-none [&_textarea]:focus-visible:ring-0',
-        mobile ? 'rounded-xl [&_textarea]:rounded-lg' : 'rounded-2xl [&_textarea]:rounded-xl',
-        mobile
-          ? '[&_textarea]:min-h-28 [&_textarea]:pb-12'
-          : '[&_textarea]:min-h-32 [&_textarea]:pb-16',
-      )}
+    <Button
+      type={busy ? 'button' : 'submit'}
+      variant={busy ? 'outline' : 'default'}
+      size="icon-lg"
+      aria-label={busy ? 'Stop' : label}
+      disabled={!busy && disabled}
+      onClick={busy ? onStop : undefined}
     >
-      {children}
-    </fieldset>
+      <Icon name={busy ? 'stop' : focused ? 'enter' : 'arrow-up'} />
+    </Button>
   );
 }
-export function ComposerActions({ children }: { children: ReactNode }) {
-  return <div className="absolute right-2 bottom-2 flex items-center gap-1">{children}</div>;
-}
-/** An agent sheet on phones, a reading panel or dialog on desktop. */
 export function ConversationPanel({
-  mobile,
-  wide,
   open,
   onClose,
   children,
 }: {
-  mobile: boolean;
-  wide: boolean;
   open: boolean;
   onClose: () => void;
   children?: ReactNode;
 }) {
-  if (mobile)
-    return (
-      <Dialog
-        open={open}
-        onOpenChange={(next) => {
-          if (!next) onClose();
-        }}
-      >
-        <DialogContent
-          showCloseButton={false}
-          aria-describedby={undefined}
-          className="inset-0 flex h-dvh max-h-none w-full max-w-none translate-x-0 translate-y-0 flex-col gap-0 rounded-none border-0 p-0 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] sm:max-w-none"
-        >
-          <DialogTitle className="sr-only">Ask the agent</DialogTitle>
-          <ConversationPresentation.Provider value={{ page: false, close: onClose }}>
-            {children}
-          </ConversationPresentation.Provider>
-        </DialogContent>
-      </Dialog>
-    );
-  if (wide)
-    return open ? (
-      <SidePanel title="Agent" onClose={onClose}>
-        <ConversationPresentation.Provider value={{ page: false, close: onClose }}>
-          {children}
-        </ConversationPresentation.Provider>
-      </SidePanel>
-    ) : null;
   return (
-    <Overlay mobile={false} open={open} onClose={onClose} title="Ask the agent" tall={true}>
+    <AdaptivePanel open={open} onClose={onClose} title="Agent">
       <ConversationPresentation.Provider value={{ page: false, close: onClose }}>
         {children}
       </ConversationPresentation.Provider>
-    </Overlay>
+    </AdaptivePanel>
   );
 }
 
-/** Voice input is the primary phone interaction; no label is placed under the circle. */
+type VoicePhase = 'idle' | 'connecting' | 'listening' | 'finishing' | 'ready' | 'error';
 export function VoiceButton({
   phase,
   busy,
   disabled,
   onClick,
 }: {
-  phase: 'idle' | 'connecting' | 'listening' | 'finishing' | 'ready' | 'error';
+  phase: VoicePhase;
   busy: boolean;
   disabled?: boolean;
   onClick: () => void;
@@ -344,116 +332,44 @@ export function VoiceButton({
   const label =
     phase === 'connecting'
       ? 'Cancel recording'
-      : busy
-        ? 'Stop agent'
-        : recording
-          ? 'Finish recording'
-          : phase === 'ready'
-            ? 'Send transcript'
-            : waiting
-              ? 'Finishing transcript'
-              : 'Start voice interaction';
+      : recording
+        ? 'Finish recording'
+        : waiting
+          ? 'Finishing transcript'
+          : 'Start voice interaction';
   return (
-    <button
+    <Button
       type="button"
+      variant="ghost"
+      size="icon-lg"
+      pending={waiting}
       aria-label={label}
       aria-pressed={recording}
-      disabled={disabled || phase === 'finishing'}
+      disabled={disabled || busy || phase === 'finishing'}
       onClick={onClick}
-      className={cn(
-        'flex size-16 items-center justify-center rounded-full border-4 border-background bg-primary text-primary-foreground shadow-lg focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-60',
-        recording && 'bg-destructive',
-        waiting && 'animate-pulse',
-      )}
     >
-      <Icon
-        name={
-          busy || recording ? 'stop' : phase === 'ready' ? 'arrow-up' : waiting ? 'clock' : 'mic'
-        }
-        size="xl"
-      />
-    </button>
+      <Icon name={recording ? 'stop' : waiting ? 'clock' : 'mic'} />
+    </Button>
   );
 }
-
-export function VoiceTranscript({
-  phase,
-  text,
-  error,
-  preview,
-  onEdit,
-  onDiscard,
-}: {
-  phase: 'idle' | 'connecting' | 'listening' | 'finishing' | 'ready' | 'error';
-  text: string;
-  error: string;
-  preview?: boolean;
-  onEdit: () => void;
-  onDiscard: () => void;
-}) {
-  const active = ['connecting', 'listening', 'finishing'].includes(phase);
+export function VoiceStatus({ phase, error }: { phase: VoicePhase; error: string }) {
+  if (phase === 'idle') return null;
   const label =
     phase === 'connecting'
       ? 'Connecting microphone…'
       : phase === 'listening'
-        ? 'Listening'
+        ? 'Listening… Tap the microphone to finish.'
         : phase === 'finishing'
           ? 'Finishing transcript…'
           : phase === 'ready'
             ? 'Ready to send'
-            : 'Recording stopped';
+            : 'Recording stopped. Your text is ready to edit or send.';
   return (
-    <section aria-label="Live transcription" className="flex min-w-0 flex-col gap-5 py-4">
-      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-        <span
-          className={cn(
-            'size-2 rounded-full',
-            active ? 'animate-pulse bg-destructive' : 'bg-subtle-foreground',
-          )}
-        />
-        <span role="status">
-          {!!preview && 'Demo · '}
-          {label}
-        </span>
-      </div>
-      <p
-        aria-live="polite"
-        aria-atomic={false}
-        className="m-0 whitespace-pre-wrap break-words text-[22px] leading-[1.5] font-medium tracking-tight"
-      >
-        {text || (phase === 'connecting' ? 'Getting ready…' : 'Start speaking…')}
-        {phase === 'listening' && (
-          <span
-            aria-hidden={true}
-            className="ml-1 inline-block h-5 w-0.5 animate-pulse bg-primary align-middle"
-          />
-        )}
-      </p>
-      {!!error && (
-        <p role="alert" className="m-0 text-[13px] leading-relaxed text-destructive">
-          {error}
-        </p>
-      )}
-      {!active && !!text && (
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={onEdit}>
-            <Icon name="edit" />
-            Edit text
-          </Button>
-          <Button variant="ghost" size="sm" onClick={onDiscard}>
-            Discard
-          </Button>
-        </div>
-      )}
-      {phase === 'ready' && (
-        <p className="m-0 text-[13px] text-muted-foreground">
-          Tap the arrow to send, or edit your words first.
-        </p>
-      )}
-    </section>
+    <Text role={error ? 'alert' : 'status'} size="xs" tone={error ? 'danger' : 'muted'}>
+      {error || label}
+    </Text>
   );
 }
-
 export function PromptSuggestions({
   suggestions,
   onSelect,
@@ -461,54 +377,21 @@ export function PromptSuggestions({
   suggestions: string[];
   onSelect: (text: string) => void;
 }) {
-  const mobile = useIsMobile();
   if (!suggestions.length) return null;
   return (
-    <section aria-label="Suggested prompts" className="mb-4 flex flex-col gap-2">
-      <h3 className="m-0 text-[11px] font-medium text-subtle-foreground">Ideas to explore</h3>
-      <div className={mobile ? 'flex gap-2 overflow-x-auto pb-1' : 'flex flex-wrap gap-2'}>
+    <Stack as="section" aria-label="Suggested prompts" gap="sm">
+      <OptionStrip>
         {suggestions.map((suggestion) => (
-          <button
+          <Button
             key={suggestion}
             type="button"
+            variant="suggestion"
             onClick={() => onSelect(suggestion)}
-            className={cn(
-              'border bg-background px-3 py-2 text-left text-[13px] leading-snug text-muted-foreground hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring',
-              mobile ? 'min-h-16 w-52 shrink-0 rounded-lg' : 'max-w-64 rounded-lg',
-            )}
           >
             {suggestion}
-          </button>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-/** Typing is an explicit secondary mode on mobile; the desktop composer stays visible. */
-export function ConversationInput({
-  open,
-  onOpen,
-  onClose,
-  children,
-}: {
-  open: boolean;
-  onOpen: () => void;
-  onClose: () => void;
-  children: ReactNode;
-}) {
-  const mobile = useIsMobile();
-  return (
-    <div>
-      {mobile && (
-        <div className="flex min-h-11 items-center justify-start">
-          <Button variant="ghost" size="sm" onClick={open ? onClose : onOpen}>
-            <Icon name={open ? 'close' : 'keyboard'} />
-            {open ? 'Close keyboard' : 'Type a message'}
           </Button>
-        </div>
-      )}
-      <div hidden={mobile && !open}>{children}</div>
-    </div>
+        ))}
+      </OptionStrip>
+    </Stack>
   );
 }
