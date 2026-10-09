@@ -266,9 +266,6 @@ test('paired settings fields keep independent accessible meaning and native labe
   for (const sample of [desktop, mobile]) {
     const input = sample.getByRole('textbox', { name: 'Model', exact: true });
     await expect(input).toHaveAccessibleDescription('Used for conversations on this device.');
-    await expect(
-      sample.getByRole('radiogroup', { name: 'Theme', exact: true }),
-    ).toHaveAccessibleDescription('Choose how Vaulter looks.');
     await sample.getByText('Model', { exact: true }).click();
     await expect(input).toBeFocused();
   }
@@ -289,6 +286,9 @@ test('settings and search portals remain inside their example without locking th
     await trigger.click();
     const dialog = sample.getByRole('dialog', { name: 'Settings', exact: true });
     await expect(dialog).toBeVisible();
+    await expect(
+      dialog.getByRole('radiogroup', { name: 'Theme', exact: true }),
+    ).toHaveAccessibleDescription('Choose how Vaulter looks.');
     await expect
       .poll(async () => {
         const outer = (await sample.boundingBox())!;
