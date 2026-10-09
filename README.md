@@ -80,6 +80,8 @@ gallery under `kit/`.
 
 GitHub Pages accepts one site artifact. The preview job downloads the successful artifact for the
 currently deployed production commit, preserves its root files, and adds `preview/structure/`.
+Production artifacts are retained for 90 days; refresh production before publishing a preview if
+the deployed artifact has expired.
 `tools/publish-design.ts` refuses to publish if that exact production artifact is unavailable or if
 the preview contains `secrets.json` or `sw.js`. The `github-pages` environment allows both design
 branches for this preview. Preview publishing does not merge the application branch or migrate vault data.
