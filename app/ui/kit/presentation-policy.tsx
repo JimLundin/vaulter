@@ -70,6 +70,15 @@ function retainInteractionScope(portal: HTMLElement) {
 
 type ChangeDetails = { reason: string; event: Event; cancel: () => void };
 
+function usableFocusTarget(node: HTMLElement) {
+  return (
+    node.isConnected &&
+    !node.matches(':disabled') &&
+    node.getClientRects().length > 0 &&
+    getComputedStyle(node).visibility === 'visible'
+  );
+}
+
 export function usePresentationPolicy() {
   const presentation = usePresentation();
   const layout = useLayout();
@@ -159,16 +168,18 @@ export function usePresentationSurface(open: boolean) {
           active instanceof HTMLElement &&
           active !== document.body &&
           active !== document.documentElement &&
-          active.isConnected &&
-          !active.matches(':disabled') &&
-          active.getClientRects().length > 0 &&
-          getComputedStyle(active).visibility === 'visible';
+          usableFocusTarget(active);
         const ownsKeyboard =
           !policy.portal ||
           (focused
             ? interactionScope(interactionScopes.get(document), active) === policy.portal
             : interactionScopes.get(document)?.active === policy.portal);
-        if (!ownsKeyboard || policy.environment.surfaces.at(-1)?.id !== id) {
+        const surfaces = policy.environment.surfaces;
+        // Mount effects can register a parent after its child; open children still dismiss first.
+        const topmost = surfaces.findLast(
+          (surface) => !surfaces.some((child) => child.parent === surface.id),
+        );
+        if (!ownsKeyboard || topmost?.id !== id) {
           details.cancel();
           return false;
         }
@@ -219,12 +230,7 @@ export function usePresentationFocus(open: boolean) {
     return () => document.removeEventListener('focusin', remember);
   }, [open, policy]);
   return () => {
-    const visible = (node: HTMLElement) =>
-      node.isConnected &&
-      !node.matches(':disabled') &&
-      node.getClientRects().length > 0 &&
-      getComputedStyle(node).visibility === 'visible' &&
-      policy.owns(node);
+    const visible = (node: HTMLElement) => usableFocusTarget(node) && policy.owns(node);
     for (const same of targets.current) {
       if (same.tag === 'body') continue;
       const target = visible(same.node)
