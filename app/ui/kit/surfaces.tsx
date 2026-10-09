@@ -1,4 +1,4 @@
-import { usePresentation } from './presentation.tsx';
+import { usePresentationPolicy } from './presentation-policy.tsx';
 // Shared gates, notices, tool results and diffs. No vault or workflow logic.
 import { type ReactNode, useEffect, useRef } from 'react';
 import { Button } from './parts/button.tsx';
@@ -174,19 +174,19 @@ export function HoverPreview({
   anchor: DOMRect;
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  const presentation = usePresentation();
+  const policy = usePresentationPolicy();
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const bounds = presentation?.portal.getBoundingClientRect();
-    const left = anchor.left - (bounds?.left ?? 0);
-    const top = anchor.top - (bounds?.top ?? 0);
+    const bounds = policy.bounds();
+    const left = anchor.left - (policy.bounded ? bounds.left : 0);
+    const top = anchor.top - (policy.bounded ? bounds.top : 0);
     const bottom = anchor.bottom - (bounds?.top ?? 0);
-    const width = bounds?.width ?? innerWidth;
-    const height = bounds?.height ?? innerHeight;
+    const width = bounds.width;
+    const height = bounds.height;
     el.style.left = `${Math.max(8, Math.min(left, width - el.offsetWidth - 8))}px`;
     el.style.top = `${bottom + el.offsetHeight + 16 > height ? Math.max(8, top - el.offsetHeight - 8) : bottom + 8}px`;
-  }, [anchor, presentation]);
+  }, [anchor, policy]);
   return (
     <div
       ref={ref}
