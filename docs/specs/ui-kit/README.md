@@ -37,7 +37,10 @@ on mobile. Open `#/prototype/provenance/` in the design preview to review the fi
 Integration validation passed: typecheck, lint, all 207 Vitest tests, all 246 browser cases across
 phone, desktop and touch-desktop, and both product and design builds. A separate phone/desktop
 wiki smoke check passed page rendering, claim selection, evidence dismissal and no page errors.
-Existing lint/build warnings remain; physical iOS Safari keyboard/swipe validation is outstanding.
+Existing lint/build warnings remain. The user accepted the physical iOS Safari retest after the
+preview scrolling and viewport fixes at `1037d86`, completing #17's remaining keyboard acceptance.
+Touch drawer dismissal has automated browser coverage. Input button styles remain preview variants
+pending a final choice for the app.
 
 The specs are published to the configured GitHub tracker. Use the
 linked issues to track implementation; these local documents retain the published specification.

@@ -272,8 +272,9 @@ Compact touch gestures retain scroll-aware drag dismissal. In expanded space the
 `data-base-ui-swipe-ignore`, preserving handle-only dragging; centered surfaces hide the handle.
 The drawer omits Base UI's opt-in `VirtualKeyboardProvider`, so it does not add body scrolling or
 input repositioning. Existing `visualViewport` tokens fit the composer and settings to the available
-height, with `body { position: relative; }` for iOS overlays. Physical iOS Safari keyboard and swipe
-behavior still need device validation.
+height, with `body { position: relative; }` for iOS overlays. The user accepted the physical iOS
+Safari retest after the preview scrolling and viewport fixes at `1037d86`; see #17. Touch swipe
+dismissal is also covered by automated browser checks.
 The message field is present before focus and stays one row high while typing. Other feature pages
 retain the floating voice action above the footer.
 
@@ -381,4 +382,5 @@ touch targets, navigation/current state, centered feature columns, feature-named
 tab/checkbox behavior, Escape and focus return, search selection
 and drafts through size changes, the mobile field/microphone row before and after focus,
 Enter/Shift+Enter/IME, and a simulated visual
-viewport resize. A physical phone keyboard and microphone still need device validation.
+viewport resize. The user accepted the physical Safari keyboard/scrolling retest at `1037d86`.
+Live microphone capture still needs device validation; the sample preview uses scripted audio.

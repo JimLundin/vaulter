@@ -308,7 +308,8 @@ For each implementation change:
 
 Complete the work with `npm run build` and `npm run build:design`, then review both the live
 product preview and paired catalogue. Synthetic IME and visual-viewport tests remain useful;
-physical phone keyboard and microphone behavior still need device validation.
+the user accepted the physical Safari keyboard/scrolling retest at `1037d86`. Live microphone
+capture still needs device validation; the sample preview uses scripted audio.
 
 ### Overall completion
 

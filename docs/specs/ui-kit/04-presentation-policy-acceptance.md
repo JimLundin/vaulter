@@ -15,8 +15,9 @@ Base UI owns focus trapping, accessibility hiding, scroll locking and drag mecha
 policy owner supplies portal, bounds, interaction and focus-history choices. Collision adaptation
 remains private to anchored adapters. Public workflow props stay unchanged.
 
-Physical iOS Safari keyboard/swipe validation remains separate from synthetic visual-viewport and
-CDP touch checks, as documented by the spec.
+The user accepted the physical iOS Safari retest after the preview scrolling and viewport fixes at
+`1037d86`, completing #17's remaining keyboard acceptance. CDP touch tests cover drawer dismissal;
+the device acceptance is recorded separately from those automated checks.
 
 ## Validation and review
 
