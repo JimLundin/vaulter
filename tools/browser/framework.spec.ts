@@ -120,8 +120,12 @@ test('Appearance group retains keyboard selection and device preference after re
     "Choose a theme, or follow your device's appearance.",
   );
   await group.getByRole('radio', { name: 'Light', exact: true }).click();
-  await page.keyboard.press('ArrowDown');
-  await expect(group.getByRole('radio', { name: 'Dark', exact: true })).toBeChecked();
+  const dark = group.getByRole('radio', { name: 'Dark', exact: true });
+  // Radix defers arrow-driven focus; release the key after that navigation has happened.
+  await page.keyboard.down('ArrowDown');
+  await expect(dark).toBeFocused();
+  await page.keyboard.up('ArrowDown');
+  await expect(dark).toBeChecked();
   await expect.poll(() => page.evaluate(() => localStorage.getItem('vaulter.theme'))).toBe('dark');
   await page.keyboard.press('Escape');
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
