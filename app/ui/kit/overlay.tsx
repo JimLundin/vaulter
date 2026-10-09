@@ -1,7 +1,6 @@
 // One dialog tree: resizing moves and resizes it without discarding its contents or focus.
 import { type ReactNode, useRef } from 'react';
 import { useIsMobile } from './hooks/use-mobile.ts';
-import { useRestoreFocus } from './hooks/use-restore-focus.ts';
 import { Button } from './parts/button.tsx';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from './parts/dialog.tsx';
 import { Icon } from './icons.tsx';
@@ -32,7 +31,6 @@ export function AdaptiveDialog({
 }) {
   const compact = useIsMobile();
   const ref = useRef<HTMLDivElement>(null);
-  const restoreFocus = useRestoreFocus(open);
   return (
     <Dialog
       open={open}
@@ -44,15 +42,9 @@ export function AdaptiveDialog({
         ref={ref}
         showCloseButton={false}
         {...(description ? {} : { 'aria-describedby': undefined })}
-        onOpenAutoFocus={(event) => {
-          if (!focusInput) return;
-          const input = ref.current?.querySelector<HTMLInputElement>('input');
-          if (input) {
-            event.preventDefault();
-            input.focus();
-          }
-        }}
-        onCloseAutoFocus={restoreFocus}
+        initialFocus={() =>
+          focusInput ? (ref.current?.querySelector<HTMLInputElement>('input') ?? true) : true
+        }
         className={cn(
           'flex max-h-[min(90dvh,var(--viewport-height,90dvh))] flex-col gap-0 overflow-hidden p-0',
           compact

@@ -57,8 +57,7 @@ export function Bars({ data, label, unit, highlight = data.length - 1, size = 's
             >
               {data.map((d, i) => (
                 <Tooltip key={d.label}>
-                  <TooltipTrigger asChild={true}>
-                    <button
+                  <TooltipTrigger render={<button
                       data-touch-target=""
                       type="button"
                       aria-label={`${d.label}: ${said(d.value)}`}
@@ -78,8 +77,7 @@ export function Bars({ data, label, unit, highlight = data.length - 1, size = 's
                           height: d.value > 0 ? `max(2px, ${(d.value / max) * 82}%)` : 0,
                         }}
                       />
-                    </button>
-                  </TooltipTrigger>
+                    </button>} />
                   <TooltipContent>
                     <span className="font-semibold">{said(d.value)}</span> · {d.label}
                   </TooltipContent>

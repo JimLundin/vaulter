@@ -469,10 +469,7 @@ function SidebarMenuButton({
 
   return (
     <Tooltip>
-      <TooltipTrigger
-        render={button}
-        nativeButton={!React.isValidElement(render) || render.type === 'button'}
-      />
+      <TooltipTrigger render={button} />
       <TooltipContent side="right" align="center" hidden={state !== 'collapsed'} {...tooltip} />
     </Tooltip>
   );
