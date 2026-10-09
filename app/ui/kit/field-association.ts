@@ -37,16 +37,22 @@ function useFieldAssociation(
 export const useFieldTextAssociation = (props: {
   id?: string;
   type?: string;
+  role?: string;
   'aria-describedby'?: string;
 }) =>
   useFieldAssociation(
-    !props.type || ['text', 'email', 'password', 'search', 'tel', 'url'].includes(props.type)
+    (!props.type || ['text', 'email', 'password', 'search', 'tel', 'url'].includes(props.type)) &&
+      (!props.role || ['textbox', 'searchbox'].includes(props.role))
       ? 'text'
       : 'unsupported',
     props,
   );
-export const useFieldGroupAssociation = (props: { id?: string; 'aria-describedby'?: string }) =>
-  useFieldAssociation('group', props);
+export const useFieldGroupAssociation = (props: {
+  id?: string;
+  role?: string;
+  'aria-describedby'?: string;
+}) =>
+  useFieldAssociation(!props.role || props.role === 'radiogroup' ? 'group' : 'unsupported', props);
 
 /** Unsupported kit controls register only to diagnose invalid field composition. */
 export const useFieldUnsupportedControl = () => {

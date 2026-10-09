@@ -127,6 +127,7 @@ test('Appearance group retains keyboard selection and device preference after re
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   await expect(group.getByRole('radio', { name: 'Dark', exact: true })).toBeChecked();
   await page.reload();
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
   await expect(group.getByRole('radio', { name: 'Dark', exact: true })).toBeChecked();
 });
 

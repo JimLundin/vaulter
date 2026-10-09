@@ -37,7 +37,7 @@ Markdown/HAST rendering and the vault-link annotation transform remain the expli
 | `conversation.tsx` | mobile agent screen, desktop reading column, composer and message presentation |
 | `screens.tsx` | mobile search screen and history touch rows, desktop palette and commit list |
 | `settings.tsx` | feature-named settings menu and shared form rows |
-| `field-association.ts` | private association state consumed by text controls through nested layouts |
+| `field-association.ts` | private association state consumed by text controls and radio groups through nested layouts |
 | `surfaces.tsx` | gates, preview notice, tool results, panels and unified diffs |
 | `chart.tsx`, `diff.tsx`, `map.tsx` | accessible charts, code diffs, lazy map presentation |
 | `styles.css`, `theme.tsx` | zinc color tokens, light/dark/system theme |
