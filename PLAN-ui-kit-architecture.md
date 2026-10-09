@@ -5,8 +5,8 @@ to iterate on the mini UI framework with confidence: callers learn less coordina
 have better locality, and tests exercise the same interface as the product and catalogue.
 
 This document records scope and completion checks. Private composition verification is implemented
-on `spec/5-private-composition-verification` and Composer interaction on `spec/6-composer-interaction`;
-field association and presentation policy remain pending. The
+on `spec/5-private-composition-verification`, Composer interaction on `spec/6-composer-interaction`,
+and field association on `spec/7-accessible-field-association`; presentation policy remains pending. The
 [four individual specs](docs/specs/ui-kit/README.md) define ownership, interface behavior and
 acceptance tests; they supersede this roadmap's earlier unresolved design questions.
 Current architecture is documented in [ARCHITECTURE.md](ARCHITECTURE.md); the kit's presentation
@@ -160,25 +160,27 @@ one submission path, keyboard rules, state ownership and focus observation.
 
 ## 3. Own accessible field association
 
-### Current friction
+### Friction addressed
 
-`SettingField` owns label, description and arrangement, but callers must coordinate `htmlFor`,
-`descriptionId`, the nested control's `id` and `aria-describedby`.
+Previously, `SettingField` owned label, description and arrangement while callers coordinated
+`htmlFor`, `descriptionId`, the nested control's `id` and `aria-describedby`.
 
-Chat settings supplies all four. Catalogue Preferences and the browser fixture associate the
-label but omit the description link. ThemeSwitch names its radio group independently of the
-surrounding field label and description. Existing settings tests cover layout, focus and values,
-but do not assert accessible descriptions.
+Chat settings supplied all four. Catalogue Preferences and the browser fixture associated the
+label but omitted the description link. ThemeSwitch named its radio group independently of the
+surrounding field label and description. Settings tests covered layout, focus and values while
+leaving accessible descriptions unverified.
 
-### Intended ownership
+### Implemented ownership
 
-Deepen the field module so it owns accessible label/description association as well as responsive
-arrangement. Feature adapters continue to own values and persistence. Text controls and radio
-groups are existing, concrete consumers; their different semantics justify considering both.
+SettingField owns accessible label and description association through a private context, together
+with responsive arrangement. Feature adapters retain values and persistence. Input and Textarea,
+including their grouped adapters, use native label targets; RadioGroup and ThemeSwitch use a
+visible group title and group associations. Explicit control identifiers are preserved and existing
+description references compose without duplicates.
 
-Use the proper association for each control. A text label may target an input; a group needs
-appropriate group labelling. Preserve descriptions supplied by callers rather than replacing
-unrelated accessible-description identifiers.
+Mounted control registrations enforce one supported semantic control and track nested control
+replacement. Empty, multiple and unsupported fields report clear diagnostics. Standalone controls
+retain their names and behavior; ordinary nested layouts preserve field association.
 
 ### Migration scope
 
@@ -188,19 +190,20 @@ unrelated accessible-description identifiers.
 - Settings examples in `catalogue.tsx` and `tests/browser.tsx`.
 - Accessible-field browser checks and affected composition metadata.
 
-Keep standalone inputs and ThemeSwitch usable outside a settings field. Remove repeated field
-identifier plumbing from migrated callers. Account for duplicate fields rendered in paired samples.
+Model, Appearance, catalogue Preferences and browser-fixture fields declare their meaning once.
+The field interface no longer accepts manual label/description association identifiers. Repeated
+and paired examples keep independent identities and native label targets.
 
 ### Completion checks
 
-- [ ] Text controls have the expected accessible name and description.
-- [ ] Activating a text field's label focuses its control.
-- [ ] Radio groups have the field name and description with correct group semantics.
-- [ ] Caller-supplied descriptions are composed without duplicate or broken identifiers.
-- [ ] Paired and repeated fields have independent, valid associations.
-- [ ] Appearance and Model retain values, persistence, keyboard behavior and responsive arrangement.
-- [ ] Supported field callers no longer manually synchronize association identifiers.
-- [ ] Standalone controls retain their accessible names and behavior.
+- [x] Text controls have the expected accessible name and description.
+- [x] Activating a text field's label focuses its control.
+- [x] Radio groups have the field name and description with correct group semantics.
+- [x] Caller-supplied descriptions are composed without duplicate or broken identifiers.
+- [x] Paired and repeated fields have independent, valid associations.
+- [x] Appearance and Model retain values, persistence, keyboard behavior and responsive arrangement.
+- [x] Supported field callers no longer manually synchronize association identifiers.
+- [x] Standalone controls retain their accessible names and behavior.
 
 Test through the field interface with both text and group controls. Assert accessible names,
 descriptions and label behavior, not generated identifier strings. Greater depth gives locality

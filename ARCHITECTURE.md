@@ -176,7 +176,12 @@ primary AI variant is circular. The bottom bar retains 44px touch targets and de
 Menu, Search and Settings are the fixed phone controls. Settings opens over the current feature,
 preserving its route and draft: a centered dialog on desktop, the same bottom drawer as Menu on a
 phone. Open settings fields keep their DOM and focus through resizing. `/settings/` remains a direct
-entry to that menu over Agent. Feature screens use the kit's centered `FeaturePage` reading column;
+entry to that menu over Agent. `SettingField` declares the visible label and description once;
+private association state connects supported text controls and radio groups through nested layouts.
+Native text labels target each control's effective identifier; choice fields name and describe the
+group. Explicit identifiers and additional descriptions are retained, and repeated fields remain
+independent. Model and Appearance values and persistence stay with their existing adapters.
+Feature screens use the kit's centered `FeaturePage` reading column;
 Agent shares its width token. The composer is a fixed single row with trailing controls; on mobile
 its always-visible field contains the same inset microphone and Send controls as desktop. Focusing opens the
 normal device keyboard without revealing another form. Shift+Enter can still insert newlines, which
