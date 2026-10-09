@@ -110,9 +110,7 @@ function Fixture() {
             data={Array.from({ length: 14 }, (_, i) => ({ label: `Day ${i + 1}`, value: i + 1 }))}
           />
           <DropdownMenu>
-            <DropdownMenuTrigger asChild={true}>
-              <Button>More controls</Button>
-            </DropdownMenuTrigger>
+            <DropdownMenuTrigger render={<Button>More controls</Button>} />
             <DropdownMenuContent>
               <DropdownMenuItem>Menu item</DropdownMenuItem>
             </DropdownMenuContent>

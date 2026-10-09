@@ -82,9 +82,7 @@ function Buttons() {
       </K.ToggleGroup>
       <K.TooltipProvider>
         <K.Tooltip>
-          <K.TooltipTrigger asChild={true}>
-            <K.Button variant="outline">Hover or focus for help</K.Button>
-          </K.TooltipTrigger>
+          <K.TooltipTrigger render={<K.Button variant="outline">Hover or focus for help</K.Button>} />
           <K.TooltipContent>Save this note to your vault.</K.TooltipContent>
         </K.Tooltip>
       </K.TooltipProvider>
@@ -450,12 +448,10 @@ function Menus() {
   const [sort, setSort] = useState('recent');
   return (
     <K.DropdownMenu>
-      <K.DropdownMenuTrigger asChild={true}>
-        <K.Button variant="outline">
+      <K.DropdownMenuTrigger render={<K.Button variant="outline">
           Note options
           <K.Icon name="chevron-right" />
-        </K.Button>
-      </K.DropdownMenuTrigger>
+        </K.Button>} />
       <K.DropdownMenuContent>
         <K.DropdownMenuLabel>Slow mornings</K.DropdownMenuLabel>
         <K.DropdownMenuGroup>
@@ -486,9 +482,7 @@ function Dialogs() {
   return (
     <K.Stack gap="lg">
       <K.Dialog>
-        <K.DialogTrigger asChild={true}>
-          <K.Button variant="outline">Open dialog</K.Button>
-        </K.DialogTrigger>
+        <K.DialogTrigger render={<K.Button variant="outline">Open dialog</K.Button>} />
         <K.DialogContent>
           <K.DialogHeader>
             <K.DialogTitle>Keep this note?</K.DialogTitle>
@@ -496,9 +490,7 @@ function Dialogs() {
           </K.DialogHeader>
           <K.Input aria-label="Dialog note title" defaultValue="Slow mornings" />
           <K.DialogFooter>
-            <K.DialogClose asChild={true}>
-              <K.Button>Keep note</K.Button>
-            </K.DialogClose>
+            <K.DialogClose render={<K.Button>Keep note</K.Button>} />
           </K.DialogFooter>
         </K.DialogContent>
       </K.Dialog>
