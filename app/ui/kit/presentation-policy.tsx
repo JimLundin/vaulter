@@ -134,7 +134,11 @@ export function usePresentationFocus(open: boolean) {
   }, [open, policy]);
   return () => {
     const visible = (node: HTMLElement) =>
-      node.isConnected && node.getClientRects().length > 0 && policy.owns(node);
+      node.isConnected &&
+      !node.matches(':disabled') &&
+      node.getClientRects().length > 0 &&
+      getComputedStyle(node).visibility === 'visible' &&
+      policy.owns(node);
     for (const same of targets.current) {
       if (same.tag === 'body') continue;
       const target = visible(same.node)
