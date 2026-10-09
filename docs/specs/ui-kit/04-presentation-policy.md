@@ -147,6 +147,20 @@ continue to apply to the migrated public interfaces.
 | #15 | AdaptivePanel uses one mounted Base UI Drawer popup across compact, expanded and wide arrangements. Shared policy chooses modality and geometry; Base UI owns focus and modal effects. Private scope relationships coordinate nested Escape without DOM-slot guesses or a custom panel effect stack. |
 | #16 | Base UI Menu and Tooltip positioners consume shared portal and collision bounds. HoverPreview retains its specialized coordinate conversion while using the same bounds and interaction scope. Placement and outside interaction remain local to each sample. |
 
+### Anchored presentation
+
+Menu and Tooltip keep Base UI's flip, shift and size mechanics. Their private positioning adapter
+compensates the library's intersection with the outer viewport so collision handling uses the full
+bounded canvas, including samples scrolled outside the browser. Shared policy supplies bounds and
+notifications for canvas resizing, captured scrolling and visual-viewport changes.
+
+HoverPreview uses the shared portal and bounds while retaining its fixed-coordinate conversion.
+Its `anchor` remains a DOMRect: callers supply a fresh rectangle when the source moves. The linked
+content catalogue example measures its source while open; production mouse previews retain their
+existing dismissal on scrolling. An open preview also repositions when available bounds change
+without changing the layout class. Browser coverage exercises these examples, local-edge menu
+collision, keyboard menu selection, focus-triggered help and paired-sample outside interaction.
+
 ## Further Notes
 
 This is fourth in the migration sequence because it has the broadest interaction scope. It does
