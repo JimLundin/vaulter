@@ -48,7 +48,13 @@ function ScrollArea({
         <ScrollAreaPrimitive.Content
           ref={contentRef}
           data-slot="scroll-area-content"
-          style={axis === 'vertical' ? { minWidth: 0 } : undefined}
+          // The kit's content height follows its viewport; following feeds must
+          // expose their intrinsic height to the follow library's ResizeObserver.
+          style={
+            axis === 'vertical'
+              ? { minWidth: 0, height: contentRef ? 'auto' : undefined }
+              : undefined
+          }
           className={cn('min-h-full', contentRef && 'flex shrink-0 flex-col')}
         >
           {children}

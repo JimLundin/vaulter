@@ -1,5 +1,36 @@
 import { expect, test } from '@playwright/test';
 
+test('commands filter inferred labels with caller refs and newly added results', async ({
+  page,
+}) => {
+  await page.goto('/ui/kit/tests/controls.html');
+  const query = page.getByRole('combobox', { name: 'Find a result' });
+  const results = page.getByRole('listbox', { name: 'Live results' });
+  await query.fill('Coffee');
+  await expect(results.getByRole('option', { name: 'Coffee with Anna' })).toBeVisible();
+  await page.getByRole('button', { name: 'Add coffee result' }).click();
+  await expect(results.getByRole('option', { name: 'Coffee with Jim' })).toBeVisible();
+  await query.focus();
+  await query.press('ArrowDown');
+  await query.press('Enter');
+  await expect(page.getByText('Chosen result: Coffee with Jim', { exact: true })).toBeVisible();
+  await query.fill('no matching result');
+  await expect(results.getByRole('option')).toHaveCount(0);
+  await expect(results.getByRole('status')).toHaveText('No matching results.');
+});
+
+test('a controlled command input keeps its accepted query and results when an edit is rejected', async ({
+  page,
+}) => {
+  await page.goto('/ui/kit/tests/controls.html');
+  const query = page.getByRole('combobox', { name: 'Fixed result query' });
+  await query.fill('Rejected query');
+  await expect(query).toHaveValue('Coffee');
+  await expect(page.getByRole('listbox', { name: 'Fixed results' }).getByRole('option')).toHaveText(
+    'Coffee with Anna',
+  );
+});
+
 test('checkbox labels toggle controlled mixed state and submit the checked value', async ({
   page,
 }) => {
@@ -9,12 +40,16 @@ test('checkbox labels toggle controlled mixed state and submit the checked value
   await page.getByText('Remember me', { exact: true }).click();
   await expect(remember).toBeChecked();
   await page.getByRole('button', { name: 'Submit preferences' }).click();
-  await expect(page.getByRole('status')).toHaveText('Remember: yes');
+  await expect(page.getByRole('status', { name: 'Submitted preferences' })).toHaveText(
+    'Remember: yes',
+  );
   await remember.focus();
   await page.keyboard.press('Space');
   await expect(remember).not.toBeChecked();
   await page.getByRole('button', { name: 'Submit preferences' }).click();
-  await expect(page.getByRole('status')).toHaveText('Remember: absent');
+  await expect(page.getByRole('status', { name: 'Submitted preferences' })).toHaveText(
+    'Remember: absent',
+  );
 });
 
 test('single and multiple toggle groups preserve their callback values and keyboard navigation', async ({

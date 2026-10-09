@@ -8,9 +8,11 @@ The [UI kit architecture plan](../../../PLAN-ui-kit-architecture.md) tracks four
 deepening changes: private composition verification, Composer interaction, accessible field
 association and shared presentation policy. The
 [individual specs](../../../docs/specs/ui-kit/README.md) define their implementation and tests.
-The [Base UI migration](https://github.com/JimLundin/vaulter/issues/18) comes before
-[presentation policy](https://github.com/JimLundin/vaulter/issues/8): its first change establishes
-the single public `Drawer` used by compact side panels, navigation and settings.
+The [Base UI migration](https://github.com/JimLundin/vaulter/issues/18) establishes the foundation for
+[presentation policy](https://github.com/JimLundin/vaulter/issues/8): it replaces every Radix/Vaul
+primitive with Base UI and supplies the single public `Drawer` used by compact side panels,
+navigation and settings. Search uses
+Base UI Autocomplete; cmdk is removed.
 
 `npm run kit` opens the live catalogue, using the same local fonts and theme as the app. Every
 public presentation component appears in a component family with an 800px desktop sample beside a
@@ -28,7 +30,8 @@ Markdown/HAST rendering and the vault-link annotation transform remain the expli
 |---|---|
 | `index.ts` | public components, icons and theme controls |
 | `catalogue.tsx`, `gallery.tsx` | live examples, component coverage, search and paired catalogue |
-| `presentation.tsx` | private bounded presentation and portal target for live samples |
+| `presentation.tsx` | private bounded canvas provider for live samples |
+| `presentation-policy.tsx` | private owner of scope, modal choice, dismissal, focus history and popup bounds |
 | `preview.tsx` | top-level `DesignPreview` banner and live Window/Desktop/Mobile viewport |
 | `parts/`, `hooks/` | shared layout/type primitives, shadcn controls and their hooks |
 | `primitives.tsx` | reusable surfaces, adaptive panel and following scroll container |
@@ -55,9 +58,18 @@ product does not use maps.
 
 ## Foundation and spacing
 
-Controls originate from **shadcn/ui**, with **Base UI** for drawers and **Radix UI** for the remaining
-interactions during the Base UI migration, and **Tailwind** for styling. They are owned source in `parts/`, not a separately themed
+Controls originate from **shadcn/ui**, with **Base UI** for interactions and **Tailwind** for styling.
+They are owned source in `parts/`, not a separately themed
 component library. Vaulter defines the layout, type, colors and responsive roles on top of them.
+Search uses inline Base UI Autocomplete behind the existing Command interface. Command retains
+automatic filtering, empty-state announcements and keyboard selection; Product supplies ranked
+results with `shouldFilter={false}`. The [Search decision](../../../docs/adr/0001-base-ui-search.md)
+records why cmdk was removed and the clarified scope: default Command uses Base UI text matching
+in caller order; legacy cmdk options are not a compatibility target. Composition uses Base UI's
+`render` prop, `useRender` and `mergeProps`.
+
+Adapters preserve kit behavior where library defaults differ: dropdown labels can stand alone,
+checkbox selections close their menu, and dialogs respect each surface's initial-focus choice.
 
 Spacing uses a 4px scale: 4px between inset actions, 8px between related controls, 16px within
 content and 24px between sections. `--space-control`, `--space-row`, `--space-content` and

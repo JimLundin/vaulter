@@ -1,10 +1,15 @@
 // Browser fixture exercises public control props and native form behavior.
-import { useId, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import '../styles.css';
 import {
   Button,
   Checkbox,
+  Command,
+  CommandInput,
+  CommandList,
+  CommandItem,
+  CommandEmpty,
   Label,
   Stack,
   Tabs,
@@ -23,6 +28,9 @@ function ControlsFixture() {
   const [range, setRange] = useState('day');
   const [formats, setFormats] = useState(['bold']);
   const [tab, setTab] = useState('notes');
+  const commandRef = useRef<HTMLDivElement>(null);
+  const [extraResult, setExtraResult] = useState(false);
+  const [chosen, setChosen] = useState('');
   return (
     <Stack>
       <form
@@ -42,7 +50,7 @@ function ControlsFixture() {
         />
         <Button type="submit">Submit preferences</Button>
       </form>
-      <output>{submitted}</output>
+      <output aria-label="Submitted preferences">{submitted}</output>
       <ToggleGroup type="single" aria-label="Time range" value={range} onValueChange={setRange}>
         <ToggleGroupItem value="day">Day</ToggleGroupItem>
         <ToggleGroupItem value="week">Week</ToggleGroupItem>
@@ -67,6 +75,24 @@ function ControlsFixture() {
         <TabsContent value="activity">Recent activity</TabsContent>
       </Tabs>
       <Text>Active tab: {tab}</Text>
+      <Button onClick={() => setExtraResult(true)}>Add coffee result</Button>
+      <Command>
+        <CommandInput aria-label="Find a result" />
+        <CommandList aria-label="Live results">
+          <CommandEmpty>No matching results.</CommandEmpty>
+          <CommandItem ref={commandRef} onSelect={setChosen}>
+            Coffee with Anna
+          </CommandItem>
+          {extraResult && <CommandItem onSelect={setChosen}>Coffee with Jim</CommandItem>}
+        </CommandList>
+      </Command>
+      <Text>Chosen result: {chosen}</Text>
+      <Command>
+        <CommandInput aria-label="Fixed result query" value="Coffee" />
+        <CommandList aria-label="Fixed results">
+          <CommandItem>Coffee with Anna</CommandItem>
+        </CommandList>
+      </Command>
       <Tabs defaultValue="summary" activationMode="manual">
         <TabsList aria-label="Manual tabs">
           <TabsTrigger value="summary">Summary</TabsTrigger>

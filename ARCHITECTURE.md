@@ -153,6 +153,14 @@ export coverage and actual rendered JSX. The private presentation scope bounds r
 React size classes and portals to each example without an iframe. The exported design screens remain
 reference artifacts; they do not install workflows or restore previously deleted features.
 
+Owned shadcn controls use Base UI as their interaction library. Dialog, Drawer, Menu and Tooltip
+share its layering, focus and gesture mechanics. Search uses inline Base UI Autocomplete behind
+the existing Command interface; [the decision](docs/adr/0001-base-ui-search.md) records the removal
+of cmdk and its transitive Radix dependency. The private `presentation-policy.tsx` owns browser
+and bounded-preview choices for portals, bounds, modal behavior, dismissal and focus restoration.
+Adapters consume those choices while retaining library mechanics. AdaptivePanel keeps the same
+mounted drawer content as it becomes a compact drawer, expanded dialog or wide nonmodal panel.
+
 Screens compose `ui/kit/index.ts`. Public components take no `className` or `style`; Tailwind scans only
 the kit. CI rejects custom HTML, styling props, intrinsic element factories and direct presentation
 library imports throughout Product, shared UI and workflows. Semantic forms use the kit's `Form`.

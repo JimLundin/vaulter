@@ -19,10 +19,13 @@ Private composition verification (#5, ticket #9) is implemented on
 `spec/5-private-composition-verification`. Composer interaction (#6, ticket #10) is implemented on
 `spec/6-composer-interaction`, based on that verification branch. Accessible field association
 (#7, tickets #11 and #12) is implemented on `spec/7-accessible-field-association`, based on the
-Composer branch. Presentation policy remains pending. Interface mechanics must satisfy the decisions and acceptance behavior in
+Composer branch. Base UI migration (#18, including #17) and presentation policy (#8) are
+implemented on `spec/18-base-ui-and-presentation-policy`; see the scope update in the policy spec
+and the [Search library decision](../../adr/0001-base-ui-search.md).
+Interface mechanics must satisfy the decisions and acceptance behavior in
 each spec; these documents supersede the roadmap's earlier unresolved design questions.
 
-All four specs are published to the configured GitHub tracker with `ready-for-agent`. Use the
+The specs are published to the configured GitHub tracker. Use the
 linked issues to track implementation; these local documents retain the published specification.
 Tracker operations and triage vocabulary are documented in
 [the issue-tracker configuration](../../agents/issue-tracker.md) and
@@ -31,8 +34,8 @@ Tracker operations and triage vocabulary are documented in
 ## Implementation tickets
 
 The approved tracer-bullet tickets are native sub-issues of their specs. Blocking relationships
-are recorded on GitHub; check their current state before starting work. All tickets carry
-`ready-for-agent`.
+are recorded on GitHub; check their current state before starting work. The policy tickets were
+held for the Base UI migration; their final scope targets that library.
 
 | Ticket | Parent spec | Blocked by |
 |---|---|---|
@@ -40,7 +43,7 @@ are recorded on GitHub; check their current state before starting work. All tick
 | [#10 Shared Composer interaction](https://github.com/JimLundin/vaulter/issues/10) | #6 | #9 |
 | [#11 Model field association](https://github.com/JimLundin/vaulter/issues/11) | #7 | #9 |
 | [#12 Appearance and field semantics](https://github.com/JimLundin/vaulter/issues/12) | #7 | #11 |
-| [#13 Dialog and sheet presentation policy](https://github.com/JimLundin/vaulter/issues/13) | #8 | #9 |
+| [#13 Dialog and overlay presentation policy](https://github.com/JimLundin/vaulter/issues/13) | #8 | #9 |
 | [#14 Settings and navigation drawer policy](https://github.com/JimLundin/vaulter/issues/14) | #8 | #13 |
 | [#15 Supporting panels and nested surfaces](https://github.com/JimLundin/vaulter/issues/15) | #8 | #14 |
 | [#16 Anchored presentation scope](https://github.com/JimLundin/vaulter/issues/16) | #8 | #13 |

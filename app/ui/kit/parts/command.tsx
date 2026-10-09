@@ -10,11 +10,17 @@ type CommandContextValue = {
   query: string;
   change: (value: string) => void;
   shouldFilter: boolean;
+  matches: (value: string, query: string) => boolean;
+  visibleCount: number;
+  register: (id: string) => () => void;
 };
 const CommandContext = React.createContext<CommandContextValue>({
   query: '',
   change: () => undefined,
   shouldFilter: true,
+  matches: () => true,
+  visibleCount: 0,
+  register: () => () => undefined,
 });
 function Command({
   className,
@@ -22,10 +28,26 @@ function Command({
   shouldFilter = true,
   loop = true,
   ...props
-}: React.ComponentProps<'div'> & { shouldFilter?: boolean; loop?: boolean }) {
+}: React.ComponentProps<'div'> & {
+  shouldFilter?: boolean;
+  loop?: boolean;
+}) {
   const [query, change] = React.useState('');
+  const { contains: matches } = CommandPrimitive.useFilter();
+  const [visibleItems, setVisibleItems] = React.useState<Set<string>>(() => new Set());
+  const register = React.useCallback((id: string) => {
+    setVisibleItems((items) => new Set(items).add(id));
+    return () =>
+      setVisibleItems((items) => {
+        const next = new Set(items);
+        next.delete(id);
+        return next;
+      });
+  }, []);
   return (
-    <CommandContext.Provider value={{ query, change, shouldFilter }}>
+    <CommandContext.Provider
+      value={{ query, change, shouldFilter, matches, visibleCount: visibleItems.size, register }}
+    >
       <CommandPrimitive.Root
         inline
         open
@@ -34,7 +56,9 @@ function Command({
         keepHighlight
         loopFocus={loop}
         value={query}
-        onValueChange={change}
+        onValueChange={(next, details) => {
+          if (details.reason !== 'item-press') change(next);
+        }}
       >
         <div
           data-slot="command"
@@ -66,15 +90,15 @@ function CommandDialog({
 }) {
   return (
     <Dialog {...props}>
-      <DialogHeader className="sr-only">
-        <DialogTitle>{title}</DialogTitle>
-        <DialogDescription>{description}</DialogDescription>
-      </DialogHeader>
       <DialogContent
         className={cn('overflow-hidden p-0', className)}
         showCloseButton={showCloseButton}
       >
-        <Command className="**:data-[slot=command-input-wrapper]:h-12 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group]]:px-2 [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-0 [&_[cmdk-input-wrapper]_svg]:h-5 [&_[cmdk-input-wrapper]_svg]:w-5 [&_[cmdk-input]]:h-12 [&_[cmdk-item]]:px-2 [&_[cmdk-item]]:py-3 [&_[cmdk-item]_svg]:h-5 [&_[cmdk-item]_svg]:w-5">
+        <DialogHeader className="sr-only">
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
+        </DialogHeader>
+        <Command className="**:data-[slot=command-input-wrapper]:h-12 **:data-[slot=command-group]:px-2 **:data-[slot=command-group-label]:px-2 **:data-[slot=command-group-label]:font-medium **:data-[slot=command-group-label]:text-muted-foreground [&_[data-slot=command-input-wrapper]_svg]:size-5 **:data-[slot=command-input]:h-12 **:data-[slot=command-item]:px-2 **:data-[slot=command-item]:py-3 [&_[data-slot=command-item]_svg]:size-5">
           {children}
         </Command>
       </DialogContent>
@@ -95,12 +119,13 @@ function CommandInput({
   const context = React.useContext(CommandContext);
   React.useLayoutEffect(() => {
     if (value !== undefined) context.change(value);
-  }, [value, context.change]);
+  }, [value, context.query, context.change]);
   return (
     <div data-slot="command-input-wrapper" className="flex h-9 items-center gap-2 border-b px-3">
       <SearchIcon className="size-4 shrink-0 opacity-50" />
       <CommandPrimitive.Input
         data-slot="command-input"
+        value={value}
         onChange={(event) => {
           context.change(event.currentTarget.value);
           onValueChange?.(event.currentTarget.value);
@@ -125,13 +150,19 @@ function CommandList({ className, ...props }: React.ComponentProps<typeof Comman
   );
 }
 
-function CommandEmpty({ ...props }: React.ComponentProps<typeof CommandPrimitive.Empty>) {
+function CommandEmpty({ children, ...props }: React.ComponentProps<'div'>) {
+  const { visibleCount } = React.useContext(CommandContext);
   return (
-    <CommandPrimitive.Empty
+    <div
       data-slot="command-empty"
-      className="py-6 text-center text-sm"
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+      className="text-center text-sm not-empty:py-6"
       {...props}
-    />
+    >
+      {visibleCount === 0 ? children : null}
+    </div>
   );
 }
 
@@ -144,13 +175,16 @@ function CommandGroup({
     <CommandPrimitive.Group
       data-slot="command-group"
       className={cn(
-        'overflow-hidden p-1 text-foreground [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground',
+        'overflow-hidden p-1 text-foreground not-has-[[data-slot=command-item]]:hidden',
         className,
       )}
       {...props}
     >
       {heading && (
-        <CommandPrimitive.GroupLabel className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
+        <CommandPrimitive.GroupLabel
+          data-slot="command-group-label"
+          className="px-2 py-1.5 text-xs font-medium text-muted-foreground"
+        >
           {heading}
         </CommandPrimitive.GroupLabel>
       )}
@@ -175,20 +209,62 @@ function CommandSeparator({
 function CommandItem({
   className,
   onSelect,
+  onClick,
   value,
   children,
+  ref: forwardedRef,
   ...props
-}: React.ComponentProps<typeof CommandPrimitive.Item> & { onSelect?: (value: string) => void }) {
+}: Omit<React.ComponentProps<typeof CommandPrimitive.Item>, 'onSelect'> & {
+  onSelect?: (value: string) => void;
+}) {
+  const context = React.useContext(CommandContext);
+  const id = React.useId();
+  const ref = React.useRef<HTMLDivElement>(null);
+  const [text, setText] = React.useState<string | null>(
+    typeof children === 'string' ? children.trim() : null,
+  );
+  const mergedRef = React.useCallback(
+    (node: HTMLDivElement | null) => {
+      ref.current = node;
+      if (typeof forwardedRef === 'function') {
+        const cleanup = forwardedRef(node);
+        return () => {
+          ref.current = null;
+          if (typeof cleanup === 'function') cleanup();
+          else forwardedRef(null);
+        };
+      }
+      if (forwardedRef) forwardedRef.current = node;
+      return () => {
+        ref.current = null;
+        if (forwardedRef) forwardedRef.current = null;
+      };
+    },
+    [forwardedRef],
+  );
+  React.useLayoutEffect(() => {
+    if (ref.current && value === undefined) setText(ref.current.textContent?.trim() ?? '');
+  });
+  const itemValue = value ?? text ?? id;
+  const visible =
+    !context.shouldFilter ||
+    (value === undefined && text === null) ||
+    context.matches(String(itemValue), context.query.trim());
+  React.useLayoutEffect(() => {
+    if (visible) return context.register(id);
+  }, [visible, context.register, id]);
+  if (!visible) return null;
   return (
     <CommandPrimitive.Item
+      ref={mergedRef}
       data-slot="command-item"
-      value={value ?? (typeof children === 'string' ? children : undefined)}
+      value={itemValue}
       onClick={(event) => {
-        props.onClick?.(event);
-        onSelect?.(String(value ?? ''));
+        onClick?.(event);
+        if (!event.defaultPrevented) onSelect?.(String(itemValue));
       }}
       className={cn(
-        "relative flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 data-highlighted:bg-accent data-highlighted:text-accent-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 [&_svg:not([class*='text-'])]:text-muted-foreground",
+        "relative flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none data-disabled:pointer-events-none data-disabled:opacity-50 data-highlighted:bg-accent data-highlighted:text-accent-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 [&_svg:not([class*='text-'])]:text-muted-foreground",
         className,
       )}
       {...props}

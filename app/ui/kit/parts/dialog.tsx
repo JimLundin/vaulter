@@ -92,6 +92,8 @@ function DialogContent({
   className,
   children,
   showCloseButton = true,
+  initialFocus = true,
+  finalFocus,
   ...props
 }: DialogPrimitive.Popup.Props & {
   showCloseButton?: boolean;
@@ -107,8 +109,8 @@ function DialogContent({
           className,
         )}
         {...props}
-        initialFocus={true}
-        finalFocus={restore}
+        initialFocus={initialFocus}
+        finalFocus={finalFocus ?? restore}
       >
         {children}
         {showCloseButton && (

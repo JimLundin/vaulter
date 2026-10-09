@@ -54,7 +54,7 @@ tests continue to exercise public presentation behavior.
 
 - Deepen the private presentation module around environment policy. It owns the scope's bounds,
   portal target, interaction ownership and rules for focus restoration and modal effects.
-- Retain public Overlay, MenuSheet, AdaptivePanel, navigation/settings compositions, dropdown,
+- Retain public Overlay, Drawer, AdaptivePanel, navigation/settings compositions, dropdown,
   tooltip and hover-preview interfaces. Workflows continue to express task state and actions,
   not library-specific or preview-specific configuration.
 - Browser and bounded-preview environments are the actual policy variations. Keep that seam
@@ -64,9 +64,8 @@ tests continue to exercise public presentation behavior.
 - Production modal surfaces retain trapped focus, hidden background content and scroll locking.
   A wide supporting panel remains nonmodal. Bounded previews retain independent interaction and
   do not apply document-wide modal effects to the catalogue.
-- Keep specialized interaction mechanics in the Radix and Vaul adapters. The drawer's preview
-  workaround may remain if needed, but shared scope choices must come from the presentation owner.
-  Do not rebuild library focus or drag behavior inside a generic overlay engine.
+- Keep specialized interaction mechanics in the Base UI adapters. Shared scope choices come from
+  the presentation owner. Do not rebuild library focus or drag behavior inside a generic overlay engine.
 - Scope outside-interaction decisions and focus-target history to the owning presentation
   environment. An event originating in another bounded sample must not dismiss this sample.
 - Coordinate Escape ownership through the scope so only the topmost relevant dismissible surface
@@ -102,7 +101,7 @@ tests continue to exercise public presentation behavior.
 - The user confirmed public overlays in browser and bounded-preview environments as the test seam.
   Verify task-visible behavior; do not expose a private scope manager or test its internal stack.
 - Use existing public-kit browser fixtures, the real product design preview and paired catalogue
-  samples. Keep the actual Radix and Vaul adapters in browser tests.
+  samples. Keep the actual Base UI adapters in browser tests.
 - Retain prior art for settings focus, search selection, panel modal transitions, nested Escape,
   focus return, paired sample isolation, viewport resizing, preview mode changes and scrolling.
 - Cover closing nested and overlapping surfaces in different orders. An active parent must retain
@@ -126,8 +125,27 @@ tests continue to exercise public presentation behavior.
 ## Out of Scope
 
 A framework replacement, a global workflow overlay registry, new responsive breakpoints, new visual
-designs, custom replacements for Radix/Vaul interaction mechanics, a separate mobile content tree,
+designs, custom replacements for Base UI interaction mechanics, a separate mobile content tree,
 and product state or routing changes. Composer and field association remain separate specs.
+
+## Base UI scope update
+
+The user approved replacing Radix and Vaul wholesale under #18 before completing this policy work.
+#17 removes the public Sheet family and renames MenuSheet to Drawer. The optional Ask the agent
+panel becomes a full-height bottom drawer on compact layouts; the main Agent page stays a page.
+Dialog, Drawer, Menu and Tooltip now share Base UI layering. Search replaces cmdk with Base UI
+Autocomplete so no transitive Radix remains. These decisions supersede the earlier library and
+retained-interface references while preserving the public behavioral seam.
+
+The child scopes in #13–#16 are superseded as follows; their user-visible acceptance criteria
+continue to apply to the migrated public interfaces.
+
+| Child | Base UI scope |
+|---|---|
+| #13 | Dialog, Search and Overlay consume the private policy owner. Sheet is removed; Drawer owns the former sheet compositions. Base UI Dialog retains production focus trapping, background hiding and scroll locking, with bounded portals and scope-local dismissal and focus return. |
+| #14 | Settings and navigation use the single Base UI Drawer and shared policy. Base UI owns drag and modal mechanics; the Vaul/Radix preview workaround is removed. Nested Dialog/Menu surfaces preserve parent effects, and paired drawers remain independent. |
+| #15 | AdaptivePanel uses one mounted Base UI Drawer popup across compact, expanded and wide arrangements. Shared policy chooses modality and geometry; Base UI owns focus and modal effects. Private scope relationships coordinate nested Escape without DOM-slot guesses or a custom panel effect stack. |
+| #16 | Base UI Menu and Tooltip positioners consume shared portal and collision bounds. HoverPreview retains its specialized coordinate conversion while using the same bounds and interaction scope. Placement and outside interaction remain local to each sample. |
 
 ## Further Notes
 

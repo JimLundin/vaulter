@@ -25,7 +25,7 @@ test('the entire catalogue renders paired live components without requests to ex
   });
   await page.goto('/ui/kit/');
   const families = page.locator('[data-kit-comparison]');
-  await expect(families).toHaveCount(37);
+  await expect(families).toHaveCount(38);
   for (const family of await families.all()) {
     await expect(specimen(family, 'desktop')).toHaveCount(1);
     await expect(specimen(family, 'mobile')).toHaveCount(1);
@@ -333,8 +333,13 @@ test('settings and search portals remain inside their example without locking th
   await expect(dialog).toBeVisible();
   await contained(sample, dialog);
   await expect(dialog.getByRole('combobox')).toBeFocused();
+  await expect(dialog.getByText('No matching notes.', { exact: true })).toBeHidden();
   await dialog.getByRole('combobox').fill('Coffee');
   await expect(dialog.getByRole('option', { name: 'Coffee with Anna' })).toBeVisible();
+  await expect(dialog.getByRole('option')).toHaveCount(1);
+  await dialog.getByRole('combobox').fill('no matching note');
+  await expect(dialog.getByRole('option')).toHaveCount(0);
+  await expect(dialog.getByText('No matching notes.', { exact: true })).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(dialog).toBeHidden();
 });

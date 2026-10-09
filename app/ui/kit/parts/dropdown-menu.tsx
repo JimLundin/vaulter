@@ -119,6 +119,7 @@ function DropdownMenuCheckboxItem({
   className,
   children,
   checked,
+  closeOnClick = true,
   ...props
 }: DropdownMenuPrimitive.CheckboxItem.Props) {
   return (
@@ -129,6 +130,7 @@ function DropdownMenuCheckboxItem({
         className,
       )}
       checked={checked}
+      closeOnClick={closeOnClick}
       {...props}
     >
       <span className="pointer-events-none absolute left-2 flex size-3.5 items-center justify-center">
@@ -173,11 +175,11 @@ function DropdownMenuLabel({
   className,
   inset,
   ...props
-}: DropdownMenuPrimitive.GroupLabel.Props & {
+}: React.ComponentProps<'div'> & {
   inset?: boolean;
 }) {
   return (
-    <DropdownMenuPrimitive.GroupLabel
+    <div
       data-slot="dropdown-menu-label"
       data-inset={inset}
       className={cn('px-2 py-1.5 text-sm font-medium data-[inset]:pl-8', className)}

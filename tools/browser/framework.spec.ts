@@ -297,7 +297,9 @@ test('settings is a shared drawer that keeps feature fields and focus when resiz
     if (width < 768) expect(box.y + box.height).toBeCloseTo(844, 0);
     else expect(box.y + box.height / 2).toBeCloseTo(422, 0);
     await page.keyboard.press('Tab');
-    expect(await settings.evaluate((node) => node.contains(document.activeElement))).toBe(true);
+    await expect
+      .poll(() => settings.evaluate((node) => node.contains(document.activeElement)))
+      .toBe(true);
     await field.focus();
   }
   await page.keyboard.press('Escape');
@@ -684,6 +686,7 @@ test('live transcription updates the shared message field and uses the normal se
   await expect(page.getByRole('button', { name: 'Send', exact: true })).toBeEnabled();
   await expect(page.getByRole('region', { name: 'Live transcription' })).toHaveCount(0);
   await input.fill(`${text} Edited before sending.`);
+  await page.getByRole('button', { name: 'Menu', exact: true }).click();
   await page.getByRole('link', { name: 'History', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'History', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Start voice interaction' }).click();
@@ -717,6 +720,8 @@ test('Chat retains the shared draft when its view closes and reopens', async ({ 
   await page.goto('/preview/');
   const field = page.getByRole('textbox', { name: 'Message', exact: true });
   await field.fill('An unfinished workflow thought');
+  const navigationMenu = page.getByRole('button', { name: 'Menu', exact: true });
+  if (await navigationMenu.isVisible()) await navigationMenu.click();
   await page.getByRole('link', { name: 'History', exact: true }).last().click();
   await expect(page.getByRole('heading', { name: 'History', exact: true })).toBeVisible();
   const menu = page.getByRole('button', { name: 'Menu', exact: true });

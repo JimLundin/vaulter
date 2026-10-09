@@ -6,8 +6,9 @@ have better locality, and tests exercise the same interface as the product and c
 
 This document records scope and completion checks. Private composition verification is implemented
 on `spec/5-private-composition-verification`, Composer interaction on `spec/6-composer-interaction`,
-and field association on `spec/7-accessible-field-association`; presentation policy remains pending. The
-[four individual specs](docs/specs/ui-kit/README.md) define ownership, interface behavior and
+and field association on `spec/7-accessible-field-association`. Base UI migration and presentation
+policy are implemented on `spec/18-base-ui-and-presentation-policy`, with acceptance tracked
+in the individual specs. The [four individual specs](docs/specs/ui-kit/README.md) define ownership, interface behavior and
 acceptance tests; they supersede this roadmap's earlier unresolved design questions.
 Current architecture is documented in [ARCHITECTURE.md](ARCHITECTURE.md); the kit's presentation
 rules and verification commands are in [its README](app/ui/kit/README.md).
@@ -15,7 +16,13 @@ The [Base UI migration (#18)](https://github.com/JimLundin/vaulter/issues/18) is
 to [presentation policy (#8)](https://github.com/JimLundin/vaulter/issues/8). Its first child
 [#17](https://github.com/JimLundin/vaulter/issues/17) replaces Vaul with the single public `Drawer`
 and removes side sheets; compact supporting panels use the same full-height bottom drawer.
-The remaining Radix controls migrate before the presentation-policy tickets resume.
+All kit primitives now use Base UI; Search uses its Autocomplete and no Radix dependency remains.
+The [Search library decision](docs/adr/0001-base-ui-search.md) records the removal of cmdk.
+
+Completion validation on 9 October 2026: typecheck, lint, all 193 Vitest tests and product/design
+builds passed. The browser suite exercised 198 cases across phone, desktop and touch desktop:
+197 passed in the full run; one touch-desktop paired-panel reopen timeout passed three subsequent
+repeats. Standards and Spec reviews found no remaining issues under the clarified Search scope.
 
 ## Execution order
 
@@ -222,18 +229,15 @@ semantic control per field, private association context, text/group semantics an
 
 ## 4. Concentrate presentation policy
 
-### Current friction
+### Implemented ownership
 
-The private presentation context exposes layout and a portal. Dialog, DropdownMenu and the
-private Base UI drawer adapter each interpret those fields to choose modal behavior and portal scope.
-The kit exports one `Drawer`, with a shared header, dismissal and scrolling body; side sheets and
-the Vaul preview adapter are removed. AdaptivePanel uses that drawer in compact space and retains
-the side-panel and centered-dialog arrangements at wider sizes. It separately manages Escape, focus,
-accessibility hiding and body overflow, including queries for other overlay DOM slots.
-
-The context earns its keep: deleting it would redistribute real scope knowledge. The opportunity
-is to deepen it so each caller needs less policy knowledge. This is observed maintenance friction;
-the reviewed focus, resize and isolation scenarios currently pass.
+The private presentation-policy module interprets browser and bounded-canvas environments.
+Dialog, Drawer, Menu, Tooltip and HoverPreview consume its portal, modal, bounds, dismissal and
+focus choices. AdaptivePanel composes the same Base UI drawer popup at every width and retains
+its mounted content while becoming a compact drawer, expanded dialog or wide nonmodal panel.
+It no longer acquires custom body effects or infers nested surfaces from DOM slots. Base UI owns
+focus guards, accessibility hiding, scroll locking and gestures; private scope relationships select
+the relevant dismissible surface and prevent another sample's events from closing it.
 
 ### Intended ownership
 
