@@ -1,16 +1,12 @@
 // Generic surfaces and behavior primitives. Compositions own content; these own presentation.
-import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { FocusScope } from '@radix-ui/react-focus-scope';
-import { hideOthers } from 'aria-hidden';
+import { type ReactNode, useLayoutEffect, useRef, useState } from 'react';
 import { useStickToBottom } from 'use-stick-to-bottom';
 import { Button } from './parts/button.tsx';
 import { ScrollArea } from './parts/scroll-area.tsx';
 import type { Unstyled } from './lib/unstyled.tsx';
 import { cn } from './lib/utils.ts';
 import { useIsMobile } from './hooks/use-mobile.ts';
-import { useLayout } from './hooks/use-layout.ts';
-import { usePresentation } from './presentation.tsx';
-import { useRestoreFocus } from './hooks/use-restore-focus.ts';
+import { SupportingDrawer } from './drawer.tsx';
 
 const surfaces = {
   plain: '',
@@ -146,89 +142,9 @@ export function AutoScrollArea({ empty, children }: { empty?: boolean; children:
   );
 }
 
-/** Same content tree: nonmodal supporting panel, centered dialog, or compact full-screen surface. */
-export function AdaptivePanel({
-  open,
-  onClose,
-  title,
-  children,
-}: {
-  open: boolean;
-  onClose: () => void;
-  title: string;
-  children?: ReactNode;
-}) {
-  const presentation = usePresentation();
-  const layout = useLayout();
-  const mobile = layout === 'compact';
-  const wide = layout === 'wide';
-  const ref = useRef<HTMLDivElement>(null);
-  const restoreFocus = useRestoreFocus(open);
-  useEffect(() => {
-    if (!open) return;
-    const dismissOnEscape = (event: KeyboardEvent) => {
-      if (presentation && !presentation.portal.contains(document.activeElement)) return;
-      if (
-        event.key === 'Escape' &&
-        !event.defaultPrevented &&
-        !(presentation?.portal ?? document).querySelector(
-          '[data-slot="dialog-content"], [data-slot="drawer-content"]',
-        )
-      )
-        onClose();
-    };
-    document.addEventListener('keydown', dismissOnEscape);
-    return () => document.removeEventListener('keydown', dismissOnEscape);
-  }, [open, onClose, presentation]);
-  useEffect(() => {
-    if (!open || wide || presentation || !ref.current) return;
-    const restoreAria = hideOthers(ref.current);
-    const scrollRoot = document.body;
-    const previous = scrollRoot.style.overflow;
-    scrollRoot.style.overflow = 'hidden';
-    if (!ref.current.contains(document.activeElement))
-      ref.current.querySelector<HTMLElement>('button, a, textarea')?.focus();
-    return () => {
-      restoreAria();
-      scrollRoot.style.overflow = previous;
-    };
-  }, [open, wide, presentation]);
-  if (!open) return null;
-  return (
-    <>
-      {!wide && (
-        <div
-          aria-hidden={true}
-          onPointerDown={onClose}
-          className={cn('fixed inset-0 z-40 bg-black/50', presentation && 'pointer-events-none')}
-        />
-      )}
-      <FocusScope
-        asChild={true}
-        trapped={!(wide || presentation)}
-        loop={!(wide || presentation)}
-        onUnmountAutoFocus={restoreFocus}
-      >
-        {/* biome-ignore lint/a11y/useAriaPropsSupportedByRole: role and modal semantics adapt together; both roles support a label. */}
-        <div
-          ref={ref}
-          role={wide ? 'complementary' : 'dialog'}
-          aria-label={title}
-          aria-modal={wide || presentation ? undefined : true}
-          className={cn(
-            'flex min-h-0 flex-col bg-background outline-none',
-            wide
-              ? 'h-dvh w-[26rem] shrink-0 gap-3 border-l p-5'
-              : mobile
-                ? 'fixed inset-x-0 top-[var(--viewport-top,0px)] z-50 h-[var(--viewport-height,100dvh)] pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]'
-                : 'fixed top-1/2 left-1/2 z-50 h-[calc(var(--viewport-height,100dvh)*0.8)] max-h-[calc(var(--viewport-height,100dvh)*0.9)] w-[min(32rem,calc(100%-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-lg border p-5 shadow-lg',
-          )}
-        >
-          {children}
-        </div>
-      </FocusScope>
-    </>
-  );
+/** Same content tree: supporting panel, centred dialog, or full-height compact drawer. */
+export function AdaptivePanel(props: Parameters<typeof SupportingDrawer>[0]) {
+  return <SupportingDrawer {...props} />;
 }
 
 /** One horizontal row; fade only the edges with more options outside the viewport. */

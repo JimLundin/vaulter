@@ -568,7 +568,7 @@ test('the composer and search stay within the visual viewport when a keyboard op
       return Math.abs(maxHeight - Math.min(available * 0.8, available - 16));
     })
     .toBeLessThanOrEqual(1);
-  // Vaul transitions the surface; compare its final position with a subpixel allowance.
+  // The drawer transitions the surface; compare its final position with a subpixel allowance.
   await expect
     .poll(async () => {
       const box = (await settings.boundingBox())!;

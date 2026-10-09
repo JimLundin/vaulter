@@ -63,7 +63,7 @@ export function checkLayout(root: string): string[] {
           (value.text.startsWith('.') ? resolve(dirname(filename), value.text) : null);
         if (
           !(kit(from) || contentRenderer(from) || /\.test\.[cm]?tsx?$/.test(from)) &&
-          /^(?:lucide-react|radix-ui|vaul|cmdk|sonner)(?:\/|$)/.test(value.text)
+          /^(?:lucide-react|radix-ui|@base-ui|cmdk|sonner)(?:\/|$)/.test(value.text)
         )
           problems.push(`${from}: presentation dependencies belong behind app/ui/kit/index.ts`);
         if (
