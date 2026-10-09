@@ -5,6 +5,10 @@ Build storage for the existing agent chat and History workflows using the
 [ADR 0002](docs/adr/0002-versioned-node-model.md). This is an implementation sketch. The running
 application still uses files; the branch defines the node foundation.
 
+The [browser-storage proposal](docs/node-storage-proposal.md) defines typed chat payloads, a
+NodeStore contract, and the recommended memory/Dexie implementations. Those TypeScript contracts
+are now on the branch; runtime implementations and dependency installation are the next work.
+
 The first browser slice is the existing chat: record an exchange, run node-based agent tools against
 reviewed staging, commit a content change, and inspect or undo it through History. Use fictional
 preview content. A page editor can follow once these workflows exercise the storage.

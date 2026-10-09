@@ -26,7 +26,7 @@ export interface Transaction {
  * Complete state of one node, with composite primary key (nodeId, transactionId).
  * Each transaction records at most one version per node. Earlier versions remain immutable.
  */
-export interface NodeVersion {
+export interface NodeVersion<Data extends JsonObject = JsonObject> {
   /** Foreign key to Node.id: the identity whose state is recorded. */
   readonly nodeId: NodeId;
   /** Foreign key to Transaction.id: the transaction recording this state. */
@@ -38,5 +38,5 @@ export interface NodeVersion {
   /** Sortable placement key, compared lexicographically; null when unplaced. */
   readonly orderKey: string | null;
   /** Complete nested JSON content. Null records deletion, preserving identity and history. */
-  readonly data: JsonObject | null;
+  readonly data: Data | null;
 }
