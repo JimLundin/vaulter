@@ -15,9 +15,10 @@ The user confirmed these testing seams. Private implementation helpers remain pr
 tests assert observable behavior and documented interface requirements. Composer has the strongest
 immediate payoff; the verification change comes first to enable useful private helper extraction.
 
-Implementation has not started. Interface mechanics left to the implementing agent must satisfy
-the decisions and acceptance behavior in the corresponding spec. These documents supersede the
-roadmap's earlier unresolved design questions.
+Private composition verification (#5, ticket #9) is implemented on
+`spec/5-private-composition-verification`. Composer interaction, field association and presentation
+policy remain pending. Interface mechanics must satisfy the decisions and acceptance behavior in
+each spec; these documents supersede the roadmap's earlier unresolved design questions.
 
 All four specs are published to the configured GitHub tracker with `ready-for-agent`. Use the
 linked issues to track implementation; these local documents retain the published specification.

@@ -1,10 +1,11 @@
 # UI kit architecture: four deepening changes
 
-All four opportunities from the 9 October 2026 architecture review are planned work. The goal is
+The four opportunities from the 9 October 2026 architecture review form this roadmap. The goal is
 to iterate on the mini UI framework with confidence: callers learn less coordination, changes
 have better locality, and tests exercise the same interface as the product and catalogue.
 
-This document records scope and completion checks. Implementation has not started. The
+This document records scope and completion checks. Private composition verification is implemented
+on `spec/5-private-composition-verification`; the other three changes remain pending. The
 [four individual specs](docs/specs/ui-kit/README.md) define ownership, interface behavior and
 acceptance tests; they supersede this roadmap's earlier unresolved design questions.
 Current architecture is documented in [ARCHITECTURE.md](ARCHITECTURE.md); the kit's presentation
@@ -44,10 +45,11 @@ pass-through only removes indirection.
 
 ### Current friction
 
-`tools/composition.test.ts` recognizes public building blocks and helpers declared in the same
-source file. An imported private helper is rejected as uncatalogued even if its implementation
-uses only approved building blocks. Moving `ConversationToolbar` into a private file therefore
-requires changing verification or making the helper part of the public interface and catalogue.
+Before this change, `tools/composition.test.ts` recognized public building blocks and helpers
+declared in the same source file. An imported private helper was rejected as uncatalogued even if
+its implementation used only approved building blocks. Moving `ConversationToolbar` into a private
+file therefore required changing verification or making the helper part of the public interface
+and catalogue.
 
 The presentation restrictions are useful. The helper-location restriction couples verification
 to file arrangement and limits internal seams.
@@ -76,15 +78,15 @@ Do not expand checking to the whole kit or extract unrelated helpers as part of 
 
 ### Completion checks
 
-- [ ] A checked composition can move a helper to a private file without new public exports.
-- [ ] Valid private helpers and context providers pass, including aliases and re-exports.
-- [ ] Raw DOM, styling props, styling spreads and intrinsic factories inside reachable private
+- [x] A checked composition can move a helper to a private file without new public exports.
+- [x] Valid private helpers and context providers pass, including aliases and re-exports.
+- [x] Raw DOM, styling props, styling spreads and intrinsic factories inside reachable private
       composition helpers fail with the offending file and location.
-- [ ] Unapproved interaction controls still fail; traversal does not silently accept unresolved
+- [x] Unapproved interaction controls still fail; traversal does not silently accept unresolved
       targets or arbitrary external imports.
-- [ ] Public primitive implementations retain their permitted DOM and styling.
-- [ ] Cyclic references terminate, and duplicate references do not duplicate diagnostics.
-- [ ] Catalogue coverage, public import restrictions and **Built from** links remain accurate.
+- [x] Public primitive implementations retain their permitted DOM and styling.
+- [x] Cyclic references terminate, and duplicate references do not duplicate diagnostics.
+- [x] Catalogue coverage, public import restrictions and **Built from** links remain accurate.
 
 Use temporary source fixtures to test the policy interface. Tests should survive a private helper
 move; they should fail when supported composition rules are violated. The locality gain is that
@@ -292,7 +294,7 @@ physical phone keyboard and microphone behavior still need device validation.
 
 ### Overall completion
 
-- [ ] Composition verification supports checked private helpers without weakening kit-use rules.
+- [x] Composition verification supports checked private helpers without weakening kit-use rules.
 - [ ] All Composer callers share input interaction behavior.
 - [ ] Supported settings fields own their accessible associations.
 - [ ] Shared presentation policy has one owner with library mechanics retained in their adapters.
