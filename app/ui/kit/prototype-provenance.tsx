@@ -720,8 +720,7 @@ function VariantB() {
   const [hover, setHover] = useState<ClaimId | undefined>();
   const numbers = new Map(allClaims.map((cl, n) => [cl.id, n + 1]));
   const render = (cl: Claim) => (
-    <span
-      role="mark"
+    <mark
       data-claim=""
       onMouseEnter={() => setHover(cl.id)}
       onMouseLeave={() => setHover(undefined)}
@@ -729,7 +728,7 @@ function VariantB() {
     >
       {cl.text}
       <sup className="ml-0.5 font-sans text-label text-people-ink">{numbers.get(cl.id)}</sup>
-    </span>
+    </mark>
   );
   const claimsIn = (content: Inline[]) => content.filter((i): i is Claim => i.type === 'claim');
   const row = (content: Inline[], key?: number) => (
@@ -895,8 +894,11 @@ function VariantC() {
         {page.sections.map((s) => (
           <section key={s.id} className="flex flex-col gap-3">
             <h2 className="m-0 text-title">{s.heading}</h2>
-            {s.blocks.map((b, n) => (
-              <p key={n} className={`m-0 font-serif text-lead ${uncitedClass(uncited)}`}>
+            {s.blocks.map((b) => (
+              <p
+                key={JSON.stringify(b.content)}
+                className={`m-0 font-serif text-lead ${uncitedClass(uncited)}`}
+              >
                 <Prose content={b.content} render={render} />
               </p>
             ))}
@@ -939,9 +941,8 @@ function VariantC() {
                 );
                 if (e.type === 'utterance')
                   return (
-                    <div
+                    <fieldset
                       key={e.id}
-                      role="group"
                       id={`trace-${e.id}`}
                       className={frame}
                       onMouseEnter={enter}
@@ -960,15 +961,14 @@ function VariantC() {
                           <p className="m-0 mt-1 font-mono">{e.transcript}</p>
                         </details>
                       ) : null}
-                    </div>
+                    </fieldset>
                   );
                 if (e.type === 'source') {
                   const s = sourceById.get(e.source)!;
                   const u = isUsed(s.id);
                   return (
-                    <div
+                    <fieldset
                       key={e.id}
-                      role="group"
                       id={`trace-${s.id}`}
                       className={`flex flex-col gap-1 rounded-lg border p-3 ${u ? 'border-places bg-card' : 'border-border bg-card'}`}
                       onMouseEnter={() => setHover({ evidence: s.id })}
@@ -985,7 +985,7 @@ function VariantC() {
                       <p className="m-0 whitespace-pre-line font-mono text-label leading-relaxed">
                         <Marked text={s.text} marks={marksFor(s.id, s.text)} />
                       </p>
-                    </div>
+                    </fieldset>
                   );
                 }
                 if (e.type === 'reply')

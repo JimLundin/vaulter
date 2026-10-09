@@ -14,7 +14,8 @@ import { useLayout } from './hooks/use-layout.ts';
 
 type Surface = { id: string; parent?: string };
 type Environment = { surfaces: Surface[] };
-const environments = new WeakMap<Node, Environment>();
+const environments = new WeakMap<object, Environment>();
+const serverEnvironment = {};
 const SurfaceContext = createContext<string | undefined>(undefined);
 
 type ChangeDetails = { reason: string; event: Event; cancel: () => void };
@@ -24,7 +25,7 @@ export function usePresentationPolicy() {
   const layout = useLayout();
   const portal = presentation?.portal;
   const environment = useMemo(() => {
-    const root = portal ?? document;
+    const root = portal ?? globalThis.document ?? serverEnvironment;
     let value = environments.get(root);
     if (!value) {
       value = { surfaces: [] };

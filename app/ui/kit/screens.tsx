@@ -30,7 +30,7 @@ export function SearchSurface({
       <div
         className={
           mobile
-            ? 'flex min-h-0 flex-1 flex-col [&_[cmdk-root]]:rounded-none [&_[data-slot=command-input-wrapper]]:h-14 [&_[cmdk-list]]:max-h-none [&_[cmdk-list]]:flex-1 [&_[cmdk-item]]:min-h-13 [&_[cmdk-item]]:px-3 [&_[cmdk-item]]:py-3 [&_[cmdk-group]]:px-2 [&_[cmdk-group-heading]]:pt-5'
+            ? 'flex min-h-0 flex-1 flex-col [&_[data-slot=command]]:rounded-none [&_[data-slot=command-input-wrapper]]:h-14 [&_[data-slot=command-list]]:max-h-none [&_[data-slot=command-list]]:flex-1 [&_[data-slot=command-item]]:min-h-13 [&_[data-slot=command-item]]:px-3 [&_[data-slot=command-item]]:py-3 [&_[data-slot=command-group]]:px-2 [&_[data-slot=command-group-heading]]:pt-5'
             : 'flex min-h-0 flex-1 flex-col'
         }
       >
