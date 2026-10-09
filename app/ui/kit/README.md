@@ -239,6 +239,14 @@ Settings shares Menu's bottom drawer on mobile and centers
 as a dialog on desktop; the same feature-named sections rearrange inside it. History uses shared list
 compositions. The thresholds live in `styles.css`; React reads the same emitted CSS tokens. The
 workspace and full-screen dialogs follow `visualViewport` so a mobile keyboard can reduce their available height.
+
+The private Base UI drawer follows current shadcn's Portal/Backdrop/Viewport/Popup/Content structure.
+Compact touch gestures retain scroll-aware drag dismissal. In expanded space the body uses
+`data-base-ui-swipe-ignore`, preserving handle-only dragging; centered surfaces hide the handle.
+The drawer omits Base UI's opt-in `VirtualKeyboardProvider`, so it does not add body scrolling or
+input repositioning. Existing `visualViewport` tokens fit the composer and settings to the available
+height, with `body { position: relative; }` for iOS overlays. Physical iOS Safari keyboard and swipe
+behavior still need device validation.
 The message field is present before focus and stays one row high while typing. Other feature pages
 retain the floating voice action above the footer.
 
