@@ -1,5 +1,11 @@
 # Architecture
 
+The accepted target for application data is the
+[versioned node model](docs/adr/0002-versioned-node-model.md), defined in
+[app/vault/nodes/model.ts](app/vault/nodes/model.ts). The
+[implementation plan](PLAN-node-data-model.md) maps its introduction into the browser app. The
+file-based behavior described below remains the current implementation.
+
 Features are user workflows, composed directly in `app/product.tsx`. Each workflow exports the named
 functions and views it needs. There is no extension descriptor, host, slot registration, or runtime
 feature toggle.
