@@ -291,6 +291,22 @@ function EmptyStates() {
 function LinkedContent() {
   const ref = useRef<HTMLDivElement>(null);
   const [hover, setHover] = useState(false);
+  const [anchor, setAnchor] = useState<DOMRect | null>(null);
+  useEffect(() => {
+    const source = ref.current;
+    if (!(hover && source)) return;
+    const measure = () => setAnchor(source.getBoundingClientRect());
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(source);
+    addEventListener('scroll', measure, true);
+    addEventListener('resize', measure);
+    return () => {
+      observer.disconnect();
+      removeEventListener('scroll', measure, true);
+      removeEventListener('resize', measure);
+    };
+  }, [hover]);
   return (
     <K.Stack gap="lg">
       <K.Text>
@@ -322,11 +338,11 @@ function LinkedContent() {
           Show linked note preview
         </K.Button>
       </div>
-      {!!hover && !!ref.current && (
+      {!!hover && !!anchor && (
         <K.HoverPreview
           title="Coffee with Anna"
           text="A conversation about making time."
-          anchor={ref.current.getBoundingClientRect()}
+          anchor={anchor}
         />
       )}
     </K.Stack>

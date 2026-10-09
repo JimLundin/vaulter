@@ -89,16 +89,37 @@ export function usePresentationPolicy() {
       modal: !portal,
       positioning: {
         collisionBoundary: portal,
-        ...(portal
-          ? { collisionAvoidance: { side: 'none' as const, align: 'none' as const } }
-          : {}),
       },
       environment,
       owns(target: EventTarget | null) {
         return !portal || (target instanceof Node && portal.contains(target));
       },
       bounds() {
-        return portal?.getBoundingClientRect() ?? new DOMRect(0, 0, innerWidth, innerHeight);
+        const viewport = window.visualViewport;
+        return (
+          portal?.getBoundingClientRect() ??
+          new DOMRect(
+            viewport?.offsetLeft ?? 0,
+            viewport?.offsetTop ?? 0,
+            viewport?.width ?? innerWidth,
+            viewport?.height ?? innerHeight,
+          )
+        );
+      },
+      watchBounds(changed: () => void) {
+        const observer = new ResizeObserver(changed);
+        if (portal) observer.observe(portal);
+        window.addEventListener('scroll', changed, true);
+        window.addEventListener('resize', changed);
+        window.visualViewport?.addEventListener('resize', changed);
+        window.visualViewport?.addEventListener('scroll', changed);
+        return () => {
+          observer.disconnect();
+          window.removeEventListener('scroll', changed, true);
+          window.removeEventListener('resize', changed);
+          window.visualViewport?.removeEventListener('resize', changed);
+          window.visualViewport?.removeEventListener('scroll', changed);
+        };
       },
     }),
     [portal, layout, environment],
