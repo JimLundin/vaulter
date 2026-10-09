@@ -142,12 +142,18 @@ label/control/description placement. Theme choices use the shared `RadioGroup` p
 `Surface`, `Toolbar`, `ReadingColumn`, `Dock`, `StatusMark`, `OptionStrip`, `AutoScrollArea` and
 `AdaptivePanel` provide reusable containers and behavior. Each has a separate paired example.
 `MenuSheet` assembles Drawer, typography, Button and ScrollArea for both navigation and settings.
-The gallery shows **Built from** links on these compositions. `composition.ts` lists their direct
-building blocks; `tools/composition.test.ts` resolves their real JSX through the compiler and rejects
-uncatalogued controls, raw HTML, styling and intrinsic factories inside `conversation.tsx`,
-`settings.tsx`, `sheet.tsx` and `theme.tsx`. Local composition helpers and context providers are
-checked within the same source. Primitive implementations own DOM, styles and interaction libraries.
-This check covers these compositions, while the app-wide rule continues to cover all kit callers.
+The gallery shows **Built from** links on these compositions. `composition.ts` lists their
+building blocks, including usage through private helpers. `tools/composition.ts` checks the configured
+roots in `conversation.tsx`, `settings.tsx`, `sheet.tsx` and `theme.tsx` as whole sources, then follows
+reachable private presentation helpers and state-only React context providers. Named imports, aliases
+and re-exports resolve through the compiler; extracted helpers need no public export or catalogue
+registration. Raw HTML, styling props and spreads, intrinsic factories and unapproved or unresolved
+presentation targets fail at their offending source and location. Cycles terminate and shared
+references produce one diagnostic. Approved public building blocks, including `unstyled()` exports
+and their wrapped parts, stop traversal: their implementations own DOM, styles and interaction
+libraries. CI and temporary-project tests use the same policy interface to check violations and each
+root's declared building-block metadata. This check covers these compositions and their reached
+private declarations; the app-wide rule continues to cover all kit callers.
 
 Preview canvases, long examples, option strips, settings bodies and conversation feeds share
 `ScrollArea`. Overflow gets a visible 12px track without requiring hover. Full-height samples use

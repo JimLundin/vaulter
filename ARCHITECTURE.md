@@ -33,6 +33,8 @@ app/
   check.ts                   the same vault integrity checks over files on disk
   layout.ts                  resolved dependency and kit-use policy
   layout.test.ts             enforces the policy in CI
+  composition.ts             private-helper composition policy and building-block usage
+  composition.test.ts        CI policy check and temporary source-project acceptance tests
   seal-secrets.ts            deployment secret sealing
 ```
 
@@ -151,6 +153,16 @@ Screens compose `ui/kit/index.ts`. Public components take no `className` or `sty
 the kit. CI rejects custom HTML, styling props, intrinsic element factories and direct presentation
 library imports throughout Product, shared UI and workflows. Semantic forms use the kit's `Form`.
 Add missing generic presentation and its paired example to the kit; keep task logic in its workflow.
+`tools/composition.ts` checks the configured kit composition sources and their reachable private
+presentation helpers and state-only React context providers. Compiler resolution follows imports,
+aliases and re-exports without requiring new public exports or catalogue entries. Approved public
+building blocks, including wrapped `unstyled()` parts, stop traversal and retain ownership of DOM,
+styles and library mechanics. Private helpers obey the composition's existing presentation rules;
+diagnostics identify their offending source and location. The policy reports each root's actual
+building-block usage and checks `composition.ts` metadata, keeping the gallery's **Built from** links
+accurate through private extraction. CI and temporary TypeScript project tests call the same Node-only
+policy interface; product callers gain no runtime dependency.
+
 `surfaces.tsx` supplies conversation, tool-result and unified-diff presentation. Content renderers
 keep their scoped Markdown styling and safety tests; that is an explicit policy exception.
 Conversation containers have separate mobile and desktop compositions. Mobile uses the available

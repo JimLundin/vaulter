@@ -1,4 +1,4 @@
-// Checked against compiler-resolved JSX in these files; the gallery links each building block.
+// Checked through each source and its reachable private helpers; the gallery links each building block.
 export const compositions = [
   {
     source: 'theme.tsx',
