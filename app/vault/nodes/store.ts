@@ -1,4 +1,4 @@
-// Proposed application contract; memory and IndexedDB implementations are the next step.
+// Application contract exercised by nodes/spike; production integration is still pending.
 import type { NodeId, NodeVersion, Transaction, TransactionId } from './model.ts';
 
 /** History metadata supplements the backing transaction's identity and order. */

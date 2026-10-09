@@ -3,6 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "spike:nodes": "node tools/node-storage-spike.ts",
+    "spike:nodes:build": "node tools/build-node-storage-spike.ts",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
@@ -27,6 +29,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cn": "^0.4.0",
+    "dexie": "^4.4.6",
     "diff": "^9.0.0",
     "github-slugger": "^2.0.0",
     "hast-util-to-jsx-runtime": "^2.3.6",

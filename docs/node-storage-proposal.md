@@ -6,8 +6,10 @@ JSON data; the default remains arbitrary JSON objects. Parent, target, identity,
 remain outside that JSON. The application schemas constrain conversation, exchange, message, and
 reference payloads without introducing a separate persistence model for each feature.
 
-The proposed operations are defined in [store.ts](../app/vault/nodes/store.ts). These are TypeScript
-contracts, not implemented stores. The running app and its current cache are unchanged.
+The proposed operations are defined in [store.ts](../app/vault/nodes/store.ts). The throwaway
+[storage spike](../app/vault/nodes/spike/README.md) implements this contract with Maps and encrypted
+Dexie, and exercises chat/History scenarios. Production integration
+is still pending; the running app and its current cache are unchanged.
 
 ## Memory and persistence
 
@@ -131,6 +133,8 @@ alone does not settle that choice, and its optional cloud product is not require
   typed schemas and transaction completion promises. Its transaction-lifetime section describes
   why network/crypto work must occur outside database transactions.
 
-Implement the memory adapter and verify chat/History semantics first, then Dexie with the same
-contract. Use the existing fake-indexeddb test dependency for transaction rollback, composite keys,
-upgrade retention, reload, and concurrent-write checks, plus browser checks for actual lifecycle.
+The spike verified local changes, historical snapshots, guarded undo, stale-write and read-dependency
+rejection, retry deduplication, encrypted records, upgrade retention, and concurrent writers using
+Maps and Dexie with fake-indexeddb. Chrome verified the standalone demo and persistence through a
+full page reload. Production implementation still needs bounded reads, session-key integration,
+workflow wiring, and a synchronization/retention policy; see the spike verdict.

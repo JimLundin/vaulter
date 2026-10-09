@@ -9,7 +9,8 @@
       "!**/dist",
       "!.claude",
       "!app/ui/kit/design",
-      "!package-lock.json"
+      "!package-lock.json",
+      "!app/vault/nodes/spike/demo.html"
     ]
   },
   "formatter": {

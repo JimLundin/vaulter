@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Node storage spike · Chat and History</title>
+  <style>
+    :root { font: 15px/1.5 system-ui, sans-serif; color: #202428; background: #f7f8fa; }
+    body { max-width: 1200px; margin: 32px auto; padding: 0 20px; }
+    h1 { font-size: 28px; margin-bottom: 8px; } h2 { font-size: 19px; }
+    button { border: 1px solid #cbd1d8; border-radius: 6px; padding: 8px 12px; margin: 4px; background: white; color: #173e81; cursor: pointer; }
+    button:hover { background: #eaf0fc; } button:disabled { opacity: .45; }
+    section { background: white; padding: 18px; margin: 18px 0; border: 1px solid #e0e4e9; border-radius: 8px; }
+    .columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+    pre { white-space: pre-wrap; word-break: break-word; font-size: 13px; }
+    .scroll { overflow: auto; } table { border-collapse: collapse; width: 100%; font-size: 12px; }
+    th, td { text-align: left; border-bottom: 1px solid #e0e4e9; padding: 8px; vertical-align: top; }
+    td:last-child { min-width: 220px; } small { display: block; margin: 0 8px 8px; }
+    #outcome { color: #173e81; } .muted { color: #616973; }
+  </style>
+</head>
+<body>
+  <h1>Node storage spike: Chat and History</h1>
+  <p>Can messages, shared content, deletion and undo use one versioned node store with local changes and durable history?</p>
+  <p class="muted">Throwaway demo with fictional content. Memory is the default. IndexedDB uses a dedicated scratch database and a locally retained scratch key; production authentication and remote sync are not wired.</p>
+  <section>
+    <strong id="backend"></strong>
+    <p><button type="button" id="memory">Use memory</button><button type="button" id="dexie">Use IndexedDB</button><button type="button" id="reopen">Close and reopen store</button><button type="button" id="reset">Reset scratch data</button><button type="button" id="latest">View latest</button></p>
+    <p id="sequence"></p><p id="outcome">Starting…</p>
+  </section>
+  <div class="columns"><section><h2>Studio plans</h2><pre id="pageA"></pre></section><section><h2>This week</h2><pre id="pageB"></pre></section><section><h2>Agent chat</h2><pre id="chat"></pre></section></div>
+  <section><h2>Try an action</h2><div id="actions"></div></section>
+  <section><h2>Guided walkthroughs</h2><div id="tabs"></div><div id="walkthrough"><p>Select a walkthrough to start from known fictional content.</p></div></section>
+  <section><h2>Nodes at this point in history</h2><div class="scroll"><table><thead><tr><th>Identity</th><th>Parent</th><th>Target</th><th>Order</th><th>Last transaction</th><th>Content</th></tr></thead><tbody id="nodes"></tbody></table></div></section>
+  <div class="columns"><section><h2>Recorded transactions</h2><p class="muted">Select a transaction to reconstruct that snapshot.</p><ol id="history"></ol></section><section><h2>Changes in the selected transaction</h2><pre id="diff">Perform an action to inspect its before/after versions.</pre></section></div>
+  <script>/* SPIKE_BUNDLE */</script>
+</body>
+</html>

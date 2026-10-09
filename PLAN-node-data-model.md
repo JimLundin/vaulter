@@ -13,6 +13,13 @@ The first browser slice is the existing chat: record an exchange, run node-based
 reviewed staging, commit a content change, and inspect or undo it through History. Use fictional
 preview content. A page editor can follow once these workflows exercise the storage.
 
+## Spike status
+
+The approved backing types and NodeStore contract have been exercised on the throwaway
+`spike/node-storage` branch. See [the verdict and standalone demo](app/vault/nodes/spike/README.md).
+Maps and encrypted Dexie preserve the intended locality, chat audit trail, and historical snapshots.
+This validates the storage direction; application integration and remote durability remain pending.
+
 ## Current behavior and proposed scope
 
 `conversation.ts` owns live turns, SDK messages, capture position, and draft in memory. It survives
@@ -126,38 +133,14 @@ to save the terminal response separately from failure of the model run.
 
 ## Storage and staging interface sketch
 
-```ts
-type NodeChange = Omit<NodeVersion, 'transactionId'>;
+The accepted application contract is [NodeStore](app/vault/nodes/store.ts): commit accepts complete
+NodeChange states with per-node expectedTransactionId, optional expectedReads, a stable request ID,
+and History metadata. RecordedTransaction extends the backing Transaction with message, kind,
+originNodeId and undoOfTransactionId. The caller receives the recorded acceptance; snapshot,
+children, history, changes and subscribe expose projections without database-table access.
 
-type TransactionRequest = {
-  id: TransactionId; // allocated once, retained across retries
-  changes: readonly NodeChange[];
-  expected: Readonly<Record<NodeId, TransactionId | null>>;
-  details: {
-    message: string;
-    kind: 'chat' | 'content' | 'undo';
-    originNodeId: NodeId | null;
-    undoOfTransactionId: TransactionId | null;
-  };
-};
-
-type RecordedTransaction = {
-  transaction: Transaction;
-  nodes: readonly Node[]; // new identities, each with its initial version
-  versions: readonly NodeVersion[];
-};
-
-interface NodeStorage {
-  read(afterSequence?: number): Promise<readonly RecordedTransaction[]>;
-  append(request: TransactionRequest): Promise<RecordedTransaction>;
-}
-```
-
-This is a proposed seam, not an implemented contract. History needs persistent transaction details
-for message, kind, originating exchange, and undo source. Those would extend Transaction with
-explicit fields: originNodeId is an optional FK to Node and undoOfTransactionId an optional FK to
-Transaction. Update Transaction alongside this request when accepting the application contract;
-the current foundation does not yet include those details.
+The [spike](app/vault/nodes/spike/README.md) implements that contract for Maps and Dexie. Production
+staging and ownership remain above it; a storage transaction lasts only through atomic publication.
 
 Append checks expectations, assigns definitive sequence/time, creates identities, attaches its
 transaction ID to proposed complete states, and atomically publishes all records. A null expectation
