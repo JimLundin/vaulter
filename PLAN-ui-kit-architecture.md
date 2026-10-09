@@ -6,7 +6,7 @@ have better locality, and tests exercise the same interface as the product and c
 
 This document records scope and completion checks. Private composition verification is implemented
 on `spec/5-private-composition-verification`, Composer interaction on `spec/6-composer-interaction`,
-and field association on `spec/7-accessible-field-association`; presentation policy remains pending. The
+and field association on `spec/7-accessible-field-association-complete`; presentation policy remains pending. The
 [four individual specs](docs/specs/ui-kit/README.md) define ownership, interface behavior and
 acceptance tests; they supersede this roadmap's earlier unresolved design questions.
 Current architecture is documented in [ARCHITECTURE.md](ARCHITECTURE.md); the kit's presentation
