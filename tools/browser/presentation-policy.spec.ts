@@ -78,7 +78,10 @@ for (const targetWidth of [1440, 900]) {
       const parent = page.getByRole('dialog', { name: 'Agent', exact: true });
       for (let step = 0; step < 6; step++) {
         await page.keyboard.press('Tab');
-        expect(await parent.evaluate((node) => node.contains(document.activeElement))).toBe(true);
+        // Base UI returns focus from its guard on the next animation frame.
+        await expect
+          .poll(() => parent.evaluate((node) => node.contains(document.activeElement)))
+          .toBe(true);
       }
       expect(await page.evaluate(() => document.body.style.overflow)).toBe('hidden');
     }

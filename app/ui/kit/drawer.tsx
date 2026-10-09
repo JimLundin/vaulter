@@ -11,9 +11,8 @@ import {
 import { Stack } from './parts/layout.tsx';
 import { ScrollArea } from './parts/scroll-area.tsx';
 import { Icon } from './icons.tsx';
-import { useIsMobile } from './hooks/use-mobile.ts';
-import { usePresentationFocus, usePresentationPolicy } from './presentation-policy.tsx';
 import { useLayout } from './hooks/use-layout.ts';
+import { usePresentationFocus, usePresentationPolicy } from './presentation-policy.tsx';
 
 export function Drawer({
   open,
@@ -30,7 +29,7 @@ export function Drawer({
   header?: ReactNode;
   children: ReactNode;
 }) {
-  const compact = useIsMobile();
+  const compact = useLayout() === 'compact';
   const restoreFocus = usePresentationFocus(open);
   const descriptionId = useId();
   const ref = useRef<HTMLDivElement>(null);

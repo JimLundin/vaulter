@@ -1,5 +1,5 @@
 # The app's CI: on every push the tests, the type check and lint; on main, build, seal the secrets in, and
-# deploy to GitHub Pages. The structure and design-variants branches refresh the sample design preview
+# deploy to GitHub Pages. The structure branch refreshes the sample design preview
 # alongside the preserved production artifact. Run by hand after changing a secret or to refresh it.
 name: Deploy
 
@@ -69,7 +69,7 @@ jobs:
 
   design-preview:
     needs: test
-    if: github.ref == 'refs/heads/structure' || github.ref == 'refs/heads/design-variants'
+    if: github.ref == 'refs/heads/structure'
     concurrency:
       group: pages
       cancel-in-progress: false

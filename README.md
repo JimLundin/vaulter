@@ -23,6 +23,8 @@ schema; remaining legacy MDX content will be migrated after design review and me
 
 The app currently contains chat, rename-note, and history workflows. The agent reads and writes the
 vault through its permanent checks; rename stages the complete move and reference rewrites.
+Consecutive tool calls fold into an expandable summary, with a live status showing the current action.
+The app includes a manifest and icons for installing it to the Home Screen.
 Settings holds the theme and agent model preferences, saved on this device. Enter sends an agent
 message; Shift+Enter adds a new line. Both devices use the same always-visible one-row message
 field with inset microphone and Send controls. Tap the microphone to dictate into that field,
@@ -62,8 +64,11 @@ commit passes the same rules and carries `Committed-From: vault app`.
 
 Review the latest design before merging at **https://jimlundin.github.io/vaulter/preview/structure/**.
 The component gallery is at **https://jimlundin.github.io/vaulter/preview/structure/kit/**.
-Every push to `structure` or `design-variants` runs the checks and refreshes these shared links with
-that branch's design. The banner identifies the preview commit; `version.json` records its branch.
+Every push to `structure` runs the checks and refreshes these links with the integrated design.
+`design-variants` is retained as historical design work; its remaining mobile polish and installation
+support have been integrated into `structure`. This branch's publishing workflow uses `structure`
+only; the historical branch still has its older workflow and should receive no further pushes.
+The banner identifies the preview commit; `version.json` records its branch.
 Use **Mobile** in the top banner to review the phone layout from your desktop. **Desktop** returns
 to the wide layout; **Window** follows your browser size. Switching retains your current page,
 draft and open settings/search fields. The banner stays above the whole app, including the sidebar.
@@ -83,8 +88,8 @@ currently deployed production commit, preserves its root files, and adds `previe
 Production artifacts are retained for 90 days; refresh production before publishing a preview if
 the deployed artifact has expired.
 `tools/publish-design.ts` refuses to publish if that exact production artifact is unavailable or if
-the preview contains `secrets.json` or `sw.js`. The `github-pages` environment allows both design
-branches for this preview. Preview publishing does not merge the application branch or migrate vault data.
+the preview contains `secrets.json` or `sw.js`. The `github-pages` environment permits `structure`
+for this preview. Preview publishing does not merge the application branch or migrate vault data.
 An ordinary main deployment replaces the whole site, so it removes the preview until the next
 design preview publish.
 

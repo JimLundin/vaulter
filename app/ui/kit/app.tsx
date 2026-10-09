@@ -8,7 +8,7 @@ import { type Unstyled, unstyled } from './lib/unstyled.tsx';
 import { cn } from './lib/utils.ts';
 import { AvatarFallback, Avatar as AvatarPart } from './parts/avatar.tsx';
 import { Badge } from './parts/badge.tsx';
-import { useIsMobile } from './hooks/use-mobile.ts';
+import { useLayout } from './hooks/use-layout.ts';
 import { useViewport } from './hooks/use-viewport.ts';
 import { Drawer } from './drawer.tsx';
 import { ItemGroup as ItemGroupPart, Item as ItemPart } from './parts/item.tsx';
@@ -377,7 +377,7 @@ export function PageHeader({
   description?: string;
   actions?: ReactNode;
 }) {
-  const mobile = useIsMobile();
+  const mobile = useLayout() === 'compact';
   return (
     <header
       data-variant={mobile ? 'mobile' : 'desktop'}
@@ -405,7 +405,7 @@ export function WorkspaceFrame({
   bar: ReactNode;
   children: ReactNode;
 }) {
-  const mobile = useIsMobile();
+  const mobile = useLayout() === 'compact';
   useViewport();
   return (
     <div
