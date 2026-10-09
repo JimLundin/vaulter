@@ -1,38 +1,40 @@
 // PROTOTYPE: executable walkthrough actions and a small parity probe, shared by browser and CLI.
 import type { NodeVersion, Transaction } from '../model.ts';
 import type { NodeChange, NodeCommit } from '../store.ts';
-import type { ChatData } from '../../documents/chat.ts';
+import { chatOperations, type ChatData } from '../../documents/chat.ts';
+import { nodeOperations, sameOperation } from '../operations.ts';
+import { spikeOperations } from './operations.ts';
 import { closure, undo, type SpikeStore } from './prototype.ts';
 
 const now = () => new Date().toISOString();
 const initial = (
-  nodeId: string,
+  node: string,
   data: NodeVersion['data'],
-  parentNodeId: string | null = null,
-  orderKey: string | null = null,
-  targetNodeId: string | null = null,
+  parent: string | null = null,
+  order: string | null = null,
+  target: string | null = null,
 ): NodeChange => ({
-  nodeId,
+  node,
   data,
-  parentNodeId,
-  orderKey,
-  targetNodeId,
-  expectedTransactionId: null,
+  parent,
+  order,
+  target,
+  expected: null,
 });
 
 function request(
   id: string,
   message: string,
   changes: readonly NodeChange[],
-  kind: NodeCommit['kind'] = 'node.update',
+  kind: NodeCommit['kind'] = nodeOperations.update,
 ): NodeCommit {
   return {
     id,
     message,
     kind,
     recordedBy: 'actor-user',
-    originNodeId: null,
-    undoOfTransactionId: null,
+    origin: null,
+    undoOf: null,
     changes,
   };
 }
@@ -54,25 +56,25 @@ export async function seed(store: SpikeStore): Promise<void> {
         initial('group', { kind: 'group', title: 'Notes' }, 'page-a', 'M'),
         initial('nested', { kind: 'paragraph', text: 'Keep afternoons open.' }, 'group', 'M'),
       ],
-      'demo.seed',
+      spikeOperations.seed,
     ),
   );
 }
 
 export async function change(
   store: SpikeStore,
-  nodeId: string,
+  node: string,
   patch: Partial<NodeChange>,
 ): Promise<NodeChange> {
-  const current = (await store.snapshot()).get(nodeId);
-  if (!current) throw new Error(`Unknown node: ${nodeId}`);
+  const current = (await store.snapshot()).get(node);
+  if (!current) throw new Error(`Unknown node: ${node}`);
   return {
-    nodeId,
-    parentNodeId: current.parentNodeId,
-    targetNodeId: current.targetNodeId,
-    orderKey: current.orderKey,
+    node,
+    parent: current.parent,
+    target: current.target,
+    order: current.order,
     data: current.data,
-    expectedTransactionId: current.transactionId,
+    expected: current.transaction,
     ...patch,
   };
 }
@@ -135,8 +137,8 @@ export function walkthrough(store: SpikeStore) {
           }),
         );
       const transaction = await store.commit({
-        ...request(id, 'Accept chat submission', changes, 'chat.submit'),
-        originNodeId: exchangeId,
+        ...request(id, 'Accept chat submission', changes, chatOperations.submit),
+        origin: exchangeId,
       });
       activeExchange = exchangeId;
       activeResponse = responseId;
@@ -167,10 +169,10 @@ export function walkthrough(store: SpikeStore) {
           id,
           action === 'stop' ? 'Record stopped response' : 'Record completed response',
           [await change(store, activeResponse, { data })],
-          action === 'stop' ? 'chat.response.stop' : 'chat.response.complete',
+          action === 'stop' ? chatOperations.stopResponse : chatOperations.completeResponse,
         ),
         recordedBy: 'actor-agent',
-        originNodeId: activeExchange,
+        origin: activeExchange,
       });
     }
     if (action === 'undo') {
@@ -179,12 +181,12 @@ export function walkthrough(store: SpikeStore) {
         (
           await store.history({
             kinds: [
-              'node.update',
-              'node.move',
-              'node.delete',
-              'node.restore',
-              'node.detach',
-              'node.fork',
+              nodeOperations.update,
+              nodeOperations.move,
+              nodeOperations.delete,
+              nodeOperations.restore,
+              nodeOperations.detach,
+              nodeOperations.fork,
             ],
             limit: 1,
           })
@@ -231,9 +233,9 @@ export function walkthrough(store: SpikeStore) {
       changes = [
         await change(store, 'appearance-a', {
           data: null,
-          parentNodeId: null,
-          targetNodeId: null,
-          orderKey: null,
+          parent: null,
+          target: null,
+          order: null,
         }),
       ];
     else if (action === 'delete') changes = [await change(store, 'paragraph', { data: null })];
@@ -244,7 +246,7 @@ export function walkthrough(store: SpikeStore) {
         }),
       ];
     else if (action === 'move')
-      changes = [await change(store, 'group', { parentNodeId: 'page-b', orderKey: 'M' })];
+      changes = [await change(store, 'group', { parent: 'page-b', order: 'M' })];
     else if (action === 'deleteGroup') changes = [await change(store, 'group', { data: null })];
     else if (action === 'restoreGroup')
       changes = [await change(store, 'group', { data: { kind: 'group', title: 'Notes' } })];
@@ -254,9 +256,9 @@ export function walkthrough(store: SpikeStore) {
         initial(contentId, { kind: 'paragraph', text: 'My own studio plan.' }),
         await change(store, 'appearance-a', {
           data: { kind: 'appearance' },
-          parentNodeId: 'page-a',
-          orderKey: 'A',
-          targetNodeId: contentId,
+          parent: 'page-a',
+          order: 'A',
+          target: contentId,
         }),
       ];
     }
@@ -266,19 +268,19 @@ export function walkthrough(store: SpikeStore) {
         actionLabels[action],
         changes,
         action === 'move'
-          ? 'node.move'
+          ? nodeOperations.move
           : action === 'delete' || action === 'deleteGroup'
-            ? 'node.delete'
+            ? nodeOperations.delete
             : action === 'restore' || action === 'restoreGroup'
-              ? 'node.restore'
+              ? nodeOperations.restore
               : action === 'detach'
-                ? 'node.detach'
+                ? nodeOperations.detach
                 : action === 'independent'
-                  ? 'node.fork'
-                  : 'node.update',
+                  ? nodeOperations.fork
+                  : nodeOperations.update,
       ),
       recordedBy: action === 'commit' ? 'actor-agent' : 'actor-user',
-      originNodeId: activeExchange,
+      origin: activeExchange,
     });
     lastContent = transaction.id;
     return transaction;
@@ -293,7 +295,7 @@ export async function exercise(store: SpikeStore): Promise<Record<string, unknow
   const send1 = await guide.execute('send');
   const send2 = await guide.execute('send');
   const accepted2 = typeof send2 === 'string' ? [] : await store.changes(send2.id);
-  if (accepted2.some((d) => d.nodeId === 'conversation'))
+  if (accepted2.some((d) => d.node === 'conversation'))
     throw new Error('Message append versioned an ancestor');
   const edit = await guide.execute('commit');
   await guide.execute('stop');
@@ -309,8 +311,8 @@ export async function exercise(store: SpikeStore): Promise<Record<string, unknow
   await guide.execute('delete');
   const deleted = await store.snapshot();
   if (
-    closure(deleted, 'page-a').some((v) => v.nodeId === 'paragraph') ||
-    !deleted.get('appearance-b')?.targetNodeId
+    closure(deleted, 'page-a').some((v) => v.node === 'paragraph') ||
+    !deleted.get('appearance-b')?.target
   )
     throw new Error('Deletion closure/reference behavior failed');
   await guide.execute('restore');
@@ -318,8 +320,8 @@ export async function exercise(store: SpikeStore): Promise<Record<string, unknow
   await guide.execute('move');
   const moved = await store.snapshot();
   if (
-    moved.get('nested')?.transactionId !== 'seed' ||
-    !closure(moved, 'page-b').some((v) => v.nodeId === 'nested')
+    moved.get('nested')?.transaction !== 'seed' ||
+    !closure(moved, 'page-b').some((v) => v.node === 'nested')
   )
     throw new Error('Group move rewrote or lost descendants');
   const conflict = await guide.execute('stale');
@@ -342,8 +344,8 @@ export async function exercise(store: SpikeStore): Promise<Record<string, unknow
   const head = await store.snapshot();
   const referenceCycle = await store.commit(
     request('reference-cycle', 'Ordinary cross-reference cycle', [
-      await change(store, 'page-a', { targetNodeId: 'page-b' }),
-      await change(store, 'page-b', { targetNodeId: 'page-a' }),
+      await change(store, 'page-a', { target: 'page-b' }),
+      await change(store, 'page-b', { target: 'page-a' }),
     ]),
   );
   if (!closure(await store.snapshot(), 'page-a').length)
@@ -352,7 +354,7 @@ export async function exercise(store: SpikeStore): Promise<Record<string, unknow
   try {
     await store.commit(
       request('containment-cycle', 'Invalid parent cycle', [
-        await change(store, 'group', { parentNodeId: 'nested' }),
+        await change(store, 'group', { parent: 'nested' }),
       ]),
     );
   } catch {
@@ -361,12 +363,9 @@ export async function exercise(store: SpikeStore): Promise<Record<string, unknow
   if (!cycleRejected) throw new Error('Parent cycle accepted');
   await guide.execute('deleteGroup');
   const hidden = await store.snapshot();
-  if (
-    hidden.children('group').length ||
-    closure(hidden, 'page-b').some((v) => v.nodeId === 'nested')
-  )
+  if (hidden.children('group').length || closure(hidden, 'page-b').some((v) => v.node === 'nested'))
     throw new Error('Deleted container retained visible descendants');
-  if (hidden.get('nested')?.transactionId !== 'seed')
+  if (hidden.get('nested')?.transaction !== 'seed')
     throw new Error('Container deletion rewrote descendants');
   const descendantEdit = await store.commit(
     request('hidden-descendant', 'Edit an unreachable descendant', [
@@ -409,7 +408,7 @@ export async function exercise(store: SpikeStore): Promise<Record<string, unknow
   if (
     send2.recordedBy !== 'actor-user' ||
     edit.recordedBy !== 'actor-agent' ||
-    edit.originNodeId !== send2.originNodeId
+    edit.origin !== send2.origin
   )
     throw new Error('Authorship and context were conflated');
   const laterAuthor = await store.commit(
@@ -421,7 +420,7 @@ export async function exercise(store: SpikeStore): Promise<Record<string, unknow
           data: { kind: 'actor', role: 'agent', name: 'Renamed assistant' },
         }),
       ],
-      'actor.update',
+      spikeOperations.updateActor,
     ),
   );
   const authoredSnapshot = await store.snapshot(edit.sequence);
@@ -432,20 +431,20 @@ export async function exercise(store: SpikeStore): Promise<Record<string, unknow
       'delete-author',
       'Remove the agent identity from current views',
       [await change(store, 'actor-agent', { data: null })],
-      'actor.delete',
+      spikeOperations.deleteActor,
     ),
   );
   if (
-    (await store.history({ kinds: ['node.update'], limit: 100 })).find((t) => t.id === edit.id)
-      ?.recordedBy !== 'actor-agent'
+    (await store.history({ kinds: [nodeOperations.update], limit: 100 })).find(
+      (t) => t.id === edit.id,
+    )?.recordedBy !== 'actor-agent'
   )
     throw new Error('Deleting an author erased attribution');
   const beforeInvalidMetadata = (await store.snapshot()).sequence;
   for (const [id, patch] of [
     ['missing-author', { recordedBy: '' }],
     ['unknown-author', { recordedBy: 'unknown' }],
-    ['missing-kind', { kind: ' ' }],
-    ['unknown-origin', { originNodeId: 'unknown' }],
+    ['unknown-origin', { origin: 'unknown' }],
   ] as const) {
     let rejected = false;
     try {
@@ -458,30 +457,69 @@ export async function exercise(store: SpikeStore): Promise<Record<string, unknow
       throw new Error('Invalid metadata published');
   }
   const custom = await store.commit({
-    ...request('custom-kind', 'An import from a new feature', [dependent], 'import.calendar.apply'),
+    ...request(
+      'custom-kind',
+      'An import from a new feature',
+      [dependent],
+      spikeOperations.applyCalendarImport,
+    ),
     message: null,
+    metadata: { imported: 3, format: { name: 'calendar', version: 1 }, warnings: [] },
   });
+  if (custom.metadata?.imported !== 3 || !Object.isFrozen(custom.metadata))
+    throw new Error('Transaction metadata was lost or mutable');
+  const malformed = structuredClone(request('missing-kind', 'Malformed operation', [dependent]));
+  Reflect.set(malformed.kind, 'action', '');
+  let malformedRejected = false;
+  try {
+    await store.commit(malformed);
+  } catch {
+    malformedRejected = true;
+  }
+  if (!malformedRejected) throw new Error('Malformed structured kind published');
+  const changedMetadataRetry = {
+    ...request(
+      'custom-kind',
+      'An import from a new feature',
+      [dependent],
+      spikeOperations.applyCalendarImport,
+    ),
+    message: null,
+    metadata: { imported: 999 },
+  };
+  let metadataRetryRejected = false;
+  try {
+    await store.commit(changedMetadataRetry);
+  } catch {
+    metadataRetryRejected = true;
+  }
+  if (!metadataRetryRejected) throw new Error('Retry changed recorded metadata');
   const filtered = await store.history({
-    kinds: ['chat.submit', 'import.calendar.apply'],
+    kinds: [chatOperations.submit, spikeOperations.applyCalendarImport],
     limit: 100,
   });
   if (
     filtered.length !== 3 ||
     filtered[0]?.id !== custom.id ||
-    filtered.some((t) => !['chat.submit', 'import.calendar.apply'].includes(t.kind))
+    filtered.some(
+      (t) =>
+        ![chatOperations.submit, spikeOperations.applyCalendarImport].some((kind) =>
+          sameOperation(kind, t.kind),
+        ),
+    )
   )
     throw new Error('Extensible operation filtering failed');
   return {
     acceptedSubmissions: [send1, send2],
-    secondSubmissionVersions: accepted2.map((d) => d.nodeId),
+    secondSubmissionVersions: accepted2.map((d) => d.node),
     edit,
     contentSurvivedStop: true,
     transcriptSurvivedUndo: true,
     historicalText: historical.get('paragraph')?.data?.text,
     targetDeletionRetainedAppearances: true,
-    descendantVersionAfterMove: moved.get('nested')?.transactionId,
-    oldGroupParent: beforeMove.get('group')?.parentNodeId,
-    newGroupParent: moved.get('group')?.parentNodeId,
+    descendantVersionAfterMove: moved.get('nested')?.transaction,
+    oldGroupParent: beforeMove.get('group')?.parent,
+    newGroupParent: moved.get('group')?.parent,
     conflict,
     retrySequence: result.sequence,
     duplicateSequence: duplicate.sequence,
@@ -499,6 +537,8 @@ export async function exercise(store: SpikeStore): Promise<Record<string, unknow
     deletedAuthorRetainedAttribution: true,
     invalidMetadataRejectedAtomically: true,
     extensibleKindWithNullMessage: custom.kind,
+    immutableTransactionMetadata: custom.metadata,
+    metadataRetryRejected,
     authorRenameSequence: laterAuthor.sequence,
     finalSequence: (await store.snapshot()).sequence,
   };

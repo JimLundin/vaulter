@@ -14,7 +14,7 @@ import {
 const showError = (error: unknown) => {
   get('outcome').textContent = String(error);
 };
-const databaseName = 'PROTOTYPE-vaulter-node-storage-authorship-wipe-me';
+const databaseName = 'PROTOTYPE-vaulter-node-storage-structured-wipe-me';
 const get = (id: string) => {
   const element = document.getElementById(id);
   if (!element) throw new Error(`Missing demo element: ${id}`);
@@ -38,6 +38,7 @@ let busy = false;
 async function perform(callback: () => void | Promise<void>) {
   if (busy) return;
   busy = true;
+  document.body.setAttribute('aria-busy', 'true');
   try {
     await callback();
   } catch (error) {
@@ -47,6 +48,7 @@ async function perform(callback: () => void | Promise<void>) {
       await render();
     } finally {
       busy = false;
+      document.body.setAttribute('aria-busy', 'false');
     }
   }
 }
@@ -64,7 +66,7 @@ async function render() {
   const transactionSnapshots = await Promise.all(
     transactions.map((t) => store.snapshot(t.sequence)),
   );
-  const identities = new Set(differences.flatMap((changes) => changes.map((d) => d.nodeId)));
+  const identities = new Set(differences.flatMap((changes) => changes.map((d) => d.node)));
   const nodes = [...identities].sort().map((id) => snapshot.get(id));
   const table = get('nodes');
   table.replaceChildren();
@@ -73,11 +75,11 @@ async function render() {
     const row = document.createElement('tr');
     const data = node.data === null ? 'Deleted' : JSON.stringify(node.data);
     for (const value of [
-      node.nodeId,
-      node.parentNodeId ?? '—',
-      node.targetNodeId ?? '—',
-      node.orderKey ?? '—',
-      node.transactionId,
+      node.node,
+      node.parent ?? '—',
+      node.target ?? '—',
+      node.order ?? '—',
+      node.transaction,
       data,
     ]) {
       const cell = document.createElement('td');
@@ -92,27 +94,27 @@ async function render() {
     ['chat', 'conversation'],
   ]) {
     const lines: string[] = [];
-    const visit = (nodeId: string, depth: number, path: Set<string>) => {
-      if (path.has(nodeId)) {
+    const visit = (identity: string, depth: number, path: Set<string>) => {
+      if (path.has(identity)) {
         lines.push(`${'  '.repeat(depth)}[recursive reference]`);
         return;
       }
-      const node = snapshot.get(nodeId);
+      const node = snapshot.get(identity);
       if (!node || node.data === null) {
         lines.push(`${'  '.repeat(depth)}[content deleted]`);
         return;
       }
-      const next = new Set(path).add(nodeId);
+      const next = new Set(path).add(identity);
       const { data } = node;
       lines.push(
-        `${'  '.repeat(depth)}${data.title ?? data.text ?? data.kind ?? nodeId}${data.status ? ` (${data.status})` : ''}`,
+        `${'  '.repeat(depth)}${data.title ?? data.text ?? data.kind ?? identity}${data.status ? ` (${data.status})` : ''}`,
       );
       if (Array.isArray(data.parts))
         for (const part of data.parts)
           if (part && typeof part === 'object' && 'text' in part)
             lines.push(`${'  '.repeat(depth + 1)}${part.text}`);
-      for (const child of snapshot.children(nodeId)) visit(child.nodeId, depth + 1, next);
-      if (node.targetNodeId) visit(node.targetNodeId, depth + 1, next);
+      for (const child of snapshot.children(identity)) visit(child.node, depth + 1, next);
+      if (node.target) visit(node.target, depth + 1, next);
     };
     if (snapshot.get(root)) visit(root, 0, new Set());
     else lines.push('No conversation recorded yet.');
@@ -124,7 +126,7 @@ async function render() {
     const changes = differences[index];
     const item = document.createElement('li');
     const pick = button(
-      `${transaction.sequence} · ${transaction.kind}${transaction.message === null ? '' : ` · ${transaction.message}`}`,
+      `${transaction.sequence} · ${transaction.kind.scope} / ${transaction.kind.action}${transaction.message === null ? '' : ` · ${transaction.message}`}`,
       () => {
         selectedSequence = transaction.sequence;
         get('outcome').textContent = `Historical view at ${transaction.sequence}`;
@@ -132,7 +134,7 @@ async function render() {
       },
     );
     const label = document.createElement('small');
-    label.textContent = `By ${transactionSnapshots[index].get(transaction.recordedBy)?.data?.name ?? transaction.recordedBy} · Origin ${transaction.originNodeId ?? 'direct action'} · Changed nodes: ${changes.map((d) => d.nodeId).join(', ')}`;
+    label.textContent = `By ${transactionSnapshots[index].get(transaction.recordedBy)?.data?.name ?? transaction.recordedBy} · Origin ${transaction.origin ?? 'direct action'} · Changed nodes: ${changes.map((d) => d.node).join(', ')}`;
     item.append(pick, label);
     history.append(item);
   }

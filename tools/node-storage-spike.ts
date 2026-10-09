@@ -1,5 +1,6 @@
 // PROTOTYPE: run the same walkthrough against Maps and real Dexie with fake IndexedDB.
 import 'fake-indexeddb/auto';
+import { nodeOperations } from '../app/vault/nodes/operations.ts';
 import { exercise, change } from '../app/vault/nodes/spike/scenarios.ts';
 import {
   memorySpikeStore,
@@ -21,7 +22,7 @@ try {
   const rawText = JSON.stringify(raw);
   if (
     rawText.includes('paragraph') &&
-    (rawText.includes('parentNodeId') || rawText.includes('Newer content'))
+    (rawText.includes('parent') || rawText.includes('Newer content'))
   )
     throw new Error('Persisted structural/content fields leaked');
   if (
@@ -36,6 +37,15 @@ try {
   try {
     if ((await reopened.snapshot()).sequence !== before)
       throw new Error('Upgrade/reopen lost history');
+    const recordedImport = (await reopened.history({ limit: 100 })).find(
+      (t) => t.id === 'custom-kind',
+    );
+    if (
+      recordedImport?.metadata?.imported !== 3 ||
+      !Object.isFrozen(recordedImport.metadata) ||
+      recordedImport.kind.scope !== 'calendarImport'
+    )
+      throw new Error('Reload lost structured kind or metadata');
     const other = await dexieSpikeStore(name);
     try {
       const one = await change(reopened, 'page-a', {
@@ -48,10 +58,10 @@ try {
         id,
         changes,
         message: id,
-        kind: 'node.update',
+        kind: nodeOperations.update,
         recordedBy: 'actor-user',
-        originNodeId: null,
-        undoOfTransactionId: null,
+        origin: null,
+        undoOf: null,
       });
       const independent = await Promise.all([
         reopened.commit(submit('concurrent-a', [one])),

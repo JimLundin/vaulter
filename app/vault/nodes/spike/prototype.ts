@@ -1,6 +1,7 @@
 // PROTOTYPE: shared acceptance logic and two stores. No production wiring or remote synchronization.
 import { Dexie } from 'dexie';
 import type { NodeVersion, Transaction } from '../model.ts';
+import { sameOperation, transactionOperations } from '../operations.ts';
 import type { NodeChange, NodeCommit, NodeDifference, NodeSnapshot, NodeStore } from '../store.ts';
 import { decryptJson, encryptJson, newCacheKey, type Encrypted } from '../../session/crypto.ts';
 
@@ -55,19 +56,17 @@ function snapshotOf(records: readonly Accepted[], cutoff?: number): NodeSnapshot
   const selected = new Map<string, NodeVersion>();
   for (const record of records)
     if (record.transaction.sequence <= sequence)
-      for (const version of record.versions) selected.set(version.nodeId, version);
+      for (const version of record.versions) selected.set(version.node, version);
   return Object.freeze({
     sequence,
-    get: (nodeId: string) => selected.get(nodeId),
-    children: (parentNodeId: string) => {
-      const parent = selected.get(parentNodeId);
-      if (!parent || parent.data === null) return Object.freeze([]);
+    get: (node: string) => selected.get(node),
+    children: (parent: string) => {
+      const enclosing = selected.get(parent);
+      if (!enclosing || enclosing.data === null) return Object.freeze([]);
       return Object.freeze(
         [...selected.values()]
-          .filter((v) => v.data !== null && v.parentNodeId === parentNodeId)
-          .sort(
-            (a, b) => compare(a.orderKey ?? '', b.orderKey ?? '') || compare(a.nodeId, b.nodeId),
-          ),
+          .filter((v) => v.data !== null && v.parent === parent)
+          .sort((a, b) => compare(a.order ?? '', b.order ?? '') || compare(a.node, b.node)),
       );
     },
   });
@@ -83,62 +82,74 @@ function accept(records: readonly Accepted[], request: NodeCommit): Accepted {
   }
   if (!(request.id && request.changes.length))
     throw new Error('A transaction needs an ID and changes');
-  if (typeof request.kind !== 'string' || !request.kind.trim())
-    throw new Error('A transaction needs a nonempty operation kind');
+  if (
+    !request.kind ||
+    typeof request.kind !== 'object' ||
+    typeof request.kind.scope !== 'string' ||
+    !request.kind.scope.trim() ||
+    typeof request.kind.action !== 'string' ||
+    !request.kind.action.trim() ||
+    Object.keys(request.kind).some((key) => key !== 'scope' && key !== 'action')
+  )
+    throw new Error('A transaction needs a structured scope/action kind');
+  if (
+    request.metadata !== undefined &&
+    (request.metadata === null ||
+      typeof request.metadata !== 'object' ||
+      Array.isArray(request.metadata))
+  )
+    throw new Error('Transaction metadata must be a JSON object');
   if (typeof request.recordedBy !== 'string' || !request.recordedBy.trim())
     throw new Error('A transaction needs an author');
   const current = snapshotOf(records);
   const selected = new Map<string, NodeVersion>();
-  for (const r of records) for (const v of r.versions) selected.set(v.nodeId, v);
+  for (const r of records) for (const v of r.versions) selected.set(v.node, v);
   const changed = new Set<string>();
-  const expect = (nodeId: string, transactionId: string | null) => {
-    if ((current.get(nodeId)?.transactionId ?? null) !== transactionId)
-      throw new Error(`Conflict: ${nodeId} changed since ${transactionId ?? 'creation'}`);
+  const expect = (node: string, transaction: string | null) => {
+    if ((current.get(node)?.transaction ?? null) !== transaction)
+      throw new Error(`Conflict: ${node} changed since ${transaction ?? 'creation'}`);
   };
-  for (const [nodeId, transactionId] of Object.entries(request.expectedReads ?? {}))
-    expect(nodeId, transactionId);
+  for (const [node, transaction] of Object.entries(request.expectedReads ?? {}))
+    expect(node, transaction);
   const versions = request.changes.map((change): NodeVersion => {
-    if (!change.nodeId || changed.has(change.nodeId))
+    if (!change.node || changed.has(change.node))
       throw new Error('Duplicate or empty node identity');
-    changed.add(change.nodeId);
-    expect(change.nodeId, change.expectedTransactionId);
-    if (change.data === null && !current.get(change.nodeId))
+    changed.add(change.node);
+    expect(change.node, change.expected);
+    if (change.data === null && !current.get(change.node))
       throw new Error('Cannot delete a new identity');
     if (change.data !== null && (typeof change.data !== 'object' || Array.isArray(change.data)))
       throw new Error('Node data must be a JSON object or deletion');
-    if ((change.parentNodeId === null) !== (change.orderKey === null))
+    if ((change.parent === null) !== (change.order === null))
       throw new Error('Parent and order key must agree');
-    if (change.orderKey !== null && !change.orderKey) throw new Error('Order key must be nonempty');
+    if (change.order !== null && !change.order) throw new Error('Order key must be nonempty');
     return {
-      nodeId: change.nodeId,
-      transactionId: request.id,
-      parentNodeId: change.parentNodeId,
-      targetNodeId: change.targetNodeId,
-      orderKey: change.orderKey,
+      node: change.node,
+      transaction: request.id,
+      parent: change.parent,
+      target: change.target,
+      order: change.order,
       data: change.data,
     };
   });
-  for (const version of versions) selected.set(version.nodeId, version);
+  for (const version of versions) selected.set(version.node, version);
   for (const version of versions)
-    for (const ref of [version.parentNodeId, version.targetNodeId])
+    for (const ref of [version.parent, version.target])
       if (ref !== null && !selected.has(ref)) throw new Error(`Unknown node identity: ${ref}`);
   if (!selected.has(request.recordedBy)) throw new Error('Unknown transaction author');
-  if (request.originNodeId !== null && !selected.has(request.originNodeId))
+  if (request.origin !== null && !selected.has(request.origin))
     throw new Error('Unknown originating node');
-  if (
-    request.undoOfTransactionId !== null &&
-    !records.some((r) => r.transaction.id === request.undoOfTransactionId)
-  )
+  if (request.undoOf !== null && !records.some((r) => r.transaction.id === request.undoOf))
     throw new Error('Unknown undo transaction');
   // Only containment is acyclic. Target references may form ordinary graph cycles.
   const checked = new Set<string>();
   for (const version of selected.values()) {
     const path = new Set<string>();
     let cursor: NodeVersion | undefined = version;
-    while (cursor && cursor.data !== null && !checked.has(cursor.nodeId)) {
-      if (path.has(cursor.nodeId)) throw new Error('Containment cycle');
-      path.add(cursor.nodeId);
-      cursor = cursor.parentNodeId === null ? undefined : selected.get(cursor.parentNodeId);
+    while (cursor && cursor.data !== null && !checked.has(cursor.node)) {
+      if (path.has(cursor.node)) throw new Error('Containment cycle');
+      path.add(cursor.node);
+      cursor = cursor.parent === null ? undefined : selected.get(cursor.parent);
     }
     for (const id of path) checked.add(id);
   }
@@ -151,8 +162,9 @@ function accept(records: readonly Accepted[], request: NodeCommit): Accepted {
         recordedBy: request.recordedBy,
         message: request.message,
         kind: request.kind,
-        originNodeId: request.originNodeId,
-        undoOfTransactionId: request.undoOfTransactionId,
+        origin: request.origin,
+        undoOf: request.undoOf,
+        ...(request.metadata === undefined ? {} : { metadata: request.metadata }),
       },
       versions,
       fingerprint,
@@ -192,21 +204,21 @@ function interfaceOf(
         .filter(
           (t) =>
             t.sequence < (options.beforeSequence ?? Number.POSITIVE_INFINITY) &&
-            (!options.kinds || options.kinds.includes(t.kind)),
+            (!options.kinds || options.kinds.some((kind) => sameOperation(kind, t.kind))),
         )
         .reverse()
         .slice(0, options.limit ?? 50),
-    changes: async (transactionId) => {
+    changes: async (transaction) => {
       const records = await read();
-      const record = records.find((r) => r.transaction.id === transactionId);
+      const record = records.find((r) => r.transaction.id === transaction);
       if (!record) throw new Error('Unknown transaction');
       const before = snapshotOf(records, record.transaction.sequence - 1);
       return Object.freeze(
         record.versions.map(
           (after): NodeDifference =>
             Object.freeze({
-              nodeId: after.nodeId,
-              before: before.get(after.nodeId) ?? null,
+              node: after.node,
+              before: before.get(after.node) ?? null,
               after,
             }),
         ),
@@ -264,8 +276,8 @@ interface TransactionRow extends Encrypted {
   sequence: number;
 }
 interface VersionRow extends Encrypted {
-  nodeId: string;
-  transactionId: string;
+  node: string;
+  transaction: string;
 }
 interface Counter {
   id: string;
@@ -281,8 +293,8 @@ function spikeDatabase(name: string) {
   db.version(1).stores({
     nodes: 'id',
     transactions: 'id,&sequence',
-    versions: '[nodeId+transactionId],transactionId,nodeId',
-    current: 'nodeId',
+    versions: '[node+transaction],transaction,node',
+    current: 'node',
     state: 'id',
     keys: 'id',
   });
@@ -302,7 +314,7 @@ function spikeDatabase(name: string) {
  * Parent/target/data stay encrypted; opaque identity, version membership and sequence are indexed.
  */
 export async function dexieSpikeStore(
-  name = 'PROTOTYPE-vaulter-node-storage-authorship-wipe-me',
+  name = 'PROTOTYPE-vaulter-node-storage-structured-wipe-me',
 ): Promise<SpikeStore> {
   if (!name.startsWith('PROTOTYPE-')) throw new Error('Use a dedicated PROTOTYPE- database');
   const tables = spikeDatabase(name);
@@ -356,13 +368,9 @@ export async function dexieSpikeStore(
       const versionRows = await Promise.all(
         record.versions.map(
           async (v): Promise<VersionRow> => ({
-            nodeId: v.nodeId,
-            transactionId: v.transactionId,
-            ...(await encryptJson(
-              key,
-              v,
-              `version:${JSON.stringify([v.nodeId, v.transactionId])}`,
-            )),
+            node: v.node,
+            transaction: v.transaction,
+            ...(await encryptJson(key, v, `version:${JSON.stringify([v.node, v.transaction])}`)),
           }),
         ),
       );
@@ -371,9 +379,9 @@ export async function dexieSpikeStore(
         [nodes, transactions, versions, current, state],
         async () => {
           if (((await state.get('head'))?.sequence ?? 0) !== base) return false;
-          const known = await nodes.bulkGet(record.versions.map((v) => v.nodeId));
+          const known = await nodes.bulkGet(record.versions.map((v) => v.node));
           await nodes.bulkAdd(
-            record.versions.filter((_, i) => known[i] === undefined).map((v) => ({ id: v.nodeId })),
+            record.versions.filter((_, i) => known[i] === undefined).map((v) => ({ id: v.node })),
           );
           await transactions.add(transactionRow);
           await versions.bulkAdd(versionRows);
@@ -426,8 +434,8 @@ export function closure(snapshot: NodeSnapshot, rootId: string): readonly NodeVe
     const version = snapshot.get(id);
     if (!version || version.data === null) return;
     result.push(version);
-    for (const child of snapshot.children(id)) visit(child.nodeId);
-    if (version.targetNodeId !== null) visit(version.targetNodeId);
+    for (const child of snapshot.children(id)) visit(child.node);
+    if (version.target !== null) visit(version.target);
   };
   visit(rootId);
   return Object.freeze(result);
@@ -436,25 +444,25 @@ export function closure(snapshot: NodeSnapshot, rootId: string): readonly NodeVe
 /** Guarded compensation; restoring a group reveals descendants at their current states. */
 export async function undo(
   store: NodeStore,
-  transactionId: string,
+  transaction: string,
   recordedBy: string,
 ): Promise<Transaction> {
-  const differences = await store.changes(transactionId);
-  const changes: NodeChange[] = differences.map(({ nodeId, before, after }) => ({
-    nodeId,
-    expectedTransactionId: after.transactionId,
-    parentNodeId: before?.parentNodeId ?? null,
-    targetNodeId: before?.targetNodeId ?? null,
-    orderKey: before?.orderKey ?? null,
+  const differences = await store.changes(transaction);
+  const changes: NodeChange[] = differences.map(({ node, before, after }) => ({
+    node,
+    expected: after.transaction,
+    parent: before?.parent ?? null,
+    target: before?.target ?? null,
+    order: before?.order ?? null,
     data: before?.data ?? null,
   }));
   return store.commit({
     id: crypto.randomUUID(),
-    message: `Undo ${transactionId}`,
-    kind: 'transaction.undo',
+    message: `Undo ${transaction}`,
+    kind: transactionOperations.undo,
     recordedBy,
-    originNodeId: null,
-    undoOfTransactionId: transactionId,
+    origin: null,
+    undoOf: transaction,
     changes,
   });
 }
@@ -479,7 +487,7 @@ export async function inspectScratch(name: string): Promise<Record<string, reado
 export async function upgradeScratch(name: string): Promise<void> {
   const { db } = spikeDatabase(name);
   // Preserve all history while adding a new index.
-  db.version(2).stores({ current: 'nodeId,transactionId' });
+  db.version(2).stores({ current: 'node,transaction' });
   try {
     await db.open();
   } finally {

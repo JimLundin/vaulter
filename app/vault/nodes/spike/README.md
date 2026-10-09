@@ -14,10 +14,10 @@ or network request is required. Choose Memory or IndexedDB, try actions, or sele
 walkthrough. The panels show visible content, all recorded node identities at the selected cutoff
 (including tombstones and unreachable nodes), complete differences, and transaction History.
 
-This revision uses a new scratch database name because earlier spike transactions did not record
-authorship. It does not invent authors for those old records or migrate real data.
+This revision uses a new scratch database name because earlier spike records used type names in fields
+and dotted string kinds. It does not rewrite those scratch records or migrate real data.
 
-The demo uses fictional data in `PROTOTYPE-vaulter-node-storage-authorship-wipe-me`. Walkthroughs reset the
+The demo uses fictional data in `PROTOTYPE-vaulter-node-storage-structured-wipe-me`. Walkthroughs reset the
 selected store. Use only one demo tab when resetting. After a page reload, choose IndexedDB to
 reopen its retained records; Memory starts fresh. Reopening a store does not resume a running model
 request. The spike's reply buttons simulate a terminal response without invoking an agent.
@@ -54,7 +54,7 @@ excluded from Biome because it embeds third-party library code; its authored sou
 | Undo after an intervening affected-node edit | Whole compensation rejected |
 | User Send / agent edit | Different recordedBy actor nodes, same exchange origin |
 | Rename or delete an author | Attribution identity retained; historical snapshot preserves the old name |
-| Unknown author/origin or empty kind | Whole transaction rejected |
+| Unknown author/origin or malformed structured kind | Whole transaction rejected |
 | New operation kind with null message | Accepted without a storage schema change; filterable alongside known kinds |
 | Retry an accepted request | Original acceptance returned; changed contents under that ID rejected |
 | Concurrent independent writes | Both accepted with distinct sequential transactions |
@@ -74,8 +74,11 @@ TypeScript, Biome CI, and the existing layout/composition checks (33 assertions)
 
 [prototype.ts](prototype.ts) implements both adapters through the existing
 [NodeStore contract](../store.ts). [Transaction](../model.ts) is one persisted shape including
-required recordedBy, extensible kind, nullable message, originNodeId, and undoOfTransactionId.
-There is no RecordedTransaction extension. The author is an ordinary node; the origin identifies
+required recordedBy, structured kind, nullable message, origin, undoOf and optional typed metadata.
+Kinds come from the typed scope/action catalogue; feature-owned constants avoid magic strings.
+There is no RecordedTransaction extension. Metadata is immutable JSON included in encryption and retry checks. Public reference fields are
+node, transaction, parent, target, origin, undoOf and expected, without type names or Id suffixes.
+The author is an ordinary node; the origin identifies
 context, not the author. Callers submit complete proposed states and expected last
 transaction IDs. They read immutable snapshots and transaction differences without table access.
 [scenarios.ts](scenarios.ts) demonstrates the chat payloads and commit boundaries.
