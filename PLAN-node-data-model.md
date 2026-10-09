@@ -135,8 +135,10 @@ to save the terminal response separately from failure of the model run.
 
 The accepted application contract is [NodeStore](app/vault/nodes/store.ts): commit accepts complete
 NodeChange states with per-node expectedTransactionId, optional expectedReads, a stable request ID,
-and History metadata. RecordedTransaction extends the backing Transaction with message, kind,
-originNodeId and undoOfTransactionId. The caller receives the recorded acceptance; snapshot,
+and provenance. Transaction is one shared definition: identity, sequence, recordedAt, recordedBy,
+kind, nullable message, originNodeId and undoOfTransactionId. recordedBy references the author Node;
+originNodeId references the context Node. Kinds are extensible operation names such as chat.submit,
+node.move and transaction.undo. The caller receives the recorded acceptance; snapshot,
 children, history, changes and subscribe expose projections without database-table access.
 
 The [spike](app/vault/nodes/spike/README.md) implements that contract for Maps and Dexie. Production
@@ -157,8 +159,9 @@ cannot mutate history. Choose insertion-friendly order keys and deterministic eq
 
 ## History and undo
 
-History reads the same recorded transactions. Default the existing History view to content and undo
-transactions, so chat acceptance/checkpoint/completion writes do not bury content edits. Chat views
+History reads the same recorded transactions. Default the existing History view to the relevant node-operation and transaction.undo
+kinds, so chat.submit and chat.response.* writes do not bury content edits. Features own their
+operation names; storage does not impose a closed chat/content/undo classification. Chat views
 derive their transcript from conversation nodes. These are projections of one history.
 
 Show complete before/after node state, including parent, target, order, data, and deletion. Find the
