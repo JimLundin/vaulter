@@ -19,9 +19,10 @@ Private composition verification (#5, ticket #9) is implemented on
 `spec/5-private-composition-verification`. Composer interaction (#6, ticket #10) is implemented on
 `spec/6-composer-interaction`, based on that verification branch. Accessible field association
 (#7, tickets #11 and #12) is implemented on `spec/7-accessible-field-association`, based on the
-Composer branch. Base UI migration (#18, including #17) and presentation policy (#8) are
-implemented on `spec/18-base-ui-and-presentation-policy`; see the scope update in the policy spec
-and the [Search library decision](../../adr/0001-base-ui-search.md).
+Composer branch. The Base UI migration (#18, including #17) and initial presentation policy
+implementation are on `spec/18-base-ui-and-presentation-policy`. Presentation policy completion is on
+`spec/8-presentation-policy-complete`; see its [acceptance record](04-presentation-policy-acceptance.md),
+the scope update in the policy spec and the [Search library decision](../../adr/0001-base-ui-search.md).
 Interface mechanics must satisfy the decisions and acceptance behavior in
 each spec; these documents supersede the roadmap's earlier unresolved design questions.
 

@@ -6,9 +6,9 @@ have better locality, and tests exercise the same interface as the product and c
 
 This document records scope and completion checks. Private composition verification is implemented
 on `spec/5-private-composition-verification`, Composer interaction on `spec/6-composer-interaction`,
-and field association on `spec/7-accessible-field-association`. Base UI migration and presentation
-policy are implemented on `spec/18-base-ui-and-presentation-policy`, with acceptance tracked
-in the individual specs. The [four individual specs](docs/specs/ui-kit/README.md) define ownership, interface behavior and
+and field association on `spec/7-accessible-field-association`. Base UI migration is implemented
+on `spec/18-base-ui-and-presentation-policy`. Presentation policy completion is on
+`spec/8-presentation-policy-complete`, with acceptance tracked in the individual specs. The [four individual specs](docs/specs/ui-kit/README.md) define ownership, interface behavior and
 acceptance tests; they supersede this roadmap's earlier unresolved design questions.
 Current architecture is documented in [ARCHITECTURE.md](ARCHITECTURE.md); the kit's presentation
 rules and verification commands are in [its README](app/ui/kit/README.md).
@@ -20,9 +20,11 @@ All kit primitives now use Base UI; Search uses its Autocomplete and no Radix de
 The [Search library decision](docs/adr/0001-base-ui-search.md) records the removal of cmdk.
 
 Completion validation on 9 October 2026: typecheck, lint, all 193 Vitest tests and product/design
-builds passed. The browser suite exercised 198 cases across phone, desktop and touch desktop:
-197 passed in the full run; one touch-desktop paired-panel reopen timeout passed three subsequent
-repeats. Standards and Spec reviews found no remaining issues under the clarified Search scope.
+builds passed. The complete browser suite passed all 246 cases across phone, desktop and touch
+desktop. The final review cleanup additionally passed all 39 public presentation cases.
+Standards review found two minor ownership/duplication concerns, both resolved; Spec review found
+no substantive gaps under the Base UI scope and Search ADR. See the
+[presentation acceptance record](docs/specs/ui-kit/04-presentation-policy-acceptance.md).
 
 ## Execution order
 
@@ -263,18 +265,18 @@ mechanics according to their actual needs; they need not share one implementatio
 
 ### Completion checks
 
-- [ ] Production modal surfaces trap focus, hide background content and lock scrolling correctly.
-- [ ] A wide supporting panel remains nonmodal; resizing preserves its content, draft and focus.
-- [ ] Escape dismisses the topmost relevant surface and closing restores the opening control or
+- [x] Production modal surfaces trap focus, hide background content and lock scrolling correctly.
+- [x] A wide supporting panel remains nonmodal; resizing preserves its content, draft and focus.
+- [x] Escape dismisses the topmost relevant surface and closing restores the opening control or
       its equivalent after rearrangement.
-- [ ] Nested surfaces release accessibility and scrolling effects without disrupting an open parent.
-- [ ] Bounded samples keep portals local, allow independent editing and leave the catalogue usable.
-- [ ] Interacting with one sample does not dismiss another sample's surface.
-- [ ] Design preview mode changes retain open settings/search, fields and routes.
-- [ ] Visual viewport resizing keeps composer and overlays within available bounds.
-- [ ] Scoped dropdowns, tooltips and hover previews retain their placement.
-- [ ] Closing or unmounting cleans up effects and listeners in the correct environment.
-- [ ] Overlay callers no longer repeat shared environment-policy decisions.
+- [x] Nested surfaces release accessibility and scrolling effects without disrupting an open parent.
+- [x] Bounded samples keep portals local, allow independent editing and leave the catalogue usable.
+- [x] Interacting with one sample does not dismiss another sample's surface.
+- [x] Design preview mode changes retain open settings/search, fields and routes.
+- [x] Visual viewport resizing keeps composer and overlays within available bounds.
+- [x] Scoped dropdowns, tooltips and hover previews retain their placement.
+- [x] Closing or unmounting cleans up effects and listeners in the correct environment.
+- [x] Overlay callers no longer repeat shared environment-policy decisions.
 
 Exercise behavior through public presentation interfaces in browser and bounded-preview
 environments, using existing library adapters. Retain meaningful focus, nested Escape, resize,
