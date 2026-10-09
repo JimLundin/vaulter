@@ -442,6 +442,25 @@ function Changes() {
         input={{ path: 'notes/slow-mornings.md' }}
         output={<K.Json value={{ saved: true }} />}
       />
+      <K.ToolGroup summary="Read 2 files · staged 1 file · check passes" count={4}>
+        <K.ToolResult
+          title="readFile · notes/slow-mornings.md"
+          status="ok"
+          input={{ path: 'notes/slow-mornings.md' }}
+        />
+        <K.ToolResult
+          title="readFile · notes/coffee.md"
+          status="ok"
+          input={{ path: 'notes/coffee.md' }}
+        />
+        <K.ToolResult
+          title="writeFile · notes/slow-mornings.md"
+          status="staged: notes/slow-mornings.md"
+          input={{ path: 'notes/slow-mornings.md' }}
+        />
+        <K.ToolResult title="check" status="check passes" input={{}} />
+      </K.ToolGroup>
+      <K.LiveStatus>Reading notes/coffee.md…</K.LiveStatus>
     </K.Stack>
   );
 }
@@ -1498,8 +1517,9 @@ export const catalogue: Specimen[] = [
   {
     id: 'changes',
     title: 'Changes & tool results',
-    description: 'Code changes, note changes and collapsible agent activity.',
-    components: ['CodeDiff', 'UnifiedDiff', 'ToolResult', 'Json'],
+    description:
+      'Code changes, note changes and collapsible agent activity: tool calls folded into one line, and what the agent is doing now.',
+    components: ['CodeDiff', 'UnifiedDiff', 'ToolResult', 'ToolGroup', 'LiveStatus', 'Json'],
     Sample: Changes,
   },
   {
