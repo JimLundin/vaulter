@@ -39,35 +39,35 @@ if (!message || message.data === null) throw new Error('Message is unavailable')
 await store.commit({
   id: crypto.randomUUID(),
   message: 'Record the completed reply',
-  kind: 'chat.response.complete',
+  kind: chatOperations.completeResponse,
   recordedBy: agentNodeId,
-  originNodeId: message.parentNodeId,
-  undoOfTransactionId: null,
+  origin: message.parent,
+  undoOf: null,
   changes: [{
-    nodeId: message.nodeId,
-    expectedTransactionId: message.transactionId,
-    parentNodeId: message.parentNodeId,
-    targetNodeId: message.targetNodeId,
-    orderKey: message.orderKey,
+    node: message.node,
+    expected: message.transaction,
+    parent: message.parent,
+    target: message.target,
+    order: message.order,
     data: completedReply,
   }],
 });
 ```
 
-The same operation records new identities with expectedTransactionId: null. Tombstones and restored
+The same operation records new identities with expected: null. Tombstones and restored
 nodes expect their last recorded version. snapshot(sequence) provides an immutable historical view;
 snapshot() captures current state once. Parent and target resolution stay within it. children(parent)
 returns ordered live children and is empty when the parent is absent/deleted. A selected deleted
 target is distinguishable from a node without a version at that snapshot.
 
-history paginates recorded transactions, optionally filtering kind. changes(transactionId) provides
+history paginates recorded transactions, optionally filtering a set of structured kinds. changes(transaction) provides
 complete before/after node states for History. subscribe notifies callers to reload projections
 after commits. A later content write module adds reviewable staging and guarded undo over this store;
 those do not belong in the raw database tables.
 
 Transaction is the single persisted definition in model.ts. It includes required recordedBy (an
-author Node identity), an extensible kind, optional message, originNodeId (context Node), and
-undoOfTransactionId, alongside identity, order and acceptance time. NodeCommit derives from it and
+author Node identity), an extensible kind, optional message, origin (context Node), and
+undoOf, alongside identity, order and acceptance time. NodeCommit derives from it and
 adds proposed changes and expectations; it is a write request, not a second stored shape.
 
 The writer context supplies recordedBy, not untrusted tool arguments. A user submission records
@@ -75,10 +75,22 @@ the user; agent output/content changes record the agent and reference their exch
 A direct user move has no origin. Imports and automations can record system authors and reference
 import/run nodes. Actors and context use the same versioned Node model as all other data.
 
-Kinds name operations specifically: chat.submit, chat.response.complete, chat.response.stop,
-node.update, node.move, node.delete, node.restore, import.apply, transaction.undo. New features
-can introduce kinds without changing a storage enum. History can filter a set of kinds and retain
-unknown operations using their message or kind as a label.
+Kinds are typed `{ scope, action }` objects. The operation catalogue maps each scope to its allowed
+actions; features register their vocabulary and expose constants such as nodeOperations.move or
+chatOperations.completeResponse. There is no unrestricted string fallback or dotted-name parsing.
+History compares scope/action values so cloned and deserialized operations match correctly.
+External write inputs still require feature schema validation; storage only checks the generic
+kind structure and preserves well-formed future operations for readers.
+
+Transaction<Metadata> supports optional typed JSON context. Metadata is copied, encrypted and
+immutable along with the transaction; changing it under an accepted retry ID fails. A feature can
+extend its optional metadata fields while retaining this same backing shape. Required additions
+or changed meanings need explicit versioned decoding/migration. Integrity-aware references stay
+in explicit fields or reference nodes; IDs in metadata do not acquire foreign-key behavior.
+
+recordedBy can reference the same stable agent node presented in the wiki. Its historical version
+identifies the agent as it was at the transaction cutoff; a particular run is context referenced
+by origin. Writer ownership/authentication still governs which author may be supplied.
 
 A domain transaction is one logical change group; a Dexie/IndexedDB transaction is the short
 storage operation used to publish that group atomically. Neither stays open across a model request.
@@ -90,17 +102,17 @@ For a plaintext development store, the suggested tables and indexes are:
 ```ts
 db.version(1).stores({
   nodes: 'id',
-  transactions: 'id, &sequence, [kind+sequence], recordedBy, originNodeId',
-  versions: '[nodeId+transactionId], transactionId, nodeId, [nodeId+sequence]',
-  current: 'nodeId, parentNodeId, targetNodeId, data.kind',
+  transactions: 'id, &sequence, [kind.scope+kind.action+sequence], recordedBy, origin',
+  versions: '[node+transaction], transaction, node, [node+sequence]',
+  current: 'node, parent, target, data.kind',
 });
 ```
 
 The version row adds sequence as a storage-level index field copied from its transaction. It is
 derived, not another application-level version identifier. A composite tuple is the version key.
 Current rows contain the latest version and are rebuildable projections; update changed rows only.
-Ordering by orderKey and nodeId can happen after the indexed parent query. IndexedDB excludes null
-keys from indexes, so roots are not retrieved through parentNodeId = null; use identity or type
+Ordering by order and node can happen after the indexed parent query. IndexedDB excludes null
+keys from indexes, so roots are not retrieved through parent = null; use identity or type
 queries for roots. This schema is illustrative and does not install a plaintext store in the app.
 
 A commit runs in one readwrite transaction spanning these tables:
@@ -111,7 +123,7 @@ A commit runs in one readwrite transaction spanning these tables:
 4. Add new identities, the recorded transaction, and immutable versions.
 5. Replace only the changed current rows, then publish notifications after successful commit.
 
-Validate recordedBy and originNodeId as Node identity references, including identities created in
+Validate recordedBy and origin as Node identity references, including identities created in
 the same transaction. Deleted actors/contexts retain their identities and historical attribution.
 
 Failure aborts all steps. Reuse of a retry ID with different contents fails; implementing that check
