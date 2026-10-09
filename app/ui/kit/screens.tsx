@@ -2,7 +2,7 @@
 import type { ReactNode } from 'react';
 import { Button } from './parts/button.tsx';
 import { Icon } from './icons.tsx';
-import { useIsMobile } from './hooks/use-mobile.ts';
+import { useLayout } from './hooks/use-layout.ts';
 import { FeaturePage } from './app.tsx';
 import { AdaptiveDialog } from './overlay.tsx';
 
@@ -16,7 +16,7 @@ export function SearchSurface({
   onClose: () => void;
   children: ReactNode;
 }) {
-  const mobile = useIsMobile();
+  const mobile = useLayout() === 'compact';
   return (
     <AdaptiveDialog
       open={open}
@@ -41,7 +41,7 @@ export function SearchSurface({
 }
 
 export function HistorySurface({ children }: { children: ReactNode }) {
-  const mobile = useIsMobile();
+  const mobile = useLayout() === 'compact';
   return (
     <FeaturePage title="History" description="Changes to your vault, newest first.">
       <div className={mobile ? 'flex flex-col gap-4 py-3' : 'flex flex-col gap-4'}>{children}</div>

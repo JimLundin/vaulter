@@ -8,7 +8,7 @@
 //   B  Sidenotes: numbered claims with their quoted evidence always visible in the margin.
 //   C  Trace: the page beside the history log; claims and events highlight each other both ways.
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { useIsMobile } from './hooks/use-mobile.ts';
+import { useLayout } from './hooks/use-layout.ts';
 import { Drawer } from './drawer.tsx';
 
 // ---------------------------------------------------------------------------------------------------
@@ -633,7 +633,7 @@ const panelHeading = 'Why the page says this';
 
 /** Desktop: the evidence panel beside the page. Compact: the same panel in the shared drawer. */
 function VariantA() {
-  const mobile = useIsMobile();
+  const mobile = useLayout() === 'compact';
   const [selected, setSelected] = useState<ClaimId | undefined>(mobile ? undefined : 'c-home');
   const [uncited, setUncited] = useState(false);
   const claim = selected ? claimById.get(selected) : undefined;

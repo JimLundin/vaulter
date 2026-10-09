@@ -14,7 +14,7 @@ import {
   AdaptivePanel,
   OptionStrip,
 } from './primitives.tsx';
-import { useIsMobile } from './hooks/use-mobile.ts';
+import { useLayout } from './hooks/use-layout.ts';
 import { usePrototypeInputStyle } from './unified-input-button.prototype.tsx';
 
 const ConversationPresentation = createContext<{ page: boolean; close?: () => void }>({
@@ -36,7 +36,7 @@ export function ConversationWelcome({
   title: string;
   description: string;
 }) {
-  const mobile = useIsMobile();
+  const mobile = useLayout() === 'compact';
   const { page } = useContext(ConversationPresentation);
   return (
     <Stack
@@ -69,7 +69,7 @@ interface ConversationActions {
   busy: boolean;
 }
 function ConversationToolbar({ historyHref, onNewChat, busy }: ConversationActions) {
-  const mobile = useIsMobile();
+  const mobile = useLayout() === 'compact';
   const { page, close } = useContext(ConversationPresentation);
   return (
     <Toolbar>
@@ -160,7 +160,7 @@ export function ConversationFeed({ empty, children }: { empty?: boolean; childre
   return <AutoScrollArea empty={empty}>{children}</AutoScrollArea>;
 }
 export function Message({ user, children }: { user?: boolean; children: ReactNode }) {
-  const mobile = useIsMobile();
+  const mobile = useLayout() === 'compact';
   return (
     <Stack data-message={user ? 'user' : 'agent'} align={user ? 'end' : 'stretch'} gap="sm">
       {!mobile && (

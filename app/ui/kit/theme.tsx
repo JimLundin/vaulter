@@ -5,7 +5,7 @@ import { useSyncExternalStore } from 'react';
 import { Icon, type IconName } from './icons.tsx';
 import { Text } from './parts/layout.tsx';
 import { RadioGroup, RadioGroupItem, RadioGroupIndicator } from './parts/radio-group.tsx';
-import { useIsMobile } from './hooks/use-mobile.ts';
+import { useLayout } from './hooks/use-layout.ts';
 
 export type Theme = 'system' | 'light' | 'dark';
 
@@ -86,7 +86,7 @@ const CHOICES: [Theme, IconName, string][] = [
 /** Full-width touch choices on phones, compact choices in the desktop form column. */
 export function ThemeSwitch() {
   const theme = useTheme();
-  const mobile = useIsMobile();
+  const mobile = useLayout() === 'compact';
   return (
     <RadioGroup
       variant="choices"

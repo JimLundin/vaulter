@@ -1,8 +1,10 @@
 # Unified input button prototype
 
-Throwaway interaction preview based on `structure` at `9e7f4d6`.
+Throwaway interaction preview based on reconciled `structure` at `d97f191`.
 
 Run `npm run design -- --port 5181`, then open <http://localhost:5181/preview/?variant=A>.
+In this worktree, use `--config /tmp/vaulter-input-preview.vite.config.mts` so Vite
+can serve fonts from the shared `node_modules` directory.
 Use the existing Mobile toggle to check the phone layout. Dictation is scripted.
 
 The arrow switcher follows the merged UI prototype's pattern and sits inside the
@@ -45,3 +47,7 @@ preservation, transcription during switches, and unchanged composer geometry.
 Awaiting user review before applying the behavior to `structure`. Production work
 should update the shared Composer and its browser acceptance checks, then update
 the README's description of the controls.
+
+The preview includes the remaining `design-variants` mobile polish, expandable
+tool summaries and Home Screen support, while preserving structure's Base UI
+presentation components. The sidebar active-attribute correction remains here.

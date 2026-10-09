@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import { Button } from './parts/button.tsx';
 import { Icon } from './icons.tsx';
 import { cn } from './lib/utils.ts';
-import { useIsMobile } from './hooks/use-mobile.ts';
+import { useLayout } from './hooks/use-layout.ts';
 
 export function Gate({ children }: { children: ReactNode }) {
   return (
@@ -26,7 +26,7 @@ export function PreviewBar({
   onReset: () => void;
   controls?: ReactNode;
 }) {
-  const mobile = useIsMobile();
+  const mobile = useLayout() === 'compact';
   return (
     <aside
       aria-label="Design preview"
@@ -105,6 +105,59 @@ export function ToolResult({
         {output}
       </div>
     </details>
+  );
+}
+/**
+ * Consecutive tool calls folded into one line ("Read 3 files · staged 2 files"), so the reply stays
+ * in view on a phone. Opening it lists each ToolResult; each of those opens to its JSON.
+ */
+export function ToolGroup({
+  summary,
+  count,
+  running,
+  error,
+  children,
+}: {
+  summary: string;
+  count: number;
+  running?: boolean;
+  error?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <details className="group/tools overflow-hidden rounded-xl border bg-surface text-label">
+      <summary
+        data-touch-target=""
+        className="flex cursor-pointer list-none items-center gap-2 px-3 py-2.5"
+      >
+        <Icon name={error ? 'warning' : running ? 'clock' : 'check'} size="sm" />
+        <span className={cn('min-w-0 flex-1 truncate font-medium', error && 'text-destructive')}>
+          {summary}
+        </span>
+        <span className="shrink-0 text-xs text-muted-foreground">
+          {count} {count === 1 ? 'step' : 'steps'}
+        </span>
+        <span className="shrink-0 text-muted-foreground transition-transform group-open/tools:rotate-90">
+          <Icon name="chevron-right" size="sm" />
+        </span>
+      </summary>
+      <div className="flex flex-col divide-y border-t [&>details]:rounded-none [&>details]:border-0 [&>details]:bg-transparent">
+        {children}
+      </div>
+    </details>
+  );
+}
+/** What the agent is doing right now, in one line: replaces a stack of progress messages. */
+export function LiveStatus({ children }: { children: ReactNode }) {
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className="flex min-w-0 items-center gap-2 text-sm text-muted-foreground"
+    >
+      <span className="inline-block size-2 shrink-0 rounded-full bg-events motion-safe:animate-pulse" />
+      <span className="min-w-0 truncate">{children}</span>
+    </div>
   );
 }
 export function Json({ value }: { value: unknown }) {

@@ -17,8 +17,11 @@ import {
   Row,
   Stack,
   Text,
+  LiveStatus,
+  ToolGroup,
   ToolResult,
 } from '../../ui/kit/index.ts';
+import { liveLabel, running, segments, summarize, type ToolPart } from './activity.ts';
 import { link } from '../../ui/routing.ts';
 import { later } from '../../ui/later.ts';
 import { renderBody } from './rendering/markdown.ts';
@@ -228,6 +231,23 @@ function Tool({ part }: { part: Part & { kind: 'tool' } }) {
     />
   );
 }
+/** One call as its own row; two or more folded into a single summary line. */
+function Tools({ parts }: { parts: ToolPart[] }) {
+  if (parts.length === 1) return <Tool part={parts[0]} />;
+  return (
+    <ToolGroup
+      summary={summarize(parts)}
+      count={parts.length}
+      running={!!running(parts)}
+      error={parts.some((p) => p.error)}
+    >
+      {parts.map((part, i) => (
+        // biome-ignore lint/suspicious/noArrayIndexKey: calls only append
+        <Tool key={i} part={part} />
+      ))}
+    </ToolGroup>
+  );
+}
 function AgentTurn({
   turn,
   live,
@@ -237,25 +257,32 @@ function AgentTurn({
   live: boolean;
   historyHref?: string;
 }) {
+  const tools = turn.parts.filter((p): p is ToolPart => p.kind === 'tool');
+  const now = live ? running(tools) : undefined;
   return (
     <Stack>
-      {turn.parts.map((part, i) =>
-        part.kind === 'text' ? (
-          // biome-ignore lint/suspicious/noArrayIndexKey: parts only append
-          <Said key={i} text={part.text} />
+      {segments(turn.parts).map((segment, i) =>
+        segment.kind === 'text' ? (
+          // biome-ignore lint/suspicious/noArrayIndexKey: segments only append
+          <Said key={i} text={segment.part.text} />
         ) : (
-          // biome-ignore lint/suspicious/noArrayIndexKey: parts only append
+          // biome-ignore lint/suspicious/noArrayIndexKey: segments only append
           <Stack key={i}>
-            <Tool part={part} />
-            {!!part.commit && !!historyHref && <Link href={link(historyHref)}>{part.result}</Link>}
+            <Tools parts={segment.parts} />
+            {segment.parts.map(
+              (part) =>
+                !!part.commit &&
+                !!historyHref && (
+                  <Link key={part.commit} href={link(historyHref)}>
+                    {part.result}
+                  </Link>
+                ),
+            )}
           </Stack>
         ),
       )}
-      {live && !turn.parts.length && (
-        <Text size="sm" tone="subtle">
-          Thinking…
-        </Text>
-      )}
+      {live && !!now && <LiveStatus>{liveLabel(now)}</LiveStatus>}
+      {live && !turn.parts.length && <LiveStatus>Thinking…</LiveStatus>}
       {!!turn.error && (
         <Text size="sm" tone="danger">
           {turn.error}

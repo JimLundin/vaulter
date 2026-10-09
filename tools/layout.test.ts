@@ -153,3 +153,30 @@ test('Product, shared views and features must compose the kit, including aliased
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test('outside the kit, only Product reads the size class', () => {
+  const root = mkdtempSync(join(tmpdir(), 'vaulter-size-class-policy-'));
+  try {
+    mkdirSync(join(root, 'app/ui'), { recursive: true });
+    writeFileSync(
+      join(root, 'tsconfig.json'),
+      JSON.stringify({
+        compilerOptions: { module: 'ESNext', moduleResolution: 'Bundler' },
+        include: ['app'],
+      }),
+    );
+    writeFileSync(
+      join(root, 'app/ui/Frame.ts'),
+      "import { useLayout } from 'kit'; export const layout = useLayout();",
+    );
+    writeFileSync(
+      join(root, 'app/product.tsx'),
+      "import { useLayout } from 'kit'; export const layout = useLayout();",
+    );
+    expect(checkLayout(root)).toEqual([
+      'app/ui/Frame.ts: size-dependent presentation belongs in the kit',
+    ]);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});

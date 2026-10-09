@@ -20,8 +20,8 @@ const commit = process.env.GITHUB_SHA;
 const branch = process.env.GITHUB_REF_NAME;
 if (!(repo && commit && branch))
   throw new Error('GITHUB_REPOSITORY, GITHUB_SHA and GITHUB_REF_NAME are required.');
-if (!['structure', 'design-variants'].includes(branch))
-  throw new Error('Only the structure and design-variants branches publish the design preview.');
+if (branch !== 'structure')
+  throw new Error('Only the structure branch publishes the design preview.');
 const api = <T>(path: string): T =>
   JSON.parse(execFileSync('gh', ['api', path], { encoding: 'utf8' }));
 const site = api<{ html_url: string }>(`repos/${repo}/pages`).html_url;

@@ -1,6 +1,6 @@
 // One dialog tree: resizing moves and resizes it without discarding its contents or focus.
 import { type ReactNode, useRef } from 'react';
-import { useIsMobile } from './hooks/use-mobile.ts';
+import { useLayout } from './hooks/use-layout.ts';
 import { Button } from './parts/button.tsx';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from './parts/dialog.tsx';
 import { Icon } from './icons.tsx';
@@ -29,7 +29,7 @@ export function AdaptiveDialog({
   closeLabel?: string;
   children?: ReactNode;
 }) {
-  const compact = useIsMobile();
+  const compact = useLayout() === 'compact';
   const ref = useRef<HTMLDivElement>(null);
   return (
     <Dialog
