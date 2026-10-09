@@ -64,10 +64,12 @@ commit passes the same rules and carries `Committed-From: vault app`.
 
 Review the latest design before merging at **https://jimlundin.github.io/vaulter/preview/structure/**.
 The component gallery is at **https://jimlundin.github.io/vaulter/preview/structure/kit/**.
-Every push to `structure` runs the checks and refreshes these links with the integrated design.
+Every branch push runs the checks. Non-main branches publish their sample preview at
+`/preview/<branch-name>/`, with the component gallery at `/preview/<branch-name>/kit/`.
+For example, `feature/input` publishes at `/preview/feature/input/`. `main` publishes production.
 `design-variants` is retained as historical design work; its remaining mobile polish and installation
-support have been integrated into `structure`. This branch's publishing workflow uses `structure`
-only; the historical branch still has its older workflow and should receive no further pushes.
+support have been integrated into `structure`. The historical branch still has its older workflow
+and should receive no further pushes.
 The banner identifies the preview commit; `version.json` records its branch.
 Use **Mobile** in the top banner to review the phone layout from your desktop. **Desktop** returns
 to the wide layout; **Window** follows your browser size. Switching retains your current page,
@@ -88,12 +90,15 @@ preview lives at `/preview/`; the built preview moves its entry to the deploy ro
 gallery under `kit/`.
 
 GitHub Pages accepts one site artifact. The preview job downloads the successful artifact for the
-currently deployed production commit, preserves its root files, and adds `preview/structure/`.
+currently deployed production commit, preserves its root files, and adds `preview/<branch-name>/`.
+The workflow retains each sample build as a `design-preview` artifact for 90 days. Packaging
+restores other branches' latest available successful preview artifacts before adding the current
+branch, so publishing one preview preserves the others.
 Production artifacts are retained for 90 days; refresh production before publishing a preview if
 the deployed artifact has expired.
 `tools/publish-design.ts` refuses to publish if that exact production artifact is unavailable or if
-the preview contains `secrets.json` or `sw.js`. The `github-pages` environment permits `structure`
-for this preview. Preview publishing does not merge the application branch or migrate vault data.
+the preview contains `secrets.json` or `sw.js`. The `github-pages` environment permits branch
+deployments for these previews. Preview publishing does not merge the application branch or migrate vault data.
 An ordinary main deployment replaces the whole site, so it removes the preview until the next
 design preview publish.
 

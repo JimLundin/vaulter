@@ -1,5 +1,5 @@
 # The app's CI: on every push the tests, the type check and lint; on main, build, seal the secrets in, and
-# deploy to GitHub Pages. The structure branch refreshes the sample design preview
+# deploy to GitHub Pages. Other branches refresh their own sample design preview
 # alongside the preserved production artifact. Run by hand after changing a secret or to refresh it.
 name: Deploy
 
@@ -69,7 +69,7 @@ jobs:
 
   design-preview:
     needs: test
-    if: github.ref == 'refs/heads/structure'
+    if: github.ref_type == 'branch' && github.ref_name != 'main'
     concurrency:
       group: pages
       cancel-in-progress: false
@@ -81,7 +81,7 @@ jobs:
       id-token: write
     environment:
       name: github-pages
-      url: https://jimlundin.github.io/vaulter/preview/structure/
+      url: ${{ steps.preview.outputs.preview_url }}
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -91,7 +91,15 @@ jobs:
         env:
           VITE_PREVIEW_COMMIT: ${{ github.sha }}
         run: npm run build:design
+      - name: Retain this branch's sample preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: design-preview
+          path: dist-preview
+          retention-days: 90
+          if-no-files-found: error
       - name: Preserve production and add preview
+        id: preview
         env:
           GH_TOKEN: ${{ github.token }}
         run: node tools/publish-design.ts

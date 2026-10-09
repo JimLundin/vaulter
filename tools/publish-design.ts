@@ -1,29 +1,23 @@
 // GitHub Pages deploys one complete artifact. Preserve the deployed production files byte-for-byte
 // from its successful Actions artifact, and add this branch's sample-only design preview.
 import { execFileSync } from 'node:child_process';
-import {
-  cpSync,
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  readdirSync,
-  rmSync,
-  writeFileSync,
-} from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { createHash } from 'node:crypto';
+import { copyPreview, previewPath } from './design-preview.ts';
 
 const repo = process.env.GITHUB_REPOSITORY;
 const commit = process.env.GITHUB_SHA;
 const branch = process.env.GITHUB_REF_NAME;
 if (!(repo && commit && branch))
   throw new Error('GITHUB_REPOSITORY, GITHUB_SHA and GITHUB_REF_NAME are required.');
-if (branch !== 'structure')
-  throw new Error('Only the structure branch publishes the design preview.');
+const preview = previewPath(branch);
 const api = <T>(path: string): T =>
   JSON.parse(execFileSync('gh', ['api', path], { encoding: 'utf8' }));
+const pages = <T>(path: string): T[] =>
+  JSON.parse(execFileSync('gh', ['api', path, '--paginate', '--slurp'], { encoding: 'utf8' }));
 const site = api<{ html_url: string }>(`repos/${repo}/pages`).html_url;
 const deployed = await fetch(new URL('version.json', site));
 if (!deployed.ok) throw new Error('Cannot identify the currently deployed production version.');
@@ -94,27 +88,63 @@ try {
     return hash.digest('hex');
   };
   const original = digest(output);
-  const preview = join(output, 'preview', 'structure');
-  rmSync(preview, { recursive: true, force: true });
-  mkdirSync(preview, { recursive: true });
-  cpSync('dist-preview', preview, { recursive: true });
-  const files = (directory: string): string[] =>
-    readdirSync(directory, { withFileTypes: true }).flatMap((entry) =>
-      entry.isDirectory() ? files(join(directory, entry.name)) : [entry.name],
-    );
-  if (files(preview).some((name) => name === 'secrets.json' || name === 'sw.js'))
-    throw new Error('The sample preview must not contain credentials or a service worker.');
-  writeFileSync(join(preview, 'version.json'), JSON.stringify({ commit, branch, sample: true }));
+  rmSync(join(output, 'preview'), { recursive: true, force: true });
+  // Restore the latest successful, retained preview for every other branch. The Pages artifact
+  // replaces the complete site, so retaining only production would erase those branch previews.
+  const previews = pages<{
+    workflow_runs: { id: number; head_branch: string; head_sha: string }[];
+  }>(`repos/${repo}/actions/workflows/deploy.yml/runs?status=success&per_page=100`).flatMap(
+    (page) => page.workflow_runs,
+  );
+  const previewArtifacts = pages<{
+    artifacts: { expired: boolean; workflow_run: { id: number } }[];
+  }>(`repos/${repo}/actions/artifacts?name=design-preview&per_page=100`).flatMap(
+    (page) => page.artifacts,
+  );
+  const retainedRuns = new Set(
+    previewArtifacts.filter((item) => !item.expired).map((item) => item.workflow_run.id),
+  );
+  const restored = new Set([branch, 'main']);
+  const available: { id: number; branch: string; commit: string }[] = [];
+  for (const candidate of previews) {
+    if (restored.has(candidate.head_branch)) continue;
+    if (!retainedRuns.has(candidate.id)) continue;
+    previewPath(candidate.head_branch);
+    restored.add(candidate.head_branch);
+    available.push({ id: candidate.id, branch: candidate.head_branch, commit: candidate.head_sha });
+  }
+  // A branch named feature and one named feature/input may share a directory ancestor.
+  available.sort((a, b) => a.branch.split('/').length - b.branch.split('/').length);
+  for (const candidate of available) {
+    const source = join(scratch, String(candidate.id));
+    execFileSync('gh', [
+      'run',
+      'download',
+      String(candidate.id),
+      '--repo',
+      repo,
+      '--name',
+      'design-preview',
+      '--dir',
+      source,
+    ]);
+    copyPreview(source, output, candidate.branch, candidate.commit);
+  }
+  copyPreview('dist-preview', output, branch, commit);
   if (digest(output) !== original) throw new Error('Preview packaging changed production files.');
   const summary = process.env.GITHUB_STEP_SUMMARY;
   if (summary)
     writeFileSync(
       summary,
-      `Preview: ${new URL('preview/structure/', site).href}\n\nComponent kit: ${new URL('preview/structure/kit/', site).href}\n\nProduction preserved at ${production.commit}.\n`,
+      `Preview: ${new URL(preview, site).href}\n\nComponent kit: ${new URL(`${preview}kit/`, site).href}\n\nProduction preserved at ${production.commit}.\n`,
     );
   console.log(
     `Prepared preview for ${commit.slice(0, 7)}; preserved production ${production.commit.slice(0, 7)}.`,
   );
+  if (process.env.GITHUB_OUTPUT)
+    writeFileSync(process.env.GITHUB_OUTPUT, `preview_url=${new URL(preview, site).href}\n`, {
+      flag: 'a',
+    });
 } finally {
   rmSync(scratch, { recursive: true, force: true });
 }
