@@ -91,11 +91,14 @@ function ConversationToolbar({ historyHref, onNewChat, busy }: ConversationActio
       </Row>
       <Row>
         {!!historyHref && (
-          <Button variant="ghost" size={mobile ? 'icon-lg' : 'sm'} asChild={true}>
-            <Link href={historyHref} aria-label="History" plain={true}>
-              <Icon name="history" size={mobile ? 'lg' : 'md'} />
-              {!mobile && 'History'}
-            </Link>
+          <Button
+            variant="ghost"
+            size={mobile ? 'icon-lg' : 'sm'}
+            nativeButton={false}
+            render={<Link href={historyHref} aria-label="History" plain={true} />}
+          >
+            <Icon name="history" size={mobile ? 'lg' : 'md'} />
+            {!mobile && 'History'}
           </Button>
         )}
         <Button

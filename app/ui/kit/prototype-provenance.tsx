@@ -2,14 +2,14 @@
 // provenance read on a curated prose wiki page? Three variants of /prototype/provenance/, switchable
 // via ?variant=A|B|C (← → keys or the bottom bar). All data is fictional and in memory.
 //   A  Side panel: claims are quietly underlined; selecting one opens its evidence beside the page.
-//      DECIDED: A on desktop; on mobile the same panel opens in the kit's one drawer (MenuSheet),
+//      DECIDED: A on desktop; on mobile the same panel opens in the kit's one drawer (Drawer),
 //      matching Navigation and Settings. A right-side sheet was tried and rejected: nothing else in the
 //      app slides in from the side on mobile.
 //   B  Sidenotes: numbered claims with their quoted evidence always visible in the margin.
 //   C  Trace: the page beside the history log; claims and events highlight each other both ways.
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useIsMobile } from './hooks/use-mobile.ts';
-import { MenuSheet } from './sheet.tsx';
+import { Drawer } from './drawer.tsx';
 
 // ---------------------------------------------------------------------------------------------------
 // The model under test
@@ -677,11 +677,11 @@ function VariantA() {
         <StatePanel selected={selected} hover={{}} />
       </article>
       {mobile ? (
-        <MenuSheet open={!!claim} onClose={() => setSelected(undefined)} title={panelHeading}>
+        <Drawer open={!!claim} onClose={() => setSelected(undefined)} title={panelHeading}>
           <div className="flex flex-col gap-3 px-4 pt-2 pb-6">
             {claim ? <EvidencePanel claim={claim} /> : null}
           </div>
-        </MenuSheet>
+        </Drawer>
       ) : (
         <aside className="flex shrink-0 flex-col gap-3 md:sticky md:top-4 md:w-[340px] md:self-start">
           {claim ? (

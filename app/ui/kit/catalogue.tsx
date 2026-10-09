@@ -82,9 +82,9 @@ function Buttons() {
       </K.ToggleGroup>
       <K.TooltipProvider>
         <K.Tooltip>
-          <K.TooltipTrigger asChild={true}>
-            <K.Button variant="outline">Hover or focus for help</K.Button>
-          </K.TooltipTrigger>
+          <K.TooltipTrigger
+            render={<K.Button variant="outline">Hover or focus for help</K.Button>}
+          />
           <K.TooltipContent>Save this note to your vault.</K.TooltipContent>
         </K.Tooltip>
       </K.TooltipProvider>
@@ -450,12 +450,14 @@ function Menus() {
   const [sort, setSort] = useState('recent');
   return (
     <K.DropdownMenu>
-      <K.DropdownMenuTrigger asChild={true}>
-        <K.Button variant="outline">
-          Note options
-          <K.Icon name="chevron-right" />
-        </K.Button>
-      </K.DropdownMenuTrigger>
+      <K.DropdownMenuTrigger
+        render={
+          <K.Button variant="outline">
+            Note options
+            <K.Icon name="chevron-right" />
+          </K.Button>
+        }
+      />
       <K.DropdownMenuContent>
         <K.DropdownMenuLabel>Slow mornings</K.DropdownMenuLabel>
         <K.DropdownMenuGroup>
@@ -483,12 +485,11 @@ function Menus() {
   );
 }
 function Dialogs() {
+  const [drawer, setDrawer] = useState(false);
   return (
     <K.Stack gap="lg">
       <K.Dialog>
-        <K.DialogTrigger asChild={true}>
-          <K.Button variant="outline">Open dialog</K.Button>
-        </K.DialogTrigger>
+        <K.DialogTrigger render={<K.Button variant="outline">Open dialog</K.Button>} />
         <K.DialogContent>
           <K.DialogHeader>
             <K.DialogTitle>Keep this note?</K.DialogTitle>
@@ -496,44 +497,21 @@ function Dialogs() {
           </K.DialogHeader>
           <K.Input aria-label="Dialog note title" defaultValue="Slow mornings" />
           <K.DialogFooter>
-            <K.DialogClose asChild={true}>
-              <K.Button>Keep note</K.Button>
-            </K.DialogClose>
+            <K.DialogClose render={<K.Button>Keep note</K.Button>} />
           </K.DialogFooter>
         </K.DialogContent>
       </K.Dialog>
-      <K.Drawer>
-        <K.DrawerTrigger asChild={true}>
-          <K.Button variant="outline">Open drawer</K.Button>
-        </K.DrawerTrigger>
-        <K.DrawerContent>
-          <K.DrawerHeader>
-            <K.DrawerTitle>Related notes</K.DrawerTitle>
-            <K.DrawerDescription>Thoughts connected to this one.</K.DrawerDescription>
-          </K.DrawerHeader>
-          <K.DrawerFooter>
-            <K.DrawerClose asChild={true}>
-              <K.Button variant="outline">Close drawer</K.Button>
-            </K.DrawerClose>
-          </K.DrawerFooter>
-        </K.DrawerContent>
+      <K.Button variant="outline" onClick={() => setDrawer(true)}>
+        Open drawer
+      </K.Button>
+      <K.Drawer
+        open={drawer}
+        onClose={() => setDrawer(false)}
+        title="Related notes"
+        description="Thoughts connected to this one."
+      >
+        <K.Text>Connections to explore alongside your current note.</K.Text>
       </K.Drawer>
-      <K.Sheet>
-        <K.SheetTrigger asChild={true}>
-          <K.Button variant="outline">Open sheet</K.Button>
-        </K.SheetTrigger>
-        <K.SheetContent>
-          <K.SheetHeader>
-            <K.SheetTitle>Note details</K.SheetTitle>
-            <K.SheetDescription>Saved today.</K.SheetDescription>
-          </K.SheetHeader>
-          <K.SheetFooter>
-            <K.SheetClose asChild={true}>
-              <K.Button variant="outline">Close sheet</K.Button>
-            </K.SheetClose>
-          </K.SheetFooter>
-        </K.SheetContent>
-      </K.Sheet>
     </K.Stack>
   );
 }
@@ -851,7 +829,7 @@ function Navigation() {
     >
       <K.FeaturePage title={current} description="Shared navigation and feature content.">
         <K.Stack>
-          <K.Text>The sidebar becomes a footer and a menu sheet.</K.Text>
+          <K.Text>The sidebar becomes a footer and a menu drawer.</K.Text>
           <K.Button
             variant="outline"
             onClick={() => setCurrent(current === 'Agent' ? 'History' : 'Agent')}
@@ -1119,9 +1097,9 @@ function PanelPrimitive() {
       <K.Button variant="outline" onClick={() => setMenu(true)}>
         Open menu surface
       </K.Button>
-      <K.MenuSheet open={menu} onClose={() => setMenu(false)} title="Shared menu">
+      <K.Drawer open={menu} onClose={() => setMenu(false)} title="Shared menu">
         <K.Text>Navigation and Settings share this surface.</K.Text>
-      </K.MenuSheet>
+      </K.Drawer>
       <K.Button onClick={() => setOpen(true)}>Open adaptive panel</K.Button>
       <K.AdaptivePanel title="Supporting content" open={open} onClose={() => setOpen(false)}>
         <K.Toolbar>
@@ -1171,7 +1149,19 @@ function FollowingPrimitive() {
   );
 }
 
+function Provenance() {
+  return <K.ProvenancePrototype />;
+}
+
 export const catalogue: Specimen[] = [
+  {
+    id: 'provenance',
+    title: 'Wiki provenance prototype',
+    description: 'The provenance reference page and its supporting evidence panel.',
+    components: ['ProvenancePrototype'],
+    Sample: Provenance,
+    fullBleed: true,
+  },
   {
     id: 'navigation',
     title: 'Navigation & workspace',
@@ -1276,7 +1266,7 @@ export const catalogue: Specimen[] = [
     title: 'Adaptive panel primitive',
     description:
       'One supporting content tree, with shared focus, dismissal and responsive placement.',
-    components: ['AdaptivePanel', 'MenuSheet'],
+    components: ['AdaptivePanel', 'Drawer'],
     Sample: PanelPrimitive,
   },
   {
@@ -1509,7 +1499,7 @@ export const catalogue: Specimen[] = [
   },
   {
     id: 'dialogs',
-    title: 'Dialog, drawer & sheet',
+    title: 'Dialog & drawer',
     description: 'Base overlay primitives, with contained live interactions.',
     components: [
       'Dialog',
@@ -1521,21 +1511,6 @@ export const catalogue: Specimen[] = [
       'DialogTitle',
       'DialogTrigger',
       'Drawer',
-      'DrawerTrigger',
-      'DrawerClose',
-      'DrawerContent',
-      'DrawerHeader',
-      'DrawerFooter',
-      'DrawerTitle',
-      'DrawerDescription',
-      'Sheet',
-      'SheetTrigger',
-      'SheetClose',
-      'SheetContent',
-      'SheetHeader',
-      'SheetFooter',
-      'SheetTitle',
-      'SheetDescription',
     ],
     Sample: Dialogs,
   },

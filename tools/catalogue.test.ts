@@ -23,6 +23,7 @@ test('every public kit component is catalogued and actually rendered by a sample
       })
       .map((symbol) => symbol.name)
       .sort();
+    expect(names.filter((name) => /^(?:Drawer|Sheet)|^MenuSheet$/.test(name))).toEqual(['Drawer']);
     const registered = new Set<string>();
     const rendered = new Set<string>();
     const ids: string[] = [];

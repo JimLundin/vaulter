@@ -10,7 +10,7 @@ import { AvatarFallback, Avatar as AvatarPart } from './parts/avatar.tsx';
 import { Badge } from './parts/badge.tsx';
 import { useIsMobile } from './hooks/use-mobile.ts';
 import { useViewport } from './hooks/use-viewport.ts';
-import { MenuSheet } from './sheet.tsx';
+import { Drawer } from './drawer.tsx';
 import { ItemGroup as ItemGroupPart, Item as ItemPart } from './parts/item.tsx';
 import { Kbd as KbdPart } from './parts/kbd.tsx';
 import { SidebarMenu as SidebarMenuPart, Sidebar as SidebarPart } from './parts/sidebar.tsx';
@@ -43,15 +43,9 @@ export function Chip({
         chip[tone],
         onClick && 'cursor-pointer',
       )}
-      asChild={true}
+      render={onClick ? <button type="button" data-touch-target="" onClick={onClick} /> : <span />}
     >
-      {onClick ? (
-        <button type="button" data-touch-target="" onClick={onClick}>
-          {children}
-        </button>
-      ) : (
-        <span>{children}</span>
-      )}
+      {children}
     </Badge>
   );
 }
@@ -458,7 +452,7 @@ export function NavigationSheet({
   footer?: ReactNode;
 }) {
   return (
-    <MenuSheet open={open} onClose={onClose} title="Menu" header={brand}>
+    <Drawer open={open} onClose={onClose} title="Menu" header={brand}>
       <nav
         aria-label="Main navigation"
         className="flex min-h-0 flex-col overflow-y-auto border-y px-2 py-2"
@@ -481,7 +475,7 @@ export function NavigationSheet({
         ))}
       </nav>
       {!!footer && <div className="flex flex-col px-4 pt-3">{footer}</div>}
-    </MenuSheet>
+    </Drawer>
   );
 }
 
@@ -782,7 +776,7 @@ export function Recording({ seconds, label = 'Recording' }: { seconds: number; l
   );
 }
 
-/** A row in a list; as a button or a link (asChild) too, reading from the left. `current` marks the
+/** A row in a list; as a button or a link too, reading from the left. `current` marks the
  * one shown now, where the arrow keys start from. */
 export function Item({
   current,

@@ -42,16 +42,6 @@ import {
   DialogTrigger as DialogTriggerPart,
 } from './parts/dialog.tsx';
 import {
-  DrawerClose as DrawerClosePart,
-  DrawerContent as DrawerContentPart,
-  DrawerDescription as DrawerDescriptionPart,
-  DrawerFooter as DrawerFooterPart,
-  DrawerHeader as DrawerHeaderPart,
-  Drawer as DrawerPart,
-  DrawerTitle as DrawerTitlePart,
-  DrawerTrigger as DrawerTriggerPart,
-} from './parts/drawer.tsx';
-import {
   DropdownMenuCheckboxItem as DropdownMenuCheckboxItemPart,
   DropdownMenuContent as DropdownMenuContentPart,
   DropdownMenuGroup as DropdownMenuGroupPart,
@@ -109,16 +99,6 @@ import {
 import { Label as LabelPart } from './parts/label.tsx';
 import { ScrollArea as ScrollAreaPart } from './parts/scroll-area.tsx';
 import { Separator as SeparatorPart } from './parts/separator.tsx';
-import {
-  SheetClose as SheetClosePart,
-  SheetContent as SheetContentPart,
-  SheetDescription as SheetDescriptionPart,
-  SheetFooter as SheetFooterPart,
-  SheetHeader as SheetHeaderPart,
-  Sheet as SheetPart,
-  SheetTitle as SheetTitlePart,
-  SheetTrigger as SheetTriggerPart,
-} from './parts/sheet.tsx';
 import {
   SidebarContent as SidebarContentPart,
   SidebarFooter as SidebarFooterPart,
@@ -190,14 +170,6 @@ export const DialogFooter = unstyled(DialogFooterPart);
 export const DialogHeader = unstyled(DialogHeaderPart);
 export const DialogTitle = unstyled(DialogTitlePart);
 export const DialogTrigger = unstyled(DialogTriggerPart);
-export const Drawer = unstyled(DrawerPart);
-export const DrawerTrigger = unstyled(DrawerTriggerPart);
-export const DrawerClose = unstyled(DrawerClosePart);
-export const DrawerContent = unstyled(DrawerContentPart);
-export const DrawerHeader = unstyled(DrawerHeaderPart);
-export const DrawerFooter = unstyled(DrawerFooterPart);
-export const DrawerTitle = unstyled(DrawerTitlePart);
-export const DrawerDescription = unstyled(DrawerDescriptionPart);
 export const DropdownMenu = unstyled(DropdownMenuPart);
 export const DropdownMenuTrigger = unstyled(DropdownMenuTriggerPart);
 export const DropdownMenuContent = unstyled(DropdownMenuContentPart);
@@ -248,14 +220,6 @@ export const ItemHeader = unstyled(ItemHeaderPart);
 export const ItemFooter = unstyled(ItemFooterPart);
 export const ScrollArea = unstyled(ScrollAreaPart);
 export const Separator = unstyled(SeparatorPart);
-export const Sheet = unstyled(SheetPart);
-export const SheetTrigger = unstyled(SheetTriggerPart);
-export const SheetClose = unstyled(SheetClosePart);
-export const SheetContent = unstyled(SheetContentPart);
-export const SheetHeader = unstyled(SheetHeaderPart);
-export const SheetFooter = unstyled(SheetFooterPart);
-export const SheetTitle = unstyled(SheetTitlePart);
-export const SheetDescription = unstyled(SheetDescriptionPart);
 export const SidebarContent = unstyled(SidebarContentPart);
 export const SidebarFooter = unstyled(SidebarFooterPart);
 export const SidebarGroup = unstyled(SidebarGroupPart);
@@ -382,7 +346,7 @@ export {
   AdaptivePanel,
   OptionStrip,
 } from './primitives.tsx';
-export { MenuSheet } from './sheet.tsx';
+export { Drawer } from './drawer.tsx';
 export { DesignPreview } from './preview.tsx';
 
 import {

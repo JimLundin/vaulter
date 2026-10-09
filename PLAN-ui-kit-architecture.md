@@ -11,6 +11,11 @@ and field association on `spec/7-accessible-field-association`; presentation pol
 acceptance tests; they supersede this roadmap's earlier unresolved design questions.
 Current architecture is documented in [ARCHITECTURE.md](ARCHITECTURE.md); the kit's presentation
 rules and verification commands are in [its README](app/ui/kit/README.md).
+The [Base UI migration (#18)](https://github.com/JimLundin/vaulter/issues/18) is now a prerequisite
+to [presentation policy (#8)](https://github.com/JimLundin/vaulter/issues/8). Its first child
+[#17](https://github.com/JimLundin/vaulter/issues/17) replaces Vaul with the single public `Drawer`
+and removes side sheets; compact supporting panels use the same full-height bottom drawer.
+The remaining Radix controls migrate before the presentation-policy tickets resume.
 
 ## Execution order
 
@@ -19,7 +24,8 @@ rules and verification commands are in [its README](app/ui/kit/README.md).
 | 1 | Let composition verification follow private modules | Enables internal seams without forcing helper exports or weakening presentation rules |
 | 2 | Deepen Composer interaction | Highest immediate leverage: product and catalogue behavior already differs |
 | 3 | Own accessible field association | Removes repeated association wiring and closes gaps in current examples |
-| 4 | Concentrate presentation policy | Broader interaction change; preserve existing behavior while reducing scattered policy |
+| Prerequisite to 4 | Migrate all kit interactions to Base UI | Establish the final control and overlay adapters before concentrating their policy |
+| 4 | Concentrate presentation policy | Broader interaction change; preserve the migrated behavior while reducing scattered policy |
 
 The order is a migration sequence, not a change in recommendation strength. Composer has the
 clearest user-facing payoff. Verification is the small enabling change; presentation policy needs
@@ -35,7 +41,7 @@ checks before the next begins.
 - Desktop and mobile rearrange the same content tree. Drafts, focus and uncontrolled fields survive.
 - Public presentation has live paired catalogue examples. Private implementation needs no export
   merely to satisfy verification.
-- Existing Radix and Vaul adapters retain their interaction mechanics. Introduce a seam only where
+- The Base UI migration establishes the interaction adapters that policy work must preserve. Introduce a seam only where
   actual behavior varies; a private helper does not need a generic adapter protocol.
 
 Depth means fewer caller obligations, not fewer source files. Apply the deletion test to each
@@ -218,9 +224,11 @@ semantic control per field, private association context, text/group semantics an
 
 ### Current friction
 
-The private presentation context exposes layout and a portal. Dialog, Sheet, DropdownMenu and
-Drawer each interpret those fields to choose modal behavior and portal scope. Drawer includes
-a preview-specific Vaul/Radix workaround. AdaptivePanel separately manages Escape, focus,
+The private presentation context exposes layout and a portal. Dialog, DropdownMenu and the
+private Base UI drawer adapter each interpret those fields to choose modal behavior and portal scope.
+The kit exports one `Drawer`, with a shared header, dismissal and scrolling body; side sheets and
+the Vaul preview adapter are removed. AdaptivePanel uses that drawer in compact space and retains
+the side-panel and centered-dialog arrangements at wider sizes. It separately manages Escape, focus,
 accessibility hiding and body overflow, including queries for other overlay DOM slots.
 
 The context earns its keep: deleting it would redistribute real scope knowledge. The opportunity
@@ -231,8 +239,8 @@ the reviewed focus, resize and isolation scenarios currently pass.
 
 Concentrate shared presentation-environment policy behind a private module seam: bounds, portal
 scope, interaction scope and the rules for modal effects and focus restoration. Browser and
-bounded-preview environments are real variations. Radix and Vaul adapters retain specialized
-mechanics, including dragging and library-specific workarounds.
+bounded-preview environments are real variations. The migrated Base UI adapters retain specialized
+mechanics, including dragging and library-specific behavior.
 
 The module should reduce repeated interpretation of the environment. It should not expose
 library workaround switches to workflows or force every overlay shape into one implementation.
@@ -240,9 +248,9 @@ library workaround switches to workflows or force every overlay shape into one i
 ### Migration scope
 
 - `app/ui/kit/presentation.tsx`, `preview.tsx` and relevant private hooks.
-- `parts/dialog.tsx`, `drawer.tsx`, `sheet.tsx`, `dropdown-menu.tsx` and `tooltip.tsx`.
+- `parts/dialog.tsx`, `drawer.tsx`, `dropdown-menu.tsx` and `tooltip.tsx`.
 - AdaptivePanel in `primitives.tsx` and scoped HoverPreview behavior in `surfaces.tsx`.
-- `overlay.tsx`, `sheet.tsx` and scoped presentation rules in `styles.css` where affected.
+- `overlay.tsx`, `drawer.tsx` and scoped presentation rules in `styles.css` where affected.
 - Browser coverage for framework, catalogue, preview and scrolling behavior.
 
 Inventory policy consumers first. Migrate repeated policy in small steps while retaining stable
@@ -304,6 +312,7 @@ physical phone keyboard and microphone behavior still need device validation.
 - [ ] Shared presentation policy has one owner with library mechanics retained in their adapters.
 - [ ] Required checks and both builds pass; documentation and live examples match the implementation.
 
-The plan adds no framework replacement, workflow registry or unrelated file reorganization.
+The Base UI migration is a prerequisite tracked separately in #18. This plan adds no workflow
+registry or unrelated file reorganization.
 All four changes should earn their depth through reduced caller obligations and verification
 through the same seams the product uses.

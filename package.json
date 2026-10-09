@@ -18,16 +18,15 @@
   },
   "dependencies": {
     "@ai-sdk/openai": "^4.0.83",
+    "@base-ui/react": "^1.9.0",
     "@fontsource-variable/geist": "^5.3.0",
     "@fontsource-variable/geist-mono": "^5.3.0",
     "@fontsource-variable/newsreader": "^5.3.0",
-    "@radix-ui/react-focus-scope": "1.1.16",
     "@tailwindcss/vite": "^4.3.3",
     "ai": "^7.0.127",
     "aria-hidden": "^1.2.6",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "cmdk": "^1.1.1",
     "cn": "^0.4.0",
     "diff": "^9.0.0",
     "github-slugger": "^2.0.0",
@@ -39,7 +38,6 @@
     "maplibre-gl": "^6.13.0",
     "mdast-util-to-string": "^4.0.0",
     "nanoid": "^6.0.1",
-    "radix-ui": "^1.6.7",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "remark-gfm": "^4.0.1",
@@ -54,7 +52,6 @@
     "unified": "^11.0.5",
     "unist-util-visit": "^5.1.0",
     "use-stick-to-bottom": "^1.1.6",
-    "vaul": "^1.1.2",
     "zod": "^4.6.5"
   },
   "devDependencies": {
