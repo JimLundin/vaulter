@@ -74,10 +74,9 @@ The banner identifies the preview commit; `version.json` records its branch.
 Use **Mobile** in the top banner to review the phone layout from your desktop. **Desktop** returns
 to the wide layout; **Window** follows your browser size. Switching retains your current page,
 draft and open settings/search fields. The banner stays above the whole app, including the sidebar.
-The input-style picker in that banner compares A (white with a subtle border), B (black filled),
-and C (white without a border), selected with `?variant=A`, `B` or `C`. Preview composers show one
-microphone/Enter action according to field focus; the real app keeps its current controls while
-these options are reviewed. Switching options preserves drafts and active dictation.
+The app, preview and gallery share one primary microphone/Enter action according to field focus.
+Both use the same Filled style as New chat and confirmation actions; an empty focused draft keeps
+Enter disabled. The completed A/B/C style picker has been removed from the preview bar.
 This preview uses the actual Product views, fictional notes, an in-memory backend,
 and a scripted local model. Try “vault it: leave space for a walk before work” to exercise staging,
 checking, committing and History. Reload or Reset demo starts over. It ships no credentials, reads

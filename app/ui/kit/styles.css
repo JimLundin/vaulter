@@ -743,20 +743,6 @@ body:has(.kit-design-window) {
 .kit-option-strip [data-slot="button"]:hover {
   background: var(--muted);
 }
-/* A/C are temporary design-preview treatments. Public Button only has production styles. */
-[data-preview-input="A"],
-[data-preview-input="C"] {
-  background: var(--background);
-  color: var(--foreground);
-}
-[data-preview-input="A"] {
-  border: 1px solid var(--input);
-  box-shadow: var(--shadow-xs);
-}
-[data-preview-input="A"]:hover,
-[data-preview-input="C"]:hover {
-  background: var(--accent);
-}
 .kit-option-strip[data-overflow-start="true"] {
   --option-fade-start: 24px;
 }

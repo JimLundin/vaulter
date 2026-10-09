@@ -56,10 +56,10 @@ views compose public exports and avoid ad hoc styling. Markdown content renderin
 exception. Maps require `https://tiles.openfreemap.org` in the consuming page's CSP; the current
 product does not use maps.
 
-`DesignPreview` includes the input-style picker in its top bar during design builds. The A/B/C
-query parameter selects matching microphone and Enter treatments without resetting drafts or
-dictation. Inside this preview the composer shows one action according to focus; ordinary app
-and catalogue composers retain their current controls. See [preview-input-variants.md](preview-input-variants.md).
+The composer uses one primary action across Product, the preview and catalogue: microphone when
+unfocused, Enter when focused, and a supporting Stop action while responding. Microphone and Enter
+use the shared Filled style. The design preview bar contains device choices, the kit link and reset;
+the completed A/B/C input-style comparison has been removed. See [input-button.md](input-button.md).
 
 ## Foundation and spacing
 
@@ -91,9 +91,8 @@ compact ghost, and only removes the shadow for its inset placement. The same act
 role across devices. Navigation uses `Link` rather than a link-colored Button.
 Ordinary controls have 8px corners, and their hover/focus backgrounds follow that shape. The
 mobile footer fixtures keep a 44px square target with rounded hover backgrounds.
-The Agent microphone uses the same unfilled 44px
-icon control inside the composer on both devices; circular voice controls have no backing border
-or shadow.
+The Agent microphone and Enter use the same filled 44px icon control inside the composer on both
+devices; Stop uses outline. The field shows exactly one action when voice is available.
 
 Text-entry submission uses `InputGroup` with `InputGroupAddon align="inset-end"`. The action sits
 inside the editable field's bounds; the group reserves its measured width plus an 8px gap, including
@@ -158,7 +157,7 @@ remains left aligned within that centered column.
 
 Agent and Settings contain no intrinsic HTML, CSS classes or inline styling. They assemble public
 building blocks. `Button` owns shared action styles, sizes and icon-only layout. `OptionStrip` owns
-prompt-option presentation; temporary input style comparisons remain private to the design preview.
+prompt-option presentation. The composer uses the shared primary and supporting action styles.
 `InputGroup`,
 `InputGroupTextarea variant="inline"` and `InputGroupAddon align="inset-end"` own the one-row
 field and inset actions. `Field orientation="setting"` owns responsive

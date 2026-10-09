@@ -45,6 +45,7 @@ test('empty, whitespace and caller-denied drafts cannot submit and unhandled Ent
   await page.goto('/ui/kit/tests/browser.html?composer');
   const field = page.getByRole('textbox', { name: 'Fixture message' });
   const send = page.getByRole('button', { name: 'Send', exact: true });
+  await field.focus();
   await expect(send).toBeDisabled();
   await field.fill('   ');
   await field.press('End');
@@ -53,6 +54,8 @@ test('empty, whitespace and caller-denied drafts cannot submit and unhandled Ent
   await expect(send).toBeDisabled();
   await field.fill('A retained thought');
   await page.getByRole('button', { name: 'Deny submission' }).click();
+  await expect(send).toBeHidden();
+  await field.focus();
   await expect(send).toBeDisabled();
   await field.press('End');
   await field.press('Enter');
@@ -72,7 +75,10 @@ test('capture blocks submission and a busy response exposes only its explicit St
     await page.getByRole('button', { name: `${phase} capture` }).click();
     await expect(field).toHaveAttribute('readonly');
     await expect(field).toHaveAttribute('aria-busy', 'true');
-    await expect(page.getByRole('button', { name: 'Send', exact: true })).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Send', exact: true })).toBeHidden();
+    await expect(
+      page.getByRole('group', { name: 'Message composer' }).getByRole('button'),
+    ).toHaveCount(1);
     await field.dispatchEvent('keydown', { key: 'Enter', bubbles: true });
     await field.evaluate((node) => node.closest('form')?.requestSubmit());
     await expect(field).toHaveValue('Words to preserve');
@@ -83,7 +89,11 @@ test('capture blocks submission and a busy response exposes only its explicit St
   await page.getByRole('button', { name: 'Finish recording' }).click();
   await page.getByRole('button', { name: 'Begin response' }).click();
   await expect(field).toBeDisabled();
-  await expect(page.getByRole('button', { name: 'Start voice interaction' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Start voice interaction' })).toBeHidden();
+  await expect(page.getByRole('button', { name: 'Stop', exact: true })).toHaveAttribute(
+    'data-variant',
+    'outline',
+  );
   await field.dispatchEvent('keydown', { key: 'Enter', bubbles: true });
   await field.evaluate((node) => node.closest('form')?.requestSubmit());
   await expect(page.getByText('Stop actions: 0', { exact: true })).toBeVisible();
@@ -100,7 +110,8 @@ test('the supported reference focuses suggestions and focus observation matches 
   await page.goto('/ui/kit/tests/browser.html?composer');
   const field = page.getByRole('textbox', { name: 'Fixture message' });
   const icon = page.getByRole('button', { name: 'Send', exact: true }).locator('svg');
-  await expect(icon).toHaveClass(/lucide-arrow-up/);
+  await expect(icon).toBeHidden();
+  await expect(page.getByRole('button', { name: 'Start voice interaction' })).toBeVisible();
   await page.getByRole('button', { name: 'Use suggested thought' }).click();
   await expect(field).toHaveValue('A suggested thought');
   await expect(field).toBeFocused();
@@ -111,6 +122,7 @@ test('the supported reference focuses suggestions and focus observation matches 
   await expect(field).toHaveAttribute('data-original-field', '');
   await expect(field).toBeFocused();
   await page.getByRole('button', { name: 'Deny submission' }).focus();
-  await expect(icon).toHaveClass(/lucide-arrow-up/);
+  await expect(icon).toBeHidden();
+  await expect(page.getByRole('button', { name: 'Start voice interaction' })).toBeVisible();
   await expect(page.getByText('Field focused: false', { exact: true })).toBeVisible();
 });

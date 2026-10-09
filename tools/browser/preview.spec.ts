@@ -32,16 +32,16 @@ test('phone preview controls use one touch row and follow the visible browser he
   await banner
     .getByRole('combobox', { name: 'Preview device', exact: true })
     .selectOption('mobile');
-  await banner.getByRole('combobox', { name: 'Input button variant' }).selectOption('B');
+  await expect(banner.getByRole('combobox', { name: 'Input button variant' })).toHaveCount(0);
   await expect(field).toHaveValue('Keep this mobile draft');
-  await expect(page).toHaveURL(/variant=B/);
+  expect(new URL(page.url()).searchParams.has('variant')).toBe(false);
   await banner
     .getByRole('combobox', { name: 'Preview device', exact: true })
     .dispatchEvent('keydown', {
       key: 'ArrowRight',
       bubbles: true,
     });
-  await expect(page).toHaveURL(/variant=B/);
+  expect(new URL(page.url()).searchParams.has('variant')).toBe(false);
   await page.evaluate(() => {
     Object.defineProperty(window.visualViewport, 'height', { value: 500 });
     window.visualViewport!.dispatchEvent(new Event('resize'));

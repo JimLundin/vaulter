@@ -15,7 +15,6 @@ import {
   OptionStrip,
 } from './primitives.tsx';
 import { useLayout } from './hooks/use-layout.ts';
-import { useInputPreviewStyle } from './preview-input-variants.tsx';
 
 const ConversationPresentation = createContext<{ page: boolean; close?: () => void }>({
   page: false,
@@ -222,16 +221,15 @@ export function Composer({
   sendLabel?: string;
 }) {
   const [focused, setFocused] = useState(false);
-  const previewStyle = useInputPreviewStyle();
   const eligible = !!draft.trim() && canSubmit && !busy;
   const voiceActive = voice && ['connecting', 'listening', 'finishing'].includes(voice.phase);
   const showVoice = voice && !busy && (voiceActive || !focused);
   useEffect(() => {
-    if (previewStyle && busy) {
+    if (busy) {
       setFocused(false);
       onFocusChange?.(false);
     }
-  }, [previewStyle, busy, onFocusChange]);
+  }, [busy, onFocusChange]);
   const focus = (value: boolean) => {
     setFocused(value);
     onFocusChange?.(value);
@@ -274,7 +272,7 @@ export function Composer({
             }}
           />
           <InputGroupAddon align="inset-end">
-            {!!voice && (!previewStyle || showVoice) && (
+            {!!voice && showVoice && (
               <VoiceButton
                 phase={voice.phase}
                 onClick={voice.onClick}
@@ -282,10 +280,10 @@ export function Composer({
                 busy={busy}
               />
             )}
-            {!(previewStyle && showVoice) && (
+            {!showVoice && (
               <SendButton
                 busy={busy}
-                focused={previewStyle ? true : focused}
+                focused={voice ? true : focused}
                 disabled={disabled || !eligible}
                 onStop={onStop}
                 label={sendLabel}
@@ -310,17 +308,15 @@ export function SendButton({
   onStop?: () => void;
   label?: string;
 }) {
-  const previewStyle = useInputPreviewStyle();
   return (
     <Button
       type={busy ? 'button' : 'submit'}
-      variant={busy && !previewStyle ? 'outline' : 'filled'}
-      data-preview-input={previewStyle}
+      variant={busy ? 'outline' : 'filled'}
       size="standard"
       iconOnly={true}
       aria-label={busy ? 'Stop' : label}
       disabled={!busy && disabled}
-      onPointerDown={previewStyle ? (event) => event.preventDefault() : undefined}
+      onPointerDown={(event) => event.preventDefault()}
       onClick={busy ? onStop : undefined}
     >
       <Icon name={busy ? 'stop' : focused ? 'enter' : 'arrow-up'} />
@@ -357,7 +353,6 @@ export function VoiceButton({
   disabled?: boolean;
   onClick: () => void;
 }) {
-  const previewStyle = useInputPreviewStyle();
   const waiting = phase === 'connecting' || phase === 'finishing';
   const recording = phase === 'listening';
   const label =
@@ -371,8 +366,7 @@ export function VoiceButton({
   return (
     <Button
       type="button"
-      variant={previewStyle ? 'filled' : 'ghost'}
-      data-preview-input={previewStyle}
+      variant="filled"
       size="standard"
       iconOnly={true}
       pending={waiting}

@@ -97,15 +97,18 @@ test('paired agent samples keep independent drafts and send through the shared o
   await expect(
     mobile.getByRole('button', { name: 'Send', exact: true }).locator('svg'),
   ).toHaveClass(/lucide-corner-down-left/);
+  await expect(desktop.getByRole('button', { name: 'Start voice interaction' })).toBeVisible();
   await expect(
-    desktop.getByRole('button', { name: 'Send', exact: true }).locator('svg'),
-  ).toHaveClass(/lucide-arrow-up/);
+    desktop.getByRole('group', { name: 'Message composer' }).getByRole('button'),
+  ).toHaveCount(1);
   await mobile.getByRole('textbox', { name: 'Message', exact: true }).press('Enter');
   await expect(mobile.locator('[data-message="user"]')).toContainText('A phone thought');
   await expect(desktop.getByRole('textbox', { name: 'Message', exact: true })).toHaveValue(
     'A desktop thought',
   );
   await expect(desktop.locator('[data-message="user"]')).toHaveCount(0);
+  await expect(mobile.getByRole('button', { name: 'Send', exact: true })).toBeDisabled();
+  await mobile.getByRole('textbox', { name: 'Message', exact: true }).blur();
   const beforeDictation = (await mobile
     .getByRole('group', { name: 'Message composer' })
     .boundingBox())!;
@@ -126,6 +129,8 @@ test('paired agent samples keep independent drafts and send through the shared o
     'Edited dictated thought',
   );
   await expect(mobile.getByRole('textbox', { name: 'Message', exact: true })).toHaveValue('');
+  await expect(mobile.getByRole('button', { name: 'Send', exact: true })).toBeDisabled();
+  await mobile.getByRole('textbox', { name: 'Message', exact: true }).blur();
   const field = (await mobile
     .getByRole('textbox', { name: 'Message', exact: true })
     .boundingBox())!;

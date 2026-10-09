@@ -238,7 +238,8 @@ test('agent controls have even insets and suggestions remain one scrolling row w
     expect(send.y - bounds.y).toBeCloseTo(bounds.y + bounds.height - send.y - send.height, 0);
     expect(send.x + send.width).toBeCloseTo(bounds.x + bounds.width - (send.y - bounds.y), 0);
     await expect(mic).toHaveCount(1);
-    await expect(mic).toHaveCSS('border-width', '1px');
+    await expect(mic).toHaveAttribute('data-variant', 'filled');
+    await expect(mic).toHaveCSS('border-width', '0px');
     expect((await mic.boundingBox())!.height).toBe(send.height);
     if (width < 768) {
       const add = page.getByRole('button', { name: 'New chat', exact: true });
