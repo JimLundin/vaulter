@@ -66,7 +66,7 @@ export function UnifiedInputPrototypeSwitcher() {
   return (
     <fieldset
       aria-label="Input button style preview"
-      className="flex shrink-0 items-center gap-1 rounded-full bg-foreground px-2 py-1 text-background shadow-sm"
+      className="flex shrink-0 items-center rounded-full bg-foreground px-1 py-1 text-background shadow-sm"
     >
       <Button
         type="button"
@@ -77,7 +77,7 @@ export function UnifiedInputPrototypeSwitcher() {
       >
         <Icon name="chevron-left" />
       </Button>
-      <span aria-live="polite" className="min-w-40 text-center text-sm">
+      <span aria-live="polite" className="min-w-32 text-center text-xs">
         {options[index].key} · {options[index].name}
       </span>
       <Button
