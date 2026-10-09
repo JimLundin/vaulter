@@ -165,6 +165,11 @@ The private presentation owner chooses portal scope, modal policy, dismissal own
 focus return; the Base UI adapter owns focus trapping, background effects and swipe mechanics.
 Closing nested or overlapping drawers preserves any remaining modal task. Bounded Settings
 examples stay independently editable and release their scope when catalogue filtering unmounts them.
+Supporting panels keep one mounted draft field as they become a wide panel, centered modal or compact
+drawer. A nested review or details drawer closes first and returns focus to its parent; changing the
+parent arrangement keeps the child task modal until it closes. Bounded Escape follows usable focus
+or the latest interaction when an action disables its focused control, and catalogue controls can
+take keyboard ownership back. The adaptive-panel example includes nested review and details actions.
 The gallery shows **Built from** links on these compositions. `composition.ts` lists their
 building blocks, including usage through private helpers. `tools/composition.ts` checks the configured
 roots in `conversation.tsx`, `settings.tsx` and `theme.tsx` as whole sources, then follows

@@ -1092,6 +1092,8 @@ function SurfacePrimitives() {
 function PanelPrimitive() {
   const [open, setOpen] = useState(false);
   const [menu, setMenu] = useState(false);
+  const [review, setReview] = useState(false);
+  const [details, setDetails] = useState(false);
   return (
     <K.Stack>
       <K.Button variant="outline" onClick={() => setMenu(true)}>
@@ -1114,6 +1116,14 @@ function PanelPrimitive() {
           </K.Button>
         </K.Toolbar>
         <K.Textarea aria-label="Supporting draft" defaultValue="Same content through a resize" />
+        <K.Button onClick={() => setReview(true)}>Review supporting draft</K.Button>
+        <K.Button onClick={() => setDetails(true)}>Open supporting details</K.Button>
+        <K.Overlay title="Supporting review" open={review} onClose={() => setReview(false)}>
+          <K.Input aria-label="Review draft" defaultValue="Review the supporting task" />
+        </K.Overlay>
+        <K.Drawer title="Supporting details" open={details} onClose={() => setDetails(false)}>
+          <K.Input aria-label="Details draft" defaultValue="Details for the supporting task" />
+        </K.Drawer>
       </K.AdaptivePanel>
     </K.Stack>
   );
