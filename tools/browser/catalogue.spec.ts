@@ -15,12 +15,13 @@ async function contained(outer: Locator, inner: Locator) {
 
 test('the entire catalogue renders paired live components without requests to external services', async ({
   page,
+  baseURL,
 }) => {
   const errors: string[] = [];
   const external: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   page.on('request', (request) => {
-    if (new URL(request.url()).origin !== 'http://127.0.0.1:4179') external.push(request.url());
+    if (new URL(request.url()).origin !== new URL(baseURL!).origin) external.push(request.url());
   });
   await page.goto('/ui/kit/');
   const families = page.locator('[data-kit-comparison]');
