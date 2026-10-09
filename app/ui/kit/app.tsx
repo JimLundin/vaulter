@@ -14,6 +14,7 @@ import { MenuSheet } from './sheet.tsx';
 import { ItemGroup as ItemGroupPart, Item as ItemPart } from './parts/item.tsx';
 import { Kbd as KbdPart } from './parts/kbd.tsx';
 import { SidebarMenu as SidebarMenuPart, Sidebar as SidebarPart } from './parts/sidebar.tsx';
+import { useFieldSemanticDiagnostic } from './field-association.ts';
 
 export type Tone = 'neutral' | 'people' | 'places' | 'events';
 import { Link, gap, type Gap } from './parts/layout.tsx';
@@ -588,6 +589,7 @@ export function SearchButton({
 
 /** The desktop sidebar: the full height of the window, with the design's border. */
 export function Sidebar(props: Unstyled<ComponentProps<typeof SidebarPart>>) {
+  useFieldSemanticDiagnostic(props);
   return (
     <SidebarPart {...props} data-region="nav" className="h-svh border-r bg-sidebar px-1 py-2" />
   );
@@ -595,6 +597,7 @@ export function Sidebar(props: Unstyled<ComponentProps<typeof SidebarPart>>) {
 
 /** The sidebar's list: moved through with the arrow keys, as every list is. */
 export function SidebarMenu(props: Unstyled<ComponentProps<typeof SidebarMenuPart>>) {
+  useFieldSemanticDiagnostic(props);
   return <SidebarMenuPart {...props} data-arrows="" />;
 }
 
@@ -788,6 +791,7 @@ export function Item({
   current,
   ...props
 }: Unstyled<ComponentProps<typeof ItemPart>> & { current?: boolean }) {
+  useFieldSemanticDiagnostic(props);
   return (
     <ItemPart
       {...props}
@@ -800,6 +804,7 @@ export function Item({
 
 /** Rows one under another, moved through with the arrow keys. */
 export function ItemGroup(props: Unstyled<ComponentProps<typeof ItemGroupPart>>) {
+  useFieldSemanticDiagnostic(props);
   return <ItemGroupPart {...props} data-arrows="" />;
 }
 

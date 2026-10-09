@@ -9,10 +9,17 @@ import {
   Button,
   Checkbox,
   Input,
+  InputGroup,
+  InputGroupButton,
+  InputGroupInput,
+  InputGroupTextarea,
+  Item,
   RadioGroup,
   RadioGroupItem,
+  Row,
   SettingField,
   Stack,
+  Surface,
   Textarea,
   ThemeSwitch,
   ToggleGroup,
@@ -412,4 +419,154 @@ it.each([
     </SettingField>,
   );
   expect(errors.map(String).join(' ')).toMatch(/Mixed supplied field.*unsupported/);
+});
+
+it('rejects a switch returned by an opaque feature beside its supported text control', () => {
+  function Remember() {
+    return (
+      <Button role="switch" aria-checked={false}>
+        Remember
+      </Button>
+    );
+  }
+  const { errors } = render(
+    <SettingField label="Opaque field" description="Instructions.">
+      <Input />
+      <Remember />
+    </SettingField>,
+  );
+  expect(errors.map(String).join(' ')).toMatch(/Opaque field.*unsupported/);
+});
+
+it('rejects editable public surfaces returned by an opaque feature', () => {
+  function Editor() {
+    return <Surface contentEditable="plaintext-only" />;
+  }
+  const { errors } = render(
+    <SettingField label="Editable field" description="Instructions.">
+      <Input />
+      <Editor />
+    </SettingField>,
+  );
+  expect(errors.map(String).join(' ')).toMatch(/Editable field.*unsupported/);
+});
+
+it('rejects an unsupported semantic role on a public list item inside an opaque feature', () => {
+  function Remember() {
+    return (
+      <Item role="switch" aria-checked={false}>
+        Remember
+      </Item>
+    );
+  }
+  const { errors } = render(
+    <SettingField label="Item field" description="Instructions.">
+      <Input />
+      <Remember />
+    </SettingField>,
+  );
+  expect(errors.map(String).join(' ')).toMatch(/Item field.*unsupported/);
+});
+
+it.each([
+  ['editable region', <Stack contentEditable={true} />],
+  ['plaintext region', <Stack contentEditable="plaintext-only" />],
+  ['textbox', <Stack role="textbox" />],
+  ['searchbox', <Row role="searchbox" />],
+  ['radio group', <Surface role="radiogroup" />],
+] as const)(
+  'rejects an unsupported public %s in direct and opaque composition',
+  (_name, control) => {
+    function FeatureControl() {
+      return control;
+    }
+    for (const content of [control, <FeatureControl />]) {
+      const { errors } = render(
+        <SettingField label="Semantic field" description="Instructions.">
+          <Input />
+          {content}
+        </SettingField>,
+      );
+      expect(errors.map(String).join(' ')).toMatch(/Semantic field.*unsupported/);
+    }
+  },
+);
+
+it.each(['role', 'editable'] as const)(
+  'rejects unsupported %s props introduced by state in an opaque feature',
+  (semantic) => {
+    let change: () => void = () => undefined;
+    function FeatureControl() {
+      const [changed, setChanged] = useState(false);
+      change = () => setChanged(true);
+      return semantic === 'role' ? (
+        <Button role={changed ? 'switch' : 'button'} aria-checked={changed ? false : undefined}>
+          Remember
+        </Button>
+      ) : (
+        <Stack contentEditable={changed} />
+      );
+    }
+    const { errors } = render(
+      <React.StrictMode>
+        <SettingField label="Dynamic semantics" description="Instructions.">
+          <Input />
+          <FeatureControl />
+        </SettingField>
+      </React.StrictMode>,
+    );
+    expect(errors).toEqual([]);
+    act(() => change());
+    expect(errors.map(String).join(' ')).toMatch(/Dynamic semantics.*unsupported/);
+  },
+);
+
+it('accepts ordinary actions and layouts around one associated control', () => {
+  const { host, errors } = render(
+    <SettingField label="Model" description="Instructions.">
+      <Surface role="group" contentEditable={false}>
+        <Stack role="group">
+          <Input role="textbox" />
+          <Button role="button">Reset</Button>
+        </Stack>
+      </Surface>
+    </SettingField>,
+  );
+  expect(referencedText(host.querySelector('input')!, 'aria-labelledby')).toBe('Model');
+  expect(host.querySelector('button')?.textContent).toBe('Reset');
+  expect(errors).toEqual([]);
+});
+
+it.each([
+  ['input', <InputGroupInput role="textbox" />],
+  ['textarea', <InputGroupTextarea role="textbox" />],
+] as const)('associates delegated %s controls once alongside group actions', (_name, control) => {
+  const { host, errors } = render(
+    <SettingField label="Model" description="Instructions.">
+      <InputGroup role="group">
+        {control}
+        <InputGroupButton role="button">Reset</InputGroupButton>
+      </InputGroup>
+    </SettingField>,
+  );
+  expect(referencedText(host.querySelector('input, textarea')!, 'aria-labelledby')).toBe('Model');
+  expect(errors).toEqual([]);
+});
+
+it('keeps explicitly declared radio items within their one supported radio group', () => {
+  const { host, errors } = render(
+    <SettingField label="Mode" description="Instructions.">
+      <RadioGroup role="radiogroup">
+        <RadioGroupItem role="radio" value="one">
+          One
+        </RadioGroupItem>
+        <RadioGroupItem role="radio" value="two">
+          Two
+        </RadioGroupItem>
+      </RadioGroup>
+    </SettingField>,
+  );
+  expect(referencedText(host.querySelector('[role=radiogroup]')!, 'aria-labelledby')).toBe('Mode');
+  expect(host.querySelectorAll('[role=radio]')).toHaveLength(2);
+  expect(errors).toEqual([]);
 });
