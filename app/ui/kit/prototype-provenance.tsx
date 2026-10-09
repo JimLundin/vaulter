@@ -2,9 +2,19 @@
 // provenance read on a curated prose wiki page? Three variants of /prototype/provenance/, switchable
 // via ?variant=A|B|C (← → keys or the bottom bar). All data is fictional and in memory.
 //   A  Side panel: claims are quietly underlined; selecting one opens its evidence beside the page.
+//      Chosen for desktop. On mobile, A opens it in a sheet from the right, A2 in a bottom drawer.
 //   B  Sidenotes: numbered claims with their quoted evidence always visible in the margin.
 //   C  Trace: the page beside the history log; claims and events highlight each other both ways.
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useIsMobile } from './hooks/use-mobile.ts';
+import {
+  Drawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerHeader,
+  DrawerTitle,
+} from './parts/drawer.tsx';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from './parts/sheet.tsx';
 
 // ---------------------------------------------------------------------------------------------------
 // The model under test
@@ -612,10 +622,27 @@ function StatePanel({ selected, hover }: { selected?: ClaimId; hover: Hover }) {
 // ---------------------------------------------------------------------------------------------------
 // Variant A: side panel
 
-function VariantA() {
-  const [selected, setSelected] = useState<ClaimId | undefined>('c-home');
+function EvidencePanel({ claim }: { claim: Claim }) {
+  return (
+    <>
+      <p className="m-0 font-serif text-copy">{claim.text}</p>
+      {claim.evidence.map((e, n) => (
+        <EvidenceCard key={n} evidence={e} />
+      ))}
+      {claim.supersedes ? <RetractedNote id={claim.supersedes} /> : null}
+    </>
+  );
+}
+
+const panelHeading = 'Why the page says this';
+
+/** Desktop: the evidence panel beside the page. Compact: the same panel in a sheet or a drawer. */
+function VariantA({ compact }: { compact: 'sheet' | 'drawer' }) {
+  const mobile = useIsMobile();
+  const [selected, setSelected] = useState<ClaimId | undefined>(mobile ? undefined : 'c-home');
   const [uncited, setUncited] = useState(false);
   const claim = selected ? claimById.get(selected) : undefined;
+  const close = (open: boolean) => !open && setSelected(undefined);
   const render = (cl: Claim) => (
     <span
       data-claim=""
@@ -655,33 +682,61 @@ function VariantA() {
         ))}
         <StatePanel selected={selected} hover={{}} />
       </article>
-      <aside className="flex shrink-0 flex-col gap-3 md:sticky md:top-4 md:w-[340px] md:self-start">
-        {claim ? (
-          <>
-            <div className="flex items-baseline justify-between gap-2">
-              <h2 className="m-0 text-label font-medium uppercase tracking-wide text-muted-foreground">
-                Why the page says this
-              </h2>
-              <button
-                type="button"
-                className="text-label text-muted-foreground"
-                onClick={() => setSelected(undefined)}
-              >
-                Close
-              </button>
-            </div>
-            <p className="m-0 font-serif text-copy">{claim.text}</p>
-            {claim.evidence.map((e, n) => (
-              <EvidenceCard key={n} evidence={e} />
-            ))}
-            {claim.supersedes ? <RetractedNote id={claim.supersedes} /> : null}
-          </>
+      {mobile ? (
+        compact === 'sheet' ? (
+          <Sheet open={!!claim} onOpenChange={close}>
+            <SheetContent side="right" className="w-[88%] gap-0 overflow-y-auto">
+              <SheetHeader className="pr-10">
+                <SheetTitle>{panelHeading}</SheetTitle>
+                <SheetDescription className="sr-only">
+                  The evidence for the selected statement
+                </SheetDescription>
+              </SheetHeader>
+              <div className="flex flex-col gap-3 px-4 pb-6">
+                {claim ? <EvidencePanel claim={claim} /> : null}
+              </div>
+            </SheetContent>
+          </Sheet>
         ) : (
-          <p className="m-0 text-label text-muted-foreground">
-            Select an underlined statement to see where it came from.
-          </p>
-        )}
-      </aside>
+          <Drawer open={!!claim} onOpenChange={close}>
+            <DrawerContent>
+              <DrawerHeader>
+                <DrawerTitle>{panelHeading}</DrawerTitle>
+                <DrawerDescription className="sr-only">
+                  The evidence for the selected statement
+                </DrawerDescription>
+              </DrawerHeader>
+              <div className="flex flex-col gap-3 overflow-y-auto px-4 pb-6">
+                {claim ? <EvidencePanel claim={claim} /> : null}
+              </div>
+            </DrawerContent>
+          </Drawer>
+        )
+      ) : (
+        <aside className="flex shrink-0 flex-col gap-3 md:sticky md:top-4 md:w-[340px] md:self-start">
+          {claim ? (
+            <>
+              <div className="flex items-baseline justify-between gap-2">
+                <h2 className="m-0 text-label font-medium uppercase tracking-wide text-muted-foreground">
+                  {panelHeading}
+                </h2>
+                <button
+                  type="button"
+                  className="text-label text-muted-foreground"
+                  onClick={() => setSelected(undefined)}
+                >
+                  Close
+                </button>
+              </div>
+              <EvidencePanel claim={claim} />
+            </>
+          ) : (
+            <p className="m-0 text-label text-muted-foreground">
+              Select an underlined statement to see where it came from.
+            </p>
+          )}
+        </aside>
+      )}
     </div>
   );
 }
@@ -1029,7 +1084,8 @@ function VariantC() {
 // Switcher
 
 const variants = [
-  { key: 'A', name: 'Side panel', View: VariantA },
+  { key: 'A', name: 'Side panel · mobile sheet', View: () => <VariantA compact="sheet" /> },
+  { key: 'A2', name: 'Side panel · mobile drawer', View: () => <VariantA compact="drawer" /> },
   { key: 'B', name: 'Sidenotes', View: VariantB },
   { key: 'C', name: 'Trace', View: VariantC },
 ];
