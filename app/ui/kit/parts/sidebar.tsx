@@ -449,6 +449,8 @@ function SidebarMenuButton({
     defaultTagName: 'button',
     render,
     state: { slot: 'sidebar-menu-button', sidebar: 'menu-button', size: size, active: isActive },
+    // Keep the value-based selectors used by the sidebar and its peer controls.
+    stateAttributesMapping: { active: (value) => ({ 'data-active': String(value) }) },
     props: mergeProps<'button'>(
       {
         className: cn(sidebarMenuButtonVariants({ variant, size }), className),
@@ -600,6 +602,7 @@ function SidebarMenuSubButton({
       size: size,
       active: isActive,
     },
+    stateAttributesMapping: { active: (value) => ({ 'data-active': String(value) }) },
     props: mergeProps<'a'>(
       {
         className: cn(
