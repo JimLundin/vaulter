@@ -2,19 +2,14 @@
 // provenance read on a curated prose wiki page? Three variants of /prototype/provenance/, switchable
 // via ?variant=A|B|C (← → keys or the bottom bar). All data is fictional and in memory.
 //   A  Side panel: claims are quietly underlined; selecting one opens its evidence beside the page.
-//      Chosen for desktop. On mobile, A opens it in a sheet from the right, A2 in a bottom drawer.
+//      DECIDED: A on desktop; on mobile the same panel opens in the kit's one drawer (MenuSheet),
+//      matching Navigation and Settings. A right-side sheet was tried and rejected: nothing else in the
+//      app slides in from the side on mobile.
 //   B  Sidenotes: numbered claims with their quoted evidence always visible in the margin.
 //   C  Trace: the page beside the history log; claims and events highlight each other both ways.
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useIsMobile } from './hooks/use-mobile.ts';
-import {
-  Drawer,
-  DrawerContent,
-  DrawerDescription,
-  DrawerHeader,
-  DrawerTitle,
-} from './parts/drawer.tsx';
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from './parts/sheet.tsx';
+import { MenuSheet } from './sheet.tsx';
 
 // ---------------------------------------------------------------------------------------------------
 // The model under test
@@ -636,13 +631,12 @@ function EvidencePanel({ claim }: { claim: Claim }) {
 
 const panelHeading = 'Why the page says this';
 
-/** Desktop: the evidence panel beside the page. Compact: the same panel in a sheet or a drawer. */
-function VariantA({ compact }: { compact: 'sheet' | 'drawer' }) {
+/** Desktop: the evidence panel beside the page. Compact: the same panel in the shared drawer. */
+function VariantA() {
   const mobile = useIsMobile();
   const [selected, setSelected] = useState<ClaimId | undefined>(mobile ? undefined : 'c-home');
   const [uncited, setUncited] = useState(false);
   const claim = selected ? claimById.get(selected) : undefined;
-  const close = (open: boolean) => !open && setSelected(undefined);
   const render = (cl: Claim) => (
     <span
       data-claim=""
@@ -683,35 +677,11 @@ function VariantA({ compact }: { compact: 'sheet' | 'drawer' }) {
         <StatePanel selected={selected} hover={{}} />
       </article>
       {mobile ? (
-        compact === 'sheet' ? (
-          <Sheet open={!!claim} onOpenChange={close}>
-            <SheetContent side="right" className="w-[88%] gap-0 overflow-y-auto">
-              <SheetHeader className="pr-10">
-                <SheetTitle>{panelHeading}</SheetTitle>
-                <SheetDescription className="sr-only">
-                  The evidence for the selected statement
-                </SheetDescription>
-              </SheetHeader>
-              <div className="flex flex-col gap-3 px-4 pb-6">
-                {claim ? <EvidencePanel claim={claim} /> : null}
-              </div>
-            </SheetContent>
-          </Sheet>
-        ) : (
-          <Drawer open={!!claim} onOpenChange={close}>
-            <DrawerContent>
-              <DrawerHeader>
-                <DrawerTitle>{panelHeading}</DrawerTitle>
-                <DrawerDescription className="sr-only">
-                  The evidence for the selected statement
-                </DrawerDescription>
-              </DrawerHeader>
-              <div className="flex flex-col gap-3 overflow-y-auto px-4 pb-6">
-                {claim ? <EvidencePanel claim={claim} /> : null}
-              </div>
-            </DrawerContent>
-          </Drawer>
-        )
+        <MenuSheet open={!!claim} onClose={() => setSelected(undefined)} title={panelHeading}>
+          <div className="flex flex-col gap-3 px-4 pt-2 pb-6">
+            {claim ? <EvidencePanel claim={claim} /> : null}
+          </div>
+        </MenuSheet>
       ) : (
         <aside className="flex shrink-0 flex-col gap-3 md:sticky md:top-4 md:w-[340px] md:self-start">
           {claim ? (
@@ -1084,8 +1054,7 @@ function VariantC() {
 // Switcher
 
 const variants = [
-  { key: 'A', name: 'Side panel · mobile sheet', View: () => <VariantA compact="sheet" /> },
-  { key: 'A2', name: 'Side panel · mobile drawer', View: () => <VariantA compact="drawer" /> },
+  { key: 'A', name: 'Side panel · drawer on mobile', View: VariantA },
   { key: 'B', name: 'Sidenotes', View: VariantB },
   { key: 'C', name: 'Trace', View: VariantC },
 ];
