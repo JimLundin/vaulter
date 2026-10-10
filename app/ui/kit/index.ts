@@ -118,9 +118,7 @@ import {
   SidebarMenuSub as SidebarMenuSubPart,
   SidebarProvider as SidebarProviderPart,
   SidebarSeparator as SidebarSeparatorPart,
-  SidebarTrigger as SidebarTriggerPart,
 } from './parts/sidebar.tsx';
-import { Skeleton as SkeletonPart } from './parts/skeleton.tsx';
 import { Toaster as ToasterPart } from './parts/sonner.tsx';
 import {
   TabsContent as TabsContentPart,
@@ -238,8 +236,6 @@ export const SidebarMenuSubButton = unstyled(SidebarMenuSubButtonPart);
 export const SidebarMenuSubItem = unstyled(SidebarMenuSubItemPart);
 export const SidebarProvider = unstyled(SidebarProviderPart);
 export const SidebarSeparator = unstyled(SidebarSeparatorPart);
-export const SidebarTrigger = unstyled(SidebarTriggerPart);
-export const Skeleton = unstyled(SkeletonPart);
 export const Tabs = unstyled(TabsPart);
 export const TabsList = unstyled(TabsListPart);
 export const TabsTrigger = unstyled(TabsTriggerPart);
@@ -300,7 +296,6 @@ export { useLayout, type SizeClass } from './hooks/use-layout.ts';
 export { Icon, type IconName, type IconProps, iconNames } from './icons.tsx';
 export type { Unstyled } from './lib/unstyled.tsx';
 export { type LatLon, type MapPoint, type MapRoute, MapView, type MapViewProps } from './map.tsx';
-export { useSidebar } from './parts/sidebar.tsx';
 export { startTheme, setTheme, type Theme, ThemeSwitch, useTheme } from './theme.tsx';
 export {
   Activity,

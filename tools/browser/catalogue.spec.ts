@@ -182,6 +182,13 @@ test('sidebar labels, badges and actions have separate slots at mouse and touch 
     const badge = await bounds('sidebar-menu-badge');
     const action = await bounds('sidebar-menu-action');
     const nested = await bounds('sidebar-menu-sub-button');
+    await expect(sample.getByRole('button', { name: 'Agent options' })).toHaveCSS('opacity', '1');
+    const loading = sample.locator('[data-slot="sidebar-menu-skeleton"]');
+    await expect(loading).toHaveCount(2);
+    await expect(loading.locator('[data-sidebar="menu-skeleton-icon"]')).toHaveCount(1);
+    for (const text of await loading.locator('[data-sidebar="menu-skeleton-text"]').all()) {
+      expect((await text.boundingBox())!.height).toBeGreaterThan(0);
+    }
     expect(label.x + label.width).toBeLessThanOrEqual(add.x);
     expect(add.y + add.height).toBeLessThanOrEqual(button.y);
     expect(badge.x + badge.width).toBeLessThanOrEqual(action.x);
