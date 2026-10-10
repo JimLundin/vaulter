@@ -27,6 +27,7 @@ test('every public kit component is catalogued and actually rendered by a sample
     expect(
       names.filter((name) => ['DesktopMain', 'MobileFrame', 'SidePanel'].includes(name)),
     ).toEqual([]);
+    expect(names.filter((name) => ['Recording', 'StatusMark'].includes(name))).toEqual([]);
     const registered = new Set<string>();
     const rendered = new Set<string>();
     const ids: string[] = [];

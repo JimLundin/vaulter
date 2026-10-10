@@ -91,22 +91,6 @@ export function Dock({ children, status }: { children: ReactNode; status?: React
   );
 }
 
-/** A status dot or live text cursor, independent of any recording workflow. */
-export function StatusMark({ active, cursor }: { active?: boolean; cursor?: boolean }) {
-  return (
-    <span
-      aria-hidden={true}
-      className={cn(
-        cursor
-          ? 'ml-1 inline-block h-5 w-0.5 bg-primary align-middle'
-          : 'inline-block size-2 rounded-full',
-        !cursor && (active ? 'bg-destructive' : 'bg-subtle-foreground'),
-        active && 'animate-pulse',
-      )}
-    />
-  );
-}
-
 /** One scroll owner with optional follow-to-end; user scrolling releases the follow lock. */
 export function AutoScrollArea({ empty, children }: { empty?: boolean; children: ReactNode }) {
   const follow = useStickToBottom({ initial: 'smooth', resize: 'smooth' });
