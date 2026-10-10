@@ -388,7 +388,7 @@ function TabsSample() {
     <K.Tabs defaultValue="notes">
       <K.TabsList>
         <K.TabsTrigger value="notes">Notes</K.TabsTrigger>
-        <K.TabsTrigger value="activity">Today’s activity</K.TabsTrigger>
+        <K.TabsTrigger value="activity">Today</K.TabsTrigger>
       </K.TabsList>
       <K.TabsContent value="notes">
         <K.Text>Your recent thoughts.</K.Text>
@@ -398,6 +398,9 @@ function TabsSample() {
         <K.Timeline>
           <K.TimelineItem time="09:41" now={true}>
             <K.Text>Saved a note</K.Text>
+          </K.TimelineItem>
+          <K.TimelineItem time="09:00">
+            <K.Text>Added a morning thought</K.Text>
           </K.TimelineItem>
           <K.TimelineItem time="08:30" last={true}>
             <K.Text>Took a walk</K.Text>
