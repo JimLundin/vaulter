@@ -173,7 +173,6 @@ body:has(.kit-design-window) {
   --border: light-dark(#e4e4e7, #27272a);
   --input: light-dark(#e4e4e7, #3f3f46);
   --ring: light-dark(#a1a1aa, #71717a);
-  --key-border: light-dark(#d4d4d8, #52525b);
   --link: light-dark(#1d4ed8, #60a5fa);
 
   /* Tones: what a thing is about. */
@@ -401,7 +400,6 @@ body:has(.kit-design-window) {
   --color-subtle-foreground: var(--subtle-foreground);
   --color-body: var(--body);
   --color-surface: var(--surface);
-  --color-key-border: var(--key-border);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
