@@ -29,22 +29,16 @@ function ItemSeparator({ className, ...props }: React.ComponentProps<typeof Sepa
 }
 
 const itemVariants = cva(
-  'group/item flex flex-wrap items-center rounded-md border border-transparent text-sm transition-colors duration-100 outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 [a]:transition-colors [a]:hover:bg-accent/50',
+  'group/item flex flex-wrap items-center gap-4 p-4 rounded-md border border-transparent text-sm transition-colors duration-100 outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 [a]:transition-colors [a]:hover:bg-accent/50',
   {
     variants: {
       variant: {
         default: 'bg-transparent',
-        outline: 'border-border',
         muted: 'bg-muted/50',
-      },
-      size: {
-        default: 'gap-4 p-4',
-        sm: 'gap-2.5 px-4 py-3',
       },
     },
     defaultVariants: {
       variant: 'default',
-      size: 'default',
     },
   },
 );
@@ -52,15 +46,14 @@ const itemVariants = cva(
 function Item({
   className,
   variant = 'default',
-  size = 'default',
   render,
   ...props
 }: useRender.ComponentProps<'div'> & VariantProps<typeof itemVariants>) {
   return useRender({
     defaultTagName: 'div',
     render,
-    props: mergeProps<'div'>({ className: cn(itemVariants({ variant, size, className })) }, props),
-    state: { slot: 'item', variant, size },
+    props: mergeProps<'div'>({ className: cn(itemVariants({ variant, className })) }, props),
+    state: { slot: 'item', variant },
   });
 }
 

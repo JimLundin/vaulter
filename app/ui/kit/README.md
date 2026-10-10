@@ -435,3 +435,10 @@ selection allows zero or one pressed option; multiple selection allows independe
 Arrow navigation and disabled/focus feedback follow Base UI, with 44px minimum touch targets.
 The catalogue shows both modes. ToggleGroup is distinct from RadioGroup form choices and remains
 unsupported inside SettingField; effects belong to the caller.
+
+Browsing Item rows use standard density with plain or muted/current feedback. Group separators,
+header/footer context and separate actions remain available. ItemMedia keeps plain/framed icons,
+supplied cropped thumbnails and neutral/people/places/events initials through Avatar.
+Badge keeps default, secondary and destructive status labels. Named category Chip presentation
+uses private secondary badge styling and remains passive or an accessible button when given an
+action; decorative dots require a supplied visible label, and callers own counts and state.
