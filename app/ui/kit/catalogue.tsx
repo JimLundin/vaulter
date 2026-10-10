@@ -919,18 +919,6 @@ function Frames() {
     </K.WorkspaceFrame>
   );
 }
-function LegacyFrames() {
-  return (
-    <K.Columns stack={true}>
-      <K.DesktopMain>
-        <K.Text>Desktop main frame</K.Text>
-      </K.DesktopMain>
-      <K.MobileFrame bar={<K.MobileBar />}>
-        <K.Text>Mobile frame</K.Text>
-      </K.MobileFrame>
-    </K.Columns>
-  );
-}
 function SidebarParts() {
   return (
     <K.SidebarProvider>
@@ -1049,13 +1037,6 @@ function Preview() {
         />
       </K.NavigationSuite>
     </K.DesignPreview>
-  );
-}
-function SidePanels() {
-  return (
-    <K.SidePanel title="Note details" onClose={noop}>
-      <K.Text>A supporting panel.</K.Text>
-    </K.SidePanel>
   );
 }
 function Icons() {
@@ -1293,7 +1274,8 @@ export const catalogue: Specimen[] = [
   {
     id: 'agent-panel',
     title: 'Agent panel',
-    description: 'The same conversation in a centered desktop panel or full phone surface.',
+    description:
+      'One conversation: beside the workspace on wide screens, centered or in the shared Drawer when narrower.',
     components: ['ConversationPanel'],
     Sample: AgentPanel,
   },
@@ -1317,7 +1299,7 @@ export const catalogue: Specimen[] = [
     id: 'panel-primitive',
     title: 'Adaptive panel primitive',
     description:
-      'One supporting content tree, with shared focus, dismissal and responsive placement.',
+      'Supporting content beside the page on wide screens and in shared modal/Drawer presentation when narrower; drafts and nested tasks stay mounted.',
     components: ['AdaptivePanel', 'Drawer'],
     Sample: PanelPrimitive,
   },
@@ -1572,15 +1554,6 @@ export const catalogue: Specimen[] = [
     fullBleed: true,
   },
   {
-    id: 'base-frames',
-    title: 'Base frames',
-    description:
-      'Low-level frames for composing a workspace. Prefer NavigationSuite for feature navigation.',
-    components: ['DesktopMain', 'MobileFrame'],
-    Sample: LegacyFrames,
-    fullBleed: true,
-  },
-  {
     id: 'sidebar',
     title: 'Sidebar primitives',
     description: 'Groups, rows, nested items, actions and loading states.',
@@ -1624,14 +1597,6 @@ export const catalogue: Specimen[] = [
       'Separate device and design controls, demonstrated with retained page/input presentation.',
     components: ['PreviewBar', 'DesignPreview', 'DesignComparison'],
     Sample: Preview,
-    fullBleed: true,
-  },
-  {
-    id: 'side-panel',
-    title: 'Supporting panel',
-    description: 'A low-level supporting content panel.',
-    components: ['SidePanel'],
-    Sample: SidePanels,
     fullBleed: true,
   },
   {
