@@ -37,3 +37,39 @@ Updated caller dependencies apply to later sends while active runs retain their 
 Closing a view does not stop execution; disposal expires execution and prevents late view updates.
 The existing file-backed controller remains usable for app compatibility until the next app/preview
 integration ticket switches visible flows and preserves established suggestions and dictation.
+
+## Product composition and caller configuration
+
+The product supplies the session NodeStore, selected OpenAI capabilities and the content module's
+`createNode`, `readNode` and `updateNode` tools to node-backed Chat. The tools publish content directly
+as `{kind: 'content', title: string, text: string}` nodes with no containment or connection by default.
+Updates preserve identity, placement, connections and optional unknown fields, append one version,
+and require the version read through the execution context. Transactions use the registered node
+create/update operations; Agent supplies the stable Agent author and run origin. Content module
+schemas validate titles and text; tools cannot edit producer records. This is one producer layout,
+not an importer or a translation of the Vault. The separate migration can populate these records.
+
+Caller configuration supplies user and Agent identities through `OpenProduct.identities`. Defaults
+are `vaulter:owner` and `vaulter:agent`, configured for this personal application and unrelated to
+GitHub token identity or device identity. Missing records are bootstrapped atomically as actor/Agent
+nodes; existing migrated records and Agent configuration remain intact. Deleted or incompatible
+configured identities require explicit caller correction. A rejected bootstrap retains the exact
+request for retry; concurrent acceptance is reconciled by reading the same valid pair. Configure
+preexisting migrated IDs to avoid introducing a second author/Agent identity.
+
+The controller owns draft, subscriptions and live work outside mounted views. Node availability,
+identity setup and model configuration gate new Send. Initial save recovery reconciles the retained
+request without resuming the recorded execution. The view labels its unknown outcome; another
+explicit Send starts distinct work. Invocation, content, tool outcome, Agent completion and Chat
+response persistence failures have categorized recovery. Tool-outcome recovery saves the known
+result without repeating effects, and Stop keeps pending saving available. Reopening reads accepted
+records without executing Agent. Legacy staged files remain intact and require an explicit choice
+to send a message while leaving them staged.
+
+The design preview uses these production interfaces with a scripted model and fictional content.
+Its versioned sessionStorage journal contains complete accepted NodeCommit requests, replayed in
+order through a fresh memory adapter on reload. It never records a rejected request as accepted.
+Reset clears this journal and the selected conversation; ordinary reload preserves accepted history.
+Query scenarios `initial-save`, `lost-response`, `outcome-save` and `terminal-save` inject one failure
+at the corresponding registered operation. Lost-response accepts and journals before throwing.
+This tab-scoped fictional retention does not replace the production encrypted cache.

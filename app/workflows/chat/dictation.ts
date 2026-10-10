@@ -1,6 +1,9 @@
 // Speech updates the same persistent draft as typing, even when no Chat view is mounted.
 import { useEffect } from 'react';
-import type { Conversation } from './conversation.ts';
+interface Conversation {
+  snapshot: () => { draft: string };
+  setDraft: (text: string) => void;
+}
 import type { Transcription } from './transcription.ts';
 
 export function bindVoiceDraft(conversation: Conversation, voice: Transcription) {

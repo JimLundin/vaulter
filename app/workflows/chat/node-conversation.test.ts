@@ -208,3 +208,109 @@ test('recovery keeps the controller busy while Agent resumes into a held provide
   await sending;
   expect(controller.snapshot().busy).toBe(false);
 });
+
+test('Chat publishes content with the module-owned node tools and retains exact history', async () => {
+  const nodes = memoryNodeBackend();
+  await seed(nodes);
+  await nodes.commit(request('agent', [create('agent', { kind: 'agent', name: 'Fictional' })]));
+  const { nodeContentTools } = await import('../../vault/content/tools.ts');
+  let step = 0;
+  const scripted = new MockLanguageModelV4({
+    doStream: async () => ({
+      stream: convertArrayToReadableStream([
+        { type: 'stream-start', warnings: [] },
+        ...(step++ === 0
+          ? [
+              {
+                type: 'tool-call' as const,
+                toolCallId: 'publish',
+                toolName: 'createNode',
+                input: JSON.stringify({ title: 'A saved thought', text: 'Keep mornings free.' }),
+              },
+            ]
+          : [
+              { type: 'text-start' as const, id: 't' },
+              { type: 'text-delta' as const, id: 't', delta: 'Saved.' },
+              { type: 'text-end' as const, id: 't' },
+            ]),
+        {
+          type: 'finish',
+          finishReason: { unified: step === 1 ? 'tool-calls' : 'stop', raw: undefined },
+          usage: {
+            inputTokens: { total: 0, noCache: 0, cacheRead: 0, cacheWrite: 0 },
+            outputTokens: { total: 0, text: 0, reasoning: 0 },
+          },
+        },
+      ]),
+    }),
+  });
+  const controller = createNodeConversation({
+    nodes,
+    user: 'user',
+    agent: 'agent',
+    provider: 'fictional',
+    selectedModel: 'fictional',
+    instructions: 'Record.',
+    model: async () => scripted,
+    settings: { maxSteps: 2 },
+    tools: nodeContentTools,
+    writableKinds: ['content'],
+    enabledTools: [{ name: 'createNode' }, { name: 'readNode' }, { name: 'updateNode' }],
+  });
+  await controller.send('Remember this.');
+  const history = await nodes.history({ kinds: [{ scope: 'node', action: 'create' }] });
+  expect(history).toHaveLength(1);
+  expect(history[0]?.recordedBy).toBe('agent');
+  const changes = await nodes.changes(history[0]!.id);
+  expect(changes[0]?.after.data).toEqual({
+    kind: 'content',
+    title: 'A saved thought',
+    text: 'Keep mornings free.',
+  });
+  expect(controller.snapshot().turns[1]?.parts[0]).toMatchObject({
+    kind: 'tool',
+    name: 'createNode',
+    result: 'Accepted',
+  });
+});
+
+test('node Chat optional suggestions preserve the shared draft and unavailable nodes prevent submission', async () => {
+  const nodes = memoryNodeBackend();
+  await seed(nodes);
+  await nodes.commit(request('agent', [create('agent', { kind: 'agent' })]));
+  const controller = createNodeConversation({
+    nodes,
+    user: 'user',
+    agent: 'agent',
+    provider: 'fictional',
+    model: async () => {
+      throw new Error('Must not execute');
+    },
+    selectedModel: 'fictional',
+    instructions: 'Record.',
+    suggestions: async () => ['Make room for walks'],
+    availability: 'Offline',
+  });
+  controller.setDraft('A retained thought');
+  await controller.sendDraft();
+  expect(controller.snapshot()).toMatchObject({ draft: 'A retained thought', turns: [] });
+  expect(controller.ready()).toBe(false);
+  controller.updateOptions({
+    nodes,
+    user: 'user',
+    agent: 'agent',
+    provider: 'fictional',
+    model: async () => {
+      throw new Error('Must not execute');
+    },
+    selectedModel: 'fictional',
+    instructions: 'Record.',
+    suggestions: async () => ['Make room for walks'],
+  });
+  await controller.suggest();
+  expect(controller.snapshot()).toMatchObject({
+    draft: 'A retained thought',
+    suggestions: ['Make room for walks'],
+  });
+  controller.dispose();
+});

@@ -34,6 +34,7 @@ export interface Turn {
   role: 'user' | 'agent';
   parts: Part[];
   error?: string;
+  status?: 'unknown';
   /** When it started, for the raw record; and, for the agent's, what it cost and who answered. */
   at: string;
   tokens?: { in: number; out: number };
