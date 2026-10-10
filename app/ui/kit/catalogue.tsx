@@ -491,16 +491,69 @@ function Charts() {
 }
 function Maps() {
   const [load, setLoad] = useState(false);
+  const [size, setSize] = useState<'sm' | 'md' | 'fill'>('md');
+  const [selected, setSelected] = useState('coffee');
+  const points: K.MapPoint[] = [
+    {
+      id: 'coffee',
+      label: 'Coffee with Anna',
+      n: 1,
+      tone: 'people',
+      at: { lat: 59.337, lon: 18.06 },
+    },
+    {
+      id: 'walk',
+      label: 'Walk by the water',
+      n: 2,
+      tone: 'places',
+      at: { lat: 59.333, lon: 18.064 },
+    },
+    {
+      id: 'dinner',
+      label: 'Dinner with friends',
+      n: 3,
+      tone: 'events',
+      at: { lat: 59.338, lon: 18.067 },
+    },
+  ];
   return (
-    <K.Stack>
+    <K.Stack fill={true}>
       <K.Text size="sm" tone="muted">
         Loading the map connects to OpenFreeMap for public tiles.
       </K.Text>
       {load ? (
-        <K.MapView
-          label="Places in your notes"
-          points={[{ id: 'coffee', label: 'Coffee with Anna', at: { lat: 59.337, lon: 18.06 } }]}
-        />
+        <>
+          <K.Row wrap={true}>
+            <K.Button variant="outline" onClick={() => setSize('sm')}>
+              Compact map
+            </K.Button>
+            <K.Button variant="outline" onClick={() => setSize('md')}>
+              Section map
+            </K.Button>
+            <K.Button variant="outline" onClick={() => setSize('fill')}>
+              Fill map
+            </K.Button>
+          </K.Row>
+          <K.Text size="xs">
+            Selected place: {points.find((point) => point.id === selected)?.label}
+          </K.Text>
+          <K.Stack grow={true}>
+            <K.MapView
+              label="Places in your notes"
+              size={size}
+              points={points}
+              selected={selected}
+              onSelect={setSelected}
+              routes={[
+                {
+                  id: 'walk',
+                  points: [points[0]!.at, points[1]!.at, { lat: 59.329, lon: 18.065 }],
+                },
+                { id: 'travel', points: [points[1]!.at, points[2]!.at], dashed: true },
+              ]}
+            />
+          </K.Stack>
+        </>
       ) : (
         <K.Button variant="outline" onClick={() => setLoad(true)}>
           Load map
@@ -1567,7 +1620,8 @@ export const catalogue: Specimen[] = [
   {
     id: 'maps',
     title: 'Map',
-    description: 'The shared map presentation, loaded only on request.',
+    description:
+      'Opt-in MapLibre maps with selectable places, solid/dashed routes and compact/section/fill sizes.',
     components: ['MapView'],
     Sample: Maps,
   },

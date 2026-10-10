@@ -437,3 +437,9 @@ supplied cropped thumbnails and neutral/people/places/events initials through Av
 Badge keeps default, secondary and destructive status labels. Named category Chip presentation
 uses private secondary badge styling and remains passive or an accessible button when given an
 action; decorative dots require a supplied visible label, and callers own counts and state.
+
+MapView uses MapLibre, its bundled worker and OpenFreeMap dark/light styles; Leaflet is retired.
+The paired Map example loads external tiles only after Load map, then demonstrates selectable
+category markers, solid/dashed routes and compact/section/fill sizes. Changing the map container's
+size refits supplied places/routes; selection and theme changes preserve the current camera.
+Run real-tile browser acceptance with `VAULTER_MAP_TILES=1 npm run test:ui -- tools/browser/maps.spec.ts`.

@@ -30,6 +30,7 @@ function Comparison({
     'access',
     'frames',
     'sidebar',
+    'maps',
   ].includes(specimen.id)
     ? 640
     : 440;
