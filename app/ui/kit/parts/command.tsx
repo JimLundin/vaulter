@@ -4,8 +4,6 @@ import { Autocomplete as CommandPrimitive } from '@base-ui/react/autocomplete';
 import { cn } from '../lib/utils.ts';
 import { SearchIcon } from 'lucide-react';
 
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './dialog.tsx';
-
 type CommandContextValue = {
   query: string;
   change: (value: string) => void;
@@ -72,37 +70,6 @@ function Command({
         </div>
       </CommandPrimitive.Root>
     </CommandContext.Provider>
-  );
-}
-
-function CommandDialog({
-  title = 'Command Palette',
-  description = 'Search for a command to run...',
-  children,
-  className,
-  showCloseButton = true,
-  ...props
-}: React.ComponentProps<typeof Dialog> & {
-  title?: string;
-  description?: string;
-  className?: string;
-  showCloseButton?: boolean;
-}) {
-  return (
-    <Dialog {...props}>
-      <DialogContent
-        className={cn('overflow-hidden p-0', className)}
-        showCloseButton={showCloseButton}
-      >
-        <DialogHeader className="sr-only">
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>{description}</DialogDescription>
-        </DialogHeader>
-        <Command className="**:data-[slot=command-input-wrapper]:h-12 **:data-[slot=command-group]:px-2 **:data-[slot=command-group-label]:px-2 **:data-[slot=command-group-label]:font-medium **:data-[slot=command-group-label]:text-muted-foreground [&_[data-slot=command-input-wrapper]_svg]:size-5 **:data-[slot=command-input]:h-12 **:data-[slot=command-item]:px-2 **:data-[slot=command-item]:py-3 [&_[data-slot=command-item]_svg]:size-5">
-          {children}
-        </Command>
-      </DialogContent>
-    </Dialog>
   );
 }
 
@@ -289,7 +256,6 @@ function CommandShortcut({ className, ...props }: React.ComponentProps<'span'>) 
 
 export {
   Command,
-  CommandDialog,
   CommandInput,
   CommandList,
   CommandEmpty,

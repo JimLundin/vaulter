@@ -40,13 +40,12 @@ export function AdaptiveDialog({
     >
       <DialogContent
         ref={ref}
-        showCloseButton={false}
         {...(description ? {} : { 'aria-describedby': undefined })}
         initialFocus={() =>
           focusInput ? (ref.current?.querySelector<HTMLInputElement>('input') ?? true) : true
         }
         className={cn(
-          'flex max-h-[min(90dvh,var(--viewport-height,90dvh))] flex-col gap-0 overflow-hidden p-0',
+          'fixed top-[50%] left-[50%] flex w-full max-h-[min(90dvh,var(--viewport-height,90dvh))] translate-x-[-50%] translate-y-[-50%] flex-col gap-0 overflow-hidden rounded-lg border bg-background p-0 shadow-lg',
           compact
             ? fullScreen
               ? 'inset-x-0 top-[var(--viewport-top,0px)] h-[var(--viewport-height,100dvh)] max-h-none w-full max-w-none translate-x-0 translate-y-0 rounded-none border-0 pt-[env(safe-area-inset-top)] sm:max-w-none'

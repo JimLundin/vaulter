@@ -272,6 +272,9 @@ test('paired settings fields keep independent accessible meaning and native labe
   const family = page.locator('[data-kit-comparison="settings"]');
   const desktop = specimen(family, 'desktop');
   const mobile = specimen(family, 'mobile');
+  for (const sample of [desktop, mobile]) {
+    await sample.getByRole('button', { name: 'Open settings' }).click();
+  }
   const first = desktop.getByRole('textbox', { name: 'Model', exact: true });
   const second = mobile.getByRole('textbox', { name: 'Model', exact: true });
   expect(await first.getAttribute('id')).not.toBe(await second.getAttribute('id'));
@@ -284,11 +287,11 @@ test('paired settings fields keep independent accessible meaning and native labe
   await expect(first).not.toBeFocused();
   await expect(second).toBeFocused();
   for (const sample of [desktop, mobile]) {
-    await sample.getByRole('button', { name: 'Open settings' }).click();
     const dialog = sample.getByRole('dialog', { name: 'Settings', exact: true });
     await expect(
       dialog.getByRole('radiogroup', { name: 'Theme', exact: true }),
     ).toHaveAccessibleDescription('Choose how Vaulter looks.');
+    await dialog.getByRole('textbox', { name: 'Model', exact: true }).focus();
     await page.keyboard.press('Escape');
     await expect(dialog).toBeHidden();
   }
