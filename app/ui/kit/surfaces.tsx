@@ -181,36 +181,6 @@ export function Json({ value }: { value: unknown }) {
     </pre>
   );
 }
-export function SidePanel({
-  title,
-  onClose,
-  children,
-}: {
-  title: string;
-  onClose: () => void;
-  children: ReactNode;
-}) {
-  return (
-    <aside
-      aria-label={title}
-      className="flex h-svh w-[26rem] shrink-0 flex-col gap-3 border-l bg-background p-5"
-    >
-      <div className="flex items-center justify-between">
-        <h2 className="m-0 text-sm font-semibold">{title}</h2>
-        <Button
-          variant="ghost"
-          size="compact"
-          iconOnly={true}
-          aria-label="Close panel"
-          onClick={onClose}
-        >
-          <Icon name="close" />
-        </Button>
-      </div>
-      {children}
-    </aside>
-  );
-}
 export function UnifiedDiff({ path, patch }: { path: string; patch?: string }) {
   return (
     <div className="overflow-hidden rounded-xl border">

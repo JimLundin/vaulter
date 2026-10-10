@@ -25,7 +25,7 @@ test('the entire catalogue renders paired live components without requests to ex
   });
   await page.goto('/ui/kit/');
   const families = page.locator('[data-kit-comparison]');
-  await expect(families).toHaveCount(38);
+  await expect(families).toHaveCount(36);
   for (const family of await families.all()) {
     await expect(specimen(family, 'desktop')).toHaveCount(1);
     await expect(specimen(family, 'mobile')).toHaveCount(1);
@@ -182,6 +182,13 @@ test('sidebar labels, badges and actions have separate slots at mouse and touch 
     const badge = await bounds('sidebar-menu-badge');
     const action = await bounds('sidebar-menu-action');
     const nested = await bounds('sidebar-menu-sub-button');
+    await expect(sample.getByRole('button', { name: 'Agent options' })).toHaveCSS('opacity', '1');
+    const loading = sample.locator('[data-slot="sidebar-menu-skeleton"]');
+    await expect(loading).toHaveCount(2);
+    await expect(loading.locator('[data-sidebar="menu-skeleton-icon"]')).toHaveCount(1);
+    for (const text of await loading.locator('[data-sidebar="menu-skeleton-text"]').all()) {
+      expect((await text.boundingBox())!.height).toBeGreaterThan(0);
+    }
     expect(label.x + label.width).toBeLessThanOrEqual(add.x);
     expect(add.y + add.height).toBeLessThanOrEqual(button.y);
     expect(badge.x + badge.width).toBeLessThanOrEqual(action.x);
@@ -265,6 +272,9 @@ test('paired settings fields keep independent accessible meaning and native labe
   const family = page.locator('[data-kit-comparison="settings"]');
   const desktop = specimen(family, 'desktop');
   const mobile = specimen(family, 'mobile');
+  for (const sample of [desktop, mobile]) {
+    await sample.getByRole('button', { name: 'Open settings' }).click();
+  }
   const first = desktop.getByRole('textbox', { name: 'Model', exact: true });
   const second = mobile.getByRole('textbox', { name: 'Model', exact: true });
   expect(await first.getAttribute('id')).not.toBe(await second.getAttribute('id'));
@@ -277,11 +287,11 @@ test('paired settings fields keep independent accessible meaning and native labe
   await expect(first).not.toBeFocused();
   await expect(second).toBeFocused();
   for (const sample of [desktop, mobile]) {
-    await sample.getByRole('button', { name: 'Open settings' }).click();
     const dialog = sample.getByRole('dialog', { name: 'Settings', exact: true });
     await expect(
       dialog.getByRole('radiogroup', { name: 'Theme', exact: true }),
     ).toHaveAccessibleDescription('Choose how Vaulter looks.');
+    await dialog.getByRole('textbox', { name: 'Model', exact: true }).focus();
     await page.keyboard.press('Escape');
     await expect(dialog).toBeHidden();
   }

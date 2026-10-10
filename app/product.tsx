@@ -58,7 +58,7 @@ import './workflows/chat/rendering/prose.css';
 const agentRoute = pattern('/agent/');
 const historyRoute = pattern('/history/');
 const settingsRoute = pattern('/settings/');
-// PROTOTYPE, throwaway: wiki provenance variants.
+// Selected fictional wiki evidence reference; available in design preview.
 const provenanceRoute = pattern('/prototype/provenance/');
 const renameTools = async (vault: OwnedVault) =>
   (await import('./workflows/rename-note/agent.ts')).renameTools(vault);

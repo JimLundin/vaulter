@@ -39,8 +39,8 @@ phone, desktop and touch-desktop, and both product and design builds. A separate
 wiki smoke check passed page rendering, claim selection, evidence dismissal and no page errors.
 Existing lint/build warnings remain. The user accepted the physical iOS Safari retest after the
 preview scrolling and viewport fixes at `1037d86`, completing #17's remaining keyboard acceptance.
-Touch drawer dismissal has automated browser coverage. Input button styles remain preview variants
-pending a final choice for the app.
+Touch drawer dismissal has automated browser coverage. The completed input-button comparison
+has been removed; the app and preview use the selected shared primary style.
 
 The specs are published to the configured GitHub tracker. Use the
 linked issues to track implementation; these local documents retain the published specification.
@@ -64,3 +64,18 @@ held for the Base UI migration; their final scope targets that library.
 | [#14 Settings and navigation drawer policy](https://github.com/JimLundin/vaulter/issues/14) | #8 | #13 |
 | [#15 Supporting panels and nested surfaces](https://github.com/JimLundin/vaulter/issues/15) | #8 | #14 |
 | [#16 Anchored presentation scope](https://github.com/JimLundin/vaulter/issues/16) | #8 | #13 |
+
+## UI-kit cleanup (#20)
+
+Reusable preview comparison (#23) is implemented before retiring provenance B/C. See the
+[#23 consumer and decision record](20-cleanup/23.md). DesignComparison accepts named alternatives
+inside the relevant preview; each example owns its selection independently of device choice.
+The paired preview sample compares retained page/input presentation. Selected provenance A now
+renders directly without rejected B/C choices; future design sessions can supply alternatives to
+DesignComparison. See the [#26 consumer and decision record](20-cleanup/26.md).
+
+Cleanup implementation is integrated on `spec/20-ui-kit-cleanup` from review base `fe941c2`.
+For current ticket evidence, retained/provisional scope and final check results, read the
+[cleanup acceptance record](20-cleanup/README.md). The
+[maintainer inventory reconciliation](20-reduction-inventory.md#implementation-reconciliation)
+preserves the original decisions and maps every approved removal to its consumer/dependency record.

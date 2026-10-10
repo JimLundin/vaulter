@@ -72,41 +72,21 @@ export const Count = ({ n }: { n: number }) => (
 );
 
 /** A key to press, as a keycap. */
-export function Kbd({ children, large }: { children?: ReactNode; large?: boolean }) {
+export function Kbd({ children }: { children?: ReactNode }) {
   return (
-    <KbdPart
-      className={cn(
-        'h-auto rounded-[5px] border border-b-2 border-border bg-background px-[5px] font-mono text-glyph font-normal text-foreground',
-        large && 'rounded-md border-key-border border-b-[3px] px-[18px] py-px text-xs',
-      )}
-    >
+    <KbdPart className="h-auto rounded-[5px] border border-b-2 border-border bg-background px-[5px] font-mono text-glyph font-normal text-foreground">
       {children}
     </KbdPart>
   );
 }
 
 /** A key and what it does: "1–3 Open source". `keys` is one key, or a sequence ("g p"). */
-export function KeyHint({
-  keys,
-  label,
-  strong,
-}: {
-  keys: string;
-  label: string;
-  strong?: boolean;
-}) {
+export function KeyHint({ keys, label }: { keys: string; label: string }) {
   const parts = keys.split(' ').filter(Boolean);
   return (
-    <span
-      className={cn(
-        'flex items-center gap-1.5 text-xs text-muted-foreground',
-        strong && 'gap-2 text-label font-medium text-foreground',
-      )}
-    >
+    <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
       {parts.map((k) => (
-        <Kbd key={k} large={strong}>
-          {k}
-        </Kbd>
+        <Kbd key={k}>{k}</Kbd>
       ))}
       {label}
     </span>
@@ -481,27 +461,6 @@ export function NavigationSheet({
   );
 }
 
-/** The mobile frame: the screen, the notices above the controls, the controls. */
-export function MobileFrame({
-  notices,
-  bar,
-  children,
-}: {
-  notices?: ReactNode;
-  bar: ReactNode;
-  children?: ReactNode;
-}) {
-  return (
-    <div className="flex h-dvh flex-col bg-background">
-      <main data-region="" className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-        {children}
-      </main>
-      {notices ? <div className="flex flex-col gap-2 px-4 pb-2.5">{notices}</div> : null}
-      {bar}
-    </div>
-  );
-}
-
 /** Footer navigation and an independent circular agent control floating above it. Either three
  * fixed places (`left`, `center`, `right`) or `items` spread evenly across the bar. */
 export function MobileBar({
@@ -537,17 +496,6 @@ export function MobileBar({
         </div>
       )}
     </footer>
-  );
-}
-
-/** The desktop content beside the sidebar. */
-export function DesktopMain({ children }: { children?: ReactNode }) {
-  return (
-    <div className="flex h-svh min-w-0 flex-1 flex-col">
-      <main data-region="" className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-        {children}
-      </main>
-    </div>
   );
 }
 
@@ -597,27 +545,19 @@ export function SidebarMenu(props: Unstyled<ComponentProps<typeof SidebarMenuPar
 }
 
 // Whole class names, so Tailwind finds them.
-const columns = { 2: 'grid-cols-2', 3: 'grid-cols-3' } as const;
 const stacked = { 2: 'grid-cols-1 md:grid-cols-2', 3: 'grid-cols-1 md:grid-cols-3' } as const;
 
-/** Equal columns: answers side by side, before and after. `stack` puts them one under another on
- * mobile. */
+/** Equal desktop content columns, always stacked into one column on phones. */
 export function Columns({
   count = 2,
   gap: g = 'md',
-  stack,
   children,
 }: {
   count?: 2 | 3;
   gap?: Gap;
-  stack?: boolean;
   children?: ReactNode;
 }) {
-  return (
-    <div className={cn('grid min-w-0', stack ? stacked[count] : columns[count], gap[g])}>
-      {children}
-    </div>
-  );
+  return <div className={cn('grid min-w-0', stacked[count], gap[g])}>{children}</div>;
 }
 
 /** A list and the one chosen from it, side by side (an inbox). On mobile only one of them shows:
@@ -768,18 +708,6 @@ export function Avatar({ name, tone = 'people' }: { name: string; tone?: Tone })
   );
 }
 
-/** That something is recording, and for how long. */
-export function Recording({ seconds, label = 'Recording' }: { seconds: number; label?: string }) {
-  const m = Math.floor(seconds / 60);
-  const s = String(Math.floor(seconds % 60)).padStart(2, '0');
-  return (
-    <span className="flex items-center gap-2 text-label font-medium text-destructive">
-      <span className="size-2 animate-pulse rounded-full bg-destructive" />
-      {label} · {m}:{s}
-    </span>
-  );
-}
-
 /** A row in a list; as a button or a link too, reading from the left. `current` marks the
  * one shown now, where the arrow keys start from. */
 export function Item({
@@ -808,21 +736,18 @@ export interface Choice {
   label: string;
 }
 
-/** The answers to a question. `list`: one under another, at a readable width, each with its number
- * key when `numbered` (the inbox); `inline`: side by side, compact (a notice on a page). Moved
- * through with the arrow keys. `onChoose` gets the event first, so `kernel.asPerson` can wrap it. */
+/** Supplied question answers, listed at a readable width or inline in a notice.
+ * `onChoose` receives the event and answer ID; the feature owns choice behavior. */
 export function Choices({
   choices,
   onChoose,
   suggested,
-  numbered,
   layout = 'list',
 }: {
   choices: Choice[];
   onChoose: (event: { isTrusted?: boolean } | undefined, choice: string) => void;
   /** Vaulter's guess: outlined. */
   suggested?: string;
-  numbered?: boolean;
   layout?: 'list' | 'inline';
 }) {
   if (layout === 'inline')
@@ -847,7 +772,7 @@ export function Choices({
     );
   return (
     <div data-arrows="" className="flex w-full max-w-md flex-col gap-1.5">
-      {choices.map((c, i) => (
+      {choices.map((c) => (
         <button
           data-touch-target=""
           key={c.id}
@@ -858,7 +783,6 @@ export function Choices({
             suggested === c.id && 'border-foreground',
           )}
         >
-          {numbered && i < 9 ? <Kbd>{String(i + 1)}</Kbd> : null}
           {c.label}
         </button>
       ))}

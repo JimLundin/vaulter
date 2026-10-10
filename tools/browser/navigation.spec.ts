@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { choosePreviewDevice } from './preview-controls.ts';
 
 for (const theme of ['light', 'dark']) {
   test(`the current sidebar destination stays highlighted in ${theme} appearance`, async ({
@@ -50,3 +51,25 @@ for (const theme of ['light', 'dark']) {
     await expect(history).toHaveCSS('background-color', highlight);
   });
 }
+
+test('Cmd and Ctrl B leave expanded navigation and the Agent draft available', async ({ page }) => {
+  await page.goto('/preview/');
+  await choosePreviewDevice(page.locator('body'), 'Desktop');
+  const draft = page.getByRole('textbox', { name: 'Message', exact: true });
+  await draft.fill('Keep this draft beside the navigation');
+  const history = page.getByRole('link', { name: 'History', exact: true });
+  const before = (await history.boundingBox())!;
+  for (const shortcut of ['Control+b', 'Meta+b']) {
+    await draft.press(shortcut);
+    await expect(draft).toHaveValue('Keep this draft beside the navigation');
+    await expect
+      .poll(async () =>
+        (await page.context().cookies()).some((cookie) => cookie.name === 'sidebar_state'),
+      )
+      .toBe(false);
+    await expect.poll(async () => (await history.boundingBox())!.x).toBe(before.x);
+    await expect.poll(async () => (await history.boundingBox())!.width).toBe(before.width);
+  }
+  await history.click();
+  await expect(page.getByRole('heading', { name: 'History', exact: true })).toBeVisible();
+});

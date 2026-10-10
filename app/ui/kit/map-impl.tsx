@@ -137,8 +137,8 @@ export function MapImpl({ points = [], routes = [], selected, onSelect }: MapVie
   const pointsKey = JSON.stringify(points);
   const ready = useRef(false);
   // What the map's own callbacks reach for: the latest routes and handler.
-  const latest = useRef({ routes, onSelect, dark });
-  latest.current = { routes, onSelect, dark };
+  const latest = useRef({ points, routes, onSelect, dark });
+  latest.current = { points, routes, onSelect, dark };
 
   useEffect(() => {
     if (!host.current) return;
@@ -156,7 +156,23 @@ export function MapImpl({ points = [], routes = [], selected, onSelect }: MapVie
       drawRoutes(m, latest.current.routes);
     });
     map.current = m;
+    // MapLibre resizes its canvas, but supplied places must be framed again when its container
+    // changes size. Selection/theme updates leave the user's current camera untouched.
+    let width = host.current.clientWidth;
+    let height = host.current.clientHeight;
+    const resize = new ResizeObserver(() => {
+      if (!host.current) return;
+      const nextWidth = host.current.clientWidth;
+      const nextHeight = host.current.clientHeight;
+      if (nextWidth === width && nextHeight === height) return;
+      width = nextWidth;
+      height = nextHeight;
+      m.resize();
+      frameAll(m, latest.current.points, latest.current.routes);
+    });
+    resize.observe(host.current);
     return () => {
+      resize.disconnect();
       m.remove();
       map.current = undefined;
     };

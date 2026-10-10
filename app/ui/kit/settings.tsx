@@ -16,20 +16,10 @@ import {
   hasFieldControlSemantics,
 } from './field-association.ts';
 import { Field, FieldContent, FieldDescription, FieldLabel, FieldTitle } from './parts/field.tsx';
-import { FeaturePage } from './app.tsx';
-import { Heading, Stack } from './parts/layout.tsx';
+import { Heading } from './parts/layout.tsx';
 import { Surface } from './primitives.tsx';
 import { Drawer } from './drawer.tsx';
 
-export function SettingsPage({ children }: { children: ReactNode }) {
-  return (
-    <FeaturePage title="Settings" description="Preferences for this device">
-      <Stack gap="xl" block="md">
-        {children}
-      </Stack>
-    </FeaturePage>
-  );
-}
 /** Product supplies feature-owned fields, grouped under each feature's name. */
 export function SettingsMenu({
   open,

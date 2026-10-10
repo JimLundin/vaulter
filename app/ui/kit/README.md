@@ -36,7 +36,7 @@ Markdown/HAST rendering and the vault-link annotation transform remain the expli
 | `parts/`, `hooks/` | shared layout/type primitives, shadcn controls and their hooks |
 | `primitives.tsx` | reusable surfaces, adaptive panel and following scroll container |
 | `composition.ts` | checked building-block dependencies displayed in the gallery |
-| `app.tsx` | spacing, typography, pages, sidebar and mobile frame |
+| `app.tsx` | spacing, typography, pages, expanded sidebar and shared workspace frame |
 | `overlay.tsx` | one dialog tree, centered or bottom-aligned; full-screen search in compact space |
 | `drawer.tsx` | the public `Drawer`, centered in expanded space and rising from the bottom in compact space |
 | `navigation.tsx` | `NavigationSuite`: one navigation as a sidebar or a bottom bar |
@@ -76,6 +76,13 @@ in caller order; legacy cmdk options are not a compatibility target. Composition
 Adapters preserve kit behavior where library defaults differ: dropdown labels can stand alone,
 checkbox selections close their menu, and dialogs respect each surface's initial-focus choice.
 
+Short modal tasks use adaptive `Overlay`; Search uses `SearchSurface` and preferences use
+`SettingsMenu`. Generic public Dialog assembly, CommandDialog and SettingsPage are retired.
+Private Base UI dialog adapters still support Overlay and Search focus, dismissal and accessible
+titles. `DialogFooter` remains a standalone optional layout for caller-supplied actions: right-aligned
+on desktop and stacked on phones. Its optional close action remains available; overlays need not
+use a footer.
+
 Spacing uses a 4px scale: 4px between inset actions, 8px between related controls, 16px within
 content and 24px between sections. `--space-control`, `--space-row`, `--space-content` and
 `--space-section` define those roles in `styles.css`; Stack and Row use the same scale. Pointer
@@ -100,6 +107,16 @@ when labels, touch targets or visible actions change size. `InputGroupTextarea v
 remains 44px high; `InputGroup variant="composer"` supplies the composer's outer shape. Agent,
 quick-note and vault-access examples use the same primitives.
 
+General fields retain standard semantic legends and vertical or horizontal arrangements; Settings
+keeps its adaptive label/control grid. Grouped input context sits inline before or after the field,
+with measured inset actions at the end. Smaller legends, generic responsive Field rows and
+above/below grouped-input add-ons are retired.
+
+Voice/activity presentation keeps meaningful status labels and visible LiveStatus text. Question
+answers support list and inline layouts with supplied recommendation emphasis. Ordinary keycaps
+and labelled shortcut sequences remain; elapsed Recording, decorative StatusMark, numeric answer
+hints and enlarged/strong keyboard-hint variations are retired.
+
 ## Desktop and mobile variants
 
 Mobile and desktop are the **same UI, resized and rearranged**. Components share their content,
@@ -109,6 +126,11 @@ both arrangements without introducing different features or a second product des
 
 The size classes are **compact** (under 48rem), **expanded** (48rem and up), and **wide** (80rem and
 up, enough for a side panel). Width and input method are independent: a wide screen may use touch.
+`Columns` keeps two or three equal desktop content columns and always stacks them on phones.
+Tabs use rounded horizontal choices, preserving automatic/manual activation and optional mounted
+inactive content. Timeline illustrates planned Today/activity events; ListDetail supplies question
+inbox or record-browser panes. Their examples do not implement event collection, selection or Back
+navigation.
 The model is Material 3's adaptive navigation
 (`NavigationSuiteScaffold`: one item list shown as a bar, rail or drawer) and SwiftUI's
 `sidebarAdaptable` tab view (one definition, a tab bar on iPhone and a sidebar on iPad).
@@ -142,6 +164,11 @@ agent, history, a note, a calendar. An *action* (`kind: 'action'`) is one of the
 screen keeps. The bottom bar keeps the first three actions beside Menu and Search; additional
 actions move into the menu. Ordinary bar controls are square and icon-only with the standard control
 radius on hover and open-state backgrounds; Menu is highlighted only while its drawer is open.
+Desktop navigation stays expanded on the left; it has no collapse shortcut, state or cookie.
+Sidebar primitives retain plain rows, visible actions, headings/groups, nested destinations,
+counts, separators and optional-icon loading rows for planned navigation. `SidebarProvider` is
+now a generic workspace wrapper, and `SidebarInset` retains only its generic content layout.
+Loading Skeleton presentation remains private to the usable navigation loading rows.
 The current feature is marked in the drawer. The voice action floats
 above them as a circle. `Frame` hands both lists to `NavigationSuite`, which picks the shape. Adding a feature means adding an entry, not editing two
 layouts.
@@ -165,7 +192,7 @@ label/control/description placement. Theme choices use the shared `RadioGroup` p
 
 `parts/layout.tsx` owns Stack, Row, Text, Heading, Link and Prose independently of application frames.
 
-`Surface`, `Toolbar`, `ReadingColumn`, `Dock`, `StatusMark`, `OptionStrip`, `AutoScrollArea` and
+`Surface`, `Toolbar`, `ReadingColumn`, `Dock`, `OptionStrip`, `AutoScrollArea` and
 `AdaptivePanel` provide reusable containers and behavior. Each has a separate paired example.
 `Drawer` owns the drawer adapter, header, close button, typography and scrolling body for navigation,
 settings and supporting panels. Callers supply `open`, `onClose`, `title` and content; bare drawer
@@ -175,9 +202,16 @@ The private presentation owner chooses portal scope, modal policy, dismissal own
 focus return; the Base UI adapter owns focus trapping, background effects and swipe mechanics.
 Closing nested or overlapping drawers preserves any remaining modal task. Bounded Settings
 examples stay independently editable and release their scope when catalogue filtering unmounts them.
-Supporting panels keep one mounted draft field as they become a wide panel, centered modal or compact
-drawer. A nested review or details drawer closes first and returns focus to its parent; changing the
-parent arrangement keeps the child task modal until it closes. Bounded Escape follows usable focus
+`WorkspaceFrame` supplies the shared workspace through `NavigationSuite`. DesktopMain and
+MobileFrame alternatives have been retired, including the latter's reserved notice row. Existing
+Notice attention cards and Toaster notifications remain; notification integration and placement
+are tracked separately in #22.
+Supporting content uses `AdaptivePanel` and `ConversationPanel` in the right-side role on wide
+screens; the fixed-width SidePanel alternative has been retired. Their headings and close controls
+remain available in the retained compositions. Supporting panels keep one mounted draft field as
+they become a wide panel, centered modal or compact drawer. A nested review or details drawer
+closes first and returns focus to its parent; changing the parent arrangement keeps the child
+task modal until it closes. Bounded Escape follows usable focus
 or the latest interaction when an action disables its focused control, and catalogue controls can
 take keyboard ownership back. The adaptive-panel example includes nested review and details actions.
 The gallery shows **Built from** links on these compositions. `composition.ts` lists their
@@ -244,7 +278,7 @@ that works:
    `rounded-xl` cards and rows, `rounded-2xl` docked surfaces such as the composer.
 2. **Pointer, not width.** `styles.css` applies a 44px minimum target whenever **any pointer** is
    coarse, including touch desktops. It covers all button sizes, checkboxes, inputs, grouped inputs,
-   tabs, toggles, command/menu rows, sidebar controls, dialog close buttons and map controls.
+   tabs, ToggleGroup choices, command/menu rows, sidebar controls, retained close actions and map controls.
    Checkboxes keep a 16px mark inside the target. Chart marks scroll horizontally when there are
    too many touch targets to fit, and map markers keep their small visual inside a larger target.
    Custom standalone controls opt in with
@@ -289,8 +323,9 @@ Speech updates the same persistent message draft as typing. The microphone start
 Send and Enter submit the shared draft. Corrected final text replaces the current recording's partial
 words while retaining the preceding draft. Further recordings append to manual corrections.
 `VoiceStatus` shows capture state and errors above the dock without changing the field's position.
-`Composer` shows the Enter arrow while the field has focus and becomes the sole Stop control during
-an agent response; the microphone keeps its icon and is disabled until the response finishes.
+`Composer` shows the Enter arrow while the field has focus and replaces its inset voice/Send action
+with Stop during an agent response. Standalone voice controls keep their microphone icon and remain
+disabled until the response finishes.
 The conversation feed contains submitted messages only. Read-only fields follow incoming words without taking focus. Drafts remain
 available when the Chat view closes or switches between a panel and page.
 
@@ -389,3 +424,28 @@ and drafts through size changes, the mobile field/microphone row before and afte
 Enter/Shift+Enter/IME, and a simulated visual
 viewport resize. The user accepted the physical Safari keyboard/scrolling retest at `1037d86`.
 Live microphone capture still needs device validation; the sample preview uses scripted audio.
+
+The wiki provenance reference retains selected evidence design A. Underlined claims open exact
+quoted source context and superseded statements beside the page from expanded width onward,
+or in the shared phone Drawer. Its evidence stays mounted through device changes. Completed
+sidenote/history-trace alternatives are retired, while Product History, Timeline and reusable
+DesignComparison remain available. The fictional fixtures are reference design data.
+
+ToggleGroup presents pressed choices in outlined joined groups at the standard size. Single
+selection allows zero or one pressed option; multiple selection allows independent pressed options.
+Arrow navigation and disabled/focus feedback follow Base UI, with 44px minimum touch targets.
+The catalogue shows both modes. ToggleGroup is distinct from RadioGroup form choices and remains
+unsupported inside SettingField; effects belong to the caller.
+
+Browsing Item rows use standard density with plain or muted/current feedback. Group separators,
+header/footer context and separate actions remain available. ItemMedia keeps plain/framed icons,
+supplied cropped thumbnails and neutral/people/places/events initials through Avatar.
+Badge keeps default, secondary and destructive status labels. Named category Chip presentation
+uses private secondary badge styling and remains passive or an accessible button when given an
+action; decorative dots require a supplied visible label, and callers own counts and state.
+
+MapView uses MapLibre, its bundled worker and OpenFreeMap dark/light styles; Leaflet is retired.
+The paired Map example loads external tiles only after Load map, then demonstrates selectable
+category markers, solid/dashed routes and compact/section/fill sizes. Changing the map container's
+size refits supplied places/routes; selection and theme changes preserve the current camera.
+Run real-tile browser acceptance with `VAULTER_MAP_TILES=1 npm run test:ui -- tools/browser/maps.spec.ts`.

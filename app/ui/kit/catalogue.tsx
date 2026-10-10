@@ -71,10 +71,17 @@ function Buttons() {
       <K.Text size="sm" tone="muted">
         Saved {count} times in this example.
       </K.Text>
-      <K.ToggleGroup type="single" defaultValue="day" variant="outline">
+      <K.ToggleGroup type="single" aria-label="Date range" defaultValue="day">
         <K.ToggleGroupItem value="day">Day</K.ToggleGroupItem>
         <K.ToggleGroupItem value="week">Week</K.ToggleGroupItem>
         <K.ToggleGroupItem value="month">Month</K.ToggleGroupItem>
+      </K.ToggleGroup>
+      <K.ToggleGroup type="multiple" aria-label="Formatting choices" defaultValue={['bold']}>
+        <K.ToggleGroupItem value="bold">Bold</K.ToggleGroupItem>
+        <K.ToggleGroupItem value="italic">Italic</K.ToggleGroupItem>
+        <K.ToggleGroupItem value="underline" disabled={true}>
+          Underline
+        </K.ToggleGroupItem>
       </K.ToggleGroup>
       <K.TooltipProvider>
         <K.Tooltip>
@@ -88,18 +95,28 @@ function Buttons() {
   );
 }
 function Status() {
+  const [placeSelections, setPlaceSelections] = useState(0);
   const [toasterId] = useState(() => `kit-${crypto.randomUUID()}`);
   return (
     <K.Stack gap="lg">
       <K.Row wrap={true}>
         <K.Badge>Draft</K.Badge>
         <K.Badge variant="secondary">Saved</K.Badge>
+        <K.Badge variant="destructive">Needs attention</K.Badge>
         <K.Chip tone="people">Anna</K.Chip>
-        <K.Chip tone="places">Pascal</K.Chip>
+        <K.Chip tone="places" onClick={() => setPlaceSelections((count) => count + 1)}>
+          Pascal
+        </K.Chip>
         <K.Chip tone="events">Dinner</K.Chip>
-        <K.Dot tone="places" />
+        <K.Row gap="xs">
+          <K.Dot tone="places" />
+          <K.Text size="xs">Places</K.Text>
+        </K.Row>
         <K.Count n={3} />
       </K.Row>
+      <K.Text size="xs">
+        Pascal selected {placeSelections} {placeSelections === 1 ? 'time' : 'times'}.
+      </K.Text>
       <K.Notice title="A detail needs your attention" action={<K.Icon name="chevron-right" />}>
         Choose which date to keep.
       </K.Notice>
@@ -114,9 +131,7 @@ function Status() {
       <K.Row>
         <K.Activity busy={true} label="Thinking" />
         <K.Text size="sm">Thinking about your notes…</K.Text>
-        <K.Recording seconds={23} />
       </K.Row>
-      <K.Skeleton />
       <K.Separator />
       <K.Button variant="outline" onClick={() => K.toast.success('Note saved', { toasterId })}>
         Show notification
@@ -236,9 +251,10 @@ function Cards() {
   );
 }
 function Items() {
+  const [opened, setOpened] = useState(false);
   return (
     <K.ItemGroup>
-      <K.Item variant="outline">
+      <K.Item>
         <K.ItemHeader>
           <K.Text size="xs">Pinned note</K.Text>
         </K.ItemHeader>
@@ -250,7 +266,13 @@ function Items() {
           <K.ItemDescription>With Anna · Today</K.ItemDescription>
         </K.ItemContent>
         <K.ItemActions>
-          <K.Button variant="ghost" size="compact" iconOnly={true} aria-label="Open morning walk">
+          <K.Button
+            variant="ghost"
+            size="compact"
+            iconOnly={true}
+            aria-label="Open morning walk"
+            onClick={() => setOpened(true)}
+          >
             <K.Icon name="chevron-right" />
           </K.Button>
         </K.ItemActions>
@@ -270,6 +292,44 @@ function Items() {
           <K.ItemDescription>Time outside the city.</K.ItemDescription>
         </K.ItemContent>
       </K.Item>
+      <K.ItemSeparator />
+      <K.Item current={true} render={<button type="button" aria-label="Current reading note" />}>
+        <K.ItemMedia variant="icon">
+          <K.Icon name="file" />
+        </K.ItemMedia>
+        <K.ItemContent>
+          <K.ItemTitle>Current reading note</K.ItemTitle>
+          <K.ItemDescription>A framed icon and selected-row feedback.</K.ItemDescription>
+        </K.ItemContent>
+      </K.Item>
+      <K.ItemSeparator />
+      <K.Item>
+        <K.ItemMedia variant="image">
+          <img
+            alt="Supplied preview thumbnail"
+            src={new URL('../../public/icon-192.png', import.meta.url).href}
+          />
+        </K.ItemMedia>
+        <K.ItemContent>
+          <K.ItemTitle>A saved picture</K.ItemTitle>
+          <K.ItemDescription>Supplied media cropped inside a thumbnail.</K.ItemDescription>
+        </K.ItemContent>
+      </K.Item>
+      <K.Item>
+        <K.ItemHeader>
+          <K.Text size="xs">Initials in each category</K.Text>
+        </K.ItemHeader>
+        <K.ItemMedia>
+          <K.Avatar name="Neutral Note" tone="neutral" />
+        </K.ItemMedia>
+        <K.ItemMedia>
+          <K.Avatar name="Pascal Place" tone="places" />
+        </K.ItemMedia>
+        <K.ItemMedia>
+          <K.Avatar name="Dinner Event" tone="events" />
+        </K.ItemMedia>
+      </K.Item>
+      {opened ? <K.Text>Opened morning walk.</K.Text> : null}
     </K.ItemGroup>
   );
 }
@@ -353,7 +413,7 @@ function Layout() {
   return (
     <K.Page aside={<K.Details items={[['Updated', 'Today']]} />}>
       <K.PageHeader title="Slow mornings" description="The same page and details, rearranged." />
-      <K.Columns stack={true}>
+      <K.Columns>
         <K.Panel title="Today" from="Notes">
           <K.Text>Take a walk.</K.Text>
         </K.Panel>
@@ -369,16 +429,16 @@ function ListAndDetail() {
     <K.ListDetail
       list={
         <K.Stack>
-          <K.Text>Morning walk</K.Text>
-          <K.Text>Quiet weekend</K.Text>
+          <K.Text>How should I spend the morning?</K.Text>
+          <K.Text>What would make the weekend quieter?</K.Text>
         </K.Stack>
       }
       detail={
         <K.Page>
           <K.Heading level={1} serif={true}>
-            Morning walk
+            How should I spend the morning?
           </K.Heading>
-          <K.Text>A few thoughts from the way home.</K.Text>
+          <K.Text>A supplied question detail from an inbox or record browser.</K.Text>
         </K.Page>
       }
     />
@@ -389,15 +449,19 @@ function TabsSample() {
     <K.Tabs defaultValue="notes">
       <K.TabsList>
         <K.TabsTrigger value="notes">Notes</K.TabsTrigger>
-        <K.TabsTrigger value="activity">Activity</K.TabsTrigger>
+        <K.TabsTrigger value="activity">Today</K.TabsTrigger>
       </K.TabsList>
       <K.TabsContent value="notes">
         <K.Text>Your recent thoughts.</K.Text>
       </K.TabsContent>
       <K.TabsContent value="activity">
+        <K.Text>Chronological events for a planned Today or activity view.</K.Text>
         <K.Timeline>
           <K.TimelineItem time="09:41" now={true}>
             <K.Text>Saved a note</K.Text>
+          </K.TimelineItem>
+          <K.TimelineItem time="09:00">
+            <K.Text>Added a morning thought</K.Text>
           </K.TimelineItem>
           <K.TimelineItem time="08:30" last={true}>
             <K.Text>Took a walk</K.Text>
@@ -426,16 +490,69 @@ function Charts() {
 }
 function Maps() {
   const [load, setLoad] = useState(false);
+  const [size, setSize] = useState<'sm' | 'md' | 'fill'>('md');
+  const [selected, setSelected] = useState('coffee');
+  const points: K.MapPoint[] = [
+    {
+      id: 'coffee',
+      label: 'Coffee with Anna',
+      n: 1,
+      tone: 'people',
+      at: { lat: 59.337, lon: 18.06 },
+    },
+    {
+      id: 'walk',
+      label: 'Walk by the water',
+      n: 2,
+      tone: 'places',
+      at: { lat: 59.333, lon: 18.064 },
+    },
+    {
+      id: 'dinner',
+      label: 'Dinner with friends',
+      n: 3,
+      tone: 'events',
+      at: { lat: 59.338, lon: 18.067 },
+    },
+  ];
   return (
-    <K.Stack>
+    <K.Stack fill={true}>
       <K.Text size="sm" tone="muted">
         Loading the map connects to OpenFreeMap for public tiles.
       </K.Text>
       {load ? (
-        <K.MapView
-          label="Places in your notes"
-          points={[{ id: 'coffee', label: 'Coffee with Anna', at: { lat: 59.337, lon: 18.06 } }]}
-        />
+        <>
+          <K.Row wrap={true}>
+            <K.Button variant="outline" onClick={() => setSize('sm')}>
+              Compact map
+            </K.Button>
+            <K.Button variant="outline" onClick={() => setSize('md')}>
+              Section map
+            </K.Button>
+            <K.Button variant="outline" onClick={() => setSize('fill')}>
+              Fill map
+            </K.Button>
+          </K.Row>
+          <K.Text size="xs">
+            Selected place: {points.find((point) => point.id === selected)?.label}
+          </K.Text>
+          <K.Stack grow={true}>
+            <K.MapView
+              label="Places in your notes"
+              size={size}
+              points={points}
+              selected={selected}
+              onSelect={setSelected}
+              routes={[
+                {
+                  id: 'walk',
+                  points: [points[0]!.at, points[1]!.at, { lat: 59.329, lon: 18.065 }],
+                },
+                { id: 'travel', points: [points[1]!.at, points[2]!.at], dashed: true },
+              ]}
+            />
+          </K.Stack>
+        </>
       ) : (
         <K.Button variant="outline" onClick={() => setLoad(true)}>
           Load map
@@ -521,22 +638,32 @@ function Menus() {
   );
 }
 function Dialogs() {
+  const [review, setReview] = useState(false);
+  const [title, setTitle] = useState('Slow mornings');
   const [drawer, setDrawer] = useState(false);
   return (
     <K.Stack gap="lg">
-      <K.Dialog>
-        <K.DialogTrigger render={<K.Button variant="outline">Open dialog</K.Button>} />
-        <K.DialogContent>
-          <K.DialogHeader>
-            <K.DialogTitle>Keep this note?</K.DialogTitle>
-            <K.DialogDescription>You can change your mind later.</K.DialogDescription>
-          </K.DialogHeader>
-          <K.Input aria-label="Dialog note title" defaultValue="Slow mornings" />
-          <K.DialogFooter>
-            <K.DialogClose render={<K.Button>Keep note</K.Button>} />
-          </K.DialogFooter>
-        </K.DialogContent>
-      </K.Dialog>
+      <K.Button variant="outline" onClick={() => setReview(true)}>
+        Open note review
+      </K.Button>
+      <K.Overlay
+        open={review}
+        onClose={() => setReview(false)}
+        title="Keep this note?"
+        description="You can change your mind later."
+      >
+        <K.Input
+          aria-label="Note title"
+          value={title}
+          onChange={(event) => setTitle(event.currentTarget.value)}
+        />
+        <K.DialogFooter>
+          <K.Button variant="outline" onClick={() => setReview(false)}>
+            Cancel
+          </K.Button>
+          <K.Button onClick={() => setReview(false)}>Keep note</K.Button>
+        </K.DialogFooter>
+      </K.Overlay>
       <K.Button variant="outline" onClick={() => setDrawer(true)}>
         Open drawer
       </K.Button>
@@ -589,19 +716,12 @@ function CommandContent() {
 }
 function Search() {
   const [open, setOpen] = useState(false);
-  const [command, setCommand] = useState(false);
   return (
     <K.Stack>
       <K.SearchButton label="Search your vault" keys="⌘ K" onClick={() => setOpen(true)} />
       <K.SearchSurface open={open} onClose={() => setOpen(false)}>
         <CommandContent />
       </K.SearchSurface>
-      <K.Button variant="outline" onClick={() => setCommand(true)}>
-        Open primitive command dialog
-      </K.Button>
-      <K.CommandDialog open={command} onOpenChange={setCommand}>
-        <CommandContent />
-      </K.CommandDialog>
     </K.Stack>
   );
 }
@@ -635,11 +755,6 @@ function Settings() {
           </K.SettingField>
         </K.SettingsSection>
       </K.SettingsMenu>
-      <K.SettingsPage>
-        <K.SettingsSection title="Agent">
-          <Preferences model={model} onChange={setModel} />
-        </K.SettingsSection>
-      </K.SettingsPage>
     </K.Stack>
   );
 }
@@ -812,6 +927,12 @@ function AgentPanel() {
   );
 }
 function Voice() {
+  const [listChoice, setListChoice] = useState('');
+  const [inlineChoice, setInlineChoice] = useState('');
+  const answers = [
+    { label: 'Keep this thought', id: 'keep' },
+    { label: 'Explore a little more', id: 'explore' },
+  ];
   return (
     <K.Stack>
       <K.Row>
@@ -828,18 +949,24 @@ function Voice() {
         <K.SendButton busy={true} onStop={noop} />
       </K.Row>
       <K.VoiceStatus phase="listening" error="" />
+      <K.VoiceStatus phase="connecting" error="" />
+      <K.VoiceStatus phase="finishing" error="" />
       <K.VoiceStatus phase="ready" error="" />
       <K.VoiceStatus
         phase="error"
         error="The microphone disconnected. Your text remains in the message field."
       />
+      <K.Text>Question answers</K.Text>
+      <K.Choices choices={answers} suggested="keep" onChoose={(_, id) => setListChoice(id)} />
+      <K.Text>List answer: {listChoice || 'none'}</K.Text>
+      <K.Text>Inline answers</K.Text>
       <K.Choices
-        choices={[
-          { label: 'Keep this thought', id: 'keep' },
-          { label: 'Explore a little more', id: 'explore' },
-        ]}
-        onChoose={noop}
+        choices={answers}
+        layout="inline"
+        suggested="explore"
+        onChoose={(_, id) => setInlineChoice(id)}
       />
+      <K.Text>Inline answer: {inlineChoice || 'none'}</K.Text>
     </K.Stack>
   );
 }
@@ -922,27 +1049,12 @@ function Frames() {
     </K.WorkspaceFrame>
   );
 }
-function LegacyFrames() {
-  return (
-    <K.Columns stack={true}>
-      <K.DesktopMain>
-        <K.Text>Desktop main frame</K.Text>
-      </K.DesktopMain>
-      <K.MobileFrame bar={<K.MobileBar />}>
-        <K.Text>Mobile frame</K.Text>
-      </K.MobileFrame>
-    </K.Columns>
-  );
-}
 function SidebarParts() {
   return (
     <K.SidebarProvider>
-      <K.Sidebar collapsible="none">
+      <K.Sidebar>
         <K.SidebarHeader>
-          <K.Row justify="between">
-            <K.Brand />
-            <K.SidebarTrigger />
-          </K.Row>
+          <K.Brand />
         </K.SidebarHeader>
         <K.SidebarContent>
           <K.SidebarGroup>
@@ -969,6 +1081,9 @@ function SidebarParts() {
                 </K.SidebarMenuItem>
                 <K.SidebarMenuItem>
                   <K.SidebarMenuSkeleton />
+                </K.SidebarMenuItem>
+                <K.SidebarMenuItem>
+                  <K.SidebarMenuSkeleton showIcon={true} />
                 </K.SidebarMenuItem>
               </K.SidebarMenu>
             </K.SidebarGroupContent>
@@ -1022,6 +1137,15 @@ function Access() {
     </K.Gate>
   );
 }
+// Existing page/input presentation illustrates registration, without a new product design.
+function PreviewSummary({ title }: { title: string }) {
+  return (
+    <K.FeaturePage title={title}>
+      <K.Input aria-label="Preview draft" placeholder="Keep a draft while switching layouts…" />
+      <K.PreviewBar label="Notice primitive" kitHref="#navigation" onReset={noop} />
+    </K.FeaturePage>
+  );
+}
 function Preview() {
   return (
     <K.DesignPreview label="Design preview · sample data" kitHref="#navigation" onReset={noop}>
@@ -1031,19 +1155,18 @@ function Preview() {
         destinations={[{ label: 'Agent', href: '#agent', icon: 'sparkles', current: true }]}
         actions={[{ label: 'Settings', icon: 'settings', onSelect: noop }]}
       >
-        <K.FeaturePage title="Live preview">
-          <K.Input aria-label="Preview draft" placeholder="Keep a draft while switching layouts…" />
-          <K.PreviewBar label="Notice primitive" kitHref="#navigation" onReset={noop} />
-        </K.FeaturePage>
+        <K.DesignComparison
+          alternatives={[
+            { id: 'note', label: 'Note summary', content: <PreviewSummary title="Note summary" /> },
+            {
+              id: 'question',
+              label: 'Question summary',
+              content: <PreviewSummary title="Question summary" />,
+            },
+          ]}
+        />
       </K.NavigationSuite>
     </K.DesignPreview>
-  );
-}
-function SidePanels() {
-  return (
-    <K.SidePanel title="Note details" onClose={noop}>
-      <K.Text>A supporting panel.</K.Text>
-    </K.SidePanel>
   );
 }
 function Icons() {
@@ -1095,10 +1218,6 @@ function SurfacePrimitives() {
           <K.Surface variant="emblem">
             <K.Icon name="sparkles" />
           </K.Surface>
-          <K.Row>
-            <K.StatusMark active={true} />
-            <K.Text size="sm">Active status</K.Text>
-          </K.Row>
           <K.Surface variant="preferences">
             <K.Text>Preference surface</K.Text>
           </K.Surface>
@@ -1205,7 +1324,8 @@ export const catalogue: Specimen[] = [
   {
     id: 'provenance',
     title: 'Wiki provenance prototype',
-    description: 'The provenance reference page and its supporting evidence panel.',
+    description:
+      'Selected evidence design A: underlined wiki claims with quoted sources and superseded context beside the page or in the phone Drawer.',
     components: ['ProvenancePrototype'],
     Sample: Provenance,
     fullBleed: true,
@@ -1241,14 +1361,7 @@ export const catalogue: Specimen[] = [
     title: 'Settings',
     description:
       'Feature-owned text and choice fields with shared association: desktop dialog and phone drawer.',
-    components: [
-      'SettingsMenu',
-      'SettingsPage',
-      'SettingsSection',
-      'SettingField',
-      'ThemeSwitch',
-      'RadioGroup',
-    ],
+    components: ['SettingsMenu', 'SettingsSection', 'SettingField', 'ThemeSwitch', 'RadioGroup'],
     Sample: Settings,
   },
   {
@@ -1259,7 +1372,6 @@ export const catalogue: Specimen[] = [
       'SearchSurface',
       'SearchButton',
       'Command',
-      'CommandDialog',
       'CommandInput',
       'CommandList',
       'CommandEmpty',
@@ -1289,7 +1401,8 @@ export const catalogue: Specimen[] = [
   {
     id: 'agent-panel',
     title: 'Agent panel',
-    description: 'The same conversation in a centered desktop panel or full phone surface.',
+    description:
+      'One conversation: beside the workspace on wide screens, centered or in the shared Drawer when narrower.',
     components: ['ConversationPanel'],
     Sample: AgentPanel,
   },
@@ -1305,7 +1418,7 @@ export const catalogue: Specimen[] = [
     title: 'Surface & layout primitives',
     description:
       'Building blocks used by Agent and Settings: toolbar, reading column, dock and surface roles.',
-    components: ['Surface', 'Toolbar', 'ReadingColumn', 'Dock', 'StatusMark'],
+    components: ['Surface', 'Toolbar', 'ReadingColumn', 'Dock'],
     Sample: SurfacePrimitives,
     fullBleed: true,
   },
@@ -1313,7 +1426,7 @@ export const catalogue: Specimen[] = [
     id: 'panel-primitive',
     title: 'Adaptive panel primitive',
     description:
-      'One supporting content tree, with shared focus, dismissal and responsive placement.',
+      'Supporting content beside the page on wide screens and in shared modal/Drawer presentation when narrower; drafts and nested tasks stay mounted.',
     components: ['AdaptivePanel', 'Drawer'],
     Sample: PanelPrimitive,
   },
@@ -1356,7 +1469,7 @@ export const catalogue: Specimen[] = [
   {
     id: 'status',
     title: 'Status & feedback',
-    description: 'Tones, alerts, progress, loading and notifications.',
+    description: 'Tones, alerts, activity feedback and notifications.',
     components: [
       'Badge',
       'Chip',
@@ -1367,8 +1480,6 @@ export const catalogue: Specimen[] = [
       'AlertTitle',
       'AlertDescription',
       'Activity',
-      'Recording',
-      'Skeleton',
       'Separator',
       'Toaster',
     ],
@@ -1432,7 +1543,8 @@ export const catalogue: Specimen[] = [
   {
     id: 'items',
     title: 'Items & people',
-    description: 'List rows with metadata, avatars and actions.',
+    description:
+      'Plain and current rows with context, actions, framed icons, supplied thumbnails and category initials.',
     components: [
       'Item',
       'ItemGroup',
@@ -1490,7 +1602,8 @@ export const catalogue: Specimen[] = [
   {
     id: 'list-detail',
     title: 'List & detail',
-    description: 'Desktop shows both panes; phone gives the selected detail its space.',
+    description:
+      'Question inbox or record-browsing presentation: supplied list and detail, without selection or Back navigation.',
     components: ['ListDetail'],
     Sample: ListAndDetail,
     fullBleed: true,
@@ -1498,7 +1611,8 @@ export const catalogue: Specimen[] = [
   {
     id: 'tabs',
     title: 'Tabs & timeline',
-    description: 'Shared tab content and chronological entries.',
+    description:
+      'Rounded horizontal tabs and a timeline for planned Today/activity views; events are supplied.',
     components: ['Tabs', 'TabsList', 'TabsTrigger', 'TabsContent', 'Timeline', 'TimelineItem'],
     Sample: TabsSample,
   },
@@ -1512,7 +1626,8 @@ export const catalogue: Specimen[] = [
   {
     id: 'maps',
     title: 'Map',
-    description: 'The shared map presentation, loaded only on request.',
+    description:
+      'Opt-in MapLibre maps with selectable places, solid/dashed routes and compact/section/fill sizes.',
     components: ['MapView'],
     Sample: Maps,
   },
@@ -1549,18 +1664,8 @@ export const catalogue: Specimen[] = [
   {
     id: 'dialogs',
     title: 'Dialog & drawer',
-    description: 'Base overlay primitives, with contained live interactions.',
-    components: [
-      'Dialog',
-      'DialogClose',
-      'DialogContent',
-      'DialogDescription',
-      'DialogFooter',
-      'DialogHeader',
-      'DialogTitle',
-      'DialogTrigger',
-      'Drawer',
-    ],
+    description: 'Adaptive overlays, supplied responsive footer actions and contained drawers.',
+    components: ['DialogFooter', 'Drawer'],
     Sample: Dialogs,
   },
   {
@@ -1576,15 +1681,6 @@ export const catalogue: Specimen[] = [
       'NavigationSheet',
     ],
     Sample: Frames,
-    fullBleed: true,
-  },
-  {
-    id: 'base-frames',
-    title: 'Base frames',
-    description:
-      'Low-level frames for composing a workspace. Prefer NavigationSuite for feature navigation.',
-    components: ['DesktopMain', 'MobileFrame'],
-    Sample: LegacyFrames,
     fullBleed: true,
   },
   {
@@ -1612,7 +1708,6 @@ export const catalogue: Specimen[] = [
       'SidebarMenuSubItem',
       'SidebarProvider',
       'SidebarSeparator',
-      'SidebarTrigger',
     ],
     Sample: SidebarParts,
     fullBleed: true,
@@ -1628,17 +1723,10 @@ export const catalogue: Specimen[] = [
   {
     id: 'preview',
     title: 'Preview notice',
-    description: 'The notice used by the sample-data design preview.',
-    components: ['PreviewBar', 'DesignPreview'],
+    description:
+      'Separate device and design controls, demonstrated with retained page/input presentation.',
+    components: ['PreviewBar', 'DesignPreview', 'DesignComparison'],
     Sample: Preview,
-    fullBleed: true,
-  },
-  {
-    id: 'side-panel',
-    title: 'Supporting panel',
-    description: 'A low-level supporting content panel.',
-    components: ['SidePanel'],
-    Sample: SidePanels,
     fullBleed: true,
   },
   {

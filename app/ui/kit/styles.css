@@ -36,7 +36,8 @@ body,
 .kit-preview {
   flex: none;
   position: relative;
-  overflow: hidden;
+  /* Keep focus reveal in inner scroll areas; this frame must never scroll its portal. */
+  overflow: clip;
   border: 1px solid var(--border);
   background: var(--background);
 }
@@ -57,6 +58,20 @@ body,
   --type-input: 1rem;
   --control-size: var(--target-touch);
 }
+/* The selected wiki evidence stays beside its prose from expanded width onward.
+   Its same Drawer Popup/content moves to the shared full-height compact surface. */
+.kit-drawer.kit-evidence-panel[data-layout="wide"] {
+  position: sticky;
+  top: 1rem;
+  align-self: flex-start;
+  width: 340px;
+  height: auto;
+  max-height: calc(var(--viewport-height, 100dvh) - 2rem);
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
 @media (any-pointer: coarse) {
   .design-viewport .kit-presentation {
     --type-input: 1rem;
@@ -77,7 +92,7 @@ body,
   }
 }
 /* Viewport-sized pieces retain their real layout, bounded by the specimen's height. */
-.kit-presentation :is(.h-dvh, .h-svh) {
+.kit-presentation .h-svh {
   height: var(--viewport-height);
 }
 .kit-presentation .min-h-svh {
@@ -159,7 +174,6 @@ body:has(.kit-design-window) {
   --border: light-dark(#e4e4e7, #27272a);
   --input: light-dark(#e4e4e7, #3f3f46);
   --ring: light-dark(#a1a1aa, #71717a);
-  --key-border: light-dark(#d4d4d8, #52525b);
   --link: light-dark(#1d4ed8, #60a5fa);
 
   /* Tones: what a thing is about. */
@@ -387,7 +401,6 @@ body:has(.kit-design-window) {
   --color-subtle-foreground: var(--subtle-foreground);
   --color-body: var(--body);
   --color-surface: var(--surface);
-  --color-key-border: var(--key-border);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
@@ -442,7 +455,6 @@ body:has(.kit-design-window) {
         [data-slot="input-group"],
         [data-slot="input-group-control"],
         [data-slot="tabs-trigger"],
-        [data-slot="toggle"],
         [data-slot="toggle-group-item"],
         [data-slot="command-input-wrapper"],
         [data-slot="command-input"],
@@ -451,7 +463,6 @@ body:has(.kit-design-window) {
         [data-slot="dropdown-menu-checkbox-item"],
         [data-slot="dropdown-menu-radio-item"],
         [data-slot="dropdown-menu-sub-trigger"],
-        [data-slot="dialog-close"]:not([data-kit-preview] *),
         [data-slot="sheet-close"],
         [data-slot="sidebar-menu-button"],
         [data-slot="sidebar-menu-sub-button"],
@@ -465,7 +476,6 @@ body:has(.kit-design-window) {
       [data-slot="tabs-list"]:not([data-kit-preview] *) {
       min-height: calc(var(--target-touch) + 6px) !important;
     }
-    [data-slot="dialog-close"]:not([data-kit-preview] *),
     [data-slot="sheet-close"]:not([data-kit-preview] *) {
       display: flex;
       align-items: center;
@@ -489,7 +499,6 @@ body:has(.kit-design-window) {
         [data-slot="input-group"],
         [data-slot="input-group-control"],
         [data-slot="tabs-trigger"],
-        [data-slot="toggle"],
         [data-slot="toggle-group-item"],
         [data-slot="command-input-wrapper"],
         [data-slot="command-input"],
@@ -498,7 +507,6 @@ body:has(.kit-design-window) {
         [data-slot="dropdown-menu-checkbox-item"],
         [data-slot="dropdown-menu-radio-item"],
         [data-slot="dropdown-menu-sub-trigger"],
-        [data-slot="dialog-close"],
         [data-slot="sheet-close"],
         [data-slot="sidebar-menu-button"],
         [data-slot="sidebar-menu-sub-button"],
@@ -511,7 +519,6 @@ body:has(.kit-design-window) {
     [data-slot="tabs"][data-orientation="horizontal"] [data-slot="tabs-list"] {
       min-height: calc(var(--target-touch) + 6px) !important;
     }
-    [data-slot="dialog-close"],
     [data-slot="sheet-close"] {
       display: flex;
       align-items: center;

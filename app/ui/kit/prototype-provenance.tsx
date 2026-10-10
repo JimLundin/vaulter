@@ -1,15 +1,13 @@
-// PROTOTYPE, throwaway (branch prototype/wiki-provenance). Question: how should claim-level
-// provenance read on a curated prose wiki page? Three variants of /prototype/provenance/, switchable
-// via ?variant=A|B|C (← → keys or the bottom bar). All data is fictional and in memory.
-//   A  Side panel: claims are quietly underlined; selecting one opens its evidence beside the page.
-//      DECIDED: A on desktop; on mobile the same panel opens in the kit's one drawer (Drawer),
-//      matching Navigation and Settings. A right-side sheet was tried and rejected: nothing else in the
-//      app slides in from the side on mobile.
-//   B  Sidenotes: numbered claims with their quoted evidence always visible in the margin.
-//   C  Trace: the page beside the history log; claims and events highlight each other both ways.
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+// Selected wiki evidence reference from prototype/wiki-provenance. A was chosen: underlined
+// claims open quoted evidence beside the page on desktop and in the shared phone Drawer.
+// The fictional in-memory fixtures illustrate the design, not a persisted wiki workflow.
+import { useRef, useState, type ReactNode } from 'react';
 import { useLayout } from './hooks/use-layout.ts';
-import { Drawer } from './drawer.tsx';
+import { Button } from './parts/button.tsx';
+import { DrawerRoot, DrawerContent, DrawerTitle } from './parts/drawer.tsx';
+import { ScrollArea } from './parts/scroll-area.tsx';
+import { Icon } from './icons.tsx';
+import { cn } from './lib/utils.ts';
 
 // ---------------------------------------------------------------------------------------------------
 // The model under test
@@ -18,19 +16,10 @@ type EventId = string;
 type SourceId = string;
 type ClaimId = string;
 
-type HistoryEvent = { id: EventId; at: string; session: string } & (
-  | {
-      type: 'utterance';
-      text: string;
-      input: 'voice' | 'typed';
-      transcript?: string;
-      context: { device?: string; where?: string; weather?: string };
-    }
-  | { type: 'reply'; text: string; model: string }
-  | { type: 'interpretation'; about: EventId[]; summary: string; topics: string[] }
-  | { type: 'search'; query: string; results: { url: string; title: string }[]; kept: SourceId[] }
-  | { type: 'source'; source: SourceId }
-  | { type: 'wiki-change'; basedOn: EventId[]; page: string; ops: string[] }
+type HistoryEvent = { id: EventId; at: string } & (
+  | { type: 'utterance'; text: string; input: 'voice' | 'typed'; context: { where?: string } }
+  | { type: 'search'; query: string }
+  | { type: 'wiki-change' }
 );
 
 type Source = {
@@ -78,96 +67,37 @@ const events: HistoryEvent[] = [
   {
     id: 'evt_01JHX4',
     at: '2026-01-14T18:40:12+01:00',
-    session: 's_0114',
     type: 'utterance',
     input: 'voice',
     text: "Oh and my cousin Mira called. She's still in Majorna but she's thinking about Stockholm again, she sounded pretty done with Göteborg honestly.",
-    context: { device: 'phone', where: 'Home' },
+    context: { where: 'Home' },
   },
   {
     id: 'evt_01K9A1',
     at: '2026-10-08T08:12:40+02:00',
-    session: 's_1008a',
     type: 'utterance',
     input: 'voice',
-    transcript:
-      "had coffee with mira this morning she's finally settled in stockholm she's got the flat on katarina bangata now the one with the tiny balcony she moved up in march uh and her ceramics thing is going well she's selling at the christmas markets again and she's been saving for a bigger kiln before the winter markets",
     text: "Had coffee with Mira this morning, she's finally settled in Stockholm. She's got the flat on Katarina Bangata now, the one with the tiny balcony. She moved up in March. Uh, and her ceramics thing is going well, she's selling at the Christmas markets again, and she's been saving for a bigger kiln before the winter markets.",
-    context: { device: 'phone', where: 'Södermalm, walking', weather: '9°, overcast' },
-  },
-  {
-    id: 'evt_01K9A2',
-    at: '2026-10-08T08:12:52+02:00',
-    session: 's_1008a',
-    type: 'reply',
-    model: 'gpt-6-astra',
-    text: "Good to hear she's settled. I'll update Mira's page.",
-  },
-  {
-    id: 'evt_01K9A3',
-    at: '2026-10-08T08:12:55+02:00',
-    session: 's_1008a',
-    type: 'interpretation',
-    about: ['evt_01K9A1'],
-    summary: 'Coffee with Mira; she has moved to Stockholm and her ceramics studio is growing.',
-    topics: ['mira-holm', 'stockholm'],
+    context: { where: 'Södermalm, walking' },
   },
   {
     id: 'evt_01K9A4',
     at: '2026-10-08T08:13:03+02:00',
-    session: 's_1008a',
     type: 'search',
     query: 'Holm keramik aktiebolag Stockholm Mira Holm',
-    results: [
-      {
-        url: 'https://foretagsinfo.example/559412-3381',
-        title: 'Holm Keramik AB – företagsinformation',
-      },
-      {
-        url: 'https://markets.example/julmarknad-2025/utstallare',
-        title: 'Julmarknad 2025 – utställare',
-      },
-      { url: 'https://keramik.example/holm', title: 'Holm Keramik – kurser i drejning' },
-    ],
-    kept: ['src_bolag_559412'],
-  },
-  {
-    id: 'evt_01K9A5',
-    at: '2026-10-08T08:13:06+02:00',
-    session: 's_1008a',
-    type: 'source',
-    source: 'src_bolag_559412',
   },
   {
     id: 'evt_01K9A6',
     at: '2026-10-08T08:13:20+02:00',
-    session: 's_1008a',
     type: 'wiki-change',
-    basedOn: ['evt_01K9A1', 'evt_01K9A5'],
-    page: 'mira-holm',
-    ops: [
-      'Home: retract c-home-majorna (superseded by c-home)',
-      'Home: add c-home, c-moved',
-      'Work: add c-studio, c-markets, c-kiln',
-    ],
   },
   {
     id: 'evt_01K9F7',
     at: '2026-10-08T21:05:31+02:00',
-    session: 's_1008b',
     type: 'utterance',
     input: 'typed',
     text: "Mira sent a photo of the kiln she wants, it's a Nabertherm Top 60. Around 40k she said.",
-    context: { device: 'laptop', where: 'Home' },
-  },
-  {
-    id: 'evt_01K9F8',
-    at: '2026-10-08T21:05:40+02:00',
-    session: 's_1008b',
-    type: 'wiki-change',
-    basedOn: ['evt_01K9F7'],
-    page: 'mira-holm',
-    ops: ['Work: revise c-kiln (add model and price)'],
+    context: { where: 'Home' },
   },
 ];
 
@@ -388,12 +318,12 @@ for (const cl of allClaims)
 
 const anchorText = (a: Anchor) =>
   a.in === 'event' ? textOfEvent(a.event) : (sourceById.get(a.source)?.text ?? '');
-const anchorValid = (a: Anchor) => anchorText(a).slice(a.start, a.end) === a.exact;
-
 // ---------------------------------------------------------------------------------------------------
-// Shared presentation pieces (layouts differ per variant)
+// Selected claim and evidence presentation
 
 const time = (at: string) => at.slice(11, 16);
+const anchorValid = (a: Anchor) => anchorText(a).slice(a.start, a.end) === a.exact;
+
 const day = (at: string) =>
   new Date(at.slice(0, 10)).toLocaleDateString('en-GB', {
     day: 'numeric',
@@ -401,21 +331,18 @@ const day = (at: string) =>
     year: 'numeric',
   });
 
-type Mark = { start: number; end: number; tone: 'event' | 'source' | 'faint' };
+type Mark = { start: number; end: number; tone: 'event' | 'source' };
 
-/** Text with highlighted spans; overlapping marks resolve to the strongest tone. */
+/** Exact quoted ranges remain highlighted in their source context. */
 function Marked({ text, marks }: { text: string; marks: Mark[] }) {
   const cuts = [...new Set([0, text.length, ...marks.flatMap((m) => [m.start, m.end])])].sort(
     (a, b) => a - b,
   );
-  const rank = { faint: 1, source: 2, event: 2 } as const;
   return (
     <>
       {cuts.slice(0, -1).map((from, i) => {
         const to = cuts[i + 1];
-        const over = marks
-          .filter((m) => m.start <= from && m.end >= to)
-          .sort((a, b) => rank[b.tone] - rank[a.tone])[0];
+        const over = marks.find((m) => m.start <= from && m.end >= to);
         const piece = text.slice(from, to);
         if (!over) return <span key={from}>{piece}</span>;
         return (
@@ -424,9 +351,7 @@ function Marked({ text, marks }: { text: string; marks: Mark[] }) {
             className={
               over.tone === 'event'
                 ? 'rounded-sm bg-people-soft px-0.5 text-people-ink'
-                : over.tone === 'source'
-                  ? 'rounded-sm bg-places-soft px-0.5 text-places-ink'
-                  : 'bg-transparent text-inherit underline decoration-people/40 decoration-2 underline-offset-4'
+                : 'rounded-sm bg-places-soft px-0.5 text-places-ink'
             }
           >
             {piece}
@@ -435,18 +360,6 @@ function Marked({ text, marks }: { text: string; marks: Mark[] }) {
       })}
     </>
   );
-}
-
-/** A window of `text` around a span, cut at word boundaries. */
-function around(text: string, start: number, end: number, size = 70) {
-  let from = Math.max(0, start - size);
-  let to = Math.min(text.length, end + size);
-  if (from > 0) from = text.indexOf(' ', from) + 1 || from;
-  if (to < text.length) to = text.lastIndexOf(' ', to) || to;
-  return {
-    text: `${from > 0 ? '… ' : ''}${text.slice(from, to)}${to < text.length ? ' …' : ''}`,
-    shift: from > 0 ? from - 2 : 0,
-  };
 }
 
 function SupportBadge({ support }: { support: Evidence['support'] }) {
@@ -463,13 +376,12 @@ function SupportBadge({ support }: { support: Evidence['support'] }) {
   );
 }
 
-function EvidenceCard({ evidence, compact = false }: { evidence: Evidence; compact?: boolean }) {
+function EvidenceCard({ evidence }: { evidence: Evidence }) {
   const { anchor } = evidence;
   const full = anchorText(anchor);
-  const shown = compact ? around(full, anchor.start, anchor.end) : { text: full, shift: 0 };
   const mark: Mark = {
-    start: anchor.start - shown.shift,
-    end: anchor.end - shown.shift,
+    start: anchor.start,
+    end: anchor.end,
     tone: anchor.in,
   };
   if (anchor.in === 'event') {
@@ -490,14 +402,12 @@ function EvidenceCard({ evidence, compact = false }: { evidence: Evidence; compa
           </span>
         </div>
         <p className="m-0 whitespace-pre-line font-serif text-copy">
-          “<Marked text={shown.text} marks={[mark]} />”
+          “<Marked text={full} marks={[mark]} />”
         </p>
         {evidence.note ? (
           <p className="m-0 text-label text-muted-foreground">Agent: {evidence.note}</p>
         ) : null}
-        {!compact ? (
-          <span className="font-mono text-label text-muted-foreground">{e.id}</span>
-        ) : null}
+        <span className="font-mono text-label text-muted-foreground">{e.id}</span>
       </div>
     );
   }
@@ -513,22 +423,20 @@ function EvidenceCard({ evidence, compact = false }: { evidence: Evidence; compa
         </span>
       </div>
       <p className="m-0 whitespace-pre-line font-mono text-label leading-relaxed">
-        <Marked text={shown.text} marks={[mark]} />
+        <Marked text={full} marks={[mark]} />
       </p>
       {evidence.note ? (
         <p className="m-0 text-label text-muted-foreground">Agent: {evidence.note}</p>
       ) : null}
-      {!compact ? (
-        <div className="flex flex-col gap-0.5 text-label text-muted-foreground">
-          <a className="text-link" href={s.url} target="_blank" rel="noreferrer">
-            {s.title}
-          </a>
-          <span>
-            Snapshot {day(s.retrieved)} {time(s.retrieved)} · {s.hash}
-          </span>
-          {search?.type === 'search' ? <span>Found by searching “{search.query}”</span> : null}
-        </div>
-      ) : null}
+      <div className="flex flex-col gap-0.5 text-label text-muted-foreground">
+        <a className="text-link" href={s.url} target="_blank" rel="noreferrer">
+          {s.title}
+        </a>
+        <span>
+          Snapshot {day(s.retrieved)} {time(s.retrieved)} · {s.hash}
+        </span>
+        {search?.type === 'search' ? <span>Found by searching “{search.query}”</span> : null}
+      </div>
     </div>
   );
 }
@@ -549,15 +457,13 @@ function RetractedNote({ id }: { id: ClaimId }) {
   );
 }
 
-type Hover = { claim?: ClaimId; evidence?: string };
-
 /** Prose renderer: a switch over block and inline types, no Markdown involved. */
 function Prose({ content, render }: { content: Inline[]; render: (claim: Claim) => ReactNode }) {
   return (
     <>
-      {content.map((i) =>
+      {content.map((i, index) =>
         i.type === 'text' ? (
-          <span key={i.text}>{i.text}</span>
+          <span key={JSON.stringify(content.slice(0, index + 1))}>{i.text}</span>
         ) : i.type === 'ref' ? (
           <a key={i.to} className="text-link" href={`#/${i.to}/`}>
             {i.label}
@@ -570,6 +476,7 @@ function Prose({ content, render }: { content: Inline[]; render: (claim: Claim) 
   );
 }
 
+// ---------------------------------------------------------------------------------------------------
 function UncitedToggle({ on, set }: { on: boolean; set: (v: boolean) => void }) {
   return (
     <label className="flex items-center gap-2 text-label text-muted-foreground">
@@ -584,14 +491,14 @@ const uncitedClass = (on: boolean) =>
     ? '[&>span:not(:has([data-claim]))]:text-muted-foreground/60 [&>span:not(:has([data-claim]))]:italic'
     : '';
 
-function StatePanel({ selected, hover }: { selected?: ClaimId; hover: Hover }) {
+function StatePanel({ selected }: { selected?: ClaimId }) {
   const claim = selected
     ? (claimById.get(selected) ?? retractedById.get(selected)?.claim)
     : undefined;
   return (
     <details className="rounded-lg border border-border bg-surface p-3 text-label">
       <summary className="cursor-pointer text-muted-foreground">
-        Prototype state · selected {selected ?? '—'} · hover {hover.claim ?? hover.evidence ?? '—'}
+        Prototype state · selected {selected ?? '—'}
       </summary>
       <pre className="mt-2 max-h-80 overflow-auto font-mono text-label whitespace-pre-wrap">
         {claim
@@ -614,7 +521,6 @@ function StatePanel({ selected, hover }: { selected?: ClaimId; hover: Hover }) {
   );
 }
 
-// ---------------------------------------------------------------------------------------------------
 // Variant A: side panel
 
 function EvidencePanel({ claim }: { claim: Claim }) {
@@ -635,18 +541,23 @@ const panelHeading = 'Why the page says this';
 function VariantA() {
   const mobile = useLayout() === 'compact';
   const [selected, setSelected] = useState<ClaimId | undefined>(mobile ? undefined : 'c-home');
+  const opener = useRef<HTMLButtonElement | null>(null);
   const [uncited, setUncited] = useState(false);
   const claim = selected ? claimById.get(selected) : undefined;
   const render = (cl: Claim) => (
     <button
       data-claim=""
       type="button"
-      onClick={() => setSelected(cl.id)}
-      className={
+      onClick={(event) => {
+        opener.current = event.currentTarget;
+        setSelected(cl.id);
+      }}
+      className={cn(
+        'text-left outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer',
         selected === cl.id
-          ? 'cursor-pointer rounded-sm bg-people-soft decoration-people underline decoration-2 underline-offset-4'
-          : 'cursor-pointer underline decoration-border decoration-dotted decoration-2 underline-offset-4 hover:decoration-people'
-      }
+          ? 'rounded-sm bg-people-soft decoration-people underline decoration-2 underline-offset-4'
+          : 'underline decoration-border decoration-dotted decoration-2 underline-offset-4 hover:decoration-people',
+      )}
     >
       {cl.text}
     </button>
@@ -675,456 +586,61 @@ function VariantA() {
             ))}
           </section>
         ))}
-        <StatePanel selected={selected} hover={{}} />
+        <StatePanel selected={selected} />
       </article>
-      {mobile ? (
-        <Drawer open={!!claim} onClose={() => setSelected(undefined)} title={panelHeading}>
-          <div className="flex flex-col gap-3 px-4 pt-2 pb-6">
-            {claim ? <EvidencePanel claim={claim} /> : null}
-          </div>
-        </Drawer>
-      ) : (
-        <aside className="flex shrink-0 flex-col gap-3 md:sticky md:top-4 md:w-[340px] md:self-start">
-          {claim ? (
-            <>
-              <div className="flex items-baseline justify-between gap-2">
-                <h2 className="m-0 text-label font-medium uppercase tracking-wide text-muted-foreground">
-                  {panelHeading}
-                </h2>
-                <button
-                  type="button"
-                  className="text-label text-muted-foreground"
-                  onClick={() => setSelected(undefined)}
-                >
-                  Close
-                </button>
-              </div>
-              <EvidencePanel claim={claim} />
-            </>
-          ) : (
-            <p className="m-0 text-label text-muted-foreground">
-              Select an underlined statement to see where it came from.
-            </p>
-          )}
-        </aside>
-      )}
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------------------------------
-// Variant B: sidenotes
-
-function VariantB() {
-  const [open, setOpen] = useState<ClaimId | undefined>();
-  const [hover, setHover] = useState<ClaimId | undefined>();
-  const numbers = new Map(allClaims.map((cl, n) => [cl.id, n + 1]));
-  const render = (cl: Claim) => (
-    <mark
-      data-claim=""
-      onMouseEnter={() => setHover(cl.id)}
-      onMouseLeave={() => setHover(undefined)}
-      className={hover === cl.id || open === cl.id ? 'rounded-sm bg-people-soft' : ''}
-    >
-      {cl.text}
-      <sup className="ml-0.5 font-sans text-label text-people-ink">{numbers.get(cl.id)}</sup>
-    </mark>
-  );
-  const claimsIn = (content: Inline[]) => content.filter((i): i is Claim => i.type === 'claim');
-  const row = (content: Inline[], key?: number) => (
-    <div
-      key={key}
-      className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,var(--reading-width))_300px] md:gap-8"
-    >
-      <p className="m-0 font-serif text-lead">
-        <Prose content={content} render={render} />
-      </p>
-      <ol className="m-0 flex list-none flex-col gap-3 border-l border-border p-0 pl-4 md:pl-5">
-        {claimsIn(content).map((cl) => (
-          <li
-            key={cl.id}
-            onMouseEnter={() => setHover(cl.id)}
-            onMouseLeave={() => setHover(undefined)}
-            className={`flex flex-col gap-1.5 text-label ${hover === cl.id ? 'opacity-100' : 'opacity-80'}`}
-          >
-            <button
-              type="button"
-              className="flex items-baseline gap-2 text-left"
-              onClick={() => setOpen(open === cl.id ? undefined : cl.id)}
-            >
-              <span className="font-medium text-people-ink">{numbers.get(cl.id)}</span>
-              <span className="text-muted-foreground">
-                {cl.evidence
-                  .map((e) =>
-                    e.anchor.in === 'event'
-                      ? `${day(eventById.get(e.anchor.event)!.at)} dictation`
-                      : 'public record',
-                  )
-                  .filter((v, i, a) => a.indexOf(v) === i)
-                  .join(' + ')}
-                {cl.evidence.some((e) => e.support === 'inferred') ? ' · partly inferred' : ''}
-              </span>
-            </button>
-            {open === cl.id ? (
-              <div className="flex flex-col gap-2">
-                {cl.evidence.map((e) => (
-                  <EvidenceCard
-                    key={`${evidenceKey(e.anchor)}:${e.anchor.start}`}
-                    evidence={e}
-                    compact={true}
-                  />
-                ))}
-                {cl.supersedes ? <RetractedNote id={cl.supersedes} /> : null}
-              </div>
-            ) : (
-              cl.evidence.map((e) => (
-                <span
-                  key={`${evidenceKey(e.anchor)}:${e.anchor.start}`}
-                  className={`border-l-2 pl-2 font-serif italic ${e.anchor.in === 'event' ? 'border-people' : 'border-places'}`}
-                >
-                  “{e.anchor.exact}”
-                </span>
-              ))
-            )}
-          </li>
-        ))}
-      </ol>
-    </div>
-  );
-  return (
-    <div className="mx-auto flex w-full max-w-[calc(var(--reading-width)+340px)] flex-col gap-6 px-[var(--page-inset)] py-[var(--page-block)]">
-      <header className="flex flex-col gap-2">
-        <span className="text-label text-muted-foreground">
-          Person · {allClaims.length} sourced statements
-        </span>
-        <h1 className="m-0 font-serif text-display">{page.title}</h1>
-      </header>
-      {row(page.lead)}
-      {page.sections.map((s) => (
-        <section key={s.id} className="flex flex-col gap-3">
-          <h2 className="m-0 text-title">{s.heading}</h2>
-          {s.blocks.map((b, n) => row(b.content, n))}
-        </section>
-      ))}
-      <StatePanel selected={open} hover={{ claim: hover }} />
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------------------------------
-// Variant C: trace (page ⇄ history)
-
-function VariantC() {
-  const [hover, setHover] = useState<Hover>({});
-  const [pinned, setPinned] = useState<ClaimId | undefined>();
-  const [uncited, setUncited] = useState(true);
-  const active = pinned ?? hover.claim;
-  const activeClaim = active ? claimById.get(active) : undefined;
-  const lit = new Set(hover.evidence ? (citedBy.get(hover.evidence) ?? []) : []);
-  const render = (cl: Claim) => {
-    const kinds = new Set(cl.evidence.map((e) => e.anchor.in));
-    return (
-      <button
-        data-claim=""
-        type="button"
-        onMouseEnter={() => setHover({ claim: cl.id })}
-        onMouseLeave={() => setHover({})}
-        onClick={() => setPinned(pinned === cl.id ? undefined : cl.id)}
-        className={`cursor-pointer rounded-sm transition-colors ${
-          active === cl.id || lit.has(cl.id)
-            ? 'bg-people-soft'
-            : kinds.has('source')
-              ? 'underline decoration-places/50 decoration-2 underline-offset-4'
-              : 'underline decoration-people/40 decoration-2 underline-offset-4'
-        }`}
+      <DrawerRoot
+        open={!!claim}
+        modal={mobile}
+        disablePointerDismissal={!mobile}
+        onOpenChange={(open) => {
+          if (!open) setSelected(undefined);
+        }}
       >
-        {cl.text}
-      </button>
-    );
-  };
-  const marksFor = (key: string, text: string): Mark[] =>
-    allClaims.flatMap((cl) =>
-      cl.evidence
-        .filter((e) => evidenceKey(e.anchor) === key)
-        .map((e) => ({
-          start: e.anchor.start,
-          end: e.anchor.end,
-          tone:
-            cl.id === active
-              ? e.anchor.in === 'event'
-                ? 'event'
-                : 'source'
-              : ('faint' as Mark['tone']),
-        }))
-        .filter((m) => text.slice(m.start, m.end).length),
-    );
-  const isUsed = (key: string) =>
-    !!activeClaim?.evidence.some((e) => evidenceKey(e.anchor) === key);
-  useEffect(() => {
-    const first = activeClaim?.evidence[0];
-    if (first)
-      document
-        .getElementById(`trace-${evidenceKey(first.anchor)}`)
-        ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-  }, [activeClaim]);
-  const days = [...new Set(events.map((e) => e.at.slice(0, 10)))];
-  return (
-    <div className="grid w-full grid-cols-1 gap-8 px-[var(--page-inset)] py-[var(--page-block)] md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-      <article className="flex min-w-0 flex-col gap-5">
-        <header className="flex flex-col gap-2">
-          <h1 className="m-0 font-serif text-display">{page.title}</h1>
-          <p className={`m-0 font-serif text-lead ${uncitedClass(uncited)}`}>
-            <Prose content={page.lead} render={render} />
+        <DrawerContent
+          inline={true}
+          arrangement="panel"
+          compact={mobile}
+          data-layout={mobile ? 'compact' : 'wide'}
+          role={mobile ? 'dialog' : 'complementary'}
+          aria-label={panelHeading}
+          aria-describedby={undefined}
+          finalFocus={() => opener.current}
+          initialFocus={mobile}
+          className="kit-evidence-panel"
+        >
+          <div className="flex shrink-0 items-center justify-between gap-2 px-4 pt-4 pb-3 md:px-0 md:pt-0">
+            <DrawerTitle className="text-label font-medium uppercase tracking-wide text-muted-foreground">
+              {panelHeading}
+            </DrawerTitle>
+            <Button
+              variant="ghost"
+              size="standard"
+              iconOnly={true}
+              aria-label={`Close ${panelHeading.toLowerCase()}`}
+              onClick={() => setSelected(undefined)}
+            >
+              <Icon name="close" />
+            </Button>
+          </div>
+          <ScrollArea grow={true}>
+            <div className="flex flex-col gap-3 px-4 pb-6 md:px-0 md:pb-0">
+              {claim ? <EvidencePanel claim={claim} /> : null}
+            </div>
+          </ScrollArea>
+        </DrawerContent>
+      </DrawerRoot>
+      {!(mobile || claim) ? (
+        <aside className="flex shrink-0 flex-col gap-3 md:w-[340px]">
+          <p className="m-0 text-label text-muted-foreground">
+            Select an underlined statement to see where it came from.
           </p>
-          <div className="flex flex-wrap items-center gap-4 text-label text-muted-foreground">
-            <UncitedToggle on={uncited} set={setUncited} />
-            <span className="flex items-center gap-1">
-              <span className="inline-block h-0.5 w-4 bg-people/60" /> dictation
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="inline-block h-0.5 w-4 bg-places/70" /> public record
-            </span>
-            <span>
-              {pinned
-                ? `Pinned ${pinned} (click again to unpin)`
-                : 'Hover a statement, click to pin'}
-            </span>
-          </div>
-        </header>
-        {page.sections.map((s) => (
-          <section key={s.id} className="flex flex-col gap-3">
-            <h2 className="m-0 text-title">{s.heading}</h2>
-            {s.blocks.map((b) => (
-              <p
-                key={JSON.stringify(b.content)}
-                className={`m-0 font-serif text-lead ${uncitedClass(uncited)}`}
-              >
-                <Prose content={b.content} render={render} />
-              </p>
-            ))}
-          </section>
-        ))}
-        {page.retracted.map((r) => (
-          <section key={r.claim.id} className="flex flex-col gap-2">
-            <h2 className="m-0 text-label font-medium uppercase tracking-wide text-muted-foreground">
-              No longer true
-            </h2>
-            <RetractedNote id={r.claim.id} />
-          </section>
-        ))}
-        <StatePanel selected={active} hover={hover} />
-      </article>
-      <aside className="flex min-w-0 flex-col gap-4 md:sticky md:top-4 md:max-h-[calc(var(--design-height,100vh)-6rem)] md:self-start md:overflow-auto">
-        <h2 className="m-0 text-label font-medium uppercase tracking-wide text-muted-foreground">
-          History
-        </h2>
-        {days.map((d) => (
-          <div key={d} className="flex flex-col gap-2">
-            <span className="text-label font-medium">{day(d)}</span>
-            {events
-              .filter((e) => e.at.startsWith(d))
-              .map((e) => {
-                const used = isUsed(e.id);
-                const enter = () => setHover({ evidence: e.id });
-                const leave = () => setHover({});
-                const frame = `flex flex-col gap-1 rounded-lg border p-3 transition-colors ${
-                  used ? 'border-people bg-card' : 'border-border bg-card'
-                }`;
-                const head = (label: string, tone = 'text-muted-foreground') => (
-                  <div className="flex flex-wrap items-center gap-2 text-label text-muted-foreground">
-                    <span className="font-mono">{time(e.at)}</span>
-                    <span className={`font-medium ${tone}`}>{label}</span>
-                    {citedBy.get(e.id)?.length ? (
-                      <span className="ml-auto">cited by {citedBy.get(e.id)!.length}</span>
-                    ) : null}
-                  </div>
-                );
-                if (e.type === 'utterance')
-                  return (
-                    <fieldset
-                      key={e.id}
-                      id={`trace-${e.id}`}
-                      className={frame}
-                      onMouseEnter={enter}
-                      onMouseLeave={leave}
-                    >
-                      {head(
-                        `Jim · ${e.input}${e.context.where ? ` · ${e.context.where}` : ''}`,
-                        'text-people-ink',
-                      )}
-                      <p className="m-0 font-serif text-copy">
-                        <Marked text={e.text} marks={marksFor(e.id, e.text)} />
-                      </p>
-                      {e.transcript ? (
-                        <details className="text-label text-muted-foreground">
-                          <summary className="cursor-pointer">Raw transcript</summary>
-                          <p className="m-0 mt-1 font-mono">{e.transcript}</p>
-                        </details>
-                      ) : null}
-                    </fieldset>
-                  );
-                if (e.type === 'source') {
-                  const s = sourceById.get(e.source)!;
-                  const u = isUsed(s.id);
-                  return (
-                    <fieldset
-                      key={e.id}
-                      id={`trace-${s.id}`}
-                      className={`flex flex-col gap-1 rounded-lg border p-3 ${u ? 'border-places bg-card' : 'border-border bg-card'}`}
-                      onMouseEnter={() => setHover({ evidence: s.id })}
-                      onMouseLeave={leave}
-                    >
-                      <div className="flex flex-wrap items-center gap-2 text-label text-muted-foreground">
-                        <span className="font-mono">{time(e.at)}</span>
-                        <span className="font-medium text-places-ink">Public record saved</span>
-                        <span className="ml-auto">cited by {citedBy.get(s.id)?.length ?? 0}</span>
-                      </div>
-                      <span className="text-label">
-                        {s.title} · {s.publisher}
-                      </span>
-                      <p className="m-0 whitespace-pre-line font-mono text-label leading-relaxed">
-                        <Marked text={s.text} marks={marksFor(s.id, s.text)} />
-                      </p>
-                    </fieldset>
-                  );
-                }
-                if (e.type === 'reply')
-                  return (
-                    <div key={e.id} className="flex gap-2 px-3 text-label text-muted-foreground">
-                      <span className="font-mono">{time(e.at)}</span>
-                      <span>Agent: {e.text}</span>
-                    </div>
-                  );
-                if (e.type === 'interpretation')
-                  return (
-                    <div key={e.id} className="flex gap-2 px-3 text-label text-muted-foreground">
-                      <span className="font-mono">{time(e.at)}</span>
-                      <span>
-                        Understood: {e.summary}{' '}
-                        <span className="font-mono">[{e.topics.join(', ')}]</span>
-                      </span>
-                    </div>
-                  );
-                if (e.type === 'search')
-                  return (
-                    <div
-                      key={e.id}
-                      className="flex flex-col gap-1 px-3 text-label text-muted-foreground"
-                    >
-                      <div className="flex gap-2">
-                        <span className="font-mono">{time(e.at)}</span>
-                        <span>Searched “{e.query}”</span>
-                      </div>
-                      <ul className="m-0 flex list-none flex-col gap-0.5 p-0 pl-12">
-                        {e.results.map((r) => (
-                          <li
-                            key={r.url}
-                            className={
-                              e.kept.length && r.url === sourceById.get(e.kept[0])?.url
-                                ? 'text-places-ink'
-                                : ''
-                            }
-                          >
-                            {r.url === sourceById.get(e.kept[0])?.url ? '✓ kept · ' : '· '}
-                            {r.title}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  );
-                return (
-                  <div
-                    key={e.id}
-                    className="flex flex-col gap-1 rounded-lg bg-muted px-3 py-2 text-label text-muted-foreground"
-                  >
-                    <div className="flex gap-2">
-                      <span className="font-mono">{time(e.at)}</span>
-                      <span className="font-medium text-foreground">Updated {page.title}</span>
-                      <span className="ml-auto">from {e.basedOn.join(', ')}</span>
-                    </div>
-                    {e.ops.map((op) => (
-                      <span key={op} className="pl-12 font-mono">
-                        {op}
-                      </span>
-                    ))}
-                  </div>
-                );
-              })}
-          </div>
-        ))}
-      </aside>
+        </aside>
+      ) : null}
     </div>
   );
 }
 
-// ---------------------------------------------------------------------------------------------------
-// Switcher
-
-const variants = [
-  { key: 'A', name: 'Side panel · drawer on mobile', View: VariantA },
-  { key: 'B', name: 'Sidenotes', View: VariantB },
-  { key: 'C', name: 'Trace', View: VariantC },
-];
-
-function useVariant() {
-  const read = () => {
-    const v = new URLSearchParams(location.search).get('variant');
-    return Math.max(
-      0,
-      variants.findIndex((x) => x.key === v),
-    );
-  };
-  const [index, setIndex] = useState(read);
-  const set = (i: number) => {
-    const next = (i + variants.length) % variants.length;
-    const url = new URL(location.href);
-    url.searchParams.set('variant', variants[next].key);
-    history.replaceState(history.state, '', url);
-    setIndex(next);
-  };
-  useEffect(() => {
-    const on = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement | null;
-      if (target?.closest('input, textarea, [contenteditable]')) return;
-      if (e.key === 'ArrowLeft') set(index - 1);
-      if (e.key === 'ArrowRight') set(index + 1);
-    };
-    addEventListener('keydown', on);
-    return () => removeEventListener('keydown', on);
-  });
-  return [index, set] as const;
-}
-
+/** Selected evidence reference; retired URL alternatives intentionally resolve to this design. */
 export function ProvenancePrototype() {
-  const [index, set] = useVariant();
-  const { View } = variants[index];
-  const showBar = useMemo(() => import.meta.env.MODE !== 'production', []);
-  return (
-    <>
-      <View />
-      {showBar ? (
-        <div className="fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center gap-1 rounded-full bg-foreground px-2 py-1 text-label text-background shadow-lg">
-          <button
-            type="button"
-            className="rounded-full px-2 py-1 hover:bg-background/15"
-            onClick={() => set(index - 1)}
-            aria-label="Previous variant"
-          >
-            ←
-          </button>
-          <span className="px-2">
-            {variants[index].key} ({variants[index].name})
-          </span>
-          <button
-            type="button"
-            className="rounded-full px-2 py-1 hover:bg-background/15"
-            onClick={() => set(index + 1)}
-            aria-label="Next variant"
-          >
-            →
-          </button>
-        </div>
-      ) : null}
-    </>
-  );
+  return <VariantA />;
 }
