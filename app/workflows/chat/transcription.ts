@@ -1,18 +1,12 @@
 // Live speech is a removable chat capability. The controller owns capture; views only render its state.
 import { useEffect, useRef, useSyncExternalStore } from 'react';
 
-export interface TranscriptionConnection {
-  finish: () => Promise<string>;
-  close: () => void;
-}
-export interface TranscriptionEvents {
-  text: (text: string) => void;
-  error: (error: Error) => void;
-}
-export type TranscriptionProvider = (
-  events: TranscriptionEvents,
-  signal: AbortSignal,
-) => Promise<TranscriptionConnection>;
+import type { TranscriptionProvider, TranscriptionConnection } from '../../agent/transcription.ts';
+export type {
+  TranscriptionProvider,
+  TranscriptionConnection,
+  TranscriptionEvents,
+} from '../../agent/transcription.ts';
 export interface TranscriptionState {
   phase: 'idle' | 'connecting' | 'listening' | 'finishing' | 'ready' | 'error';
   text: string;
