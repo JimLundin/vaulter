@@ -36,7 +36,8 @@ body,
 .kit-preview {
   flex: none;
   position: relative;
-  overflow: hidden;
+  /* Keep focus reveal in inner scroll areas; this frame must never scroll its portal. */
+  overflow: clip;
   border: 1px solid var(--border);
   background: var(--background);
 }

@@ -151,17 +151,23 @@ test('paired selected evidence stays bounded, independent and shows exact source
   await expect(phoneEvidence.getByText('Replaces', { exact: false })).toBeVisible();
   for (const width of [390, 1440]) {
     await page.setViewportSize({ width, height: 1000 });
+    // A browser focus reveal must scroll content, never the clipping specimen frame.
+    await mobile.evaluate((node) => {
+      node.scrollTop = 33;
+    });
     await expect
-      .poll(async () => {
-        const outer = (await mobile.boundingBox())!;
-        const inner = (await phoneEvidence.boundingBox())!;
-        return (
-          inner.x >= outer.x &&
-          inner.y >= outer.y &&
-          inner.x + inner.width <= outer.x + outer.width &&
-          inner.y + inner.height <= outer.y + outer.height
-        );
-      })
+      .poll(async () =>
+        mobile.evaluate((node) => {
+          const outer = node.getBoundingClientRect();
+          const inner = node.querySelector('[role="dialog"]')!.getBoundingClientRect();
+          return (
+            inner.x >= outer.x &&
+            inner.y >= outer.y &&
+            inner.right <= outer.right &&
+            inner.bottom <= outer.bottom
+          );
+        }),
+      )
       .toBe(true);
   }
   await phoneEvidence
