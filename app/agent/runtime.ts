@@ -4,7 +4,7 @@ import type { ModelMessage, SystemModelMessage } from 'ai';
 import type { NodeCommit, NodeStore } from '../vault/nodes/store.ts';
 import { canonical, frozen, compare } from '../vault/nodes/json.ts';
 import { cancellable } from '../vault/storage/coordination.ts';
-import type { LanguageModelProvider } from './providers.ts';
+import type { LanguageModelProvider, AgentExecutionProvider } from './providers.ts';
 import { agentContentContext } from './tool-context.ts';
 import { durableTools } from './tool-execution.ts';
 import type { PendingToolSave } from './tool-execution.ts';
@@ -46,7 +46,8 @@ export interface AgentRun {
 }
 export interface AgentBackendOptions {
   readonly nodes: NodeStore;
-  readonly model: LanguageModelProvider;
+  readonly model?: LanguageModelProvider;
+  readonly execution?: AgentExecutionProvider;
   readonly tools?: AgentToolFactory;
   readonly writableKinds?: readonly string[];
   readonly contentPolicy?: ContentWritePolicy;
@@ -54,6 +55,8 @@ export interface AgentBackendOptions {
 const errorMessage = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
 export function createAgentBackend(options: AgentBackendOptions) {
+  if (!(options.model || options.execution) || (options.model && options.execution))
+    throw new Error('Agent requires one text model or external execution provider');
   const runs = new Map<string, { identity: string; handle: AgentRun }>();
   const ownership = agentOwnership(options.nodes);
   let disposed = false;
@@ -137,15 +140,15 @@ export function createAgentBackend(options: AgentBackendOptions) {
           return state;
         }
         let text = '';
+        let output: AgentRunData['output'];
         let data = initialData;
         const started = performance.now();
         try {
           if (abort.signal.aborted) throw new Error('Agent stopped');
           notify({ phase: 'running', data, text });
-          const languageModel = await cancellable(
-            options.model(data.model.requested),
-            abort.signal,
-          );
+          const languageModel = options.model
+            ? await cancellable(options.model(data.model.requested), abort.signal)
+            : undefined;
           if (abort.signal.aborted) throw new Error('Agent stopped');
           const guard = agentContentContext({
             nodes: options.nodes,
@@ -247,54 +250,79 @@ export function createAgentBackend(options: AgentBackendOptions) {
             (message): message is SystemModelMessage => message.role === 'system',
           );
           const messages = effective.filter((message) => message.role !== 'system');
-          const stream = streamText({
-            ...data.settings,
-            tools: toolController.tools,
-            stopWhen: isStepCount(
-              typeof data.settings.maxSteps === 'number' ? data.settings.maxSteps : 1,
-            ),
-            model: languageModel,
-            messages,
-            instructions,
-            abortSignal: abort.signal,
-          });
-          const iterator = stream.fullStream[Symbol.asyncIterator]();
-          for (;;) {
-            // biome-ignore lint/performance/noAwaitInLoops: output order depends on each streamed event.
-            const next = await cancellable(iterator.next(), abort.signal);
-            if (next.done) break;
-            const event = next.value;
-            if (event.type === 'text-delta') {
-              text += event.text;
-              notify({
-                ...state,
-                phase: state.phase === 'paused' ? 'paused' : 'running',
-                data,
-                text,
-              });
-            }
-            if (event.type === 'error') throw event.error;
-            if (event.type === 'finish-step') {
-              data = {
-                ...data,
-                ...(event.response.modelId
-                  ? { model: { ...data.model, served: event.response.modelId } }
-                  : {}),
-                ...(event.response.id ? { request: event.response.id } : {}),
-              };
-            }
-            if (event.type === 'finish') {
-              data = {
-                ...data,
-                finishReason: event.finishReason,
-                usage: {
-                  input: event.totalUsage.inputTokens ?? 0,
-                  output: event.totalUsage.outputTokens ?? 0,
+          if (options.execution) {
+            const result = await cancellable(
+              options.execution({
+                messages,
+                instructions,
+                tools: toolController.tools,
+                signal: abort.signal,
+                progress: (value, details) => {
+                  if (abort.signal.aborted) return;
+                  text = value;
+                  output = details;
+                  notify({ ...state, text });
                 },
-              };
+              }),
+              abort.signal,
+            );
+            ({ text, output } = result);
+            data = {
+              ...data,
+              status: result.status,
+              ...(result.model ? { model: { ...data.model, served: result.model } } : {}),
+              ...(result.request ? { request: result.request } : {}),
+            };
+          } else {
+            const stream = streamText({
+              ...data.settings,
+              tools: toolController.tools,
+              stopWhen: isStepCount(
+                typeof data.settings.maxSteps === 'number' ? data.settings.maxSteps : 1,
+              ),
+              model: languageModel!,
+              messages,
+              instructions,
+              abortSignal: abort.signal,
+            });
+            const iterator = stream.fullStream[Symbol.asyncIterator]();
+            for (;;) {
+              // biome-ignore lint/performance/noAwaitInLoops: output order depends on each streamed event.
+              const next = await cancellable(iterator.next(), abort.signal);
+              if (next.done) break;
+              const event = next.value;
+              if (event.type === 'text-delta') {
+                text += event.text;
+                notify({
+                  ...state,
+                  phase: state.phase === 'paused' ? 'paused' : 'running',
+                  data,
+                  text,
+                });
+              }
+              if (event.type === 'error') throw event.error;
+              if (event.type === 'finish-step') {
+                data = {
+                  ...data,
+                  ...(event.response.modelId
+                    ? { model: { ...data.model, served: event.response.modelId } }
+                    : {}),
+                  ...(event.response.id ? { request: event.response.id } : {}),
+                };
+              }
+              if (event.type === 'finish') {
+                data = {
+                  ...data,
+                  finishReason: event.finishReason,
+                  usage: {
+                    input: event.totalUsage.inputTokens ?? 0,
+                    output: event.totalUsage.outputTokens ?? 0,
+                  },
+                };
+              }
             }
+            data = { ...data, status: abort.signal.aborted ? 'stopped' : 'complete' };
           }
-          data = { ...data, status: abort.signal.aborted ? 'stopped' : 'complete' };
         } catch (error) {
           data = {
             ...data,
@@ -320,7 +348,7 @@ export function createAgentBackend(options: AgentBackendOptions) {
               ...data,
               ended: new Date().toISOString(),
               timing: { elapsedMs: performance.now() - started },
-              output: { text },
+              output: { ...output, text },
             });
             pending = prepareAgentOutcome(prepared, terminalData);
             notify({
@@ -399,7 +427,7 @@ export function createAgentBackend(options: AgentBackendOptions) {
             return state;
           }
           await done;
-          if (!pending || disposed) return state;
+          if (!pending) return state;
           try {
             await options.nodes.commit(pending);
             pending = undefined;

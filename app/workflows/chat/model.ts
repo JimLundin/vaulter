@@ -8,6 +8,6 @@ export type ModelProvider = (name: string) => Promise<LanguageModel>;
 export const openAIModel =
   (key: string, baseURL?: string): ModelProvider =>
   async (name) => {
-    const { createOpenAI } = await import('@ai-sdk/openai');
-    return createOpenAI({ apiKey: key, baseURL })(name);
+    const { createOpenAICapabilities } = await import('../../agent/openai/index.ts');
+    return createOpenAICapabilities({ apiKey: key, baseURL }).model(name);
   };

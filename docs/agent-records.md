@@ -135,3 +135,41 @@ value is otherwise `unknown`, including historical snapshots and runs on another
 instance. Unknown ownership does not prove abandonment, and neither value rewrites the accepted
 run status or resumes execution. Disposing an owner expires execution and releases its evidence
 once any work already in progress has settled.
+
+## Existing live voice execution
+
+Agent's execution provider accepts either a streamed text model or an externally driven live
+protocol. Both receive the same accepted context, guarded module tools, durable invocation/outcome
+wrapper, Stop and persistence recovery. Voice uses the established live connection callbacks;
+provider protocol handling does not understand Chat payloads or require conversation identities.
+It introduces no second persisted run or tool representation.
+
+Voice declares explicitly supplied tools before opening media, using an expired context that
+cannot read or publish. Each accepted spoken input receives fresh guarded tools whose names,
+descriptions and schemas must match those declarations. Local validation transforms arguments
+once before execution; the durable invocation retains effective arguments. Effective voice
+instructions and the ordered user, assistant and tool history are retained as `contextInput`
+children before the provider can request a response or execute a call.
+
+The caller may provide `prepareTurn` to combine its own initial records with Agent's supplied
+context and selected tools in one transaction. Its `onResponse` callback owns transcript
+projection and publication. The callback receives a stable projection ID; retain a complete
+prepared transcript request under that ID and reuse it on retries. Agent retains the callback
+arguments after a save failure without regenerating the ID or repeating execution. Transcript
+status is supplied separately so buffered playback interruption need not rewrite an already
+accepted Agent execution outcome.
+
+A tool outcome-save failure holds the actual execute promise and provider continuation until
+persistence-only recovery accepts the retained outcome. Interruption and Close expire executable
+access immediately, settle started effects and short commits, and preserve pending save handles.
+Closing a paused protocol does not wait indefinitely for Retry and never sends a late fabricated
+tool failure or requests another response. Reopening supplies history as data without executing
+unfinished invocations. Local protocol ordering is scoped to its session; unrelated voice and
+text runs share no whole-Vault lifetime queue.
+
+`createOpenAICapabilities` in `app/agent/openai/index.ts` retains the existing configured Responses,
+live voice, live transcription, file transcription and embedding capabilities. Responses request
+`store: false`; session credentials stay in provider transport closures. Chat's established model
+and transcription imports remain compatibility delegates. Media and protocol tests use fictional
+channels, tracks, HTTP responses and the production memory NodeStore, with no microphone access or
+paid model calls.
