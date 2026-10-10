@@ -14,11 +14,12 @@ app/
     history/                 history and revert presentation
   vault/
     index.ts                 live vault interface and session
+    nodes/                   immutable node model, acceptance, snapshots, memory adapter
     documents/               notes, schema, links, graph, capture format, search
     validation/              permanent note and graph rules
     changes/                 persisted shared staging and checked writes
     session/                 unlocking, encryption, synchronization
-    storage/                 GitHub and memory adapters
+    storage/                 file adapters and GitHub node persistence with encrypted Dexie cache
   ui/
     kit/                     component kit and reference design from ui-kit
     Frame.tsx                direct desktop/mobile layout composition
@@ -211,3 +212,20 @@ GitHub Pages job runs on `structure` and `design-variants`, refreshing the share
 and kit gallery links alongside the exact deployed production artifact. The preview version records
 the publishing branch and commit. Design iteration precedes merging the application and migrating
 private vault content.
+
+## Node storage alongside file workflows
+
+`NodeStore` is the backing interface for future chat and History persistence. Node versions group
+an exact key, optional placement, optional source/target connection, and JSON content. Each domain
+transaction appends complete versions atomically with required authorship. Identity addresses
+resolve within the viewing snapshot; transaction-qualified addresses select exact immutable rows.
+`useVaultSession()` exposes `nodes` and independent `nodeStatus`. Bootstrap selects `OpenNodes`
+with the unlocked key and GitHub credentials; the design preview uses memory. Adapter lifecycle,
+remote acceptance, and cache clearing stay in the session, outside workflows.
+
+GitHub node persistence writes a versioned transaction namespace alongside existing repository
+files. A non-forced ref update is definitive acceptance; stale expectations reject or unrelated
+remote races retry. Dexie is an encrypted rebuildable cache, not a separate source of authority.
+The [storage guide](docs/node-storage.md) and [persistence decision](docs/adr/0003-github-node-persistence.md)
+describe retry, ordering, offline, encryption, and history-size semantics. The existing chat/tools
+and History still use files in this first slice; their migration follows separately.
