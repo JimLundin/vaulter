@@ -765,14 +765,8 @@ test('Enter and Send both open staged-change review and cancellation keeps the w
   page,
 }) => {
   test.setTimeout(60_000);
-  await page.goto('/preview/');
+  await page.goto('/preview/?legacy-staging');
   const field = page.getByRole('textbox', { name: 'Message', exact: true });
-  // The real scripted model stages an invalid wiki link; check refuses to commit the change.
-  await field.fill('vault it: [[Missing sample note]]');
-  await field.press('Enter');
-  await expect(
-    page.getByText('The sample check found problems in this text.', { exact: false }),
-  ).toBeVisible();
   await expect(field).toBeEditable();
   const submitted = await page.locator('[data-message="user"]').count();
   const review = page.getByRole('dialog', { name: 'Review pending changes', exact: true });
@@ -781,7 +775,7 @@ test('Enter and Send both open staged-change review and cancellation keeps the w
     if (method === 'Enter') await field.press('Enter');
     else await page.getByRole('button', { name: 'Send', exact: true }).click();
     await expect(review).toBeVisible();
-    await expect(review.getByText('Preview thought.md', { exact: false })).toBeVisible();
+    await expect(review.getByText('Legacy draft.md', { exact: false })).toBeVisible();
     await expect(field).toHaveValue(`Keep this ${method} draft pending review`);
     await expect(page.locator('[data-message="user"]')).toHaveCount(submitted);
     await review.getByRole('button', { name: 'Cancel', exact: true }).click();
@@ -789,7 +783,7 @@ test('Enter and Send both open staged-change review and cancellation keeps the w
     await expect(field).toHaveValue(`Keep this ${method} draft pending review`);
   }
   await field.press('Enter');
-  await review.getByRole('button', { name: 'Include changes and send' }).click();
+  await review.getByRole('button', { name: 'Send and keep staged edits' }).click();
   await expect(page.locator('[data-message="user"]')).toHaveCount(submitted + 1);
   await expect(field).toHaveValue('');
 });

@@ -26,6 +26,9 @@ const times = (n: number) => (n === 1 ? '' : ` ${n} times`);
 
 /** Per tool: what it did, as a past-tense clause for n calls, and what it is doing now. */
 const LABELS: Record<string, { done: (n: number) => string; live: string }> = {
+  createNode: { done: (n) => `created ${count(n, 'node')}`, live: 'Creating a node' },
+  readNode: { done: (n) => `read ${count(n, 'node')}`, live: 'Reading a node' },
+  updateNode: { done: (n) => `updated ${count(n, 'node')}`, live: 'Updating a node' },
   search: { done: (n) => `searched${times(n)}`, live: 'Searching' },
   listNotes: { done: (n) => `listed notes${times(n)}`, live: 'Listing notes' },
   readFile: { done: (n) => `read ${count(n, 'file')}`, live: 'Reading' },

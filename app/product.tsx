@@ -1,13 +1,10 @@
 // The product's explicit assembly. Only this file imports optional workflows.
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { LanguageModel } from 'ai';
 import {
   useVaultSession,
   noteSearchIndex,
-  notesOf,
-  titleOf,
   type OpenBackend,
-  type OwnedVault,
   type OpenNodes,
 } from './vault/index.ts';
 import { Frame } from './ui/Frame.tsx';
@@ -20,6 +17,7 @@ import { go, link, pattern, useRoute } from './ui/routing.ts';
 import { later } from './ui/later.ts';
 import {
   ProvenancePrototype,
+  Button,
   Alert,
   AlertDescription,
   Gate,
@@ -43,16 +41,23 @@ import {
   ChatPage,
   ChatPanel,
   ChatSettings,
-  openAITranscription,
   useTranscription,
   useTranscript,
   useVoiceDraft,
   type TranscriptionProvider,
   useConversation,
   useChat,
-  openAIModel,
   type Prompt,
 } from './workflows/chat/index.tsx';
+import {
+  createApplicationIdentities,
+  defaultIdentities,
+  type ApplicationIdentities,
+} from './application-identities.ts';
+import { nodeContentTools } from './vault/content/tools.ts';
+import type { NodeStore } from './vault/nodes/store.ts';
+import { createOpenAICapabilities } from './agent/openai/index.ts';
+import { model as selectedModel } from './workflows/chat/model.ts';
 import { HistoryPage } from './workflows/history/index.tsx';
 import './workflows/chat/rendering/prose.css';
 
@@ -61,15 +66,29 @@ const historyRoute = pattern('/history/');
 const settingsRoute = pattern('/settings/');
 // Selected fictional wiki evidence reference; available in design preview.
 const provenanceRoute = pattern('/prototype/provenance/');
-const renameTools = async (vault: OwnedVault) =>
-  (await import('./workflows/rename-note/agent.ts')).renameTools(vault);
+const unavailableNodes: NodeStore = {
+  commit: () => Promise.reject(new Error('Node store is unavailable.')),
+  snapshot: () => Promise.reject(new Error('Node store is unavailable.')),
+  history: async () => [],
+  changes: async () => [],
+  subscribe: () => () => undefined,
+};
+const unavailableModel = () =>
+  Promise.reject(new Error('Configure an OpenAI key to send messages.'));
+const chatSettings = { maxSteps: 12 };
+const contentKinds = ['content'];
+const enabledContentTools = [{ name: 'createNode' }, { name: 'readNode' }, { name: 'updateNode' }];
+const productionConversationKey = `vaulter:conversation:${import.meta.env.VITE_GITHUB_API || 'https://api.github.com'}:${import.meta.env.VITE_VAULT_REPO || 'JimLundin/vault@main'}`;
+export const previewConversationKey = 'vaulter:preview:conversation:v1';
 
 export function Product({
   openBackend,
   openNodes,
+  identities,
 }: {
   openBackend: OpenBackend;
   openNodes?: OpenNodes;
+  identities?: ApplicationIdentities;
 }) {
   const session = useVaultSession(openBackend, openNodes);
   if (session.locked) return <Unlock unlock={session.locked.unlock} />;
@@ -87,7 +106,7 @@ export function Product({
         )}
       </Gate>
     );
-  return <OpenProduct session={session} />;
+  return <OpenProduct session={session} identities={identities} />;
 }
 
 /** The same product views with supplied session/model adapters, including the design preview. */
@@ -95,15 +114,48 @@ export function OpenProduct({
   session,
   model: suppliedModel,
   preview,
+  identities = defaultIdentities,
 }: {
   session: ReturnType<typeof useVaultSession>;
   model?: (name: string) => Promise<LanguageModel>;
+  identities?: ApplicationIdentities;
   preview?: {
     suggestions: () => Promise<string[]>;
     transcription: TranscriptionProvider;
   };
 }) {
-  const { vault, files, status } = session;
+  const { vault, files, status, nodes, nodeStatus } = session;
+  const conversationKey = preview ? previewConversationKey : productionConversationKey;
+  const setup = useMemo(
+    () => (nodes ? createApplicationIdentities(nodes, identities) : null),
+    [nodes, identities],
+  );
+  const [identityState, setIdentityState] = useState<{
+    owner: typeof setup;
+    ready: boolean;
+    error?: string;
+  }>({ owner: null, ready: false });
+  const prepareIdentities = useCallback(async () => {
+    if (!setup) return;
+    setIdentityState({ owner: setup, ready: false });
+    try {
+      await setup.ensure();
+      setIdentityState({ owner: setup, ready: true });
+    } catch (error) {
+      setIdentityState({
+        owner: setup,
+        ready: false,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }, [setup]);
+  useEffect(() => {
+    if (nodeStatus.kind === 'synced') later(prepareIdentities());
+  }, [prepareIdentities, nodeStatus.kind]);
+  const retainedConversation = useMemo(
+    () => localStorage.getItem(conversationKey) ?? undefined,
+    [conversationKey],
+  );
   const route = useRoute();
   const layout = useLayout();
   const mobile = layout === 'compact';
@@ -136,30 +188,65 @@ export function OpenProduct({
         : provenanceRoute.match(route.path)
           ? 'Provenance prototype'
           : 'Not found';
-  const remoteModel = useMemo(
+  const provider = useMemo(
     () =>
       session.secrets?.openai
-        ? openAIModel(session.secrets.openai, import.meta.env.VITE_OPENAI_API || undefined)
+        ? createOpenAICapabilities({
+            apiKey: session.secrets.openai,
+            baseURL: import.meta.env.VITE_OPENAI_API || undefined,
+          })
         : null,
     [session.secrets?.openai],
   );
-  const speechProvider = useMemo(
-    () =>
-      session.secrets?.openai
-        ? openAITranscription(session.secrets.openai, import.meta.env.VITE_OPENAI_API || undefined)
-        : null,
-    [session.secrets?.openai],
-  );
+  const remoteModel = provider?.model ?? null;
+  const speechProvider = provider?.liveTranscription ?? null;
   const voice = useTranscription(preview?.transcription ?? speechProvider);
   const transcript = useTranscript(voice);
-  const note = files ? notesOf(files).byHref.get(route.path) : undefined;
+  const availability = !nodes
+    ? 'Opening the node store…'
+    : nodeStatus.kind === 'error'
+      ? `Node store error: ${nodeStatus.message}`
+      : nodeStatus.kind === 'offline'
+        ? 'The node store is offline. Connect to save messages.'
+        : nodeStatus.kind !== 'synced'
+          ? 'Opening the node store…'
+          : identityState.owner !== setup || !identityState.ready
+            ? identityState.error
+              ? `Identity setup failed: ${identityState.error}`
+              : 'Preparing Vault identities…'
+            : !(suppliedModel ?? remoteModel)
+              ? 'Configure an OpenAI key in Settings to send messages.'
+              : undefined;
   const conversation = useConversation({
-    vault,
-    model: suppliedModel ?? remoteModel,
-    tools: renameTools,
-    collect: preview ? async () => ({ groups: {} }) : undefined,
+    nodes: nodes ?? unavailableNodes,
+    user: identities.user,
+    agent: identities.agent,
+    provider: suppliedModel ? 'preview' : 'openai',
+    model: suppliedModel ?? remoteModel ?? unavailableModel,
+    selectedModel: selectedModel(),
+    instructions:
+      'Help the Vault owner using the supplied content tools. Content changes are published directly as nodes. Do not claim to edit or commit legacy files.',
+    tools: nodeContentTools,
+    writableKinds: contentKinds,
+    enabledTools: enabledContentTools,
+    settings: chatSettings,
     suggestions: preview?.suggestions,
-    page: note ? { title: titleOf(note), path: note.path } : onAgent ? undefined : { title },
+    availability,
+    conversation: retainedConversation,
+    onConversation: (id) => {
+      try {
+        localStorage.setItem(conversationKey, id);
+      } catch {
+        /* Selection retention cannot invalidate accepted records. */
+      }
+    },
+    stagedChanges: () => {
+      const before = new Map(vault.base().map((file) => [file.path, file.text]));
+      const after = new Map(vault.files().map((file) => [file.path, file.text]));
+      return vault
+        .staged()
+        .map((path) => ({ path, before: before.get(path) ?? '', text: after.get(path) ?? null }));
+    },
   });
   const { busy: agentBusy } = useChat(conversation);
   useVoiceDraft(conversation, voice);
@@ -188,7 +275,7 @@ export function OpenProduct({
       voice.clear();
       return;
     }
-    if (conversation.chat.state.busy) {
+    if (conversation.snapshot().busy) {
       return;
     }
     if (transcript.phase === 'listening') {
@@ -241,7 +328,7 @@ export function OpenProduct({
       keys: 'mod+j',
       run: () => showPanel(!panel),
     },
-    ...(conversation.chat.state.turns.length && !conversation.chat.state.busy
+    ...(conversation.snapshot().turns.length && !conversation.snapshot().busy
       ? [
           {
             id: 'agent.new',
@@ -355,6 +442,12 @@ export function OpenProduct({
         }
         closePanel={() => showPanel(false)}
       >
+        {identityState.owner === setup && identityState.error && (
+          <Alert variant="destructive">
+            <AlertDescription>{identityState.error}</AlertDescription>
+            <Button onClick={() => later(prepareIdentities())}>Retry identity setup</Button>
+          </Alert>
+        )}
         {onAgent ? (
           <ChatPage
             conversation={conversation}
