@@ -83,6 +83,15 @@ test('tabs retain automatic and manual keyboard activation and controlled select
   await page.goto('/ui/kit/tests/controls.html');
   const automatic = page.getByRole('tablist', { name: 'Automatic tabs' });
   await automatic.getByRole('tab', { name: 'Notes', exact: true }).focus();
+  await expect(automatic).toHaveCSS('flex-direction', 'row');
+  await expect(automatic).toHaveCSS('border-radius', '10px');
+  await expect(automatic.getByRole('tab', { name: 'Archived', exact: true })).toBeDisabled();
+  await page.keyboard.press('ArrowRight');
+  await expect(automatic.getByRole('tab', { name: 'Archived', exact: true })).toBeFocused();
+  await expect(automatic.getByRole('tab', { name: 'Notes', exact: true })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
   await page.keyboard.press('ArrowRight');
   await expect(automatic.getByRole('tab', { name: 'Activity', exact: true })).toHaveAttribute(
     'aria-selected',
@@ -104,4 +113,29 @@ test('tabs retain automatic and manual keyboard activation and controlled select
   await expect(page.getByRole('tabpanel', { name: 'Details', exact: true })).toHaveText(
     'Detailed view',
   );
+});
+
+test('rounded horizontal tabs preserve explicitly mounted drafts and release default inactive drafts', async ({
+  page,
+}) => {
+  await page.goto('/ui/kit/tests/controls.html');
+  const tabs = page.getByRole('tablist', { name: 'Draft lifetime tabs', exact: true });
+  const retained = page.getByRole('textbox', { name: 'Preserved tab draft', exact: true });
+  await retained.fill('Keep my draft');
+  for (const width of [390, 1440, 768]) {
+    await page.setViewportSize({ width, height: 1000 });
+    await expect(retained).toBeFocused();
+    await expect(tabs).toHaveCSS('flex-direction', 'row');
+    await expect(tabs).toHaveCSS('border-radius', '10px');
+    await expect(retained).toHaveValue('Keep my draft');
+  }
+  await tabs.getByRole('tab', { name: 'Temporary draft', exact: true }).click();
+  await expect(retained).toBeHidden();
+  const temporary = page.getByRole('textbox', { name: 'Temporary tab draft', exact: true });
+  await temporary.fill('Discard this draft');
+  await tabs.getByRole('tab', { name: 'Preserved draft', exact: true }).click();
+  await expect(retained).toHaveValue('Keep my draft');
+  await expect(temporary).toHaveCount(0);
+  await tabs.getByRole('tab', { name: 'Temporary draft', exact: true }).click();
+  await expect(temporary).toHaveValue('Initial temporary draft');
 });

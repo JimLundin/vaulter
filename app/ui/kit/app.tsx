@@ -597,27 +597,19 @@ export function SidebarMenu(props: Unstyled<ComponentProps<typeof SidebarMenuPar
 }
 
 // Whole class names, so Tailwind finds them.
-const columns = { 2: 'grid-cols-2', 3: 'grid-cols-3' } as const;
 const stacked = { 2: 'grid-cols-1 md:grid-cols-2', 3: 'grid-cols-1 md:grid-cols-3' } as const;
 
-/** Equal columns: answers side by side, before and after. `stack` puts them one under another on
- * mobile. */
+/** Equal desktop content columns, always stacked into one column on phones. */
 export function Columns({
   count = 2,
   gap: g = 'md',
-  stack,
   children,
 }: {
   count?: 2 | 3;
   gap?: Gap;
-  stack?: boolean;
   children?: ReactNode;
 }) {
-  return (
-    <div className={cn('grid min-w-0', stack ? stacked[count] : columns[count], gap[g])}>
-      {children}
-    </div>
-  );
+  return <div className={cn('grid min-w-0', stacked[count], gap[g])}>{children}</div>;
 }
 
 /** A list and the one chosen from it, side by side (an inbox). On mobile only one of them shows:
