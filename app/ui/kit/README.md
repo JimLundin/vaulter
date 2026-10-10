@@ -116,6 +116,11 @@ both arrangements without introducing different features or a second product des
 
 The size classes are **compact** (under 48rem), **expanded** (48rem and up), and **wide** (80rem and
 up, enough for a side panel). Width and input method are independent: a wide screen may use touch.
+`Columns` keeps two or three equal desktop content columns and always stacks them on phones.
+Tabs use rounded horizontal choices, preserving automatic/manual activation and optional mounted
+inactive content. Timeline illustrates planned Today/activity events; ListDetail supplies question
+inbox or record-browser panes. Their examples do not implement event collection, selection or Back
+navigation.
 The model is Material 3's adaptive navigation
 (`NavigationSuiteScaffold`: one item list shown as a bar, rail or drawer) and SwiftUI's
 `sidebarAdaptable` tab view (one definition, a tab bar on iPhone and a sidebar on iPad).
@@ -414,3 +419,9 @@ quoted source context and superseded statements beside the page from expanded wi
 or in the shared phone Drawer. Its evidence stays mounted through device changes. Completed
 sidenote/history-trace alternatives are retired, while Product History, Timeline and reusable
 DesignComparison remain available. The fictional fixtures are reference design data.
+
+ToggleGroup presents pressed choices in outlined joined groups at the standard size. Single
+selection allows zero or one pressed option; multiple selection allows independent pressed options.
+Arrow navigation and disabled/focus feedback follow Base UI, with 44px minimum touch targets.
+The catalogue shows both modes. ToggleGroup is distinct from RadioGroup form choices and remains
+unsupported inside SettingField; effects belong to the caller.
