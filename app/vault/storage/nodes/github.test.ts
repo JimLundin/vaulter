@@ -301,3 +301,63 @@ test('closing while waiting for another tab releases the pending write without p
   await rejected;
   expect(state.main).toBe(before);
 });
+
+test('permanent chat observations round-trip through encrypted cache and GitHub with exact subject provenance', async () => {
+  const { recordChatMetadata } = await import('../../documents/chat-metadata-store.ts');
+  const { store, open } = await setup();
+  const before = await store.snapshot();
+  const input = {
+    transaction: 'observation',
+    recordedBy: 'user',
+    exchange: 'page',
+    entries: [
+      {
+        node: 'observation',
+        order: 'a',
+        data: {
+          kind: 'observation' as const,
+          subject: 'location' as const,
+          source: { kind: 'browser' as const, name: 'webPlatform', version: '1' },
+          time: {
+            requested: '2026-10-10T11:15:00Z',
+            observed: '2026-10-10T11:12:00Z',
+            received: '2026-10-10T11:15:01Z',
+            elapsedMs: 1000,
+          },
+          outcome: {
+            status: 'collected' as const,
+            value: {
+              latitude: 59.8,
+              longitude: 17.6,
+              accuracyM: 20,
+              altitudeM: null,
+              altitudeAccuracyM: null,
+              speedMps: 0,
+              headingDegrees: null,
+            },
+          },
+        },
+        references: [
+          {
+            node: 'subject',
+            order: 'a',
+            target: before.get('evidence')!.key,
+            data: { kind: 'metadataReference' as const, role: 'subject' as const },
+          },
+        ],
+      },
+    ],
+  };
+  const first = await recordChatMetadata(store, input);
+  expect(await recordChatMetadata(store, input)).toEqual(first);
+  const snapshot = await store.snapshot();
+  expect(snapshot.get('page')).toBe(before.get('page'));
+  store.close();
+  const next = open(undefined, await newCacheKey());
+  await next.refresh();
+  const restored = await next.snapshot();
+  expect(restored.get('observation')?.data).toEqual(input.entries[0].data);
+  expect(restored.resolve(restored.get('subject')!.connection!.target)).toEqual(
+    before.get('evidence'),
+  );
+});

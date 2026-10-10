@@ -109,3 +109,12 @@ independent error status, close, and sign-out cleanup using fictional records.
 Next, integrate submitted exchanges and responses with this store, retain reviewed staging and
 ownership/cancellation, then make History read transactions and guarded compensation. These feature
 changes remain tracked in [issue 19](https://github.com/JimLundin/vaulter/issues/19).
+
+## Permanent chat metadata
+
+[Chat metadata](chat-metadata.md) defines structured observations, message provenance, attachments,
+agent runs, supplied inputs, tools and interpretations. The one-shot collection interface emits
+independently timed outcomes. `recordChatMetadata` validates payloads, creates fresh identities,
+and attaches exact evidence/correction references through the common store. Late collection and
+corrections do not version messages or ancestors. The existing chat controller migration remains
+the next slice; these interfaces do not start collection on session unlock.

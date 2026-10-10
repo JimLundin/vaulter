@@ -175,5 +175,13 @@ viewing snapshot yields a newer-version or deleted notice without recording anot
 version. A newer version alone does not prove that the selected text or claim's meaning changed.
 Composite referential integrity proves existence, not that the source supports the claim.
 
+Chat circumstances and agent provenance use typed observation, run, input, tool and interpretation
+nodes. Collection results have their own observation and receipt times. Late enrichment and
+corrections create new identities with exact subject/evidence/correction references; they do not
+version the exchange or its ancestors. Original facts and interpretations remain recorded. The
+metadata writer validates feature payloads and creation expectations; the generic node store
+retains its existing versioning rules. [Chat metadata](../chat-metadata.md) describes the shapes
+and collection interface. Collection settings govern future collection, not removal of history.
+
 The [captured spike](https://github.com/JimLundin/vaulter/tree/33a77c4) exercised these grouped
 keys and exact endpoints. Production storage retains the model without its standalone demo.

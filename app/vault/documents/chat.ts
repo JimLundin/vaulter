@@ -1,10 +1,16 @@
 // Application payloads stored in the common node model, independent of model SDKs and storage.
-import type { JsonObject, JsonValue, NodeVersion } from '../nodes/model.ts';
+import type { JsonValue, NodeVersion } from '../nodes/model.ts';
 import type { TransactionKind } from '../nodes/operations.ts';
+import type { MessageInput, MetadataData, MetadataReferenceData } from './chat-metadata.ts';
 
 declare module '../nodes/operations.ts' {
   interface TransactionActions {
-    readonly chat: 'submit' | 'completeResponse' | 'stopResponse' | 'checkpointResponse';
+    readonly chat:
+      | 'submit'
+      | 'completeResponse'
+      | 'stopResponse'
+      | 'checkpointResponse'
+      | 'recordMetadata';
   }
 }
 
@@ -13,8 +19,12 @@ export const chatOperations = {
   completeResponse: { scope: 'chat', action: 'completeResponse' },
   stopResponse: { scope: 'chat', action: 'stopResponse' },
   checkpointResponse: { scope: 'chat', action: 'checkpointResponse' },
+  recordMetadata: { scope: 'chat', action: 'recordMetadata' },
 } as const satisfies Readonly<
-  Record<'submit' | 'completeResponse' | 'stopResponse' | 'checkpointResponse', TransactionKind>
+  Record<
+    'submit' | 'completeResponse' | 'stopResponse' | 'checkpointResponse' | 'recordMetadata',
+    TransactionKind
+  >
 >;
 
 // biome-ignore lint/style/useConsistentTypeDefinitions: type aliases satisfy JsonObject structurally
@@ -28,7 +38,8 @@ export type ConversationData = {
 export type ExchangeData = {
   readonly kind: 'exchange';
   readonly startedAt: string;
-  readonly context?: JsonObject;
+  /** Observations are independently recorded children; this instant describes submission. */
+  readonly time?: { readonly timezone: string; readonly offsetMinutes: number };
   readonly capture?: {
     readonly procedure: string;
     readonly summary: string;
@@ -56,6 +67,7 @@ export type MessageData =
       readonly role: 'user';
       readonly at: string;
       readonly text: string;
+      readonly input?: MessageInput;
     }
   | {
       readonly kind: 'message';
@@ -75,5 +87,11 @@ export type ChatReferenceData = {
   readonly role: 'topic' | 'place';
 };
 
-export type ChatData = ConversationData | ExchangeData | MessageData | ChatReferenceData;
+export type ChatData =
+  | ConversationData
+  | ExchangeData
+  | MessageData
+  | ChatReferenceData
+  | MetadataData
+  | MetadataReferenceData;
 export type ChatNodeVersion = NodeVersion<ChatData>;

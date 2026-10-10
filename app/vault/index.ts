@@ -14,6 +14,7 @@ import { titleOf, excerptOf, hrefOf, kind, asList, topicsOf } from './documents/
 import { search, searchIndex } from './documents/search.ts';
 import type { OpenNodes } from './nodes/store.ts';
 export type { NodeStore, OpenNodes } from './nodes/store.ts';
+export { recordChatMetadata, type MetadataEntry } from './documents/chat-metadata-store.ts';
 
 export type { Change, VaultFile } from './files.ts';
 export { applyChanges } from './files.ts';
