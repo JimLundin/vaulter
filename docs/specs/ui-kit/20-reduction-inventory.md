@@ -201,7 +201,6 @@ a second notification system. Its catalogue has local CSS bounds and per-sample 
 complete focus and simulated-device isolation remains unverified. This decision does not implement
 or authorize notification migration as part of #20's cleanup.
 
-
 ## Implementation reconciliation
 
 This table maps every approved removal to its consumer/dependency record. Tickets #23–#32 have
