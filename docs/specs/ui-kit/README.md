@@ -73,3 +73,9 @@ inside the relevant preview; each example owns its selection independently of de
 The paired preview sample compares retained page/input presentation. Selected provenance A now
 renders directly without rejected B/C choices; future design sessions can supply alternatives to
 DesignComparison. See the [#26 consumer and decision record](20-cleanup/26.md).
+
+Cleanup implementation is integrated on `spec/20-ui-kit-cleanup` from review base `fe941c2`.
+For current ticket evidence, retained/provisional scope and final check results, read the
+[cleanup acceptance record](20-cleanup/README.md). The
+[maintainer inventory reconciliation](20-reduction-inventory.md#implementation-reconciliation)
+preserves the original decisions and maps every approved removal to its consumer/dependency record.
