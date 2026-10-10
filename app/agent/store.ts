@@ -3,6 +3,7 @@ import type { NodeCommit, NodeChange, NodeStore } from '../vault/nodes/store.ts'
 import { canonical, frozen } from '../vault/nodes/json.ts';
 import type { TransactionKind } from '../vault/nodes/operations.ts';
 import type { AgentRunData, ContextInputData, ToolExecutionData } from './records.ts';
+import { hasLiveAgentOwner } from './ownership.ts';
 import {
   parseAgentRun,
   parseContextInput,
@@ -125,6 +126,8 @@ export async function prepareAgentRun(
 export interface SavedAgentRun {
   readonly version: NodeVersion;
   readonly data: AgentRunData;
+  /** Local execution/recovery controller evidence; absence does not prove abandonment. */
+  readonly ownership: 'live' | 'unknown';
   readonly tools: readonly {
     readonly version: NodeVersion;
     readonly data: ToolExecutionData;
@@ -171,7 +174,16 @@ export async function readAgentRun(
         ]
       : [],
   );
-  return frozen({ version, data, context, tools });
+  return frozen({
+    version,
+    data,
+    context,
+    tools,
+    ownership:
+      sequence === undefined && data.status === 'running' && hasLiveAgentOwner(store, run)
+        ? 'live'
+        : 'unknown',
+  });
 }
 
 /** Verify accepted Agent records without imposing a caller's transaction kind or origin. */

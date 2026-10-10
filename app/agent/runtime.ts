@@ -13,6 +13,7 @@ import type { AgentRunData, ToolExecutionData } from './records.ts';
 import { parseAgentRun, parseContextInput, parseAgentSettings } from './schema.ts';
 import { prepareAgentOutcome, readAgentRun, verifyAgentAcceptance } from './store.ts';
 import type { PreparedAgentRun } from './store.ts';
+import { agentOwnership } from './ownership.ts';
 
 export interface AgentRunState {
   readonly phase:
@@ -54,6 +55,7 @@ const errorMessage = (error: unknown) => (error instanceof Error ? error.message
 
 export function createAgentBackend(options: AgentBackendOptions) {
   const runs = new Map<string, { identity: string; handle: AgentRun }>();
+  const ownership = agentOwnership(options.nodes);
   let disposed = false;
   function start(input: PreparedAgentRun): AgentRun {
     if (disposed) throw new Error('Agent backend is disposed');
@@ -432,11 +434,15 @@ export function createAgentBackend(options: AgentBackendOptions) {
     return handle;
   }
   return {
-    start,
+    start: (input: PreparedAgentRun) => {
+      if (disposed) throw new Error('Agent backend is disposed');
+      const prepared = frozen(structuredClone(input));
+      return ownership.start(prepared, () => start(prepared));
+    },
     read: (run: string, sequence?: number) => readAgentRun(options.nodes, run, sequence),
     dispose: () => {
       disposed = true;
-      for (const { handle } of runs.values()) handle.stop();
+      ownership.dispose();
     },
   };
 }
