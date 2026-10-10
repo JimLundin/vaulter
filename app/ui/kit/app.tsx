@@ -481,27 +481,6 @@ export function NavigationSheet({
   );
 }
 
-/** The mobile frame: the screen, the notices above the controls, the controls. */
-export function MobileFrame({
-  notices,
-  bar,
-  children,
-}: {
-  notices?: ReactNode;
-  bar: ReactNode;
-  children?: ReactNode;
-}) {
-  return (
-    <div className="flex h-dvh flex-col bg-background">
-      <main data-region="" className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-        {children}
-      </main>
-      {notices ? <div className="flex flex-col gap-2 px-4 pb-2.5">{notices}</div> : null}
-      {bar}
-    </div>
-  );
-}
-
 /** Footer navigation and an independent circular agent control floating above it. Either three
  * fixed places (`left`, `center`, `right`) or `items` spread evenly across the bar. */
 export function MobileBar({
@@ -537,17 +516,6 @@ export function MobileBar({
         </div>
       )}
     </footer>
-  );
-}
-
-/** The desktop content beside the sidebar. */
-export function DesktopMain({ children }: { children?: ReactNode }) {
-  return (
-    <div className="flex h-svh min-w-0 flex-1 flex-col">
-      <main data-region="" className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-        {children}
-      </main>
-    </div>
   );
 }
 

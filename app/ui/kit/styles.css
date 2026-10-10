@@ -77,7 +77,7 @@ body,
   }
 }
 /* Viewport-sized pieces retain their real layout, bounded by the specimen's height. */
-.kit-presentation :is(.h-dvh, .h-svh) {
+.kit-presentation .h-svh {
   height: var(--viewport-height);
 }
 .kit-presentation .min-h-svh {

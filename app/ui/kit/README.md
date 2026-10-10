@@ -36,7 +36,7 @@ Markdown/HAST rendering and the vault-link annotation transform remain the expli
 | `parts/`, `hooks/` | shared layout/type primitives, shadcn controls and their hooks |
 | `primitives.tsx` | reusable surfaces, adaptive panel and following scroll container |
 | `composition.ts` | checked building-block dependencies displayed in the gallery |
-| `app.tsx` | spacing, typography, pages, sidebar and mobile frame |
+| `app.tsx` | spacing, typography, pages, expanded sidebar and shared workspace frame |
 | `overlay.tsx` | one dialog tree, centered or bottom-aligned; full-screen search in compact space |
 | `drawer.tsx` | the public `Drawer`, centered in expanded space and rising from the bottom in compact space |
 | `navigation.tsx` | `NavigationSuite`: one navigation as a sidebar or a bottom bar |
@@ -180,9 +180,16 @@ The private presentation owner chooses portal scope, modal policy, dismissal own
 focus return; the Base UI adapter owns focus trapping, background effects and swipe mechanics.
 Closing nested or overlapping drawers preserves any remaining modal task. Bounded Settings
 examples stay independently editable and release their scope when catalogue filtering unmounts them.
-Supporting panels keep one mounted draft field as they become a wide panel, centered modal or compact
-drawer. A nested review or details drawer closes first and returns focus to its parent; changing the
-parent arrangement keeps the child task modal until it closes. Bounded Escape follows usable focus
+`WorkspaceFrame` supplies the shared workspace through `NavigationSuite`. DesktopMain and
+MobileFrame alternatives have been retired, including the latter's reserved notice row. Existing
+Notice attention cards and Toaster notifications remain; notification integration and placement
+are tracked separately in #22.
+Supporting content uses `AdaptivePanel` and `ConversationPanel` in the right-side role on wide
+screens; the fixed-width SidePanel alternative has been retired. Their headings and close controls
+remain available in the retained compositions. Supporting panels keep one mounted draft field as
+they become a wide panel, centered modal or compact drawer. A nested review or details drawer
+closes first and returns focus to its parent; changing the parent arrangement keeps the child
+task modal until it closes. Bounded Escape follows usable focus
 or the latest interaction when an action disables its focused control, and catalogue controls can
 take keyboard ownership back. The adaptive-panel example includes nested review and details actions.
 The gallery shows **Built from** links on these compositions. `composition.ts` lists their
