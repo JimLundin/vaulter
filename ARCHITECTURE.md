@@ -229,5 +229,11 @@ files. A non-forced ref update is definitive acceptance; stale expectations reje
 remote races retry. Dexie is an encrypted rebuildable cache, not a separate source of authority.
 The [storage guide](docs/node-storage.md) and [persistence decision](docs/adr/0003-github-node-persistence.md)
 describe retry, ordering, offline, encryption, and history-size semantics. The existing chat/tools
-and History still use files during the transition. Their payloads, production logic, and presentation
-over NodeStore are specified and implemented in the next PR in the stack.
+and History still use files during the transition. [Consumer contracts](docs/node-consumers.md)
+live with their owning workflows: `workflows/chat/records/` holds Chat payloads, lossless schemas,
+acceptance requests, saved-message projections and its transcript-preservation policy;
+`workflows/history/nodes.ts` holds attributed History differences and compensation. Product supplies
+feature-owned undo policies to History, so workflows never import one another. Storage exposes only
+generic node/transaction reads and atomic append writes; it knows no feature payloads or undo policy.
+An update appends a new version of the same node identity. Agent execution, collection and
+Product/History wiring follow in the agent PR above this layer.
