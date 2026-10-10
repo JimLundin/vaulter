@@ -329,7 +329,7 @@ function Items() {
           <K.Avatar name="Dinner Event" tone="events" />
         </K.ItemMedia>
       </K.Item>
-      {opened && <K.Text>Opened morning walk.</K.Text>}
+      {opened ? <K.Text>Opened morning walk.</K.Text> : null}
     </K.ItemGroup>
   );
 }
