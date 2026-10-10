@@ -1,5 +1,5 @@
 {
-  // One config for the app, the shared vault code and the Node scripts. Node 24 runs the .ts files
+  // One config for the app and the Node scripts. Node 24 runs the .ts files
   // directly (type stripping), so only erasable syntax, explicit .ts imports and `import type`.
   "compilerOptions": {
     "target": "ES2023",
@@ -22,5 +22,5 @@
     "types": ["node", "vite/client"],
     "paths": { "@/*": ["./app/*"] }
   },
-  "include": ["app", "core", "tools", "vite.config.ts"]
+  "include": ["app", "tools", "vite.config.ts"]
 }

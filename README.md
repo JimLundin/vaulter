@@ -2,8 +2,9 @@
 
 The browser app Jim reads the vault in, at **https://jimlundin.github.io/vaulter/**. It holds no notes:
 behind a password it reads them at runtime from the vault, the private repo `JimLundin/vault`, keeps
-them encrypted on the device, and works offline. Notes never depend on anything here except the MDX
-components (the vault's `meta/conventions.md` §13). The design and its history: `PLAN-browser-app.md`
+them encrypted on the device, and works offline. Chat and Agent now produce nodes in the shared NodeStore. Legacy Search and History screens still
+read Markdown and its schema. The separate migration inside the Vault populates the target layout;
+the application does not perform that migration. The design and its history: `PLAN-browser-app.md`
 (written while the app still lived in the vault, as `site/`, and the repos were `my-vault` and `vault-pages`).
 
 ## Commands
@@ -11,59 +12,113 @@ components (the vault's `meta/conventions.md` §13). The design and its history:
 | Command | Does |
 |---|---|
 | `npm ci` | install |
-| `npm run check` | the vault's check (`tools/check.ts`) over `../vault` (or `node tools/check.ts --vault <dir>`): links, heading anchors, wikilinks, raw HTML, what MDX may contain (`core/mdx-rules.ts`), and the vault's schema (`meta/schema.yaml`, held to it by `core/schema.ts` and `core/relations.ts`). Fast; run before every push to the vault. The vault's CI runs it on every push too, from this repo's `main` |
-| `npm run dev` | the app on a vault folder you pick (`app/backends/folder.ts`, Chromium only), live: edits to notes show without a reload; no password, no Node at runtime |
+| `npm run check` | the permanent note, schema and graph integrity checks over `../vault`, or `node tools/check.ts --vault <dir>`; the vault's CI uses the same check |
+| `npm run dev` | the app on the vault through GitHub, as built, in any browser, but with no password: it loads right in with the secrets from `.env.local` (gitignored): `VAULT_GITHUB_TOKEN`, and optionally `VAULT_OPENAI_KEY` and `VAULT_JINA_KEY`, the names CI seals. Only dev gets them; a build has none. Its commits go to the vault's `main`, as the app's do |
+| `npm run kit` | the component kit gallery and reference design |
+| `npm run design` | the current branch UI at `http://localhost:5173/preview/`, with fictional notes and scripted chat; no password, keys or vault connection |
+| `npm run build:design` | the sample preview and component gallery into `dist-preview/` |
 | `npm run build` | the app into `dist/` |
 | `npm run lint` / `npm run format` | Biome: lint and format check (CI), or fix both in place. Style: 2 spaces, single quotes, semicolons, trailing commas, 100 columns (`biome.json`) |
-| `npm test` / `npm run typecheck` | the tests (Vitest: `app/`, `core/`) and TypeScript over `app/`, `core/` and `tools/` |
+| `npm test` / `npm run typecheck` | the tests (Vitest: `app/`) and TypeScript over `app/` and `tools/` |
 | `node tools/seal-secrets.ts <out>` | seal the token and key with the password from the environment (what CI runs; see Publishing) |
 
-With this repo cloned next to the vault (`../vaulter`) and `npm ci` run in it, from the vault root:
-`node ../vaulter/tools/check.ts` (the check), `node ../vaulter/tools/audit.ts` (the weekly
-sweep's report, changes nothing), `node ../vaulter/tools/set-ext.ts "Note" md|mdx` (switch a
-note's extension and rewrite every link to it) and `node ../vaulter/tools/capture.ts --source … --procedure …
---summary … --topic … < turns.md` (append a Capture's exchange to the day's log, collecting the time, machine,
-session and weather itself). Each takes `--vault <dir>`, default the working directory.
+Product composes node-backed Chat, independent Agent and module-owned content tools. Content
+publication records immutable node history and attributed tool receipts; failed saves are recoverable
+without repeating effects. The separate legacy rename-note operation stages file moves and reference
+rewrites. Legacy staged edits are preserved when sending node Chat messages.
+Consecutive tool calls fold into an expandable summary, with a live status showing the current action.
+The app includes a manifest and icons for installing it to the Home Screen.
+Settings holds the theme and agent model preferences, saved on this device. Enter sends an agent
+message; Shift+Enter adds a new line. Both devices use the same always-visible one-row message
+field with inset microphone and Send controls. Tap the microphone to dictate into that field,
+tap again to finish, then edit or submit with Send or Enter. Speech appends to any existing draft;
+starting another recording appends more words. The field follows incoming words without opening
+the phone keyboard. Suggested prompts live in a separate strip and open an editable draft.
+Other feature pages keep a floating microphone above the icon-only phone footer.
+
+Live transcription uses OpenAI's transcription-only WebRTC session with `gpt-live-transcribe` and
+the already-unlocked OpenAI key. Partial deltas print immediately; final text replaces the partial
+draft before sending. Recording does not submit a message. Audio goes to OpenAI only after starting
+the microphone; it is not stored in the vault. Errors and interruptions preserve partial text for
+editing. The sample preview uses a
+scripted transcript and makes no microphone or model requests.
 
 All code is TypeScript. Node 24 runs the scripts directly (type stripping), so only erasable syntax,
 explicit `.ts` imports and `import type` (enforced by `tsconfig.json`).
 
-## Where the rules live
+## Project layout
 
-- `meta/schema.yaml` (in the vault) — the vocabulary: note types, facet values, broad topics, relation
-  predicates (with when to use each), the MDX components notes may use. The app reads it at runtime.
-- `core/schema.ts` — reads and validates it (`schemaOf`); frontmatter fields, structure rules.
-- `core/relations.ts` — the checks for `relations`, `dates`, `follow-ups`, `decisions`, `geo`,
-  `address`, `where`.
-- `core/mdx-rules.ts`, `core/safe-url.ts` — what a note may contain beyond Markdown: the three
-  components with literal props, and relative, `http(s)`, `mailto` and `tel` links. Notes are data, never code.
+`app/product.tsx` composes the optional workflows in `app/workflows/`. Each task owns its behavior,
+views and tests. Removing a feature means deleting its folder and its wiring in Product. The
+permanent `app/vault/` module owns notes, schema, graph, validation, encryption and checked writes.
+See [ARCHITECTURE.md](ARCHITECTURE.md) for the interfaces and dependency rules.
 
-## How it fits together
+The app uses the component kit and reference design from branch `ui-kit`, in `app/ui/kit/`. Run
+`npm run kit` to open its searchable catalogue, with live desktop and mobile examples side by side.
+Every public component must have an example; CI checks coverage and app-wide kit composition.
+Workflow views compose its public components; styles stay in the kit, with a scoped exception for Markdown rendering. `tools/layout.test.ts` enforces the import rules
+in CI, including dynamic imports and aliases.
 
-The design, its rules and how to add a feature: `ARCHITECTURE.md`. In short:
+The vault's vocabulary remains in its own `meta/schema.yaml`. `app/vault/validation/check.ts` combines
+note format and graph integrity checks; `tools/check.ts` runs them over a vault on disk. Legacy file
+commits pass those rules and carry `Committed-From: vault app`. Node transactions enforce their
+structural integrity and the supplying module validates its own content.
 
-- `core/` — the vault model, pure (no DOM, no Node): parse (`vault.ts`), check (`check.ts`), derive
-  (`derive.ts`, plus `facts.ts`, `vault-map.ts`, `similar.ts`, `brief.ts`, `audit.ts`, `rename.ts`),
-  vocabulary (`schema.ts` over `meta/schema.yaml`), formats (`format.ts`), secrets (`sealed.ts`), the
-  day's capture log (`capture.ts`: one per day, its exchanges' metadata in the frontmatter), weather (`weather.ts`).
-- `app/core/` — the shell: `App.tsx`, routing, the top bar and search, the extension host (`host.tsx`,
-  `extension.ts`), the session and backends contract (`session.ts`, `backend.ts`), the writer
-  (`writer.ts`), the encrypted IndexedDB (`store.ts`), unlocking (`unlock.ts`), rendering
-  (`markdown.ts`, `highlight.tsx`), the worker and the service worker.
-- `app/backends/` — GitHub (`github/`: the REST client, sync through the encrypted cache, commits through
-  the Git Data API), a picked folder (`folder.ts`, Chromium only), memory (`memory.ts`, for tests).
-- `app/extensions/` — every feature, listed in `extensions/index.ts`: notes, home, topics, calendar,
-  decisions, map, similar, places, editor (edit, rename, changes, history), audit, agent, code (the
-  agent's tools over this repo, so the app can change itself), web (search and reading pages, through Jina).
-- `tools/` — the only Node: `check.ts` (CI), `seal-secrets.ts` (publishing), `audit.ts`, `set-ext.ts`
-  and `capture.ts` (command-line sessions), over `core/`.
+## Central node storage
 
-Security: notes render without eval (MDX props are literals), raw HTML and unsafe URLs are dropped, the
-page has a CSP (script only from the app; network only to GitHub, OpenAI, Jina, the map tiles, and for a capture's metadata OpenStreetMap's geocoder and open-meteo), the cache is
-encrypted with a per-device key, and every commit from the app passes the check and carries
-`Committed-From: vault app`.
+The central NodeStore contract supports immutable versions, atomic transactions, grouped placement
+and connection values, and identity or exact-version references. GitHub persistence writes one
+transaction envelope into the private vault's `.vaulter/nodes/v1/transactions/` namespace and uses
+an encrypted Dexie device cache with the unlocked session key. Node-backed Chat accepts its message
+and initial Agent run together, while Agent can also execute independently of conversations. Modules
+choose their tools and publication rules. Generic History reads expose records, cutoffs and differences
+without running producers; Product composes Agent/Chat/content preservation for compensation. The
+visible History and Search screens remain legacy file workflows. See [Agent records](docs/agent-records.md),
+[Chat nodes](docs/chat-nodes.md), [consumer contracts](docs/node-consumers.md) and
+[node storage](docs/node-storage.md) for target layouts, recovery, acceptance and current limits.
 
 ## Publishing
+
+Review the latest design before merging at **https://jimlundin.github.io/vaulter/preview/structure/**.
+The component gallery is at **https://jimlundin.github.io/vaulter/preview/structure/kit/**.
+Every branch push runs the checks. Non-main branches publish their sample preview at
+`/preview/<branch-name>/`, with the component gallery at `/preview/<branch-name>/kit/`.
+For example, `feature/input` publishes at `/preview/feature/input/`. `main` publishes production.
+`design-variants` is retained as historical design work; its remaining mobile polish and installation
+support have been integrated into `structure`. The historical branch still has its older workflow
+and should receive no further pushes.
+The banner identifies the preview commit; `version.json` records its branch.
+Use **Mobile** in the top banner to review the phone layout from your desktop. **Desktop** returns
+to the wide layout; **Window** follows your browser size. Switching retains your current page,
+draft and open settings/search fields. The banner stays above the whole app, including the sidebar.
+The app, preview and gallery share one primary microphone/Enter action according to field focus.
+Both use the same Filled style as New chat and confirmation actions; an empty focused draft keeps
+Enter disabled. The completed A/B/C style picker has been removed from the preview bar.
+This preview uses the actual Product views, fictional notes, an in-memory backend,
+and a scripted local model. Try “vault it: leave space for a walk before work” to create, read and
+update a fictional content node through the actual Agent. Reload reopens accepted Chat history without
+replaying tools; Reset demo clears its tab journal. Query scenarios `initial-save`, `lost-response`,
+`outcome-save` and `terminal-save` demonstrate persistence recovery. It ships no credentials, reads
+no private vault contents, and registers no service worker. Search links still expose the current
+branch's missing reader routes; that remains an architecture review finding.
+
+For local iteration, run `npm ci` then `npm run design` on the branch being reviewed. Edit the kit or
+workflow views and Vite updates the browser. Use `npm run kit` separately for the kit's full gallery. The development
+preview lives at `/preview/`; the built preview moves its entry to the deploy root and includes the
+gallery under `kit/`.
+
+GitHub Pages accepts one site artifact. The preview job downloads the successful artifact for the
+currently deployed production commit, preserves its root files, and adds `preview/<branch-name>/`.
+The workflow retains each sample build as a `design-preview` artifact for 90 days. Packaging
+restores other branches' latest available successful preview artifacts before adding the current
+branch, so publishing one preview preserves the others.
+Production artifacts are retained for 90 days; refresh production before publishing a preview if
+the deployed artifact has expired.
+`tools/publish-design.ts` refuses to publish if that exact production artifact is unavailable or if
+the preview contains `secrets.json` or `sw.js`. The `github-pages` environment permits branch
+deployments for these previews. Preview publishing does not merge the application branch or migrate vault data.
+An ordinary main deployment replaces the whole site, so it removes the preview until the next
+design preview publish.
 
 Notes don't publish: the app reads the vault's `main` itself. Every push here runs
 `.github/workflows/deploy.yml`: lint, the type check and the tests; on `main` it then builds, seals
@@ -79,9 +134,9 @@ What the seal needs, in this repo's settings:
 | | Kind | What |
 |---|---|---|
 | `VAULT_PASSWORD` | secret | the app's password (12+ characters; long and random is best: the sealed file is public) |
-| `VAULT_GITHUB_TOKEN` | secret | a fine-grained PAT for `vault` and `vaulter` only (Contents read/write, Metadata read), with an expiry; `vaulter` is for the agent changing the app (`app/extensions/code/`) |
+| `VAULT_GITHUB_TOKEN` | secret | a fine-grained PAT for `vault` and `vaulter` only (Contents read/write, Metadata read), with an expiry; only the vault is needed by the current workflows |
 | `VAULT_OPENAI_KEY` | secret | optional: the agent's key, from a project with a spend limit |
-| `VAULT_JINA_KEY` | secret | optional: the agent's web search (jina.ai); reading pages works without it, at a lower rate |
+| `VAULT_JINA_KEY` | secret | optional: retained sealed field for deployments that supply it |
 | `VAULT_SALT` | variable | 16 random bytes, base64 (`openssl rand -base64 16`); set once |
 | `VAULT_OPENAI_API` | variable | optional: the agent's OpenAI-compatible endpoint (an API proxy); empty means api.openai.com |
 | `VAULT_REPO` | variable | optional: the vault the app reads, `owner/name@branch`; default `JimLundin/vault@main` |

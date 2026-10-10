@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<title>Desktop — Map extension screen</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap">
+</head>
+<body>
+<style>
+body{margin:0}
+a{color:#18181b}a:hover{color:#52525b}
+</style>
+<div style="width: 1280px; height: 800px; box-sizing: border-box; display: flex; background: #ffffff; color: #18181b; font-family: Geist, system-ui, sans-serif; font-size: 15px; line-height: 1.5">
+
+<aside style="width: 248px; flex-shrink: 0; box-sizing: border-box; background: #fafafa; border-right: 1px solid #e4e4e7; display: flex; flex-direction: column; padding: 16px 12px; gap: 14px">
+<div style="display: flex; align-items: center; gap: 10px; padding: 0 6px">
+<div style="width: 30px; height: 30px; border-radius: 9px; background: #18181b; color: #ffffff; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 14px">P</div>
+<div style="font-weight: 600; font-size: 16px">Pip</div>
+</div>
+<nav style="display: flex; flex-direction: column; gap: 2px; margin-top: 54px">
+<a href="#" style="display: flex; align-items: center; padding: 7px 8px 7px 12px; border-radius: 8px; text-decoration: none; font-size: 14px; color: #3f3f46">Today<span style="margin-left: auto; font-size: 12px; color: #71717a">G T</span></a>
+<a href="#" style="display: flex; align-items: center; padding: 7px 8px 7px 12px; border-radius: 8px; text-decoration: none; font-size: 14px; color: #3f3f46">Questions<span style="margin-left: auto; font-size: 11px; font-weight: 600; color: #ffffff; background: #18181b; border-radius: 999px; padding: 0 7px">2</span></a>
+<a href="#" style="display: flex; align-items: center; padding: 7px 8px 7px 12px; border-radius: 8px; text-decoration: none; font-size: 14px; color: #3f3f46">People<span style="margin-left: auto; font-size: 12px; color: #71717a">G P</span></a>
+<a href="#" style="display: flex; align-items: center; padding: 7px 8px 7px 12px; border-radius: 8px; text-decoration: none; font-size: 14px; color: #3f3f46">Places<span style="margin-left: auto; font-size: 12px; color: #71717a">G L</span></a>
+<a href="#" style="display: flex; align-items: center; padding: 7px 8px 7px 12px; border-radius: 8px; text-decoration: none; font-size: 14px; color: #3f3f46">Events<span style="margin-left: auto; font-size: 12px; color: #71717a">G E</span></a>
+<a href="#" style="display: flex; align-items: center; padding: 7px 8px 7px 12px; border-radius: 8px; background: #e4e4e7; text-decoration: none; font-size: 14px; color: #18181b; font-weight: 500">Map<span style="margin-left: auto; font-size: 12px; color: #52525b; font-weight: 400">G M</span></a>
+<a href="#" style="display: flex; align-items: center; padding: 7px 8px 7px 12px; border-radius: 8px; text-decoration: none; font-size: 14px; color: #3f3f46">Calendar<span style="margin-left: auto; font-size: 12px; color: #71717a">G C</span></a>
+</nav>
+<div style="margin-top: auto; font-size: 12px; color: #52525b; padding: 0 12px">Map and Calendar are extensions. They added themselves here.</div>
+</aside>
+
+<div style="flex: 1; min-width: 0; display: flex; flex-direction: column">
+<header style="height: 60px; flex-shrink: 0; display: flex; align-items: center; gap: 12px; padding: 0 24px; border-bottom: 1px solid #e4e4e7">
+<button aria-label="Previous day" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border: 1px solid #e4e4e7; background: #ffffff; border-radius: 8px; color: #18181b"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m15 6-6 6 6 6"></path></svg></button>
+<div style="font-weight: 600; font-size: 16px">Sunday 4 October</div>
+<button aria-label="Next day" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border: 1px solid #e4e4e7; background: #ffffff; border-radius: 8px; color: #18181b"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m9 6 6 6-6 6"></path></svg></button>
+<span style="font-size: 12px; color: #52525b; display: flex; gap: 4px; align-items: center"><kbd style="font-family: 'Geist Mono', monospace; font-size: 11px; border: 1px solid #e4e4e7; border-bottom-width: 2px; border-radius: 5px; padding: 0 5px; background: #ffffff">[</kbd><kbd style="font-family: 'Geist Mono', monospace; font-size: 11px; border: 1px solid #e4e4e7; border-bottom-width: 2px; border-radius: 5px; padding: 0 5px; background: #ffffff">]</kbd>day</span>
+<div style="margin-left: auto; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); background: #f4f4f5; border-radius: 8px; padding: 3px; gap: 3px">
+<button style="height: 30px; padding: 0 12px; border: 0; background: #ffffff; border-radius: 6px; font: inherit; font-size: 12px; font-weight: 500; color: #18181b; box-shadow: 0 1px 2px rgba(0,0,0,0.08)">Day</button>
+<button style="height: 30px; padding: 0 12px; border: 0; background: transparent; border-radius: 6px; font: inherit; font-size: 12px; color: #52525b">Week</button>
+<button style="height: 30px; padding: 0 12px; border: 0; background: transparent; border-radius: 6px; font: inherit; font-size: 12px; color: #52525b">All places</button>
+</div>
+</header>
+
+<div style="flex: 1; min-height: 0; display: flex">
+<div style="flex: 1; min-width: 0; position: relative; background: #eef2ef; overflow: hidden">
+<svg width="100%" height="100%" viewBox="0 0 760 680" sc-camel-preserve-aspect-ratio="xMidYMid slice" aria-label="Map of today's route">
+<path d="M0 420 C120 380 220 470 360 430 C480 395 560 330 760 360 L760 520 C600 500 520 560 380 560 C240 560 140 500 0 540 Z" fill="#dbeafe"></path>
+<path d="M0 0 L240 0 C230 80 160 120 0 140 Z" fill="#dbeafe"></path>
+<path d="M520 120 C600 90 700 110 760 150 L760 300 C680 320 600 280 540 250 C500 220 490 150 520 120 Z" fill="#dcfce7"></path>
+<path d="M60 600 C140 580 200 610 230 680 L60 680 Z" fill="#dcfce7"></path>
+<path d="M0 260 L760 220" stroke="#ffffff" stroke-width="6"></path>
+<path d="M300 0 L340 680" stroke="#ffffff" stroke-width="6"></path>
+<path d="M0 620 L760 580" stroke="#ffffff" stroke-width="5"></path>
+<path d="M460 0 L520 680" stroke="#ffffff" stroke-width="4"></path>
+<path d="M640 200 C580 260 500 290 420 300 C380 305 350 330 330 370" fill="none" stroke="#2563eb" stroke-width="3" stroke-dasharray="7 6" stroke-linecap="round"></path>
+<path d="M330 370 C320 440 300 520 280 600" fill="none" stroke="#2563eb" stroke-width="3" stroke-linecap="round"></path>
+<circle cx="640" cy="200" r="16" fill="#18181b"></circle><text x="640" y="205" text-anchor="middle" font-size="13" font-weight="600" fill="#ffffff" font-family="Geist, sans-serif">1</text>
+<circle cx="330" cy="370" r="16" fill="#18181b"></circle><text x="330" y="375" text-anchor="middle" font-size="13" font-weight="600" fill="#ffffff" font-family="Geist, sans-serif">2</text>
+<circle cx="280" cy="600" r="16" fill="#18181b"></circle><text x="280" y="605" text-anchor="middle" font-size="13" font-weight="600" fill="#ffffff" font-family="Geist, sans-serif">3</text>
+</svg>
+<div style="position: absolute; left: 20px; bottom: 20px; display: flex; gap: 16px; padding: 8px 12px; background: #ffffff; border: 1px solid #e4e4e7; border-radius: 10px; font-size: 12px; color: #3f3f46">
+<span style="display: flex; align-items: center; gap: 6px"><span style="width: 18px; border-top: 3px dashed #2563eb"></span>Ran</span>
+<span style="display: flex; align-items: center; gap: 6px"><span style="width: 18px; border-top: 3px solid #2563eb"></span>Walked</span>
+</div>
+</div>
+
+<aside style="width: 300px; flex-shrink: 0; border-left: 1px solid #e4e4e7; padding: 20px; display: flex; flex-direction: column; gap: 4px">
+<div style="font-size: 12px; font-weight: 500; color: #52525b; padding-bottom: 8px">3 places · 5.3 km</div>
+<a href="#" style="display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 10px; padding: 10px; border-radius: 10px; text-decoration: none; color: #18181b">
+<span style="width: 24px; height: 24px; border-radius: 50%; background: #18181b; color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600">1</span>
+<span><span style="display: block; font-weight: 500">Djurgården</span><span style="font-size: 13px; color: #52525b">07:10 · morning run</span></span>
+</a>
+<a href="#" style="display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 10px; padding: 10px; border-radius: 10px; text-decoration: none; color: #18181b">
+<span style="width: 24px; height: 24px; border-radius: 50%; background: #18181b; color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600">2</span>
+<span><span style="display: block; font-weight: 500">Home</span><span style="font-size: 13px; color: #52525b">09:15 · Erik's 40th plans</span></span>
+</a>
+<a href="#" style="display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 10px; padding: 10px; border-radius: 10px; background: #f4f4f5; text-decoration: none; color: #18181b">
+<span style="width: 24px; height: 24px; border-radius: 50%; background: #18181b; color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600">3</span>
+<span><span style="display: block; font-weight: 500">Café Pascal</span><span style="font-size: 13px; color: #52525b">11:30 · with Anna Berg</span></span>
+</a>
+<div style="margin-top: auto; display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid #e4e4e7; border-radius: 12px">
+<div style="font-size: 12px; font-weight: 500; color: #52525b">1 place without a location</div>
+<div style="font-size: 14px">“Lisa's new flat” — Pip will ask where it is next time it comes up.</div>
+</div>
+</aside>
+</div>
+</div>
+
+</div>
+
+
+</body></html>

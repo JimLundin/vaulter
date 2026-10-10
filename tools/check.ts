@@ -1,6 +1,6 @@
-// The vault's check (core/check.ts) over a vault on disk: `node tools/check.ts --vault <dir>` (default the
+// The vault's check (app/vault/validation/check.ts: the notes' and the graph's) over a vault on disk: `node tools/check.ts --vault <dir>` (default the
 // working directory). Runs in the vault's CI on every push (its .github/workflows/check.yml).
-import { checkVault } from '../core/check.ts';
+import { checkVault } from '../app/vault/validation/check.ts';
 import { readVaultFiles, vaultArg } from './fs.ts';
 
 const { problems, ok, files } = checkVault(readVaultFiles(vaultArg()));

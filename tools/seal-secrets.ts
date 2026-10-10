@@ -1,4 +1,4 @@
-// Seal the app's secrets with its password into a secrets.json for the published app (core/sealed.ts).
+// Seal the app's secrets with its password into a secrets.json for the published app (app/vault/session/sealed.ts).
 // Runs in CI (.github/workflows/deploy.yml), from the repo's secrets; nothing is committed.
 //   VAULT_PASSWORD      the app's password (at least 12 characters)
 //   VAULT_SALT          base64, fixed: keeps remembered devices signed in across publishes; change it to sign them out
@@ -7,7 +7,7 @@
 //   VAULT_JINA_KEY      optional: the agent's web search (reading pages works without it)
 // Usage: node tools/seal-secrets.ts dist/secrets.json
 import { writeFileSync } from 'node:fs';
-import { seal } from '../core/sealed.ts';
+import { seal } from '../app/vault/session/sealed.ts';
 
 const fail = (m: string) => {
   console.error(m);

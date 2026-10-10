@@ -3,12 +3,12 @@
   "files": {
     "includes": [
       "app/**",
-      "core/**",
       "tools/**",
       "*.ts",
       "*.json",
       "!**/dist",
       "!.claude",
+      "!app/ui/kit/design",
       "!package-lock.json"
     ]
   },
@@ -106,7 +106,7 @@
   },
   "overrides": [
     {
-      "includes": ["tools/**", "vite.config.ts"],
+      "includes": ["tools/**", "**/vite.config.ts", "playwright.config.ts"],
       "linter": {
         "rules": {
           "correctness": {
@@ -124,6 +124,14 @@
       }
     },
     {
+      "includes": ["tools/browser/**"],
+      "linter": {
+        "rules": {
+          "performance": { "noAwaitInLoops": "off" }
+        }
+      }
+    },
+    {
       "includes": ["**/*.css"],
       "linter": {
         "rules": {
@@ -137,7 +145,7 @@
       }
     },
     {
-      "includes": ["app/components/ui/**", "app/components/ai-elements/**", "app/hooks/**"],
+      "includes": ["app/ui/kit/parts/**", "app/ui/kit/hooks/**"],
       "linter": {
         "enabled": false
       }
