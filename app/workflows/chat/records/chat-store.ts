@@ -67,13 +67,25 @@ function projectMessage(snapshot: NodeSnapshot, version: NodeVersion): SavedMess
       }
     }
     const text = execution.output?.text;
-    if (
-      typeof text === 'string' &&
-      text &&
-      !parts.some((part) => part.kind === 'text' && part.text === text)
-    ) {
-      parts.push({ kind: 'text', text });
-      sources.push(run.key);
+    if (execution.status !== 'running' && typeof text === 'string') {
+      // Accepted run output is the complete text for this same response. Checkpoint fragments
+      // remain in version; project the complete text once, retaining its exact run evidence.
+      const firstText = parts.findIndex((part) => part.kind === 'text');
+      if (firstText < 0) {
+        if (text) {
+          parts.push({ kind: 'text', text });
+          sources.push(run.key);
+        }
+      } else {
+        parts[firstText] = { ...parts[firstText]!, kind: 'text', text };
+        sources[firstText] = run.key;
+        for (let index = parts.length - 1; index > firstText; index--) {
+          if (parts[index]!.kind === 'text') {
+            parts.splice(index, 1);
+            sources.splice(index, 1);
+          }
+        }
+      }
     }
   }
   return { version, data: { ...data, parts }, sources };

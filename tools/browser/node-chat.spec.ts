@@ -127,9 +127,40 @@ test('reload after Chat response save failure shows accepted Agent output and do
   await expect(
     page.getByRole('alert').filter({ hasText: 'Chat response needs saving' }),
   ).toBeVisible();
+  await page.evaluate(() => {
+    const key = 'vaulter:preview:accepted:v1';
+    const journal = JSON.parse(sessionStorage.getItem(key) ?? '[]');
+    const submission = journal.find(
+      (request: { kind: { action: string } }) => request.kind.action === 'submit',
+    );
+    const response = submission.changes.find(
+      (change: { data?: { kind?: string; role?: string } }) =>
+        change.data?.kind === 'message' && change.data.role === 'agent',
+    );
+    journal.push({
+      id: 'preview-checkpoint',
+      recordedBy: 'vaulter:agent',
+      origin: submission.origin,
+      kind: { scope: 'chat', action: 'checkpointResponse' },
+      message: null,
+      undoOf: null,
+      changes: [
+        {
+          ...response,
+          expected: submission.id,
+          data: {
+            ...response.data,
+            parts: [{ kind: 'text', text: 'Partial checkpoint to replace.' }],
+          },
+        },
+      ],
+    });
+    sessionStorage.setItem(key, JSON.stringify(journal));
+  });
   const journal = await page.evaluate(() => sessionStorage.getItem('vaulter:preview:accepted:v1'));
   await page.reload();
   await expect(page.getByText('Filed in', { exact: false })).toBeVisible();
+  await expect(page.getByText('Partial checkpoint to replace.', { exact: true })).toBeHidden();
   await expect(page.getByText('Chat response is unfinished.', { exact: false })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Stop', exact: true })).toBeHidden();
   expect(await page.evaluate(() => sessionStorage.getItem('vaulter:preview:accepted:v1'))).toBe(

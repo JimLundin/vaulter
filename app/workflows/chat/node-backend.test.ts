@@ -904,3 +904,66 @@ test('reopening a running invocation retains uncertainty and supplies its exact 
   backend.dispose();
   reopened.dispose();
 });
+
+test.each([['Reco'], ['Rec', 'o'], ['Recorded.']] as const)(
+  'accepted Agent output replaces checkpoint text %j without rewriting recorded Chat or duplicating next context',
+  async (...checkpointText) => {
+    const { nodes, options } = await fixture();
+    const firstModel = new MockLanguageModelV4({ doStream: [answer()] });
+    const backend = createNodeChatBackend({
+      ...options,
+      nodes: {
+        ...nodes,
+        commit: (value) =>
+          value.kind.action === 'completeResponse'
+            ? Promise.reject(new Error('Response offline'))
+            : nodes.commit(value),
+      },
+      model: async () => firstModel,
+    });
+    const first = backend.send(send());
+    await first.done;
+    const initial = first
+      .prepared()!
+      .submission.changes.find((change) => change.data?.role === 'agent')!;
+    const parts = checkpointText.map((text, index) => ({
+      kind: 'text',
+      text,
+      future: { retained: index },
+    }));
+    await nodes.commit(
+      request('checkpoint', [
+        await revise(nodes, initial.node, {
+          ...initial.data!,
+          parts,
+          future: { retained: true },
+        }),
+      ]),
+    );
+    const run = (await readAgentRun(nodes, first.prepared()!.execution.run))!;
+    const original = (await nodes.snapshot()).get(initial.node)!;
+    const before = (await nodes.history()).length;
+    const reopened = createNodeChatBackend(options);
+    const messages = await reopened.messages('conversation');
+    expect(messages[1]?.data).toMatchObject({
+      status: 'running',
+      parts: [{ kind: 'text', text: 'Recorded.', future: { retained: 0 } }],
+      future: { retained: true },
+    });
+    expect(messages[1]?.version).toEqual(original);
+    expect(messages[1]?.sources).toEqual([run.version.key]);
+    expect((await nodes.snapshot()).get(initial.node)?.data).toMatchObject({ parts });
+    expect((await nodes.history()).length).toBe(before);
+    const next = reopened.send({ ...send('second'), text: 'What did you record?' });
+    await next.done;
+    const context = (await readAgentRun(nodes, next.prepared()!.execution.run))!.context;
+    const responseContext = context.filter(({ data }) => data.role === 'assistant');
+    expect(responseContext.map(({ data }) => data.content)).toEqual([
+      { message: { role: 'assistant', content: 'Recorded.' } },
+    ]);
+    expect(responseContext[0]?.references[0]?.connection?.target).toEqual(run.version.key);
+    expect(firstModel.doStreamCalls).toHaveLength(1);
+    backend.dispose();
+    reopened.dispose();
+  },
+);
