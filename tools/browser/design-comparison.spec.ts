@@ -151,12 +151,18 @@ test('paired selected evidence stays bounded, independent and shows exact source
   await expect(phoneEvidence.getByText('Replaces', { exact: false })).toBeVisible();
   for (const width of [390, 1440]) {
     await page.setViewportSize({ width, height: 1000 });
-    const outer = (await mobile.boundingBox())!;
-    const inner = (await phoneEvidence.boundingBox())!;
-    expect(inner.x).toBeGreaterThanOrEqual(outer.x);
-    expect(inner.y).toBeGreaterThanOrEqual(outer.y);
-    expect(inner.x + inner.width).toBeLessThanOrEqual(outer.x + outer.width);
-    expect(inner.y + inner.height).toBeLessThanOrEqual(outer.y + outer.height);
+    await expect
+      .poll(async () => {
+        const outer = (await mobile.boundingBox())!;
+        const inner = (await phoneEvidence.boundingBox())!;
+        return (
+          inner.x >= outer.x &&
+          inner.y >= outer.y &&
+          inner.x + inner.width <= outer.x + outer.width &&
+          inner.y + inner.height <= outer.y + outer.height
+        );
+      })
+      .toBe(true);
   }
   await phoneEvidence
     .getByRole('button', { name: 'Close why the page says this', exact: true })
