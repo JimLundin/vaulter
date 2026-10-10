@@ -159,20 +159,18 @@ export async function readAgentRun(
         ]
       : [],
   );
-  const tools = snapshot
-    .children(run)
-    .flatMap((tool) =>
-      tool.data?.kind === 'toolExecution'
-        ? [
-            {
-              version: tool,
-              data: parseToolExecution(tool.data),
-              effects:
-                tool.data.status === 'running' ? ('uncertain' as const) : ('recorded' as const),
-            },
-          ]
-        : [],
-    );
+  const tools = snapshot.children(run).flatMap((tool) =>
+    tool.data?.kind === 'toolExecution'
+      ? [
+          {
+            version: tool,
+            data: parseToolExecution(tool.data),
+            effects:
+              tool.data.status === 'running' ? ('uncertain' as const) : ('recorded' as const),
+          },
+        ]
+      : [],
+  );
   return frozen({ version, data, context, tools });
 }
 

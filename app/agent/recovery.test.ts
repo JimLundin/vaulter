@@ -624,6 +624,7 @@ test('a saved terminal response can be retried with its same identity while pres
       commit: (value) => {
         if (value.kind.action === 'completeRun') {
           writes.push(value);
+          // biome-ignore lint/suspicious/noUnnecessaryConditions: caller changes injected transport state after run.done.
           if (terminalFails) return Promise.reject(new Error('Terminal offline'));
         }
         return nodes.commit(value);
