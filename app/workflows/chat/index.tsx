@@ -7,11 +7,6 @@ import type { Transcription } from './transcription.ts';
 export { createConversation, useConversation, useChat } from './conversation.ts';
 export { openAIModel } from './model.ts';
 export { openAITranscription } from './openai-transcription.ts';
-export {
-  browserObservationCollectors,
-  collectObservations,
-  observationCollector,
-} from './observations.ts';
 export { useVoiceDraft } from './dictation.ts';
 export {
   useTranscription,

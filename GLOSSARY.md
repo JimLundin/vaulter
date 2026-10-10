@@ -51,15 +51,3 @@ interpreted by the feature that owns it.
 **Closure**:
 The live node versions reachable from a root through containment and connection targets in a
 selected snapshot. Different versions of one node may be reachable through exact references.
-
-**Observation**:
-A recorded measurement or collection outcome about the circumstances of an exchange, retaining
-when it describes the world and where it came from.
-
-**Agent run**:
-One execution of an agent in response to an exchange, with its supplied information and resulting
-activity retained.
-
-**Interpretation**:
-An attributed reading of recorded evidence, such as a summary, inferred event or decision. Later
-corrections coexist with the original interpretation.

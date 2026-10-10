@@ -1,8 +1,14 @@
 # Node storage
 
-The node backing model and production adapters are ready for feature integration. The existing
-chat and History screens still use their file-backed workflow; this slice introduces storage,
-GitHub persistence, and unlocked-session wiring. It does not migrate vault files or transcripts.
+This PR specifies and implements Vaulter's central node storage contract, production adapters,
+and unlocked-session wiring. All features will produce data into this one store or represent its
+recorded data. Valid submitted content is preserved; edits and undo append new versions and
+transactions without modifying earlier records.
+
+How Chat/agent and History use that contract belongs to the next PR in the stack, including their
+payload schemas, collection, submitted exchanges, response lifecycle, and History presentation.
+The existing screens still use their file-backed workflows during that integration transition.
+This PR does not migrate vault files or transcripts.
 The [captured spike](https://github.com/JimLundin/vaulter/tree/33a77c4) is the design experiment;
 its standalone shell, scratch keys, reset actions, and full replay reads are not shipped here.
 
@@ -90,7 +96,7 @@ the session. Closing an adapter rejects queued/new operations without undoing ac
 Persistence ingress decodes records, checks contiguous transaction sequence, attribution,
 identity/exact foreign keys, placement cycles, one version per identity per transaction, and JSON.
 Validation preserves submitted JSON keys and values, including keys such as `__proto__`, in node
-content, transaction metadata, feature payloads, and declared reads. Invalid inputs are rejected;
+content, transaction metadata, and declared reads. Invalid inputs are rejected;
 validation does not sanitize or rewrite accepted content. Edits append new versions and never
 modify previously recorded versions.
 Accepted paths may not be removed or rewritten. Unknown well-formed structured operation kinds
@@ -113,15 +119,6 @@ responses, competing devices, encrypted reopen/rebuild, cache failures, incremen
 and refusal of altered envelopes. Session tests verify cache-before-refresh, key injection,
 independent error status, close, and sign-out cleanup using fictional records.
 
-Next, integrate submitted exchanges and responses with this store, retain reviewed staging and
-ownership/cancellation, then make History read transactions and guarded compensation. These feature
-changes remain tracked in [issue 19](https://github.com/JimLundin/vaulter/issues/19).
-
-## Permanent chat metadata
-
-[Chat metadata](chat-metadata.md) defines structured observations, message provenance, attachments,
-agent runs, supplied inputs, tools and interpretations. The one-shot collection interface emits
-independently timed outcomes. `recordChatMetadata` validates payloads, creates fresh identities,
-and attaches exact evidence/correction references through the common store. Late collection and
-corrections do not version messages or ancestors. The existing chat controller migration remains
-the next slice; these interfaces do not start collection on session unlock.
+The next PR defines how Chat/agent produces records and History presents transactions through this
+contract. That integration remains tracked in [issue 19](https://github.com/JimLundin/vaulter/issues/19);
+its consumer completion criteria do not apply to this central-storage PR.

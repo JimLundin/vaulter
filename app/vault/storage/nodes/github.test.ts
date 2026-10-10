@@ -8,7 +8,6 @@ import { serial } from '../coordination.ts';
 import { seed, request, create, revise } from '../../nodes/fixtures.test-support.ts';
 import type { NodeBackend } from '../../nodes/store.ts';
 import { undoNodes } from '../../nodes/operations-runtime.ts';
-import { recordChatMetadata } from '../../documents/chat-metadata-store.ts';
 
 let stores: NodeBackend[] = [];
 beforeEach(() => {
@@ -54,56 +53,10 @@ async function setup() {
   return { ...fake, store, open, key };
 }
 
-test('feature JSON and transaction metadata retain all keys through cache reopen and remote rebuild', async () => {
+test('node JSON and transaction metadata retain all keys through cache reopen and remote rebuild', async () => {
   const { store, open } = await setup();
   const data = JSON.parse('{"__proto__":{"text":"retain"},"constructor":2,"prototype":3}');
-  const parts = JSON.parse('{"__proto__":"address","constructor":"part","prototype":"value"}');
   await store.commit({ ...request('json', [create('json', data)]), metadata: data });
-  await recordChatMetadata(store, {
-    transaction: 'feature-json',
-    recordedBy: 'user',
-    exchange: 'page',
-    entries: [
-      {
-        node: 'run',
-        order: 'a',
-        data: {
-          kind: 'agentRun',
-          started: '2026-10-10T11:15:00Z',
-          status: 'running',
-          provider: 'fictional',
-          model: { requested: 'fictional' },
-          settings: data,
-          enabledTools: [],
-        },
-      },
-      {
-        node: 'address',
-        order: 'b',
-        data: {
-          kind: 'observation',
-          subject: 'address',
-          source: { kind: 'service', name: 'fictional' },
-          time: {
-            requested: '2026-10-10T11:15:00Z',
-            observed: null,
-            received: '2026-10-10T11:15:01Z',
-            elapsedMs: 1000,
-          },
-          outcome: {
-            status: 'collected',
-            value: { label: 'A place', latitude: 0, longitude: 0, parts, raw: data },
-          },
-        },
-      },
-    ],
-  });
-  const accepted = await store.snapshot();
-  expect(accepted.get('run')?.data?.settings).toEqual(data);
-  expect(accepted.get('address')?.data?.outcome).toEqual({
-    status: 'collected',
-    value: { label: 'A place', latitude: 0, longitude: 0, parts, raw: data },
-  });
   store.close();
   const cached = open();
   await cached.cached();
@@ -111,7 +64,6 @@ test('feature JSON and transaction metadata retain all keys through cache reopen
   expect(
     (await cached.history()).find((transaction) => transaction.id === 'json')?.metadata,
   ).toEqual(data);
-  expect((await cached.snapshot()).get('run')?.data).toEqual(accepted.get('run')?.data);
   cached.close();
   const remote = open(undefined, await newCacheKey());
   await remote.refresh();
@@ -119,7 +71,6 @@ test('feature JSON and transaction metadata retain all keys through cache reopen
   expect(
     (await remote.history()).find((transaction) => transaction.id === 'json')?.metadata,
   ).toEqual(data);
-  expect((await remote.snapshot()).get('address')?.data).toEqual(accepted.get('address')?.data);
 });
 
 test('one envelope is remotely accepted, legacy files preserved, exact citations survive cache reopen and remote rebuild', async () => {
@@ -369,64 +320,4 @@ test('closing while waiting for another tab releases the pending write without p
   resume();
   await rejected;
   expect(state.main).toBe(before);
-});
-
-test('permanent chat observations round-trip through encrypted cache and GitHub with exact subject provenance', async () => {
-  const { recordChatMetadata } = await import('../../documents/chat-metadata-store.ts');
-  const { store, open } = await setup();
-  const before = await store.snapshot();
-  const input = {
-    transaction: 'observation',
-    recordedBy: 'user',
-    exchange: 'page',
-    entries: [
-      {
-        node: 'observation',
-        order: 'a',
-        data: {
-          kind: 'observation' as const,
-          subject: 'location' as const,
-          source: { kind: 'browser' as const, name: 'webPlatform', version: '1' },
-          time: {
-            requested: '2026-10-10T11:15:00Z',
-            observed: '2026-10-10T11:12:00Z',
-            received: '2026-10-10T11:15:01Z',
-            elapsedMs: 1000,
-          },
-          outcome: {
-            status: 'collected' as const,
-            value: {
-              latitude: 59.8,
-              longitude: 17.6,
-              accuracyM: 20,
-              altitudeM: null,
-              altitudeAccuracyM: null,
-              speedMps: 0,
-              headingDegrees: null,
-            },
-          },
-        },
-        references: [
-          {
-            node: 'subject',
-            order: 'a',
-            target: before.get('evidence')!.key,
-            data: { kind: 'metadataReference' as const, role: 'subject' as const },
-          },
-        ],
-      },
-    ],
-  };
-  const first = await recordChatMetadata(store, input);
-  expect(await recordChatMetadata(store, input)).toEqual(first);
-  const snapshot = await store.snapshot();
-  expect(snapshot.get('page')).toBe(before.get('page'));
-  store.close();
-  const next = open(undefined, await newCacheKey());
-  await next.refresh();
-  const restored = await next.snapshot();
-  expect(restored.get('observation')?.data).toEqual(input.entries[0].data);
-  expect(restored.resolve(restored.get('subject')!.connection!.target)).toEqual(
-    before.get('evidence'),
-  );
 });

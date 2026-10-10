@@ -1,7 +1,8 @@
 # Version nodes with child-owned placement
 
-Vaulter's application data uses one node representation, independently of backend representation
-and Markdown. Nodes have stable identities; immutable node versions hold complete JSON content,
+Vaulter's application data uses one central node store, independently of feature, backend
+representation, and Markdown. Features produce data into this store and present its recorded data.
+Nodes have stable identities; immutable node versions hold complete JSON content,
 a grouped version key, optional placement, and an optional connection. Transactions group the versions published together.
 This places content edits, moves, and removal on the affected node instead of producing versions
 of its ancestors, siblings, or dependants. The records are defined in
@@ -117,7 +118,7 @@ nodes are deleted; historical attribution resolves them at the selected transact
 
 Kinds are structured `{ scope, action }` values from a typed operation catalogue. Each scope
 specifies its allowed actions; feature modules extend the catalogue and expose named operation
-constants. Callers use `nodeOperations.move` or `chatOperations.submit`, without parsing dotted
+constants. Callers use `nodeOperations.move` or `nodeOperations.update`, without parsing dotted
 strings or using unrestricted string fallback types. Storage validates the two nonempty fields;
 feature schemas validate registered operation semantics on external input. Matching is by field
 values so deserialized kinds work. Readers can display unknown well-formed future kinds without
@@ -174,14 +175,6 @@ text projection and validate the selection. Comparing each exact endpoint with i
 viewing snapshot yields a newer-version or deleted notice without recording another citation
 version. A newer version alone does not prove that the selected text or claim's meaning changed.
 Composite referential integrity proves existence, not that the source supports the claim.
-
-Chat circumstances and agent provenance use typed observation, run, input, tool and interpretation
-nodes. Collection results have their own observation and receipt times. Late enrichment and
-corrections create new identities with exact subject/evidence/correction references; they do not
-version the exchange or its ancestors. Original facts and interpretations remain recorded. The
-metadata writer validates feature payloads and creation expectations; the generic node store
-retains its existing versioning rules. [Chat metadata](../chat-metadata.md) describes the shapes
-and collection interface. Collection settings govern future collection, not removal of history.
 
 The [captured spike](https://github.com/JimLundin/vaulter/tree/33a77c4) exercised these grouped
 keys and exact endpoints. Production storage retains the model without its standalone demo.

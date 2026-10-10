@@ -215,7 +215,8 @@ private vault content.
 
 ## Node storage alongside file workflows
 
-`NodeStore` is the backing interface for future chat and History persistence. Node versions group
+`NodeStore` is the central storage interface for all application data. Features produce node records
+and represent stored data through this contract. Node versions group
 an exact key, optional placement, optional source/target connection, and JSON content. Each domain
 transaction appends complete versions atomically with required authorship. Identity addresses
 resolve within the viewing snapshot; transaction-qualified addresses select exact immutable rows.
@@ -228,4 +229,5 @@ files. A non-forced ref update is definitive acceptance; stale expectations reje
 remote races retry. Dexie is an encrypted rebuildable cache, not a separate source of authority.
 The [storage guide](docs/node-storage.md) and [persistence decision](docs/adr/0003-github-node-persistence.md)
 describe retry, ordering, offline, encryption, and history-size semantics. The existing chat/tools
-and History still use files in this first slice; their migration follows separately.
+and History still use files during the transition. Their payloads, production logic, and presentation
+over NodeStore are specified and implemented in the next PR in the stack.
