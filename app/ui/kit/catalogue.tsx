@@ -71,10 +71,17 @@ function Buttons() {
       <K.Text size="sm" tone="muted">
         Saved {count} times in this example.
       </K.Text>
-      <K.ToggleGroup type="single" defaultValue="day" variant="outline">
+      <K.ToggleGroup type="single" aria-label="Date range" defaultValue="day">
         <K.ToggleGroupItem value="day">Day</K.ToggleGroupItem>
         <K.ToggleGroupItem value="week">Week</K.ToggleGroupItem>
         <K.ToggleGroupItem value="month">Month</K.ToggleGroupItem>
+      </K.ToggleGroup>
+      <K.ToggleGroup type="multiple" aria-label="Formatting choices" defaultValue={['bold']}>
+        <K.ToggleGroupItem value="bold">Bold</K.ToggleGroupItem>
+        <K.ToggleGroupItem value="italic">Italic</K.ToggleGroupItem>
+        <K.ToggleGroupItem value="underline" disabled={true}>
+          Underline
+        </K.ToggleGroupItem>
       </K.ToggleGroup>
       <K.TooltipProvider>
         <K.Tooltip>

@@ -53,6 +53,9 @@ function ControlsFixture() {
       <output aria-label="Submitted preferences">{submitted}</output>
       <ToggleGroup type="single" aria-label="Time range" value={range} onValueChange={setRange}>
         <ToggleGroupItem value="day">Day</ToggleGroupItem>
+        <ToggleGroupItem value="month" disabled={true}>
+          Month
+        </ToggleGroupItem>
         <ToggleGroupItem value="week">Week</ToggleGroupItem>
       </ToggleGroup>
       <Text>Single value: {range || 'empty'}</Text>
@@ -66,6 +69,14 @@ function ControlsFixture() {
         <ToggleGroupItem value="italic">Italic</ToggleGroupItem>
       </ToggleGroup>
       <Text>Multiple values: {formats.join(',')}</Text>
+      <ToggleGroup type="single" aria-label="Default range" defaultValue="day">
+        <ToggleGroupItem value="day">Day</ToggleGroupItem>
+        <ToggleGroupItem value="week">Week</ToggleGroupItem>
+      </ToggleGroup>
+      <ToggleGroup type="multiple" aria-label="Default filters" defaultValue={['notes']}>
+        <ToggleGroupItem value="notes">Notes</ToggleGroupItem>
+        <ToggleGroupItem value="events">Events</ToggleGroupItem>
+      </ToggleGroup>
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList aria-label="Automatic tabs">
           <TabsTrigger value="notes">Notes</TabsTrigger>

@@ -408,3 +408,9 @@ and drafts through size changes, the mobile field/microphone row before and afte
 Enter/Shift+Enter/IME, and a simulated visual
 viewport resize. The user accepted the physical Safari keyboard/scrolling retest at `1037d86`.
 Live microphone capture still needs device validation; the sample preview uses scripted audio.
+
+ToggleGroup presents pressed choices in outlined joined groups at the standard size. Single
+selection allows zero or one pressed option; multiple selection allows independent pressed options.
+Arrow navigation and disabled/focus feedback follow Base UI, with 44px minimum touch targets.
+The catalogue shows both modes. ToggleGroup is distinct from RadioGroup form choices and remains
+unsupported inside SettingField; effects belong to the caller.

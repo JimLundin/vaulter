@@ -151,7 +151,7 @@ function Fixture() {
               <Text>Second tab content</Text>
             </TabsContent>
           </Tabs>
-          <ToggleGroup type="single" size="sm">
+          <ToggleGroup type="single">
             <ToggleGroupItem value="one">One</ToggleGroupItem>
             <ToggleGroupItem value="two">Two</ToggleGroupItem>
           </ToggleGroup>
