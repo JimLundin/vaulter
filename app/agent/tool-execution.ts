@@ -26,21 +26,30 @@ export function durableTools(options: {
   readonly execution: (active: boolean) => void;
   readonly changed: (node: string, data: ToolExecutionData) => void;
   readonly paused: (pending: PendingToolSave, error: unknown) => void;
+  readonly recovered: () => void;
+  readonly halt: () => void;
 }) {
   let order = 0;
   let tail: Promise<unknown> = Promise.resolve();
   const calls = new Map<string, { identity: string; result: Promise<unknown> }>();
-  const pause = async (pending: PendingToolSave, error: unknown): Promise<never> => {
-    options.paused(pending, error);
-    // #38 supplies persistence-only retry and resumes this acceptance gate.
-    return await cancellable(
-      new Promise<never>(() => {
-        /* Durable outcome is pending. */
-      }),
-      options.signal,
-    );
+  let pending: { readonly value: PendingToolSave; readonly release: () => void } | undefined;
+  let retry: Promise<void> | undefined;
+  const active = new Set<Promise<unknown>>();
+  const pause = async (value: PendingToolSave, error: unknown): Promise<void> => {
+    let release!: () => void;
+    const accepted = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    pending = { value, release };
+    options.paused(value, error);
+    await cancellable(accepted, options.signal);
+    // No effect began after an invocation whose acceptance response was uncertain.
+    if (value.stage === 'invocation') {
+      options.halt();
+      throw new Error('Invocation was saved without execution');
+    }
   };
-  return Object.fromEntries(
+  const tools = Object.fromEntries(
     Object.entries(options.tools).map(([name, definition]) => {
       if (!definition.execute || definition.type === 'provider')
         throw new Error('Supplied tools require module-owned execution');
@@ -98,10 +107,7 @@ export function durableTools(options: {
               try {
                 await options.nodes.commit(invocation);
               } catch (error) {
-                return await pause(
-                  { request: invocation, execution: data, stage: 'invocation' },
-                  error,
-                );
+                await pause({ request: invocation, execution: data, stage: 'invocation' }, error);
               }
               options.changed(node, data);
               options.check();
@@ -136,12 +142,17 @@ export function durableTools(options: {
               try {
                 await options.nodes.commit(outcome);
               } catch (error) {
-                return await pause({ request: outcome, execution: data, stage: 'outcome' }, error);
+                await pause({ request: outcome, execution: data, stage: 'outcome' }, error);
               }
               options.changed(node, data);
               if (failure !== undefined) throw failure;
               return output;
             });
+            active.add(result);
+            result.then(
+              () => active.delete(result),
+              () => active.delete(result),
+            );
             tail = result.catch(() => undefined);
             calls.set(executionOptions.toolCallId, { identity, result });
             return result;
@@ -150,4 +161,27 @@ export function durableTools(options: {
       ];
     }),
   ) as ToolSet;
+  return {
+    tools,
+    pending: () => pending?.value,
+    settle: () => Promise.allSettled([...active]),
+    retrySave: () => {
+      if (retry !== undefined) return retry;
+      retry = (async () => {
+        const saving = pending;
+        if (!saving) return;
+        try {
+          await options.nodes.commit(saving.value.request);
+          pending = undefined;
+          options.recovered();
+          saving.release();
+        } catch (error) {
+          options.paused(saving.value, error);
+        }
+      })().finally(() => {
+        retry = undefined;
+      });
+      return retry;
+    },
+  };
 }

@@ -126,9 +126,13 @@ export async function prepareAgentRun(
 export interface SavedAgentRun {
   readonly version: NodeVersion;
   readonly data: AgentRunData;
-  /** Local execution/recovery controller evidence; live does not mean the model is progressing. */
+  /** Local execution/recovery controller evidence; absence does not prove abandonment. */
   readonly ownership: 'live' | 'unknown';
-  readonly tools: readonly { readonly version: NodeVersion; readonly data: ToolExecutionData }[];
+  readonly tools: readonly {
+    readonly version: NodeVersion;
+    readonly data: ToolExecutionData;
+    readonly effects: 'recorded' | 'uncertain';
+  }[];
   readonly context: readonly {
     readonly version: NodeVersion;
     readonly data: ContextInputData;
@@ -158,13 +162,18 @@ export async function readAgentRun(
         ]
       : [],
   );
-  const tools = snapshot
-    .children(run)
-    .flatMap((tool) =>
-      tool.data?.kind === 'toolExecution'
-        ? [{ version: tool, data: parseToolExecution(tool.data) }]
-        : [],
-    );
+  const tools = snapshot.children(run).flatMap((tool) =>
+    tool.data?.kind === 'toolExecution'
+      ? [
+          {
+            version: tool,
+            data: parseToolExecution(tool.data),
+            effects:
+              tool.data.status === 'running' ? ('uncertain' as const) : ('recorded' as const),
+          },
+        ]
+      : [],
+  );
   return frozen({
     version,
     data,
