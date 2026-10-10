@@ -344,6 +344,7 @@ export {
 } from './primitives.tsx';
 export { Drawer } from './drawer.tsx';
 export { DesignPreview } from './preview.tsx';
+export { DesignComparison } from './design-comparison.tsx';
 
 import {
   RadioGroup as RadioGroupPart,

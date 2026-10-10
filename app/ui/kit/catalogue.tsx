@@ -1021,6 +1021,15 @@ function Access() {
     </K.Gate>
   );
 }
+// Existing page/input presentation illustrates registration, without a new product design.
+function PreviewSummary({ title }: { title: string }) {
+  return (
+    <K.FeaturePage title={title}>
+      <K.Input aria-label="Preview draft" placeholder="Keep a draft while switching layouts…" />
+      <K.PreviewBar label="Notice primitive" kitHref="#navigation" onReset={noop} />
+    </K.FeaturePage>
+  );
+}
 function Preview() {
   return (
     <K.DesignPreview label="Design preview · sample data" kitHref="#navigation" onReset={noop}>
@@ -1030,10 +1039,16 @@ function Preview() {
         destinations={[{ label: 'Agent', href: '#agent', icon: 'sparkles', current: true }]}
         actions={[{ label: 'Settings', icon: 'settings', onSelect: noop }]}
       >
-        <K.FeaturePage title="Live preview">
-          <K.Input aria-label="Preview draft" placeholder="Keep a draft while switching layouts…" />
-          <K.PreviewBar label="Notice primitive" kitHref="#navigation" onReset={noop} />
-        </K.FeaturePage>
+        <K.DesignComparison
+          alternatives={[
+            { id: 'note', label: 'Note summary', content: <PreviewSummary title="Note summary" /> },
+            {
+              id: 'question',
+              label: 'Question summary',
+              content: <PreviewSummary title="Question summary" />,
+            },
+          ]}
+        />
       </K.NavigationSuite>
     </K.DesignPreview>
   );
@@ -1625,8 +1640,9 @@ export const catalogue: Specimen[] = [
   {
     id: 'preview',
     title: 'Preview notice',
-    description: 'The notice used by the sample-data design preview.',
-    components: ['PreviewBar', 'DesignPreview'],
+    description:
+      'Separate device and design controls, demonstrated with retained page/input presentation.',
+    components: ['PreviewBar', 'DesignPreview', 'DesignComparison'],
     Sample: Preview,
     fullBleed: true,
   },

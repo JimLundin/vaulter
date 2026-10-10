@@ -1,13 +1,14 @@
 // PROTOTYPE, throwaway (branch prototype/wiki-provenance). Question: how should claim-level
 // provenance read on a curated prose wiki page? Three variants of /prototype/provenance/, switchable
-// via ?variant=A|B|C (← → keys or the bottom bar). All data is fictional and in memory.
+// via the preview design selector (or initial ?variant=A|B|C). All data is fictional and in memory.
 //   A  Side panel: claims are quietly underlined; selecting one opens its evidence beside the page.
 //      DECIDED: A on desktop; on mobile the same panel opens in the kit's one drawer (Drawer),
 //      matching Navigation and Settings. A right-side sheet was tried and rejected: nothing else in the
 //      app slides in from the side on mobile.
 //   B  Sidenotes: numbered claims with their quoted evidence always visible in the margin.
 //   C  Trace: the page beside the history log; claims and events highlight each other both ways.
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { DesignComparison } from './design-comparison.tsx';
 import { useLayout } from './hooks/use-layout.ts';
 import { Drawer } from './drawer.tsx';
 
@@ -815,6 +816,7 @@ function VariantB() {
 // Variant C: trace (page ⇄ history)
 
 function VariantC() {
+  const root = useRef<HTMLDivElement>(null);
   const [hover, setHover] = useState<Hover>({});
   const [pinned, setPinned] = useState<ClaimId | undefined>();
   const [uncited, setUncited] = useState(true);
@@ -863,13 +865,16 @@ function VariantC() {
   useEffect(() => {
     const first = activeClaim?.evidence[0];
     if (first)
-      document
-        .getElementById(`trace-${evidenceKey(first.anchor)}`)
+      root.current
+        ?.querySelector(`[data-trace="${evidenceKey(first.anchor)}"]`)
         ?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }, [activeClaim]);
   const days = [...new Set(events.map((e) => e.at.slice(0, 10)))];
   return (
-    <div className="grid w-full grid-cols-1 gap-8 px-[var(--page-inset)] py-[var(--page-block)] md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+    <div
+      ref={root}
+      className="grid w-full grid-cols-1 gap-8 px-[var(--page-inset)] py-[var(--page-block)] md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]"
+    >
       <article className="flex min-w-0 flex-col gap-5">
         <header className="flex flex-col gap-2">
           <h1 className="m-0 font-serif text-display">{page.title}</h1>
@@ -943,7 +948,7 @@ function VariantC() {
                   return (
                     <fieldset
                       key={e.id}
-                      id={`trace-${e.id}`}
+                      data-trace={e.id}
                       className={frame}
                       onMouseEnter={enter}
                       onMouseLeave={leave}
@@ -969,7 +974,7 @@ function VariantC() {
                   return (
                     <fieldset
                       key={e.id}
-                      id={`trace-${s.id}`}
+                      data-trace={s.id}
                       className={`flex flex-col gap-1 rounded-lg border p-3 ${u ? 'border-places bg-card' : 'border-border bg-card'}`}
                       onMouseEnter={() => setHover({ evidence: s.id })}
                       onMouseLeave={leave}
@@ -1058,73 +1063,18 @@ function VariantC() {
 }
 
 // ---------------------------------------------------------------------------------------------------
-// Switcher
-
-const variants = [
-  { key: 'A', name: 'Side panel · drawer on mobile', View: VariantA },
-  { key: 'B', name: 'Sidenotes', View: VariantB },
-  { key: 'C', name: 'Trace', View: VariantC },
-];
-
-function useVariant() {
-  const read = () => {
-    const v = new URLSearchParams(location.search).get('variant');
-    return Math.max(
-      0,
-      variants.findIndex((x) => x.key === v),
-    );
-  };
-  const [index, setIndex] = useState(read);
-  const set = (i: number) => {
-    const next = (i + variants.length) % variants.length;
-    const url = new URL(location.href);
-    url.searchParams.set('variant', variants[next].key);
-    history.replaceState(history.state, '', url);
-    setIndex(next);
-  };
-  useEffect(() => {
-    const on = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement | null;
-      if (target?.closest('input, textarea, [contenteditable]')) return;
-      if (e.key === 'ArrowLeft') set(index - 1);
-      if (e.key === 'ArrowRight') set(index + 1);
-    };
-    addEventListener('keydown', on);
-    return () => removeEventListener('keydown', on);
-  });
-  return [index, set] as const;
-}
+// Design-session registration: comparison behavior is shared with other previews.
 
 export function ProvenancePrototype() {
-  const [index, set] = useVariant();
-  const { View } = variants[index];
-  const showBar = useMemo(() => import.meta.env.MODE !== 'production', []);
+  if (import.meta.env.MODE === 'production') return <VariantA />;
   return (
-    <>
-      <View />
-      {showBar ? (
-        <div className="fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center gap-1 rounded-full bg-foreground px-2 py-1 text-label text-background shadow-lg">
-          <button
-            type="button"
-            className="rounded-full px-2 py-1 hover:bg-background/15"
-            onClick={() => set(index - 1)}
-            aria-label="Previous variant"
-          >
-            ←
-          </button>
-          <span className="px-2">
-            {variants[index].key} ({variants[index].name})
-          </span>
-          <button
-            type="button"
-            className="rounded-full px-2 py-1 hover:bg-background/15"
-            onClick={() => set(index + 1)}
-            aria-label="Next variant"
-          >
-            →
-          </button>
-        </div>
-      ) : null}
-    </>
+    <DesignComparison
+      defaultValue={new URLSearchParams(location.search).get('variant') ?? 'A'}
+      alternatives={[
+        { id: 'A', label: 'A · Side panel / phone drawer', content: <VariantA /> },
+        { id: 'B', label: 'B · Sidenotes', content: <VariantB /> },
+        { id: 'C', label: 'C · Trace', content: <VariantC /> },
+      ]}
+    />
   );
 }
