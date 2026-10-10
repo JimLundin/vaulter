@@ -20,7 +20,6 @@ export function hasLiveAgentOwner(nodes: NodeStore, run: string): boolean {
 export function agentOwnership(nodes: NodeStore) {
   const owned = new Map<string, Owner>();
   const active = stores.get(nodes) ?? new Map<string, Owner>();
-  let disposed = false;
   stores.set(nodes, active);
   return {
     start: (prepared: PreparedAgentRun, create: () => AgentRun): AgentRun => {
@@ -62,15 +61,16 @@ export function agentOwnership(nodes: NodeStore) {
       owner.handle.done
         .then(() => {
           settled = true;
-          // biome-ignore lint/suspicious/noUnnecessaryConditions: dispose changes this flag while the lifetime is pending.
-          if (disposed || !isActive()) release();
+          if (!owned.has(prepared.run) || !isActive()) release();
         }, release)
         .catch(release);
       return owner.handle;
     },
     dispose: () => {
-      disposed = true;
-      for (const owner of owned.values()) owner.dispose();
+      for (const [run, owner] of owned) {
+        owned.delete(run);
+        owner.dispose();
+      }
     },
   };
 }
