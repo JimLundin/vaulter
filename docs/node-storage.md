@@ -5,8 +5,9 @@ and unlocked-session wiring. All features will produce data into this one store 
 recorded data. Valid submitted content is preserved; edits and undo append new versions and
 transactions without modifying earlier records.
 
-How Chat/agent and History use that contract belongs to the next PR in the stack, including their
-payload schemas, collection, submitted exchanges, response lifecycle, and History presentation.
+The [consumer contract layer](node-consumers.md) defines Chat payload schemas, submitted exchanges,
+terminal response requests and History projections. Agent execution, browser collection, response
+ownership and Product/History integration belong to the following agent PR in the stack.
 The existing screens still use their file-backed workflows during that integration transition.
 This PR does not migrate vault files or transcripts.
 The [captured spike](https://github.com/JimLundin/vaulter/tree/33a77c4) is the design experiment;
@@ -119,6 +120,7 @@ responses, competing devices, encrypted reopen/rebuild, cache failures, incremen
 and refusal of altered envelopes. Session tests verify cache-before-refresh, key injection,
 independent error status, close, and sign-out cleanup using fictional records.
 
-The next PR defines how Chat/agent produces records and History presents transactions through this
-contract. That integration remains tracked in [issue 19](https://github.com/JimLundin/vaulter/issues/19);
-its consumer completion criteria do not apply to this central-storage PR.
+The consumer contract layer specifies how Chat/agent produces records and History reads transactions
+through this contract. Runtime integration remains tracked in
+[issue 19](https://github.com/JimLundin/vaulter/issues/19); its completion criteria are not satisfied
+by storage and consumer contracts alone.

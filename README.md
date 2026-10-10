@@ -66,9 +66,10 @@ The central NodeStore contract supports immutable versions, atomic transactions,
 and connection values, and identity or exact-version references. GitHub persistence writes one
 transaction envelope into the private vault's `.vaulter/nodes/v1/transactions/` namespace and uses
 an encrypted Dexie device cache with the unlocked session key. Existing chat and History workflows
-still use files; their use of this contract belongs to the next PR in the stack. This PR specifies
-central storage and preserves valid submitted data without rewriting published records.
-See [node storage](docs/node-storage.md) for the interface, acceptance rules, and current limits.
+still use files. [Consumer contracts](docs/node-consumers.md) now define Chat payloads, lossless
+schemas, acceptance requests, saved-message reads and attributed History differences/compensation.
+Agent execution and Product/History integration follow in the agent PR. See
+[node storage](docs/node-storage.md) for the interface, acceptance rules, and current limits.
 
 ## Publishing
 
