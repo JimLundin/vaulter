@@ -8,6 +8,7 @@ import { serial } from '../coordination.ts';
 import { seed, request, create, revise } from '../../nodes/fixtures.test-support.ts';
 import type { NodeBackend } from '../../nodes/store.ts';
 import { undoNodes } from '../../nodes/operations-runtime.ts';
+import { recordChatMetadata } from '../../documents/chat-metadata-store.ts';
 
 let stores: NodeBackend[] = [];
 beforeEach(() => {
@@ -52,6 +53,74 @@ async function setup() {
   await seed(store);
   return { ...fake, store, open, key };
 }
+
+test('feature JSON and transaction metadata retain all keys through cache reopen and remote rebuild', async () => {
+  const { store, open } = await setup();
+  const data = JSON.parse('{"__proto__":{"text":"retain"},"constructor":2,"prototype":3}');
+  const parts = JSON.parse('{"__proto__":"address","constructor":"part","prototype":"value"}');
+  await store.commit({ ...request('json', [create('json', data)]), metadata: data });
+  await recordChatMetadata(store, {
+    transaction: 'feature-json',
+    recordedBy: 'user',
+    exchange: 'page',
+    entries: [
+      {
+        node: 'run',
+        order: 'a',
+        data: {
+          kind: 'agentRun',
+          started: '2026-10-10T11:15:00Z',
+          status: 'running',
+          provider: 'fictional',
+          model: { requested: 'fictional' },
+          settings: data,
+          enabledTools: [],
+        },
+      },
+      {
+        node: 'address',
+        order: 'b',
+        data: {
+          kind: 'observation',
+          subject: 'address',
+          source: { kind: 'service', name: 'fictional' },
+          time: {
+            requested: '2026-10-10T11:15:00Z',
+            observed: null,
+            received: '2026-10-10T11:15:01Z',
+            elapsedMs: 1000,
+          },
+          outcome: {
+            status: 'collected',
+            value: { label: 'A place', latitude: 0, longitude: 0, parts, raw: data },
+          },
+        },
+      },
+    ],
+  });
+  const accepted = await store.snapshot();
+  expect(accepted.get('run')?.data?.settings).toEqual(data);
+  expect(accepted.get('address')?.data?.outcome).toEqual({
+    status: 'collected',
+    value: { label: 'A place', latitude: 0, longitude: 0, parts, raw: data },
+  });
+  store.close();
+  const cached = open();
+  await cached.cached();
+  expect((await cached.snapshot()).get('json')?.data).toEqual(data);
+  expect(
+    (await cached.history()).find((transaction) => transaction.id === 'json')?.metadata,
+  ).toEqual(data);
+  expect((await cached.snapshot()).get('run')?.data).toEqual(accepted.get('run')?.data);
+  cached.close();
+  const remote = open(undefined, await newCacheKey());
+  await remote.refresh();
+  expect((await remote.snapshot()).get('json')?.data).toEqual(data);
+  expect(
+    (await remote.history()).find((transaction) => transaction.id === 'json')?.metadata,
+  ).toEqual(data);
+  expect((await remote.snapshot()).get('address')?.data).toEqual(accepted.get('address')?.data);
+});
 
 test('one envelope is remotely accepted, legacy files preserved, exact citations survive cache reopen and remote rebuild', async () => {
   const { store, open, state, filesAt } = await setup();

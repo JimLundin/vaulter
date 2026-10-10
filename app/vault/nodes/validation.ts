@@ -3,6 +3,7 @@ import { z } from 'zod';
 import type { NodeCommit } from './store.ts';
 import type { NodeVersion, Transaction } from './model.ts';
 import { canonical } from './json.ts';
+import { jsonObject, jsonRecord } from './json-schema.ts';
 
 const identity = z
   .string()
@@ -11,13 +12,6 @@ const identity = z
 const address = z.strictObject({ node: identity, transaction: identity.optional() });
 const placement = z.strictObject({ parent: identity, order: z.string().min(1) }).nullable();
 const connection = z.strictObject({ source: address, target: address }).nullable();
-const jsonObject = z.record(z.string(), z.unknown()).superRefine((value, context) => {
-  try {
-    canonical(value);
-  } catch {
-    context.addIssue({ code: 'custom', message: 'Invalid JSON' });
-  }
-});
 const state = { placement, connection, data: jsonObject.nullable() };
 const kind = z.strictObject({ scope: identity, action: identity });
 const transaction = z.strictObject({
@@ -38,7 +32,7 @@ const version = z.strictObject({
 });
 const commit = transaction.omit({ sequence: true, recordedAt: true }).extend({
   changes: z.array(change).min(1),
-  expectedReads: z.record(identity, identity.nullable()).optional(),
+  expectedReads: jsonRecord(identity, identity.nullable()).optional(),
 });
 const envelope = z.strictObject({
   format: z.literal(1),

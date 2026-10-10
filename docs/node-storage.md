@@ -40,7 +40,10 @@ claim or whether an actor has permission to edit a node.
 
 `history` paginates by `beforeSequence` and `limit`, with optional structured operation filters.
 `changes` returns complete before/after versions. `snapshot` captures immutable state at a cutoff;
-`resolve` accepts an identity or exact address. `children` derives live ordered placement.
+`resolve` accepts an identity or exact address. `children` accepts a parent identity or address and
+derives live ordered placement at the viewing cutoff. An exact live parent version exposes those
+children even when the parent's current identity state is deleted; an absent or deleted addressed
+parent exposes none.
 `nodeClosure` follows children and connection targets, not sources, tracking exact keys to retain
 multiple versions of one identity. `undoNodes` appends guarded compensation instead of deleting
 history; intervening versions reject it. Transcript preservation requires separate chat/content
@@ -86,6 +89,10 @@ the session. Closing an adapter rejects queued/new operations without undoing ac
 
 Persistence ingress decodes records, checks contiguous transaction sequence, attribution,
 identity/exact foreign keys, placement cycles, one version per identity per transaction, and JSON.
+Validation preserves submitted JSON keys and values, including keys such as `__proto__`, in node
+content, transaction metadata, feature payloads, and declared reads. Invalid inputs are rejected;
+validation does not sanitize or rewrite accepted content. Edits append new versions and never
+modify previously recorded versions.
 Accepted paths may not be removed or rewritten. Unknown well-formed structured operation kinds
 remain readable; their behavior belongs to features. Invalid remote records do not replace the
 previous visible state. Hash-verified blobs preserve the existing Git client integrity checks.

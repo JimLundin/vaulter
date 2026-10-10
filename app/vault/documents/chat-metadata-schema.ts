@@ -1,6 +1,7 @@
 // Feature ingress validates metadata semantics before crossing the generic JSON store seam.
 import { z } from 'zod';
 import { canonical } from '../nodes/json.ts';
+import { jsonObject as json, jsonRecord } from '../nodes/json-schema.ts';
 import type { MetadataData, MetadataReferenceData } from './chat-metadata.ts';
 
 const text = z.string().min(1);
@@ -8,13 +9,6 @@ const instant = z.iso.datetime({ offset: true });
 const finite = z.number().finite();
 const nonnegative = finite.nonnegative();
 const count = nonnegative.int();
-const json = z.record(z.string(), z.unknown()).superRefine((value, ctx) => {
-  try {
-    canonical(value);
-  } catch {
-    ctx.addIssue({ code: 'custom', message: 'Invalid JSON' });
-  }
-});
 const jsonValue = z.unknown().superRefine((value, ctx) => {
   try {
     canonical(value);
@@ -119,7 +113,7 @@ const values = {
   }),
   address: z.strictObject({
     label: text,
-    parts: z.record(z.string(), z.string()),
+    parts: jsonRecord(z.string(), z.string()),
     latitude: finite.min(-90).max(90),
     longitude: finite.min(-180).max(180),
     raw: json,

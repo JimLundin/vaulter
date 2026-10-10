@@ -37,15 +37,18 @@ export function snapshotOf(records: readonly NodeRecord[], cutoff?: number): Nod
     Object.freeze(siblings);
   }
   const empty = Object.freeze([]);
+  const resolve = (address: NodeAddress) =>
+    address.transaction === undefined
+      ? selected.get(address.node)
+      : exact.get(JSON.stringify([address.node, address.transaction]));
   return Object.freeze({
     sequence,
     get: (node: string) => selected.get(node),
-    resolve: (address: NodeAddress) =>
-      address.transaction === undefined
-        ? selected.get(address.node)
-        : exact.get(JSON.stringify([address.node, address.transaction])),
-    children: (parent: string) =>
-      selected.get(parent)?.data == null ? empty : (children.get(parent) ?? empty),
+    resolve,
+    children: (parent: string | NodeAddress) => {
+      const address = typeof parent === 'string' ? { node: parent } : parent;
+      return resolve(address)?.data == null ? empty : (children.get(address.node) ?? empty);
+    },
   });
 }
 

@@ -20,7 +20,7 @@ export async function nodeClosure(
     if (visited.has(key)) continue;
     visited.add(key);
     result.push(version);
-    pending.push(...snapshot.children(version.key.node).map((child) => ({ node: child.key.node })));
+    pending.push(...snapshot.children(version.key).map((child) => ({ node: child.key.node })));
     if (version.connection) pending.push(version.connection.target);
   }
   return Object.freeze(result);

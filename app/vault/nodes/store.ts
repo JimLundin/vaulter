@@ -32,8 +32,8 @@ export interface NodeSnapshot {
   readonly get: (node: NodeId) => NodeVersion | undefined;
   /** Exact references never fall back to the latest version or interpret transaction as a cutoff. */
   readonly resolve: (address: NodeAddress) => NodeVersion | undefined;
-  /** Live children only, ordered by order then node; empty for absent/deleted parents. */
-  readonly children: (parent: NodeId) => readonly NodeVersion[];
+  /** Live child placements at this cutoff; parent may select an identity or exact live version. */
+  readonly children: (parent: NodeId | NodeAddress) => readonly NodeVersion[];
 }
 
 export interface NodeDifference {
