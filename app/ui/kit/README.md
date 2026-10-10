@@ -107,6 +107,11 @@ when labels, touch targets or visible actions change size. `InputGroupTextarea v
 remains 44px high; `InputGroup variant="composer"` supplies the composer's outer shape. Agent,
 quick-note and vault-access examples use the same primitives.
 
+General fields retain standard semantic legends and vertical or horizontal arrangements; Settings
+keeps its adaptive label/control grid. Grouped input context sits inline before or after the field,
+with measured inset actions at the end. Smaller legends, generic responsive Field rows and
+above/below grouped-input add-ons are retired.
+
 ## Desktop and mobile variants
 
 Mobile and desktop are the **same UI, resized and rearranged**. Components share their content,
