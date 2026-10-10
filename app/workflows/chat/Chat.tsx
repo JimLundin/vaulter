@@ -55,6 +55,9 @@ export function Chat({
     busy,
     persistenceError,
     persistenceStage,
+    contentPersistence,
+    contentAccepted,
+    contextError,
     phase,
   } = useNodeChat(conversation);
   const [retrying, setRetrying] = useState(false);
@@ -152,6 +155,44 @@ export function Chat({
               {conversation.availability()}
             </Text>
           )}
+          {contentPersistence && (
+            <Stack>
+              <Text role="alert" tone="danger">
+                Content save: {contentPersistence.error}. Acceptance is uncertain; the tool will not
+                be repeated.
+              </Text>
+              <Button
+                disabled={retrying}
+                onClick={() => {
+                  setRetrying(true);
+                  later(conversation.retryContentSave().finally(() => setRetrying(false)));
+                }}
+              >
+                Retry content save
+              </Button>
+            </Stack>
+          )}
+          {contentAccepted && (
+            <Text role="status" tone="subtle">
+              Content save accepted. The original tool outcome is retained.
+            </Text>
+          )}
+          {contextError && (
+            <Stack>
+              <Text role="alert" tone="danger">
+                Content view could not refresh: {contextError}. Accepted changes are retained.
+              </Text>
+              <Button
+                disabled={retrying}
+                onClick={() => {
+                  setRetrying(true);
+                  later(conversation.refreshContext().finally(() => setRetrying(false)));
+                }}
+              >
+                Refresh records
+              </Button>
+            </Stack>
+          )}
           {persistenceError ? (
             <Stack>
               <Text role="alert" tone="danger">
@@ -193,7 +234,10 @@ export function Chat({
           }}
           label="Message"
           placeholder={busy ? 'Working…' : recording ? 'Start speaking…' : 'Type a message…'}
-          canSubmit={conversation.ready() && !(recording || persistenceError)}
+          canSubmit={
+            conversation.ready() &&
+            !(recording || persistenceError || contentPersistence || contextError)
+          }
           busy={busy}
           readOnly={recording}
           voice={{ phase: transcript.phase, onClick: voiceAction }}
@@ -333,7 +377,8 @@ function AgentTurn({
       {live && !turn.parts.length && <LiveStatus>Thinking…</LiveStatus>}
       {turn.status === 'unknown' && (
         <Text role="status" tone="subtle">
-          Recorded Agent run; outcome unknown. Opening history does not resume execution.
+          Chat response is unfinished. Recorded Agent activity is shown; opening history does not
+          resume execution.
         </Text>
       )}
       {!!turn.error && (

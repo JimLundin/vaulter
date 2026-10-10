@@ -17,6 +17,9 @@ export interface NodeConversationState extends ChatState {
   readonly phase?: NodeChatRunState['phase'];
   readonly persistenceError?: string;
   readonly persistenceStage?: NodeChatRunState['persistenceStage'];
+  readonly contentPersistence?: NodeChatRunState['contentPersistence'];
+  readonly contentAccepted?: string;
+  readonly contextError?: string;
 }
 function turn(data: MessageData, live = false, outcomePending = false): Turn {
   if (data.role === 'user')
@@ -72,7 +75,14 @@ export function createNodeConversation(initial: NodeConversationOptions) {
   let suggestionAbort: AbortController | undefined;
   const ready = () => !(disposed || options.availability);
   const suggest = async () => {
-    if (!(ready() && options.model) || state.busy || state.persistenceError) return;
+    if (
+      !(ready() && options.model) ||
+      state.busy ||
+      state.persistenceError ||
+      state.contentPersistence ||
+      state.contextError
+    )
+      return;
     const key = `${id}:${state.turns.length}:${options.selectedModel}`;
     if (key === suggestedFor) return;
     suggestedFor = key;
@@ -123,11 +133,22 @@ export function createNodeConversation(initial: NodeConversationOptions) {
       busy: ['queued', 'accepting', 'running', 'saving', 'paused'].includes(current.phase),
       persistenceError: current.persistenceError,
       persistenceStage: current.persistenceStage,
+      contentPersistence: current.contentPersistence,
+      contentAccepted: current.contentAccepted,
+      contextError: current.contextError,
     });
   };
   async function send(text: string) {
     const said = text.trim();
-    if (!ready() || state.busy || state.persistenceError || !said) return;
+    if (
+      !ready() ||
+      state.busy ||
+      state.persistenceError ||
+      state.contentPersistence ||
+      state.contextError ||
+      !said
+    )
+      return;
     suggestionAbort?.abort();
     suggestedFor = undefined;
     set({ suggestions: [] });
@@ -148,14 +169,25 @@ export function createNodeConversation(initial: NodeConversationOptions) {
     await sent.done;
     if (disposed || active !== sent) return;
     reflect();
-    if (active.prepared() && active.snapshot().persistenceStage !== 'initial')
+    if (
+      active.prepared() &&
+      active.snapshot().execution &&
+      active.snapshot().persistenceStage !== 'initial'
+    )
       options.onConversation?.(id);
-    if (!(state.persistenceError || state.busy) && state.phase !== 'recorded')
-      set({
-        turns: (await sentBackend.messages(id)).map(({ data }) => turn(data)),
-        unread: views === 0,
-      });
-    else if (!state.busy) set({ busy: false });
+    if (
+      sent.snapshot().execution &&
+      !(state.persistenceError || state.busy) &&
+      state.phase !== 'recorded'
+    ) {
+      try {
+        const messages = await sentBackend.messages(id);
+        if (!disposed && active === sent)
+          set({ turns: messages.map(({ data }) => turn(data)), unread: views === 0 });
+      } catch (error) {
+        set({ contextError: error instanceof Error ? error.message : String(error) });
+      }
+    } else if (!state.busy) set({ busy: false });
   }
   return {
     snapshot: () => state,
@@ -197,7 +229,14 @@ export function createNodeConversation(initial: NodeConversationOptions) {
     send,
     sendDraft: async () => {
       const text = state.draft;
-      if (!(ready() && text.trim()) || state.busy || state.persistenceError) return;
+      if (
+        !(ready() && text.trim()) ||
+        state.busy ||
+        state.persistenceError ||
+        state.contentPersistence ||
+        state.contextError
+      )
+        return;
       set({ draft: '' });
       await send(text);
     },
@@ -213,6 +252,21 @@ export function createNodeConversation(initial: NodeConversationOptions) {
       if (!(state.persistenceError || state.busy))
         set({ turns: (await activeBackend.messages(id)).map(({ data }) => turn(data)) });
     },
+    retryContentSave: async () => {
+      await active?.retryContentSave();
+      reflect();
+    },
+    refreshContext: async () => {
+      await active?.refreshContext();
+      reflect();
+      if (state.contextError) return;
+      try {
+        const messages = await activeBackend.messages(id);
+        set({ turns: messages.map(({ data }) => turn(data)), contextError: undefined });
+      } catch (error) {
+        set({ contextError: error instanceof Error ? error.message : String(error) });
+      }
+    },
     viewing: () => {
       views++;
       if (state.unread) set({ unread: false });
@@ -221,17 +275,46 @@ export function createNodeConversation(initial: NodeConversationOptions) {
       };
     },
     open: async (conversation: string) => {
-      if (state.busy || state.persistenceError || disposed) return;
+      if (
+        state.busy ||
+        state.persistenceError ||
+        state.contentPersistence ||
+        state.contextError ||
+        disposed
+      )
+        return;
       const messages = await backend.messages(conversation);
-      if (disposed || state.busy || state.persistenceError) return;
+      if (
+        disposed ||
+        state.busy ||
+        state.persistenceError ||
+        state.contentPersistence ||
+        state.contextError
+      )
+        return;
+      unsubscribeActive?.();
+      active = undefined;
       id = conversation;
       set({
         turns: messages.map(({ data }) => turn(data)),
         unread: false,
+        phase: undefined,
+        persistenceError: undefined,
+        persistenceStage: undefined,
+        contentPersistence: undefined,
+        contentAccepted: undefined,
+        contextError: undefined,
       });
     },
     newChat: () => {
-      if (disposed || state.busy || state.persistenceError) return;
+      if (
+        disposed ||
+        state.busy ||
+        state.persistenceError ||
+        state.contentPersistence ||
+        state.contextError
+      )
+        return;
       unsubscribeActive?.();
       id = crypto.randomUUID();
       active = undefined;
@@ -246,6 +329,9 @@ export function createNodeConversation(initial: NodeConversationOptions) {
         phase: undefined,
         persistenceError: undefined,
         persistenceStage: undefined,
+        contentPersistence: undefined,
+        contentAccepted: undefined,
+        contextError: undefined,
       });
     },
     dispose: () => {

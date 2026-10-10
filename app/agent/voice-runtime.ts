@@ -1,5 +1,6 @@
 import { asSchema } from 'ai';
-import type { ModelMessage, ToolSet } from 'ai';
+import { historyModelMessages } from './history.ts';
+import type { ToolSet } from 'ai';
 import type { NodeStore } from '../vault/nodes/store.ts';
 import type { JsonValue } from '../vault/nodes/model.ts';
 import { canonical, frozen } from '../vault/nodes/json.ts';
@@ -88,39 +89,6 @@ async function describe(tools: ToolSet) {
         }),
     ),
   );
-}
-function historyMessages(history: readonly VoiceHistory[]): ModelMessage[] {
-  return history.flatMap((message): ModelMessage[] => {
-    if (message.role === 'user') return [{ role: 'user', content: message.text }];
-    return message.parts.flatMap((part): ModelMessage[] => {
-      if (part.kind === 'text') return [{ role: 'assistant', content: part.text }];
-      return [
-        {
-          role: 'assistant',
-          content: [
-            { type: 'tool-call', toolCallId: part.callId, toolName: part.name, input: part.input },
-          ],
-        },
-        {
-          role: 'tool',
-          content: [
-            {
-              type: 'tool-result',
-              toolCallId: part.callId,
-              toolName: part.name,
-              output: {
-                type: 'json',
-                value:
-                  part.status === 'complete'
-                    ? (part.output ?? null)
-                    : { error: part.error ?? 'Tool outcome is unknown; inspect recorded history' },
-              },
-            },
-          ],
-        },
-      ];
-    });
-  });
 }
 
 /** Live media delegates each accepted run to the same Agent lifetime and durable tool wrapper. */
@@ -243,7 +211,10 @@ export async function createVoiceAgent(options: VoiceAgentOptions) {
             previous.handle.stop();
             await previous.handle.done;
           }
-          const messages = [...historyMessages(history), { role: 'user' as const, content: text }];
+          const messages = [
+            ...historyModelMessages(history),
+            { role: 'user' as const, content: text },
+          ];
           const context: SuppliedContext[] = [
             {
               data: {

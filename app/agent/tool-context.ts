@@ -152,5 +152,17 @@ export function agentContentContext(options: {
       return writing;
     },
   };
-  return { context, check, settle: () => Promise.allSettled([...writes]) };
+  return {
+    context,
+    check,
+    settle: () => Promise.allSettled([...writes]),
+    refresh: async () => {
+      const latest = await options.nodes.snapshot();
+      // Refresh never revives an expired context or rebases previously declared read dependencies.
+      if (options.live() && !options.signal.aborted) {
+        snapshot = latest;
+        refreshError = undefined;
+      }
+    },
+  };
 }

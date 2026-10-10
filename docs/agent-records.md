@@ -100,6 +100,11 @@ The live state distinguishes persistence stages (`initial`, `invocation`, `conte
 attributed request and error separately. A snapshot refresh failure after accepted content remains
 an observable context error; it does not convert accepted publication into a failed tool receipt.
 No automatic content retry claims exactly-once effects for arbitrary external tools.
+The explicit `retryContentSave` operation resubmits only the immutable attributed NodeCommit;
+`contentAccepted` acknowledges its acceptance separately from the original tool outcome. It never
+repeats external effects or fabricates a successful receipt. `refreshContext` retries reading current
+nodes, retaining declared stale-read dependencies and never reviving stopped tool access. Content
+and refresh diagnostics coexist with independent tool/terminal save obligations.
 
 Stop immediately expires new and queued publication, waits for already entered effects and
 writes to settle, and preserves their known outcomes. When outcome persistence remains unresolved,

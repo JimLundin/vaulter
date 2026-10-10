@@ -35,6 +35,7 @@ export interface AgentRunState {
   readonly pendingTool?: PendingToolSave;
   readonly contextError?: string;
   readonly contentPersistence?: { readonly request: NodeCommit; readonly error: string };
+  readonly contentAccepted?: string;
 }
 export interface AgentRun {
   readonly snapshot: () => AgentRunState;
@@ -43,6 +44,8 @@ export interface AgentRun {
   readonly stop: () => void;
   /** Persistence only: never repeat or resume execution. */
   readonly retrySave: () => Promise<AgentRunState>;
+  readonly retryContentSave: () => Promise<AgentRunState>;
+  readonly refreshContext: () => Promise<AgentRunState>;
 }
 export interface AgentBackendOptions {
   readonly nodes: NodeStore;
@@ -83,6 +86,8 @@ export function createAgentBackend(options: AgentBackendOptions) {
     let toolPending: PendingToolSave | undefined;
     let toolController: ReturnType<typeof durableTools> | undefined;
     let settleContent: (() => Promise<unknown>) | undefined;
+    let refreshContent: (() => Promise<void>) | undefined;
+    let contentRetry: Promise<AgentRunState> | undefined;
     let interrupted = false;
     let terminal: (() => Promise<AgentRunState>) | undefined;
     let terminalWork: Promise<AgentRunState> | undefined;
@@ -178,6 +183,7 @@ export function createAgentBackend(options: AgentBackendOptions) {
           if (canonical(Object.keys(supplied).sort(compare)) !== canonical(selected))
             throw new Error('Supplied tools do not match accepted enabled tools');
           settleContent = guard.settle;
+          refreshContent = guard.refresh;
           toolController = durableTools({
             nodes: options.nodes,
             tools: supplied,
@@ -414,6 +420,43 @@ export function createAgentBackend(options: AgentBackendOptions) {
       stop: () => {
         live = false;
         abort.abort();
+      },
+      retryContentSave: () => {
+        if (contentRetry !== undefined) return contentRetry;
+        const retained = state.contentPersistence;
+        if (!retained) return Promise.resolve(state);
+        contentRetry = (async () => {
+          try {
+            await options.nodes.commit(retained.request);
+            const { contentPersistence: _content, ...rest } = state;
+            notify({
+              ...rest,
+              contentAccepted: retained.request.id,
+              ...(state.persistenceStage === 'content' ? { persistenceStage: undefined } : {}),
+            });
+            await handle.refreshContext();
+          } catch (error) {
+            notify({
+              ...state,
+              contentPersistence: { request: retained.request, error: errorMessage(error) },
+            });
+          }
+          return state;
+        })().finally(() => {
+          contentRetry = undefined;
+        });
+        return contentRetry;
+      },
+      refreshContext: async () => {
+        try {
+          if (refreshContent) await refreshContent();
+          else await options.nodes.snapshot();
+          const { contextError: _error, ...rest } = state;
+          notify(rest);
+        } catch (error) {
+          notify({ ...state, contextError: errorMessage(error) });
+        }
+        return state;
       },
       retrySave: () => {
         if (retry !== undefined) return retry;

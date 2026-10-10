@@ -1,6 +1,12 @@
 // Chat acceptance and projection over the common node store. Model SDKs stay in the workflow.
 import type { NodeVersion } from '../../../vault/nodes/model.ts';
-import type { NodeChange, NodeCommit, NodeStore } from '../../../vault/nodes/store.ts';
+import type {
+  NodeChange,
+  NodeCommit,
+  NodeStore,
+  NodeSnapshot,
+} from '../../../vault/nodes/store.ts';
+import { parseAgentRun, parseToolExecution } from '../../../agent/schema.ts';
 import { parseConversation, parseExchange, parseMessage, parseChatInstant } from './chat-schema.ts';
 import { frozen } from '../../../vault/nodes/json.ts';
 import { chatOperations, type ConversationData, type MessageData } from './chat.ts';
@@ -13,6 +19,64 @@ export interface SavedChat {
 export interface SavedMessage {
   readonly version: NodeVersion;
   readonly data: MessageData;
+  /** Exact evidence for projected parts; Chat response status remains its actual accepted status. */
+  readonly sources?: readonly NodeVersion['key'][];
+}
+
+function projectMessage(snapshot: NodeSnapshot, version: NodeVersion): SavedMessage {
+  const data = parseMessage(version.data);
+  if (data.role !== 'agent' || data.status !== 'running' || !version.placement)
+    return { version, data };
+  const parts = [...data.parts];
+  const sources = parts.map(() => version.key);
+  for (const run of snapshot.children(version.placement.parent)) {
+    if (run.data?.kind !== 'agentRun') continue;
+    const start = run.connection?.source.transaction;
+    if (!start) continue;
+    const submitted = snapshot.resolve({ node: version.key.node, transaction: start });
+    if (submitted?.data?.role !== 'agent' || submitted.placement?.parent !== run.placement?.parent)
+      continue;
+    const execution = parseAgentRun(run.data);
+    for (const tool of snapshot.children(run.key.node)) {
+      if (tool.data?.kind !== 'toolExecution') continue;
+      const receipt = parseToolExecution(tool.data);
+      const recorded = {
+        kind: 'tool' as const,
+        callId: receipt.call,
+        name: receipt.name,
+        input: receipt.input,
+        status:
+          receipt.status === 'complete'
+            ? 'complete'
+            : receipt.status === 'running'
+              ? 'running'
+              : 'failed',
+        ...(receipt.output !== undefined ? { output: receipt.output } : {}),
+        ...(receipt.error ? { error: receipt.error.message } : {}),
+      } as const;
+      const index = parts.findIndex((part) => part.kind === 'tool' && part.callId === receipt.call);
+      if (index < 0) {
+        parts.push(recorded);
+        sources.push(tool.key);
+      } else {
+        const prior = parts[index]!;
+        if (prior.kind !== 'tool') continue;
+        const { output: _output, error: _error, ...retained } = prior;
+        parts[index] = { ...retained, ...recorded };
+        sources[index] = tool.key;
+      }
+    }
+    const text = execution.output?.text;
+    if (
+      typeof text === 'string' &&
+      text &&
+      !parts.some((part) => part.kind === 'text' && part.text === text)
+    ) {
+      parts.push({ kind: 'text', text });
+      sources.push(run.key);
+    }
+  }
+  return { version, data: { ...data, parts }, sources };
 }
 
 /** Page through submissions, retaining one current conversation per identity. */
@@ -63,7 +127,7 @@ export async function savedMessages(
       return snapshot
         .children(exchange.key.node)
         .flatMap((version) =>
-          version.data?.kind === 'message' ? [{ version, data: parseMessage(version.data) }] : [],
+          version.data?.kind === 'message' ? [projectMessage(snapshot, version)] : [],
         );
     }),
   );
