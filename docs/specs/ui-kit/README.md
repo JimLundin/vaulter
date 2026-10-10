@@ -74,7 +74,8 @@ The paired preview sample compares retained page/input presentation. Selected pr
 renders directly without rejected B/C choices; future design sessions can supply alternatives to
 DesignComparison. See the [#26 consumer and decision record](20-cleanup/26.md).
 
-Cleanup implementation is integrated on `spec/20-ui-kit-cleanup` from review base `fe941c2`.
+Cleanup implementation from `spec/20-ui-kit-cleanup` (review base `fe941c2`) is merged into
+`structure` at `4c851e7`, including all ticket implementations and final acceptance records.
 For current ticket evidence, retained/provisional scope and final check results, read the
 [cleanup acceptance record](20-cleanup/README.md). The
 [maintainer inventory reconciliation](20-reduction-inventory.md#implementation-reconciliation)

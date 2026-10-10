@@ -1,7 +1,12 @@
 # UI-kit cleanup #20: implementation and acceptance
 
 Spec: [#20](https://github.com/JimLundin/vaulter/issues/20).
-Integration branch: `spec/20-ui-kit-cleanup`. Review base: `fe941c2`.
+Implementation branch: `spec/20-ui-kit-cleanup`. Review base: `fe941c2`.
+Merged into `structure` at `4c851e7` on 2026-10-10. The merge retains the exact tree from
+implementation tip `337af69`, including every ticket and the final acceptance records.
+Post-merge typecheck, lint and all 218 Vitest tests passed; the test run used the recorded
+command-only 30s timeout. Existing lint warnings remain. Browser and build acceptance below
+applies to the identical merged implementation.
 
 The [agent brief](../20-agent-brief.md) and
 [maintainer inventory](../20-reduction-inventory.md) define the approved scope. The inventory
