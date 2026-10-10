@@ -34,6 +34,8 @@ export interface NodeSnapshot {
   readonly resolve: (address: NodeAddress) => NodeVersion | undefined;
   /** Live child placements at this cutoff; parent may select an identity or exact live version. */
   readonly children: (parent: NodeId | NodeAddress) => readonly NodeVersion[];
+  /** Live unplaced nodes at this cutoff: the roots of the vault's containment trees. */
+  readonly roots: () => readonly NodeVersion[];
 }
 
 export interface NodeDifference {

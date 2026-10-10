@@ -4,11 +4,12 @@ import type { JsonObject } from '../../../vault/nodes/model.ts';
 /** Browser wall clock describes instants; monotonic durations are milliseconds. */
 // biome-ignore lint/style/useConsistentTypeDefinitions: type aliases satisfy JsonObject structurally
 export type ObservationTime = {
-  readonly requested: string;
+  /** Null when unknown, as for readings imported without their collection. */
+  readonly requested: string | null;
   /** Time the value describes, including the actual time of a cached location fix. */
   readonly observed: string | null;
-  readonly received: string;
-  readonly elapsedMs: number;
+  readonly received: string | null;
+  readonly elapsedMs: number | null;
 };
 
 // biome-ignore lint/style/useConsistentTypeDefinitions: type aliases satisfy JsonObject structurally
@@ -114,10 +115,28 @@ export type AddressData = {
   readonly raw: JsonObject;
 };
 // biome-ignore lint/style/useConsistentTypeDefinitions: type aliases satisfy JsonObject structurally
+export type HostData = {
+  readonly host?: string;
+  readonly os?: string;
+  readonly kernel?: string;
+  readonly arch?: string;
+  readonly user?: string;
+  readonly shell?: string;
+  readonly timezone?: string;
+  readonly node?: string;
+};
+// biome-ignore lint/style/useConsistentTypeDefinitions: type aliases satisfy JsonObject structurally
+export type SessionData = {
+  readonly session?: string;
+  readonly entrypoint?: string;
+  readonly effort?: string;
+  readonly turns?: number;
+};
+// biome-ignore lint/style/useConsistentTypeDefinitions: type aliases satisfy JsonObject structurally
 export type WeatherData = {
   readonly latitude: number;
   readonly longitude: number;
-  readonly intervalSeconds: number;
+  readonly intervalSeconds: number | null;
   readonly temperatureC?: number;
   readonly apparentTemperatureC?: number;
   readonly humidityPercent?: number;
@@ -160,6 +179,8 @@ export interface ObservationValues {
   readonly power: PowerData;
   readonly location: LocationData;
   readonly address: AddressData;
+  readonly host: HostData;
+  readonly session: SessionData;
   readonly weather: WeatherData;
   readonly airQuality: AirQualityData;
 }

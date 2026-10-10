@@ -189,7 +189,7 @@ export function createNodeConversation(initial: NodeConversationOptions) {
       }
     } else if (!state.busy) set({ busy: false });
   }
-  return {
+  const api = {
     snapshot: () => state,
     subscribe: (listener: () => void) => {
       listeners.add(listener);
@@ -306,6 +306,14 @@ export function createNodeConversation(initial: NodeConversationOptions) {
         contextError: undefined,
       });
     },
+    /** Continue the most recently active conversation, unless this one already has turns. */
+    openLatest: async () => {
+      if (state.turns.length || disposed) return;
+      const [latest] = await backend.chats();
+      if (!latest || state.turns.length || disposed) return;
+      await api.open(latest.node);
+      if (id === latest.node) options.onConversation?.(latest.node);
+    },
     newChat: () => {
       if (
         disposed ||
@@ -342,5 +350,6 @@ export function createNodeConversation(initial: NodeConversationOptions) {
       listeners.clear();
     },
   };
+  return api;
 }
 export type NodeConversation = ReturnType<typeof createNodeConversation>;

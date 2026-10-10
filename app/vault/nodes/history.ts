@@ -24,8 +24,13 @@ export function snapshotOf(records: readonly NodeRecord[], cutoff?: number): Nod
       exact.set(JSON.stringify([version.key.node, version.key.transaction]), version);
     }
   }
+  const roots: NodeVersion[] = [];
   for (const version of selected.values()) {
-    if (version.data === null || !version.placement) continue;
+    if (version.data === null) continue;
+    if (!version.placement) {
+      roots.push(version);
+      continue;
+    }
     const siblings = children.get(version.placement.parent) ?? [];
     siblings.push(version);
     children.set(version.placement.parent, siblings);
@@ -37,6 +42,8 @@ export function snapshotOf(records: readonly NodeRecord[], cutoff?: number): Nod
     Object.freeze(siblings);
   }
   const empty = Object.freeze([]);
+  roots.sort((a, b) => compare(a.key.node, b.key.node));
+  const frozenRoots = Object.freeze(roots);
   const resolve = (address: NodeAddress) =>
     address.transaction === undefined
       ? selected.get(address.node)
@@ -45,6 +52,7 @@ export function snapshotOf(records: readonly NodeRecord[], cutoff?: number): Nod
     sequence,
     get: (node: string) => selected.get(node),
     resolve,
+    roots: () => frozenRoots,
     children: (parent: string | NodeAddress) => {
       const address = typeof parent === 'string' ? { node: parent } : parent;
       return resolve(address)?.data == null ? empty : (children.get(address.node) ?? empty);

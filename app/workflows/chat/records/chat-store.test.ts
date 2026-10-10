@@ -128,7 +128,7 @@ test('payload validation retains unknown nested JSON and special keys without mu
   for (const [parse, data] of [
     [parseConversation, { kind: 'conversation', title: 'Studio', createdAt: at }],
     [parseExchange, { kind: 'exchange', startedAt: at }],
-    [parseChatReference, { kind: 'reference', role: 'topic' }],
+    [parseChatReference, { kind: 'reference', role: 'topic', label: 'Studio' }],
     [parseMetadataReference, { kind: 'metadataReference', role: 'evidence' }],
     [
       parseMetadata,
@@ -173,19 +173,46 @@ test('known schema violations and non-JSON extensions are rejected', () => {
   ).toThrow();
 });
 
-test('saved conversations are paginated and deduplicated across more than one history page', async () => {
+test('saved conversations are the conversation roots, however recorded, most recently active first', async () => {
   const store = memoryNodeBackend();
   await seed(store);
-  // Each subsequent page includes a different conversation as well as repeat submissions.
-  for (let index = 0; index < 102; index++) {
-    // biome-ignore lint/performance/noAwaitInLoops: acceptance order is the behavior being exercised.
-    const submission = await prepareChatSubmission(
-      store,
-      submit(`send-${index}`, index === 0 ? 'oldest' : 'latest'),
-    );
-    await store.commit(submission);
-  }
-  expect((await savedChats(store)).map(({ node }) => node)).toEqual(['latest', 'oldest']);
+  await store.commit(
+    await prepareChatSubmission(store, { ...submit('first', 'older'), at: '2026-10-01T09:00:00Z' }),
+  );
+  await store.commit(
+    await prepareChatSubmission(store, {
+      ...submit('second', 'newer'),
+      at: '2026-10-05T09:00:00Z',
+    }),
+  );
+  await store.commit(
+    await prepareChatSubmission(store, { ...submit('third', 'older'), at: '2026-10-08T09:00:00Z' }),
+  );
+  // Recorded by another operation than Send, with its own exchange and message.
+  const conversation = {
+    kind: 'conversation',
+    title: 'Recorded',
+    createdAt: '2026-09-01T09:00:00Z',
+  };
+  const exchange = { kind: 'exchange', startedAt: '2026-09-02T09:00:00Z' };
+  const message = { kind: 'message', role: 'user', at: '2026-09-02T09:00:00Z', text: 'Hello' };
+  await store.commit(
+    request('recorded', [
+      create('recorded', conversation),
+      { ...create('recorded-exchange', exchange), placement: { parent: 'recorded', order: 'a' } },
+      {
+        ...create('recorded-message', message),
+        placement: { parent: 'recorded-exchange', order: 'a' },
+      },
+    ]),
+  );
+  const chats = await savedChats(store);
+  expect(chats.map(({ node }) => node)).toEqual(['older', 'newer', 'recorded']);
+  expect(chats.map(({ activeAt }) => activeAt)).toEqual([
+    '2026-10-08T09:00:00Z',
+    '2026-10-05T09:00:00Z',
+    '2026-09-02T09:00:00Z',
+  ]);
   store.close();
 });
 

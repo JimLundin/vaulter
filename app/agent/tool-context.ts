@@ -67,6 +67,12 @@ export function agentContentContext(options: {
           for (const child of children) track(child.key.node);
           return children;
         },
+        roots: () => {
+          check();
+          const roots = captured.roots();
+          for (const root of roots) track(root.key.node);
+          return roots;
+        },
       };
     },
     commit: (input) => {

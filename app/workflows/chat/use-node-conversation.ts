@@ -14,12 +14,16 @@ export function useNodeConversation(options: NodeConversationOptions) {
   const conversation = ref.current;
   conversation.updateOptions(options);
   useEffect(() => {
-    if (options.conversation && !options.availability)
-      later(
-        conversation.open(options.conversation).catch(() => {
-          /* No accepted conversation yet. */
-        }),
-      );
+    if (options.availability) return;
+    // Without a retained selection, continue the vault's most recently active conversation.
+    later(
+      (options.conversation
+        ? conversation.open(options.conversation)
+        : conversation.openLatest()
+      ).catch(() => {
+        /* No accepted conversation yet. */
+      }),
+    );
   }, [conversation, options.conversation, options.availability]);
   useEffect(() => () => conversation.dispose(), [conversation]);
   return conversation;

@@ -18,11 +18,12 @@ const source = z.object({
   method: text.optional(),
   request: text.optional(),
 });
+// Unknown times are null rather than invented, as for readings imported without their collection.
 const time = z.object({
-  requested: instant,
+  requested: instant.nullable(),
   observed: instant.nullable(),
-  received: instant,
-  elapsedMs: nonnegative,
+  received: instant.nullable(),
+  elapsedMs: nonnegative.nullable(),
 });
 const quality = z.object({
   method: text.optional(),
@@ -111,10 +112,26 @@ const values = {
     longitude: finite.min(-180).max(180),
     raw: json,
   }),
+  host: z.object({
+    host: text.optional(),
+    os: text.optional(),
+    kernel: text.optional(),
+    arch: text.optional(),
+    user: text.optional(),
+    shell: text.optional(),
+    timezone: text.optional(),
+    node: text.optional(),
+  }),
+  session: z.object({
+    session: text.optional(),
+    entrypoint: text.optional(),
+    effort: text.optional(),
+    turns: count.optional(),
+  }),
   weather: z.object({
     latitude: finite.min(-90).max(90),
     longitude: finite.min(-180).max(180),
-    intervalSeconds: nonnegative,
+    intervalSeconds: nonnegative.nullable(),
     temperatureC: finite.optional(),
     apparentTemperatureC: finite.optional(),
     humidityPercent: finite.min(0).max(100).optional(),

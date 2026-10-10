@@ -14,7 +14,8 @@ import { chatOperations, type ConversationData, type MessageData } from './chat.
 export interface SavedChat {
   readonly node: string;
   readonly data: ConversationData;
-  readonly sequence: number;
+  /** The latest time its records give: its last exchange's start or last message. */
+  readonly activeAt: string;
 }
 export interface SavedMessage {
   readonly version: NodeVersion;
@@ -91,38 +92,30 @@ function projectMessage(snapshot: NodeSnapshot, version: NodeVersion): SavedMess
   return { version, data: { ...data, parts }, sources };
 }
 
-/** Page through submissions, retaining one current conversation per identity. */
+const latest = (times: readonly string[]) =>
+  times.reduce((a, b) => (Date.parse(b) > Date.parse(a) ? b : a));
+
+/**
+ * The vault's conversations: its conversation roots, however they were recorded, most recently
+ * active first. Exchanges are appended in order, so the last one holds the latest activity.
+ */
 export async function savedChats(store: NodeStore): Promise<readonly SavedChat[]> {
   const snapshot = await store.snapshot();
-  const seen = new Set<string>();
-  const chats: SavedChat[] = [];
-  let beforeSequence: number | undefined = snapshot.sequence + 1;
-  // biome-ignore lint/suspicious/noUnnecessaryConditions: history pagination terminates on the last page.
-  while (true) {
-    // biome-ignore lint/performance/noAwaitInLoops: each page supplies the next cursor.
-    const page = await store.history({
-      beforeSequence,
-      limit: 100,
-      kinds: [chatOperations.submit],
-    });
-    for (const transaction of page) {
-      if (!transaction.origin) continue;
-      const exchange = snapshot.get(transaction.origin);
-      const node = exchange?.placement?.parent;
-      if (!node || seen.has(node)) continue;
-      seen.add(node);
-      const version = snapshot.get(node);
-      if (version?.data == null) continue;
-      chats.push({
-        node,
-        data: parseConversation(version.data),
-        sequence: transaction.sequence,
-      });
+  const chats = snapshot.roots().flatMap((version): SavedChat[] => {
+    if (version.data?.kind !== 'conversation') return [];
+    const data = parseConversation(version.data);
+    const exchange = snapshot
+      .children(version.key.node)
+      .findLast((child) => child.data?.kind === 'exchange');
+    const times = [data.createdAt];
+    if (exchange) {
+      times.push(parseExchange(exchange.data).startedAt);
+      for (const child of snapshot.children(exchange.key.node))
+        if (child.data?.kind === 'message') times.push(parseMessage(child.data).at);
     }
-    if (page.length < 100) break;
-    beforeSequence = page.at(-1)!.sequence;
-  }
-  return frozen(chats);
+    return [{ node: version.key.node, data, activeAt: latest(times) }];
+  });
+  return frozen(chats.sort((a, b) => Date.parse(b.activeAt) - Date.parse(a.activeAt)));
 }
 
 export async function savedMessages(

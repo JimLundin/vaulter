@@ -2,6 +2,7 @@
 import { z } from 'zod';
 import type { JsonValue } from '../../../vault/nodes/model.ts';
 import { canonical, frozen } from '../../../vault/nodes/json.ts';
+import { precision } from '../../../vault/records/common.ts';
 import type { ChatReferenceData, ConversationData, ExchangeData, MessageData } from './chat.ts';
 
 const instant = z.iso.datetime({ offset: true });
@@ -22,19 +23,24 @@ const conversation = z.object({
 const exchange = z.object({
   kind: z.literal('exchange'),
   startedAt: instant,
+  startedAtPrecision: precision.optional(),
+  endedAt: instant.optional(),
   time: z
     .object({
       timezone: z.string().min(1),
       offsetMinutes: z.number().int().min(-840).max(840),
     })
     .optional(),
-  capture: z.object({ procedure: z.string(), summary: z.string() }).optional(),
+  summary: z.string().min(1).optional(),
+  /** Text of an imported record outside its turns. */
+  preamble: z.string().min(1).optional(),
 });
 const message = z.discriminatedUnion('role', [
   z.object({
     kind: z.literal('message'),
     role: z.literal('user'),
     at: instant,
+    atPrecision: precision.optional(),
     text: z.string(),
     input: z
       .object({
@@ -57,6 +63,7 @@ const message = z.discriminatedUnion('role', [
     kind: z.literal('message'),
     role: z.literal('agent'),
     at: instant,
+    atPrecision: precision.optional(),
     status: z.enum(['running', 'complete', 'stopped', 'failed', 'interrupted']),
     parts: z.array(
       z.discriminatedUnion('kind', [
@@ -80,6 +87,7 @@ const message = z.discriminatedUnion('role', [
 const reference = z.object({
   kind: z.literal('reference'),
   role: z.enum(['topic', 'place']),
+  label: z.string().min(1),
 });
 
 function checked<Data>(schema: z.ZodType, value: unknown): Data {

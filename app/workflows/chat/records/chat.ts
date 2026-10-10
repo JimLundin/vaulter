@@ -1,6 +1,7 @@
 // Application payloads stored in the common node model, independent of model SDKs and storage.
 import type { JsonValue, NodeVersion } from '../../../vault/nodes/model.ts';
 import type { TransactionKind } from '../../../vault/nodes/operations.ts';
+import type { Precision } from '../../../vault/records/common.ts';
 import type { NodeDifference } from '../../../vault/nodes/store.ts';
 import type { MessageInput, MetadataData, MetadataReferenceData } from './chat-metadata.ts';
 
@@ -39,12 +40,13 @@ export type ConversationData = {
 export type ExchangeData = {
   readonly kind: 'exchange';
   readonly startedAt: string;
+  readonly startedAtPrecision?: Precision;
+  readonly endedAt?: string;
   /** Observations are independently recorded children; this instant describes submission. */
   readonly time?: { readonly timezone: string; readonly offsetMinutes: number };
-  readonly capture?: {
-    readonly procedure: string;
-    readonly summary: string;
-  };
+  readonly summary?: string;
+  /** Text of an imported record outside its turns. */
+  readonly preamble?: string;
 };
 
 export type MessagePart =
@@ -67,6 +69,7 @@ export type MessageData =
       readonly kind: 'message';
       readonly role: 'user';
       readonly at: string;
+      readonly atPrecision?: Precision;
       readonly text: string;
       readonly input?: MessageInput;
     }
@@ -74,6 +77,7 @@ export type MessageData =
       readonly kind: 'message';
       readonly role: 'agent';
       readonly at: string;
+      readonly atPrecision?: Precision;
       readonly status: 'running' | 'complete' | 'stopped' | 'failed' | 'interrupted';
       readonly parts: readonly MessagePart[];
       readonly model?: string;
@@ -86,6 +90,8 @@ export type MessageData =
 export type ChatReferenceData = {
   readonly kind: 'reference';
   readonly role: 'topic' | 'place';
+  /** What the record named, as written. */
+  readonly label: string;
 };
 
 export type ChatData =

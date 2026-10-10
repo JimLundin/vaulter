@@ -55,7 +55,7 @@ import {
   type ApplicationIdentities,
 } from './application-identities.ts';
 import { nodeContentTools, canUndoContent } from './vault/content/tools.ts';
-import type { NodeStore } from './vault/nodes/store.ts';
+import type { NodeDifference, NodeStore } from './vault/nodes/store.ts';
 import { createOpenAICapabilities } from './agent/openai/index.ts';
 import { model as selectedModel } from './workflows/chat/model.ts';
 import { preservesAgentRecords } from './agent/preservation.ts';
@@ -64,7 +64,11 @@ import {
   createNodeConversation,
   type NodeConversationOptions,
 } from './workflows/chat/node-conversation.ts';
-import { nodeHistory, prepareContentUndo } from './workflows/history/nodes.ts';
+import {
+  nodeHistory,
+  prepareContentUndo,
+  type NodeHistoryEntry,
+} from './workflows/history/nodes.ts';
 import { HistoryPage } from './workflows/history/index.tsx';
 import './workflows/chat/rendering/prose.css';
 
@@ -135,6 +139,10 @@ export function OpenProduct({
   const conversationKey = preview ? previewConversationKey : productionConversationKey;
   const setup = useMemo(
     () => (nodes ? createApplicationIdentities(nodes, identities) : null),
+    [nodes, identities],
+  );
+  const nodeHistoryView = useMemo(
+    () => (nodes ? productNodeHistory(nodes, identities) : undefined),
     [nodes, identities],
   );
   const [identityState, setIdentityState] = useState<{
@@ -460,7 +468,7 @@ export function OpenProduct({
             voice={voice}
           />
         ) : onHistory ? (
-          <HistoryPage vault={vault} />
+          <HistoryPage nodes={nodeHistoryView} />
         ) : provenanceRoute.match(route.path) && import.meta.env.MODE !== 'production' ? (
           <ProvenancePrototype />
         ) : (
@@ -509,17 +517,31 @@ export function OpenProduct({
 }
 
 /** Application composition for generic node History and guarded content compensation. */
-export function productNodeHistory(nodes: NodeStore) {
+export function productNodeHistory(
+  nodes: NodeStore,
+  identities: ApplicationIdentities = defaultIdentities,
+) {
+  const canUndo = (difference: NodeDifference) =>
+    preservesAgentRecords(difference) &&
+    preservesChatRecords(difference) &&
+    canUndoContent(difference);
+  const prepareUndo = (options: { transaction: string; recordedBy: string; id: string }) =>
+    prepareContentUndo(nodes, { ...options, canUndo });
   return {
     entries: (options?: Parameters<NodeStore['history']>[0]) => nodeHistory(nodes, options),
-    prepareUndo: (options: { transaction: string; recordedBy: string; id: string }) =>
-      prepareContentUndo(nodes, {
-        ...options,
-        canUndo: (difference) =>
-          preservesAgentRecords(difference) &&
-          preservesChatRecords(difference) &&
-          canUndoContent(difference),
-      }),
+    subscribe: nodes.subscribe,
+    prepareUndo,
+    canUndo: (entry: NodeHistoryEntry) =>
+      entry.differences.length > 0 && entry.differences.every(canUndo),
+    /** Compensates as the owner; acceptance rejects it if an affected node changed since. */
+    undo: async (entry: NodeHistoryEntry) =>
+      nodes.commit(
+        await prepareUndo({
+          transaction: entry.transaction.id,
+          recordedBy: identities.user,
+          id: crypto.randomUUID(),
+        }),
+      ),
   };
 }
 
