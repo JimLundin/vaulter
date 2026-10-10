@@ -9,6 +9,13 @@ export async function openAIWebRTC(
     readonly event: (event: Record<string, unknown>) => void;
     readonly error: (error: Error) => void;
     readonly audio?: (stream: MediaStream) => void;
+    readonly messages?: {
+      readonly unavailable: string;
+      readonly credential: string;
+      readonly channelClosed: string;
+      readonly mediaLost: string;
+      readonly timeout: string;
+    };
   },
 ) {
   if (
@@ -16,7 +23,7 @@ export async function openAIWebRTC(
     !navigator.mediaDevices?.getUserMedia ||
     typeof RTCPeerConnection === 'undefined'
   )
-    throw new Error('Live audio is unavailable in this browser');
+    throw new Error(options.messages?.unavailable ?? 'Live audio is unavailable in this browser');
   options.signal.throwIfAborted();
   const http = openAIHttp(options);
   const peer = new RTCPeerConnection();
@@ -58,10 +65,11 @@ export async function openAIWebRTC(
     if (!event || typeof event !== 'object' || Array.isArray(event)) return;
     options.event(event as Record<string, unknown>);
   };
-  channel.onclose = () => failed(new Error('The OpenAI live audio connection closed'));
+  channel.onclose = () =>
+    failed(new Error(options.messages?.channelClosed ?? 'The OpenAI live audio connection closed'));
   peer.onconnectionstatechange = () => {
     if (['failed', 'disconnected', 'closed'].includes(peer.connectionState))
-      failed(new Error('The OpenAI media connection was lost'));
+      failed(new Error(options.messages?.mediaLost ?? 'The OpenAI media connection was lost'));
   };
   peer.ontrack = ({ streams }) => {
     if (!closed && streams[0]) options.audio?.(streams[0]);
@@ -91,7 +99,12 @@ export async function openAIWebRTC(
       options.signal,
       'application/json',
     );
-    const token = clientSecretSchema.parse(await tokenResponse.json());
+    const parsedToken = clientSecretSchema.safeParse(await tokenResponse.json());
+    if (!parsedToken.success)
+      throw new Error(
+        options.messages?.credential ?? 'OpenAI did not return a live audio session credential.',
+      );
+    const token = parsedToken.data;
     if (closed) throw new DOMException('Live audio closed', 'AbortError');
     const offer = await peer.createOffer();
     await peer.setLocalDescription(offer);
@@ -114,7 +127,10 @@ export async function openAIWebRTC(
           resolve();
         };
         readyTimer = setTimeout(
-          () => reject(new Error('OpenAI live audio connection timed out')),
+          () =>
+            reject(
+              new Error(options.messages?.timeout ?? 'OpenAI live audio connection timed out'),
+            ),
           15_000,
         );
       });

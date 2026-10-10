@@ -1,4 +1,5 @@
 import type { ModelMessage } from 'ai';
+import { historyModelMessages } from '../../agent/history.ts';
 import type { JsonObject } from '../../vault/nodes/model.ts';
 import type { NodeCommit, NodeStore } from '../../vault/nodes/store.ts';
 import { canonical, frozen } from '../../vault/nodes/json.ts';
@@ -41,6 +42,9 @@ export interface NodeChatRunState {
   readonly execution?: AgentRunState;
   readonly persistenceError?: string;
   readonly persistenceStage?: AgentRunState['persistenceStage'] | 'response';
+  readonly contentPersistence?: AgentRunState['contentPersistence'];
+  readonly contentAccepted?: string;
+  readonly contextError?: string;
 }
 export interface NodeChatRun {
   readonly snapshot: () => NodeChatRunState;
@@ -48,6 +52,8 @@ export interface NodeChatRun {
   readonly done: Promise<NodeChatRunState>;
   readonly stop: () => void;
   readonly retrySave: () => Promise<NodeChatRunState>;
+  readonly retryContentSave: () => Promise<NodeChatRunState>;
+  readonly refreshContext: () => Promise<NodeChatRunState>;
   readonly prepared: () => PreparedNodeChat | undefined;
 }
 const errorMessage = (error: unknown) => (error instanceof Error ? error.message : String(error));
@@ -70,38 +76,7 @@ function appendQueue(nodes: NodeStore, conversation: string) {
 export function chatModelMessages(
   messages: readonly Awaited<ReturnType<typeof savedMessages>>[number][],
 ): ModelMessage[] {
-  return messages.flatMap(({ data }) => {
-    if (data.role === 'user') return [{ role: 'user', content: data.text }];
-    const result: ModelMessage[] = [];
-    for (const part of data.parts) {
-      if (part.kind === 'text') result.push({ role: 'assistant', content: part.text });
-      else {
-        result.push({
-          role: 'assistant',
-          content: [
-            { type: 'tool-call', toolCallId: part.callId, toolName: part.name, input: part.input },
-          ],
-        });
-        result.push({
-          role: 'tool',
-          content: [
-            {
-              type: 'tool-result',
-              toolCallId: part.callId,
-              toolName: part.name,
-              output:
-                part.status === 'running'
-                  ? { type: 'error-text', value: 'Outcome is uncertain; do not repeat this tool.' }
-                  : part.error
-                    ? { type: 'error-text', value: part.error }
-                    : { type: 'json', value: part.output ?? null },
-            },
-          ],
-        });
-      }
-    }
-    return result;
-  });
+  return historyModelMessages(messages.map(({ data }) => data));
 }
 /** Complete same-ID acceptance request; retain this whole value through uncertain retries. */
 export async function prepareNodeChatSubmission(
@@ -133,17 +108,26 @@ export async function prepareNodeChatSubmission(
     },
   ];
   for (const message of history) {
-    for (const effective of chatModelMessages([message]))
-      context.push({
-        data: {
-          kind: 'contextInput',
-          role: effective.role,
-          position: context.length,
-          transformation: 'generated',
-          content: { message: JSON.parse(canonical(effective)) },
-        },
-        target: message.version.key,
-      });
+    const fragments =
+      message.data.role === 'agent'
+        ? message.data.parts.map((part, index) => ({
+            ...message,
+            data: { ...message.data, parts: [part] } as MessageData,
+            target: message.sources?.[index] ?? message.version.key,
+          }))
+        : [{ ...message, target: message.version.key }];
+    for (const fragment of fragments)
+      for (const effective of chatModelMessages([fragment]))
+        context.push({
+          data: {
+            kind: 'contextInput',
+            role: effective.role,
+            position: context.length,
+            transformation: 'generated',
+            content: { message: JSON.parse(canonical(effective)) },
+          },
+          target: fragment.target,
+        });
   }
   const user = submission.changes.find(
     (change) => change.data?.kind === 'message' && change.data.role === 'user',
@@ -281,10 +265,21 @@ export function createNodeChatBackend(options: NodeChatOptions) {
           phase: current.phase,
           response: responseFrom(prepared, current),
           execution: current,
+          contentPersistence: current.contentPersistence,
+          contentAccepted: current.contentAccepted,
+          contextError: current.contextError,
           ...(current.persistenceError
             ? {
                 persistenceError: current.persistenceError,
                 persistenceStage: current.persistenceStage,
+              }
+            : {}),
+          ...(pending
+            ? {
+                phase: state.phase,
+                response: state.response,
+                persistenceError: state.persistenceError,
+                persistenceStage: state.persistenceStage,
               }
             : {}),
         });
@@ -305,12 +300,17 @@ export function createNodeChatBackend(options: NodeChatOptions) {
         current.data.status === 'running'
       )
         return state;
-      const recorded = await readAgentRun(options.nodes, prepared.execution.run);
-      if (recorded)
-        current = {
-          ...current,
-          tools: recorded.tools.map(({ version, data }) => ({ node: version.key.node, data })),
-        };
+      try {
+        const recorded = await readAgentRun(options.nodes, prepared.execution.run);
+        if (recorded)
+          current = {
+            ...current,
+            tools: recorded.tools.map(({ version, data }) => ({ node: version.key.node, data })),
+          };
+      } catch (error) {
+        // A projection refresh cannot invalidate already accepted tool or run outcomes.
+        notify({ ...state, contextError: errorMessage(error) });
+      }
       if (responseSave !== undefined) return responseSave;
       responseSave = (async () => {
         const response = responseFrom(prepared!, current);
@@ -319,7 +319,14 @@ export function createNodeChatBackend(options: NodeChatOptions) {
         try {
           await options.nodes.commit(pending);
           pending = undefined;
-          notify({ phase: response.status, response, execution: current });
+          notify({
+            ...state,
+            phase: response.status,
+            response,
+            execution: current,
+            persistenceError: undefined,
+            persistenceStage: undefined,
+          });
         } catch (error) {
           notify({
             ...state,
@@ -390,7 +397,13 @@ export function createNodeChatBackend(options: NodeChatOptions) {
         return;
       }
       prepared = await prepareNodeChatSubmission(options, request);
+      if (abort.signal.aborted || disposed) {
+        settleAcceptance();
+        notify({ ...state, phase: 'stopped', response: { ...state.response, status: 'stopped' } });
+        return;
+      }
       execution = agent.start(prepared.execution);
+      if (abort.signal.aborted) execution.stop();
       execution.subscribe(reflect);
       reflect();
       await acceptance;
@@ -422,6 +435,27 @@ export function createNodeChatBackend(options: NodeChatOptions) {
         abort.abort();
         execution?.stop();
       },
+      retryContentSave: async () => {
+        await execution?.retryContentSave();
+        const current = execution?.snapshot();
+        notify({
+          ...state,
+          execution: current,
+          contentPersistence: current?.contentPersistence,
+          contentAccepted: current?.contentAccepted,
+          contextError: current?.contextError,
+        });
+        return state;
+      },
+      refreshContext: async () => {
+        await execution?.refreshContext();
+        notify({
+          ...state,
+          execution: execution?.snapshot(),
+          contextError: execution?.snapshot().contextError,
+        });
+        return state;
+      },
       retrySave: () => {
         if (retry !== undefined) return retry;
         retry = (async () => {
@@ -430,9 +464,12 @@ export function createNodeChatBackend(options: NodeChatOptions) {
               await options.nodes.commit(pending);
               pending = undefined;
               notify({
+                ...state,
                 phase: state.response.status,
                 response: state.response,
                 execution: state.execution,
+                persistenceError: undefined,
+                persistenceStage: undefined,
               });
             } catch (error) {
               notify({ ...state, persistenceError: errorMessage(error) });

@@ -116,3 +116,89 @@ test('Stop during an outcome-save pause retains accepted content and the pending
   await page.reload();
   await expect(page.locator('[data-message="user"]')).toHaveCount(1);
 });
+
+test('reload after Chat response save failure shows accepted Agent output and does not execute another run', async ({
+  page,
+}) => {
+  await page.goto('/preview/?scenario=terminal-save');
+  const input = page.getByRole('textbox', { name: 'Message', exact: true });
+  await input.fill('vault it: preserved response');
+  await input.press('Enter');
+  await expect(
+    page.getByRole('alert').filter({ hasText: 'Chat response needs saving' }),
+  ).toBeVisible();
+  const journal = await page.evaluate(() => sessionStorage.getItem('vaulter:preview:accepted:v1'));
+  await page.reload();
+  await expect(page.getByText('Filed in', { exact: false })).toBeVisible();
+  await expect(page.getByText('Chat response is unfinished.', { exact: false })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Stop', exact: true })).toBeHidden();
+  expect(await page.evaluate(() => sessionStorage.getItem('vaulter:preview:accepted:v1'))).toBe(
+    journal,
+  );
+  await input.fill('What was accepted?');
+  await input.press('Enter');
+  await expect(page.locator('[data-message="user"]')).toHaveCount(2);
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const accepted = JSON.parse(sessionStorage.getItem('vaulter:preview:accepted:v1') ?? '[]');
+        const submissions = accepted.filter(
+          (request: { kind: { action: string } }) => request.kind.action === 'submit',
+        );
+        return submissions
+          .at(-1)
+          ?.changes.some(
+            (change: { data?: { kind?: string; content?: unknown } }) =>
+              change.data?.kind === 'contextInput' &&
+              JSON.stringify(change.data.content).includes('transaction'),
+          );
+      }),
+    )
+    .toBe(true);
+});
+
+for (const scenario of ['content-save', 'content-lost-response']) {
+  test(`${scenario} keeps a visible diagnostic and reconciles the original publication without repeating a tool`, async ({
+    page,
+  }) => {
+    await page.goto(`/preview/?scenario=${scenario}`);
+    const input = page.getByRole('textbox', { name: 'Message', exact: true });
+    await input.fill('vault it: keep publication');
+    await input.press('Enter');
+    await expect(page.getByRole('alert').filter({ hasText: 'Content save:' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Stop', exact: true })).toBeHidden();
+    await input.fill('Another message');
+    await expect(page.getByRole('button', { name: 'Send', exact: true })).toBeDisabled();
+    const receipts = await page.evaluate(() =>
+      JSON.parse(sessionStorage.getItem('vaulter:preview:accepted:v1') ?? '[]').filter(
+        (request: { kind: { action: string } }) =>
+          ['recordTool', 'completeTool'].includes(request.kind.action),
+      ),
+    );
+    await page.getByRole('button', { name: 'Retry content save', exact: true }).click();
+    await expect(page.getByText('Content save accepted.', { exact: false })).toBeVisible();
+    await expect(input).toHaveValue('Another message');
+    await input.focus();
+    await expect(page.getByRole('button', { name: 'Send', exact: true })).toBeEnabled();
+    const counts = await page.evaluate(() => {
+      const requests = JSON.parse(sessionStorage.getItem('vaulter:preview:accepted:v1') ?? '[]');
+      return {
+        contents: requests.filter(
+          (request: {
+            kind: { scope: string; action: string };
+            changes: { data?: { kind?: string } }[];
+          }) =>
+            request.kind.scope === 'node' &&
+            request.kind.action === 'create' &&
+            request.changes.some((change) => change.data?.kind === 'content'),
+        ).length,
+        tools: requests.filter((request: { kind: { action: string } }) =>
+          ['recordTool', 'completeTool'].includes(request.kind.action),
+        ),
+      };
+    });
+    expect(counts.contents).toBe(1);
+    expect(receipts).toHaveLength(2);
+    expect(counts.tools).toEqual(receipts);
+  });
+}

@@ -31,6 +31,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.useRealTimers();
   channel.sent = [];
+  channel.readyState = 'open';
 });
 
 function harness() {
@@ -129,4 +130,53 @@ test('rejects API failures without leaking response bodies and closes microphone
   ).rejects.toThrow('401');
   expect(track.stop).toHaveBeenCalledOnce();
   expect(peer.close).toHaveBeenCalledOnce();
+});
+
+test.each(['abort', 'channel'] as const)(
+  'pending transcription connection settles on %s and closes its tracks',
+  async (failure) => {
+    const { track, peer } = harness();
+    channel.readyState = 'connecting';
+    const abort = new AbortController();
+    const error = vi.fn();
+    const opening = openAITranscription('fixture')({ text: vi.fn(), error }, abort.signal);
+    const expectation = expect(opening).rejects.toThrow();
+    await vi.waitFor(() => expect(channel.onopen).toBeTypeOf('function'));
+    if (failure === 'abort') abort.abort();
+    else channel.onclose?.();
+    await expectation;
+    expect(track.stop).toHaveBeenCalledOnce();
+    expect(peer.close).toHaveBeenCalledOnce();
+    if (failure === 'channel')
+      expect(error).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'The transcription connection closed. Your transcript is kept.',
+        }),
+      );
+  },
+);
+
+test('final corrections received before commit acknowledgement settle the final recording in committed order', async () => {
+  vi.useFakeTimers();
+  harness();
+  const session = await openAITranscription('fixture')(
+    { text: vi.fn(), error: vi.fn() },
+    new AbortController().signal,
+  );
+  channel.event({ type: 'input_audio_buffer.committed', item_id: 'one' });
+  channel.event({
+    type: 'conversation.item.input_audio_transcription.completed',
+    item_id: 'two',
+    transcript: 'Second.',
+  });
+  channel.event({
+    type: 'conversation.item.input_audio_transcription.completed',
+    item_id: 'one',
+    transcript: 'First corrected.',
+  });
+  const finishing = session.finish();
+  await vi.advanceTimersByTimeAsync(200);
+  channel.event({ type: 'input_audio_buffer.committed', item_id: 'two', previous_item_id: 'one' });
+  expect(await finishing).toBe('First corrected. Second.');
+  session.close();
 });

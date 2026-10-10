@@ -4,6 +4,8 @@ export interface OpenAIConnectionOptions {
   readonly apiKey: string;
   readonly baseURL?: string;
   readonly fetch?: typeof fetch;
+  readonly timeoutMs?: number;
+  readonly requestError?: (path: string, status: number) => string;
 }
 export function openAIHttp(options: OpenAIConnectionOptions) {
   if (!options.apiKey.trim()) throw new Error('An unlocked OpenAI key is required');
@@ -28,9 +30,16 @@ export function openAIHttp(options: OpenAIConnectionOptions) {
           Authorization: `Bearer ${credential}`,
           ...(contentType ? { 'Content-Type': contentType } : {}),
         },
-        signal: AbortSignal.any([...(signal ? [signal] : []), AbortSignal.timeout(30_000)]),
+        signal: AbortSignal.any([
+          ...(signal ? [signal] : []),
+          AbortSignal.timeout(options.timeoutMs ?? 30_000),
+        ]),
       });
-      if (!response.ok) throw new Error(`OpenAI ${path} request failed (${response.status})`);
+      if (!response.ok)
+        throw new Error(
+          options.requestError?.(path, response.status) ??
+            `OpenAI ${path} request failed (${response.status})`,
+        );
       return response;
     },
   };

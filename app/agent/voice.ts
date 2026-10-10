@@ -1,4 +1,5 @@
 import type { ToolSet } from 'ai';
+import type { HistoryPart, ProviderHistory } from './history.ts';
 import type { JsonValue } from '../vault/nodes/model.ts';
 
 export interface VoiceTranscript {
@@ -24,20 +25,8 @@ export interface VoiceToolCall {
 }
 
 /** Provider execution projection, independent of any producer's persisted transcript shape. */
-export type VoicePart =
-  | { readonly kind: 'text'; readonly text: string }
-  | {
-      readonly kind: 'tool';
-      readonly name: string;
-      readonly callId: string;
-      readonly input: JsonValue;
-      readonly status: 'running' | 'complete' | 'failed';
-      readonly output?: JsonValue;
-      readonly error?: string;
-    };
-export type VoiceHistory =
-  | { readonly role: 'user'; readonly text: string }
-  | { readonly role: 'agent'; readonly parts: readonly VoicePart[] };
+export type VoicePart = HistoryPart;
+export type VoiceHistory = ProviderHistory;
 
 /** Media/provider protocol is separate from trusted node persistence and presentation. */
 export interface LiveVoiceOptions<History, Part> {

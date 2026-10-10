@@ -63,14 +63,24 @@ request without resuming the recorded execution. The view labels its unknown out
 explicit Send starts distinct work. Invocation, content, tool outcome, Agent completion and Chat
 response persistence failures have categorized recovery. Tool-outcome recovery saves the known
 result without repeating effects, and Stop keeps pending saving available. Reopening reads accepted
-records without executing Agent. Legacy staged files remain intact and require an explicit choice
+records without executing Agent. For an unfinished Chat response, Chat also projects accepted tool
+receipts and output from the Agent run accepted with that response. The actual Chat response status
+remains running; later context cites each exact receipt/run version without claiming the missing
+response was saved or replaying unfinished tools.
+
+Content acceptance failures retain the original attributed request separately from response saving.
+“Retry content save” resubmits that request only and acknowledges accepted content separately; the
+failed tool receipt is never rewritten as success. “Refresh records” reads current nodes without
+executing effects or reviving expired tool access. Unresolved diagnostics remain visible and block
+another Send. Legacy staged files remain intact and require an explicit choice
 to send a message while leaving them staged.
 
 The design preview uses these production interfaces with a scripted model and fictional content.
 Its versioned sessionStorage journal contains complete accepted NodeCommit requests, replayed in
 order through a fresh memory adapter on reload. It never records a rejected request as accepted.
 Reset clears this journal and the selected conversation; ordinary reload preserves accepted history.
-Query scenarios `initial-save`, `lost-response`, `outcome-save` and `terminal-save` inject one failure
+Query scenarios `initial-save`, `lost-response`, `content-save`, `content-lost-response`, `outcome-save`
+and `terminal-save` inject one failure
 at the corresponding registered operation. Lost-response accepts and journals before throwing.
 This tab-scoped fictional retention does not replace the production encrypted cache.
 
