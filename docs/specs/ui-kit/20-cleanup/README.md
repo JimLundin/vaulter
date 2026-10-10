@@ -76,6 +76,8 @@ those repairs and all merged map changes; all 315 normal browser cases passed.
 
 Standards: zero hard violations, one minor judgement finding (Possible Duplicated Code), resolved.
 Spec: zero findings. The two axes retain their separate conclusions below.
+The following reports record the review at `bd50a00`; their then-pending verification is
+completed in the acceptance above.
 
 ### Standards
 
