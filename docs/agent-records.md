@@ -52,3 +52,36 @@ reports `recorded` to distinguish a read-only accepted running record from local
 `toolExecution` payload ownership also moves to Agent while preserving existing fields and JSON.
 The module-owned tool execution path, its durable invocation/outcome writes and recovery follow
 in the dependent tickets. This slice supplies no tools and introduces no global execution queue.
+
+## Module-owned tools
+
+A caller supplies an explicit tool factory and accepts each selected name/version in the initial
+run's `enabledTools`. Agent installs that exact set and no default content tools. Supplied tools
+must execute in their owning module, rather than delegate an unrecorded effect to the provider.
+The module owns its input schema, content payloads, operation validation and publication choice.
+Agent owns the run and tool activity, not a universal staging or review rule.
+
+Each `toolExecution` is a stable child of its run. It retains call identity, name/version, attempt,
+arguments, timing and status. Its connection source identifies the exact initial run version and
+its target identifies the exact initial invocation version. Invocation acceptance happens inside
+the actual executing tool wrapper, before module execution. Completion versions only that tool
+node with immutable JSON output or a recorded execution error. Calls within one run execute in
+order, so an outcome awaiting acceptance prevents later effects and provider continuation.
+
+A write failure exposes `paused`, a persistence error and an immutable `pendingTool` request,
+its invocation/outcome stage and retained execution data. This slice does not replay tools or
+fabricate a result. Full persistence retry, Stop and in-flight drain recovery follows in the
+dependent outcome recovery ticket. Reopening exposes recorded running invocations unchanged.
+
+The supplied execution context provides cancellation, guarded NodeStore reads and publication
+with the stable Agent author and run origin. Model input cannot override those identities or
+undo attribution. Changed-node expectations and declared identity/children reads reject stale
+publication atomically. Exact evidence reads preserve their version without silently rebasing.
+Parent and returned-child reads do not establish protection against a new concurrent child;
+a module requiring stronger coordination owns it.
+
+Agent protects its own run, context and tool records, including placed reference descendants.
+The caller composes any additional producer record policy, such as preserving Chat transcripts.
+A content module can therefore create a valid Interpretation and exact evidence links while
+existing execution references remain protected. The same context supports a module publishing
+content immediately and another module recording a proposal, without imposing either choice.

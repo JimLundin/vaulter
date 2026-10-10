@@ -90,6 +90,7 @@ export const parseToolExecution = (value: unknown) =>
 
 /** Invocation settings are narrower than historical JSON, whose unknown fields remain readable. */
 const modelSettings = z.strictObject({
+  maxSteps: z.number().int().positive().optional(),
   maxOutputTokens: z.number().int().positive().optional(),
   temperature: z.number().finite().min(0).max(2).optional(),
   topP: z.number().finite().min(0).max(1).optional(),
