@@ -1,14 +1,14 @@
 // Permanent feature records over the common NodeStore; no feature-specific persistence backend.
 import type { NodeAddress, NodeId, Transaction } from '../../../vault/nodes/model.ts';
 import type { NodeChange, NodeStore } from '../../../vault/nodes/store.ts';
-import type { MetadataData, MetadataReferenceData } from './chat-metadata.ts';
+import type { ChatMetadataData, MetadataReferenceData } from './chat-metadata.ts';
 import { parseMetadata, parseMetadataReference } from './chat-metadata-schema.ts';
 import { chatOperations } from './chat.ts';
 
 export interface MetadataEntry {
   readonly node: NodeId;
   readonly order: string;
-  readonly data: MetadataData;
+  readonly data: ChatMetadataData;
   readonly references?: readonly {
     readonly node: NodeId;
     readonly order: string;
@@ -29,6 +29,8 @@ export function recordChatMetadata(
 ): Promise<Transaction> {
   const changes: NodeChange[] = [];
   for (const entry of options.entries) {
+    if (['agentRun', 'contextInput', 'toolExecution'].includes(entry.data.kind))
+      throw new Error('Agent owns execution metadata; use Agent preparation and acceptance.');
     if (
       entry.data.kind === 'interpretation' &&
       !entry.references?.some((reference) => reference.data.role === 'evidence')

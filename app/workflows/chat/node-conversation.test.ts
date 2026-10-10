@@ -314,3 +314,139 @@ test('node Chat optional suggestions preserve the shared draft and unavailable n
   });
   controller.dispose();
 });
+
+test('node Chat caches suggestions per model and discards late suggestions after Send, new chat and disposal', async () => {
+  const nodes = memoryNodeBackend();
+  await seed(nodes);
+  await nodes.commit(request('agent', [create('agent', { kind: 'agent' })]));
+  let requested = 0;
+  let release!: (value: string[]) => void;
+  const suggestions = () => {
+    requested++;
+    return new Promise<string[]>((resolve) => {
+      release = resolve;
+    });
+  };
+  const options = {
+    nodes,
+    user: 'user',
+    agent: 'agent',
+    provider: 'fictional',
+    selectedModel: 'fictional',
+    instructions: 'Record.',
+    model: () => Promise.reject(new Error('No model requested for suggestions')),
+    suggestions,
+  };
+  const chat = createNodeConversation(options);
+  const first = chat.suggest();
+  await chat.suggest();
+  expect(requested).toBe(1);
+  chat.newChat();
+  release(['Stale']);
+  await first;
+  expect(chat.snapshot().suggestions).toEqual([]);
+  const second = chat.suggest();
+  release(['Current']);
+  await second;
+  expect(chat.snapshot().suggestions).toEqual(['Current']);
+  chat.updateOptions({ ...options, selectedModel: 'another' });
+  const third = chat.suggest();
+  chat.dispose();
+  release(['Disposed']);
+  await third;
+  expect(chat.snapshot().suggestions).toEqual(['Current']);
+});
+
+test('node Chat Stop expires a held module tool factory and failed factories allow another explicit Send', async () => {
+  const nodes = memoryNodeBackend();
+  await seed(nodes);
+  await nodes.commit(request('agent', [create('agent', { kind: 'agent' })]));
+  const model = new MockLanguageModelV4();
+  let entered!: () => void;
+  const factoryEntered = new Promise<void>((resolve) => {
+    entered = resolve;
+  });
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let context!: import('../../agent/tools.ts').AgentToolContext;
+  const options = {
+    nodes,
+    user: 'user',
+    agent: 'agent',
+    provider: 'fictional',
+    selectedModel: 'fictional',
+    instructions: 'Record.',
+    model: async () => model,
+  };
+  const chat = createNodeConversation({
+    ...options,
+    tools: async (current) => {
+      context = current;
+      entered();
+      await held;
+      return {};
+    },
+  });
+  const sending = chat.send('First');
+  await factoryEntered;
+  chat.stop();
+  await sending;
+  expect(chat.snapshot().busy).toBe(false);
+  expect(() => context.snapshot()).toThrow(/stopped/i);
+  release();
+  expect(model.doStreamCalls).toHaveLength(0);
+  chat.updateOptions({ ...options, tools: () => Promise.reject(new Error('Factory failed')) });
+  await chat.send('Second');
+  expect(chat.snapshot().turns.at(-1)?.error).toBe('Factory failed');
+  chat.updateOptions({
+    ...options,
+    model: () => Promise.reject(new Error('Next explicit attempt')),
+  });
+  await chat.send('Third');
+  expect(chat.snapshot().turns.at(-1)?.error).toBe('Next explicit attempt');
+  chat.dispose();
+});
+
+test('Send cancels pending suggestions and suggestion failure leaves node Chat message entry usable', async () => {
+  const nodes = memoryNodeBackend();
+  await seed(nodes);
+  await nodes.commit(request('agent', [create('agent', { kind: 'agent' })]));
+  let release!: (values: string[]) => void;
+  let signal!: AbortSignal;
+  const options = {
+    nodes,
+    user: 'user',
+    agent: 'agent',
+    provider: 'fictional',
+    selectedModel: 'fictional',
+    instructions: 'Record.',
+    model: () => Promise.reject(new Error('Explicit execution completed with an error')),
+  };
+  const chat = createNodeConversation({
+    ...options,
+    suggestions: (_context, cancellation) => {
+      signal = cancellation;
+      return new Promise<string[]>((resolve) => {
+        release = resolve;
+      });
+    },
+  });
+  const suggesting = chat.suggest();
+  await chat.send('An explicit user message');
+  expect(signal.aborted).toBe(true);
+  release(['Late suggestion']);
+  await suggesting;
+  expect(chat.snapshot().suggestions).toEqual([]);
+  chat.updateOptions({
+    ...options,
+    suggestions: () => Promise.reject(new Error('Suggestions offline')),
+  });
+  await chat.suggest();
+  chat.setDraft('Another message');
+  expect(chat.ready()).toBe(true);
+  await chat.sendDraft();
+  expect(chat.snapshot().turns.filter(({ role }) => role === 'user')).toHaveLength(2);
+  chat.dispose();
+});

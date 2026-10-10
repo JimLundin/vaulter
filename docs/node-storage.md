@@ -5,11 +5,11 @@ and unlocked-session wiring are integrated into `structure` from PR #21. All fea
 recorded data. Valid submitted content is preserved; edits and undo append new versions and
 transactions without modifying earlier records.
 
-The [consumer contract layer](node-consumers.md) defines Chat payload schemas, submitted exchanges,
-terminal response requests and History projections. Agent execution, browser collection, response
-ownership and Product/History integration belong to agent runtime integration.
-The existing screens still use their file-backed workflows during that integration transition.
-The storage and consumer contract layers do not migrate vault files or transcripts.
+[Chat](chat-nodes.md) and [independent Agent](agent-records.md) produce accepted nodes through this
+contract, and Product supplies models, identities and module-owned tools explicitly. Generic
+[History operations](node-consumers.md) read transactions and prepare guarded compensation. The
+visible Search/History screens retain their legacy file workflows; sensor collection is not part of
+this producer integration. Migration is separate work inside the Vault.
 The [captured spike](https://github.com/JimLundin/vaulter/tree/33a77c4) is the design experiment;
 its standalone shell, scratch keys, reset actions, and full replay reads are not shipped here.
 
@@ -112,7 +112,7 @@ This is suitable for the first storage slice, not unlimited history. GitHub's re
 produces an explicit failure. Checkpoints/paged remote indexes and bounded cold reconstruction need
 measurements as usage grows. No garbage collection discards referenced historical evidence.
 
-## Verification and next slice
+## Verification and current integration
 
 Adapter tests exercise atomic acceptance, exact citation retention, localized versions, historical
 composition, compensation, conflicts/read dependencies, immutable metadata, retry identity, lost
@@ -120,7 +120,6 @@ responses, competing devices, encrypted reopen/rebuild, cache failures, incremen
 and refusal of altered envelopes. Session tests verify cache-before-refresh, key injection,
 independent error status, close, and sign-out cleanup using fictional records.
 
-The consumer contract layer specifies how Chat/agent produces records and History reads transactions
-through this contract. Runtime integration remains tracked in
-[issue 19](https://github.com/JimLundin/vaulter/issues/19); its completion criteria are not satisfied
-by storage and consumer contracts alone.
+Product integration tests exercise Chat→Agent→content→durable receipts→response→reopened records,
+independent Agent execution and producer-owned compensation. Text/voice execution and recovery use
+the same NodeStore. No test accesses the private Vault or performs the separate migration.

@@ -1,7 +1,7 @@
 // Content module operations: accepted publication is immediate, without legacy file staging.
 import { tool } from 'ai';
 import { z } from 'zod';
-import type { NodeCommit, NodeSnapshot } from '../nodes/store.ts';
+import type { NodeCommit, NodeSnapshot, NodeDifference } from '../nodes/store.ts';
 import { nodeOperations } from '../nodes/operations.ts';
 
 interface ContentContext {
@@ -74,4 +74,11 @@ export function nodeContentTools(context: ContentContext) {
       },
     }),
   };
+}
+
+/** Compensation accepts only this module's content on both sides, including deletion/creation. */
+export function canUndoContent({ before, after }: NodeDifference) {
+  return [before, after].every(
+    (version) => version?.data == null || version.data.kind === 'content',
+  );
 }

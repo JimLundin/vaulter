@@ -214,3 +214,72 @@ test('invalid measurement units, dates, exact targets, and selection ranges reje
   expect((await store.snapshot()).sequence).toBe(1);
   store.close();
 });
+
+test('legacy execution metadata decodes through Agent schemas without dropping optional unknown JSON or exact references', async () => {
+  const { parseMetadata, parseMetadataReference } = await import('./chat-metadata-schema.ts');
+  const run = {
+    kind: 'agentRun',
+    started: '2026-10-10T12:00:00Z',
+    status: 'running',
+    provider: 'fictional',
+    model: { requested: 'legacy', future: { retained: true } },
+    settings: { legacyProviderOption: { retained: true } },
+    enabledTools: [{ name: 'legacy', future: ['preserved'] }],
+    future: { retained: true },
+  };
+  expect(parseMetadata(run)).toEqual(run);
+  const input = {
+    kind: 'contextInput',
+    role: 'user',
+    position: 0,
+    transformation: 'verbatim',
+    content: { text: 'Exact historical evidence', future: { retained: true } },
+    future: true,
+  };
+  expect(parseMetadata(input)).toEqual(input);
+  const tool = {
+    kind: 'toolExecution',
+    call: 'legacy',
+    name: 'legacy',
+    attempt: 1,
+    started: '2026-10-10T12:00:00Z',
+    status: 'running',
+    input: { retained: { nested: true } },
+    future: true,
+  };
+  expect(parseMetadata(tool)).toEqual(tool);
+  const reference = { kind: 'metadataReference', role: 'evidence', future: { preserved: true } };
+  expect(parseMetadataReference(reference)).toEqual(reference);
+});
+
+test('new Chat metadata production refuses Agent execution payloads while the historical decoder retains them', async () => {
+  const { recordChatMetadata } = await import('./chat-metadata-store.ts');
+  const { memoryNodeBackend } = await import('../../../vault/nodes/memory.ts');
+  const nodes = memoryNodeBackend();
+  const run = {
+    kind: 'agentRun',
+    started: '2026-10-10T12:00:00Z',
+    status: 'running',
+    provider: 'fictional',
+    model: { requested: 'legacy' },
+    settings: {},
+    enabledTools: [],
+  };
+  expect(() =>
+    recordChatMetadata(nodes, {
+      transaction: 'attempt',
+      recordedBy: 'user',
+      exchange: 'exchange',
+      entries: [
+        {
+          node: 'run',
+          order: 'a',
+          data: run as unknown as Parameters<
+            typeof recordChatMetadata
+          >[1]['entries'][number]['data'],
+        },
+      ],
+    }),
+  ).toThrow('Agent owns execution metadata');
+  expect(await nodes.history()).toEqual([]);
+});

@@ -35,8 +35,8 @@ The node conversation controller keeps draft, live turns, unread state and view 
 React. It supports Send, Stop, recovery, reopening accepted conversations and selecting a new chat.
 Updated caller dependencies apply to later sends while active runs retain their original backend.
 Closing a view does not stop execution; disposal expires execution and prevents late view updates.
-The existing file-backed controller remains usable for app compatibility until the next app/preview
-integration ticket switches visible flows and preserves established suggestions and dictation.
+Product and preview use this controller with the existing views. Suggestions and dictation update
+its shared draft; the superseded file-backed Agent/controller/capture producer has been retired.
 
 ## Product composition and caller configuration
 
@@ -73,3 +73,30 @@ Reset clears this journal and the selected conversation; ordinary reload preserv
 Query scenarios `initial-save`, `lost-response`, `outcome-save` and `terminal-save` inject one failure
 at the corresponding registered operation. Lost-response accepts and journals before throwing.
 This tab-scoped fictional retention does not replace the production encrypted cache.
+
+New Chat metadata production accepts observations, attachments and Interpretations with exact
+reference children. Historical metadata decoding also delegates old Agent run/context/tool payloads
+to Agent schemas, including records previously placed as siblings under an exchange. It retains
+optional unknown JSON without rewriting history. Independent Agent readers follow current run-child
+relationships; they do not fabricate linkage/outcomes for that older sibling layout. Generic History
+can read all recorded versions regardless of producer installation.
+
+## Persisted layout
+
+| Payload | Required content | Placement and connections |
+|---|---|---|
+| `conversation` | title, createdAt | Root identity; no connection required |
+| `exchange` | startedAt | Conversation child; append order chosen by Chat |
+| user `message` | role, at, text | Exchange child; optional typed input metadata |
+| Agent `message` | role, at, status, parts | Exchange child; optional model, tokens and error |
+| `reference` | topic/place role | Endpoints in connection, independent of placement |
+| `observation` | subject, source, time, outcome | Metadata child of exchange |
+| `attachment` | name, mediaType, bytes, sha256 | Metadata child; optional embedded metadata/dimensions |
+| `interpretation` | category, at, statement, certainty, method | New metadata identity with required exact evidence link |
+| `metadataReference` | role | Metadata child; source exact metadata version and target exact evidence version |
+
+Chat owns `chat.submit`, `completeResponse`, `stopResponse`, `checkpointResponse` and `recordMetadata`.
+Initial composed submission is attributed to the user and originates from its exchange. Response
+transactions are attributed to the configured Agent and originate from that same exchange. Metadata
+transactions retain their caller-supplied author and exchange origin. Agent content/tool transactions
+instead originate from the Agent run. All identities and source references remain in immutable history.

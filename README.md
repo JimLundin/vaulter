@@ -2,8 +2,9 @@
 
 The browser app Jim reads the vault in, at **https://jimlundin.github.io/vaulter/**. It holds no notes:
 behind a password it reads them at runtime from the vault, the private repo `JimLundin/vault`, keeps
-them encrypted on the device, and works offline. The current branch reads Markdown and the vault's
-schema; remaining legacy MDX content will be migrated after design review and merge. The design and its history: `PLAN-browser-app.md`
+them encrypted on the device, and works offline. Chat and Agent now produce nodes in the shared NodeStore. Legacy Search and History screens still
+read Markdown and its schema. The separate migration inside the Vault populates the target layout;
+the application does not perform that migration. The design and its history: `PLAN-browser-app.md`
 (written while the app still lived in the vault, as `site/`, and the repos were `my-vault` and `vault-pages`).
 
 ## Commands
@@ -21,8 +22,10 @@ schema; remaining legacy MDX content will be migrated after design review and me
 | `npm test` / `npm run typecheck` | the tests (Vitest: `app/`) and TypeScript over `app/` and `tools/` |
 | `node tools/seal-secrets.ts <out>` | seal the token and key with the password from the environment (what CI runs; see Publishing) |
 
-The app currently contains chat, rename-note, and history workflows. The agent reads and writes the
-vault through its permanent checks; rename stages the complete move and reference rewrites.
+Product composes node-backed Chat, independent Agent and module-owned content tools. Content
+publication records immutable node history and attributed tool receipts; failed saves are recoverable
+without repeating effects. The separate legacy rename-note operation stages file moves and reference
+rewrites. Legacy staged edits are preserved when sending node Chat messages.
 Consecutive tool calls fold into an expandable summary, with a live status showing the current action.
 The app includes a manifest and icons for installing it to the Home Screen.
 Settings holds the theme and agent model preferences, saved on this device. Enter sends an agent
@@ -57,20 +60,22 @@ Workflow views compose its public components; styles stay in the kit, with a sco
 in CI, including dynamic imports and aliases.
 
 The vault's vocabulary remains in its own `meta/schema.yaml`. `app/vault/validation/check.ts` combines
-note format and graph integrity checks; `tools/check.ts` runs them over a vault on disk. Every app
-commit passes the same rules and carries `Committed-From: vault app`.
+note format and graph integrity checks; `tools/check.ts` runs them over a vault on disk. Legacy file
+commits pass those rules and carry `Committed-From: vault app`. Node transactions enforce their
+structural integrity and the supplying module validates its own content.
 
 ## Central node storage
 
 The central NodeStore contract supports immutable versions, atomic transactions, grouped placement
 and connection values, and identity or exact-version references. GitHub persistence writes one
 transaction envelope into the private vault's `.vaulter/nodes/v1/transactions/` namespace and uses
-an encrypted Dexie device cache with the unlocked session key. Existing chat and History workflows
-still use files. [Consumer contracts](docs/node-consumers.md) now define Chat payloads, lossless
-schemas, acceptance requests, saved-message reads and attributed History differences/compensation
-inside the owning Chat and History workflows. Shared storage remains feature-independent.
-Agent execution and Product/History integration follow in the agent PR. See
-[node storage](docs/node-storage.md) for the interface, acceptance rules, and current limits.
+an encrypted Dexie device cache with the unlocked session key. Node-backed Chat accepts its message
+and initial Agent run together, while Agent can also execute independently of conversations. Modules
+choose their tools and publication rules. Generic History reads expose records, cutoffs and differences
+without running producers; Product composes Agent/Chat/content preservation for compensation. The
+visible History and Search screens remain legacy file workflows. See [Agent records](docs/agent-records.md),
+[Chat nodes](docs/chat-nodes.md), [consumer contracts](docs/node-consumers.md) and
+[node storage](docs/node-storage.md) for target layouts, recovery, acceptance and current limits.
 
 ## Publishing
 
@@ -90,8 +95,10 @@ The app, preview and gallery share one primary microphone/Enter action according
 Both use the same Filled style as New chat and confirmation actions; an empty focused draft keeps
 Enter disabled. The completed A/B/C style picker has been removed from the preview bar.
 This preview uses the actual Product views, fictional notes, an in-memory backend,
-and a scripted local model. Try “vault it: leave space for a walk before work” to exercise staging,
-checking, committing and History. Reload or Reset demo starts over. It ships no credentials, reads
+and a scripted local model. Try “vault it: leave space for a walk before work” to create, read and
+update a fictional content node through the actual Agent. Reload reopens accepted Chat history without
+replaying tools; Reset demo clears its tab journal. Query scenarios `initial-save`, `lost-response`,
+`outcome-save` and `terminal-save` demonstrate persistence recovery. It ships no credentials, reads
 no private vault contents, and registers no service worker. Search links still expose the current
 branch's missing reader routes; that remains an architecture review finding.
 

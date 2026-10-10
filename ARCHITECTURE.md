@@ -8,13 +8,16 @@ feature toggle.
 app/
   main.tsx                   bootstrap, fonts, theme, GitHub adapter
   product.tsx                optional workflow imports and all product wiring
+  agent/                     independent execution, records, durable tools, recovery, providers
+  application-identities.ts  configured stable caller identities and atomic bootstrap
   workflows/
-    chat/                    conversation lifetime, streaming, capture orchestration, views, tests
+    chat/                    node conversations, composed Agent acceptance, draft lifetime, views, tests
     rename-note/             rename operation, reference rewrites, model adapter, tests
     history/                 history and revert presentation
   vault/
     index.ts                 live vault interface and session
     nodes/                   immutable node model, acceptance, snapshots, memory adapter
+    content/                 module-owned node content operations and tools
     documents/               notes, schema, links, graph, capture format, search
     validation/              permanent note and graph rules
     changes/                 persisted shared staging and checked writes
@@ -49,7 +52,7 @@ operation. No common workflow manifest is required.
 Wire the task in `product.tsx`: imports, routes, navigation, commands, callbacks, and model tools as
 needed. Product passes dependencies and optional links explicitly. A workflow never imports another
 workflow, including in tests. For example, chat receives an optional history URL; it does not know
-where History lives. Product also supplies rename's tool factory to chat.
+where History lives. Product explicitly supplies content tools and provider capabilities to Chat.
 
 Keep a workflow's configurable fields in its own settings view, exported alongside its other views.
 Product passes `{ name, content }` entries to `SettingsMenu`; the kit groups each entry under that
@@ -58,7 +61,7 @@ Appearance are separate sections. Features without preferences need no empty set
 
 To remove History, delete `workflows/history/` and remove its import, route, navigation, command,
 page branch and optional history URLs from `product.tsx`. To remove rename, delete
-`workflows/rename-note/` and remove the lazy tool binding from Product. Run typecheck, tests and build.
+`workflows/rename-note/` and remove any application caller wiring. Run typecheck, tests and build.
 No vault, kit, or other workflow edit is required. Old routes show “Not found”. Persisted data remains
 readable and checked. These two removals have been verified in disposable copies.
 
@@ -68,16 +71,16 @@ paths make this check complete for source imports. The checker also prevents vau
 and keeps callers on the kit's public exports. Cross-workflow integration tests should be kept with
 Product and removed with the corresponding wiring.
 
-## Vault owns data integrity
+## Legacy file infrastructure owns file integrity
 
-The vault is mandatory infrastructure. It owns note parsing, `meta/schema.yaml`, link and reference
+The legacy file infrastructure owns note parsing, `meta/schema.yaml`, link and reference
 validation, graph derivation, encryption, synchronization, and the shared staged preview. File
 selection and write checks no longer depend on which workflows are installed.
 
 `Vault` exposes current files, staged paths, staging, checked commit/revert, history and patch queries.
 `liveVault()` binds once and reads the latest writer for each call; asynchronous tools do not depend on
 another view rendering. Workflows receive no backend handle or raw secrets. Bootstrap selects a
-storage adapter; Product supplies only the model dependency to chat.
+storage adapter; Product supplies NodeStore, configured identities, model capabilities and selected tools to Chat.
 
 Use `vault.update(files => changes)` for a change calculated from vault contents. The vault acquires
 exclusive ownership, reloads the cached head and persisted overlay, calculates against that preview,
@@ -90,9 +93,9 @@ multiple steps. Use the supplied `OwnedVault` throughout, including optional too
 the same operations without `write()`, so nested operations reuse ownership. Reads stay on the
 sequence's head and staged preview. Another writer waits until the callback completes or fails.
 Choose `staged: 'reject'`, explicitly include all existing staging, or supply the exact reviewed
-`Change[]`. A reviewed set must still match persisted staging after ownership is acquired. Chat shows
-the diffs and requires “Include changes and send” before including existing edits. Revert refuses
-to run with pending staging.
+`Change[]`. A reviewed set must still match persisted staging after ownership is acquired. Node Chat
+shows existing file edits accurately and offers “Send and keep staged edits”; it cannot publish or
+discard those edits. Legacy file revert refuses to run with pending staging.
 
 Ownership belongs to the backend's persisted state, shared across writer instances. Memory uses one
 queue; GitHub uses the origin's Web Locks. Cache replacement by sync and commit has its own Web Lock,
@@ -111,13 +114,25 @@ retains its existing check semantics.
 
 ## Conversation lifetime
 
-Product creates one conversation above route selection. Closing its panel or moving to History does
-not cancel a turn. Each controller owns its turns, draft, model history, subscriptions and capture
-position. Opening a view clears its unread state. Sign-out and unmount dispose it, aborting work and
-suppressing later UI notifications. Separate controllers never share a global current host.
-Each turn acquires vault ownership before constructing tools and holds it through streaming and
-capture. Stopping or disposing a turn expires the vault supplied to its tools, even if a tool factory
-ignores cancellation. Capture appends through `update()` so overlapping tools calculate in order.
+Product creates one node-backed conversation above route selection. Closing its panel or moving
+to History does not cancel a run. The controller owns draft, live progress, subscriptions and unread
+state; accepted Chat history is reconstructed directly from NodeStore. Sign-out and unmount expire
+execution and suppress late view changes. `view.ts` owns presentation snapshots independently of
+execution. There is no file-backed Chat Agent/capture/controller path.
+
+Agent independently owns effective context, run and tool records. Chat and Agent construct their own
+initial records, composed into one transaction before model/tool effects. Chat's local append queue
+covers preparation and initial acceptance only, never the whole execution. Agent has no whole-Vault
+lifetime queue. Module tools own validation and publication policy; invocation and outcome acceptance
+gate effects and continuation. Failed outcome persistence pauses work and retries saving the known
+result without replay. Stop expires tools, drains entered effects and retains accepted content and
+pending save obligations. Initial save recovery reconciles records without automatically executing.
+Missing local ownership leaves remote liveness unknown; reopening never replays unfinished tools.
+
+Product gates new Send on node availability, stable configured actor/Agent identities and model
+configuration. Bootstrap preserves migrated configuration and rejects deleted/incompatible identities.
+Live progress and categorized saving failures use the public kit; pending saving stays recoverable
+after Stop. Accepted conversation selection is scoped by API/repository, separately from the demo.
 Product assembles the Settings route from the kit's theme control and chat's `ChatSettings` view.
 Chat owns its model preference; the controller reads it at the start of each new turn. The composer
 contains only message entry and dictation/send controls, with Enter to send and Shift+Enter for a
@@ -137,8 +152,8 @@ status grows above the anchored composer; unsubmitted speech has no separate fee
 The shared SendButton shows the Enter arrow on field focus and becomes the sole response Stop
 control. VoiceButton stays a microphone, disabled during an agent response.
 
-`suggestions.ts` generates short prompts from a bounded set of note titles/summaries and recent
-conversation text using the selected model. It has no agent tools or write capability. The controller
+`suggestions.ts` supports bounded note summaries and recent conversation text; node Chat supplies
+its accepted conversation text without reading legacy files. It has no agent tools or write capability. The controller
 caches suggestions per chat, completed turn and model, cancels them when sending/starting over or
 disposing, and ignores late results. A failed request leaves the composer usable. Suggestions appear
 only when the draft is empty and unfocused; selecting one fills the draft rather than sending it.
@@ -205,8 +220,11 @@ Notes remain in the private vault; this repository ships application code only.
 
 `app/preview/` is an alternate bootstrap for design review. It supplies a memory backend and scripted
 model to the same Product views, with sample Markdown and an initial sample history entry. Product
-receives the model and preview label explicitly; workflows do not import the preview. Conversation
-metadata collection is supplied as an adapter, so preview sends do not request location or weather.
+receives the model and preview label explicitly; workflows do not import the preview. The preview
+supplies real node content tools and retains only fictional accepted requests in a
+versioned tab journal. Reload replays them through the memory adapter and reopens without execution;
+Reset clears the demo. Query-selected one-shot saving faults exercise production recovery. No sensor
+collection, microphone or paid model request runs in the preview.
 The preview builds separately, contains no sealed secrets and registers no service worker. Its
 GitHub Pages job runs on `structure` and `design-variants`, refreshing the shared `/preview/structure/`
 and kit gallery links alongside the exact deployed production artifact. The preview version records
@@ -228,12 +246,17 @@ GitHub node persistence writes a versioned transaction namespace alongside exist
 files. A non-forced ref update is definitive acceptance; stale expectations reject or unrelated
 remote races retry. Dexie is an encrypted rebuildable cache, not a separate source of authority.
 The [storage guide](docs/node-storage.md) and [persistence decision](docs/adr/0003-github-node-persistence.md)
-describe retry, ordering, offline, encryption, and history-size semantics. The existing chat/tools
-and History still use files during the transition. [Consumer contracts](docs/node-consumers.md)
+describe retry, ordering, offline, encryption, and history-size semantics. Chat/Agent produce nodes;
+the visible History and Search screens retain their legacy file scope. [Consumer contracts](docs/node-consumers.md)
 live with their owning workflows: `workflows/chat/records/` holds Chat payloads, lossless schemas,
 acceptance requests, saved-message projections and its transcript-preservation policy;
 `workflows/history/nodes.ts` holds attributed History differences and compensation. Product supplies
 feature-owned undo policies to History, so workflows never import one another. Storage exposes only
 generic node/transaction reads and atomic append writes; it knows no feature payloads or undo policy.
-An update appends a new version of the same node identity. Agent execution, collection and
-Product/History wiring follow in the agent PR above this layer.
+An update appends a new version of the same identity. `productChatOptions` and
+`createProductConversation` expose the same explicit composition used by the views.
+`productNodeHistory` supplies Agent/Chat/content preservation to generic History compensation;
+History never imports execution/transcript producers. New Chat metadata is observations, attachments
+and Interpretations. Historical Agent metadata still decodes through Agent-owned schemas, preserving
+unknown JSON and older containment without rewriting records. Sensor collection and Vault migration
+remain separate work.

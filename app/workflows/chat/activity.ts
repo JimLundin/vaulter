@@ -1,6 +1,6 @@
 // A turn's tool calls as a person reads them: consecutive calls folded into one line ("Read 3 files ·
 // staged 2 files"), and the call running now as a single status line. Text stays where it was said.
-import type { Part } from './conversation.ts';
+import type { Part } from './view.ts';
 
 export type ToolPart = Part & { kind: 'tool' };
 export type Segment =

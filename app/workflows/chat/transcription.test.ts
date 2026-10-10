@@ -1,6 +1,6 @@
 import { expect, test, vi } from 'vitest';
 import { createTranscription, type TranscriptionEvents } from './transcription.ts';
-import { transcriptBuffer } from './transcript.ts';
+import { transcriptBuffer } from '../../agent/transcript.ts';
 
 const deferred = <T>() => {
   let resolve!: (value: T) => void;

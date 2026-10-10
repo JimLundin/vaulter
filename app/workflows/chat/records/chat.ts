@@ -104,9 +104,6 @@ const recordKinds: ReadonlySet<string> = new Set([
   'reference',
   'observation',
   'attachment',
-  'contextInput',
-  'agentRun',
-  'toolExecution',
   'interpretation',
   'metadataReference',
 ]);

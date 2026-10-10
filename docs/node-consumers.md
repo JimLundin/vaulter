@@ -1,22 +1,19 @@
 # Node consumer contracts
 
-The consumer contracts introduced in [PR #34](https://github.com/JimLundin/vaulter/pull/34) and
-central persistence from [PR #21](https://github.com/JimLundin/vaulter/pull/21) are integrated into
-`structure`. They define feature records, ingress schemas and storage operations over the
-central `NodeStore`. Feature payloads, schemas and operations live with their owning workflows:
-`workflows/chat/records/` and `workflows/history/nodes.ts`. Storage knows generic JSON, versions,
-transactions, placement and connections; it does not know Chat or History semantics. Product,
-the existing Chat controller, History screens, browser collectors and agent providers are not
-wired to these operations yet. Runtime integration remains part of
-[issue #19](https://github.com/JimLundin/vaulter/issues/19); these contracts do not complete that issue.
+NodeStore provides one Vault representation. [Chat](chat-nodes.md) owns conversation/exchange/message
+production and its provenance; [Agent](agent-records.md) independently owns runs, effective context
+and tool executions. Product explicitly composes their initial records, models and module-owned tools.
+Storage retains generic JSON, versions, attribution, placement and connections without knowledge of
+producer payloads. The visible History/Search screens remain legacy file workflows, while generic
+node History reads and guarded compensation are available to application callers. Sensor collection
+and migration are separate work.
 
 ```text
-NodeStore (#21, integrated into structure)
-  └─ consumer contracts (#34, integrated into structure)
-       ├─ Chat: conversation → exchange → user/agent messages
-       ├─ observations, supplied context, agent runs, tools, interpretations and exact references
-       └─ History: attributed transactions, complete differences and guarded content compensation
-            └─ agent execution and Product/History integration (following PR)
+NodeStore: Vault nodes and immutable transactions
+  ├─ Chat: conversation → exchange → user/Agent messages
+  ├─ Agent: independent run → effective context and durable tool executions
+  ├─ Content tools: accepted content nodes and versions
+  └─ History: attributed cutoffs, differences and composed guarded compensation
 ```
 
 ## Chat records and acceptance
@@ -49,14 +46,14 @@ transactions so response completion or Stop cannot undo accepted content.
 `savedChats()` pages submitted transactions at one viewing cutoff and lists each available
 conversation once, newest submission first. `savedMessages()` reads ordered exchanges/messages
 at the requested snapshot cutoff and returns their immutable recorded statuses. A historical
-running response stays running in this projection: determining that its live owner is gone and
-presenting interruption belongs to the runtime. Reading records never executes tools.
+running response stays running in this projection. Runtime reads can expose available local ownership;
+missing local ownership leaves remote liveness unknown and does not prove abandonment. Reading records never executes tools.
 
 ## Observations and provenance
 
-`chat-metadata.ts` defines typed observations, input methods and attachments, supplied context,
-agent runs, tool executions, interpretations and exact reference payloads. Observations retain
-source, requested/observed/received instants, monotonic duration, units and collection outcomes.
+`chat-metadata.ts` owns typed observations, input methods, attachments, Interpretations and exact
+reference payloads. Agent owns supplied context, runs and tool execution definitions.
+Observations retain source, requested/observed/received instants, monotonic duration, units and collection outcomes.
 Disabled, unsupported, denied, unavailable, timed out and failed are distinct outcomes rather
 than invented measurements. Run/tool payloads describe execution; these types do not execute it.
 
@@ -68,8 +65,11 @@ the conversation, exchange or original message. The caller supplies stable IDs, 
 exchange from trusted context and retains them for identical retries. Changing the interpretation
 creates a correction linked to original evidence, rather than overwriting it.
 
-Browser sensors, collection settings, network adapters and collection orchestration are deferred
-to the agent PR. References verify recorded version existence, not the factual support of a claim
+Browser sensors and collection orchestration are outside this integration. The new Chat producer
+accepts only its metadata payloads. Historical `parseMetadata` delegates old run/context/tool
+discriminators to Agent schemas, retaining unknown fields and legacy exchange-sibling containment.
+`readAgentRun` follows current run children, without inventing legacy relationships or outcomes.
+References verify recorded version existence, not the factual support of a claim
 or the semantic validity of a selected text range in a particular projection.
 
 ## History contract
@@ -87,29 +87,30 @@ new content. Expected versions reject any intervening affected-node change atomi
 `canUndo` callback is supplied by Product from feature-owned policies. Chat exports
 `preservesChatRecords()` to reject changes to its transcript/provenance payloads, checking both
 before and after versions, including deletions and retagging. Mixed transactions are refused if
-any change fails the composed policy. History never imports Chat or hardcodes its record kinds.
+any change fails the composed policy. Product combines `preservesAgentRecords`,
+`preservesChatRecords` and content-owned `canUndoContent`. Agent conservatively preserves all
+metadata reference nodes. History never imports either producer or hardcodes its record kinds.
 This helper is a consumer operation, not a generic permission boundary. The central store's general
 `undoNodes` remains available for other policies. Actor authorization and allowed content operations belong
 to the runtime's trusted writer context.
 
-## Runtime integration requirements
+## Integrated producer behavior
 
-Agent runtime integration must accept Send before invoking any model or tools, serialize conversation
-appends, coordinate reviewed staging and scope tool ownership without holding a database
-transaction across streaming. Child-list reads do not protect the absence of a future child;
-the preparation helper alone is not a cross-device conversation lease or append-order lock.
+The Product accepts Chat submission and initial Agent records together before effects. Chat's local
+append queue spans preparation/acceptance only; Agent has no whole-Vault execution lock. Module
+tools declare reads and own stronger coordination; child reads do not protect absent future children.
+Complete retained requests survive uncertain acceptance. Tool invocation acceptance precedes effects,
+and outcome acceptance precedes dependent provider continuation. Persistence failures are separate
+from execution failures, with saving-only retries. Stop preserves accepted content and drains entered
+work. Reopening reconstructs records without replay; absent local ownership leaves liveness unknown.
 
-The runtime must retain complete submission and terminal requests through uncertain acceptance,
-surface terminal save failures separately from model failures, and retry persistence without
-executing the model again. It must restore transcript/model context, identify running responses
-without owners as interrupted, expire tools on Stop and preserve already accepted content.
-Product must wire node synchronization/error status and History pagination/differences/undo,
-including feature-owned undo policies. Removing a workflow removes its schemas and operations;
-persisted node versions and generic History reads remain available through storage.
-Vault-file migration, private-account validation and remote history growth remain separate work.
+`productNodeHistory` exposes generic History and composed compensation. Removing a workflow removes
+its execution/decoding code, while NodeStore history, differences and snapshots still retain every
+accepted generic record. Separate producer/content transactions let content undo preserve transcript
+and audit evidence. Migration inside the Vault and remote history growth remain separate work.
 
-Verification uses the production memory adapter and fictional records. Tests cover local write
-sizes, stable retry identity, stale declared reads, immutable historical projections, pagination,
-payload retention, exact metadata references, historical attribution, deletion/restore, mixed
-audit protection and conflicts in compensating content undo. Persistence adapters are covered by
-the preceding PR. No test calls a model, sensor or private vault.
+Verification uses production memory/GitHub adapters with fictional data: composed Product Chat to
+Agent/content/receipts/response/reopen, independent and voice Agent behavior, exact context evidence,
+persistence recovery, historical attribution and guarded content undo. Existing adapter suites cover
+remote acceptance, cache rebuild/reopen, lost responses and competing devices. No test accesses the
+private Vault or paid model endpoint.
