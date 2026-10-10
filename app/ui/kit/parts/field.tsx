@@ -19,21 +19,11 @@ function FieldSet({ className, ...props }: React.ComponentProps<'fieldset'>) {
   );
 }
 
-function FieldLegend({
-  className,
-  variant = 'legend',
-  ...props
-}: React.ComponentProps<'legend'> & { variant?: 'legend' | 'label' }) {
+function FieldLegend({ className, ...props }: React.ComponentProps<'legend'>) {
   return (
     <legend
       data-slot="field-legend"
-      data-variant={variant}
-      className={cn(
-        'mb-3 font-medium',
-        'data-[variant=legend]:text-base',
-        'data-[variant=label]:text-sm',
-        className,
-      )}
+      className={cn('mb-3 text-base font-medium', className)}
       {...props}
     />
   );
@@ -44,7 +34,7 @@ function FieldGroup({ className, ...props }: React.ComponentProps<'div'>) {
     <div
       data-slot="field-group"
       className={cn(
-        'group/field-group @container/field-group flex w-full flex-col gap-7 data-[slot=checkbox-group]:gap-3 [&>[data-slot=field-group]]:gap-4',
+        'group/field-group flex w-full flex-col gap-7 data-[slot=checkbox-group]:gap-3 [&>[data-slot=field-group]]:gap-4',
         className,
       )}
       {...props}
@@ -63,11 +53,6 @@ const fieldVariants = cva('group/field flex w-full gap-3 data-[invalid=true]:tex
       ],
       setting:
         'grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(240px,320px)] md:items-start md:gap-x-8 md:gap-y-2 [&>[data-slot=field-content]]:min-w-0 md:[&>[data-slot=field-content]]:col-start-2 md:[&>[data-slot=field-content]]:row-span-2 md:[&>[data-slot=field-content]]:row-start-1 [&>[data-slot=field-description]]:m-0 [&>[data-slot=field-description]]:text-label md:[&>[data-slot=field-description]]:col-start-1',
-      responsive: [
-        'flex-col @md/field-group:flex-row @md/field-group:items-center [&>*]:w-full @md/field-group:[&>*]:w-auto [&>.sr-only]:w-auto',
-        '@md/field-group:[&>[data-slot=field-label]]:flex-auto',
-        '@md/field-group:has-[>[data-slot=field-content]]:items-start @md/field-group:has-[>[data-slot=field-content]]:[&>[role=checkbox],[role=radio]]:mt-px',
-      ],
     },
   },
   defaultVariants: {
@@ -135,7 +120,7 @@ function FieldDescription({ className, ...props }: React.ComponentProps<'p'>) {
       data-slot="field-description"
       className={cn(
         'text-sm leading-normal font-normal text-muted-foreground group-has-[[data-orientation=horizontal]]/field:text-balance',
-        'last:mt-0 nth-last-2:-mt-1 [[data-variant=legend]+&]:-mt-1.5',
+        'last:mt-0 nth-last-2:-mt-1 [[data-slot=field-legend]+&]:-mt-1.5',
         '[&>a]:underline [&>a]:underline-offset-4 [&>a:hover]:text-primary',
         className,
       )}
