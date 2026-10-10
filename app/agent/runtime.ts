@@ -1,11 +1,15 @@
 // Independent browser Agent lifetime. Callers own context assembly and presentation.
-import { streamText } from 'ai';
+import { streamText, isStepCount } from 'ai';
 import type { ModelMessage, SystemModelMessage } from 'ai';
 import type { NodeCommit, NodeStore } from '../vault/nodes/store.ts';
-import { canonical, frozen } from '../vault/nodes/json.ts';
+import { canonical, frozen, compare } from '../vault/nodes/json.ts';
 import { cancellable } from '../vault/storage/coordination.ts';
 import type { LanguageModelProvider } from './providers.ts';
-import type { AgentRunData } from './records.ts';
+import { agentContentContext } from './tool-context.ts';
+import { durableTools } from './tool-execution.ts';
+import type { PendingToolSave } from './tool-execution.ts';
+import type { AgentToolFactory, ContentWritePolicy } from './tools.ts';
+import type { AgentRunData, ToolExecutionData } from './records.ts';
 import { parseAgentRun, parseContextInput, parseAgentSettings } from './schema.ts';
 import { prepareAgentOutcome, readAgentRun, verifyAgentAcceptance } from './store.ts';
 import type { PreparedAgentRun } from './store.ts';
@@ -20,10 +24,13 @@ export interface AgentRunState {
     | 'failed'
     | 'interrupted'
     | 'unsaved'
-    | 'recorded';
+    | 'recorded'
+    | 'paused';
   readonly data: AgentRunData;
   readonly text: string;
   readonly persistenceError?: string;
+  readonly tools?: readonly { readonly node: string; readonly data: ToolExecutionData }[];
+  readonly pendingTool?: PendingToolSave;
 }
 export interface AgentRun {
   readonly snapshot: () => AgentRunState;
@@ -36,6 +43,9 @@ export interface AgentRun {
 export interface AgentBackendOptions {
   readonly nodes: NodeStore;
   readonly model: LanguageModelProvider;
+  readonly tools?: AgentToolFactory;
+  readonly writableKinds?: readonly string[];
+  readonly contentPolicy?: ContentWritePolicy;
 }
 const errorMessage = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
@@ -62,6 +72,10 @@ export function createAgentBackend(options: AgentBackendOptions) {
     let state: AgentRunState = frozen({ phase: 'accepting', data: initialData, text: '' });
     let pending: NodeCommit | undefined;
     let initialSave = false;
+    let toolPending: PendingToolSave | undefined;
+    let live = true;
+    let executingTool = false;
+    const activity = new Map<string, ToolExecutionData>();
     let retry: Promise<AgentRunState> | undefined;
     const notify = (next: AgentRunState) => {
       state = frozen(structuredClone(next));
@@ -79,6 +93,7 @@ export function createAgentBackend(options: AgentBackendOptions) {
       notify({
         phase: saved.data.status === 'running' ? 'recorded' : saved.data.status,
         data: saved.data,
+        tools: saved.tools.map(({ version, data }) => ({ node: version.key.node, data })),
         text: typeof saved.data.output?.text === 'string' ? saved.data.output.text : '',
       });
     };
@@ -117,6 +132,55 @@ export function createAgentBackend(options: AgentBackendOptions) {
             abort.signal,
           );
           if (abort.signal.aborted) throw new Error('Agent stopped');
+          const guard = agentContentContext({
+            nodes: options.nodes,
+            agent: initial.connection!.target.node,
+            run: prepared.run,
+            signal: abort.signal,
+            live: () => live && !disposed,
+            executing: () => executingTool,
+            writableKinds: options.writableKinds ?? [],
+            contentPolicy: options.contentPolicy,
+            snapshot: await options.nodes.snapshot(),
+          });
+          const supplied = options.tools
+            ? await cancellable(Promise.resolve(options.tools(guard.context)), abort.signal)
+            : {};
+          const selected = initialData.enabledTools.map(({ name }) => name).sort(compare);
+          if (canonical(Object.keys(supplied).sort(compare)) !== canonical(selected))
+            throw new Error('Supplied tools do not match accepted enabled tools');
+          const tools = durableTools({
+            nodes: options.nodes,
+            tools: supplied,
+            versions: new Map(initialData.enabledTools.map(({ name, version }) => [name, version])),
+            agent: initial.connection!.target.node,
+            run: prepared.run,
+            start: prepared.commit.id,
+            signal: abort.signal,
+            check: guard.check,
+            execution: (active) => {
+              executingTool = active;
+            },
+            changed: (node, execution) => {
+              activity.set(node, execution);
+              notify({
+                ...state,
+                tools: [...activity].map(([toolNode, toolData]) => ({
+                  node: toolNode,
+                  data: toolData,
+                })),
+              });
+            },
+            paused: (pendingSave, error) => {
+              toolPending = pendingSave;
+              notify({
+                ...state,
+                phase: 'paused',
+                pendingTool: pendingSave,
+                persistenceError: errorMessage(error),
+              });
+            },
+          });
           const context = prepared.commit.changes
             .filter(
               (change) =>
@@ -143,6 +207,10 @@ export function createAgentBackend(options: AgentBackendOptions) {
           const messages = effective.filter((message) => message.role !== 'system');
           const stream = streamText({
             ...data.settings,
+            tools,
+            stopWhen: isStepCount(
+              typeof data.settings.maxSteps === 'number' ? data.settings.maxSteps : 1,
+            ),
             model: languageModel,
             messages,
             instructions,
@@ -156,7 +224,12 @@ export function createAgentBackend(options: AgentBackendOptions) {
             const event = next.value;
             if (event.type === 'text-delta') {
               text += event.text;
-              notify({ phase: 'running', data, text });
+              notify({
+                ...state,
+                phase: state.phase === 'paused' ? 'paused' : 'running',
+                data,
+                text,
+              });
             }
             if (event.type === 'error') throw event.error;
             if (event.type === 'finish-step') {
@@ -189,6 +262,16 @@ export function createAgentBackend(options: AgentBackendOptions) {
               : {}),
           };
         }
+        live = false;
+        if (toolPending) {
+          notify({
+            ...state,
+            phase: 'paused',
+            data: { ...data, status: 'running' },
+            pendingTool: toolPending,
+          });
+          return state;
+        }
         data = parseAgentRun({
           ...data,
           ended: new Date().toISOString(),
@@ -196,13 +279,23 @@ export function createAgentBackend(options: AgentBackendOptions) {
           output: { text },
         });
         pending = prepareAgentOutcome(prepared, data);
-        notify({ phase: 'saving', data, text });
+        notify({
+          phase: 'saving',
+          data,
+          text,
+          tools: [...activity].map(([node, toolData]) => ({ node, data: toolData })),
+        });
         try {
           await options.nodes.commit(pending);
           pending = undefined;
-          notify({ phase: data.status === 'running' ? 'recorded' : data.status, data, text });
+          notify({
+            ...state,
+            phase: data.status === 'running' ? 'recorded' : data.status,
+            data,
+            text,
+          });
         } catch (error) {
-          notify({ phase: 'unsaved', data, text, persistenceError: errorMessage(error) });
+          notify({ ...state, phase: 'unsaved', data, text, persistenceError: errorMessage(error) });
         }
       } catch (error) {
         notify({
@@ -224,7 +317,10 @@ export function createAgentBackend(options: AgentBackendOptions) {
         return () => listeners.delete(listener);
       },
       done,
-      stop: () => abort.abort(),
+      stop: () => {
+        live = false;
+        abort.abort();
+      },
       retrySave: () => {
         if (retry !== undefined) return retry;
         retry = (async () => {

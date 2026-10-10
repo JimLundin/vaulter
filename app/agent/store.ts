@@ -2,8 +2,13 @@ import type { JsonObject, NodeAddress, NodeVersion } from '../vault/nodes/model.
 import type { NodeCommit, NodeChange, NodeStore } from '../vault/nodes/store.ts';
 import { canonical, frozen } from '../vault/nodes/json.ts';
 import type { TransactionKind } from '../vault/nodes/operations.ts';
-import type { AgentRunData, ContextInputData } from './records.ts';
-import { parseAgentRun, parseContextInput, parseAgentSettings } from './schema.ts';
+import type { AgentRunData, ContextInputData, ToolExecutionData } from './records.ts';
+import {
+  parseAgentRun,
+  parseContextInput,
+  parseAgentSettings,
+  parseToolExecution,
+} from './schema.ts';
 
 declare module '../vault/nodes/operations.ts' {
   interface TransactionActions {
@@ -38,6 +43,7 @@ export interface AgentStartOptions {
   readonly model: string;
   readonly settings: JsonObject;
   readonly context: readonly SuppliedContext[];
+  readonly enabledTools?: AgentRunData['enabledTools'];
 }
 
 /** Prepare once. A caller can compose these changes with its own in the same transaction. */
@@ -57,7 +63,7 @@ export async function prepareAgentRun(
     provider: options.provider,
     model: { requested: options.model },
     settings: parseAgentSettings(options.settings),
-    enabledTools: [],
+    enabledTools: options.enabledTools ?? [],
   });
   const changes: NodeChange[] = [
     {
@@ -119,6 +125,7 @@ export async function prepareAgentRun(
 export interface SavedAgentRun {
   readonly version: NodeVersion;
   readonly data: AgentRunData;
+  readonly tools: readonly { readonly version: NodeVersion; readonly data: ToolExecutionData }[];
   readonly context: readonly {
     readonly version: NodeVersion;
     readonly data: ContextInputData;
@@ -148,7 +155,14 @@ export async function readAgentRun(
         ]
       : [],
   );
-  return frozen({ version, data, context });
+  const tools = snapshot
+    .children(run)
+    .flatMap((tool) =>
+      tool.data?.kind === 'toolExecution'
+        ? [{ version: tool, data: parseToolExecution(tool.data) }]
+        : [],
+    );
+  return frozen({ version, data, context, tools });
 }
 
 /** Verify accepted Agent records without imposing a caller's transaction kind or origin. */
