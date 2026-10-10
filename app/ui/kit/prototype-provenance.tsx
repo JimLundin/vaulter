@@ -7,6 +7,7 @@ import { Button } from './parts/button.tsx';
 import { DrawerRoot, DrawerContent, DrawerTitle } from './parts/drawer.tsx';
 import { ScrollArea } from './parts/scroll-area.tsx';
 import { Icon } from './icons.tsx';
+import { cn } from './lib/utils.ts';
 
 // ---------------------------------------------------------------------------------------------------
 // The model under test
@@ -551,11 +552,12 @@ function VariantA() {
         opener.current = event.currentTarget;
         setSelected(cl.id);
       }}
-      className={
+      className={cn(
+        'text-left outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer',
         selected === cl.id
-          ? 'text-left outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer rounded-sm bg-people-soft decoration-people underline decoration-2 underline-offset-4'
-          : 'text-left outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer underline decoration-border decoration-dotted decoration-2 underline-offset-4 hover:decoration-people'
-      }
+          ? 'rounded-sm bg-people-soft decoration-people underline decoration-2 underline-offset-4'
+          : 'underline decoration-border decoration-dotted decoration-2 underline-offset-4 hover:decoration-people',
+      )}
     >
       {cl.text}
     </button>
