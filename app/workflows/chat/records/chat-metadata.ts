@@ -212,13 +212,7 @@ export type AttachmentData = {
   /** Embedded source metadata, e.g. EXIF; a supplied timestamp is not the submission timestamp. */
   readonly embedded?: JsonObject;
 };
-// Compatibility names for existing Chat callers; Agent owns the payload definitions.
-export type {
-  TextSelection,
-  ContextInputData,
-  AgentRunData,
-  ToolExecutionData,
-} from '../../../agent/records.ts';
+// Historical execution metadata delegates to Agent-owned definitions.
 import type {
   TextSelection,
   ContextInputData,
@@ -242,13 +236,9 @@ export type InterpretationData = {
   readonly certainty: 'explicit' | 'inferred' | 'uncertain';
   readonly method: { readonly name: string; readonly version?: string };
 };
-export type MetadataData =
-  | ObservationData
-  | AttachmentData
-  | ContextInputData
-  | AgentRunData
-  | ToolExecutionData
-  | InterpretationData;
+export type ChatMetadataData = ObservationData | AttachmentData | InterpretationData;
+/** Historical ingress supports older execution metadata placed beside messages under an exchange. */
+export type MetadataData = ChatMetadataData | ContextInputData | AgentRunData | ToolExecutionData;
 
 /** Link nodes hold their endpoints in connection. Exact links preserve original evidence. */
 // biome-ignore lint/style/useConsistentTypeDefinitions: type aliases satisfy JsonObject structurally

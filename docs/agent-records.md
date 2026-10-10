@@ -9,7 +9,8 @@ and relationships; the application does not translate or import the existing Vau
 An `agentRun` has a stable identity and records `started`, `status`, `provider`, requested/served
 `model`, JSON `settings`, and `enabledTools`. Established optional request, finish reason, timing,
 usage, cost and error fields retain their meanings. Unknown JSON fields survive validation.
-Agent owns these schemas; Chat keeps compatibility exports for its existing record consumers.
+Agent owns these schemas. Chat historical metadata decoding delegates to them without reexporting
+execution ownership; new Chat metadata production cannot create execution records.
 
 The initial version is `running`. Its connection source is its own exact initial version and its
 target is the exact Agent configuration version supplied by the caller. The stable Agent identity
@@ -50,8 +51,8 @@ remains running: a reader without a local controller cannot prove abandonment. T
 reports `recorded` to distinguish a read-only accepted running record from local execution.
 
 `toolExecution` payload ownership also moves to Agent while preserving existing fields and JSON.
-The module-owned tool execution path, its durable invocation/outcome writes and recovery follow
-in the dependent tickets. This slice supplies no tools and introduces no global execution queue.
+Module-owned tools use durable invocation/outcome gates and the recovery described below. The
+caller supplies capabilities explicitly; Agent introduces no global execution queue.
 
 ## Module-owned tools
 
@@ -69,9 +70,9 @@ node with immutable JSON output or a recorded execution error. Calls within one 
 order, so an outcome awaiting acceptance prevents later effects and provider continuation.
 
 A write failure exposes `paused`, a persistence error and an immutable `pendingTool` request,
-its invocation/outcome stage and retained execution data. This slice does not replay tools or
-fabricate a result. Full persistence retry, Stop and in-flight drain recovery follows in the
-dependent outcome recovery ticket. Reopening exposes recorded running invocations unchanged.
+its invocation/outcome stage and retained execution data. Retry saves the retained completed result
+without replaying tools; Stop drains entered work and preserves pending obligations. Reopening
+exposes recorded running invocations unchanged.
 
 The supplied execution context provides cancellation, guarded NodeStore reads and publication
 with the stable Agent author and run origin. Model input cannot override those identities or
@@ -173,3 +174,37 @@ live voice, live transcription, file transcription and embedding capabilities. R
 and transcription imports remain compatibility delegates. Media and protocol tests use fictional
 channels, tracks, HTTP responses and the production memory NodeStore, with no microphone access or
 paid model calls.
+
+## Operations and compensation preservation
+
+Agent owns `agent.startRun`, `completeRun`, `stopRun`, `recordTool` and `completeTool`. Initial
+acceptance uses the caller author; execution/tool outcome transactions use the stable Agent author
+and run origin. Run/context/tool nodes and exact-reference descendants remain readable through
+generic history and snapshots independently of installed execution providers.
+
+`preservesAgentRecords` rejects compensation involving run/context/tool payloads on either side.
+It conservatively retains every `metadataReference`, including references shared with other
+producers; this prevents losing exact execution evidence without inferring ownership from JSON
+strings. Product composes it with Chat's transcript/provenance and content module's supported
+compensation policy. History imports no producer. Generic storage can retain unknown kinds and
+operations even when a removed producer decoder is unavailable.
+
+Legacy Agent metadata may be siblings under an exchange rather than children of a run. Chat's
+historical metadata reader delegates those payloads losslessly to Agent schemas; new production
+uses Agent preparation. Generic History reads the original versions, while `readAgentRun` follows
+the current run-child context/tool layout and does not invent missing relationships or outcomes.
+
+## Persisted layout
+
+| Payload | Required content | Placement and exact links |
+|---|---|---|
+| `agentRun` | started, status, provider, model.requested, settings, enabledTools | Unplaced or under caller origin; source exact initial run, target exact Agent configuration |
+| `contextInput` | role, position, transformation, content | Run child ordered by position; optional text selection |
+| `toolExecution` | call, name, attempt, started, status, input | Run child ordered by invocation; source exact initial run, target exact initial invocation |
+| `metadataReference` | role `suppliedContext` | Context child; source exact context version, target exact supplied evidence version |
+
+Run terminal versions retain ended time and optional served model/request/finishReason/timing/usage/
+cost/error/output. Tool outcome versions retain ended/elapsedMs and output or structured error as
+available. Optional unknown JSON survives known-shape validation at every supported ingress. Stored
+running status is separate from live accepting/running/paused/unsaved/recorded handle phases; recovery
+and ownership projections never rewrite accepted history merely because a controller is absent.

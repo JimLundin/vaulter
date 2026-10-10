@@ -1,5 +1,5 @@
 // Node-backed Chat lifetime, independent of any mounted view.
-import type { ChatState, Turn, Part } from './conversation.ts';
+import type { ChatState, Turn, Part } from './view.ts';
 import { createNodeChatBackend } from './node-backend.ts';
 import type { NodeChatOptions, NodeChatRun, NodeChatRunState } from './node-backend.ts';
 import type { MessageData } from './records/chat.ts';

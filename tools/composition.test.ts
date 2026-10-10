@@ -8,6 +8,7 @@ import { compositions } from '../app/ui/kit/composition.ts';
 import { checkCompositions, type CompositionRoot } from './composition.ts';
 
 // CI and source-project fixtures use the same composition-policy interface.
+// The real application source project now exceeds the default 5s compiler budget on this workspace.
 test('Agent, Settings and their shared menu use only documented public building blocks', () => {
   const root = fileURLToPath(new URL('..', import.meta.url));
   const api = new API({ cwd: root });
@@ -25,7 +26,7 @@ test('Agent, Settings and their shared menu use only documented public building 
     snapshot.dispose();
     api.close();
   }
-});
+}, 15_000);
 
 function checkFixture(files: Record<string, string>, roots: readonly CompositionRoot[]) {
   const root = mkdtempSync(join(tmpdir(), 'vaulter-composition-policy-'));

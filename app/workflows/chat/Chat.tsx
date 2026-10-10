@@ -25,7 +25,7 @@ import { liveLabel, running, segments, summarize, type ToolPart } from './activi
 import { link } from '../../ui/routing.ts';
 import { later } from '../../ui/later.ts';
 import { renderBody } from './rendering/markdown.ts';
-import type { Part, Turn } from './conversation.ts';
+import type { Part, Turn } from './view.ts';
 import type { NodeConversation } from './node-conversation.ts';
 import { useNodeChat } from './use-node-conversation.ts';
 import { model } from './model.ts';

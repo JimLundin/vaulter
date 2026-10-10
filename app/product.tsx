@@ -54,10 +54,17 @@ import {
   defaultIdentities,
   type ApplicationIdentities,
 } from './application-identities.ts';
-import { nodeContentTools } from './vault/content/tools.ts';
+import { nodeContentTools, canUndoContent } from './vault/content/tools.ts';
 import type { NodeStore } from './vault/nodes/store.ts';
 import { createOpenAICapabilities } from './agent/openai/index.ts';
 import { model as selectedModel } from './workflows/chat/model.ts';
+import { preservesAgentRecords } from './agent/preservation.ts';
+import { preservesChatRecords } from './workflows/chat/records/chat.ts';
+import {
+  createNodeConversation,
+  type NodeConversationOptions,
+} from './workflows/chat/node-conversation.ts';
+import { nodeHistory, prepareContentUndo } from './workflows/history/nodes.ts';
 import { HistoryPage } from './workflows/history/index.tsx';
 import './workflows/chat/rendering/prose.css';
 
@@ -217,37 +224,34 @@ export function OpenProduct({
             : !(suppliedModel ?? remoteModel)
               ? 'Configure an OpenAI key in Settings to send messages.'
               : undefined;
-  const conversation = useConversation({
-    nodes: nodes ?? unavailableNodes,
-    user: identities.user,
-    agent: identities.agent,
-    provider: suppliedModel ? 'preview' : 'openai',
-    model: suppliedModel ?? remoteModel ?? unavailableModel,
-    selectedModel: selectedModel(),
-    instructions:
-      'Help the Vault owner using the supplied content tools. Content changes are published directly as nodes. Do not claim to edit or commit legacy files.',
-    tools: nodeContentTools,
-    writableKinds: contentKinds,
-    enabledTools: enabledContentTools,
-    settings: chatSettings,
-    suggestions: preview?.suggestions,
-    availability,
-    conversation: retainedConversation,
-    onConversation: (id) => {
-      try {
-        localStorage.setItem(conversationKey, id);
-      } catch {
-        /* Selection retention cannot invalidate accepted records. */
-      }
-    },
-    stagedChanges: () => {
-      const before = new Map(vault.base().map((file) => [file.path, file.text]));
-      const after = new Map(vault.files().map((file) => [file.path, file.text]));
-      return vault
-        .staged()
-        .map((path) => ({ path, before: before.get(path) ?? '', text: after.get(path) ?? null }));
-    },
-  });
+  const conversation = useConversation(
+    productChatOptions({
+      nodes: nodes ?? unavailableNodes,
+      identities,
+      provider: suppliedModel ? 'preview' : 'openai',
+      model: suppliedModel ?? remoteModel ?? unavailableModel,
+      selectedModel: selectedModel(),
+      instructions:
+        'Help the Vault owner using the supplied content tools. Content changes are published directly as nodes. Do not claim to edit or commit legacy files.',
+      suggestions: preview?.suggestions,
+      availability,
+      conversation: retainedConversation,
+      onConversation: (id) => {
+        try {
+          localStorage.setItem(conversationKey, id);
+        } catch {
+          /* Selection retention cannot invalidate accepted records. */
+        }
+      },
+      stagedChanges: () => {
+        const before = new Map(vault.base().map((file) => [file.path, file.text]));
+        const after = new Map(vault.files().map((file) => [file.path, file.text]));
+        return vault
+          .staged()
+          .map((path) => ({ path, before: before.get(path) ?? '', text: after.get(path) ?? null }));
+      },
+    }),
+  );
   const { busy: agentBusy } = useChat(conversation);
   useVoiceDraft(conversation, voice);
   const navigation: Navigation[] = [
@@ -502,4 +506,42 @@ export function OpenProduct({
       </Overlay>
     </>
   );
+}
+
+/** Application composition for generic node History and guarded content compensation. */
+export function productNodeHistory(nodes: NodeStore) {
+  return {
+    entries: (options?: Parameters<NodeStore['history']>[0]) => nodeHistory(nodes, options),
+    prepareUndo: (options: { transaction: string; recordedBy: string; id: string }) =>
+      prepareContentUndo(nodes, {
+        ...options,
+        canUndo: (difference) =>
+          preservesAgentRecords(difference) &&
+          preservesChatRecords(difference) &&
+          canUndoContent(difference),
+      }),
+  };
+}
+
+type ProductChatOptions = Omit<
+  NodeConversationOptions,
+  'user' | 'agent' | 'tools' | 'writableKinds' | 'enabledTools' | 'settings'
+> & { readonly identities?: ApplicationIdentities };
+/** The same explicit composition used by the Product views and independent application callers. */
+export function productChatOptions({
+  identities = defaultIdentities,
+  ...options
+}: ProductChatOptions): NodeConversationOptions {
+  return {
+    ...options,
+    user: identities.user,
+    agent: identities.agent,
+    tools: nodeContentTools,
+    writableKinds: contentKinds,
+    enabledTools: enabledContentTools,
+    settings: chatSettings,
+  };
+}
+export function createProductConversation(options: ProductChatOptions) {
+  return createNodeConversation(productChatOptions(options));
 }
