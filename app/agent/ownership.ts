@@ -61,7 +61,7 @@ export function agentOwnership(nodes: NodeStore) {
       owner.handle.done
         .then(() => {
           settled = true;
-          if (!owned.has(prepared.run) || !isActive()) release();
+          if (!(owned.has(prepared.run) && isActive())) release();
         }, release)
         .catch(release);
       return owner.handle;
