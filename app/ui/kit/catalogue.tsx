@@ -352,7 +352,7 @@ function Layout() {
   return (
     <K.Page aside={<K.Details items={[['Updated', 'Today']]} />}>
       <K.PageHeader title="Slow mornings" description="The same page and details, rearranged." />
-      <K.Columns stack={true}>
+      <K.Columns>
         <K.Panel title="Today" from="Notes">
           <K.Text>Take a walk.</K.Text>
         </K.Panel>
@@ -368,16 +368,16 @@ function ListAndDetail() {
     <K.ListDetail
       list={
         <K.Stack>
-          <K.Text>Morning walk</K.Text>
-          <K.Text>Quiet weekend</K.Text>
+          <K.Text>How should I spend the morning?</K.Text>
+          <K.Text>What would make the weekend quieter?</K.Text>
         </K.Stack>
       }
       detail={
         <K.Page>
           <K.Heading level={1} serif={true}>
-            Morning walk
+            How should I spend the morning?
           </K.Heading>
-          <K.Text>A few thoughts from the way home.</K.Text>
+          <K.Text>A supplied question detail from an inbox or record browser.</K.Text>
         </K.Page>
       }
     />
@@ -388,15 +388,19 @@ function TabsSample() {
     <K.Tabs defaultValue="notes">
       <K.TabsList>
         <K.TabsTrigger value="notes">Notes</K.TabsTrigger>
-        <K.TabsTrigger value="activity">Activity</K.TabsTrigger>
+        <K.TabsTrigger value="activity">Today</K.TabsTrigger>
       </K.TabsList>
       <K.TabsContent value="notes">
         <K.Text>Your recent thoughts.</K.Text>
       </K.TabsContent>
       <K.TabsContent value="activity">
+        <K.Text>Chronological events for a planned Today or activity view.</K.Text>
         <K.Timeline>
           <K.TimelineItem time="09:41" now={true}>
             <K.Text>Saved a note</K.Text>
+          </K.TimelineItem>
+          <K.TimelineItem time="09:00">
+            <K.Text>Added a morning thought</K.Text>
           </K.TimelineItem>
           <K.TimelineItem time="08:30" last={true}>
             <K.Text>Took a walk</K.Text>
@@ -1475,7 +1479,8 @@ export const catalogue: Specimen[] = [
   {
     id: 'list-detail',
     title: 'List & detail',
-    description: 'Desktop shows both panes; phone gives the selected detail its space.',
+    description:
+      'Question inbox or record-browsing presentation: supplied list and detail, without selection or Back navigation.',
     components: ['ListDetail'],
     Sample: ListAndDetail,
     fullBleed: true,
@@ -1483,7 +1488,8 @@ export const catalogue: Specimen[] = [
   {
     id: 'tabs',
     title: 'Tabs & timeline',
-    description: 'Shared tab content and chronological entries.',
+    description:
+      'Rounded horizontal tabs and a timeline for planned Today/activity views; events are supplied.',
     components: ['Tabs', 'TabsList', 'TabsTrigger', 'TabsContent', 'Timeline', 'TimelineItem'],
     Sample: TabsSample,
   },

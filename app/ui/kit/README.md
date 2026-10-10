@@ -116,6 +116,11 @@ both arrangements without introducing different features or a second product des
 
 The size classes are **compact** (under 48rem), **expanded** (48rem and up), and **wide** (80rem and
 up, enough for a side panel). Width and input method are independent: a wide screen may use touch.
+`Columns` keeps two or three equal desktop content columns and always stacks them on phones.
+Tabs use rounded horizontal choices, preserving automatic/manual activation and optional mounted
+inactive content. Timeline illustrates planned Today/activity events; ListDetail supplies question
+inbox or record-browser panes. Their examples do not implement event collection, selection or Back
+navigation.
 The model is Material 3's adaptive navigation
 (`NavigationSuiteScaffold`: one item list shown as a bar, rail or drawer) and SwiftUI's
 `sidebarAdaptable` tab view (one definition, a tab bar on iPhone and a sidebar on iPad).

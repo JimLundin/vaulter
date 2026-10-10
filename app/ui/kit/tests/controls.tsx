@@ -5,12 +5,14 @@ import '../styles.css';
 import {
   Button,
   Checkbox,
+  Columns,
   Command,
   CommandInput,
   CommandList,
   CommandItem,
   CommandEmpty,
   Label,
+  Input,
   Stack,
   Tabs,
   TabsContent,
@@ -33,6 +35,15 @@ function ControlsFixture() {
   const [chosen, setChosen] = useState('');
   return (
     <Stack>
+      <Columns>
+        <Input aria-label="Two-column first" defaultValue="First content" />
+        <Input aria-label="Two-column second" defaultValue="Second content" />
+      </Columns>
+      <Columns count={3} gap="lg">
+        <Input aria-label="Three-column first" defaultValue="First content" />
+        <Input aria-label="Three-column second" defaultValue="Second content" />
+        <Input aria-label="Three-column third" defaultValue="Third content" />
+      </Columns>
       <form
         onSubmit={(event) => {
           event.preventDefault();
@@ -69,12 +80,27 @@ function ControlsFixture() {
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList aria-label="Automatic tabs">
           <TabsTrigger value="notes">Notes</TabsTrigger>
+          <TabsTrigger value="archived" disabled={true}>
+            Archived
+          </TabsTrigger>
           <TabsTrigger value="activity">Activity</TabsTrigger>
         </TabsList>
         <TabsContent value="notes">Saved notes</TabsContent>
         <TabsContent value="activity">Recent activity</TabsContent>
       </Tabs>
       <Text>Active tab: {tab}</Text>
+      <Tabs defaultValue="draft">
+        <TabsList aria-label="Draft lifetime tabs">
+          <TabsTrigger value="draft">Preserved draft</TabsTrigger>
+          <TabsTrigger value="temporary">Temporary draft</TabsTrigger>
+        </TabsList>
+        <TabsContent value="draft" forceMount={true}>
+          <Input aria-label="Preserved tab draft" defaultValue="Initial retained draft" />
+        </TabsContent>
+        <TabsContent value="temporary">
+          <Input aria-label="Temporary tab draft" defaultValue="Initial temporary draft" />
+        </TabsContent>
+      </Tabs>
       <Button onClick={() => setExtraResult(true)}>Add coffee result</Button>
       <Command>
         <CommandInput aria-label="Find a result" />
