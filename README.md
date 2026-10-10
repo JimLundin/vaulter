@@ -67,7 +67,8 @@ and connection values, and identity or exact-version references. GitHub persiste
 transaction envelope into the private vault's `.vaulter/nodes/v1/transactions/` namespace and uses
 an encrypted Dexie device cache with the unlocked session key. Existing chat and History workflows
 still use files. [Consumer contracts](docs/node-consumers.md) now define Chat payloads, lossless
-schemas, acceptance requests, saved-message reads and attributed History differences/compensation.
+schemas, acceptance requests, saved-message reads and attributed History differences/compensation
+inside the owning Chat and History workflows. Shared storage remains feature-independent.
 Agent execution and Product/History integration follow in the agent PR. See
 [node storage](docs/node-storage.md) for the interface, acceptance rules, and current limits.
 

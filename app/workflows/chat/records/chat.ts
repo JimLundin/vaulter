@@ -1,9 +1,10 @@
 // Application payloads stored in the common node model, independent of model SDKs and storage.
-import type { JsonValue, NodeVersion } from '../nodes/model.ts';
-import type { TransactionKind } from '../nodes/operations.ts';
+import type { JsonValue, NodeVersion } from '../../../vault/nodes/model.ts';
+import type { TransactionKind } from '../../../vault/nodes/operations.ts';
+import type { NodeDifference } from '../../../vault/nodes/store.ts';
 import type { MessageInput, MetadataData, MetadataReferenceData } from './chat-metadata.ts';
 
-declare module '../nodes/operations.ts' {
+declare module '../../../vault/nodes/operations.ts' {
   interface TransactionActions {
     readonly chat:
       | 'submit'
@@ -95,3 +96,27 @@ export type ChatData =
   | MetadataData
   | MetadataReferenceData;
 export type ChatNodeVersion = NodeVersion<ChatData>;
+
+const recordKinds: ReadonlySet<string> = new Set([
+  'conversation',
+  'exchange',
+  'message',
+  'reference',
+  'observation',
+  'attachment',
+  'contextInput',
+  'agentRun',
+  'toolExecution',
+  'interpretation',
+  'metadataReference',
+]);
+
+/** Product can supply this policy to History without a History-to-Chat dependency. */
+export function preservesChatRecords({ before, after }: NodeDifference): boolean {
+  return [before, after].every(
+    (version) =>
+      version?.data == null ||
+      typeof version.data.kind !== 'string' ||
+      !recordKinds.has(version.data.kind),
+  );
+}

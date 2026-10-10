@@ -1,5 +1,5 @@
 // Feature payloads for permanent observations and agent provenance; references stay structural.
-import type { JsonObject, JsonValue } from '../nodes/model.ts';
+import type { JsonObject, JsonValue } from '../../../vault/nodes/model.ts';
 
 /** Browser wall clock describes instants; monotonic durations are milliseconds. */
 // biome-ignore lint/style/useConsistentTypeDefinitions: type aliases satisfy JsonObject structurally

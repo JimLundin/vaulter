@@ -1,7 +1,7 @@
 // Feature ingress validates metadata semantics before crossing the generic JSON store seam.
 import { z } from 'zod';
-import { canonical, frozen } from '../nodes/json.ts';
-import { jsonObject, jsonRecord } from '../nodes/json-schema.ts';
+import { canonical, frozen } from '../../../vault/nodes/json.ts';
+import { jsonObject, jsonRecord } from '../../../vault/nodes/json-schema.ts';
 import type { MetadataData, MetadataReferenceData } from './chat-metadata.ts';
 
 const text = z.string().min(1);
@@ -10,7 +10,7 @@ const finite = z.number().finite();
 const nonnegative = finite.nonnegative();
 const count = nonnegative.int();
 const json = jsonObject;
-const jsonValue = z.custom<import('../nodes/model.ts').JsonValue>((value) => {
+const jsonValue = z.custom<import('../../../vault/nodes/model.ts').JsonValue>((value) => {
   try {
     canonical(value);
     return true;

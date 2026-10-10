@@ -1,7 +1,7 @@
 // Validate known feature fields while retaining every submitted JSON field for future readers.
 import { z } from 'zod';
-import type { JsonValue } from '../nodes/model.ts';
-import { canonical, frozen } from '../nodes/json.ts';
+import type { JsonValue } from '../../../vault/nodes/model.ts';
+import { canonical, frozen } from '../../../vault/nodes/json.ts';
 import type { ChatReferenceData, ConversationData, ExchangeData, MessageData } from './chat.ts';
 
 const instant = z.iso.datetime({ offset: true });

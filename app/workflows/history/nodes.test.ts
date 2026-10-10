@@ -1,9 +1,12 @@
 import { expect, test } from 'vitest';
-import { memoryNodeBackend } from '../nodes/memory.ts';
-import { create, request, revise, seed } from '../nodes/fixtures.test-support.ts';
-import { nodeHistory, prepareContentUndo } from './history.ts';
-import { prepareChatSubmission, savedMessages } from './chat-store.ts';
-import { nodeOperations } from '../nodes/operations.ts';
+import { memoryNodeBackend } from '../../vault/nodes/memory.ts';
+import { create, request, revise, seed } from '../../vault/nodes/fixtures.test-support.ts';
+import { nodeHistory, prepareContentUndo } from './nodes.ts';
+import { nodeOperations } from '../../vault/nodes/operations.ts';
+import type { NodeDifference } from '../../vault/nodes/store.ts';
+
+const canUndo = ({ before, after }: NodeDifference) =>
+  [before, after].every((version) => version?.data == null || version.data.kind === 'paragraph');
 
 test('History resolves attribution at transaction cutoffs and retains complete structural differences', async () => {
   const store = memoryNodeBackend();
@@ -37,16 +40,13 @@ test('History resolves attribution at transaction cutoffs and retains complete s
 test('content undo appends guarded compensation while retaining transcript and exact evidence', async () => {
   const store = memoryNodeBackend();
   await seed(store);
-  const submission = await prepareChatSubmission(store, {
-    transaction: 'send',
-    conversation: 'chat',
-    user: 'user',
-    text: 'Studio mornings',
-    at: '2026-10-10T12:00:00Z',
-    model: 'fictional',
-  });
-  await store.commit(submission);
-  const transcript = await savedMessages(store, 'chat');
+  await store.commit(
+    request('send', [
+      create('chat', { kind: 'conversation', title: 'Studio mornings' }),
+      create('message', { kind: 'message', role: 'user', text: 'Studio mornings' }, 'chat'),
+    ]),
+  );
+  const transcript = (await store.snapshot()).get('message');
   const original = (await store.snapshot()).get('evidence')!;
   await store.commit(
     request('edit', [await revise(store, 'evidence', { kind: 'paragraph', text: 'Changed' })]),
@@ -55,20 +55,27 @@ test('content undo appends guarded compensation while retaining transcript and e
     transaction: 'edit',
     recordedBy: 'user',
     id: 'undo',
+    canUndo,
   });
   const accepted = await store.commit(undo);
   expect(await store.commit(undo)).toEqual(accepted);
   expect(accepted.undoOf).toBe('edit');
   expect((await store.snapshot()).get('evidence')?.data).toEqual(original.data);
   expect((await store.snapshot()).resolve(original.key)).toBe(original);
-  expect(await savedMessages(store, 'chat')).toEqual(transcript);
+  expect((await store.snapshot()).get('message')).toBe(transcript);
   await expect(
-    prepareContentUndo(store, { transaction: 'send', recordedBy: 'user', id: 'erase-transcript' }),
-  ).rejects.toThrow('transcript');
+    prepareContentUndo(store, {
+      transaction: 'send',
+      recordedBy: 'user',
+      id: 'erase-transcript',
+      canUndo,
+    }),
+  ).rejects.toThrow('cannot be undone');
   const stale = await prepareContentUndo(store, {
     transaction: 'undo',
     recordedBy: 'user',
     id: 'stale',
+    canUndo,
   });
   await store.commit(
     request('new-edit', [await revise(store, 'evidence', { kind: 'paragraph', text: 'Latest' })]),
@@ -85,7 +92,12 @@ test('content undo restores deletion and refuses mixed content and audit transac
   const [entry] = await nodeHistory(store, { limit: 1 });
   expect(entry.differences[0].after.data).toBeNull();
   await store.commit(
-    await prepareContentUndo(store, { transaction: 'delete', recordedBy: 'user', id: 'restore' }),
+    await prepareContentUndo(store, {
+      transaction: 'delete',
+      recordedBy: 'user',
+      id: 'restore',
+      canUndo,
+    }),
   );
   expect((await store.snapshot()).get('evidence')?.data?.text).toBe('Keep mornings free.');
   await store.commit(
@@ -95,8 +107,13 @@ test('content undo restores deletion and refuses mixed content and audit transac
     ]),
   );
   await expect(
-    prepareContentUndo(store, { transaction: 'mixed', recordedBy: 'user', id: 'undo-mixed' }),
-  ).rejects.toThrow('provenance');
+    prepareContentUndo(store, {
+      transaction: 'mixed',
+      recordedBy: 'user',
+      id: 'undo-mixed',
+      canUndo,
+    }),
+  ).rejects.toThrow('cannot be undone');
   expect((await store.snapshot()).get('evidence')?.data?.text).toBe('Mixed');
   store.close();
 });

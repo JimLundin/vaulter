@@ -1,8 +1,8 @@
 // Feature-facing History reads and content compensation over the shared NodeStore.
-import type { NodeVersion, Transaction } from '../nodes/model.ts';
-import type { NodeCommit, NodeDifference, NodeStore } from '../nodes/store.ts';
-import { frozen } from '../nodes/json.ts';
-import { transactionOperations } from '../nodes/operations.ts';
+import type { NodeVersion, Transaction } from '../../vault/nodes/model.ts';
+import type { NodeCommit, NodeDifference, NodeStore } from '../../vault/nodes/store.ts';
+import { frozen } from '../../vault/nodes/json.ts';
+import { transactionOperations } from '../../vault/nodes/operations.ts';
 
 export interface NodeHistoryEntry {
   readonly transaction: Transaction;
@@ -36,35 +36,21 @@ export async function nodeHistory(
   );
 }
 
-const auditKinds = new Set([
-  'conversation',
-  'exchange',
-  'message',
-  'reference',
-  'observation',
-  'attachment',
-  'contextInput',
-  'agentRun',
-  'toolExecution',
-  'interpretation',
-  'metadataReference',
-]);
-
 /** Prepare once; acceptance rejects any intervening version of an affected content node. */
 export async function prepareContentUndo(
   store: NodeStore,
-  options: { readonly transaction: string; readonly recordedBy: string; readonly id: string },
+  options: {
+    readonly transaction: string;
+    readonly recordedBy: string;
+    readonly id: string;
+    /** Product supplies feature policies; History does not import or interpret another workflow. */
+    readonly canUndo: (difference: NodeDifference) => boolean;
+  },
 ): Promise<NodeCommit> {
   const differences = await store.changes(options.transaction);
   if (!differences.length) throw new Error('Transaction has no content changes');
-  if (
-    differences.some(({ before, after }) =>
-      [before, after].some(
-        (version) => typeof version?.data?.kind === 'string' && auditKinds.has(version.data.kind),
-      ),
-    )
-  )
-    throw new Error('Content undo cannot alter transcript or provenance records');
+  if (!differences.every(options.canUndo))
+    throw new Error('Transaction contains changes that cannot be undone');
   return frozen({
     id: options.id,
     recordedBy: options.recordedBy,

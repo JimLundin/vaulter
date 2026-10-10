@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
-import { memoryNodeBackend } from '../nodes/memory.ts';
-import { create, request, seed } from '../nodes/fixtures.test-support.ts';
+import { memoryNodeBackend } from '../../../vault/nodes/memory.ts';
+import { create, request, seed } from '../../../vault/nodes/fixtures.test-support.ts';
 import { recordChatMetadata } from './chat-metadata-store.ts';
 import type { InterpretationData, ObservationData } from './chat-metadata.ts';
 

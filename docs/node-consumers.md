@@ -2,8 +2,11 @@
 
 This branch sits between `feat/node-persistence` ([PR #21](https://github.com/JimLundin/vaulter/pull/21))
 and the agent work. It defines feature records, ingress schemas and storage operations over the
-central `NodeStore`. Product, the existing Chat controller, History screens, browser collectors
-and agent providers are not wired to these operations yet. Runtime integration remains part of
+central `NodeStore`. Feature payloads, schemas and operations live with their owning workflows:
+`workflows/chat/records/` and `workflows/history/nodes.ts`. Storage knows generic JSON, versions,
+transactions, placement and connections; it does not know Chat or History semantics. Product,
+the existing Chat controller, History screens, browser collectors and agent providers are not
+wired to these operations yet. Runtime integration remains part of
 [issue #19](https://github.com/JimLundin/vaulter/issues/19); this PR does not complete that issue.
 
 ```text
@@ -17,7 +20,7 @@ NodeStore (node-persistence)
 
 ## Chat records and acceptance
 
-`app/vault/documents/chat.ts` defines typed operation constants and conversation, exchange,
+`app/workflows/chat/records/chat.ts` defines typed operation constants and conversation, exchange,
 message and reference payloads. Placement belongs to children; appending an exchange creates
 three new records without versioning its conversation. A first submission also creates the
 conversation. User messages retain the submitted text and timestamp. Agent messages retain
@@ -70,7 +73,7 @@ or the semantic validity of a selected text range in a particular projection.
 
 ## History contract
 
-`app/vault/documents/history.ts` exports `nodeHistory()` with the store's cursor/limit/kind filters.
+`app/workflows/history/nodes.ts` exports `nodeHistory()` with the store's cursor/limit/kind filters.
 Each entry includes the transaction, author and origin resolved at that transaction's cutoff, and
 complete before/after node versions. This exposes content, placement, connection, retargeting and
 tombstones without interpreting Git hashes or reconstructing file patches. New actor names do not
@@ -79,10 +82,13 @@ reconstruct the complete state at any listed transaction.
 
 `prepareContentUndo()` builds an immutable compensating request with caller-supplied retry ID,
 author and `undoOf`. It restores previous data/placement/connection or appends a tombstone for
-new content. Expected versions reject any intervening affected-node change atomically. Known
-transcript/provenance payloads are protected, including mixed transactions; this helper is a
-consumer operation, not a generic permission boundary. The central store's general `undoNodes`
-remains available for other policies. Actor authorization and allowed content operations belong
+new content. Expected versions reject any intervening affected-node change atomically. Its required
+`canUndo` callback is supplied by Product from feature-owned policies. Chat exports
+`preservesChatRecords()` to reject changes to its transcript/provenance payloads, checking both
+before and after versions, including deletions and retagging. Mixed transactions are refused if
+any change fails the composed policy. History never imports Chat or hardcodes its record kinds.
+This helper is a consumer operation, not a generic permission boundary. The central store's general
+`undoNodes` remains available for other policies. Actor authorization and allowed content operations belong
 to the runtime's trusted writer context.
 
 ## Runtime integration requirements
@@ -96,7 +102,9 @@ The runtime must retain complete submission and terminal requests through uncert
 surface terminal save failures separately from model failures, and retry persistence without
 executing the model again. It must restore transcript/model context, identify running responses
 without owners as interrupted, expire tools on Stop and preserve already accepted content.
-Product must wire node synchronization/error status and History pagination/differences/undo.
+Product must wire node synchronization/error status and History pagination/differences/undo,
+including feature-owned undo policies. Removing a workflow removes its schemas and operations;
+persisted node versions and generic History reads remain available through storage.
 Vault-file migration, private-account validation and remote history growth remain separate work.
 
 Verification uses the production memory adapter and fictional records. Tests cover local write

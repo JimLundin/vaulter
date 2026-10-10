@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
-import { memoryNodeBackend } from '../nodes/memory.ts';
-import { create, request, seed, revise } from '../nodes/fixtures.test-support.ts';
+import { memoryNodeBackend } from '../../../vault/nodes/memory.ts';
+import { create, request, seed, revise } from '../../../vault/nodes/fixtures.test-support.ts';
 import {
   parseConversation,
   parseExchange,
@@ -14,7 +14,7 @@ import {
   savedChats,
   savedMessages,
 } from './chat-store.ts';
-import { chatOperations } from './chat.ts';
+import { chatOperations, preservesChatRecords } from './chat.ts';
 import type { MessageData } from './chat.ts';
 
 const at = '2026-10-10T12:00:00Z';
@@ -186,5 +186,32 @@ test('saved conversations are paginated and deduplicated across more than one hi
     await store.commit(submission);
   }
   expect((await savedChats(store)).map(({ node }) => node)).toEqual(['latest', 'oldest']);
+  store.close();
+});
+
+test('Chat owns its undo policy and protects both deleted and retagged records', async () => {
+  const store = memoryNodeBackend();
+  await seed(store);
+  const submission = await prepareChatSubmission(store, submit());
+  await store.commit(submission);
+  expect((await store.changes(submission.id)).every(preservesChatRecords)).toBe(false);
+  const agent = submission.changes.find((change) => change.data?.role === 'agent')!;
+  await store.commit(request('delete-message', [await revise(store, agent.node, null)]));
+  expect((await store.changes('delete-message')).every(preservesChatRecords)).toBe(false);
+  await store.commit(
+    request('retag-user', [
+      await revise(store, submission.changes.find((change) => change.data?.role === 'user')!.node, {
+        kind: 'paragraph',
+        text: 'Changed kind',
+      }),
+    ]),
+  );
+  expect((await store.changes('retag-user')).every(preservesChatRecords)).toBe(false);
+  await store.commit(
+    request('edit-content', [
+      await revise(store, 'evidence', { kind: 'paragraph', text: 'Edited' }),
+    ]),
+  );
+  expect((await store.changes('edit-content')).every(preservesChatRecords)).toBe(true);
   store.close();
 });

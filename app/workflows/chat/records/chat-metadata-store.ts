@@ -1,6 +1,6 @@
 // Permanent feature records over the common NodeStore; no feature-specific persistence backend.
-import type { NodeAddress, NodeId, Transaction } from '../nodes/model.ts';
-import type { NodeChange, NodeStore } from '../nodes/store.ts';
+import type { NodeAddress, NodeId, Transaction } from '../../../vault/nodes/model.ts';
+import type { NodeChange, NodeStore } from '../../../vault/nodes/store.ts';
 import type { MetadataData, MetadataReferenceData } from './chat-metadata.ts';
 import { parseMetadata, parseMetadataReference } from './chat-metadata-schema.ts';
 import { chatOperations } from './chat.ts';
