@@ -28,7 +28,7 @@ import {
   Row,
   SearchSurface,
   SettingField,
-  SettingsPage,
+  FeaturePage,
   SettingsMenu,
   SettingsSection,
   ThemeSwitch,
@@ -123,7 +123,7 @@ function Fixture() {
         </ConversationPanel>
       }
     >
-      <SettingsPage>
+      <FeaturePage title="Controls" description="Retained keyboard and touch interactions">
         <SettingsSection title="Controls">
           <SettingField label="Preference" description="The same field at every size">
             <Input defaultValue="Keep this value" />
@@ -168,7 +168,7 @@ function Fixture() {
           </DropdownMenu>
           <Button onClick={() => setReview(true)}>Open review</Button>
         </SettingsSection>
-      </SettingsPage>
+      </FeaturePage>
       <SettingsMenu
         open={settings}
         onClose={() => setSettings(false)}
@@ -264,73 +264,77 @@ function ComposerFixture() {
 }
 
 function FieldFixture() {
+  const [open, setOpen] = useState(false);
   return (
-    <SettingsPage>
-      <SettingsSection title="Text association">
-        <SettingField label="Default model" description="Used for new conversations.">
-          <Input defaultValue="Initial model" />
-        </SettingField>
-        <SettingField label="Conversation notes" description="Keep context for the next message.">
-          <Stack>
-            <InputGroup>
-              <Textarea defaultValue="Initial notes" />
-            </InputGroup>
-          </Stack>
-        </SettingField>
-        <SettingField label="Identified model" description="An existing reference still works.">
-          {/* biome-ignore lint/correctness/useUniqueElementIds: Singleton fixture verifies preservation of an explicit control identity. */}
-          <Input id="identified-model" aria-label="Overridden control name" />
-        </SettingField>
-        {/* biome-ignore lint/correctness/useUniqueElementIds: Singleton fixture supplies a known additional description reference. */}
-        <Text id="model-guidance">Additional model guidance.</Text>
-        <SettingField label="Nested model" description="Use the recommended model.">
-          <Stack>
-            <Row>
-              <InputGroup>
-                <InputGroupInput aria-describedby="model-guidance model-guidance" />
-              </InputGroup>
-            </Row>
-          </Stack>
-        </SettingField>
-        {['First repeated model', 'Second repeated model'].map((label) => (
-          <SettingField key={label} label={label} description="Each field keeps its own meaning.">
-            <Input defaultValue="Separate value" />
+    <Stack>
+      <Button onClick={() => setOpen(true)}>Open field settings</Button>
+      <SettingsMenu open={open} onClose={() => setOpen(false)} features={[]}>
+        <SettingsSection title="Text association">
+          <SettingField label="Default model" description="Used for new conversations.">
+            <Input defaultValue="Initial model" />
           </SettingField>
-        ))}
-        <SettingField label="Field theme" description="Choose how this device looks.">
-          <Stack>
-            <ThemeSwitch />
-          </Stack>
-        </SettingField>
-        {/* biome-ignore lint/correctness/useUniqueElementIds: Singleton fixture supplies an additional group description. */}
-        <Text id="mode-guidance">Additional mode guidance.</Text>
-        {['First mode', 'Second mode'].map((label) => (
-          <SettingField key={label} label={label} description="Choose one mode.">
+          <SettingField label="Conversation notes" description="Keep context for the next message.">
+            <Stack>
+              <InputGroup>
+                <Textarea defaultValue="Initial notes" />
+              </InputGroup>
+            </Stack>
+          </SettingField>
+          <SettingField label="Identified model" description="An existing reference still works.">
+            {/* biome-ignore lint/correctness/useUniqueElementIds: Singleton fixture verifies preservation of an explicit control identity. */}
+            <Input id="identified-model" aria-label="Overridden control name" />
+          </SettingField>
+          {/* biome-ignore lint/correctness/useUniqueElementIds: Singleton fixture supplies a known additional description reference. */}
+          <Text id="model-guidance">Additional model guidance.</Text>
+          <SettingField label="Nested model" description="Use the recommended model.">
             <Stack>
               <Row>
-                <RadioGroup
-                  defaultValue="one"
-                  aria-label="Conflicting mode"
-                  aria-describedby="mode-guidance mode-guidance"
-                >
-                  <RadioGroupItem value="one">One</RadioGroupItem>
-                  <RadioGroupItem value="two">Two</RadioGroupItem>
-                </RadioGroup>
+                <InputGroup>
+                  <InputGroupInput aria-describedby="model-guidance model-guidance" />
+                </InputGroup>
               </Row>
             </Stack>
           </SettingField>
-        ))}
-        <ThemeSwitch />
-        {/* biome-ignore lint/correctness/useUniqueElementIds: Singleton fixture supplies a known standalone description reference. */}
-        <Text id="standalone-guidance">Standalone instructions.</Text>
-        {/* biome-ignore lint/correctness/useUniqueElementIds: Singleton fixture verifies a standalone explicit identity remains intact. */}
-        <Input
-          id="standalone-model"
-          aria-label="Standalone model"
-          aria-describedby="standalone-guidance"
-        />
-      </SettingsSection>
-    </SettingsPage>
+          {['First repeated model', 'Second repeated model'].map((label) => (
+            <SettingField key={label} label={label} description="Each field keeps its own meaning.">
+              <Input defaultValue="Separate value" />
+            </SettingField>
+          ))}
+          <SettingField label="Field theme" description="Choose how this device looks.">
+            <Stack>
+              <ThemeSwitch />
+            </Stack>
+          </SettingField>
+          {/* biome-ignore lint/correctness/useUniqueElementIds: Singleton fixture supplies an additional group description. */}
+          <Text id="mode-guidance">Additional mode guidance.</Text>
+          {['First mode', 'Second mode'].map((label) => (
+            <SettingField key={label} label={label} description="Choose one mode.">
+              <Stack>
+                <Row>
+                  <RadioGroup
+                    defaultValue="one"
+                    aria-label="Conflicting mode"
+                    aria-describedby="mode-guidance mode-guidance"
+                  >
+                    <RadioGroupItem value="one">One</RadioGroupItem>
+                    <RadioGroupItem value="two">Two</RadioGroupItem>
+                  </RadioGroup>
+                </Row>
+              </Stack>
+            </SettingField>
+          ))}
+          <ThemeSwitch />
+          {/* biome-ignore lint/correctness/useUniqueElementIds: Singleton fixture supplies a known standalone description reference. */}
+          <Text id="standalone-guidance">Standalone instructions.</Text>
+          {/* biome-ignore lint/correctness/useUniqueElementIds: Singleton fixture verifies a standalone explicit identity remains intact. */}
+          <Input
+            id="standalone-model"
+            aria-label="Standalone model"
+            aria-describedby="standalone-guidance"
+          />
+        </SettingsSection>
+      </SettingsMenu>
+    </Stack>
   );
 }
 

@@ -1,9 +1,14 @@
 import { expect, test } from '@playwright/test';
 
+test.beforeEach(async ({ page }) => {
+  await page.goto('/ui/kit/tests/browser.html?setting-fields');
+  await page.getByRole('button', { name: 'Open field settings', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Settings', exact: true })).toBeVisible();
+});
+
 test('a text field owns its accessible name, description and native label activation', async ({
   page,
 }) => {
-  await page.goto('/ui/kit/tests/browser.html?setting-fields');
   const input = page.getByRole('textbox', { name: 'Default model', exact: true });
   await expect(input).toHaveAccessibleName('Default model');
   await expect(input).toHaveAccessibleDescription('Used for new conversations.');
@@ -14,7 +19,6 @@ test('a text field owns its accessible name, description and native label activa
 test('explicit text identities remain valid and the visible field name takes precedence', async ({
   page,
 }) => {
-  await page.goto('/ui/kit/tests/browser.html?setting-fields');
   const input = page.getByRole('textbox', { name: 'Identified model', exact: true });
   await expect(input).toHaveAttribute('id', 'identified-model');
   await expect(input).toHaveAccessibleDescription('An existing reference still works.');
@@ -25,7 +29,6 @@ test('explicit text identities remain valid and the visible field name takes pre
 test('nested grouped inputs retain additional descriptions without duplicate references', async ({
   page,
 }) => {
-  await page.goto('/ui/kit/tests/browser.html?setting-fields');
   const input = page.getByRole('textbox', { name: 'Nested model', exact: true });
   await expect(input).toHaveAccessibleDescription(
     'Additional model guidance. Use the recommended model.',
@@ -40,7 +43,6 @@ test('nested grouped inputs retain additional descriptions without duplicate ref
 test('repeated labels target independent fields and preserve editing across resizing', async ({
   page,
 }) => {
-  await page.goto('/ui/kit/tests/browser.html?setting-fields');
   const first = page.getByRole('textbox', { name: 'First repeated model', exact: true });
   const second = page.getByRole('textbox', { name: 'Second repeated model', exact: true });
   const firstIdentity = await first.getAttribute('id');
@@ -66,14 +68,12 @@ test('repeated labels target independent fields and preserve editing across resi
 });
 
 test('standalone inputs retain their own identities, names and descriptions', async ({ page }) => {
-  await page.goto('/ui/kit/tests/browser.html?setting-fields');
   const input = page.getByRole('textbox', { name: 'Standalone model', exact: true });
   await expect(input).toHaveAttribute('id', 'standalone-model');
   await expect(input).toHaveAccessibleDescription('Standalone instructions.');
 });
 
 test('a nested textarea receives field meaning and native label activation', async ({ page }) => {
-  await page.goto('/ui/kit/tests/browser.html?setting-fields');
   const notes = page.getByRole('textbox', { name: 'Conversation notes', exact: true });
   await expect(notes).toHaveAccessibleDescription('Keep context for the next message.');
   await page.getByText('Conversation notes', { exact: true }).click();
@@ -83,7 +83,6 @@ test('a nested textarea receives field meaning and native label activation', asy
 test('field theme choices have group meaning and standalone Appearance retains its name', async ({
   page,
 }) => {
-  await page.goto('/ui/kit/tests/browser.html?setting-fields');
   const group = page.getByRole('radiogroup', { name: 'Field theme', exact: true });
   await expect(group).toHaveAccessibleDescription('Choose how this device looks.');
   await expect(
@@ -100,7 +99,6 @@ test('field theme choices have group meaning and standalone Appearance retains i
 test('nested repeated groups retain independent associations and radio keyboard behavior through resizing', async ({
   page,
 }) => {
-  await page.goto('/ui/kit/tests/browser.html?setting-fields');
   const first = page.getByRole('radiogroup', { name: 'First mode', exact: true });
   const second = page.getByRole('radiogroup', { name: 'Second mode', exact: true });
   expect(await first.getAttribute('id')).not.toBe(await second.getAttribute('id'));

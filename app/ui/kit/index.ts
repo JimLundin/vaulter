@@ -21,7 +21,6 @@ import {
 } from './parts/card.tsx';
 import { Checkbox as CheckboxPart } from './parts/checkbox.tsx';
 import {
-  CommandDialog as CommandDialogPart,
   CommandEmpty as CommandEmptyPart,
   CommandGroup as CommandGroupPart,
   CommandInput as CommandInputPart,
@@ -31,16 +30,7 @@ import {
   CommandSeparator as CommandSeparatorPart,
   CommandShortcut as CommandShortcutPart,
 } from './parts/command.tsx';
-import {
-  DialogClose as DialogClosePart,
-  DialogContent as DialogContentPart,
-  DialogDescription as DialogDescriptionPart,
-  DialogFooter as DialogFooterPart,
-  DialogHeader as DialogHeaderPart,
-  Dialog as DialogPart,
-  DialogTitle as DialogTitlePart,
-  DialogTrigger as DialogTriggerPart,
-} from './parts/dialog.tsx';
+import { DialogFooter as DialogFooterPart } from './parts/dialog.tsx';
 import {
   DropdownMenuCheckboxItem as DropdownMenuCheckboxItemPart,
   DropdownMenuContent as DropdownMenuContentPart,
@@ -152,7 +142,6 @@ export const CardDescription = unstyled(CardDescriptionPart);
 export const CardContent = unstyled(CardContentPart);
 export const Checkbox = unstyled(CheckboxPart);
 export const Command = unstyled(CommandPart);
-export const CommandDialog = unstyled(CommandDialogPart);
 export const CommandInput = unstyled(CommandInputPart);
 export const CommandList = unstyled(CommandListPart);
 export const CommandEmpty = unstyled(CommandEmptyPart);
@@ -160,14 +149,7 @@ export const CommandGroup = unstyled(CommandGroupPart);
 export const CommandItem = unstyled(CommandItemPart);
 export const CommandShortcut = unstyled(CommandShortcutPart);
 export const CommandSeparator = unstyled(CommandSeparatorPart);
-export const Dialog = unstyled(DialogPart);
-export const DialogClose = unstyled(DialogClosePart);
-export const DialogContent = unstyled(DialogContentPart);
-export const DialogDescription = unstyled(DialogDescriptionPart);
 export const DialogFooter = unstyled(DialogFooterPart);
-export const DialogHeader = unstyled(DialogHeaderPart);
-export const DialogTitle = unstyled(DialogTitlePart);
-export const DialogTrigger = unstyled(DialogTriggerPart);
 export const DropdownMenu = unstyled(DropdownMenuPart);
 export const DropdownMenuTrigger = unstyled(DropdownMenuTriggerPart);
 export const DropdownMenuContent = unstyled(DropdownMenuContentPart);
@@ -324,7 +306,7 @@ export {
   Message,
 } from './conversation.tsx';
 export { HistorySurface, HistoryEntry, SearchSurface } from './screens.tsx';
-export { SettingsMenu, SettingsPage, SettingsSection, SettingField } from './settings.tsx';
+export { SettingsMenu, SettingsSection, SettingField } from './settings.tsx';
 export {
   NavigationSuite,
   type NavigationAction,
