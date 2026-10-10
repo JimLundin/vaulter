@@ -1,5 +1,6 @@
 // Feature ingress validates metadata semantics before crossing the generic JSON store seam.
 import { z } from 'zod';
+import { contextInputSchema, agentRunSchema, toolExecutionSchema } from '../../../agent/schema.ts';
 import { canonical, frozen } from '../../../vault/nodes/json.ts';
 import { jsonObject, jsonRecord } from '../../../vault/nodes/json-schema.ts';
 import type { MetadataData, MetadataReferenceData } from './chat-metadata.ts';
@@ -10,14 +11,6 @@ const finite = z.number().finite();
 const nonnegative = finite.nonnegative();
 const count = nonnegative.int();
 const json = jsonObject;
-const jsonValue = z.custom<import('../../../vault/nodes/model.ts').JsonValue>((value) => {
-  try {
-    canonical(value);
-    return true;
-  } catch {
-    return false;
-  }
-}, 'Invalid JSON');
 const source = z.object({
   kind: z.enum(['application', 'browser', 'service', 'user', 'agent']),
   name: text,
@@ -39,8 +32,6 @@ const quality = z.object({
 const selection = z
   .strictObject({ format: z.literal('text'), start: count, end: count, unit: z.literal('utf16') })
   .refine((value) => value.end >= value.start, 'Selection ends before it starts');
-const error = z.object({ code: text, message: text });
-const model = z.object({ requested: text, served: text.optional() });
 const values = {
   clock: z.object({
     instant,
@@ -194,61 +185,6 @@ const attachment = z.object({
   durationMs: nonnegative.optional(),
   embedded: json.optional(),
 });
-const input = z.object({
-  kind: z.literal('contextInput'),
-  role: z.enum(['system', 'user', 'assistant', 'tool']),
-  position: count,
-  transformation: z.enum(['verbatim', 'selection', 'summary', 'truncation', 'generated']),
-  content: z.union([z.string(), json]),
-  selection: selection.optional(),
-});
-const run = z.object({
-  kind: z.literal('agentRun'),
-  started: instant,
-  ended: instant.optional(),
-  status: z.enum(['running', 'complete', 'stopped', 'failed', 'interrupted']),
-  provider: text,
-  model,
-  settings: json,
-  enabledTools: z.array(z.object({ name: text, version: text.optional() })),
-  request: text.optional(),
-  finishReason: text.optional(),
-  timing: z
-    .strictObject({ elapsedMs: nonnegative, firstOutputMs: nonnegative.optional() })
-    .optional(),
-  usage: z
-    .strictObject({
-      input: count,
-      output: count,
-      cachedInput: count.optional(),
-      reasoning: count.optional(),
-      raw: json.optional(),
-    })
-    .optional(),
-  cost: z
-    .strictObject({
-      amount: nonnegative,
-      currency: text,
-      estimated: z.boolean(),
-      pricing: z.object({ source: text, at: instant, rates: json }),
-    })
-    .optional(),
-  error: error.optional(),
-});
-const tool = z.object({
-  kind: z.literal('toolExecution'),
-  call: text,
-  name: text,
-  version: text.optional(),
-  attempt: count.min(1),
-  started: instant,
-  ended: instant.optional(),
-  elapsedMs: nonnegative.optional(),
-  status: z.enum(['running', 'complete', 'failed', 'cancelled']),
-  input: jsonValue,
-  output: jsonValue.optional(),
-  error: error.optional(),
-});
 const interpretation = z.object({
   kind: z.literal('interpretation'),
   category: z.enum(['summary', 'topic', 'entity', 'event', 'decision', 'intention', 'ambiguity']),
@@ -258,7 +194,14 @@ const interpretation = z.object({
   certainty: z.enum(['explicit', 'inferred', 'uncertain']),
   method: z.object({ name: text, version: text.optional() }),
 });
-const metadata = z.union([observation, attachment, input, run, tool, interpretation]);
+const metadata = z.union([
+  observation,
+  attachment,
+  contextInputSchema,
+  agentRunSchema,
+  toolExecutionSchema,
+  interpretation,
+]);
 const reference = z.object({
   kind: z.literal('metadataReference'),
   role: z.enum([
