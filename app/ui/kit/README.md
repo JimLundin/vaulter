@@ -278,7 +278,7 @@ that works:
    `rounded-xl` cards and rows, `rounded-2xl` docked surfaces such as the composer.
 2. **Pointer, not width.** `styles.css` applies a 44px minimum target whenever **any pointer** is
    coarse, including touch desktops. It covers all button sizes, checkboxes, inputs, grouped inputs,
-   tabs, toggles, command/menu rows, sidebar controls, dialog close buttons and map controls.
+   tabs, ToggleGroup choices, command/menu rows, sidebar controls, retained close actions and map controls.
    Checkboxes keep a 16px mark inside the target. Chart marks scroll horizontally when there are
    too many touch targets to fit, and map markers keep their small visual inside a larger target.
    Custom standalone controls opt in with
@@ -323,8 +323,9 @@ Speech updates the same persistent message draft as typing. The microphone start
 Send and Enter submit the shared draft. Corrected final text replaces the current recording's partial
 words while retaining the preceding draft. Further recordings append to manual corrections.
 `VoiceStatus` shows capture state and errors above the dock without changing the field's position.
-`Composer` shows the Enter arrow while the field has focus and becomes the sole Stop control during
-an agent response; the microphone keeps its icon and is disabled until the response finishes.
+`Composer` shows the Enter arrow while the field has focus and replaces its inset voice/Send action
+with Stop during an agent response. Standalone voice controls keep their microphone icon and remain
+disabled until the response finishes.
 The conversation feed contains submitted messages only. Read-only fields follow incoming words without taking focus. Drafts remain
 available when the Chat view closes or switches between a panel and page.
 
