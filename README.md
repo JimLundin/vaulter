@@ -60,6 +60,16 @@ The vault's vocabulary remains in its own `meta/schema.yaml`. `app/vault/validat
 note format and graph integrity checks; `tools/check.ts` runs them over a vault on disk. Every app
 commit passes the same rules and carries `Committed-From: vault app`.
 
+## Central node storage
+
+The central NodeStore contract supports immutable versions, atomic transactions, grouped placement
+and connection values, and identity or exact-version references. GitHub persistence writes one
+transaction envelope into the private vault's `.vaulter/nodes/v1/transactions/` namespace and uses
+an encrypted Dexie device cache with the unlocked session key. Existing chat and History workflows
+still use files; their use of this contract belongs to the next PR in the stack. This PR specifies
+central storage and preserves valid submitted data without rewriting published records.
+See [node storage](docs/node-storage.md) for the interface, acceptance rules, and current limits.
+
 ## Publishing
 
 Review the latest design before merging at **https://jimlundin.github.io/vaulter/preview/structure/**.

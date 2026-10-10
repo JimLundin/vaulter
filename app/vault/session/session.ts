@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { Sealed, Secrets } from './sealed.ts';
 import { Offline, type Head, type OpenBackend, type VaultBackend } from '../storage/backend.ts';
 import { devUnlocked, forget, remembered, unlock, type Unlocked } from './unlock.ts';
+import type { NodeBackend, NodeStore, OpenNodes } from '../nodes/store.ts';
 
 export type Status =
   | { kind: 'loading' }
@@ -23,6 +24,8 @@ export interface Session {
   /** Set while the secrets wait for the password. */
   locked: { unlock: (password: string) => Promise<void> } | null;
   signOut: (() => Promise<void>) | null;
+  nodes: NodeStore | null;
+  nodeStatus: Status;
 }
 
 const EVERY = 30_000;
@@ -30,12 +33,21 @@ declare const __DEV_SECRETS__: Secrets | null;
 const DEV_SECRETS = typeof __DEV_SECRETS__ === 'undefined' ? null : __DEV_SECRETS__;
 
 /** `openBackend`: the app's backend (main.tsx); `keeps`: the permanent file selection rules. */
-export function useSession(openBackend: OpenBackend, keeps: (path: string) => boolean): Session {
+export function useSession(
+  openBackend: OpenBackend,
+  keeps: (path: string) => boolean,
+  openNodes?: OpenNodes,
+): Session {
   const [backend, setBackend] = useState<VaultBackend | null>(null);
   const [head, setHead] = useState<Head | null>(null);
   const [status, setStatus] = useState<Status>({ kind: 'loading' });
   const [sealed, setSealed] = useState<Sealed | null>(null);
   const [secrets, setSecrets] = useState<Secrets | null>(null);
+  const [nodes, setNodes] = useState<NodeBackend | null>(null);
+  const [nodeStatus, setNodeStatus] = useState<Status>({ kind: 'loading' });
+  const activeNodes = useRef<NodeBackend | null>(null);
+  const nodeBusy = useRef<boolean>(false);
+  const mounted = useRef<boolean>(true);
   const last = useRef(0);
   const busy = useRef<boolean>(false);
 
@@ -65,9 +77,44 @@ export function useSession(openBackend: OpenBackend, keeps: (path: string) => bo
     if (h) setHead(h);
     await refresh(b, true);
   };
+  const refreshNodes = async (store: NodeBackend) => {
+    if (!mounted.current || nodeBusy.current) return;
+    nodeBusy.current = true;
+    setNodeStatus({ kind: 'syncing' });
+    try {
+      await store.refresh();
+      if (mounted.current) setNodeStatus({ kind: 'synced', at: Date.now() });
+    } catch (error) {
+      if (mounted.current)
+        setNodeStatus(
+          typeof navigator !== 'undefined' && !navigator.onLine
+            ? { kind: 'offline' }
+            : { kind: 'error', message: String(error) },
+        );
+    } finally {
+      nodeBusy.current = false;
+    }
+  };
   const begin = (u: Unlocked) => {
+    if (!mounted.current) return Promise.resolve();
     setSecrets(u.secrets);
-    return open(openBackend({ secrets: u.secrets, key: u.cacheKey, keeps }));
+    const nodeOpen = async () => {
+      if (!openNodes) return;
+      const store = openNodes({ secrets: u.secrets, key: u.cacheKey });
+      activeNodes.current?.close();
+      activeNodes.current = store;
+      setNodes(store);
+      try {
+        await store.cached();
+      } catch (error) {
+        if (mounted.current) setNodeStatus({ kind: 'error', message: String(error) });
+      }
+      await refreshNodes(store);
+    };
+    return Promise.all([
+      open(openBackend({ secrets: u.secrets, key: u.cacheKey, keeps })),
+      nodeOpen(),
+    ]);
   };
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: once, on mount; what it calls reads only refs and state setters
@@ -87,16 +134,26 @@ export function useSession(openBackend: OpenBackend, keeps: (path: string) => bo
       if (u) await begin(u);
       else setSealed(s);
     };
-    start().catch((e) => setStatus({ kind: 'error', message: String(e) }));
+    mounted.current = true;
+    start().catch((e) => {
+      if (mounted.current) setStatus({ kind: 'error', message: String(e) });
+    });
+    return () => {
+      mounted.current = false;
+      activeNodes.current?.close();
+    };
   }, []);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: refresh reads only refs and state setters, so any render's will do
   useEffect(() => {
     if (!backend) return;
     // Changed elsewhere: another tab wrote the cache (read it), or the files changed on disk (refetch).
-    const off = backend.watch((h) => (h ? setHead(h) : void refresh(backend, true)));
+    const off = backend.watch((h) => {
+      if (h) setHead(h);
+      else refresh(backend, true).catch(() => undefined);
+    });
     const back = () => {
-      if (document.visibilityState === 'visible') void refresh(backend);
+      if (document.visibilityState === 'visible') refresh(backend).catch(() => undefined);
     };
     document.addEventListener('visibilitychange', back);
     addEventListener('online', back);
@@ -107,12 +164,30 @@ export function useSession(openBackend: OpenBackend, keeps: (path: string) => bo
     };
   }, [backend]);
 
+  // Node cache lifetime follows the unlocked session, without exposing the key to workflows.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: refreshNodes only uses refs and setters.
+  useEffect(() => {
+    if (!nodes) return;
+    const back = () => {
+      if (document.visibilityState === 'visible') refreshNodes(nodes).catch(() => undefined);
+    };
+    document.addEventListener('visibilitychange', back);
+    addEventListener('online', back);
+    return () => {
+      document.removeEventListener('visibilitychange', back);
+      removeEventListener('online', back);
+      nodes.close();
+    };
+  }, [nodes]);
+
   return {
     backend,
     head,
     setHead,
     status,
     secrets,
+    nodes,
+    nodeStatus,
     locked:
       sealed && !backend
         ? {
@@ -126,6 +201,8 @@ export function useSession(openBackend: OpenBackend, keeps: (path: string) => bo
     signOut: secrets
       ? async () => {
           await backend?.clear?.();
+          await activeNodes.current?.clear();
+          activeNodes.current?.close();
           await forget();
           location.reload();
         }

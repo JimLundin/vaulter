@@ -12,6 +12,8 @@ import { schemaFor } from './documents/notes/schema.ts';
 import { notesOf } from './documents/notes/notes.ts';
 import { titleOf, excerptOf, hrefOf, kind, asList, topicsOf } from './documents/notes/fields.ts';
 import { search, searchIndex } from './documents/search.ts';
+import type { OpenNodes } from './nodes/store.ts';
+export type { NodeStore, OpenNodes } from './nodes/store.ts';
 
 export type { Change, VaultFile } from './files.ts';
 export { applyChanges } from './files.ts';
@@ -68,8 +70,8 @@ export function noteSearchIndex(files: VaultFile[]) {
 export const searchNotes = (vault: Pick<Vault, 'files'>, query: string) =>
   search(noteSearchIndex(vault.files()), query);
 
-export function useVaultSession(openBackend: OpenBackend) {
-  const session = useSession(openBackend, vaultRules.keeps);
+export function useVaultSession(openBackend: OpenBackend, openNodes?: OpenNodes) {
+  const session = useSession(openBackend, vaultRules.keeps, openNodes);
   const writer = useWriter(session.backend, vaultRules, session.head, session.setHead);
   const current = useRef(writer);
   current.current = writer;
@@ -85,6 +87,8 @@ export function useVaultSession(openBackend: OpenBackend) {
     status: session.status,
     locked: session.locked,
     signOut: session.signOut,
+    nodes: session.nodes,
+    nodeStatus: session.nodeStatus,
     // Only product composition receives these, to configure specific external callers.
     secrets: session.secrets,
     blocked: schema instanceof Error ? schema.message : null,

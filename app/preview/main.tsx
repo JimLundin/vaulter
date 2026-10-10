@@ -14,8 +14,10 @@ import type { Head } from '../vault/storage/backend.ts';
 import { sampleFiles, note } from './data.ts';
 import { previewModel } from './model.ts';
 import { previewTranscription } from './transcription.ts';
+import { memoryNodeBackend } from '../vault/nodes/memory.ts';
 
 const memory = memoryBackend(sampleFiles);
+const nodes = memoryNodeBackend();
 const initial = memory.backend.write!(
   [
     {
@@ -55,6 +57,8 @@ function Preview({ initialHead }: { initialHead: Head }) {
           signOut: null,
           secrets: null,
           blocked: null,
+          nodes,
+          nodeStatus: { kind: 'synced', at: Date.now() },
         }}
         model={async () => previewModel}
         preview={{

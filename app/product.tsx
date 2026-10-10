@@ -8,6 +8,7 @@ import {
   titleOf,
   type OpenBackend,
   type OwnedVault,
+  type OpenNodes,
 } from './vault/index.ts';
 import { Frame } from './ui/Frame.tsx';
 import { Unlock } from './ui/Unlock.tsx';
@@ -63,8 +64,14 @@ const provenanceRoute = pattern('/prototype/provenance/');
 const renameTools = async (vault: OwnedVault) =>
   (await import('./workflows/rename-note/agent.ts')).renameTools(vault);
 
-export function Product({ openBackend }: { openBackend: OpenBackend }) {
-  const session = useVaultSession(openBackend);
+export function Product({
+  openBackend,
+  openNodes,
+}: {
+  openBackend: OpenBackend;
+  openNodes?: OpenNodes;
+}) {
+  const session = useVaultSession(openBackend, openNodes);
   if (session.locked) return <Unlock unlock={session.locked.unlock} />;
   if (!session.files || session.blocked)
     return (
