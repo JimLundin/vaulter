@@ -29,8 +29,11 @@ export interface AgentRunState {
   readonly data: AgentRunData;
   readonly text: string;
   readonly persistenceError?: string;
+  readonly persistenceStage?: 'initial' | 'invocation' | 'content' | 'outcome' | 'terminal';
   readonly tools?: readonly { readonly node: string; readonly data: ToolExecutionData }[];
   readonly pendingTool?: PendingToolSave;
+  readonly contextError?: string;
+  readonly contentPersistence?: { readonly request: NodeCommit; readonly error: string };
 }
 export interface AgentRun {
   readonly snapshot: () => AgentRunState;
@@ -73,6 +76,11 @@ export function createAgentBackend(options: AgentBackendOptions) {
     let pending: NodeCommit | undefined;
     let initialSave = false;
     let toolPending: PendingToolSave | undefined;
+    let toolController: ReturnType<typeof durableTools> | undefined;
+    let settleContent: (() => Promise<unknown>) | undefined;
+    let interrupted = false;
+    let terminal: (() => Promise<AgentRunState>) | undefined;
+    let terminalWork: Promise<AgentRunState> | undefined;
     let live = true;
     let executingTool = false;
     const activity = new Map<string, ToolExecutionData>();
@@ -118,7 +126,12 @@ export function createAgentBackend(options: AgentBackendOptions) {
           pending = undefined;
           initialSave = false;
         } catch (error) {
-          notify({ ...state, phase: 'unsaved', persistenceError: errorMessage(error) });
+          notify({
+            ...state,
+            phase: 'unsaved',
+            persistenceError: errorMessage(error),
+            persistenceStage: 'initial',
+          });
           return state;
         }
         let text = '';
@@ -142,6 +155,16 @@ export function createAgentBackend(options: AgentBackendOptions) {
             writableKinds: options.writableKinds ?? [],
             contentPolicy: options.contentPolicy,
             snapshot: await options.nodes.snapshot(),
+            publicationFailed: (request, error) => {
+              notify({
+                ...state,
+                persistenceStage: 'content',
+                contentPersistence: { request, error: errorMessage(error) },
+              });
+            },
+            refreshFailed: (error) => {
+              notify({ ...state, contextError: errorMessage(error) });
+            },
           });
           const supplied = options.tools
             ? await cancellable(Promise.resolve(options.tools(guard.context)), abort.signal)
@@ -149,7 +172,8 @@ export function createAgentBackend(options: AgentBackendOptions) {
           const selected = initialData.enabledTools.map(({ name }) => name).sort(compare);
           if (canonical(Object.keys(supplied).sort(compare)) !== canonical(selected))
             throw new Error('Supplied tools do not match accepted enabled tools');
-          const tools = durableTools({
+          settleContent = guard.settle;
+          toolController = durableTools({
             nodes: options.nodes,
             tools: supplied,
             versions: new Map(initialData.enabledTools.map(({ name, version }) => [name, version])),
@@ -171,12 +195,28 @@ export function createAgentBackend(options: AgentBackendOptions) {
                 })),
               });
             },
+            recovered: () => {
+              toolPending = undefined;
+              const {
+                pendingTool: _pending,
+                persistenceError: _error,
+                persistenceStage: _stage,
+                ...rest
+              } = state;
+              notify({ ...rest, phase: abort.signal.aborted ? 'saving' : 'running' });
+            },
+            halt: () => {
+              interrupted = true;
+              live = false;
+              abort.abort();
+            },
             paused: (pendingSave, error) => {
               toolPending = pendingSave;
               notify({
                 ...state,
                 phase: 'paused',
                 pendingTool: pendingSave,
+                persistenceStage: pendingSave.stage,
                 persistenceError: errorMessage(error),
               });
             },
@@ -207,7 +247,7 @@ export function createAgentBackend(options: AgentBackendOptions) {
           const messages = effective.filter((message) => message.role !== 'system');
           const stream = streamText({
             ...data.settings,
-            tools,
+            tools: toolController.tools,
             stopWhen: isStepCount(
               typeof data.settings.maxSteps === 'number' ? data.settings.maxSteps : 1,
             ),
@@ -263,40 +303,64 @@ export function createAgentBackend(options: AgentBackendOptions) {
           };
         }
         live = false;
+        await toolController?.settle();
+        await settleContent?.();
+        data = {
+          ...data,
+          status: interrupted ? 'interrupted' : abort.signal.aborted ? 'stopped' : data.status,
+          ...(interrupted ? { finishReason: 'invocationNotExecuted' } : {}),
+        };
+        terminal = () => {
+          if (terminalWork !== undefined) return terminalWork;
+          terminalWork = (async () => {
+            if (toolPending) return state;
+            const terminalData = parseAgentRun({
+              ...data,
+              ended: new Date().toISOString(),
+              timing: { elapsedMs: performance.now() - started },
+              output: { text },
+            });
+            pending = prepareAgentOutcome(prepared, terminalData);
+            notify({
+              ...state,
+              phase: 'saving',
+              data: terminalData,
+              text,
+              tools: [...activity].map(([node, toolData]) => ({ node, data: toolData })),
+            });
+            try {
+              await options.nodes.commit(pending);
+              pending = undefined;
+              notify({
+                ...state,
+                phase: terminalData.status === 'running' ? 'recorded' : terminalData.status,
+                data: terminalData,
+                text,
+              });
+            } catch (error) {
+              notify({
+                ...state,
+                phase: 'unsaved',
+                data: terminalData,
+                text,
+                persistenceError: errorMessage(error),
+                persistenceStage: 'terminal',
+              });
+            }
+            return state;
+          })();
+          return terminalWork;
+        };
         if (toolPending) {
           notify({
             ...state,
             phase: 'paused',
-            data: { ...data, status: 'running' },
+            data,
             pendingTool: toolPending,
           });
           return state;
         }
-        data = parseAgentRun({
-          ...data,
-          ended: new Date().toISOString(),
-          timing: { elapsedMs: performance.now() - started },
-          output: { text },
-        });
-        pending = prepareAgentOutcome(prepared, data);
-        notify({
-          phase: 'saving',
-          data,
-          text,
-          tools: [...activity].map(([node, toolData]) => ({ node, data: toolData })),
-        });
-        try {
-          await options.nodes.commit(pending);
-          pending = undefined;
-          notify({
-            ...state,
-            phase: data.status === 'running' ? 'recorded' : data.status,
-            data,
-            text,
-          });
-        } catch (error) {
-          notify({ ...state, phase: 'unsaved', data, text, persistenceError: errorMessage(error) });
-        }
+        await terminal();
       } catch (error) {
         notify({
           phase: 'failed',
@@ -324,6 +388,14 @@ export function createAgentBackend(options: AgentBackendOptions) {
       retrySave: () => {
         if (retry !== undefined) return retry;
         retry = (async () => {
+          if (toolController?.pending()) {
+            await toolController.retrySave();
+            if (!toolController.pending() && abort.signal.aborted) {
+              await done;
+              if (terminal) await terminal();
+            }
+            return state;
+          }
           await done;
           if (!pending || disposed) return state;
           try {
@@ -334,6 +406,14 @@ export function createAgentBackend(options: AgentBackendOptions) {
               await restored();
             } else
               notify({
+                ...(state.contextError ? { contextError: state.contextError } : {}),
+                ...(state.contentPersistence
+                  ? {
+                      contentPersistence: state.contentPersistence,
+                      persistenceStage: 'content' as const,
+                    }
+                  : {}),
+                tools: state.tools,
                 phase: state.data.status === 'running' ? 'recorded' : state.data.status,
                 data: state.data,
                 text: state.text,

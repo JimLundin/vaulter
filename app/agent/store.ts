@@ -125,7 +125,11 @@ export async function prepareAgentRun(
 export interface SavedAgentRun {
   readonly version: NodeVersion;
   readonly data: AgentRunData;
-  readonly tools: readonly { readonly version: NodeVersion; readonly data: ToolExecutionData }[];
+  readonly tools: readonly {
+    readonly version: NodeVersion;
+    readonly data: ToolExecutionData;
+    readonly effects: 'recorded' | 'uncertain';
+  }[];
   readonly context: readonly {
     readonly version: NodeVersion;
     readonly data: ContextInputData;
@@ -159,7 +163,14 @@ export async function readAgentRun(
     .children(run)
     .flatMap((tool) =>
       tool.data?.kind === 'toolExecution'
-        ? [{ version: tool, data: parseToolExecution(tool.data) }]
+        ? [
+            {
+              version: tool,
+              data: parseToolExecution(tool.data),
+              effects:
+                tool.data.status === 'running' ? ('uncertain' as const) : ('recorded' as const),
+            },
+          ]
         : [],
     );
   return frozen({ version, data, context, tools });

@@ -85,3 +85,31 @@ The caller composes any additional producer record policy, such as preserving Ch
 A content module can therefore create a valid Interpretation and exact evidence links while
 existing execution references remain protected. The same context supports a module publishing
 content immediately and another module recording a proposal, without imposing either choice.
+
+## Tool outcome recovery
+
+The independent Agent handle can retry a paused tool outcome while execution is still open. Retry
+submits the unchanged prepared write, including its transaction identity and attribution. After
+acceptance the same executing call resolves and provider continuation resumes; the module is not
+invoked again. Failed tool outcomes use the same recovery path and preserve their original errors.
+Lost acceptance responses reconcile through NodeStore's complete idempotent request identity.
+
+The live state distinguishes persistence stages (`initial`, `invocation`, `content`, `outcome`,
+`terminal`). Outcome failures retain `pendingTool`. Content publication failures retain their
+attributed request and error separately. A snapshot refresh failure after accepted content remains
+an observable context error; it does not convert accepted publication into a failed tool receipt.
+No automatic content retry claims exactly-once effects for arbitrary external tools.
+
+Stop immediately expires new and queued publication, waits for already entered effects and
+writes to settle, and preserves their known outcomes. When outcome persistence remains unresolved,
+Stop returns the retained save obligation rather than inventing completion. Persistence recovery
+remains usable on the stopped handle: accept the outcome, then record the stopped run without
+starting another tool or provider step. Terminal persistence is a distinct stable retry request.
+
+Invocation persistence recovery is persistence-only: when no module execution began, recording
+the invocation does not start it later. The run retains an explicit `invocationNotExecuted` finish
+reason and interrupted status. Historical readers do not infer that fact from absent output.
+An unfinished recorded tool exposes `effects: uncertain` while retaining its running payload;
+completed records expose `effects: recorded`. This is a read projection, not another stored model.
+Available local ownership may prove that a controller is live. Missing local ownership leaves
+remote liveness unknown and never establishes abandonment or causes automatic replay.

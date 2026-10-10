@@ -1,4 +1,4 @@
-import type { NodeSnapshot, NodeStore } from '../vault/nodes/store.ts';
+import type { NodeSnapshot, NodeStore, NodeCommit } from '../vault/nodes/store.ts';
 import type { AgentToolContext, ContentWritePolicy } from './tools.ts';
 import { frozen } from '../vault/nodes/json.ts';
 
@@ -14,8 +14,11 @@ export function agentContentContext(options: {
   readonly writableKinds: readonly string[];
   readonly contentPolicy?: ContentWritePolicy;
   readonly snapshot: NodeSnapshot;
+  readonly publicationFailed: (request: NodeCommit, error: unknown) => void;
+  readonly refreshFailed: (error: unknown) => void;
 }) {
   let { snapshot } = options;
+  let refreshError: unknown;
   const reads = new Map<string, string | null>();
   let tail: Promise<unknown> = Promise.resolve();
   const writes = new Set<Promise<string>>();
@@ -41,6 +44,7 @@ export function agentContentContext(options: {
     signal: options.signal,
     snapshot: () => {
       check();
+      if (refreshError !== undefined) throw refreshError;
       const captured = snapshot;
       const track = (node: string) => reads.set(node, captured.get(node)?.key.transaction ?? null);
       return {
@@ -114,15 +118,27 @@ export function agentContentContext(options: {
           )
             throw new Error('Tool write violates its supplied producer policy');
         }
-        const accepted = await options.nodes.commit({
+        const publication = frozen({
           ...request,
           expectedReads: Object.fromEntries(expectedReads),
           recordedBy: options.agent,
           origin: options.run,
           undoOf: null,
         });
-        // Acceptance remains successful even if cancellation arrives while the adapter is writing.
-        snapshot = await options.nodes.snapshot();
+        let accepted: Awaited<ReturnType<NodeStore['commit']>>;
+        try {
+          accepted = await options.nodes.commit(publication);
+        } catch (error) {
+          options.publicationFailed(publication, error);
+          throw error;
+        }
+        // Acceptance is authoritative. A read refresh cannot convert the receipt into failure.
+        try {
+          snapshot = await options.nodes.snapshot();
+        } catch (error) {
+          refreshError = error;
+          options.refreshFailed(error);
+        }
         for (const change of request.changes)
           if (reads.has(change.node)) reads.set(change.node, accepted.id);
         return accepted.id;
