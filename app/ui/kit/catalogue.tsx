@@ -95,18 +95,28 @@ function Buttons() {
   );
 }
 function Status() {
+  const [placeSelections, setPlaceSelections] = useState(0);
   const [toasterId] = useState(() => `kit-${crypto.randomUUID()}`);
   return (
     <K.Stack gap="lg">
       <K.Row wrap={true}>
         <K.Badge>Draft</K.Badge>
         <K.Badge variant="secondary">Saved</K.Badge>
+        <K.Badge variant="destructive">Needs attention</K.Badge>
         <K.Chip tone="people">Anna</K.Chip>
-        <K.Chip tone="places">Pascal</K.Chip>
+        <K.Chip tone="places" onClick={() => setPlaceSelections((count) => count + 1)}>
+          Pascal
+        </K.Chip>
         <K.Chip tone="events">Dinner</K.Chip>
-        <K.Dot tone="places" />
+        <K.Row gap="xs">
+          <K.Dot tone="places" />
+          <K.Text size="xs">Places</K.Text>
+        </K.Row>
         <K.Count n={3} />
       </K.Row>
+      <K.Text size="xs">
+        Pascal selected {placeSelections} {placeSelections === 1 ? 'time' : 'times'}.
+      </K.Text>
       <K.Notice title="A detail needs your attention" action={<K.Icon name="chevron-right" />}>
         Choose which date to keep.
       </K.Notice>
@@ -242,9 +252,10 @@ function Cards() {
   );
 }
 function Items() {
+  const [opened, setOpened] = useState(false);
   return (
     <K.ItemGroup>
-      <K.Item variant="outline">
+      <K.Item>
         <K.ItemHeader>
           <K.Text size="xs">Pinned note</K.Text>
         </K.ItemHeader>
@@ -256,7 +267,13 @@ function Items() {
           <K.ItemDescription>With Anna · Today</K.ItemDescription>
         </K.ItemContent>
         <K.ItemActions>
-          <K.Button variant="ghost" size="compact" iconOnly={true} aria-label="Open morning walk">
+          <K.Button
+            variant="ghost"
+            size="compact"
+            iconOnly={true}
+            aria-label="Open morning walk"
+            onClick={() => setOpened(true)}
+          >
             <K.Icon name="chevron-right" />
           </K.Button>
         </K.ItemActions>
@@ -276,6 +293,44 @@ function Items() {
           <K.ItemDescription>Time outside the city.</K.ItemDescription>
         </K.ItemContent>
       </K.Item>
+      <K.ItemSeparator />
+      <K.Item current={true} render={<button type="button" aria-label="Current reading note" />}>
+        <K.ItemMedia variant="icon">
+          <K.Icon name="file" />
+        </K.ItemMedia>
+        <K.ItemContent>
+          <K.ItemTitle>Current reading note</K.ItemTitle>
+          <K.ItemDescription>A framed icon and selected-row feedback.</K.ItemDescription>
+        </K.ItemContent>
+      </K.Item>
+      <K.ItemSeparator />
+      <K.Item>
+        <K.ItemMedia variant="image">
+          <img
+            alt="Supplied preview thumbnail"
+            src={new URL('../../public/icon-192.png', import.meta.url).href}
+          />
+        </K.ItemMedia>
+        <K.ItemContent>
+          <K.ItemTitle>A saved picture</K.ItemTitle>
+          <K.ItemDescription>Supplied media cropped inside a thumbnail.</K.ItemDescription>
+        </K.ItemContent>
+      </K.Item>
+      <K.Item>
+        <K.ItemHeader>
+          <K.Text size="xs">Initials in each category</K.Text>
+        </K.ItemHeader>
+        <K.ItemMedia>
+          <K.Avatar name="Neutral Note" tone="neutral" />
+        </K.ItemMedia>
+        <K.ItemMedia>
+          <K.Avatar name="Pascal Place" tone="places" />
+        </K.ItemMedia>
+        <K.ItemMedia>
+          <K.Avatar name="Dinner Event" tone="events" />
+        </K.ItemMedia>
+      </K.Item>
+      {opened && <K.Text>Opened morning walk.</K.Text>}
     </K.ItemGroup>
   );
 }
@@ -1428,7 +1483,8 @@ export const catalogue: Specimen[] = [
   {
     id: 'items',
     title: 'Items & people',
-    description: 'List rows with metadata, avatars and actions.',
+    description:
+      'Plain and current rows with context, actions, framed icons, supplied thumbnails and category initials.',
     components: [
       'Item',
       'ItemGroup',
