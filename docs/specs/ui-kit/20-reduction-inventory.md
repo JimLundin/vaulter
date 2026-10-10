@@ -10,11 +10,13 @@ Published contract: [agent brief](https://github.com/JimLundin/vaulter/issues/20
 
 This is the decision record for the human-in-the-loop kit walkthrough. Each proposed removal
 below has been reviewed with the maintainer. The maintainer confirmed the complete walkthrough,
-consolidated scope and tracker brief on 2026-10-10. Recording a removal here does not implement it.
+consolidated scope and tracker brief on 2026-10-10. The walkthrough table below preserves the
+original consumer evidence and decisions at investigation commit `fe941c2`; its consumer column
+is historical. Current consumer rechecks, shared-dependency decisions and implementation status
+are recorded in the [implementation reconciliation](#implementation-reconciliation) below.
+Final validation is tracked in the [cleanup acceptance record](20-cleanup/README.md).
 
-Initial source investigation: `fe941c2`. Recheck consumers before implementation.
-
-| Module or variation | Current consumers | Planned-feature purpose | Decision | Reason and evidence |
+| Module or variation | Walkthrough consumers | Planned-feature purpose | Decision | Reason and evidence |
 |---|---|---|---|---|
 | Desktop sidebar collapse | Sidebar context and collapse styling; keyboard handler reachable through Product navigation; trigger shown in catalogue | No retained collapse requirement | Remove — previously approved in #20 | Keep desktop navigation expanded. Remove collapse state, shortcut, cookie write and collapse-only presentation while preserving the phone menu. |
 | `DesktopMain` | Base frames catalogue example; no current Product caller found | No distinct planned-feature capability identified during review | Remove — maintainer approved | Separate desktop scrolling-content shell overlaps with the retained `WorkspaceFrame`. The maintainer explicitly agreed to removal after reviewing the distinction. |
@@ -126,10 +128,11 @@ The maintainer approved retiring provenance B and C, with A retained as the sele
 design. This does not reject design variation comparison. During future design work, generated
 alternatives must be available to toggle as part of preview functionality.
 
-Current code separates device selection (Window/Desktop/Mobile in `DesignPreview`) from the
-provenance prototype's local A/B/C selector, URL choice and arrow controls. There is no shared
-design-variation selector in `DesignPreview` yet. Do not report that reusable infrastructure
-already exists or remove all comparison mechanics on the assumption they are obsolete.
+At the walkthrough, device selection (Window/Desktop/Mobile in `DesignPreview`) was separate
+from provenance's local A/B/C selector, URL choice and arrow controls; comparison was not yet
+shared. [#23](20-cleanup/23.md) provided reusable DesignComparison, and
+[#26](20-cleanup/26.md) retired completed B/C entries while keeping selected evidence A.
+Device selection and future supplied design alternatives remain independent preview capabilities.
 
 Retire the rejected designs and their selectable entries while retaining preview comparison
 capability or providing an agreed shared equivalent. The selected evidence design does not
@@ -167,10 +170,10 @@ These are presentations of the same notification capability, with shared content
 rather than a separate phone feature. Resizing must reposition the same notification without
 duplicating it or resetting its state.
 
-Current evidence:
+Walkthrough evidence and subsequent cleanup:
 
-- `MobileFrame` accepts notices above its bottom bar; its current catalogue example does not
-  populate that area.
+- `MobileFrame` formerly accepted a reserved notice row above its bottom bar; the walkthrough
+  catalogue example did not populate it. [#25](20-cleanup/25.md) retired that shell and row.
 - Active navigation uses `WorkspaceFrame`, which has no dedicated notices slot.
 - Product renders `Toaster` at bottom-right. The chat workflow already emits “The agent replied”
   when a reply completes without a visible chat view.
@@ -182,9 +185,8 @@ overlay a small part of the content rather than occupying a row that shrinks the
 content area. Their appearance and dismissal must not shift the page. Phone notifications must
 keep the bottom controls accessible and account for any floating primary control.
 
-The current `Toaster` already floats over content. `MobileFrame` notices instead occupy space
-in the layout and make the scrolling content area smaller; that reserved-row arrangement is
-not the chosen notification presentation.
+The retained `Toaster` floats over content. The retired `MobileFrame` notice row occupied space
+and shrank the scrolling area; that reserved-row arrangement was not the chosen presentation.
 
 The maintainer approved retiring `MobileFrame` while retaining the shared notification design
 as planned work. Removing the shell does not itself implement the agreed notification placement.
@@ -198,3 +200,31 @@ The existing Toaster is the leading implementation to assess, rather than an ins
 a second notification system. Its catalogue has local CSS bounds and per-sample content IDs;
 complete focus and simulated-device isolation remains unverified. This decision does not implement
 or authorize notification migration as part of #20's cleanup.
+
+
+## Implementation reconciliation
+
+This table maps every approved removal to its consumer/dependency record. Tickets #23–#32 have
+been integrated on `spec/20-ui-kit-cleanup`; #33 and final full-suite/review acceptance remain
+pending. The original keep/remove reasons above remain the scope authority.
+
+| Walkthrough scope | Ticket evidence | Implementation and shared-dependency outcome |
+|---|---|---|
+| Future preview design comparison | [#23](20-cleanup/23.md) | Reusable DesignComparison accepts named alternatives with local keyboard selection; device changes preserve the selected design/draft. The preparatory provenance registration was superseded by #26. |
+| Desktop collapse; floating/inset/right Sidebar; outline/alternate row sizes; hover-hidden actions; public Skeleton | [#24](20-cleanup/24.md) | Removed state/context, cookie, shortcut, Trigger/hook/Rail, collapse tooltip/width branches and rejected options/styles. Retained expanded left navigation, phone Menu, generic Provider/Inset wrappers, groups/nesting/actions/counts and private Skeleton loading rows. Shared Tooltip/Button/Input/Separator remain. |
+| DesktopMain, MobileFrame reserved notice shell, fixed SidePanel | [#25](20-cleanup/25.md) | Retired implementation/export/examples and orphan bounded height override. WorkspaceFrame and adaptive supporting content retain mounted state/headings/close behavior. Notice and current Toaster remain; integration/placement belongs to #22. |
+| Provenance B/C and experiment-only history/hover/excerpt helpers | [#26](20-cleanup/26.md) | Retired alternatives/selectable entries; old URL choices show A. Preserved exact source text/anchors/metadata, superseded claims, uncited toggle/state inspection and shared reverse citation diagnostics. Evidence uses one Drawer Popup tree with A's original expanded-width side-panel arrangement. Product History and Timeline remain. |
+| SettingsPage, CommandDialog, public generic Dialog assembly | [#27](20-cleanup/27.md) | Retired shells/export/examples and orphan header/trigger/default-close framing. Retained SettingsMenu, ADR-0001 Command/SearchSurface, Overlay/Drawer, private Base UI focus/portal/dismissal adapters and optional responsive DialogFooter. Meaningful field/keyboard fixtures migrated. |
+| Columns phone multicolumn option; Tabs line/vertical | [#28](20-cleanup/28.md) | Phone columns always stack; horizontal rounded tabs retain activation and optional inactive mounting. Removed dedicated appearance helper/styles; preserved Page/PageHeader, ListDetail and Timeline with question/inbox and Today/activity examples. |
+| ToggleGroup plain/alternate sizes/spacing/item overrides | [#29](20-cleanup/29.md) | Outlined joined standard groups preserve single zero/one and multiple pressed choices, keyboard/disabled/focus and SettingField diagnostic. Removed orphan private Toggle/style context/variants and obsolete touch selectors; shared Base UI dependencies remain. |
+| FieldLegend small caption; Field responsive; InputGroup block-start/end | [#30](20-cleanup/30.md) | Removed rejected options and container/column/padding branches. Retained semantic legends, vertical/horizontal fields, adaptive Settings grid, inline context, measured inset actions and fixed Composer behavior. Shared association/control styles remain. |
+| Item outline/small; Badge outline/ghost/link | [#31](20-cleanup/31.md) | Retired options/styles. Standard rows/current feedback/grouping/actions/context and framed-icon/thumbnail/category-initial visuals remain. Default/secondary/destructive Badge and passive/actionable Chip preserve shared secondary styles and Avatar root/fallback. Other unlisted private Avatar helpers remain evidence-only assessment candidates. |
+| Recording duration; StatusMark dots/cursor; Choices.numbered; Kbd.large/KeyHint.strong | [#32](20-cleanup/32.md) | Removed implementation/export/example/style branches and orphan key-border token. Retained essential VoiceButton/VoiceStatus, labelled Activity/polite LiveStatus, both answer layouts/supplied suggestions and ordinary feature-owned shortcut hints. Shared pulse/typography/notifications remain. |
+| Source-unused Leaflet/@types packages | [#33](https://github.com/JimLundin/vaulter/issues/33) | Pending integration and final map acceptance. Recheck source/tooling/reference consumers; remove only unused manifest/lock entries while preserving actual MapLibre renderer/stylesheet/worker, markers/routes/selection/sizes and real dark/light presentation. |
+
+All other keep rows remain protected, including maps/charts, questions, attributed embedded Panel
+content, semantic forms, typography/scrolling, cards/empty states, dropdown menus and ordinary
+help. Cite/Sources and HoverPreview remain provisional for later embedded-content/input design.
+Navigation consolidation, notification lifecycle/placement (#22) and planned domain workflows
+remain follow-ups. Final acceptance must record actual integrated checks and visual evidence;
+per-ticket checks do not substitute for the full integration run.
