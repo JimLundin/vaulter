@@ -68,7 +68,7 @@ export type MessageData =
       readonly error?: string;
     };
 
-/** Structural endpoints are held in parent and target, outside this JSON. */
+/** Structural endpoints are held in connection, independently of placement and outside this JSON. */
 // biome-ignore lint/style/useConsistentTypeDefinitions: type aliases satisfy JsonObject structurally
 export type ChatReferenceData = {
   readonly kind: 'reference';

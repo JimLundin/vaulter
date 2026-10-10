@@ -4,7 +4,7 @@ import type { NodeChange, NodeCommit } from '../store.ts';
 import { chatOperations, type ChatData } from '../../documents/chat.ts';
 import { nodeOperations, sameOperation } from '../operations.ts';
 import { spikeOperations } from './operations.ts';
-import { closure, undo, type SpikeStore } from './prototype.ts';
+import { citationView, closure, undo, type SpikeStore } from './prototype.ts';
 
 const now = () => new Date().toISOString();
 const initial = (
@@ -16,9 +16,9 @@ const initial = (
 ): NodeChange => ({
   node,
   data,
-  parent,
-  order,
-  target,
+  placement: parent === null ? null : { parent, order: order! },
+  connection:
+    target === null ? null : { source: { node: parent ?? node }, target: { node: target } },
   expected: null,
 });
 
@@ -70,11 +70,10 @@ export async function change(
   if (!current) throw new Error(`Unknown node: ${node}`);
   return {
     node,
-    parent: current.parent,
-    target: current.target,
-    order: current.order,
+    placement: current.placement,
+    connection: current.connection,
     data: current.data,
-    expected: current.transaction,
+    expected: current.key.transaction,
     ...patch,
   };
 }
@@ -93,6 +92,12 @@ export const actionLabels = {
   undo: 'Undo last content change',
   stale: 'Try a stale two-node edit',
   independent: 'Make one appearance independent',
+  checkpoint: 'Record a response checkpoint',
+  cite: 'Cite the shared paragraph',
+  citeResponse: 'Cite the recorded response',
+  reviseClaim: 'Record a revised claim',
+  moveCitation: 'Move the citation',
+  invalidAddress: 'Try an invalid exact reference',
 } as const;
 export type Action = keyof typeof actionLabels;
 
@@ -144,36 +149,143 @@ export function walkthrough(store: SpikeStore) {
       activeResponse = responseId;
       return transaction;
     }
-    if (action === 'complete' || action === 'stop') {
+    if (action === 'complete' || action === 'stop' || action === 'checkpoint') {
       if (!activeResponse) throw new Error('Send a message first');
       const original = (await store.snapshot()).get(activeResponse)!;
       if (original.data?.status !== 'running')
         throw new Error('This response has already finished');
-      const data: ChatData = {
+      const data: NodeVersion['data'] = {
         kind: 'message',
         role: 'agent',
         at: String(original.data.at),
-        status: action === 'stop' ? 'stopped' : 'complete',
-        parts: [
-          {
-            kind: 'text',
-            text:
-              action === 'stop'
-                ? 'I started looking at the studio…'
-                : 'I left more room for studio work.',
-          },
-        ],
+        status: action === 'stop' ? 'stopped' : action === 'checkpoint' ? 'running' : 'complete',
+        parts:
+          action === 'stop' && Array.isArray(original.data.parts) && original.data.parts.length
+            ? original.data.parts
+            : [
+                {
+                  kind: 'text',
+                  text:
+                    action === 'stop'
+                      ? 'I started looking at the studio…'
+                      : 'I left more room for studio work.',
+                },
+              ],
       };
       return store.commit({
         ...request(
           id,
-          action === 'stop' ? 'Record stopped response' : 'Record completed response',
+          action === 'stop'
+            ? 'Record stopped response'
+            : action === 'checkpoint'
+              ? 'Record response checkpoint'
+              : 'Record completed response',
           [await change(store, activeResponse, { data })],
-          action === 'stop' ? chatOperations.stopResponse : chatOperations.completeResponse,
+          action === 'stop'
+            ? chatOperations.stopResponse
+            : action === 'checkpoint'
+              ? chatOperations.checkpointResponse
+              : chatOperations.completeResponse,
         ),
         recordedBy: 'actor-agent',
         origin: activeExchange,
       });
+    }
+    if (action === 'cite' || action === 'citeResponse') {
+      const snapshot = await store.snapshot();
+      const evidence = snapshot.get(action === 'cite' ? 'paragraph' : (activeResponse ?? ''));
+      if (!evidence || evidence.data === null) throw new Error('Record evidence first');
+      const { parts } = evidence.data;
+      const text =
+        typeof evidence.data.text === 'string'
+          ? evidence.data.text
+          : Array.isArray(parts)
+            ? parts
+                .filter((part) => part && typeof part === 'object' && 'text' in part)
+                .map((part) =>
+                  typeof part === 'object' && part !== null && 'text' in part ? part.text : '',
+                )
+                .join('')
+            : '';
+      if (!text) throw new Error('Record response text before citing it');
+      if (snapshot.get('citation')) throw new Error('Reset before creating another demo citation');
+      const accepted = await store.commit({
+        ...request(
+          id,
+          'Record claim and citation to exact evidence',
+          [
+            initial(
+              'claim',
+              { kind: 'paragraph', text: 'This evidence supports the studio plan.' },
+              'page-a',
+              'Z',
+            ),
+            {
+              ...initial(
+                'citation',
+                { kind: 'citation', range: { start: 0, end: text.length, unit: 'utf16' } },
+                'claim',
+                'A',
+              ),
+              connection: { source: { node: 'claim', transaction: id }, target: evidence.key },
+            },
+          ],
+          spikeOperations.cite,
+        ),
+        origin: activeExchange,
+      });
+      lastContent = accepted.id;
+      return accepted;
+    }
+    if (action === 'reviseClaim' || action === 'moveCitation') {
+      const changes =
+        action === 'reviseClaim'
+          ? [
+              await change(store, 'claim', {
+                data: { kind: 'paragraph', text: 'A different claim requiring review.' },
+              }),
+            ]
+          : [await change(store, 'citation', { placement: { parent: 'page-b', order: 'Z' } })];
+      const accepted = await store.commit(
+        request(
+          id,
+          actionLabels[action],
+          changes,
+          action === 'moveCitation' ? nodeOperations.move : nodeOperations.update,
+        ),
+      );
+      lastContent = accepted.id;
+      return accepted;
+    }
+    if (action === 'invalidAddress') {
+      const snapshot = await store.snapshot();
+      const before = snapshot.sequence;
+      const validTransaction = (await store.history({ limit: 1 }))[0].id;
+      // The user actor was recorded only by seed, not by this known transaction.
+      try {
+        await store.commit(
+          request(id, 'Invalid exact pair and a page change', [
+            await change(store, 'page-b', {
+              data: { kind: 'document', title: 'Must not publish' },
+            }),
+            {
+              ...initial(`bad-${id}`, { kind: 'reference' }),
+              connection: {
+                source: { node: 'page-a' },
+                target: {
+                  node: 'actor-user',
+                  transaction: validTransaction === 'seed' ? id : validTransaction,
+                },
+              },
+            },
+          ]),
+        );
+      } catch (error) {
+        if ((await store.snapshot()).sequence !== before)
+          throw new Error('Partial invalid-address transaction published', { cause: error });
+        return `Rejected atomically: ${String(error)}`;
+      }
+      throw new Error('Invalid exact pair was accepted');
     }
     if (action === 'undo') {
       const content =
@@ -233,9 +345,8 @@ export function walkthrough(store: SpikeStore) {
       changes = [
         await change(store, 'appearance-a', {
           data: null,
-          parent: null,
-          target: null,
-          order: null,
+          placement: null,
+          connection: null,
         }),
       ];
     else if (action === 'delete') changes = [await change(store, 'paragraph', { data: null })];
@@ -246,7 +357,7 @@ export function walkthrough(store: SpikeStore) {
         }),
       ];
     else if (action === 'move')
-      changes = [await change(store, 'group', { parent: 'page-b', order: 'M' })];
+      changes = [await change(store, 'group', { placement: { parent: 'page-b', order: 'M' } })];
     else if (action === 'deleteGroup') changes = [await change(store, 'group', { data: null })];
     else if (action === 'restoreGroup')
       changes = [await change(store, 'group', { data: { kind: 'group', title: 'Notes' } })];
@@ -256,9 +367,8 @@ export function walkthrough(store: SpikeStore) {
         initial(contentId, { kind: 'paragraph', text: 'My own studio plan.' }),
         await change(store, 'appearance-a', {
           data: { kind: 'appearance' },
-          parent: 'page-a',
-          order: 'A',
-          target: contentId,
+          placement: { parent: 'page-a', order: 'A' },
+          connection: { source: { node: 'page-a' }, target: { node: contentId } },
         }),
       ];
     }
@@ -311,8 +421,8 @@ export async function exercise(store: SpikeStore): Promise<Record<string, unknow
   await guide.execute('delete');
   const deleted = await store.snapshot();
   if (
-    closure(deleted, 'page-a').some((v) => v.node === 'paragraph') ||
-    !deleted.get('appearance-b')?.target
+    closure(deleted, 'page-a').some((v) => v.key.node === 'paragraph') ||
+    !deleted.get('appearance-b')?.connection?.target
   )
     throw new Error('Deletion closure/reference behavior failed');
   await guide.execute('restore');
@@ -320,8 +430,8 @@ export async function exercise(store: SpikeStore): Promise<Record<string, unknow
   await guide.execute('move');
   const moved = await store.snapshot();
   if (
-    moved.get('nested')?.transaction !== 'seed' ||
-    !closure(moved, 'page-b').some((v) => v.node === 'nested')
+    moved.get('nested')?.key.transaction !== 'seed' ||
+    !closure(moved, 'page-b').some((v) => v.key.node === 'nested')
   )
     throw new Error('Group move rewrote or lost descendants');
   const conflict = await guide.execute('stale');
@@ -344,8 +454,12 @@ export async function exercise(store: SpikeStore): Promise<Record<string, unknow
   const head = await store.snapshot();
   const referenceCycle = await store.commit(
     request('reference-cycle', 'Ordinary cross-reference cycle', [
-      await change(store, 'page-a', { target: 'page-b' }),
-      await change(store, 'page-b', { target: 'page-a' }),
+      await change(store, 'page-a', {
+        connection: { source: { node: 'page-a' }, target: { node: 'page-b' } },
+      }),
+      await change(store, 'page-b', {
+        connection: { source: { node: 'page-b' }, target: { node: 'page-a' } },
+      }),
     ]),
   );
   if (!closure(await store.snapshot(), 'page-a').length)
@@ -354,7 +468,7 @@ export async function exercise(store: SpikeStore): Promise<Record<string, unknow
   try {
     await store.commit(
       request('containment-cycle', 'Invalid parent cycle', [
-        await change(store, 'group', { parent: 'nested' }),
+        await change(store, 'group', { placement: { parent: 'nested', order: 'M' } }),
       ]),
     );
   } catch {
@@ -363,9 +477,12 @@ export async function exercise(store: SpikeStore): Promise<Record<string, unknow
   if (!cycleRejected) throw new Error('Parent cycle accepted');
   await guide.execute('deleteGroup');
   const hidden = await store.snapshot();
-  if (hidden.children('group').length || closure(hidden, 'page-b').some((v) => v.node === 'nested'))
+  if (
+    hidden.children('group').length ||
+    closure(hidden, 'page-b').some((v) => v.key.node === 'nested')
+  )
     throw new Error('Deleted container retained visible descendants');
-  if (hidden.get('nested')?.transaction !== 'seed')
+  if (hidden.get('nested')?.key.transaction !== 'seed')
     throw new Error('Container deletion rewrote descendants');
   const descendantEdit = await store.commit(
     request('hidden-descendant', 'Edit an unreachable descendant', [
@@ -509,6 +626,131 @@ export async function exercise(store: SpikeStore): Promise<Record<string, unknow
     )
   )
     throw new Error('Extensible operation filtering failed');
+  const citationTransaction = await guide.execute('cite');
+  if (typeof citationTransaction === 'string') throw new Error('Expected citation acceptance');
+  const citationSnapshot = await store.snapshot();
+  const citation = citationSnapshot.get('citation')!;
+  const sourceKey = citation.connection!.source;
+  const targetKey = citation.connection!.target;
+  const evidenceBefore = citationView(citationSnapshot, citation).quote;
+  if (sourceKey.transaction !== citationTransaction.id || !citationSnapshot.resolve(sourceKey))
+    throw new Error('Same-transaction exact source reference failed');
+  if (
+    !(
+      Object.isFrozen(citation.key) &&
+      Object.isFrozen(citation.connection?.target) &&
+      Object.isFrozen(citation.placement)
+    )
+  )
+    throw new Error('Nested structure is mutable');
+  await guide.execute('commit');
+  await guide.execute('reviseClaim');
+  const changedSources = await store.snapshot();
+  const notices = citationView(changedSources, citation);
+  if (
+    notices.quote !== evidenceBefore ||
+    notices.source !== 'newer version in this view' ||
+    notices.target !== 'newer version in this view' ||
+    changedSources.get('citation')?.key.transaction !== citationTransaction.id
+  )
+    throw new Error('Citation evidence/source changed or citation was rewritten');
+  if (changedSources.resolve({ node: targetKey.node })?.key.transaction === targetKey.transaction)
+    throw new Error('Identity address failed to follow the snapshot');
+  if (
+    changedSources.resolve({ node: targetKey.node, transaction: citationTransaction.id }) !==
+    undefined
+  )
+    throw new Error('Exact transaction was incorrectly treated as a snapshot cutoff');
+  await guide.execute('delete');
+  const deletedSources = await store.snapshot();
+  if (
+    citationView(deletedSources, citation).quote !== evidenceBefore ||
+    citationView(deletedSources, citation).target !== 'deleted in this view'
+  )
+    throw new Error('Tombstone erased exact evidence or hid its status');
+  const addressesInClosure = closure(deletedSources, 'page-a');
+  if (
+    !addressesInClosure.some(
+      (v) => v.key.node === targetKey.node && v.key.transaction === targetKey.transaction,
+    )
+  )
+    throw new Error('Exact evidence was hidden by its current tombstone');
+  if (addressesInClosure.filter((v) => v.key.node === 'claim').length !== 1)
+    throw new Error('Closure followed source backwards into the old claim');
+  const movedCitation = await guide.execute('moveCitation');
+  if (typeof movedCitation === 'string') throw new Error('Expected citation move');
+  const afterCitationMove = (await store.snapshot()).get('citation')!;
+  if (
+    (await store.changes(movedCitation.id)).length !== 1 ||
+    JSON.stringify(afterCitationMove.connection) !== JSON.stringify(citation.connection) ||
+    afterCitationMove.placement?.parent !== 'page-b'
+  )
+    throw new Error('Moving the citation changed its relationship');
+  const invalidExact = await guide.execute('invalidAddress');
+  if (typeof invalidExact !== 'string' || !invalidExact.includes('Rejected atomically'))
+    throw new Error('Invalid exact reference accepted');
+  // Both current and historical versions of a node may occur in one closure.
+  await guide.execute('restore');
+  const mixed = closure(await store.snapshot(), 'page-b').filter((v) => v.key.node === 'paragraph');
+  if (mixed.length !== 2) throw new Error('Closure collapsed distinct versions of one identity');
+  // Same page key, different children: exact version selection does not freeze a subtree.
+  const composedNow = await store.snapshot();
+  const composedBefore = await store.snapshot(citationTransaction.sequence - 1);
+  if (
+    composedNow.get('page-a')?.key.transaction !== composedBefore.get('page-a')?.key.transaction ||
+    composedNow.children('page-a').length === composedBefore.children('page-a').length
+  )
+    throw new Error('Composition boundary was not exercised');
+  if (composedBefore.resolve(citation.key) !== undefined)
+    throw new Error('Historical view exposed a future version');
+  await guide.execute('send');
+  const checkpoint = await guide.execute('checkpoint');
+  if (typeof checkpoint === 'string') throw new Error('Expected checkpoint');
+  const response = (await store.changes(checkpoint.id))[0].after;
+  const responseCitation = await store.commit(
+    request(
+      'response-citation',
+      'Cite response checkpoint',
+      [
+        initial(
+          'response-claim',
+          { kind: 'paragraph', text: 'Claim based on a response checkpoint.' },
+          'page-a',
+          'z',
+        ),
+        {
+          ...initial(
+            'response-citation',
+            { kind: 'citation', range: { start: 0, end: 10, unit: 'utf16' } },
+            'response-claim',
+            'A',
+          ),
+          connection: {
+            source: { node: 'response-claim', transaction: 'response-citation' },
+            target: response.key,
+          },
+        },
+      ],
+      spikeOperations.cite,
+    ),
+  );
+  await guide.execute('stop');
+  const stopped = await store.snapshot();
+  if (
+    stopped.resolve(response.key)?.data?.status !== 'running' ||
+    stopped.get(response.key.node)?.data?.status !== 'stopped' ||
+    JSON.stringify(stopped.get(response.key.node)?.data?.parts) !==
+      JSON.stringify(response.data?.parts)
+  )
+    throw new Error('Stop lost recorded partial output or changed the checkpoint');
+  await undo(store, responseCitation.id, 'actor-user');
+  const compensated = await store.snapshot();
+  if (
+    compensated.get('response-citation')?.data !== null ||
+    compensated.get(response.key.node)?.data?.status !== 'stopped' ||
+    !compensated.resolve({ node: 'response-citation', transaction: responseCitation.id })
+  )
+    throw new Error('Citation undo erased transcript or history');
   return {
     acceptedSubmissions: [send1, send2],
     secondSubmissionVersions: accepted2.map((d) => d.node),
@@ -517,9 +759,9 @@ export async function exercise(store: SpikeStore): Promise<Record<string, unknow
     transcriptSurvivedUndo: true,
     historicalText: historical.get('paragraph')?.data?.text,
     targetDeletionRetainedAppearances: true,
-    descendantVersionAfterMove: moved.get('nested')?.transaction,
-    oldGroupParent: beforeMove.get('group')?.parent,
-    newGroupParent: moved.get('group')?.parent,
+    descendantVersionAfterMove: moved.get('nested')?.key.transaction,
+    oldGroupParent: beforeMove.get('group')?.placement?.parent,
+    newGroupParent: moved.get('group')?.placement?.parent,
     conflict,
     retrySequence: result.sequence,
     duplicateSequence: duplicate.sequence,
@@ -540,6 +782,15 @@ export async function exercise(store: SpikeStore): Promise<Record<string, unknow
     immutableTransactionMetadata: custom.metadata,
     metadataRetryRejected,
     authorRenameSequence: laterAuthor.sequence,
+    exactCitation: { evidenceBefore, notices, targetKey, sourceKey },
+    citationMovedWithoutChangingEndpoints: true,
+    exactPairRejectedAtomically: true,
+    exactAddressIsNotSnapshotCutoff: true,
+    historicalSnapshotDoesNotExposeFutureVersion: true,
+    closureRetainsDistinctVersionsOfOneNode: true,
+    exactPageVersionDoesNotFreezeChildren: true,
+    stoppedResponseRetainsCheckpointText: true,
+    responseCitationUndoRetainsTranscriptAndHistory: true,
     finalSequence: (await store.snapshot()).sequence,
   };
 }

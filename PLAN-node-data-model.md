@@ -18,6 +18,9 @@ preview content. A page editor can follow once these workflows exercise the stor
 The approved backing types and NodeStore contract have been exercised on the throwaway
 `spike/node-storage` branch. See [the verdict and standalone demo](app/vault/nodes/spike/README.md).
 Maps and encrypted Dexie preserve the intended locality, chat audit trail, and historical snapshots.
+The spike now groups version keys and separates placement from connections; addresses optionally
+select exact versions. It also exercises citations through later versions and deletion, response
+checkpoints, citation moves, and invalid composite references.
 This validates the storage direction; application integration and remote durability remain pending.
 
 ## Current behavior and proposed scope
@@ -46,9 +49,9 @@ Conversation
     Assistant response
 ```
 
-All entries use Node/NodeVersion. Exchanges own their parent and order within the conversation;
+All entries use Node/NodeVersion. Exchanges own their placement within the conversation;
 messages own theirs within the exchange. Appending a message does not version any ancestor.
-References are children of the exchange with an explicit target; JSON identifies their role.
+References are children of the exchange with a connection from the exchange to their target; JSON identifies their role.
 Several topic or place references use several nodes.
 
 Illustrative application payloads, to be typed and validated during implementation:
@@ -77,7 +80,7 @@ Illustrative application payloads, to be typed and validated during implementati
   model: '...', tokens: { in: 1200, out: 80 },
 }
 
-// Reference: the actual subject ID is its target.
+// Reference: the actual subject address is its connection target.
 { kind: 'reference', role: 'topic' }
 ```
 
@@ -164,7 +167,7 @@ operations and transactionOperations.undo, so chat operations do not bury conten
 operation names; storage does not impose a closed chat/content/undo classification. Chat views
 derive their transcript from conversation nodes. These are projections of one history.
 
-Show complete before/after node state, including parent, target, order, data, and deletion. Find the
+Show complete before/after node state, including key, placement, connection, data, and deletion. Find the
 prior version strictly before the selected transaction's sequence. Text-only patches miss moves and
 reference changes. Keep the existing History layout while replacing Git-specific paths and SHA labels.
 
@@ -179,7 +182,7 @@ transactions. Undo compensates the content transaction. If capture-only retentio
 nodes in that same transaction, its reviewed undo set must explicitly preserve those audit records.
 Record the actual compensation set rather than claiming every version was reversed.
 
-Link content transactions to their originating exchange through transaction metadata, avoiding a
+Link content transactions to their originating exchange through transaction origin, avoiding a
 new exchange version every time a tool commits. History can inspect that transcript at the content
 transaction's cutoff or show its subsequently completed response as a separate current view.
 

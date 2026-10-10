@@ -2,7 +2,7 @@
 
 Vaulter's application data uses one node representation, independently of backend representation
 and Markdown. Nodes have stable identities; immutable node versions hold complete JSON content,
-a parent, an optional target, and an order key. Transactions group the versions published together.
+a grouped version key, optional placement, and an optional connection. Transactions group the versions published together.
 This places content edits, moves, and removal on the affected node instead of producing versions
 of its ancestors, siblings, or dependants. The records are defined in
 [model.ts](../../app/vault/nodes/model.ts).
@@ -23,30 +23,43 @@ The expected write locality is:
 
 `Node.id` anchors identity, including after deletion. `Transaction.id` anchors a recorded operation;
 its unique sequence orders committed history within a vault. The timestamp describes when the
-transaction was recorded. A node version's composite primary key is `(node, transaction)`;
-both are foreign keys. A transaction records at most one version per node. Versions store complete
+transaction was recorded. A node address holds `node` and an optional `transaction`. A version's `key` uses that same
+shape with transaction required; its composite primary key is `(node, transaction)` and both
+components are foreign keys. A transaction records at most one version per node. Versions store complete
 states and remain immutable. Undo and restoration create new transactions.
 
 A snapshot at sequence S selects each node's latest version whose transaction sequence is at or
 before S. An identity with no version at S is not yet present. A selected version with `data: null`
-is deleted. Every parent and target lookup uses that same snapshot. A content edit therefore needs
-one new version, even when many nodes reference that content. History is linear; branching and
+is deleted. Identity addresses (without transaction) resolve in that snapshot. Exact addresses select the
+record with that composite key; they never treat transaction as a cutoff or fall back to another
+version. A snapshot cannot resolve exact versions recorded after its cutoff. An exact root version
+does not freeze its children: containment and identity endpoints still resolve in the viewing
+snapshot. Reconstructing an entire historical page or conversation requires selecting its snapshot.
+A content edit therefore needs one new version, even when many nodes reference that content. History is linear; branching and
 merging histories would require revisiting transaction ordering.
 
 ## Content and structure
 
 `data` holds arbitrary nested JSON objects. Node types and application behavior interpret this JSON.
-`parent` and `target` are model-aware foreign keys to stable Node identities. A string
-inside JSON is not automatically a structural reference. `order` orders a node among children
-of its parent. A live placed node has a parent and an order key; a live unplaced node has neither.
-Containment is acyclic. Parents' children are derived from the selected child versions.
+`placement` and `connection` are model-aware structural values. A string inside JSON is not
+automatically a structural reference. A placement contains `parent` (an identity foreign key) and
+`order` (a sortable sibling key); null means unplaced. Containment is acyclic. Parents' children
+are derived from the selected child versions.
 
-The base model gives each node one placement and at most one target. Several references can be
-represented by several child nodes with targets. No independent edge record or stored children
-list is necessary. The same representation covers direct content, containers, appearances, and
-references; application-level data shapes define their specific behavior.
+A connection contains `source` and `target` addresses. Either endpoint may identify a node or an
+exact version. Placement says where the relationship node appears; source says what it relates
+from. These may share an identity but remain independent: moving a citation does not change the
+claim it supports. Connections remain embedded values of ordinary nodes, not independent records.
+The base model gives each version at most one placement and one connection. Several relationships
+or appearances use several nodes. No children list or separate joining table is necessary.
 
-An appearance owns its placement and targets a shared content node. Shared content is held once;
+Version keys, placements, connections and addresses are grouped because their fields express one
+value. SQL can flatten these fixed single values into columns on a version row. Identity endpoint
+references use node foreign keys; endpoints with transactions additionally use composite version
+foreign keys. Generic data stays JSON. Memory/Dexie validate equivalent integrity at acceptance.
+
+An appearance owns its placement and connects its enclosing page to a shared content identity.
+Shared content is held once;
 each placement has its own identity. Editing shared content changes what every appearance displays
 while creating only one content version. Moving or removing an appearance changes only that
 appearance. Editing one appearance independently creates new content and retargets that appearance
@@ -60,18 +73,22 @@ implementation must use a consistent lexicographic comparison and define how equ
 
 Deletion appends a version with `data: null`. Node identities and earlier versions remain. Structural
 fields on deleted versions do not participate in traversal; deletion operations may clear them.
-Foreign keys remain valid when their target identity is deleted in the current snapshot. The app
-distinguishes available content, deleted content, and identities that have no version yet. An
-unknown identity is an integrity error.
+Foreign keys remain valid when their target identity is deleted in the current snapshot. Identity references distinguish available content, deleted content, and identities
+that have no version yet. Exact references retain their addressed record through later changes and
+tombstones. An unknown identity or exact version pair is an integrity error.
 
 Removing one placement deletes the appearance. Deleting shared content deletes the target node.
 Its appearances remain and present an explicit deleted-content placeholder. They resume displaying
 content if the target is restored. This retains placement and keeps deletion local; it replaces
 the earlier proposed policy of refusing deletion while appearances exist.
 
-A root's live closure is the set reachable through selected live child nodes and target references.
+A root's closure follows selected live child nodes and connection targets in the viewing snapshot.
+Connection sources are inspectable endpoints, not reverse inclusion paths. Exact targets may
+contribute an older live version even when the identity's currently selected version is deleted.
 Traversal stops at absent or deleted nodes. References to deleted targets can be reported separately
-for presentation; a deleted node is not a live member. A visited set prevents repeated traversal.
+for presentation; a selected tombstone is not a live member. A visited set keyed by
+`(node, transaction)` prevents repeated traversal without collapsing different versions of one
+identity.
 Containment cycles are invalid; application rules must also handle recursive content inclusion
 without rejecting harmless cross-references merely because they form a cycle.
 
@@ -120,8 +137,8 @@ alone is not an authentication or permission check. Attribution at a historical 
 the author's historical node version.
 
 The write operation validates the complete proposed snapshot, then publishes new identities,
-the transaction, and its node versions atomically. It checks unique composite keys, known foreign
-keys, valid JSON (including finite numbers), placement, and containment rules. It permits references
+the transaction, and its node versions atomically. It checks unique composite keys, known identity and exact-version foreign
+keys (including new versions in the same transaction), valid JSON (including finite numbers), placement, and containment rules. It permits references
 to deleted identities and children whose parent has been deleted. JSON shape and inclusion behavior
 are validated by the applicable node-type rules. Creating an identity records its initial live
 version in the same transaction; edits, deletion, and restoration reuse that identity.
@@ -140,10 +157,23 @@ edge instead of the placed node. A general array of references would obscure the
 placement rule that provides locality. Transactions as nodes add self-membership bookkeeping
 without a current application need; transactions therefore remain separate records.
 
-Parent and target fields are intentionally narrower than an arbitrary graph of named edges. Nodes
+Placement and one connection per node are intentionally narrower than an arbitrary array of edges. Nodes
 with multiple placements use appearances; nodes with multiple references use reference children.
 Deleting shared content has a broad visible effect with a local stored change. A database foreign
 key verifies identity existence; snapshot availability and presentation remain application rules.
 
 The current app still reads and writes Markdown files. This is the accepted target model; the
 [implementation plan](../../PLAN-node-data-model.md) describes how to introduce it into the app.
+
+## Citations and append-only records
+
+Appending a version changes the selected state of an identity without editing any prior record.
+A citation can address exact claim and evidence versions and keep a range in its data; creating it
+requires no source rewrite, advance segmentation, or duplicate quote. Feature rules define the
+text projection and validate the selection. Comparing each exact endpoint with its identity in the
+viewing snapshot yields a newer-version or deleted notice without recording another citation
+version. A newer version alone does not prove that the selected text or claim's meaning changed.
+Composite referential integrity proves existence, not that the source supports the claim.
+
+The spike now exercises grouped keys and exact endpoints. Its standalone demo is still throwaway;
+the foundation branch's earlier implementation must be reconciled when the model is integrated.

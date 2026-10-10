@@ -1,8 +1,17 @@
 // Application contract exercised by nodes/spike; production integration is still pending.
-import type { JsonObject, NodeId, NodeVersion, Transaction, TransactionId } from './model.ts';
+import type {
+  JsonObject,
+  NodeAddress,
+  NodeId,
+  NodeVersion,
+  Transaction,
+  TransactionId,
+} from './model.ts';
 
 /** A complete proposed state plus the version expected at acceptance time. */
-export interface NodeChange extends Omit<NodeVersion, 'transaction'> {
+export interface NodeChange extends Omit<NodeVersion, 'key'> {
+  /** Proposed identity; the writer constructs its exact key using the commit's transaction. */
+  readonly node: NodeId;
   /** Null expects a new identity; deletion and restoration expect the last recorded version. */
   readonly expected: TransactionId | null;
 }
@@ -16,11 +25,13 @@ export interface NodeCommit<Metadata extends JsonObject = JsonObject>
   readonly expectedReads?: Readonly<Record<NodeId, TransactionId | null>>;
 }
 
-/** Immutable projection; target lookups use this same snapshot. */
+/** Immutable projection: identity addresses inherit this snapshot; exact addresses select a row. */
 export interface NodeSnapshot {
   readonly sequence: number;
   /** Undefined before creation; a version with data: null records deletion. */
   readonly get: (node: NodeId) => NodeVersion | undefined;
+  /** Exact references never fall back to the latest version or interpret transaction as a cutoff. */
+  readonly resolve: (address: NodeAddress) => NodeVersion | undefined;
   /** Live children only, ordered by order then node; empty for absent/deleted parents. */
   readonly children: (parent: NodeId) => readonly NodeVersion[];
 }

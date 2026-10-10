@@ -1,4 +1,5 @@
 // PROTOTYPE: self-contained browser shell, bundled into demo.html with Dexie.
+import type { NodeAddress } from '../app/vault/nodes/model.ts';
 import {
   actionLabels,
   seed,
@@ -8,13 +9,16 @@ import {
 import {
   dexieSpikeStore,
   memorySpikeStore,
+  citationView,
   type SpikeStore,
 } from '../app/vault/nodes/spike/prototype.ts';
 
 const showError = (error: unknown) => {
   get('outcome').textContent = String(error);
 };
-const databaseName = 'PROTOTYPE-vaulter-node-storage-structured-wipe-me';
+const addressLabel = (address: NodeAddress) =>
+  `${address.node}${address.transaction === undefined ? ' · identity' : ` @ ${address.transaction}`}`;
+const databaseName = 'PROTOTYPE-vaulter-node-storage-addresses-wipe-me';
 const get = (id: string) => {
   const element = document.getElementById(id);
   if (!element) throw new Error(`Missing demo element: ${id}`);
@@ -75,11 +79,12 @@ async function render() {
     const row = document.createElement('tr');
     const data = node.data === null ? 'Deleted' : JSON.stringify(node.data);
     for (const value of [
-      node.node,
-      node.parent ?? '—',
-      node.target ?? '—',
-      node.order ?? '—',
-      node.transaction,
+      node.key.node,
+      node.placement?.parent ?? '—',
+      node.connection ? addressLabel(node.connection.source) : '—',
+      node.connection ? addressLabel(node.connection.target) : '—',
+      node.placement?.order ?? '—',
+      node.key.transaction,
       data,
     ]) {
       const cell = document.createElement('td');
@@ -94,29 +99,39 @@ async function render() {
     ['chat', 'conversation'],
   ]) {
     const lines: string[] = [];
-    const visit = (identity: string, depth: number, path: Set<string>) => {
-      if (path.has(identity)) {
+    const visit = (address: NodeAddress, depth: number, path: Set<string>) => {
+      const node = snapshot.resolve(address);
+      const key = node ? JSON.stringify(node.key) : addressLabel(address);
+      if (path.has(key)) {
         lines.push(`${'  '.repeat(depth)}[recursive reference]`);
         return;
       }
-      const node = snapshot.get(identity);
       if (!node || node.data === null) {
         lines.push(`${'  '.repeat(depth)}[content deleted]`);
         return;
       }
-      const next = new Set(path).add(identity);
+      const next = new Set(path).add(key);
       const { data } = node;
       lines.push(
-        `${'  '.repeat(depth)}${data.title ?? data.text ?? data.kind ?? identity}${data.status ? ` (${data.status})` : ''}`,
+        `${'  '.repeat(depth)}${data.title ?? data.text ?? data.kind ?? address.node}${data.status ? ` (${data.status})` : ''}`,
       );
       if (Array.isArray(data.parts))
         for (const part of data.parts)
           if (part && typeof part === 'object' && 'text' in part)
             lines.push(`${'  '.repeat(depth + 1)}${part.text}`);
-      for (const child of snapshot.children(identity)) visit(child.node, depth + 1, next);
-      if (node.target) visit(node.target, depth + 1, next);
+      if (data.kind === 'citation') {
+        const citation = citationView(snapshot, node);
+        lines.push(`${'  '.repeat(depth + 1)}Evidence: “${citation.quote}”`);
+        lines.push(
+          `${'  '.repeat(depth + 1)}Claim: ${citation.source}; evidence: ${citation.target}`,
+        );
+      }
+      for (const child of snapshot.children(node.key.node))
+        visit({ node: child.key.node }, depth + 1, next);
+      if (node.connection && data.kind !== 'citation')
+        visit(node.connection.target, depth + 1, next);
     };
-    if (snapshot.get(root)) visit(root, 0, new Set());
+    if (snapshot.get(root)) visit({ node: root }, 0, new Set());
     else lines.push('No conversation recorded yet.');
     get(id).textContent = lines.join('\n');
   }
@@ -150,7 +165,7 @@ const scenarios: { name: string; description: string; actions: Action[] }[] = [
     name: 'Stop after commit',
     description:
       'Stopping a reply records its partial output. The earlier content transaction stays committed.',
-    actions: ['send', 'commit', 'stop'],
+    actions: ['send', 'checkpoint', 'commit', 'stop'],
   },
   {
     name: 'Shared deletion',
@@ -169,6 +184,24 @@ const scenarios: { name: string; description: string; actions: Action[] }[] = [
     description:
       'Deleting the notes group hides its descendants without changing their versions. Restoring it reveals them again.',
     actions: ['deleteGroup', 'restoreGroup'],
+  },
+  {
+    name: 'Exact citations',
+    description:
+      'Record a citation, append new evidence and a revised claim, then delete the evidence. The citation retains both original versions. Moving it changes only its placement.',
+    actions: ['cite', 'commit', 'reviseClaim', 'delete', 'moveCitation'],
+  },
+  {
+    name: 'Response citation',
+    description:
+      'Cite a recorded response checkpoint, then stop the response. Its citation keeps the checkpoint while chat displays the terminal version. Undo removes the claim and citation while retaining chat.',
+    actions: ['send', 'checkpoint', 'citeResponse', 'stop', 'undo'],
+  },
+  {
+    name: 'Invalid address',
+    description:
+      'An existing node and an existing transaction do not necessarily identify a version. The invalid pair rejects the complete transaction.',
+    actions: ['commit', 'invalidAddress'],
   },
   {
     name: 'Stale edit',

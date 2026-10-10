@@ -15,6 +15,24 @@ export interface Node {
   readonly id: NodeId;
 }
 
+/** Identity reference, optionally qualified by the transaction recording an exact version. */
+export interface NodeAddress {
+  readonly node: NodeId;
+  readonly transaction?: TransactionId;
+}
+
+/** Placement belongs to the child; the parent is resolved in the viewing snapshot. */
+export interface Placement {
+  readonly parent: NodeId;
+  readonly order: string;
+}
+
+/** Endpoints describe the relationship independently of where its node is placed. */
+export interface Connection {
+  readonly source: NodeAddress;
+  readonly target: NodeAddress;
+}
+
 /** An immutable group of changes published atomically within one vault. */
 export interface Transaction<Metadata extends JsonObject = JsonObject> {
   readonly id: TransactionId;
@@ -41,16 +59,10 @@ export interface Transaction<Metadata extends JsonObject = JsonObject> {
  * Each transaction records at most one version per node. Earlier versions remain immutable.
  */
 export interface NodeVersion<Data extends JsonObject = JsonObject> {
-  /** Foreign key to Node.id: the identity whose state is recorded. */
-  readonly node: NodeId;
-  /** Foreign key to Transaction.id: the transaction recording this state. */
-  readonly transaction: TransactionId;
-  /** Foreign key to Node.id: placement is owned by the child. Null means unplaced. */
-  readonly parent: NodeId | null;
-  /** Foreign key to Node.id: a reference to another identity, resolved in the same snapshot. */
-  readonly target: NodeId | null;
-  /** Sortable placement key, compared lexicographically; null when unplaced. */
-  readonly order: string | null;
+  /** Composite primary key; the version's own address must identify an exact record. */
+  readonly key: Required<NodeAddress>;
+  readonly placement: Placement | null;
+  readonly connection: Connection | null;
   /** Complete nested JSON content. Null records deletion, preserving identity and history. */
   readonly data: Data | null;
 }

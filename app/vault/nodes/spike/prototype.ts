@@ -1,6 +1,6 @@
 // PROTOTYPE: shared acceptance logic and two stores. No production wiring or remote synchronization.
 import { Dexie } from 'dexie';
-import type { NodeVersion, Transaction } from '../model.ts';
+import type { NodeAddress, NodeVersion, Transaction } from '../model.ts';
 import { sameOperation, transactionOperations } from '../operations.ts';
 import type { NodeChange, NodeCommit, NodeDifference, NodeSnapshot, NodeStore } from '../store.ts';
 import { decryptJson, encryptJson, newCacheKey, type Encrypted } from '../../session/crypto.ts';
@@ -54,19 +54,31 @@ function snapshotOf(records: readonly Accepted[], cutoff?: number): NodeSnapshot
   if (!Number.isSafeInteger(sequence) || sequence < 0 || sequence > last)
     throw new Error('Snapshot sequence is outside recorded history');
   const selected = new Map<string, NodeVersion>();
+  const exact = new Map<string, NodeVersion>();
   for (const record of records)
     if (record.transaction.sequence <= sequence)
-      for (const version of record.versions) selected.set(version.node, version);
+      for (const version of record.versions) {
+        selected.set(version.key.node, version);
+        exact.set(JSON.stringify([version.key.node, version.key.transaction]), version);
+      }
   return Object.freeze({
     sequence,
     get: (node: string) => selected.get(node),
+    resolve: (address: NodeAddress) =>
+      address.transaction === undefined
+        ? selected.get(address.node)
+        : exact.get(JSON.stringify([address.node, address.transaction])),
     children: (parent: string) => {
       const enclosing = selected.get(parent);
       if (!enclosing || enclosing.data === null) return Object.freeze([]);
       return Object.freeze(
         [...selected.values()]
-          .filter((v) => v.data !== null && v.parent === parent)
-          .sort((a, b) => compare(a.order ?? '', b.order ?? '') || compare(a.node, b.node)),
+          .filter((v) => v.data !== null && v.placement?.parent === parent)
+          .sort(
+            (a, b) =>
+              compare(a.placement?.order ?? '', b.placement?.order ?? '') ||
+              compare(a.key.node, b.key.node),
+          ),
       );
     },
   });
@@ -103,10 +115,10 @@ function accept(records: readonly Accepted[], request: NodeCommit): Accepted {
     throw new Error('A transaction needs an author');
   const current = snapshotOf(records);
   const selected = new Map<string, NodeVersion>();
-  for (const r of records) for (const v of r.versions) selected.set(v.node, v);
+  for (const r of records) for (const v of r.versions) selected.set(v.key.node, v);
   const changed = new Set<string>();
   const expect = (node: string, transaction: string | null) => {
-    if ((current.get(node)?.transaction ?? null) !== transaction)
+    if ((current.get(node)?.key.transaction ?? null) !== transaction)
       throw new Error(`Conflict: ${node} changed since ${transaction ?? 'creation'}`);
   };
   for (const [node, transaction] of Object.entries(request.expectedReads ?? {}))
@@ -120,22 +132,66 @@ function accept(records: readonly Accepted[], request: NodeCommit): Accepted {
       throw new Error('Cannot delete a new identity');
     if (change.data !== null && (typeof change.data !== 'object' || Array.isArray(change.data)))
       throw new Error('Node data must be a JSON object or deletion');
-    if ((change.parent === null) !== (change.order === null))
-      throw new Error('Parent and order key must agree');
-    if (change.order !== null && !change.order) throw new Error('Order key must be nonempty');
+    if (change.placement !== null) {
+      if (
+        !change.placement ||
+        typeof change.placement !== 'object' ||
+        typeof change.placement.parent !== 'string' ||
+        !change.placement.parent.trim() ||
+        typeof change.placement.order !== 'string' ||
+        !change.placement.order
+      )
+        throw new Error('Placement needs a parent and nonempty order');
+      if (Object.keys(change.placement).some((key) => key !== 'parent' && key !== 'order'))
+        throw new Error('Unexpected placement field');
+    }
+    if (change.connection !== null) {
+      if (
+        !change.connection ||
+        typeof change.connection !== 'object' ||
+        Object.keys(change.connection).some((key) => key !== 'source' && key !== 'target')
+      )
+        throw new Error('Connection needs source and target addresses');
+      for (const endpoint of [change.connection.source, change.connection.target]) {
+        if (
+          !endpoint ||
+          typeof endpoint !== 'object' ||
+          typeof endpoint.node !== 'string' ||
+          !endpoint.node.trim() ||
+          (endpoint.transaction !== undefined &&
+            (typeof endpoint.transaction !== 'string' || !endpoint.transaction.trim())) ||
+          Object.keys(endpoint).some((key) => key !== 'node' && key !== 'transaction')
+        )
+          throw new Error('Invalid node address');
+      }
+    }
     return {
-      node: change.node,
-      transaction: request.id,
-      parent: change.parent,
-      target: change.target,
-      order: change.order,
+      key: { node: change.node, transaction: request.id },
+      placement: change.placement,
+      connection: change.connection,
       data: change.data,
     };
   });
-  for (const version of versions) selected.set(version.node, version);
+  for (const version of versions) selected.set(version.key.node, version);
+  const exact = new Set(
+    records.flatMap((r) => r.versions.map((v) => JSON.stringify([v.key.node, v.key.transaction]))),
+  );
   for (const version of versions)
-    for (const ref of [version.parent, version.target])
-      if (ref !== null && !selected.has(ref)) throw new Error(`Unknown node identity: ${ref}`);
+    exact.add(JSON.stringify([version.key.node, version.key.transaction]));
+  for (const version of versions) {
+    if (version.placement && !selected.has(version.placement.parent))
+      throw new Error(`Unknown parent identity: ${version.placement.parent}`);
+    if (version.connection)
+      for (const endpoint of [version.connection.source, version.connection.target]) {
+        if (!selected.has(endpoint.node))
+          throw new Error(`Unknown node identity: ${endpoint.node}`);
+        if (
+          endpoint.transaction !== undefined &&
+          !exact.has(JSON.stringify([endpoint.node, endpoint.transaction]))
+        )
+          throw new Error(`Unknown exact version: ${endpoint.node} in ${endpoint.transaction}`);
+      }
+  }
   if (!selected.has(request.recordedBy)) throw new Error('Unknown transaction author');
   if (request.origin !== null && !selected.has(request.origin))
     throw new Error('Unknown originating node');
@@ -146,10 +202,10 @@ function accept(records: readonly Accepted[], request: NodeCommit): Accepted {
   for (const version of selected.values()) {
     const path = new Set<string>();
     let cursor: NodeVersion | undefined = version;
-    while (cursor && cursor.data !== null && !checked.has(cursor.node)) {
-      if (path.has(cursor.node)) throw new Error('Containment cycle');
-      path.add(cursor.node);
-      cursor = cursor.parent === null ? undefined : selected.get(cursor.parent);
+    while (cursor && cursor.data !== null && !checked.has(cursor.key.node)) {
+      if (path.has(cursor.key.node)) throw new Error('Containment cycle');
+      path.add(cursor.key.node);
+      cursor = cursor.placement === null ? undefined : selected.get(cursor.placement.parent);
     }
     for (const id of path) checked.add(id);
   }
@@ -217,8 +273,8 @@ function interfaceOf(
         record.versions.map(
           (after): NodeDifference =>
             Object.freeze({
-              node: after.node,
-              before: before.get(after.node) ?? null,
+              node: after.key.node,
+              before: before.get(after.key.node) ?? null,
               after,
             }),
         ),
@@ -311,10 +367,10 @@ function spikeDatabase(name: string) {
 
 /**
  * Scratch database only. Production must supply the unlocked session key and retention policy.
- * Parent/target/data stay encrypted; opaque identity, version membership and sequence are indexed.
+ * Placement/connection/data stay encrypted; opaque identity, version membership and sequence are indexed.
  */
 export async function dexieSpikeStore(
-  name = 'PROTOTYPE-vaulter-node-storage-structured-wipe-me',
+  name = 'PROTOTYPE-vaulter-node-storage-addresses-wipe-me',
 ): Promise<SpikeStore> {
   if (!name.startsWith('PROTOTYPE-')) throw new Error('Use a dedicated PROTOTYPE- database');
   const tables = spikeDatabase(name);
@@ -368,9 +424,13 @@ export async function dexieSpikeStore(
       const versionRows = await Promise.all(
         record.versions.map(
           async (v): Promise<VersionRow> => ({
-            node: v.node,
-            transaction: v.transaction,
-            ...(await encryptJson(key, v, `version:${JSON.stringify([v.node, v.transaction])}`)),
+            node: v.key.node,
+            transaction: v.key.transaction,
+            ...(await encryptJson(
+              key,
+              v,
+              `version:${JSON.stringify([v.key.node, v.key.transaction])}`,
+            )),
           }),
         ),
       );
@@ -379,9 +439,11 @@ export async function dexieSpikeStore(
         [nodes, transactions, versions, current, state],
         async () => {
           if (((await state.get('head'))?.sequence ?? 0) !== base) return false;
-          const known = await nodes.bulkGet(record.versions.map((v) => v.node));
+          const known = await nodes.bulkGet(record.versions.map((v) => v.key.node));
           await nodes.bulkAdd(
-            record.versions.filter((_, i) => known[i] === undefined).map((v) => ({ id: v.node })),
+            record.versions
+              .filter((_, i) => known[i] === undefined)
+              .map((v) => ({ id: v.key.node })),
           );
           await transactions.add(transactionRow);
           await versions.bulkAdd(versionRows);
@@ -424,21 +486,73 @@ export async function dexieSpikeStore(
   );
 }
 
-/** Live closure follows containment and targets; deleted nodes stop traversal. */
-export function closure(snapshot: NodeSnapshot, rootId: string): readonly NodeVersion[] {
+/** Containment and target closure in the viewing snapshot; exact addresses select only a version. */
+export function closure(
+  snapshot: NodeSnapshot,
+  root: string | NodeAddress,
+): readonly NodeVersion[] {
   const visited = new Set<string>();
   const result: NodeVersion[] = [];
-  const visit = (id: string) => {
-    if (visited.has(id)) return;
-    visited.add(id);
-    const version = snapshot.get(id);
+  const visit = (address: NodeAddress) => {
+    const version = snapshot.resolve(address);
     if (!version || version.data === null) return;
+    const key = JSON.stringify([version.key.node, version.key.transaction]);
+    if (visited.has(key)) return;
+    visited.add(key);
     result.push(version);
-    for (const child of snapshot.children(id)) visit(child.node);
-    if (version.target !== null) visit(version.target);
+    for (const child of snapshot.children(version.key.node)) visit({ node: child.key.node });
+    if (version.connection !== null) visit(version.connection.target);
   };
-  visit(rootId);
+  visit(typeof root === 'string' ? { node: root } : root);
   return Object.freeze(result);
+}
+
+/** Demo projection; ranges select the target's plain-text projection, without storing a quote. */
+export function citationView(snapshot: NodeSnapshot, citation: NodeVersion) {
+  const status = (address: NodeAddress) => {
+    const recorded = snapshot.resolve(address);
+    const current = snapshot.get(address.node);
+    if (!recorded) return 'version unavailable';
+    if (recorded.data === null) return 'cited version is deleted';
+    if (current?.data === null) return 'deleted in this view';
+    if (address.transaction !== undefined && current?.key.transaction !== address.transaction)
+      return 'newer version in this view';
+    return 'matches this view';
+  };
+  const { connection } = citation;
+  const evidence = connection ? snapshot.resolve(connection.target) : undefined;
+  const parts = evidence?.data?.parts;
+  const text =
+    typeof evidence?.data?.text === 'string'
+      ? evidence.data.text
+      : Array.isArray(parts)
+        ? parts
+            .map((part) =>
+              part && typeof part === 'object' && 'text' in part ? String(part.text) : '',
+            )
+            .join('')
+        : '';
+  const range = citation.data?.range;
+  const valid =
+    range &&
+    typeof range === 'object' &&
+    !Array.isArray(range) &&
+    'start' in range &&
+    'end' in range &&
+    'unit' in range &&
+    range.unit === 'utf16' &&
+    typeof range.start === 'number' &&
+    Number.isInteger(range.start) &&
+    range.start >= 0 &&
+    typeof range.end === 'number' &&
+    Number.isInteger(range.end) &&
+    range.end >= range.start &&
+    range.end <= text.length;
+  return {
+    quote: valid ? text.slice(Number(range.start), Number(range.end)) : '[selection unavailable]',
+    source: connection ? status(connection.source) : 'no connection',
+    target: connection ? status(connection.target) : 'no connection',
+  };
 }
 
 /** Guarded compensation; restoring a group reveals descendants at their current states. */
@@ -450,10 +564,9 @@ export async function undo(
   const differences = await store.changes(transaction);
   const changes: NodeChange[] = differences.map(({ node, before, after }) => ({
     node,
-    expected: after.transaction,
-    parent: before?.parent ?? null,
-    target: before?.target ?? null,
-    order: before?.order ?? null,
+    expected: after.key.transaction,
+    placement: before?.placement ?? null,
+    connection: before?.connection ?? null,
     data: before?.data ?? null,
   }));
   return store.commit({

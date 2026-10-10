@@ -3,6 +3,7 @@ import 'fake-indexeddb/auto';
 import { nodeOperations } from '../app/vault/nodes/operations.ts';
 import { exercise, change } from '../app/vault/nodes/spike/scenarios.ts';
 import {
+  citationView,
   memorySpikeStore,
   dexieSpikeStore,
   inspectScratch,
@@ -21,8 +22,9 @@ try {
   const raw = await inspectScratch(name);
   const rawText = JSON.stringify(raw);
   if (
-    rawText.includes('paragraph') &&
-    (rawText.includes('parent') || rawText.includes('Newer content'))
+    ['"placement"', '"connection"', '"recordedBy"', 'Newer content', 'An evidence'].some((field) =>
+      rawText.includes(field),
+    )
   )
     throw new Error('Persisted structural/content fields leaked');
   if (
@@ -46,6 +48,23 @@ try {
       recordedImport.kind.scope !== 'calendarImport'
     )
       throw new Error('Reload lost structured kind or metadata');
+    const snapshot = await reopened.snapshot();
+    const citation = snapshot.get('citation');
+    if (
+      !(
+        citation?.connection &&
+        snapshot.resolve(citation.connection.source) &&
+        snapshot.resolve(citation.connection.target)
+      ) ||
+      citationView(snapshot, citation).quote !== 'Newer content from another writer.'
+    )
+      throw new Error('Reload lost nested exact endpoints or historical evidence');
+    const compensatedCitation = snapshot.resolve({
+      node: 'response-citation',
+      transaction: 'response-citation',
+    });
+    if (!(compensatedCitation && snapshot.resolve(compensatedCitation.connection!.target)))
+      throw new Error('Reload lost compensated citation history or response checkpoint');
     const other = await dexieSpikeStore(name);
     try {
       const one = await change(reopened, 'page-a', {
@@ -89,6 +108,7 @@ try {
             ),
             encryptedContentAndStructure: true,
             upgradeAndReloadPreservedHistory: true,
+            upgradeAndReloadPreservedExactCitations: true,
             independentConcurrentTransactions: independent.map((t) => t.sequence),
             sameNodeConcurrency: sameNode.map((r) => r.status),
           },

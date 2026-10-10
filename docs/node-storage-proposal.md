@@ -2,7 +2,7 @@
 
 Use [chat.ts](../app/vault/documents/chat.ts) for application payloads and
 [model.ts](../app/vault/nodes/model.ts) for their backing records. NodeVersion is generic over its
-JSON data; the default remains arbitrary JSON objects. Parent, target, identity, and transaction
+JSON data; the default remains arbitrary JSON objects. Grouped version keys, placement, and connection endpoints
 remain outside that JSON. The application schemas constrain conversation, exchange, message, and
 reference payloads without introducing a separate persistence model for each feature.
 
@@ -43,14 +43,13 @@ await store.commit({
   message: 'Record the completed reply',
   kind: chatOperations.completeResponse,
   recordedBy: agentNodeId,
-  origin: message.parent,
+  origin: message.placement?.parent ?? null,
   undoOf: null,
   changes: [{
-    node: message.node,
-    expected: message.transaction,
-    parent: message.parent,
-    target: message.target,
-    order: message.order,
+    node: message.key.node,
+    expected: message.key.transaction,
+    placement: message.placement,
+    connection: message.connection,
     data: completedReply,
   }],
 });
@@ -58,7 +57,9 @@ await store.commit({
 
 The same operation records new identities with expected: null. Tombstones and restored
 nodes expect their last recorded version. snapshot(sequence) provides an immutable historical view;
-snapshot() captures current state once. Parent and target resolution stay within it. children(parent)
+snapshot() captures current state once. Placement and identity address resolution stay within it. resolve(address) selects an exact
+version when transaction is present, never a snapshot cutoff; only versions recorded by that
+snapshot are available. children(parent)
 returns ordered live children and is empty when the parent is absent/deleted. A selected deleted
 target is distinguishable from a node without a version at that snapshot.
 
@@ -106,10 +107,14 @@ db.version(1).stores({
   nodes: 'id',
   transactions: 'id, &sequence, [kind.scope+kind.action+sequence], recordedBy, origin',
   versions: '[node+transaction], transaction, node, [node+sequence]',
-  current: 'node, parent, target, data.kind',
+  current: 'node, parent, source, target, data.kind',
 });
 ```
 
+These illustrative adapter rows flatten key.node/key.transaction, placement.parent/order, and
+connection.source/target addresses into scalar columns; the application reads the nested model.
+Exact endpoints require validating their composite keys, not just their node and transaction
+independently. No extra relationship table is required for one embedded connection per version.
 The version row adds sequence as a storage-level index field copied from its transaction. It is
 derived, not another application-level version identifier. A composite tuple is the version key.
 Current rows contain the latest version and are rebuildable projections; update changed rows only.
@@ -137,7 +142,7 @@ against caller mutation rather than exposing the writable store.
 ## Existing encryption and synchronization
 
 The current app encrypts content on-device. Dexie is not encryption; the production adapter must
-retain that behavior. Encrypt version content and structural parent/target/order data at rest;
+retain that behavior. Encrypt version content and structural placement/connection data at rest;
 plaintext indexes reveal structure and must be a deliberate choice. One practical approach is to
 store encrypted records indexed only by opaque IDs and transaction sequence, then derive children,
 targets, and type indexes in memory after unlock. The plaintext schema above illustrates logical

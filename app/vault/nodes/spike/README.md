@@ -1,7 +1,8 @@
 # Throwaway node storage spike
 
 Question: can the existing agent chat and History use one versioned node store while keeping
-content edits, placement changes, deletion, and undo local to the affected nodes?
+content edits, placement changes, deletion, and undo local to the affected nodes, while references
+either follow identities or retain exact recorded evidence?
 
 Verdict: **yes for the exercised scenarios**. Keep the proposed backing model and NodeStore seam;
 use Maps for volatile state/preview and Dexie for browser persistence. This branch is a primary
@@ -14,10 +15,10 @@ or network request is required. Choose Memory or IndexedDB, try actions, or sele
 walkthrough. The panels show visible content, all recorded node identities at the selected cutoff
 (including tombstones and unreachable nodes), complete differences, and transaction History.
 
-This revision uses a new scratch database name because earlier spike records used type names in fields
-and dotted string kinds. It does not rewrite those scratch records or migrate real data.
+This revision uses a new scratch database name because this revision groups version keys and separates placement
+from connection endpoints. It does not rewrite those scratch records or migrate real data.
 
-The demo uses fictional data in `PROTOTYPE-vaulter-node-storage-structured-wipe-me`. Walkthroughs reset the
+The demo uses fictional data in `PROTOTYPE-vaulter-node-storage-addresses-wipe-me`. Walkthroughs reset the
 selected store. Use only one demo tab when resetting. After a page reload, choose IndexedDB to
 reopen its retained records; Memory starts fresh. Reopening a store does not resume a running model
 request. The spike's reply buttons simulate a terminal response without invoking an agent.
@@ -41,6 +42,7 @@ excluded from Biome because it embeds third-party library code; its authored sou
 | First Send | Conversation, exchange, user message, assistant placeholder |
 | Later Send | Exchange and two messages; conversation stays at its original version |
 | Content edit | Shared paragraph only; both appearances resolve its updated state |
+| Recorded checkpoint | Assistant message only; its exact key remains usable by later citations |
 | Reply completion / Stop | Assistant message only; previously committed content survives |
 | Content undo | Compensating content versions; conversation and responses remain |
 | Remove one appearance | Appearance tombstone only; shared target and other appearance remain |
@@ -50,6 +52,12 @@ excluded from Biome because it embeds third-party library code; its authored sou
 | Delete a group | Group tombstone only; descendants become unreachable, remain stored |
 | Restore a group | Group version only; reveals current descendant states, including edits made while hidden |
 | Make an appearance independent | New content identity plus retargeted appearance |
+| Citation creation | New claim and citation; exact claim/evidence addresses, no evidence rewrite or copied quote |
+| Later claim/evidence versions | Only the changed node; citation retains its endpoints and derives notices |
+| Delete cited evidence | Identity appearances show deletion; citation still resolves old evidence |
+| Move citation | Citation placement only; both relationship endpoints remain unchanged |
+| Known node plus wrong transaction | Whole request rejected: the exact composite version must exist |
+| Cite checkpoint, Stop, undo citation | Checkpoint and terminal response retained; compensation adds citation tombstones |
 | Stale multi-node write / read dependency | Whole request rejected without advancing history |
 | Undo after an intervening affected-node edit | Whole compensation rejected |
 | User Send / agent edit | Different recordedBy actor nodes, same exchange origin |
@@ -61,12 +69,13 @@ excluded from Biome because it embeds third-party library code; its authored sou
 | Concurrent writes to the same node | One acceptance, one expected-version conflict |
 
 Historical snapshots continue to resolve versions at their own cutoff. Accepted JSON is copied and
-frozen. Target cycles terminate through a visited set; containment cycles are rejected. Restoring a
+frozen. Connection target cycles terminate through a visited set keyed by exact version; sources are
+inspectable endpoints rather than reverse inclusion paths; containment cycles are rejected. Restoring a
 container at the latest snapshot restores reachability, not its descendants' old contents. Reading
 an old snapshot is how to see that earlier closure.
 
-The parity probe finishes with 20 transactions, 17 identities, 35 immutable version rows, and
-17 current rows. Retrying does not add rows. Chrome exercised all six browser walkthroughs, selecting
+The parity probe finishes with 31 transactions, 24 identities, 51 immutable version rows, and
+24 current rows. Retrying does not add rows. Chrome passed all nine browser walkthroughs in both adapters, selecting
 History, encrypted scratch storage, close/reopen, and full page reload, with no page errors.
 TypeScript, Biome CI, and the existing layout/composition checks (33 assertions) passed.
 
@@ -76,8 +85,10 @@ TypeScript, Biome CI, and the existing layout/composition checks (33 assertions)
 [NodeStore contract](../store.ts). [Transaction](../model.ts) is one persisted shape including
 required recordedBy, structured kind, nullable message, origin, undoOf and optional typed metadata.
 Kinds come from the typed scope/action catalogue; feature-owned constants avoid magic strings.
-There is no RecordedTransaction extension. Metadata is immutable JSON included in encryption and retry checks. Public reference fields are
-node, transaction, parent, target, origin, undoOf and expected, without type names or Id suffixes.
+There is no RecordedTransaction extension. Metadata is immutable JSON included in encryption and retry checks. NodeVersion groups key, placement, connection and data. NodeAddress holds node and optional
+transaction; key uses the same shape with transaction required. Endpoint transactions identify
+exact versions, not snapshot cutoffs. Identity references inherit the snapshot being viewed.
+Grouped structural values flatten to columns or compound Dexie keys; no joining table is needed.
 The author is an ordinary node; the origin identifies
 context, not the author. Callers submit complete proposed states and expected last
 transaction IDs. They read immutable snapshots and transaction differences without table access.
@@ -85,7 +96,7 @@ transaction IDs. They read immutable snapshots and transaction differences witho
 
 Dexie writes identity rows, an encrypted transaction envelope, encrypted immutable versions,
 changed current rows, and a sequence counter in one short IndexedDB transaction. Opaque identities,
-version membership, and sequence stay plaintext; data, parent, target, order and History metadata
+version membership, and sequence stay plaintext; data, placement, connection and History metadata
 are encrypted using the existing AES-GCM helper. Structural indexes are derived after decryption.
 
 Crypto preparation happens before the database transaction. Publication checks the global log head
@@ -110,6 +121,16 @@ are refresh hints, not a second source of state.
 - Define production migration/error handling and transaction pagination. The demo's exclusive reset
   and full replay are intentionally limited to small scratch data.
 
-The foundation branch `node-data-model` holds the accepted types and decision. The throwaway
+The foundation branch `node-data-model` holds the earlier types and decision; this spike contains
+the revised grouped shapes and exact-address behavior. The throwaway
 `spike/node-storage` branch captures this implementation and self-contained demo. Port validated
 logic deliberately; keep the demo and scratch-key behavior out of the running app.
+
+## Composition boundary
+
+An exact address freezes one record, not its children. Containment and identity targets still use
+the viewing snapshot. Select a historical snapshot to reconstruct a whole page or conversation.
+The executable probe shows one unchanged page key with different child sets at two cutoffs.
+Snapshots do not expose future versions. Citations in this demo select plain text from one
+paragraph or message version; composed-source citations need an explicit historical context.
+Selection notices compare version keys: a newer version can exist even when selected text is equal.
