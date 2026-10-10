@@ -70,5 +70,6 @@ held for the Base UI migration; their final scope targets that library.
 Reusable preview comparison (#23) is implemented before retiring provenance B/C. See the
 [#23 consumer and decision record](20-cleanup/23.md). DesignComparison accepts named alternatives
 inside the relevant preview; each example owns its selection independently of device choice.
-The paired preview sample compares retained page/input presentation. The provenance design
-session uses the same interface, so retiring its rejected entries does not remove comparison.
+The paired preview sample compares retained page/input presentation. Selected provenance A now
+renders directly without rejected B/C choices; future design sessions can supply alternatives to
+DesignComparison. See the [#26 consumer and decision record](20-cleanup/26.md).

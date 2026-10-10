@@ -57,6 +57,20 @@ body,
   --type-input: 1rem;
   --control-size: var(--target-touch);
 }
+/* The selected wiki evidence stays beside its prose from expanded width onward.
+   Its same Drawer Popup/content moves to the shared full-height compact surface. */
+.kit-drawer.kit-evidence-panel[data-layout="wide"] {
+  position: sticky;
+  top: 1rem;
+  align-self: flex-start;
+  width: 340px;
+  height: auto;
+  max-height: calc(var(--viewport-height, 100dvh) - 2rem);
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
 @media (any-pointer: coarse) {
   .design-viewport .kit-presentation {
     --type-input: 1rem;

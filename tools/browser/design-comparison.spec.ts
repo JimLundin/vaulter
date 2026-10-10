@@ -64,7 +64,75 @@ test('comparison keyboard selection stays local and leaves text entry and device
   expect(new URL(page.url()).searchParams.has('variant')).toBe(false);
 });
 
-test('provenance uses the shared bounded comparison without interfering with another preview', async ({
+for (const retired of ['B', 'C', 'unknown']) {
+  test(`retired evidence URL ${retired} opens the selected design without obsolete choices`, async ({
+    page,
+  }) => {
+    const errors: string[] = [];
+    page.on('pageerror', (error) => errors.push(error.message));
+    await page.goto(`/preview/?variant=${retired}#/prototype/provenance/`);
+    await expect(page.getByRole('heading', { name: 'Mira Holm' })).toBeVisible();
+    await expect(page.getByRole('combobox', { name: 'Design variation' })).toHaveCount(0);
+    await expect(page.getByRole('radiogroup', { name: 'Design variation' })).toHaveCount(0);
+    const statement = page.getByRole('button', {
+      name: 'She lives on Södermalm, in a flat on Katarina Bangata with a small balcony.',
+      exact: true,
+    });
+    await statement.click();
+    await expect(page.getByRole('heading', { name: 'Why the page says this' })).toBeVisible();
+    await expect(page.getByText('Replaces', { exact: false })).toBeVisible();
+    expect(errors).toEqual([]);
+  });
+}
+
+test('selected evidence keeps the same quoted context through device changes and returns focus to its claim', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto('/preview/#/prototype/provenance/');
+  const banner = page.getByRole('complementary', { name: 'Design preview' });
+  const statement = page.getByRole('button', {
+    name: 'She lives on Södermalm, in a flat on Katarina Bangata with a small balcony.',
+    exact: true,
+  });
+  await statement.click();
+  const quote = page.getByText(
+    "She's got the flat on Katarina Bangata now, the one with the tiny balcony.",
+    {
+      exact: true,
+    },
+  );
+  await expect(quote).toBeVisible();
+  await quote.evaluate((node) => node.setAttribute('data-original-evidence', ''));
+  for (const device of ['Mobile', 'Desktop', 'Window']) {
+    await choosePreviewDevice(banner, device);
+    await expect(quote).toBeVisible();
+    await expect(quote).toHaveAttribute('data-original-evidence', '');
+    await expect(page.getByText('Replaces', { exact: false })).toBeVisible();
+  }
+  await page.getByRole('button', { name: 'Close why the page says this', exact: true }).click();
+  await expect(quote).toBeHidden();
+  await expect(statement).toBeFocused();
+  await page.setViewportSize({ width: 800, height: 1000 });
+  await statement.click();
+  const evidence = page.getByRole('complementary', { name: 'Why the page says this' });
+  await expect(evidence).toBeVisible();
+  const articleBounds = (await page.getByRole('heading', { name: 'Mira Holm' }).boundingBox())!;
+  const evidenceBounds = (await evidence.boundingBox())!;
+  expect(evidenceBounds.x).toBeGreaterThan(articleBounds.x);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.getByRole('dialog', { name: 'Why the page says this' })).toBeVisible();
+  const close = page.getByRole('button', { name: 'Close why the page says this', exact: true });
+  const closeBounds = (await close.boundingBox())!;
+  expect(closeBounds.width).toBeGreaterThanOrEqual(44);
+  expect(closeBounds.height).toBeGreaterThanOrEqual(44);
+  await close.focus();
+  await page.keyboard.press('Escape');
+  await expect(quote).toBeHidden();
+  await expect(statement).toBeFocused();
+});
+
+test('paired selected evidence stays bounded, independent and shows exact source provenance', async ({
   page,
 }) => {
   await page.goto('/ui/kit/');
@@ -72,50 +140,50 @@ test('provenance uses the shared bounded comparison without interfering with ano
   const family = page.locator('[data-kit-comparison="provenance"]');
   const desktop = family.locator('[data-kit-preview="desktop"]');
   const mobile = family.locator('[data-kit-preview="mobile"]');
-  await chooseVariation(desktop, 'B · Sidenotes');
-  await expect(desktop.getByRole('heading', { name: 'Mira Holm' })).toBeVisible();
-  await expect(desktop.getByText('Person · 7 sourced statements', { exact: true })).toBeVisible();
-  await chooseVariation(desktop, 'C · Trace');
-  await expect(desktop.getByRole('heading', { name: 'Mira Holm' })).toBeVisible();
-  await chooseVariation(mobile, 'B · Sidenotes');
+  await expect(family.getByRole('combobox', { name: 'Design variation' })).toHaveCount(0);
+  await expect(family.getByRole('radiogroup', { name: 'Design variation' })).toHaveCount(0);
+  const claim = mobile.getByRole('button', {
+    name: 'She lives on Södermalm, in a flat on Katarina Bangata with a small balcony.',
+    exact: true,
+  });
+  await claim.click();
+  const phoneEvidence = mobile.getByRole('dialog', { name: 'Why the page says this', exact: true });
+  await expect(phoneEvidence.getByText('Replaces', { exact: false })).toBeVisible();
   for (const width of [390, 1440]) {
     await page.setViewportSize({ width, height: 1000 });
-    await expect(desktop.getByRole('radio', { name: 'C · Trace', exact: true })).toBeChecked();
-    await expect(mobile.getByRole('combobox', { name: 'Design variation' })).toHaveValue('B');
-    for (const sample of [desktop, mobile]) {
-      const outer = (await sample.boundingBox())!;
-      const controls = (await sample.getByText('Design variation', { exact: true }).boundingBox())!;
-      expect(controls.x).toBeGreaterThanOrEqual(outer.x);
-      expect(controls.y).toBeGreaterThanOrEqual(outer.y);
-      expect(controls.x + controls.width).toBeLessThanOrEqual(outer.x + outer.width);
-      expect(controls.y + controls.height).toBeLessThanOrEqual(outer.y + outer.height);
-    }
+    await expect
+      .poll(async () => {
+        const outer = (await mobile.boundingBox())!;
+        const inner = (await phoneEvidence.boundingBox())!;
+        return (
+          inner.x >= outer.x &&
+          inner.y >= outer.y &&
+          inner.x + inner.width <= outer.x + outer.width &&
+          inner.y + inner.height <= outer.y + outer.height
+        );
+      })
+      .toBe(true);
   }
-  await chooseVariation(desktop, 'A · Side panel / phone drawer');
-  await expect(desktop.getByText('Why the page says this', { exact: true })).toBeVisible();
-  expect(new URL(page.url()).searchParams.has('variant')).toBe(false);
-});
-
-test('the Product evidence preview keeps variation and evidence context through device selection', async ({
-  page,
-}) => {
-  await page.setViewportSize({ width: 1440, height: 1000 });
-  await page.goto('/preview/#/prototype/provenance/');
-  const banner = page.getByRole('complementary', { name: 'Design preview' });
-  await chooseVariation(page.locator('body'), 'B · Sidenotes');
-  await expect(page.getByText('Person · 7 sourced statements', { exact: true })).toBeVisible();
-  await choosePreviewDevice(banner, 'Mobile');
-  await expect(page.getByRole('combobox', { name: 'Design variation' })).toHaveValue('B');
-  await choosePreviewDevice(banner, 'Desktop');
-  await expect(page.getByRole('radio', { name: 'B · Sidenotes' })).toBeChecked();
-  await chooseVariation(page.locator('body'), 'A · Side panel / phone drawer');
-  await expect(page.getByText('Why the page says this', { exact: true })).toBeVisible();
-  await expect(page.getByText('Replaces', { exact: false })).toBeVisible();
-  await choosePreviewDevice(banner, 'Mobile');
-  const evidence = page.getByRole('dialog', { name: 'Why the page says this', exact: true });
-  await expect(evidence).toBeVisible();
-  await expect(evidence.getByText('Replaces', { exact: false })).toBeVisible();
-  await evidence.getByRole('button', { name: 'Close why the page says this', exact: true }).click();
-  await expect(evidence).toBeHidden();
-  await expect(page.getByRole('combobox', { name: 'Design variation' })).toHaveValue('A');
+  await phoneEvidence
+    .getByRole('button', { name: 'Close why the page says this', exact: true })
+    .click();
+  await expect(claim).toBeFocused();
+  await expect(phoneEvidence).toBeHidden();
+  await expect(desktop.getByRole('heading', { name: 'Why the page says this' })).toBeVisible();
+  const studio = desktop.getByRole('button', {
+    name: 'She runs Holm Keramik AB, a small studio that makes and sells ceramics and teaches classes.',
+    exact: true,
+  });
+  await studio.click();
+  await expect(
+    desktop.getByText('Manufacture and sale of ceramic goods, and teaching of ceramics.', {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(
+    desktop.getByRole('link', { name: 'Holm Keramik AB – company extract' }).first(),
+  ).toBeVisible();
+  await expect(
+    desktop.getByText('Found by searching “Holm keramik aktiebolag Stockholm Mira Holm”').first(),
+  ).toBeVisible();
 });

@@ -1209,7 +1209,8 @@ export const catalogue: Specimen[] = [
   {
     id: 'provenance',
     title: 'Wiki provenance prototype',
-    description: 'The provenance reference page and its supporting evidence panel.',
+    description:
+      'Selected evidence design A: underlined wiki claims with quoted sources and superseded context beside the page or in the phone Drawer.',
     components: ['ProvenancePrototype'],
     Sample: Provenance,
     fullBleed: true,

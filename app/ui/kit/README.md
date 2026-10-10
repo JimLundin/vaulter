@@ -419,6 +419,12 @@ Enter/Shift+Enter/IME, and a simulated visual
 viewport resize. The user accepted the physical Safari keyboard/scrolling retest at `1037d86`.
 Live microphone capture still needs device validation; the sample preview uses scripted audio.
 
+The wiki provenance reference retains selected evidence design A. Underlined claims open exact
+quoted source context and superseded statements beside the page from expanded width onward,
+or in the shared phone Drawer. Its evidence stays mounted through device changes. Completed
+sidenote/history-trace alternatives are retired, while Product History, Timeline and reusable
+DesignComparison remain available. The fictional fixtures are reference design data.
+
 ToggleGroup presents pressed choices in outlined joined groups at the standard size. Single
 selection allows zero or one pressed option; multiple selection allows independent pressed options.
 Arrow navigation and disabled/focus feedback follow Base UI, with 44px minimum touch targets.
