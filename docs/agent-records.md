@@ -85,3 +85,25 @@ The caller composes any additional producer record policy, such as preserving Ch
 A content module can therefore create a valid Interpretation and exact evidence links while
 existing execution references remain protected. The same context supports a module publishing
 content immediately and another module recording a proposal, without imposing either choice.
+
+## Independent runs and ownership
+
+Unrelated runs load models, stream and invoke tools concurrently. Agent has no queue or lock held
+across the Vault during execution. NodeStore still accepts short atomic transactions, allocating
+distinct definitive sequences and rejecting the whole transaction when a changed-node expectation
+or declared read has become stale. A supplying module can coordinate its own operations by
+wrapping them before passing its tools to Agent. Reading a parent and its existing children does
+not protect the absence of a future child, so stronger operation predicates belong to that module.
+
+Within the same NodeStore instance, simultaneous starts for the same prepared run share one
+controller. The complete prepared request must match, including caller-composed changes and
+expectations. This is local deduplication, not a cross-tab/device lease or proof that arbitrary
+external effects run exactly once. Backend disposal stops only controllers it created; another
+reader sharing a controller does not acquire its disposal ownership.
+
+Current reads expose `ownership: 'live'` when a local execution or recovery controller remains
+available. A paused or unsaved controller can be live while its model is not progressing. The
+value is otherwise `unknown`, including historical snapshots and runs on another NodeStore
+instance. Unknown ownership does not prove abandonment, and neither value rewrites the accepted
+run status or resumes execution. Disposing an owner expires execution and releases its evidence
+once any work already in progress has settled.
