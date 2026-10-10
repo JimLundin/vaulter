@@ -47,9 +47,10 @@ shared notification lifecycle, agreed floating placement and preview improvement
 
 ## Final integration acceptance
 
-All approved ticket implementations are integrated on `spec/20-ui-kit-cleanup`. Runtime checks
-below were completed at `bd50a00`. The minor review cleanup at `9fbc997` preserves exact
-claim-button classes and catalogue feedback behavior; its typecheck, changed-source lint and 24
+All approved ticket implementations are integrated on `spec/20-ui-kit-cleanup`. The full browser
+and visual checks below were completed at `bd50a00`; full Vitest and both builds were repeated
+after the final source review fixes, as recorded in the table. The minor review cleanup at
+`9fbc997` preserves exact claim-button classes and catalogue feedback behavior; its typecheck, changed-source lint and 24
 focused browser cases pass. Primary typecheck, lint and diff checks passed after the review
 cleanup merged at `e8d0311`; lint checked 218 files with 58 warnings and 86 informational diagnostics.
 
@@ -57,9 +58,9 @@ cleanup merged at `e8d0311`; lint checked 218 files with 58 warnings and 86 info
 |---|---|
 | Typecheck | Passed, exit 0 at the final source integration e8d0311 |
 | Lint | Passed, exit 0 at final source integration e8d0311; 218 files, 58 warnings and 86 informational diagnostics (baseline 58 warnings/76 informational diagnostics). Review cleanup removed the added catalogue conditional-render warning. Primary validation resolves the worktree dependency-symlink reexport errors. |
-| Full Vitest suite | 32 files and 218 tests passed on full rerun with command-only 30s timeout. Initial run passed 217 tests and timed out the compiler-backed composition check at its 5s limit under concurrent load; no source timeout or assertion changed. |
+| Full Vitest suite | Final rerun at ce4621b passed all 32 files and 218 tests, exit 0 in 15.14s with command-only 30s timeout. The default-timeout run again passed 217 tests and timed out only the compiler-backed composition check at its 5s limit; no source timeout or assertion changed. |
 | Full browser suite: phone, desktop, touch-desktop | 315 passed and three opt-in map cases skipped (318 total), exit 0 in 11.6 minutes at bd50a00. The real-map opt-in regression separately passed all three projects. |
-| Product and design/catalogue builds | Passed, exit 0; standard bundle chunks above 500KB advisories remain. Built preview/gallery smoke checks produced no page errors. |
+| Product and design/catalogue builds | Final-source product build at e8d0311 and design/catalogue build at ce4621b passed, exit 0; standard bundle chunks above 500KB advisories remain. Earlier built preview/gallery smoke checks produced no page errors. |
 | Standards and Spec code review against `fe941c2` | Standards: no hard violations; one minor duplicated interaction-class finding addressed with existing cn and exact selected/ordinary class equivalence. Spec: zero findings. All 21 existing design-comparison cases and three browsing-row cases passed across phone/desktop/touch-desktop after the review cleanup; typecheck and changed-source lint passed. |
 | Product/navigation and retained catalogue visual review | Product and Settings phone/desktop captures plus eight retained paired catalogue captures rerun at bd50a00; no page errors. Readable navigation, fields, evidence and retained examples inspected. |
 | Actual MapLibre dark/light, markers/routes/selection/sizes | Real renderer and OpenFreeMap resources reviewed with no outage. All three browser projects passed opt-in regression with CLI90s timeout under concurrent load. Final integrated eight size/theme captures recorded 32 successful resources, three ordinary cancellation requests while changing style/zoom and no page errors; replacements rendered. See [#33 evidence](33.md). |
