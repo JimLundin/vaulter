@@ -345,5 +345,5 @@ export const Row = unstyled(RowPart);
 export const Text = unstyled(TextPart);
 export const Link = unstyled(LinkPart);
 export { Spacer, Heading, Prose, type Gap, type TextProps } from './parts/layout.tsx';
-// PROTOTYPE, throwaway (branch prototype/wiki-provenance).
+// Selected fictional wiki evidence reference (branch prototype/wiki-provenance).
 export { ProvenancePrototype } from './prototype-provenance.tsx';

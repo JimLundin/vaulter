@@ -26,3 +26,10 @@ from Google Fonts instead of being embedded.
 
 Type is Geist (UI), Geist Mono (keys and code) and Newsreader (wiki prose). Colours are Tailwind's zinc
 scale with category colours: blue for people, green for places, orange for events.
+
+The selected fictional wiki evidence reference is available at `#/prototype/provenance/` in the
+design preview and as a paired catalogue example. Design A was chosen: select an underlined
+statement to inspect its exact source quotation and superseded context beside the page on desktop
+or in the shared Drawer on phones. Rejected B sidenotes and C history trace are retired; this
+does not alter Product History or the retained Today/activity Timeline design. Future design
+sessions compare supplied alternatives with the separate reusable DesignComparison capability.
