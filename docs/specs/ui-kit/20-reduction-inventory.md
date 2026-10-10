@@ -203,9 +203,9 @@ or authorize notification migration as part of #20's cleanup.
 
 ## Implementation reconciliation
 
-This table maps every approved removal to its consumer/dependency record. Tickets #23–#32 have
-been integrated on `spec/20-ui-kit-cleanup`; #33 and final full-suite/review acceptance remain
-pending. The original keep/remove reasons above remain the scope authority.
+This table maps every approved removal to its consumer/dependency record. Tickets #23–#33 have
+been integrated on `spec/20-ui-kit-cleanup`. Actual integrated checks and review-fix acceptance are recorded in the [cleanup acceptance record](20-cleanup/README.md).
+The original keep/remove reasons above remain the scope authority.
 
 | Walkthrough scope | Ticket evidence | Implementation and shared-dependency outcome |
 |---|---|---|
@@ -219,7 +219,7 @@ pending. The original keep/remove reasons above remain the scope authority.
 | FieldLegend small caption; Field responsive; InputGroup block-start/end | [#30](20-cleanup/30.md) | Removed rejected options and container/column/padding branches. Retained semantic legends, vertical/horizontal fields, adaptive Settings grid, inline context, measured inset actions and fixed Composer behavior. Shared association/control styles remain. |
 | Item outline/small; Badge outline/ghost/link | [#31](20-cleanup/31.md) | Retired options/styles. Standard rows/current feedback/grouping/actions/context and framed-icon/thumbnail/category-initial visuals remain. Default/secondary/destructive Badge and passive/actionable Chip preserve shared secondary styles and Avatar root/fallback. Other unlisted private Avatar helpers remain evidence-only assessment candidates. |
 | Recording duration; StatusMark dots/cursor; Choices.numbered; Kbd.large/KeyHint.strong | [#32](20-cleanup/32.md) | Removed implementation/export/example/style branches and orphan key-border token. Retained essential VoiceButton/VoiceStatus, labelled Activity/polite LiveStatus, both answer layouts/supplied suggestions and ordinary feature-owned shortcut hints. Shared pulse/typography/notifications remain. |
-| Source-unused Leaflet/@types packages | [#33](https://github.com/JimLundin/vaulter/issues/33) | Pending integration and final map acceptance. Recheck source/tooling/reference consumers; remove only unused manifest/lock entries while preserving actual MapLibre renderer/stylesheet/worker, markers/routes/selection/sizes and real dark/light presentation. |
+| Source-unused Leaflet/@types packages | [#33](20-cleanup/33.md) | Removed manifest/lock entries after source/tooling/reference consumer recheck. Preserved MapLibre renderer/stylesheet/worker, required dependencies, actual dark/light maps, markers/routes/selection and sm/md/fill sizing. Dimension-only camera refit fixes size-change marker clipping while selection/theme changes preserve user camera. Real resources and three-project opt-in regression verified; no outage prevented visual acceptance. |
 
 All other keep rows remain protected, including maps/charts, questions, attributed embedded Panel
 content, semantic forms, typography/scrolling, cards/empty states, dropdown menus and ordinary
