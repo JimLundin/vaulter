@@ -57,6 +57,22 @@ test('single and multiple toggle groups preserve their callback values and keybo
 }) => {
   await page.goto('/ui/kit/tests/controls.html');
   const single = page.getByRole('group', { name: 'Time range' });
+  const day = single.getByRole('button', { name: 'Day', exact: true });
+  const week = single.getByRole('button', { name: 'Week', exact: true });
+  const month = single.getByRole('button', { name: 'Month', exact: true });
+  await expect(day).toHaveCSS('border-left-width', '1px');
+  await expect(day).toHaveCSS('border-top-width', '1px');
+  await expect(week).toHaveCSS('border-left-width', '0px');
+  await expect(single).toHaveCSS('column-gap', 'normal');
+  await expect(month).toBeDisabled();
+  await expect(month).toHaveCSS('opacity', '0.5');
+  expect(
+    Math.abs(
+      (await day.boundingBox())!.x +
+        (await day.boundingBox())!.width -
+        (await month.boundingBox())!.x,
+    ),
+  ).toBeLessThan(1);
   await single.getByRole('button', { name: 'Week', exact: true }).click();
   await expect(single.getByRole('button', { name: 'Week', exact: true })).toHaveAttribute(
     'aria-pressed',
@@ -75,6 +91,28 @@ test('single and multiple toggle groups preserve their callback values and keybo
   await expect(page.getByText('Multiple values: bold,italic', { exact: true })).toBeVisible();
   await multiple.getByRole('button', { name: 'Bold', exact: true }).click();
   await expect(page.getByText('Multiple values: italic', { exact: true })).toBeVisible();
+  const defaults = page.getByRole('group', { name: 'Default range' });
+  await expect(defaults.getByRole('button', { name: 'Day', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await defaults.getByRole('button', { name: 'Week', exact: true }).click();
+  await expect(defaults.getByRole('button', { name: 'Day', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'false',
+  );
+  await expect(defaults.getByRole('button', { name: 'Week', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  const filters = page.getByRole('group', { name: 'Default filters' });
+  await filters.getByRole('button', { name: 'Events', exact: true }).click();
+  for (const filter of ['Notes', 'Events']) {
+    await expect(filters.getByRole('button', { name: filter, exact: true })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+  }
 });
 
 test('tabs retain automatic and manual keyboard activation and controlled selection callbacks', async ({
