@@ -1469,7 +1469,7 @@ export const catalogue: Specimen[] = [
   {
     id: 'status',
     title: 'Status & feedback',
-    description: 'Tones, alerts, progress, loading and notifications.',
+    description: 'Tones, alerts, activity feedback and notifications.',
     components: [
       'Badge',
       'Chip',
