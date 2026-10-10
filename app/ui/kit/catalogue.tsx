@@ -116,7 +116,6 @@ function Status() {
         <K.Text size="sm">Thinking about your notes…</K.Text>
         <K.Recording seconds={23} />
       </K.Row>
-      <K.Skeleton />
       <K.Separator />
       <K.Button variant="outline" onClick={() => K.toast.success('Note saved', { toasterId })}>
         Show notification
@@ -935,12 +934,9 @@ function LegacyFrames() {
 function SidebarParts() {
   return (
     <K.SidebarProvider>
-      <K.Sidebar collapsible="none">
+      <K.Sidebar>
         <K.SidebarHeader>
-          <K.Row justify="between">
-            <K.Brand />
-            <K.SidebarTrigger />
-          </K.Row>
+          <K.Brand />
         </K.SidebarHeader>
         <K.SidebarContent>
           <K.SidebarGroup>
@@ -967,6 +963,9 @@ function SidebarParts() {
                 </K.SidebarMenuItem>
                 <K.SidebarMenuItem>
                   <K.SidebarMenuSkeleton />
+                </K.SidebarMenuItem>
+                <K.SidebarMenuItem>
+                  <K.SidebarMenuSkeleton showIcon={true} />
                 </K.SidebarMenuItem>
               </K.SidebarMenu>
             </K.SidebarGroupContent>
@@ -1358,7 +1357,6 @@ export const catalogue: Specimen[] = [
       'AlertDescription',
       'Activity',
       'Recording',
-      'Skeleton',
       'Separator',
       'Toaster',
     ],
@@ -1592,7 +1590,6 @@ export const catalogue: Specimen[] = [
       'SidebarMenuSubItem',
       'SidebarProvider',
       'SidebarSeparator',
-      'SidebarTrigger',
     ],
     Sample: SidebarParts,
     fullBleed: true,

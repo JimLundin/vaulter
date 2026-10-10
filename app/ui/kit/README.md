@@ -149,6 +149,11 @@ agent, history, a note, a calendar. An *action* (`kind: 'action'`) is one of the
 screen keeps. The bottom bar keeps the first three actions beside Menu and Search; additional
 actions move into the menu. Ordinary bar controls are square and icon-only with the standard control
 radius on hover and open-state backgrounds; Menu is highlighted only while its drawer is open.
+Desktop navigation stays expanded on the left; it has no collapse shortcut, state or cookie.
+Sidebar primitives retain plain rows, visible actions, headings/groups, nested destinations,
+counts, separators and optional-icon loading rows for planned navigation. `SidebarProvider` is
+now a generic workspace wrapper, and `SidebarInset` retains only its generic content layout.
+Loading Skeleton presentation remains private to the usable navigation loading rows.
 The current feature is marked in the drawer. The voice action floats
 above them as a circle. `Frame` hands both lists to `NavigationSuite`, which picks the shape. Adding a feature means adding an entry, not editing two
 layouts.
