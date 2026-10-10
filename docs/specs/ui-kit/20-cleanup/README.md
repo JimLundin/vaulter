@@ -50,13 +50,13 @@ shared notification lifecycle, agreed floating placement and preview improvement
 All approved ticket implementations are integrated on `spec/20-ui-kit-cleanup`. Runtime checks
 below were completed at `bd50a00`. The minor review cleanup at `9fbc997` preserves exact
 claim-button classes and catalogue feedback behavior; its typecheck, changed-source lint and 24
-focused browser cases pass. Final primary lint verification after that cleanup remains to be
-recorded before tracker resolution.
+focused browser cases pass. Primary typecheck, lint and diff checks passed after the review
+cleanup merged at `e8d0311`; lint checked 218 files with 58 warnings and 86 informational diagnostics.
 
 | Required check | Observed result |
 |---|---|
-| Typecheck | Passed, exit 0 |
-| Lint | Passed, exit 0; 218 files, 59 warnings and 86 informational diagnostics at bd50a00 (baseline 58 warnings/76 informational diagnostics). Review cleanup removes the added catalogue conditional-render warning. Worktree full lint counted 58 warnings/86 informational diagnostics but hit two toast reexport resolution errors with shared dependency symlinks; typecheck and changed-source lint passed. Final primary lint result remains to be recorded. |
+| Typecheck | Passed, exit 0 at the final source integration e8d0311 |
+| Lint | Passed, exit 0 at final source integration e8d0311; 218 files, 58 warnings and 86 informational diagnostics (baseline 58 warnings/76 informational diagnostics). Review cleanup removed the added catalogue conditional-render warning. Primary validation resolves the worktree dependency-symlink reexport errors. |
 | Full Vitest suite | 32 files and 218 tests passed on full rerun with command-only 30s timeout. Initial run passed 217 tests and timed out the compiler-backed composition check at its 5s limit under concurrent load; no source timeout or assertion changed. |
 | Full browser suite: phone, desktop, touch-desktop | 315 passed and three opt-in map cases skipped (318 total), exit 0 in 11.6 minutes at bd50a00. The real-map opt-in regression separately passed all three projects. |
 | Product and design/catalogue builds | Passed, exit 0; standard bundle chunks above 500KB advisories remain. Built preview/gallery smoke checks produced no page errors. |
@@ -113,5 +113,5 @@ and browser tests do not claim real microphone/device validation. Earlier accept
 results remain historical evidence for their original changes.
 
 Approved removals, retained behavior, full browser checks, builds, visual review and review
-findings are accounted for above. Final primary lint after the exact-behavior review cleanup is
-the remaining verification entry. Tracker resolution and owned-worktree cleanup follow it.
+findings are accounted for above. Primary verification after the exact-behavior review cleanup
+passed; tracker resolution and owned-worktree cleanup follow the recorded final acceptance.
