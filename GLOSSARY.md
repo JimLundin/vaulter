@@ -4,6 +4,10 @@ Vaulter represents its application data as interconnected nodes.
 
 ## Language
 
+**Vault**:
+The collection of interconnected nodes and their recorded history that holds the application's
+data. Conversations and agent-produced content are part of this same collection.
+
 **Node**:
 An individually addressable part of the application's data that can connect to other nodes. Its
 identity persists when its content or placement changes.
@@ -57,8 +61,12 @@ A recorded measurement or collection outcome about the circumstances of an excha
 when it describes the world and where it came from.
 
 **Agent run**:
-One execution of an agent in response to an exchange, with its supplied information and resulting
-activity retained.
+One execution of an agent, with its supplied information and resulting activity retained. A run
+can originate from a chat exchange or another context without requiring a conversation.
+
+**Tool execution**:
+One invocation of a tool during an agent run, retaining its supplied arguments, recorded outcome
+and resulting activity.
 
 **Interpretation**:
 An attributed reading of recorded evidence, such as a summary, inferred event or decision. Later
