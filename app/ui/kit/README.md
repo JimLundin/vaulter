@@ -112,6 +112,11 @@ keeps its adaptive label/control grid. Grouped input context sits inline before 
 with measured inset actions at the end. Smaller legends, generic responsive Field rows and
 above/below grouped-input add-ons are retired.
 
+Voice/activity presentation keeps meaningful status labels and visible LiveStatus text. Question
+answers support list and inline layouts with supplied recommendation emphasis. Ordinary keycaps
+and labelled shortcut sequences remain; elapsed Recording, decorative StatusMark, numeric answer
+hints and enlarged/strong keyboard-hint variations are retired.
+
 ## Desktop and mobile variants
 
 Mobile and desktop are the **same UI, resized and rearranged**. Components share their content,
@@ -187,7 +192,7 @@ label/control/description placement. Theme choices use the shared `RadioGroup` p
 
 `parts/layout.tsx` owns Stack, Row, Text, Heading, Link and Prose independently of application frames.
 
-`Surface`, `Toolbar`, `ReadingColumn`, `Dock`, `StatusMark`, `OptionStrip`, `AutoScrollArea` and
+`Surface`, `Toolbar`, `ReadingColumn`, `Dock`, `OptionStrip`, `AutoScrollArea` and
 `AdaptivePanel` provide reusable containers and behavior. Each has a separate paired example.
 `Drawer` owns the drawer adapter, header, close button, typography and scrolling body for navigation,
 settings and supporting panels. Callers supply `open`, `onClose`, `title` and content; bare drawer

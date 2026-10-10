@@ -131,7 +131,6 @@ function Status() {
       <K.Row>
         <K.Activity busy={true} label="Thinking" />
         <K.Text size="sm">Thinking about your notes…</K.Text>
-        <K.Recording seconds={23} />
       </K.Row>
       <K.Separator />
       <K.Button variant="outline" onClick={() => K.toast.success('Note saved', { toasterId })}>
@@ -928,6 +927,12 @@ function AgentPanel() {
   );
 }
 function Voice() {
+  const [listChoice, setListChoice] = useState('');
+  const [inlineChoice, setInlineChoice] = useState('');
+  const answers = [
+    { label: 'Keep this thought', id: 'keep' },
+    { label: 'Explore a little more', id: 'explore' },
+  ];
   return (
     <K.Stack>
       <K.Row>
@@ -944,18 +949,24 @@ function Voice() {
         <K.SendButton busy={true} onStop={noop} />
       </K.Row>
       <K.VoiceStatus phase="listening" error="" />
+      <K.VoiceStatus phase="connecting" error="" />
+      <K.VoiceStatus phase="finishing" error="" />
       <K.VoiceStatus phase="ready" error="" />
       <K.VoiceStatus
         phase="error"
         error="The microphone disconnected. Your text remains in the message field."
       />
+      <K.Text>Question answers</K.Text>
+      <K.Choices choices={answers} suggested="keep" onChoose={(_, id) => setListChoice(id)} />
+      <K.Text>List answer: {listChoice || 'none'}</K.Text>
+      <K.Text>Inline answers</K.Text>
       <K.Choices
-        choices={[
-          { label: 'Keep this thought', id: 'keep' },
-          { label: 'Explore a little more', id: 'explore' },
-        ]}
-        onChoose={noop}
+        choices={answers}
+        layout="inline"
+        suggested="explore"
+        onChoose={(_, id) => setInlineChoice(id)}
       />
+      <K.Text>Inline answer: {inlineChoice || 'none'}</K.Text>
     </K.Stack>
   );
 }
@@ -1207,10 +1218,6 @@ function SurfacePrimitives() {
           <K.Surface variant="emblem">
             <K.Icon name="sparkles" />
           </K.Surface>
-          <K.Row>
-            <K.StatusMark active={true} />
-            <K.Text size="sm">Active status</K.Text>
-          </K.Row>
           <K.Surface variant="preferences">
             <K.Text>Preference surface</K.Text>
           </K.Surface>
@@ -1411,7 +1418,7 @@ export const catalogue: Specimen[] = [
     title: 'Surface & layout primitives',
     description:
       'Building blocks used by Agent and Settings: toolbar, reading column, dock and surface roles.',
-    components: ['Surface', 'Toolbar', 'ReadingColumn', 'Dock', 'StatusMark'],
+    components: ['Surface', 'Toolbar', 'ReadingColumn', 'Dock'],
     Sample: SurfacePrimitives,
     fullBleed: true,
   },
@@ -1473,7 +1480,6 @@ export const catalogue: Specimen[] = [
       'AlertTitle',
       'AlertDescription',
       'Activity',
-      'Recording',
       'Separator',
       'Toaster',
     ],
