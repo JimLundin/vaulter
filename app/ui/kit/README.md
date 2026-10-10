@@ -76,6 +76,13 @@ in caller order; legacy cmdk options are not a compatibility target. Composition
 Adapters preserve kit behavior where library defaults differ: dropdown labels can stand alone,
 checkbox selections close their menu, and dialogs respect each surface's initial-focus choice.
 
+Short modal tasks use adaptive `Overlay`; Search uses `SearchSurface` and preferences use
+`SettingsMenu`. Generic public Dialog assembly, CommandDialog and SettingsPage are retired.
+Private Base UI dialog adapters still support Overlay and Search focus, dismissal and accessible
+titles. `DialogFooter` remains a standalone optional layout for caller-supplied actions: right-aligned
+on desktop and stacked on phones. Its optional close action remains available; overlays need not
+use a footer.
+
 Spacing uses a 4px scale: 4px between inset actions, 8px between related controls, 16px within
 content and 24px between sections. `--space-control`, `--space-row`, `--space-content` and
 `--space-section` define those roles in `styles.css`; Stack and Row use the same scale. Pointer

@@ -521,22 +521,32 @@ function Menus() {
   );
 }
 function Dialogs() {
+  const [review, setReview] = useState(false);
+  const [title, setTitle] = useState('Slow mornings');
   const [drawer, setDrawer] = useState(false);
   return (
     <K.Stack gap="lg">
-      <K.Dialog>
-        <K.DialogTrigger render={<K.Button variant="outline">Open dialog</K.Button>} />
-        <K.DialogContent>
-          <K.DialogHeader>
-            <K.DialogTitle>Keep this note?</K.DialogTitle>
-            <K.DialogDescription>You can change your mind later.</K.DialogDescription>
-          </K.DialogHeader>
-          <K.Input aria-label="Dialog note title" defaultValue="Slow mornings" />
-          <K.DialogFooter>
-            <K.DialogClose render={<K.Button>Keep note</K.Button>} />
-          </K.DialogFooter>
-        </K.DialogContent>
-      </K.Dialog>
+      <K.Button variant="outline" onClick={() => setReview(true)}>
+        Open note review
+      </K.Button>
+      <K.Overlay
+        open={review}
+        onClose={() => setReview(false)}
+        title="Keep this note?"
+        description="You can change your mind later."
+      >
+        <K.Input
+          aria-label="Note title"
+          value={title}
+          onChange={(event) => setTitle(event.currentTarget.value)}
+        />
+        <K.DialogFooter>
+          <K.Button variant="outline" onClick={() => setReview(false)}>
+            Cancel
+          </K.Button>
+          <K.Button onClick={() => setReview(false)}>Keep note</K.Button>
+        </K.DialogFooter>
+      </K.Overlay>
       <K.Button variant="outline" onClick={() => setDrawer(true)}>
         Open drawer
       </K.Button>
@@ -589,19 +599,12 @@ function CommandContent() {
 }
 function Search() {
   const [open, setOpen] = useState(false);
-  const [command, setCommand] = useState(false);
   return (
     <K.Stack>
       <K.SearchButton label="Search your vault" keys="⌘ K" onClick={() => setOpen(true)} />
       <K.SearchSurface open={open} onClose={() => setOpen(false)}>
         <CommandContent />
       </K.SearchSurface>
-      <K.Button variant="outline" onClick={() => setCommand(true)}>
-        Open primitive command dialog
-      </K.Button>
-      <K.CommandDialog open={command} onOpenChange={setCommand}>
-        <CommandContent />
-      </K.CommandDialog>
     </K.Stack>
   );
 }
@@ -635,11 +638,6 @@ function Settings() {
           </K.SettingField>
         </K.SettingsSection>
       </K.SettingsMenu>
-      <K.SettingsPage>
-        <K.SettingsSection title="Agent">
-          <Preferences model={model} onChange={setModel} />
-        </K.SettingsSection>
-      </K.SettingsPage>
     </K.Stack>
   );
 }
@@ -1241,14 +1239,7 @@ export const catalogue: Specimen[] = [
     title: 'Settings',
     description:
       'Feature-owned text and choice fields with shared association: desktop dialog and phone drawer.',
-    components: [
-      'SettingsMenu',
-      'SettingsPage',
-      'SettingsSection',
-      'SettingField',
-      'ThemeSwitch',
-      'RadioGroup',
-    ],
+    components: ['SettingsMenu', 'SettingsSection', 'SettingField', 'ThemeSwitch', 'RadioGroup'],
     Sample: Settings,
   },
   {
@@ -1259,7 +1250,6 @@ export const catalogue: Specimen[] = [
       'SearchSurface',
       'SearchButton',
       'Command',
-      'CommandDialog',
       'CommandInput',
       'CommandList',
       'CommandEmpty',
@@ -1549,18 +1539,8 @@ export const catalogue: Specimen[] = [
   {
     id: 'dialogs',
     title: 'Dialog & drawer',
-    description: 'Base overlay primitives, with contained live interactions.',
-    components: [
-      'Dialog',
-      'DialogClose',
-      'DialogContent',
-      'DialogDescription',
-      'DialogFooter',
-      'DialogHeader',
-      'DialogTitle',
-      'DialogTrigger',
-      'Drawer',
-    ],
+    description: 'Adaptive overlays, supplied responsive footer actions and contained drawers.',
+    components: ['DialogFooter', 'Drawer'],
     Sample: Dialogs,
   },
   {

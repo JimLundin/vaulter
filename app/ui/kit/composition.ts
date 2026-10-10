@@ -34,7 +34,6 @@ export const compositions = [
     source: 'settings.tsx',
     families: ['settings'],
     primitives: [
-      'FeaturePage',
       'Field',
       'FieldContent',
       'FieldDescription',
@@ -42,7 +41,6 @@ export const compositions = [
       'FieldTitle',
       'Heading',
       'Drawer',
-      'Stack',
       'Surface',
     ],
   },
