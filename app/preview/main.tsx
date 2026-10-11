@@ -72,6 +72,7 @@ function Preview({ initialHead, nodes }: { initialHead: Head; nodes: NodeStore }
           blocked: null,
           nodes,
           nodeStatus: { kind: 'synced', at: Date.now() },
+          refreshNodes: async () => undefined,
         }}
         model={async () => previewModel}
         preview={{

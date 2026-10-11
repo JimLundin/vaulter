@@ -105,3 +105,21 @@ test('sign out clears the node cache and closes it before forgetting credentials
   });
   expect(order).toEqual(['clear', 'close', 'forget']);
 });
+
+test('visible sessions periodically refresh shared nodes and expose manual refresh', async () => {
+  const nodes = memoryNodeBackend();
+  const refresh = vi.spyOn(nodes, 'refresh');
+  const timers = vi.spyOn(globalThis, 'setInterval');
+  const { session } = await open(nodes);
+  const callback = timers.mock.calls.find(([, interval]) => interval === 30_000)?.[0];
+  expect(callback).toBeTypeOf('function');
+  vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible');
+  await act(async () => {
+    if (typeof callback === 'function') callback();
+  });
+  expect(refresh).toHaveBeenCalledTimes(2);
+  await act(async () => {
+    await session().refreshNodes();
+  });
+  expect(refresh).toHaveBeenCalledTimes(3);
+});

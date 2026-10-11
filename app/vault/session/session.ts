@@ -26,6 +26,7 @@ export interface Session {
   signOut: (() => Promise<void>) | null;
   nodes: NodeStore | null;
   nodeStatus: Status;
+  refreshNodes: () => Promise<void>;
 }
 
 const EVERY = 30_000;
@@ -173,7 +174,9 @@ export function useSession(
     };
     document.addEventListener('visibilitychange', back);
     addEventListener('online', back);
+    const timer = setInterval(back, EVERY);
     return () => {
+      clearInterval(timer);
       document.removeEventListener('visibilitychange', back);
       removeEventListener('online', back);
       nodes.close();
@@ -188,6 +191,7 @@ export function useSession(
     secrets,
     nodes,
     nodeStatus,
+    refreshNodes: () => (nodes ? refreshNodes(nodes) : Promise.resolve()),
     locked:
       sealed && !backend
         ? {

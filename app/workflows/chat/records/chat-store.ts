@@ -97,25 +97,31 @@ const latest = (times: readonly string[]) =>
 
 /**
  * The vault's conversations: its conversation roots, however they were recorded, most recently
- * active first. Exchanges are appended in order, so the last one holds the latest activity.
+ * active first. Activity includes every exchange and message, independently of placement order.
  */
 export async function savedChats(store: NodeStore): Promise<readonly SavedChat[]> {
   const snapshot = await store.snapshot();
   const chats = snapshot.roots().flatMap((version): SavedChat[] => {
     if (version.data?.kind !== 'conversation') return [];
     const data = parseConversation(version.data);
-    const exchange = snapshot
-      .children(version.key.node)
-      .findLast((child) => child.data?.kind === 'exchange');
     const times = [data.createdAt];
-    if (exchange) {
-      times.push(parseExchange(exchange.data).startedAt);
+    for (const exchange of snapshot.children(version.key.node)) {
+      if (exchange.data?.kind !== 'exchange') continue;
+      const exchangeData = parseExchange(exchange.data);
+      times.push(exchangeData.startedAt);
+      if (exchangeData.endedAt) times.push(exchangeData.endedAt);
       for (const child of snapshot.children(exchange.key.node))
         if (child.data?.kind === 'message') times.push(parseMessage(child.data).at);
     }
     return [{ node: version.key.node, data, activeAt: latest(times) }];
   });
-  return frozen(chats.sort((a, b) => Date.parse(b.activeAt) - Date.parse(a.activeAt)));
+  return frozen(
+    chats.sort(
+      (a, b) =>
+        Date.parse(b.activeAt) - Date.parse(a.activeAt) ||
+        (a.node < b.node ? -1 : a.node > b.node ? 1 : 0),
+    ),
+  );
 }
 
 export async function savedMessages(

@@ -89,6 +89,7 @@ export function useVaultSession(openBackend: OpenBackend, openNodes?: OpenNodes)
     signOut: session.signOut,
     nodes: session.nodes,
     nodeStatus: session.nodeStatus,
+    refreshNodes: session.refreshNodes,
     // Only product composition receives these, to configure specific external callers.
     secrets: session.secrets,
     blocked: schema instanceof Error ? schema.message : null,
