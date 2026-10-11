@@ -68,16 +68,18 @@ export function SelectionRow({
   );
 }
 
-/** A persistent supporting column with its own scrolling, alongside the main content. */
+/** Shared supporting frame: header, inset and scroll owner match the phone drawer. */
 export function SupportingColumn({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <aside
-      aria-label={title}
-      className="h-full min-h-0 w-72 shrink-0 overflow-y-auto border-l bg-background p-4"
+    <Drawer
+      open={true}
+      onClose={() => undefined}
+      title={title}
+      placement="reading"
+      dismissible={false}
     >
-      <h2 className="mb-4 text-copy font-semibold">{title}</h2>
       {children}
-    </aside>
+    </Drawer>
   );
 }
 export function SplitView({ main, supporting }: { main: ReactNode; supporting: ReactNode }) {
@@ -100,20 +102,18 @@ export function ResponsiveSupportingColumn({
   title: string;
   open: boolean;
   onClose: () => void;
-  onVisible: (visible: boolean) => void;
+  onVisible?: (visible: boolean) => void;
   children: ReactNode;
 }) {
   const mobile = useLayout() === 'compact';
   const visible = !mobile || open;
   useEffect(() => {
-    onVisible(visible);
+    onVisible?.(visible);
   }, [visible, onVisible]);
-  return mobile ? (
-    <Drawer open={open} onClose={onClose} title={title}>
+  return (
+    <Drawer open={visible} onClose={onClose} title={title} placement="reading" dismissible={mobile}>
       {children}
     </Drawer>
-  ) : (
-    <SupportingColumn title={title}>{children}</SupportingColumn>
   );
 }
 

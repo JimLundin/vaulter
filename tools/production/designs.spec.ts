@@ -11,11 +11,36 @@ test('production opens real Wiki pages and exact evidence alongside persistent C
   page,
 }) => {
   const nodes = memoryNodeBackend();
+  const sourceText =
+    'Earlier plans. '.repeat(40) +
+    'I want quiet mornings in the studio.' +
+    ' Later details.'.repeat(40);
+  const passageStart = sourceText.indexOf('I want');
   const input = request('wiki-fixture', [
     create('user', { kind: 'actor', name: 'Fictional owner' }),
     create('studio', { kind: 'page', title: 'Garden studio', summary: 'Space for making things.' }),
     create('paragraph', { kind: 'paragraph' }, 'studio'),
-    create('sentence', { kind: 'run', text: 'Keep the mornings free.' }, 'paragraph'),
+    {
+      ...create('sentence', { kind: 'run', text: 'Keep the ' }, 'paragraph'),
+      placement: { parent: 'paragraph', order: 'a' },
+    },
+    {
+      ...create('sentence-bold', { kind: 'run', text: 'mornings', marks: ['strong'] }, 'paragraph'),
+      placement: { parent: 'paragraph', order: 'b' },
+    },
+    {
+      ...create(
+        'sentence-end',
+        { kind: 'run', text: ' free. Afternoons are flexible.' },
+        'paragraph',
+      ),
+      placement: { parent: 'paragraph', order: 'c' },
+    },
+    create('tag', { kind: 'term', scheme: 'tag', key: 'creative', label: 'Creative work' }),
+    {
+      ...create('tag-link', { kind: 'relationship', predicate: 'tag' }, 'studio'),
+      connection: { source: { node: 'studio' }, target: { node: 'tag' } },
+    },
     create('source-paragraph', { kind: 'paragraph' }, 'studio'),
     create('chat', {
       kind: 'conversation',
@@ -29,14 +54,34 @@ test('production opens real Wiki pages and exact evidence alongside persistent C
         kind: 'message',
         role: 'user',
         at: '2026-10-11T09:00:00Z',
-        text: 'I want quiet mornings in the studio.',
+        text: sourceText,
       },
       'exchange',
     ),
     {
-      ...create('citation', { kind: 'cite' }, 'paragraph'),
+      ...create(
+        'citation',
+        {
+          kind: 'cite',
+          unit: 'utf16',
+          claim: { sequence: 1, start: 0, end: 23 },
+          passage: {
+            sequence: 1,
+            start: passageStart,
+            end: passageStart + 'I want quiet mornings in the studio.'.length,
+          },
+        },
+        'paragraph',
+      ),
       connection: {
-        source: { node: 'paragraph' },
+        source: { node: 'paragraph', transaction: 'wiki-fixture' },
+        target: { node: 'source', transaction: 'wiki-fixture' },
+      },
+    },
+    {
+      ...create('page-source', { kind: 'cite', scope: 'page', sequence: 1 }, 'studio'),
+      connection: {
+        source: { node: 'studio', transaction: 'wiki-fixture' },
         target: { node: 'source', transaction: 'wiki-fixture' },
       },
     },
@@ -76,32 +121,75 @@ test('production opens real Wiki pages and exact evidence alongside persistent C
   if (test.info().project.name === 'phone')
     await page.getByRole('button', { name: 'Menu', exact: true }).click();
   await page.getByRole('link', { name: 'Wiki', exact: true }).click();
-  await expect(
-    page.getByRole('link', { name: 'Wiki', exact: true, includeHidden: true }),
-  ).toHaveAttribute('aria-current', 'page');
+  await expect(page).toHaveURL(/#\/wiki\/$/);
   await page.getByRole('link', { name: 'Garden studio', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Garden studio', exact: true })).toBeVisible();
-  await expect(page.getByText('Keep the mornings free.', { exact: true })).toBeVisible();
+  const claim = page.getByRole('button', {
+    name: 'Evidence for Keep the mornings free.',
+    exact: true,
+  });
+  await expect(claim).toHaveCount(1);
+  await expect(claim.locator('strong')).toHaveText('mornings');
+  await expect(page.getByRole('button', { name: /Afternoons/ })).toHaveCount(0);
   await page.getByRole('button', { name: /evidence for keep the mornings free/i }).click();
   const evidence = page.getByRole(
     test.info().project.name === 'phone' ? 'dialog' : 'complementary',
-    { name: 'Why the page says this' },
+    { name: 'References' },
   );
   await expect(evidence).toBeVisible();
+  await expect(evidence.locator('mark')).toHaveText('I want quiet mornings in the studio.');
+  const contextToggle = evidence.getByRole('button', { name: 'Context from Studio plans' });
+  await contextToggle.click();
+  await expect(contextToggle).toHaveAttribute('aria-expanded', 'true');
+  await expect(evidence.getByLabel('Source context')).toContainText(
+    'Earlier plans. Earlier plans.',
+  );
+  await contextToggle.focus();
+  await contextToggle.press('Enter');
+  await expect(contextToggle).toHaveAttribute('aria-expanded', 'false');
+  if (test.info().project.name === 'desktop') {
+    const bounds = await page.evaluate(() => {
+      const toolbar = document.querySelector('.kit-wiki-toolbar')!.getBoundingClientRect();
+      const references = document
+        .querySelector('[aria-label="References"] [data-slot="drawer-header"]')!
+        .getBoundingClientRect();
+      return {
+        toolbar: { top: toolbar.top, height: toolbar.height },
+        references: { top: references.top, height: references.height },
+      };
+    });
+    expect(bounds.toolbar.height).toBe(48);
+    expect(bounds.references.height).toBe(48);
+    expect(bounds.references.top).toBe(bounds.toolbar.top);
+  }
+  await page.screenshot({ path: `/tmp/wiki-production-${test.info().project.name}.png` });
   await expect(
     evidence.getByText('I want quiet mornings in the studio.', { exact: false }),
   ).toBeVisible();
-  await expect(evidence.getByRole('link', { name: 'Open source' })).toHaveAttribute(
+  await expect(evidence.getByRole('link', { name: 'Studio plans' })).toHaveAttribute(
     'href',
     '#/chat/chat/',
   );
-  await evidence.getByRole('button', { name: /close why/i }).click();
-  await expect(page.getByRole('button', { name: /evidence for keep/i })).toBeFocused();
-  await page.getByRole('button', { name: 'Source for Planning conversation' }).click();
-  await expect(evidence).toContainText('I want quiet mornings in the studio.');
-  await evidence.getByRole('button', { name: /close why/i }).click();
+  if (test.info().project.name === 'phone') {
+    await evidence.getByRole('button', { name: 'Close references' }).click();
+    await expect(page.getByRole('button', { name: /evidence for keep/i })).toBeFocused();
+  }
+  await page
+    .getByRole('heading', { name: 'Garden studio', exact: true })
+    .getByRole('button')
+    .click();
+  await expect(evidence.getByRole('link', { name: 'Studio plans' })).toHaveCount(2);
+  await expect(evidence.locator('mark')).toHaveCount(0);
+  if (test.info().project.name === 'phone')
+    await evidence.getByRole('button', { name: 'Close references' }).click();
+  await page.getByRole('button', { name: 'Tag: Creative work', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Pages tagged Creative work' })).toBeVisible();
+  await page.getByRole('link', { name: 'Garden studio', exact: true }).click();
+  await page.getByRole('button', { name: 'Wiki', exact: true }).click();
+  await expect(page).toHaveURL(/#\/wiki\/$/);
+  await page.getByRole('link', { name: 'Garden studio', exact: true }).click();
   await page.getByRole('button', { name: /evidence for keep/i }).click();
-  await evidence.getByRole('link', { name: 'Open source' }).click();
+  await evidence.getByRole('link', { name: 'Studio plans' }).click();
   await expect(page.locator('[data-message="user"]')).toContainText(
     'I want quiet mornings in the studio.',
   );

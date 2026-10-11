@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import type { WikiBlock } from '../pages.ts';
+import type { WikiBlock, WikiReference } from '../pages.ts';
 import { isSafeUrl } from '../../../vault/documents/notes/safe-url.ts';
 import { Bars, Sparkline } from '../../../ui/kit/index.ts';
 import { wikiSchemas } from '../../../vault/records/wiki.ts';
@@ -12,19 +12,137 @@ export const blockText = (block: WikiBlock): string =>
         .map(blockText)
         .join('');
 
+function marked(text: string, marks: unknown): ReactNode {
+  let content: ReactNode = text;
+  for (const mark of Array.isArray(marks) ? marks : []) {
+    if (mark === 'strong') content = <strong>{content}</strong>;
+    else if (mark === 'emphasis') content = <em>{content}</em>;
+    else if (mark === 'code') content = <code>{content}</code>;
+    else if (mark === 'strike') content = <s>{content}</s>;
+  }
+  return content;
+}
+
+/** Group adjacent formatted fragments into one cited statement, using the retained UTF-16 ranges.
+ * Ordinary links keep their navigation; no citation button contains another interactive control. */
+function InlineContent({
+  block,
+  onEvidence,
+  selected,
+}: {
+  block: WikiBlock;
+  onEvidence: (block: WikiBlock) => void;
+  selected?: string;
+}) {
+  const leaves = typeof block.data.text === 'string' ? [block] : block.children;
+  const groups: {
+    key: string;
+    position: string;
+    text: string;
+    content: ReactNode[];
+    references: WikiReference[];
+    owner: WikiBlock;
+  }[] = [];
+  let offset = 0;
+  for (const leaf of leaves) {
+    if (!['run', 'link', 'paragraph', 'code'].includes(String(leaf.data.kind))) continue;
+    const text = typeof leaf.data.text === 'string' ? leaf.data.text : '';
+    const owner = leaf.evidence.length ? leaf : block;
+    const references = owner.evidence;
+    const base = owner === block ? offset : 0;
+    const boundaries = [
+      ...new Set([
+        0,
+        text.length,
+        ...references.flatMap(({ claim }) =>
+          claim
+            ? [
+                Math.max(0, Math.min(text.length, claim.start - base)),
+                Math.max(0, Math.min(text.length, claim.end - base)),
+              ]
+            : [],
+        ),
+      ]),
+    ].sort((a, b) => a - b);
+    for (let i = 1; i < boundaries.length; i++) {
+      const start = boundaries[i - 1]!;
+      const end = boundaries[i]!;
+      const matching = references.filter(
+        ({ claim }) => !claim || (claim.start < base + end && claim.end > base + start),
+      );
+      const navigates =
+        leaf.data.kind === 'link' && !!leaf.href && isSafeUrl(leaf.href) && !leaf.evidence.length;
+      const key = navigates
+        ? `link:${leaf.id}`
+        : `${owner.id}:${matching.map((reference) => reference.id).join(',')}`;
+      const fragment = text.slice(start, end);
+      const content = navigates ? (
+        <a key={`${leaf.id}:${start}`} className="cursor-pointer" href={leaf.href}>
+          {marked(fragment, leaf.data.marks)}
+        </a>
+      ) : (
+        <span key={`${leaf.id}:${start}`}>{marked(fragment, leaf.data.marks)}</span>
+      );
+      const previous = groups.at(-1);
+      if (previous?.key === key) {
+        previous.text += fragment;
+        previous.content.push(content);
+      } else
+        groups.push({
+          position: `${leaf.id}:${start}`,
+          key,
+          text: fragment,
+          content: [content],
+          references: navigates ? [] : matching,
+          owner,
+        });
+    }
+    offset += text.length;
+  }
+  return groups.map((group) =>
+    group.references.length ? (
+      <button
+        key={group.position}
+        type="button"
+        aria-label={`${group.owner.data.kind === 'link' ? 'Source' : 'Evidence'} for ${group.text}`}
+        aria-pressed={selected === group.key}
+        onClick={() => onEvidence({ ...group.owner, id: group.key, evidence: group.references })}
+        className={
+          selected === group.key
+            ? 'wiki-cited-text cursor-pointer text-left underline decoration-people decoration-2 underline-offset-4 bg-people-soft rounded-sm'
+            : 'wiki-cited-text cursor-pointer text-left underline decoration-border decoration-dotted decoration-2 underline-offset-4 hover:decoration-people focus-visible:outline-2 focus-visible:outline-ring'
+        }
+      >
+        {group.content}
+      </button>
+    ) : (
+      <span key={group.position}>{group.content}</span>
+    ),
+  );
+}
+
 export function WikiBlocks({
   blocks,
   onEvidence,
   selected,
   depth = 2,
+  inheritedEvidence,
 }: {
   blocks: WikiBlock[];
   onEvidence: (block: WikiBlock) => void;
   selected?: string;
   depth?: number;
+  inheritedEvidence?: WikiBlock;
 }) {
   return blocks.map((block) => (
-    <Block key={block.id} block={block} onEvidence={onEvidence} selected={selected} depth={depth} />
+    <Block
+      key={block.id}
+      block={block}
+      onEvidence={onEvidence}
+      selected={selected}
+      depth={depth}
+      inheritedEvidence={inheritedEvidence}
+    />
   ));
 }
 function Block({
@@ -32,30 +150,43 @@ function Block({
   onEvidence,
   selected,
   depth,
+  inheritedEvidence,
 }: {
   block: WikiBlock;
   onEvidence: (block: WikiBlock) => void;
   selected?: string;
   depth: number;
+  inheritedEvidence?: WikiBlock;
 }): ReactNode {
   const { data, children } = block;
-  const inner = (
-    <WikiBlocks blocks={children} onEvidence={onEvidence} selected={selected} depth={depth} />
+  const citation = block.evidence.length ? block : inheritedEvidence;
+  const inner = ['paragraph', 'heading', 'cell', 'item'].includes(String(data.kind)) ? (
+    <>
+      <InlineContent block={block} onEvidence={onEvidence} selected={selected} />
+      <WikiBlocks
+        blocks={children.filter(
+          (child) => !['run', 'link', 'cite'].includes(String(child.data.kind)),
+        )}
+        onEvidence={onEvidence}
+        selected={selected}
+        depth={depth}
+      />
+    </>
+  ) : (
+    <WikiBlocks
+      blocks={children}
+      onEvidence={onEvidence}
+      selected={selected}
+      depth={depth}
+      inheritedEvidence={citation}
+    />
   );
   const text = typeof data.text === 'string' ? data.text : undefined;
   switch (data.kind) {
     case 'cite':
       return null;
-    case 'run': {
-      let content: ReactNode = text;
-      for (const mark of Array.isArray(data.marks) ? data.marks : []) {
-        if (mark === 'strong') content = <strong>{content}</strong>;
-        else if (mark === 'emphasis') content = <em>{content}</em>;
-        else if (mark === 'code') content = <code>{content}</code>;
-        else if (mark === 'strike') content = <s>{content}</s>;
-      }
-      return content;
-    }
+    case 'run':
+      return <InlineContent block={block} onEvidence={onEvidence} selected={selected} />;
     case 'link':
       return block.evidence.length ? (
         <button
@@ -63,12 +194,14 @@ function Block({
           aria-label={`Source for ${text}`}
           aria-pressed={selected === block.id}
           onClick={() => onEvidence(block)}
-          className="text-link underline decoration-dotted underline-offset-4 focus-visible:outline-2 focus-visible:outline-ring"
+          className="wiki-cited-text cursor-pointer text-link underline decoration-dotted underline-offset-4 focus-visible:outline-2 focus-visible:outline-ring"
         >
           {text}
         </button>
       ) : block.href && isSafeUrl(block.href) ? (
-        <a href={block.href}>{text}</a>
+        <a className="cursor-pointer" href={block.href}>
+          {text}
+        </a>
       ) : (
         text
       );
@@ -90,23 +223,7 @@ function Block({
     case 'paragraph':
       return (
         <p id={block.id} className="m-0 whitespace-pre-wrap font-serif text-lead">
-          {block.evidence.length ? (
-            <button
-              type="button"
-              aria-label={`Evidence for ${blockText(block)}`}
-              aria-pressed={selected === block.id}
-              onClick={() => onEvidence(block)}
-              className={
-                selected === block.id
-                  ? 'text-left underline decoration-people decoration-2 underline-offset-4 bg-people-soft rounded-sm'
-                  : 'text-left underline decoration-border decoration-dotted decoration-2 underline-offset-4 hover:decoration-people focus-visible:outline-2 focus-visible:outline-ring'
-              }
-            >
-              {blockText(block)}
-            </button>
-          ) : (
-            (text ?? inner)
-          )}
+          {inner}
         </p>
       );
     case 'list':
@@ -143,7 +260,9 @@ function Block({
     case 'code':
       return (
         <pre className="overflow-x-auto rounded border bg-muted p-3">
-          <code>{text}</code>
+          <code>
+            <InlineContent block={block} onEvidence={onEvidence} selected={selected} />
+          </code>
         </pre>
       );
     case 'rule':
@@ -181,7 +300,9 @@ function Block({
         <p className="text-label text-muted-foreground">
           {String(data.predicate)}:{' '}
           {block.href && isSafeUrl(block.href) ? (
-            <a href={block.href}>{String(data.label ?? 'Related page')}</a>
+            <a className="cursor-pointer" href={block.href}>
+              {String(data.label ?? 'Related page')}
+            </a>
           ) : (
             String(data.label ?? '')
           )}
@@ -236,28 +357,4 @@ function Block({
         </>
       );
   }
-}
-
-export function WikiEvidence({ block }: { block: WikiBlock }) {
-  return (
-    <>
-      <p className="m-0 font-serif text-copy">{blockText(block)}</p>
-      {block.evidence.map((source) => (
-        <section key={source.id} className="flex flex-col gap-2 rounded-lg border bg-card p-3">
-          <p className="m-0 text-label text-muted-foreground">
-            {source.author}
-            {source.date ? ` · ${new Date(source.date).toLocaleString()}` : ''}
-          </p>
-          <blockquote className="m-0 whitespace-pre-wrap font-serif text-copy">
-            {source.text}
-          </blockquote>
-          {source.href && isSafeUrl(source.href) && (
-            <a className="text-link text-label" href={source.href}>
-              Open source
-            </a>
-          )}
-        </section>
-      ))}
-    </>
-  );
 }

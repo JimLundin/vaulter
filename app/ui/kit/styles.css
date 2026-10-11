@@ -1,6 +1,7 @@
 /* The kit's one stylesheet: Tailwind over the kit (kit/) only, never over extensions, which compose
  * the kit and can't style anything themselves. The values are the design's (design/README.md). */
 @import "tailwindcss" source(none);
+@import "./wiki.css";
 @source "./";
 
 @custom-variant dark (&:is(.dark *));
@@ -58,20 +59,6 @@ body,
   --type-input: 1rem;
   --control-size: var(--target-touch);
 }
-/* The selected wiki evidence stays beside its prose from expanded width onward.
-   Its same Drawer Popup/content moves to the shared full-height compact surface. */
-.kit-drawer.kit-evidence-panel[data-layout="wide"] {
-  position: sticky;
-  top: 1rem;
-  align-self: flex-start;
-  width: 340px;
-  height: auto;
-  max-height: calc(var(--viewport-height, 100dvh) - 2rem);
-  padding: 0;
-  border: 0;
-  background: transparent;
-}
-
 @media (any-pointer: coarse) {
   .design-viewport .kit-presentation {
     --type-input: 1rem;
@@ -269,6 +256,8 @@ body:has(.kit-design-window) {
   --page-inset: 1rem;
   --page-block: 1rem;
   --reading-width: 48rem;
+  --drawer-width: 340px;
+  --supporting-header-height: 48px;
 }
 
 @media (any-pointer: coarse) {
@@ -327,7 +316,7 @@ body:has(.kit-design-window) {
   height: calc(var(--viewport-height, 100dvh) * 0.8);
   max-height: calc(var(--viewport-height, 100dvh) * 0.9);
   width: min(32rem, calc(100% - 2rem));
-  padding: 1.25rem;
+  padding: 0;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--shadow-lg);
@@ -344,10 +333,10 @@ body:has(.kit-design-window) {
   inset: auto;
   height: var(--viewport-height, 100dvh);
   max-height: none;
-  width: 26rem;
+  width: var(--drawer-width);
   flex-shrink: 0;
   gap: 0.75rem;
-  padding: 1.25rem;
+  padding: 0;
   border: 0;
   border-left: 1px solid var(--border);
   border-radius: 0;
@@ -811,21 +800,57 @@ body:has(.kit-design-window) {
   );
 }
 
-.kit-drawer[data-side-panel][data-layout="wide"] {
+/* One frame and inset for every drawer; placement owns only the outer geometry. */
+.kit-drawer [data-slot="drawer-inset"] {
+  padding: 0 1rem 1rem;
+}
+.kit-drawer-rail {
+  width: var(--drawer-width);
+  flex-shrink: 0;
+}
+.kit-drawer[data-drawer-placement="right"][data-layout="wide"] {
   position: fixed;
   inset: 0 0 0 auto;
-  width: min(24rem, 40vw);
-  height: 100dvh;
-  max-height: 100dvh;
+  height: var(--viewport-height, 100dvh);
+  max-height: var(--viewport-height, 100dvh);
+  box-shadow: var(--shadow-lg);
+}
+.kit-drawer[data-drawer-placement="right"][data-layout="wide"]:is(
+  [data-starting-style],
+  [data-ending-style]
+) {
+  transform: translateX(100%);
+}
+
+/* Persistent reading support shares its app-height frame with Chat and Wiki. */
+.kit-supporting-drawer-anchor:has([data-drawer-placement="reading"][data-layout="wide"]) {
+  display: block;
+  width: var(--drawer-width);
+  height: 100%;
+  min-height: 0;
+  flex-shrink: 0;
+}
+.kit-supporting-drawer-anchor
+  .kit-drawer-viewport:has(> [data-drawer-placement="reading"][data-layout="wide"]) {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+.kit-drawer[data-arrangement="panel"][data-drawer-placement="reading"][data-layout="wide"] {
+  position: relative;
+  top: auto;
+  align-self: stretch;
+  height: 100%;
+  max-height: 100%;
   border: 0;
   border-left: 1px solid var(--border);
   border-radius: 0;
-  padding: 0.75rem;
-  box-shadow: var(--shadow-lg);
 }
-.kit-drawer[data-side-panel][data-layout="wide"] > .kit-drawer-handle {
-  display: none;
+.kit-drawer[data-drawer-placement="reading"][data-layout="wide"] [data-slot="drawer-header"] {
+  height: var(--supporting-header-height);
+  padding-block: 0;
 }
-.kit-drawer[data-side-panel][data-layout="wide"]:is([data-starting-style], [data-ending-style]) {
-  transform: translateX(100%);
+.kit-drawer[data-drawer-placement="reading"][data-layout="wide"] [data-slot="drawer-inset"] {
+  padding-top: 1rem;
 }

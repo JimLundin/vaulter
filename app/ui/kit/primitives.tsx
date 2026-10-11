@@ -6,7 +6,7 @@ import { ScrollArea } from './parts/scroll-area.tsx';
 import type { Unstyled } from './lib/unstyled.tsx';
 import { cn } from './lib/utils.ts';
 import { useLayout } from './hooks/use-layout.ts';
-import { SupportingDrawer } from './drawer.tsx';
+import { Drawer } from './drawer.tsx';
 import { useFieldSemanticDiagnostic } from './field-association.ts';
 
 const surfaces = {
@@ -129,8 +129,13 @@ export function AutoScrollArea({ empty, children }: { empty?: boolean; children:
 }
 
 /** Same content tree: supporting panel, centred dialog, or full-height compact drawer. */
-export function AdaptivePanel(props: Parameters<typeof SupportingDrawer>[0]) {
-  return <SupportingDrawer {...props} />;
+export function AdaptivePanel(props: {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  children?: ReactNode;
+}) {
+  return <Drawer {...props} placement="supporting" scroll={false} />;
 }
 
 /** One horizontal row; fade only the edges with more options outside the viewport. */

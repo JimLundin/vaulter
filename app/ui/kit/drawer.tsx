@@ -1,5 +1,5 @@
-// One drawer for navigation, settings and supporting panels. Contents survive presentation changes.
-import { type ReactNode, useId, useRef } from 'react';
+// One drawer frame owns headers, dismissal, focus, scrolling and responsive presentation.
+import { type ReactNode, useEffect, useId, useRef } from 'react';
 import { Button } from './parts/button.tsx';
 import {
   DrawerRoot,
@@ -22,38 +22,87 @@ export function Drawer({
   header,
   children,
   placement = 'default',
+  scroll = true,
+  dismissible = true,
 }: {
   open: boolean;
   onClose: () => void;
   title: string;
   description?: string;
   header?: ReactNode;
-  children: ReactNode;
-  placement?: 'default' | 'right';
+  children?: ReactNode;
+  /** Placement changes geometry only; every role uses the same frame and controls. */
+  placement?: 'default' | 'right' | 'reading' | 'supporting';
+  /** Content with its own feed and dock retains control of scrolling. */
+  scroll?: boolean;
+  /** A persistent supporting panel keeps its frame open and omits dismissal controls. */
+  dismissible?: boolean;
 }) {
-  const compact = useLayout() === 'compact';
+  const layout = useLayout();
+  const compact = layout === 'compact';
+  const supporting = placement === 'supporting';
+  const beside = placement !== 'default' && (supporting ? layout === 'wide' : !compact);
+  const inline = supporting || placement === 'reading';
   const restoreFocus = usePresentationFocus(open);
+  const policy = usePresentationPolicy();
+  const opener = useRef<HTMLElement | null>(null);
   const descriptionId = useId();
   const ref = useRef<HTMLDivElement>(null);
+  // A different cited passage can become the opener while the same drawer stays open.
+  useEffect(() => {
+    const remember = (event?: Event) => {
+      const active =
+        event?.type === 'pointerdown' && event.target instanceof Element
+          ? event.target.closest<HTMLElement>('button, a, input, textarea, [tabindex]')
+          : document.activeElement;
+      if (
+        active instanceof HTMLElement &&
+        active !== document.body &&
+        policy.owns(active) &&
+        !ref.current?.contains(active)
+      )
+        opener.current = active;
+    };
+    if (open) remember();
+    document.addEventListener('pointerdown', remember, true);
+    document.addEventListener('focusin', remember);
+    return () => {
+      document.removeEventListener('pointerdown', remember, true);
+      document.removeEventListener('focusin', remember);
+    };
+  }, [open, policy]);
   return (
     <DrawerRoot
-      modal={placement === 'right' ? compact : true}
-      disablePointerDismissal={placement === 'right' && !compact}
+      modal={!beside}
+      disablePointerDismissal={beside}
       open={open}
       onOpenChange={(next) => {
-        if (!next) onClose();
+        if (!next && dismissible) onClose();
       }}
     >
       <DrawerContent
         ref={ref}
+        inline={inline}
+        arrangement={placement === 'default' ? 'menu' : 'panel'}
         compact={compact}
-        data-side-panel={placement === 'right' ? true : undefined}
-        data-layout={placement === 'right' ? (compact ? 'compact' : 'wide') : undefined}
-        role={placement === 'right' && !compact ? 'complementary' : 'dialog'}
+        data-drawer-placement={placement}
+        data-layout={placement === 'default' ? undefined : beside ? 'wide' : layout}
+        role={beside ? 'complementary' : 'dialog'}
         aria-label={title}
         aria-describedby={description ? descriptionId : undefined}
-        finalFocus={restoreFocus}
-        initialFocus={() => ref.current?.querySelector<HTMLButtonElement>('button') ?? ref.current}
+        finalFocus={() => {
+          const target = opener.current;
+          return target?.isConnected &&
+            target.getClientRects().length &&
+            !target.matches(':disabled')
+            ? target
+            : restoreFocus();
+        }}
+        initialFocus={
+          beside && !supporting
+            ? false
+            : () => ref.current?.querySelector<HTMLButtonElement>('button') ?? ref.current
+        }
       >
         <DrawerHeader>
           <Stack gap="xs">
@@ -63,60 +112,25 @@ export function Drawer({
               <DrawerDescription id={descriptionId}>{description}</DrawerDescription>
             )}
           </Stack>
-          <Button
-            variant="ghost"
-            size="standard"
-            iconOnly={true}
-            aria-label={`Close ${title.toLowerCase()}`}
-            onClick={onClose}
-          >
-            <Icon name="close" size="lg" />
-          </Button>
+          {!!dismissible && (
+            <Button
+              variant="ghost"
+              size="standard"
+              iconOnly={true}
+              aria-label={`Close ${title.toLowerCase()}`}
+              onClick={onClose}
+            >
+              <Icon name="close" size="lg" />
+            </Button>
+          )}
         </DrawerHeader>
-        <ScrollArea grow={true}>{children}</ScrollArea>
-      </DrawerContent>
-    </DrawerRoot>
-  );
-}
-
-// Private composition: the same Drawer Popup becomes an in-flow panel or centred dialog.
-export function SupportingDrawer({
-  open,
-  onClose,
-  title,
-  children,
-}: {
-  open: boolean;
-  onClose: () => void;
-  title: string;
-  children?: ReactNode;
-}) {
-  const layout = useLayout();
-  const policy = usePresentationPolicy();
-  const wide = layout === 'wide';
-  const restoreFocus = usePresentationFocus(open);
-  return (
-    <DrawerRoot
-      open={open}
-      modal={!wide}
-      disablePointerDismissal={wide}
-      onOpenChange={(next) => {
-        if (!next) onClose();
-      }}
-    >
-      <DrawerContent
-        inline={true}
-        arrangement="panel"
-        compact={layout === 'compact'}
-        data-layout={layout}
-        role={wide ? 'complementary' : 'dialog'}
-        aria-modal={policy.modal && !wide ? true : undefined}
-        aria-label={title}
-        aria-describedby={undefined}
-        finalFocus={restoreFocus}
-        initialFocus={true}
-      >
-        {children}
+        {scroll ? (
+          <ScrollArea grow={true}>
+            <div data-slot="drawer-inset">{children}</div>
+          </ScrollArea>
+        ) : (
+          children
+        )}
       </DrawerContent>
     </DrawerRoot>
   );

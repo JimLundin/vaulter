@@ -96,7 +96,7 @@ Artifacts:
 - Newly prepared underlying-source packets for unsupported blocks: the corrected directory's `next-pass`.
 - Corrected verified output: `/tmp/wiki-content-underlying-sources-20261011`.
 
-Implementation remains on `feat/wiki-migration-rich-structure` in
-`/tmp/vaulter-wiki-migration-logic`, separate from the Wiki styling spike. The next pass reviews
+Migration modules are saved in commit `6f2d314`; the selected Wiki UI consumes their production
+read projection. The next pass reviews
 retrieved underlying sources and captures missing source material. Wiki-to-Wiki links remain useful
-for finding those sources, without becoming evidence. No merge or live-vault publication occurred.
+for finding those sources, without becoming evidence. The prepared enrichment has not been applied to the live vault.
