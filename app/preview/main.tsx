@@ -123,9 +123,9 @@ function Preview({ initialHead, nodes }: { initialHead: Head; nodes: NodeStore }
         parameter: 'conversations',
         defaultValue: 'rule',
         options: [
-          { value: 'rule', label: 'Tight · strong rule' },
-          { value: 'band', label: 'Tight · shaded header' },
-          { value: 'editorial', label: 'Tight · editorial header' },
+          { value: 'rule', label: 'Tight · aligned rows' },
+          { value: 'dots', label: 'Tight · timeline dots' },
+          { value: 'rail', label: 'Tight · timeline rail' },
         ],
       }}
       kitHref={import.meta.env.DEV ? '/ui/kit/' : './kit/'}

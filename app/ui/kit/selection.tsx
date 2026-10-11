@@ -11,12 +11,18 @@ export function SelectionRow({
   onSelect,
   children,
   compact = false,
+  label,
+  timestamp,
+  marker = 'none',
 }: {
   selected: boolean;
   disabled?: boolean;
   onSelect: () => void;
   children: ReactNode;
   compact?: boolean;
+  label?: string;
+  timestamp?: string;
+  marker?: 'none' | 'dot' | 'rail';
 }) {
   return (
     <Button
@@ -27,9 +33,40 @@ export function SelectionRow({
       className={cn(
         'h-auto min-h-11 w-full justify-start whitespace-normal py-3 text-left',
         compact && 'min-h-9 py-2',
+        label && 'h-9 min-h-9 overflow-hidden',
       )}
     >
-      {children}
+      {label ? (
+        <span className="flex min-w-0 flex-1 items-center gap-3">
+          {marker !== 'none' && (
+            <span
+              aria-hidden={true}
+              className={cn(
+                'relative flex h-5 w-2 shrink-0 items-center justify-center',
+                marker === 'rail' &&
+                  'before:absolute before:inset-y-[-12px] before:left-1/2 before:w-px before:bg-border',
+              )}
+            >
+              <span
+                className={cn(
+                  'relative size-1.5 rounded-full',
+                  selected ? 'bg-foreground' : 'bg-muted-foreground/50',
+                )}
+              />
+            </span>
+          )}
+          <span title={label} className="min-w-0 flex-1 truncate font-medium">
+            {label}
+          </span>
+          {!!timestamp && (
+            <span className="shrink-0 text-xs font-normal tabular-nums text-muted-foreground">
+              {timestamp}
+            </span>
+          )}
+        </span>
+      ) : (
+        children
+      )}
     </Button>
   );
 }
@@ -83,24 +120,9 @@ export function ResponsiveSupportingColumn({
   );
 }
 
-export function SelectionGroupHeading({
-  children,
-  treatment = 'rule',
-}: {
-  children: ReactNode;
-  treatment?: 'rule' | 'band' | 'editorial';
-}) {
+export function SelectionGroupHeading({ children }: { children: ReactNode }) {
   return (
-    <h3
-      className={cn(
-        'mt-3 mb-0 px-3 text-xs font-semibold',
-        treatment === 'rule'
-          ? 'border-b-2 border-foreground/25 pb-1 text-foreground'
-          : treatment === 'band'
-            ? 'rounded-sm bg-muted py-1.5 text-foreground'
-            : 'border-l-2 border-foreground/50 py-1 pl-3 text-sm tracking-tight text-foreground',
-      )}
-    >
+    <h3 className="mt-3 mb-0 border-b border-border/60 px-3 pb-1 text-xs font-semibold tracking-wide text-muted-foreground">
       {children}
     </h3>
   );

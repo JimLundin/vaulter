@@ -23,10 +23,10 @@ export function ConversationList({
   open: boolean;
   onClose: () => void;
   disabled?: boolean;
-  variant?: 'rule' | 'band' | 'editorial';
+  variant?: 'rule' | 'dots' | 'rail';
 }) {
   const override = usePreviewVariant('chat.conversation-list');
-  const variant = override === 'band' || override === 'editorial' ? override : suppliedVariant;
+  const variant = override === 'dots' || override === 'rail' ? override : suppliedVariant;
   const [visible, setVisible] = useState(false);
   const state = useNodeChat(conversation);
   const [chats, setChats] = useState<readonly SavedChat[] | null>(null);
@@ -152,28 +152,27 @@ export function ConversationItem({
   selected: boolean;
   disabled: boolean;
   onOpen: () => Promise<void>;
-  variant?: 'rule' | 'band' | 'editorial';
+  variant?: 'rule' | 'dots' | 'rail';
   group?: string;
 }) {
   return (
     <Stack gap="xs">
-      {!!group && <SelectionGroupHeading treatment={variant}>{group}</SelectionGroupHeading>}
+      {!!group && <SelectionGroupHeading>{group}</SelectionGroupHeading>}
       <SelectionRow
         selected={selected}
         compact={true}
         disabled={disabled}
+        label={title}
+        timestamp={new Date(activeAt).toLocaleTimeString('en-GB', {
+          hour: '2-digit',
+          minute: '2-digit',
+        })}
+        marker={variant === 'dots' ? 'dot' : variant === 'rail' ? 'rail' : 'none'}
         onSelect={() => {
           void onOpen();
         }}
       >
-        <Stack gap="none" grow={true}>
-          <Text as="span" weight="medium">
-            {title}
-          </Text>
-          <Text as="span" size="xs" tone="subtle">
-            {new Date(activeAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
-          </Text>
-        </Stack>
+        {null}
       </SelectionRow>
     </Stack>
   );
