@@ -1179,25 +1179,33 @@ function PreviewSummary({ title }: { title: string }) {
 }
 function Preview() {
   return (
-    <K.DesignPreview label="Design preview · sample data" kitHref="#navigation" onReset={noop}>
-      <K.NavigationSuite
-        status="Synced"
-        search={{ label: 'Search', onSelect: noop }}
-        destinations={[{ label: 'Agent', href: '#agent', icon: 'sparkles', current: true }]}
-        actions={[{ label: 'Settings', icon: 'settings', onSelect: noop }]}
-      >
-        <K.DesignComparison
-          alternatives={[
-            { id: 'note', label: 'Note summary', content: <PreviewSummary title="Note summary" /> },
-            {
-              id: 'question',
-              label: 'Question summary',
-              content: <PreviewSummary title="Question summary" />,
-            },
-          ]}
-        />
-      </K.NavigationSuite>
-    </K.DesignPreview>
+    <K.DesignComparison
+      alternatives={[
+        { id: 'note', label: 'Note summary', content: <PreviewSummary title="Note summary" /> },
+        {
+          id: 'question',
+          label: 'Question summary',
+          content: <PreviewSummary title="Question summary" />,
+        },
+      ]}
+      preview={(controls, content) => (
+        <K.DesignPreview
+          label="Design preview · sample data"
+          kitHref="#navigation"
+          onReset={noop}
+          variantControls={controls}
+        >
+          <K.NavigationSuite
+            status="Synced"
+            search={{ label: 'Search', onSelect: noop }}
+            destinations={[{ label: 'Agent', href: '#agent', icon: 'sparkles', current: true }]}
+            actions={[{ label: 'Settings', icon: 'settings', onSelect: noop }]}
+          >
+            {content}
+          </K.NavigationSuite>
+        </K.DesignPreview>
+      )}
+    />
   );
 }
 function Icons() {
@@ -1767,7 +1775,7 @@ export const catalogue: Specimen[] = [
     id: 'preview',
     title: 'Preview notice',
     description:
-      'Separate device and design controls, demonstrated with retained page/input presentation.',
+      'Floating device and design controls, demonstrated with retained page/input presentation.',
     components: ['PreviewBar', 'DesignPreview', 'DesignComparison'],
     Sample: Preview,
     fullBleed: true,

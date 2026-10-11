@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { OpenProduct, previewConversationKey } from '../product.tsx';
 import { later } from '../ui/later.ts';
-import { startTheme, Text, DesignPreview } from '../ui/kit/index.ts';
+import { startTheme, Text, DesignComparison, DesignPreview } from '../ui/kit/index.ts';
 import { useWriter, applyOverlay } from '../vault/changes/writer.ts';
 import { liveVault } from '../vault/index.ts';
 import { memoryBackend } from '../vault/storage/memory.ts';
@@ -192,51 +192,49 @@ function Preview({ initialHead, nodes }: { initialHead: Head; nodes: NodeStore }
       );
   }, [vault]);
   const files = applyOverlay(head.files, writer.overlay);
-  return (
-    <DesignPreview
-      label={`Design preview · ${(import.meta.env.VITE_PREVIEW_COMMIT || 'local').slice(0, 7)}`}
-      onReset={() => {
-        sessionStorage.removeItem(previewJournalKey);
-        localStorage.removeItem(previewConversationKey);
-        location.reload();
+  const product = (
+    <OpenProduct
+      session={{
+        vault,
+        files,
+        status: { kind: 'synced', at: Date.now() },
+        locked: null,
+        signOut: null,
+        secrets: null,
+        blocked: null,
+        nodes,
+        nodeStatus: { kind: 'synced', at: Date.now() },
+        refreshNodes: async () => undefined,
       }}
-      variants={{
-        label: 'Conversation variant',
-        target: 'chat.conversation-list',
-        parameter: 'conversations',
-        defaultValue: 'numbered',
-        options: [
-          { value: 'numbered', label: 'Tight · plain numbers' },
-          { value: 'badged', label: 'Tight · framed numbers' },
-          { value: 'rule', label: 'Tight · unmarked rows' },
+      model={async () => previewModel}
+      preview={{
+        transcription: previewTranscription,
+        suggestions: async () => [
+          'How could I make more room for slow mornings?',
+          'Help me plan an afternoon in the garden studio',
+          'What themes connect the notes in my reading list?',
         ],
       }}
-      kitHref={import.meta.env.DEV ? '/ui/kit/' : './kit/'}
-    >
-      <OpenProduct
-        session={{
-          vault,
-          files,
-          status: { kind: 'synced', at: Date.now() },
-          locked: null,
-          signOut: null,
-          secrets: null,
-          blocked: null,
-          nodes,
-          nodeStatus: { kind: 'synced', at: Date.now() },
-          refreshNodes: async () => undefined,
-        }}
-        model={async () => previewModel}
-        preview={{
-          transcription: previewTranscription,
-          suggestions: async () => [
-            'How could I make more room for slow mornings?',
-            'Help me plan an afternoon in the garden studio',
-            'What themes connect the notes in my reading list?',
-          ],
-        }}
-      />
-    </DesignPreview>
+    />
+  );
+  return (
+    <DesignComparison
+      alternatives={[{ id: 'current', label: 'Current design', content: product }]}
+      preview={(controls, content) => (
+        <DesignPreview
+          label={`Design preview · ${(import.meta.env.VITE_PREVIEW_COMMIT || 'local').slice(0, 7)}`}
+          onReset={() => {
+            sessionStorage.removeItem(previewJournalKey);
+            localStorage.removeItem(previewConversationKey);
+            location.reload();
+          }}
+          kitHref={import.meta.env.DEV ? '/ui/kit/' : './kit/'}
+          variantControls={controls}
+        >
+          {content}
+        </DesignPreview>
+      )}
+    />
   );
 }
 

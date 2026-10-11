@@ -1,6 +1,6 @@
 import { usePresentationPolicy } from './presentation-policy.tsx';
 // Shared gates, notices, tool results and diffs. No vault or workflow logic.
-import { type ReactNode, useEffect, useRef } from 'react';
+import { type ReactNode, useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Button } from './parts/button.tsx';
 import { Icon } from './icons.tsx';
@@ -20,50 +20,121 @@ export function PreviewBar({
   kitHref,
   onReset,
   controls,
+  deviceLabel,
 }: {
   label: string;
   kitHref: string;
   onReset: () => void;
   controls?: ReactNode;
+  deviceLabel?: string;
 }) {
   const mobile = useLayout() === 'compact';
+  const [expanded, setExpanded] = useState(false);
+  const ref = useRef<HTMLElement>(null);
+  const controlsId = useId();
+  useEffect(() => {
+    if (!(mobile && expanded)) return;
+    const dismiss = (event: PointerEvent) => {
+      if (event.target instanceof Node && !ref.current?.contains(event.target)) setExpanded(false);
+    };
+    document.addEventListener('pointerdown', dismiss);
+    return () => document.removeEventListener('pointerdown', dismiss);
+  }, [mobile, expanded]);
   return (
     <aside
+      ref={ref}
       aria-label="Design preview"
+      title={`${label} · Sample data · Scripted chat`}
+      onKeyDown={(event) => {
+        if (event.key === 'Escape' && expanded) {
+          event.stopPropagation();
+          setExpanded(false);
+          event.currentTarget.querySelector<HTMLButtonElement>('[aria-expanded]')?.focus();
+        }
+      }}
       className={cn(
-        'flex min-h-9 shrink-0 items-center justify-between border-b bg-card py-1 text-foreground',
-        mobile ? 'gap-1 px-2' : 'flex-wrap gap-x-4 gap-y-2 px-4',
+        'kit-preview-bar pointer-events-auto flex max-w-full shrink-0 items-center gap-2 border p-1 text-foreground',
+        mobile ? 'flex-col rounded-[28px]' : 'rounded-full',
       )}
     >
-      <span className={mobile ? 'sr-only' : 'min-w-0 truncate text-caption text-muted-foreground'}>
-        {label} · Sample data · Scripted chat
-      </span>
-      <div
-        className={cn(
-          'flex items-center',
-          mobile ? 'min-w-0 flex-1 gap-1' : 'max-w-full shrink-0 flex-wrap gap-2',
-        )}
-      >
-        {controls}
-        <a
-          data-touch-target=""
-          href={kitHref}
-          aria-label="Component kit"
-          className="flex min-h-9 items-center gap-1 px-2 text-xs text-link hover:underline"
+      <span className="sr-only">{label} · Sample data · Scripted chat</span>
+      {mobile ? (
+        <Button
+          variant="ghost"
+          size="standard"
+          aria-label="Preview controls"
+          aria-expanded={expanded}
+          aria-controls={controlsId}
+          data-preview-drag-handle=""
+          title="Drag to move. Arrow keys move; Home returns to the top."
+          onClick={() => setExpanded((current) => !current)}
+          className="kit-preview-handle w-full rounded-full"
         >
-          <Icon name="extension" size="sm" />
-          {!mobile && 'Component kit'}
-        </a>
+          <span aria-hidden="true" className="size-1.5 rounded-full bg-amber-400" />
+          Preview
+          {!!deviceLabel && <span className="text-zinc-400">· {deviceLabel}</span>}
+          <span
+            className={cn(
+              'transition-transform motion-reduce:transition-none',
+              expanded ? '-rotate-90' : 'rotate-90',
+            )}
+          >
+            <Icon name="chevron-right" size="sm" />
+          </span>
+        </Button>
+      ) : (
         <Button
           variant="ghost"
           size="compact"
-          iconOnly={mobile}
-          aria-label="Reset demo"
-          onClick={onReset}
+          aria-label="Move preview controls"
+          data-preview-drag-handle=""
+          title="Drag to move. Arrow keys move; Home returns to the top."
+          className="kit-preview-handle rounded-full text-label"
         >
-          {mobile ? <Icon name="undo" size="sm" /> : 'Reset demo'}
+          <span aria-hidden="true" className="size-1.5 rounded-full bg-amber-400" />
+          Preview
+          <span className="text-caption font-normal text-zinc-400">Sample data</span>
         </Button>
+      )}
+      <div
+        id={controlsId}
+        hidden={mobile && !expanded}
+        className={cn(
+          'flex-wrap items-center gap-1',
+          mobile && !expanded ? 'hidden' : 'flex',
+          mobile ? 'kit-preview-actions max-w-full flex-col justify-center px-2 pb-1' : 'min-w-0',
+        )}
+      >
+        <div className="flex min-w-0 max-w-full flex-wrap items-center justify-center gap-1">
+          {controls}
+        </div>
+        <div className="flex shrink-0 items-center gap-1">
+          <a
+            data-touch-target=""
+            href={kitHref}
+            aria-label="Component kit"
+            className={cn(
+              'flex shrink-0 items-center justify-center rounded-full text-zinc-300 hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring',
+              mobile ? 'size-11' : 'size-8',
+            )}
+          >
+            <Icon name="extension" size="sm" />
+          </a>
+          <Button
+            variant="ghost"
+            size={mobile ? 'standard' : 'compact'}
+            iconOnly={true}
+            aria-label="Reset demo"
+            onClick={onReset}
+            className="rounded-full"
+          >
+            <Icon name="undo" size="sm" />
+          </Button>
+        </div>
       </div>
+      {mobile && expanded && (
+        <span className="px-3 pb-2 text-caption text-zinc-400">Sample data · Scripted chat</span>
+      )}
     </aside>
   );
 }

@@ -238,6 +238,11 @@ test('conversation picker opens saved node conversations and History lists every
   page,
 }) => {
   await page.goto('/preview/');
+  if (test.info().project.name === 'phone') {
+    // Move the overlay out of the toolbar before using the app beneath it.
+    const handle = page.locator('[data-preview-drag-handle]');
+    for (let step = 0; step < 10; step++) await handle.press('Shift+ArrowDown');
+  }
   const input = page.getByRole('textbox', { name: 'Message', exact: true });
   await input.fill('vault it: first conversation');
   await input.press('Enter');
@@ -274,8 +279,11 @@ for (const variant of ['numbered', 'badged', 'rule']) {
     page,
   }) => {
     await page.goto(`/preview/?conversations=${variant}`);
-    if (test.info().project.name === 'phone')
+    if (test.info().project.name === 'phone') {
+      const handle = page.locator('[data-preview-drag-handle]');
+      for (let step = 0; step < 10; step++) await handle.press('Shift+ArrowDown');
       await page.getByRole('button', { name: 'Conversations', exact: true }).click();
+    }
     const panel = page.getByRole(
       test.info().project.name === 'phone' ? 'dialog' : 'complementary',
       { name: 'Conversations', exact: true },
@@ -295,25 +303,20 @@ for (const variant of ['numbered', 'badged', 'rule']) {
   });
 }
 
-test('conversation variants are selected from the preview top bar', async ({ page }) => {
+test('the preview pill shows the current design and keeps the Chat draft', async ({ page }) => {
   await page.goto('/preview/?conversations=numbered');
   const input = page.getByRole('textbox', { name: 'Message', exact: true });
   await input.fill('Keep this draft while comparing');
   const bar = page.getByRole('complementary', { name: 'Design preview', exact: true });
-  if (test.info().project.name === 'phone')
-    await bar
-      .getByRole('combobox', { name: 'Conversation variant', exact: true })
-      .selectOption('badged');
-  else {
-    await bar.getByRole('button', { name: 'Next variant' }).click();
+  if (test.info().project.name === 'phone') {
+    await bar.getByRole('button', { name: 'Preview controls', exact: true }).click();
+    await expect(bar.getByRole('combobox', { name: 'Design variation' })).toHaveValue('current');
+  } else {
+    await expect(bar.getByRole('radio', { name: 'Current design', exact: true })).toBeChecked();
   }
-  await expect(page).toHaveURL(/conversations=badged/);
+  await expect(bar.getByRole('combobox', { name: 'Conversation variant' })).toHaveCount(0);
+  await expect(bar.getByRole('button', { name: 'Next variant' })).toHaveCount(0);
   await expect(input).toHaveValue('Keep this draft while comparing');
-  if (test.info().project.name === 'phone')
-    await expect(
-      bar.getByRole('combobox', { name: 'Conversation variant', exact: true }),
-    ).toHaveValue('badged');
-  else await expect(bar.getByText('B · Tight · framed numbers', { exact: true })).toBeVisible();
 });
 
 test('Chat is named separately from Agent execution and has no History action', async ({

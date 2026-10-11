@@ -4,6 +4,9 @@ import type { Locator } from '@playwright/test';
 import { choosePreviewDevice } from './preview-controls.ts';
 
 async function chooseVariation(scope: Locator, name: string) {
+  const toggle = scope.getByRole('button', { name: 'Preview controls', exact: true }).first();
+  if ((await toggle.count()) && (await toggle.getAttribute('aria-expanded')) === 'false')
+    await toggle.click();
   const picker = scope.getByRole('combobox', { name: 'Design variation', exact: true });
   if (await picker.count()) await picker.selectOption({ label: name });
   else await scope.getByRole('radio', { name, exact: true }).click();
@@ -18,6 +21,8 @@ test('paired preview comparisons select independently and preserve their selecte
   const desktop = family.locator('[data-kit-preview="desktop"]');
   const mobile = family.locator('[data-kit-preview="mobile"]');
   await chooseVariation(desktop, 'Question summary');
+  const banner = desktop.getByRole('complementary', { name: 'Design preview' }).first();
+  await expect(banner.getByRole('radio', { name: 'Question summary', exact: true })).toBeChecked();
   await expect(desktop.getByRole('heading', { name: 'Question summary' })).toBeVisible();
   await expect(mobile.getByRole('heading', { name: 'Note summary' })).toBeVisible();
   const draft = desktop.getByRole('textbox', { name: 'Preview draft' });
@@ -72,8 +77,10 @@ for (const retired of ['B', 'C', 'unknown']) {
     page.on('pageerror', (error) => errors.push(error.message));
     await page.goto(`/preview/?variant=${retired}#/prototype/provenance/`);
     await expect(page.getByRole('heading', { name: 'Mira Holm' })).toBeVisible();
-    await expect(page.getByRole('combobox', { name: 'Design variation' })).toHaveCount(0);
-    await expect(page.getByRole('radiogroup', { name: 'Design variation' })).toHaveCount(0);
+    const banner = page.getByRole('complementary', { name: 'Design preview' });
+    await chooseVariation(banner, 'Current design');
+    await expect(banner).not.toContainText('Sidenotes');
+    await expect(banner).not.toContainText('History trace');
     const statement = page.getByRole('button', {
       name: 'She lives on Södermalm, in a flat on Katarina Bangata with a small balcony.',
       exact: true,

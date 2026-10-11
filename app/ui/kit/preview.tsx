@@ -14,6 +14,7 @@ import { RadioGroup, RadioGroupItem } from './parts/radio-group.tsx';
 import { PreviewBar } from './surfaces.tsx';
 import { PreviewVariantSwitcher, PreviewVariantContext } from './preview-variants.tsx';
 import { cn } from './lib/utils.ts';
+import { FloatingPreview } from './floating-preview.tsx';
 
 type Device = 'window' | 'desktop' | 'mobile';
 
@@ -21,12 +22,14 @@ export function DesignPreview({
   label,
   kitHref,
   onReset,
+  variantControls,
   children,
   variants,
 }: {
   label: string;
   kitHref: string;
   onReset: () => void;
+  variantControls?: ReactNode;
   children: ReactNode;
   variants?: {
     label: string;
@@ -108,50 +111,54 @@ export function DesignPreview({
       ref={root}
       data-design-preview={device}
       className={cn(
-        'flex h-[var(--design-height,var(--viewport-height,100dvh))] min-h-0 flex-col overflow-hidden bg-surface',
+        'relative flex h-[var(--design-height,var(--viewport-height,100dvh))] min-h-0 flex-col overflow-hidden bg-surface',
         !parent && 'kit-design-window',
       )}
     >
-      <PreviewBar
-        label={label}
-        kitHref={kitHref}
-        onReset={onReset}
-        controls={
-          <>
-            {variants && (
-              <PreviewVariantSwitcher
-                label={variants.label}
-                options={variants.options}
-                value={variantValue ?? variants.options[0]?.value}
-                onChange={changeVariant}
-              />
-            )}
-            {compact ? (
-              <select
-                aria-label="Preview device"
-                className="kit-preview-select"
-                value={device}
-                onChange={(event) => setDevice(event.target.value as Device)}
-              >
-                <option value="window">Window</option>
-                <option value="desktop">Desktop</option>
-                <option value="mobile">Mobile</option>
-              </select>
-            ) : (
-              <RadioGroup
-                variant="segmented"
-                aria-label="Preview device"
-                value={device}
-                onValueChange={(value) => setDevice(value as Device)}
-              >
-                <RadioGroupItem value="window">Window</RadioGroupItem>
-                <RadioGroupItem value="desktop">Desktop</RadioGroupItem>
-                <RadioGroupItem value="mobile">Mobile</RadioGroupItem>
-              </RadioGroup>
-            )}
-          </>
-        }
-      />
+      <FloatingPreview>
+        <PreviewBar
+          label={label}
+          kitHref={kitHref}
+          onReset={onReset}
+          deviceLabel={device === 'window' ? 'Window' : device === 'desktop' ? 'Desktop' : 'Mobile'}
+          controls={
+            <>
+              {compact ? (
+                <select
+                  aria-label="Preview device"
+                  className="kit-preview-select"
+                  value={device}
+                  onChange={(event) => setDevice(event.target.value as Device)}
+                >
+                  <option value="window">Window</option>
+                  <option value="desktop">Desktop</option>
+                  <option value="mobile">Mobile</option>
+                </select>
+              ) : (
+                <RadioGroup
+                  variant="segmented"
+                  aria-label="Preview device"
+                  value={device}
+                  onValueChange={(value) => setDevice(value as Device)}
+                >
+                  <RadioGroupItem value="window">Window</RadioGroupItem>
+                  <RadioGroupItem value="desktop">Desktop</RadioGroupItem>
+                  <RadioGroupItem value="mobile">Mobile</RadioGroupItem>
+                </RadioGroup>
+              )}
+              {variants && (
+                <PreviewVariantSwitcher
+                  label={variants.label}
+                  options={variants.options}
+                  value={variantValue ?? variants.options[0]?.value}
+                  onChange={changeVariant}
+                />
+              )}
+              {variantControls}
+            </>
+          }
+        />
+      </FloatingPreview>
       <div className="flex min-h-0 min-w-0 flex-1 overflow-x-auto">
         <div
           data-design-viewport=""

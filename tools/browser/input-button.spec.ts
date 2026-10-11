@@ -88,7 +88,7 @@ test('the preview keeps device radio navigation without an input-style shortcut'
   await windowMode.focus();
   await page.keyboard.press('ArrowRight');
   await expect(page.getByRole('radio', { name: 'Desktop', exact: true })).toBeChecked();
-  await page.getByRole('heading', { name: 'Chat', exact: true }).click();
+  await page.getByRole('textbox', { name: 'Message', exact: true }).focus();
   await page.keyboard.press('ArrowRight');
   expect(new URL(page.url()).searchParams.has('variant')).toBe(false);
 });

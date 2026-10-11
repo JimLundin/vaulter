@@ -548,11 +548,11 @@ test('the composer and search stay within the visual viewport when a keyboard op
     Object.defineProperty(window.visualViewport!, 'height', { value: 440, writable: true });
     window.visualViewport!.dispatchEvent(new Event('resize'));
   });
-  const banner = page.getByRole('complementary', { name: 'Design preview' });
+  const frame = page.locator('[data-design-viewport]');
   await expect
     .poll(async () => {
       const workspace = (await page.locator('[data-layout="mobile-workspace"]').boundingBox())!;
-      return Math.abs(workspace.height - (440 - (await banner.boundingBox())!.height));
+      return Math.abs(workspace.height - (await frame.boundingBox())!.height);
     })
     .toBeLessThanOrEqual(1);
   const send = await page.getByRole('button', { name: 'Send', exact: true }).boundingBox();
@@ -561,7 +561,7 @@ test('the composer and search stay within the visual viewport when a keyboard op
   await expect
     .poll(async () => {
       const search = (await page.getByRole('dialog').boundingBox())!;
-      return Math.abs(search.height - (440 - (await banner.boundingBox())!.height));
+      return Math.abs(search.height - (await frame.boundingBox())!.height);
     })
     .toBeLessThanOrEqual(1);
   await expect(
@@ -584,7 +584,7 @@ test('the composer and search stay within the visual viewport when a keyboard op
   });
   await expect
     .poll(async () => {
-      const available = 340 - (await banner.boundingBox())!.height;
+      const available = (await frame.boundingBox())!.height;
       const maxHeight = await settings.evaluate((node) =>
         Number.parseFloat(getComputedStyle(node).maxHeight),
       );

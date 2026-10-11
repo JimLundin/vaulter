@@ -32,7 +32,7 @@ Markdown/HAST rendering and the vault-link annotation transform remain the expli
 | `catalogue.tsx`, `gallery.tsx` | live examples, component coverage, search and paired catalogue |
 | `presentation.tsx` | private bounded canvas provider for live samples |
 | `presentation-policy.tsx` | private owner of scope, modal choice, dismissal, focus history and popup bounds |
-| `preview.tsx` | top-level `DesignPreview` banner and live Window/Desktop/Mobile viewport |
+| `preview.tsx` | floating `DesignPreview` controls and live Window/Desktop/Mobile viewport |
 | `parts/`, `hooks/` | shared layout/type primitives, shadcn controls and their hooks |
 | `primitives.tsx` | reusable surfaces, adaptive panel and following scroll container |
 | `composition.ts` | checked building-block dependencies displayed in the gallery |
@@ -58,7 +58,7 @@ product does not use maps.
 
 The composer uses one primary action across Product, the preview and catalogue: microphone when
 unfocused, Enter when focused, and a supporting Stop action while responding. Microphone and Enter
-use the shared Filled style. The design preview bar contains device choices, the kit link and reset;
+use the shared Filled style. The design preview pill contains device and variant choices, the kit link and reset;
 the completed A/B/C input-style comparison has been removed. See [input-button.md](input-button.md).
 
 ## Foundation and spacing
@@ -243,12 +243,27 @@ in the app. Sample dialogs remain local and do not lock or hide the catalogue; p
 focus, scroll locking and focus return still use the normal browser behavior. These previews show
 layout and control behavior; they do not simulate a phone browser keyboard or microphone.
 
-The sample app uses public `DesignPreview` to place its banner above the entire workspace, including
-the sidebar. **Window** follows the browser width, **Desktop** keeps a minimum 1024px workspace,
+The sample app uses public `DesignPreview` to center a floating dark pill over the workspace.
+Desktop shows its device and variant choices, kit link and reset in one row; on phones, tap the Preview pill to
+expand those same controls, then tap outside or press Escape to collapse it. **Window** follows
+the browser width, **Desktop** keeps a minimum 1024px workspace,
 and **Mobile** centers a 390px touch viewport, constrained to the browser width. Switching modes
 rearranges the same mounted product and retains routes, drafts and open settings/search fields.
-Portals stay inside the selected viewport while the banner remains available. The frame follows
-the visual viewport height, reserving space for the banner above the app.
+Portals stay inside the selected viewport while the pill remains available. The frame follows
+the full visual viewport height, with the pill overlaying the app without reserving any layout
+space. The pill respects the top safe area.
+Drag the Preview label to move the pill with a mouse or touch. Its controls stay clickable,
+and its position is constrained when the panel expands or the visible viewport changes.
+With the label focused, arrow keys move it (Shift moves faster) and Home returns it to the top
+center. Position belongs to the mounted preview and resets on reload.
+
+`DesignComparison` supplies named alternatives and owns the selected variant. Its optional
+`preview` render callback receives the picker and selected content; pass the picker through
+`DesignPreview.variantControls` to put it beside the device choices in the floating pill.
+The live app currently registers one "Current design" alternative. The catalogue registers
+Note summary and Question summary to demonstrate independent variant selection. Device changes
+preserve the selected variant and its mounted fields; switching variants starts that variant's
+content afresh. Standalone `DesignComparison` retains its inline picker.
 
 ### How a shape is decided
 
