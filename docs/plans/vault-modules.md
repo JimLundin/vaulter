@@ -225,3 +225,9 @@ conversation UI; preserve its appearance while reconciling module ownership.
 Preview deployment, preservation, reusable variant overrides and shared-node refresh/query changes
 are on main. This branch is based on that work and contains the Chat/History UI design, sample
 variants and presentation checks. The latest main migration tools and mobile-header changes remain.
+
+## Iterative UI review
+
+Tight grouped conversation spacing is selected. Retire discarded variants after each selection
+and offer three new variants of the selected baseline. Current review varies header treatment
+(strong rule, shaded band, editorial marker); group dates are not repeated on conversation rows.
