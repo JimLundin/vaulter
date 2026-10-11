@@ -45,8 +45,7 @@ test('saved conversation loading and read errors remain visible and a later reco
       throw new Error('Reading must not execute');
     },
   });
-  const host = document.createElement('div');
-  document.body.append(host);
+  const host = document.body;
   const root = createRoot(host);
   let closed = false;
   try {
@@ -82,7 +81,7 @@ test('saved conversation loading and read errors remain visible and a later reco
     expect(closed).toBe(true);
   } finally {
     await act(async () => root.unmount());
-    host.remove();
+    host.replaceChildren();
     conversation.dispose();
     backend.close();
     vi.unstubAllGlobals();
