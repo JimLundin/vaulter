@@ -53,7 +53,12 @@ const devSecrets = (mode: string) => {
 
 const entries = (design: boolean): Record<string, string> =>
   design
-    ? { preview: fileURLToPath(new URL('app/preview/index.html', import.meta.url)) }
+    ? {
+        preview: fileURLToPath(new URL('app/preview/index.html', import.meta.url)),
+        wiki: fileURLToPath(new URL('app/preview/wiki.html', import.meta.url)),
+        records: fileURLToPath(new URL('app/preview/records.html', import.meta.url)),
+        search: fileURLToPath(new URL('app/preview/search.html', import.meta.url)),
+      }
     : {
         index: fileURLToPath(new URL('app/index.html', import.meta.url)),
         sw: fileURLToPath(new URL('app/ui/sw.ts', import.meta.url)),

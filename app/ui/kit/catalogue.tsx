@@ -1473,24 +1473,6 @@ function FollowingPrimitive() {
   );
 }
 
-function Provenance() {
-  return (
-    <K.Stack>
-      <K.Page>
-        <K.Heading level={1} serif={true}>
-          <K.Button variant="inline" onClick={noop}>
-            Garden studio
-          </K.Button>
-        </K.Heading>
-        <K.Prose>
-          <p>A space for making things.</p>
-        </K.Prose>
-      </K.Page>
-      <K.ProvenancePrototype />
-    </K.Stack>
-  );
-}
-
 function Passages() {
   const text = `${'Earlier plans. '.repeat(40)}Keep mornings free.${' Later details.'.repeat(40)}`;
   return (
@@ -1527,6 +1509,16 @@ function Passages() {
   );
 }
 
+function BoundedPresentation() {
+  return (
+    <K.PresentationPreview device="mobile" height={320}>
+      <K.FeaturePage title="Bounded presentation">
+        <K.Text>Supplied content uses the shared bounds and portal policy.</K.Text>
+      </K.FeaturePage>
+    </K.PresentationPreview>
+  );
+}
+
 export const catalogue: Specimen[] = [
   {
     id: 'passages',
@@ -1536,14 +1528,13 @@ export const catalogue: Specimen[] = [
     components: ['PassageCard'],
     Sample: Passages,
   },
+
   {
-    id: 'provenance',
-    title: 'Wiki provenance prototype',
-    description:
-      'Selected evidence design A: underlined wiki claims with quoted sources and superseded context beside the page or in the phone Drawer.',
-    components: ['ProvenancePrototype'],
-    Sample: Provenance,
-    fullBleed: true,
+    id: 'bounded-presentation',
+    title: 'Bounded presentation',
+    description: 'A supplied device canvas shares browser focus and portal mechanics.',
+    components: ['PresentationPreview'],
+    Sample: BoundedPresentation,
   },
   {
     id: 'navigation',

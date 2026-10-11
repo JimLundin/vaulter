@@ -1,19 +1,10 @@
 // Design review frame: the live product retains its state while its bounded viewport rearranges.
-import {
-  type ReactNode,
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { type ReactNode, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { PresentationContext, usePresentation } from './presentation.tsx';
 import { sizeClassForWidth, useLayout } from './hooks/use-layout.ts';
 import { Button } from './parts/button.tsx';
 import { Icon } from './icons.tsx';
 import { PreviewBar } from './surfaces.tsx';
-import { PreviewVariantSwitcher, PreviewVariantContext } from './preview-variants.tsx';
 import { cn } from './lib/utils.ts';
 import { FloatingPreview } from './floating-preview.tsx';
 
@@ -24,7 +15,6 @@ export function DesignPreview({
   onReset,
   variantControls,
   children,
-  variants,
 }: {
   label: string;
   chat?: 'Scripted chat' | 'Live agent';
@@ -32,36 +22,7 @@ export function DesignPreview({
   onReset: () => void;
   variantControls?: ReactNode;
   children: ReactNode;
-  variants?: {
-    label: string;
-    target: string;
-    parameter?: string;
-    defaultValue?: string;
-    options: readonly { value: string; label: string }[];
-  };
 }) {
-  const readVariant = useCallback(
-    () =>
-      variants
-        ? (new URLSearchParams(location.search).get(variants.parameter ?? 'variant') ??
-          variants.defaultValue ??
-          variants.options[0]?.value)
-        : undefined,
-    [variants],
-  );
-  const [variantValue, setVariantValue] = useState(readVariant);
-  const changeVariant = (value: string) => {
-    if (!variants) return;
-    const url = new URL(location.href);
-    url.searchParams.set(variants.parameter ?? 'variant', value);
-    history.replaceState(history.state, '', url);
-    setVariantValue(value);
-  };
-  useEffect(() => {
-    const read = () => setVariantValue(readVariant());
-    globalThis.addEventListener('popstate', read);
-    return () => globalThis.removeEventListener('popstate', read);
-  }, [readVariant]);
   const [mobile, setMobile] = useState(false);
   const compact = useLayout() === 'compact';
   const parent = usePresentation();
@@ -136,14 +97,6 @@ export function DesignPreview({
               >
                 <Icon name="mobile" />
               </Button>
-              {variants && (
-                <PreviewVariantSwitcher
-                  label={variants.label}
-                  options={variants.options}
-                  value={variantValue ?? variants.options[0]?.value}
-                  onChange={changeVariant}
-                />
-              )}
               {variantControls}
             </>
           }
@@ -170,11 +123,7 @@ export function DesignPreview({
           >
             {presentation && (
               <PresentationContext.Provider value={presentation}>
-                <PreviewVariantContext.Provider
-                  value={variants && variantValue ? { [variants.target]: variantValue } : {}}
-                >
-                  {children}
-                </PreviewVariantContext.Provider>
+                {children}
               </PresentationContext.Provider>
             )}
           </div>

@@ -1,14 +1,14 @@
 import { expect, test } from '@playwright/test';
 import { setPreviewMobile } from './preview-controls.ts';
 
-test('typed Wiki records keep selected evidence and expanded source context across bounded arrangements', async ({
+test('fictional Wiki nodes keep selected evidence and expanded source context across bounded arrangements', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto('/preview/wiki.html');
   const desktop = page.locator('[data-design-preview]');
   await page.screenshot({
-    path: `/tmp/vaulter-46-wiki-preview-wide-${test.info().project.name}.png`,
+    path: `/tmp/vaulter-50-wiki-preview-wide-${test.info().project.name}.png`,
   });
   const claim = desktop.getByRole('button', {
     name: 'Evidence for Keep mornings free.',
@@ -35,7 +35,7 @@ test('typed Wiki records keep selected evidence and expanded source context acro
   await expect(desktop.getByRole('dialog', { name: 'References', exact: true })).toBeVisible();
   await expect(toggle).toHaveAttribute('aria-expanded', 'true');
   await page.screenshot({
-    path: `/tmp/vaulter-46-wiki-preview-compact-${test.info().project.name}.png`,
+    path: `/tmp/vaulter-50-wiki-preview-compact-${test.info().project.name}.png`,
   });
   expect(await original!.evaluate((node) => node.isConnected)).toBe(true);
   await toggle.focus();
@@ -58,10 +58,10 @@ test('typed Wiki records keep selected evidence and expanded source context acro
   await expect(pane.getByRole('link', { name: 'Planning note 12' })).toBeInViewport();
   await claim.click();
   await expect(pane.getByRole('link', { name: 'Studio plans' })).toBeInViewport();
-  await page.screenshot({ path: `/tmp/vaulter-46-wiki-preview-${test.info().project.name}.png` });
+  await page.screenshot({ path: `/tmp/vaulter-50-wiki-preview-${test.info().project.name}.png` });
 });
 
-test('Wiki typed screen exposes filtering, loading, errors and missing records', async ({
+test('Wiki fictional reader exposes filtering, loading, errors and missing records', async ({
   page,
 }) => {
   await page.goto('/preview/wiki.html');
@@ -76,4 +76,18 @@ test('Wiki typed screen exposes filtering, loading, errors and missing records',
   await expect(sample.getByRole('alert')).toHaveText('Fictional read failed.');
   await sample.getByRole('button', { name: 'Show unavailable page' }).click();
   await expect(sample.getByRole('heading', { name: 'Page unavailable' })).toBeVisible();
+});
+
+test('fictional Wiki navigation returns to the local index and opens the selected record', async ({
+  page,
+}) => {
+  await page.goto('/preview/wiki.html');
+  const example = page.locator('[data-design-preview]');
+  await example
+    .getByRole('toolbar', { name: 'Wiki page' })
+    .getByRole('button', { name: 'Wiki', exact: true })
+    .click();
+  await expect(example.getByRole('textbox', { name: 'Find pages' })).toBeVisible();
+  await example.getByRole('link', { name: 'Slow mornings', exact: true }).click();
+  await expect(example.getByRole('heading', { name: 'Slow mornings', exact: true })).toBeVisible();
 });

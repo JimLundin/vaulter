@@ -20,7 +20,15 @@ import { previewTranscription } from './transcription.ts';
 import { previewNodes, previewJournalKey } from './nodes.ts';
 import type { NodeChange } from '../vault/nodes/store.ts';
 import type { NodeStore } from '../vault/nodes/store.ts';
+import { seedPreviewRecords } from './records.ts';
 
+// Old evidence design links remain preview-only redirects to the supported Wiki record.
+if (location.hash === '#/prototype/provenance/')
+  history.replaceState(
+    history.state,
+    '',
+    `${location.pathname}${location.search}#/wiki/preview:page:0/`,
+  );
 const memory = memoryBackend(sampleFiles);
 const query = new URLSearchParams(location.search);
 declare const __PREVIEW_AGENT__: {
@@ -41,50 +49,7 @@ const agent =
 const transcription = agent ? recordedTranscription(agent.transcribe) : previewTranscription;
 const openingNodes = previewNodes(sessionStorage, query.get('scenario') ?? undefined).then(
   async (nodes) => {
-    if (!(await nodes.snapshot()).get('preview:wiki-owner')) {
-      await nodes.commit({
-        id: 'preview:wiki-pages',
-        recordedBy: 'preview:wiki-owner',
-        origin: null,
-        undoOf: null,
-        kind: { scope: 'node', action: 'create' },
-        message: 'Sample Wiki pages',
-        changes: [
-          {
-            node: 'preview:wiki-owner',
-            expected: null,
-            placement: null,
-            connection: null,
-            data: { kind: 'actor', name: 'Preview owner' },
-          },
-          ...['Garden studio', 'Slow mornings', 'Reading list'].flatMap(
-            (title, i): NodeChange[] => [
-              {
-                node: `preview:page:${i}`,
-                expected: null,
-                placement: null,
-                connection: null,
-                data: { kind: 'page', title, summary: 'Room for the things that matter.' },
-              },
-              {
-                node: `preview:paragraph:${i}`,
-                expected: null,
-                placement: { parent: `preview:page:${i}`, order: 'a' },
-                connection: null,
-                data: { kind: 'paragraph' },
-              },
-              {
-                node: `preview:run:${i}`,
-                expected: null,
-                placement: { parent: `preview:paragraph:${i}`, order: 'a' },
-                connection: null,
-                data: { kind: 'run', text: 'Leave the mornings free for making things.' },
-              },
-            ],
-          ),
-        ],
-      });
-    }
+    await seedPreviewRecords(nodes);
     if (query.has('conversations') && !(await nodes.snapshot()).get('preview:list-owner')) {
       await nodes.commit({
         id: 'preview:conversation-list',

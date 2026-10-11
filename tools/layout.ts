@@ -47,8 +47,11 @@ export function importProblem(from: string, to: string): string | null {
   if (
     target &&
     from !== 'app/product.tsx' &&
-    // Fictional Wiki record adapter; preview relocation/separation is completed by #50.
-    !(target === 'wiki' && from === 'app/preview/wiki.tsx') &&
+    // Explicit preview-owned adapters consume public module reading and record UI interfaces.
+    !(
+      target === 'wiki' &&
+      ['app/preview/wiki-example.tsx', 'app/preview/records.test.ts'].includes(from)
+    ) &&
     workflow(from) !== target
   )
     return `${from} imports optional workflow ${target}; compose it in app/product.tsx`;
@@ -82,6 +85,7 @@ export function checkLayout(root: string): string[] {
   }
   try {
     const problems: string[] = [];
+    const graph = new Map<string, Set<string>>();
     for (const filename of sources(resolve(root, 'app'))) {
       const from = slash(relative(root, filename));
       const file = project.program.getSourceFile(filename);
@@ -115,7 +119,13 @@ export function checkLayout(root: string): string[] {
         )
           problems.push(`${from}: app styles belong in the kit or content renderer`);
         if (!target) return;
-        const problem = importProblem(from, slash(relative(root, target)));
+        const to = slash(relative(root, target));
+        if (to.startsWith('app/')) {
+          const dependencies = graph.get(from) ?? new Set<string>();
+          dependencies.add(to);
+          graph.set(from, dependencies);
+        }
+        const problem = importProblem(from, to);
         if (problem) problems.push(problem);
       };
       const visit = (node: ts.Node) => {
@@ -230,6 +240,26 @@ export function checkLayout(root: string): string[] {
         node.forEachChild(visit);
       };
       visit(file);
+    }
+    // This is the architectural source graph, including type-only imports. Emitted tree shaking
+    // must not hide fictional records or preview tooling in a production dependency.
+    for (const entry of ['app/main.tsx', 'app/ui/sw.ts']) {
+      const visited = new Set<string>();
+      const walk = (from: string) => {
+        if (visited.has(from)) return;
+        visited.add(from);
+        for (const to of graph.get(from) ?? []) {
+          if (
+            to.startsWith('app/preview/') ||
+            to === 'app/ui/kit/catalogue.tsx' ||
+            to === 'app/ui/kit/gallery.tsx' ||
+            /\/prototype-[^/]+\.[cm]?tsx?$/.test(to)
+          )
+            problems.push(`${entry} reaches preview-only ${to} through ${from}`);
+          else walk(to);
+        }
+      };
+      walk(entry);
     }
     return [...new Set(problems)];
   } finally {
