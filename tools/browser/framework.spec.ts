@@ -217,7 +217,7 @@ test('button hit targets resize without animating their geometry', async ({ page
   await expect(add).toHaveAttribute('aria-label', 'New conversation');
   const bounds = (await add.boundingBox())!;
   expect(bounds.width).toBeGreaterThanOrEqual(44);
-  expect(bounds.height).toBe(44);
+  expect(bounds.height).toBe(test.info().project.name === 'desktop' ? 32 : 44);
   expect(
     await add.evaluate((node) =>
       node.getAnimations().map((animation) => (animation as CSSTransition).transitionProperty),
@@ -243,7 +243,9 @@ test('agent controls have even insets and suggestions remain one scrolling row w
     expect((await mic.boundingBox())!.height).toBe(send.height);
     if (width < 768) {
       const add = page.getByRole('button', { name: 'New conversation', exact: true });
-      expect((await add.boundingBox())!.height).toBe(44);
+      expect((await add.boundingBox())!.height).toBe(
+        test.info().project.name === 'desktop' ? 32 : 44,
+      );
       const toolbar = page.locator('header').filter({ has: add });
       const bar = (await toolbar.boundingBox())!;
       const action = (await add.boundingBox())!;
