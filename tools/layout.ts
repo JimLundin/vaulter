@@ -7,6 +7,7 @@ import { dirname, relative, resolve } from 'node:path';
 const slash = (path: string) => path.replaceAll('\\', '/');
 const contentRenderer = (path: string) =>
   path.startsWith('app/workflows/chat/rendering/') ||
+  path.startsWith('app/workflows/wiki/rendering/') ||
   path === 'app/vault/documents/notes/remark-vault-links.ts';
 const kit = (path: string) => path.startsWith('app/ui/kit/');
 const workflow = (path: string) => /^app\/workflows\/([^/]+)\//.exec(path)?.[1];

@@ -29,7 +29,7 @@ test('the compact supporting panel fills the available height and dismisses with
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/ui/kit/tests/browser.html');
   await page.getByRole('button', { name: 'Open agent' }).click();
-  const panel = page.getByRole('dialog', { name: 'Agent', exact: true });
+  const panel = page.getByRole('dialog', { name: 'Chat', exact: true });
   await expect(panel).toBeVisible();
   await expect.poll(async () => (await panel.boundingBox())!.height).toBeGreaterThanOrEqual(843);
   await swipeDown(page, panel);

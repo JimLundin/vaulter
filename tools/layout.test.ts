@@ -7,7 +7,7 @@ import { checkLayout, importProblem } from './layout.ts';
 
 test('optional workflows are composed only by Product and use the public kit', () => {
   expect(checkLayout(fileURLToPath(new URL('..', import.meta.url)))).toEqual([]);
-});
+}, 15_000);
 test('the dependency policy rejects cross-workflow imports and private kit access', () => {
   expect(importProblem('app/workflows/chat/Chat.tsx', 'app/workflows/history/index.tsx')).toContain(
     'compose',

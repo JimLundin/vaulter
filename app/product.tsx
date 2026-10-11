@@ -70,9 +70,12 @@ import {
   type NodeHistoryEntry,
 } from './workflows/history/nodes.ts';
 import { HistoryPage } from './workflows/history/index.tsx';
+import { Wiki } from './workflows/wiki/index.tsx';
+import { readWiki, wikiRoute, pageRoute, type WikiPage } from './workflows/wiki/pages.ts';
 import './workflows/chat/rendering/prose.css';
 
 const chatRoute = pattern('/chat/');
+const conversationRoute = pattern('/chat/:node/');
 const legacyChatRoute = pattern('/agent/');
 const historyRoute = pattern('/history/');
 const settingsRoute = pattern('/settings/');
@@ -173,6 +176,33 @@ export function OpenProduct({
     [conversationKey],
   );
   const route = useRoute();
+  const [pages, setPages] = useState<WikiPage[] | null>(null);
+  const [wikiError, setWikiError] = useState('');
+  useEffect(() => {
+    if (!nodes) return;
+    let active = true;
+    let generation = 0;
+    const reload = async () => {
+      const request = ++generation;
+      try {
+        const result = await readWiki(nodes, (node) => `#${conversationRoute.href({ node })}`);
+        if (active && request === generation) {
+          setPages(result);
+          setWikiError('');
+        }
+      } catch (error) {
+        if (active && request === generation) setWikiError(String(error));
+      }
+    };
+    later(reload());
+    const unsubscribe = nodes.subscribe(() => later(reload()));
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, [nodes]);
+  const wikiPage = pageRoute.match(route.path)?.node;
+  const onWiki = !!wikiRoute.match(route.path) || !!wikiPage;
   const layout = useLayout();
   const mobile = layout === 'compact';
   const [search, setSearch] = useState(false);
@@ -191,6 +221,7 @@ export function OpenProduct({
   const onChat =
     route.path === '/' ||
     !!chatRoute.match(route.path) ||
+    !!conversationRoute.match(route.path) ||
     !!legacyChatRoute.match(route.path) ||
     onSettings;
   const onHistory = !!historyRoute.match(route.path);
@@ -205,9 +236,11 @@ export function OpenProduct({
       ? 'Chat'
       : onHistory
         ? 'History'
-        : provenanceRoute.match(route.path)
-          ? 'Provenance prototype'
-          : 'Not found';
+        : onWiki
+          ? (pages?.find((page) => page.id === wikiPage)?.title ?? 'Wiki')
+          : provenanceRoute.match(route.path)
+            ? 'Provenance prototype'
+            : 'Not found';
   const provider = useMemo(
     () =>
       session.secrets?.openai
@@ -248,8 +281,10 @@ export function OpenProduct({
         'Help the Vault owner using the supplied content tools. Content changes are published directly as nodes. Do not claim to edit or commit legacy files.',
       suggestions: preview?.suggestions,
       availability,
-      conversation: retainedConversation,
+      conversation: conversationRoute.match(route.path)?.node ?? retainedConversation,
       onConversation: (id) => {
+        const selected = conversationRoute.match(route.path)?.node;
+        if (selected && selected !== id) go(conversationRoute.href({ node: id }));
         try {
           localStorage.setItem(conversationKey, id);
         } catch {
@@ -268,7 +303,8 @@ export function OpenProduct({
   const { busy: agentBusy } = useChat(conversation);
   useVoiceDraft(conversation, voice);
   const navigation: Navigation[] = [
-    { label: 'Chat', href: chatRoute.href(), icon: 'sparkles' },
+    { label: 'Chat', href: chatRoute.href(), icon: 'sparkles', current: onChat },
+    { label: 'Wiki', href: wikiRoute.href(), icon: 'book', current: onWiki },
     ...(nodes ? [{ label: 'History', href: historyRoute.href(), icon: 'history' as const }] : []),
     {
       label: 'Settings',
@@ -280,7 +316,13 @@ export function OpenProduct({
       expanded: settingsOpen,
     },
   ];
-  const index = useMemo(() => noteSearchIndex(files!), [files]);
+  const index = useMemo(
+    () =>
+      pages === null
+        ? noteSearchIndex(files!)
+        : new Map(pages.map((page) => [page.entry.href, page.entry])),
+    [files, pages],
+  );
   const ask = (text?: string) => {
     if (text) setPrompt((current) => ({ text, send: true, n: (current?.n ?? 0) + 1 }));
     showPanel(true);
@@ -308,6 +350,14 @@ export function OpenProduct({
     later(voice.start());
   };
   const commands: Command[] = [
+    {
+      id: 'go.wiki',
+      label: 'Wiki',
+      group: 'Go to',
+      icon: 'book',
+      keys: 'g w',
+      run: () => go(wikiRoute.href()),
+    },
     {
       id: 'go.chat',
       label: 'Chat',
@@ -409,12 +459,14 @@ export function OpenProduct({
   useEffect(() => {
     if (index.has(route.path)) opened(route.path);
   }, [route.path, index]);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: reset the scrolling content on page changes too
   useEffect(() => {
     const element = route.anchor && document.getElementById(route.anchor);
     if (element) element.scrollIntoView();
-    else document.querySelector('[data-region=""]')?.scrollTo(0, 0);
-  }, [route.path, route.anchor]);
+  }, [route.anchor, pages]);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reset only when navigating, not when accepted node data refreshes.
+  useEffect(() => {
+    if (!route.anchor) document.querySelector('[data-region=""]')?.scrollTo(0, 0);
+  }, [route.path]);
   const statusLabel =
     status.kind === 'synced'
       ? `Synced ${new Date(status.at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`
@@ -457,6 +509,8 @@ export function OpenProduct({
         )}
         {onChat ? (
           <ChatPage conversation={conversation} prompt={prompt} voice={voice} />
+        ) : onWiki ? (
+          <Wiki key={wikiPage ?? 'wiki'} pages={pages} node={wikiPage} error={wikiError} />
         ) : onHistory ? (
           <Stack>
             <Row>

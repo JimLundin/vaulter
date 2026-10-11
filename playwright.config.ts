@@ -1,5 +1,8 @@
 import { defineConfig } from '@playwright/test';
 import process from 'node:process';
+import { fileURLToPath } from 'node:url';
+
+const port = process.env.VAULTER_UI_PORT ?? '4179';
 
 export default defineConfig({
   testDir: './tools/browser',
@@ -9,7 +12,7 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   reporter: 'list',
   use: {
-    baseURL: 'http://127.0.0.1:4179',
+    baseURL: `http://127.0.0.1:${port}`,
     screenshot: 'only-on-failure',
     trace: 'retain-on-failure',
     launchOptions: process.env.VAULTER_BROWSER
@@ -25,8 +28,9 @@ export default defineConfig({
     { name: 'touch-desktop', use: { viewport: { width: 1440, height: 1000 }, hasTouch: true } },
   ],
   webServer: {
-    command: 'npm run design -- --host 127.0.0.1 --port 4179 --strictPort',
-    url: 'http://127.0.0.1:4179/preview/',
+    cwd: fileURLToPath(new URL('.', import.meta.url)),
+    command: `npm run design -- --host 127.0.0.1 --port ${port} --strictPort`,
+    url: `http://127.0.0.1:${port}/preview/`,
     reuseExistingServer: !process.env.CI,
   },
 });

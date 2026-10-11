@@ -16,7 +16,7 @@ for (const appearance of ['light', 'dark'] as const) {
     const mic = page.getByRole('button', { name: 'Start voice interaction' });
     const send = page.getByRole('button', { name: 'Send', exact: true });
     const treatment = await page
-      .getByRole('button', { name: 'New chat', exact: true })
+      .getByRole('button', { name: 'New conversation', exact: true })
       .evaluate((node) => {
         const style = getComputedStyle(node);
         return {
@@ -88,7 +88,7 @@ test('the preview keeps device radio navigation without an input-style shortcut'
   await windowMode.focus();
   await page.keyboard.press('ArrowRight');
   await expect(page.getByRole('radio', { name: 'Desktop', exact: true })).toBeChecked();
-  await page.getByRole('heading', { name: 'Agent', exact: true }).click();
+  await page.getByRole('heading', { name: 'Chat', exact: true }).click();
   await page.keyboard.press('ArrowRight');
   expect(new URL(page.url()).searchParams.has('variant')).toBe(false);
 });

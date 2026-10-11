@@ -13,8 +13,9 @@ export function useNodeConversation(options: NodeConversationOptions) {
   ref.current ??= createNodeConversation(options);
   const conversation = ref.current;
   conversation.updateOptions(options);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: store synchronization must retry history restoration, while model availability never gates reads.
   useEffect(() => {
-    if (options.availability) return;
+    // Reading accepted history does not require a configured model or permission to send.
     // Without a retained selection, continue the vault's most recently active conversation.
     later(
       (options.conversation

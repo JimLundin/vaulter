@@ -14,7 +14,7 @@ for (const theme of ['light', 'dark']) {
     if (info.project.name === 'phone') {
       const menu = page.getByRole('button', { name: 'Menu', exact: true });
       await menu.click();
-      const agent = page.getByRole('link', { name: 'Agent', exact: true });
+      const agent = page.getByRole('link', { name: 'Chat', exact: true });
       const history = page.getByRole('link', { name: 'History', exact: true });
       const highlight = theme === 'light' ? 'rgb(244, 244, 245)' : 'rgb(39, 39, 42)';
       await expect(agent).toHaveAttribute('aria-current', 'page');
@@ -27,7 +27,7 @@ for (const theme of ['light', 'dark']) {
       await expect(agent).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
       return;
     }
-    const agent = page.getByRole('link', { name: 'Agent', exact: true });
+    const agent = page.getByRole('link', { name: 'Chat', exact: true });
     const history = page.getByRole('link', { name: 'History', exact: true });
     const highlight = theme === 'light' ? 'rgb(228, 228, 231)' : 'rgb(39, 39, 42)';
     await expect(agent).toHaveAttribute('aria-current', 'page');

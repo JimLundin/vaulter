@@ -1348,7 +1348,20 @@ function FollowingPrimitive() {
 }
 
 function Provenance() {
-  return <K.ProvenancePrototype />;
+  return (
+    <K.Stack>
+      <K.WikiPageSurface
+        title="Garden studio"
+        summary="Room for quiet mornings."
+        onCloseEvidence={noop}
+      >
+        <K.Prose>
+          <p>A space for making things.</p>
+        </K.Prose>
+      </K.WikiPageSurface>
+      <K.ProvenancePrototype />
+    </K.Stack>
+  );
 }
 
 export const catalogue: Specimen[] = [
@@ -1357,7 +1370,7 @@ export const catalogue: Specimen[] = [
     title: 'Wiki provenance prototype',
     description:
       'Selected evidence design A: underlined wiki claims with quoted sources and superseded context beside the page or in the phone Drawer.',
-    components: ['ProvenancePrototype'],
+    components: ['ProvenancePrototype', 'WikiPageSurface'],
     Sample: Provenance,
     fullBleed: true,
   },

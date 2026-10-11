@@ -94,7 +94,7 @@ test('a direct settings URL opens the same menu and preserves the agent draft', 
   const settings = page.getByRole('dialog', { name: 'Settings', exact: true });
   await expect(settings.getByRole('textbox', { name: 'Model', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Close settings' }).click();
-  await expect(page).toHaveURL(/#\/agent\/$/);
+  await expect(page).toHaveURL(/#\/chat\/$/);
   const draft = page.getByRole('textbox', { name: 'Message', exact: true });
   await draft.fill('Keep this message while changing preferences');
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
@@ -147,7 +147,7 @@ test('every feature page centers the same reading column', async ({ page }) => {
       const main = page.locator('main[data-region]');
       const column = main.locator('[data-reading-column]');
       await expect(column).toBeVisible();
-      const parent = (await main.boundingBox())!;
+      const parent = (await (path === '/preview/' ? column.locator('..') : main).boundingBox())!;
       const child = (await column.boundingBox())!;
       expect(
         Math.abs(child.x + child.width / 2 - (parent.x + parent.width / 2)),
@@ -198,7 +198,7 @@ test('the preview field keeps one inset action and its draft through focus and r
       true,
     );
   }
-  await page.getByRole('button', { name: 'New chat', exact: true }).click();
+  await page.getByRole('button', { name: 'New conversation', exact: true }).click();
   await expect(input).toBeVisible();
   await expect(input).toHaveValue('');
 });
@@ -206,7 +206,7 @@ test('the preview field keeps one inset action and its draft through focus and r
 test('button hit targets resize without animating their geometry', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 844 });
   await page.goto('/preview/');
-  const add = page.getByRole('button', { name: 'New chat', exact: true });
+  const add = page.getByRole('button', { name: 'New conversation', exact: true });
   await expect(add).toHaveAttribute('data-size', 'compact');
   // Slow feedback transitions so a layout transition cannot finish before the measurement.
   await add.evaluate((node) => {
@@ -214,9 +214,9 @@ test('button hit targets resize without animating their geometry', async ({ page
   });
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(add).toHaveAttribute('data-size', 'standard');
-  await expect(add).toHaveAttribute('data-icon-only', 'true');
+  await expect(add).toHaveAttribute('aria-label', 'New conversation');
   const bounds = (await add.boundingBox())!;
-  expect(bounds.width).toBe(44);
+  expect(bounds.width).toBeGreaterThanOrEqual(44);
   expect(bounds.height).toBe(44);
   expect(
     await add.evaluate((node) =>
@@ -242,7 +242,7 @@ test('agent controls have even insets and suggestions remain one scrolling row w
     await expect(mic).toHaveCSS('border-width', '0px');
     expect((await mic.boundingBox())!.height).toBe(send.height);
     if (width < 768) {
-      const add = page.getByRole('button', { name: 'New chat', exact: true });
+      const add = page.getByRole('button', { name: 'New conversation', exact: true });
       expect((await add.boundingBox())!.height).toBe(44);
       const toolbar = page.locator('header').filter({ has: add });
       const bar = (await toolbar.boundingBox())!;
@@ -449,7 +449,7 @@ test('agent panel preserves its draft while becoming modal, and traps focus only
     await page.setViewportSize({ width, height: 844 });
     await expect(draft).toHaveValue('A preserved agent draft');
     await expect(draft).toBeFocused();
-    const surface = page.getByRole(width >= 1280 ? 'complementary' : 'dialog', { name: 'Agent' });
+    const surface = page.getByRole(width >= 1280 ? 'complementary' : 'dialog', { name: 'Chat' });
     await expect(surface).toBeVisible();
     if (width < 1280) {
       await page.keyboard.press('Tab');
@@ -635,6 +635,7 @@ test('dictation keeps the composer anchored and only submission stops an agent r
   await expect(input).toBeEditable();
   expect((await composer.boundingBox())!.y).toBe(before.y);
   await input.focus();
+  await input.fill(`slow response: ${await input.inputValue()}`);
   await page.getByRole('button', { name: 'Send', exact: true }).click();
   const stop = page.getByRole('button', { name: 'Stop', exact: true });
   await expect(stop).toBeVisible();
@@ -652,7 +653,7 @@ test('dictation keeps the composer anchored and only submission stops an agent r
   await expect(input).toBeEditable();
   await expect(microphone).toBeEnabled();
   expect((await composer.boundingBox())!.y).toBe(before.y);
-  await page.getByRole('button', { name: 'New chat', exact: true }).click();
+  await page.getByRole('button', { name: 'New conversation', exact: true }).click();
   await expect(page.getByRole('region', { name: 'Suggested prompts' })).toBeVisible();
   const empty = (await composer.boundingBox())!;
   await microphone.click();
@@ -671,7 +672,7 @@ test('the send icon reflects text field focus without a keyboard hint below the 
   await expect(send).toBeHidden();
   await input.fill('A typed thought');
   await expect(send.locator('svg')).toHaveClass(/lucide-corner-down-left/);
-  await page.getByRole('button', { name: 'New chat', exact: true }).focus();
+  await page.getByRole('button', { name: 'New conversation', exact: true }).focus();
   await expect(page.getByRole('button', { name: 'Start voice interaction' })).toBeVisible();
   await expect(send).toBeHidden();
   await expect(

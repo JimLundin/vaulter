@@ -37,12 +37,12 @@ export function Frame({
 }) {
   const route = useRoute();
   const current = (href: string) =>
-    route.path === href || (route.path === '/' && href === '/agent/');
+    route.path === href || (route.path === '/' && href === '/chat/');
   const place = (entry: Navigation) => ({
     label: entry.label,
     href: link(entry.href),
     icon: entry.icon ?? 'file',
-    current: current(entry.href),
+    current: entry.current ?? current(entry.href),
   });
   return (
     <TooltipProvider>

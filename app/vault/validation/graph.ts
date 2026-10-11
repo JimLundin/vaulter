@@ -27,7 +27,7 @@ export function checkGraph(files: VaultFile[]): { problems: string[]; ok: number
       const p = parseVaultLink(url);
       if (!p) continue;
       const target = `${p.id}.md`;
-      const note = byPath.get(target);
+      const note = byPath.get(target) ?? byPath.get(`${p.id}.mdx`);
       if (!note) problems.push(`${n.path}: ${url} → missing`);
       else if (p.hash && !anchorsOf(note).has(p.hash))
         problems.push(`${n.path}: ${url} → no heading #${p.hash} in ${target}`);

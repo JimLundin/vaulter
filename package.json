@@ -16,7 +16,8 @@
     "kit": "vite app/ui/kit",
     "design": "vite --mode design --open /preview/",
     "build:design": "vite build --mode design && node tools/prepare-design.ts && vite build app/ui/kit --outDir ../../../dist-preview/kit --emptyOutDir",
-    "test:ui": "playwright test"
+    "test:ui": "playwright test",
+    "test:production": "playwright test --config tools/production/playwright.config.ts"
   },
   "dependencies": {
     "@ai-sdk/openai": "^4.0.83",

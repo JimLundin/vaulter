@@ -355,3 +355,4 @@ export {
 } from './selection.tsx';
 
 export { usePreviewVariant } from './preview-variants.tsx';
+export { WikiPageSurface } from './wiki.tsx';

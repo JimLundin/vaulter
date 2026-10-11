@@ -36,7 +36,10 @@ export function checkNotes(files: VaultFile[]): { problems: string[]; files: num
       if (x.type === 'text' && x.value.includes('[['))
         for (const m of x.value.matchAll(/\[\[[^\]]+\]\]/g))
           problems.push(`${n.path}: ${m[0]} → use a Markdown link [label](</Note.md>)`);
-      if (x.type === 'html')
+      if (
+        x.type === 'html' &&
+        !(n.path.endsWith('.mdx') && /^<(?:NoteList|Chart|Timeline)\b[\s\S]*\/>\s*$/.test(x.value))
+      )
         problems.push(
           `${n.path}: raw HTML is not rendered (line ${x.position?.start.line}); use Markdown`,
         );

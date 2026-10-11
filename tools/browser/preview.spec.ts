@@ -99,7 +99,7 @@ test('the mobile Menu highlights only while hovered or open, with rounded corner
   await expect(menu).toHaveAttribute('aria-expanded', 'true');
   await expect(menu).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
   const navigation = page.getByRole('navigation', { name: 'Main navigation' });
-  await expect(navigation.getByRole('link', { name: 'Agent', exact: true })).toHaveAttribute(
+  await expect(navigation.getByRole('link', { name: 'Chat', exact: true })).toHaveAttribute(
     'aria-current',
     'page',
   );

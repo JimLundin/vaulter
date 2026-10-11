@@ -79,7 +79,10 @@ export const previewModel: PreviewModel = {
       stream: new ReadableStream<StreamPart>({
         async pull(controller) {
           await new Promise((resolve) =>
-            setTimeout(resolve, /slow response/i.test(said) && results.length ? 300 : 35),
+            setTimeout(
+              resolve,
+              /slow response/i.test(said) && (!writing || results.length) ? 1000 : 35,
+            ),
           );
           if (abortSignal?.aborted) {
             controller.error(abortSignal.reason);
