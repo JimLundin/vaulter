@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import {
-  Button,
   Stack,
   Text,
   SelectionRow,
@@ -23,10 +22,10 @@ export function ConversationList({
   open: boolean;
   onClose: () => void;
   disabled?: boolean;
-  variant?: 'rule' | 'numbered' | 'rail';
+  variant?: 'rule' | 'numbered' | 'badged';
 }) {
   const override = usePreviewVariant('chat.conversation-list');
-  const variant = override === 'numbered' || override === 'rail' ? override : suppliedVariant;
+  const variant = override === 'numbered' || override === 'badged' ? override : suppliedVariant;
   const [visible, setVisible] = useState(false);
   const state = useNodeChat(conversation);
   const [chats, setChats] = useState<readonly SavedChat[] | null>(null);
@@ -64,15 +63,6 @@ export function ConversationList({
   }, [conversation, visible]);
   const content = (
     <Stack>
-      <Button
-        disabled={blocked}
-        onClick={() => {
-          conversation.newChat();
-          onClose();
-        }}
-      >
-        New conversation
-      </Button>
       {blocked && (
         <Text role="status">
           Finish recording or resolve the pending operation before switching conversations.
@@ -162,7 +152,7 @@ export function ConversationItem({
   selected: boolean;
   disabled: boolean;
   onOpen: () => Promise<void>;
-  variant?: 'rule' | 'numbered' | 'rail';
+  variant?: 'rule' | 'numbered' | 'badged';
   group?: string;
   ordinal?: number;
 }) {
@@ -179,7 +169,7 @@ export function ConversationItem({
           minute: '2-digit',
         })}
         ordinal={ordinal}
-        marker={variant === 'numbered' ? 'number' : variant === 'rail' ? 'rail' : 'none'}
+        marker={variant === 'numbered' ? 'number' : variant === 'badged' ? 'badge' : 'none'}
         onSelect={() => {
           void onOpen();
         }}

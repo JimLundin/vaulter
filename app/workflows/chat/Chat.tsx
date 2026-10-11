@@ -161,7 +161,7 @@ export function Chat({
             type('');
           }}
           onConversations={showChats}
-          busy={busy || recording}
+          busy={busy || recording || !!persistenceError || !!contentPersistence || !!contextError}
           status={
             <Stack>
               <VoiceStatus phase={transcript.phase} error={transcript.error} />

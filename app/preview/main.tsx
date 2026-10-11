@@ -160,11 +160,11 @@ function Preview({ initialHead, nodes }: { initialHead: Head; nodes: NodeStore }
         label: 'Conversation variant',
         target: 'chat.conversation-list',
         parameter: 'conversations',
-        defaultValue: 'rule',
+        defaultValue: 'numbered',
         options: [
-          { value: 'rule', label: 'Tight · aligned rows' },
-          { value: 'numbered', label: 'Tight · numbered entries' },
-          { value: 'rail', label: 'Tight · timeline rail' },
+          { value: 'numbered', label: 'Tight · plain numbers' },
+          { value: 'badged', label: 'Tight · framed numbers' },
+          { value: 'rule', label: 'Tight · unmarked rows' },
         ],
       }}
       kitHref={import.meta.env.DEV ? '/ui/kit/' : './kit/'}

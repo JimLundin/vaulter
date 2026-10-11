@@ -110,19 +110,17 @@ function ConversationToolbar({ onNewChat, onConversations, busy }: ConversationA
           </Button>
         )}
 
-        {mobile && (
-          <Button
-            variant="filled"
-            size={mobile ? 'standard' : 'compact'}
-            iconOnly={mobile}
-            aria-label="New chat"
-            disabled={busy}
-            onClick={onNewChat}
-          >
-            <Icon name="plus" size={mobile ? 'lg' : 'md'} />
-            {!mobile && 'New chat'}
-          </Button>
-        )}
+        <Button
+          variant="filled"
+          size={mobile ? 'standard' : 'compact'}
+          iconOnly={mobile}
+          aria-label="New conversation"
+          disabled={busy}
+          onClick={onNewChat}
+        >
+          <Icon name="plus" size={mobile ? 'lg' : 'md'} />
+          {!mobile && 'New conversation'}
+        </Button>
         {!mobile && !!close && (
           <Button
             variant="ghost"

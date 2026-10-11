@@ -23,7 +23,7 @@ export function SelectionRow({
   compact?: boolean;
   label?: string;
   timestamp?: string;
-  marker?: 'none' | 'number' | 'rail';
+  marker?: 'none' | 'number' | 'badge';
   ordinal?: number;
 }) {
   return (
@@ -40,29 +40,16 @@ export function SelectionRow({
     >
       {label ? (
         <span className="flex min-w-0 flex-1 items-center gap-3">
-          {marker === 'number' && (
-            <span
-              aria-hidden={true}
-              className="w-4 shrink-0 text-xs tabular-nums text-muted-foreground"
-            >
-              {String(ordinal ?? 1).padStart(2, '0')}
-            </span>
-          )}
-          {marker === 'rail' && (
+          {(marker === 'number' || marker === 'badge') && (
             <span
               aria-hidden={true}
               className={cn(
-                'relative flex h-5 w-2 shrink-0 items-center justify-center',
-                marker === 'rail' &&
-                  'before:absolute before:inset-y-[-12px] before:left-1/2 before:w-px before:bg-border',
+                'w-4 shrink-0 text-xs font-normal tabular-nums text-muted-foreground',
+                marker === 'badge' &&
+                  'flex size-5 items-center justify-center rounded border border-border bg-muted/40 text-[10px]',
               )}
             >
-              <span
-                className={cn(
-                  'relative size-1.5 rounded-full',
-                  selected ? 'bg-foreground' : 'bg-muted-foreground/50',
-                )}
-              />
+              {String(ordinal ?? 1).padStart(2, '0')}
             </span>
           )}
           <span title={label} className="min-w-0 flex-1 truncate font-medium">
