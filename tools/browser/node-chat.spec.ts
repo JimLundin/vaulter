@@ -328,3 +328,26 @@ test('Chat is named separately from Agent execution and has no History action', 
     );
   }
 });
+
+test('timeline conversation rows stay uniform and truncate titles beside right-aligned times', async ({
+  page,
+}) => {
+  await page.goto('/preview/?conversations=rule');
+  if (test.info().project.name === 'phone')
+    await page.getByRole('button', { name: 'Conversations', exact: true }).click();
+  const list = page.getByRole(test.info().project.name === 'phone' ? 'dialog' : 'complementary', {
+    name: 'Conversations',
+    exact: true,
+  });
+  const short = list.getByRole('button', { name: /Garden studio plans/ });
+  const long = list.getByRole('button', { name: /A longer conversation title/ });
+  const first = await short.boundingBox();
+  const last = await long.boundingBox();
+  expect(first!.height).toBe(last!.height);
+  const title = long.locator('[title]');
+  expect(await title.evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(true);
+  await expect(title).toHaveCSS('text-overflow', 'ellipsis');
+  const rowText = await long.textContent();
+  expect(rowText).toMatch(/\d{2}:30/);
+  expect(rowText).not.toContain('Oct');
+});
