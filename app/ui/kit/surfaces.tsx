@@ -2,6 +2,7 @@ import { usePresentationPolicy } from './presentation-policy.tsx';
 // Shared gates, notices, tool results and diffs. No vault or workflow logic.
 import { type ReactNode, useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { LoaderCircle } from 'lucide-react';
 import { Button } from './parts/button.tsx';
 import { Icon } from './icons.tsx';
 import { cn } from './lib/utils.ts';
@@ -12,6 +13,15 @@ export function Gate({ children }: { children: ReactNode }) {
     <main className="mx-auto flex min-h-svh max-w-md flex-col justify-center gap-6 px-5 py-12">
       {children}
     </main>
+  );
+}
+
+export function LoadingStatus({ children }: { children: ReactNode }) {
+  return (
+    <div role="status" className="flex items-center gap-3 text-sm text-muted-foreground">
+      <LoaderCircle aria-hidden="true" className="size-5 shrink-0 motion-safe:animate-spin" />
+      <span>{children}</span>
+    </div>
   );
 }
 

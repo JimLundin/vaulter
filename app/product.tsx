@@ -18,11 +18,17 @@ import { later } from './ui/later.ts';
 import {
   ProvenancePrototype,
   Button,
+  Brand,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
   Alert,
   AlertDescription,
   Gate,
   Heading,
   Link,
+  LoadingStatus,
   Overlay,
   Page,
   SettingsMenu,
@@ -110,6 +116,7 @@ export function Product({
   if (!session.files || session.blocked)
     return (
       <Gate>
+        <Brand />
         {session.blocked || session.status.kind === 'error' ? (
           <Alert variant="destructive">
             <AlertDescription>
@@ -117,7 +124,15 @@ export function Product({
             </AlertDescription>
           </Alert>
         ) : (
-          <Text tone="subtle">Opening the vault…</Text>
+          <Card>
+            <CardHeader>
+              <Heading level={1}>Opening your vault</Heading>
+              <CardDescription>Getting your conversations and notes ready.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <LoadingStatus>Loading your vault…</LoadingStatus>
+            </CardContent>
+          </Card>
         )}
       </Gate>
     );
