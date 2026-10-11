@@ -249,7 +249,9 @@ test('conversation picker opens saved node conversations and History lists every
     exact: true,
   });
   await expect(picker.getByRole('button', { name: /first conversation/ })).toBeVisible();
-  await picker.getByRole('button', { name: 'New conversation', exact: true }).click();
+  if (test.info().project.name === 'phone')
+    await picker.getByRole('button', { name: 'Close conversations', exact: true }).click();
+  await page.getByRole('button', { name: 'New conversation', exact: true }).click();
   await input.fill('vault it: second conversation');
   await input.press('Enter');
   await expect(page.getByText('Filed in', { exact: false })).toBeVisible();
