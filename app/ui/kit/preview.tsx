@@ -1,9 +1,18 @@
 // Design review frame: the live product retains its state while its bounded viewport rearranges.
-import { type ReactNode, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { PresentationContext, usePresentation } from './presentation.tsx';
 import { sizeClassForWidth, useLayout } from './hooks/use-layout.ts';
 import { RadioGroup, RadioGroupItem } from './parts/radio-group.tsx';
 import { PreviewBar } from './surfaces.tsx';
+import { PreviewVariantSwitcher, PreviewVariantContext } from './preview-variants.tsx';
 import { cn } from './lib/utils.ts';
 
 type Device = 'window' | 'desktop' | 'mobile';
@@ -13,12 +22,42 @@ export function DesignPreview({
   kitHref,
   onReset,
   children,
+  variants,
 }: {
   label: string;
   kitHref: string;
   onReset: () => void;
   children: ReactNode;
+  variants?: {
+    label: string;
+    target: string;
+    parameter?: string;
+    defaultValue?: string;
+    options: readonly { value: string; label: string }[];
+  };
 }) {
+  const readVariant = useCallback(
+    () =>
+      variants
+        ? (new URLSearchParams(location.search).get(variants.parameter ?? 'variant') ??
+          variants.defaultValue ??
+          variants.options[0]?.value)
+        : undefined,
+    [variants],
+  );
+  const [variantValue, setVariantValue] = useState(readVariant);
+  const changeVariant = (value: string) => {
+    if (!variants) return;
+    const url = new URL(location.href);
+    url.searchParams.set(variants.parameter ?? 'variant', value);
+    history.replaceState(history.state, '', url);
+    setVariantValue(value);
+  };
+  useEffect(() => {
+    const read = () => setVariantValue(readVariant());
+    globalThis.addEventListener('popstate', read);
+    return () => globalThis.removeEventListener('popstate', read);
+  }, [readVariant]);
   const [device, setDevice] = useState<Device>('window');
   const compact = useLayout() === 'compact';
   const parent = usePresentation();
@@ -79,6 +118,14 @@ export function DesignPreview({
         onReset={onReset}
         controls={
           <>
+            {variants && (
+              <PreviewVariantSwitcher
+                label={variants.label}
+                options={variants.options}
+                value={variantValue ?? variants.options[0]?.value}
+                onChange={changeVariant}
+              />
+            )}
             {compact ? (
               <select
                 aria-label="Preview device"
@@ -130,7 +177,11 @@ export function DesignPreview({
           >
             {presentation && (
               <PresentationContext.Provider value={presentation}>
-                {children}
+                <PreviewVariantContext.Provider
+                  value={variants && variantValue ? { [variants.target]: variantValue } : {}}
+                >
+                  {children}
+                </PreviewVariantContext.Provider>
               </PresentationContext.Provider>
             )}
           </div>
