@@ -10,6 +10,7 @@ import {
   Row,
   Stack,
   Text,
+  // biome-ignore lint/correctness/noUnresolvedImports: the public kit reexports Sonner; TypeScript verifies it.
   toast,
 } from '../../ui/kit/index.ts';
 import type { NodeVersion } from '../../vault/nodes/model.ts';
