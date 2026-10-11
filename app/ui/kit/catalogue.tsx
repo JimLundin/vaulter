@@ -1153,11 +1153,11 @@ function Access() {
                   <K.InputGroupButton
                     variant="filled"
                     type="submit"
-                    size="compact"
+                    size="standard"
                     iconOnly={true}
                     aria-label="Open vault"
                   >
-                    <K.Icon name="chevron-right" />
+                    <K.Icon name="enter" />
                   </K.InputGroupButton>
                 </K.InputGroupAddon>
               </K.InputGroup>
