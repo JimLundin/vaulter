@@ -36,7 +36,7 @@ export function Drawer({
   scrollKey?: string | number;
   children?: ReactNode;
   /** Placement changes geometry only; every role uses the same frame and controls. */
-  placement?: 'default' | 'right' | 'reading' | 'supporting' | 'pane';
+  placement?: 'default' | 'right' | 'pane';
   /** Content with its own feed and dock retains control of scrolling. */
   scroll?: boolean;
   /** A persistent supporting panel keeps its frame open and omits dismissal controls. */
@@ -44,20 +44,17 @@ export function Drawer({
 }) {
   const layout = useLayout();
   const compact = layout === 'compact';
-  const supporting = placement === 'supporting';
   const pane = placement === 'pane';
-  const beside = placement !== 'default' && (supporting ? layout === 'wide' : !compact);
-  const inline = supporting || pane || placement === 'reading';
+  const beside = placement !== 'default' && !compact;
+  const inline = pane;
   const restoreFocus = usePresentationFocus(open);
   const policy = usePresentationPolicy();
   const opener = useRef<HTMLElement | null>(null);
-  const openedModal = useRef<boolean>(false);
-  if (open) openedModal.current = !beside;
   const descriptionId = useId();
   const ref = useRef<HTMLDivElement>(null);
   // A different cited passage can become the opener while the same drawer stays open.
   useEffect(() => {
-    if (placement !== 'reading' && !pane) return;
+    if (!pane) return;
     const remember = (event?: Event) => {
       const active =
         event?.type === 'pointerdown' && event.target instanceof Element
@@ -78,7 +75,7 @@ export function Drawer({
       document.removeEventListener('pointerdown', remember, true);
       document.removeEventListener('focusin', remember);
     };
-  }, [open, policy, placement, pane]);
+  }, [open, policy, pane]);
   const viewport = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (scrollKey === undefined) return;
@@ -104,9 +101,7 @@ export function Drawer({
         aria-label={title}
         aria-describedby={description ? descriptionId : undefined}
         finalFocus={() => {
-          if (placement !== 'reading' && !pane) return restoreFocus();
-          // biome-ignore lint/suspicious/noUnnecessaryConditions: Base UI invokes this callback after the open arrangement changes
-          if (!pane && !openedModal.current) return false;
+          if (!pane) return restoreFocus();
           const target = opener.current;
           return target?.isConnected &&
             target.getClientRects().length &&
@@ -115,7 +110,7 @@ export function Drawer({
             : restoreFocus();
         }}
         initialFocus={
-          beside && !supporting
+          beside
             ? false
             : () => ref.current?.querySelector<HTMLButtonElement>('button') ?? ref.current
         }

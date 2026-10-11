@@ -5,7 +5,7 @@ for (const childTitle of ['Supporting review', 'Supporting details']) {
     page,
   }) => {
     await page.goto('/ui/kit/');
-    await page.getByRole('searchbox', { name: 'Find a component' }).fill('AdaptivePanel');
+    await page.getByRole('searchbox', { name: 'Find a component' }).fill('SupportingPane');
     const family = page.locator('[data-kit-comparison="panel-primitive"]');
     const desktop = family.locator('[data-kit-preview="desktop"]');
     const mobile = family.locator('[data-kit-preview="mobile"]');
@@ -25,7 +25,7 @@ for (const childTitle of ['Supporting review', 'Supporting details']) {
     await desktop.getByRole('textbox', { name: 'Supporting draft' }).fill('Desktop task');
     await page.keyboard.press('Escape');
     await expect(
-      desktop.getByRole('dialog', { name: 'Supporting content', exact: true }),
+      desktop.getByRole('complementary', { name: 'Supporting content', exact: true }),
     ).toBeHidden();
     await expect(child).toBeVisible();
     await child.getByRole('textbox').fill('Mobile child task');
@@ -40,7 +40,7 @@ for (const childTitle of ['Supporting review', 'Supporting details']) {
 }
 
 for (const targetWidth of [1440, 900]) {
-  test(`a nested review retains its task while its panel becomes ${targetWidth === 1440 ? 'wide' : 'modal'}`, async ({
+  test(`a nested review retains its task while its panel resizes to ${targetWidth}px`, async ({
     page,
   }) => {
     await page.setViewportSize({ width: targetWidth === 1440 ? 900 : 1440, height: 844 });
@@ -67,7 +67,7 @@ for (const targetWidth of [1440, 900]) {
     ).toBe(true);
     await expect(draft).toHaveValue('Keep parent draft');
     const background = page.getByRole('textbox', { name: 'Preference' });
-    if (targetWidth === 1440) {
+    if (targetWidth >= 768) {
       await expect(background).toBeVisible();
       await background.fill('Background available beside wide panel');
       await expect(background).toBeFocused();

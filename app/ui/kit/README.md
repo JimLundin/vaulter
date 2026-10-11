@@ -4,12 +4,23 @@ The app's component kit, imported from branch `ui-kit` at `2c30183`. Its referen
 `design/`. Product, shared UI and workflow screens compose `index.ts`; no public component takes
 `className` or `style`. Tailwind scans only this folder.
 
-The accepted target in [ADR 0006](../../../docs/adr/0006-module-ui-and-shared-presentation.md)
-keeps record-specific UI in its owning module and shared presentation in the kit. One supporting-pane
-policy owns geometry and interaction across modules; consistency takes precedence over tailored
-arrangements. The [UI ownership migration plan](../../../docs/plans/ui-module-ownership.md) records
-the work and enforcement checks. Current kit exports still include module-specific presentation;
-Chat, History and Search ownership are implemented; remaining module migrations are tracked by the plan.
+The implemented [ADR 0006](../../../docs/adr/0006-module-ui-and-shared-presentation.md) keeps
+record-specific UI in Chat, Wiki, History and Search while the kit owns shared presentation.
+One supporting-pane policy owns geometry and interaction across those clients. The
+[ownership plan](../../../docs/plans/ui-module-ownership.md) records delivered acceptance and the
+[public inventory](../../../docs/ui-presentation-inventory.md) lists every export, actual consumers
+and retired destination.
+
+`composition.ts` explicitly inventories every implementation source and exact named declarations
+that own DOM/library mechanics. All other declarations are checked compositions of approved
+presentation, including private helpers and public wrappers such as Overlay, ItemGroup and
+SidebarMenu. Mixed files do not receive blanket exemptions. A new implementation source or native
+presentation declaration needs an explicit role; public exports still need live catalogue examples.
+Genuine mechanics include native page geometry, responsive navigation, Base UI primitives,
+passage clipping and bounded positioning. State providers and control compositions remain checked.
+Module views use typed payloads/projections plus actions; reading/subscription/execution stays with
+the module. Compose SupportingPane with content, requested visibility and optional anchored dock;
+its width/header/focus/scroll/compact transition are kit policy rather than caller choices.
 
 History-specific presentation has moved to History. `ExpandableRow` owns shared disclosure,
 metadata placement and details geometry; `RowAction` owns compact accessible action presentation.
@@ -39,17 +50,19 @@ its registrations and rendered JSX against all public component exports, so addi
 without a live example fails CI. `tools/layout.test.ts` rejects intrinsic JSX, styling props (including
 object spreads), intrinsic element factories, private kit imports and direct presentation dependency
 imports throughout Product, shared UI and workflows. Semantic forms use the public `Form` component.
-Markdown/HAST rendering and the vault-link annotation transform remain the explicit content exception.
+Only exact Wiki block semantic markup and Chat code/error content retain narrow rendering permissions;
+new renderer helpers cannot implement layout, styling, controls or scrolling. The exact vault-link
+annotation transform may annotate semantic data, with no UI presentation permission.
 
 | Where | What |
 |---|---|
 | `index.ts` | public components, icons and theme controls |
 | `catalogue.tsx`, `gallery.tsx` | live examples, component coverage, search and paired catalogue |
-| `presentation.tsx` | private bounded canvas provider for live samples |
+| `presentation.tsx` | shared bounded PresentationPreview adapter and private production context |
 | `presentation-policy.tsx` | private owner of scope, modal choice, dismissal, focus history and popup bounds |
 | `preview.tsx` | floating `DesignPreview` controls, adaptive viewport and Mobile width toggle |
 | `parts/`, `hooks/` | shared layout/type primitives, shadcn controls and their hooks |
-| `primitives.tsx` | reusable surfaces, adaptive panel and following scroll container |
+| `primitives.tsx` | reusable surfaces, reading/dock geometry and following scroll container |
 | `composition.ts` | checked building-block dependencies displayed in the gallery |
 | `app.tsx` | spacing, typography, pages, expanded sidebar and shared workspace frame |
 | `overlay.tsx` | one dialog tree, centered or bottom-aligned; full-screen search in compact space |
@@ -538,3 +551,10 @@ actual Chat fictional records remain in the application preview.
 Shared prose typography now lives in `prose.css` and is imported by the kit stylesheet. Chat owns
 safe text/HAST interpretation and highlighting; its narrow semantic renderer allowance cannot
 be used to implement pane layout, custom controls, viewport branches or private kit imports.
+
+
+`HoverPreview` either presents an explicit supplied anchor/title/text or resolves selected links
+through a caller callback. The kit owns the 250ms hover delay, pointer capability, scoped anchor
+measurement, leave/scroll/hash dismissal and bounded popup position. The resolver owns link meaning
+and supplies retained title/excerpt without exposing a store or workflow to the kit. Independent
+bounded specimens obey their own pointer policy and ignore neighboring links.

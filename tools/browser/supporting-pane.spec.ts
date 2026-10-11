@@ -113,12 +113,13 @@ test('supporting feed scrolls above one anchored composer without losing its dra
     await field.press('Enter');
   }
   await field.fill('Retain the next draft');
-  const before = (await field.boundingBox())!;
+  await pane.locator('[data-slot="scroll-area-viewport"]').hover();
+  const before = (await field.boundingBox())!.y - (await pane.boundingBox())!.y;
   expect(await pane.locator('[data-slot="scroll-area-viewport"]').count()).toBe(1);
   await pane.locator('[data-slot="scroll-area-viewport"]').hover();
   await page.mouse.wheel(0, -3000);
   await expect(pane.getByText('A retained supporting message.', { exact: true })).toBeInViewport();
-  expect((await field.boundingBox())!.y).toBe(before.y);
+  expect((await field.boundingBox())!.y - (await pane.boundingBox())!.y).toBe(before);
   await page.keyboard.press('Escape');
   await sample.getByRole('button', { name: 'Open supporting pane', exact: true }).click();
   await expect(field).toHaveValue('Retain the next draft');

@@ -4,11 +4,11 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { API } from 'typescript/unstable/sync';
 import { expect, test } from 'vitest';
-import { compositions } from '../app/ui/kit/composition.ts';
+import { compositions, implementations } from '../app/ui/kit/composition.ts';
 import { checkCompositions, type CompositionRoot } from './composition.ts';
 
 // CI and source-project fixtures use the same composition-policy interface.
-// The real application source project now exceeds the default 5s compiler budget on this workspace.
+// Exhaustive implementation and private-helper checks load the whole compiler source project.
 test('Agent, Settings and their shared menu use only documented public building blocks', () => {
   const root = fileURLToPath(new URL('..', import.meta.url));
   const api = new API({ cwd: root });
@@ -16,6 +16,10 @@ test('Agent, Settings and their shared menu use only documented public building 
   try {
     const result = checkCompositions(snapshot.getProjects()[0]!, {
       publicKit: 'app/ui/kit/index.ts',
+      implementations: implementations.map((role) => ({
+        ...role,
+        source: `app/ui/kit/${role.source}`,
+      })),
       roots: compositions.map((composition) => ({
         source: `app/ui/kit/${composition.source}`,
         primitives: composition.primitives,
@@ -26,7 +30,7 @@ test('Agent, Settings and their shared menu use only documented public building 
     snapshot.dispose();
     api.close();
   }
-}, 15_000);
+}, 30_000);
 
 function checkFixture(files: Record<string, string>, roots: readonly CompositionRoot[]) {
   const root = mkdtempSync(join(tmpdir(), 'vaulter-composition-policy-'));
@@ -585,4 +589,95 @@ export function Extracted() { return <Helper />; }`,
     ],
   });
   expect(result.violations).toHaveLength(2);
+});
+
+test('new kit sources and new DOM declarations need an explicit implementation owner', () => {
+  const root = mkdtempSync(join(tmpdir(), 'vaulter-implementation-roles-'));
+  const api = new API({ cwd: root });
+  try {
+    mkdirSync(join(root, 'kit'));
+    writeFileSync(
+      join(root, 'tsconfig.json'),
+      JSON.stringify({
+        compilerOptions: { module: 'ESNext', moduleResolution: 'Bundler', jsx: 'preserve' },
+        include: ['kit'],
+      }),
+    );
+    writeFileSync(join(root, 'kit/index.ts'), "export { Block } from './block.tsx';");
+    writeFileSync(
+      join(root, 'kit/block.tsx'),
+      'export function Block(){return <div/>} export function Added(){return <section/>}',
+    );
+    writeFileSync(join(root, 'kit/new.tsx'), 'export function Omitted(){return <div/>}');
+    const snapshot = api.updateSnapshot({ openProjects: [join(root, 'tsconfig.json')] });
+    try {
+      const result = checkCompositions(snapshot.getProjects()[0]!, {
+        publicKit: 'kit/index.ts',
+        roots: [],
+        implementations: [
+          { source: 'kit/index.ts', mechanics: [] },
+          { source: 'kit/block.tsx', mechanics: ['Block'] },
+        ],
+      });
+      expect(result.violations.map(({ reason }) => reason)).toEqual(
+        expect.arrayContaining(['unclassified implementation kit/new.tsx', 'intrinsic <section>']),
+      );
+    } finally {
+      snapshot.dispose();
+    }
+  } finally {
+    api.close();
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('a checked public composition is still checked when reached as a public building block', () => {
+  const root = mkdtempSync(join(tmpdir(), 'vaulter-public-ownership-'));
+  const api = new API({ cwd: root });
+  try {
+    mkdirSync(join(root, 'kit'));
+    writeFileSync(
+      join(root, 'tsconfig.json'),
+      JSON.stringify({
+        compilerOptions: { module: 'ESNext', moduleResolution: 'Bundler', jsx: 'preserve' },
+        include: ['kit'],
+      }),
+    );
+    writeFileSync(join(root, 'kit/index.ts'), "export { Block, Composition } from './mixed.tsx';");
+    writeFileSync(
+      join(root, 'kit/mixed.tsx'),
+      'export function Block(){return <div/>} export function Composition(){return <section/>}',
+    );
+    const snapshot = api.updateSnapshot({ openProjects: [join(root, 'tsconfig.json')] });
+    try {
+      expect(
+        checkCompositions(snapshot.getProjects()[0]!, {
+          publicKit: 'kit/index.ts',
+          roots: [],
+          implementations: [
+            { source: 'kit/index.ts', mechanics: [] },
+            { source: 'kit/mixed.tsx', mechanics: ['Block'] },
+          ],
+        }).violations.map((v) => v.reason),
+      ).toContain('intrinsic <section>');
+    } finally {
+      snapshot.dispose();
+    }
+  } finally {
+    api.close();
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('checked kit compositions cannot hide intrinsic tags or element factories behind local aliases', () => {
+  const result = checkFixture(
+    {
+      'kit/root.tsx': `import {createElement} from 'react'; const element=createElement; const Raw='section'; export function Composition(){return <>{element('div')}<Raw/></>}`,
+      'node_modules/react/index.d.ts': 'export declare function createElement(tag:string):unknown;',
+    },
+    [{ source: 'kit/root.tsx', primitives: [] }],
+  );
+  expect(result.violations.map((v) => v.reason)).toEqual(
+    expect.arrayContaining(['intrinsic factory', 'intrinsic <section>']),
+  );
 });

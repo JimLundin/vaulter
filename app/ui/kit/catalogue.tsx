@@ -844,20 +844,25 @@ function Agent() {
   return (
     <>
       <K.Overlay open={chats} onClose={() => setChats(false)} title="Conversations">
-        <K.ResponsiveSupportingColumn
+        <K.SupportingPane
           title="Supporting sample"
           open={false}
           onClose={() => undefined}
           onVisible={() => undefined}
         >
           <K.Text>Supporting sample</K.Text>
-        </K.ResponsiveSupportingColumn>
+        </K.SupportingPane>
         <K.SplitView
           main={<K.Text>Main content</K.Text>}
           supporting={
-            <K.SupportingColumn title="Supporting content">
+            <K.SupportingPane
+              title="Supporting content"
+              open={true}
+              onClose={() => undefined}
+              persistent={true}
+            >
               <K.Text>Always visible</K.Text>
-            </K.SupportingColumn>
+            </K.SupportingPane>
           }
         />
         <K.SelectionGroupHeading>Recent</K.SelectionGroupHeading>
@@ -1347,7 +1352,7 @@ function PanelPrimitive() {
         <K.Text>Navigation and Settings share this surface.</K.Text>
       </K.Drawer>
       <K.Button onClick={() => setOpen(true)}>Open adaptive panel</K.Button>
-      <K.AdaptivePanel title="Supporting content" open={open} onClose={() => setOpen(false)}>
+      <K.SupportingPane title="Supporting content" open={open} onClose={() => setOpen(false)}>
         <K.Toolbar>
           <K.Heading>Supporting content</K.Heading>
           <K.Button
@@ -1369,7 +1374,7 @@ function PanelPrimitive() {
         <K.Drawer title="Supporting details" open={details} onClose={() => setDetails(false)}>
           <K.Input aria-label="Details draft" defaultValue="Details for the supporting task" />
         </K.Drawer>
-      </K.AdaptivePanel>
+      </K.SupportingPane>
     </K.Stack>
   );
 }
@@ -1553,8 +1558,6 @@ export const catalogue: Specimen[] = [
       'SelectionRow',
       'SelectionGroupHeading',
       'SplitView',
-      'SupportingColumn',
-      'ResponsiveSupportingColumn',
       'Message',
       'Markdown',
       'Composer',
@@ -1643,7 +1646,7 @@ export const catalogue: Specimen[] = [
     title: 'Adaptive panel primitive',
     description:
       'Supporting content beside the page on wide screens and in shared modal/Drawer presentation when narrower; drafts and nested tasks stay mounted.',
-    components: ['AdaptivePanel', 'Drawer'],
+    components: ['SupportingPane', 'Drawer'],
     Sample: PanelPrimitive,
   },
   {

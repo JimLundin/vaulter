@@ -365,7 +365,7 @@ test('Wiki renderers accept semantic content but cannot own application presenta
       }),
     );
     writeFileSync(
-      join(root, 'app/workflows/wiki/rendering/content.tsx'),
+      join(root, 'app/workflows/wiki/rendering/blocks.tsx'),
       'export const content = <section id="claim"><h2>Title</h2><p><strong>Retained</strong> text <a href="#/wiki/page/">Page</a></p><table><tbody><tr><td data-align="right">1</td></tr></tbody></table></section>;',
     );
     expect(checkLayout(root)).toEqual([]);
@@ -402,7 +402,7 @@ test('Wiki passage renderers and private helpers cannot own controls, clipping o
       }),
     );
     writeFileSync(
-      join(root, 'app/workflows/wiki/rendering/references.tsx'),
+      join(root, 'app/workflows/wiki/rendering/blocks.tsx'),
       'export const passage = <blockquote><strong>Retained</strong> <mark>selected</mark> <a href="#/source/">Source</a></blockquote>;',
     );
     expect(checkLayout(root)).toEqual([]);
@@ -472,6 +472,117 @@ test('production entry reachability rejects fictional preview imports through he
     );
     writeFileSync(join(root, 'app/ui/kit/index.ts'), "export { bounds } from './presentation.ts';");
     expect(checkLayout(root)).toEqual([]);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('renderer names and local aliases cannot hide application presentation', () => {
+  const root = mkdtempSync(join(tmpdir(), 'vaulter-semantic-alias-policy-'));
+  try {
+    const files = {
+      'app/workflows/wiki/rendering/new-card.tsx': `const Raw = 'div'; const style = {}; export const card = <Raw {...{style}}/>;`,
+      'app/ui/size.ts': `export function useLayout() { return 'compact'; }`,
+      'app/ui/bridge.ts': `export { useLayout as dimensions } from './size.ts';`,
+      'app/workflows/wiki/helper.ts': `import { dimensions } from '../../ui/bridge.ts'; const alias = dimensions; alias(); const query = window.matchMedia; query('(hover: hover)');`,
+      'app/factory.ts': 'export function createElement(tag: string) { return tag; }',
+      'app/ui/view.ts': `import { createElement } from '../factory.ts'; const element = createElement; element('section');`,
+    };
+    writeFileSync(
+      join(root, 'tsconfig.json'),
+      JSON.stringify({
+        compilerOptions: { module: 'ESNext', moduleResolution: 'Bundler', jsx: 'preserve' },
+        include: ['app'],
+      }),
+    );
+    for (const [path, source] of Object.entries(files)) {
+      mkdirSync(join(root, path, '..'), { recursive: true });
+      writeFileSync(join(root, path), source);
+    }
+    expect(checkLayout(root)).toEqual(
+      expect.arrayContaining([
+        'app/workflows/wiki/rendering/new-card.tsx: <div> must be a public kit component',
+        'app/workflows/wiki/rendering/new-card.tsx: presentation props belong in the kit or content renderer',
+        'app/workflows/wiki/helper.ts: size-dependent presentation belongs in the kit',
+        'app/workflows/wiki/helper.ts: viewport queries belong in the kit',
+        'app/ui/view.ts: intrinsic element factories belong in the kit or content renderer',
+      ]),
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('typed intrinsic aliases and factory tag aliases cannot bypass semantic ownership', () => {
+  const root = mkdtempSync(join(tmpdir(), 'vaulter-typed-tag-policy-'));
+  try {
+    mkdirSync(join(root, 'app/ui'), { recursive: true });
+    writeFileSync(
+      join(root, 'tsconfig.json'),
+      JSON.stringify({
+        compilerOptions: { module: 'ESNext', moduleResolution: 'Bundler', jsx: 'preserve' },
+        include: ['app'],
+      }),
+    );
+    writeFileSync(
+      join(root, 'app/ui/view.tsx'),
+      `const Raw = ('div' as const); function createElement(tag:string){return tag}; const element=createElement; const tag='section'; export const view=<Raw/>; element(tag);`,
+    );
+    expect(checkLayout(root)).toEqual(
+      expect.arrayContaining([
+        'app/ui/view.tsx: <div> must be a public kit component',
+        'app/ui/view.tsx: intrinsic element factories belong in the kit or content renderer',
+      ]),
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('new module helpers cannot hide viewport queries in values or own scroll mechanics', () => {
+  const root = mkdtempSync(join(tmpdir(), 'vaulter-module-scroll-policy-'));
+  try {
+    mkdirSync(join(root, 'app/workflows/example'), { recursive: true });
+    writeFileSync(
+      join(root, 'tsconfig.json'),
+      JSON.stringify({
+        compilerOptions: { module: 'ESNext', moduleResolution: 'Bundler' },
+        include: ['app'],
+      }),
+    );
+    writeFileSync(
+      join(root, 'app/workflows/example/helper.ts'),
+      `const query='(min-width: 800px)'; const media=window.matchMedia; media(query); export function helper(node:HTMLElement){node.scrollTo(0,0);new ResizeObserver(()=>{});}`,
+    );
+    expect(checkLayout(root)).toEqual(
+      expect.arrayContaining([
+        'app/workflows/example/helper.ts: viewport queries belong in the kit',
+        'app/workflows/example/helper.ts: passage measurement and scrolling belong in the kit',
+      ]),
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('the vault-link annotation exception permits data annotation without native UI', () => {
+  const root = mkdtempSync(join(tmpdir(), 'vaulter-annotation-policy-'));
+  try {
+    mkdirSync(join(root, 'app/vault/documents/notes'), { recursive: true });
+    writeFileSync(
+      join(root, 'tsconfig.json'),
+      JSON.stringify({
+        compilerOptions: { module: 'ESNext', moduleResolution: 'Bundler' },
+        include: ['app'],
+      }),
+    );
+    writeFileSync(
+      join(root, 'app/vault/documents/notes/remark-vault-links.ts'),
+      `function createElement(tag:string){return tag};const props={className:['vault-link']};createElement('div',props);`,
+    );
+    expect(checkLayout(root)).toContain(
+      'app/vault/documents/notes/remark-vault-links.ts: intrinsic element factories belong in the kit or content renderer',
+    );
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

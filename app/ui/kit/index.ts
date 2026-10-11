@@ -313,7 +313,6 @@ export {
   ReadingColumn,
   Dock,
   AutoScrollArea,
-  AdaptivePanel,
   OptionStrip,
 } from './primitives.tsx';
 export { Drawer } from './drawer.tsx';
@@ -344,9 +343,7 @@ export { Spacer, Heading, Prose, type Gap, type TextProps } from './parts/layout
 export {
   SelectionRow,
   SelectionGroupHeading,
-  SupportingColumn,
   SplitView,
-  ResponsiveSupportingColumn,
 } from './selection.tsx';
 
 export { PresentationPreview } from './presentation.tsx';

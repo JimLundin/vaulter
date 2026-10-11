@@ -1,6 +1,4 @@
-import { type ReactNode, useEffect } from 'react';
-import { useLayout } from './hooks/use-layout.ts';
-import { Drawer } from './drawer.tsx';
+import type { ReactNode } from 'react';
 import { Button } from './parts/button.tsx';
 import { cn } from './lib/utils.ts';
 
@@ -68,52 +66,12 @@ export function SelectionRow({
   );
 }
 
-/** Shared supporting frame: header, inset and scroll owner match the phone drawer. */
-export function SupportingColumn({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <Drawer
-      open={true}
-      onClose={() => undefined}
-      title={title}
-      placement="reading"
-      dismissible={false}
-    >
-      {children}
-    </Drawer>
-  );
-}
 export function SplitView({ main, supporting }: { main: ReactNode; supporting: ReactNode }) {
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-1">
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">{main}</div>
       {supporting}
     </div>
-  );
-}
-
-/** Keeps desktop supporting content present and uses the shared drawer only on mobile. */
-export function ResponsiveSupportingColumn({
-  title,
-  open,
-  onClose,
-  onVisible,
-  children,
-}: {
-  title: string;
-  open: boolean;
-  onClose: () => void;
-  onVisible?: (visible: boolean) => void;
-  children: ReactNode;
-}) {
-  const mobile = useLayout() === 'compact';
-  const visible = !mobile || open;
-  useEffect(() => {
-    onVisible?.(visible);
-  }, [visible, onVisible]);
-  return (
-    <Drawer open={visible} onClose={onClose} title={title} placement="reading" dismissible={mobile}>
-      {children}
-    </Drawer>
   );
 }
 

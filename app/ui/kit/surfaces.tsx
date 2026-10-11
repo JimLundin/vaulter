@@ -288,7 +288,7 @@ export function UnifiedDiff({ path, patch }: { path: string; patch?: string }) {
     </div>
   );
 }
-export function HoverPreview({
+function PositionedPreview({
   title,
   text,
   anchor,
@@ -330,4 +330,69 @@ export function HoverPreview({
     </div>
   );
   return policy.portal ? createPortal(content, policy.portal) : content;
+}
+
+/** Link interpretation stays with the caller; the kit owns hover delay, anchors and dismissal. */
+export function HoverPreview(
+  props:
+    | { title: string; text?: string; anchor: DOMRect }
+    | {
+        resolve: (href: string) => { title: string; text?: string } | undefined;
+        selector: string;
+      },
+) {
+  const resolver = 'resolve' in props ? props.resolve : undefined;
+  const selector = 'selector' in props ? props.selector : '';
+  const policy = usePresentationPolicy();
+  const [preview, setPreview] = useState<{ title: string; text?: string; anchor: DOMRect } | null>(
+    null,
+  );
+  useEffect(() => {
+    setPreview(null);
+    if (!resolver) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const pointer = policy.portal?.closest('[data-kit-pointer]')?.getAttribute('data-kit-pointer');
+    const hover = pointer
+      ? pointer === 'fine'
+      : matchMedia('(hover: hover) and (pointer: fine)').matches;
+    const leave = () => {
+      clearTimeout(timer);
+      setPreview(null);
+    };
+    const over = (event: MouseEvent) => {
+      const anchor =
+        event.target instanceof Element ? event.target.closest<HTMLAnchorElement>(selector) : null;
+      if (!(anchor && hover && policy.owns(anchor))) return;
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        const content = resolver(anchor.getAttribute('href') ?? '');
+        if (content) setPreview({ ...content, anchor: anchor.getBoundingClientRect() });
+      }, 250);
+    };
+    const out = (event: MouseEvent) => {
+      if (
+        policy.owns(event.target) &&
+        event.target instanceof Element &&
+        event.target.closest(selector)
+      )
+        leave();
+    };
+    const scroll = (event: Event) => {
+      if (event.target === document || event.target === window || policy.owns(event.target))
+        leave();
+    };
+    addEventListener('mouseover', over);
+    addEventListener('mouseout', out);
+    addEventListener('hashchange', leave);
+    addEventListener('scroll', scroll, true);
+    return () => {
+      clearTimeout(timer);
+      removeEventListener('mouseover', over);
+      removeEventListener('mouseout', out);
+      removeEventListener('hashchange', leave);
+      removeEventListener('scroll', scroll, true);
+    };
+  }, [resolver, selector, policy]);
+  if ('anchor' in props) return <PositionedPreview {...props} />;
+  return preview ? <PositionedPreview {...preview} /> : null;
 }
