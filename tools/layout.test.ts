@@ -180,3 +180,44 @@ test('outside the kit, only Product reads the size class', () => {
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test('supporting-pane callers cannot hide private presentation access behind aliases or helpers', () => {
+  const root = mkdtempSync(join(tmpdir(), 'vaulter-pane-policy-'));
+  try {
+    mkdirSync(join(root, 'app/ui/kit'), { recursive: true });
+    mkdirSync(join(root, 'app/workflows/example'), { recursive: true });
+    writeFileSync(
+      join(root, 'tsconfig.json'),
+      JSON.stringify({
+        compilerOptions: {
+          module: 'ESNext',
+          moduleResolution: 'Bundler',
+          jsx: 'preserve',
+          paths: { '@kit/*': ['./app/ui/kit/*'] },
+        },
+        include: ['app'],
+      }),
+    );
+    writeFileSync(join(root, 'app/ui/kit/drawer.tsx'), 'export function Drawer() { return null; }');
+    writeFileSync(
+      join(root, 'app/workflows/example/helper.tsx'),
+      `import { Drawer as Pane } from '@kit/drawer.tsx';
+const props = { style: { width: 500 } };
+export function Helper() { return <Pane {...props} />; }`,
+    );
+    writeFileSync(
+      join(root, 'app/workflows/example/view.tsx'),
+      `export { Drawer } from '@kit/drawer.tsx';
+export const load = () => import('@kit/drawer.tsx');`,
+    );
+    expect(checkLayout(root)).toEqual(
+      expect.arrayContaining([
+        'app/workflows/example/helper.tsx imports a private kit file; use app/ui/kit/index.ts',
+        'app/workflows/example/helper.tsx: presentation props belong in the kit or content renderer',
+        'app/workflows/example/view.tsx imports a private kit file; use app/ui/kit/index.ts',
+      ]),
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});

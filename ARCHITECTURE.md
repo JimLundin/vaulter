@@ -161,6 +161,12 @@ Preview supplies a scripted suggestion adapter alongside its scripted conversati
 
 ## UI kit
 
+The saved-conversation chooser uses the shared `SupportingPane`: one scrolling body, or one
+following feed with an anchored dock; one header and width; expanded space beside the page and
+compact space in a full-height bottom Drawer. Modules request visibility and supply content/actions;
+`persistent` retains desktop occupancy without choosing presentation mechanics. Selection identity
+resets the kit-owned scroll position. Chat and Wiki's temporary pane paths retire in #45/#46/#51.
+
 The accepted ownership target is [ADR 0006](docs/adr/0006-module-ui-and-shared-presentation.md):
 modules own record-specific UI and typed reading projections; the kit owns base presentation and
 shared compositions. Supporting panes use one presentation policy across modules. Consistency and

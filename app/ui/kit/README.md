@@ -192,6 +192,16 @@ Settings opens over the current destination without changing its route or discar
 `FeaturePage` centers History and other screens on the same `--reading-width` as Agent. Page text
 remains left aligned within that centered column.
 
+`SupportingPane` is the shared supporting presentation seam. Supply `title`, `open`, `onClose`,
+content and optional header/actions. A `selection` identity resets its scrolling body. Supplying
+`dock` selects a following feed above an anchored dock, with optional `status` and `empty` inputs;
+do not wrap those children in another scrolling feed. `persistent` requests desktop occupancy.
+The kit owns the 340px width, header, inset, `md` transition, dismissal, gestures, focus return and
+bounded portals. Expanded/wide content stays beside the page; compact content uses the full-height
+bottom Drawer. The saved-conversation chooser and paired generic examples consume this seam.
+`AdaptivePanel`, `ConversationPanel` and reading-support wrappers remain temporary for Chat/Wiki
+and old examples until #45/#46 migrate their callers and #51 removes their separate geometry.
+
 ### Primitive composition
 
 Agent and Settings contain no intrinsic HTML, CSS classes or inline styling. They assemble public

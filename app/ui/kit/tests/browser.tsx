@@ -3,6 +3,7 @@ import { useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import '../styles.css';
 import {
+  SupportingPane,
   Button,
   Bars,
   Checkbox,
@@ -39,9 +40,48 @@ import {
   TabsTrigger,
   Text,
   Textarea,
+  SplitView,
   ToggleGroup,
   ToggleGroupItem,
 } from '../index.ts';
+
+function SupportingPaneFixture() {
+  const [open, setOpen] = useState(false);
+  const [review, setReview] = useState(false);
+  const [selection, setSelection] = useState(0);
+  return (
+    <SplitView
+      main={
+        <Stack>
+          <Input aria-label="Background task" />
+          <Button onClick={() => setOpen(true)}>Open supporting task</Button>
+        </Stack>
+      }
+      supporting={
+        <SupportingPane
+          open={open}
+          onClose={() => setOpen(false)}
+          title="Supporting task"
+          selection={selection}
+          actions={<Button onClick={() => setSelection(selection + 1)}>Next selection</Button>}
+        >
+          <Stack>
+            <Textarea aria-label="Retained supporting draft" defaultValue="Keep this content" />
+            <Button onClick={() => setReview(true)}>Review supporting task</Button>
+            <Overlay open={review} onClose={() => setReview(false)} title="Task review">
+              <Input aria-label="Retained review draft" defaultValue="Keep review content" />
+            </Overlay>
+            {Array.from({ length: 30 }, (_, index) => `Supporting line ${index + 1}`).map(
+              (line) => (
+                <Text key={line}>{line}</Text>
+              ),
+            )}
+          </Stack>
+        </SupportingPane>
+      }
+    />
+  );
+}
 
 function PolicyFixture() {
   const [parent, setParent] = useState(false);
@@ -339,7 +379,9 @@ function FieldFixture() {
 }
 
 createRoot(document.getElementById('app')!).render(
-  new URLSearchParams(location.search).has('policy') ? (
+  new URLSearchParams(location.search).has('supporting-pane') ? (
+    <SupportingPaneFixture />
+  ) : new URLSearchParams(location.search).has('policy') ? (
     <PolicyFixture />
   ) : new URLSearchParams(location.search).has('setting-fields') ? (
     <FieldFixture />
