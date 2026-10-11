@@ -63,7 +63,8 @@ Compilation validates unique quotations, historical ranges, unchanged baseline, 
 source eligibility and self/circular evidence. It checks actual historical containment rather than
 trusting a candidate's label. Direct enrichment input and citation readback share the Wiki source
 boundary. Compilation writes `evidence-review.json` and `review-report.json`, including the queue
-of unsupported blocks. Private packets, decisions, quotations and exclusions remain outside the repo.
+of unsupported blocks. Private packets, decisions, quotations and exclusions belong in the private
+vault, outside this public application repo.
 
 Enrichment reads committed Git history and emits new envelopes, `request.json` and `report.json`
 into a fresh directory outside the vault. It cannot publish. Output is valid immediately after the
@@ -74,29 +75,14 @@ and text, new schemas, containment, historical readback and idempotence.
 The original `migrate` / `migrate:verify` commands independently check historical Markdown import in
 scratch output. They must not replace published history or invalidate its exact addresses.
 
-## Current review handoff, 2026-10-11
+## Private migration handoffs
 
-Baseline: vault commit `5ab13a6cbe9bed8ed3566de1f3fd30f738cc1886`, sequence 395, 243 Wiki pages.
-The bounded agent pass reviewed 225 pages with candidates; 18 had none. It considered 1,400 candidate
-blocks and left 1,128 blocks without bounded candidates.
+Retain migration packages in the private vault under `.vaulter/migrations/wiki/<date>/`.
+Each package's `HANDOFF.md` records its baseline, canonical review/output, outstanding work and
+verification; its manifest and checksums preserve integrity. Session-specific review details and
+private content stay in that package.
 
-The first audit accepted 263 proposals, including 175 secondary Wiki passages. The maintainer
-clarified that Wiki is distilled content, so all 175 Wiki sources are deferred to underlying-source
-review. The corrected run retains 88 citations: 67 user-message passages and 21 agent reports.
-The previously accepted Shape-to-Shape-Core-Thesis citation is also superseded by this source rule.
-All earlier secondary-source output remains scratch history and was never published.
-
-Private artifacts are backed up at `/home/jim/.local/share/vaulter/backups/wiki-migration-2026-10-11`.
-Use the copies there if scratch directories have been cleared.
-
-Artifacts:
-
-- Original packets/decisions: `/tmp/wiki-agent-review`.
-- Corrected decisions, review, exclusions and coverage: `/tmp/wiki-agent-underlying-sources-20261011`.
-- Newly prepared underlying-source packets for unsupported blocks: the corrected directory's `next-pass`.
-- Corrected verified output: `/tmp/wiki-content-underlying-sources-20261011`.
-
-Migration modules are saved in commit `6f2d314`; the selected Wiki UI consumes their production
-read projection. The next pass reviews
-retrieved underlying sources and captures missing source material. Wiki-to-Wiki links remain useful
-for finding those sources, without becoming evidence. The prepared enrichment has not been applied to the live vault.
+The staging directory is separate from the live `.vaulter/nodes/v1/transactions/` namespace.
+Saving a package does not apply its proposed transactions. Before the full migration, pull the
+latest vault and regenerate/validate against the intended publication baseline. Verify the saved
+package before removing redundant temporary copies outside the vault.

@@ -18,8 +18,8 @@ built production checks on main before publishing to GitHub Pages. `version.json
 published commit. Preview builds retain sample data separately.
 
 Migration modules and the underlying-source rule are committed alongside the UI projection.
-Private reviewed packets and verified append-only enrichment are retained outside the repo as
-recorded in [the migration handoff](wiki-migration.md#current-review-handoff-2026-10-11). The prepared
+Private reviewed packets and verified append-only enrichment are retained in the private vault as
+recorded in [the migration handoffs](wiki-migration.md#private-migration-handoffs). The prepared
 enrichment has not been applied to the live vault; resuming migration requires the recorded baseline
 or regenerated output if vault history has advanced.
 
