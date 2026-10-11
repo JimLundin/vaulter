@@ -212,3 +212,59 @@ test('shared row presentation cannot interpret Vault records through aliases, re
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test('shared Search helpers cannot choose viewport presentation', () => {
+  const root = mkdtempSync(join(tmpdir(), 'vaulter-search-presentation-policy-'));
+  try {
+    mkdirSync(join(root, 'app/ui/search'), { recursive: true });
+    writeFileSync(
+      join(root, 'tsconfig.json'),
+      JSON.stringify({
+        compilerOptions: { module: 'ESNext', moduleResolution: 'Bundler' },
+        include: ['app'],
+      }),
+    );
+    writeFileSync(
+      join(root, 'app/ui/search/presentation.ts'),
+      "export const narrow = window.matchMedia('(max-width: 767px)');",
+    );
+    expect(checkLayout(root)).toEqual([
+      'app/ui/search/presentation.ts: viewport queries belong in the kit',
+    ]);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('kit mechanics cannot import Search task rendering through aliases or re-exports', () => {
+  const root = mkdtempSync(join(tmpdir(), 'vaulter-search-ownership-policy-'));
+  try {
+    mkdirSync(join(root, 'app/ui/kit'), { recursive: true });
+    writeFileSync(
+      join(root, 'tsconfig.json'),
+      JSON.stringify({
+        compilerOptions: {
+          module: 'ESNext',
+          moduleResolution: 'Bundler',
+          paths: { '@/*': ['./app/*'] },
+        },
+        include: ['app'],
+      }),
+    );
+    writeFileSync(join(root, 'app/ui/Search.ts'), 'export const SearchView = 1;');
+    for (const [i, source] of [
+      "import { SearchView } from '@/ui/Search.ts'; export { SearchView };",
+      "export { SearchView } from '@/ui/Search.ts';",
+      "export const load = () => import('@/ui/Search.ts');",
+    ].entries()) {
+      writeFileSync(join(root, `app/ui/kit/case${i}.ts`), source);
+    }
+    const problems = checkLayout(root);
+    expect(problems).toHaveLength(3);
+    expect(problems.every((problem) => problem.includes('task UI belongs outside the kit'))).toBe(
+      true,
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});

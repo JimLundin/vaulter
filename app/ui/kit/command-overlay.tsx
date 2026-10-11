@@ -1,25 +1,29 @@
-// Responsive search presentation with behavior supplied by callers.
+// Shared command-list presentation; callers own results, query, copy and actions.
 import type { ReactNode } from 'react';
 import { useLayout } from './hooks/use-layout.ts';
 import { AdaptiveDialog } from './overlay.tsx';
 
-/** Phone search uses the screen for results and touch targets, desktop uses the command dialog. */
-export function SearchSurface({
+/** Compact item selection uses the screen; wider selection uses a centered command dialog. */
+export function CommandOverlay({
   open,
   onClose,
   children,
+  title,
+  closeLabel,
 }: {
   open: boolean;
   onClose: () => void;
   children: ReactNode;
+  title: string;
+  closeLabel: string;
 }) {
   const mobile = useLayout() === 'compact';
   return (
     <AdaptiveDialog
       open={open}
       onClose={onClose}
-      title="Search or ask"
-      closeLabel="Close search"
+      title={title}
+      closeLabel={closeLabel}
       hideTitle={!mobile}
       fullScreen={true}
       focusInput={true}

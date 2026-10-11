@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { search } from '../vault/documents/search.ts';
 import type { Command } from './command.ts';
-import type { Entry } from '../vault/documents/search.ts';
+import type { Entry, Hit } from '../vault/documents/search.ts';
 import { showKeys } from './keys.ts';
 import { useRecent } from './recent.ts';
 import { go, useRoute } from './routing.ts';
@@ -17,7 +17,7 @@ import {
   CommandShortcut,
   Icon,
   Kbd,
-  SearchSurface,
+  CommandOverlay,
   Row,
   Text,
 } from './kit/index.ts';
@@ -56,11 +56,10 @@ export function Search({
   const recent = useRecent()
     .flatMap((h) => {
       const e = index.get(h);
-      return e && h !== route.path ? [{ href: h, title: e.t }] : [];
+      return e && h !== route.path ? [{ href: h, t: e.t }] : [];
     })
     .slice(0, 6);
   const shown = commands.filter((c) => !c.hidden && (!query || matching(query, c.label)));
-  const groups = [...new Set(shown.map((c) => c.group))];
   const close = () => {
     setSearch(false);
     setQ('');
@@ -75,11 +74,61 @@ export function Search({
   };
 
   return (
-    <SearchSurface open={open} onClose={close}>
+    <SearchView
+      open={open}
+      query={q}
+      onQueryChange={setQ}
+      hits={hits}
+      recent={recent}
+      commands={shown}
+      onClose={close}
+      onOpen={open_}
+      onRun={run}
+      onAsk={
+        onAsk
+          ? (text) => {
+              close();
+              onAsk(text);
+            }
+          : undefined
+      }
+    />
+  );
+}
+
+// The Search record view renders resolved results and explicit task actions without a vault,
+// router, recent-entry subscription or Agent controller.
+export function SearchView({
+  open,
+  query: q,
+  onQueryChange,
+  hits,
+  recent,
+  commands: shown,
+  onClose,
+  onOpen,
+  onRun,
+  onAsk,
+}: {
+  open: boolean;
+  query: string;
+  onQueryChange: (query: string) => void;
+  hits: readonly Hit[];
+  recent: readonly Pick<Entry, 'href' | 't'>[];
+  commands: readonly Command[];
+  onClose: () => void;
+  onOpen: (href: string) => void;
+  onRun: (command: Command) => void;
+  onAsk?: (text: string) => void;
+}) {
+  const query = q.trim();
+  const groups = [...new Set(shown.map((c) => c.group))];
+  return (
+    <CommandOverlay open={open} onClose={onClose} title="Search or ask" closeLabel="Close search">
       <Palette shouldFilter={false} loop={true}>
         <CommandInput
           value={q}
-          onValueChange={setQ}
+          onValueChange={onQueryChange}
           placeholder="Find a note, or type a command…"
         />
         <CommandList>
@@ -87,9 +136,13 @@ export function Search({
           {!query && recent.length > 0 && (
             <CommandGroup heading="Recent">
               {recent.map((r) => (
-                <CommandItem key={r.href} value={`recent ${r.href}`} onSelect={() => open_(r.href)}>
+                <CommandItem
+                  key={r.href}
+                  value={`recent ${r.href}`}
+                  onSelect={() => onOpen(r.href)}
+                >
                   <Icon name="file" />
-                  {r.title}
+                  {r.t}
                 </CommandItem>
               ))}
             </CommandGroup>
@@ -100,7 +153,7 @@ export function Search({
                 <CommandItem
                   key={h.entry.href}
                   value={`hit ${h.entry.href}`}
-                  onSelect={() => open_(h.entry.href)}
+                  onSelect={() => onOpen(h.entry.href)}
                 >
                   {h.entry.k === 'topic' ? <Icon name="book" /> : <Icon name="file" />}
                   <Text as="span" size="sm">
@@ -117,13 +170,7 @@ export function Search({
           )}
           {!!query && onAsk && (
             <CommandGroup heading="Agent">
-              <CommandItem
-                value="ask"
-                onSelect={() => {
-                  close();
-                  onAsk(query);
-                }}
-              >
+              <CommandItem value="ask" onSelect={() => onAsk(query)}>
                 <Icon name="sparkles" />
                 Ask the agent: {query}
               </CommandItem>
@@ -134,7 +181,7 @@ export function Search({
               {shown
                 .filter((c) => c.group === g)
                 .map((c) => (
-                  <CommandItem key={c.id} value={`cmd ${c.id}`} onSelect={() => run(c)}>
+                  <CommandItem key={c.id} value={`cmd ${c.id}`} onSelect={() => onRun(c)}>
                     {!!c.icon && <Icon name={c.icon} />}
                     {c.label}
                     {!!c.keys && (
@@ -148,6 +195,6 @@ export function Search({
           ))}
         </CommandList>
       </Palette>
-    </SearchSurface>
+    </CommandOverlay>
   );
 }

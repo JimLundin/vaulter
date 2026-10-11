@@ -9,7 +9,7 @@ keeps record-specific UI in its owning module and shared presentation in the kit
 policy owns geometry and interaction across modules; consistency takes precedence over tailored
 arrangements. The [UI ownership migration plan](../../../docs/plans/ui-module-ownership.md) records
 the work and enforcement checks. Current kit exports still include module-specific presentation;
-History ownership is implemented; the remaining slices are in progress.
+History and Search ownership are implemented; remaining module migrations are tracked by the plan.
 
 History-specific presentation has moved to History. `ExpandableRow` owns shared disclosure,
 metadata placement and details geometry; `RowAction` owns compact accessible action presentation.
@@ -56,7 +56,8 @@ Markdown/HAST rendering and the vault-link annotation transform remain the expli
 | `drawer.tsx` | the public `Drawer`, centered in expanded space and rising from the bottom in compact space |
 | `navigation.tsx` | `NavigationSuite`: one navigation as a sidebar or a bottom bar |
 | `conversation.tsx` | mobile agent screen, desktop reading column, composer and message presentation |
-| `screens.tsx` | mobile search screen and history touch rows, desktop palette and commit list |
+| `command-overlay.tsx` | shared responsive command-list overlay |
+| `expandable-row.tsx` | shared disclosure, metadata and compact actions |
 | `settings.tsx` | feature-named settings menu and shared form rows |
 | `field-association.ts` | private association state consumed by text controls and radio groups through nested layouts |
 | `surfaces.tsx` | gates, preview notice, tool results, panels and unified diffs |
@@ -96,12 +97,19 @@ in caller order; legacy cmdk options are not a compatibility target. Composition
 Adapters preserve kit behavior where library defaults differ: dropdown labels can stand alone,
 checkbox selections close their menu, and dialogs respect each surface's initial-focus choice.
 
-Short modal tasks use adaptive `Overlay`; Search uses `SearchSurface` and preferences use
+Short modal tasks use adaptive `Overlay`; Search uses shared `CommandOverlay` and preferences use
 `SettingsMenu`. Generic public Dialog assembly, CommandDialog and SettingsPage are retired.
 Private Base UI dialog adapters still support Overlay and Search focus, dismissal and accessible
 titles. `DialogFooter` remains a standalone optional layout for caller-supplied actions: right-aligned
 on desktop and stacked on phones. Its optional close action remains available; overlays need not
 use a footer.
+
+`CommandOverlay` owns compact full-screen and wider command-list geometry, input focus and
+dismissal mechanics. Its callers supply the title, close label and presentation content. Search
+owns query state, ranked entries, recent entries, task groups and navigation/command/ask actions;
+its typed `SearchView` renders resolved `Hit`/`Entry` values and explicit actions without a vault
+adapter or Agent controller. The catalogue demonstrates generic item selection through the same
+overlay, with paired bounded presentation. Search-specific `SearchSurface` is removed.
 
 Spacing uses a 4px scale: 4px between inset actions, 8px between related controls, 16px within
 content and 24px between sections. `--space-control`, `--space-row`, `--space-content` and

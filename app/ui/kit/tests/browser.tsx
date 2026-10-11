@@ -26,7 +26,7 @@ import {
   RadioGroup,
   RadioGroupItem,
   Row,
-  SearchSurface,
+  CommandOverlay,
   SettingField,
   FeaturePage,
   SettingsMenu,
@@ -84,6 +84,29 @@ function PolicyFixture() {
           <Text key={detail}>{detail}</Text>
         ),
       )}
+    </Stack>
+  );
+}
+
+function CommandOverlayFixture() {
+  const [open, setOpen] = useState(false);
+  return (
+    <Stack>
+      <Button onClick={() => setOpen(true)}>Choose an item</Button>
+      <CommandOverlay
+        open={open}
+        onClose={() => setOpen(false)}
+        title="Choose an item"
+        closeLabel="Cancel item selection"
+      >
+        <Command>
+          <CommandInput aria-label="Item query" />
+          <CommandList>
+            <CommandItem>First item</CommandItem>
+            <CommandItem>Second item</CommandItem>
+          </CommandList>
+        </Command>
+      </CommandOverlay>
     </Stack>
   );
 }
@@ -189,7 +212,12 @@ function Fixture() {
           },
         ]}
       />
-      <SearchSurface open={search} onClose={() => setSearch(false)}>
+      <CommandOverlay
+        open={search}
+        onClose={() => setSearch(false)}
+        title="Search or ask"
+        closeLabel="Close search"
+      >
         <Command>
           <CommandInput aria-label="Search query" />
           <CommandList>
@@ -197,7 +225,7 @@ function Fixture() {
             <CommandItem>Result two</CommandItem>
           </CommandList>
         </Command>
-      </SearchSurface>
+      </CommandOverlay>
       <Overlay open={review} onClose={() => setReview(false)} title="Review">
         <Stack>
           <Input aria-label="Review draft" defaultValue="Preserved review draft" />
@@ -339,7 +367,9 @@ function FieldFixture() {
 }
 
 createRoot(document.getElementById('app')!).render(
-  new URLSearchParams(location.search).has('policy') ? (
+  new URLSearchParams(location.search).has('command-overlay') ? (
+    <CommandOverlayFixture />
+  ) : new URLSearchParams(location.search).has('policy') ? (
     <PolicyFixture />
   ) : new URLSearchParams(location.search).has('setting-fields') ? (
     <FieldFixture />

@@ -306,11 +306,11 @@ test('unmounting open settings samples leaves replacement surfaces and reopened 
     await filter.fill('Search & commands');
     await expect(settings).toHaveCount(0);
     const replacement = page.locator('[data-kit-comparison="search"] [data-kit-preview="mobile"]');
-    const opener = replacement.getByRole('button', { name: 'Search your vault', exact: true });
+    const opener = replacement.getByRole('button', { name: 'Choose an item', exact: true });
     await opener.click();
     const search = replacement.getByRole('dialog');
-    await search.getByRole('combobox').fill('Coffee');
-    await expect(search.getByRole('option', { name: 'Coffee with Anna' })).toBeVisible();
+    await search.getByRole('combobox').fill('Second');
+    await expect(search.getByRole('option', { name: 'Second item' })).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(search).toBeHidden();
     await expect(opener).toBeFocused();
