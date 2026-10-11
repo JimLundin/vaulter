@@ -47,7 +47,7 @@ export function githubNodeBackend(options: {
       return operation();
     });
   const deviceCache = async () => {
-    cache ??= await nodeCache(options.key, scope);
+    cache ??= await nodeCache(scope);
     if (closed) cache.close();
     checkOpen();
     return cache;

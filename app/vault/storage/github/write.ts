@@ -5,7 +5,6 @@ import type { VaultFile } from '../../files.ts';
 import { blobSha } from '../blob-sha.ts';
 import { Conflict, TRAILER, type Change, type Verify } from '../backend.ts';
 import { applyOverlay } from '../../changes/writer.ts';
-import { encrypt } from '../../session/crypto.ts';
 import { NotFastForward, type GitHub, type TreeChange } from '../github-client/api.ts';
 import { gc, sync, writeSnapshot, type BlobRecord, type Snapshot } from './sync.ts';
 
@@ -63,7 +62,7 @@ async function writeCommit(
         .filter((b): b is Extract<Blob, { text: string }> => b.sha !== null)
         .map(async (b) => ({
           sha: b.sha,
-          ...(await encrypt(key, new TextEncoder().encode(b.text), b.sha)),
+          text: b.text,
         })),
     );
     const snapshot: Snapshot = { commit, tree, etag: '', fetchedAt: Date.now(), files: shas };

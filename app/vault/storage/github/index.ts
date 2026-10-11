@@ -1,8 +1,8 @@
-// The vault as a GitHub repo: main, read through the encrypted cache (sync.ts) and written with the Git
+// The vault as a GitHub repo: main, read through the device cache (sync.ts) and written with the Git
 // Data API (write.ts). Tabs tell each other when one syncs or commits, so the others read the cache.
 import type { VaultFile } from '../../files.ts';
 import { Offline, TRAILER, type Head, type VaultBackend, type Verify } from '../backend.ts';
-import { claim, clear, keepWith } from './cache.ts';
+import { clear, keepWith } from './cache.ts';
 import { github, sourceUrl, type Repo } from '../github-client/api.ts';
 import { readCache, sync, type Snapshot } from './sync.ts';
 import { commitChanges, revertCommit } from './write.ts';
@@ -43,9 +43,7 @@ export function githubBackend(o: {
     if (!snap) throw new Error('not synced yet');
     return snap;
   };
-  // The cache is this key's before anything is read from it (cache.ts claim).
-  const mine = browserCache(() => claim(o.key));
-  const kept = keepWith(o.key);
+  const kept = keepWith();
   const adoptCache = async () => {
     const cached = await readCache(o.key);
     return cached && head(cached);
@@ -53,15 +51,10 @@ export function githubBackend(o: {
 
   return {
     coordinate: browserWrites,
-    cached: () =>
-      browserCache(async () => {
-        await mine;
-        return adoptCache();
-      }),
+    cached: () => browserCache(async () => adoptCache()),
     refresh: () =>
       browserCache(async () => {
         try {
-          await mine;
           const before = snap?.tree;
           const cached = await adoptCache();
           const r = await sync(o.key, gh, snap);
@@ -79,7 +72,6 @@ export function githubBackend(o: {
       const f = (event: MessageEvent) => {
         if (event.data !== 'synced') return;
         browserCache(async () => {
-          await mine;
           const cached = await adoptCache();
           if (cached) on(cached);
         }).catch((error: unknown) => reportError(error));
@@ -89,13 +81,11 @@ export function githubBackend(o: {
     },
     write: (changes, message, verify: Verify) =>
       browserCache(async () => {
-        await mine;
         await adoptCache();
         return wrote(await commitChanges(o.key, gh, ready(), files, changes, message, verify));
       }),
     revert: (sha, verify) =>
       browserCache(async () => {
-        await mine;
         await adoptCache();
         return wrote(await revertCommit(o.key, gh, ready(), files, sha, verify));
       }),
@@ -121,9 +111,8 @@ export function githubBackend(o: {
     },
     source: (path) => sourceUrl(path, o.repo),
     keep: {
-      get: async (id) => (await mine, kept.get(id)),
+      get: kept.get,
       set: async (id, value) => {
-        await mine;
         await kept.set(id, value);
         if (id === 'overlay') channel?.postMessage('staged');
       },

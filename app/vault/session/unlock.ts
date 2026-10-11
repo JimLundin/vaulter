@@ -1,7 +1,6 @@
 // Unlocking: the password opens secrets.json (app/vault/session/sealed.ts), and this device remembers the derived
-// key for 30 days, as a non-extractable CryptoKey in IndexedDB, with a fresh cache key for the notes.
-// Re-sealing (a new salt), expiry or signing out forgets both, which leaves the cached notes unreadable,
-// so they are cleared too.
+// key for 30 days, as a non-extractable CryptoKey in IndexedDB. Vault contents are stored in
+// plaintext. Signing out clears the device contents.
 import { deriveKey, unseal, type Sealed, type Secrets } from './sealed.ts';
 import { newCacheKey } from './crypto.ts';
 import { database } from './idb.ts';
@@ -65,7 +64,7 @@ export async function unlock(
 ): Promise<Unlocked> {
   const key = await deriveKey(password, sealed.kdf.salt, sealed.kdf.iterations);
   const secrets = await unseal(sealed, key);
-  await forget(); // a new cache key: what was cached under the old one can't be read, and is cleared
+  await forget(); // forget the previous remembered unlock
   const cacheKey = await newCacheKey();
   await put('keys', {
     id: 'device',

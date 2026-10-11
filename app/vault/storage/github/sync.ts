@@ -1,13 +1,6 @@
-// Keeps the encrypted cache in step with main: render from the cache, ask whether main moved (a 304
+// Keeps the device cache in step with main: render from the cache, ask whether main moved (a 304
 // costs nothing), and if it did, fetch only the blobs not yet cached, each checked against its sha.
 import type { VaultFile } from '../../files.ts';
-import {
-  decrypt,
-  decryptJson,
-  encrypt,
-  encryptJson,
-  type Encrypted,
-} from '../../session/crypto.ts';
 import { db } from './cache.ts';
 import type { GitHub } from '../github-client/api.ts';
 
@@ -18,15 +11,17 @@ export interface Snapshot {
   fetchedAt: number;
   files: Record<string, string>;
 }
-interface SnapshotRecord extends Encrypted {
+interface SnapshotRecord {
   id: 'main';
+  files: Record<string, string>;
   commit: string;
   tree: string;
   etag: string;
   fetchedAt: number;
 }
-export interface BlobRecord extends Encrypted {
+export interface BlobRecord {
   sha: string;
+  text: string;
 }
 
 const PARALLEL = 6;
@@ -34,20 +29,18 @@ const text = new TextDecoder();
 
 /** The cached snapshot and its files, or null when nothing is cached (or it can't be read). */
 export async function readCache(
-  key: CryptoKey,
+  _key: CryptoKey,
 ): Promise<{ snapshot: Snapshot; files: VaultFile[] } | null> {
   const rec = await db.get<SnapshotRecord>('snapshot', 'main');
   if (!rec) return null;
   try {
-    const files = await decryptJson<Record<string, string>>(key, rec, 'snapshot:main');
+    const { files } = rec;
     const blobs = new Map((await db.getAll<BlobRecord>('blobs')).map((b) => [b.sha, b]));
-    const out = await Promise.all(
-      Object.entries(files).map(async ([path, sha]) => {
-        const b = blobs.get(sha);
-        if (!b) throw new Error(`missing blob ${sha}`);
-        return { path, text: text.decode(await decrypt(key, b, sha)) };
-      }),
-    );
+    const out = Object.entries(files).map(([path, sha]) => {
+      const b = blobs.get(sha);
+      if (!b) throw new Error(`missing blob ${sha}`);
+      return { path, text: b.text };
+    });
     const { commit, tree, etag, fetchedAt } = rec;
     return { snapshot: { commit, tree, etag, fetchedAt, files }, files: out };
   } catch {
@@ -85,7 +78,7 @@ export async function sync(
       missing.slice(i, i + PARALLEL).map(async (sha) => {
         const bytes = await gh.blob(sha);
         texts.set(sha, text.decode(bytes));
-        fetched.push({ sha, ...(await encrypt(key, bytes, sha)) });
+        fetched.push({ sha, text: text.decode(bytes) });
       }),
     );
   }
@@ -105,12 +98,11 @@ export async function sync(
 }
 
 /** New blobs and the snapshot in one transaction, so the snapshot never points at a missing blob. */
-export async function writeSnapshot(key: CryptoKey, s: Snapshot, blobs: BlobRecord[]) {
+export async function writeSnapshot(_key: CryptoKey, s: Snapshot, blobs: BlobRecord[]) {
   const { files, ...head } = s;
-  const enc = await encryptJson(key, files, 'snapshot:main');
   await db.tx(['blobs', 'snapshot'], 'readwrite', (t) => {
     for (const b of blobs) t.objectStore('blobs').put(b);
-    t.objectStore('snapshot').put({ id: 'main', ...head, ...enc } satisfies SnapshotRecord);
+    t.objectStore('snapshot').put({ id: 'main', ...head, files } satisfies SnapshotRecord);
   });
 }
 

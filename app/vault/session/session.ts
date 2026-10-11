@@ -1,4 +1,4 @@
-// Which vault the app is on, and its state: GitHub through the encrypted cache, in every browser. Built, the
+// Which vault the app is on, and its state: GitHub through the device cache, in every browser. Built, the
 // secrets are unlocked with the password (unlock.ts); in dev they come from the environment (vite.config.ts)
 // and it loads right in. Opens from what the device kept, then refreshes: at once, when the tab comes back (at most every
 // 30 s), and when the backend says something changed.

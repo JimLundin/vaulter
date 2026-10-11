@@ -61,7 +61,7 @@ export interface NodeStore {
 
 /** Session-owned adapter lifecycle; workflows receive only NodeStore. */
 export interface NodeBackend extends NodeStore {
-  /** Load the encrypted device cache without contacting the remote. */
+  /** Load the device cache without contacting the remote. */
   readonly cached: () => Promise<void>;
   /** Synchronize authoritative history; commit always refreshes before acceptance. */
   readonly refresh: () => Promise<void>;

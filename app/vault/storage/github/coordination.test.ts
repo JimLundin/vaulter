@@ -67,7 +67,7 @@ async function setup() {
   return { fake, first, second, a, b };
 }
 
-test('separate GitHub adapters merge staging from encrypted storage under shared ownership', async () => {
+test('separate GitHub adapters merge staging from device storage under shared ownership', async () => {
   const { first, a, b } = await setup();
   await Promise.all([a.load(), b.load()]);
   await Promise.all([a.stage('First.md', '# First'), b.stage('Second.md', '# Second')]);

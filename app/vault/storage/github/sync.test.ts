@@ -62,25 +62,21 @@ test('a blob that does not match its hash is refused', async () => {
   expect(await readCache(key)).toBeNull();
 });
 
-test('nothing in the store is readable without the key', async () => {
+test('vault contents are plaintext and survive a new unlock', async () => {
   const { gh } = await fakeGitHub({ 'Private Diagnosis.mdx': 'the diagnosis itself' });
   await sync(key, gh, null);
   const dump =
     JSON.stringify(await db.getAll('snapshot')) + JSON.stringify(await db.getAll('blobs'));
-  expect(dump).not.toContain('Diagnosis');
-  expect(dump).not.toContain('diagnosis itself');
-  expect(await readCache(await newCacheKey())).toBeNull();
+  expect(dump).toContain('Diagnosis');
+  expect(dump).toContain('diagnosis itself');
+  expect((await readCache(await newCacheKey()))!.files[0].text).toBe('the diagnosis itself');
 });
 
-test('a cache another key wrote is cleared when the backend opens with a new one', async () => {
+test('a plaintext cache is retained when the backend opens with a new key', async () => {
   const f = await fakeGitHub({ 'Ada.md': '# Ada' });
   const open = (k: CryptoKey) =>
     githubBackend({ token: 'tok', key: k, api: 'https://gh.test', fetch: f.fetchFn });
   await open(key).refresh();
-  expect(await db.getAll('blobs')).toHaveLength(1);
-  const other = await newCacheKey(); // a new unlock: the old key is gone
-  const b = open(other);
-  expect(await b.cached()).toBeNull();
-  expect(await db.getAll('blobs')).toEqual([]);
-  expect((await b.refresh())!.files.map((x) => x.text)).toEqual(['# Ada']);
+  const b = open(await newCacheKey());
+  expect((await b.cached())!.files.map((x) => x.text)).toEqual(['# Ada']);
 });

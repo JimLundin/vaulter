@@ -37,7 +37,7 @@ export function cancellable<T>(work: Promise<T>, signal?: AbortSignal): Promise<
   });
 }
 
-/** Shared by every tab using this origin's encrypted cache. Never fall back to a tab-local lock. */
+/** Shared by every tab using this origin's device cache. Never fall back to a tab-local lock. */
 export const browserWrites = <T>(operation: () => Promise<T>, signal?: AbortSignal): Promise<T> => {
   if (typeof navigator === 'undefined' || !navigator.locks)
     return Promise.reject(new Error('This browser cannot coordinate vault writes safely.'));

@@ -58,7 +58,7 @@ test('node JSON and transaction metadata retain all keys through cache reopen an
   const data = JSON.parse('{"__proto__":{"text":"retain"},"constructor":2,"prototype":3}');
   await store.commit({ ...request('json', [create('json', data)]), metadata: data });
   store.close();
-  const cached = open();
+  const cached = open(undefined, await newCacheKey());
   await cached.cached();
   expect((await cached.snapshot()).get('json')?.data).toEqual(data);
   expect(
@@ -94,7 +94,7 @@ test('one envelope is remotely accepted, legacy files preserved, exact citations
   expect(JSON.parse(filesAt()[`${NODE_NAMESPACE}citation.json`]).versions).toHaveLength(2);
   await store.commit(request('delete', [await revise(store, 'evidence', null)]));
   store.close();
-  const cached = open();
+  const cached = open(undefined, await newCacheKey());
   await cached.cached();
   expect((await cached.snapshot()).sequence).toBe(3);
   const citation = (await cached.snapshot()).get('citation')!;
@@ -108,7 +108,7 @@ test('one envelope is remotely accepted, legacy files preserved, exact citations
   expect((await newDevice.snapshot()).get('citation')?.data).toBeNull();
 });
 
-test('cache encrypts structural data and metadata with an injected key and no persisted CryptoKey', async () => {
+test('cache stores structural data and metadata as plaintext without a persisted CryptoKey', async () => {
   const { store } = await setup();
   await store.commit({
     ...request('meta', [await revise(store, 'evidence', { text: 'Private sample sentence' })]),
@@ -120,8 +120,8 @@ test('cache encrypts structural data and metadata with an injected key and no pe
   const db = new Dexie(name);
   await db.open();
   const rows = await Promise.all(db.tables.map(async (table) => table.toArray()));
-  expect(JSON.stringify(rows)).not.toContain('Private sample');
-  expect(JSON.stringify(rows)).not.toContain('placement');
+  expect(JSON.stringify(rows)).toContain('Private sample');
+  expect(JSON.stringify(rows)).toContain('placement');
   expect(db.tables.map((table) => table.name)).toEqual(['envelopes', 'head', 'owner']);
   expect(rows.flat().some((row) => 'key' in row)).toBe(false);
   db.close();

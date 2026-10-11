@@ -1,5 +1,7 @@
 # Publish node transactions through GitHub with an encrypted device cache
 
+The device-cache encryption decision is superseded by [ADR 0004](0004-plaintext-device-cache.md).
+
 GitHub is the authoritative persistence adapter for the node model. The configured private vault
 repository and branch retain canonical immutable transaction envelopes in a dedicated versioned
 namespace. A non-forced Git ref update publishes one complete transaction atomically. A race reloads

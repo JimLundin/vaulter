@@ -84,7 +84,7 @@ export interface History {
 }
 
 /** Opens the vault with the unlocked secrets: the app's one backend, chosen where the app is put together
- * (main.tsx). `key` encrypts what it keeps on the device; `keeps`, the files the features keep. */
+ * (main.tsx). `keeps`, the files the features keep. */
 export type OpenBackend = (o: {
   secrets: Secrets;
   key: CryptoKey;
