@@ -19,7 +19,6 @@ import {
   Kbd,
   MobileActionButton,
   MobileBar,
-  MobileHeader,
   NavigationSheet,
   SearchButton,
   Sidebar,
@@ -194,7 +193,6 @@ export function NavigationSuite({
         </Sidebar>
       )}
       <WorkspaceFrame
-        header={<MobileHeader status={status} />}
         bar={
           <MobileBar
             items={[

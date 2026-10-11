@@ -1046,7 +1046,7 @@ function Frames() {
     />
   );
   return (
-    <K.WorkspaceFrame header={<K.MobileHeader status={status} />} bar={bar}>
+    <K.WorkspaceFrame bar={bar}>
       <K.Page>
         <K.Brand status={status} />
         <K.Text>A shared workspace frame.</K.Text>
@@ -1684,14 +1684,7 @@ export const catalogue: Specimen[] = [
     id: 'frames',
     title: 'Frame & mobile controls',
     description: 'Brand, status, footer fixtures, floating action and feature drawer.',
-    components: [
-      'WorkspaceFrame',
-      'Brand',
-      'MobileHeader',
-      'MobileBar',
-      'MobileActionButton',
-      'NavigationSheet',
-    ],
+    components: ['WorkspaceFrame', 'Brand', 'MobileBar', 'MobileActionButton', 'NavigationSheet'],
     Sample: Frames,
     fullBleed: true,
   },

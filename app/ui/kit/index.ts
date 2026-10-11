@@ -250,7 +250,6 @@ export {
   ListItem,
   Mark,
   MobileBar,
-  MobileHeader,
   NavigationSheet,
   WorkspaceFrame,
   Notice,

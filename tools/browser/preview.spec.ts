@@ -157,8 +157,12 @@ test('the preview banner stays above the entire workspace and device selection p
   const compactBar = (await banner.boundingBox())!;
   expect(compactBar.y).toBe(0);
   expect(compactBar.width).toBe(390);
-  const header = (await page.locator('[data-brand]').boundingBox())!;
-  expect(header.y).toBeGreaterThanOrEqual(compactBar.y + compactBar.height);
+  const content = (await page.locator('[data-layout="mobile-workspace"] > main').boundingBox())!;
+  expect(content.y).toBeGreaterThanOrEqual(compactBar.y + compactBar.height);
+  await expect(page.locator('[data-brand]')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Menu', exact: true }).click();
+  const menu = page.getByRole('dialog', { name: 'Menu', exact: true });
+  await expect(menu.getByText('Vaulter', { exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 

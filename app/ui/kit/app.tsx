@@ -377,45 +377,19 @@ export function PageHeader({
 }
 
 /** Keeps routed workflow state mounted when the viewport changes. */
-export function WorkspaceFrame({
-  header,
-  bar,
-  children,
-}: {
-  header: ReactNode;
-  bar: ReactNode;
-  children: ReactNode;
-}) {
+export function WorkspaceFrame({ bar, children }: { bar: ReactNode; children: ReactNode }) {
   const mobile = useLayout() === 'compact';
   useViewport();
   return (
     <div
       data-layout={mobile ? 'mobile-workspace' : 'desktop-workspace'}
-      className="flex h-[var(--viewport-height,100dvh)] min-w-0 flex-1 flex-col bg-background"
+      className="flex h-[var(--viewport-height,100dvh)] min-w-0 flex-1 flex-col bg-background pt-[env(safe-area-inset-top)] md:pt-0"
     >
-      {mobile && header}
       <main data-region="" className="flex min-h-0 flex-1 flex-col overflow-y-auto">
         {children}
       </main>
       {mobile && bar}
     </div>
-  );
-}
-
-export function MobileHeader({ status }: { status: ReactNode }) {
-  return (
-    <header
-      data-brand=""
-      className="flex min-h-11 shrink-0 items-center justify-between gap-3 border-b px-4 pt-[env(safe-area-inset-top)]"
-    >
-      <span className="flex items-center gap-2 text-sm font-semibold">
-        <span className="flex size-6 items-center justify-center rounded-md bg-primary text-xs text-primary-foreground">
-          V
-        </span>
-        Vaulter
-      </span>
-      <div className="min-w-0 truncate">{status}</div>
-    </header>
   );
 }
 

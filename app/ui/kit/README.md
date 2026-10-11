@@ -147,7 +147,7 @@ adds one.
 | Sidebar search field (⌘K) | Search icon in the bar | `NavigationSuite` `search` |
 | Sidebar footer rows (Settings) | Icons in the bar | `NavigationSuite` `actions` |
 | Optional primary sidebar control | Optional floating control above the bar | `NavigationSuite` `primary` |
-| Brand and sync status at the sidebar's top | Header strip | `Brand`, `MobileHeader` |
+| Brand and sync status at the sidebar's top | Menu drawer header | `Brand` |
 | Page header at the top of the reading column | Bordered header strip | `PageHeader` |
 | Centered dialog | Bottom-aligned dialog | `Overlay` |
 | Settings dialog over the current feature | Settings drawer, sharing Menu's surface | `SettingsMenu` → `Drawer` |
