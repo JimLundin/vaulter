@@ -32,7 +32,7 @@ Markdown/HAST rendering and the vault-link annotation transform remain the expli
 | `catalogue.tsx`, `gallery.tsx` | live examples, component coverage, search and paired catalogue |
 | `presentation.tsx` | private bounded canvas provider for live samples |
 | `presentation-policy.tsx` | private owner of scope, modal choice, dismissal, focus history and popup bounds |
-| `preview.tsx` | floating `DesignPreview` controls and live Window/Desktop/Mobile viewport |
+| `preview.tsx` | floating `DesignPreview` controls, adaptive viewport and Mobile width toggle |
 | `parts/`, `hooks/` | shared layout/type primitives, shadcn controls and their hooks |
 | `primitives.tsx` | reusable surfaces, adaptive panel and following scroll container |
 | `composition.ts` | checked building-block dependencies displayed in the gallery |
@@ -58,8 +58,13 @@ product does not use maps.
 
 The composer uses one primary action across Product, the preview and catalogue: microphone when
 unfocused, Enter when focused, and a supporting Stop action while responding. Microphone and Enter
-use the shared Filled style. The design preview pill contains device and variant choices, the kit link and reset;
+use the shared Filled style. The design preview pill contains a Mobile toggle, variant choices, the kit link and reset;
 the completed A/B/C input-style comparison has been removed. See [input-button.md](input-button.md).
+
+The preview fills its available window by default and adapts as that window changes. Turn on Mobile
+to constrain the app to 390px (or the available width on narrower screens); turning it off restores
+adaptive sizing. The grip icon at the bar's edge supports dragging, arrow-key movement and Home to
+reset its position. On compact screens a separate chevron expands the controls.
 
 ## Foundation and spacing
 

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { choosePreviewDevice } from './preview-controls.ts';
+import { setPreviewMobile } from './preview-controls.ts';
 
 test('the preview handle drags without toggling controls, stays bounded, and supports keyboard reset', async ({
   page,
@@ -10,6 +10,8 @@ test('the preview handle drags without toggling controls, stays bounded, and sup
   const handle = banner.locator('[data-preview-drag-handle]');
   const original = (await banner.boundingBox())!;
   const grip = (await handle.boundingBox())!;
+  await expect(handle).toHaveText('');
+  expect(grip.x - original.x).toBeLessThanOrEqual(6);
   const startX = grip.x + grip.width / 2;
   const startY = grip.y + grip.height / 2;
   const touch = await page.evaluate(() => matchMedia('(pointer: coarse)').matches);
@@ -38,7 +40,7 @@ test('the preview handle drags without toggling controls, stays bounded, and sup
     await toggle.click();
     await expect(toggle).toHaveAttribute('aria-expanded', 'true');
   }
-  await choosePreviewDevice(banner, 'Mobile');
+  await setPreviewMobile(banner, true);
   await expect(page.locator('[data-layout="mobile-workspace"]')).toBeVisible();
   await expect.poll(async () => (await banner.boundingBox())!.y).toBeCloseTo(original.y + 180, 0);
   await handle.focus();
@@ -110,15 +112,17 @@ test('phone preview controls expand from a centered pill and follow the visible 
   }
   const field = page.getByRole('textbox', { name: 'Message', exact: true });
   await field.fill('Keep this mobile draft');
-  const toggle = banner.getByRole('button', { name: 'Preview controls' });
+  const toggle = banner.getByRole('button', { name: 'Preview controls', exact: true });
   await expect(toggle).toHaveAttribute('aria-expanded', 'false');
-  await expect(banner.getByRole('combobox', { name: 'Preview device' })).toHaveCount(0);
-  await choosePreviewDevice(banner, 'Mobile');
+  await expect(banner.getByRole('button', { name: 'Mobile', exact: true })).toBeHidden();
+  await setPreviewMobile(banner, true);
   await expect(toggle).toHaveAttribute('aria-expanded', 'true');
   expect((await viewport.boundingBox())!.y).toBe(0);
   expect((await viewport.boundingBox())!.height).toBe(664);
   for (const control of [
-    banner.getByRole('combobox', { name: 'Preview device' }),
+    banner.getByRole('button', { name: 'Mobile', exact: true }),
+    banner.getByRole('button', { name: 'Move preview controls' }),
+    toggle,
     banner.getByRole('link', { name: 'Component kit' }),
     banner.getByRole('button', { name: 'Reset demo' }),
   ]) {
@@ -132,12 +136,10 @@ test('phone preview controls expand from a centered pill and follow the visible 
   await expect(banner.getByRole('combobox', { name: 'Input button variant' })).toHaveCount(0);
   await expect(field).toHaveValue('Keep this mobile draft');
   expect(new URL(page.url()).searchParams.has('variant')).toBe(false);
-  await banner
-    .getByRole('combobox', { name: 'Preview device', exact: true })
-    .dispatchEvent('keydown', {
-      key: 'ArrowRight',
-      bubbles: true,
-    });
+  await banner.getByRole('button', { name: 'Mobile', exact: true }).dispatchEvent('keydown', {
+    key: 'ArrowRight',
+    bubbles: true,
+  });
   expect(new URL(page.url()).searchParams.has('variant')).toBe(false);
   await page.keyboard.press('Escape');
   await expect(toggle).toHaveAttribute('aria-expanded', 'false');
@@ -175,7 +177,7 @@ test('the desktop sidebar paints its full surface including the outer spacing', 
   page,
 }) => {
   await page.goto('/preview/');
-  await choosePreviewDevice(page.locator('body'), 'Desktop');
+  await page.setViewportSize({ width: 1440, height: 1000 });
   const sidebar = page.locator('[data-region="nav"]');
   const colors = await sidebar.evaluate((node) => ({
     outer: getComputedStyle(node).backgroundColor,
@@ -189,7 +191,7 @@ test('the mobile Menu highlights only while hovered or open, with rounded corner
   page,
 }) => {
   await page.goto('/preview/');
-  await choosePreviewDevice(page.locator('body'), 'Mobile');
+  await setPreviewMobile(page.locator('body'), true);
   const menu = page.getByRole('button', { name: 'Menu', exact: true });
   await page.mouse.move(0, 0);
   await expect(menu).toHaveAttribute('aria-expanded', 'false');
@@ -235,17 +237,22 @@ test('the preview pill overlays the full-height workspace and device selection p
   const bar = (await banner.boundingBox())!;
   expect(bar.x).toBeGreaterThan(0);
   expect(bar.y).toBe(8);
-  expect(bar.width).toBeLessThan(700);
+  expect(bar.width).toBeLessThan(400);
   expect(Math.abs(bar.x + bar.width / 2 - 720)).toBeLessThanOrEqual(1);
   const workspace = page.locator('[data-layout="desktop-workspace"]');
   expect((await workspace.boundingBox())!.y).toBe(0);
   expect((await workspace.boundingBox())!.height).toBe(1000);
   expect((await page.locator('[data-region="nav"]').boundingBox())!.y).toBe(0);
   const input = page.getByRole('textbox', { name: 'Message', exact: true });
+  const mobile = banner.getByRole('button', { name: 'Mobile', exact: true });
+  await expect(mobile).toHaveAttribute('aria-pressed', 'false');
+  await expect(banner.getByRole('radio', { name: 'Window', exact: true })).toHaveCount(0);
+  await expect(banner.getByRole('radio', { name: 'Desktop', exact: true })).toHaveCount(0);
   await input.fill('Keep my draft while reviewing the phone layout');
   await input.evaluate((node) => node.setAttribute('data-original-preview-draft', ''));
   const route = page.url();
-  await choosePreviewDevice(banner, 'Mobile');
+  await setPreviewMobile(banner, true);
+  await expect(mobile).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('[data-layout="mobile-workspace"]')).toBeVisible();
   const phone = page.locator('[data-design-viewport]');
   expect((await phone.boundingBox())!.width).toBe(390);
@@ -255,13 +262,18 @@ test('the preview pill overlays the full-height workspace and device selection p
   await expect(input).toHaveValue('Keep my draft while reviewing the phone layout');
   await expect(input).toHaveAttribute('data-original-preview-draft', '');
   expect(page.url()).toBe(route);
-  await choosePreviewDevice(banner, 'Desktop');
+  await setPreviewMobile(banner, false);
+  await expect(mobile).toHaveAttribute('aria-pressed', 'false');
+  expect((await phone.boundingBox())!.width).toBe(1440);
   await expect(workspace).toBeVisible();
   await expect(input).toHaveValue('Keep my draft while reviewing the phone layout');
   await expect(input).toHaveAttribute('data-original-preview-draft', '');
-  await choosePreviewDevice(banner, 'Window');
+  await page.setViewportSize({ width: 800, height: 844 });
+  await expect.poll(async () => (await phone.boundingBox())!.width).toBe(800);
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.locator('[data-layout="mobile-workspace"]')).toBeVisible();
+  await expect(input).toHaveValue('Keep my draft while reviewing the phone layout');
+  await expect(input).toHaveAttribute('data-original-preview-draft', '');
   const compactBar = (await banner.boundingBox())!;
   expect(compactBar.y).toBe(8);
   expect(compactBar.width).toBeLessThan(390);
@@ -286,8 +298,8 @@ test('preview device changes keep open settings and search inside the app frame'
   const model = settings.getByRole('textbox', { name: 'Model', exact: true });
   await model.fill('A model selected during design review');
   await model.evaluate((node) => node.setAttribute('data-preview-model', ''));
-  for (const mode of ['Mobile', 'Desktop', 'Mobile']) {
-    await choosePreviewDevice(banner, mode);
+  for (const mode of [true, false, true]) {
+    await setPreviewMobile(banner, mode);
     await expect(settings).toBeVisible();
     await expect(model).toHaveValue('A model selected during design review');
     await expect(model).toHaveAttribute('data-preview-model', '');
@@ -304,7 +316,7 @@ test('preview device changes keep open settings and search inside the app frame'
       })
       .toBe(true);
     expect(await page.locator('[data-design-viewport]').evaluate((node) => node.scrollTop)).toBe(0);
-    if (mode === 'Mobile') await expect(settings).toHaveCSS('border-top-left-radius', '10px');
+    if (mode) await expect(settings).toHaveCSS('border-top-left-radius', '10px');
     else await expect(settings).toHaveCSS('border-top-left-radius', '12px');
   }
   await settings.getByRole('button', { name: 'Close settings' }).click();
@@ -312,10 +324,10 @@ test('preview device changes keep open settings and search inside the app frame'
   const search = page.getByRole('dialog', { name: 'Search or ask', exact: true });
   const query = search.getByRole('combobox');
   await query.fill('Garden');
-  await choosePreviewDevice(banner, 'Desktop');
+  await setPreviewMobile(banner, false);
   await expect(query).toHaveValue('Garden');
   await expect(search.getByRole('option', { name: /Garden studio/ })).toBeVisible();
-  await choosePreviewDevice(banner, 'Mobile');
+  await setPreviewMobile(banner, true);
   await expect(query).toHaveValue('Garden');
   await expect
     .poll(async () => {

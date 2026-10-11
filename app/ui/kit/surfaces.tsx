@@ -20,13 +20,11 @@ export function PreviewBar({
   kitHref,
   onReset,
   controls,
-  deviceLabel,
 }: {
   label: string;
   kitHref: string;
   onReset: () => void;
   controls?: ReactNode;
-  deviceLabel?: string;
 }) {
   const mobile = useLayout() === 'compact';
   const [expanded, setExpanded] = useState(false);
@@ -53,49 +51,46 @@ export function PreviewBar({
         }
       }}
       className={cn(
-        'kit-preview-bar pointer-events-auto flex max-w-full shrink-0 items-center gap-2 border p-1 text-foreground',
+        'kit-preview-bar pointer-events-auto flex max-w-full shrink-0 items-center gap-1 border p-1 text-foreground',
         mobile ? 'flex-col rounded-[28px]' : 'rounded-full',
       )}
     >
       <span className="sr-only">{label} · Sample data · Scripted chat</span>
-      {mobile ? (
+      <div className={cn('flex items-center gap-1', mobile && 'w-full justify-between')}>
         <Button
           variant="ghost"
-          size="standard"
-          aria-label="Preview controls"
-          aria-expanded={expanded}
-          aria-controls={controlsId}
-          data-preview-drag-handle=""
-          title="Drag to move. Arrow keys move; Home returns to the top."
-          onClick={() => setExpanded((current) => !current)}
-          className="kit-preview-handle w-full rounded-full"
-        >
-          <span aria-hidden="true" className="size-1.5 rounded-full bg-amber-400" />
-          Preview
-          {!!deviceLabel && <span className="text-zinc-400">· {deviceLabel}</span>}
-          <span
-            className={cn(
-              'transition-transform motion-reduce:transition-none',
-              expanded ? '-rotate-90' : 'rotate-90',
-            )}
-          >
-            <Icon name="chevron-right" size="sm" />
-          </span>
-        </Button>
-      ) : (
-        <Button
-          variant="ghost"
-          size="compact"
+          size={mobile ? 'standard' : 'compact'}
+          iconOnly={true}
           aria-label="Move preview controls"
           data-preview-drag-handle=""
           title="Drag to move. Arrow keys move; Home returns to the top."
-          className="kit-preview-handle rounded-full text-label"
+          className="kit-preview-handle rounded-full text-zinc-400"
         >
-          <span aria-hidden="true" className="size-1.5 rounded-full bg-amber-400" />
-          Preview
-          <span className="text-caption font-normal text-zinc-400">Sample data</span>
+          <Icon name="grip" />
         </Button>
-      )}
+        {mobile && (
+          <Button
+            variant="ghost"
+            size="standard"
+            iconOnly={true}
+            aria-label="Preview controls"
+            aria-expanded={expanded}
+            aria-controls={controlsId}
+            title="Preview controls"
+            onClick={() => setExpanded((current) => !current)}
+            className="rounded-full"
+          >
+            <span
+              className={cn(
+                'transition-transform motion-reduce:transition-none',
+                expanded ? '-rotate-90' : 'rotate-90',
+              )}
+            >
+              <Icon name="chevron-right" />
+            </span>
+          </Button>
+        )}
+      </div>
       <div
         id={controlsId}
         hidden={mobile && !expanded}

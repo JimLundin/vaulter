@@ -1,5 +1,4 @@
 import { expect, test } from '@playwright/test';
-import { choosePreviewDevice } from './preview-controls.ts';
 
 for (const theme of ['light', 'dark']) {
   test(`the current sidebar destination stays highlighted in ${theme} appearance`, async ({
@@ -54,7 +53,7 @@ for (const theme of ['light', 'dark']) {
 
 test('Cmd and Ctrl B leave expanded navigation and the Agent draft available', async ({ page }) => {
   await page.goto('/preview/');
-  await choosePreviewDevice(page.locator('body'), 'Desktop');
+  await page.setViewportSize({ width: 1440, height: 1000 });
   const draft = page.getByRole('textbox', { name: 'Message', exact: true });
   await draft.fill('Keep this draft beside the navigation');
   const history = page.getByRole('link', { name: 'History', exact: true });

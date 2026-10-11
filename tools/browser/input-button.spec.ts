@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { choosePreviewDevice } from './preview-controls.ts';
+import { setPreviewMobile } from './preview-controls.ts';
 
 for (const appearance of ['light', 'dark'] as const) {
   test(`the unified ${appearance} input shares the primary style and preserves drafts and recording`, async ({
@@ -59,12 +59,12 @@ for (const appearance of ['light', 'dark'] as const) {
     await expect(send).toBeEnabled();
     await field.blur();
     await expect(mic).toBeVisible();
-    await choosePreviewDevice(banner, 'Mobile');
+    await setPreviewMobile(banner, true);
     await expect(field).toHaveValue('Keep my draft');
     await expect(composer.getByRole('button')).toHaveCount(1);
     await mic.click();
     await expect(field).toHaveValue(/^Keep my draft Leave/);
-    await choosePreviewDevice(banner, 'Window');
+    await setPreviewMobile(banner, false);
     const finish = page.getByRole('button', { name: 'Finish recording' });
     await expect(finish).toBeVisible();
     await expect(field).not.toBeFocused();
@@ -79,15 +79,19 @@ for (const appearance of ['light', 'dark'] as const) {
   });
 }
 
-test('the preview keeps device radio navigation without an input-style shortcut', async ({
+test('the preview Mobile toggle supports keyboard activation without an input-style shortcut', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto('/preview/');
-  const windowMode = page.getByRole('radio', { name: 'Window', exact: true });
-  await windowMode.focus();
+  const mobile = page.getByRole('button', { name: 'Mobile', exact: true });
+  await mobile.focus();
   await page.keyboard.press('ArrowRight');
-  await expect(page.getByRole('radio', { name: 'Desktop', exact: true })).toBeChecked();
+  await expect(mobile).toHaveAttribute('aria-pressed', 'false');
+  await page.keyboard.press('Space');
+  await expect(mobile).toHaveAttribute('aria-pressed', 'true');
+  await page.keyboard.press('Enter');
+  await expect(mobile).toHaveAttribute('aria-pressed', 'false');
   await page.getByRole('textbox', { name: 'Message', exact: true }).focus();
   await page.keyboard.press('ArrowRight');
   expect(new URL(page.url()).searchParams.has('variant')).toBe(false);

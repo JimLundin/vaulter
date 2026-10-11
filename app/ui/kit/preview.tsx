@@ -10,13 +10,12 @@ import {
 } from 'react';
 import { PresentationContext, usePresentation } from './presentation.tsx';
 import { sizeClassForWidth, useLayout } from './hooks/use-layout.ts';
-import { RadioGroup, RadioGroupItem } from './parts/radio-group.tsx';
+import { Button } from './parts/button.tsx';
+import { Icon } from './icons.tsx';
 import { PreviewBar } from './surfaces.tsx';
 import { PreviewVariantSwitcher, PreviewVariantContext } from './preview-variants.tsx';
 import { cn } from './lib/utils.ts';
 import { FloatingPreview } from './floating-preview.tsx';
-
-type Device = 'window' | 'desktop' | 'mobile';
 
 export function DesignPreview({
   label,
@@ -61,7 +60,7 @@ export function DesignPreview({
     globalThis.addEventListener('popstate', read);
     return () => globalThis.removeEventListener('popstate', read);
   }, [readVariant]);
-  const [device, setDevice] = useState<Device>('window');
+  const [mobile, setMobile] = useState(false);
   const compact = useLayout() === 'compact';
   const parent = usePresentation();
   const [portal, setPortal] = useState<HTMLDivElement | null>(null);
@@ -109,7 +108,7 @@ export function DesignPreview({
   return (
     <div
       ref={root}
-      data-design-preview={device}
+      data-design-preview={mobile ? 'mobile' : 'window'}
       className={cn(
         'relative flex h-[var(--design-height,var(--viewport-height,100dvh))] min-h-0 flex-col overflow-hidden bg-surface',
         !parent && 'kit-design-window',
@@ -120,32 +119,19 @@ export function DesignPreview({
           label={label}
           kitHref={kitHref}
           onReset={onReset}
-          deviceLabel={device === 'window' ? 'Window' : device === 'desktop' ? 'Desktop' : 'Mobile'}
           controls={
             <>
-              {compact ? (
-                <select
-                  aria-label="Preview device"
-                  className="kit-preview-select"
-                  value={device}
-                  onChange={(event) => setDevice(event.target.value as Device)}
-                >
-                  <option value="window">Window</option>
-                  <option value="desktop">Desktop</option>
-                  <option value="mobile">Mobile</option>
-                </select>
-              ) : (
-                <RadioGroup
-                  variant="segmented"
-                  aria-label="Preview device"
-                  value={device}
-                  onValueChange={(value) => setDevice(value as Device)}
-                >
-                  <RadioGroupItem value="window">Window</RadioGroupItem>
-                  <RadioGroupItem value="desktop">Desktop</RadioGroupItem>
-                  <RadioGroupItem value="mobile">Mobile</RadioGroupItem>
-                </RadioGroup>
-              )}
+              <Button
+                variant="ghost"
+                size={compact ? 'standard' : 'compact'}
+                aria-pressed={mobile}
+                title="Constrain the preview to mobile width. Turn off to fit the window."
+                onClick={() => setMobile((current) => !current)}
+                className="rounded-full aria-pressed:bg-accent"
+              >
+                <Icon name="mobile" />
+                Mobile
+              </Button>
               {variants && (
                 <PreviewVariantSwitcher
                   label={variants.label}
@@ -164,17 +150,13 @@ export function DesignPreview({
           data-design-viewport=""
           className={cn(
             'kit-preview design-viewport mx-auto h-full',
-            device === 'mobile'
-              ? 'w-[min(390px,100%)]'
-              : device === 'desktop'
-                ? 'w-full min-w-[1024px]'
-                : 'w-full',
+            mobile ? 'w-[min(390px,100%)]' : 'w-full',
           )}
         >
           <div
             ref={setPortal}
             className="kit-presentation"
-            data-kit-pointer={device === 'mobile' ? 'coarse' : undefined}
+            data-kit-pointer={mobile ? 'coarse' : undefined}
             style={
               {
                 '--viewport-height': `${bounds.height}px`,

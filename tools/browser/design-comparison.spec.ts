@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 // biome-ignore lint/correctness/noUnresolvedImports: Playwright re-exports Locator from playwright-core.
 import type { Locator } from '@playwright/test';
-import { choosePreviewDevice } from './preview-controls.ts';
+import { setPreviewMobile } from './preview-controls.ts';
 
 async function chooseVariation(scope: Locator, name: string) {
   const toggle = scope.getByRole('button', { name: 'Preview controls', exact: true }).first();
@@ -28,8 +28,8 @@ test('paired preview comparisons select independently and preserve their selecte
   const draft = desktop.getByRole('textbox', { name: 'Preview draft' });
   await draft.fill('Keep this question draft');
   await draft.evaluate((node) => node.setAttribute('data-original-comparison-draft', ''));
-  for (const device of ['Mobile', 'Desktop', 'Window']) {
-    await choosePreviewDevice(desktop, device);
+  for (const device of [true, false, true, false]) {
+    await setPreviewMobile(desktop, device);
     await expect(desktop.getByRole('heading', { name: 'Question summary' })).toBeVisible();
     await expect(draft).toHaveValue('Keep this question draft');
     await expect(draft).toHaveAttribute('data-original-comparison-draft', '');
@@ -39,7 +39,7 @@ test('paired preview comparisons select independently and preserve their selecte
   await expect(mobile.getByRole('heading', { name: 'Question summary' })).toBeVisible();
 });
 
-test('comparison keyboard selection stays local and leaves text entry and device radio navigation usable', async ({
+test('comparison keyboard selection stays local and leaves text entry and the Mobile toggle usable', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
@@ -58,9 +58,12 @@ test('comparison keyboard selection stays local and leaves text entry and device
   await page.keyboard.insertText('!');
   await expect(draft).toHaveValue('draf!t');
   await expect(desktop.getByRole('heading', { name: 'Question summary' })).toBeVisible();
-  await desktop.getByRole('radio', { name: 'Window', exact: true }).focus();
+  const mobileToggle = desktop.getByRole('button', { name: 'Mobile', exact: true });
+  await mobileToggle.focus();
   await page.keyboard.press('ArrowRight');
-  await expect(desktop.getByRole('radio', { name: 'Desktop', exact: true })).toBeChecked();
+  await expect(mobileToggle).toHaveAttribute('aria-pressed', 'false');
+  await page.keyboard.press('Space');
+  await expect(mobileToggle).toHaveAttribute('aria-pressed', 'true');
   await expect(desktop.getByRole('heading', { name: 'Question summary' })).toBeVisible();
   await page.getByRole('searchbox', { name: 'Find a component' }).focus();
   await page.keyboard.press('ArrowLeft');
@@ -111,8 +114,8 @@ test('selected evidence keeps the same quoted context through device changes and
   );
   await expect(quote).toBeVisible();
   await quote.evaluate((node) => node.setAttribute('data-original-evidence', ''));
-  for (const device of ['Mobile', 'Desktop', 'Window']) {
-    await choosePreviewDevice(banner, device);
+  for (const device of [true, false, true, false]) {
+    await setPreviewMobile(banner, device);
     await expect(quote).toBeVisible();
     await expect(quote).toHaveAttribute('data-original-evidence', '');
     await expect(page.getByText('Replaces', { exact: false })).toBeVisible();
