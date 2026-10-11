@@ -166,7 +166,7 @@ modules own record-specific UI and typed reading projections; the kit owns base 
 shared compositions. Supporting panes use one presentation policy across modules. Consistency and
 a smaller presentation interface take precedence over feature-specific UI tailoring. The
 [migration plan](docs/plans/ui-module-ownership.md) records the sequence and enforcement checks;
-this migration is not yet implemented. The current presentation described below still includes
+Search ownership is implemented; remaining migrations are tracked by the plan. Current presentation still includes
 module-specific kit exports and different supporting-pane arrangements.
 
 `app/ui/kit/` comes from branch `ui-kit` at `2c30183`. Its design references, Geist / Geist Mono /
@@ -184,6 +184,14 @@ of cmdk and its transitive Radix dependency. The private `presentation-policy.ts
 and bounded-preview choices for portals, bounds, modal behavior, dismissal and focus restoration.
 Adapters consume those choices while retaining library mechanics. AdaptivePanel keeps the same
 mounted drawer content as it becomes a compact drawer, expanded dialog or wide nonmodal panel.
+
+Search task composition now lives in shared application UI. Its subscribed container owns query,
+ranking, recent-entry selection and navigation/command/ask actions; `SearchView` accepts resolved
+typed entries and hits with explicit actions. The reusable `CommandOverlay` owns responsive
+command-list geometry and focus/dismissal mechanics, accepting caller labels and content. The kit
+does not import Search; compiler-resolved checks reject shared application UI imports from kit
+mechanics and viewport decisions in shared UI helpers. The generic paired kit example and fictional
+Search preview exercise the same browser presentation without private records or live Agent calls.
 
 Screens compose `ui/kit/index.ts`. Public components take no `className` or `style`; Tailwind scans only
 the kit. CI rejects custom HTML, styling props, intrinsic element factories and direct presentation

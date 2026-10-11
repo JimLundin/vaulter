@@ -697,19 +697,19 @@ function Review() {
 function CommandContent() {
   return (
     <K.Command>
-      <K.CommandInput placeholder="Find a note…" />
+      <K.CommandInput placeholder="Find an item…" />
       <K.CommandList>
-        <K.CommandEmpty>No matching notes.</K.CommandEmpty>
-        <K.CommandGroup heading="Notes">
+        <K.CommandEmpty>No matching items.</K.CommandEmpty>
+        <K.CommandGroup heading="Items">
           <K.CommandItem>
-            Slow mornings<K.CommandShortcut>↵</K.CommandShortcut>
+            First item<K.CommandShortcut>↵</K.CommandShortcut>
           </K.CommandItem>
-          <K.CommandItem>Coffee with Anna</K.CommandItem>
+          <K.CommandItem>Second item</K.CommandItem>
         </K.CommandGroup>
         <K.CommandSeparator />
-        <K.CommandGroup heading="Go to">
-          <K.CommandItem>History</K.CommandItem>
-          <K.CommandItem>Settings</K.CommandItem>
+        <K.CommandGroup heading="Actions">
+          <K.CommandItem>Open item</K.CommandItem>
+          <K.CommandItem>Show details</K.CommandItem>
         </K.CommandGroup>
       </K.CommandList>
     </K.Command>
@@ -719,10 +719,15 @@ function Search() {
   const [open, setOpen] = useState(false);
   return (
     <K.Stack>
-      <K.SearchButton label="Search your vault" keys="⌘ K" onClick={() => setOpen(true)} />
-      <K.SearchSurface open={open} onClose={() => setOpen(false)}>
+      <K.SearchButton label="Choose an item" keys="⌘ K" onClick={() => setOpen(true)} />
+      <K.CommandOverlay
+        open={open}
+        onClose={() => setOpen(false)}
+        title="Choose an item"
+        closeLabel="Cancel selection"
+      >
         <CommandContent />
-      </K.SearchSurface>
+      </K.CommandOverlay>
     </K.Stack>
   );
 }
@@ -1038,9 +1043,14 @@ function Navigation() {
         onClose={() => setSettings(false)}
         features={[{ name: 'Agent', content: <Preferences /> }]}
       />
-      <K.SearchSurface open={search} onClose={() => setSearch(false)}>
+      <K.CommandOverlay
+        open={search}
+        onClose={() => setSearch(false)}
+        title="Choose an item"
+        closeLabel="Cancel selection"
+      >
         <CommandContent />
-      </K.SearchSurface>
+      </K.CommandOverlay>
     </K.NavigationSuite>
   );
 }
@@ -1432,7 +1442,7 @@ export const catalogue: Specimen[] = [
     title: 'Search & commands',
     description: 'Full-screen phone search and the desktop command palette.',
     components: [
-      'SearchSurface',
+      'CommandOverlay',
       'SearchButton',
       'Command',
       'CommandInput',

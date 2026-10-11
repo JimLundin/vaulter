@@ -9,7 +9,7 @@ keeps record-specific UI in its owning module and shared presentation in the kit
 policy owns geometry and interaction across modules; consistency takes precedence over tailored
 arrangements. The [UI ownership migration plan](../../../docs/plans/ui-module-ownership.md) records
 the work and enforcement checks. Current kit exports still include module-specific presentation;
-the migration is not yet implemented.
+Search ownership is implemented; remaining module migrations are tracked by the plan.
 
 The [UI kit architecture plan](../../../PLAN-ui-kit-architecture.md) tracks four
 deepening changes: private composition verification, Composer interaction, accessible field
@@ -88,12 +88,19 @@ in caller order; legacy cmdk options are not a compatibility target. Composition
 Adapters preserve kit behavior where library defaults differ: dropdown labels can stand alone,
 checkbox selections close their menu, and dialogs respect each surface's initial-focus choice.
 
-Short modal tasks use adaptive `Overlay`; Search uses `SearchSurface` and preferences use
+Short modal tasks use adaptive `Overlay`; Search uses shared `CommandOverlay` and preferences use
 `SettingsMenu`. Generic public Dialog assembly, CommandDialog and SettingsPage are retired.
 Private Base UI dialog adapters still support Overlay and Search focus, dismissal and accessible
 titles. `DialogFooter` remains a standalone optional layout for caller-supplied actions: right-aligned
 on desktop and stacked on phones. Its optional close action remains available; overlays need not
 use a footer.
+
+`CommandOverlay` owns compact full-screen and wider command-list geometry, input focus and
+dismissal mechanics. Its callers supply the title, close label and presentation content. Search
+owns query state, ranked entries, recent entries, task groups and navigation/command/ask actions;
+its typed `SearchView` renders resolved `Hit`/`Entry` values and explicit actions without a vault
+adapter or Agent controller. The catalogue demonstrates generic item selection through the same
+overlay, with paired bounded presentation. Search-specific `SearchSurface` is removed.
 
 Spacing uses a 4px scale: 4px between inset actions, 8px between related controls, 16px within
 content and 24px between sections. `--space-control`, `--space-row`, `--space-content` and
