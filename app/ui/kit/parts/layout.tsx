@@ -30,7 +30,7 @@ const justify = {
   between: 'justify-between',
 } as const;
 
-interface FlexProps extends Unstyled<ComponentProps<'div'>> {
+interface FlexProps extends Unstyled<React.HTMLAttributes<HTMLElement>> {
   gap?: Gap;
   align?: keyof typeof align;
   justify?: keyof typeof justify;
@@ -40,7 +40,7 @@ interface FlexProps extends Unstyled<ComponentProps<'div'>> {
   block?: 'none' | 'sm' | 'md' | 'lg';
   centerText?: boolean;
   visible?: 'always' | 'compact' | 'expanded';
-  as?: 'div' | 'section' | 'header';
+  as?: 'div' | 'section' | 'header' | 'fieldset';
 }
 const inset = { none: '', sm: 'px-2', md: 'px-4', page: 'px-[var(--page-inset)]' };
 const block = { none: '', sm: 'py-3', md: 'py-4', lg: 'py-6' };
@@ -221,10 +221,12 @@ export function Heading({
   );
 }
 
-/** Long-form text: what Vaulter wrote about a person, a place or an event. */
+/** Long-form semantic content shares typography, spacing and safe overflow presentation. */
 export function Prose({ children, markdown }: { children?: ReactNode; markdown?: boolean }) {
   return (
-    <div className={cn('font-serif text-lead [&_p]:m-0 [&_p+p]:mt-3', markdown && 'prose')}>
+    <div
+      className={cn('kit-prose font-serif text-lead [&_p]:m-0 [&_p+p]:mt-3', markdown && 'prose')}
+    >
       {children}
     </div>
   );

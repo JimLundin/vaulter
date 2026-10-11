@@ -248,3 +248,14 @@ The new policy preserves the chooser's current presentation. Chat will deliberat
 from its intermediate centered dialog to the same expanded side pane when #45 adopts it. The
 fictional paired pane examples expose that destination for review. No pane occupancy manager is
 introduced, and existing unmigrated paths remain active until their owning tickets migrate them.
+
+## Completed slice: Wiki page composition (#46)
+
+`WikiPageView` owns typed page title/classification actions, block/record grouping and reference
+selection. Shared reading/page/section presentation and `SupportingPane` own geometry and scrolling.
+Selection uses the shared scroll-reset input; responsive rearrangement retains mounted source
+context. The obsolete kit Wiki screen and dedicated shell CSS are removed. Wiki semantic content
+has an explicit markup allowance; source-card mechanics remain only in the named #47 exception.
+Toolbar's shared 48px header and Prose document presentation standardize existing callers. Typed
+fictional preview `/preview/wiki.html` verifies actions and bounded responsive state; #50 extends
+preview examples through fictional NodeStore readings and pairs.

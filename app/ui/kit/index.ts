@@ -357,6 +357,5 @@ export {
 } from './selection.tsx';
 
 export { usePreviewVariant } from './preview-variants.tsx';
-export { WikiPageSurface } from './wiki.tsx';
 
 export { SupportingPane } from './supporting-pane.tsx';

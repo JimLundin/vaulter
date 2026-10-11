@@ -161,7 +161,9 @@ test('production opens real Wiki pages and exact evidence alongside persistent C
   await expect(contextToggle).toHaveAttribute('aria-expanded', 'false');
   if (test.info().project.name === 'desktop') {
     const bounds = await page.evaluate(() => {
-      const toolbar = document.querySelector('.kit-wiki-toolbar')!.getBoundingClientRect();
+      const toolbar = document
+        .querySelector('[role="toolbar"][aria-label="Wiki page"]')!
+        .getBoundingClientRect();
       const references = document
         .querySelector('[aria-label="References"] [data-slot="drawer-header"]')!
         .getBoundingClientRect();
@@ -174,7 +176,9 @@ test('production opens real Wiki pages and exact evidence alongside persistent C
     expect(bounds.references.height).toBe(48);
     expect(bounds.references.top).toBe(bounds.toolbar.top);
   }
-  await page.screenshot({ path: `/tmp/wiki-production-${test.info().project.name}.png` });
+  await page.screenshot({
+    path: `/tmp/vaulter-46-wiki-production-${test.info().project.name}.png`,
+  });
   await expect(
     evidence.getByText('I want quiet mornings in the studio.', { exact: false }),
   ).toBeVisible();
