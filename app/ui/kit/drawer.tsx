@@ -50,6 +50,7 @@ export function Drawer({
   const ref = useRef<HTMLDivElement>(null);
   // A different cited passage can become the opener while the same drawer stays open.
   useEffect(() => {
+    if (placement !== 'reading') return;
     const remember = (event?: Event) => {
       const active =
         event?.type === 'pointerdown' && event.target instanceof Element
@@ -70,7 +71,7 @@ export function Drawer({
       document.removeEventListener('pointerdown', remember, true);
       document.removeEventListener('focusin', remember);
     };
-  }, [open, policy]);
+  }, [open, policy, placement]);
   return (
     <DrawerRoot
       modal={!beside}
@@ -91,6 +92,7 @@ export function Drawer({
         aria-label={title}
         aria-describedby={description ? descriptionId : undefined}
         finalFocus={() => {
+          if (placement !== 'reading') return restoreFocus();
           const target = opener.current;
           return target?.isConnected &&
             target.getClientRects().length &&
