@@ -214,9 +214,11 @@ content and optional header/actions. A `selection` identity resets its scrolling
 do not wrap those children in another scrolling feed. `persistent` requests desktop occupancy.
 The kit owns the 340px width, header, inset, `md` transition, dismissal, gestures, focus return and
 bounded portals. Expanded/wide content stays beside the page; compact content uses the full-height
-bottom Drawer. The saved-conversation chooser and paired generic examples consume this seam.
-`ConversationPanel` is retired. `AdaptivePanel` and reading-support wrappers remain temporary
-for legacy generic examples until #51 removes their separate geometry.
+bottom Drawer. Chat supporting content, saved-conversation selection, Wiki references and paired
+generic examples consume this seam. `ConversationPanel` is retired. `AdaptivePanel` and reading-support
+wrappers remain temporary for generic examples until #51 removes their separate geometry.
+Wiki composes its typed page view from shared reading/page/section presentation and `SupportingPane`;
+`WikiPageSurface` and shell styling are removed. Source-card presentation remains the #47 migration.
 
 ### Primitive composition
 
@@ -229,6 +231,10 @@ field and inset actions. `Field orientation="setting"` owns responsive
 label/control/description placement. Theme choices use the shared `RadioGroup` primitives.
 
 `parts/layout.tsx` owns Stack, Row, Text, Heading, Link and Prose independently of application frames.
+Row/Stack can express semantic fieldsets. Prose owns document spacing and table/code overflow;
+Wiki supplies approved markup and content meaning. `Button variant="inline"` presents inline title
+and citation actions without expanding prose line boxes on touch devices. `Toolbar` uses the same
+48px header token and inset for every module. Its optional label names the toolbar.
 
 `Surface`, `Toolbar`, `ReadingColumn`, `Dock`, `OptionStrip`, `AutoScrollArea` and
 `AdaptivePanel` provide reusable containers and behavior. Each has a separate paired example.

@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import type { WikiBlock, WikiReference } from '../pages.ts';
 import { isSafeUrl } from '../../../vault/documents/notes/safe-url.ts';
-import { Bars, Sparkline } from '../../../ui/kit/index.ts';
+import { Bars, Button, Sparkline, Text } from '../../../ui/kit/index.ts';
 import { wikiSchemas } from '../../../vault/records/wiki.ts';
 
 export const blockText = (block: WikiBlock): string =>
@@ -77,7 +77,7 @@ function InlineContent({
         : `${owner.id}:${matching.map((reference) => reference.id).join(',')}`;
       const fragment = text.slice(start, end);
       const content = navigates ? (
-        <a key={`${leaf.id}:${start}`} className="cursor-pointer" href={leaf.href}>
+        <a key={`${leaf.id}:${start}`} href={leaf.href}>
           {marked(fragment, leaf.data.marks)}
         </a>
       ) : (
@@ -101,20 +101,16 @@ function InlineContent({
   }
   return groups.map((group) =>
     group.references.length ? (
-      <button
+      <Button
         key={group.position}
         type="button"
         aria-label={`${group.owner.data.kind === 'link' ? 'Source' : 'Evidence'} for ${group.text}`}
         aria-pressed={selected === group.key}
         onClick={() => onEvidence({ ...group.owner, id: group.key, evidence: group.references })}
-        className={
-          selected === group.key
-            ? 'wiki-cited-text cursor-pointer text-left underline decoration-people decoration-2 underline-offset-4 bg-people-soft rounded-sm'
-            : 'wiki-cited-text cursor-pointer text-left underline decoration-border decoration-dotted decoration-2 underline-offset-4 hover:decoration-people focus-visible:outline-2 focus-visible:outline-ring'
-        }
+        variant="inline"
       >
         {group.content}
-      </button>
+      </Button>
     ) : (
       <span key={group.position}>{group.content}</span>
     ),
@@ -189,25 +185,23 @@ function Block({
       return <InlineContent block={block} onEvidence={onEvidence} selected={selected} />;
     case 'link':
       return block.evidence.length ? (
-        <button
+        <Button
           type="button"
           aria-label={`Source for ${text}`}
           aria-pressed={selected === block.id}
           onClick={() => onEvidence(block)}
-          className="wiki-cited-text cursor-pointer text-link underline decoration-dotted underline-offset-4 focus-visible:outline-2 focus-visible:outline-ring"
+          variant="inline"
         >
           {text}
-        </button>
+        </Button>
       ) : block.href && isSafeUrl(block.href) ? (
-        <a className="cursor-pointer" href={block.href}>
-          {text}
-        </a>
+        <a href={block.href}>{text}</a>
       ) : (
         text
       );
     case 'section':
       return (
-        <section id={block.id} className="flex flex-col gap-3">
+        <section id={block.id}>
           <WikiBlocks
             blocks={children}
             onEvidence={onEvidence}
@@ -218,48 +212,33 @@ function Block({
       );
     case 'heading': {
       const H = `h${Math.min(6, Math.max(2, depth - 1))}` as 'h2';
-      return <H className="m-0 text-title">{inner}</H>;
+      return <H>{inner}</H>;
     }
     case 'paragraph':
-      return (
-        <p id={block.id} className="m-0 whitespace-pre-wrap font-serif text-lead">
-          {inner}
-        </p>
-      );
+      return <p id={block.id}>{inner}</p>;
     case 'list':
-      return data.ordered ? (
-        <ol className="list-decimal pl-6">{inner}</ol>
-      ) : (
-        <ul className="list-disc pl-6">{inner}</ul>
-      );
+      return data.ordered ? <ol>{inner}</ol> : <ul>{inner}</ul>;
     case 'item':
       return <li>{inner}</li>;
     case 'quote':
-      return <blockquote className="border-l-2 pl-4 font-serif">{inner}</blockquote>;
+      return <blockquote>{inner}</blockquote>;
     case 'table':
       return (
-        <div className="overflow-x-auto">
-          <table>
-            <tbody>{inner}</tbody>
-          </table>
-        </div>
+        <table>
+          <tbody>{inner}</tbody>
+        </table>
       );
     case 'row':
       return <tr>{inner}</tr>;
     case 'cell':
       return (
-        <td
-          className="border p-2"
-          style={{
-            textAlign: data.align === 'center' || data.align === 'right' ? data.align : 'left',
-          }}
-        >
+        <td data-align={data.align === 'center' || data.align === 'right' ? data.align : 'left'}>
           {inner}
         </td>
       );
     case 'code':
       return (
-        <pre className="overflow-x-auto rounded border bg-muted p-3">
+        <pre>
           <code>
             <InlineContent block={block} onEvidence={onEvidence} selected={selected} />
           </code>
@@ -269,7 +248,7 @@ function Block({
       return <hr />;
     case 'chart': {
       const chart = wikiSchemas.chart.safeParse(data);
-      if (!chart.success) return <p>Chart unavailable.</p>;
+      if (!chart.success) return <Text tone="muted">Chart unavailable.</Text>;
       return chart.data.series.map((series) => (
         <figure key={series.name}>
           <figcaption>
@@ -297,12 +276,10 @@ function Block({
     }
     case 'relationship':
       return (
-        <p className="text-label text-muted-foreground">
+        <p>
           {String(data.predicate)}:{' '}
           {block.href && isSafeUrl(block.href) ? (
-            <a className="cursor-pointer" href={block.href}>
-              {String(data.label ?? 'Related page')}
-            </a>
+            <a href={block.href}>{String(data.label ?? 'Related page')}</a>
           ) : (
             String(data.label ?? '')
           )}
@@ -339,7 +316,7 @@ function Block({
       );
     case 'query':
       return children.length ? (
-        <ul className="list-disc pl-6">
+        <ul>
           {children.map((child) => (
             <li key={child.id}>
               <Block block={child} onEvidence={onEvidence} selected={selected} depth={depth} />
@@ -347,7 +324,7 @@ function Block({
           ))}
         </ul>
       ) : (
-        <p className="text-label text-muted-foreground">No matching pages.</p>
+        <p>No matching pages.</p>
       );
     default:
       return (

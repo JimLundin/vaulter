@@ -15,6 +15,7 @@ const buttonVariants = cva(
         outline:
           'border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50',
         ghost: 'hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50',
+        inline: 'kit-inline-action',
       },
       // Visual sizes; styles.css gives every standalone control a 44px touch target.
       size: {
@@ -46,10 +47,12 @@ function Button({
     <ButtonPrimitive
       data-slot="button"
       data-variant={variant}
-      data-size={size}
+      data-size={variant === 'inline' ? undefined : size}
       data-icon-only={iconOnly || undefined}
       className={cn(
-        buttonVariants({ variant, size, iconOnly, className }),
+        variant === 'inline'
+          ? cn('kit-inline-action', className)
+          : buttonVariants({ variant, size, iconOnly, className }),
         pending && 'animate-pulse',
       )}
       {...props}

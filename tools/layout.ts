@@ -6,8 +6,37 @@ import { dirname, relative, resolve } from 'node:path';
 
 const slash = (path: string) => path.replaceAll('\\', '/');
 const contentRenderer = (path: string) =>
-  path.startsWith('app/workflows/wiki/rendering/') ||
+  // Source-card mechanics remain explicitly temporary until #47.
+  path === 'app/workflows/wiki/rendering/references.tsx' ||
   path === 'app/vault/documents/notes/remark-vault-links.ts';
+const semanticRenderer = (path: string) => path.startsWith('app/workflows/wiki/rendering/');
+const semanticTags = new Set([
+  'section',
+  'h2',
+  'h3',
+  'h4',
+  'h5',
+  'h6',
+  'p',
+  'span',
+  'strong',
+  'em',
+  'code',
+  's',
+  'a',
+  'ol',
+  'ul',
+  'li',
+  'blockquote',
+  'table',
+  'tbody',
+  'tr',
+  'td',
+  'pre',
+  'hr',
+  'figure',
+  'figcaption',
+]);
 // Chat permits semantic code markup, never a renderer-wide presentation exemption.
 const chatCodeRenderer = (path: string) => path === 'app/workflows/chat/rendering/highlight.tsx';
 const kit = (path: string) => path.startsWith('app/ui/kit/');
@@ -16,7 +45,13 @@ export function importProblem(from: string, to: string): string | null {
   if (kit(from) && (to.startsWith('app/vault/') || to.startsWith('app/agent/')))
     return `${from} imports record interpretation; keep Vault and Agent knowledge with its owning module`;
   const target = workflow(to);
-  if (target && from !== 'app/product.tsx' && workflow(from) !== target)
+  if (
+    target &&
+    from !== 'app/product.tsx' &&
+    // Fictional Wiki record adapter; preview relocation/separation is completed by #50.
+    !(target === 'wiki' && from === 'app/preview/wiki.tsx') &&
+    workflow(from) !== target
+  )
     return `${from} imports optional workflow ${target}; compose it in app/product.tsx`;
   if (kit(from) && to.startsWith('app/ui/') && !kit(to))
     return `${from} imports shared application UI ${to}; task UI belongs outside the kit`;
@@ -99,7 +134,8 @@ export function checkLayout(root: string): string[] {
             (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) &&
             ts.isIdentifier(node.tagName) &&
             /^[a-z]/.test(node.tagName.text) &&
-            !(chatCodeRenderer(from) && node.tagName.text === 'pre')
+            !(chatCodeRenderer(from) && node.tagName.text === 'pre') &&
+            !(semanticRenderer(from) && semanticTags.has(node.tagName.text))
           )
             problems.push(`${from}: <${node.tagName.text}> must be a public kit component`);
           if (

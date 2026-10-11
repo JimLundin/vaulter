@@ -266,3 +266,14 @@ Fictional preview captures accompany validation outside the repository.
 Remaining preview-only dependency: `ConversationList` reads the `chat.conversation-list` preview
 variant in production; #50 replaces this with an explicit presentation choice. Historical Chat
 projection deepening remains follow-up work in the separate Vault modules plan.
+
+## Completed slice: Wiki page composition (#46)
+
+`WikiPageView` owns typed page title/classification actions, block/record grouping and reference
+selection. Shared reading/page/section presentation and `SupportingPane` own geometry and scrolling.
+Selection uses the shared scroll-reset input; responsive rearrangement retains mounted source
+context. The obsolete kit Wiki screen and dedicated shell CSS are removed. Wiki semantic content
+has an explicit markup allowance; source-card mechanics remain only in the named #47 exception.
+Toolbar's shared 48px header and Prose document presentation standardize existing callers. Typed
+fictional preview `/preview/wiki.html` verifies actions and bounded responsive state; #50 extends
+preview examples through fictional NodeStore readings and pairs.

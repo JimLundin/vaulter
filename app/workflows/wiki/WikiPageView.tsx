@@ -1,0 +1,160 @@
+import { useState } from 'react';
+import {
+  Button,
+  Chip,
+  Heading,
+  Icon,
+  Page,
+  Prose,
+  ReadingColumn,
+  Row,
+  ScrollArea,
+  SplitView,
+  Stack,
+  Surface,
+  SupportingPane,
+  Text,
+  Toolbar,
+} from '../../ui/kit/index.ts';
+import type { WikiBlock, WikiClassification, WikiPage } from './pages.ts';
+import { WikiBlocks } from './rendering/blocks.tsx';
+import { ReferenceCard } from './rendering/references.tsx';
+
+const titleCase = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
+
+/** Wiki interpretation and local reference selection consume resolved records and task actions. */
+export function WikiPageView({
+  page,
+  onBack,
+  onFilter,
+}: {
+  page: WikiPage;
+  onBack: () => void;
+  onFilter: (term: WikiClassification) => void;
+}) {
+  const [selected, setSelected] = useState<WikiBlock>();
+  const [referencesOpen, setReferencesOpen] = useState(false);
+  const [allTags, setAllTags] = useState(false);
+  const references = selected?.evidence ?? page.sources;
+  const selection = selected?.id ?? 'page';
+  const showPageReferences = () => {
+    setSelected(undefined);
+    setReferencesOpen(true);
+  };
+  const selectEvidence = (block: WikiBlock) => {
+    setSelected(block);
+    setReferencesOpen(true);
+  };
+  const facets = page.metadata.filter((term) => !['tag', 'topic', 'type'].includes(term.scheme));
+  const tags = page.metadata.filter((term) => ['tag', 'topic'].includes(term.scheme));
+  const connections = page.blocks.filter((block) => block.data.kind === 'relationship');
+  const records = page.blocks.filter((block) =>
+    ['question', 'task', 'decision', 'date', 'timeline'].includes(String(block.data.kind)),
+  );
+  const body = page.blocks.filter(
+    (block) => !(connections.includes(block) || records.includes(block)),
+  );
+  const chip = (term: WikiClassification) => (
+    <Chip key={term.relationship} label={titleCase(term.scheme)} onClick={() => onFilter(term)}>
+      {term.label}
+    </Chip>
+  );
+  const blocks = (content: WikiBlock[]) => (
+    <Prose>
+      <WikiBlocks blocks={content} selected={selected?.id} onEvidence={selectEvidence} />
+    </Prose>
+  );
+  return (
+    <SplitView
+      main={
+        <ReadingColumn label="Wiki reading">
+          <Toolbar label="Wiki page">
+            <Button variant="ghost" size="compact" onClick={onBack}>
+              <Icon name="chevron-left" size="sm" />
+              Wiki
+            </Button>
+            <Text as="div" truncate={true} size="sm" tone="muted">
+              <Button
+                variant="inline"
+                title={page.title}
+                onClick={showPageReferences}
+                aria-description="Open page references"
+              >
+                {page.title}
+              </Button>
+            </Text>
+          </Toolbar>
+          <ScrollArea grow={true}>
+            <Page>
+              <Stack gap="lg" as="header">
+                <Heading level={1} serif={true}>
+                  <Button
+                    variant="inline"
+                    onClick={showPageReferences}
+                    aria-description="Open page references"
+                  >
+                    {page.title}
+                  </Button>
+                </Heading>
+                <Row as="fieldset" wrap={true} aria-label="Subject classification">
+                  <Chip label="Type">{titleCase(page.kind)}</Chip>
+                  {facets.map(chip)}
+                </Row>
+                {!!page.summary && (
+                  <Prose>
+                    <Text size="lg">{page.summary}</Text>
+                  </Prose>
+                )}
+                {!!tags.length && (
+                  <Row as="fieldset" wrap={true} aria-label="Subject tags">
+                    {(allTags ? tags : tags.slice(0, 5)).map(chip)}
+                    {tags.length > 5 && (
+                      <Chip onClick={() => setAllTags(!allTags)}>
+                        {allTags ? 'Show fewer' : `+${tags.length - 5} tags`}
+                      </Chip>
+                    )}
+                  </Row>
+                )}
+              </Stack>
+              {blocks(body)}
+              {!!connections.length && (
+                <Surface variant="grouped" as="section">
+                  <Heading>Connections</Heading>
+                  {blocks(connections)}
+                </Surface>
+              )}
+              {!!records.length && (
+                <Surface variant="grouped" as="section">
+                  <Heading>Questions &amp; next steps</Heading>
+                  {blocks(records)}
+                </Surface>
+              )}
+            </Page>
+          </ScrollArea>
+        </ReadingColumn>
+      }
+      supporting={
+        <SupportingPane
+          title="References"
+          open={referencesOpen}
+          persistent={true}
+          selection={selection}
+          onClose={() => {
+            setReferencesOpen(false);
+            setSelected(undefined);
+          }}
+        >
+          <Stack key={selection} gap="xl">
+            {references.length ? (
+              references.map((reference) => (
+                <ReferenceCard key={reference.id} reference={reference} />
+              ))
+            ) : (
+              <Text tone="muted">This page has no recorded page sources yet.</Text>
+            )}
+          </Stack>
+        </SupportingPane>
+      }
+    />
+  );
+}

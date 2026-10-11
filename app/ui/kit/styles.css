@@ -2,7 +2,7 @@
 /* The kit's one stylesheet: Tailwind over the kit (kit/) only, never over extensions, which compose
  * the kit and can't style anything themselves. The values are the design's (design/README.md). */
 @import "tailwindcss" source(none);
-@import "./wiki.css";
+@import "./source-card.css";
 @source "./";
 
 @custom-variant dark (&:is(.dark *));
@@ -483,7 +483,7 @@ body:has(.kit-design-window) {
     }
     :where(
         [data-touch-target],
-        [data-slot="button"],
+        [data-slot="button"]:not([data-variant="inline"]),
         [data-slot="checkbox"],
         [data-slot="input"],
         [data-slot="textarea"],
@@ -527,7 +527,7 @@ body:has(.kit-design-window) {
     }
     :where(
         [data-touch-target],
-        [data-slot="button"],
+        [data-slot="button"]:not([data-variant="inline"]),
         [data-slot="checkbox"],
         [data-slot="input"],
         [data-slot="textarea"],
@@ -869,4 +869,116 @@ body:has(.kit-design-window) {
   )[data-layout="wide"]
   [data-slot="drawer-inset"] {
   padding-top: 1rem;
+}
+
+/* Semantic reading presentation is shared by Wiki blocks, Markdown and other prose. */
+.kit-prose {
+  line-height: 1.75;
+}
+.kit-prose > * + *,
+.kit-prose section > * + * {
+  margin-top: 1.25rem;
+}
+.kit-prose section[id],
+.kit-prose p[id] {
+  scroll-margin-top: 1rem;
+}
+.kit-prose :is(h2, h3, h4, h5, h6) {
+  font-family: var(--font-serif);
+  font-size: var(--type-title);
+  font-weight: 500;
+}
+.kit-prose p {
+  white-space: pre-wrap;
+}
+.kit-prose a {
+  color: var(--primary);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.kit-prose ol {
+  list-style: decimal;
+  padding-left: 1.5rem;
+}
+.kit-prose ul {
+  list-style: disc;
+  padding-left: 1.5rem;
+}
+.kit-prose blockquote {
+  border-left: 2px solid var(--border);
+  padding-left: 1rem;
+}
+.kit-prose table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+}
+.kit-prose td {
+  border: 1px solid var(--border);
+  padding: 0.5rem;
+}
+.kit-prose td[data-align="center"] {
+  text-align: center;
+}
+.kit-prose td[data-align="right"] {
+  text-align: right;
+}
+.kit-prose pre {
+  max-width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--muted);
+  padding: 0.75rem;
+}
+.kit-chip-target {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  min-height: 28px;
+  border-radius: var(--radius);
+}
+button.kit-chip-target {
+  cursor: pointer;
+}
+button.kit-chip-target:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+@media (any-pointer: coarse) {
+  .kit-chip-target {
+    min-height: var(--target-touch);
+  }
+}
+
+.kit-inline-action {
+  display: inline;
+  height: auto;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  white-space: normal;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+.kit-inline-action:hover {
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+.kit-inline-action[aria-pressed] {
+  text-decoration: underline dotted var(--border) 2px;
+  text-underline-offset: 4px;
+}
+.kit-inline-action[aria-pressed="true"] {
+  text-decoration-style: solid;
+  text-decoration-color: var(--people);
+  background: var(--people-soft);
+}
+.kit-inline-action[aria-description] {
+  display: inline-block;
+  min-height: 44px;
 }
