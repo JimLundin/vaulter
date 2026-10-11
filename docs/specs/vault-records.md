@@ -220,3 +220,29 @@ the Vaulter tools.
   its history as a removed page.
 - **Verification.** Every historical revision of every page renders back to its source text's
   content; every turn is verbatim; every record parses with its module's schema.
+
+## Running the migration
+
+`tools/migration/migrate.ts` regenerates the vault's node history from its Git history;
+`tools/migration/verify.ts` checks the result independently. Both read the vault repository next to
+this one and write nothing into either repository.
+
+```sh
+npm run migrate -- --out /tmp/vault-migration         # --vault-ref origin/main by default
+npm run migrate:verify -- --out /tmp/vault-migration
+```
+
+The output holds the transaction envelopes under `.vaulter/nodes/v1/transactions/`, the identity
+map, the transaction-to-commit map and a report: unresolved references, values a schema rejected,
+merged and removed pages, abandoned questions. Identities and transaction IDs are derived from
+source anchors, so an unchanged source regenerates byte-identical envelopes.
+
+To replace a migration, commit to the vault's `main` in one commit: remove the envelopes whose
+transaction IDs start with `vault:` (or `migration:`, the first migration), add the generated ones,
+and keep the application's own. Devices that synchronized the replaced history refuse it until their
+cache is cleared by signing out and in.
+
+A replacement is possible only while the application's own transactions all precede the migration:
+the migrator continues their sequence and fails when later application transactions exist, since
+those build on the migrated versions and cannot be rewritten.
+

@@ -7,6 +7,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "check": "node tools/check.ts --vault ../vault",
+    "migrate": "node tools/migration/migrate.ts --vault ../vault",
+    "migrate:verify": "node tools/migration/verify.ts --vault ../vault",
     "test": "vitest run",
     "typecheck": "tsc",
     "lint": "biome ci .",
