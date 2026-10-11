@@ -39,10 +39,14 @@ export function Surface({
   );
 }
 
-/** A compact bordered toolbar becomes an open toolbar in expanded space. */
-export function Toolbar({ children }: { children: ReactNode }) {
+/** Page toolbars use the shared supporting-header height and inset in every arrangement. */
+export function Toolbar({ children, label }: { children: ReactNode; label?: string }) {
   return (
-    <header className="flex min-h-14 shrink-0 items-center justify-between gap-3 border-b px-3 py-1 md:min-h-0 md:border-0 md:px-0 md:py-0">
+    <header
+      role="toolbar"
+      aria-label={label}
+      className="flex h-[var(--supporting-header-height)] shrink-0 items-center justify-between gap-3 bg-background px-[var(--page-inset)]"
+    >
       {children}
     </header>
   );

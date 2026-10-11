@@ -298,3 +298,27 @@ History never imports execution/transcript producers. New Chat metadata is obser
 and Interpretations. Historical Agent metadata still decodes through Agent-owned schemas, preserving
 unknown JSON and older containment without rewriting records. Sensor collection and Vault migration
 remain separate work.
+
+## Chat record UI and shared presentation
+
+Chat owns `ChatSurface`, `ChatMessage` and `ConversationItem`: task labels, role interpretation,
+accepted tool evidence, model/token metadata, unfinished activity and node selection. Message views
+accept existing typed `Turn` data; conversation rows accept `SavedChat` with explicit node actions.
+Neither record view needs a live store or execution controller. The subscribed Chat container
+retains draft, capture, review, recovery and execution actions. Its mounted supporting view calls
+`viewing()` only while open, so a reply finishing after close remains unread until reopened.
+
+Product supplies `ChatPanel` visibility and dismissal to the optional generic Frame aside; Product
+routes an external prompt to the Chat page or supporting task. Chat's page composes shared
+`ReadingColumn`, `Toolbar`, `AutoScrollArea` and `Dock`; the panel supplies direct message children
+and composer content to `SupportingPane`. Chat and its chooser use that single supporting policy.
+Pane width, responsive transitions, header height, dismissal and scrolling remain kit-owned.
+Composer retains shared keyboard, native form, IME, focus and Stop controls.
+
+The kit's `Message` receives caller attribution, reading side and content, with no Chat role schema.
+The five old `ConversationPage`, `ConversationSurface`, `ConversationPanel`, `ConversationFeed` and
+`ConversationWelcome` compositions are retired. Catalogue feed examples use generic presentation
+values. Prose typography and code-scroll presentation live in the kit; Chat's markdown/code renderer
+exception permits semantic text conversion and `<pre>` only, not custom pane controls, viewport
+queries, layout markup or presentation-library imports. The conversation chooser's production
+`usePreviewVariant` dependency remains specifically scheduled for #50.

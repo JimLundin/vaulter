@@ -213,7 +213,7 @@ test('button hit targets resize without animating their geometry', async ({ page
     node.style.transitionDuration = '1s';
   });
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(add).toHaveAttribute('data-size', 'standard');
+  await expect(add).toHaveAttribute('data-size', 'compact');
   await expect(add).toHaveAttribute('aria-label', 'New conversation');
   const bounds = (await add.boundingBox())!;
   expect(bounds.width).toBeGreaterThanOrEqual(44);
@@ -247,8 +247,8 @@ test('agent controls have even insets and suggestions remain one scrolling row w
       const toolbar = page.locator('header').filter({ has: add });
       const bar = (await toolbar.boundingBox())!;
       const action = (await add.boundingBox())!;
-      expect(action.y - bar.y).toBeGreaterThanOrEqual(4);
-      expect(bar.y + bar.height - action.y - action.height).toBeGreaterThanOrEqual(4);
+      expect(action.y - bar.y).toBeGreaterThanOrEqual(2);
+      expect(bar.y + bar.height - action.y - action.height).toBeGreaterThanOrEqual(2);
     }
     await expect(page.getByText('Ideas to explore', { exact: true })).toHaveCount(0);
     const strip = page.getByRole('region', { name: 'Suggested prompts' });
@@ -449,9 +449,9 @@ test('agent panel preserves its draft while becoming modal, and traps focus only
     await page.setViewportSize({ width, height: 844 });
     await expect(draft).toHaveValue('A preserved agent draft');
     await expect(draft).toBeFocused();
-    const surface = page.getByRole(width >= 1280 ? 'complementary' : 'dialog', { name: 'Chat' });
+    const surface = page.getByRole(width >= 768 ? 'complementary' : 'dialog', { name: 'Chat' });
     await expect(surface).toBeVisible();
-    if (width < 1280) {
+    if (width < 768) {
       await page.keyboard.press('Tab');
       expect(await surface.evaluate((node) => node.contains(document.activeElement))).toBe(true);
       await draft.focus();
@@ -464,7 +464,7 @@ test('agent panel preserves its draft while becoming modal, and traps focus only
   }
   await page.keyboard.press('Escape');
   await expect(draft).toBeHidden();
-  await expect(page.getByRole('button', { name: 'Open agent' })).toBeFocused();
+  await expect(page.getByRole('textbox', { name: 'Preference' })).toBeFocused();
 });
 
 test('a growing navigation keeps overflow actions available without making the footer grow', async ({

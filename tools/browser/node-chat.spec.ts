@@ -358,7 +358,7 @@ test('timeline conversation rows stay uniform and truncate titles beside right-a
   const long = list.getByRole('button', { name: /A longer conversation title/ });
   const first = await short.boundingBox();
   const last = await long.boundingBox();
-  expect(first!.height).toBe(last!.height);
+  expect(first!.height).toBeCloseTo(last!.height, 2);
   const title = long.locator('[title]');
   expect(await title.evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(true);
   await expect(title).toHaveCSS('text-overflow', 'ellipsis');

@@ -309,3 +309,46 @@ export const load = () => import('@kit/drawer.tsx');`,
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test('Chat renderer helpers cannot smuggle pane layout, styling or private kit implementation', () => {
+  const root = mkdtempSync(join(tmpdir(), 'vaulter-chat-presentation-policy-'));
+  try {
+    mkdirSync(join(root, 'app/workflows/chat/rendering'), { recursive: true });
+    mkdirSync(join(root, 'app/ui/kit'), { recursive: true });
+    writeFileSync(
+      join(root, 'tsconfig.json'),
+      JSON.stringify({
+        compilerOptions: {
+          module: 'ESNext',
+          moduleResolution: 'Bundler',
+          jsx: 'preserve',
+          paths: { '@/*': ['./app/*'] },
+        },
+        include: ['app'],
+      }),
+    );
+    writeFileSync(join(root, 'app/ui/kit/private.ts'), 'export const Pane = 1;');
+    writeFileSync(
+      join(root, 'app/workflows/chat/rendering/pane.tsx'),
+      `
+      import { Pane } from '@/ui/kit/private.ts';
+      export const load = () => import('@/ui/kit/private.ts');
+      import { Drawer } from '@base-ui/react/drawer';
+      export const layout = matchMedia('(min-width: 768px)');
+      export const pane = <div style={{ overflow: 'auto' }}><button>Expand</button></div>;
+    `,
+    );
+    expect(checkLayout(root)).toEqual(
+      expect.arrayContaining([
+        'app/workflows/chat/rendering/pane.tsx imports a private kit file; use app/ui/kit/index.ts',
+        'app/workflows/chat/rendering/pane.tsx: presentation dependencies belong behind app/ui/kit/index.ts',
+        'app/workflows/chat/rendering/pane.tsx: viewport queries belong in the kit',
+        'app/workflows/chat/rendering/pane.tsx: <div> must be a public kit component',
+        'app/workflows/chat/rendering/pane.tsx: <button> must be a public kit component',
+        'app/workflows/chat/rendering/pane.tsx: app views must compose the public kit instead of styling elements',
+      ]),
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});

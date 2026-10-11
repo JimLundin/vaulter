@@ -1,6 +1,6 @@
 // biome-ignore lint/correctness/noUnresolvedImports: React 19 exposes Suspense; TypeScript and the build verify it
 import { lazy, Suspense } from 'react';
-import { Activity, ConversationPage, Text } from '../../ui/kit/index.ts';
+import { Activity, Text } from '../../ui/kit/index.ts';
 import type { NodeConversation as Conversation } from './node-conversation.ts';
 import { useNodeChat as useChat } from './use-node-conversation.ts';
 import type { Prompt } from './Chat.tsx';
@@ -25,14 +25,23 @@ export function ChatPanel({
   conversation,
   prompt = null,
   voice,
+  open,
+  onClose,
 }: {
   conversation: Conversation;
   prompt?: Prompt | null;
   voice: Transcription;
+  open: boolean;
+  onClose: () => void;
 }) {
   return (
     <Suspense fallback={<Text tone="subtle">Loading conversation…</Text>}>
-      <Chat conversation={conversation} arg={prompt} voice={voice} />
+      <Chat
+        conversation={conversation}
+        arg={prompt}
+        voice={voice}
+        presentation={{ open, onClose }}
+      />
     </Suspense>
   );
 }
@@ -46,9 +55,9 @@ export function ChatPage({
   voice: Transcription;
 }) {
   return (
-    <ConversationPage>
-      <ChatPanel conversation={conversation} prompt={prompt} voice={voice} />
-    </ConversationPage>
+    <Suspense fallback={<Text tone="subtle">Loading conversation…</Text>}>
+      <Chat conversation={conversation} arg={prompt} voice={voice} presentation={{ page: true }} />
+    </Suspense>
   );
 }
 export function ChatIndicator({ conversation }: { conversation: Conversation }) {
@@ -59,3 +68,5 @@ export function ChatIndicator({ conversation }: { conversation: Conversation }) 
 }
 
 export { ConversationList, ConversationItem } from './ConversationList.tsx';
+
+export { ChatMessage } from './ChatMessage.tsx';

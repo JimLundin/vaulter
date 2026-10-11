@@ -842,7 +842,7 @@ function Agent() {
   };
   const [chats, setChats] = useState(false);
   return (
-    <K.ConversationPage>
+    <>
       <K.Overlay open={chats} onClose={() => setChats(false)} title="Conversations">
         <K.ResponsiveSupportingColumn
           title="Supporting sample"
@@ -872,50 +872,33 @@ function Agent() {
           onSelect={() => setChats(false)}
         />
       </K.Overlay>
-      <K.ConversationSurface
-        busy={false}
-        onConversations={() => setChats(true)}
-        onNewChat={() => {
-          setMessages([]);
-          setVoice('idle');
-          setDraft('');
-        }}
-        status={<K.VoiceStatus phase={voice} error="" />}
-        composer={
-          <K.Composer
-            draft={draft}
-            onDraftChange={(text) => {
-              setVoice('idle');
-              setDraft(text);
-            }}
-            onSubmit={send}
-            label="Message"
-            placeholder="Message…"
-            canSubmit={voice !== 'listening'}
-            readOnly={voice === 'listening'}
-            voice={{ phase: voice, onClick: voiceAction }}
-            fieldRef={fieldRef}
-            onFocusChange={setFocused}
-          />
-        }
-        suggestions={
-          !(focused || draft || messages.length || voice === 'listening') && (
-            <K.PromptSuggestions
-              suggestions={['Make room for slow mornings', 'What have I noticed this week?']}
-              onSelect={(text) => {
-                setDraft(text);
-                requestAnimationFrame(() => fieldRef.current?.focus());
+      <K.ReadingColumn page={true} label="Feed sample">
+        <K.Toolbar>
+          <K.Heading level={2}>Feed &amp; composer</K.Heading>
+          <K.Row>
+            <K.Button aria-label="Conversations" onClick={() => setChats(true)}>
+              Items
+            </K.Button>
+            <K.Button
+              aria-label="New conversation"
+              onClick={() => {
+                setMessages([]);
+                setVoice('idle');
+                setDraft('');
               }}
-            />
-          )
-        }
-      >
-        <K.ConversationFeed empty={!messages.length}>
+            >
+              Clear
+            </K.Button>
+          </K.Row>
+        </K.Toolbar>
+        <K.AutoScrollArea empty={!messages.length}>
           {messages.length ? (
             messages.map((message) => (
               <K.Stack key={message.id}>
-                <K.Message user={true}>{message.text}</K.Message>
-                <K.Message>
+                <K.Message label="Author" side="end" marker="user">
+                  {message.text}
+                </K.Message>
+                <K.Message label="Response">
                   <K.Markdown>
                     <p>A small routine could help: a walk, coffee, and one thought written down.</p>
                   </K.Markdown>
@@ -923,14 +906,43 @@ function Agent() {
               </K.Stack>
             ))
           ) : (
-            <K.ConversationWelcome
-              title="What’s on your mind?"
-              description="Ask about your notes, or leave a thought for later."
-            />
+            <K.Stack>
+              <K.Heading level={1}>Start a thought</K.Heading>
+              <K.Text>A feed with an anchored entry field.</K.Text>
+            </K.Stack>
           )}
-        </K.ConversationFeed>
-      </K.ConversationSurface>
-    </K.ConversationPage>
+        </K.AutoScrollArea>
+        <K.Dock status={<K.VoiceStatus phase={voice} error="" />}>
+          <K.Stack gap="sm">
+            {!(focused || draft || messages.length || voice === 'listening') && (
+              <K.PromptSuggestions
+                suggestions={['Make room for slow mornings', 'What have I noticed this week?']}
+                onSelect={(text) => {
+                  setDraft(text);
+                  requestAnimationFrame(() => fieldRef.current?.focus());
+                }}
+              />
+            )}
+
+            <K.Composer
+              draft={draft}
+              onDraftChange={(text) => {
+                setVoice('idle');
+                setDraft(text);
+              }}
+              onSubmit={send}
+              label="Message"
+              placeholder="Message…"
+              canSubmit={voice !== 'listening'}
+              readOnly={voice === 'listening'}
+              voice={{ phase: voice, onClick: voiceAction }}
+              fieldRef={fieldRef}
+              onFocusChange={setFocused}
+            />
+          </K.Stack>
+        </K.Dock>
+      </K.ReadingColumn>
+    </>
   );
 }
 function AgentPanel() {
@@ -942,47 +954,53 @@ function AgentPanel() {
       <K.Button variant="outline" onClick={() => setOpen(true)}>
         Open agent panel
       </K.Button>
-      <K.ConversationPanel open={open} onClose={() => setOpen(false)}>
-        <K.ConversationSurface
-          busy={false}
-          onNewChat={() => {
-            setMessages([]);
-            setDraft('');
-          }}
-          composer={
-            <K.Composer
-              draft={draft}
-              onDraftChange={setDraft}
-              onSubmit={(text) => {
-                if (!text.trim()) return;
-                setMessages([...messages, { id: crypto.randomUUID(), text: text.trim() }]);
-                setDraft('');
-              }}
-              label="Panel message"
-              sendLabel="Send panel message"
-              canSubmit={true}
-            />
-          }
-        >
-          <K.ConversationFeed empty={!messages.length}>
-            {messages.length ? (
-              messages.map((message) => (
-                <K.Message key={message.id} user={true}>
-                  {message.text}
-                </K.Message>
-              ))
-            ) : (
-              <K.ConversationWelcome
-                title="A thought for later?"
-                description="Keep the page open while you ask."
-              />
-            )}
-          </K.ConversationFeed>
-        </K.ConversationSurface>
-      </K.ConversationPanel>
+      <K.SupportingPane
+        title="Supporting task"
+        open={open}
+        onClose={() => setOpen(false)}
+        empty={!messages.length}
+        actions={
+          <K.Button
+            onClick={() => {
+              setMessages([]);
+              setDraft('');
+            }}
+          >
+            Clear
+          </K.Button>
+        }
+        dock={
+          <K.Composer
+            draft={draft}
+            onDraftChange={setDraft}
+            onSubmit={(text) => {
+              if (!text.trim()) return;
+              setMessages([...messages, { id: crypto.randomUUID(), text: text.trim() }]);
+              setDraft('');
+            }}
+            label="Panel message"
+            sendLabel="Send panel message"
+            canSubmit={true}
+          />
+        }
+      >
+        {messages.length ? (
+          messages.map((message) => (
+            <K.Message key={message.id} label="Author" side="end" marker="user">
+              {message.text}
+            </K.Message>
+          ))
+        ) : (
+          <K.Stack>
+            <K.Heading level={2}>A thought for later?</K.Heading>
+            <K.Text>Keep the page open while you enter text.</K.Text>
+          </K.Stack>
+        )}
+      </K.SupportingPane>
     </K.Stack>
   );
 }
+
 function Voice() {
   const [listChoice, setListChoice] = useState('');
   const [inlineChoice, setInlineChoice] = useState('');
@@ -1496,19 +1514,15 @@ export const catalogue: Specimen[] = [
   },
   {
     id: 'agent',
-    title: 'Agent conversation',
+    title: 'Feed & composer',
     description: 'The same feed, suggestions, message field and voice actions rearrange together.',
     components: [
-      'ConversationPage',
-      'ConversationSurface',
       'SelectionList',
       'SelectionRow',
       'SelectionGroupHeading',
       'SplitView',
       'SupportingColumn',
       'ResponsiveSupportingColumn',
-      'ConversationFeed',
-      'ConversationWelcome',
       'Message',
       'Markdown',
       'Composer',
@@ -1562,10 +1576,9 @@ export const catalogue: Specimen[] = [
   },
   {
     id: 'agent-panel',
-    title: 'Agent panel',
-    description:
-      'One conversation: beside the workspace on wide screens, centered or in the shared Drawer when narrower.',
-    components: ['ConversationPanel'],
+    title: 'Supporting feed',
+    description: 'Shared pane with a following feed and an anchored entry field.',
+    components: ['SupportingPane'],
     Sample: AgentPanel,
   },
   {

@@ -69,7 +69,6 @@ export function renderBody(note: Pick<Note, 'id' | 'path' | 'body'>): ReactNode 
     });
   } catch (e) {
     return jsx('p', {
-      className: 'render-error',
       children: `${note.path} doesn't render: ${(e as Error).message}`,
     });
   }

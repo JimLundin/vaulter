@@ -1,174 +1,12 @@
-// Agent compositions: content and actions assembled exclusively from catalogued primitives.
-import { createContext, type ReactNode, type Ref, useContext, useEffect, useState } from 'react';
-import { Stack, Row, Heading, Text, Prose } from './parts/layout.tsx';
+// Shared message presentation and entry mechanics; task owners supply interpretation and actions.
+import { type ReactNode, type Ref, useEffect, useState } from 'react';
+import { Stack, Text, Prose } from './parts/layout.tsx';
 import { Form } from './app.tsx';
 import { Button } from './parts/button.tsx';
 import { InputGroup, InputGroupAddon, InputGroupTextarea } from './parts/input-group.tsx';
 import { Icon } from './icons.tsx';
-import {
-  Surface,
-  Toolbar,
-  ReadingColumn,
-  Dock,
-  AutoScrollArea,
-  AdaptivePanel,
-  OptionStrip,
-} from './primitives.tsx';
 import { useLayout } from './hooks/use-layout.ts';
-
-const ConversationPresentation = createContext<{ page: boolean; close?: () => void }>({
-  page: false,
-});
-
-export function ConversationPage({ children }: { children: ReactNode }) {
-  return (
-    <ConversationPresentation.Provider value={{ page: true }}>
-      {children}
-    </ConversationPresentation.Provider>
-  );
-}
-
-export function ConversationWelcome({
-  title,
-  description,
-}: {
-  title: string;
-  description: string;
-}) {
-  const mobile = useLayout() === 'compact';
-  const { page } = useContext(ConversationPresentation);
-  return (
-    <Stack
-      gap={mobile ? 'md' : 'xl'}
-      align={mobile ? 'center' : 'stretch'}
-      inset={mobile ? 'sm' : 'none'}
-      block={mobile ? 'lg' : 'md'}
-      centerText={mobile}
-    >
-      {mobile && (
-        <Surface variant="emblem">
-          <Icon name="sparkles" size="lg" />
-        </Surface>
-      )}
-      <Heading
-        level={page || mobile ? 1 : 2}
-        serif={true}
-        size={page || mobile ? 'display' : 'title'}
-      >
-        {title}
-      </Heading>
-      <Text tone="muted">{description}</Text>
-    </Stack>
-  );
-}
-
-interface ConversationActions {
-  onNewChat: () => void;
-  /** Show the conversations to choose from. */
-  onConversations?: () => void;
-  busy: boolean;
-}
-function ConversationToolbar({ onNewChat, onConversations, busy }: ConversationActions) {
-  const mobile = useLayout() === 'compact';
-  const { page, close } = useContext(ConversationPresentation);
-  return (
-    <Toolbar>
-      <Row gap="xs">
-        {mobile && !!close && (
-          <Button
-            variant="ghost"
-            size="standard"
-            iconOnly={true}
-            aria-label="Close"
-            onClick={close}
-          >
-            <Icon name="arrow-left" size="lg" />
-          </Button>
-        )}
-        {(mobile || page || !!close) && (
-          <Stack gap="xs">
-            <Heading level={2}>{page || close ? 'Chat' : 'Conversation'}</Heading>
-            {!mobile && (
-              <Text size="sm" tone="subtle">
-                Your vault, in conversation
-              </Text>
-            )}
-          </Stack>
-        )}
-      </Row>
-      <Row>
-        {mobile && !!onConversations && (
-          <Button
-            variant="ghost"
-            size={mobile ? 'standard' : 'compact'}
-            iconOnly={mobile}
-            aria-label="Conversations"
-            onClick={onConversations}
-          >
-            <Icon name="list" size={mobile ? 'lg' : 'md'} />
-            {!mobile && 'Conversations'}
-          </Button>
-        )}
-
-        <Button
-          variant="filled"
-          size={mobile ? 'standard' : 'compact'}
-          aria-label="New conversation"
-          disabled={busy}
-          onClick={onNewChat}
-        >
-          <Icon name="plus" size={mobile ? 'lg' : 'md'} />
-          New
-        </Button>
-        {!mobile && !!close && (
-          <Button
-            variant="ghost"
-            size="compact"
-            iconOnly={true}
-            aria-label="Close panel"
-            onClick={close}
-          >
-            <Icon name="close" />
-          </Button>
-        )}
-      </Row>
-    </Toolbar>
-  );
-}
-
-/** The feed and draft keep a stable position while the toolbar and dock rearrange. */
-export function ConversationSurface({
-  onNewChat,
-  onConversations,
-  busy,
-  composer,
-  suggestions,
-  status,
-  children,
-}: ConversationActions & {
-  composer: ReactNode;
-  suggestions?: ReactNode;
-  status?: ReactNode;
-  children: ReactNode;
-}) {
-  const { page } = useContext(ConversationPresentation);
-  return (
-    <ReadingColumn page={page} label="Conversation">
-      <ConversationToolbar onNewChat={onNewChat} onConversations={onConversations} busy={busy} />
-      {children}
-      <Dock status={status}>
-        <Stack gap="sm">
-          {suggestions}
-          <Row data-conversation-input="">
-            <Stack grow={true} gap="none">
-              {composer}
-            </Stack>
-          </Row>
-        </Stack>
-      </Dock>
-    </ReadingColumn>
-  );
-}
+import { Surface, OptionStrip } from './primitives.tsx';
 
 /** Generic selection rows; callers supply labels, metadata and current selection. */
 export function SelectionList({
@@ -205,19 +43,27 @@ export function SelectionList({
   );
 }
 
-export function ConversationFeed({ empty, children }: { empty?: boolean; children: ReactNode }) {
-  return <AutoScrollArea empty={empty}>{children}</AutoScrollArea>;
-}
-export function Message({ user, children }: { user?: boolean; children: ReactNode }) {
-  const mobile = useLayout() === 'compact';
+/** Neutral message presentation: the owner supplies attribution and reading side. */
+export function Message({
+  label,
+  side = 'start',
+  marker,
+  children,
+}: {
+  label: string;
+  side?: 'start' | 'end';
+  marker?: string;
+  children: ReactNode;
+}) {
+  const compact = useLayout() === 'compact';
   return (
-    <Stack data-message={user ? 'user' : 'agent'} align={user ? 'end' : 'stretch'} gap="sm">
-      {!mobile && (
+    <Stack data-message={marker} align={side === 'end' ? 'end' : 'stretch'} gap="sm">
+      {!compact && (
         <Text as="span" size="xs" weight="medium" tone="subtle">
-          {user ? 'You' : 'Agent'}
+          {label}
         </Text>
       )}
-      {user ? <Surface variant="bubble">{children}</Surface> : <Stack>{children}</Stack>}
+      {side === 'end' ? <Surface variant="bubble">{children}</Surface> : <Stack>{children}</Stack>}
     </Stack>
   );
 }
@@ -359,24 +205,6 @@ export function SendButton({
     </Button>
   );
 }
-export function ConversationPanel({
-  open,
-  onClose,
-  children,
-}: {
-  open: boolean;
-  onClose: () => void;
-  children?: ReactNode;
-}) {
-  return (
-    <AdaptivePanel open={open} onClose={onClose} title="Chat">
-      <ConversationPresentation.Provider value={{ page: false, close: onClose }}>
-        {children}
-      </ConversationPresentation.Provider>
-    </AdaptivePanel>
-  );
-}
-
 type VoicePhase = 'idle' | 'connecting' | 'listening' | 'finishing' | 'ready' | 'error';
 export function VoiceButton({
   phase,

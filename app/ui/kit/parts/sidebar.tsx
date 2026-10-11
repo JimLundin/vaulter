@@ -18,7 +18,7 @@ function SidebarProvider({ className, style, children, ...props }: React.Compone
     <div
       data-slot="sidebar-wrapper"
       style={{ '--sidebar-width': SIDEBAR_WIDTH, ...style } as React.CSSProperties}
-      className={cn('flex min-h-svh w-full', className)}
+      className={cn('flex h-[var(--viewport-height,100dvh)] min-h-0 w-full', className)}
       {...props}
     >
       {children}

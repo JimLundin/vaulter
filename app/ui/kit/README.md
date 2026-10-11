@@ -9,7 +9,7 @@ keeps record-specific UI in its owning module and shared presentation in the kit
 policy owns geometry and interaction across modules; consistency takes precedence over tailored
 arrangements. The [UI ownership migration plan](../../../docs/plans/ui-module-ownership.md) records
 the work and enforcement checks. Current kit exports still include module-specific presentation;
-History and Search ownership are implemented; remaining module migrations are tracked by the plan.
+Chat, History and Search ownership are implemented; remaining module migrations are tracked by the plan.
 
 History-specific presentation has moved to History. `ExpandableRow` owns shared disclosure,
 metadata placement and details geometry; `RowAction` owns compact accessible action presentation.
@@ -55,7 +55,7 @@ Markdown/HAST rendering and the vault-link annotation transform remain the expli
 | `overlay.tsx` | one dialog tree, centered or bottom-aligned; full-screen search in compact space |
 | `drawer.tsx` | the public `Drawer`, centered in expanded space and rising from the bottom in compact space |
 | `navigation.tsx` | `NavigationSuite`: one navigation as a sidebar or a bottom bar |
-| `conversation.tsx` | mobile agent screen, desktop reading column, composer and message presentation |
+| `conversation.tsx` | neutral message attribution, composer, voice and suggestions mechanics |
 | `command-overlay.tsx` | shared responsive command-list overlay |
 | `expandable-row.tsx` | shared disclosure, metadata and compact actions |
 | `settings.tsx` | feature-named settings menu and shared form rows |
@@ -179,10 +179,10 @@ adds one.
 | Page header at the top of the reading column | Bordered header strip | `PageHeader` |
 | Centered dialog | Bottom-aligned dialog | `Overlay` |
 | Settings dialog over the current feature | Settings drawer, sharing Menu's surface | `SettingsMenu` → `Drawer` |
-| Side panel (wide) or centered dialog | Full-height bottom drawer | `ConversationPanel` → `AdaptivePanel` → `Drawer` |
-| Labelled toolbar buttons | Icon buttons with an `aria-label` | `ConversationSurface` |
+| Side panel (wide) or centered dialog | Full-height bottom drawer | `SupportingPane` → `Drawer` |
+| Labelled toolbar buttons | Icon buttons with an `aria-label` | Chat-owned composition over `Toolbar`, `AutoScrollArea` and `Dock` |
 | Form rows: label left, control right | The same fields stacked vertically | `SettingsMenu`, `SettingField` |
-| One-row composer with inset microphone and send | The same always-visible field and inset controls | `ConversationSurface`, `Composer` |
+| One-row composer with inset microphone and send | The same always-visible field and inset controls | Chat-owned composition over `Toolbar`, `AutoScrollArea` and `Dock`, `Composer` |
 | Titled expandable rows with labelled actions | The same rows with accessible icon actions | `ExpandableRow`, `RowAction` |
 | Single horizontally scrolling prompt row | The same row, with a fade at clipped edges | `PromptSuggestions`, `OptionStrip` |
 
@@ -215,8 +215,8 @@ do not wrap those children in another scrolling feed. `persistent` requests desk
 The kit owns the 340px width, header, inset, `md` transition, dismissal, gestures, focus return and
 bounded portals. Expanded/wide content stays beside the page; compact content uses the full-height
 bottom Drawer. The saved-conversation chooser and paired generic examples consume this seam.
-`AdaptivePanel`, `ConversationPanel` and reading-support wrappers remain temporary for Chat/Wiki
-and old examples until #45/#46 migrate their callers and #51 removes their separate geometry.
+`ConversationPanel` is retired. `AdaptivePanel` and reading-support wrappers remain temporary
+for legacy generic examples until #51 removes their separate geometry.
 
 ### Primitive composition
 
@@ -244,10 +244,9 @@ examples stay independently editable and release their scope when catalogue filt
 MobileFrame alternatives have been retired, including the latter's reserved notice row. Existing
 Notice attention cards and Toaster notifications remain; notification integration and placement
 are tracked separately in #22.
-Supporting content uses `AdaptivePanel` and `ConversationPanel` in the right-side role on wide
-screens; the fixed-width SidePanel alternative has been retired. Their headings and close controls
-remain available in the retained compositions. Supporting panels keep one mounted draft field as
-they become a wide panel, centered modal or compact drawer. A nested review or details drawer
+Chat supporting content uses `SupportingPane`, sharing expanded inline and compact Drawer
+geometry with conversation selection. Supporting panes keep one mounted draft field as they
+change arrangement. A nested review or details drawer
 closes first and returns focus to its parent; changing the parent arrangement keeps the child
 task modal until it closes. Bounded Escape follows usable focus
 or the latest interaction when an action disables its focused control, and catalogue controls can
@@ -507,3 +506,15 @@ The paired Map example loads external tiles only after Load map, then demonstrat
 category markers, solid/dashed routes and compact/section/fill sizes. Changing the map container's
 size refits supplied places/routes; selection and theme changes preserve the current camera.
 Run real-tile browser acceptance with `VAULTER_MAP_TILES=1 npm run test:ui -- tools/browser/maps.spec.ts`.
+
+Chat owns page and panel task composition, welcome copy and typed record interpretation. The kit
+accepts neutral attribution/content in `Message` and supplies the shared feed, dock, toolbar and
+supporting pane. All supporting tasks use one 340px expanded pane and full-height compact Drawer;
+page toolbars and pane headers share the 48px header token. Touch controls keep their 44px targets.
+Chat's direct feed children gain no second scroll owner. The retired `Conversation*` aliases have no
+production or catalogue callers. Feed and Supporting feed examples demonstrate neutral values;
+actual Chat fictional records remain in the application preview.
+
+Shared prose typography now lives in `prose.css` and is imported by the kit stylesheet. Chat owns
+safe text/HAST interpretation and highlighting; its narrow semantic renderer allowance cannot
+be used to implement pane layout, custom controls, viewport branches or private kit imports.

@@ -1,31 +1,20 @@
 // Chat behaviour composes the public kit; presentation and styling stay in the kit.
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Button,
   CodeDiff,
   Composer,
-  ConversationFeed,
-  ConversationSurface,
-  ConversationWelcome,
   PromptSuggestions,
   VoiceStatus,
-  Json,
-  Markdown,
-  Message,
   Overlay,
   Row,
   Stack,
   Text,
-  SplitView,
-  LiveStatus,
-  ToolGroup,
-  ToolResult,
 } from '../../ui/kit/index.ts';
 import { ConversationList } from './ConversationList.tsx';
-import { liveLabel, running, segments, summarize, type ToolPart } from './activity.ts';
+import { ChatSurface, ChatWelcome, type ChatPresentation } from './ChatSurface.tsx';
+import { ChatMessage } from './ChatMessage.tsx';
 import { later } from '../../ui/later.ts';
-import { renderBody } from './rendering/markdown.ts';
-import type { Part, Turn } from './view.ts';
 import type { NodeConversation } from './node-conversation.ts';
 import { useNodeChat } from './use-node-conversation.ts';
 import { model } from './model.ts';
@@ -40,10 +29,12 @@ export function Chat({
   conversation,
   arg,
   voice,
+  presentation,
 }: {
   conversation: NodeConversation;
   arg: Prompt | null;
   voice: Transcription;
+  presentation: ChatPresentation;
 }) {
   const { newChat, send, stop, viewing } = conversation;
   const [choosing, setChoosing] = useState(false);
@@ -65,11 +56,13 @@ export function Chat({
   const [focused, setFocused] = useState(false);
   const transcript = useTranscript(voice);
   const recording = ['connecting', 'listening', 'finishing'].includes(transcript.phase);
+  const visible = presentation.page || presentation.open;
   const chooser = (
     <ConversationList
       conversation={conversation}
       disabled={recording}
-      open={choosing}
+      open={visible && choosing}
+      persistent={visible}
       onClose={() => setChoosing(false)}
     />
   );
@@ -93,11 +86,13 @@ export function Chat({
     },
     [type, send, conversation, voice],
   );
-  useEffect(viewing, [viewing]);
+  useEffect(() => {
+    if (visible) return viewing();
+  }, [viewing, visible]);
   const selectedModel = model();
   // biome-ignore lint/correctness/useExhaustiveDependencies: a new chat or model invalidates cached suggestions
   useEffect(() => {
-    if (!(focused || input || busy || recording)) later(conversation.suggest());
+    if (visible && !(focused || input || busy || recording)) later(conversation.suggest());
   }, [
     conversation,
     focused,
@@ -107,17 +102,18 @@ export function Chat({
     turns.length,
     selectedModel,
     recording,
+    visible,
   ]);
   const showSuggestions = !(focused || input || busy || recording) && suggestions.length > 0;
   useEffect(() => {
-    if (!arg || arg.n === argSeen.current) return;
+    if (!(visible && arg) || arg.n === argSeen.current) return;
     argSeen.current = arg.n;
     if (arg.send && !conversation.snapshot().busy) say(arg.text);
     else {
       type(arg.text);
       requestAnimationFrame(() => ref.current?.focus());
     }
-  }, [arg, conversation, say, type]);
+  }, [arg, conversation, say, type, visible]);
   const edit = (text: string) => {
     type(text);
     requestAnimationFrame(() => ref.current?.focus());
@@ -135,266 +131,171 @@ export function Chat({
   };
   if (!(conversation.ready() || turns.length || persistenceError))
     return (
-      <SplitView
+      <ChatSurface
         supporting={chooser}
-        main={
-          <ConversationSurface
-            onNewChat={newChat}
-            onConversations={showChats}
-            busy={false}
-            composer={null}
-          >
-            <ConversationFeed>
-              <Text tone="muted">{conversation.availability() ?? 'Opening the node store…'}</Text>
-            </ConversationFeed>
-          </ConversationSurface>
-        }
-      />
+        presentation={presentation}
+        onNewChat={newChat}
+        onConversations={showChats}
+        busy={false}
+        composer={null}
+      >
+        <Text tone="muted">{conversation.availability() ?? 'Opening the node store…'}</Text>
+      </ChatSurface>
     );
   return (
-    <SplitView
+    <ChatSurface
       supporting={chooser}
-      main={
-        <ConversationSurface
-          onNewChat={() => {
-            voice.clear();
-            newChat();
-            type('');
-          }}
-          onConversations={showChats}
-          busy={busy || recording || !!persistenceError || !!contentPersistence || !!contextError}
-          status={
+      presentation={presentation}
+      onNewChat={() => {
+        voice.clear();
+        newChat();
+        type('');
+      }}
+      onConversations={showChats}
+      empty={!turns.length}
+      busy={busy || recording || !!persistenceError || !!contentPersistence || !!contextError}
+      status={
+        <Stack>
+          <VoiceStatus phase={transcript.phase} error={transcript.error} />
+          {!!conversation.availability() && (
+            <Text role="status" tone="subtle">
+              {conversation.availability()}
+            </Text>
+          )}
+          {contentPersistence && (
             <Stack>
-              <VoiceStatus phase={transcript.phase} error={transcript.error} />
-              {!!conversation.availability() && (
-                <Text role="status" tone="subtle">
-                  {conversation.availability()}
-                </Text>
-              )}
-              {contentPersistence && (
-                <Stack>
-                  <Text role="alert" tone="danger">
-                    Content save: {contentPersistence.error}. Acceptance is uncertain; the tool will
-                    not be repeated.
-                  </Text>
-                  <Button
-                    disabled={retrying}
-                    onClick={() => {
-                      setRetrying(true);
-                      later(conversation.retryContentSave().finally(() => setRetrying(false)));
-                    }}
-                  >
-                    Retry content save
-                  </Button>
-                </Stack>
-              )}
-              {contentAccepted && (
-                <Text role="status" tone="subtle">
-                  Content save accepted. The original tool outcome is retained.
-                </Text>
-              )}
-              {contextError && (
-                <Stack>
-                  <Text role="alert" tone="danger">
-                    Content view could not refresh: {contextError}. Accepted changes are retained.
-                  </Text>
-                  <Button
-                    disabled={retrying}
-                    onClick={() => {
-                      setRetrying(true);
-                      later(conversation.refreshContext().finally(() => setRetrying(false)));
-                    }}
-                  >
-                    Refresh records
-                  </Button>
-                </Stack>
-              )}
-              {persistenceError ? (
-                <Stack>
-                  <Text role="alert" tone="danger">
-                    {saveLabel(persistenceStage)}: {persistenceError}
-                  </Text>
-                  <Button
-                    disabled={retrying}
-                    onClick={() => {
-                      setRetrying(true);
-                      later(conversation.retrySave().finally(() => setRetrying(false)));
-                    }}
-                  >
-                    {retrying ? 'Saving…' : 'Retry save'}
-                  </Button>
-                </Stack>
-              ) : phase === 'recorded' ? (
-                <Text role="status" tone="subtle">
-                  Message saved. The recorded Agent run was not resumed; its outcome remains
-                  unknown.
-                </Text>
-              ) : phase === 'accepting' || phase === 'saving' ? (
-                <Text role="status" tone="subtle">
-                  Saving…
-                </Text>
-              ) : null}
+              <Text role="alert" tone="danger">
+                Content save: {contentPersistence.error}. Acceptance is uncertain; the tool will not
+                be repeated.
+              </Text>
+              <Button
+                disabled={retrying}
+                onClick={() => {
+                  setRetrying(true);
+                  later(conversation.retryContentSave().finally(() => setRetrying(false)));
+                }}
+              >
+                Retry content save
+              </Button>
             </Stack>
-          }
-          suggestions={
-            showSuggestions ? <PromptSuggestions suggestions={suggestions} onSelect={edit} /> : null
-          }
-          composer={
-            <Composer
-              draft={input}
-              onDraftChange={(text) => {
-                voice.clear();
-                type(text);
-              }}
-              onSubmit={(text) => {
-                if (text.trim() && !(busy || recording)) say(text);
-              }}
-              label="Message"
-              placeholder={busy ? 'Working…' : recording ? 'Start speaking…' : 'Type a message…'}
-              canSubmit={
-                conversation.ready() &&
-                !(recording || persistenceError || contentPersistence || contextError)
-              }
-              busy={busy}
-              readOnly={recording}
-              voice={{ phase: transcript.phase, onClick: voiceAction }}
-              onStop={stop}
-              fieldRef={ref}
-              onFocusChange={setFocused}
-            />
-          }
-        >
-          <ConversationFeed empty={!turns.length}>
-            {!turns.length && (
-              <ConversationWelcome
-                title="What’s on your mind?"
-                description="Speak to the agent, or type what to file and ask what your vault knows."
-              />
-            )}
-            {turns.map((turn, i) => (
-              // biome-ignore lint/suspicious/noArrayIndexKey: turns only append
-              <Message key={i} user={turn.role === 'user'}>
-                {turn.role === 'user' ? (
-                  turn.parts.map((part) => (part.kind === 'text' ? part.text : '')).join('')
-                ) : (
-                  <AgentTurn turn={turn} live={busy && i === turns.length - 1} />
-                )}
-              </Message>
-            ))}
-          </ConversationFeed>
-
-          <Overlay
-            open={!!review}
-            onClose={() => setReview(null)}
-            title="Review pending changes"
-            description="These legacy file edits remain staged. Sending this message creates nodes and leaves these edits unchanged."
-          >
+          )}
+          {contentAccepted && (
+            <Text role="status" tone="subtle">
+              Content save accepted. The original tool outcome is retained.
+            </Text>
+          )}
+          {contextError && (
             <Stack>
-              {review?.files.map((file) => (
-                <CodeDiff
-                  key={file.path}
-                  path={file.path}
-                  before={file.before}
-                  after={file.text ?? ''}
-                />
-              ))}
-              <Row justify="end">
-                <Button variant="outline" onClick={() => setReview(null)}>
-                  Cancel
-                </Button>
-                <Button
-                  disabled={busy}
-                  onClick={() => {
-                    if (!review) return;
-                    const pending = review;
-                    setReview(null);
-                    type('');
-                    voice.clear();
-                    later(send(pending.text));
-                  }}
-                >
-                  Send and keep staged edits
-                </Button>
-              </Row>
+              <Text role="alert" tone="danger">
+                Content view could not refresh: {contextError}. Accepted changes are retained.
+              </Text>
+              <Button
+                disabled={retrying}
+                onClick={() => {
+                  setRetrying(true);
+                  later(conversation.refreshContext().finally(() => setRetrying(false)));
+                }}
+              >
+                Refresh records
+              </Button>
             </Stack>
-          </Overlay>
-        </ConversationSurface>
+          )}
+          {persistenceError ? (
+            <Stack>
+              <Text role="alert" tone="danger">
+                {saveLabel(persistenceStage)}: {persistenceError}
+              </Text>
+              <Button
+                disabled={retrying}
+                onClick={() => {
+                  setRetrying(true);
+                  later(conversation.retrySave().finally(() => setRetrying(false)));
+                }}
+              >
+                {retrying ? 'Saving…' : 'Retry save'}
+              </Button>
+            </Stack>
+          ) : phase === 'recorded' ? (
+            <Text role="status" tone="subtle">
+              Message saved. The recorded Agent run was not resumed; its outcome remains unknown.
+            </Text>
+          ) : phase === 'accepting' || phase === 'saving' ? (
+            <Text role="status" tone="subtle">
+              Saving…
+            </Text>
+          ) : null}
+        </Stack>
       }
-    />
-  );
-}
-function Said({ text }: { text: string }) {
-  const body = useMemo(() => renderBody({ id: 'agent', path: 'agent.md', body: text }), [text]);
-  return <Markdown>{body}</Markdown>;
-}
-function Tool({ part }: { part: Part & { kind: 'tool' } }) {
-  return (
-    <ToolResult
-      title={part.input ? `${part.name} · ${part.input}` : part.name}
-      status={part.result}
-      error={part.error}
-      input={part.args}
-      output={part.result !== undefined ? <Json value={part.output} /> : undefined}
-    />
-  );
-}
-/** One call as its own row; two or more folded into a single summary line. */
-function Tools({ parts }: { parts: ToolPart[] }) {
-  if (parts.length === 1) return <Tool part={parts[0]} />;
-  return (
-    <ToolGroup
-      summary={summarize(parts)}
-      count={parts.length}
-      running={!!running(parts)}
-      error={parts.some((p) => p.error)}
+      suggestions={
+        showSuggestions ? <PromptSuggestions suggestions={suggestions} onSelect={edit} /> : null
+      }
+      composer={
+        <Composer
+          draft={input}
+          onDraftChange={(text) => {
+            voice.clear();
+            type(text);
+          }}
+          onSubmit={(text) => {
+            if (text.trim() && !(busy || recording)) say(text);
+          }}
+          label="Message"
+          placeholder={busy ? 'Working…' : recording ? 'Start speaking…' : 'Type a message…'}
+          canSubmit={
+            conversation.ready() &&
+            !(recording || persistenceError || contentPersistence || contextError)
+          }
+          busy={busy}
+          readOnly={recording}
+          voice={{ phase: transcript.phase, onClick: voiceAction }}
+          onStop={stop}
+          fieldRef={ref}
+          onFocusChange={setFocused}
+        />
+      }
     >
-      {parts.map((part, i) => (
-        // biome-ignore lint/suspicious/noArrayIndexKey: calls only append
-        <Tool key={i} part={part} />
+      {!turns.length && <ChatWelcome />}
+      {turns.map((turn, i) => (
+        // biome-ignore lint/suspicious/noArrayIndexKey: turns only append
+        <ChatMessage key={i} turn={turn} live={busy && i === turns.length - 1} />
       ))}
-    </ToolGroup>
-  );
-}
-function AgentTurn({ turn, live }: { turn: Turn; live: boolean }) {
-  const tools = turn.parts.filter((p): p is ToolPart => p.kind === 'tool');
-  const now = live ? running(tools) : undefined;
-  return (
-    <Stack>
-      {segments(turn.parts).map((segment, i) =>
-        segment.kind === 'text' ? (
-          // biome-ignore lint/suspicious/noArrayIndexKey: segments only append
-          <Said key={i} text={segment.part.text} />
-        ) : (
-          // biome-ignore lint/suspicious/noArrayIndexKey: segments only append
-          <Stack key={i}>
-            <Tools parts={segment.parts} />
-          </Stack>
-        ),
-      )}
-      {live && !!now && <LiveStatus>{liveLabel(now)}</LiveStatus>}
-      {live && !turn.parts.length && <LiveStatus>Thinking…</LiveStatus>}
-      {turn.status === 'unknown' && (
-        <Text role="status" tone="subtle">
-          Chat response is unfinished. Recorded agent activity is shown without resuming execution.
-        </Text>
-      )}
-      {!!turn.error && (
-        <Text size="sm" tone="danger">
-          {turn.error}
-        </Text>
-      )}
-      {!!(turn.model || turn.tokens) && (
-        <Text size="xs" tone="subtle">
-          {[
-            turn.model,
-            turn.tokens &&
-              `${turn.tokens.in.toLocaleString()} in · ${turn.tokens.out.toLocaleString()} out`,
-          ]
-            .filter(Boolean)
-            .join(' · ')}
-        </Text>
-      )}
-    </Stack>
+
+      <Overlay
+        open={!!review}
+        onClose={() => setReview(null)}
+        title="Review pending changes"
+        description="These legacy file edits remain staged. Sending this message creates nodes and leaves these edits unchanged."
+      >
+        <Stack>
+          {review?.files.map((file) => (
+            <CodeDiff
+              key={file.path}
+              path={file.path}
+              before={file.before}
+              after={file.text ?? ''}
+            />
+          ))}
+          <Row justify="end">
+            <Button variant="outline" onClick={() => setReview(null)}>
+              Cancel
+            </Button>
+            <Button
+              disabled={busy}
+              onClick={() => {
+                if (!review) return;
+                const pending = review;
+                setReview(null);
+                type('');
+                voice.clear();
+                later(send(pending.text));
+              }}
+            >
+              Send and keep staged edits
+            </Button>
+          </Row>
+        </Stack>
+      </Overlay>
+    </ChatSurface>
   );
 }
 

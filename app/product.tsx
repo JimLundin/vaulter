@@ -78,7 +78,6 @@ import {
 import { HistoryPage } from './workflows/history/index.tsx';
 import { Wiki } from './workflows/wiki/index.tsx';
 import { readWiki, wikiRoute, pageRoute, type WikiPage } from './workflows/wiki/pages.ts';
-import './workflows/chat/rendering/prose.css';
 
 const chatRoute = pattern('/chat/');
 const conversationRoute = pattern('/chat/:node/');
@@ -515,9 +514,14 @@ export function OpenProduct({
           ),
         }}
         panel={
-          panel ? <ChatPanel conversation={conversation} prompt={prompt} voice={voice} /> : null
+          <ChatPanel
+            conversation={conversation}
+            prompt={onChat ? null : prompt}
+            voice={voice}
+            open={panel}
+            onClose={() => showPanel(false)}
+          />
         }
-        closePanel={() => showPanel(false)}
       >
         {identityState.owner === setup && identityState.error && (
           <Alert variant="destructive">

@@ -3,7 +3,6 @@ import { useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import '../styles.css';
 import {
-  SupportingPane,
   Button,
   Bars,
   Checkbox,
@@ -11,7 +10,7 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-  ConversationPanel,
+  SupportingPane,
   Composer,
   Drawer,
   DropdownMenu,
@@ -176,14 +175,14 @@ function Fixture() {
         compact: <Button onClick={() => setPanel(true)}>Open agent</Button>,
       }}
       aside={
-        <ConversationPanel open={panel} onClose={() => setPanel(false)}>
+        <SupportingPane title="Chat" open={panel} onClose={() => setPanel(false)}>
           <Textarea aria-label="Panel draft" defaultValue="Preserved panel draft" />
           <Button onClick={() => setPanelReview(true)}>Review in panel</Button>
           <Overlay open={panelReview} onClose={() => setPanelReview(false)} title="Review">
             <Input aria-label="Review draft" defaultValue="Preserved review draft" />
             <Button onClick={() => setPanelReview(false)}>Done</Button>
           </Overlay>
-        </ConversationPanel>
+        </SupportingPane>
       }
     >
       <FeaturePage title="Controls" description="Retained keyboard and touch interactions">
