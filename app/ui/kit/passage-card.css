@@ -1,0 +1,133 @@
+/* Shared card/disclosure policy. Only expanded text owns nested passage scrolling. */
+.kit-passage-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  width: 100%;
+  max-height: 22.5rem;
+  min-height: 0;
+  padding: 1.1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  background: var(--card);
+  color: var(--foreground);
+}
+.kit-passage-toggle {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  cursor: pointer;
+}
+.kit-passage-toggle:focus-visible {
+  outline: none;
+}
+.kit-passage-card:has(> .kit-passage-toggle) > :not(.kit-passage-toggle) {
+  position: relative;
+  pointer-events: none;
+}
+.kit-passage-card:has(> .kit-passage-toggle:hover) {
+  border-color: var(--muted-foreground);
+}
+.kit-passage-card:has(> .kit-passage-toggle:focus-visible) {
+  outline: 2px solid var(--ring);
+  outline-offset: 3px;
+}
+.kit-passage-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+.kit-passage-heading h3 {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+.kit-passage-heading:has(.kit-passage-attribution) h3 {
+  max-width: 65%;
+}
+.kit-passage-attribution {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 0.75rem;
+}
+.kit-passage-heading a {
+  pointer-events: auto;
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  min-height: 44px;
+  overflow: hidden;
+  font-size: inherit;
+  font-weight: inherit;
+  color: inherit;
+  text-align: left;
+  text-decoration: underline;
+  text-decoration-color: var(--border);
+  text-underline-offset: 4px;
+}
+.kit-passage-heading a:hover {
+  text-decoration-color: currentColor;
+}
+.kit-passage-heading a > [aria-hidden] {
+  flex-shrink: 0;
+  color: var(--muted-foreground);
+}
+.kit-passage-context {
+  font-family: var(--font-serif);
+  font-size: 1.05rem;
+  line-height: 1.65;
+  margin: 0.3rem 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  min-height: 0;
+  max-height: 10rem;
+  overflow: hidden;
+  flex-shrink: 1;
+  --context-fade-start: 0px;
+  --context-fade-end: 0px;
+  mask-image: linear-gradient(
+    to bottom,
+    transparent,
+    black var(--context-fade-start),
+    black calc(100% - var(--context-fade-end)),
+    transparent
+  );
+}
+.kit-passage-context[data-expanded="true"] {
+  pointer-events: auto;
+  cursor: text;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  outline-offset: 3px;
+}
+.kit-passage-context[data-fade-start="true"] {
+  --context-fade-start: 1rem;
+}
+.kit-passage-context[data-fade-end="true"] {
+  --context-fade-end: 1rem;
+}
+.kit-passage-context mark {
+  background: var(--people-soft);
+  color: inherit;
+  border-radius: 0.2rem;
+}
+.kit-passage-empty,
+.kit-passage-notice {
+  flex-shrink: 0;
+  color: var(--muted-foreground);
+  font-size: 0.8rem;
+  overflow-wrap: anywhere;
+}

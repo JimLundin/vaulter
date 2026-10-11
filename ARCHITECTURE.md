@@ -183,8 +183,9 @@ classification actions, connections, questions and reference selection. Product 
 The view composes shared reading/page/section presentation and `SupportingPane`; a selection key
 resets the pane's scroll owner without querying its DOM. Source context remains mounted across
 responsive changes. Wiki semantic renderers may emit approved document markup and safe links;
-controls, styling, scroll geometry and viewport policy stay in the kit. The single temporary source
-card exception and `source-card.css` are retired by #47. The old `WikiPageSurface` and shell CSS are
+controls, styling, scroll geometry and viewport policy stay in the kit. Shared `PassageCard` now owns disclosure, clipping feedback, retained text marks and context
+scrolling. Wiki supplies the exact selection, attribution, safe title navigation and original/newer/
+deleted notices. No source-card renderer exception remains. The old `WikiPageSurface` and shell CSS are
 removed. Toolbar now shares the pane's 48px header token, and Prose owns semantic content spacing,
 list/table/code overflow and typography across Wiki and Markdown callers.
 

@@ -218,7 +218,16 @@ bottom Drawer. The saved-conversation chooser, Wiki references and paired generi
 `AdaptivePanel`, `ConversationPanel` and reading-support wrappers remain temporary for Chat
 and old examples until #45/#51 remove their separate geometry. Wiki composes its own typed page
 view from shared reading/page/section presentation and `SupportingPane`; `WikiPageSurface` and its
-shell styling are removed. Source-card presentation is the explicit remaining #47 migration.
+shell styling are removed. Shared `PassageCard` now owns source-card presentation; Wiki retains citation interpretation.
+
+`PassageCard` receives title content, presentation text and optional half-open selection offsets,
+attribution/notice/empty content and disclosure/context labels. It owns clipping, fade feedback,
+keyboard/touch disclosure, a bounded expanded text scroll owner and selected-text visibility.
+The module decides what the retained selection and notices mean and supplies safe navigation.
+The kit does not inspect source records, determine support or rewrite text. Paired neutral examples
+show independent disclosure, a long marked passage and absent text. Source context expansion and
+user scrolling stay mounted across pane/device changes. Wiki source-card CSS and its renderer
+exception are removed; shared mechanics live in `passage-card.tsx`/`passage-card.css`.
 
 ### Primitive composition
 

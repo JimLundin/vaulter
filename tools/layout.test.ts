@@ -346,3 +346,41 @@ test('Wiki renderers accept semantic content but cannot own application presenta
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test('Wiki passage renderers and private helpers cannot own controls, clipping or scroll mechanics', () => {
+  const root = mkdtempSync(join(tmpdir(), 'vaulter-passage-policy-'));
+  try {
+    mkdirSync(join(root, 'app/workflows/wiki/rendering/private'), { recursive: true });
+    writeFileSync(
+      join(root, 'tsconfig.json'),
+      JSON.stringify({
+        compilerOptions: { module: 'ESNext', moduleResolution: 'Bundler', jsx: 'preserve' },
+        include: ['app'],
+      }),
+    );
+    writeFileSync(
+      join(root, 'app/workflows/wiki/rendering/references.tsx'),
+      'export const passage = <blockquote><strong>Retained</strong> <mark>selected</mark> <a href="#/source/">Source</a></blockquote>;',
+    );
+    expect(checkLayout(root)).toEqual([]);
+    writeFileSync(
+      join(root, 'app/workflows/wiki/rendering/references.tsx'),
+      `import { hide } from './private/clipping.ts';
+      export const passage = <section className="card"><button onClick={hide}>Context</button></section>;`,
+    );
+    writeFileSync(
+      join(root, 'app/workflows/wiki/rendering/private/clipping.ts'),
+      'export function hide(node: HTMLElement) { node.scrollTop = 20; node.getBoundingClientRect(); new ResizeObserver(() => {}); }',
+    );
+    const problems = checkLayout(root);
+    expect(problems).toEqual(
+      expect.arrayContaining([
+        'app/workflows/wiki/rendering/references.tsx: <button> must be a public kit component',
+        'app/workflows/wiki/rendering/references.tsx: app views must compose the public kit instead of styling elements',
+        'app/workflows/wiki/rendering/private/clipping.ts: passage measurement and scrolling belong in the kit',
+      ]),
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
