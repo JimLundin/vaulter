@@ -237,7 +237,16 @@ test('the preview pill overlays the full-height workspace and device selection p
   const bar = (await banner.boundingBox())!;
   expect(bar.x).toBeGreaterThan(0);
   expect(bar.y).toBe(8);
-  expect(bar.width).toBeLessThan(400);
+  const touch = await page.evaluate(() => matchMedia('(any-pointer: coarse)').matches);
+  // Touch input keeps 44px targets even when the browser is resized to desktop width.
+  expect(bar.width).toBeLessThan(touch ? 480 : 400);
+  if (touch) {
+    for (const control of await banner.locator('button, a').all()) {
+      const target = (await control.boundingBox())!;
+      expect(target.width).toBeGreaterThanOrEqual(44);
+      expect(target.height).toBeGreaterThanOrEqual(44);
+    }
+  }
   expect(Math.abs(bar.x + bar.width / 2 - 720)).toBeLessThanOrEqual(1);
   const workspace = page.locator('[data-layout="desktop-workspace"]');
   expect((await workspace.boundingBox())!.y).toBe(0);

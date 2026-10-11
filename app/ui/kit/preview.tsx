@@ -127,13 +127,14 @@ export function DesignPreview({
               <Button
                 variant="ghost"
                 size={compact ? 'standard' : 'compact'}
+                iconOnly={true}
+                aria-label="Mobile"
                 aria-pressed={mobile}
                 title="Constrain the preview to mobile width. Turn off to fit the window."
                 onClick={() => setMobile((current) => !current)}
                 className="rounded-full aria-pressed:bg-accent"
               >
                 <Icon name="mobile" />
-                Mobile
               </Button>
               {variants && (
                 <PreviewVariantSwitcher
