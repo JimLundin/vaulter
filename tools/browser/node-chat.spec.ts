@@ -1,5 +1,10 @@
 import { expect, test } from '@playwright/test';
 
+async function movePreviewBelowToolbar(handle: { press: (key: string) => Promise<void> }) {
+  // Move the overlay out of the toolbar before using the app beneath it.
+  for (let step = 0; step < 10; step++) await handle.press('Shift+ArrowDown');
+}
+
 test('node-backed Send retains content receipts and accepted conversation across reload without replay', async ({
   page,
 }) => {
@@ -238,11 +243,8 @@ test('conversation picker opens saved node conversations and History lists every
   page,
 }) => {
   await page.goto('/preview/');
-  if (test.info().project.name === 'phone') {
-    // Move the overlay out of the toolbar before using the app beneath it.
-    const handle = page.locator('[data-preview-drag-handle]');
-    for (let step = 0; step < 10; step++) await handle.press('Shift+ArrowDown');
-  }
+  if (test.info().project.name === 'phone')
+    await movePreviewBelowToolbar(page.locator('[data-preview-drag-handle]'));
   const input = page.getByRole('textbox', { name: 'Message', exact: true });
   await input.fill('vault it: first conversation');
   await input.press('Enter');
@@ -280,8 +282,7 @@ for (const variant of ['numbered', 'badged', 'rule']) {
   }) => {
     await page.goto(`/preview/?conversations=${variant}`);
     if (test.info().project.name === 'phone') {
-      const handle = page.locator('[data-preview-drag-handle]');
-      for (let step = 0; step < 10; step++) await handle.press('Shift+ArrowDown');
+      await movePreviewBelowToolbar(page.locator('[data-preview-drag-handle]'));
       await page.getByRole('button', { name: 'Conversations', exact: true }).click();
     }
     const panel = page.getByRole(
@@ -329,6 +330,7 @@ test('Chat is named separately from Agent execution and has no History action', 
   await expect(page.getByRole('button', { name: 'New conversation', exact: true })).toHaveCount(1);
   await expect(page.getByRole('button', { name: 'New conversation', exact: true })).toBeVisible();
   if (test.info().project.name === 'phone') {
+    await movePreviewBelowToolbar(page.locator('[data-preview-drag-handle]'));
     await page.getByRole('button', { name: 'Conversations', exact: true }).click();
     await expect(
       page
@@ -342,8 +344,10 @@ test('timeline conversation rows stay uniform and truncate titles beside right-a
   page,
 }) => {
   await page.goto('/preview/?conversations=rule');
-  if (test.info().project.name === 'phone')
+  if (test.info().project.name === 'phone') {
+    await movePreviewBelowToolbar(page.locator('[data-preview-drag-handle]'));
     await page.getByRole('button', { name: 'Conversations', exact: true }).click();
+  }
   const list = page.getByRole(test.info().project.name === 'phone' ? 'dialog' : 'complementary', {
     name: 'Conversations',
     exact: true,
