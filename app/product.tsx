@@ -16,7 +16,6 @@ import { opened } from './ui/recent.ts';
 import { go, link, pattern, useRoute } from './ui/routing.ts';
 import { later } from './ui/later.ts';
 import {
-  ProvenancePrototype,
   Button,
   Brand,
   Card,
@@ -84,8 +83,6 @@ const conversationRoute = pattern('/chat/:node/');
 const legacyChatRoute = pattern('/agent/');
 const historyRoute = pattern('/history/');
 const settingsRoute = pattern('/settings/');
-// Selected fictional wiki evidence reference; available in design preview.
-const provenanceRoute = pattern('/prototype/provenance/');
 const unavailableNodes: NodeStore = {
   commit: () => Promise.reject(new Error('Node store is unavailable.')),
   snapshot: () => Promise.reject(new Error('Node store is unavailable.')),
@@ -254,9 +251,7 @@ export function OpenProduct({
         ? 'History'
         : onWiki
           ? (pages?.find((page) => page.id === wikiPage)?.title ?? 'Wiki')
-          : provenanceRoute.match(route.path)
-            ? 'Provenance prototype'
-            : 'Not found';
+          : 'Not found';
   const provider = useMemo(
     () =>
       session.secrets?.openai
@@ -552,8 +547,6 @@ export function OpenProduct({
             </Row>
             <HistoryPage nodes={nodeHistoryView} />
           </Stack>
-        ) : provenanceRoute.match(route.path) && import.meta.env.MODE !== 'production' ? (
-          <ProvenancePrototype />
         ) : (
           <Page>
             <Heading level={1}>Not found</Heading>

@@ -287,3 +287,13 @@ kit examples exercise the same presentation; Wiki production/typed preview retai
 expanded context and focus through rearrangement. The named renderer exception and source-card
 CSS retire. Compiler checks accept formatted semantic content/marks and reject source-card
 controls, styling, viewport access and scroll/measurement mechanics in Wiki helpers.
+
+### #50: fictional module previews and production separation
+
+Completed module preview ownership: a shared preview-only fixture installs real append-only nodes,
+Wiki reads exact retained selections with `readWiki`, and its public record UI renders standalone
+and independent bounded examples. The duplicate provenance screen, production prototype route
+and Chat preview variant context are retired. Generic design and bounded-presentation controls
+remain shared presentation with catalogue coverage. Production-entry compiler reachability rejects
+fictional records/tooling through resolved imports, re-exports and dynamic imports, including type
+imports. Secondary Wiki/record/Search preview pages ship in the design build.

@@ -3,4 +3,5 @@ import { readFileSync, writeFileSync, rmSync } from 'node:fs';
 
 const html = readFileSync('dist-preview/preview/index.html', 'utf8');
 writeFileSync('dist-preview/index.html', html.replaceAll('../assets/', './assets/'));
-rmSync('dist-preview/preview', { recursive: true });
+// Retain the module-entry pages and their relative asset paths. Only the root is relocated.
+rmSync('dist-preview/preview/index.html');

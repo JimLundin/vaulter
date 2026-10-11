@@ -3,7 +3,6 @@ import {
   Stack,
   Text,
   SelectionRow,
-  usePreviewVariant,
   SelectionGroupHeading,
   SupportingPane,
 } from '../../ui/kit/index.ts';
@@ -17,7 +16,7 @@ export function ConversationList({
   onClose,
   disabled = false,
   persistent = true,
-  variant: suppliedVariant = 'numbered',
+  variant = 'numbered',
 }: {
   conversation: NodeConversation;
   open: boolean;
@@ -26,11 +25,6 @@ export function ConversationList({
   persistent?: boolean;
   variant?: 'rule' | 'numbered' | 'badged';
 }) {
-  const override = usePreviewVariant('chat.conversation-list');
-  const variant =
-    override === 'numbered' || override === 'badged' || override === 'rule'
-      ? override
-      : suppliedVariant;
   const [visible, setVisible] = useState(false);
   const state = useNodeChat(conversation);
   const [chats, setChats] = useState<readonly SavedChat[] | null>(null);

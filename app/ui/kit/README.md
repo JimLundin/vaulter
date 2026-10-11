@@ -320,7 +320,7 @@ design's position. Click either arrow or focus the label and press Left/Right to
 at each end. Clicking the label advances once. Keyboard cycling stays inside the focused control,
 so text editing, device navigation and other previews remain independent. A sole design disables
 both arrows. Phone and desktop use the same interaction. Standalone `DesignComparison` retains
-its inline cycle control; URL-backed prototype alternatives use the same control.
+its inline cycle control; supplied alternatives use the same control.
 
 ### How a shape is decided
 
@@ -497,11 +497,16 @@ Enter/Shift+Enter/IME, and a simulated visual
 viewport resize. The user accepted the physical Safari keyboard/scrolling retest at `1037d86`.
 Live microphone capture still needs device validation; the sample preview uses scripted audio.
 
-The wiki provenance reference retains selected evidence design A. Underlined claims open exact
-quoted source context and superseded statements beside the page from expanded width onward,
-or in the shared phone Drawer. Its evidence stays mounted through device changes. Completed
-sidenote/history-trace alternatives are retired, while Product History, Timeline and reusable
-DesignComparison remain available. The fictional fixtures are reference design data.
+Fictional Wiki record examples live in `app/preview/`, outside the production catalogue and kit
+interface. Both the full preview and independent bounded pairs install real retained nodes, call
+`readWiki` and render module-owned `Wiki` UI. Selected evidence and newer/deleted source context
+use `PassageCard` and the shared supporting pane. The duplicated provenance prototype and its
+Product route are retired; old design links redirect only in the preview bootstrap.
+
+`PresentationPreview` supplies a bounded desktop/mobile canvas for catalogue and module examples.
+It owns shared portal, pointer and layout policy, accepts content plus device and height, and does
+not interpret records. Generic `DesignPreview` and `DesignComparison` retain device controls,
+focused cycling and local state; they supply no record-specific variant context to production.
 
 ToggleGroup presents pressed choices in outlined joined groups at the standard size. Single
 selection allows zero or one pressed option; multiple selection allows independent pressed options.

@@ -9,10 +9,12 @@ export function Wiki({
   pages,
   node,
   error,
+  onNavigate = go,
 }: {
   pages: WikiPage[] | null;
   node?: string;
   error?: string;
+  onNavigate?: (path: string) => void;
 }) {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<WikiClassification>();
@@ -48,7 +50,7 @@ export function Wiki({
       <WikiPageView
         key={page.id}
         page={page}
-        onBack={() => go(wikiRoute.href())}
+        onBack={() => onNavigate(wikiRoute.href())}
         onFilter={filterTag}
       />
     );
@@ -84,7 +86,7 @@ export function Wiki({
             <Link
               href={`#${pageRoute.href({ node: entry.id })}`}
               onClick={() => {
-                go(pageRoute.href({ node: entry.id }));
+                onNavigate(pageRoute.href({ node: entry.id }));
                 setShowIndex(false);
               }}
             >

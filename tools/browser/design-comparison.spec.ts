@@ -77,103 +77,32 @@ test('comparison keyboard selection stays local and leaves text entry and the Mo
   expect(new URL(page.url()).searchParams.has('variant')).toBe(false);
 });
 
-for (const retired of ['B', 'C', 'unknown']) {
-  test(`retired evidence URL ${retired} opens the selected design without obsolete choices`, async ({
-    page,
-  }) => {
-    const errors: string[] = [];
-    page.on('pageerror', (error) => errors.push(error.message));
-    await page.goto(`/preview/?variant=${retired}#/prototype/provenance/`);
-    await expect(page.getByRole('heading', { name: 'Mira Holm' })).toBeVisible();
-    const banner = page.getByRole('complementary', { name: 'Design preview' });
-    await chooseVariation(banner, 'Current design');
-    await expect(banner).not.toContainText('Sidenotes');
-    await expect(banner).not.toContainText('History trace');
-    const statement = page.getByRole('button', {
-      name: 'She lives on Södermalm, in a flat on Katarina Bangata with a small balcony.',
-      exact: true,
-    });
-    await statement.click();
-    await expect(page.getByRole('heading', { name: 'Why the page says this' })).toBeVisible();
-    await expect(page.getByText('Replaces', { exact: false })).toBeVisible();
-    expect(errors).toEqual([]);
-  });
-}
-
-test('selected evidence keeps the same quoted context through device changes and returns focus to its claim', async ({
+test('paired module evidence stays bounded and independent through device changes', async ({
   page,
 }) => {
-  await page.setViewportSize({ width: 1440, height: 1000 });
-  await page.goto('/preview/#/prototype/provenance/');
-  const banner = page.getByRole('complementary', { name: 'Design preview' });
-  const statement = page.getByRole('button', {
-    name: 'She lives on Södermalm, in a flat on Katarina Bangata with a small balcony.',
-    exact: true,
-  });
-  await statement.click();
-  const quote = page.getByText(
-    "She's got the flat on Katarina Bangata now, the one with the tiny balcony.",
-    {
-      exact: true,
-    },
-  );
-  await expect(quote).toBeVisible();
-  await quote.evaluate((node) => node.setAttribute('data-original-evidence', ''));
-  for (const device of [true, false, true, false]) {
-    await setPreviewMobile(banner, device);
-    await expect(quote).toBeVisible();
-    await expect(quote).toHaveAttribute('data-original-evidence', '');
-    await expect(page.getByText('Replaces', { exact: false })).toBeVisible();
-  }
-  await page.getByRole('button', { name: 'Close why the page says this', exact: true }).click();
-  await expect(quote).toBeHidden();
-  await expect(statement).toBeFocused();
-  await page.setViewportSize({ width: 800, height: 1000 });
-  await statement.click();
-  const evidence = page.getByRole('complementary', { name: 'Why the page says this' });
-  await expect(evidence).toBeVisible();
-  const articleBounds = (await page.getByRole('heading', { name: 'Mira Holm' }).boundingBox())!;
-  const evidenceBounds = (await evidence.boundingBox())!;
-  expect(evidenceBounds.x).toBeGreaterThan(articleBounds.x);
-  await page.setViewportSize({ width: 390, height: 844 });
-  await expect(page.getByRole('dialog', { name: 'Why the page says this' })).toBeVisible();
-  const close = page.getByRole('button', { name: 'Close why the page says this', exact: true });
-  const closeBounds = (await close.boundingBox())!;
-  expect(closeBounds.width).toBeGreaterThanOrEqual(44);
-  expect(closeBounds.height).toBeGreaterThanOrEqual(44);
-  await close.focus();
-  await page.keyboard.press('Escape');
-  await expect(quote).toBeHidden();
-  await expect(statement).toBeFocused();
-});
-
-test('paired selected evidence stays bounded, independent and shows exact source provenance', async ({
-  page,
-}) => {
-  await page.goto('/ui/kit/');
-  await page.getByRole('searchbox', { name: 'Find a component' }).fill('Wiki provenance');
-  const family = page.locator('[data-kit-comparison="provenance"]');
-  const desktop = family.locator('[data-kit-preview="desktop"]');
-  const mobile = family.locator('[data-kit-preview="mobile"]');
-  await expect(family.getByRole('combobox', { name: 'Design variation' })).toHaveCount(0);
-  await expect(family.getByRole('radiogroup', { name: 'Design variation' })).toHaveCount(0);
+  await page.goto('/preview/records.html');
+  const desktop = page.getByRole('region', { name: 'Desktop Wiki example', exact: true });
+  const mobile = page.getByRole('region', { name: 'Mobile Wiki example', exact: true });
   const claim = mobile.getByRole('button', {
-    name: 'She lives on Södermalm, in a flat on Katarina Bangata with a small balcony.',
+    name: 'Evidence for Keep mornings free.',
     exact: true,
   });
   await claim.click();
-  const phoneEvidence = mobile.getByRole('dialog', { name: 'Why the page says this', exact: true });
-  await expect(phoneEvidence.getByText('Replaces', { exact: false })).toBeVisible();
+  const evidence = mobile.getByRole('dialog', { name: 'References', exact: true });
+  await expect(evidence.locator('mark')).toHaveText('Keep mornings free.');
+  await expect(evidence).toContainText('Source has a newer version.');
+  await mobile.getByRole('button', { name: 'Context from Studio plans' }).click();
+  await expect(desktop.getByLabel('Source context').locator('mark')).toHaveCount(0);
+  await expect(desktop.getByRole('button', { name: 'Context from Studio plans' })).toHaveAttribute(
+    'aria-expanded',
+    'false',
+  );
   for (const width of [390, 1440]) {
     await page.setViewportSize({ width, height: 1000 });
-    // A browser focus reveal must scroll content, never the clipping specimen frame.
-    await mobile.evaluate((node) => {
-      node.scrollTop = 33;
-    });
     await expect
       .poll(async () =>
         mobile.evaluate((node) => {
-          const outer = node.getBoundingClientRect();
+          const outer = node.querySelector('[data-kit-preview]')!.getBoundingClientRect();
           const inner = node.querySelector('[role="dialog"]')!.getBoundingClientRect();
           return (
             inner.x >= outer.x &&
@@ -185,26 +114,48 @@ test('paired selected evidence stays bounded, independent and shows exact source
       )
       .toBe(true);
   }
-  await phoneEvidence
-    .getByRole('button', { name: 'Close why the page says this', exact: true })
-    .click();
+  await evidence.getByRole('button', { name: 'Close references', exact: true }).click();
   await expect(claim).toBeFocused();
-  await expect(phoneEvidence).toBeHidden();
-  await expect(desktop.getByRole('heading', { name: 'Why the page says this' })).toBeVisible();
-  const studio = desktop.getByRole('button', {
-    name: 'She runs Holm Keramik AB, a small studio that makes and sells ceramics and teaches classes.',
-    exact: true,
-  });
-  await studio.click();
+  await desktop
+    .getByRole('button', { name: 'Evidence for Afternoons are flexible.', exact: true })
+    .click();
+  await expect(desktop.getByLabel('Source context').locator('mark')).toHaveText(
+    'Afternoons are flexible.',
+  );
   await expect(
-    desktop.getByText('Manufacture and sale of ceramic goods, and teaching of ceramics.', {
+    desktop.getByText('Source was removed. This excerpt stays tied to the original.', {
       exact: true,
     }),
   ).toBeVisible();
-  await expect(
-    desktop.getByRole('link', { name: 'Holm Keramik AB – company extract' }).first(),
-  ).toBeVisible();
-  await expect(
-    desktop.getByText('Found by searching “Holm keramik aktiebolag Stockholm Mira Holm”').first(),
-  ).toBeVisible();
+  await expect(mobile.getByRole('dialog', { name: 'References', exact: true })).toHaveCount(0);
+  await desktop
+    .getByRole('toolbar', { name: 'Wiki page' })
+    .getByRole('button', { name: 'Wiki', exact: true })
+    .click();
+  await expect(desktop.getByRole('textbox', { name: 'Find pages' })).toBeVisible();
+  await expect(mobile.getByRole('heading', { name: 'Garden studio', exact: true })).toBeVisible();
+  await desktop.getByRole('link', { name: 'Slow mornings', exact: true }).click();
+  await expect(desktop.getByRole('heading', { name: 'Slow mornings', exact: true })).toBeVisible();
+  await expect(mobile.getByRole('heading', { name: 'Garden studio', exact: true })).toBeVisible();
 });
+
+for (const retired of ['B', 'C', 'unknown']) {
+  test(`retired evidence URL ${retired} opens the actual selected Wiki record`, async ({
+    page,
+  }) => {
+    await page.goto(`/preview/?variant=${retired}#/prototype/provenance/`);
+    await expect(page.getByRole('heading', { name: 'Garden studio', exact: true })).toBeVisible();
+    await expect(page).toHaveURL(/#\/wiki\/preview:page:0\//);
+    await page
+      .getByRole('button', { name: 'Evidence for Keep mornings free.', exact: true })
+      .click();
+    await expect(page.getByLabel('Source context').locator('mark')).toHaveText(
+      'Keep mornings free.',
+    );
+    await expect(
+      page.getByText('Source has a newer version. This excerpt stays tied to the original.', {
+        exact: true,
+      }),
+    ).toBeVisible();
+  });
+}

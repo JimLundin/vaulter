@@ -27,9 +27,9 @@ from Google Fonts instead of being embedded.
 Type is Geist (UI), Geist Mono (keys and code) and Newsreader (wiki prose). Colours are Tailwind's zinc
 scale with category colours: blue for people, green for places, orange for events.
 
-The selected fictional wiki evidence reference is available at `#/prototype/provenance/` in the
-design preview and as a paired catalogue example. Design A was chosen: select an underlined
-statement to inspect its exact source quotation and superseded context beside the page on desktop
-or in the shared Drawer on phones. Rejected B sidenotes and C history trace are retired; this
-does not alter Product History or the retained Today/activity Timeline design. Future design
-sessions compare supplied alternatives with the separate reusable DesignComparison capability.
+Fictional Wiki evidence is available through the real module pipeline at `/preview/wiki.html`
+and as independent paired examples at `/preview/records.html`. Select an underlined statement
+for an exact retained source quotation and newer/deleted source context in the shared supporting
+pane. The duplicate provenance screen is retired. Its old design URL redirects within the preview
+to the actual Wiki page; production contains no prototype route. Generic DesignComparison still
+accepts supplied design alternatives.

@@ -340,8 +340,6 @@ export const Row = unstyled(RowPart);
 export const Text = unstyled(TextPart);
 export const Link = unstyled(LinkPart);
 export { Spacer, Heading, Prose, type Gap, type TextProps } from './parts/layout.tsx';
-// Selected fictional wiki evidence reference (branch prototype/wiki-provenance).
-export { ProvenancePrototype } from './prototype-provenance.tsx';
 
 export {
   SelectionRow,
@@ -351,7 +349,7 @@ export {
   ResponsiveSupportingColumn,
 } from './selection.tsx';
 
-export { usePreviewVariant } from './preview-variants.tsx';
+export { PresentationPreview } from './presentation.tsx';
 
 export { SupportingPane } from './supporting-pane.tsx';
 

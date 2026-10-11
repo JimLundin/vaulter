@@ -276,6 +276,16 @@ retained in the NodeStore or tab journal.
 The server owns its credential; Product receives the model adapter, provider attribution and
 configured default model. Tools still publish only into the sample NodeStore. Published previews
 always use the scripted model.
+Fictional Wiki evidence is accepted as append-only node history and read by `readWiki` before the
+module's `Wiki` view renders it. Exact selected passages remain tied to the original snapshot after
+source revision or deletion. `/preview/wiki.html` and `/preview/records.html` use that same fixture
+factory and public reading/rendering interfaces; paired examples have independent state and share
+kit-owned bounded portals. The production kit catalogue contains generic presentation only.
+`DesignPreview`, `DesignComparison` and `PresentationPreview` accept supplied content and controls;
+Chat receives supported presentation choices explicitly and imports no design variant context.
+Compiler-resolved source reachability from the production main/service-worker entries rejects
+preview-only records and catalogue/tooling dependencies, including type-only and dynamic imports.
+Secondary module preview pages are built and retained in the deployed design artifact.
 The preview builds separately, contains no sealed secrets and registers no service worker. Its
 GitHub Pages job runs on `structure` and `design-variants`, refreshing the shared `/preview/structure/`
 and kit gallery links alongside the exact deployed production artifact. The preview version records

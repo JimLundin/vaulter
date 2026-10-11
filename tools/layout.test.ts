@@ -427,3 +427,52 @@ test('Wiki passage renderers and private helpers cannot own controls, clipping o
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test('production entry reachability rejects fictional preview imports through helpers, aliases, re-exports and dynamic imports', () => {
+  const root = mkdtempSync(join(tmpdir(), 'vaulter-production-preview-policy-'));
+  try {
+    mkdirSync(join(root, 'app/preview'), { recursive: true });
+    mkdirSync(join(root, 'app/ui/kit'), { recursive: true });
+    writeFileSync(
+      join(root, 'tsconfig.json'),
+      JSON.stringify({
+        compilerOptions: {
+          module: 'ESNext',
+          moduleResolution: 'Bundler',
+          paths: { '@/*': ['./app/*'] },
+        },
+        include: ['app'],
+      }),
+    );
+    writeFileSync(
+      join(root, 'app/preview/records.ts'),
+      'export const sample = 1; export interface Sample { title: string }',
+    );
+    writeFileSync(
+      join(root, 'app/main.tsx'),
+      "import { value } from './helper.ts'; export { value };",
+    );
+    for (const source of [
+      "import { sample } from '@/preview/records.ts'; export const value = sample;",
+      "export { sample as value } from '@/preview/records.ts';",
+      "export const value = () => import('@/preview/records.ts');",
+      "import type { Sample } from '@/preview/records.ts'; export type value = Sample;",
+    ]) {
+      writeFileSync(join(root, 'app/helper.ts'), source);
+      expect(checkLayout(root)).toContain(
+        'app/main.tsx reaches preview-only app/preview/records.ts through app/helper.ts',
+      );
+    }
+    // A preview-owned caller may share production presentation; it is not a production root.
+    writeFileSync(join(root, 'app/helper.ts'), 'export const value = 1;');
+    writeFileSync(join(root, 'app/ui/kit/presentation.ts'), 'export const bounds = 1;');
+    writeFileSync(
+      join(root, 'app/preview/example.ts'),
+      "import { bounds } from '../ui/kit/index.ts'; export { bounds };",
+    );
+    writeFileSync(join(root, 'app/ui/kit/index.ts'), "export { bounds } from './presentation.ts';");
+    expect(checkLayout(root)).toEqual([]);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
