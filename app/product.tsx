@@ -459,6 +459,7 @@ export function OpenProduct({
   useEffect(() => {
     if (index.has(route.path)) opened(route.path);
   }, [route.path, index]);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: retry a deep page anchor after asynchronous page loading.
   useEffect(() => {
     const element = route.anchor && document.getElementById(route.anchor);
     if (element) element.scrollIntoView();
