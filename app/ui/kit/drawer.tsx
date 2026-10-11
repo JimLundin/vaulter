@@ -46,6 +46,8 @@ export function Drawer({
   const restoreFocus = usePresentationFocus(open);
   const policy = usePresentationPolicy();
   const opener = useRef<HTMLElement | null>(null);
+  const openedModal = useRef<boolean>(false);
+  if (open) openedModal.current = !beside;
   const descriptionId = useId();
   const ref = useRef<HTMLDivElement>(null);
   // A different cited passage can become the opener while the same drawer stays open.
@@ -93,6 +95,8 @@ export function Drawer({
         aria-describedby={description ? descriptionId : undefined}
         finalFocus={() => {
           if (placement !== 'reading') return restoreFocus();
+          // biome-ignore lint/suspicious/noUnnecessaryConditions: Base UI invokes this callback after the open arrangement changes
+          if (!openedModal.current) return false;
           const target = opener.current;
           return target?.isConnected &&
             target.getClientRects().length &&
