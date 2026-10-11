@@ -23,10 +23,10 @@ export function ConversationList({
   open: boolean;
   onClose: () => void;
   disabled?: boolean;
-  variant?: 'rule' | 'dots' | 'rail';
+  variant?: 'rule' | 'numbered' | 'rail';
 }) {
   const override = usePreviewVariant('chat.conversation-list');
-  const variant = override === 'dots' || override === 'rail' ? override : suppliedVariant;
+  const variant = override === 'numbered' || override === 'rail' ? override : suppliedVariant;
   const [visible, setVisible] = useState(false);
   const state = useNodeChat(conversation);
   const [chats, setChats] = useState<readonly SavedChat[] | null>(null);
@@ -93,6 +93,15 @@ export function ConversationList({
             key={chat.node}
             {...chat.data}
             variant={variant}
+            ordinal={
+              index -
+              chats.findIndex(
+                (other) =>
+                  new Date(other.activeAt).toDateString() ===
+                  new Date(chat.activeAt).toDateString(),
+              ) +
+              1
+            }
             group={
               index === 0 ||
               new Date(chats[index - 1].activeAt).toDateString() !==
@@ -144,6 +153,7 @@ export function ConversationItem({
   onOpen,
   variant = 'rule',
   group,
+  ordinal,
 }: {
   kind: 'conversation';
   title: string;
@@ -152,8 +162,9 @@ export function ConversationItem({
   selected: boolean;
   disabled: boolean;
   onOpen: () => Promise<void>;
-  variant?: 'rule' | 'dots' | 'rail';
+  variant?: 'rule' | 'numbered' | 'rail';
   group?: string;
+  ordinal?: number;
 }) {
   return (
     <Stack gap="xs">
@@ -167,7 +178,8 @@ export function ConversationItem({
           hour: '2-digit',
           minute: '2-digit',
         })}
-        marker={variant === 'dots' ? 'dot' : variant === 'rail' ? 'rail' : 'none'}
+        ordinal={ordinal}
+        marker={variant === 'numbered' ? 'number' : variant === 'rail' ? 'rail' : 'none'}
         onSelect={() => {
           void onOpen();
         }}

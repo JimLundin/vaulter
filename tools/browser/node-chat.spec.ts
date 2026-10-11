@@ -267,7 +267,7 @@ test('conversation picker opens saved node conversations and History lists every
   await expect(page.getByText('#1', { exact: true })).toBeVisible();
 });
 
-for (const variant of ['rule', 'dots', 'rail']) {
+for (const variant of ['rule', 'numbered', 'rail']) {
   test(`conversation ${variant} variant uses a right sidebar or mobile drawer`, async ({
     page,
   }) => {

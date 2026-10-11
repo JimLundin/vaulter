@@ -76,6 +76,45 @@ const openingNodes = previewNodes(sessionStorage, query.get('scenario') ?? undef
         ],
       });
     }
+    // Update retained fictional samples too, so existing local previews get same-day groups.
+    if (
+      query.has('conversations') &&
+      !(await nodes.history()).some((transaction) => transaction.id === 'preview:same-day-groups')
+    ) {
+      const snapshot = await nodes.snapshot();
+      const changes: NodeChange[] = [];
+      for (let index = 0; index < 6; index++) {
+        const node = `preview:chat:${index}`;
+        const at = new Date(
+          Date.UTC(2026, 9, index < 3 ? 11 : index < 5 ? 10 : 8, 16 - (index % 3) * 3, 30),
+        ).toISOString();
+        for (const [id, fields] of [
+          [node, { createdAt: at }],
+          [`${node}:exchange`, { startedAt: at }],
+          [`${node}:message`, { at }],
+        ] as const) {
+          const before = snapshot.get(id);
+          if (before?.data)
+            changes.push({
+              node: id,
+              expected: before.key.transaction,
+              placement: before.placement,
+              connection: before.connection,
+              data: { ...before.data, ...fields },
+            });
+        }
+      }
+      if (changes.length)
+        await nodes.commit({
+          id: 'preview:same-day-groups',
+          recordedBy: 'preview:list-owner',
+          origin: null,
+          undoOf: null,
+          kind: { scope: 'node', action: 'update' },
+          message: 'Group fictional conversations on the same day',
+          changes,
+        });
+    }
     return nodes;
   },
 );
@@ -124,7 +163,7 @@ function Preview({ initialHead, nodes }: { initialHead: Head; nodes: NodeStore }
         defaultValue: 'rule',
         options: [
           { value: 'rule', label: 'Tight · aligned rows' },
-          { value: 'dots', label: 'Tight · timeline dots' },
+          { value: 'numbered', label: 'Tight · numbered entries' },
           { value: 'rail', label: 'Tight · timeline rail' },
         ],
       }}

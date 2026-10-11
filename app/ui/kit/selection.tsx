@@ -14,6 +14,7 @@ export function SelectionRow({
   label,
   timestamp,
   marker = 'none',
+  ordinal,
 }: {
   selected: boolean;
   disabled?: boolean;
@@ -22,7 +23,8 @@ export function SelectionRow({
   compact?: boolean;
   label?: string;
   timestamp?: string;
-  marker?: 'none' | 'dot' | 'rail';
+  marker?: 'none' | 'number' | 'rail';
+  ordinal?: number;
 }) {
   return (
     <Button
@@ -38,7 +40,15 @@ export function SelectionRow({
     >
       {label ? (
         <span className="flex min-w-0 flex-1 items-center gap-3">
-          {marker !== 'none' && (
+          {marker === 'number' && (
+            <span
+              aria-hidden={true}
+              className="w-4 shrink-0 text-xs tabular-nums text-muted-foreground"
+            >
+              {String(ordinal ?? 1).padStart(2, '0')}
+            </span>
+          )}
+          {marker === 'rail' && (
             <span
               aria-hidden={true}
               className={cn(
