@@ -267,7 +267,7 @@ test('conversation picker opens saved node conversations and History lists every
   await expect(page.getByText('#1', { exact: true })).toBeVisible();
 });
 
-for (const variant of ['comfortable', 'compact', 'grouped', 'grouped-tight', 'grouped-spacious']) {
+for (const variant of ['rule', 'band', 'editorial']) {
   test(`conversation ${variant} variant uses a right sidebar or mobile drawer`, async ({
     page,
   }) => {
@@ -294,25 +294,25 @@ for (const variant of ['comfortable', 'compact', 'grouped', 'grouped-tight', 'gr
 }
 
 test('conversation variants are selected from the preview top bar', async ({ page }) => {
-  await page.goto('/preview/?conversations=comfortable');
+  await page.goto('/preview/?conversations=rule');
   const input = page.getByRole('textbox', { name: 'Message', exact: true });
   await input.fill('Keep this draft while comparing');
   const bar = page.getByRole('complementary', { name: 'Design preview', exact: true });
   if (test.info().project.name === 'phone')
     await bar
       .getByRole('combobox', { name: 'Conversation variant', exact: true })
-      .selectOption('grouped');
+      .selectOption('editorial');
   else {
     await bar.getByRole('button', { name: 'Next variant' }).click();
     await bar.getByRole('button', { name: 'Next variant' }).click();
   }
-  await expect(page).toHaveURL(/conversations=grouped/);
+  await expect(page).toHaveURL(/conversations=editorial/);
   await expect(input).toHaveValue('Keep this draft while comparing');
   if (test.info().project.name === 'phone')
     await expect(
       bar.getByRole('combobox', { name: 'Conversation variant', exact: true }),
-    ).toHaveValue('grouped');
-  else await expect(bar.getByText('C · Grouped · balanced', { exact: true })).toBeVisible();
+    ).toHaveValue('editorial');
+  else await expect(bar.getByText('C · Tight · editorial header', { exact: true })).toBeVisible();
 });
 
 test('Chat is named separately from Agent execution and has no History action', async ({

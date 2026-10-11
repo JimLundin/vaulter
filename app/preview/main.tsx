@@ -121,13 +121,11 @@ function Preview({ initialHead, nodes }: { initialHead: Head; nodes: NodeStore }
         label: 'Conversation variant',
         target: 'chat.conversation-list',
         parameter: 'conversations',
-        defaultValue: 'comfortable',
+        defaultValue: 'rule',
         options: [
-          { value: 'comfortable', label: 'Comfortable' },
-          { value: 'compact', label: 'Compact' },
-          { value: 'grouped', label: 'Grouped · balanced' },
-          { value: 'grouped-tight', label: 'Grouped · tight' },
-          { value: 'grouped-spacious', label: 'Grouped · spacious' },
+          { value: 'rule', label: 'Tight · strong rule' },
+          { value: 'band', label: 'Tight · shaded header' },
+          { value: 'editorial', label: 'Tight · editorial header' },
         ],
       }}
       kitHref={import.meta.env.DEV ? '/ui/kit/' : './kit/'}

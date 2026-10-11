@@ -85,20 +85,20 @@ export function ResponsiveSupportingColumn({
 
 export function SelectionGroupHeading({
   children,
-  spacing = 'balanced',
+  treatment = 'rule',
 }: {
   children: ReactNode;
-  spacing?: 'tight' | 'balanced' | 'spacious';
+  treatment?: 'rule' | 'band' | 'editorial';
 }) {
   return (
     <h3
       className={cn(
-        'border-b border-border/60 px-3 text-xs font-semibold tracking-wide text-muted-foreground',
-        spacing === 'tight'
-          ? 'mt-3 mb-0 pb-1'
-          : spacing === 'spacious'
-            ? 'mt-8 mb-3 pb-3'
-            : 'mt-5 mb-1 pb-2',
+        'mt-3 mb-0 px-3 text-xs font-semibold',
+        treatment === 'rule'
+          ? 'border-b-2 border-foreground/25 pb-1 text-foreground'
+          : treatment === 'band'
+            ? 'rounded-sm bg-muted py-1.5 text-foreground'
+            : 'border-l-2 border-foreground/50 py-1 pl-3 text-sm tracking-tight text-foreground',
       )}
     >
       {children}

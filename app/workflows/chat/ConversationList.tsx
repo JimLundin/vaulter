@@ -17,22 +17,16 @@ export function ConversationList({
   open,
   onClose,
   disabled = false,
-  variant: suppliedVariant = 'comfortable',
+  variant: suppliedVariant = 'rule',
 }: {
   conversation: NodeConversation;
   open: boolean;
   onClose: () => void;
   disabled?: boolean;
-  variant?: 'comfortable' | 'compact' | 'grouped' | 'grouped-tight' | 'grouped-spacious';
+  variant?: 'rule' | 'band' | 'editorial';
 }) {
   const override = usePreviewVariant('chat.conversation-list');
-  const variant =
-    override === 'compact' ||
-    override === 'grouped' ||
-    override === 'grouped-tight' ||
-    override === 'grouped-spacious'
-      ? override
-      : suppliedVariant;
+  const variant = override === 'band' || override === 'editorial' ? override : suppliedVariant;
   const [visible, setVisible] = useState(false);
   const state = useNodeChat(conversation);
   const [chats, setChats] = useState<readonly SavedChat[] | null>(null);
@@ -100,10 +94,9 @@ export function ConversationList({
             {...chat.data}
             variant={variant}
             group={
-              variant.startsWith('grouped') &&
-              (index === 0 ||
-                new Date(chats[index - 1].activeAt).toDateString() !==
-                  new Date(chat.activeAt).toDateString())
+              index === 0 ||
+              new Date(chats[index - 1].activeAt).toDateString() !==
+                new Date(chat.activeAt).toDateString()
                 ? new Date(chat.activeAt).toLocaleDateString('en-GB', {
                     weekday: 'short',
                     day: 'numeric',
@@ -149,7 +142,7 @@ export function ConversationItem({
   selected,
   disabled,
   onOpen,
-  variant = 'comfortable',
+  variant = 'rule',
   group,
 }: {
   kind: 'conversation';
@@ -159,27 +152,15 @@ export function ConversationItem({
   selected: boolean;
   disabled: boolean;
   onOpen: () => Promise<void>;
-  variant?: 'comfortable' | 'compact' | 'grouped' | 'grouped-tight' | 'grouped-spacious';
+  variant?: 'rule' | 'band' | 'editorial';
   group?: string;
 }) {
   return (
     <Stack gap="xs">
-      {!!group && (
-        <SelectionGroupHeading
-          spacing={
-            variant === 'grouped-tight'
-              ? 'tight'
-              : variant === 'grouped-spacious'
-                ? 'spacious'
-                : 'balanced'
-          }
-        >
-          {group}
-        </SelectionGroupHeading>
-      )}
+      {!!group && <SelectionGroupHeading treatment={variant}>{group}</SelectionGroupHeading>}
       <SelectionRow
         selected={selected}
-        compact={variant === 'compact' || variant === 'grouped-tight'}
+        compact={true}
         disabled={disabled}
         onSelect={() => {
           void onOpen();
@@ -189,11 +170,8 @@ export function ConversationItem({
           <Text as="span" weight="medium">
             {title}
           </Text>
-          <Text as="span" size={variant === 'compact' ? 'xs' : 'sm'} tone="subtle">
-            {new Date(activeAt).toLocaleString('en-GB', {
-              dateStyle: 'medium',
-              timeStyle: 'short',
-            })}
+          <Text as="span" size="xs" tone="subtle">
+            {new Date(activeAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
           </Text>
         </Stack>
       </SelectionRow>
