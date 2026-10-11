@@ -71,3 +71,16 @@ and resulting activity.
 **Interpretation**:
 An attributed reading of recorded evidence, such as a summary, inferred event or decision. Later
 corrections coexist with the original interpretation.
+
+**Wiki**:
+The collection of distilled knowledge drawn from retained sources. Wiki pages connect that
+knowledge and cite the underlying source material.
+
+**Page reference**:
+A source associated with a page as a whole, describing its provenance without asserting support
+for any particular statement.
+
+**Citation**:
+A connection between a selected statement and a supporting source passage, retaining the recorded
+content on which that association was reviewed. Its supporting passage belongs to underlying source
+material rather than another Wiki page.

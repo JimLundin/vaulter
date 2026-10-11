@@ -1362,6 +1362,10 @@ function Provenance() {
         title="Garden studio"
         summary="Room for quiet mornings."
         onCloseEvidence={noop}
+        onShowReferences={noop}
+        referencesOpen={false}
+        onBack={() => undefined}
+        evidence={<p>No recorded references.</p>}
       >
         <K.Prose>
           <p>A space for making things.</p>

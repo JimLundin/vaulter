@@ -1,86 +1,107 @@
-import { type ReactNode, useEffect, useRef } from 'react';
-import { useLayout } from './hooks/use-layout.ts';
-import { Button } from './parts/button.tsx';
+import { type ReactNode, useLayoutEffect, useRef } from 'react';
 import { Icon } from './icons.tsx';
-import { DrawerRoot, DrawerContent, DrawerTitle } from './parts/drawer.tsx';
-import { ScrollArea } from './parts/scroll-area.tsx';
+import { ResponsiveSupportingColumn } from './selection.tsx';
 
-/** Selected Wiki design: readable prose and evidence beside it, sharing the phone drawer. */
+/** Reading and supporting panes fill the app frame and own independent scrolling. */
 export function WikiPageSurface({
   title,
   summary,
   metadata,
+  subjectTags,
   children,
   evidence,
   onCloseEvidence,
+  onShowReferences,
+  referencesOpen,
+  onBack,
+  connections,
+  records,
+  referenceKey,
 }: {
   title: string;
   summary?: string;
-  metadata?: string;
+  metadata?: ReactNode;
+  subjectTags?: ReactNode;
   children: ReactNode;
-  evidence?: ReactNode;
+  evidence: ReactNode;
   onCloseEvidence: () => void;
+  onShowReferences: () => void;
+  referencesOpen: boolean;
+  onBack: () => void;
+  connections?: ReactNode;
+  records?: ReactNode;
+  referenceKey?: string;
 }) {
-  const mobile = useLayout() === 'compact';
-  const opener = useRef<Element | null>(null);
-  useEffect(() => {
-    if (evidence && document.activeElement instanceof HTMLButtonElement)
-      opener.current = document.activeElement;
-  }, [evidence]);
+  const references = useRef<HTMLDivElement>(null);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a new reference selection resets the shared scroll viewport
+  useLayoutEffect(() => {
+    const viewport = references.current?.closest('[data-slot="scroll-area-viewport"]');
+    if (viewport) viewport.scrollTop = 0;
+  }, [referenceKey]);
   return (
-    <div className="flex w-full min-w-0 flex-col gap-8 px-[var(--page-inset)] py-[var(--page-block)] md:flex-row md:gap-10">
-      <article className="mx-auto flex w-full min-w-0 max-w-[var(--reading-width)] flex-1 flex-col gap-5">
-        <header className="flex flex-col gap-2">
-          <span className="text-label text-muted-foreground">{metadata}</span>
-          <h1 className="m-0 font-serif text-display">{title}</h1>
-          {!!summary && <p className="m-0 font-serif text-lead">{summary}</p>}
-        </header>
-        {children}
-      </article>
-      <DrawerRoot
-        open={!!evidence}
-        modal={mobile}
-        disablePointerDismissal={!mobile}
-        onOpenChange={(open) => {
-          if (!open) onCloseEvidence();
-        }}
+    <div className="kit-wiki-page">
+      <div className="kit-wiki-reading">
+        <div className="kit-wiki-toolbar" role="toolbar" aria-label="Wiki page">
+          <button type="button" className="kit-wiki-back" onClick={onBack}>
+            <Icon name="chevron-left" size="sm" />
+            Wiki
+          </button>
+          <button
+            type="button"
+            className="kit-wiki-toolbar-title kit-wiki-title"
+            title={title}
+            onClick={onShowReferences}
+            aria-description="Open page references"
+          >
+            {title}
+          </button>
+        </div>
+        <article className="kit-wiki-article">
+          <header className="flex flex-col gap-3">
+            <h1 className="m-0 font-serif text-display">
+              <button
+                type="button"
+                className="kit-wiki-title"
+                onClick={onShowReferences}
+                aria-description="Open page references"
+              >
+                {title}
+              </button>
+            </h1>
+            <fieldset className="kit-wiki-facets" aria-label="Subject classification">
+              {metadata}
+            </fieldset>
+            {!!summary && <p className="m-0 font-serif text-lead">{summary}</p>}
+            {!!subjectTags && (
+              <fieldset className="kit-wiki-tags" aria-label="Subject tags">
+                {subjectTags}
+              </fieldset>
+            )}
+          </header>
+          <div className="kit-wiki-body">{children}</div>
+          {!!connections && (
+            <section className="kit-wiki-record-section">
+              <h2>Connections</h2>
+              {connections}
+            </section>
+          )}
+          {!!records && (
+            <section className="kit-wiki-record-section">
+              <h2>Questions & next steps</h2>
+              {records}
+            </section>
+          )}
+        </article>
+      </div>
+      <ResponsiveSupportingColumn
+        title="References"
+        open={referencesOpen}
+        onClose={onCloseEvidence}
       >
-        <DrawerContent
-          inline={true}
-          arrangement="panel"
-          compact={mobile}
-          data-layout={mobile ? 'compact' : 'wide'}
-          role={mobile ? 'dialog' : 'complementary'}
-          aria-label="Why the page says this"
-          aria-describedby={undefined}
-          finalFocus={() => opener.current as HTMLElement | null}
-          initialFocus={mobile}
-          className="kit-evidence-panel"
-        >
-          <div className="flex shrink-0 items-center justify-between gap-2 px-4 pt-4 pb-3 md:px-0 md:pt-0">
-            <DrawerTitle className="text-label font-medium uppercase tracking-wide text-muted-foreground">
-              Why the page says this
-            </DrawerTitle>
-            <Button
-              variant="ghost"
-              size="standard"
-              iconOnly={true}
-              aria-label="Close why the page says this"
-              onClick={onCloseEvidence}
-            >
-              <Icon name="close" />
-            </Button>
-          </div>
-          <ScrollArea grow={true}>
-            <div className="flex flex-col gap-3 px-4 pb-6 md:px-0 md:pb-0">{evidence}</div>
-          </ScrollArea>
-        </DrawerContent>
-      </DrawerRoot>
-      {!(mobile || evidence) && (
-        <aside className="w-[340px] shrink-0 text-label text-muted-foreground">
-          Select an underlined statement to see where it came from.
-        </aside>
-      )}
+        <div ref={references} key={referenceKey} className="kit-wiki-panel-content">
+          {evidence}
+        </div>
+      </ResponsiveSupportingColumn>
     </div>
   );
 }

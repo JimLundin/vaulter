@@ -30,25 +30,33 @@ const chip = {
 /** A thing by name, in its kind's colour: a person, a place, an event. */
 export function Chip({
   tone = 'neutral',
+  label,
   onClick,
   children,
 }: {
   tone?: Tone;
+  label?: string;
   onClick?: () => void;
   children?: ReactNode;
 }) {
-  return (
+  const content = (
     <Badge
       variant="secondary"
       className={cn(
-        'h-auto rounded-full border-0 px-[7px] py-px text-glyph font-medium',
+        'min-h-7 max-w-full shrink rounded-md border border-border px-2 py-1 text-glyph font-medium whitespace-normal text-left',
         chip[tone],
-        onClick && 'cursor-pointer',
       )}
-      render={onClick ? <button type="button" data-touch-target="" onClick={onClick} /> : <span />}
     >
+      {!!label && <span className="text-muted-foreground font-normal">{label}:</span>}
       {children}
     </Badge>
+  );
+  return onClick ? (
+    <button type="button" data-touch-target="" className="kit-chip-target" onClick={onClick}>
+      {content}
+    </button>
+  ) : (
+    <span className="kit-chip-target">{content}</span>
   );
 }
 
@@ -385,7 +393,7 @@ export function WorkspaceFrame({ bar, children }: { bar: ReactNode; children: Re
       data-layout={mobile ? 'mobile-workspace' : 'desktop-workspace'}
       className="flex h-[var(--viewport-height,100dvh)] min-w-0 flex-1 flex-col bg-background pt-[env(safe-area-inset-top)] md:pt-0"
     >
-      <main data-region="" className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+      <main data-region="" className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto">
         {children}
       </main>
       {mobile && bar}

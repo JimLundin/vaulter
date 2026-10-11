@@ -1,17 +1,27 @@
 # Production design integration and branch consolidation — 2026-10-11
 
-Production now exposes node-backed Wiki pages and the selected Chat design. Wiki uses
-underlined source links, evidence beside the page on desktop, and the shared drawer on phones.
-Exact citations reconstruct source text and attribution at the source transaction snapshot;
-migrated exchange links show their recorded source without inventing a claim citation.
-Wiki searches page titles, summaries and aliases, renders migrated blocks and live page queries,
-and links source exchanges to their saved Chat conversation.
+Production exposes node-backed Wiki pages and the selected Chat design. Wiki uses the selected
+Reading first / Balanced layout with Framed reference cards and a docked References panel.
+The article and supporting panel fill the app frame and scroll independently. Their headers share
+48px geometry with Chat; phones use the same full-height Drawer with dismissal and focus return.
 
-The previous production artifact was `afc237d`. Main's selected Chat design was `e823049`,
-but stale browser expectations failed CI and prevented deployment. Browser expectations now
-match the selected design. Saved Chat history also opens when sending is unavailable, including
-when no model key is configured. CI now checks the built production app on desktop and phone
-before deployment.
+Title actions restore page references. Underlined claim selections open their reviewed sources,
+with exact source passages highlighted across retained context. Formatting survives selection;
+unselected prose stays uncited and ordinary links retain navigation. Reference cards expand long
+context without leaving the page. Classifications resolve from stored terms and subject tags filter
+the real page collection. Connections and lifecycle records remain visible.
+
+Product uses this renderer directly in the production entry. Built production acceptance covers
+Wiki navigation, UTF-16 claim/passage ranges, reference expansion, page-source reset, tag filtering,
+source navigation into persistent Chat and phone focus return. Deploy CI runs unit, layout, kit and
+built production checks on main before publishing to GitHub Pages. `version.json` records the
+published commit. Preview builds retain sample data separately.
+
+Migration modules and the underlying-source rule are committed alongside the UI projection.
+Private reviewed packets and verified append-only enrichment are retained outside the repo as
+recorded in [the migration handoff](wiki-migration.md#current-review-handoff-2026-10-11). The prepared
+enrichment has not been applied to the live vault; resuming migration requires the recorded baseline
+or regenerated output if vault history has advanced.
 
 ## Consolidation
 
