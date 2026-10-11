@@ -165,7 +165,8 @@ The saved-conversation chooser uses the shared `SupportingPane`: one scrolling b
 following feed with an anchored dock; one header and width; expanded space beside the page and
 compact space in a full-height bottom Drawer. Modules request visibility and supply content/actions;
 `persistent` retains desktop occupancy without choosing presentation mechanics. Selection identity
-resets the kit-owned scroll position. Chat and Wiki's temporary pane paths retire in #45/#46/#51.
+resets the kit-owned scroll position. Wiki references now consume this policy; Chat's remaining
+path and obsolete wrappers retire in #45/#51.
 
 The accepted ownership target is [ADR 0006](docs/adr/0006-module-ui-and-shared-presentation.md):
 modules own record-specific UI and typed reading projections; the kit owns base presentation and
@@ -175,6 +176,17 @@ a smaller presentation interface take precedence over feature-specific UI tailor
 History and Search ownership are implemented; remaining migrations are tracked by the plan.
 Current presentation still includes
 module-specific kit exports and different supporting-pane arrangements.
+
+Wiki owns `WikiPageView`: typed `WikiPage`/`WikiBlock`/`WikiReference` projections, title and
+classification actions, connections, questions and reference selection. Product still reads through
+`readWiki` and supplies foreign-record routes; rendering does not load a store or execute an Agent.
+The view composes shared reading/page/section presentation and `SupportingPane`; a selection key
+resets the pane's scroll owner without querying its DOM. Source context remains mounted across
+responsive changes. Wiki semantic renderers may emit approved document markup and safe links;
+controls, styling, scroll geometry and viewport policy stay in the kit. The single temporary source
+card exception and `source-card.css` are retired by #47. The old `WikiPageSurface` and shell CSS are
+removed. Toolbar now shares the pane's 48px header token, and Prose owns semantic content spacing,
+list/table/code overflow and typography across Wiki and Markdown callers.
 
 History now owns its transaction title/kind interpretation, sequence and historical attribution,
 difference summaries, and compensation copy/actions. Its `TransactionItem` accepts `NodeHistoryEntry`

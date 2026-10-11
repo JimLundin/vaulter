@@ -1,102 +1,4 @@
-.kit-wiki-toolbar {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  background: var(--background);
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  height: var(--supporting-header-height);
-  padding: 0 var(--page-inset);
-  font-size: var(--type-label);
-  color: var(--muted-foreground);
-}
-.kit-wiki-toolbar > span,
-.kit-wiki-toolbar-title {
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.kit-wiki-toolbar-title {
-  flex: 0 1 auto;
-  min-width: 0;
-  min-height: 44px;
-}
-.kit-wiki-back {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  min-height: 32px;
-  color: var(--foreground);
-}
-.kit-wiki-facets,
-.kit-wiki-tags {
-  margin: 0;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.25rem 0.5rem;
-}
-.kit-wiki-body {
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-  line-height: 1.75;
-}
-.kit-wiki-body > p {
-  font-size: 1.125rem;
-}
-.kit-wiki-body section {
-  margin-top: 0.75rem;
-}
-.kit-wiki-body h2,
-.kit-wiki-body h3 {
-  font-family: var(--font-serif);
-  font-weight: 500;
-}
-.kit-wiki-body a {
-  color: var(--primary);
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-.kit-wiki-context mark {
-  background: var(--people-soft);
-  color: var(--foreground);
-  border-radius: 0.2rem;
-}
-.kit-wiki-muted {
-  color: var(--muted-foreground);
-  font-size: 0.875rem;
-  line-height: 1.6;
-  margin: 0;
-}
-.kit-wiki-record-section {
-  border-top: 1px solid var(--border);
-  padding-top: 1.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-.kit-wiki-record-section h2 {
-  font-size: 0.8rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  margin: 0 0 0.5rem;
-}
-.kit-wiki-panel-content {
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-}
-.kit-wiki-panel-content h2 {
-  font-family: var(--font-serif);
-  font-size: 1.5rem;
-  margin: 0;
-}
-.kit-wiki-panel-content p {
-  line-height: 1.65;
-}
+/* Temporary Wiki source-card mechanics, retired by #47. */
 .kit-wiki-source-card {
   position: relative;
   width: 100%;
@@ -284,95 +186,15 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
-@container kit (width < 768px) {
-  .kit-wiki-toolbar {
-    gap: 0.5rem;
-    padding: 0 1rem;
-  }
-  .kit-wiki-back {
-    min-height: 44px;
-  }
-}
 
-.kit-wiki-body :is(section[id], p[id]) {
-  scroll-margin-top: calc(var(--supporting-header-height) + 1rem);
+.kit-wiki-context mark {
+  background: var(--people-soft);
+  color: var(--foreground);
+  border-radius: 0.2rem;
 }
-
-.kit-wiki-page {
-  display: flex;
-  flex: 1;
-  width: 100%;
-  height: 100%;
-  min-width: 0;
-  min-height: 0;
-  overflow: hidden;
-}
-.kit-wiki-reading {
-  display: flex;
-  flex: 1;
-  min-width: 0;
-  min-height: 0;
-  flex-direction: column;
-}
-.kit-wiki-toolbar {
-  position: relative;
-  flex-shrink: 0;
-  height: var(--supporting-header-height);
-}
-.kit-wiki-article {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-  min-height: 0;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  padding: var(--page-block) var(--page-inset) 3rem;
-  scrollbar-width: none;
-}
-.kit-wiki-article::-webkit-scrollbar {
-  display: none;
-}
-.kit-wiki-article > * {
-  width: 100%;
-  max-width: var(--reading-width);
-  margin-inline: auto;
-}
-.kit-wiki-title {
-  cursor: pointer;
-  text-align: left;
-  border-radius: var(--radius);
-}
-.kit-wiki-title:hover {
-  text-decoration: underline;
-  text-decoration-color: var(--border);
-  text-underline-offset: 0.15em;
-}
-.kit-wiki-title:focus-visible {
-  outline: 2px solid var(--ring);
-  outline-offset: 4px;
-}
-.kit-wiki-body {
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-  line-height: 1.75;
-}
-.kit-chip-target {
-  display: inline-flex;
-  align-items: center;
-  max-width: 100%;
-  min-height: 28px;
-  border-radius: var(--radius);
-}
-button.kit-chip-target {
-  cursor: pointer;
-}
-button.kit-chip-target:focus-visible {
-  outline: 2px solid var(--ring);
-  outline-offset: 2px;
-}
-@media (any-pointer: coarse) {
-  .kit-chip-target {
-    min-height: var(--target-touch);
-  }
+.kit-wiki-muted {
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+  line-height: 1.6;
+  margin: 0;
 }

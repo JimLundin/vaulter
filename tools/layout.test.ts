@@ -309,3 +309,40 @@ export const load = () => import('@kit/drawer.tsx');`,
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test('Wiki renderers accept semantic content but cannot own application presentation', () => {
+  const root = mkdtempSync(join(tmpdir(), 'vaulter-wiki-policy-'));
+  try {
+    mkdirSync(join(root, 'app/workflows/wiki/rendering'), { recursive: true });
+    writeFileSync(
+      join(root, 'tsconfig.json'),
+      JSON.stringify({
+        compilerOptions: { module: 'ESNext', moduleResolution: 'Bundler', jsx: 'preserve' },
+        include: ['app'],
+      }),
+    );
+    writeFileSync(
+      join(root, 'app/workflows/wiki/rendering/content.tsx'),
+      'export const content = <section id="claim"><h2>Title</h2><p><strong>Retained</strong> text <a href="#/wiki/page/">Page</a></p><table><tbody><tr><td data-align="right">1</td></tr></tbody></table></section>;',
+    );
+    expect(checkLayout(root)).toEqual([]);
+    writeFileSync(
+      join(root, 'app/workflows/wiki/rendering/presentation.tsx'),
+      `import { Drawer } from '@base-ui/react/drawer';
+      export const card = <div className="overflow-auto"><button>Context</button></div>;
+      export const viewport = window.matchMedia('(min-width: 768px)');`,
+    );
+    const problems = checkLayout(root);
+    expect(problems).toEqual(
+      expect.arrayContaining([
+        'app/workflows/wiki/rendering/presentation.tsx: <div> must be a public kit component',
+        'app/workflows/wiki/rendering/presentation.tsx: <button> must be a public kit component',
+        'app/workflows/wiki/rendering/presentation.tsx: app views must compose the public kit instead of styling elements',
+        'app/workflows/wiki/rendering/presentation.tsx: presentation dependencies belong behind app/ui/kit/index.ts',
+        'app/workflows/wiki/rendering/presentation.tsx: viewport queries belong in the kit',
+      ]),
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
