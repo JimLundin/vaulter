@@ -311,10 +311,12 @@ test('the preview pill shows the current design and keeps the Chat draft', async
   const bar = page.getByRole('complementary', { name: 'Design preview', exact: true });
   if (test.info().project.name === 'phone') {
     await bar.getByRole('button', { name: 'Preview controls', exact: true }).click();
-    await expect(bar.getByRole('combobox', { name: 'Design variation' })).toHaveValue('current');
-  } else {
-    await expect(bar.getByRole('radio', { name: 'Current design', exact: true })).toBeChecked();
   }
+  await expect(bar.getByRole('button', { name: 'Design variation', exact: true })).toContainText(
+    'Current design',
+  );
+  await expect(bar.getByRole('button', { name: 'Previous design', exact: true })).toBeDisabled();
+  await expect(bar.getByRole('button', { name: 'Next design', exact: true })).toBeDisabled();
   await expect(bar.getByRole('combobox', { name: 'Conversation variant' })).toHaveCount(0);
   await expect(bar.getByRole('button', { name: 'Next variant' })).toHaveCount(0);
   await expect(input).toHaveValue('Keep this draft while comparing');

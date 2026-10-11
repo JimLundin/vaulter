@@ -7,9 +7,10 @@ async function chooseVariation(scope: Locator, name: string) {
   const toggle = scope.getByRole('button', { name: 'Preview controls', exact: true }).first();
   if ((await toggle.count()) && (await toggle.getAttribute('aria-expanded')) === 'false')
     await toggle.click();
-  const picker = scope.getByRole('combobox', { name: 'Design variation', exact: true });
-  if (await picker.count()) await picker.selectOption({ label: name });
-  else await scope.getByRole('radio', { name, exact: true }).click();
+  const picker = scope.getByRole('button', { name: 'Design variation', exact: true });
+  if (!(await picker.innerText()).includes(name))
+    await scope.getByRole('button', { name: 'Next design', exact: true }).click();
+  await expect(picker).toContainText(name);
 }
 
 test('paired preview comparisons select independently and preserve their selected design and draft through device changes', async ({
@@ -22,7 +23,9 @@ test('paired preview comparisons select independently and preserve their selecte
   const mobile = family.locator('[data-kit-preview="mobile"]');
   await chooseVariation(desktop, 'Question summary');
   const banner = desktop.getByRole('complementary', { name: 'Design preview' }).first();
-  await expect(banner.getByRole('radio', { name: 'Question summary', exact: true })).toBeChecked();
+  await expect(banner.getByRole('button', { name: 'Design variation', exact: true })).toContainText(
+    'Question summary',
+  );
   await expect(desktop.getByRole('heading', { name: 'Question summary' })).toBeVisible();
   await expect(mobile.getByRole('heading', { name: 'Note summary' })).toBeVisible();
   const draft = desktop.getByRole('textbox', { name: 'Preview draft' });
@@ -48,8 +51,10 @@ test('comparison keyboard selection stays local and leaves text entry and the Mo
   const family = page.locator('[data-kit-comparison="preview"]');
   const desktop = family.locator('[data-kit-preview="desktop"]');
   const mobile = family.locator('[data-kit-preview="mobile"]');
-  await desktop.getByRole('radio', { name: 'Note summary', exact: true }).focus();
+  const focusedDesign = desktop.getByRole('button', { name: 'Design variation', exact: true });
+  await focusedDesign.focus();
   await page.keyboard.press('ArrowRight');
+  await expect(focusedDesign).toBeFocused();
   await expect(desktop.getByRole('heading', { name: 'Question summary' })).toBeVisible();
   await expect(mobile.getByRole('heading', { name: 'Note summary' })).toBeVisible();
   const draft = desktop.getByRole('textbox', { name: 'Preview draft' });

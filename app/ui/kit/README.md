@@ -268,7 +268,12 @@ center. Position belongs to the mounted preview and resets on reload.
 The live app currently registers one "Current design" alternative. The catalogue registers
 Note summary and Question summary to demonstrate independent variant selection. Device changes
 preserve the selected variant and its mounted fields; switching variants starts that variant's
-content afresh. Standalone `DesignComparison` retains its inline picker.
+content afresh. The control shows previous/next arrows, a focusable current-design button and the
+design's position. Click either arrow or focus the label and press Left/Right to cycle, wrapping
+at each end. Clicking the label advances once. Keyboard cycling stays inside the focused control,
+so text editing, device navigation and other previews remain independent. A sole design disables
+both arrows. Phone and desktop use the same interaction. Standalone `DesignComparison` retains
+its inline cycle control; URL-backed prototype alternatives use the same control.
 
 ### How a shape is decided
 

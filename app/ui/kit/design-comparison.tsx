@@ -1,7 +1,6 @@
 // A design session supplies named examples; selection belongs to this preview alone.
 import { type ReactNode, useState } from 'react';
-import { useLayout } from './hooks/use-layout.ts';
-import { RadioGroup, RadioGroupItem } from './parts/radio-group.tsx';
+import { DesignCycle } from './design-cycle.tsx';
 
 type DesignAlternative = { id: string; label: string; content: ReactNode };
 
@@ -17,34 +16,16 @@ export function DesignComparison({
 }) {
   const [value, setValue] = useState(defaultValue ?? alternatives[0].id);
   const selected = alternatives.find((alternative) => alternative.id === value) ?? alternatives[0];
-  const compact = useLayout() === 'compact';
-  const controls = compact ? (
-    <select
-      aria-label="Design variation"
-      className="kit-preview-select max-w-full"
+  const controls = (
+    <DesignCycle
+      label="Design variation"
       value={selected.id}
-      onChange={(event) => setValue(event.target.value)}
-    >
-      {alternatives.map((alternative) => (
-        <option key={alternative.id} value={alternative.id}>
-          {alternative.label}
-        </option>
-      ))}
-    </select>
-  ) : (
-    <RadioGroup
-      variant="segmented"
-      aria-label="Design variation"
-      value={selected.id}
-      onValueChange={(next) => setValue(next)}
-      className="max-w-full flex-wrap"
-    >
-      {alternatives.map((alternative) => (
-        <RadioGroupItem key={alternative.id} value={alternative.id}>
-          {alternative.label}
-        </RadioGroupItem>
-      ))}
-    </RadioGroup>
+      options={alternatives.map((alternative) => ({
+        value: alternative.id,
+        label: alternative.label,
+      }))}
+      onChange={setValue}
+    />
   );
   const content = (
     <div key={selected.id} className="h-full min-h-0 min-w-0 overflow-auto">
