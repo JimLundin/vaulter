@@ -302,7 +302,8 @@ export {
   Markdown,
   Message,
 } from './conversation.tsx';
-export { HistorySurface, HistoryEntry, SearchSurface } from './screens.tsx';
+export { SearchSurface } from './screens.tsx';
+export { ExpandableRow, RowAction } from './expandable-row.tsx';
 export { SettingsMenu, SettingsSection, SettingField } from './settings.tsx';
 export {
   NavigationSuite,

@@ -13,7 +13,7 @@ app/
   workflows/
     chat/                    node conversations, composed Agent acceptance, draft lifetime, views, tests
     rename-note/             rename operation, reference rewrites, model adapter, tests
-    history/                 history and revert presentation
+    history/                 attributed transaction views, reading and guarded compensation
   vault/
     index.ts                 live vault interface and session
     nodes/                   immutable node model, acceptance, snapshots, memory adapter
@@ -166,8 +166,16 @@ modules own record-specific UI and typed reading projections; the kit owns base 
 shared compositions. Supporting panes use one presentation policy across modules. Consistency and
 a smaller presentation interface take precedence over feature-specific UI tailoring. The
 [migration plan](docs/plans/ui-module-ownership.md) records the sequence and enforcement checks;
-this migration is not yet implemented. The current presentation described below still includes
+History ownership is implemented; the remaining slices are in progress. The current presentation described below still includes
 module-specific kit exports and different supporting-pane arrangements.
+
+History now owns its transaction title/kind interpretation, sequence and historical attribution,
+difference summaries, and compensation copy/actions. Its `TransactionItem` accepts `NodeHistoryEntry`
+and explicit actions; it can render historical records without a live NodeStore. The subscribed list
+keeps pagination and guarded compensation in History. The kit supplies `ExpandableRow`, `RowAction`
+and ordinary page/text presentation, with no Git-shaped record props or History-specific exports.
+Compiler policy rejects kit imports of Vault/Agent record interpretation in addition to the existing
+module-isolation, private-kit and presentation-composition checks.
 
 `app/ui/kit/` comes from branch `ui-kit` at `2c30183`. Its design references, Geist / Geist Mono /
 Newsreader fonts, zinc colors, desktop sidebar, mobile controls and overlays are used by the app.

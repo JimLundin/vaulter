@@ -12,6 +12,8 @@ const contentRenderer = (path: string) =>
 const kit = (path: string) => path.startsWith('app/ui/kit/');
 const workflow = (path: string) => /^app\/workflows\/([^/]+)\//.exec(path)?.[1];
 export function importProblem(from: string, to: string): string | null {
+  if (kit(from) && (to.startsWith('app/vault/') || to.startsWith('app/agent/')))
+    return `${from} imports record interpretation; keep Vault and Agent knowledge with its owning module`;
   const target = workflow(to);
   if (target && from !== 'app/product.tsx' && workflow(from) !== target)
     return `${from} imports optional workflow ${target}; compose it in app/product.tsx`;
