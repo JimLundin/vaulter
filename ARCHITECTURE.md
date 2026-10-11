@@ -224,7 +224,14 @@ receives the model and preview label explicitly; workflows do not import the pre
 supplies real node content tools and retains only fictional accepted requests in a
 versioned tab journal. Reload replays them through the memory adapter and reopens without execution;
 Reset clears the demo. Query-selected one-shot saving faults exercise production recovery. No sensor
-collection, microphone or paid model request runs in the preview.
+collection or microphone request runs in published previews. Local development can explicitly select
+`?agent=live` to use the configured OpenAI-compatible model through a Vite-only proxy for Responses
+and audio transcription. Browser MediaRecorder captures the microphone and the file transcription
+adapter returns text on Finish; this supports proxies without Realtime endpoints. Audio is not
+retained in the NodeStore or tab journal.
+The server owns its credential; Product receives the model adapter, provider attribution and
+configured default model. Tools still publish only into the sample NodeStore. Published previews
+always use the scripted model.
 The preview builds separately, contains no sealed secrets and registers no service worker. Its
 GitHub Pages job runs on `structure` and `design-variants`, refreshing the shared `/preview/structure/`
 and kit gallery links alongside the exact deployed production artifact. The preview version records

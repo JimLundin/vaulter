@@ -2,7 +2,8 @@ import type { LanguageModel } from 'ai';
 
 export const MODEL_KEY = 'vault.agent.model';
 export const DEFAULT_MODEL = 'gpt-6-astra';
-export const model = () => localStorage.getItem(MODEL_KEY) || DEFAULT_MODEL;
+export const model = (defaultModel = DEFAULT_MODEL) =>
+  localStorage.getItem(MODEL_KEY) || defaultModel;
 export type ModelProvider = (name: string) => Promise<LanguageModel>;
 
 export const openAIModel =

@@ -17,11 +17,13 @@ export function Gate({ children }: { children: ReactNode }) {
 
 export function PreviewBar({
   label,
+  chat = 'Scripted chat',
   kitHref,
   onReset,
   controls,
 }: {
   label: string;
+  chat?: 'Scripted chat' | 'Live agent';
   kitHref: string;
   onReset: () => void;
   controls?: ReactNode;
@@ -42,7 +44,7 @@ export function PreviewBar({
     <aside
       ref={ref}
       aria-label="Design preview"
-      title={`${label} · Sample data · Scripted chat`}
+      title={`${label} · Sample data · ${chat}`}
       onKeyDown={(event) => {
         if (event.key === 'Escape' && expanded) {
           event.stopPropagation();
@@ -55,7 +57,9 @@ export function PreviewBar({
         mobile ? 'flex-col rounded-[28px]' : 'rounded-full',
       )}
     >
-      <span className="sr-only">{label} · Sample data · Scripted chat</span>
+      <span className="sr-only">
+        {label} · Sample data · {chat}
+      </span>
       <div className={cn('flex items-center gap-1', mobile && 'w-full justify-between')}>
         <Button
           variant="ghost"
@@ -128,7 +132,7 @@ export function PreviewBar({
         </div>
       </div>
       {mobile && expanded && (
-        <span className="px-3 pb-2 text-caption text-zinc-400">Sample data · Scripted chat</span>
+        <span className="px-3 pb-2 text-caption text-zinc-400">Sample data · {chat}</span>
       )}
     </aside>
   );

@@ -16,6 +16,7 @@ the application does not perform that migration. The design and its history: `PL
 | `npm run dev` | the app on the vault through GitHub, as built, in any browser, but with no password: it loads right in with the secrets from `.env.local` (gitignored): `VAULT_GITHUB_TOKEN`, and optionally `VAULT_OPENAI_KEY` and `VAULT_JINA_KEY`, the names CI seals. Only dev gets them; a build has none. Its commits go to the vault's `main`, as the app's do |
 | `npm run kit` | the component kit gallery and reference design |
 | `npm run design` | the current branch UI at `http://localhost:5173/preview/`, with fictional notes and scripted chat; no password, keys or vault connection |
+| `npm run design:agent` | local preview with the real agent at `/preview/?agent=live`; uses the configured API and token through the Vite server, with fictional data and local tool writes |
 | `npm run build:design` | the sample preview and component gallery into `dist-preview/` |
 | `npm run build` | the app into `dist/` |
 | `npm run lint` / `npm run format` | Biome: lint and format check (CI), or fix both in place. Style: 2 spaces, single quotes, semicolons, trailing commas, 100 columns (`biome.json`) |
@@ -106,6 +107,22 @@ For local iteration, run `npm ci` then `npm run design` on the branch being revi
 workflow views and Vite updates the browser. Use `npm run kit` separately for the kit's full gallery. The development
 preview lives at `/preview/`; the built preview moves its entry to the deploy root and includes the
 gallery under `kit/`.
+
+To test the real agent locally, run `npm run design:agent`. Set `VAULT_OPENAI_API` and
+`VAULT_OPENAI_MODEL` in the root `.env.local` (gitignored), and supply `VAULT_OPENAI_KEY`,
+`OPENAI_API_KEY`, or the environment's `FOUNDRY_TOKEN`. `OPENAI_BASE_URL` and `OPENAI_MODEL` are
+also accepted. A Foundry token requires an explicit API endpoint. The selected model in Settings
+overrides the configured default. Restart Vite after changing configuration.
+
+The local live preview streams through a same-origin Vite proxy; the API token stays on the server.
+Agent tool calls use the sample NodeStore and its tab journal. Reset demo clears that history.
+In live preview, the microphone records in the browser and sends audio for transcription when you
+tap Finish. The resulting text appends to your draft for review before Send. This uses
+`gpt-4o-transcribe`, supported by the configured Foundry proxy; set
+`VAULT_OPENAI_TRANSCRIPTION_MODEL` to override it. The microphone stops before upload, and audio
+is not saved in the preview history. Suggested prompts remain scripted. `/preview/` still uses
+the scripted model and transcription, and
+`build:design` always produces a scripted preview without the live connection or credentials.
 
 GitHub Pages accepts one site artifact. The preview job downloads the successful artifact for the
 currently deployed production commit, preserves its root files, and adds `preview/<branch-name>/`.

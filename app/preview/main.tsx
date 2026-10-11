@@ -14,6 +14,8 @@ import { vaultRules } from '../vault/validation/rules.ts';
 import type { Head } from '../vault/storage/backend.ts';
 import { sampleFiles, note } from './data.ts';
 import { previewModel } from './model.ts';
+import { createOpenAICapabilities } from '../agent/openai/index.ts';
+import { recordedTranscription } from '../agent/recorded-transcription.ts';
 import { previewTranscription } from './transcription.ts';
 import { previewNodes, previewJournalKey } from './nodes.ts';
 import type { NodeChange } from '../vault/nodes/store.ts';
@@ -21,6 +23,22 @@ import type { NodeStore } from '../vault/nodes/store.ts';
 
 const memory = memoryBackend(sampleFiles);
 const query = new URLSearchParams(location.search);
+declare const __PREVIEW_AGENT__: {
+  baseURL: string;
+  defaultModel?: string;
+  transcriptionModel: string;
+} | null;
+const liveAgent = import.meta.env.DEV && query.get('agent') === 'live';
+const agentConnection = __PREVIEW_AGENT__;
+const agent =
+  liveAgent && agentConnection
+    ? createOpenAICapabilities({
+        apiKey: 'local-preview',
+        baseURL: new URL(agentConnection.baseURL, location.origin).href,
+        models: { fileTranscription: agentConnection.transcriptionModel },
+      })
+    : null;
+const transcription = agent ? recordedTranscription(agent.transcribe) : previewTranscription;
 const openingNodes = previewNodes(sessionStorage, query.get('scenario') ?? undefined).then(
   async (nodes) => {
     if (!(await nodes.snapshot()).get('preview:wiki-owner')) {
@@ -206,9 +224,11 @@ function Preview({ initialHead, nodes }: { initialHead: Head; nodes: NodeStore }
         nodeStatus: { kind: 'synced', at: Date.now() },
         refreshNodes: async () => undefined,
       }}
-      model={async () => previewModel}
+      model={agent?.model ?? (async () => previewModel)}
       preview={{
-        transcription: previewTranscription,
+        provider: agent ? 'openai' : 'preview',
+        defaultModel: agent ? agentConnection?.defaultModel : undefined,
+        transcription,
         suggestions: async () => [
           'How could I make more room for slow mornings?',
           'Help me plan an afternoon in the garden studio',
@@ -222,7 +242,8 @@ function Preview({ initialHead, nodes }: { initialHead: Head; nodes: NodeStore }
       alternatives={[{ id: 'current', label: 'Current design', content: product }]}
       preview={(controls, content) => (
         <DesignPreview
-          label={`Design preview · ${(import.meta.env.VITE_PREVIEW_COMMIT || 'local').slice(0, 7)}`}
+          label={`${agent ? 'Live agent preview' : 'Design preview'} · ${(import.meta.env.VITE_PREVIEW_COMMIT || 'local').slice(0, 7)}`}
+          chat={agent ? 'Live agent' : 'Scripted chat'}
           onReset={() => {
             sessionStorage.removeItem(previewJournalKey);
             localStorage.removeItem(previewConversationKey);
@@ -241,5 +262,16 @@ function Preview({ initialHead, nodes }: { initialHead: Head; nodes: NodeStore }
 startTheme();
 const root = createRoot(document.getElementById('app')!);
 Promise.all([initial, openingNodes])
-  .then(([{ head }, nodes]) => root.render(<Preview initialHead={head} nodes={nodes} />))
+  .then(([{ head }, nodes]) =>
+    root.render(
+      liveAgent && !agent ? (
+        <Text tone="danger">
+          Live agent preview needs VAULT_OPENAI_KEY (or OPENAI_API_KEY / FOUNDRY_TOKEN) on the
+          development server. Set VAULT_OPENAI_API for a custom endpoint, then restart Vite.
+        </Text>
+      ) : (
+        <Preview initialHead={head} nodes={nodes} />
+      ),
+    ),
+  )
   .catch((error: unknown) => root.render(<Text tone="danger">{String(error)}</Text>));

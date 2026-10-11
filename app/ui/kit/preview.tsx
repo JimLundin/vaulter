@@ -19,6 +19,7 @@ import { FloatingPreview } from './floating-preview.tsx';
 
 export function DesignPreview({
   label,
+  chat,
   kitHref,
   onReset,
   variantControls,
@@ -26,6 +27,7 @@ export function DesignPreview({
   variants,
 }: {
   label: string;
+  chat?: 'Scripted chat' | 'Live agent';
   kitHref: string;
   onReset: () => void;
   variantControls?: ReactNode;
@@ -117,6 +119,7 @@ export function DesignPreview({
       <FloatingPreview>
         <PreviewBar
           label={label}
+          chat={chat}
           kitHref={kitHref}
           onReset={onReset}
           controls={

@@ -3,12 +3,12 @@ import { useState } from 'react';
 import { Input, SettingField } from '../../ui/kit/index.ts';
 import { DEFAULT_MODEL, MODEL_KEY, model } from './model.ts';
 
-export function ChatSettings() {
-  const [value, setValue] = useState(model);
+export function ChatSettings({ defaultModel = DEFAULT_MODEL }: { defaultModel?: string }) {
+  const [value, setValue] = useState(() => model(defaultModel));
   return (
     <SettingField label="Model" description="Used for new messages. Saved on this device.">
       <Input
-        placeholder={DEFAULT_MODEL}
+        placeholder={defaultModel}
         value={value}
         onChange={(event) => {
           const next = event.currentTarget.value;

@@ -135,6 +135,8 @@ export function OpenProduct({
   model?: (name: string) => Promise<LanguageModel>;
   identities?: ApplicationIdentities;
   preview?: {
+    provider?: string;
+    defaultModel?: string;
     suggestions: () => Promise<string[]>;
     transcription: TranscriptionProvider;
   };
@@ -274,9 +276,9 @@ export function OpenProduct({
     productChatOptions({
       nodes: nodes ?? unavailableNodes,
       identities,
-      provider: suppliedModel ? 'preview' : 'openai',
+      provider: preview?.provider ?? (suppliedModel ? 'preview' : 'openai'),
       model: suppliedModel ?? remoteModel ?? unavailableModel,
-      selectedModel: selectedModel(),
+      selectedModel: selectedModel(preview?.defaultModel),
       instructions:
         'Help the Vault owner using the supplied content tools. Content changes are published directly as nodes. Do not claim to edit or commit legacy files.',
       suggestions: preview?.suggestions,
@@ -544,7 +546,9 @@ export function OpenProduct({
       <SettingsMenu
         open={settingsOpen}
         onClose={closeSettings}
-        features={[{ name: 'Chat', content: <ChatSettings /> }]}
+        features={[
+          { name: 'Chat', content: <ChatSettings defaultModel={preview?.defaultModel} /> },
+        ]}
       >
         <SettingsSection title="Appearance">
           <SettingField

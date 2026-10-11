@@ -28,6 +28,11 @@ export default defineConfig({
     { name: 'touch-desktop', use: { viewport: { width: 1440, height: 1000 }, hasTouch: true } },
   ],
   webServer: {
+    env: {
+      VAULT_OPENAI_KEY: 'browser-fixture',
+      VAULT_OPENAI_API: 'http://127.0.0.1:9/v1',
+      VAULT_OPENAI_MODEL: 'fixture-llm',
+    },
     cwd: fileURLToPath(new URL('.', import.meta.url)),
     command: `npm run design -- --host 127.0.0.1 --port ${port} --strictPort`,
     url: `http://127.0.0.1:${port}/preview/`,
