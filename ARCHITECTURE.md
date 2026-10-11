@@ -13,7 +13,7 @@ app/
   workflows/
     chat/                    node conversations, composed Agent acceptance, draft lifetime, views, tests
     rename-note/             rename operation, reference rewrites, model adapter, tests
-    history/                 history and revert presentation
+    history/                 attributed transaction views, reading and guarded compensation
   vault/
     index.ts                 live vault interface and session
     nodes/                   immutable node model, acceptance, snapshots, memory adapter
@@ -172,8 +172,17 @@ modules own record-specific UI and typed reading projections; the kit owns base 
 shared compositions. Supporting panes use one presentation policy across modules. Consistency and
 a smaller presentation interface take precedence over feature-specific UI tailoring. The
 [migration plan](docs/plans/ui-module-ownership.md) records the sequence and enforcement checks;
-this migration is not yet implemented. The current presentation described below still includes
+History and Search ownership are implemented; remaining migrations are tracked by the plan.
+Current presentation still includes
 module-specific kit exports and different supporting-pane arrangements.
+
+History now owns its transaction title/kind interpretation, sequence and historical attribution,
+difference summaries, and compensation copy/actions. Its `TransactionItem` accepts `NodeHistoryEntry`
+and explicit actions; it can render historical records without a live NodeStore. The subscribed list
+keeps pagination and guarded compensation in History. The kit supplies `ExpandableRow`, `RowAction`
+and ordinary page/text presentation, with no Git-shaped record props or History-specific exports.
+Compiler policy rejects kit imports of Vault/Agent record interpretation in addition to the existing
+module-isolation, private-kit and presentation-composition checks.
 
 `app/ui/kit/` comes from branch `ui-kit` at `2c30183`. Its design references, Geist / Geist Mono /
 Newsreader fonts, zinc colors, desktop sidebar, mobile controls and overlays are used by the app.
@@ -190,6 +199,14 @@ of cmdk and its transitive Radix dependency. The private `presentation-policy.ts
 and bounded-preview choices for portals, bounds, modal behavior, dismissal and focus restoration.
 Adapters consume those choices while retaining library mechanics. AdaptivePanel keeps the same
 mounted drawer content as it becomes a compact drawer, expanded dialog or wide nonmodal panel.
+
+Search task composition now lives in shared application UI. Its subscribed container owns query,
+ranking, recent-entry selection and navigation/command/ask actions; `SearchView` accepts resolved
+typed entries and hits with explicit actions. The reusable `CommandOverlay` owns responsive
+command-list geometry and focus/dismissal mechanics, accepting caller labels and content. The kit
+does not import Search; compiler-resolved checks reject shared application UI imports from kit
+mechanics and viewport decisions in shared UI helpers. The generic paired kit example and fictional
+Search preview exercise the same browser presentation without private records or live Agent calls.
 
 Screens compose `ui/kit/index.ts`. Public components take no `className` or `style`; Tailwind scans only
 the kit. CI rejects custom HTML, styling props, intrinsic element factories and direct presentation
@@ -268,7 +285,7 @@ files. A non-forced ref update is definitive acceptance; stale expectations reje
 remote races retry. Dexie is a plaintext rebuildable cache, not a separate source of authority.
 The [storage guide](docs/node-storage.md) and [persistence decision](docs/adr/0003-github-node-persistence.md)
 describe retry, ordering, offline, device storage, and history-size semantics. Chat/Agent produce nodes;
-the visible History and Search screens retain their legacy file scope. [Consumer contracts](docs/node-consumers.md)
+History reads accepted node transactions and Search indexes legacy documents. [Consumer contracts](docs/node-consumers.md)
 live with their owning workflows: `workflows/chat/records/` holds Chat payloads, lossless schemas,
 acceptance requests, saved-message projections and its transcript-preservation policy;
 `workflows/history/nodes.ts` holds attributed History differences and compensation. Product supplies

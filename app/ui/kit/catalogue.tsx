@@ -697,19 +697,19 @@ function Review() {
 function CommandContent() {
   return (
     <K.Command>
-      <K.CommandInput placeholder="Find a note…" />
+      <K.CommandInput placeholder="Find an item…" />
       <K.CommandList>
-        <K.CommandEmpty>No matching notes.</K.CommandEmpty>
-        <K.CommandGroup heading="Notes">
+        <K.CommandEmpty>No matching items.</K.CommandEmpty>
+        <K.CommandGroup heading="Items">
           <K.CommandItem>
-            Slow mornings<K.CommandShortcut>↵</K.CommandShortcut>
+            First item<K.CommandShortcut>↵</K.CommandShortcut>
           </K.CommandItem>
-          <K.CommandItem>Coffee with Anna</K.CommandItem>
+          <K.CommandItem>Second item</K.CommandItem>
         </K.CommandGroup>
         <K.CommandSeparator />
-        <K.CommandGroup heading="Go to">
-          <K.CommandItem>History</K.CommandItem>
-          <K.CommandItem>Settings</K.CommandItem>
+        <K.CommandGroup heading="Actions">
+          <K.CommandItem>Open item</K.CommandItem>
+          <K.CommandItem>Show details</K.CommandItem>
         </K.CommandGroup>
       </K.CommandList>
     </K.Command>
@@ -719,10 +719,15 @@ function Search() {
   const [open, setOpen] = useState(false);
   return (
     <K.Stack>
-      <K.SearchButton label="Search your vault" keys="⌘ K" onClick={() => setOpen(true)} />
-      <K.SearchSurface open={open} onClose={() => setOpen(false)}>
+      <K.SearchButton label="Choose an item" keys="⌘ K" onClick={() => setOpen(true)} />
+      <K.CommandOverlay
+        open={open}
+        onClose={() => setOpen(false)}
+        title="Choose an item"
+        closeLabel="Cancel selection"
+      >
         <CommandContent />
-      </K.SearchSurface>
+      </K.CommandOverlay>
     </K.Stack>
   );
 }
@@ -759,28 +764,48 @@ function Settings() {
     </K.Stack>
   );
 }
-function History() {
+function ExpandableRows() {
   const [expanded, setExpanded] = useState(false);
+  const [action, setAction] = useState('');
   return (
-    <K.HistorySurface>
-      <K.HistoryEntry
-        title="Leave space for slow mornings"
-        date="Today at 09:41"
-        sha="a1b2c3d"
-        expanded={expanded}
-        onExpand={() => setExpanded(!expanded)}
-        onRevert={noop}
-      >
-        <K.UnifiedDiff path="notes/slow-mornings.md" patch={patch} />
-      </K.HistoryEntry>
-      <K.HistoryEntry
-        title="Coffee with Anna"
-        date="Yesterday"
-        sha="e4f5a6b"
-        expanded={false}
-        onExpand={noop}
-      />
-    </K.HistorySurface>
+    <K.FeaturePage
+      title="Saved items"
+      description="Shared rows with caller-owned details and actions."
+    >
+      <K.Stack gap="lg">
+        <K.ExpandableRow
+          title="Leave space for slow mornings"
+          metadata={
+            <K.Text size="xs" tone="muted">
+              Today at 09:41 · Anna
+            </K.Text>
+          }
+          expanded={expanded}
+          onExpand={() => setExpanded(!expanded)}
+          actions={
+            <K.RowAction
+              label="Restore"
+              accessibleLabel="Restore slow mornings"
+              icon="undo"
+              onClick={() => setAction('Restore requested')}
+            />
+          }
+        >
+          <K.Text>Keep the morning free for focused work.</K.Text>
+        </K.ExpandableRow>
+        <K.ExpandableRow
+          title="Coffee with Anna"
+          metadata={
+            <K.Text size="xs" tone="muted">
+              Yesterday
+            </K.Text>
+          }
+          expanded={false}
+          onExpand={noop}
+        />
+        {!!action && <K.Text role="status">{action}</K.Text>}
+      </K.Stack>
+    </K.FeaturePage>
   );
 }
 function Agent() {
@@ -1038,9 +1063,14 @@ function Navigation() {
         onClose={() => setSettings(false)}
         features={[{ name: 'Agent', content: <Preferences /> }]}
       />
-      <K.SearchSurface open={search} onClose={() => setSearch(false)}>
+      <K.CommandOverlay
+        open={search}
+        onClose={() => setSearch(false)}
+        title="Choose an item"
+        closeLabel="Cancel selection"
+      >
         <CommandContent />
-      </K.SearchSurface>
+      </K.CommandOverlay>
     </K.NavigationSuite>
   );
 }
@@ -1501,7 +1531,7 @@ export const catalogue: Specimen[] = [
     title: 'Search & commands',
     description: 'Full-screen phone search and the desktop command palette.',
     components: [
-      'SearchSurface',
+      'CommandOverlay',
       'SearchButton',
       'Command',
       'CommandInput',
@@ -1515,11 +1545,11 @@ export const catalogue: Specimen[] = [
     Sample: Search,
   },
   {
-    id: 'history',
-    title: 'History',
-    description: 'Centered reading width, touch rows and an expandable change.',
-    components: ['HistorySurface', 'HistoryEntry'],
-    Sample: History,
+    id: 'expandable-rows',
+    title: 'Expandable rows',
+    description: 'Shared titled rows with caller-owned metadata, details and actions.',
+    components: ['ExpandableRow', 'RowAction'],
+    Sample: ExpandableRows,
     fullBleed: true,
   },
   {
