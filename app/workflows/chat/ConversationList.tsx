@@ -16,7 +16,7 @@ export function ConversationList({
   open,
   onClose,
   disabled = false,
-  variant: suppliedVariant = 'rule',
+  variant: suppliedVariant = 'numbered',
 }: {
   conversation: NodeConversation;
   open: boolean;
@@ -25,7 +25,10 @@ export function ConversationList({
   variant?: 'rule' | 'numbered' | 'badged';
 }) {
   const override = usePreviewVariant('chat.conversation-list');
-  const variant = override === 'numbered' || override === 'badged' ? override : suppliedVariant;
+  const variant =
+    override === 'numbered' || override === 'badged' || override === 'rule'
+      ? override
+      : suppliedVariant;
   const [visible, setVisible] = useState(false);
   const state = useNodeChat(conversation);
   const [chats, setChats] = useState<readonly SavedChat[] | null>(null);
@@ -141,7 +144,7 @@ export function ConversationItem({
   selected,
   disabled,
   onOpen,
-  variant = 'rule',
+  variant = 'numbered',
   group,
   ordinal,
 }: {

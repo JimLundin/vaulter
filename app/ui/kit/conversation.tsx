@@ -113,13 +113,12 @@ function ConversationToolbar({ onNewChat, onConversations, busy }: ConversationA
         <Button
           variant="filled"
           size={mobile ? 'standard' : 'compact'}
-          iconOnly={mobile}
           aria-label="New conversation"
           disabled={busy}
           onClick={onNewChat}
         >
           <Icon name="plus" size={mobile ? 'lg' : 'md'} />
-          {!mobile && 'New conversation'}
+          New
         </Button>
         {!mobile && !!close && (
           <Button
