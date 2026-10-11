@@ -15,7 +15,6 @@ const pathOf = (id: string) => `${NODE_NAMESPACE}${encodeURIComponent(id)}.json`
 /** Read-only/offline access remains available; writes require remote acceptance and Web Locks. */
 export function githubNodeBackend(options: {
   token: string;
-  key: CryptoKey;
   repo?: Repo;
   api?: string;
   fetch?: typeof fetch;

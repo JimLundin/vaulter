@@ -73,5 +73,4 @@ export interface NodeBackend extends NodeStore {
 
 export type OpenNodes = (options: {
   readonly secrets: import('../session/sealed.ts').Secrets;
-  readonly key: CryptoKey;
 }) => NodeBackend;

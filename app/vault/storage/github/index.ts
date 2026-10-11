@@ -2,7 +2,7 @@
 // Data API (write.ts). Tabs tell each other when one syncs or commits, so the others read the cache.
 import type { VaultFile } from '../../files.ts';
 import { Offline, TRAILER, type Head, type VaultBackend, type Verify } from '../backend.ts';
-import { clear, keepWith } from './cache.ts';
+import { clear, kept } from './cache.ts';
 import { github, sourceUrl, type Repo } from '../github-client/api.ts';
 import { readCache, sync, type Snapshot } from './sync.ts';
 import { commitChanges, revertCommit } from './write.ts';
@@ -10,7 +10,6 @@ import { browserCache, browserWrites } from '../coordination.ts';
 
 export function githubBackend(o: {
   token: string;
-  key: CryptoKey;
   repo?: Repo;
   api?: string;
   fetch?: typeof fetch;
@@ -43,9 +42,8 @@ export function githubBackend(o: {
     if (!snap) throw new Error('not synced yet');
     return snap;
   };
-  const kept = keepWith();
   const adoptCache = async () => {
-    const cached = await readCache(o.key);
+    const cached = await readCache();
     return cached && head(cached);
   };
 
@@ -57,7 +55,7 @@ export function githubBackend(o: {
         try {
           const before = snap?.tree;
           const cached = await adoptCache();
-          const r = await sync(o.key, gh, snap);
+          const r = await sync(gh, snap);
           if (!r) return cached && cached.version !== before ? cached : null;
           channel?.postMessage('synced');
           return head(r);
@@ -82,12 +80,12 @@ export function githubBackend(o: {
     write: (changes, message, verify: Verify) =>
       browserCache(async () => {
         await adoptCache();
-        return wrote(await commitChanges(o.key, gh, ready(), files, changes, message, verify));
+        return wrote(await commitChanges(gh, ready(), files, changes, message, verify));
       }),
     revert: (sha, verify) =>
       browserCache(async () => {
         await adoptCache();
-        return wrote(await revertCommit(o.key, gh, ready(), files, sha, verify));
+        return wrote(await revertCommit(gh, ready(), files, sha, verify));
       }),
     history: async () => (await gh.commits()).filter((c) => c.message.includes(TRAILER)),
     patch: async (sha) => (await gh.commit(sha)).files,

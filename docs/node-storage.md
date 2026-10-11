@@ -78,12 +78,13 @@ the same ID. Nothing becomes accepted locally before GitHub acceptance. Device-c
 failure after acceptance cannot turn a successful commit into a rejected one.
 
 The configured GitHub repository stores JSON plaintext, as it already stores private vault files.
-AES-GCM encrypts the device cache with the injected nonextractable session cache key. That device
-key is not suitable for cross-device remote encryption. Tokens/keys never enter transaction
-records. The cache is partitioned by endpoint, repository, branch, and namespace. It stores each
-envelope once plus an encrypted remote head and ownership marker; no CryptoKey is persisted there.
+The device cache stores plaintext structured values, with no cache keys or ownership markers.
+Credentials in `secrets.json` remain password-encrypted and never enter transaction records.
+The cache is partitioned by endpoint, repository, branch, and namespace. It stores each envelope
+once plus a plaintext remote head; no CryptoKey is persisted there.
 Signing out clears the device records and closes the adapter while retaining remote history.
-Reopening under a different key discards unreadable cache data and rebuilds from GitHub.
+A new unlock retains plaintext cache data; signing out clears it. The plaintext cache format
+resets old encrypted device records without migrating them; remote history refills on refresh.
 
 Cached reads work offline. New commits require reachable GitHub; offline commit/staging or
 cross-device branching is not introduced. Web Locks coordinate cache publication and writes
@@ -104,9 +105,9 @@ Accepted paths may not be removed or rewritten. Unknown well-formed structured o
 remain readable; their behavior belongs to features. Invalid remote records do not replace the
 previous visible state. Hash-verified blobs preserve the existing Git client integrity checks.
 
-Refresh uses conditional refs, reads only new envelopes in bounded batches, and retains decrypted
-accepted records in memory. Snapshot projections are cached with bounded retention; reads do not
-replay/decrypt IndexedDB on every call. First open still loads all recorded transactions, cold
+Refresh uses conditional refs, reads only new envelopes in bounded batches, and retains accepted
+records in memory. Snapshot projections are cached with bounded retention; reads do not
+replay IndexedDB on every call. First open still loads all recorded transactions, cold
 validation scans accumulated history, and remote refresh lists the repository's recursive tree.
 This is suitable for the first storage slice, not unlimited history. GitHub's recursive-tree limit
 produces an explicit failure. Checkpoints/paged remote indexes and bounded cold reconstruction need
@@ -116,8 +117,8 @@ measurements as usage grows. No garbage collection discards referenced historica
 
 Adapter tests exercise atomic acceptance, exact citation retention, localized versions, historical
 composition, compensation, conflicts/read dependencies, immutable metadata, retry identity, lost
-responses, competing devices, encrypted reopen/rebuild, cache failures, incremental remote reads,
-and refusal of altered envelopes. Session tests verify cache-before-refresh, key injection,
+responses, competing devices, plaintext reopen/rebuild, cache failures, incremental remote reads,
+and refusal of altered envelopes. Session tests verify cache-before-refresh, credential injection,
 independent error status, close, and sign-out cleanup using fictional records.
 
 Product integration tests exercise Chat→Agent→content→durable receipts→response→reopened records,

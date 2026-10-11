@@ -6,13 +6,11 @@ import { useSession, type Session } from './session.ts';
 import { memoryBackend } from '../storage/memory.ts';
 import { memoryNodeBackend } from '../nodes/memory.ts';
 import type { NodeBackend } from '../nodes/store.ts';
-import { newCacheKey } from './crypto.ts';
 import { remembered, forget } from './unlock.ts';
 
 vi.mock('./unlock.ts', () => ({
   remembered: vi.fn(),
   forget: vi.fn(),
-  devUnlocked: vi.fn(),
   unlock: vi.fn(),
 }));
 const roots: ReturnType<typeof createRoot>[] = [];
@@ -29,10 +27,8 @@ afterEach(async () => {
 async function open(nodes: NodeBackend) {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{}')));
-  const key = await newCacheKey();
   vi.mocked(remembered).mockResolvedValue({
-    secrets: { github: 'fictional-token' },
-    cacheKey: key,
+    github: 'fictional-token',
   });
   const factory = vi.fn(() => nodes);
   let session!: Session;
@@ -50,10 +46,10 @@ async function open(nodes: NodeBackend) {
     root.render(<Probe />);
     await Promise.resolve();
   });
-  return { session: () => session, factory, key, root };
+  return { session: () => session, factory, root };
 }
 
-test('unlocked session injects credentials/key, loads cache before remote refresh, and closes on unmount', async () => {
+test('unlocked session injects credentials, loads cache before remote refresh, and closes on unmount', async () => {
   const nodes = memoryNodeBackend();
   const order: string[] = [];
   vi.spyOn(nodes, 'cached').mockImplementation(() => {
@@ -65,8 +61,8 @@ test('unlocked session injects credentials/key, loads cache before remote refres
     return Promise.resolve();
   });
   const close = vi.spyOn(nodes, 'close');
-  const { session, factory, key, root } = await open(nodes);
-  expect(factory).toHaveBeenCalledWith({ secrets: { github: 'fictional-token' }, key });
+  const { session, factory, root } = await open(nodes);
+  expect(factory).toHaveBeenCalledWith({ secrets: { github: 'fictional-token' } });
   expect(order).toEqual(['cached', 'refresh']);
   expect(session().nodes).toBe(nodes);
   expect(session().nodeStatus.kind).toBe('synced');
@@ -116,6 +112,7 @@ test('visible sessions periodically refresh shared nodes and expose manual refre
   vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible');
   await act(async () => {
     if (typeof callback === 'function') callback();
+    await Promise.resolve();
   });
   expect(refresh).toHaveBeenCalledTimes(2);
   await act(async () => {

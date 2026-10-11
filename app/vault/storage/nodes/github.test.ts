@@ -3,7 +3,6 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { Dexie } from 'dexie';
 import { githubNodeBackend, NODE_NAMESPACE } from './github.ts';
 import { fakeGitHub } from '../github-client/fake-github.ts';
-import { newCacheKey } from '../../session/crypto.ts';
 import { serial } from '../coordination.ts';
 import { seed, request, create, revise } from '../../nodes/fixtures.test-support.ts';
 import type { NodeBackend } from '../../nodes/store.ts';
@@ -35,11 +34,9 @@ afterEach(async () => {
 });
 async function setup() {
   const fake = await fakeGitHub({ 'Existing.md': '# Untouched legacy file' });
-  const key = await newCacheKey();
-  const open = (fetchFn = fake.fetchFn, otherKey = key) => {
+  const open = (fetchFn = fake.fetchFn) => {
     const store = githubNodeBackend({
       token: 'test',
-      key: otherKey,
       repo: { owner: 'fictional', name: 'vault', branch: 'main' },
       api: 'https://gh.test',
       fetch: fetchFn,
@@ -50,7 +47,7 @@ async function setup() {
   const store = open();
   await store.refresh();
   await seed(store);
-  return { ...fake, store, open, key };
+  return { ...fake, store, open };
 }
 
 test('node JSON and transaction metadata retain all keys through cache reopen and remote rebuild', async () => {
@@ -58,14 +55,14 @@ test('node JSON and transaction metadata retain all keys through cache reopen an
   const data = JSON.parse('{"__proto__":{"text":"retain"},"constructor":2,"prototype":3}');
   await store.commit({ ...request('json', [create('json', data)]), metadata: data });
   store.close();
-  const cached = open(undefined, await newCacheKey());
+  const cached = open();
   await cached.cached();
   expect((await cached.snapshot()).get('json')?.data).toEqual(data);
   expect(
     (await cached.history()).find((transaction) => transaction.id === 'json')?.metadata,
   ).toEqual(data);
   cached.close();
-  const remote = open(undefined, await newCacheKey());
+  const remote = open();
   await remote.refresh();
   expect((await remote.snapshot()).get('json')?.data).toEqual(data);
   expect(
@@ -94,7 +91,7 @@ test('one envelope is remotely accepted, legacy files preserved, exact citations
   expect(JSON.parse(filesAt()[`${NODE_NAMESPACE}citation.json`]).versions).toHaveLength(2);
   await store.commit(request('delete', [await revise(store, 'evidence', null)]));
   store.close();
-  const cached = open(undefined, await newCacheKey());
+  const cached = open();
   await cached.cached();
   expect((await cached.snapshot()).sequence).toBe(3);
   const citation = (await cached.snapshot()).get('citation')!;
@@ -102,7 +99,7 @@ test('one envelope is remotely accepted, legacy files preserved, exact citations
     'Keep mornings free.',
   );
   await undoNodes(cached, done.id, 'user');
-  const newDevice = open(undefined, await newCacheKey());
+  const newDevice = open();
   await newDevice.refresh();
   expect((await newDevice.snapshot()).resolve(citation.key)).toEqual(citation);
   expect((await newDevice.snapshot()).get('citation')?.data).toBeNull();
@@ -122,7 +119,7 @@ test('cache stores structural data and metadata as plaintext without a persisted
   const rows = await Promise.all(db.tables.map(async (table) => table.toArray()));
   expect(JSON.stringify(rows)).toContain('Private sample');
   expect(JSON.stringify(rows)).toContain('placement');
-  expect(db.tables.map((table) => table.name)).toEqual(['envelopes', 'head', 'owner']);
+  expect(db.tables.map((table) => table.name)).toEqual(['envelopes', 'head']);
   expect(rows.flat().some((row) => 'key' in row)).toBe(false);
   db.close();
 });

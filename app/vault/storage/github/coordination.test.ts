@@ -1,6 +1,5 @@
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
-import { newCacheKey } from '../../session/crypto.ts';
 import { fakeGitHub } from '../github-client/fake-github.ts';
 import { clear, db } from './cache.ts';
 import { githubBackend } from './index.ts';
@@ -8,9 +7,7 @@ import { writerCore, type Overlay } from '../../changes/writer.ts';
 import type { FileRules } from '../../files.ts';
 import { serial } from '../coordination.ts';
 
-let key: CryptoKey;
-beforeEach(async () => {
-  key = await newCacheKey();
+beforeEach(() => {
   // One lock manager shared by the two adapters, like an origin's Web Locks manager.
   const locks = new Map<string, ReturnType<typeof serial>>();
   vi.stubGlobal('navigator', {
@@ -42,8 +39,7 @@ const deferred = () => {
 };
 async function setup() {
   const fake = await fakeGitHub({ 'Alpha.md': '# Alpha' });
-  const open = () =>
-    githubBackend({ token: 'test', key, api: 'https://gh.test', fetch: fake.fetchFn });
+  const open = () => githubBackend({ token: 'test', api: 'https://gh.test', fetch: fake.fetchFn });
   const first = open();
   let firstHead = (await first.refresh())!;
   const second = open();

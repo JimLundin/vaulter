@@ -87,7 +87,6 @@ export interface History {
  * (main.tsx). `keeps`, the files the features keep. */
 export type OpenBackend = (o: {
   secrets: Secrets;
-  key: CryptoKey;
   keeps: (path: string) => boolean;
 }) => VaultBackend;
 

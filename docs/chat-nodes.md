@@ -82,7 +82,7 @@ Reset clears this journal and the selected conversation; ordinary reload preserv
 Query scenarios `initial-save`, `lost-response`, `content-save`, `content-lost-response`, `outcome-save`
 and `terminal-save` inject one failure
 at the corresponding registered operation. Lost-response accepts and journals before throwing.
-This tab-scoped fictional retention does not replace the production encrypted cache.
+This tab-scoped fictional retention does not replace the production plaintext cache.
 
 New Chat metadata production accepts observations, attachments and Interpretations with exact
 reference children. Historical metadata decoding also delegates old Agent run/context/tool payloads

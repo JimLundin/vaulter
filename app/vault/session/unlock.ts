@@ -2,13 +2,10 @@
 // key for 30 days, as a non-extractable CryptoKey in IndexedDB. Vault contents are stored in
 // plaintext. Signing out clears the device contents.
 import { deriveKey, unseal, type Sealed, type Secrets } from './sealed.ts';
-import { newCacheKey } from './crypto.ts';
 import { database } from './idb.ts';
 
-//   keys  'device' -> { id, key, salt, cacheKey, expires }   what unlocking remembers
-//         'dev' -> { id, cacheKey }                         dev's cache key (no password)
-// The database was the whole cache once (version 3); the upgrade keeps only the keys.
-const db = database('vault', 4, { keys: 'id' }, ['keys']);
+// The device remembers only the password-derived credential key. Version 5 drops old cache keys.
+const db = database('vault', 5, { keys: 'id' });
 const { get, put, del } = db;
 /** For tests: forget the open connection. */
 export const closeKeys = db.close;
@@ -19,25 +16,19 @@ interface Device {
   id: 'device';
   key: CryptoKey;
   salt: string;
-  cacheKey: CryptoKey;
   expires: number;
 }
-export interface Unlocked {
-  secrets: Secrets;
-  cacheKey: CryptoKey;
-}
-
 export async function forget() {
   await del('keys', 'device');
 }
 
 /** The secrets, if this device remembers a key that still opens them; otherwise null (and forgotten). */
-export async function remembered(sealed: Sealed, now = Date.now()): Promise<Unlocked | null> {
+export async function remembered(sealed: Sealed, now = Date.now()): Promise<Secrets | null> {
   const d = await get<Device>('keys', 'device');
   if (!d) return null;
   if (d.expires > now && d.salt === sealed.kdf.salt) {
     try {
-      return { secrets: await unseal(sealed, d.key), cacheKey: d.cacheKey };
+      return await unseal(sealed, d.key);
     } catch {
       // It no longer opens them (a new password): forgotten below.
     }
@@ -46,33 +37,17 @@ export async function remembered(sealed: Sealed, now = Date.now()): Promise<Unlo
   return null;
 }
 
-/** Dev: the secrets from the environment (vite.config.ts), no password; this device keeps one cache key, so
- * the cache outlives a reload. */
-export async function devUnlocked(secrets: Secrets): Promise<Unlocked> {
-  const kept = await get<{ id: 'dev'; cacheKey: CryptoKey }>('keys', 'dev');
-  if (kept) return { secrets, cacheKey: kept.cacheKey };
-  const cacheKey = await newCacheKey();
-  await put('keys', { id: 'dev', cacheKey });
-  return { secrets, cacheKey };
-}
-
 /** Opens the secrets with the password (throws if it's wrong) and remembers this device. */
-export async function unlock(
-  sealed: Sealed,
-  password: string,
-  now = Date.now(),
-): Promise<Unlocked> {
+export async function unlock(sealed: Sealed, password: string, now = Date.now()): Promise<Secrets> {
   const key = await deriveKey(password, sealed.kdf.salt, sealed.kdf.iterations);
   const secrets = await unseal(sealed, key);
   await forget(); // forget the previous remembered unlock
-  const cacheKey = await newCacheKey();
   await put('keys', {
     id: 'device',
     key,
     salt: sealed.kdf.salt,
-    cacheKey,
     expires: now + REMEMBER,
   } satisfies Device);
   await navigator.storage?.persist?.().catch(() => false);
-  return { secrets, cacheKey };
+  return secrets;
 }

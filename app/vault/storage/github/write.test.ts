@@ -1,7 +1,6 @@
 import 'fake-indexeddb/auto';
-import { afterEach, beforeEach, expect, test } from 'vitest';
+import { afterEach, expect, test } from 'vitest';
 import { fakeGitHub } from '../github-client/fake-github.ts';
-import { newCacheKey } from '../../session/crypto.ts';
 import { clear, db } from './cache.ts';
 import { CheckFailed, Conflict, TRAILER } from '../backend.ts';
 import { gate } from '../../changes/writer.ts';
@@ -22,10 +21,6 @@ const VAULT = {
   'Beta.md': NOTE('Beta', 'See [Alpha](</Alpha.md>).'),
 };
 
-let key: CryptoKey;
-beforeEach(async () => {
-  key = await newCacheKey();
-});
 afterEach(async () => {
   await clear();
   await db.close();
@@ -33,7 +28,7 @@ afterEach(async () => {
 
 async function setup() {
   const f = await fakeGitHub(VAULT);
-  const backend = githubBackend({ token: 'tok', key, api: 'https://gh.test', fetch: f.fetchFn });
+  const backend = githubBackend({ token: 'tok', api: 'https://gh.test', fetch: f.fetchFn });
   await backend.refresh();
   return { ...f, backend };
 }
@@ -50,7 +45,7 @@ test('several files are one commit on main, cached at once', async () => {
   );
   expect(filesAt()['Gamma.md']).toContain('# Gamma');
   expect(state.calls.filter((c) => c.startsWith('PATCH'))).toHaveLength(1);
-  expect((await readCache(key))!.snapshot.commit).toBe(r.commit);
+  expect((await readCache())!.snapshot.commit).toBe(r.commit);
   expect((await backend.history!())[0].message).toContain(TRAILER);
 });
 

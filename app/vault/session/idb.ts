@@ -23,13 +23,11 @@ export const done = <T>(r: IDBRequest<T>) =>
     r.onerror = () => fail(r.error);
   });
 
-/** `stores`: name -> key path. An upgrade (a new `version`) drops every store but those in `keep` and
- * makes the rest anew, so what isn't kept is a cache the next use refills. */
+/** `stores`: name -> key path. A new version resets every store; callers choose when to refill it. */
 export function database<S extends string>(
   name: string,
   version: number,
   stores: Record<S, string>,
-  keep: S[] = [],
 ): Db<S> {
   let db: Promise<IDBDatabase> | undefined;
   const open = () => {
@@ -37,8 +35,7 @@ export function database<S extends string>(
       const r = indexedDB.open(name, version);
       r.onupgradeneeded = () => {
         const d = r.result;
-        for (const s of [...d.objectStoreNames])
-          if (!(keep as string[]).includes(s)) d.deleteObjectStore(s);
+        for (const s of [...d.objectStoreNames]) d.deleteObjectStore(s);
         for (const [s, keyPath] of Object.entries(stores) as [S, string][])
           if (!d.objectStoreNames.contains(s)) d.createObjectStore(s, { keyPath });
       };

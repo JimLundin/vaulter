@@ -19,7 +19,6 @@ const after = (files: VaultFile[], blobs: Blob[]) =>
   });
 
 async function writeCommit(
-  key: CryptoKey,
   gh: GitHub,
   base: Snapshot,
   baseFiles: VaultFile[],
@@ -43,7 +42,7 @@ async function writeCommit(
       await gh.updateRef(commit);
     } catch (e) {
       if (!(e instanceof NotFastForward) || attempt >= 3) throw e;
-      const moved = await sync(key, gh, snap);
+      const moved = await sync(gh, snap);
       if (!moved) throw e;
       const conflicts = blobs
         .map((b) => b.path)
@@ -57,16 +56,11 @@ async function writeCommit(
     for (const b of blobs)
       if (b.sha === null) delete shas[b.path];
       else shas[b.path] = b.sha;
-    const records: BlobRecord[] = await Promise.all(
-      blobs
-        .filter((b): b is Extract<Blob, { text: string }> => b.sha !== null)
-        .map(async (b) => ({
-          sha: b.sha,
-          text: b.text,
-        })),
-    );
+    const records: BlobRecord[] = blobs
+      .filter((b): b is Extract<Blob, { text: string }> => b.sha !== null)
+      .map((b) => ({ sha: b.sha, text: b.text }));
     const snapshot: Snapshot = { commit, tree, etag: '', fetchedAt: Date.now(), files: shas };
-    await writeSnapshot(key, snapshot, records);
+    await writeSnapshot(snapshot, records);
     await gc(new Set(Object.values(shas)));
     return { snapshot, files: next, commit };
   }
@@ -74,7 +68,6 @@ async function writeCommit(
 
 /** Commits the changes as one commit. */
 export async function commitChanges(
-  key: CryptoKey,
   gh: GitHub,
   snap: Snapshot,
   files: VaultFile[],
@@ -90,12 +83,11 @@ export async function commitChanges(
       return { path, sha, text };
     }),
   );
-  return writeCommit(key, gh, snap, files, blobs, message, verify);
+  return writeCommit(gh, snap, files, blobs, message, verify);
 }
 
 /** Undoes one commit as a new commit; a file changed since then is a conflict. */
 export async function revertCommit(
-  key: CryptoKey,
   gh: GitHub,
   snap: Snapshot,
   files: VaultFile[],
@@ -129,7 +121,6 @@ export async function revertCommit(
   }
   if (conflicts.length) throw new Conflict(conflicts);
   return writeCommit(
-    key,
     gh,
     snap,
     files,

@@ -18,7 +18,12 @@ interface CachedRecord {
 export async function nodeCache(scope: string) {
   const name = `vaulter-nodes-${await digest(scope)}`;
   const db = new Dexie(name);
-  db.version(1).stores({ envelopes: 'id', head: 'id', owner: 'id' });
+  db.version(2)
+    .stores({ envelopes: 'id', head: 'id', owner: null })
+    .upgrade(async (transaction) => {
+      await transaction.table('envelopes').clear();
+      await transaction.table('head').clear();
+    });
   const envelopes = db.table<CachedRecord, string>('envelopes');
   const head = db.table<CachedRecord, string>('head');
   return {

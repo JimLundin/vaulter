@@ -2,7 +2,7 @@
 
 The browser app Jim reads the vault in, at **https://jimlundin.github.io/vaulter/**. It holds no notes:
 behind a password it reads them at runtime from the vault, the private repo `JimLundin/vault`, keeps
-them encrypted on the device, and works offline. Chat and Agent now produce nodes in the shared NodeStore. Legacy Search and History screens still
+them in plaintext on the device, and works offline. Chat and Agent now produce nodes in the shared NodeStore. Legacy Search and History screens still
 read Markdown and its schema. The separate migration inside the Vault populates the target layout;
 the application does not perform that migration. The design and its history: `PLAN-browser-app.md`
 (written while the app still lived in the vault, as `site/`, and the repos were `my-vault` and `vault-pages`).
@@ -50,7 +50,7 @@ explicit `.ts` imports and `import type` (enforced by `tsconfig.json`).
 
 `app/product.tsx` composes the optional workflows in `app/workflows/`. Each task owns its behavior,
 views and tests. Removing a feature means deleting its folder and its wiring in Product. The
-permanent `app/vault/` module owns notes, schema, graph, validation, encryption and checked writes.
+permanent `app/vault/` module owns notes, schema, graph, validation, credential encryption and checked writes.
 See [ARCHITECTURE.md](ARCHITECTURE.md) for the interfaces and dependency rules.
 
 The app uses the component kit and reference design from branch `ui-kit`, in `app/ui/kit/`. Run
@@ -69,7 +69,7 @@ structural integrity and the supplying module validates its own content.
 The central NodeStore contract supports immutable versions, atomic transactions, grouped placement
 and connection values, and identity or exact-version references. GitHub persistence writes one
 transaction envelope into the private vault's `.vaulter/nodes/v1/transactions/` namespace and uses
-an encrypted Dexie device cache with the unlocked session key. Node-backed Chat accepts its message
+a plaintext Dexie device cache. Node-backed Chat accepts its message
 and initial Agent run together, while Agent can also execute independently of conversations. Modules
 choose their tools and publication rules. Generic History reads expose records, cutoffs and differences
 without running producers; Product composes Agent/Chat/content preservation for compensation. The

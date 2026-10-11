@@ -5,7 +5,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Sealed, Secrets } from './sealed.ts';
 import { Offline, type Head, type OpenBackend, type VaultBackend } from '../storage/backend.ts';
-import { devUnlocked, forget, remembered, unlock, type Unlocked } from './unlock.ts';
+import { forget, remembered, unlock } from './unlock.ts';
 import type { NodeBackend, NodeStore, OpenNodes } from '../nodes/store.ts';
 
 export type Status =
@@ -96,12 +96,12 @@ export function useSession(
       nodeBusy.current = false;
     }
   };
-  const begin = (u: Unlocked) => {
+  const begin = (credentials: Secrets) => {
     if (!mounted.current) return Promise.resolve();
-    setSecrets(u.secrets);
+    setSecrets(credentials);
     const nodeOpen = async () => {
       if (!openNodes) return;
-      const store = openNodes({ secrets: u.secrets, key: u.cacheKey });
+      const store = openNodes({ secrets: credentials });
       activeNodes.current?.close();
       activeNodes.current = store;
       setNodes(store);
@@ -112,16 +112,13 @@ export function useSession(
       }
       await refreshNodes(store);
     };
-    return Promise.all([
-      open(openBackend({ secrets: u.secrets, key: u.cacheKey, keeps })),
-      nodeOpen(),
-    ]);
+    return Promise.all([open(openBackend({ secrets: credentials, keeps })), nodeOpen()]);
   };
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: once, on mount; what it calls reads only refs and state setters
   useEffect(() => {
     const start = async () => {
-      if (DEV_SECRETS) return begin(await devUnlocked(DEV_SECRETS));
+      if (DEV_SECRETS) return begin(DEV_SECRETS);
       const res = await fetch('./secrets.json').catch(() => null);
       if (!res?.ok)
         return setStatus({
@@ -165,7 +162,7 @@ export function useSession(
     };
   }, [backend]);
 
-  // Node cache lifetime follows the unlocked session, without exposing the key to workflows.
+  // Node cache lifetime follows the unlocked session, with credentials kept out of workflows.
   // biome-ignore lint/correctness/useExhaustiveDependencies: refreshNodes only uses refs and setters.
   useEffect(() => {
     if (!nodes) return;

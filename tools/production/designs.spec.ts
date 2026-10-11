@@ -122,4 +122,41 @@ test('production opens real Wiki pages and exact evidence alongside persistent C
   await expect(page.locator('[data-message="user"]')).toContainText(
     'I want quiet mornings in the studio.',
   );
+  const cached = await page.evaluate(async () => {
+    const names = (await indexedDB.databases())
+      .map((database) => database.name)
+      .filter((name): name is string => !!name);
+    const databases = await Promise.all(
+      names.map(async (name) => {
+        const database = await new Promise<IDBDatabase>((resolve, reject) => {
+          const opening = indexedDB.open(name);
+          opening.onsuccess = () => resolve(opening.result);
+          opening.onerror = () => reject(opening.error);
+        });
+        const stores = [...database.objectStoreNames];
+        const rows = await Promise.all(
+          stores.map(
+            (store) =>
+              new Promise<unknown[]>((resolve, reject) => {
+                const read = database.transaction(store).objectStore(store).getAll();
+                read.onsuccess = () => resolve(read.result);
+                read.onerror = () => reject(read.error);
+              }),
+          ),
+        );
+        database.close();
+        return { name, stores, rows: rows.flat() };
+      }),
+    );
+    const vaultData = databases.filter((database) => database.name !== 'vault');
+    return {
+      vaultText: JSON.stringify(vaultData),
+      credentialFields: databases
+        .find((database) => database.name === 'vault')
+        ?.rows.map((row) => Object.keys(row as object)),
+    };
+  });
+  expect(cached.vaultText).toContain('I want quiet mornings in the studio.');
+  expect(cached.vaultText).not.toContain('fictional-token');
+  expect(cached.credentialFields).toEqual([['id', 'key', 'salt', 'expires']]);
 });

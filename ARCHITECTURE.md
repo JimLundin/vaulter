@@ -21,8 +21,8 @@ app/
     documents/               notes, schema, links, graph, capture format, search
     validation/              permanent note and graph rules
     changes/                 persisted shared staging and checked writes
-    session/                 unlocking, encryption, synchronization
-    storage/                 file adapters and GitHub node persistence with encrypted Dexie cache
+    session/                 unlocking, credential encryption, synchronization
+    storage/                 file adapters and GitHub node persistence with plaintext Dexie cache
   ui/
     kit/                     component kit and reference design from ui-kit
     Frame.tsx                direct desktop/mobile layout composition
@@ -74,7 +74,7 @@ Product and removed with the corresponding wiring.
 ## Legacy file infrastructure owns file integrity
 
 The legacy file infrastructure owns note parsing, `meta/schema.yaml`, link and reference
-validation, graph derivation, encryption, synchronization, and the shared staged preview. File
+validation, graph derivation, synchronization, and the shared staged preview. File
 selection and write checks no longer depend on which workflows are installed.
 
 `Vault` exposes current files, staged paths, staging, checked commit/revert, history and patch queries.
@@ -213,7 +213,7 @@ scroll inside the field. Other features retain the floating voice action above t
 
 ## Browser and deployment
 
-The browser uses GitHub through an encrypted IndexedDB cache, including offline snapshots and staged
+The browser uses GitHub through a plaintext IndexedDB cache, including offline snapshots and staged
 edits. Memory is the test adapter. No browser source depends on Node. The toolchain and `tools/` use
 Node 24. Deployment seals `dist/secrets.json`, which the app loads relative to its published root.
 Notes remain in the private vault; this repository ships application code only.
@@ -239,14 +239,14 @@ an exact key, optional placement, optional source/target connection, and JSON co
 transaction appends complete versions atomically with required authorship. Identity addresses
 resolve within the viewing snapshot; transaction-qualified addresses select exact immutable rows.
 `useVaultSession()` exposes `nodes` and independent `nodeStatus`. Bootstrap selects `OpenNodes`
-with the unlocked key and GitHub credentials; the design preview uses memory. Adapter lifecycle,
+with GitHub credentials; the design preview uses memory. Adapter lifecycle,
 remote acceptance, and cache clearing stay in the session, outside workflows.
 
 GitHub node persistence writes a versioned transaction namespace alongside existing repository
 files. A non-forced ref update is definitive acceptance; stale expectations reject or unrelated
-remote races retry. Dexie is an encrypted rebuildable cache, not a separate source of authority.
+remote races retry. Dexie is a plaintext rebuildable cache, not a separate source of authority.
 The [storage guide](docs/node-storage.md) and [persistence decision](docs/adr/0003-github-node-persistence.md)
-describe retry, ordering, offline, encryption, and history-size semantics. Chat/Agent produce nodes;
+describe retry, ordering, offline, device storage, and history-size semantics. Chat/Agent produce nodes;
 the visible History and Search screens retain their legacy file scope. [Consumer contracts](docs/node-consumers.md)
 live with their owning workflows: `workflows/chat/records/` holds Chat payloads, lossless schemas,
 acceptance requests, saved-message projections and its transcript-preservation policy;

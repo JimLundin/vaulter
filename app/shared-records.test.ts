@@ -2,7 +2,6 @@ import 'fake-indexeddb/auto';
 import { expect, test } from 'vitest';
 import { githubNodeBackend } from './vault/storage/nodes/github.ts';
 import { fakeGitHub } from './vault/storage/github-client/fake-github.ts';
-import { newCacheKey } from './vault/session/crypto.ts';
 import { create, request, seed } from './vault/nodes/fixtures.test-support.ts';
 import type { NodeBackend } from './vault/nodes/store.ts';
 import { createProductConversation, productNodeHistory } from './product.tsx';
@@ -10,10 +9,9 @@ import { createProductConversation, productNodeHistory } from './product.tsx';
 test('conversation and transaction projections include writes accepted on independent devices', async () => {
   const fake = await fakeGitHub({});
   const stores: NodeBackend[] = [];
-  const open = (_fetch?: unknown, key?: CryptoKey) => {
+  const open = () => {
     const store = githubNodeBackend({
       token: 'test',
-      key: key!,
       repo: { owner: 'fictional', name: 'vault', branch: 'main' },
       api: 'https://gh.test',
       fetch: fake.fetchFn,
@@ -21,10 +19,10 @@ test('conversation and transaction projections include writes accepted on indepe
     stores.push(store);
     return store;
   };
-  const first = open(undefined, await newCacheKey());
+  const first = open();
   await first.refresh();
   await seed(first);
-  const second = open(undefined, await newCacheKey());
+  const second = open();
   await second.refresh();
   const at = '2026-01-01T12:00:00Z';
   await first.commit(
@@ -44,9 +42,7 @@ test('conversation and transaction projections include writes accepted on indepe
     createProductConversation({
       nodes,
       provider: 'fictional',
-      model: async () => {
-        throw new Error('Read only');
-      },
+      model: () => Promise.reject(new Error('Read only')),
       selectedModel: 'fictional',
       instructions: '',
     });
@@ -64,8 +60,6 @@ test('conversation and transaction projections include writes accepted on indepe
   );
   chatA.dispose();
   chatB.dispose();
-  for (const store of stores) {
-    await store.clear();
-    store.close();
-  }
+  await Promise.all(stores.map((store) => store.clear()));
+  for (const store of stores) store.close();
 });

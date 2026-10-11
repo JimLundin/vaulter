@@ -11,19 +11,17 @@ import { githubBackend } from './vault/storage/github/index.ts';
 import { githubNodeBackend } from './vault/storage/nodes/github.ts';
 import type { OpenNodes } from './vault/nodes/store.ts';
 
-const openBackend: OpenBackend = ({ secrets, key, keeps }) =>
+const openBackend: OpenBackend = ({ secrets, keeps }) =>
   githubBackend({
     token: secrets.github,
-    key,
     api: import.meta.env.VITE_GITHUB_API || undefined,
     keeps,
   });
 
 startTheme();
-const openNodes: OpenNodes = ({ secrets, key }) =>
+const openNodes: OpenNodes = ({ secrets }) =>
   githubNodeBackend({
     token: secrets.github,
-    key,
     api: import.meta.env.VITE_GITHUB_API || undefined,
   });
 createRoot(document.getElementById('app')!).render(

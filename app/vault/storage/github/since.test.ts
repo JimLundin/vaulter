@@ -1,15 +1,10 @@
 import 'fake-indexeddb/auto';
-import { afterEach, beforeEach, expect, test } from 'vitest';
+import { afterEach, expect, test } from 'vitest';
 import { fakeGitHub } from '../github-client/fake-github.ts';
-import { newCacheKey } from '../../session/crypto.ts';
 import { clear, db } from './cache.ts';
 import { githubBackend } from './index.ts';
 import { memoryBackend } from '../memory.ts';
 
-let key: CryptoKey;
-beforeEach(async () => {
-  key = await newCacheKey();
-});
 afterEach(async () => {
   await clear();
   await db.close();
@@ -24,7 +19,7 @@ test('since: the commit on the day, one compare, and old text only for changed f
     'this week',
     '2026-09-28T10:00:00Z',
   );
-  const backend = githubBackend({ token: 'tok', key, api: 'https://gh.test', fetch: f.fetchFn });
+  const backend = githubBackend({ token: 'tok', api: 'https://gh.test', fetch: f.fetchFn });
   await backend.refresh();
   f.state.calls.length = 0;
   const h = await backend.since!('2026-09-25');
@@ -43,7 +38,7 @@ test('since: the commit on the day, one compare, and old text only for changed f
 
 test('since: everything changed when main is younger than the day', async () => {
   const f = await fakeGitHub({ 'Alpha.md': '# Alpha' });
-  const backend = githubBackend({ token: 'tok', key, api: 'https://gh.test', fetch: f.fetchFn });
+  const backend = githubBackend({ token: 'tok', api: 'https://gh.test', fetch: f.fetchFn });
   await backend.refresh();
   const h = await backend.since!('2020-01-01');
   expect([...h.changed]).toEqual(['Alpha.md']);
