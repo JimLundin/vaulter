@@ -1355,6 +1355,75 @@ function PanelPrimitive() {
     </K.Stack>
   );
 }
+function SupportingPaneSample() {
+  const [open, setOpen] = useState(false);
+  const [review, setReview] = useState(false);
+  const [feed, setFeed] = useState(false);
+  const [draft, setDraft] = useState('');
+  const [messages, setMessages] = useState([
+    { id: 'retained', text: 'A retained supporting message.' },
+  ]);
+  return (
+    <K.SplitView
+      main={
+        <K.Stack>
+          <K.Button onClick={() => setOpen(true)}>Open supporting pane</K.Button>
+          <K.Button variant="outline" onClick={() => setFeed(!feed)}>
+            {feed ? 'Use scrolling body' : 'Use anchored feed'}
+          </K.Button>
+          <K.Input aria-label="Main task draft" defaultValue="Independent main task" />
+        </K.Stack>
+      }
+      supporting={
+        <K.SupportingPane
+          title="Supporting task"
+          open={open}
+          onClose={() => setOpen(false)}
+          actions={
+            <K.Button variant="ghost" onClick={() => setReview(true)}>
+              Review
+            </K.Button>
+          }
+          dock={
+            feed ? (
+              <K.Composer
+                draft={draft}
+                onDraftChange={setDraft}
+                canSubmit={true}
+                onSubmit={(text) => {
+                  setMessages([...messages, { id: crypto.randomUUID(), text }]);
+                  setDraft('');
+                }}
+                label="Supporting message"
+                placeholder="Continue the supporting task"
+              />
+            ) : undefined
+          }
+        >
+          <K.Overlay title="Supporting review" open={review} onClose={() => setReview(false)}>
+            <K.Input aria-label="Supporting review draft" defaultValue="Retained review" />
+          </K.Overlay>
+          {feed ? (
+            messages.map((message) => <K.Text key={message.id}>{message.text}</K.Text>)
+          ) : (
+            <K.Stack>
+              <K.Textarea
+                aria-label="Supporting draft"
+                defaultValue="Retained supporting content"
+              />
+              {Array.from({ length: 24 }, (_, index) => `Supporting line ${index + 1}`).map(
+                (line) => (
+                  <K.Text key={line}>{line}</K.Text>
+                ),
+              )}
+            </K.Stack>
+          )}
+        </K.SupportingPane>
+      }
+    />
+  );
+}
+
 function OptionPrimitives() {
   return (
     <K.Stack>
@@ -1513,6 +1582,15 @@ export const catalogue: Specimen[] = [
       'Building blocks used by Agent and Settings: toolbar, reading column, dock and surface roles.',
     components: ['Surface', 'Toolbar', 'ReadingColumn', 'Dock'],
     Sample: SurfacePrimitives,
+    fullBleed: true,
+  },
+  {
+    id: 'supporting-pane',
+    title: 'Supporting pane',
+    description:
+      'One header, width and scrolling policy beside expanded content and in a full-height compact bottom Drawer; optional following feed and anchored composer.',
+    components: ['SupportingPane'],
+    Sample: SupportingPaneSample,
     fullBleed: true,
   },
   {

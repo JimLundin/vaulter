@@ -1,6 +1,11 @@
 // Checked through each source and its reachable private helpers; the gallery links each building block.
 export const compositions = [
   {
+    source: 'supporting-pane.tsx',
+    families: ['supporting-pane'],
+    primitives: ['AutoScrollArea', 'Dock', 'Drawer'],
+  },
+  {
     source: 'theme.tsx',
     families: ['settings'],
     primitives: ['Icon', 'RadioGroup', 'RadioGroupItem', 'RadioGroupIndicator', 'Text'],

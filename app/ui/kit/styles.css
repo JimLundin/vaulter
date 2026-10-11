@@ -823,7 +823,9 @@ body:has(.kit-design-window) {
 }
 
 /* Persistent reading support shares its app-height frame with Chat and Wiki. */
-.kit-supporting-drawer-anchor:has([data-drawer-placement="reading"][data-layout="wide"]) {
+.kit-supporting-drawer-anchor:has(
+  :is([data-drawer-placement="reading"], [data-drawer-placement="pane"])[data-layout="wide"]
+) {
   display: block;
   width: var(--drawer-width);
   height: 100%;
@@ -831,13 +833,18 @@ body:has(.kit-design-window) {
   flex-shrink: 0;
 }
 .kit-supporting-drawer-anchor
-  .kit-drawer-viewport:has(> [data-drawer-placement="reading"][data-layout="wide"]) {
+  .kit-drawer-viewport:has(
+    > :is([data-drawer-placement="reading"], [data-drawer-placement="pane"])[data-layout="wide"]
+  ) {
   position: relative;
   width: 100%;
   height: 100%;
   min-height: 0;
 }
-.kit-drawer[data-arrangement="panel"][data-drawer-placement="reading"][data-layout="wide"] {
+.kit-drawer[data-arrangement="panel"]:is(
+  [data-drawer-placement="reading"],
+  [data-drawer-placement="pane"]
+)[data-layout="wide"] {
   position: relative;
   top: auto;
   align-self: stretch;
@@ -847,10 +854,18 @@ body:has(.kit-design-window) {
   border-left: 1px solid var(--border);
   border-radius: 0;
 }
-.kit-drawer[data-drawer-placement="reading"][data-layout="wide"] [data-slot="drawer-header"] {
+.kit-drawer:is(
+    [data-drawer-placement="reading"],
+    [data-drawer-placement="pane"]
+  )[data-layout="wide"]
+  [data-slot="drawer-header"] {
   height: var(--supporting-header-height);
   padding-block: 0;
 }
-.kit-drawer[data-drawer-placement="reading"][data-layout="wide"] [data-slot="drawer-inset"] {
+.kit-drawer:is(
+    [data-drawer-placement="reading"],
+    [data-drawer-placement="pane"]
+  )[data-layout="wide"]
+  [data-slot="drawer-inset"] {
   padding-top: 1rem;
 }

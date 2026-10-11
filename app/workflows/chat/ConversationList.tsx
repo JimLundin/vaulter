@@ -5,7 +5,7 @@ import {
   SelectionRow,
   usePreviewVariant,
   SelectionGroupHeading,
-  ResponsiveSupportingColumn,
+  SupportingPane,
 } from '../../ui/kit/index.ts';
 import type { NodeConversation } from './node-conversation.ts';
 import { useNodeChat } from './use-node-conversation.ts';
@@ -126,14 +126,15 @@ export function ConversationList({
     </Stack>
   );
   return (
-    <ResponsiveSupportingColumn
+    <SupportingPane
+      persistent={true}
       title="Conversations"
       open={open}
       onClose={onClose}
       onVisible={setVisible}
     >
       {content}
-    </ResponsiveSupportingColumn>
+    </SupportingPane>
   );
 }
 

@@ -8,7 +8,7 @@ import {
   DrawerTitle,
   DrawerHeader,
 } from './parts/drawer.tsx';
-import { Stack } from './parts/layout.tsx';
+import { Row, Stack } from './parts/layout.tsx';
 import { ScrollArea } from './parts/scroll-area.tsx';
 import { Icon } from './icons.tsx';
 import { useLayout } from './hooks/use-layout.ts';
@@ -20,6 +20,8 @@ export function Drawer({
   title,
   description,
   header,
+  actions,
+  scrollKey,
   children,
   placement = 'default',
   scroll = true,
@@ -30,9 +32,11 @@ export function Drawer({
   title: string;
   description?: string;
   header?: ReactNode;
+  actions?: ReactNode;
+  scrollKey?: string | number;
   children?: ReactNode;
   /** Placement changes geometry only; every role uses the same frame and controls. */
-  placement?: 'default' | 'right' | 'reading' | 'supporting';
+  placement?: 'default' | 'right' | 'reading' | 'supporting' | 'pane';
   /** Content with its own feed and dock retains control of scrolling. */
   scroll?: boolean;
   /** A persistent supporting panel keeps its frame open and omits dismissal controls. */
@@ -41,8 +45,9 @@ export function Drawer({
   const layout = useLayout();
   const compact = layout === 'compact';
   const supporting = placement === 'supporting';
+  const pane = placement === 'pane';
   const beside = placement !== 'default' && (supporting ? layout === 'wide' : !compact);
-  const inline = supporting || placement === 'reading';
+  const inline = supporting || pane || placement === 'reading';
   const restoreFocus = usePresentationFocus(open);
   const policy = usePresentationPolicy();
   const opener = useRef<HTMLElement | null>(null);
@@ -52,7 +57,7 @@ export function Drawer({
   const ref = useRef<HTMLDivElement>(null);
   // A different cited passage can become the opener while the same drawer stays open.
   useEffect(() => {
-    if (placement !== 'reading') return;
+    if (placement !== 'reading' && !pane) return;
     const remember = (event?: Event) => {
       const active =
         event?.type === 'pointerdown' && event.target instanceof Element
@@ -73,7 +78,12 @@ export function Drawer({
       document.removeEventListener('pointerdown', remember, true);
       document.removeEventListener('focusin', remember);
     };
-  }, [open, policy, placement]);
+  }, [open, policy, placement, pane]);
+  const viewport = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (scrollKey === undefined) return;
+    viewport.current?.scrollTo({ top: 0 });
+  }, [scrollKey]);
   return (
     <DrawerRoot
       modal={!beside}
@@ -94,9 +104,9 @@ export function Drawer({
         aria-label={title}
         aria-describedby={description ? descriptionId : undefined}
         finalFocus={() => {
-          if (placement !== 'reading') return restoreFocus();
+          if (placement !== 'reading' && !pane) return restoreFocus();
           // biome-ignore lint/suspicious/noUnnecessaryConditions: Base UI invokes this callback after the open arrangement changes
-          if (!openedModal.current) return false;
+          if (!pane && !openedModal.current) return false;
           const target = opener.current;
           return target?.isConnected &&
             target.getClientRects().length &&
@@ -118,20 +128,23 @@ export function Drawer({
               <DrawerDescription id={descriptionId}>{description}</DrawerDescription>
             )}
           </Stack>
-          {!!dismissible && (
-            <Button
-              variant="ghost"
-              size="standard"
-              iconOnly={true}
-              aria-label={`Close ${title.toLowerCase()}`}
-              onClick={onClose}
-            >
-              <Icon name="close" size="lg" />
-            </Button>
-          )}
+          <Row gap="xs">
+            {actions}
+            {!!dismissible && (
+              <Button
+                variant="ghost"
+                size="standard"
+                iconOnly={true}
+                aria-label={`Close ${title.toLowerCase()}`}
+                onClick={onClose}
+              >
+                <Icon name="close" size="lg" />
+              </Button>
+            )}
+          </Row>
         </DrawerHeader>
         {scroll ? (
-          <ScrollArea grow={true}>
+          <ScrollArea grow={true} viewportRef={viewport}>
             <div data-slot="drawer-inset">{children}</div>
           </ScrollArea>
         ) : (

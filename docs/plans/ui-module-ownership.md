@@ -221,3 +221,30 @@ slice lands. The glossary continues to describe domain concepts, not presentatio
 The deletion test for this plan is whether deleting a shared presentation module would redistribute
 its design and interaction knowledge into several callers. Locality means one place to change pane
 design; leverage means all consuming modules gain that change through a small shared interface.
+
+## Completed slice: supporting pane and conversation chooser (#44)
+
+`SupportingPane` is the shared presentation seam. Saved-conversation selection uses it in
+production; the paired catalogue demonstrates neutral scrolling content and a following feed with
+an anchored composer. The module supplies title/header content, actions, visibility and an optional
+selection identity. Selection changes reset the kit-owned scrolling body. A feed supplies its
+composer through `dock`, so it has one following scroll owner and a separate anchored dock.
+
+The policy uses the shared `md` boundary: expanded and wide space place a 340px pane beside the
+page; compact space uses the existing full-height bottom Drawer. Width, header arrangement, inset,
+scrolling, dismissal, focus return, gestures and bounded portal behavior live in the kit.
+`persistent` requests continued desktop occupancy; it does not select a presentation strategy.
+The chooser retains its existing desktop occupancy, loading/error display, subscriptions and
+selection actions. Recording now explicitly blocks chooser actions as well as the Chat toolbar.
+The public pane has no styling, breakpoint, modal or focus parameters. Compiler checks cover its
+composition, aliases/private imports and caller styling attempts.
+
+| Temporary path | Named consumers | Retirement criterion |
+| --- | --- | --- |
+| `ConversationPanel` / `AdaptivePanel`, Drawer `supporting` | Product Frame, Chat/catalogue and browser fixtures | Chat adopts `SupportingPane` in #45; retire remaining examples and old geometry in #51 |
+| `SupportingColumn` / `ResponsiveSupportingColumn`, Drawer `reading` | Wiki page references and legacy catalogue examples | Wiki adopts `SupportingPane` in #46; retire remaining examples and old geometry in #51 |
+
+The new policy preserves the chooser's current presentation. Chat will deliberately standardize
+from its intermediate centered dialog to the same expanded side pane when #45 adopts it. The
+fictional paired pane examples expose that destination for review. No pane occupancy manager is
+introduced, and existing unmigrated paths remain active until their owning tickets migrate them.

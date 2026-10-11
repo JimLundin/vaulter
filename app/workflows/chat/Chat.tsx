@@ -48,13 +48,6 @@ export function Chat({
   const { newChat, send, stop, viewing } = conversation;
   const [choosing, setChoosing] = useState(false);
   const showChats = () => setChoosing(true);
-  const chooser = (
-    <ConversationList
-      conversation={conversation}
-      open={choosing}
-      onClose={() => setChoosing(false)}
-    />
-  );
   const {
     draft: input,
     turns,
@@ -72,6 +65,14 @@ export function Chat({
   const [focused, setFocused] = useState(false);
   const transcript = useTranscript(voice);
   const recording = ['connecting', 'listening', 'finishing'].includes(transcript.phase);
+  const chooser = (
+    <ConversationList
+      conversation={conversation}
+      disabled={recording}
+      open={choosing}
+      onClose={() => setChoosing(false)}
+    />
+  );
   const [review, setReview] = useState<{
     text: string;
     files: ReturnType<NodeConversation['stagedChanges']>;
