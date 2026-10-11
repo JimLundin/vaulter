@@ -25,7 +25,7 @@ test('the entire catalogue renders paired live components without requests to ex
   });
   await page.goto('/ui/kit/');
   const families = page.locator('[data-kit-comparison]');
-  await expect(families).toHaveCount(36);
+  await expect(families).toHaveCount(37);
   for (const family of await families.all()) {
     await expect(specimen(family, 'desktop')).toHaveCount(1);
     await expect(specimen(family, 'mobile')).toHaveCount(1);
@@ -85,7 +85,7 @@ test('paired agent samples keep independent drafts and send through the shared o
   page,
 }) => {
   await page.goto('/ui/kit/');
-  await page.getByRole('searchbox', { name: 'Find a component' }).fill('Agent conversation');
+  await page.getByRole('searchbox', { name: 'Find a component' }).fill('Feed & composer');
   const family = page.locator('[data-kit-comparison="agent"]');
   const desktop = specimen(family, 'desktop');
   const mobile = specimen(family, 'mobile');
@@ -151,7 +151,7 @@ test('paired catalogue composers keep native and Safari IME confirmation as edit
   page,
 }) => {
   await page.goto('/ui/kit/');
-  await page.getByRole('searchbox', { name: 'Find a component' }).fill('Agent conversation');
+  await page.getByRole('searchbox', { name: 'Find a component' }).fill('Feed & composer');
   const family = page.locator('[data-kit-comparison="agent"]');
   for (const device of ['desktop', 'mobile'] as const) {
     const sample = specimen(family, device);
@@ -232,7 +232,7 @@ test('sidebar labels, badges and actions have separate slots at mouse and touch 
 test('submit actions sit inside fields and reserve room for editable text', async ({ page }) => {
   await page.goto('/ui/kit/');
   const filter = page.getByRole('searchbox', { name: 'Find a component' });
-  await filter.fill('Agent conversation');
+  await filter.fill('Feed & composer');
   const agent = page.locator('[data-kit-comparison="agent"]');
   for (const device of ['desktop', 'mobile'] as const) {
     const sample = specimen(agent, device);
@@ -395,7 +395,7 @@ test('component-name search keeps comparisons side by side and scopes dropdown p
 test('composition links reveal the catalogued primitive even when filtering', async ({ page }) => {
   await page.goto('/ui/kit/');
   const filter = page.getByRole('searchbox', { name: 'Find a component' });
-  await filter.fill('Agent conversation');
+  await filter.fill('Feed & composer');
   await page
     .locator('[data-kit-comparison="agent"] .kit-building-blocks')
     .getByRole('link', { name: 'Button', exact: true })
@@ -409,7 +409,7 @@ test('paired Agent panels remain independently editable and Escape closes the ac
   page,
 }) => {
   await page.goto('/ui/kit/');
-  await page.getByRole('searchbox', { name: 'Find a component' }).fill('Agent panel');
+  await page.getByRole('searchbox', { name: 'Find a component' }).fill('Supporting feed');
   const family = page.locator('[data-kit-comparison="agent-panel"]');
   const desktop = specimen(family, 'desktop');
   const mobile = specimen(family, 'mobile');
@@ -421,8 +421,10 @@ test('paired Agent panels remain independently editable and Escape closes the ac
     'Desktop draft',
   );
   await page.keyboard.press('Escape');
-  await expect(mobile.getByRole('dialog', { name: 'Chat', exact: true })).toBeHidden();
-  await expect(desktop.getByRole('dialog', { name: 'Chat', exact: true })).toBeVisible();
+  await expect(mobile.getByRole('dialog', { name: 'Supporting task', exact: true })).toBeHidden();
+  await expect(
+    desktop.getByRole('complementary', { name: 'Supporting task', exact: true }),
+  ).toBeVisible();
   await desktop.getByRole('textbox', { name: 'Panel message' }).focus();
   await page.keyboard.press('Escape');
   await expect(desktop.getByRole('button', { name: 'Open agent panel' })).toBeFocused();
@@ -433,7 +435,7 @@ test('paired panel composers submit once with the shared keyboard path and retai
   page,
 }) => {
   await page.goto('/ui/kit/');
-  await page.getByRole('searchbox', { name: 'Find a component' }).fill('Agent panel');
+  await page.getByRole('searchbox', { name: 'Find a component' }).fill('Supporting feed');
   const family = page.locator('[data-kit-comparison="agent-panel"]');
   for (const device of ['desktop', 'mobile'] as const) {
     const sample = specimen(family, device);
@@ -449,14 +451,14 @@ test('paired panel composers submit once with the shared keyboard path and retai
     await expect(field).toHaveValue('');
     await field.fill(`${device} unfinished thought`);
     await page.keyboard.press('Escape');
-    await expect(sample.getByRole('dialog', { name: 'Chat', exact: true })).toBeHidden();
+    await expect(sample.getByRole('dialog', { name: 'Supporting task', exact: true })).toBeHidden();
     await expect(sample.getByRole('button', { name: 'Open agent panel' })).toBeFocused();
     await sample.getByRole('button', { name: 'Open agent panel' }).click();
     await expect(field).toHaveValue(`${device} unfinished thought`);
     await sample.getByRole('button', { name: 'Send panel message' }).click();
     await expect(sample.locator('[data-message="user"]')).toHaveCount(2);
     await page.keyboard.press('Escape');
-    await expect(sample.getByRole('dialog', { name: 'Chat', exact: true })).toBeHidden();
+    await expect(sample.getByRole('dialog', { name: 'Supporting task', exact: true })).toBeHidden();
   }
 });
 
@@ -465,7 +467,7 @@ test('catalogue focus and outside interaction revoke a panel’s keyboard owners
 }) => {
   await page.goto('/ui/kit/');
   const filter = page.getByRole('searchbox', { name: 'Find a component' });
-  await filter.fill('Agent panel');
+  await filter.fill('Supporting feed');
   const family = page.locator('[data-kit-comparison="agent-panel"]');
   const desktop = specimen(family, 'desktop');
   const mobile = specimen(family, 'mobile');
@@ -475,21 +477,23 @@ test('catalogue focus and outside interaction revoke a panel’s keyboard owners
   await mobile.getByRole('button', { name: 'Send panel message' }).click();
   await desktop.getByRole('textbox', { name: 'Panel message' }).focus();
   await page.keyboard.press('Escape');
-  await expect(desktop.getByRole('dialog', { name: 'Chat', exact: true })).toBeHidden();
-  await expect(mobile.getByRole('dialog', { name: 'Chat', exact: true })).toBeVisible();
+  await expect(
+    desktop.getByRole('complementary', { name: 'Supporting task', exact: true }),
+  ).toBeHidden();
+  await expect(mobile.getByRole('dialog', { name: 'Supporting task', exact: true })).toBeVisible();
   await filter.focus();
   await page.keyboard.press('Escape');
-  await expect(mobile.getByRole('dialog', { name: 'Chat', exact: true })).toBeVisible();
+  await expect(mobile.getByRole('dialog', { name: 'Supporting task', exact: true })).toBeVisible();
   await filter.evaluate((node) => node.blur());
   await page.keyboard.press('Escape');
-  await expect(mobile.getByRole('dialog', { name: 'Chat', exact: true })).toBeVisible();
+  await expect(mobile.getByRole('dialog', { name: 'Supporting task', exact: true })).toBeVisible();
 });
 
 test('Escape after sending closes the last interacted panel while another sample stays editable', async ({
   page,
 }) => {
   await page.goto('/ui/kit/');
-  await page.getByRole('searchbox', { name: 'Find a component' }).fill('Agent panel');
+  await page.getByRole('searchbox', { name: 'Find a component' }).fill('Supporting feed');
   const family = page.locator('[data-kit-comparison="agent-panel"]');
   const desktop = specimen(family, 'desktop');
   const mobile = specimen(family, 'mobile');
@@ -502,9 +506,11 @@ test('Escape after sending closes the last interacted panel while another sample
   await expect(send).toBeDisabled();
   await expect(mobile.locator('[data-message="user"]')).toHaveCount(1);
   await page.keyboard.press('Escape');
-  await expect(mobile.getByRole('dialog', { name: 'Chat', exact: true })).toBeHidden();
+  await expect(mobile.getByRole('dialog', { name: 'Supporting task', exact: true })).toBeHidden();
   await expect(mobile.getByRole('button', { name: 'Open agent panel' })).toBeFocused();
-  await expect(desktop.getByRole('dialog', { name: 'Chat', exact: true })).toBeVisible();
+  await expect(
+    desktop.getByRole('complementary', { name: 'Supporting task', exact: true }),
+  ).toBeVisible();
   await desktop.getByRole('textbox', { name: 'Panel message' }).fill('Still editable');
   await expect(desktop.getByRole('textbox', { name: 'Panel message' })).toHaveValue(
     'Still editable',
@@ -513,7 +519,7 @@ test('Escape after sending closes the last interacted panel while another sample
 
 test('catalogue suggestions fill and focus their own public Composer field', async ({ page }) => {
   await page.goto('/ui/kit/');
-  await page.getByRole('searchbox', { name: 'Find a component' }).fill('Agent conversation');
+  await page.getByRole('searchbox', { name: 'Find a component' }).fill('Feed & composer');
   const family = page.locator('[data-kit-comparison="agent"]');
   for (const device of ['desktop', 'mobile'] as const) {
     const sample = specimen(family, device);

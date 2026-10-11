@@ -6,7 +6,6 @@ import { dirname, relative, resolve } from 'node:path';
 
 const slash = (path: string) => path.replaceAll('\\', '/');
 const contentRenderer = (path: string) =>
-  path.startsWith('app/workflows/chat/rendering/') ||
   path === 'app/vault/documents/notes/remark-vault-links.ts';
 const semanticRenderer = (path: string) => path.startsWith('app/workflows/wiki/rendering/');
 const semanticTags = new Set([
@@ -37,6 +36,8 @@ const semanticTags = new Set([
   'figure',
   'figcaption',
 ]);
+// Chat permits semantic code markup, never a renderer-wide presentation exemption.
+const chatCodeRenderer = (path: string) => path === 'app/workflows/chat/rendering/highlight.tsx';
 const kit = (path: string) => path.startsWith('app/ui/kit/');
 const workflow = (path: string) => /^app\/workflows\/([^/]+)\//.exec(path)?.[1];
 export function importProblem(from: string, to: string): string | null {
@@ -132,6 +133,7 @@ export function checkLayout(root: string): string[] {
             (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) &&
             ts.isIdentifier(node.tagName) &&
             /^[a-z]/.test(node.tagName.text) &&
+            !(chatCodeRenderer(from) && node.tagName.text === 'pre') &&
             !(semanticRenderer(from) && semanticTags.has(node.tagName.text))
           )
             problems.push(`${from}: <${node.tagName.text}> must be a public kit component`);
@@ -164,7 +166,13 @@ export function checkLayout(root: string): string[] {
               (symbol.flags & SymbolFlags.Alias
                 ? project.checker.getAliasedSymbol(symbol)
                 : symbol);
-            if (['createElement', 'jsx', 'jsxs', 'jsxDEV'].includes(resolved?.name ?? ''))
+            if (
+              ['createElement', 'jsx', 'jsxs', 'jsxDEV'].includes(resolved?.name ?? '') &&
+              !(
+                from === 'app/workflows/chat/rendering/markdown.ts' &&
+                node.arguments[0].text === 'p'
+              )
+            )
               problems.push(
                 `${from}: intrinsic element factories belong in the kit or content renderer`,
               );

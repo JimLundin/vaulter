@@ -249,6 +249,24 @@ from its intermediate centered dialog to the same expanded side pane when #45 ad
 fictional paired pane examples expose that destination for review. No pane occupancy manager is
 introduced, and existing unmigrated paths remain active until their owning tickets migrate them.
 
+### Chat ownership delivery (#45)
+
+Implemented Chat-owned page/supporting composition, `Turn` message views and `SavedChat` selection
+rows. Containers retain subscribed lifetime and explicit recovery/task actions; record views render
+accepted fictional data without a controller. The five migrated Conversation kit exports are
+removed. Kit message attribution and placement are caller-supplied; Composer remains shared.
+Chat and chooser use SupportingPane with one feed scroll owner and anchored dock.
+
+Visible standardization: supporting Chat stays beside content from 768px, uses the common pane
+header and width, and becomes the common full-height compact Drawer. Chat task toolbar and pane
+headers share a 48px token. Task actions use the same labelled controls in both arrangements;
+compact mouse controls remain 32px and touch targets remain 44px. Welcome content uses the selected shared typography.
+Fictional preview captures accompany validation outside the repository.
+
+Remaining preview-only dependency: `ConversationList` reads the `chat.conversation-list` preview
+variant in production; #50 replaces this with an explicit presentation choice. Historical Chat
+projection deepening remains follow-up work in the separate Vault modules plan.
+
 ## Completed slice: Wiki page composition (#46)
 
 `WikiPageView` owns typed page title/classification actions, block/record grouping and reference

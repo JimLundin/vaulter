@@ -16,12 +16,14 @@ export function ConversationList({
   open,
   onClose,
   disabled = false,
+  persistent = true,
   variant: suppliedVariant = 'numbered',
 }: {
   conversation: NodeConversation;
   open: boolean;
   onClose: () => void;
   disabled?: boolean;
+  persistent?: boolean;
   variant?: 'rule' | 'numbered' | 'badged';
 }) {
   const override = usePreviewVariant('chat.conversation-list');
@@ -84,7 +86,7 @@ export function ConversationList({
         chats.map((chat, index) => (
           <ConversationItem
             key={chat.node}
-            {...chat.data}
+            chat={chat}
             variant={variant}
             ordinal={
               index -
@@ -106,13 +108,12 @@ export function ConversationList({
                   })
                 : undefined
             }
-            activeAt={chat.activeAt}
             selected={chat.node === conversation.conversation()}
             disabled={blocked}
-            onOpen={async () => {
+            onOpen={async (node) => {
               setOpening(true);
               try {
-                await conversation.open(chat.node);
+                await conversation.open(node);
                 if (conversation.conversation() === chat.node) onClose();
               } catch (e) {
                 setError(String(e));
@@ -127,7 +128,7 @@ export function ConversationList({
   );
   return (
     <SupportingPane
-      persistent={true}
+      persistent={persistent}
       title="Conversations"
       open={open}
       onClose={onClose}
@@ -140,8 +141,7 @@ export function ConversationList({
 
 /** A saved conversation's node data, with activity derived from its recorded children. */
 export function ConversationItem({
-  title,
-  activeAt,
+  chat,
   selected,
   disabled,
   onOpen,
@@ -149,13 +149,10 @@ export function ConversationItem({
   group,
   ordinal,
 }: {
-  kind: 'conversation';
-  title: string;
-  createdAt: string;
-  activeAt: string;
+  chat: SavedChat;
   selected: boolean;
   disabled: boolean;
-  onOpen: () => Promise<void>;
+  onOpen: (node: string) => void | Promise<void>;
   variant?: 'rule' | 'numbered' | 'badged';
   group?: string;
   ordinal?: number;
@@ -167,15 +164,15 @@ export function ConversationItem({
         selected={selected}
         compact={true}
         disabled={disabled}
-        label={title}
-        timestamp={new Date(activeAt).toLocaleTimeString('en-GB', {
+        label={chat.data.title}
+        timestamp={new Date(chat.activeAt).toLocaleTimeString('en-GB', {
           hour: '2-digit',
           minute: '2-digit',
         })}
         ordinal={ordinal}
         marker={variant === 'numbered' ? 'number' : variant === 'badged' ? 'badge' : 'none'}
         onSelect={() => {
-          void onOpen();
+          void onOpen(chat.node);
         }}
       >
         {null}

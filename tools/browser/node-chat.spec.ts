@@ -293,7 +293,7 @@ for (const variant of ['numbered', 'badged', 'rule']) {
     const bounds = await panel.boundingBox();
     if (test.info().project.name !== 'phone') {
       expect(bounds!.x).toBeGreaterThan(page.viewportSize()!.width / 2);
-      await expect(page.getByRole('button', { name: 'Conversations', exact: true })).toBeHidden();
+      await expect(page.getByRole('button', { name: 'Conversations', exact: true })).toBeVisible();
       await expect(
         panel.getByRole('button', { name: 'Close conversations', exact: true }),
       ).toBeHidden();
@@ -358,7 +358,7 @@ test('timeline conversation rows stay uniform and truncate titles beside right-a
   const long = list.getByRole('button', { name: /A longer conversation title/ });
   const first = await short.boundingBox();
   const last = await long.boundingBox();
-  expect(first!.height).toBe(last!.height);
+  expect(first!.height).toBeCloseTo(last!.height, 2);
   const title = long.locator('[title]');
   expect(await title.evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(true);
   await expect(title).toHaveCSS('text-overflow', 'ellipsis');

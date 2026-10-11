@@ -1,14 +1,7 @@
 // The product's frame: its navigation, given to the kit's NavigationSuite, which shows it as a sidebar on
 // desktop and as a bottom bar, menu sheet and floating primary action on a phone.
 import type { ReactNode } from 'react';
-import {
-  Button,
-  ConversationPanel,
-  NavigationSuite,
-  Text,
-  Toaster,
-  TooltipProvider,
-} from './kit/index.ts';
+import { Button, NavigationSuite, Text, Toaster, TooltipProvider } from './kit/index.ts';
 import type { Navigation } from './command.ts';
 import { link, useRoute } from './routing.ts';
 import { later } from './later.ts';
@@ -21,7 +14,6 @@ export function Frame({
   onSearch,
   primary,
   panel,
-  closePanel,
   children,
 }: {
   navigation: Navigation[];
@@ -32,7 +24,6 @@ export function Frame({
   /** Optional primary controls: a sidebar control and/or a floating phone control. */
   primary?: { expanded?: ReactNode; compact?: ReactNode };
   panel?: ReactNode;
-  closePanel: () => void;
   children: ReactNode;
 }) {
   const route = useRoute();
@@ -71,11 +62,7 @@ export function Frame({
             </Button>
           )
         }
-        aside={
-          <ConversationPanel open={!!panel} onClose={closePanel}>
-            {panel}
-          </ConversationPanel>
-        }
+        aside={panel}
       >
         {children}
       </NavigationSuite>
