@@ -759,28 +759,48 @@ function Settings() {
     </K.Stack>
   );
 }
-function History() {
+function ExpandableRows() {
   const [expanded, setExpanded] = useState(false);
+  const [action, setAction] = useState('');
   return (
-    <K.HistorySurface>
-      <K.HistoryEntry
-        title="Leave space for slow mornings"
-        date="Today at 09:41"
-        sha="a1b2c3d"
-        expanded={expanded}
-        onExpand={() => setExpanded(!expanded)}
-        onRevert={noop}
-      >
-        <K.UnifiedDiff path="notes/slow-mornings.md" patch={patch} />
-      </K.HistoryEntry>
-      <K.HistoryEntry
-        title="Coffee with Anna"
-        date="Yesterday"
-        sha="e4f5a6b"
-        expanded={false}
-        onExpand={noop}
-      />
-    </K.HistorySurface>
+    <K.FeaturePage
+      title="Saved items"
+      description="Shared rows with caller-owned details and actions."
+    >
+      <K.Stack gap="lg">
+        <K.ExpandableRow
+          title="Leave space for slow mornings"
+          metadata={
+            <K.Text size="xs" tone="muted">
+              Today at 09:41 · Anna
+            </K.Text>
+          }
+          expanded={expanded}
+          onExpand={() => setExpanded(!expanded)}
+          actions={
+            <K.RowAction
+              label="Restore"
+              accessibleLabel="Restore slow mornings"
+              icon="undo"
+              onClick={() => setAction('Restore requested')}
+            />
+          }
+        >
+          <K.Text>Keep the morning free for focused work.</K.Text>
+        </K.ExpandableRow>
+        <K.ExpandableRow
+          title="Coffee with Anna"
+          metadata={
+            <K.Text size="xs" tone="muted">
+              Yesterday
+            </K.Text>
+          }
+          expanded={false}
+          onExpand={noop}
+        />
+        {!!action && <K.Text role="status">{action}</K.Text>}
+      </K.Stack>
+    </K.FeaturePage>
   );
 }
 function Agent() {
@@ -1446,11 +1466,11 @@ export const catalogue: Specimen[] = [
     Sample: Search,
   },
   {
-    id: 'history',
-    title: 'History',
-    description: 'Centered reading width, touch rows and an expandable change.',
-    components: ['HistorySurface', 'HistoryEntry'],
-    Sample: History,
+    id: 'expandable-rows',
+    title: 'Expandable rows',
+    description: 'Shared titled rows with caller-owned metadata, details and actions.',
+    components: ['ExpandableRow', 'RowAction'],
+    Sample: ExpandableRows,
     fullBleed: true,
   },
   {

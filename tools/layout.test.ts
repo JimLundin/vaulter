@@ -180,3 +180,35 @@ test('outside the kit, only Product reads the size class', () => {
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test('shared row presentation cannot interpret Vault records through aliases, re-exports or dynamic imports', () => {
+  const root = mkdtempSync(join(tmpdir(), 'vaulter-record-presentation-policy-'));
+  try {
+    mkdirSync(join(root, 'app/ui/kit'), { recursive: true });
+    mkdirSync(join(root, 'app/vault/nodes'), { recursive: true });
+    writeFileSync(
+      join(root, 'tsconfig.json'),
+      JSON.stringify({
+        compilerOptions: {
+          module: 'ESNext',
+          moduleResolution: 'Bundler',
+          paths: { '@/*': ['./app/*'] },
+        },
+        include: ['app'],
+      }),
+    );
+    writeFileSync(join(root, 'app/vault/nodes/model.ts'), 'export const transaction = 1;');
+    const imports = [
+      "import { transaction } from '@/vault/nodes/model.ts'; export { transaction };",
+      "export { transaction } from '@/vault/nodes/model.ts';",
+      "export const load = () => import('@/vault/nodes/model.ts');",
+    ];
+    for (const [index, source] of imports.entries())
+      writeFileSync(join(root, `app/ui/kit/row${index}.ts`), source);
+    const problems = checkLayout(root);
+    expect(problems).toHaveLength(3);
+    expect(problems.every((problem) => problem.includes('record interpretation'))).toBe(true);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});

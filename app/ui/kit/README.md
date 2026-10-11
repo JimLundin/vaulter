@@ -9,7 +9,15 @@ keeps record-specific UI in its owning module and shared presentation in the kit
 policy owns geometry and interaction across modules; consistency takes precedence over tailored
 arrangements. The [UI ownership migration plan](../../../docs/plans/ui-module-ownership.md) records
 the work and enforcement checks. Current kit exports still include module-specific presentation;
-the migration is not yet implemented.
+History ownership is implemented; the remaining slices are in progress.
+
+History-specific presentation has moved to History. `ExpandableRow` owns shared disclosure,
+metadata placement and details geometry; `RowAction` owns compact accessible action presentation.
+Callers supply title, metadata content, explicit expansion state, actions and details. The kit does
+not interpret transaction sequence, authors, origin, differences or compensation policy. Its paired
+Expandable rows catalogue example uses plain fictional items rather than a Git-shaped History
+record. The live fictional preview exercises History's actual NodeStore → `NodeHistoryEntry` →
+`TransactionItem` pipeline, including confirmation and guarded compensation.
 
 The [UI kit architecture plan](../../../PLAN-ui-kit-architecture.md) tracks four
 deepening changes: private composition verification, Composer interaction, accessible field
@@ -167,7 +175,7 @@ adds one.
 | Labelled toolbar buttons | Icon buttons with an `aria-label` | `ConversationSurface` |
 | Form rows: label left, control right | The same fields stacked vertically | `SettingsMenu`, `SettingField` |
 | One-row composer with inset microphone and send | The same always-visible field and inset controls | `ConversationSurface`, `Composer` |
-| History rows with labelled Revert | The same rows with an icon for Revert | `HistoryEntry` |
+| Titled expandable rows with labelled actions | The same rows with accessible icon actions | `ExpandableRow`, `RowAction` |
 | Single horizontally scrolling prompt row | The same row, with a fade at clipped edges | `PromptSuggestions`, `OptionStrip` |
 
 **Navigation is declared once.** The product lists every place as data (`Navigation` in

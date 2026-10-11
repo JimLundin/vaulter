@@ -5,7 +5,8 @@ import {
   Alert,
   AlertDescription,
   Button,
-  HistoryEntry,
+  ExpandableRow,
+  RowAction,
   Overlay,
   Row,
   Stack,
@@ -214,14 +215,29 @@ export function TransactionItem({
   const title =
     transaction.message?.split('\n')[0] || `${transaction.kind.scope}.${transaction.kind.action}`;
   return (
-    <HistoryEntry
+    <ExpandableRow
       key={transaction.id}
       title={title}
-      date={`${when(transaction.recordedAt)} · ${labelOf(entry.author)}`}
-      sha={`#${transaction.sequence}`}
+      metadata={
+        <Text size="xs" tone="muted">
+          {when(transaction.recordedAt)} · {labelOf(entry.author)} ·{' '}
+          <Text as="span" size="xs" tone="muted" mono={true}>
+            #{transaction.sequence}
+          </Text>
+        </Text>
+      }
       expanded={expanded}
       onExpand={onExpand}
-      onRevert={canUndo ? onUndo : undefined}
+      actions={
+        canUndo ? (
+          <RowAction
+            label="Revert"
+            accessibleLabel={`Undo transaction #${transaction.sequence}`}
+            icon="undo"
+            onClick={onUndo}
+          />
+        ) : undefined
+      }
     >
       {expanded && (
         <Stack gap="xs">
@@ -237,6 +253,6 @@ export function TransactionItem({
           )}
         </Stack>
       )}
-    </HistoryEntry>
+    </ExpandableRow>
   );
 }
