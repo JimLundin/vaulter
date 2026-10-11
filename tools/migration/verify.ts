@@ -2,65 +2,70 @@
 // with the source branch's existing node history, exactly as the GitHub adapter does, then checks:
 // every version against its owning schema; containment at every transaction; every page revision's
 // text, title and frontmatter records against its source; every turn verbatim; and each imported
-// transaction's author, time and message against its source commit.
+// transaction's author, time and message against its source commit. Its reading of the sources is
+// its own, not the migrator's.
 //
-//   node verify-nodes.ts --vault ~/vault --app ~/vaulter --out /tmp/vault-migration
-import { execFileSync } from 'node:child_process';
+//   node tools/migration/verify.ts --vault ../vault [--vault-ref origin/main] [--out <dir>]
 import { readdirSync, readFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
-
-const option = (name: string, fallback: string) => {
-  const i = process.argv.indexOf(`--${name}`);
-  return i > 0 ? process.argv[i + 1]! : fallback;
-};
-const VAULT = resolve(option('vault', '../vault'));
-const OUT = resolve(option('out', join(tmpdir(), 'vault-migration')));
-const REF = option('vault-ref', 'origin/main');
-import { parseRecord } from '../../app/vault/nodes/validation.ts';
-import { validateRecords, snapshotOf } from '../../app/vault/nodes/history.ts';
+import { join, resolve } from 'node:path';
+import { CORE_SCHEMA, load } from 'js-yaml';
+import { toString as textOf } from 'mdast-util-to-string';
+import remarkGfm from 'remark-gfm';
+import remarkParse from 'remark-parse';
+import { unified } from 'unified';
+import { snapshotOf, validateRecords } from '../../app/vault/nodes/history.ts';
+import type { JsonObject, JsonValue, NodeVersion } from '../../app/vault/nodes/model.ts';
+import { type NodeRecord, parseRecord } from '../../app/vault/nodes/validation.ts';
 import { parseVaultRecord } from '../../app/vault/records/index.ts';
 import { containment } from '../../app/vault/records/wiki.ts';
-import * as chat from '../../app/workflows/chat/records/chat-schema.ts';
 import {
   parseMetadata,
   parseMetadataReference,
 } from '../../app/workflows/chat/records/chat-metadata-schema.ts';
-import { unified } from 'unified';
-import remarkParse from 'remark-parse';
-import remarkGfm from 'remark-gfm';
-import { toString as textOf } from 'mdast-util-to-string';
-import { CORE_SCHEMA, load } from 'js-yaml';
+import {
+  parseChatReference,
+  parseConversation,
+  parseExchange,
+  parseMessage,
+} from '../../app/workflows/chat/records/chat-schema.ts';
+import { asObject, json, list } from './records.ts';
+import { NODE_PREFIX, openSource } from './source.ts';
+
+const option = (name: string, fallback: string) => {
+  const i = process.argv.indexOf(`--${name}`);
+  return i > 0 ? (process.argv[i + 1] ?? fallback) : fallback;
+};
+const OUT = resolve(option('out', join(tmpdir(), 'vault-migration')));
+const source = openSource(resolve(option('vault', '../vault')), option('vault-ref', 'origin/main'));
+const { git, head: REF } = source;
 const md = unified().use(remarkParse).use(remarkGfm);
 
-const git = (...a: string[]) =>
-  execFileSync('git', ['-C', VAULT, ...a], { encoding: 'utf8', maxBuffer: 1 << 30 });
-const PREFIX = '.vaulter/nodes/v1/transactions/';
-const dir = join(OUT, PREFIX);
-const written = readdirSync(dir).map((f) => {
-  const r = parseRecord(JSON.parse(readFileSync(join(dir, f), 'utf8')));
-  if (`${encodeURIComponent(r.transaction.id)}.json` !== f)
-    throw new Error(`${f}: path does not match its identity`);
-  return r;
+const dir = join(OUT, NODE_PREFIX);
+const written = readdirSync(dir).map((file) => {
+  const record = parseRecord(JSON.parse(readFileSync(join(dir, file), 'utf8')));
+  if (`${encodeURIComponent(record.transaction.id)}.json` !== file)
+    throw new Error(`${file}: path does not match its identity`);
+  return record;
 });
-const existing = git('ls-tree', '-r', '-z', '--name-only', REF, '--', PREFIX)
-  .split('\0')
-  .filter((p) => p && !/^(migration|vault):/.test(decodeURIComponent(p.slice(PREFIX.length)))) // earlier migrations are replaced
-  .map((p) => parseRecord(JSON.parse(git('show', `${REF}:${p}`))));
-const history = validateRecords(
-  [...existing, ...written].sort(
-    (a: any, b: any) => a.transaction.sequence - b.transaction.sequence,
+const history: readonly NodeRecord[] = validateRecords(
+  [...source.nodeHistory(), ...written].sort(
+    (a, b) => a.transaction.sequence - b.transaction.sequence,
   ),
 );
 const failures: string[] = [];
-const fail = (s: string) => failures.length < 40 && failures.push(s);
+const fail = (failure: string) => {
+  if (failures.length < 40) failures.push(failure);
+};
+const reason = (error: unknown) => (error instanceof Error ? error.message : String(error));
+const kindOf = (data: JsonObject | null | undefined) => (data ? String(data.kind) : '');
 
 // 1. Every version parses with its owning schema.
-const chatParsers: Record<string, (v: unknown) => unknown> = {
-  conversation: chat.parseConversation,
-  exchange: chat.parseExchange,
-  message: chat.parseMessage,
-  reference: chat.parseChatReference,
+const chatParsers: Record<string, (value: unknown) => unknown> = {
+  conversation: parseConversation,
+  exchange: parseExchange,
+  message: parseMessage,
+  reference: parseChatReference,
   observation: parseMetadata,
   metadataReference: parseMetadataReference,
 };
@@ -70,36 +75,40 @@ for (const r of history)
     if (v.data === null) continue;
     versions++;
     try {
-      (chatParsers[String(v.data.kind)] ?? parseVaultRecord)(v.data);
-    } catch (e: any) {
-      fail(`${r.transaction.sequence} ${v.data.kind}: ${e.message.slice(0, 200)}`);
+      (chatParsers[kindOf(v.data)] ?? parseVaultRecord)(v.data);
+    } catch (error) {
+      fail(`${r.transaction.sequence} ${kindOf(v.data)}: ${reason(error).slice(0, 200)}`);
     }
   }
 
 // 2. Imported transactions are their source commits.
-const txCommit: Record<string, string | null> = JSON.parse(
-  readFileSync(join(OUT, 'transactions.json'), 'utf8'),
-);
+const txCommit = JSON.parse(readFileSync(join(OUT, 'transactions.json'), 'utf8')) as Record<
+  string,
+  string | null
+>;
 const authorName: Record<string, string> = {};
 for (const r of history)
   for (const v of r.versions)
     if (v.data?.kind === 'actor' || v.data?.kind === 'agent')
       authorName[v.key.node] = String(v.data.name);
-const expectedAuthor = (name: string, email: string) =>
-  name === 'Jim Lundin' || /JimLundin@users/.test(email)
-    ? 'Vault owner'
-    : name === 'Vaulter'
-      ? 'Vault agent'
-      : name;
+const expectedAuthor = (name: string, email: string) => {
+  if (name === 'Jim Lundin' || /JimLundin@users/.test(email)) return 'Vault owner';
+  return name === 'Vaulter' ? 'Vault agent' : name;
+};
 for (const r of history) {
   const commit = txCommit[r.transaction.id];
   if (!commit) continue;
-  const [name, email, at, ...message] = git('log', '-1', '--format=%an%x00%ae%x00%aI%x00%B', commit)
+  const [name = '', email = '', at = '', ...message] = git(
+    'log',
+    '-1',
+    '--format=%an%x00%ae%x00%aI%x00%B',
+    commit,
+  )
     .replace(/\n+$/, '')
     .split('\0');
-  if (authorName[r.transaction.recordedBy] !== expectedAuthor(name!, email!))
+  if (authorName[r.transaction.recordedBy] !== expectedAuthor(name, email))
     fail(`${commit.slice(0, 7)}: author ${authorName[r.transaction.recordedBy]} for ${name}`);
-  if (r.transaction.recordedAt !== new Date(at!).toISOString() && r.transaction.recordedAt !== at)
+  if (r.transaction.recordedAt !== new Date(at).toISOString() && r.transaction.recordedAt !== at)
     fail(`${commit.slice(0, 7)}: recorded at ${r.transaction.recordedAt}, authored ${at}`);
   if (!(r.transaction.message ?? '').startsWith(message.join('\0')))
     fail(`${commit.slice(0, 7)}: message differs`);
@@ -108,34 +117,34 @@ for (const r of history) {
 }
 
 // 3. Containment at every transaction, for what it changed.
-const bySequence = history.map((r: any) => r);
 let containers = 0;
-for (const r of bySequence) {
+for (const r of history) {
   const snap = snapshotOf(history, r.transaction.sequence);
   const check = new Set<string>();
   for (const v of r.versions) {
     check.add(v.key.node);
     if (v.placement) check.add(v.placement.parent);
   }
-  for (const n of check) {
-    const v = snap.get(n);
-    const kind = v?.data ? String(v.data.kind) : '';
+  for (const nodeId of check) {
+    const kind = kindOf(snap.get(nodeId)?.data);
     const allows = containment[kind];
     if (!allows) continue;
     containers++;
-    snap.children(n).forEach((c: any, i: number) => {
-      if (!allows(c.data.kind, i))
-        fail(`${r.transaction.sequence}: ${kind} contains ${c.data.kind} at ${i}`);
+    snap.children(nodeId).forEach((child, i) => {
+      if (!allows(kindOf(child.data), i))
+        fail(`${r.transaction.sequence}: ${kind} contains ${kindOf(child.data)} at ${i}`);
     });
   }
 }
 
 // 4. Every page revision: title, text and frontmatter records match the source.
-const front = /^﻿?---\r?\n([\s\S]*?\r?\n)---[ \t]*(?:\r?\n|$)/;
+const FRONT = /^﻿?---\r?\n([\s\S]*?\r?\n)---[ \t]*(?:\r?\n|$)/;
+const FENCE = /^\s{0,3}(`{3,}|~{3,})/;
 const WIKI = /\[\[([^\]|#]+)(?:#[^\]|]+)?(?:\|([^\]]+))?\]\]/g;
+const DATE = /^\d{4}(-\d{2}(-\d{2})?)?$/;
 function sourceOf(path: string, text: string) {
-  const m = front.exec(text);
-  const fm = m ? ((load(m[1], { schema: CORE_SCHEMA }) as Record<string, any>) ?? {}) : {};
+  const m = FRONT.exec(text);
+  const fm = m ? asObject(json(load(m[1]!, { schema: CORE_SCHEMA }))) : {};
   let body = m ? text.slice(m[0].length) : text;
   if (path.endsWith('.mdx')) body = body.replace(/\{\/\*[\s\S]*?\*\/\}/g, '');
   // Components are records of their own; their props are not page text.
@@ -143,46 +152,66 @@ function sourceOf(path: string, text: string) {
   let tag = false;
   let fence: string | null = null;
   for (const line of body.split('\n')) {
-    const f = /^\s{0,3}(`{3,}|~{3,})/.exec(line);
-    if (f) fence = fence === null ? f[1]![0]! : fence === f[1]![0] ? null : fence;
+    const f = FENCE.exec(line);
+    if (f) {
+      const marker = f[1]![0]!;
+      fence = fence === null ? marker : fence === marker ? null : fence;
+    }
     if (path.endsWith('.mdx') && fence === null && !f && (tag || /^\s*<[A-Z]/.test(line))) {
       tag = !/\/>\s*$/.test(line);
       continue;
     }
     lines.push(line);
   }
-  const tree = md.parse(lines.join('\n'));
   let title: string | null = null;
   const parts: string[] = [];
-  tree.children.forEach((n: any, i: number) => {
+  md.parse(lines.join('\n')).children.forEach((n, i) => {
     if (i === 0 && n.type === 'heading' && n.depth === 1) title = textOf(n);
     else
       parts.push(
         n.type === 'code'
           ? n.value
-          : textOf(n).replace(WIKI, (_: string, a: string, b?: string) => (b ?? a).trim()),
+          : textOf(n).replace(WIKI, (_: string, name: string, label?: string) =>
+              (label ?? name).trim(),
+            ),
       );
   });
   return { fm, title, text: parts.join('').replace(/\s+/g, '') };
 }
-const list = (v: unknown) => (Array.isArray(v) ? v : v === undefined || v === null ? [] : [v]);
-const pageLog: [string, string, string][] = JSON.parse(
-  readFileSync(join(OUT, 'pages.json'), 'utf8'),
+const isDated = (value: JsonValue) => DATE.test(String(asObject(value).date));
+const NO_TEXT = new Set([
+  'chart',
+  'timeline',
+  'query',
+  'rule',
+  'relationship',
+  'question',
+  'task',
+  'decision',
+  'date',
+]);
+const pageLog = JSON.parse(readFileSync(join(OUT, 'pages.json'), 'utf8')) as [
+  commit: string,
+  path: string,
+  node: string,
+][];
+const txOf = new Map(
+  Object.entries(txCommit).flatMap(([tx, commit]): [string, string][] =>
+    commit ? [[commit, tx]] : [],
+  ),
 );
-const txOf = new Map(Object.entries(txCommit).flatMap(([tx, c]) => (c ? [[c, tx]] : [])));
-const seqOf = new Map(history.map((r: any) => [r.transaction.id, r.transaction.sequence]));
+const seqOf = new Map(history.map((r) => [r.transaction.id, r.transaction.sequence]));
 let pagesChecked = 0;
-let lastSnap: any = null;
-let lastSeq = -1;
+let snap = snapshotOf(history);
+let snapSequence = -1;
 for (const [commit, path, pageNode] of pageLog) {
   const tx = txOf.get(commit);
   if (!tx) continue; // a commit whose changes were all already recorded
-  const seq = seqOf.get(tx)!;
-  if (seq !== lastSeq) {
-    lastSnap = snapshotOf(history, seq);
-    lastSeq = seq;
+  const sequence = seqOf.get(tx)!;
+  if (sequence !== snapSequence) {
+    snap = snapshotOf(history, sequence);
+    snapSequence = sequence;
   }
-  const snap = lastSnap;
   const page = snap.get(pageNode);
   if (!page?.data) {
     fail(`${commit.slice(0, 7)} ${path}: no live page`);
@@ -198,75 +227,61 @@ for (const [commit, path, pageNode] of pageLog) {
       .at(-1)!
   ).slice(0, 200);
   if (page.data.title !== expectedTitle)
-    fail(`${commit.slice(0, 7)} ${path}: title ${page.data.title}`);
-  const walk = (n: string): string =>
-    snap
-      .children(n)
-      .map((c: any) =>
-        c.data.kind === 'run' || c.data.kind === 'link' || c.data.kind === 'code'
-          ? c.data.text
-          : [
-                'chart',
-                'timeline',
-                'query',
-                'rule',
-                'relationship',
-                'question',
-                'task',
-                'decision',
-                'date',
-              ].includes(c.data.kind)
-            ? ''
-            : walk(c.key.node),
-      )
+    fail(`${commit.slice(0, 7)} ${path}: title ${String(page.data.title)}`);
+  const view = snap;
+  const walk = (nodeId: string): string =>
+    view
+      .children(nodeId)
+      .map((c: NodeVersion) => {
+        const kind = kindOf(c.data);
+        if (kind === 'run' || kind === 'link' || kind === 'code') return String(c.data?.text);
+        return NO_TEXT.has(kind) ? '' : walk(c.key.node);
+      })
       .join('');
   if (walk(pageNode).replace(/\s+/g, '') !== src.text)
     fail(`${commit.slice(0, 7)} ${path}: text differs`);
   // Frontmatter records: one live record per source entry.
-  const children = snap.children(pageNode).map((c: any) => c.data);
-  const count = (pred: (d: any) => boolean) => children.filter(pred).length;
-  const fm = src.fm;
+  const children = snap.children(pageNode).flatMap((c) => (c.data ? [c.data] : []));
+  const count = (pred: (d: JsonObject) => boolean) => children.filter(pred).length;
+  const { fm } = src;
+  const relations = asObject(fm.relations);
   const expected = {
     type: fm.type === undefined ? 0 : 1,
     tag: list(fm.tags).length,
-    relation: Object.values(fm.relations ?? {}).flatMap(list).length,
+    relation: Object.values(relations).flatMap((names) => list(names)).length,
     where: list(fm.where).length,
-    question: 0,
     date:
-      list(fm.dates).filter((d: any) => /^\d{4}(-\d{2}(-\d{2})?)?$/.test(String(d?.date))).length +
-      (/^daily\/\d{4}-\d{2}-\d{2}\.md$/.test(path) ? 1 : 0),
-    decision: list(fm.decisions).filter((d: any) =>
-      /^\d{4}(-\d{2}(-\d{2})?)?$/.test(String(d?.date)),
-    ).length,
-    task: 0,
+      list(fm.dates).filter(isDated).length + (/^daily\/\d{4}-\d{2}-\d{2}\.md$/.test(path) ? 1 : 0),
+    decision: list(fm.decisions).filter(isDated).length,
   };
+  const relationPredicates = new Set(Object.keys(relations));
+  const isRelationship = (d: JsonObject, predicate: (p: string) => boolean) =>
+    d.kind === 'relationship' && predicate(String(d.predicate));
+  const actual = {
+    type: count((d) => isRelationship(d, (p) => p === 'type')),
+    tag: count((d) => isRelationship(d, (p) => p === 'tag')),
+    relation: count((d) => isRelationship(d, (p) => relationPredicates.has(p))),
+    where: count((d) => isRelationship(d, (p) => p === 'where')),
+    date: count((d) => d.kind === 'date'),
+    decision: count((d) => d.kind === 'decision'),
+  };
+  // A relations entry named where is counted with where as well.
+  for (const k of Object.keys(expected) as (keyof typeof expected)[])
+    if (expected[k] !== actual[k] && !(k === 'relation' && relationPredicates.has('where')))
+      fail(`${commit.slice(0, 7)} ${path}: ${k} ${actual[k]} for ${expected[k]}`);
   // Questions and tasks are never deleted: each source entry has its live, unsettled record.
-  const texts = (kind: string, field: string, live: (d: any) => boolean) =>
-    new Set(children.filter((d: any) => d.kind === kind && live(d)).map((d: any) => d[field]));
+  const texts = (kind: string, field: string, open: (d: JsonObject) => boolean) =>
+    new Set(children.filter((d) => d.kind === kind && open(d)).map((d) => String(d[field])));
   const openQuestions = texts('question', 'text', (d) => !d.abandoned);
   for (const q of list(fm.open).map(String))
     if (!openQuestions.has(q))
       fail(`${commit.slice(0, 7)} ${path}: open question missing: ${q.slice(0, 60)}`);
   const openTasks = texts('task', 'what', (d) => d.status === 'open');
-  for (const t of list(fm['follow-ups']) as any[])
-    if (!openTasks.has(String(t?.what ?? t)))
-      fail(
-        `${commit.slice(0, 7)} ${path}: follow-up missing: ${String(t?.what ?? t).slice(0, 60)}`,
-      );
-  const relationPredicates = new Set(Object.keys(fm.relations ?? {}));
-  const actual = {
-    type: count((d) => d.kind === 'relationship' && d.predicate === 'type'),
-    tag: count((d) => d.kind === 'relationship' && d.predicate === 'tag'),
-    relation: count((d) => d.kind === 'relationship' && relationPredicates.has(d.predicate)),
-    where: count((d) => d.kind === 'relationship' && d.predicate === 'where'),
-    question: 0,
-    date: count((d) => d.kind === 'date'),
-    decision: count((d) => d.kind === 'decision'),
-    task: 0,
-  };
-  for (const k of Object.keys(expected) as (keyof typeof expected)[])
-    if (expected[k] !== actual[k] && !(k === 'relation' && relationPredicates.has('where')))
-      fail(`${commit.slice(0, 7)} ${path}: ${k} ${actual[k]} for ${expected[k]}`);
+  for (const value of list(fm['follow-ups'])) {
+    const what = String(asObject(value).what ?? value);
+    if (!openTasks.has(what))
+      fail(`${commit.slice(0, 7)} ${path}: follow-up missing: ${what.slice(0, 60)}`);
+  }
 }
 
 // 5. Every turn is verbatim in a capture log at the source head.
@@ -274,7 +289,7 @@ const head = snapshotOf(history);
 const captures = git('ls-tree', '-r', '--name-only', REF, '--', 'captures')
   .trim()
   .split('\n')
-  .map((p) => git('show', `${REF}:${p}`))
+  .map((path) => git('show', `${REF}:${path}`))
   .join('\n');
 let turns = 0;
 for (const r of history)
@@ -282,8 +297,12 @@ for (const r of history)
     if (v.data?.kind !== 'message' || head.get(v.key.node)?.key.transaction !== r.transaction.id)
       continue;
     turns++;
-    const data = v.data as Record<string, any>;
-    const text = data.role === 'user' ? data.text : data.parts.map((p: any) => p.text).join('');
+    const text =
+      v.data.role === 'user'
+        ? String(v.data.text)
+        : list(v.data.parts)
+            .map((part) => String(asObject(part).text))
+            .join('');
     if (!captures.includes(text)) fail(`message ${v.key.node}: not verbatim`);
   }
 
