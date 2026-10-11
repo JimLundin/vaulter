@@ -87,9 +87,19 @@ type Mark = 'strong' | 'emphasis' | 'code' | 'strike';
 type Run  = { kind: 'run'; text: string; marks?: Mark[] };
 /** connection: block → page, section, exchange or resource; null when unresolved. */
 type Link = { kind: 'link'; text: string; marks?: Mark[] };
-/** connection: block → the exact version of its source. Renders as a citation marker. */
-type Cite = { kind: 'cite' };
+/** Connection: exact claim → exact source; each selection freezes its descendant snapshot. */
+type Selection = { sequence: number; start: number; end: number }; // half-open UTF-16
+// Existing whole-source citations remain readable.
+type Cite = { kind: 'cite' }
+  | { kind: 'cite'; scope: 'page'; sequence: number }
+  | { kind: 'cite'; unit: 'utf16'; claim: Selection; passage: Selection };
 ```
+
+Page references are `cite` children of the page with an exact target and its snapshot; they describe
+provenance without supporting a statement. Statement citations are children of their selected text
+node or block, including runs and links; their connection holds exact endpoints independently of
+placement. Sources are retained underlying material; Wiki pages and their descendants are distilled
+knowledge and serve as navigation targets, never citation or provenance targets. [ADR-0005](../adr/0005-wiki-citation-selections.md) defines historical selection semantics.
 
 Day pages are pages titled by their date, with a Calendar `date` child. The Agent's content tools
 become Wiki operations: create a page, insert, edit, move or remove a block or inline node.
@@ -237,12 +247,13 @@ map, the transaction-to-commit map and a report: unresolved references, values a
 merged and removed pages, abandoned questions. Identities and transaction IDs are derived from
 source anchors, so an unchanged source regenerates byte-identical envelopes.
 
-To replace a migration, commit to the vault's `main` in one commit: remove the envelopes whose
-transaction IDs start with `vault:` (or `migration:`, the first migration), add the generated ones,
-and keep the application's own. Devices that synchronized the replaced history refuse it until their
-cache is cleared by signing out and in.
+The vault's imported history is now published. Preserve it and append enrichment; replacing its
+`vault:` or `migration:` envelopes invalidates exact references and violates the synchronized prefix.
+The replay importer is for scratch checks of the original import, not upgrading the published vault.
 
-A replacement is possible only while the application's own transactions all precede the migration:
-the migrator continues their sequence and fails when later application transactions exist, since
-those build on the migrated versions and cannot be rewritten.
+```sh
+npm run migrate:enrich -- --vault-ref HEAD --out /tmp/wiki-enrichment-run
+```
 
+See [Wiki migration](../wiki-migration.md) for the finalized data mapping, passage selection contract,
+reviewed evidence input, dry-run results, and the remaining content-review queue.
