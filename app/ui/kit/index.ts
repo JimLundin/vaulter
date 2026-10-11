@@ -291,6 +291,7 @@ export {
   Composer,
   SendButton,
   ConversationFeed,
+  ConversationList,
   ConversationPage,
   ConversationPanel,
   ConversationSurface,

@@ -295,6 +295,7 @@ export function createNodeConversation(initial: NodeConversationOptions) {
       unsubscribeActive?.();
       active = undefined;
       id = conversation;
+      options.onConversation?.(conversation);
       set({
         turns: messages.map(({ data }) => turn(data)),
         unread: false,
@@ -306,13 +307,14 @@ export function createNodeConversation(initial: NodeConversationOptions) {
         contextError: undefined,
       });
     },
+    /** The vault's conversations, most recently active first. */
+    chats: () => backend.chats(),
     /** Continue the most recently active conversation, unless this one already has turns. */
     openLatest: async () => {
       if (state.turns.length || disposed) return;
       const [latest] = await backend.chats();
       if (!latest || state.turns.length || disposed) return;
       await api.open(latest.node);
-      if (id === latest.node) options.onConversation?.(latest.node);
     },
     newChat: () => {
       if (

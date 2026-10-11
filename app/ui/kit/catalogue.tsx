@@ -814,10 +814,21 @@ function Agent() {
       setVoice('listening');
     }
   };
+  const [chats, setChats] = useState(false);
   return (
     <K.ConversationPage>
+      <K.Overlay open={chats} onClose={() => setChats(false)} title="Conversations">
+        <K.ConversationList
+          items={[
+            { id: 'studio', title: 'Studio mornings', meta: '10 Oct, 21:40', current: true },
+            { id: 'trip', title: 'Planning the coast trip', meta: '3 Oct, 18:05' },
+          ]}
+          onSelect={() => setChats(false)}
+        />
+      </K.Overlay>
       <K.ConversationSurface
         busy={false}
+        onConversations={() => setChats(true)}
         onNewChat={() => {
           setMessages([]);
           setVoice('idle');
@@ -1345,6 +1356,7 @@ export const catalogue: Specimen[] = [
     components: [
       'ConversationPage',
       'ConversationSurface',
+      'ConversationList',
       'ConversationFeed',
       'ConversationWelcome',
       'Message',

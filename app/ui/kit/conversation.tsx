@@ -65,9 +65,16 @@ export function ConversationWelcome({
 interface ConversationActions {
   historyHref?: string;
   onNewChat: () => void;
+  /** Show the conversations to choose from. */
+  onConversations?: () => void;
   busy: boolean;
 }
-function ConversationToolbar({ historyHref, onNewChat, busy }: ConversationActions) {
+function ConversationToolbar({
+  historyHref,
+  onNewChat,
+  onConversations,
+  busy,
+}: ConversationActions) {
   const mobile = useLayout() === 'compact';
   const { page, close } = useContext(ConversationPresentation);
   return (
@@ -96,6 +103,18 @@ function ConversationToolbar({ historyHref, onNewChat, busy }: ConversationActio
         )}
       </Row>
       <Row>
+        {!!onConversations && (
+          <Button
+            variant="ghost"
+            size={mobile ? 'standard' : 'compact'}
+            iconOnly={mobile}
+            aria-label="Conversations"
+            onClick={onConversations}
+          >
+            <Icon name="list" size={mobile ? 'lg' : 'md'} />
+            {!mobile && 'Conversations'}
+          </Button>
+        )}
         {!!historyHref && (
           <Button
             variant="ghost"
@@ -139,6 +158,7 @@ function ConversationToolbar({ historyHref, onNewChat, busy }: ConversationActio
 export function ConversationSurface({
   historyHref,
   onNewChat,
+  onConversations,
   busy,
   composer,
   suggestions,
@@ -153,7 +173,12 @@ export function ConversationSurface({
   const { page } = useContext(ConversationPresentation);
   return (
     <ReadingColumn page={page} label="Conversation">
-      <ConversationToolbar historyHref={historyHref} onNewChat={onNewChat} busy={busy} />
+      <ConversationToolbar
+        historyHref={historyHref}
+        onNewChat={onNewChat}
+        onConversations={onConversations}
+        busy={busy}
+      />
       {children}
       <Dock status={status}>
         <Stack gap="sm">
@@ -166,6 +191,41 @@ export function ConversationSurface({
         </Stack>
       </Dock>
     </ReadingColumn>
+  );
+}
+
+/** Conversations to choose from, most recent first; the current one is marked. */
+export function ConversationList({
+  items,
+  onSelect,
+}: {
+  items: readonly { id: string; title: string; meta?: string; current?: boolean }[];
+  onSelect: (id: string) => void;
+}) {
+  if (!items.length) return <Text tone="muted">No conversations yet.</Text>;
+  return (
+    <Stack gap="xs" role="list">
+      {items.map((item) => (
+        <Button
+          key={item.id}
+          role="listitem"
+          variant={item.current ? 'outline' : 'ghost'}
+          aria-current={item.current ? 'true' : undefined}
+          onClick={() => onSelect(item.id)}
+        >
+          <Stack gap="none" grow={true}>
+            <Text as="span" weight="medium">
+              {item.title}
+            </Text>
+            {!!item.meta && (
+              <Text as="span" size="sm" tone="subtle">
+                {item.meta}
+              </Text>
+            )}
+          </Stack>
+        </Button>
+      ))}
+    </Stack>
   );
 }
 

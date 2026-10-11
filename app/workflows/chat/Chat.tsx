@@ -13,6 +13,7 @@ import {
   Link,
   Markdown,
   Message,
+  ConversationList,
   Overlay,
   Row,
   Stack,
@@ -48,6 +49,30 @@ export function Chat({
   voice: Transcription;
 }) {
   const { newChat, send, stop, viewing } = conversation;
+  const [chats, setChats] = useState<Awaited<ReturnType<NodeConversation['chats']>> | null>(null);
+  const showChats = () => {
+    setChats([]);
+    conversation.chats().then(setChats, () => setChats(null));
+  };
+  const chooser = (
+    <Overlay open={chats !== null} onClose={() => setChats(null)} title="Conversations">
+      <ConversationList
+        items={(chats ?? []).map((chat) => ({
+          id: chat.node,
+          title: chat.data.title,
+          meta: new Date(chat.activeAt).toLocaleString('en-GB', {
+            dateStyle: 'medium',
+            timeStyle: 'short',
+          }),
+          current: chat.node === conversation.conversation(),
+        }))}
+        onSelect={(id) => {
+          setChats(null);
+          later(conversation.open(id));
+        }}
+      />
+    </Overlay>
+  );
   const {
     draft: input,
     turns,
@@ -130,9 +155,11 @@ export function Chat({
       <ConversationSurface
         historyHref={historyHref ? link(historyHref) : undefined}
         onNewChat={newChat}
+        onConversations={showChats}
         busy={false}
         composer={null}
       >
+        {chooser}
         <ConversationFeed>
           <Text tone="muted">{conversation.availability() ?? 'Opening the node store…'}</Text>
         </ConversationFeed>
@@ -146,6 +173,7 @@ export function Chat({
         newChat();
         type('');
       }}
+      onConversations={showChats}
       busy={busy || recording}
       status={
         <Stack>
@@ -247,6 +275,7 @@ export function Chat({
         />
       }
     >
+      {chooser}
       <ConversationFeed empty={!turns.length}>
         {!turns.length && (
           <ConversationWelcome
