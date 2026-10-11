@@ -1473,7 +1473,51 @@ function Provenance() {
   );
 }
 
+function Passages() {
+  const text = `${'Earlier plans. '.repeat(40)}Keep mornings free.${' Later details.'.repeat(40)}`;
+  return (
+    <K.Stack>
+      <K.PassageCard
+        label="Retained passage"
+        title={
+          <K.Link href="#planning-note" plain={true}>
+            Planning note
+          </K.Link>
+        }
+        text={text}
+        selection={{ start: 600, end: 619 }}
+        attribution={
+          <K.Text size="xs" tone="muted">
+            Fictional owner
+          </K.Text>
+        }
+        disclosureLabel="Context from Planning note"
+        notice={
+          <K.Text size="xs" tone="muted">
+            Recorded context remains available.
+          </K.Text>
+        }
+      />
+      <K.PassageCard
+        label="Empty passage"
+        title="Uncaptured note"
+        text=""
+        disclosureLabel="Context from Uncaptured note"
+        empty="No retained passage"
+      />
+    </K.Stack>
+  );
+}
+
 export const catalogue: Specimen[] = [
+  {
+    id: 'passages',
+    title: 'Passage disclosure',
+    description:
+      'Retained text with supplied marks, bounded context and independent keyboard disclosure.',
+    components: ['PassageCard'],
+    Sample: Passages,
+  },
   {
     id: 'provenance',
     title: 'Wiki provenance prototype',

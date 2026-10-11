@@ -1,7 +1,7 @@
 /* The kit's one stylesheet: Tailwind over the kit (kit/) only, never over extensions, which compose
  * the kit and can't style anything themselves. The values are the design's (design/README.md). */
 @import "tailwindcss" source(none);
-@import "./source-card.css";
+@import "./passage-card.css";
 @source "./";
 
 @custom-variant dark (&:is(.dark *));

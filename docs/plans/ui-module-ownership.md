@@ -259,3 +259,13 @@ has an explicit markup allowance; source-card mechanics remain only in the named
 Toolbar's shared 48px header and Prose document presentation standardize existing callers. Typed
 fictional preview `/preview/wiki.html` verifies actions and bounded responsive state; #50 extends
 preview examples through fictional NodeStore readings and pairs.
+
+## Completed slice: passage disclosure (#47)
+
+Shared `PassageCard` owns retained-text windows, marks, clipping/fades, disclosure and expanded
+context scrolling. Wiki `ReferenceCard` supplies title navigation, attribution, exact selection and
+newer/deleted source notices. No historical reading or citation meaning changes. Neutral paired
+kit examples exercise the same presentation; Wiki production/typed preview retain selection,
+expanded context and focus through rearrangement. The named renderer exception and source-card
+CSS retire. Compiler checks accept formatted semantic content/marks and reject source-card
+controls, styling, viewport access and scroll/measurement mechanics in Wiki helpers.
