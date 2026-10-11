@@ -7,7 +7,7 @@ import { dirname, relative, resolve } from 'node:path';
 const slash = (path: string) => path.replaceAll('\\', '/');
 const contentRenderer = (path: string) =>
   path === 'app/vault/documents/notes/remark-vault-links.ts';
-const semanticRenderer = (path: string) => path.startsWith('app/workflows/wiki/rendering/');
+const semanticRenderer = (path: string) => path === 'app/workflows/wiki/rendering/blocks.tsx';
 const semanticTags = new Set([
   'section',
   'h2',
@@ -106,7 +106,7 @@ export function checkLayout(root: string): string[] {
             : resolved) ??
           (value.text.startsWith('.') ? resolve(dirname(filename), value.text) : null);
         if (
-          !(kit(from) || contentRenderer(from) || /\.test\.[cm]?tsx?$/.test(from)) &&
+          !(kit(from) || /\.test\.[cm]?tsx?$/.test(from)) &&
           /^(?:lucide-react|radix-ui|@base-ui|cmdk|sonner)(?:\/|$)/.test(value.text)
         )
           problems.push(`${from}: presentation dependencies belong behind app/ui/kit/index.ts`);
@@ -128,6 +128,37 @@ export function checkLayout(root: string): string[] {
         const problem = importProblem(from, to);
         if (problem) problems.push(problem);
       };
+      // Resolve imports, local value aliases and property aliases through the same compiler.
+      const valueTarget = (node: ts.Node, seen = new Set<number>()): ts.Node => {
+        if (ts.isAsExpression(node) || ts.isParenthesizedExpression(node))
+          return valueTarget(node.expression, seen);
+        const symbol = project.checker.getSymbolAtLocation(node);
+        const resolved =
+          symbol &&
+          (symbol.flags & SymbolFlags.Alias ? project.checker.getAliasedSymbol(symbol) : symbol);
+        if (!resolved || seen.has(resolved.id)) return node;
+        seen.add(resolved.id);
+        const declaration = resolved.declarations[0]?.resolve();
+        if (declaration && ts.isVariableDeclaration(declaration) && declaration.initializer)
+          return valueTarget(declaration.initializer, seen);
+        if (declaration && ts.isBindingElement(declaration))
+          return declaration.propertyName ?? declaration.name ?? node;
+        return declaration && ts.isFunctionDeclaration(declaration) && declaration.name
+          ? declaration.name
+          : node;
+      };
+      const valueName = (node: ts.Node) => {
+        const value = valueTarget(node);
+        return ts.isPropertyAccessExpression(value)
+          ? value.name.text
+          : ts.isIdentifier(value)
+            ? value.text
+            : '';
+      };
+      const intrinsic = (node: ts.Node) => {
+        const value = valueTarget(node);
+        return ts.isStringLiteral(value) ? value.text : undefined;
+      };
       const visit = (node: ts.Node) => {
         if ((ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) && node.moduleSpecifier)
           check(node.moduleSpecifier);
@@ -138,15 +169,19 @@ export function checkLayout(root: string): string[] {
           node.arguments[0]
         )
           check(node.arguments[0]);
-        if (!(kit(from) || contentRenderer(from))) {
-          if (
-            (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) &&
-            ts.isIdentifier(node.tagName) &&
-            /^[a-z]/.test(node.tagName.text) &&
-            !(chatCodeRenderer(from) && node.tagName.text === 'pre') &&
-            !(semanticRenderer(from) && semanticTags.has(node.tagName.text))
-          )
-            problems.push(`${from}: <${node.tagName.text}> must be a public kit component`);
+        if (!kit(from)) {
+          if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) {
+            const tag =
+              ts.isIdentifier(node.tagName) && /^[a-z]/.test(node.tagName.text)
+                ? node.tagName.text
+                : intrinsic(node.tagName);
+            if (
+              tag &&
+              !(chatCodeRenderer(from) && tag === 'pre') &&
+              !(semanticRenderer(from) && semanticTags.has(tag))
+            )
+              problems.push(`${from}: <${tag}> must be a public kit component`);
+          }
           if (
             ts.isJsxAttribute(node) &&
             ['className', 'style', 'dangerouslySetInnerHTML'].includes(node.name.getText(file))
@@ -155,10 +190,11 @@ export function checkLayout(root: string): string[] {
               `${from}: app views must compose the public kit instead of styling elements`,
             );
           if (
+            !contentRenderer(from) &&
             ts.isObjectLiteralExpression(node) &&
             node.properties.some(
               (property) =>
-                ts.isPropertyAssignment(property) &&
+                (ts.isPropertyAssignment(property) || ts.isShorthandPropertyAssignment(property)) &&
                 ['className', 'style', 'dangerouslySetInnerHTML'].includes(
                   property.name.getText(file).replace(/['"]/g, ''),
                 ),
@@ -168,60 +204,51 @@ export function checkLayout(root: string): string[] {
           if (
             ts.isCallExpression(node) &&
             node.arguments[0] &&
-            ts.isStringLiteral(node.arguments[0])
-          ) {
-            const symbol = project.checker.getSymbolAtLocation(node.expression);
-            const resolved =
-              symbol &&
-              (symbol.flags & SymbolFlags.Alias
-                ? project.checker.getAliasedSymbol(symbol)
-                : symbol);
-            if (
-              ['createElement', 'jsx', 'jsxs', 'jsxDEV'].includes(resolved?.name ?? '') &&
-              !(
-                from === 'app/workflows/chat/rendering/markdown.ts' &&
-                node.arguments[0].text === 'p'
-              )
+            intrinsic(node.arguments[0]) &&
+            ['createElement', 'jsx', 'jsxs', 'jsxDEV'].includes(valueName(node.expression)) &&
+            !(
+              from === 'app/workflows/chat/rendering/markdown.ts' &&
+              intrinsic(node.arguments[0]) === 'p'
             )
-              problems.push(
-                `${from}: intrinsic element factories belong in the kit or content renderer`,
-              );
-          }
+          )
+            problems.push(
+              `${from}: intrinsic element factories belong in the kit or content renderer`,
+            );
         }
         // The size class is the kit's: views outside it never branch on the viewport. Product may
         // read it to choose a route or restore a panel.
         if (
-          !(
-            kit(from) ||
-            contentRenderer(from) ||
-            from === 'app/product.tsx' ||
-            /\.test\.[cm]?tsx?$/.test(from)
-          ) &&
+          !(kit(from) || from === 'app/product.tsx' || /\.test\.[cm]?tsx?$/.test(from)) &&
           ts.isImportSpecifier(node) &&
           ['useIsMobile', 'useLayout', 'useMedia'].includes((node.propertyName ?? node.name).text)
         )
           problems.push(`${from}: size-dependent presentation belongs in the kit`);
+        const outsidePresentation = !(
+          kit(from) ||
+          from === 'app/product.tsx' ||
+          /\.test\.[cm]?tsx?$/.test(from)
+        );
+        if (outsidePresentation && ts.isCallExpression(node)) {
+          const name = valueName(node.expression);
+          if (['useIsMobile', 'useLayout', 'useMedia'].includes(name))
+            problems.push(`${from}: size-dependent presentation belongs in the kit`);
+          if (
+            name === 'matchMedia' &&
+            node.arguments[0] &&
+            (!intrinsic(node.arguments[0]) ||
+              /\b(?:width|height|orientation|pointer|hover)\b/.test(intrinsic(node.arguments[0])!))
+          )
+            problems.push(`${from}: viewport queries belong in the kit`);
+        }
+        // Product restores a route anchor; the keyboard adapter moves the selected task row.
+        // Other module/helper/semantic sources do not own measured presentation or scrolling.
         if (
           !(
             kit(from) ||
-            contentRenderer(from) ||
             from === 'app/product.tsx' ||
-            // Delegated vault-link hover adapter; presentation migration is tracked in #51.
-            from === 'app/ui/Previews.tsx' ||
+            from === 'app/ui/keys.ts' ||
             /\.test\.[cm]?tsx?$/.test(from)
           ) &&
-          ts.isCallExpression(node) &&
-          ((ts.isIdentifier(node.expression) && node.expression.text === 'matchMedia') ||
-            (ts.isPropertyAccessExpression(node.expression) &&
-              node.expression.name.text === 'matchMedia')) &&
-          node.arguments[0] &&
-          ts.isStringLiteral(node.arguments[0]) &&
-          /\b(?:width|height|orientation|pointer|hover)\b/.test(node.arguments[0].text)
-        )
-          problems.push(`${from}: viewport queries belong in the kit`);
-        if (
-          workflow(from) === 'wiki' &&
-          !/\.test\.[cm]?tsx?$/.test(from) &&
           ((ts.isPropertyAccessExpression(node) &&
             [
               'scrollTop',

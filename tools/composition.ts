@@ -1,5 +1,6 @@
 // Node-only composition policy shared by CI and temporary source-project tests.
 import { dirname, relative, resolve } from 'node:path';
+import { readdirSync } from 'node:fs';
 import { SymbolFlags, type Project, type Symbol as CompilerSymbol } from 'typescript/unstable/sync';
 // biome-ignore lint/performance/noNamespaceImport: Node-only compiler inspection.
 import * as ts from 'typescript/unstable/ast';
@@ -7,6 +8,11 @@ import * as ts from 'typescript/unstable/ast';
 export interface CompositionRoot {
   source: string;
   primitives: readonly string[];
+}
+export interface ImplementationRole {
+  source: string;
+  /** Exact declaration boundaries allowed to own DOM/library mechanics. */
+  mechanics: readonly string[];
 }
 export interface CompositionViolation {
   source: string;
@@ -21,7 +27,11 @@ export interface CompositionResult {
 
 export function checkCompositions(
   project: Project,
-  configuration: { publicKit: string; roots: readonly CompositionRoot[] },
+  configuration: {
+    publicKit: string;
+    roots: readonly CompositionRoot[];
+    implementations?: readonly ImplementationRole[];
+  },
 ): CompositionResult {
   const root = dirname(project.configFileName);
   const { checker } = project;
@@ -33,6 +43,17 @@ export function checkCompositions(
     return symbol?.flags && symbol.flags & SymbolFlags.Alias
       ? checker.getAliasedSymbol(symbol)
       : symbol;
+  };
+  const aliasValue = (node: ts.Node, seen = new Set<string>()): ts.Node => {
+    if (ts.isAsExpression(node) || ts.isParenthesizedExpression(node))
+      return aliasValue(node.expression, seen);
+    const symbol = target(node);
+    if (!symbol || seen.has(String(symbol.id))) return node;
+    seen.add(String(symbol.id));
+    const declaration = symbol.declarations[0]?.resolve();
+    return declaration && ts.isVariableDeclaration(declaration) && declaration.initializer
+      ? aliasValue(declaration.initializer, seen)
+      : node;
   };
   const key = (symbol: CompilerSymbol | undefined) => (symbol ? String(symbol.id) : '');
   const publicTargets = new Map<string, string>();
@@ -82,7 +103,9 @@ export function checkCompositions(
     }) ?? [];
   const presentationFactory = (node: ts.Node): node is ts.CallExpression =>
     ts.isCallExpression(node) &&
-    ['createElement', 'jsx', 'jsxs', 'jsxDEV'].includes(target(node.expression)?.name ?? '');
+    ['createElement', 'jsx', 'jsxs', 'jsxDEV'].includes(
+      target(aliasValue(node.expression))?.name ?? '',
+    );
   const containsPresentation = (node: ts.Node, seen = new Set<string>()): boolean => {
     const identity = `${node.getSourceFile().fileName}:${node.kind}:${node.pos}:${node.end}`;
     if (seen.has(identity)) return false;
@@ -107,7 +130,47 @@ export function checkCompositions(
       return true;
     return !!node.forEachChild((child) => containsPresentation(child, seen));
   };
-  const usages = configuration.roots.map((composition) => {
+  const owned = new Map<string, Set<string>>();
+  const implementationRoots: CompositionRoot[] = [];
+  if (configuration.implementations) {
+    const roles = new Map(configuration.implementations.map((role) => [role.source, role]));
+    const scan = (directory: string): string[] =>
+      readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+        const file = resolve(directory, entry.name);
+        return entry.isDirectory() ? scan(file) : /\.[cm]?tsx?$/.test(file) ? [file] : [];
+      });
+    for (const filename of scan(dirname(publicKit.fileName))) {
+      const source = project.program.getSourceFile(filename);
+      if (!source || /\.test\.[cm]?tsx?$/.test(filename)) continue;
+      const role = roles.get(path(filename));
+      if (!role) {
+        report(source, `unclassified implementation ${path(filename)}`);
+        continue;
+      }
+      const names = new Set<string>();
+      const boundaries = new Set<string>();
+      const declaration = (node: ts.Node) => {
+        if (
+          (ts.isFunctionDeclaration(node) || ts.isVariableDeclaration(node)) &&
+          node.name &&
+          ts.isIdentifier(node.name)
+        ) {
+          if (role.mechanics.includes(node.name.text)) {
+            boundaries.add(`${node.kind}:${node.pos}`);
+            names.add(node.name.text);
+          }
+          return;
+        }
+        node.forEachChild(declaration);
+      };
+      source.forEachChild(declaration);
+      for (const name of role.mechanics)
+        if (!names.has(name)) report(source, `unknown mechanics declaration ${name}`);
+      owned.set(filename, boundaries);
+      implementationRoots.push({ source: path(filename), primitives: [] });
+    }
+  }
+  const usages = [...configuration.roots, ...implementationRoots].map((composition, index) => {
     const source = project.program.getSourceFile(resolve(root, composition.source));
     if (!source) throw new Error(`${composition.source} is outside the checked TypeScript project`);
     const used = new Set<string>();
@@ -180,7 +243,8 @@ export function checkCompositions(
     const visit = (node: ts.Node) => {
       const file = node.getSourceFile();
       const identity = `${file.fileName}:${node.kind}:${node.pos}:${node.end}`;
-      if (visited.has(identity)) return;
+      if (visited.has(identity) || owned.get(file.fileName)?.has(`${node.kind}:${node.pos}`))
+        return;
       visited.add(identity);
       if (
         ts.isJsxAttribute(node) &&
@@ -212,8 +276,10 @@ export function checkCompositions(
           node.forEachChild(visit);
           return;
         }
+        const value = aliasValue(name);
         if (ts.isIdentifier(name) && /^[a-z]/.test(name.text))
           report(node, `intrinsic <${name.text}>`);
+        else if (ts.isStringLiteral(value)) report(node, `intrinsic <${value.text}>`);
         else {
           const provider = ts.isPropertyAccessExpression(name) && name.name.text === 'Provider';
           const declarations = provider
@@ -239,7 +305,7 @@ export function checkCompositions(
       if (presentationFactory(node)) {
         const [argument, props] = node.arguments;
         if (props) visitProps(props);
-        if (argument && ts.isStringLiteral(argument)) report(node, 'intrinsic factory');
+        if (argument && ts.isStringLiteral(aliasValue(argument))) report(node, 'intrinsic factory');
         else if (argument)
           followHelper(
             argument,
@@ -255,12 +321,18 @@ export function checkCompositions(
     };
     visit(source);
     const primitives = [...used].sort();
-    if (JSON.stringify(primitives) !== JSON.stringify([...composition.primitives].sort()))
+    if (
+      index < configuration.roots.length &&
+      JSON.stringify(primitives) !== JSON.stringify([...composition.primitives].sort())
+    )
       report(
         source,
         `building-block metadata: expected ${composition.primitives.join(', ')}; used ${primitives.join(', ')}`,
       );
     return { source: composition.source, primitives };
   });
-  return { violations: [...violations.values()], usages };
+  return {
+    violations: [...violations.values()],
+    usages: usages.slice(0, configuration.roots.length),
+  };
 }

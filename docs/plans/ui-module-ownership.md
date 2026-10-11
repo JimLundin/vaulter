@@ -1,7 +1,30 @@
 # Module-owned UI with shared kit presentation
 
-Status: accepted direction; application migration not implemented. Decision:
+Status: ownership implementation complete; final integration validation and review tracked with the delivery. Decision:
 [ADR 0006](../adr/0006-module-ui-and-shared-presentation.md).
+
+## Delivered ownership
+
+Chat, Wiki, History and Search now interpret their own typed records and tasks. Shared pane,
+message entry, expandable rows, command overlays and passage disclosure stay in the kit.
+The [public presentation inventory](../ui-presentation-inventory.md) records every current public
+value/type, actual consumers and the replacement of retired exports. The baseline table below is
+historical migration context, not a list of remaining kit responsibilities.
+
+`app/ui/kit/composition.ts` exhaustively lists implementation sources and exact mechanics
+declaration boundaries. Every remaining declaration is checked composition, including private
+helpers and public wrappers. New files cannot silently omit checks, and public availability does
+not grant permission to own DOM or presentation libraries. `tools/layout.ts` resolves imports and
+local aliases; exact semantic Wiki block/Chat code renderers cannot implement custom layouts,
+controls, styling, viewport choices or independent scrolling. Preview adapters remain explicit and
+production reachability rejects fictional-record and catalogue dependencies.
+
+All three real supporting clients follow `--drawer-width` and the same 48px header, expanded side
+pane and compact full-height Drawer policy. `tools/browser/ui-ownership.spec.ts` overrides the kit
+width once and observes Chat, the chooser and Wiki references, without caller geometry edits.
+History deletion with only Product wiring changes has also been verified in a disposable copy:
+old History routes become unavailable while generic retained snapshots, exact versions, history
+and differences remain readable; kit and unrelated workflow implementations are untouched.
 
 ## Implementation tickets
 

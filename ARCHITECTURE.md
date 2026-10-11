@@ -165,17 +165,21 @@ The saved-conversation chooser uses the shared `SupportingPane`: one scrolling b
 following feed with an anchored dock; one header and width; expanded space beside the page and
 compact space in a full-height bottom Drawer. Modules request visibility and supply content/actions;
 `persistent` retains desktop occupancy without choosing presentation mechanics. Selection identity
-resets the kit-owned scroll position. Wiki references now consume this policy; Chat's remaining
-path and obsolete wrappers retire in #45/#51.
+resets the kit-owned scroll position. Chat, the conversation chooser and Wiki references consume
+this policy; obsolete pane wrappers and Drawer reading/supporting placements are retired.
 
-The accepted ownership target is [ADR 0006](docs/adr/0006-module-ui-and-shared-presentation.md):
+The implemented ownership decision is [ADR 0006](docs/adr/0006-module-ui-and-shared-presentation.md):
 modules own record-specific UI and typed reading projections; the kit owns base presentation and
 shared compositions. Supporting panes use one presentation policy across modules. Consistency and
 a smaller presentation interface take precedence over feature-specific UI tailoring. The
 [migration plan](docs/plans/ui-module-ownership.md) records the sequence and enforcement checks;
-History and Search ownership are implemented; remaining migrations are tracked by the plan.
-Current presentation still includes
-module-specific kit exports and different supporting-pane arrangements.
+Chat, Wiki, History and Search own their typed record and task composition. The
+[public inventory](docs/ui-presentation-inventory.md) identifies every retained kit export and actual
+consumers. Exact declaration roles in `app/ui/kit/composition.ts` separate DOM/library mechanics from
+checked compositions, including private helpers. New sources require explicit ownership. Semantic
+renderers have exact content-only permissions; alias, style, private-library and viewport escapes
+are checked by the same compiler-backed policies. The kit owns delegated hover delay, anchors and
+dismissal while application UI resolves links to supplied preview text.
 
 Wiki owns `WikiPageView`: typed `WikiPage`/`WikiBlock`/`WikiReference` projections, title and
 classification actions, connections, questions and reference selection. Product still reads through
