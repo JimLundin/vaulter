@@ -5,6 +5,7 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { fileURLToPath } from 'node:url';
 import { previewAgent } from './tools/preview-agent.ts';
+import { noEval } from './tools/no-eval.ts';
 
 const SITE = fileURLToPath(new URL('.', import.meta.url));
 
@@ -66,7 +67,8 @@ export default defineConfig(({ command, mode }) => {
   return {
     root: 'app',
     base: './',
-    plugins: [react(), tailwindcss(), csp(), ...(agent ? [agent.guard] : [])],
+    plugins: [noEval(), react(), tailwindcss(), csp(), ...(agent ? [agent.guard] : [])],
+    worker: { plugins: () => [noEval()] },
     server: { proxy: agent?.proxy },
     // shadcn/ui's imports: @/components/ui/…, @/lib/utils.
     resolve: { alias: { '@': fileURLToPath(new URL('app', import.meta.url)) } },

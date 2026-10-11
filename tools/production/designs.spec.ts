@@ -10,6 +10,13 @@ import { canonical, digest } from '../../app/vault/nodes/json.ts';
 test('production opens real Wiki pages and exact evidence alongside persistent Chat', async ({
   page,
 }) => {
+  await page.addInitScript(() => {
+    const violations: string[] = [];
+    document.addEventListener('securitypolicyviolation', (event) => {
+      violations.push(`${event.effectiveDirective}: ${event.blockedURI}`);
+    });
+    Object.defineProperty(globalThis, 'cspViolations', { value: violations });
+  });
   const nodes = memoryNodeBackend();
   const sourceText =
     'Earlier plans. '.repeat(40) +
@@ -116,6 +123,11 @@ test('production opens real Wiki pages and exact evidence alongside persistent C
     });
   });
   await page.goto('/');
+  const policy = await page
+    .locator('meta[http-equiv="Content-Security-Policy"]')
+    .getAttribute('content');
+  expect(policy).toContain("script-src 'self'");
+  expect(policy).not.toContain('unsafe-eval');
   await page.getByLabel('Password', { exact: true }).fill(password);
   await page.getByRole('button', { name: 'Open vault', exact: true }).click();
   if (test.info().project.name === 'phone')
@@ -193,6 +205,7 @@ test('production opens real Wiki pages and exact evidence alongside persistent C
   await expect(page.locator('[data-message="user"]')).toContainText(
     'I want quiet mornings in the studio.',
   );
+  expect(await page.evaluate(() => Reflect.get(globalThis, 'cspViolations'))).toEqual([]);
   await page.reload();
   await expect(page.locator('[data-message="user"]')).toContainText(
     'I want quiet mornings in the studio.',
@@ -247,4 +260,5 @@ test('production opens real Wiki pages and exact evidence alongside persistent C
   expect(cached.vaultText).toContain('I want quiet mornings in the studio.');
   expect(cached.vaultText).not.toContain('fictional-token');
   expect(cached.credentialFields).toEqual([['id', 'key', 'salt', 'expires']]);
+  expect(await page.evaluate(() => Reflect.get(globalThis, 'cspViolations'))).toEqual([]);
 });

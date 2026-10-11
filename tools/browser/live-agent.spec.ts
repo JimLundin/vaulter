@@ -4,6 +4,15 @@ test('live preview streams through the Responses adapter and records real provid
   page,
 }) => {
   const calls: { model: string; store: boolean }[] = [];
+  await page.addInitScript(() => {
+    const attempts: string[] = [];
+    Object.defineProperty(globalThis, 'dynamicCodeAttempts', { value: attempts });
+    const deny = () => {
+      attempts.push('Function');
+      throw new EvalError('Dynamic code generation is disabled in this test.');
+    };
+    globalThis.Function = new Proxy(globalThis.Function, { apply: deny, construct: deny });
+  });
   await page.addInitScript(() => localStorage.setItem('vault.agent.model', 'fixture-llm'));
   await page.route('**/__preview-agent/v1/responses', async (route) => {
     calls.push(route.request().postDataJSON());
@@ -51,6 +60,7 @@ test('live preview streams through the Responses adapter and records real provid
   await expect(page.getByRole('button', { name: 'Stop', exact: true })).toBeHidden();
   expect(calls).toHaveLength(1);
   expect(calls[0]).toMatchObject({ model: 'fixture-llm', store: false });
+  expect(await page.evaluate(() => Reflect.get(globalThis, 'dynamicCodeAttempts'))).toEqual([]);
   const journal = await page.evaluate(() => sessionStorage.getItem('vaulter:preview:accepted:v1'));
   expect(journal).toContain('"provider":"openai"');
   expect(journal).not.toContain('local-preview');
