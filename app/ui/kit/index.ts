@@ -354,3 +354,5 @@ export {
 export { usePreviewVariant } from './preview-variants.tsx';
 
 export { SupportingPane } from './supporting-pane.tsx';
+
+export { PassageCard } from './passage-card.tsx';

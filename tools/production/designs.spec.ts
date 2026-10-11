@@ -177,7 +177,7 @@ test('production opens real Wiki pages and exact evidence alongside persistent C
     expect(bounds.references.top).toBe(bounds.toolbar.top);
   }
   await page.screenshot({
-    path: `/tmp/vaulter-46-wiki-production-${test.info().project.name}.png`,
+    path: `/tmp/vaulter-47-wiki-production-${test.info().project.name}.png`,
   });
   await expect(
     evidence.getByText('I want quiet mornings in the studio.', { exact: false }),

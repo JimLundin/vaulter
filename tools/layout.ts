@@ -6,8 +6,6 @@ import { dirname, relative, resolve } from 'node:path';
 
 const slash = (path: string) => path.replaceAll('\\', '/');
 const contentRenderer = (path: string) =>
-  // Source-card mechanics remain explicitly temporary until #47.
-  path === 'app/workflows/wiki/rendering/references.tsx' ||
   path === 'app/vault/documents/notes/remark-vault-links.ts';
 const semanticRenderer = (path: string) => path.startsWith('app/workflows/wiki/rendering/');
 const semanticTags = new Set([
@@ -19,6 +17,7 @@ const semanticTags = new Set([
   'h6',
   'p',
   'span',
+  'mark',
   'strong',
   'em',
   'code',
@@ -210,6 +209,24 @@ export function checkLayout(root: string): string[] {
           /\b(?:width|height|orientation|pointer|hover)\b/.test(node.arguments[0].text)
         )
           problems.push(`${from}: viewport queries belong in the kit`);
+        if (
+          workflow(from) === 'wiki' &&
+          !/\.test\.[cm]?tsx?$/.test(from) &&
+          ((ts.isPropertyAccessExpression(node) &&
+            [
+              'scrollTop',
+              'scrollLeft',
+              'scrollHeight',
+              'scrollWidth',
+              'clientHeight',
+              'clientWidth',
+              'getBoundingClientRect',
+              'scrollTo',
+              'scrollIntoView',
+            ].includes(node.name.text)) ||
+            (ts.isNewExpression(node) && node.expression.getText(file) === 'ResizeObserver'))
+        )
+          problems.push(`${from}: passage measurement and scrolling belong in the kit`);
         node.forEachChild(visit);
       };
       visit(file);
