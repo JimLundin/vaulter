@@ -33,6 +33,11 @@ jobs:
       - run: npm run test:ui
 
   deploy:
+    permissions:
+      actions: read
+      contents: read
+      pages: write
+      id-token: write
     needs: test
     if: github.ref == 'refs/heads/main'
     concurrency:
@@ -62,6 +67,10 @@ jobs:
           node tools/seal-secrets.ts dist/secrets.json
           printf 'User-agent: *\nDisallow: /\n' > dist/robots.txt
           printf '{"commit":"%s"}\n' "$GITHUB_SHA" > dist/version.json
+      - name: Preserve retained branch previews
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node tools/preserve-previews.ts
       - uses: actions/upload-pages-artifact@v4
         # Preview deployments reuse this exact production artifact.
         with: { path: dist, retention-days: 90 }

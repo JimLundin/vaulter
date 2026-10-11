@@ -6,6 +6,7 @@ import { join, resolve } from 'node:path';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { createHash } from 'node:crypto';
+import { restorePreviews } from './restore-previews.ts';
 import { copyPreview, previewPath } from './design-preview.ts';
 
 const repo = process.env.GITHUB_REPOSITORY;
@@ -16,8 +17,6 @@ if (!(repo && commit && branch))
 const preview = previewPath(branch);
 const api = <T>(path: string): T =>
   JSON.parse(execFileSync('gh', ['api', path], { encoding: 'utf8' }));
-const pages = <T>(path: string): T[] =>
-  JSON.parse(execFileSync('gh', ['api', path, '--paginate', '--slurp'], { encoding: 'utf8' }));
 const site = api<{ html_url: string }>(`repos/${repo}/pages`).html_url;
 const deployed = await fetch(new URL('version.json', site));
 if (!deployed.ok) throw new Error('Cannot identify the currently deployed production version.');
@@ -89,47 +88,7 @@ try {
   };
   const original = digest(output);
   rmSync(join(output, 'preview'), { recursive: true, force: true });
-  // Restore the latest successful, retained preview for every other branch. The Pages artifact
-  // replaces the complete site, so retaining only production would erase those branch previews.
-  const previews = pages<{
-    workflow_runs: { id: number; head_branch: string; head_sha: string }[];
-  }>(`repos/${repo}/actions/workflows/deploy.yml/runs?status=success&per_page=100`).flatMap(
-    (page) => page.workflow_runs,
-  );
-  const previewArtifacts = pages<{
-    artifacts: { expired: boolean; workflow_run: { id: number } }[];
-  }>(`repos/${repo}/actions/artifacts?name=design-preview&per_page=100`).flatMap(
-    (page) => page.artifacts,
-  );
-  const retainedRuns = new Set(
-    previewArtifacts.filter((item) => !item.expired).map((item) => item.workflow_run.id),
-  );
-  const restored = new Set([branch, 'main']);
-  const available: { id: number; branch: string; commit: string }[] = [];
-  for (const candidate of previews) {
-    if (restored.has(candidate.head_branch)) continue;
-    if (!retainedRuns.has(candidate.id)) continue;
-    previewPath(candidate.head_branch);
-    restored.add(candidate.head_branch);
-    available.push({ id: candidate.id, branch: candidate.head_branch, commit: candidate.head_sha });
-  }
-  // A branch named feature and one named feature/input may share a directory ancestor.
-  available.sort((a, b) => a.branch.split('/').length - b.branch.split('/').length);
-  for (const candidate of available) {
-    const source = join(scratch, String(candidate.id));
-    execFileSync('gh', [
-      'run',
-      'download',
-      String(candidate.id),
-      '--repo',
-      repo,
-      '--name',
-      'design-preview',
-      '--dir',
-      source,
-    ]);
-    copyPreview(source, output, candidate.branch, candidate.commit);
-  }
+  restorePreviews(repo, output, scratch, [branch]);
   copyPreview('dist-preview', output, branch, commit);
   if (digest(output) !== original) throw new Error('Preview packaging changed production files.');
   const summary = process.env.GITHUB_STEP_SUMMARY;
