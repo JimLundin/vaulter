@@ -3,6 +3,22 @@
 Status: accepted direction; application migration not implemented. Decision:
 [ADR 0006](../adr/0006-module-ui-and-shared-presentation.md).
 
+## Implementation tickets
+
+The approved task graph is published in GitHub. Native blocking links determine the implementation
+frontier; the independent starting tickets are #44, #48 and #49.
+
+| Ticket | Delivery | Blocked by |
+| --- | --- | --- |
+| [#44](https://github.com/JimLundin/vaulter/issues/44) | Shared pane through conversation selection | None |
+| [#45](https://github.com/JimLundin/vaulter/issues/45) | Chat-owned UI and shared pane | #44 |
+| [#46](https://github.com/JimLundin/vaulter/issues/46) | Wiki-owned page composition and shared pane | #44 |
+| [#47](https://github.com/JimLundin/vaulter/issues/47) | Shared source-passage disclosure mechanics | #46 |
+| [#48](https://github.com/JimLundin/vaulter/issues/48) | History-owned transaction UI | None |
+| [#49](https://github.com/JimLundin/vaulter/issues/49) | Search-owned task UI | None |
+| [#50](https://github.com/JimLundin/vaulter/issues/50) | Module previews without production preview coupling | #45, #47 |
+| [#51](https://github.com/JimLundin/vaulter/issues/51) | Complete enforcement and retirement of migration paths | #48, #49, #50 |
+
 The first architecture delivery concentrates shared presentation policy and moves record-specific
 UI to its owning module. Chat lifetime, Wiki reading cost and broader Agent/Vault implementation
 privacy remain follow-up opportunities from the architecture review. They are not prerequisites
