@@ -1,6 +1,6 @@
 // The vault's recorded node history, newest first. Generic: it names changed nodes by their kind and
 // common label fields, never interpreting another workflow's records; Product supplies undo policy.
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
   AlertDescription,
@@ -10,8 +10,6 @@ import {
   Row,
   Stack,
   Text,
-  // biome-ignore lint/correctness/noUnresolvedImports: the public kit reexports Sonner; TypeScript verifies it.
-  toast,
 } from '../../ui/kit/index.ts';
 import type { NodeVersion } from '../../vault/nodes/model.ts';
 import type { NodeDifference } from '../../vault/nodes/store.ts';
@@ -62,41 +60,67 @@ export function NodeHistory({ history }: { history: NodeHistorySource }) {
   const [error, setError] = useState('');
   const [confirm, setConfirm] = useState<NodeHistoryEntry | null>(null);
   const [busy, setBusy] = useState(false);
-  const reload = useCallback(
-    () =>
-      history.entries({ limit: PAGE }).then(
-        (entries) => {
-          setList(entries);
-          setMore(entries.length === PAGE);
-        },
-        (e: unknown) => setError(String(e)),
-      ),
-    [history],
-  );
+  const oldest = useRef<number | undefined>(undefined);
+  const generation = useRef(0);
+  const [loading, setLoading] = useState(false);
+  const reload = useCallback(async () => {
+    const request = ++generation.current;
+    setLoading(true);
+    try {
+      const all: NodeHistoryEntry[] = [];
+      let beforeSequence: number | undefined;
+      let page: readonly NodeHistoryEntry[];
+      do {
+        // biome-ignore lint/performance/noAwaitInLoops: each cursor depends on the preceding page.
+        page = await history.entries({ beforeSequence, limit: PAGE });
+        if (request !== generation.current) return;
+        all.push(...page);
+        beforeSequence = page.at(-1)?.transaction.sequence;
+      } while (
+        page.length === PAGE &&
+        beforeSequence !== undefined &&
+        oldest.current !== undefined &&
+        beforeSequence > oldest.current
+      );
+      oldest.current = all.at(-1)?.transaction.sequence;
+      setList(all);
+      setMore(page.length === PAGE);
+      setError('');
+    } catch (e) {
+      if (request === generation.current) setError(String(e));
+    } finally {
+      if (request === generation.current) setLoading(false);
+    }
+  }, [history]);
   useEffect(() => {
-    let active = true;
-    const refresh = () => {
-      if (active) void reload();
-    };
-    refresh();
-    const unsubscribe = history.subscribe(refresh);
+    oldest.current = undefined;
+    setList(null);
+    void reload();
+    const unsubscribe = history.subscribe(() => void reload());
     return () => {
-      active = false;
+      generation.current++;
       unsubscribe();
     };
   }, [history, reload]);
   const earlier = async () => {
     const last = list?.at(-1);
-    if (!last) return;
+    if (!last || loading) return;
+    const request = ++generation.current;
+    setLoading(true);
     try {
       const entries = await history.entries({
         beforeSequence: last.transaction.sequence,
         limit: PAGE,
       });
-      setList([...(list ?? []), ...entries]);
+      if (request !== generation.current) return;
+      oldest.current = entries.at(-1)?.transaction.sequence ?? last.transaction.sequence;
+      setList((current) => [...(current ?? []), ...entries]);
       setMore(entries.length === PAGE);
+      setError('');
     } catch (e) {
-      setError(String(e));
+      if (request === generation.current) setError(String(e));
+    } finally {
+      if (request === generation.current) setLoading(false);
     }
   };
   const undo = async () => {
@@ -106,7 +130,6 @@ export function NodeHistory({ history }: { history: NodeHistorySource }) {
     try {
       await history.undo(confirm);
       setConfirm(null);
-      toast.success('Undone');
       await reload();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -127,52 +150,25 @@ export function NodeHistory({ history }: { history: NodeHistorySource }) {
         <Text tone="muted">No recorded changes yet.</Text>
       ) : (
         <Stack gap="xl">
-          {list.map((entry) => {
-            const { transaction } = entry;
-            const expanded = open.has(transaction.id);
-            const title =
-              transaction.message?.split('\n')[0] ||
-              `${transaction.kind.scope}.${transaction.kind.action}`;
-            return (
-              <HistoryEntry
-                key={transaction.id}
-                title={title}
-                date={`${when(transaction.recordedAt)} · ${labelOf(entry.author)}`}
-                sha={`#${transaction.sequence}`}
-                expanded={expanded}
-                onExpand={() =>
-                  setOpen((current) => {
-                    const next = new Set(current);
-                    if (!next.delete(transaction.id)) next.add(transaction.id);
-                    return next;
-                  })
-                }
-                onRevert={
-                  history.undo && history.canUndo?.(entry) ? () => setConfirm(entry) : undefined
-                }
-              >
-                {expanded && (
-                  <Stack gap="xs">
-                    {transaction.message?.includes('\n') && (
-                      <Text tone="muted">
-                        {transaction.message.split('\n').slice(1).join('\n').trim()}
-                      </Text>
-                    )}
-                    {!!entry.origin && <Text tone="subtle">From {labelOf(entry.origin)}</Text>}
-                    {entry.differences.slice(0, SHOWN).map((difference) => (
-                      <Text key={difference.node}>{describe(difference)}</Text>
-                    ))}
-                    {entry.differences.length > SHOWN && (
-                      <Text tone="subtle">and {entry.differences.length - SHOWN} more changes</Text>
-                    )}
-                  </Stack>
-                )}
-              </HistoryEntry>
-            );
-          })}
+          {list.map((entry) => (
+            <TransactionItem
+              key={entry.transaction.id}
+              entry={entry}
+              expanded={open.has(entry.transaction.id)}
+              onExpand={() =>
+                setOpen((current) => {
+                  const next = new Set(current);
+                  if (!next.delete(entry.transaction.id)) next.add(entry.transaction.id);
+                  return next;
+                })
+              }
+              canUndo={!!history.undo && !!history.canUndo?.(entry)}
+              onUndo={() => setConfirm(entry)}
+            />
+          ))}
           {more && (
             <Row justify="center">
-              <Button variant="outline" onClick={() => void earlier()}>
+              <Button variant="outline" disabled={loading} onClick={() => void earlier()}>
                 Load earlier
               </Button>
             </Row>
@@ -197,5 +193,50 @@ export function NodeHistory({ history }: { history: NodeHistorySource }) {
         </Row>
       </Overlay>
     </>
+  );
+}
+
+/** One accepted transaction, independent of the list's loading and pagination. */
+export function TransactionItem({
+  entry,
+  expanded,
+  onExpand,
+  canUndo,
+  onUndo,
+}: {
+  entry: NodeHistoryEntry;
+  expanded: boolean;
+  onExpand: () => void;
+  canUndo: boolean;
+  onUndo: () => void;
+}) {
+  const { transaction } = entry;
+  const title =
+    transaction.message?.split('\n')[0] || `${transaction.kind.scope}.${transaction.kind.action}`;
+  return (
+    <HistoryEntry
+      key={transaction.id}
+      title={title}
+      date={`${when(transaction.recordedAt)} · ${labelOf(entry.author)}`}
+      sha={`#${transaction.sequence}`}
+      expanded={expanded}
+      onExpand={onExpand}
+      onRevert={canUndo ? onUndo : undefined}
+    >
+      {expanded && (
+        <Stack gap="xs">
+          {transaction.message?.includes('\n') && (
+            <Text tone="muted">{transaction.message.split('\n').slice(1).join('\n').trim()}</Text>
+          )}
+          {!!entry.origin && <Text tone="subtle">From {labelOf(entry.origin)}</Text>}
+          {entry.differences.slice(0, SHOWN).map((difference) => (
+            <Text key={difference.node}>{describe(difference)}</Text>
+          ))}
+          {entry.differences.length > SHOWN && (
+            <Text tone="subtle">and {entry.differences.length - SHOWN} more changes</Text>
+          )}
+        </Stack>
+      )}
+    </HistoryEntry>
   );
 }

@@ -421,8 +421,8 @@ test('paired Agent panels remain independently editable and Escape closes the ac
     'Desktop draft',
   );
   await page.keyboard.press('Escape');
-  await expect(mobile.getByRole('dialog', { name: 'Agent', exact: true })).toBeHidden();
-  await expect(desktop.getByRole('dialog', { name: 'Agent', exact: true })).toBeVisible();
+  await expect(mobile.getByRole('dialog', { name: 'Chat', exact: true })).toBeHidden();
+  await expect(desktop.getByRole('dialog', { name: 'Chat', exact: true })).toBeVisible();
   await desktop.getByRole('textbox', { name: 'Panel message' }).focus();
   await page.keyboard.press('Escape');
   await expect(desktop.getByRole('button', { name: 'Open agent panel' })).toBeFocused();
@@ -449,14 +449,14 @@ test('paired panel composers submit once with the shared keyboard path and retai
     await expect(field).toHaveValue('');
     await field.fill(`${device} unfinished thought`);
     await page.keyboard.press('Escape');
-    await expect(sample.getByRole('dialog', { name: 'Agent', exact: true })).toBeHidden();
+    await expect(sample.getByRole('dialog', { name: 'Chat', exact: true })).toBeHidden();
     await expect(sample.getByRole('button', { name: 'Open agent panel' })).toBeFocused();
     await sample.getByRole('button', { name: 'Open agent panel' }).click();
     await expect(field).toHaveValue(`${device} unfinished thought`);
     await sample.getByRole('button', { name: 'Send panel message' }).click();
     await expect(sample.locator('[data-message="user"]')).toHaveCount(2);
     await page.keyboard.press('Escape');
-    await expect(sample.getByRole('dialog', { name: 'Agent', exact: true })).toBeHidden();
+    await expect(sample.getByRole('dialog', { name: 'Chat', exact: true })).toBeHidden();
   }
 });
 
@@ -475,14 +475,14 @@ test('catalogue focus and outside interaction revoke a panel’s keyboard owners
   await mobile.getByRole('button', { name: 'Send panel message' }).click();
   await desktop.getByRole('textbox', { name: 'Panel message' }).focus();
   await page.keyboard.press('Escape');
-  await expect(desktop.getByRole('dialog', { name: 'Agent', exact: true })).toBeHidden();
-  await expect(mobile.getByRole('dialog', { name: 'Agent', exact: true })).toBeVisible();
+  await expect(desktop.getByRole('dialog', { name: 'Chat', exact: true })).toBeHidden();
+  await expect(mobile.getByRole('dialog', { name: 'Chat', exact: true })).toBeVisible();
   await filter.focus();
   await page.keyboard.press('Escape');
-  await expect(mobile.getByRole('dialog', { name: 'Agent', exact: true })).toBeVisible();
+  await expect(mobile.getByRole('dialog', { name: 'Chat', exact: true })).toBeVisible();
   await filter.evaluate((node) => node.blur());
   await page.keyboard.press('Escape');
-  await expect(mobile.getByRole('dialog', { name: 'Agent', exact: true })).toBeVisible();
+  await expect(mobile.getByRole('dialog', { name: 'Chat', exact: true })).toBeVisible();
 });
 
 test('Escape after sending closes the last interacted panel while another sample stays editable', async ({
@@ -502,9 +502,9 @@ test('Escape after sending closes the last interacted panel while another sample
   await expect(send).toBeDisabled();
   await expect(mobile.locator('[data-message="user"]')).toHaveCount(1);
   await page.keyboard.press('Escape');
-  await expect(mobile.getByRole('dialog', { name: 'Agent', exact: true })).toBeHidden();
+  await expect(mobile.getByRole('dialog', { name: 'Chat', exact: true })).toBeHidden();
   await expect(mobile.getByRole('button', { name: 'Open agent panel' })).toBeFocused();
-  await expect(desktop.getByRole('dialog', { name: 'Agent', exact: true })).toBeVisible();
+  await expect(desktop.getByRole('dialog', { name: 'Chat', exact: true })).toBeVisible();
   await desktop.getByRole('textbox', { name: 'Panel message' }).fill('Still editable');
   await expect(desktop.getByRole('textbox', { name: 'Panel message' })).toHaveValue(
     'Still editable',

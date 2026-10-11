@@ -818,7 +818,27 @@ function Agent() {
   return (
     <K.ConversationPage>
       <K.Overlay open={chats} onClose={() => setChats(false)} title="Conversations">
-        <K.ConversationList
+        <K.ResponsiveSupportingColumn
+          title="Supporting sample"
+          open={false}
+          onClose={() => undefined}
+          onVisible={() => undefined}
+        >
+          <K.Text>Supporting sample</K.Text>
+        </K.ResponsiveSupportingColumn>
+        <K.SplitView
+          main={<K.Text>Main content</K.Text>}
+          supporting={
+            <K.SupportingColumn title="Supporting content">
+              <K.Text>Always visible</K.Text>
+            </K.SupportingColumn>
+          }
+        />
+        <K.SelectionGroupHeading>Recent</K.SelectionGroupHeading>
+        <K.SelectionRow selected={true} onSelect={() => undefined}>
+          <K.Text>Selected row</K.Text>
+        </K.SelectionRow>
+        <K.SelectionList
           items={[
             { id: 'studio', title: 'Studio mornings', meta: '10 Oct, 21:40', current: true },
             { id: 'trip', title: 'Planning the coast trip', meta: '3 Oct, 18:05' },
@@ -1356,7 +1376,12 @@ export const catalogue: Specimen[] = [
     components: [
       'ConversationPage',
       'ConversationSurface',
-      'ConversationList',
+      'SelectionList',
+      'SelectionRow',
+      'SelectionGroupHeading',
+      'SplitView',
+      'SupportingColumn',
+      'ResponsiveSupportingColumn',
       'ConversationFeed',
       'ConversationWelcome',
       'Message',

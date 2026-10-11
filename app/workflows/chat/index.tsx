@@ -24,39 +24,30 @@ const Chat = lazy(() => import('./Chat.tsx').then((module) => ({ default: module
 export function ChatPanel({
   conversation,
   prompt = null,
-  historyHref,
   voice,
 }: {
   conversation: Conversation;
   prompt?: Prompt | null;
-  historyHref?: string;
   voice: Transcription;
 }) {
   return (
     <Suspense fallback={<Text tone="subtle">Loading conversation…</Text>}>
-      <Chat conversation={conversation} arg={prompt} historyHref={historyHref} voice={voice} />
+      <Chat conversation={conversation} arg={prompt} voice={voice} />
     </Suspense>
   );
 }
 export function ChatPage({
   conversation,
   prompt = null,
-  historyHref,
   voice,
 }: {
   conversation: Conversation;
   prompt?: Prompt | null;
-  historyHref?: string;
   voice: Transcription;
 }) {
   return (
     <ConversationPage>
-      <ChatPanel
-        conversation={conversation}
-        prompt={prompt}
-        historyHref={historyHref}
-        voice={voice}
-      />
+      <ChatPanel conversation={conversation} prompt={prompt} voice={voice} />
     </ConversationPage>
   );
 }
@@ -66,3 +57,5 @@ export function ChatIndicator({ conversation }: { conversation: Conversation }) 
     <Activity busy={busy} label={busy ? 'The agent is working' : 'The agent replied'} />
   ) : null;
 }
+
+export { ConversationList, ConversationItem } from './ConversationList.tsx';

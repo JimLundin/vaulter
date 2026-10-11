@@ -16,11 +16,69 @@ import { sampleFiles, note } from './data.ts';
 import { previewModel } from './model.ts';
 import { previewTranscription } from './transcription.ts';
 import { previewNodes, previewJournalKey } from './nodes.ts';
+import type { NodeChange } from '../vault/nodes/store.ts';
 import type { NodeStore } from '../vault/nodes/store.ts';
 
 const memory = memoryBackend(sampleFiles);
 const query = new URLSearchParams(location.search);
-const openingNodes = previewNodes(sessionStorage, query.get('scenario') ?? undefined);
+const openingNodes = previewNodes(sessionStorage, query.get('scenario') ?? undefined).then(
+  async (nodes) => {
+    if (query.has('conversations') && !(await nodes.snapshot()).get('preview:list-owner')) {
+      await nodes.commit({
+        id: 'preview:conversation-list',
+        recordedBy: 'preview:list-owner',
+        origin: null,
+        undoOf: null,
+        kind: { scope: 'node', action: 'create' },
+        message: 'Sample conversations',
+        changes: [
+          {
+            node: 'preview:list-owner',
+            expected: null,
+            placement: null,
+            connection: null,
+            data: { kind: 'actor', name: 'Preview owner' },
+          },
+          ...[
+            'Garden studio plans',
+            'A quiet week by the coast',
+            'Keeping mornings free for focused work',
+            'Books and ideas to return to',
+            'Dinner with the neighbours',
+            'A longer conversation title about making space for the things that matter',
+          ].flatMap((title, index): NodeChange[] => {
+            const node = `preview:chat:${index}`;
+            const at = new Date(Date.UTC(2026, 9, 11 - index * 2, 9, 30)).toISOString();
+            return [
+              {
+                node,
+                expected: null,
+                placement: null,
+                connection: null,
+                data: { kind: 'conversation', title, createdAt: at },
+              },
+              {
+                node: `${node}:exchange`,
+                expected: null,
+                placement: { parent: node, order: 'a' },
+                connection: null,
+                data: { kind: 'exchange', startedAt: at },
+              },
+              {
+                node: `${node}:message`,
+                expected: null,
+                placement: { parent: `${node}:exchange`, order: 'a' },
+                connection: null,
+                data: { kind: 'message', role: 'user', at, text: title },
+              },
+            ];
+          }),
+        ],
+      });
+    }
+    return nodes;
+  },
+);
 const initial = memory.backend.write!(
   [
     {
@@ -58,6 +116,19 @@ function Preview({ initialHead, nodes }: { initialHead: Head; nodes: NodeStore }
         sessionStorage.removeItem(previewJournalKey);
         localStorage.removeItem(previewConversationKey);
         location.reload();
+      }}
+      variants={{
+        label: 'Conversation variant',
+        target: 'chat.conversation-list',
+        parameter: 'conversations',
+        defaultValue: 'comfortable',
+        options: [
+          { value: 'comfortable', label: 'Comfortable' },
+          { value: 'compact', label: 'Compact' },
+          { value: 'grouped', label: 'Grouped · balanced' },
+          { value: 'grouped-tight', label: 'Grouped · tight' },
+          { value: 'grouped-spacious', label: 'Grouped · spacious' },
+        ],
       }}
       kitHref={import.meta.env.DEV ? '/ui/kit/' : './kit/'}
     >

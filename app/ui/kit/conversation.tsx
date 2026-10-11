@@ -1,6 +1,6 @@
 // Agent compositions: content and actions assembled exclusively from catalogued primitives.
 import { createContext, type ReactNode, type Ref, useContext, useEffect, useState } from 'react';
-import { Stack, Row, Heading, Text, Link, Prose } from './parts/layout.tsx';
+import { Stack, Row, Heading, Text, Prose } from './parts/layout.tsx';
 import { Form } from './app.tsx';
 import { Button } from './parts/button.tsx';
 import { InputGroup, InputGroupAddon, InputGroupTextarea } from './parts/input-group.tsx';
@@ -63,18 +63,12 @@ export function ConversationWelcome({
 }
 
 interface ConversationActions {
-  historyHref?: string;
   onNewChat: () => void;
   /** Show the conversations to choose from. */
   onConversations?: () => void;
   busy: boolean;
 }
-function ConversationToolbar({
-  historyHref,
-  onNewChat,
-  onConversations,
-  busy,
-}: ConversationActions) {
+function ConversationToolbar({ onNewChat, onConversations, busy }: ConversationActions) {
   const mobile = useLayout() === 'compact';
   const { page, close } = useContext(ConversationPresentation);
   return (
@@ -93,7 +87,7 @@ function ConversationToolbar({
         )}
         {(mobile || page || !!close) && (
           <Stack gap="xs">
-            <Heading level={2}>{page || close ? 'Agent' : 'Conversation'}</Heading>
+            <Heading level={2}>{page || close ? 'Chat' : 'Conversation'}</Heading>
             {!mobile && (
               <Text size="sm" tone="subtle">
                 Your vault, in conversation
@@ -103,7 +97,7 @@ function ConversationToolbar({
         )}
       </Row>
       <Row>
-        {!!onConversations && (
+        {mobile && !!onConversations && (
           <Button
             variant="ghost"
             size={mobile ? 'standard' : 'compact'}
@@ -115,29 +109,20 @@ function ConversationToolbar({
             {!mobile && 'Conversations'}
           </Button>
         )}
-        {!!historyHref && (
+
+        {mobile && (
           <Button
-            variant="ghost"
+            variant="filled"
             size={mobile ? 'standard' : 'compact'}
             iconOnly={mobile}
-            nativeButton={false}
-            render={<Link href={historyHref} aria-label="History" plain={true} />}
+            aria-label="New chat"
+            disabled={busy}
+            onClick={onNewChat}
           >
-            <Icon name="history" size={mobile ? 'lg' : 'md'} />
-            {!mobile && 'History'}
+            <Icon name="plus" size={mobile ? 'lg' : 'md'} />
+            {!mobile && 'New chat'}
           </Button>
         )}
-        <Button
-          variant="filled"
-          size={mobile ? 'standard' : 'compact'}
-          iconOnly={mobile}
-          aria-label="New chat"
-          disabled={busy}
-          onClick={onNewChat}
-        >
-          <Icon name="plus" size={mobile ? 'lg' : 'md'} />
-          {!mobile && 'New chat'}
-        </Button>
         {!mobile && !!close && (
           <Button
             variant="ghost"
@@ -156,7 +141,6 @@ function ConversationToolbar({
 
 /** The feed and draft keep a stable position while the toolbar and dock rearrange. */
 export function ConversationSurface({
-  historyHref,
   onNewChat,
   onConversations,
   busy,
@@ -173,12 +157,7 @@ export function ConversationSurface({
   const { page } = useContext(ConversationPresentation);
   return (
     <ReadingColumn page={page} label="Conversation">
-      <ConversationToolbar
-        historyHref={historyHref}
-        onNewChat={onNewChat}
-        onConversations={onConversations}
-        busy={busy}
-      />
+      <ConversationToolbar onNewChat={onNewChat} onConversations={onConversations} busy={busy} />
       {children}
       <Dock status={status}>
         <Stack gap="sm">
@@ -194,15 +173,15 @@ export function ConversationSurface({
   );
 }
 
-/** Conversations to choose from, most recent first; the current one is marked. */
-export function ConversationList({
+/** Generic selection rows; callers supply labels, metadata and current selection. */
+export function SelectionList({
   items,
   onSelect,
 }: {
   items: readonly { id: string; title: string; meta?: string; current?: boolean }[];
   onSelect: (id: string) => void;
 }) {
-  if (!items.length) return <Text tone="muted">No conversations yet.</Text>;
+  if (!items.length) return <Text tone="muted">No items yet.</Text>;
   return (
     <Stack gap="xs" role="list">
       {items.map((item) => (
@@ -393,7 +372,7 @@ export function ConversationPanel({
   children?: ReactNode;
 }) {
   return (
-    <AdaptivePanel open={open} onClose={onClose} title="Agent">
+    <AdaptivePanel open={open} onClose={onClose} title="Chat">
       <ConversationPresentation.Provider value={{ page: false, close: onClose }}>
         {children}
       </ConversationPresentation.Provider>

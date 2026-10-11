@@ -290,7 +290,7 @@ export {
   Composer,
   SendButton,
   ConversationFeed,
-  ConversationList,
+  SelectionList,
   ConversationPage,
   ConversationPanel,
   ConversationSurface,
@@ -345,5 +345,13 @@ export const Link = unstyled(LinkPart);
 export { Spacer, Heading, Prose, type Gap, type TextProps } from './parts/layout.tsx';
 // Selected fictional wiki evidence reference (branch prototype/wiki-provenance).
 export { ProvenancePrototype } from './prototype-provenance.tsx';
+
+export {
+  SelectionRow,
+  SelectionGroupHeading,
+  SupportingColumn,
+  SplitView,
+  ResponsiveSupportingColumn,
+} from './selection.tsx';
 
 export { usePreviewVariant } from './preview-variants.tsx';

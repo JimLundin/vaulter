@@ -765,3 +765,22 @@ body:has(.kit-design-window) {
     transparent
   );
 }
+
+.kit-drawer[data-side-panel][data-layout="wide"] {
+  position: fixed;
+  inset: 0 0 0 auto;
+  width: min(24rem, 40vw);
+  height: 100dvh;
+  max-height: 100dvh;
+  border: 0;
+  border-left: 1px solid var(--border);
+  border-radius: 0;
+  padding: 0.75rem;
+  box-shadow: var(--shadow-lg);
+}
+.kit-drawer[data-side-panel][data-layout="wide"] > .kit-drawer-handle {
+  display: none;
+}
+.kit-drawer[data-side-panel][data-layout="wide"]:is([data-starting-style], [data-ending-style]) {
+  transform: translateX(100%);
+}

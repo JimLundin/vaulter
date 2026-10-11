@@ -21,6 +21,7 @@ export function Drawer({
   description,
   header,
   children,
+  placement = 'default',
 }: {
   open: boolean;
   onClose: () => void;
@@ -28,6 +29,7 @@ export function Drawer({
   description?: string;
   header?: ReactNode;
   children: ReactNode;
+  placement?: 'default' | 'right';
 }) {
   const compact = useLayout() === 'compact';
   const restoreFocus = usePresentationFocus(open);
@@ -35,6 +37,8 @@ export function Drawer({
   const ref = useRef<HTMLDivElement>(null);
   return (
     <DrawerRoot
+      modal={placement === 'right' ? compact : true}
+      disablePointerDismissal={placement === 'right' && !compact}
       open={open}
       onOpenChange={(next) => {
         if (!next) onClose();
@@ -43,6 +47,10 @@ export function Drawer({
       <DrawerContent
         ref={ref}
         compact={compact}
+        data-side-panel={placement === 'right' ? true : undefined}
+        data-layout={placement === 'right' ? (compact ? 'compact' : 'wide') : undefined}
+        role={placement === 'right' && !compact ? 'complementary' : 'dialog'}
+        aria-label={title}
         aria-describedby={description ? descriptionId : undefined}
         finalFocus={restoreFocus}
         initialFocus={() => ref.current?.querySelector<HTMLButtonElement>('button') ?? ref.current}

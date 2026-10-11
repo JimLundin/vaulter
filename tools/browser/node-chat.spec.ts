@@ -233,3 +233,98 @@ for (const scenario of ['content-save', 'content-lost-response']) {
     expect(counts.tools).toEqual(receipts);
   });
 }
+
+test('conversation picker opens saved node conversations and History lists every accepted transaction', async ({
+  page,
+}) => {
+  await page.goto('/preview/');
+  const input = page.getByRole('textbox', { name: 'Message', exact: true });
+  await input.fill('vault it: first conversation');
+  await input.press('Enter');
+  await expect(page.getByText('Filed in', { exact: false })).toBeVisible();
+  if (test.info().project.name === 'phone')
+    await page.getByRole('button', { name: 'Conversations', exact: true }).click();
+  const picker = page.getByRole(test.info().project.name === 'phone' ? 'dialog' : 'complementary', {
+    name: 'Conversations',
+    exact: true,
+  });
+  await expect(picker.getByRole('button', { name: /first conversation/ })).toBeVisible();
+  await picker.getByRole('button', { name: 'New conversation', exact: true }).click();
+  await input.fill('vault it: second conversation');
+  await input.press('Enter');
+  await expect(page.getByText('Filed in', { exact: false })).toBeVisible();
+  if (test.info().project.name === 'phone')
+    await page.getByRole('button', { name: 'Conversations', exact: true }).click();
+  await picker.getByRole('button', { name: /first conversation/ }).click();
+  await expect(page.locator('[data-message="user"]')).toContainText('first conversation');
+  await page.reload();
+  await expect(page.locator('[data-message="user"]')).toContainText('first conversation');
+  const count = await page.evaluate(
+    () => JSON.parse(sessionStorage.getItem('vaulter:preview:accepted:v1') ?? '[]').length,
+  );
+  await page.goto('/preview/#/history/');
+  await expect(page.getByText(`#${count}`, { exact: true })).toBeVisible();
+  await expect(page.getByText('#1', { exact: true })).toBeVisible();
+});
+
+for (const variant of ['comfortable', 'compact', 'grouped', 'grouped-tight', 'grouped-spacious']) {
+  test(`conversation ${variant} variant uses a right sidebar or mobile drawer`, async ({
+    page,
+  }) => {
+    await page.goto(`/preview/?conversations=${variant}`);
+    if (test.info().project.name === 'phone')
+      await page.getByRole('button', { name: 'Conversations', exact: true }).click();
+    const panel = page.getByRole(
+      test.info().project.name === 'phone' ? 'dialog' : 'complementary',
+      { name: 'Conversations', exact: true },
+    );
+    await expect(panel.getByRole('button', { name: /Garden studio plans/ })).toBeVisible();
+    const bounds = await panel.boundingBox();
+    if (test.info().project.name !== 'phone') {
+      expect(bounds!.x).toBeGreaterThan(page.viewportSize()!.width / 2);
+      await expect(page.getByRole('button', { name: 'Conversations', exact: true })).toBeHidden();
+      await expect(
+        panel.getByRole('button', { name: 'Close conversations', exact: true }),
+      ).toBeHidden();
+    } else {
+      await panel.getByRole('button', { name: 'Close conversations', exact: true }).click();
+      await expect(panel).toBeHidden();
+    }
+  });
+}
+
+test('conversation variants are selected from the preview top bar', async ({ page }) => {
+  await page.goto('/preview/?conversations=comfortable');
+  const input = page.getByRole('textbox', { name: 'Message', exact: true });
+  await input.fill('Keep this draft while comparing');
+  const bar = page.getByRole('complementary', { name: 'Design preview', exact: true });
+  if (test.info().project.name === 'phone')
+    await bar
+      .getByRole('combobox', { name: 'Conversation variant', exact: true })
+      .selectOption('grouped');
+  else {
+    await bar.getByRole('button', { name: 'Next variant' }).click();
+    await bar.getByRole('button', { name: 'Next variant' }).click();
+  }
+  await expect(page).toHaveURL(/conversations=grouped/);
+  await expect(input).toHaveValue('Keep this draft while comparing');
+  if (test.info().project.name === 'phone')
+    await expect(
+      bar.getByRole('combobox', { name: 'Conversation variant', exact: true }),
+    ).toHaveValue('grouped');
+  else await expect(bar.getByText('C · Grouped · balanced', { exact: true })).toBeVisible();
+});
+
+test('Chat is named separately from Agent execution and has no History action', async ({
+  page,
+}) => {
+  await page.goto('/preview/');
+  await expect(page.getByRole('heading', { name: 'Chat', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'History', exact: true })).toBeHidden();
+  if (test.info().project.name !== 'phone') {
+    await expect(page.getByRole('button', { name: 'New chat', exact: true })).toBeHidden();
+    await expect(page.getByRole('button', { name: 'New conversation', exact: true })).toHaveCount(
+      1,
+    );
+  }
+});

@@ -75,7 +75,7 @@ for (const targetWidth of [1440, 900]) {
       await draft.focus();
     } else {
       await expect(background).toBeHidden();
-      const parent = page.getByRole('dialog', { name: 'Agent', exact: true });
+      const parent = page.getByRole('dialog', { name: 'Chat', exact: true });
       for (let step = 0; step < 6; step++) {
         await page.keyboard.press('Tab');
         // Base UI returns focus from its guard on the next animation frame.
@@ -134,7 +134,7 @@ test('a nested review closes before its drawer and leaves the parent usable', as
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/ui/kit/tests/browser.html');
   await page.getByRole('button', { name: 'Open agent', exact: true }).click();
-  const parent = page.getByRole('dialog', { name: 'Agent', exact: true });
+  const parent = page.getByRole('dialog', { name: 'Chat', exact: true });
   await parent.getByRole('textbox', { name: 'Panel draft' }).fill('Retain this task');
   await parent.getByRole('button', { name: 'Review in panel' }).click();
   const child = page.getByRole('dialog', { name: 'Review', exact: true });

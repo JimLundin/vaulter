@@ -19,7 +19,6 @@ export const compositions = [
       'InputGroup',
       'InputGroupAddon',
       'InputGroupTextarea',
-      'Link',
       'OptionStrip',
       'Prose',
       'ReadingColumn',

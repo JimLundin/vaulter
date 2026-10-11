@@ -72,7 +72,8 @@ import {
 import { HistoryPage } from './workflows/history/index.tsx';
 import './workflows/chat/rendering/prose.css';
 
-const agentRoute = pattern('/agent/');
+const chatRoute = pattern('/chat/');
+const legacyChatRoute = pattern('/agent/');
 const historyRoute = pattern('/history/');
 const settingsRoute = pattern('/settings/');
 // Selected fictional wiki evidence reference; available in design preview.
@@ -187,17 +188,21 @@ export function OpenProduct({
     else localStorage.removeItem('vault-panel');
   };
   const onSettings = !!settingsRoute.match(route.path);
-  const onAgent = route.path === '/' || !!agentRoute.match(route.path) || onSettings;
+  const onChat =
+    route.path === '/' ||
+    !!chatRoute.match(route.path) ||
+    !!legacyChatRoute.match(route.path) ||
+    onSettings;
   const onHistory = !!historyRoute.match(route.path);
   const settingsOpen = settings || onSettings;
   const closeSettings = () => {
     setSettings(false);
-    if (onSettings) go(agentRoute.href());
+    if (onSettings) go(chatRoute.href());
   };
   const title = settingsOpen
     ? 'Settings'
-    : onAgent
-      ? 'Agent'
+    : onChat
+      ? 'Chat'
       : onHistory
         ? 'History'
         : provenanceRoute.match(route.path)
@@ -263,10 +268,8 @@ export function OpenProduct({
   const { busy: agentBusy } = useChat(conversation);
   useVoiceDraft(conversation, voice);
   const navigation: Navigation[] = [
-    { label: 'Agent', href: agentRoute.href(), icon: 'sparkles' },
-    ...(vault.history
-      ? [{ label: 'History', href: historyRoute.href(), icon: 'history' as const }]
-      : []),
+    { label: 'Chat', href: chatRoute.href(), icon: 'sparkles' },
+    ...(nodes ? [{ label: 'History', href: historyRoute.href(), icon: 'history' as const }] : []),
     {
       label: 'Settings',
       href: settingsRoute.href(),
@@ -293,27 +296,27 @@ export function OpenProduct({
     if (transcript.phase === 'listening') {
       if (mobile) {
         showPanel(false);
-        go(agentRoute.href());
+        go(chatRoute.href());
       }
       later(voice.finish());
       return;
     }
     if (mobile) {
       showPanel(false);
-      go(agentRoute.href());
+      go(chatRoute.href());
     }
     later(voice.start());
   };
   const commands: Command[] = [
     {
-      id: 'go.agent',
-      label: 'Agent',
+      id: 'go.chat',
+      label: 'Chat',
       group: 'Go to',
       icon: 'sparkles',
       keys: 'g h',
-      run: () => go(agentRoute.href()),
+      run: () => go(chatRoute.href()),
     },
-    ...(vault.history
+    ...(nodes
       ? [
           {
             id: 'go.history',
@@ -334,8 +337,8 @@ export function OpenProduct({
     },
     {
       id: 'agent.ask',
-      label: 'Ask the agent',
-      group: 'Agent',
+      label: 'Open Chat',
+      group: 'Chat',
       icon: 'sparkles',
       keys: 'mod+j',
       run: () => showPanel(!panel),
@@ -345,7 +348,7 @@ export function OpenProduct({
           {
             id: 'agent.new',
             label: 'New chat',
-            group: 'Agent',
+            group: 'Chat',
             icon: 'plus' as const,
             run: () => {
               voice.clear();
@@ -420,7 +423,6 @@ export function OpenProduct({
         : status.kind === 'offline'
           ? 'Offline'
           : 'Syncing…';
-  const historyHref = vault.history ? historyRoute.href() : undefined;
   return (
     <>
       <Frame
@@ -438,19 +440,12 @@ export function OpenProduct({
         }
         onSearch={() => setSearch(true)}
         primary={{
-          compact: !onAgent && (
+          compact: !onChat && (
             <VoiceButton phase={transcript.phase} busy={agentBusy} onClick={voiceAction} />
           ),
         }}
         panel={
-          panel ? (
-            <ChatPanel
-              conversation={conversation}
-              prompt={prompt}
-              historyHref={historyHref}
-              voice={voice}
-            />
-          ) : null
+          panel ? <ChatPanel conversation={conversation} prompt={prompt} voice={voice} /> : null
         }
         closePanel={() => showPanel(false)}
       >
@@ -460,29 +455,41 @@ export function OpenProduct({
             <Button onClick={() => later(prepareIdentities())}>Retry identity setup</Button>
           </Alert>
         )}
-        {onAgent ? (
-          <ChatPage
-            conversation={conversation}
-            prompt={prompt}
-            historyHref={historyHref}
-            voice={voice}
-          />
+        {onChat ? (
+          <ChatPage conversation={conversation} prompt={prompt} voice={voice} />
         ) : onHistory ? (
-          <HistoryPage nodes={nodeHistoryView} />
+          <Stack>
+            <Row>
+              <Button
+                onClick={() => later(session.refreshNodes())}
+                disabled={nodeStatus.kind === 'syncing'}
+              >
+                Refresh vault
+              </Button>
+              <Text role="status">
+                {nodeStatus.kind === 'synced'
+                  ? `Synced ${new Date(nodeStatus.at).toLocaleTimeString()}`
+                  : nodeStatus.kind === 'error'
+                    ? nodeStatus.message
+                    : nodeStatus.kind}
+              </Text>
+            </Row>
+            <HistoryPage nodes={nodeHistoryView} />
+          </Stack>
         ) : provenanceRoute.match(route.path) && import.meta.env.MODE !== 'production' ? (
           <ProvenancePrototype />
         ) : (
           <Page>
             <Heading level={1}>Not found</Heading>
             <Text>Nothing at {route.path}.</Text>
-            <Link href={link(agentRoute.href())}>Open the agent</Link>
+            <Link href={link(chatRoute.href())}>Open Chat</Link>
           </Page>
         )}
       </Frame>
       <SettingsMenu
         open={settingsOpen}
         onClose={closeSettings}
-        features={[{ name: 'Agent', content: <ChatSettings /> }]}
+        features={[{ name: 'Chat', content: <ChatSettings /> }]}
       >
         <SettingsSection title="Appearance">
           <SettingField

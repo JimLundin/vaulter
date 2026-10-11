@@ -23,7 +23,7 @@ test('navigation has the same destinations and actions in both arrangements', as
     await expect(
       page.getByRole('button', { name: 'Menu', exact: true, includeHidden: true }),
     ).toHaveAttribute('aria-expanded', 'true');
-    await expect(page.getByRole('link', { name: 'Agent', exact: true })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Chat', exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Close menu' }).click();
     await expect(menu).toBeFocused();
   } else {
@@ -37,7 +37,7 @@ test('navigation has the same destinations and actions in both arrangements', as
       page.getByRole('dialog', { name: 'Keyboard shortcuts', exact: true }),
     ).toBeVisible();
     await page.keyboard.press('Escape');
-    await expect(page.getByRole('link', { name: 'Agent', exact: true })).toHaveCount(1);
+    await expect(page.getByRole('link', { name: 'Chat', exact: true })).toHaveCount(1);
     await expect(page.getByRole('button', { name: 'Try a conversation', exact: true })).toHaveCount(
       0,
     );
@@ -47,7 +47,7 @@ test('navigation has the same destinations and actions in both arrangements', as
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   const settings = page.getByRole('dialog', { name: 'Settings', exact: true });
   await expect(settings).toBeVisible();
-  await expect(settings.getByRole('region', { name: 'Agent', exact: true })).toBeVisible();
+  await expect(settings.getByRole('region', { name: 'Chat', exact: true })).toBeVisible();
   await expect(settings.getByRole('textbox', { name: 'Model', exact: true })).toBeVisible();
   expect(page.url()).toBe(beforeSettings);
   await expect(
@@ -611,10 +611,10 @@ test('Escape closes the nested review before closing the agent panel', async ({ 
   await expect(page.getByRole('dialog', { name: 'Review', exact: true })).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog', { name: 'Review', exact: true })).toBeHidden();
-  await expect(page.getByRole('dialog', { name: 'Agent', exact: true })).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'Chat', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Review in panel' })).toBeFocused();
   await page.keyboard.press('Escape');
-  await expect(page.getByRole('dialog', { name: 'Agent', exact: true })).toBeHidden();
+  await expect(page.getByRole('dialog', { name: 'Chat', exact: true })).toBeHidden();
 });
 
 test('dictation keeps the composer anchored and only submission stops an agent response', async ({
@@ -753,7 +753,7 @@ test('Chat retains the shared draft when its view closes and reopens', async ({ 
   await expect(page.getByRole('heading', { name: 'History', exact: true })).toBeVisible();
   const menu = page.getByRole('button', { name: 'Menu', exact: true });
   if (await menu.isVisible()) await menu.click();
-  await page.getByRole('link', { name: 'Agent', exact: true }).click();
+  await page.getByRole('link', { name: 'Chat', exact: true }).click();
   await expect(field).toHaveValue('An unfinished workflow thought');
   await field.press('Enter');
   await expect(page.locator('[data-message="user"] [data-surface="bubble"]')).toHaveText(

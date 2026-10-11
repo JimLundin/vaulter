@@ -309,6 +309,7 @@ export function createNodeConversation(initial: NodeConversationOptions) {
     },
     /** The vault's conversations, most recently active first. */
     chats: () => backend.chats(),
+    subscribeRecords: (listener: () => void) => options.nodes.subscribe(listener),
     /** Continue the most recently active conversation, unless this one already has turns. */
     openLatest: async () => {
       if (state.turns.length || disposed) return;
