@@ -161,6 +161,14 @@ Preview supplies a scripted suggestion adapter alongside its scripted conversati
 
 ## UI kit
 
+The accepted ownership target is [ADR 0006](docs/adr/0006-module-ui-and-shared-presentation.md):
+modules own record-specific UI and typed reading projections; the kit owns base presentation and
+shared compositions. Supporting panes use one presentation policy across modules. Consistency and
+a smaller presentation interface take precedence over feature-specific UI tailoring. The
+[migration plan](docs/plans/ui-module-ownership.md) records the sequence and enforcement checks;
+this migration is not yet implemented. The current presentation described below still includes
+module-specific kit exports and different supporting-pane arrangements.
+
 `app/ui/kit/` comes from branch `ui-kit` at `2c30183`. Its design references, Geist / Geist Mono /
 Newsreader fonts, zinc colors, desktop sidebar, mobile controls and overlays are used by the app.
 `npm run kit` opens a searchable catalogue: every public component has a live desktop and mobile

@@ -7,10 +7,13 @@ Based on `feat/node-history` at `19418ca` plus its working changes captured in `
 
 ## Working thesis
 
-Each module owns components matching the types stored in its nodes. Lists compose those record
-components; queries, synchronization and controllers support rendering and interaction. Chat owns
-conversation components, and History owns transaction components. This is the working thesis to
-validate as implementation proceeds.
+Module-owned record UI is now an accepted direction in
+[ADR 0006](../adr/0006-module-ui-and-shared-presentation.md). Lists compose record UI that accepts
+stored payload types or resolved projections; queries, synchronization and lifetime implementations
+support rendering and interaction. Chat owns conversation interpretation, and History owns
+transaction interpretation. Shared presentation belongs in the kit. The
+[UI ownership plan](ui-module-ownership.md) defines its migration and enforcement; the remaining
+record-reading work below retains its own scope.
 
 ## Scope
 

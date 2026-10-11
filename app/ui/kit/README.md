@@ -4,6 +4,13 @@ The app's component kit, imported from branch `ui-kit` at `2c30183`. Its referen
 `design/`. Product, shared UI and workflow screens compose `index.ts`; no public component takes
 `className` or `style`. Tailwind scans only this folder.
 
+The accepted target in [ADR 0006](../../../docs/adr/0006-module-ui-and-shared-presentation.md)
+keeps record-specific UI in its owning module and shared presentation in the kit. One supporting-pane
+policy owns geometry and interaction across modules; consistency takes precedence over tailored
+arrangements. The [UI ownership migration plan](../../../docs/plans/ui-module-ownership.md) records
+the work and enforcement checks. Current kit exports still include module-specific presentation;
+the migration is not yet implemented.
+
 The [UI kit architecture plan](../../../PLAN-ui-kit-architecture.md) tracks four
 deepening changes: private composition verification, Composer interaction, accessible field
 association and shared presentation policy. The
