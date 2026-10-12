@@ -36,10 +36,34 @@ export interface PreparedNodeChat {
   readonly submission: NodeCommit;
   readonly execution: PreparedAgentRun;
 }
+/** Conversation meaning supplied by the effect owner, without exposing its pending commits. */
+export interface ChatRecoveryAction {
+  readonly error: string;
+  readonly label: string;
+  readonly inProgress: boolean;
+  readonly allowed: boolean;
+}
+export interface ChatRecovery {
+  readonly save?: ChatRecoveryAction & {
+    readonly stage: NonNullable<NodeChatRunState['persistenceStage']>;
+  };
+  readonly content?: ChatRecoveryAction;
+  readonly refresh?: ChatRecoveryAction;
+}
+const saveLabels = {
+  initial: 'Message and Agent run need saving',
+  invocation: 'Tool invocation needs saving before it can execute',
+  outcome: 'Completed tool outcome needs saving; execution is paused',
+  terminal: 'Agent completion needs saving',
+  response: 'Chat response needs saving',
+  content: 'Content publication needs recovery',
+};
+
 export interface NodeChatRunState {
   readonly phase: AgentRunState['phase'] | 'queued';
   readonly response: Extract<MessageData, { role: 'agent' }>;
   readonly execution?: AgentRunState;
+  readonly recovery?: ChatRecovery;
   readonly persistenceError?: string;
   readonly persistenceStage?: AgentRunState['persistenceStage'] | 'response';
   readonly contentPersistence?: AgentRunState['contentPersistence'];
@@ -229,6 +253,9 @@ export function createNodeChatBackend(options: NodeChatOptions) {
     let pending: NodeCommit | undefined;
     let responseSave: Promise<NodeChatRunState> | undefined;
     let retry: Promise<NodeChatRunState> | undefined;
+    let contentRetry: Promise<NodeChatRunState> | undefined;
+    let contextRefresh: Promise<NodeChatRunState> | undefined;
+    let projectionError: string | undefined;
     let settleAcceptance!: () => void;
     const acceptance = new Promise<void>((resolve) => {
       settleAcceptance = resolve;
@@ -249,7 +276,48 @@ export function createNodeChatBackend(options: NodeChatOptions) {
       },
     });
     const notify = (next: NodeChatRunState) => {
-      state = frozen(structuredClone(next));
+      const current = execution?.snapshot();
+      const saveStage = next.persistenceStage ?? current?.persistenceStage;
+      const saveError = next.persistenceError ?? current?.persistenceError;
+      const content = current?.contentPersistence ?? next.contentPersistence;
+      const refreshError = projectionError ?? current?.contextError ?? next.contextError;
+      const saving = !!retry || !!current?.recoveryActivity?.save;
+      const publishing = !!contentRetry || !!current?.recoveryActivity?.content;
+      const refreshing = !!contextRefresh || !!current?.recoveryActivity?.refresh;
+      const recovery: ChatRecovery = {
+        ...(saveError && saveStage
+          ? {
+              save: {
+                stage: saveStage,
+                error: saveError,
+                label: saveLabels[saveStage],
+                inProgress: saving,
+                allowed: !(saving || disposed),
+              },
+            }
+          : {}),
+        ...(content
+          ? {
+              content: {
+                error: content.error,
+                label: 'Content save; acceptance is uncertain and the tool will not be repeated',
+                inProgress: publishing,
+                allowed: !(publishing || disposed),
+              },
+            }
+          : {}),
+        ...(refreshError
+          ? {
+              refresh: {
+                error: refreshError,
+                label: 'Content view could not refresh; accepted changes are retained',
+                inProgress: refreshing,
+                allowed: !(refreshing || disposed),
+              },
+            }
+          : {}),
+      };
+      state = frozen(structuredClone({ ...next, contextError: refreshError, recovery }));
       for (const listener of listeners) {
         try {
           listener();
@@ -309,7 +377,8 @@ export function createNodeChatBackend(options: NodeChatOptions) {
           };
       } catch (error) {
         // A projection refresh cannot invalidate already accepted tool or run outcomes.
-        notify({ ...state, contextError: errorMessage(error) });
+        projectionError = errorMessage(error);
+        notify({ ...state, contextError: projectionError });
       }
       if (responseSave !== undefined) return responseSave;
       responseSave = (async () => {
@@ -435,26 +504,45 @@ export function createNodeChatBackend(options: NodeChatOptions) {
         abort.abort();
         execution?.stop();
       },
-      retryContentSave: async () => {
-        await execution?.retryContentSave();
-        const current = execution?.snapshot();
-        notify({
-          ...state,
-          execution: current,
-          contentPersistence: current?.contentPersistence,
-          contentAccepted: current?.contentAccepted,
-          contextError: current?.contextError,
-        });
-        return state;
+      retryContentSave: () => {
+        if (contentRetry !== undefined) return contentRetry;
+        contentRetry = Promise.resolve()
+          .then(async () => {
+            await execution?.retryContentSave();
+            reflect();
+            return state;
+          })
+          .finally(() => {
+            contentRetry = undefined;
+            notify(state);
+          })
+          .then(() => state);
+        notify(state);
+        return contentRetry;
       },
-      refreshContext: async () => {
-        await execution?.refreshContext();
-        notify({
-          ...state,
-          execution: execution?.snapshot(),
-          contextError: execution?.snapshot().contextError,
-        });
-        return state;
+      refreshContext: () => {
+        if (contextRefresh !== undefined) return contextRefresh;
+        contextRefresh = Promise.resolve()
+          .then(async () => {
+            await execution?.refreshContext();
+            if (projectionError && prepared) {
+              try {
+                await readAgentRun(options.nodes, prepared.execution.run);
+                projectionError = undefined;
+              } catch (error) {
+                projectionError = errorMessage(error);
+              }
+            }
+            reflect();
+            return state;
+          })
+          .finally(() => {
+            contextRefresh = undefined;
+            notify(state);
+          })
+          .then(() => state);
+        notify(state);
+        return contextRefresh;
       },
       retrySave: () => {
         if (retry !== undefined) return retry;
@@ -483,9 +571,13 @@ export function createNodeChatBackend(options: NodeChatOptions) {
             return await saveResponse();
           }
           return state;
-        })().finally(() => {
-          retry = undefined;
-        });
+        })()
+          .finally(() => {
+            retry = undefined;
+            notify(state);
+          })
+          .then(() => state);
+        notify(state);
         return retry;
       },
     };

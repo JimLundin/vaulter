@@ -37,11 +37,8 @@ export function Chat({
     turns,
     suggestions,
     busy,
-    persistenceError,
-    persistenceStage,
-    contentPersistence,
     contentAccepted,
-    contextError,
+    recovery,
     phase,
     capture,
     submissionAvailability,
@@ -50,7 +47,6 @@ export function Chat({
     actionReason,
     prompts,
   } = useNodeChat(conversation);
-  const [retrying, setRetrying] = useState(false);
   const [focused, setFocused] = useState(false);
   const recording = ['connecting', 'listening', 'finishing'].includes(capture.phase);
   const visible = presentation.page || presentation.open;
@@ -101,6 +97,19 @@ export function Chat({
     const outcome = conversation.editDraft(text);
     if (outcome.status === 'edited') requestAnimationFrame(() => ref.current?.focus());
   };
+  if (!(conversation.ready() || turns.length || recovery.save))
+    return (
+      <ChatSurface
+        supporting={chooser}
+        presentation={presentation}
+        onNewChat={newChat}
+        onConversations={showChats}
+        busy={false}
+        composer={null}
+      >
+        <Text tone="muted">{conversation.availability() ?? 'Opening the node store…'}</Text>
+      </ChatSurface>
+    );
   return (
     <ChatSurface
       supporting={chooser}
@@ -108,7 +117,7 @@ export function Chat({
       onNewChat={newChat}
       onConversations={showChats}
       empty={!turns.length}
-      busy={busy || recording || !!persistenceError || !!contentPersistence || !!contextError}
+      busy={busy || recording || !!recovery.save || !!recovery.content || !!recovery.refresh}
       status={
         <Stack>
           {prompts.map((prompt) => (
@@ -145,20 +154,17 @@ export function Chat({
               {conversation.availability()}
             </Text>
           )}
-          {contentPersistence && (
+          {!!recovery.content && (
             <Stack>
               <Text role="alert" tone="danger">
-                Content save: {contentPersistence.error}. Acceptance is uncertain; the tool will not
+                Content save: {recovery.content.error}. Acceptance is uncertain; the tool will not
                 be repeated.
               </Text>
               <Button
-                disabled={retrying}
-                onClick={() => {
-                  setRetrying(true);
-                  later(conversation.retryContentSave().finally(() => setRetrying(false)));
-                }}
+                disabled={!recovery.content.allowed}
+                onClick={() => later(conversation.retryContentSave())}
               >
-                Retry content save
+                {recovery.content.inProgress ? 'Saving content…' : 'Retry content save'}
               </Button>
             </Stack>
           )}
@@ -167,35 +173,30 @@ export function Chat({
               Content save accepted. The original tool outcome is retained.
             </Text>
           )}
-          {contextError && (
+          {!!recovery.refresh && (
             <Stack>
               <Text role="alert" tone="danger">
-                Content view could not refresh: {contextError}. Accepted changes are retained.
+                Content view could not refresh: {recovery.refresh.error}. Accepted changes are
+                retained.
               </Text>
               <Button
-                disabled={retrying}
-                onClick={() => {
-                  setRetrying(true);
-                  later(conversation.refreshContext().finally(() => setRetrying(false)));
-                }}
+                disabled={!recovery.refresh.allowed}
+                onClick={() => later(conversation.refreshContext())}
               >
-                Refresh records
+                {recovery.refresh.inProgress ? 'Refreshing…' : 'Refresh records'}
               </Button>
             </Stack>
           )}
-          {persistenceError ? (
+          {recovery.save ? (
             <Stack>
               <Text role="alert" tone="danger">
-                {saveLabel(persistenceStage)}: {persistenceError}
+                {recovery.save.label}: {recovery.save.error}
               </Text>
               <Button
-                disabled={retrying}
-                onClick={() => {
-                  setRetrying(true);
-                  later(conversation.retrySave().finally(() => setRetrying(false)));
-                }}
+                disabled={!recovery.save.allowed}
+                onClick={() => later(conversation.retrySave())}
               >
-                {retrying ? 'Saving…' : 'Retry save'}
+                {recovery.save.inProgress ? 'Saving…' : 'Retry save'}
               </Button>
             </Stack>
           ) : phase === 'recorded' ? (
@@ -280,23 +281,4 @@ export function Chat({
       </Overlay>
     </ChatSurface>
   );
-}
-
-function saveLabel(stage: ReturnType<NodeConversation['snapshot']>['persistenceStage']) {
-  switch (stage) {
-    case 'initial':
-      return 'Message and Agent run need saving';
-    case 'invocation':
-      return 'Tool invocation needs saving before it can execute';
-    case 'outcome':
-      return 'Completed tool outcome needs saving; execution is paused';
-    case 'response':
-      return 'Chat response needs saving';
-    case 'terminal':
-      return 'Agent completion needs saving';
-    case 'content':
-      return 'Content publication needs recovery';
-    default:
-      return 'Agent activity needs saving';
-  }
 }

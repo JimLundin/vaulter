@@ -6,6 +6,7 @@ import type {
   NodeChatRequest,
   NodeChatRun,
   NodeChatRunState,
+  ChatRecovery,
 } from './node-backend.ts';
 import type { MessageData } from './records/chat.ts';
 import { generateSuggestions, type SuggestionProvider } from './suggestions.ts';
@@ -74,6 +75,7 @@ export interface NodeConversationState extends ChatState {
   readonly actionReason?: string;
   readonly submissionAvailability: ChatActionAvailability;
   readonly capture: ChatCapture;
+  readonly recovery: ChatRecovery;
   readonly phase?: NodeChatRunState['phase'];
   readonly persistenceError?: string;
   readonly persistenceStage?: NodeChatRunState['persistenceStage'];
@@ -130,6 +132,7 @@ export function createNodeConversation(initial: NodeConversationOptions) {
     submissionAvailability: { allowed: false, reason: 'Enter a message.' },
     reviewAvailability: { allowed: false, reason: 'There is no pending review.' },
     capture: { phase: 'idle', error: '', action: 'start', allowed: !!transcription },
+    recovery: {},
   };
   const listeners = new Set<() => void>();
   let active: NodeChatRun | undefined;
@@ -138,6 +141,16 @@ export function createNodeConversation(initial: NodeConversationOptions) {
   let promptSeen = 0;
   let draftPrompt = 0;
   let disposed = false;
+  let recordRefreshError: string | undefined;
+  let recordRefresh:
+    | {
+        readonly conversation: string;
+        readonly retained?: NodeChatRun;
+        readonly done: Promise<void>;
+      }
+    | undefined;
+  const saveRecoveries = new WeakMap<NodeChatRun, Promise<void>>();
+  const contentRecoveries = new WeakMap<NodeChatRun, Promise<void>>();
   let suggestedFor: string | undefined;
   let suggestionAbort: AbortController | undefined;
   let draftRevision = 0;
@@ -187,8 +200,25 @@ export function createNodeConversation(initial: NodeConversationOptions) {
   const set = (next: Partial<NodeConversationState>) => {
     if (disposed) return;
     state = { ...state, ...next };
+    const owned = active?.snapshot().recovery ?? {};
+    const refreshError = recordRefreshError ?? owned.refresh?.error;
+    const reading = recordRefresh?.conversation === id && recordRefresh.retained === active;
     state = {
       ...state,
+      contextError: refreshError,
+      recovery: {
+        ...owned,
+        ...(refreshError
+          ? {
+              refresh: {
+                error: refreshError,
+                label: 'Content view could not refresh; accepted changes are retained',
+                inProgress: reading || !!owned.refresh?.inProgress,
+                allowed: !(disposed || reading || owned.refresh?.inProgress),
+              },
+            }
+          : {}),
+      },
       capture: captureState(),
       submissionAvailability: submissionAvailability(),
       reviewAvailability: state.review
@@ -384,9 +414,29 @@ export function createNodeConversation(initial: NodeConversationOptions) {
         if (!disposed && active === sent)
           set({ turns: messages.map(({ data }) => turn(data)), unread: views === 0 });
       } catch (error) {
-        set({ contextError: error instanceof Error ? error.message : String(error) });
+        if (!disposed && active === sent && id === conversation) {
+          recordRefreshError = error instanceof Error ? error.message : String(error);
+          set({});
+        }
       }
     } else if (!state.busy) set({ busy: false });
+  }
+  async function refreshMessages(
+    retained: NodeChatRun | undefined,
+    owner: typeof backend,
+    conversation: string,
+  ) {
+    try {
+      const messages = await owner.messages(conversation);
+      if (disposed || active !== retained || id !== conversation) return;
+      recordRefreshError = undefined;
+      // Reading cannot replace a response which resumed while the records were loading.
+      set({ ...(state.busy ? {} : { turns: messages.map(({ data }) => turn(data)) }) });
+    } catch (error) {
+      if (disposed || active !== retained || id !== conversation) return;
+      recordRefreshError = error instanceof Error ? error.message : String(error);
+      set({});
+    }
   }
   const draftIntent = (): ChatSubmissionIntent => ({
     text: state.draft,
@@ -581,29 +631,68 @@ export function createNodeConversation(initial: NodeConversationOptions) {
     stop: () => {
       active?.stop();
     },
-    retrySave: async () => {
-      if (!active) return;
-      await active.retrySave();
-      reflect();
-      if (active.prepared() && active.snapshot().persistenceStage !== 'initial')
-        options.onConversation?.(id);
-      if (!(state.persistenceError || state.busy))
-        set({ turns: (await activeBackend.messages(id)).map(({ data }) => turn(data)) });
+    retrySave: () => {
+      const retained = active;
+      const owner = activeBackend;
+      const conversation = id;
+      if (!retained || disposed) return Promise.resolve();
+      const known = saveRecoveries.get(retained);
+      if (known !== undefined) return known;
+      const recovery = Promise.resolve()
+        .then(async () => {
+          await retained.retrySave();
+          if (disposed || active !== retained || id !== conversation) return;
+          reflect();
+          if (retained.prepared() && retained.snapshot().persistenceStage !== 'initial')
+            options.onConversation?.(conversation);
+          if (!(state.persistenceError || state.busy))
+            await refreshMessages(retained, owner, conversation);
+        })
+        .finally(() => {
+          saveRecoveries.delete(retained);
+        });
+      saveRecoveries.set(retained, recovery);
+      return recovery;
     },
-    retryContentSave: async () => {
-      await active?.retryContentSave();
-      reflect();
+    retryContentSave: () => {
+      const retained = active;
+      const conversation = id;
+      if (!retained || disposed) return Promise.resolve();
+      const known = contentRecoveries.get(retained);
+      if (known !== undefined) return known;
+      const recovery = Promise.resolve()
+        .then(async () => {
+          await retained.retryContentSave();
+          if (!disposed && active === retained && id === conversation) reflect();
+        })
+        .finally(() => {
+          contentRecoveries.delete(retained);
+        });
+      contentRecoveries.set(retained, recovery);
+      return recovery;
     },
-    refreshContext: async () => {
-      await active?.refreshContext();
-      reflect();
-      if (state.contextError) return;
-      try {
-        const messages = await activeBackend.messages(id);
-        set({ turns: messages.map(({ data }) => turn(data)), contextError: undefined });
-      } catch (error) {
-        set({ contextError: error instanceof Error ? error.message : String(error) });
-      }
+    refreshContext: () => {
+      const retained = active;
+      const owner = active ? activeBackend : backend;
+      const conversation = id;
+      if (disposed) return Promise.resolve();
+      if (recordRefresh?.conversation === conversation && recordRefresh.retained === retained)
+        return recordRefresh.done;
+      const done = Promise.resolve()
+        .then(async () => {
+          await retained?.refreshContext();
+          if (disposed || active !== retained || id !== conversation) return;
+          reflect();
+          if (retained?.snapshot().recovery?.refresh) return;
+          await refreshMessages(retained, owner, conversation);
+        })
+        .finally(() => {
+          if (recordRefresh?.done === done) recordRefresh = undefined;
+          set({});
+        });
+      recordRefresh = { conversation, retained, done };
+      set({});
+      return done;
     },
     /** Claim and interpret supplied application text once for the retained Chat lifetime. */
     receivePrompt: (prompt: Prompt): ChatPromptOutcome => {
@@ -667,6 +756,7 @@ export function createNodeConversation(initial: NodeConversationOptions) {
         return;
       unsubscribeActive?.();
       active = undefined;
+      recordRefreshError = undefined;
       id = conversation;
       options.onConversation?.(conversation);
       set({
@@ -705,6 +795,7 @@ export function createNodeConversation(initial: NodeConversationOptions) {
       id = crypto.randomUUID();
       draftRevision++;
       active = undefined;
+      recordRefreshError = undefined;
       suggestionAbort?.abort();
       suggestedFor = undefined;
       options.onConversation?.(id);

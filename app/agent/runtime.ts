@@ -27,6 +27,12 @@ export interface AgentRunState {
     | 'unsaved'
     | 'recorded'
     | 'paused';
+  /** Shared owner progress; pending records and receipts remain private to the run. */
+  readonly recoveryActivity?: {
+    readonly save: boolean;
+    readonly content: boolean;
+    readonly refresh: boolean;
+  };
   readonly data: AgentRunData;
   readonly text: string;
   readonly persistenceError?: string;
@@ -42,7 +48,7 @@ export interface AgentRun {
   readonly subscribe: (listener: () => void) => () => void;
   readonly done: Promise<AgentRunState>;
   readonly stop: () => void;
-  /** Persistence only: never repeat or resume execution. */
+  /** Saves exact pending work; may release this same live run, never replay a completed effect. */
   readonly retrySave: () => Promise<AgentRunState>;
   readonly retryContentSave: () => Promise<AgentRunState>;
   readonly refreshContext: () => Promise<AgentRunState>;
@@ -88,6 +94,7 @@ export function createAgentBackend(options: AgentBackendOptions) {
     let settleContent: (() => Promise<unknown>) | undefined;
     let refreshContent: (() => Promise<void>) | undefined;
     let contentRetry: Promise<AgentRunState> | undefined;
+    let contextRefresh: Promise<AgentRunState> | undefined;
     let interrupted = false;
     let terminal: (() => Promise<AgentRunState>) | undefined;
     let terminalWork: Promise<AgentRunState> | undefined;
@@ -96,7 +103,12 @@ export function createAgentBackend(options: AgentBackendOptions) {
     const activity = new Map<string, ToolExecutionData>();
     let retry: Promise<AgentRunState> | undefined;
     const notify = (next: AgentRunState) => {
-      state = frozen(structuredClone(next));
+      state = frozen(
+        structuredClone({
+          ...next,
+          recoveryActivity: { save: !!retry, content: !!contentRetry, refresh: !!contextRefresh },
+        }),
+      );
       for (const listener of listeners) {
         try {
           listener();
@@ -442,21 +454,36 @@ export function createAgentBackend(options: AgentBackendOptions) {
             });
           }
           return state;
-        })().finally(() => {
-          contentRetry = undefined;
-        });
+        })()
+          .finally(() => {
+            contentRetry = undefined;
+            notify(state);
+          })
+          .then(() => state);
+        notify(state);
         return contentRetry;
       },
-      refreshContext: async () => {
-        try {
-          if (refreshContent) await refreshContent();
-          else await options.nodes.snapshot();
-          const { contextError: _error, ...rest } = state;
-          notify(rest);
-        } catch (error) {
-          notify({ ...state, contextError: errorMessage(error) });
-        }
-        return state;
+      refreshContext: () => {
+        if (contextRefresh !== undefined) return contextRefresh;
+        contextRefresh = Promise.resolve()
+          .then(async () => {
+            try {
+              if (refreshContent) await refreshContent();
+              else await options.nodes.snapshot();
+              const { contextError: _error, ...rest } = state;
+              notify(rest);
+            } catch (error) {
+              notify({ ...state, contextError: errorMessage(error) });
+            }
+            return state;
+          })
+          .finally(() => {
+            contextRefresh = undefined;
+            notify(state);
+          })
+          .then(() => state);
+        notify(state);
+        return contextRefresh;
       },
       retrySave: () => {
         if (retry !== undefined) return retry;
@@ -495,9 +522,13 @@ export function createAgentBackend(options: AgentBackendOptions) {
             notify({ ...state, persistenceError: errorMessage(error) });
           }
           return state;
-        })().finally(() => {
-          retry = undefined;
-        });
+        })()
+          .finally(() => {
+            retry = undefined;
+            notify(state);
+          })
+          .then(() => state);
+        notify(state);
         return retry;
       },
     };
