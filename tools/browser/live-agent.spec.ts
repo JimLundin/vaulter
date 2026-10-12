@@ -69,9 +69,9 @@ test('live preview streams through the Responses adapter and records real provid
   expect(calls).toHaveLength(1);
 });
 
-test('live dictation captures browser audio, transcribes on Finish and appends without sending', async ({
-  page,
-}) => {
+test('live dictation captures browser audio, transcribes on Finish and appends without sending', {
+  tag: '@phone',
+}, async ({ page }) => {
   await page.addInitScript(() => {
     const startRecording = MediaRecorder.prototype.start;
     MediaRecorder.prototype.start = function (timeslice) {
@@ -125,9 +125,9 @@ test('live dictation captures browser audio, transcribes on Finish and appends w
   await expect(page.locator('[data-message="user"]')).toHaveCount(0);
 });
 
-test('live microphone permission errors preserve the typed draft without a transcription request', async ({
-  page,
-}) => {
+test('live microphone permission errors preserve the typed draft without a transcription request', {
+  tag: '@phone',
+}, async ({ page }) => {
   await page.addInitScript(() => {
     navigator.mediaDevices.getUserMedia = () =>
       Promise.reject(new DOMException('Permission denied', 'NotAllowedError'));

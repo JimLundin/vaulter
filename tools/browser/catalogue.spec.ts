@@ -13,10 +13,9 @@ async function contained(outer: Locator, inner: Locator) {
   expect(content.y + content.height).toBeLessThanOrEqual(bounds.y + bounds.height + 1);
 }
 
-test('the entire catalogue renders paired live components without requests to external services', async ({
-  page,
-  baseURL,
-}) => {
+test('the entire catalogue renders paired live components without requests to external services', {
+  tag: '@phone',
+}, async ({ page, baseURL }) => {
   const errors: string[] = [];
   const external: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
@@ -51,9 +50,9 @@ test('the entire catalogue renders paired live components without requests to ex
   expect(external).toEqual([]);
 });
 
-test('each sample retains its own responsive CSS, touch density and navigation at any browser width', async ({
-  page,
-}) => {
+test('each sample retains its own responsive CSS, touch density and navigation at any browser width', {
+  tag: '@phone',
+}, async ({ page }) => {
   await page.goto('/ui/kit/');
   const filter = page.getByRole('searchbox', { name: 'Find a component' });
   await filter.fill('Navigation & workspace');
@@ -175,9 +174,9 @@ test('paired catalogue composers keep native and Safari IME confirmation as edit
   }
 });
 
-test('sidebar labels, badges and actions have separate slots at mouse and touch density', async ({
-  page,
-}) => {
+test('sidebar labels, badges and actions have separate slots at mouse and touch density', {
+  tag: '@touch',
+}, async ({ page }) => {
   await page.goto('/ui/kit/');
   await page.getByRole('searchbox', { name: 'Find a component' }).fill('Sidebar primitives');
   const family = page.locator('[data-kit-comparison="sidebar"]');
@@ -306,9 +305,9 @@ test('paired settings fields keep independent accessible meaning and native labe
   }
 });
 
-test('settings and search portals remain inside their example without locking the catalogue', async ({
-  page,
-}) => {
+test('settings and search portals remain inside their example without locking the catalogue', {
+  tag: '@touch',
+}, async ({ page }) => {
   await page.goto('/ui/kit/');
   const filter = page.getByRole('searchbox', { name: 'Find a component' });
   await filter.fill('Settings');
@@ -440,9 +439,9 @@ test('paired Agent panels remain independently editable and Escape closes the ac
   expect(await page.locator('body').evaluate((node) => node.style.overflow)).toBe('');
 });
 
-test('paired panel composers submit once with the shared keyboard path and retain drafts when reopened', async ({
-  page,
-}) => {
+test('paired panel composers submit once with the shared keyboard path and retain drafts when reopened', {
+  tag: '@touch',
+}, async ({ page }) => {
   await page.goto('/ui/kit/');
   await page.getByRole('searchbox', { name: 'Find a component' }).fill('Supporting feed');
   const family = page.locator('[data-kit-comparison="agent-panel"]');
@@ -471,9 +470,9 @@ test('paired panel composers submit once with the shared keyboard path and retai
   }
 });
 
-test('catalogue focus and outside interaction revoke a panel’s keyboard ownership after sending', async ({
-  page,
-}) => {
+test('catalogue focus and outside interaction revoke a panel’s keyboard ownership after sending', {
+  tag: '@touch',
+}, async ({ page }) => {
   await page.goto('/ui/kit/');
   const filter = page.getByRole('searchbox', { name: 'Find a component' });
   await filter.fill('Supporting feed');
@@ -498,9 +497,9 @@ test('catalogue focus and outside interaction revoke a panel’s keyboard owners
   await expect(mobile.getByRole('dialog', { name: 'Supporting task', exact: true })).toBeVisible();
 });
 
-test('Escape after sending closes the last interacted panel while another sample stays editable', async ({
-  page,
-}) => {
+test('Escape after sending closes the last interacted panel while another sample stays editable', {
+  tag: '@touch',
+}, async ({ page }) => {
   await page.goto('/ui/kit/');
   await page.getByRole('searchbox', { name: 'Find a component' }).fill('Supporting feed');
   const family = page.locator('[data-kit-comparison="agent-panel"]');

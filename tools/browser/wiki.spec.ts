@@ -7,9 +7,6 @@ test('fictional Wiki nodes keep selected evidence and expanded source context ac
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto('/preview/wiki.html');
   const desktop = page.locator('[data-design-preview]');
-  await page.screenshot({
-    path: `/tmp/vaulter-50-wiki-preview-wide-${test.info().project.name}.png`,
-  });
   const claim = desktop.getByRole('button', {
     name: 'Evidence for Keep mornings free.',
     exact: true,
@@ -34,9 +31,6 @@ test('fictional Wiki nodes keep selected evidence and expanded source context ac
   await setPreviewMobile(desktop, true);
   await expect(desktop.getByRole('dialog', { name: 'References', exact: true })).toBeVisible();
   await expect(toggle).toHaveAttribute('aria-expanded', 'true');
-  await page.screenshot({
-    path: `/tmp/vaulter-50-wiki-preview-compact-${test.info().project.name}.png`,
-  });
   expect(await original!.evaluate((node) => node.isConnected)).toBe(true);
   await toggle.focus();
   await page.keyboard.press('Escape');
@@ -58,7 +52,6 @@ test('fictional Wiki nodes keep selected evidence and expanded source context ac
   await expect(pane.getByRole('link', { name: 'Planning note 12' })).toBeInViewport();
   await claim.click();
   await expect(pane.getByRole('link', { name: 'Studio plans' })).toBeInViewport();
-  await page.screenshot({ path: `/tmp/vaulter-50-wiki-preview-${test.info().project.name}.png` });
 });
 
 test('Wiki fictional reader exposes filtering, loading, errors and missing records', async ({

@@ -16,3 +16,8 @@ Use the five default triage labels. Before classifying or labelling issues, read
 
 This is a single-context repo. Before exploring domain behavior or designing changes, follow
 [docs/agents/domain.md](docs/agents/domain.md).
+
+### Testing
+
+Before choosing checks for an edit or final delivery, follow
+[docs/agents/testing.md](docs/agents/testing.md).

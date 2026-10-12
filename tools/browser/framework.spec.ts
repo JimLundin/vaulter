@@ -1,95 +1,99 @@
 import { expect, test } from '@playwright/test';
 
-test('navigation has the same destinations and actions in both arrangements', async ({
-  page,
-}, info) => {
-  const compact = info.project.name === 'phone';
-  await page.goto('/preview/');
-  await expect(page.getByRole('heading', { name: 'What’s on your mind?' })).toBeVisible();
-  if (compact) {
-    const menu = page.getByRole('button', { name: 'Menu', exact: true });
-    const footer = page.locator('footer').filter({ has: menu });
-    await expect(footer).toHaveText('');
-    for (const control of await footer.locator(':scope > button, :scope > a').all()) {
-      expect(await control.evaluate((node) => getComputedStyle(node).borderRadius)).toBe('8px');
-      expect(await control.getAttribute('aria-label')).toBeTruthy();
+test(
+  'navigation has the same destinations and actions in both arrangements',
+  { tag: '@phone' },
+  async ({ page }, info) => {
+    const compact = info.project.name === 'phone';
+    await page.goto('/preview/');
+    await expect(page.getByRole('heading', { name: 'What’s on your mind?' })).toBeVisible();
+    if (compact) {
+      const menu = page.getByRole('button', { name: 'Menu', exact: true });
+      const footer = page.locator('footer').filter({ has: menu });
+      await expect(footer).toHaveText('');
+      for (const control of await footer.locator(':scope > button, :scope > a').all()) {
+        expect(await control.evaluate((node) => getComputedStyle(node).borderRadius)).toBe('8px');
+        expect(await control.getAttribute('aria-label')).toBeTruthy();
+      }
+      const voice = page.getByRole('button', { name: 'Start voice interaction' });
+      const voiceBox = await voice.boundingBox();
+      const footerBox = await footer.boundingBox();
+      expect(voiceBox!.y + voiceBox!.height).toBeLessThan(footerBox!.y);
+      expect(footerBox!.height).toBeLessThanOrEqual(60);
+      await menu.click();
+      await expect(
+        page.getByRole('button', { name: 'Menu', exact: true, includeHidden: true }),
+      ).toHaveAttribute('aria-expanded', 'true');
+      await expect(page.getByRole('link', { name: 'Chat', exact: true })).toBeVisible();
+      await page.getByRole('button', { name: 'Close menu' }).click();
+      await expect(menu).toBeFocused();
+    } else {
+      const workspace = page.locator('[data-layout="desktop-workspace"]');
+      await expect(workspace.locator('footer')).toHaveCount(0);
+      const mainBox = (await workspace.locator('main').boundingBox())!;
+      const workspaceBox = (await workspace.boundingBox())!;
+      expect(mainBox.y + mainBox.height).toBeCloseTo(workspaceBox.y + workspaceBox.height, 0);
+      await page.keyboard.press('?');
+      await expect(
+        page.getByRole('dialog', { name: 'Keyboard shortcuts', exact: true }),
+      ).toBeVisible();
+      await page.keyboard.press('Escape');
+      await expect(page.getByRole('link', { name: 'Chat', exact: true })).toHaveCount(1);
+      await expect(
+        page.getByRole('button', { name: 'Try a conversation', exact: true }),
+      ).toHaveCount(0);
+      await expect(page.getByRole('button', { name: 'Ask the agent', exact: true })).toHaveCount(0);
     }
-    const voice = page.getByRole('button', { name: 'Start voice interaction' });
-    const voiceBox = await voice.boundingBox();
-    const footerBox = await footer.boundingBox();
-    expect(voiceBox!.y + voiceBox!.height).toBeLessThan(footerBox!.y);
-    expect(footerBox!.height).toBeLessThanOrEqual(60);
-    await menu.click();
+    const beforeSettings = page.url();
+    await page.getByRole('button', { name: 'Settings', exact: true }).click();
+    const settings = page.getByRole('dialog', { name: 'Settings', exact: true });
+    await expect(settings).toBeVisible();
+    await expect(settings.getByRole('region', { name: 'Chat', exact: true })).toBeVisible();
+    await expect(settings.getByRole('textbox', { name: 'Model', exact: true })).toBeVisible();
+    expect(page.url()).toBe(beforeSettings);
     await expect(
-      page.getByRole('button', { name: 'Menu', exact: true, includeHidden: true }),
+      page.getByRole('button', { name: 'Settings', exact: true, includeHidden: true }),
     ).toHaveAttribute('aria-expanded', 'true');
-    await expect(page.getByRole('link', { name: 'Chat', exact: true })).toBeVisible();
-    await page.getByRole('button', { name: 'Close menu' }).click();
-    await expect(menu).toBeFocused();
-  } else {
-    const workspace = page.locator('[data-layout="desktop-workspace"]');
-    await expect(workspace.locator('footer')).toHaveCount(0);
-    const mainBox = (await workspace.locator('main').boundingBox())!;
-    const workspaceBox = (await workspace.boundingBox())!;
-    expect(mainBox.y + mainBox.height).toBeCloseTo(workspaceBox.y + workspaceBox.height, 0);
-    await page.keyboard.press('?');
-    await expect(
-      page.getByRole('dialog', { name: 'Keyboard shortcuts', exact: true }),
-    ).toBeVisible();
+    await page.getByRole('button', { name: 'Close settings' }).click();
+    await expect(settings).toBeHidden();
+    await expect(page.getByRole('button', { name: 'Settings', exact: true })).toBeFocused();
+    if (compact) await page.getByRole('button', { name: 'Menu', exact: true }).click();
+    const historyLink = compact
+      ? page
+          .getByRole('navigation', { name: 'Main navigation' })
+          .getByRole('link', { name: 'History', exact: true })
+      : page.locator('[data-sidebar="menu-button"]').filter({ hasText: 'History' });
+    await historyLink.click();
+    await expect(page.getByRole('heading', { name: 'History', exact: true })).toBeVisible();
+    const historyURL = page.url();
+    await page.getByRole('button', { name: 'Settings', exact: true }).click();
+    await expect(settings).toBeVisible();
     await page.keyboard.press('Escape');
-    await expect(page.getByRole('link', { name: 'Chat', exact: true })).toHaveCount(1);
-    await expect(page.getByRole('button', { name: 'Try a conversation', exact: true })).toHaveCount(
-      0,
+    await expect(settings).toBeHidden();
+    expect(page.url()).toBe(historyURL);
+    await expect(page.getByRole('heading', { name: 'History', exact: true })).toBeVisible();
+    // Settings reached through Search uses the same menu and leaves History underneath.
+    await page.getByRole('button', { name: 'Search', exact: true }).click();
+    await page
+      .getByRole('dialog', { name: 'Search or ask', exact: true })
+      .getByRole('combobox')
+      .fill('Settings');
+    await page.getByRole('option', { name: 'Settings', exact: true }).click();
+    await expect(settings).toBeVisible();
+    expect(page.url()).toBe(historyURL);
+    await expect(page.getByRole('button', { name: 'Close settings' })).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(settings).toBeHidden();
+    await expect(page.getByRole('button', { name: 'Search', exact: true })).toBeFocused();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
     );
-    await expect(page.getByRole('button', { name: 'Ask the agent', exact: true })).toHaveCount(0);
-  }
-  const beforeSettings = page.url();
-  await page.getByRole('button', { name: 'Settings', exact: true }).click();
-  const settings = page.getByRole('dialog', { name: 'Settings', exact: true });
-  await expect(settings).toBeVisible();
-  await expect(settings.getByRole('region', { name: 'Chat', exact: true })).toBeVisible();
-  await expect(settings.getByRole('textbox', { name: 'Model', exact: true })).toBeVisible();
-  expect(page.url()).toBe(beforeSettings);
-  await expect(
-    page.getByRole('button', { name: 'Settings', exact: true, includeHidden: true }),
-  ).toHaveAttribute('aria-expanded', 'true');
-  await page.getByRole('button', { name: 'Close settings' }).click();
-  await expect(settings).toBeHidden();
-  await expect(page.getByRole('button', { name: 'Settings', exact: true })).toBeFocused();
-  if (compact) await page.getByRole('button', { name: 'Menu', exact: true }).click();
-  const historyLink = compact
-    ? page
-        .getByRole('navigation', { name: 'Main navigation' })
-        .getByRole('link', { name: 'History', exact: true })
-    : page.locator('[data-sidebar="menu-button"]').filter({ hasText: 'History' });
-  await historyLink.click();
-  await expect(page.getByRole('heading', { name: 'History', exact: true })).toBeVisible();
-  const historyURL = page.url();
-  await page.getByRole('button', { name: 'Settings', exact: true }).click();
-  await expect(settings).toBeVisible();
-  await page.keyboard.press('Escape');
-  await expect(settings).toBeHidden();
-  expect(page.url()).toBe(historyURL);
-  await expect(page.getByRole('heading', { name: 'History', exact: true })).toBeVisible();
-  // Settings reached through Search uses the same menu and leaves History underneath.
-  await page.getByRole('button', { name: 'Search', exact: true }).click();
-  await page
-    .getByRole('dialog', { name: 'Search or ask', exact: true })
-    .getByRole('combobox')
-    .fill('Settings');
-  await page.getByRole('option', { name: 'Settings', exact: true }).click();
-  await expect(settings).toBeVisible();
-  expect(page.url()).toBe(historyURL);
-  await expect(page.getByRole('button', { name: 'Close settings' })).toBeFocused();
-  await page.keyboard.press('Escape');
-  await expect(settings).toBeHidden();
-  await expect(page.getByRole('button', { name: 'Search', exact: true })).toBeFocused();
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-});
+  },
+);
 
-test('a direct settings URL opens the same menu and preserves the agent draft', async ({
-  page,
-}) => {
+test('a direct settings URL opens the same menu and preserves the agent draft', {
+  tag: '@phone',
+}, async ({ page }) => {
   await page.goto('/preview/#/settings/');
   const settings = page.getByRole('dialog', { name: 'Settings', exact: true });
   await expect(settings.getByRole('textbox', { name: 'Model', exact: true })).toBeVisible();
@@ -113,9 +117,9 @@ test('a direct settings URL opens the same menu and preserves the agent draft', 
   await expect(model).toHaveValue('example-model');
 });
 
-test('Appearance group retains keyboard selection and device preference after reopening and reload', async ({
-  page,
-}) => {
+test('Appearance group retains keyboard selection and device preference after reopening and reload', {
+  tag: '@phone',
+}, async ({ page }) => {
   await page.goto('/preview/#/settings/');
   const settings = page.getByRole('dialog', { name: 'Settings', exact: true });
   const group = settings.getByRole('radiogroup', { name: 'Theme', exact: true });
@@ -203,7 +207,9 @@ test('the preview field keeps one inset action and its draft through focus and r
   await expect(input).toHaveValue('');
 });
 
-test('button hit targets resize without animating their geometry', async ({ page }) => {
+test('button hit targets resize without animating their geometry', {
+  tag: ['@phone', '@touch'],
+}, async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 844 });
   await page.goto('/preview/');
   const add = page.getByRole('button', { name: 'New conversation', exact: true });
@@ -225,9 +231,9 @@ test('button hit targets resize without animating their geometry', async ({ page
   ).toEqual([]);
 });
 
-test('agent controls have even insets and suggestions remain one scrolling row with edge fades', async ({
-  page,
-}) => {
+test('agent controls have even insets and suggestions remain one scrolling row with edge fades', {
+  tag: ['@phone', '@touch'],
+}, async ({ page }) => {
   await page.goto('/preview/');
   for (const width of [1440, 390, 320, 768]) {
     await page.setViewportSize({ width, height: 844 });
@@ -318,79 +324,85 @@ test('settings is a shared drawer that keeps feature fields and focus when resiz
   await expect(field).toHaveValue('Keep this draft');
 });
 
-test('touch controls grow on phones and touch desktops while retaining keyboard behavior', async ({
-  page,
-}, info) => {
-  await page.goto('/ui/kit/tests/browser.html');
-  const compact = page.getByRole('button', { name: 'Small button' });
-  const icon = page.getByRole('button', { name: 'Small icon' });
-  const grouped = page.getByRole('button', { name: 'Go', exact: true });
-  await expect(compact).toBeVisible();
-  const compactBox = (await compact.boundingBox())!;
-  const iconBox = (await icon.boundingBox())!;
-  expect(compactBox.height).toBe(info.project.name === 'desktop' ? 32 : 44);
-  expect((await grouped.boundingBox())!.height).toBe(compactBox.height);
-  expect(iconBox.width).toBe(compactBox.height);
-  expect(iconBox.height).toBe(compactBox.height);
-  await expect(icon).toHaveCSS('border-radius', '8px');
-  expect(
-    (await page.getByRole('button', { name: 'Open agent', exact: true }).boundingBox())!.height,
-  ).toBe(44);
-  const slots = [
-    'button',
-    'checkbox',
-    'input',
-    'input-group',
-    'input-group-control',
-    'tabs-trigger',
-    'toggle-group-item',
-  ];
-  if (info.project.name !== 'desktop') {
-    for (const mark of await page
-      .getByRole('figure', { name: 'Long series' })
-      .getByRole('button')
-      .all()) {
-      expect((await mark.boundingBox())!.width).toBeGreaterThanOrEqual(44);
+test(
+  'touch controls grow on phones and touch desktops while retaining keyboard behavior',
+  { tag: ['@phone', '@touch'] },
+  async ({ page }, info) => {
+    await page.goto('/ui/kit/tests/browser.html');
+    const compact = page.getByRole('button', { name: 'Small button' });
+    const icon = page.getByRole('button', { name: 'Small icon' });
+    const grouped = page.getByRole('button', { name: 'Go', exact: true });
+    await expect(compact).toBeVisible();
+    const compactBox = (await compact.boundingBox())!;
+    const iconBox = (await icon.boundingBox())!;
+    expect(compactBox.height).toBe(info.project.name === 'desktop' ? 32 : 44);
+    expect((await grouped.boundingBox())!.height).toBe(compactBox.height);
+    expect(iconBox.width).toBe(compactBox.height);
+    expect(iconBox.height).toBe(compactBox.height);
+    await expect(icon).toHaveCSS('border-radius', '8px');
+    expect(
+      (await page.getByRole('button', { name: 'Open agent', exact: true }).boundingBox())!.height,
+    ).toBe(44);
+    const slots = [
+      'button',
+      'checkbox',
+      'input',
+      'input-group',
+      'input-group-control',
+      'tabs-trigger',
+      'toggle-group-item',
+    ];
+    if (info.project.name !== 'desktop') {
+      for (const mark of await page
+        .getByRole('figure', { name: 'Long series' })
+        .getByRole('button')
+        .all()) {
+        expect((await mark.boundingBox())!.width).toBeGreaterThanOrEqual(44);
+      }
+      for (const slot of slots) {
+        const controls = page.locator(`[data-slot="${slot}"]:visible`);
+        expect(await controls.count(), slot).toBeGreaterThan(0);
+        for (const control of await controls.all()) {
+          const box = await control.boundingBox();
+          expect(box!.height, slot).toBeGreaterThanOrEqual(44);
+          expect(box!.width, slot).toBeGreaterThanOrEqual(44);
+        }
+      }
+      expect(
+        await page
+          .getByRole('checkbox')
+          .evaluate((node) => getComputedStyle(node, '::before').width),
+      ).toBe('16px');
+      expect(
+        await page
+          .getByRole('textbox', { name: 'Preference' })
+          .evaluate((node) => getComputedStyle(node).fontSize),
+      ).toBe('16px');
     }
-    for (const slot of slots) {
-      const controls = page.locator(`[data-slot="${slot}"]:visible`);
-      expect(await controls.count(), slot).toBeGreaterThan(0);
-      for (const control of await controls.all()) {
-        const box = await control.boundingBox();
-        expect(box!.height, slot).toBeGreaterThanOrEqual(44);
-        expect(box!.width, slot).toBeGreaterThanOrEqual(44);
+    await page.getByRole('checkbox').click();
+    await expect(page.getByRole('checkbox')).toBeChecked();
+    await page.getByRole('checkbox').press('Space');
+    await expect(page.getByRole('checkbox')).not.toBeChecked();
+    await page.getByRole('tab', { name: 'First', exact: true }).focus();
+    await page.keyboard.press('ArrowRight');
+    await expect(page.getByRole('tab', { name: 'Second', exact: true })).toBeFocused();
+    await expect(page.getByText('Second tab content', { exact: true })).toBeVisible();
+    if (info.project.name !== 'desktop') {
+      for (const control of await page.getByRole('radio').all()) {
+        expect((await control.boundingBox())!.height).toBeGreaterThanOrEqual(44);
       }
     }
-    expect(
-      await page.getByRole('checkbox').evaluate((node) => getComputedStyle(node, '::before').width),
-    ).toBe('16px');
-    expect(
-      await page
-        .getByRole('textbox', { name: 'Preference' })
-        .evaluate((node) => getComputedStyle(node).fontSize),
-    ).toBe('16px');
-  }
-  await page.getByRole('checkbox').click();
-  await expect(page.getByRole('checkbox')).toBeChecked();
-  await page.getByRole('checkbox').press('Space');
-  await expect(page.getByRole('checkbox')).not.toBeChecked();
-  await page.getByRole('tab', { name: 'First', exact: true }).focus();
-  await page.keyboard.press('ArrowRight');
-  await expect(page.getByRole('tab', { name: 'Second', exact: true })).toBeFocused();
-  await expect(page.getByText('Second tab content', { exact: true })).toBeVisible();
-  if (info.project.name !== 'desktop') {
-    for (const control of await page.getByRole('radio').all()) {
-      expect((await control.boundingBox())!.height).toBeGreaterThanOrEqual(44);
-    }
-  }
-  await page.getByRole('button', { name: 'More controls' }).click();
-  const item = page.getByRole('menuitem', { name: 'Menu item' });
-  if (info.project.name !== 'desktop')
-    expect((await item.boundingBox())!.height).toBeGreaterThanOrEqual(44);
-  await page.keyboard.press('Escape');
-  await expect(page.getByRole('button', { name: 'More controls' })).toBeFocused();
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-});
+    await page.getByRole('button', { name: 'More controls' }).click();
+    const item = page.getByRole('menuitem', { name: 'Menu item' });
+    if (info.project.name !== 'desktop')
+      expect((await item.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('button', { name: 'More controls' })).toBeFocused();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
+    );
+  },
+);
 
 test('search keeps its query, selected result and focus through every size threshold', async ({
   page,
@@ -489,9 +501,9 @@ test('a growing navigation keeps overflow actions available without making the f
   await expect(page.getByRole('dialog', { name: 'Menu', exact: true })).toBeHidden();
 });
 
-test('Enter sends, Shift+Enter and IME keep editing, and suggestions live outside the composer', async ({
-  page,
-}) => {
+test('Enter sends, Shift+Enter and IME keep editing, and suggestions live outside the composer', {
+  tag: '@phone',
+}, async ({ page }) => {
   await page.goto('/preview/');
   const suggestion = page.getByRole('button', {
     name: 'How could I make more room for slow mornings?',
@@ -531,9 +543,9 @@ test('Enter sends, Shift+Enter and IME keep editing, and suggestions live outsid
   await expect(page.getByText('Your sample vault has notes about', { exact: false })).toBeVisible();
 });
 
-test('the composer and search stay within the visual viewport when a keyboard opens', async ({
-  page,
-}) => {
+test('the composer and search stay within the visual viewport when a keyboard opens', {
+  tag: '@phone',
+}, async ({ page }) => {
   await page.addInitScript(() => {
     const viewport = new EventTarget();
     Object.defineProperties(viewport, {
@@ -619,9 +631,9 @@ test('Escape closes the nested review before closing the agent panel', async ({ 
   await expect(page.getByRole('dialog', { name: 'Chat', exact: true })).toBeHidden();
 });
 
-test('dictation keeps the composer anchored and only submission stops an agent response', async ({
-  page,
-}) => {
+test('dictation keeps the composer anchored and only submission stops an agent response', {
+  tag: '@phone',
+}, async ({ page }) => {
   await page.goto('/preview/');
   const input = page.getByRole('textbox', { name: 'Message', exact: true });
   await input.fill('A typed introduction.');
@@ -664,9 +676,9 @@ test('dictation keeps the composer anchored and only submission stops an agent r
   await page.getByRole('button', { name: 'Finish recording' }).click();
 });
 
-test('the send icon reflects text field focus without a keyboard hint below the composer', async ({
-  page,
-}) => {
+test('the send icon reflects text field focus without a keyboard hint below the composer', {
+  tag: '@phone',
+}, async ({ page }) => {
   await page.goto('/preview/');
   const input = page.getByRole('textbox', { name: 'Message', exact: true });
   const send = page.getByRole('button', { name: 'Send', exact: true });
@@ -682,10 +694,9 @@ test('the send icon reflects text field focus without a keyboard hint below the 
   ).toHaveCount(0);
 });
 
-test('live transcription updates the shared message field and uses the normal send path', async ({
-  page,
-  baseURL,
-}) => {
+test('live transcription updates the shared message field and uses the normal send path', {
+  tag: '@phone',
+}, async ({ page, baseURL }) => {
   const errors: string[] = [];
   const external: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
@@ -746,7 +757,9 @@ test('live transcription updates the shared message field and uses the normal se
   expect(external).toEqual([]);
 });
 
-test('Chat retains the shared draft when its view closes and reopens', async ({ page }) => {
+test('Chat retains the shared draft when its view closes and reopens', { tag: '@phone' }, async ({
+  page,
+}) => {
   await page.goto('/preview/');
   const field = page.getByRole('textbox', { name: 'Message', exact: true });
   await field.fill('An unfinished workflow thought');
@@ -764,9 +777,9 @@ test('Chat retains the shared draft when its view closes and reopens', async ({ 
   );
 });
 
-test('Enter and Send both open staged-change review and cancellation keeps the workflow draft', async ({
-  page,
-}) => {
+test('Enter and Send both open staged-change review and cancellation keeps the workflow draft', {
+  tag: '@phone',
+}, async ({ page }) => {
   test.setTimeout(60_000);
   await page.goto('/preview/?legacy-staging');
   const field = page.getByRole('textbox', { name: 'Message', exact: true });

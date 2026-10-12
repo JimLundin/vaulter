@@ -1,5 +1,4 @@
-/// <reference types="vitest/config" />
-// The browser app (app/) and the tests for it.
+// The browser app (app/). Test scheduling lives in vitest.config.ts.
 import { defineConfig, loadEnv, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
@@ -93,12 +92,6 @@ export default defineConfig(({ command, mode }) => {
         command === 'serve' && mode !== 'design' ? devSecrets(mode) : null,
       ),
       __PREVIEW_AGENT__: JSON.stringify(agent?.client ?? null),
-    },
-    test: {
-      root: SITE,
-      include: ['app/**/*.test.{ts,tsx}', 'tools/**/*.test.ts'],
-      // Concurrent compiler-backed policy checks each load the full TypeScript project.
-      maxWorkers: 2,
     },
   };
 });

@@ -1,9 +1,9 @@
 import { expect, test } from '@playwright/test';
 import { setPreviewMobile } from './preview-controls.ts';
 
-test('the preview handle drags without toggling controls, stays bounded, and supports keyboard reset', async ({
-  page,
-}) => {
+test('the preview handle drags without toggling controls, stays bounded, and supports keyboard reset', {
+  tag: ['@phone', '@touch'],
+}, async ({ page }) => {
   await page.goto('/preview/');
   await expect(page.getByRole('textbox', { name: 'Message', exact: true })).toBeVisible();
   const banner = page.getByRole('complementary', { name: 'Design preview' });
@@ -77,9 +77,9 @@ test('the preview handle drags without toggling controls, stays bounded, and sup
   expect((await page.locator('[data-design-viewport]').boundingBox())!.height).toBe(500);
 });
 
-test('phone preview controls expand from a centered pill and follow the visible browser height', async ({
-  page,
-}) => {
+test('phone preview controls expand from a centered pill and follow the visible browser height', {
+  tag: ['@phone', '@touch'],
+}, async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.addInitScript(() => {
     const viewport = new EventTarget();
@@ -173,9 +173,9 @@ test('phone preview controls expand from a centered pill and follow the visible 
   );
 });
 
-test('the desktop sidebar paints its full surface including the outer spacing', async ({
-  page,
-}) => {
+test('the desktop sidebar paints its full surface including the outer spacing', {
+  tag: '@phone',
+}, async ({ page }) => {
   await page.goto('/preview/');
   await page.setViewportSize({ width: 1440, height: 1000 });
   const sidebar = page.locator('[data-region="nav"]');
@@ -187,9 +187,9 @@ test('the desktop sidebar paints its full surface including the outer spacing', 
   expect(colors.outer).not.toBe('rgba(0, 0, 0, 0)');
 });
 
-test('the mobile Menu highlights only while hovered or open, with rounded corners', async ({
-  page,
-}) => {
+test('the mobile Menu highlights only while hovered or open, with rounded corners', {
+  tag: ['@phone', '@touch'],
+}, async ({ page }) => {
   await page.goto('/preview/');
   await setPreviewMobile(page.locator('body'), true);
   const menu = page.getByRole('button', { name: 'Menu', exact: true });
@@ -228,9 +228,9 @@ test('the mobile Menu highlights only while hovered or open, with rounded corner
   await expect(menu).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
 });
 
-test('the preview pill overlays the full-height workspace and device selection preserves the draft', async ({
-  page,
-}) => {
+test('the preview pill overlays the full-height workspace and device selection preserves the draft', {
+  tag: '@phone',
+}, async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto('/preview/');
   const banner = page.getByRole('complementary', { name: 'Design preview' });
@@ -296,9 +296,9 @@ test('the preview pill overlays the full-height workspace and device selection p
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
-test('preview device changes keep open settings and search inside the app frame', async ({
-  page,
-}) => {
+test('preview device changes keep open settings and search inside the app frame', {
+  tag: '@phone',
+}, async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto('/preview/');
   const banner = page.getByRole('complementary', { name: 'Design preview' });

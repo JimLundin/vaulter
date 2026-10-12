@@ -1,8 +1,8 @@
 import { expect, test } from '@playwright/test';
 
-test('a linked note preview follows its source while the bounded sample scrolls', async ({
-  page,
-}) => {
+test('a linked note preview follows its source while the bounded sample scrolls', {
+  tag: '@touch',
+}, async ({ page }) => {
   await page.goto('/ui/kit/');
   await page.getByRole('searchbox', { name: 'Find a component' }).fill('Linked content');
   const sample = page.locator('[data-kit-comparison="linked-content"] [data-kit-preview="mobile"]');
@@ -26,7 +26,9 @@ test('a linked note preview follows its source while the bounded sample scrolls'
   await expect(preview).toBeHidden();
 });
 
-test('an open linked note preview uses updated same-layout canvas bounds', async ({ page }) => {
+test('an open linked note preview uses updated same-layout canvas bounds', {
+  tag: '@touch',
+}, async ({ page }) => {
   await page.goto('/ui/kit/');
   await page.getByRole('searchbox', { name: 'Find a component' }).fill('Linked content');
   const sample = page.locator(

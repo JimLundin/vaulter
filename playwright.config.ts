@@ -3,14 +3,16 @@ import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
 const port = process.env.VAULTER_UI_PORT ?? '4179';
+const fullMatrix = process.env.VAULTER_UI_MATRIX === 'full';
 
 export default defineConfig({
   testDir: './tools/browser',
   timeout: 30_000,
   fullyParallel: true,
+  workers: 2,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
-  reporter: 'list',
+  reporter: process.env.CI ? [['list'], ['blob']] : 'list',
   use: {
     baseURL: `http://127.0.0.1:${port}`,
     screenshot: 'only-on-failure',
@@ -22,10 +24,15 @@ export default defineConfig({
   projects: [
     {
       name: 'phone',
+      grep: fullMatrix ? undefined : /@phone\b/,
       use: { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true },
     },
     { name: 'desktop', use: { viewport: { width: 1440, height: 1000 } } },
-    { name: 'touch-desktop', use: { viewport: { width: 1440, height: 1000 }, hasTouch: true } },
+    {
+      name: 'touch-desktop',
+      grep: fullMatrix ? undefined : /@touch\b/,
+      use: { viewport: { width: 1440, height: 1000 }, hasTouch: true },
+    },
   ],
   webServer: {
     env: {
@@ -34,7 +41,7 @@ export default defineConfig({
       VAULT_OPENAI_MODEL: 'fixture-llm',
     },
     cwd: fileURLToPath(new URL('.', import.meta.url)),
-    command: `npm run design -- --host 127.0.0.1 --port ${port} --strictPort`,
+    command: `npm exec vite -- --mode design --host 127.0.0.1 --port ${port} --strictPort`,
     url: `http://127.0.0.1:${port}/preview/`,
     reuseExistingServer: !process.env.CI,
   },

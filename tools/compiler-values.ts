@@ -1,13 +1,19 @@
 // Private compiler syntax/value resolution; callers retain their own ownership policy.
-import { SymbolFlags, type Project } from 'typescript/unstable/sync';
+import { SymbolFlags, type Project, type Symbol as CompilerSymbol } from 'typescript/unstable/sync';
 // biome-ignore lint/performance/noNamespaceImport: Node-only compiler inspection.
 import * as ts from 'typescript/unstable/ast';
 
 export function compilerValues(project: Project) {
   const { checker } = project;
+  // A check reads one immutable compiler snapshot; repeated nodes resolve to the same symbol.
+  const targets = new WeakMap<ts.Node, CompilerSymbol | undefined>();
   const target = (node: ts.Node) => {
+    if (targets.has(node)) return targets.get(node);
     const symbol = checker.getSymbolAtLocation(node);
-    return symbol && (symbol.flags & SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol);
+    const resolved =
+      symbol && (symbol.flags & SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol);
+    targets.set(node, resolved);
+    return resolved;
   };
   const value = (node: ts.Node, seen = new Set<number>()): ts.Node => {
     if (

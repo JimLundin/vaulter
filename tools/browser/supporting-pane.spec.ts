@@ -1,8 +1,8 @@
 import { expect, test } from '@playwright/test';
 
-test('a persistent pane closing on resize preserves outside focus and leaves the next control clickable', async ({
-  page,
-}) => {
+test('a persistent pane closing on resize preserves outside focus and leaves the next control clickable', {
+  tag: ['@phone', '@touch'],
+}, async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 844 });
   await page.goto('/preview/');
   const picker = page.getByRole('complementary', { name: 'Conversations', exact: true });
@@ -18,9 +18,9 @@ test('a persistent pane closing on resize preserves outside focus and leaves the
   await expect(page.getByRole('button', { name: 'Finish recording', exact: true })).toBeVisible();
 });
 
-test('supporting content stays beside the task in expanded space and preserves its nested task on phones', async ({
-  page,
-}) => {
+test('supporting content stays beside the task in expanded space and preserves its nested task on phones', {
+  tag: '@phone',
+}, async ({ page }) => {
   await page.setViewportSize({ width: 900, height: 844 });
   await page.goto('/ui/kit/tests/browser.html?supporting-pane');
   const opener = page.getByRole('button', { name: 'Open supporting task', exact: true });
@@ -59,9 +59,9 @@ test('supporting content stays beside the task in expanded space and preserves i
   await expect(opener).toBeFocused();
 });
 
-test('closing a supporting pane in expanded space restores its opening action', async ({
-  page,
-}) => {
+test('closing a supporting pane in expanded space restores its opening action', {
+  tag: ['@phone', '@touch'],
+}, async ({ page }) => {
   await page.setViewportSize({ width: 900, height: 844 });
   await page.goto('/ui/kit/tests/browser.html?supporting-pane');
   const opener = page.getByRole('button', { name: 'Open supporting task', exact: true });
@@ -73,9 +73,9 @@ test('closing a supporting pane in expanded space restores its opening action', 
   await expect(opener).toBeFocused();
 });
 
-test('paired supporting panes keep independent scrolling content and dismiss their nested review first', async ({
-  page,
-}) => {
+test('paired supporting panes keep independent scrolling content and dismiss their nested review first', {
+  tag: '@phone',
+}, async ({ page }) => {
   await page.goto('/ui/kit/');
   await page.getByRole('searchbox', { name: 'Find a component' }).fill('SupportingPane');
   const family = page.locator('[data-kit-comparison="supporting-pane"]');
@@ -114,9 +114,9 @@ test('paired supporting panes keep independent scrolling content and dismiss the
   ).toBeVisible();
 });
 
-test('supporting feed scrolls above one anchored composer without losing its draft', async ({
-  page,
-}) => {
+test('supporting feed scrolls above one anchored composer without losing its draft', {
+  tag: '@phone',
+}, async ({ page }) => {
   await page.goto('/ui/kit/');
   await page.getByRole('searchbox', { name: 'Find a component' }).fill('SupportingPane');
   const sample = page.locator(
@@ -143,9 +143,9 @@ test('supporting feed scrolls above one anchored composer without losing its dra
   await expect(field).toHaveValue('Retain the next draft');
 });
 
-test('recording blocks saved conversation selection through the production chooser', async ({
-  page,
-}) => {
+test('recording blocks saved conversation selection through the production chooser', {
+  tag: '@phone',
+}, async ({ page }) => {
   await page.setViewportSize({ width: 900, height: 844 });
   await page.goto('/preview/?conversations=numbered');
   const pane = page.getByRole('complementary', { name: 'Conversations', exact: true });
@@ -156,9 +156,9 @@ test('recording blocks saved conversation selection through the production choos
   await expect(pane.getByRole('status')).toContainText('Finish recording');
 });
 
-test('a new selection resets the supporting body without caller access to its scroll owner', async ({
-  page,
-}) => {
+test('a new selection resets the supporting body without caller access to its scroll owner', {
+  tag: '@phone',
+}, async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/ui/kit/tests/browser.html?supporting-pane');
   await page.getByRole('button', { name: 'Open supporting task', exact: true }).click();

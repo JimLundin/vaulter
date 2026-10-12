@@ -15,7 +15,6 @@ test('one kit pane width token changes Chat, conversation selection and Wiki ref
   expect((await chat.boundingBox())!.width).toBe(300);
   await expect(chat.getByRole('textbox', { name: 'Message', exact: true })).toBeVisible();
   await expect(chat.getByRole('button', { name: 'Close chat', exact: true })).toBeVisible();
-  await page.screenshot({ path: `/tmp/vaulter-51-chat-token-${test.info().project.name}.png` });
   await page.setViewportSize({ width: 390, height: 844 });
   expect((await page.getByRole('dialog', { name: 'Chat', exact: true }).boundingBox())!.width).toBe(
     390,
@@ -26,7 +25,6 @@ test('one kit pane width token changes Chat, conversation selection and Wiki ref
   const chooser = page.getByRole('complementary', { name: 'Conversations', exact: true });
   await expect(chooser).toBeVisible();
   expect((await chooser.boundingBox())!.width).toBe(300);
-  await page.screenshot({ path: `/tmp/vaulter-51-chooser-token-${test.info().project.name}.png` });
   await page.setViewportSize({ width: 390, height: 844 });
   for (let step = 0; step < 10; step++)
     await page.locator('[data-preview-drag-handle]').press('Shift+ArrowDown');
@@ -44,7 +42,6 @@ test('one kit pane width token changes Chat, conversation selection and Wiki ref
   const references = preview.getByRole('complementary', { name: 'References', exact: true });
   await expect(references).toBeVisible();
   expect((await references.boundingBox())!.width).toBe(300);
-  await page.screenshot({ path: `/tmp/vaulter-51-wiki-token-${test.info().project.name}.png` });
   await setPreviewMobile(preview, true);
   const compact = preview.getByRole('dialog', { name: 'References', exact: true });
   expect((await compact.boundingBox())!.width).toBe(390);

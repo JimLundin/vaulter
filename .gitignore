@@ -12,3 +12,4 @@ app/public/secrets.json
 test-results/
 test-results-production/
 playwright-report/
+blob-report/

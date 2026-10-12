@@ -1,6 +1,8 @@
 import { expect, test } from '@playwright/test';
 
-test('long kit samples have a visible scrollbar without hovering', async ({ page }) => {
+test('long kit samples have a visible scrollbar without hovering', { tag: '@phone' }, async ({
+  page,
+}) => {
   await page.goto('/ui/kit/');
   await page.getByRole('searchbox', { name: 'Find a component' }).fill('Forms & fields');
   const sample = page.locator('[data-kit-comparison="fields"] [data-kit-preview="desktop"]');
@@ -24,9 +26,9 @@ test('a full-height specimen does not create a tiny outer overflow', async ({ pa
   expect(await content.evaluate((node) => node.scrollHeight - node.clientHeight)).toBe(0);
 });
 
-test('paired canvases and inner scrolling samples have usable tracks and no extra scroll owner', async ({
-  page,
-}) => {
+test('paired canvases and inner scrolling samples have usable tracks and no extra scroll owner', {
+  tag: '@phone',
+}, async ({ page }) => {
   await page.goto('/ui/kit/');
   const filter = page.getByRole('searchbox', { name: 'Find a component' });
   await filter.fill('Scroll area');
@@ -60,9 +62,9 @@ test('paired canvases and inner scrolling samples have usable tracks and no extr
   }
 });
 
-test('a short settings drawer scrolls its body while the close control stays reachable', async ({
-  page,
-}) => {
+test('a short settings drawer scrolls its body while the close control stays reachable', {
+  tag: '@phone',
+}, async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 560 });
   await page.goto('/preview/');
   await page.getByRole('button', { name: 'Settings', exact: true }).click();

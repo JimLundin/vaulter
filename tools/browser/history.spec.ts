@@ -36,9 +36,9 @@ test('shared expandable rows retain independent disclosure and action behavior i
   await expect(mobileToggle).toHaveAttribute('aria-expanded', 'false');
 });
 
-test('History expands a transaction and confirms guarded compensation without rewriting the conversation', async ({
-  page,
-}) => {
+test('History expands a transaction and confirms guarded compensation without rewriting the conversation', {
+  tag: '@phone',
+}, async ({ page }) => {
   await page.goto('/preview/');
   const input = page.getByRole('textbox', { name: 'Message', exact: true });
   await input.fill('vault it: keep mornings quiet');

@@ -1,8 +1,8 @@
 import { expect, test } from '@playwright/test';
 
-test('the controlled Composer reports edits and each Enter or Send once without clearing its owner’s draft', async ({
-  page,
-}) => {
+test('the controlled Composer reports edits and each Enter or Send once without clearing its owner’s draft', {
+  tag: '@phone',
+}, async ({ page }) => {
   await page.goto('/ui/kit/tests/browser.html?composer');
   const field = page.getByRole('textbox', { name: 'Fixture message' });
   await expect(field).toHaveAttribute('placeholder', 'Write a controlled draft');
@@ -20,9 +20,9 @@ test('the controlled Composer reports edits and each Enter or Send once without 
   await expect(field).toHaveValue('An edited thought');
 });
 
-test('Shift+Enter and native or Safari composition keep editing in the controlled one-row field', async ({
-  page,
-}) => {
+test('Shift+Enter and native or Safari composition keep editing in the controlled one-row field', {
+  tag: '@phone',
+}, async ({ page }) => {
   await page.goto('/ui/kit/tests/browser.html?composer');
   const field = page.getByRole('textbox', { name: 'Fixture message' });
   await field.fill('First line');
@@ -39,9 +39,9 @@ test('Shift+Enter and native or Safari composition keep editing in the controlle
   await expect(page.getByText('Submitted drafts: []', { exact: true })).toBeVisible();
 });
 
-test('empty, whitespace and caller-denied drafts cannot submit and unhandled Enter stays an editing action', async ({
-  page,
-}) => {
+test('empty, whitespace and caller-denied drafts cannot submit and unhandled Enter stays an editing action', {
+  tag: '@phone',
+}, async ({ page }) => {
   await page.goto('/ui/kit/tests/browser.html?composer');
   const field = page.getByRole('textbox', { name: 'Fixture message' });
   const send = page.getByRole('button', { name: 'Send', exact: true });
@@ -65,9 +65,9 @@ test('empty, whitespace and caller-denied drafts cannot submit and unhandled Ent
   await expect(page.getByText('Submitted drafts: []', { exact: true })).toBeVisible();
 });
 
-test('capture blocks submission and a busy response exposes only its explicit Stop action', async ({
-  page,
-}) => {
+test('capture blocks submission and a busy response exposes only its explicit Stop action', {
+  tag: '@phone',
+}, async ({ page }) => {
   await page.goto('/ui/kit/tests/browser.html?composer');
   const field = page.getByRole('textbox', { name: 'Fixture message' });
   await field.fill('Words to preserve');
@@ -104,9 +104,9 @@ test('capture blocks submission and a busy response exposes only its explicit St
   await expect(field).toHaveValue('Words to preserve');
 });
 
-test('the supported reference focuses suggestions and focus observation matches the send icon', async ({
-  page,
-}) => {
+test('the supported reference focuses suggestions and focus observation matches the send icon', {
+  tag: '@phone',
+}, async ({ page }) => {
   await page.goto('/ui/kit/tests/browser.html?composer');
   const field = page.getByRole('textbox', { name: 'Fixture message' });
   const icon = page.getByRole('button', { name: 'Send', exact: true }).locator('svg');

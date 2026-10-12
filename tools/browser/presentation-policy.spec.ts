@@ -1,9 +1,9 @@
 import { expect, test } from '@playwright/test';
 
 for (const childTitle of ['Supporting review', 'Supporting details']) {
-  test(`paired panels dismiss their active nested ${childTitle.toLowerCase()} independently`, async ({
-    page,
-  }) => {
+  test(`paired panels dismiss their active nested ${childTitle.toLowerCase()} independently`, {
+    tag: '@phone',
+  }, async ({ page }) => {
     await page.goto('/ui/kit/');
     await page.getByRole('searchbox', { name: 'Find a component' }).fill('SupportingPane');
     const family = page.locator('[data-kit-comparison="panel-primitive"]');
@@ -40,9 +40,9 @@ for (const childTitle of ['Supporting review', 'Supporting details']) {
 }
 
 for (const targetWidth of [1440, 900]) {
-  test(`a nested review retains its task while its panel resizes to ${targetWidth}px`, async ({
-    page,
-  }) => {
+  test(`a nested review retains its task while its panel resizes to ${targetWidth}px`, {
+    tag: '@phone',
+  }, async ({ page }) => {
     await page.setViewportSize({ width: targetWidth === 1440 ? 900 : 1440, height: 844 });
     await page.goto('/ui/kit/tests/browser.html');
     await page.getByRole('button', { name: 'Open agent', exact: true }).click();
@@ -92,9 +92,9 @@ for (const targetWidth of [1440, 900]) {
   });
 }
 
-test('closing a review skips a disabled opener and restores useful focus in its scope', async ({
-  page,
-}) => {
+test('closing a review skips a disabled opener and restores useful focus in its scope', {
+  tag: '@phone',
+}, async ({ page }) => {
   await page.goto('/ui/kit/tests/browser.html?policy');
   const background = page.getByRole('textbox', { name: 'Background draft' });
   await background.fill('Continue this task');
@@ -109,9 +109,9 @@ test('closing a review skips a disabled opener and restores useful focus in its 
   await expect(background).toHaveValue('Continue this task');
 });
 
-test('closing a review skips an invisible opener and restores the previous task control', async ({
-  page,
-}) => {
+test('closing a review skips an invisible opener and restores the previous task control', {
+  tag: '@phone',
+}, async ({ page }) => {
   await page.goto('/ui/kit/tests/browser.html?policy');
   const background = page.getByRole('textbox', { name: 'Background draft' });
   await background.fill('Continue after rearrangement');
@@ -130,7 +130,9 @@ test('closing a review skips an invisible opener and restores the previous task 
   await expect(background).toHaveValue('Continue after rearrangement');
 });
 
-test('a nested review closes before its drawer and leaves the parent usable', async ({ page }) => {
+test('a nested review closes before its drawer and leaves the parent usable', {
+  tag: '@phone',
+}, async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/ui/kit/tests/browser.html');
   await page.getByRole('button', { name: 'Open agent', exact: true }).click();
@@ -154,9 +156,9 @@ test('a nested review closes before its drawer and leaves the parent usable', as
   await expect(page.getByRole('textbox', { name: 'Preference' })).toBeVisible();
 });
 
-test('closing nested modal children preserves parent focus protection and releases the final background', async ({
-  page,
-}) => {
+test('closing nested modal children preserves parent focus protection and releases the final background', {
+  tag: ['@phone', '@touch'],
+}, async ({ page }) => {
   await page.goto('/ui/kit/tests/browser.html?policy');
   const background = page.getByRole('textbox', { name: 'Background draft' });
   await page.getByRole('button', { name: 'Open parent drawer' }).click();
@@ -192,9 +194,9 @@ test('closing nested modal children preserves parent focus protection and releas
   expect(await page.evaluate(() => document.body.style.overflow)).not.toBe('hidden');
 });
 
-test('closing a drawer from its nested review releases both surfaces and leaves the next drawer usable', async ({
-  page,
-}) => {
+test('closing a drawer from its nested review releases both surfaces and leaves the next drawer usable', {
+  tag: '@phone',
+}, async ({ page }) => {
   await page.goto('/ui/kit/tests/browser.html?policy');
   const opener = page.getByRole('button', { name: 'Open parent drawer' });
   await opener.click();
@@ -218,9 +220,9 @@ test('closing a drawer from its nested review releases both surfaces and leaves 
 });
 
 for (const firstClosed of ['earlier', 'later']) {
-  test(`closing the ${firstClosed} overlapping drawer preserves the remaining modal task`, async ({
-    page,
-  }) => {
+  test(`closing the ${firstClosed} overlapping drawer preserves the remaining modal task`, {
+    tag: ['@phone', '@touch'],
+  }, async ({ page }) => {
     await page.goto('/ui/kit/tests/browser.html?policy');
     const background = page.getByRole('textbox', { name: 'Background draft' });
     await page.getByRole('button', { name: 'Open parent drawer' }).click();
@@ -257,9 +259,9 @@ for (const firstClosed of ['earlier', 'later']) {
   });
 }
 
-test('paired sample Escape closes only the focused sample and keeps the other editable', async ({
-  page,
-}) => {
+test('paired sample Escape closes only the focused sample and keeps the other editable', {
+  tag: '@phone',
+}, async ({ page }) => {
   await page.goto('/ui/kit/');
   await page.getByRole('searchbox', { name: 'Find a component' }).fill('Settings');
   const family = page.locator('[data-kit-comparison="settings"]');
@@ -287,9 +289,9 @@ test('paired sample Escape closes only the focused sample and keeps the other ed
   await expect(desktop.getByRole('button', { name: 'Open settings' })).toBeFocused();
 });
 
-test('unmounting open settings samples leaves replacement surfaces and reopened drawers usable', async ({
-  page,
-}) => {
+test('unmounting open settings samples leaves replacement surfaces and reopened drawers usable', {
+  tag: '@phone',
+}, async ({ page }) => {
   await page.goto('/ui/kit/');
   const filter = page.getByRole('searchbox', { name: 'Find a component' });
   const settings = page.locator('[data-kit-comparison="settings"]');

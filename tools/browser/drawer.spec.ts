@@ -23,9 +23,9 @@ async function swipeDown(page: Page, surface: Locator) {
   await session.detach();
 }
 
-test('the compact supporting panel fills the available height and dismisses with a touch swipe', async ({
-  page,
-}) => {
+test('the compact supporting panel fills the available height and dismisses with a touch swipe', {
+  tag: ['@phone', '@touch'],
+}, async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/ui/kit/tests/browser.html');
   await page.getByRole('button', { name: 'Open agent' }).click();
@@ -37,9 +37,9 @@ test('the compact supporting panel fills the available height and dismisses with
   await expect(page.getByRole('button', { name: 'Open agent' })).toBeFocused();
 });
 
-test('Mobile design preview keeps touch dismissal inside its frame and leaves review controls usable', async ({
-  page,
-}) => {
+test('Mobile design preview keeps touch dismissal inside its frame and leaves review controls usable', {
+  tag: ['@phone', '@touch'],
+}, async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto('/preview/');
   const controls = page.getByRole('complementary', { name: 'Design preview' });

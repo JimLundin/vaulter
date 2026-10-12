@@ -74,8 +74,13 @@ export function checkCompositions(
     };
     violations.set(`${source.fileName}:${node.pos}:${reason}`, violation);
   };
-  const privateDeclarations = (symbol: CompilerSymbol | undefined) =>
-    symbol?.declarations.flatMap((reference) => {
+  const declarationsBySymbol = new Map<string, ts.Node[]>();
+  const privateDeclarations = (symbol: CompilerSymbol | undefined): ts.Node[] => {
+    if (!symbol) return [];
+    const identity = key(symbol);
+    const cached = declarationsBySymbol.get(identity);
+    if (cached) return cached;
+    const declarations = symbol.declarations.flatMap((reference) => {
       const declaration = reference.resolve();
       return declaration &&
         path(declaration.getSourceFile().fileName).startsWith(
@@ -85,7 +90,10 @@ export function checkCompositions(
         !project.program.isSourceFileFromExternalLibrary(declaration.getSourceFile())
         ? [declaration]
         : [];
-    }) ?? [];
+    });
+    declarationsBySymbol.set(identity, declarations);
+    return declarations;
+  };
   const presentationFactory = (node: ts.Node): node is ts.CallExpression =>
     ts.isCallExpression(node) &&
     ['createElement', 'jsx', 'jsxs', 'jsxDEV'].includes(

@@ -12,6 +12,10 @@
     "migrate:enrich": "node tools/migration/enrich.ts --vault ../vault",
     "migrate:verify": "node tools/migration/verify.ts --vault ../vault",
     "test": "vitest run",
+    "test:fast": "vitest run --project=behavior",
+    "test:watch": "vitest --project=behavior",
+    "test:architecture": "vitest run --project=architecture",
+    "test:all": "npm run lint && npm run typecheck && npm test && npm run test:ui && npm run test:production",
     "typecheck": "tsc",
     "lint": "biome ci .",
     "format": "biome check --write .",
@@ -20,6 +24,7 @@
     "design:agent": "vite --mode design --open '/preview/?agent=live'",
     "build:design": "vite build --mode design && node tools/prepare-design.ts && vite build app/ui/kit --outDir ../../../dist-preview/kit --emptyOutDir",
     "test:ui": "playwright test",
+    "test:ui:matrix": "VAULTER_UI_MATRIX=full playwright test",
     "test:production": "playwright test --config tools/production/playwright.config.ts"
   },
   "dependencies": {

@@ -21,9 +21,9 @@ test('a shared command overlay accepts task labels and preserves focused query w
   await expect(opener).toBeFocused();
 });
 
-test('Search preserves ranked entries and alias matches and executes supplied commands', async ({
-  page,
-}) => {
+test('Search preserves ranked entries and alias matches and executes supplied commands', {
+  tag: '@phone',
+}, async ({ page }) => {
   await page.goto('/preview/search.html');
   await page.getByRole('button', { name: 'Open Search', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Search or ask' });
@@ -55,7 +55,9 @@ test('Search preserves ranked entries and alias matches and executes supplied co
   );
 });
 
-test('Search owns ask and empty states and clears its query after dismissal', async ({ page }) => {
+test('Search owns ask and empty states and clears its query after dismissal', {
+  tag: '@phone',
+}, async ({ page }) => {
   await page.goto('/preview/search.html');
   const opener = page.getByRole('button', { name: 'Open Search', exact: true });
   await opener.click();

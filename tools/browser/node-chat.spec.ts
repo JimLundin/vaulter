@@ -5,9 +5,9 @@ async function movePreviewBelowToolbar(handle: { press: (key: string) => Promise
   for (let step = 0; step < 10; step++) await handle.press('Shift+ArrowDown');
 }
 
-test('Search Ask is accepted once when Chat moves between the page and its supporting pane', async ({
-  page,
-}) => {
+test('Search Ask is accepted once when Chat moves between the page and its supporting pane', {
+  tag: '@phone',
+}, async ({ page }) => {
   await page.goto('/preview/');
   await movePreviewBelowToolbar(page.locator('[data-preview-drag-handle]'));
   await page.getByRole('button', { name: 'Search', exact: true }).click();
@@ -42,9 +42,9 @@ test('Search Ask is accepted once when Chat moves between the page and its suppo
   );
 });
 
-test('node-backed Send retains content receipts and accepted conversation across reload without replay', async ({
-  page,
-}) => {
+test('node-backed Send retains content receipts and accepted conversation across reload without replay', {
+  tag: '@phone',
+}, async ({ page }) => {
   await page.goto('/preview/');
   const input = page.getByRole('textbox', { name: 'Message', exact: true });
   await input.fill('vault it: leave room for walks');
@@ -276,9 +276,9 @@ for (const scenario of ['content-save', 'content-lost-response']) {
   });
 }
 
-test('conversation picker opens saved node conversations and History lists every accepted transaction', async ({
-  page,
-}) => {
+test('conversation picker opens saved node conversations and History lists every accepted transaction', {
+  tag: '@phone',
+}, async ({ page }) => {
   await page.goto('/preview/');
   if (test.info().project.name === 'phone')
     await movePreviewBelowToolbar(page.locator('[data-preview-drag-handle]'));
@@ -316,9 +316,9 @@ test('conversation picker opens saved node conversations and History lists every
 });
 
 for (const variant of ['numbered', 'badged', 'rule']) {
-  test(`conversation ${variant} variant uses a right sidebar or mobile drawer`, async ({
-    page,
-  }) => {
+  test(`conversation ${variant} variant uses a right sidebar or mobile drawer`, {
+    tag: '@phone',
+  }, async ({ page }) => {
     await page.goto(`/preview/?conversations=${variant}`);
     if (test.info().project.name === 'phone') {
       await movePreviewBelowToolbar(page.locator('[data-preview-drag-handle]'));
@@ -343,7 +343,9 @@ for (const variant of ['numbered', 'badged', 'rule']) {
   });
 }
 
-test('the preview pill shows the current design and keeps the Chat draft', async ({ page }) => {
+test('the preview pill shows the current design and keeps the Chat draft', {
+  tag: '@phone',
+}, async ({ page }) => {
   await page.goto('/preview/?conversations=numbered');
   const input = page.getByRole('textbox', { name: 'Message', exact: true });
   await input.fill('Keep this draft while comparing');
@@ -361,9 +363,9 @@ test('the preview pill shows the current design and keeps the Chat draft', async
   await expect(input).toHaveValue('Keep this draft while comparing');
 });
 
-test('Chat is named separately from Agent execution and has no History action', async ({
-  page,
-}) => {
+test('Chat is named separately from Agent execution and has no History action', {
+  tag: '@phone',
+}, async ({ page }) => {
   await page.goto('/preview/');
   await expect(page.getByRole('heading', { name: 'Chat', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'History', exact: true })).toBeHidden();
@@ -381,9 +383,9 @@ test('Chat is named separately from Agent execution and has no History action', 
   }
 });
 
-test('timeline conversation rows stay uniform and truncate titles beside right-aligned times', async ({
-  page,
-}) => {
+test('timeline conversation rows stay uniform and truncate titles beside right-aligned times', {
+  tag: '@phone',
+}, async ({ page }) => {
   await page.goto('/preview/?conversations=rule');
   if (test.info().project.name === 'phone') {
     await movePreviewBelowToolbar(page.locator('[data-preview-drag-handle]'));

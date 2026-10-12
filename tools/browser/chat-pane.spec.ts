@@ -1,8 +1,8 @@
 import { expect, test } from '@playwright/test';
 
-test('Chat supporting pane keeps one following feed, draft and accepted activity across close and resize', async ({
-  page,
-}) => {
+test('Chat supporting pane keeps one following feed, draft and accepted activity across close and resize', {
+  tag: '@phone',
+}, async ({ page }) => {
   await page.goto('/preview/#/history/');
   const handle = page.locator('[data-preview-drag-handle]');
   for (let i = 0; i < 10; i++) await handle.press('Shift+ArrowDown');

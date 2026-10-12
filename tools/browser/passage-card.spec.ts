@@ -22,9 +22,9 @@ test('a marked passage taller than its collapsed viewport settles without correc
   await expect(card.getByRole('button')).toHaveAttribute('aria-expanded', 'true');
 });
 
-test('shared passage cards keep exact marked text visible, expand by keyboard and keep paired state independent', async ({
-  page,
-}) => {
+test('shared passage cards keep exact marked text visible, expand by keyboard and keep paired state independent', {
+  tag: '@phone',
+}, async ({ page }) => {
   await page.goto('/ui/kit/');
   await page.getByRole('searchbox', { name: 'Find a component' }).fill('PassageCard');
   const family = page.locator('[data-kit-comparison="passages"]');
@@ -57,9 +57,6 @@ test('shared passage cards keep exact marked text visible, expand by keyboard an
   await expect(card.locator('mark')).toBeInViewport();
   await expect(toggle).toHaveAttribute('aria-expanded', 'false');
   await expect(sample.getByText('No retained passage')).toBeVisible();
-  await page.screenshot({
-    path: `/tmp/vaulter-47-passage-preview-${test.info().project.name}.png`,
-  });
 });
 
 test('expanded passage scrolling stays with the same text through viewport rearrangement', async ({
@@ -86,7 +83,4 @@ test('expanded passage scrolling stays with the same text through viewport rearr
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(context).toBeFocused();
   await expect(toggle).toHaveAttribute('aria-expanded', 'true');
-  await page.screenshot({
-    path: `/tmp/vaulter-47-wiki-source-context-${test.info().project.name}.png`,
-  });
 });

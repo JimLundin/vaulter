@@ -2,9 +2,9 @@ import { expect, test } from '@playwright/test';
 import { setPreviewMobile } from './preview-controls.ts';
 
 for (const appearance of ['light', 'dark'] as const) {
-  test(`the unified ${appearance} input shares the primary style and preserves drafts and recording`, async ({
-    page,
-  }) => {
+  test(`the unified ${appearance} input shares the primary style and preserves drafts and recording`, {
+    tag: '@phone',
+  }, async ({ page }) => {
     await page.emulateMedia({ colorScheme: appearance });
     // Older comparison links now use the same shared style.
     await page.goto('/preview/?variant=A');
@@ -81,9 +81,9 @@ for (const appearance of ['light', 'dark'] as const) {
   });
 }
 
-test('the preview Mobile toggle supports keyboard activation without an input-style shortcut', async ({
-  page,
-}) => {
+test('the preview Mobile toggle supports keyboard activation without an input-style shortcut', {
+  tag: '@phone',
+}, async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto('/preview/');
   const mobile = page.getByRole('button', { name: 'Mobile', exact: true });
