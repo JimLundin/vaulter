@@ -62,20 +62,20 @@ attribute its introduction conclusively to `bfd3e00`.
 
 The ownership move put an always-mounted `ChatPanel` outside the previous pane visibility
 boundary. Its unconditional Suspense fallback could show "Loading conversation…" in the
-workspace while Chat was closed. A browser test delayed the Chat module request and reproduced
-the closed/open/closed sequence. The fallback now follows `open`; opening after the module loads
-still works.
+workspace while Chat was closed. A temporary browser test delayed the Chat module request and
+reproduced the closed/open/closed sequence. This remains a follow-up: the requested repair is
+limited to Conversations.
 
 ## Sign out
 
 Sidebar Sign out was not reintroduced by this commit. Its footer predates the refactor and has
 persisted since October 8. The fictional preview passes `signOut: null`, so the authenticated
-action does not appear there. This repair covers the confirmed Chat regressions.
+action does not appear there. Sidebar Sign out is unchanged by this repair.
 
 ## Verification
 
-Desktop visibility and delayed-loading checks failed before the corresponding fixes and passed
-afterward. Focused checks passed: nine browser scenarios across desktop, phone and touch desktop;
+Desktop visibility checks failed before the fix and passed afterward.
+Focused checks passed: eight browser scenarios across desktop, phone and touch desktop;
 two production browser scenarios across desktop and phone; 25 layout architecture tests;
 type checking; lint; and `git diff --check`. Browser assertions cover page/supporting presentation,
 bounded previews, compact icon access, chooser dismissal focus, draft retention and resize.
@@ -83,4 +83,4 @@ Complete routine verification runs in the pushed commit's Deploy workflow.
 
 Standards: two findings, with the focus-return conflict unresolved. Spec: one finding, the
 restored desktop Conversations action, repaired here. The separate closed-pane loading
-regression is also repaired.
+regression remains a follow-up.

@@ -1,37 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { setPreviewMobile } from './preview-controls.ts';
 
-test('a closed Chat pane keeps lazy loading feedback out of the workspace', async ({ page }) => {
-  let requested!: () => void;
-  const pending = new Promise<void>((resolve) => {
-    requested = resolve;
-  });
-  let release!: () => void;
-  const loaded = new Promise<void>((resolve) => {
-    release = resolve;
-  });
-  await page.route('**/workflows/chat/Chat.tsx*', async (route) => {
-    requested();
-    await loaded;
-    await route.continue();
-  });
-  try {
-    await page.goto('/preview/#/history/');
-    await pending;
-    await expect(page.getByRole('heading', { name: 'History', exact: true })).toBeVisible();
-    await expect(page.getByText('Loading conversation…', { exact: true })).toBeHidden();
-    await page.keyboard.press('Control+j');
-    await expect(page.getByText('Loading conversation…', { exact: true })).toBeVisible();
-    await page.keyboard.press('Control+j');
-    await expect(page.getByText('Loading conversation…', { exact: true })).toBeHidden();
-    release();
-    await page.keyboard.press('Control+j');
-    await expect(page.getByRole('textbox', { name: 'Message', exact: true })).toBeVisible();
-  } finally {
-    release();
-  }
-});
-
 test('Chat actions keep desktop conversations in the pane and compact access in an icon', {
   tag: ['@phone', '@touch'],
 }, async ({ page }) => {
