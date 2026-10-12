@@ -17,7 +17,7 @@ import {
   Toolbar,
 } from '../../ui/kit/index.ts';
 import type { WikiBlock, WikiClassification, WikiPage } from './pages.ts';
-import { WikiBlocks } from './rendering/blocks.tsx';
+import { WikiBlocks, type ForeignRecordRenderer } from './rendering/blocks.tsx';
 import { ReferenceCard } from './rendering/references.tsx';
 
 const titleCase = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
@@ -27,10 +27,12 @@ export function WikiPageView({
   page,
   onBack,
   onFilter,
+  renderRecord,
 }: {
   page: WikiPage;
   onBack: () => void;
   onFilter: (term: WikiClassification) => void;
+  renderRecord?: ForeignRecordRenderer;
 }) {
   const [selected, setSelected] = useState<WikiBlock>();
   const [referencesOpen, setReferencesOpen] = useState(false);
@@ -61,7 +63,12 @@ export function WikiPageView({
   );
   const blocks = (content: WikiBlock[]) => (
     <Prose>
-      <WikiBlocks blocks={content} selected={selected?.id} onEvidence={selectEvidence} />
+      <WikiBlocks
+        blocks={content}
+        selected={selected?.id}
+        onEvidence={selectEvidence}
+        renderRecord={renderRecord}
+      />
     </Prose>
   );
   return (

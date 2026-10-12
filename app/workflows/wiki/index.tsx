@@ -4,18 +4,22 @@ import { go } from '../../ui/routing.ts';
 import type { WikiClassification, WikiPage } from './pages.ts';
 import { wikiRoute, pageRoute } from './routes.ts';
 import { WikiPageView } from './WikiPageView.tsx';
+import type { ForeignRecordRenderer } from './rendering/blocks.tsx';
 export { WikiPageView } from './WikiPageView.tsx';
+export type { ForeignRecordRenderer } from './rendering/blocks.tsx';
 
 export function Wiki({
   pages,
   node,
   error,
   onNavigate = go,
+  renderRecord,
 }: {
   pages: WikiPage[] | null;
   node?: string;
   error?: string;
   onNavigate?: (path: string) => void;
+  renderRecord?: ForeignRecordRenderer;
 }) {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<WikiClassification>();
@@ -53,6 +57,7 @@ export function Wiki({
         page={page}
         onBack={() => onNavigate(wikiRoute.href())}
         onFilter={filterTag}
+        renderRecord={renderRecord}
       />
     );
   const matching = pages.filter(

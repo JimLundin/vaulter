@@ -16,9 +16,18 @@ import type { Part, Turn } from './view.ts';
 /** A recorded turn needs no store or execution controller to display accepted evidence. */
 export function ChatMessage({ turn, live = false }: { turn: Turn; live?: boolean }) {
   const user = turn.role === 'user';
+  const record = turn.role === 'record';
+  const label = record ? (turn.record?.label ?? 'Recorded summary') : user ? 'You' : 'Agent';
   return (
-    <Message label={user ? 'You' : 'Agent'} side={user ? 'end' : 'start'} marker={turn.role}>
-      {user ? (
+    <Message
+      label={label}
+      side={user ? 'end' : 'start'}
+      marker={turn.role}
+      persistentLabel={record}
+    >
+      {record ? (
+        <Said text={turn.parts.map((part) => (part.kind === 'text' ? part.text : '')).join('')} />
+      ) : user ? (
         turn.parts.map((part) => (part.kind === 'text' ? part.text : '')).join('')
       ) : (
         <AgentTurn turn={turn} live={live} />

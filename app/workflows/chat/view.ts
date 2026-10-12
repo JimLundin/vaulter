@@ -13,7 +13,8 @@ export type Part =
       commit?: string;
     };
 export interface Turn {
-  role: 'user' | 'agent';
+  role: 'user' | 'agent' | 'record';
+  record?: { kind: 'summary'; label?: string };
   parts: Part[];
   error?: string;
   status?: 'unknown';

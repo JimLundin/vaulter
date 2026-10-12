@@ -3,6 +3,7 @@ import { parseVaultRecord } from './index.ts';
 
 test('each kind validates its own shape and rejects anything else', () => {
   expect(() => parseVaultRecord({ kind: 'page', title: 'Rut' })).toThrow('Unknown record kind');
+  expect(() => parseVaultRecord({ kind: 'question', text: 'Who?' })).toThrow('Unknown record kind');
   expect(() => parseVaultRecord({ kind: 'unknown' })).toThrow('Unknown record kind');
   expect(() =>
     parseVaultRecord({ kind: 'task', what: 'Renew the gym membership', status: 'paused' }),
@@ -16,10 +17,6 @@ test('dates are as precise as the source: a day, a month or a year', () => {
 });
 
 test('settled lifecycle records keep their content', () => {
-  expect(parseVaultRecord({ kind: 'question', text: 'Who?', abandoned: true })).toMatchObject({
-    abandoned: true,
-  });
-  expect(() => parseVaultRecord({ kind: 'question', text: 'Who?', abandoned: false })).toThrow();
   expect(
     parseVaultRecord({ kind: 'task', what: 'Check the weight', status: 'completed' }),
   ).toMatchObject({

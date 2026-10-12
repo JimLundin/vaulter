@@ -6,6 +6,58 @@ import { memoryNodeBackend } from '../../vault/nodes/memory.ts';
 import { create, request, seed } from '../../vault/nodes/fixtures.test-support.ts';
 import { createNodeConversation } from './node-conversation.ts';
 
+test('opening a retained summary displays the record without executing an Agent or inventing dialogue', async () => {
+  const nodes = memoryNodeBackend();
+  await seed(nodes);
+  const at = '2026-06-05T00:00:00+02:00';
+  await nodes.commit(
+    request('summary', [
+      create('daily', { kind: 'conversation', title: 'Studio time', createdAt: at }),
+      create('day', { kind: 'exchange', startedAt: at, startedAtPrecision: 'day' }, 'daily'),
+      create(
+        'record',
+        {
+          kind: 'message',
+          role: 'record',
+          at,
+          atPrecision: 'day',
+          text: 'Kept **studio time** free.',
+          record: { kind: 'summary', label: 'Daily summary' },
+        },
+        'day',
+      ),
+    ]),
+  );
+  let executions = 0;
+  const controller = createNodeConversation({
+    nodes,
+    user: 'user',
+    agent: 'agent',
+    provider: 'fictional',
+    selectedModel: 'fictional',
+    instructions: 'Record.',
+    model: () => {
+      executions++;
+      return Promise.reject(new Error('Reading must not execute'));
+    },
+  });
+  const before = await nodes.history();
+  expect((await controller.open('daily')).status).toBe('selected');
+  expect(controller.snapshot().turns).toEqual([
+    {
+      role: 'record',
+      at,
+      record: { kind: 'summary', label: 'Daily summary' },
+      parts: [{ kind: 'text', text: 'Kept **studio time** free.' }],
+    },
+  ]);
+  expect(controller.snapshot().busy).toBe(false);
+  expect(executions).toBe(0);
+  expect(await nodes.history()).toEqual(before);
+  controller.dispose();
+  nodes.close();
+});
+
 test('node-backed conversation keeps its draft and execution across view close and reconstructs accepted messages', async () => {
   const nodes = memoryNodeBackend();
   await seed(nodes);

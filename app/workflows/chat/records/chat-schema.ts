@@ -19,6 +19,7 @@ const conversation = z.object({
   kind: z.literal('conversation'),
   title: z.string(),
   createdAt: instant,
+  createdAtPrecision: precision.optional(),
 });
 const exchange = z.object({
   kind: z.literal('exchange'),
@@ -82,6 +83,14 @@ const message = z.discriminatedUnion('role', [
     model: z.string().optional(),
     tokens: z.object({ in: count, out: count }).optional(),
     error: z.string().optional(),
+  }),
+  z.object({
+    kind: z.literal('message'),
+    role: z.literal('record'),
+    at: instant,
+    atPrecision: precision.optional(),
+    text: z.string(),
+    record: z.object({ kind: z.literal('summary'), label: z.string().min(1).optional() }),
   }),
 ]);
 const reference = z.object({

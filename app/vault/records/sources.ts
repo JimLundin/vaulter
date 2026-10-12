@@ -7,7 +7,6 @@ const ownedKinds = new Set([
   'term',
   'query',
   'task',
-  'question',
   'decision',
   'date',
   'timeline',
@@ -21,7 +20,6 @@ export const retainedRecordSources: SourceReader = {
     const { data } = node;
     if (!data || typeof data.kind !== 'string' || !ownedKinds.has(data.kind)) return;
     if (data.kind === 'relationship') return '';
-    if (data.kind === 'question' && typeof data.text === 'string') return data.text;
     return view.children(node.key).map(textOf).filter(Boolean).join('\n');
   },
   describe(node, view) {
