@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+// biome-ignore lint/correctness/noUnresolvedImports: React 19 exposes StrictMode; TypeScript and runtime tests verify it.
 import { act, StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { expect, test, vi } from 'vitest';
