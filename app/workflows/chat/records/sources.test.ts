@@ -6,6 +6,42 @@ import type { NodeSnapshot } from '../../../vault/nodes/store.ts';
 import { describeSource } from '../../../vault/sources.ts';
 import { chatSources } from './sources.ts';
 
+test('retained summaries expose exact text as source evidence without a speaker', async () => {
+  const nodes = memoryNodeBackend();
+  const at = '2026-06-05T00:00:00+02:00';
+  const text = 'Kept **studio time** free.\n';
+  await nodes.commit(
+    request('summary', [
+      create('user', { kind: 'actor' }),
+      create('daily', { kind: 'conversation', title: 'Studio time', createdAt: at }),
+      create('day', { kind: 'exchange', startedAt: at }, 'daily'),
+      create(
+        'record',
+        {
+          kind: 'message',
+          role: 'record',
+          at,
+          atPrecision: 'day',
+          text,
+          record: { kind: 'summary', label: 'Daily summary' },
+        },
+        'day',
+      ),
+    ]),
+  );
+  const view = await nodes.snapshot();
+  const reader = chatSources((node) => `#/chat/${node}/`);
+  expect(reader.text(view.get('record')!, { view, textOf: () => '' })).toBe(text);
+  expect(reader.describe(view.get('record')!, view)).toMatchObject({
+    title: 'Studio time',
+    href: '#/chat/daily/',
+    date: at,
+    speaker: undefined,
+    capture: true,
+  });
+  nodes.close();
+});
+
 test('Chat source offsets concatenate only message prose and retain capture framing', async () => {
   const nodes = memoryNodeBackend();
   await nodes.commit(

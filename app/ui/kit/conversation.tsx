@@ -48,17 +48,20 @@ export function Message({
   label,
   side = 'start',
   marker,
+  persistentLabel = false,
   children,
 }: {
   label: string;
   side?: 'start' | 'end';
   marker?: string;
+  /** Preserve attribution when reading compact records also requires an explicit label. */
+  persistentLabel?: boolean;
   children: ReactNode;
 }) {
   const compact = useLayout() === 'compact';
   return (
     <Stack data-message={marker} align={side === 'end' ? 'end' : 'stretch'} gap="sm">
-      {!compact && (
+      {(!compact || persistentLabel) && (
         <Text as="span" size="xs" weight="medium" tone="subtle">
           {label}
         </Text>

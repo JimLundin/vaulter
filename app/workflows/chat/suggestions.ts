@@ -5,7 +5,11 @@ import type { ModelProvider } from './model.ts';
 
 export interface SuggestionContext {
   files: VaultFile[];
-  turns: { role: 'user' | 'agent'; text: string }[];
+  turns: {
+    role: 'user' | 'agent' | 'record';
+    text: string;
+    record?: { kind: 'summary'; label?: string };
+  }[];
 }
 export type SuggestionProvider = (
   context: SuggestionContext,

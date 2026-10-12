@@ -34,6 +34,7 @@ export type ConversationData = {
   readonly kind: 'conversation';
   readonly title: string;
   readonly createdAt: string;
+  readonly createdAtPrecision?: Precision;
 };
 
 // biome-ignore lint/style/useConsistentTypeDefinitions: type aliases satisfy JsonObject structurally
@@ -83,6 +84,15 @@ export type MessageData =
       readonly model?: string;
       readonly tokens?: { readonly in: number; readonly out: number };
       readonly error?: string;
+    }
+  | {
+      readonly kind: 'message';
+      /** Retained source material, with no inferred user or agent speaker. */
+      readonly role: 'record';
+      readonly at: string;
+      readonly atPrecision?: Precision;
+      readonly text: string;
+      readonly record: { readonly kind: 'summary'; readonly label?: string };
     };
 
 /** Structural endpoints are held in connection, independently of placement and outside this JSON. */

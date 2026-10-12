@@ -146,6 +146,43 @@ test('payload validation retains unknown nested JSON and special keys without mu
   }
 });
 
+test('retained summaries preserve their text and day precision without assigning a speaker', async () => {
+  const store = memoryNodeBackend();
+  await seed(store);
+  const summary = {
+    kind: 'message',
+    role: 'record',
+    at: '2026-06-05T00:00:00+02:00',
+    atPrecision: 'day',
+    text: '## Morning\n\nKept **studio time** free.\n',
+    record: { kind: 'summary', label: 'Daily summary', future: { retained: true } },
+  };
+  expect(parseMessage(summary)).toEqual(summary);
+  expect(() => parseMessage({ ...summary, record: { kind: 'transcript' } })).toThrow();
+  await store.commit(
+    request('retained-summary', [
+      create('daily', {
+        kind: 'conversation',
+        title: 'Studio time',
+        createdAt: summary.at,
+        createdAtPrecision: 'day',
+      }),
+      create(
+        'day',
+        { kind: 'exchange', startedAt: summary.at, startedAtPrecision: 'day' },
+        'daily',
+      ),
+      create('summary', summary, 'day'),
+    ]),
+  );
+  const messages = await savedMessages(store, 'daily');
+  expect(messages).toHaveLength(1);
+  expect(messages[0]?.data).toEqual(summary);
+  expect(messages[0]?.version.key).toEqual({ node: 'summary', transaction: 'retained-summary' });
+  expect((await savedChats(store))[0]?.activeAt).toBe(summary.at);
+  store.close();
+});
+
 test('known schema violations and non-JSON extensions are rejected', () => {
   expect(() => parseMessage({ ...response, tokens: { in: -1, out: 2 } })).toThrow();
   expect(() => parseMessage({ ...response, future: undefined })).toThrow();

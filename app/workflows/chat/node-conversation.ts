@@ -113,6 +113,13 @@ export interface NodeConversationState extends ChatState {
 function turn(data: MessageData, live = false, outcomePending = false): Turn {
   if (data.role === 'user')
     return { role: 'user', at: data.at, parts: [{ kind: 'text', text: data.text }] };
+  if (data.role === 'record')
+    return {
+      role: 'record',
+      at: data.at,
+      record: data.record,
+      parts: [{ kind: 'text', text: data.text }],
+    };
   const parts: Part[] = data.parts.map((part) =>
     part.kind === 'text'
       ? { kind: 'text', text: part.text }
@@ -231,8 +238,9 @@ export function createNodeConversation(initial: NodeConversationOptions) {
     const generation = selectionGeneration;
     const context = {
       files: [],
-      turns: state.turns.map(({ role, parts }) => ({
+      turns: state.turns.map(({ role, record, parts }) => ({
         role,
+        ...(record ? { record } : {}),
         text: parts.flatMap((part) => (part.kind === 'text' ? [part.text] : [])).join(''),
       })),
     };
