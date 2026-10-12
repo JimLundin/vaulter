@@ -7,11 +7,12 @@ import { PresentationContext } from '../presentation.tsx';
 
 test('compact messages preserve labels when attribution must remain visible', async () => {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+  const portal = document.createElement('div');
   const root = createRoot(document.body);
   try {
     await act(async () =>
       root.render(
-        <PresentationContext.Provider value={{ layout: 'compact', portal: document.body }}>
+        <PresentationContext.Provider value={{ layout: 'compact', portal }}>
           <Message label="Agent" marker="agent">
             Dialogue
           </Message>

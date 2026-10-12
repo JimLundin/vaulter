@@ -78,9 +78,12 @@ import {
   type NodeHistoryEntry,
 } from './workflows/history/nodes.ts';
 import { HistoryPage } from './workflows/history/index.tsx';
-import { Wiki } from './workflows/wiki/index.tsx';
+import { Wiki, type ForeignRecordRenderer } from './workflows/wiki/index.tsx';
 import { wikiRoute, pageRoute } from './workflows/wiki/routes.ts';
 import { useWikiReading, useWiki } from './workflows/wiki/use-wiki.ts';
+import { QuestionItem } from './workflows/questions/QuestionItem.tsx';
+import { questionSources } from './workflows/questions/sources.ts';
+import { useQuestions, useQuestionsReading } from './workflows/questions/use-questions.ts';
 
 const chatRoute = pattern('/chat/');
 const conversationRoute = pattern('/chat/:node/');
@@ -196,11 +199,12 @@ export function OpenProduct({
   const route = useRoute();
   const wikiSources = useMemo<SourceReader>(() => {
     const chat = chatSources((node) => `#${conversationRoute.href({ node })}`);
-    const owners = [chat, contentSources, retainedRecordSources, agentSources];
+    const owners = [chat, contentSources, questionSources, retainedRecordSources, agentSources];
     return {
       text: (node, context) =>
         chat.text(node, context) ??
         contentSources.text(node, context) ??
+        questionSources.text(node, context) ??
         retainedRecordSources.text(node, context) ??
         agentSources.text(node, context),
       describe: (node, view) => describeSource(node, view, owners),
@@ -210,6 +214,58 @@ export function OpenProduct({
   const { pages, error: wikiError } = useWiki(wiki);
   const wikiPage = pageRoute.match(route.path)?.node;
   const onWiki = !!wikiRoute.match(route.path) || !!wikiPage;
+  const questions = useQuestionsReading(onWiki ? nodes : null);
+  const questionState = useQuestions(questions);
+  const questionIndex = useMemo(
+    () => new Map(questionState.questions?.map((question) => [question.id, question])),
+    [questionState.questions],
+  );
+  const renderWikiRecord: ForeignRecordRenderer = (block) => {
+    if (block.data.kind !== 'question') return;
+    const question = questionIndex.get(block.id);
+    if (!question)
+      return (
+        <Stack gap="xs">
+          <Text>{String(block.data.text ?? '')}</Text>
+          <Text tone="muted" size="sm">
+            {questionState.error
+              ? `Question details unavailable: ${questionState.error}`
+              : 'Loading question details…'}
+          </Text>
+        </Stack>
+      );
+    return (
+      <QuestionItem
+        question={question}
+        describeTarget={(target) => {
+          if (!(target.version && questionState.view)) return;
+          const description = wikiSources.describe(target.version, questionState.view);
+          if (description)
+            return {
+              ...description,
+              navigationLabel: description.href
+                ? `Open source context${description.title ? `: ${description.title}` : ''}`
+                : undefined,
+            };
+          const seen = new Set<string>();
+          let current = target.version;
+          while (current.data && !seen.has(current.key.node)) {
+            seen.add(current.key.node);
+            if (current.data.kind === 'page')
+              return {
+                title: String(current.data.title ?? 'Wiki answer'),
+                href: `#${pageRoute.href({ node: current.key.node })}`,
+                navigationLabel: `Open Wiki page: ${String(current.data.title ?? 'Wiki answer')}`,
+              };
+            if (!current.placement) break;
+            const parent = questionState.view.get(current.placement.parent);
+            if (!parent?.data) break;
+            current = parent;
+          }
+        }}
+      />
+    );
+  };
   const layout = useLayout();
   const mobile = layout === 'compact';
   const [search, setSearch] = useState(false);
@@ -539,7 +595,13 @@ export function OpenProduct({
         {onChat ? (
           <ChatPage conversation={conversation} prompt={prompt} />
         ) : onWiki ? (
-          <Wiki key={wikiPage ?? 'wiki'} pages={pages} node={wikiPage} error={wikiError} />
+          <Wiki
+            key={wikiPage ?? 'wiki'}
+            pages={pages}
+            node={wikiPage}
+            error={wikiError}
+            renderRecord={renderWikiRecord}
+          />
         ) : onHistory ? (
           <Stack>
             <Row>

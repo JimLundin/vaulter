@@ -1,6 +1,6 @@
 # Vault records: specification
 
-Status: record contract. Wiki, Chat, Agent and Content own their implemented definitions; remaining
+Status: record contract. Wiki, Chat, Questions, Agent and Content own their implemented definitions; remaining
 record kinds await their modules.
 
 Every record kind is the data one component renders: its payload is that component's props, and its
@@ -167,12 +167,36 @@ type Task = { kind: 'task'; what: string; due?: LocalDate;
 ## Questions
 
 Every producer raises questions through this module: the Sweep, the check, the Agent, pages.
+`app/workflows/questions/` owns validation, source reading, retained collection reading and
+`QuestionItem` presentation. Product supplies that presentation to Wiki; Wiki does not decode
+question status or import another workflow.
 
 ```ts
 /** Placed under what it is about. Answered exactly when it has an answered-by relationship
     (→ decision, exchange, page or section). */
 type Question = { kind: 'question'; text: string; abandoned?: true };
 ```
+
+One Question identity is shared across contexts. Its placement identifies its primary Subject;
+structural `about` relationships may attach other Subjects. An exchange can refer to the same
+Question through a relationship, without copying its text or moving it away from its Subject.
+Transaction origin retains where it was raised, independently of what it concerns.
+
+`answered-by` resolves to recorded evidence. An exact target retains that node's own version when
+the evidence changes or is deleted; unavailable evidence is shown as unavailable and does not
+silently reopen an answered Question. An unresolved answer relationship remains visible but does
+not establish an Answer. Silence, removal from an old list and a failed request are not abandonment.
+Historical `abandoned: true` records remain readable; uncertain legacy outcomes need review rather
+than automatic reinterpretation.
+
+An exact exchange, page or section address does not freeze its descendants. Quoting composite
+answer prose requires a separately retained snapshot and selection, following the same rule as
+citations. Existing answer relationships supply no such selection; the current projection retains
+their node addresses and reports changes to the addressed node. Its links open the source's context,
+not an exact historical answer view.
+
+The current module provides reading and embedded presentation. Asking and answering through Chat,
+the Agent and a dedicated Questions view remain subsequent behavior to implement through this owner.
 
 ## Decisions
 
@@ -191,7 +215,26 @@ type Resource = { kind: 'resource'; url: string; title?: string };
 
 ## Chat (implemented; changes)
 
+Conversation names describe their subjects; occurrence dates belong to metadata. Chat reads the
+complete retained collection without a date cutoff. Verbatim captures preserve their original
+turns; daily accounts with no surviving transcript become Recorded summaries with no inferred
+user or agent speaker.
+
 ```ts
+type Conversation = {
+  kind: 'conversation';
+  title: string;
+  createdAt: Instant;
+  createdAtPrecision?: Precision;
+};
+type RecordedSummary = {
+  kind: 'message';
+  role: 'record';
+  at: Instant;
+  atPrecision?: Precision;
+  text: string;
+  record: { kind: 'summary'; label?: string };
+};
 type Exchange = {
   kind: 'exchange';
   startedAt: Instant;

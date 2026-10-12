@@ -4,6 +4,9 @@ import { isSafeUrl } from '../../../vault/documents/notes/safe-url.ts';
 import { Bars, Button, Sparkline, Text } from '../../../ui/kit/index.ts';
 import { wikiSchemas } from '../records.ts';
 
+/** Product supplies the owning module's UI for records included in Wiki content. */
+export type ForeignRecordRenderer = (block: WikiBlock) => ReactNode | undefined;
+
 export const blockText = (block: WikiBlock): string =>
   typeof block.data.text === 'string'
     ? block.data.text
@@ -123,12 +126,14 @@ export function WikiBlocks({
   selected,
   depth = 2,
   inheritedEvidence,
+  renderRecord,
 }: {
   blocks: WikiBlock[];
   onEvidence: (block: WikiBlock) => void;
   selected?: string;
   depth?: number;
   inheritedEvidence?: WikiBlock;
+  renderRecord?: ForeignRecordRenderer;
 }) {
   return blocks.map((block) => (
     <Block
@@ -138,6 +143,7 @@ export function WikiBlocks({
       selected={selected}
       depth={depth}
       inheritedEvidence={inheritedEvidence}
+      renderRecord={renderRecord}
     />
   ));
 }
@@ -147,14 +153,20 @@ function Block({
   selected,
   depth,
   inheritedEvidence,
+  renderRecord,
 }: {
   block: WikiBlock;
   onEvidence: (block: WikiBlock) => void;
   selected?: string;
   depth: number;
   inheritedEvidence?: WikiBlock;
+  renderRecord?: ForeignRecordRenderer;
 }): ReactNode {
   const { data, children } = block;
+  if (!(String(data.kind) in wikiSchemas)) {
+    const supplied = renderRecord?.(block);
+    if (supplied !== undefined) return supplied;
+  }
   const citation = block.evidence.length ? block : inheritedEvidence;
   const inner = ['paragraph', 'heading', 'cell', 'item'].includes(String(data.kind)) ? (
     <>
@@ -166,6 +178,7 @@ function Block({
         onEvidence={onEvidence}
         selected={selected}
         depth={depth}
+        renderRecord={renderRecord}
       />
     </>
   ) : (
@@ -175,6 +188,7 @@ function Block({
       selected={selected}
       depth={depth}
       inheritedEvidence={citation}
+      renderRecord={renderRecord}
     />
   );
   const text = typeof data.text === 'string' ? data.text : undefined;
@@ -207,6 +221,7 @@ function Block({
             onEvidence={onEvidence}
             selected={selected}
             depth={Math.min(6, depth + 1)}
+            renderRecord={renderRecord}
           />
         </section>
       );
@@ -300,13 +315,6 @@ function Block({
           {data.status === 'completed' ? '✓' : '○'} {String(data.what)} {String(data.due ?? '')}
         </p>
       );
-    case 'question':
-      return (
-        <p>
-          {String(data.text)}
-          {data.abandoned ? ' (abandoned)' : ''}
-        </p>
-      );
     case 'decision':
       return (
         <p>
@@ -319,7 +327,13 @@ function Block({
         <ul>
           {children.map((child) => (
             <li key={child.id}>
-              <Block block={child} onEvidence={onEvidence} selected={selected} depth={depth} />
+              <Block
+                block={child}
+                onEvidence={onEvidence}
+                selected={selected}
+                depth={depth}
+                renderRecord={renderRecord}
+              />
             </li>
           ))}
         </ul>

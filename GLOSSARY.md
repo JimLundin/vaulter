@@ -76,6 +76,27 @@ corrections coexist with the original interpretation.
 The collection of distilled knowledge drawn from retained sources. Wiki pages connect that
 knowledge and cite the underlying source material.
 
+**Conversation**:
+A retained context of exchanges, named for its subject. Its dates describe when it occurred.
+
+**Exchange**:
+A recorded part of a conversation containing dialogue or other retained source material.
+
+**Recorded summary**:
+A retained account of activity or discussion whose original dialogue or speakers may be unavailable.
+It is source material with its own provenance, distinct from verbatim messages.
+
+**Subject**:
+The person, topic or other matter that knowledge and questions concern.
+
+**Question**:
+An unresolved request for information about a subject, retained when asked from any context. It
+remains open until an answer is recorded or it is explicitly abandoned.
+
+**Answer**:
+Recorded evidence linked to a question as its response. Its history remains part of the question
+even when the evidence is later edited or removed.
+
 **Wiki page**:
 A page of distilled knowledge within the Wiki. Other retained records, such as conversations and
 agent-produced reports, are source material referenced by its citations rather than Wiki pages.

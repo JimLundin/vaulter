@@ -2,6 +2,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { expect, test } from 'vitest';
 import type { WikiBlock, WikiReference } from '../pages.ts';
 import { WikiBlocks } from './blocks.tsx';
+import { Text } from '../../../ui/kit/index.ts';
 
 const reference = (id: string, start: number, end: number): WikiReference => ({
   id,
@@ -76,4 +77,37 @@ test('a navigation link inside a selected statement retains its route without ne
   expect(html).toContain('href="#/wiki/studio/"');
   for (const button of html.match(/<button[^>]*>.*?<\/button>/gs) ?? [])
     expect(button).not.toContain('<a');
+});
+
+test('nested foreign records use their supplied module UI without Wiki interpreting lifecycle', () => {
+  const blocks: WikiBlock[] = [
+    {
+      id: 'section',
+      data: { kind: 'section' },
+      evidence: [],
+      children: [
+        {
+          id: 'question',
+          data: { kind: 'question', text: 'Where?', abandoned: true },
+          evidence: [],
+          children: [],
+        },
+      ],
+    },
+  ];
+  const html = renderToStaticMarkup(
+    <WikiBlocks
+      blocks={blocks}
+      onEvidence={() => undefined}
+      renderRecord={(block) =>
+        block.id === 'question' ? <Text>Questions-owned answered record</Text> : undefined
+      }
+    />,
+  );
+  expect(html).toContain('Questions-owned answered record');
+  expect(html).not.toContain('Where?');
+  expect(html).not.toContain('abandoned');
+  const fallback = render(blocks);
+  expect(fallback).toContain('Where?');
+  expect(fallback).not.toContain('abandoned');
 });
