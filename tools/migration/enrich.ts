@@ -6,14 +6,14 @@ import { nodeInterface } from '../../app/vault/nodes/backend.ts';
 import { accept, snapshotOf, validateRecords } from '../../app/vault/nodes/history.ts';
 import { digest } from '../../app/vault/nodes/json.ts';
 import { parseRecord, parseCommit } from '../../app/vault/nodes/validation.ts';
-import { readCitation } from '../../app/vault/records/citations.ts';
-import { parseVaultRecord } from '../../app/vault/records/index.ts';
-import { recordText } from '../../app/vault/records/text.ts';
-import { containment } from '../../app/vault/records/wiki.ts';
+import { readCitation, validatePageReference } from '../../app/workflows/wiki/citations.ts';
+import { recordText } from '../../app/workflows/wiki/text.ts';
+import { containment } from '../../app/workflows/wiki/records.ts';
 import { readWiki } from '../../app/workflows/wiki/pages.ts';
 import { planEnrichment, reviewedEvidence } from './enrichment.ts';
 import { NODE_PREFIX } from './source.ts';
 import { publishedVault } from './published.ts';
+import { migrationSources, parseMigrationRecord } from './wiki.ts';
 
 const option = (name: string, fallback: string) => {
   const index = process.argv.lastIndexOf(`--${name}`);
@@ -36,6 +36,8 @@ const review = reviewPath
   : undefined;
 const plan = planEnrichment(baseline, review);
 const request = plan.request && parseCommit(plan.request);
+if (snapshotOf(baseline).sequence !== plan.baselineSequence)
+  throw new Error('Enrichment baseline has changed; prepare again');
 const envelope =
   request && accept(baseline, request, await digest(request), new Date().toISOString());
 const reloaded = validateRecords(
@@ -56,7 +58,7 @@ const walk = (view: typeof after) => {
 const originals = walk(before);
 for (const node of originals) {
   if (after.get(node.key.node) !== node) throw new Error('Existing node changed during enrichment');
-  if (recordText(node, before) !== recordText(node, after))
+  if (recordText(node, before, migrationSources) !== recordText(node, after, migrationSources))
     throw new Error('Enrichment changed original text');
 }
 for (const node of walk(after)) {
@@ -77,16 +79,9 @@ const checkedSnapshot = (sequence: number) => {
   return view;
 };
 for (const node of envelope?.versions ?? []) {
-  if (node.data) parseVaultRecord(node.data);
-  if (node.data?.claim) readCitation(node, checkedSnapshot);
-  if (node.data?.scope === 'page' && node.connection && typeof node.data.sequence === 'number') {
-    const view = checkedSnapshot(node.data.sequence);
-    if (
-      !node.connection.target.transaction ||
-      view.get(node.connection.target.node)?.key.transaction !== node.connection.target.transaction
-    )
-      throw new Error('Page reference snapshot does not select its exact endpoint');
-  }
+  if (node.data) parseMigrationRecord(node.data);
+  if (node.data?.claim) readCitation(node, checkedSnapshot, migrationSources);
+  if (node.data?.scope === 'page') validatePageReference(node, checkedSnapshot, migrationSources);
 }
 const store = nodeInterface({
   read: () => reloaded,
@@ -97,7 +92,7 @@ const store = nodeInterface({
   close: () => undefined,
   subscribe: () => () => undefined,
 });
-const pages = await readWiki(store, (node) => `#/chat/${encodeURIComponent(node)}/`);
+const pages = await readWiki(store, migrationSources);
 const allBlocks = pages.flatMap((page) =>
   page.blocks.flatMap(function flatten(block): typeof page.blocks {
     return [block, ...block.children.flatMap(flatten)];

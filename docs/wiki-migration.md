@@ -9,6 +9,12 @@ inline nodes are navigation targets and retrieval aids. Their prose is never a c
 including when it repeats the same fact or has no reciprocal link. Source eligibility follows the
 passage's containment in its historical snapshot.
 
+Wiki owns the schemas, historical text grammar, source boundary, evidence validation and reference
+preparation in `app/workflows/wiki/`. Migration depends on those pure entries. Chat, Agent, Content
+and retained record owners supply source text and descriptions; migration composes them explicitly
+in `tools/migration/wiki.ts`. Git history, review ranking, deterministic identifiers, authorship,
+envelopes and reports remain migration responsibilities.
+
 | Existing content | Enrichment and projection |
 | --- | --- |
 | Title, summary, aliases, created, geo/address | Page header and details |
@@ -71,6 +77,11 @@ into a fresh directory outside the vault. It cannot publish. Output is valid imm
 exact baseline it was prepared against; regenerate if the vault advances. Deterministic identities
 and requests permit retry without duplicates. Before output, verification checks retained nodes
 and text, new schemas, containment, historical readback and idempotence.
+
+Wiki preparation returns `baselineSequence`, prepared changes and expected reads without publishing.
+The exact baseline is required because version expectations for existing descendants cannot detect
+newly inserted children. Every selected accepted Citation participates in evidence validation,
+including citations beneath deleted containers that live containment traversal cannot enumerate.
 
 The original `migrate` / `migrate:verify` commands independently check historical Markdown import in
 scratch output. They must not replace published history or invalidate its exact addresses.

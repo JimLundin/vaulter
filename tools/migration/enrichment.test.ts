@@ -4,9 +4,9 @@ import { digest } from '../../app/vault/nodes/json.ts';
 import { create, request } from '../../app/vault/nodes/fixtures.test-support.ts';
 import type { NodeChange } from '../../app/vault/nodes/store.ts';
 import type { NodeRecord } from '../../app/vault/nodes/validation.ts';
-import { readCitation, selectText } from '../../app/vault/records/citations.ts';
-import { parseVaultRecord } from '../../app/vault/records/index.ts';
-import { recordText } from '../../app/vault/records/text.ts';
+import { readCitation } from '../../app/workflows/wiki/citations.ts';
+import { recordText } from '../../app/workflows/wiki/text.ts';
+import { migrationSources } from './wiki.ts';
 import { planEnrichment, type EvidenceReview } from './enrichment.ts';
 
 async function fixture() {
@@ -103,20 +103,25 @@ test('enrichment appends references and multiple reviewed sources without changi
     reason: 'Unresolved relationship retained',
   });
   const commit = plan.request!;
+  // Published migration retry identities must survive relocation of Wiki-owned rules.
+  expect(commit.id).toBe('wiki-enrichment:c98e6f7d-6250-8816-98b9-790fd5062a3f');
   const enriched = [
     ...records,
     accept(records, commit, await digest(commit), '2026-10-11T10:30:00Z'),
   ];
   const before = snapshotOf(records);
   const after = snapshotOf(enriched);
-  expect(recordText(after.get('page')!, after)).toBe(recordText(before.get('page')!, before));
+  expect(recordText(after.get('page')!, after, migrationSources)).toBe(
+    recordText(before.get('page')!, before, migrationSources),
+  );
   for (const original of records[0].versions) expect(after.get(original.key.node)).toBe(original);
   const citations = after.children('claim').filter((node) => node.data?.kind === 'cite');
   expect(citations).toHaveLength(2);
   for (const citation of citations) {
-    expect(readCitation(citation, (sequence) => snapshotOf(enriched, sequence)).passage.text).toBe(
-      'Keep mornings free.',
-    );
+    expect(
+      readCitation(citation, (sequence) => snapshotOf(enriched, sequence), migrationSources).passage
+        .text,
+    ).toBe('Keep mornings free.');
     expect(citation.data).not.toHaveProperty('quote');
   }
   expect(planEnrichment(enriched, review).request).toBeNull();
@@ -171,37 +176,6 @@ test('reviews fail closed on mismatched quotes, deleted or changed claims and co
   expect(() => planEnrichment(removed, review)).toThrow('claim has changed');
 });
 
-test('UTF-16 selections preserve whitespace and formatting and reject invalid ranges and snapshots', async () => {
-  const { records } = await fixture();
-  const view = snapshotOf(records);
-  expect(recordText(view.get('claim')!, view)).toBe('Keep mornings free.body-link');
-  expect(() =>
-    parseVaultRecord({
-      kind: 'cite',
-      unit: 'utf16',
-      claim: { sequence: 1, start: 5, end: 3 },
-      passage: { sequence: 1, start: 0, end: 1 },
-    }),
-  ).toThrow();
-  expect(() => selectText({ node: 'claim' }, { sequence: 1, start: 0, end: 1 }, view)).toThrow(
-    'exact',
-  );
-  expect(() =>
-    selectText({ node: 'claim', transaction: 'seed' }, { sequence: 1, start: 0, end: 999 }, view),
-  ).toThrow('outside');
-  const changed = await append(records, 'emoji', [
-    create('emoji', { kind: 'run', text: '😀 plan' }),
-  ]);
-  const second = snapshotOf(changed);
-  expect(() =>
-    selectText({ node: 'emoji', transaction: 'emoji' }, { sequence: 2, start: 1, end: 3 }, second),
-  ).toThrow('surrogate');
-  expect(
-    selectText({ node: 'emoji', transaction: 'emoji' }, { sequence: 2, start: 0, end: 2 }, second)
-      .text,
-  ).toBe('😀');
-});
-
 test('a composite source selection freezes the reviewed snapshot after descendant-only edits', async () => {
   const { records, review } = await fixture();
   const words = snapshotOf(records).get('words')!;
@@ -232,37 +206,14 @@ test('a composite source selection freezes the reviewed snapshot after descendan
   const citation = snapshotOf(enriched)
     .children('claim')
     .find((node) => node.data?.claim)!;
-  const selected = readCitation(citation, (sequence) => snapshotOf(enriched, sequence));
+  const selected = readCitation(
+    citation,
+    (sequence) => snapshotOf(enriched, sequence),
+    migrationSources,
+  );
   expect(selected.passage.context).toBe('Updated: Keep mornings free. Confirmed.');
   expect(selected.passage.node.key.transaction).toBe('seed');
   expect(planEnrichment(enriched, { ...review, citations: [entry] }).request).toBeNull();
-});
-
-test('source context preserves capture preambles, message text parts and empty table cells', async () => {
-  const commit = request('seed', [
-    create('user', { kind: 'actor', name: 'Reviewer' }),
-    create('exchange', { kind: 'exchange', preamble: 'Original capture context.' }),
-    create(
-      'message',
-      {
-        kind: 'message',
-        parts: [
-          { kind: 'text', text: 'First ' },
-          { kind: 'tool', text: 'Tool payload' },
-          { kind: 'text', text: 'second.' },
-        ],
-      },
-      'exchange',
-    ),
-    create('row', { kind: 'row' }),
-    { ...create('empty-cell', { kind: 'cell' }, 'row'), placement: { parent: 'row', order: 'a' } },
-    { ...create('filled-cell', { kind: 'cell' }, 'row'), placement: { parent: 'row', order: 'b' } },
-    create('cell-words', { kind: 'run', text: 'Value' }, 'filled-cell'),
-  ]);
-  const records = [accept([], commit, await digest(commit), '2026-10-11T10:00:00Z')];
-  const view = snapshotOf(records);
-  expect(recordText(view.get('exchange')!, view)).toBe('Original capture context.\nFirst second.');
-  expect(recordText(view.get('row')!, view)).toBe('\tValue');
 });
 
 test('direct enrichment rejects Wiki source paragraphs and retains source-page links as navigation', async () => {

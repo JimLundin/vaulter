@@ -17,18 +17,7 @@ import { accept, snapshotOf, validateRecords } from '../../app/vault/nodes/histo
 import { canonical, compare, digest } from '../../app/vault/nodes/json.ts';
 import type { Connection, JsonObject, Placement } from '../../app/vault/nodes/model.ts';
 import { type NodeRecord, parseCommit, parseRecord } from '../../app/vault/nodes/validation.ts';
-import { parseVaultRecord } from '../../app/vault/records/index.ts';
-import { containment } from '../../app/vault/records/wiki.ts';
-import {
-  parseMetadata,
-  parseMetadataReference,
-} from '../../app/workflows/chat/records/chat-metadata-schema.ts';
-import {
-  parseChatReference,
-  parseConversation,
-  parseExchange,
-  parseMessage,
-} from '../../app/workflows/chat/records/chat-schema.ts';
+import { containment } from '../../app/workflows/wiki/records.ts';
 import { savedChats, savedMessages } from '../../app/workflows/chat/records/chat-store.ts';
 import {
   consolidatedEntries,
@@ -49,6 +38,7 @@ import { asObject, type Data, type Spec, type Specs } from './records.ts';
 import { report, tally } from './report.ts';
 import { isPage, openSource, type Person } from './source.ts';
 import { projectSchema } from './vocabulary.ts';
+import { parseMigrationRecord } from './wiki.ts';
 
 const option = (name: string, fallback: string) => {
   const i = process.argv.indexOf(`--${name}`);
@@ -744,14 +734,6 @@ for (const { request } of planned)
     if (ch.data?.kind === 'conversation')
       ch.data = { ...ch.data, createdAt: startOf.get(ch.node)! };
 
-const chatParsers: Record<string, (value: unknown) => unknown> = {
-  conversation: parseConversation,
-  exchange: parseExchange,
-  message: parseMessage,
-  reference: parseChatReference,
-  observation: parseMetadata,
-  metadataReference: parseMetadataReference,
-};
 const kinds: Record<string, number> = {};
 for (const { request } of planned)
   for (const ch of request.changes) {
@@ -759,7 +741,7 @@ for (const { request } of planned)
     const kind = String(ch.data.kind);
     tally(kinds, kind);
     try {
-      (chatParsers[kind] ?? parseVaultRecord)(ch.data);
+      parseMigrationRecord(ch.data);
     } catch (error) {
       throw new Error(
         `${request.message.split('\n')[0]}: invalid ${kind} ${JSON.stringify(ch.data).slice(0, 300)}`,

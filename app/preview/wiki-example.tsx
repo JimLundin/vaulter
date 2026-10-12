@@ -2,33 +2,40 @@
 import { useEffect, useState } from 'react';
 import { Button, Stack, Text } from '../ui/kit/index.ts';
 import { memoryNodeBackend } from '../vault/nodes/memory.ts';
-import type { NodeStore } from '../vault/nodes/store.ts';
+import type { NodeBackend } from '../vault/nodes/store.ts';
+import { retainedRecordSources } from '../vault/records/sources.ts';
+import { describeSource, type SourceReader } from '../vault/sources.ts';
 import { Wiki } from '../workflows/wiki/index.tsx';
-import { readWiki, pageRoute, type WikiPage } from '../workflows/wiki/pages.ts';
+import { pageRoute } from '../workflows/wiki/routes.ts';
+import { useWikiReading, useWiki } from '../workflows/wiki/use-wiki.ts';
 import { seedPreviewRecords } from './records.ts';
 
+const sources: SourceReader = {
+  text: retainedRecordSources.text,
+  describe: (node, view) => describeSource(node, view, [retainedRecordSources]),
+};
+
 export function WikiExample({ controls = false }: { controls?: boolean }) {
-  const [pages, setPages] = useState<WikiPage[] | null>(null);
-  const [error, setError] = useState('');
+  const [nodes, setNodes] = useState<NodeBackend | null>(null);
+  const [seedError, setSeedError] = useState('');
+  const reading = useWikiReading(nodes, sources);
+  const { pages, error: readError } = useWiki(reading);
+  const error = seedError || readError;
   const [state, setState] = useState('page');
   const [selected, setSelected] = useState<string | undefined>('preview:page:0');
   useEffect(() => {
-    const nodes = memoryNodeBackend();
+    const store = memoryNodeBackend();
     let active = true;
-    const read = async (store: NodeStore) => {
-      await seedPreviewRecords(store);
-      const loaded = await readWiki(
-        store,
-        (node) => `${import.meta.env.DEV ? '/preview/' : '../'}#/chat/${node}/`,
-      );
-      if (active) setPages(loaded);
-    };
-    void read(nodes).catch((problem: unknown) => {
-      if (active) setError(String(problem));
-    });
+    void seedPreviewRecords(store)
+      .then(() => {
+        if (active) setNodes(store);
+      })
+      .catch((problem: unknown) => {
+        if (active) setSeedError(String(problem));
+      });
     return () => {
       active = false;
-      nodes.close();
+      store.close();
     };
   }, []);
   return (
@@ -46,7 +53,7 @@ export function WikiExample({ controls = false }: { controls?: boolean }) {
           </Button>
           <Button onClick={() => setState('error')}>Show error</Button>
           <Button onClick={() => setState('missing')}>Show unavailable page</Button>
-          {error && <Text tone="danger">{error}</Text>}
+          {!!error && <Text tone="danger">{error}</Text>}
         </Stack>
       )}
     </Stack>

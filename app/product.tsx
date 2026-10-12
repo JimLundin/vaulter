@@ -62,7 +62,12 @@ import type { NodeDifference, NodeStore } from './vault/nodes/store.ts';
 import { createOpenAICapabilities } from './agent/openai/index.ts';
 import { model as selectedModel } from './workflows/chat/model.ts';
 import { preservesAgentRecords } from './agent/preservation.ts';
+import { agentSources } from './agent/sources.ts';
 import { preservesChatRecords } from './workflows/chat/records/chat.ts';
+import { chatSources } from './workflows/chat/records/sources.ts';
+import { contentSources } from './vault/content/sources.ts';
+import { retainedRecordSources } from './vault/records/sources.ts';
+import { describeSource, type SourceReader } from './vault/sources.ts';
 import {
   createNodeConversation,
   type NodeConversationOptions,
@@ -74,7 +79,8 @@ import {
 } from './workflows/history/nodes.ts';
 import { HistoryPage } from './workflows/history/index.tsx';
 import { Wiki } from './workflows/wiki/index.tsx';
-import { readWiki, wikiRoute, pageRoute, type WikiPage } from './workflows/wiki/pages.ts';
+import { wikiRoute, pageRoute } from './workflows/wiki/routes.ts';
+import { useWikiReading, useWiki } from './workflows/wiki/use-wiki.ts';
 
 const chatRoute = pattern('/chat/');
 const conversationRoute = pattern('/chat/:node/');
@@ -188,31 +194,20 @@ export function OpenProduct({
     [conversationKey, selectionStorage],
   );
   const route = useRoute();
-  const [pages, setPages] = useState<WikiPage[] | null>(null);
-  const [wikiError, setWikiError] = useState('');
-  useEffect(() => {
-    if (!nodes) return;
-    let active = true;
-    let generation = 0;
-    const reload = async () => {
-      const request = ++generation;
-      try {
-        const result = await readWiki(nodes, (node) => `#${conversationRoute.href({ node })}`);
-        if (active && request === generation) {
-          setPages(result);
-          setWikiError('');
-        }
-      } catch (error) {
-        if (active && request === generation) setWikiError(String(error));
-      }
+  const wikiSources = useMemo<SourceReader>(() => {
+    const chat = chatSources((node) => `#${conversationRoute.href({ node })}`);
+    const owners = [chat, contentSources, retainedRecordSources, agentSources];
+    return {
+      text: (node, context) =>
+        chat.text(node, context) ??
+        contentSources.text(node, context) ??
+        retainedRecordSources.text(node, context) ??
+        agentSources.text(node, context),
+      describe: (node, view) => describeSource(node, view, owners),
     };
-    later(reload());
-    const unsubscribe = nodes.subscribe(() => later(reload()));
-    return () => {
-      active = false;
-      unsubscribe();
-    };
-  }, [nodes]);
+  }, []);
+  const wiki = useWikiReading(nodes, wikiSources);
+  const { pages, error: wikiError } = useWiki(wiki);
   const wikiPage = pageRoute.match(route.path)?.node;
   const onWiki = !!wikiRoute.match(route.path) || !!wikiPage;
   const layout = useLayout();
@@ -466,6 +461,7 @@ export function OpenProduct({
             run: () => {
               conversation.dispose();
               voice.dispose();
+              wiki.dispose();
               later(session.signOut!());
             },
           },
@@ -509,6 +505,7 @@ export function OpenProduct({
             ? async () => {
                 conversation.dispose();
                 voice.dispose();
+                wiki.dispose();
                 await session.signOut!();
               }
             : null

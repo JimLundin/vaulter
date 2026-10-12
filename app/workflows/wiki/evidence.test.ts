@@ -1,8 +1,25 @@
 import { expect, test } from 'vitest';
-import { create, request } from '../../app/vault/nodes/fixtures.test-support.ts';
-import { accept } from '../../app/vault/nodes/history.ts';
-import { digest } from '../../app/vault/nodes/json.ts';
-import { auditEvidence, validateEvidence, type EvidencePair } from './evidence.ts';
+import { create, request } from '../../vault/nodes/fixtures.test-support.ts';
+import { accept, snapshotOf } from '../../vault/nodes/history.ts';
+import { digest } from '../../vault/nodes/json.ts';
+import type { NodeRecord } from '../../vault/nodes/validation.ts';
+import {
+  auditEvidence as audit,
+  validateEvidence as validate,
+  type EvidencePair,
+} from './evidence.ts';
+
+const auditEvidence = (records: readonly NodeRecord[], pairs: readonly EvidencePair[]) =>
+  audit((sequence) => snapshotOf(records, sequence), pairs);
+const validateEvidence = (records: readonly NodeRecord[], pairs: readonly EvidencePair[]) => {
+  const view = snapshotOf(records);
+  return validate(
+    view,
+    (sequence) => snapshotOf(records, sequence),
+    pairs,
+    records.flatMap((record) => record.versions),
+  );
+};
 
 async function fixture() {
   const commit = request('seed', [
@@ -66,6 +83,31 @@ test('a later review cannot close a chain through an already accepted citation',
   const next = accept(records, commit, await digest(commit), '2026-10-11T12:01:00Z');
   expect(() => validateEvidence([...records, next], [pair('b', 'a')])).toThrow('Circular');
   expect(() => validateEvidence([...records, next], [pair('b', 'message')])).not.toThrow();
+});
+
+test('retained Citations beneath deleted containers still prevent closing an evidence chain', async () => {
+  const records = await fixture();
+  const commit = request('cite', [
+    create('container', { kind: 'paragraph' }),
+    {
+      ...create(
+        'citation',
+        {
+          kind: 'cite',
+          unit: 'utf16',
+          claim: endpoint('a').selection,
+          passage: endpoint('b').selection,
+        },
+        'container',
+      ),
+      connection: { source: endpoint('a').address, target: endpoint('b').address },
+    },
+  ]);
+  const cited = [...records, accept(records, commit, await digest(commit), '2026-10-11T12:01:00Z')];
+  const remove = request('remove', [{ ...create('container', null), expected: 'cite' }]);
+  const deleted = [...cited, accept(cited, remove, await digest(remove), '2026-10-11T12:02:00Z')];
+  expect(snapshotOf(deleted).children('container')).toEqual([]);
+  expect(() => validateEvidence(deleted, [pair('b', 'a')])).toThrow('Circular');
 });
 
 test('source eligibility follows historical placement for pages, sections and inline runs', async () => {

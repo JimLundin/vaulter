@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Button, FeaturePage, Input, Link, Loader, Stack, Text } from '../../ui/kit/index.ts';
 import { go } from '../../ui/routing.ts';
-import { wikiRoute, pageRoute, type WikiClassification, type WikiPage } from './pages.ts';
+import type { WikiClassification, WikiPage } from './pages.ts';
+import { wikiRoute, pageRoute } from './routes.ts';
 import { WikiPageView } from './WikiPageView.tsx';
 export { WikiPageView } from './WikiPageView.tsx';
 

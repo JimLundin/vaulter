@@ -1,6 +1,7 @@
 # Vault records: specification
 
-Status: draft for review. Not yet claimed by modules.
+Status: record contract. Wiki, Chat, Agent and Content own their implemented definitions; remaining
+record kinds await their modules.
 
 Every record kind is the data one component renders: its payload is that component's props, and its
 structure (placement and connection) is what the component's container resolves. Each kind has one
@@ -48,13 +49,19 @@ type Precision = 'second' | 'minute' | 'day' | 'approximate';
 | Identities | `actor`, `agent` | `Avatar` |
 
 A block or record owned by another module renders with that module's component, supplied by
-Product; Wiki never imports it. Modules never import each other.
+Product; Wiki never imports it. Workflows never import each other. Migration explicitly composes
+the owning modules' validators and source readers.
 
 ## Wiki
 
 A page is a container of blocks; blocks that hold text are containers of inline nodes. An edit
 versions only the node it changes: a word versions its run, a retargeted link its link, a new
 source one cite.
+
+`app/workflows/wiki/records.ts` owns these definitions and containment. Wiki also owns historical
+selection validation, evidence preparation, collection reading and rendering. Only actual `page`
+records enter its collection and queries. Flat `content` records retain their independent ownership
+and may be cited without becoming Wiki pages.
 
 ```ts
 type Page = {
@@ -101,8 +108,8 @@ node or block, including runs and links; their connection holds exact endpoints 
 placement. Sources are retained underlying material; Wiki pages and their descendants are distilled
 knowledge and serve as navigation targets, never citation or provenance targets. [ADR-0005](../adr/0005-wiki-citation-selections.md) defines historical selection semantics.
 
-Day pages are pages titled by their date, with a Calendar `date` child. The Agent's content tools
-become Wiki operations: create a page, insert, edit, move or remove a block or inline node.
+Day pages are pages titled by their date, with a Calendar `date` child. Content tools currently
+create and edit independent `content` records. Future page/block editing belongs to Wiki operations.
 
 ## Graph
 

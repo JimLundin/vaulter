@@ -42,6 +42,16 @@ const chatCodeRenderer = (path: string) => path === 'app/workflows/chat/renderin
 const kit = (path: string) => path.startsWith('app/ui/kit/');
 const workflow = (path: string) => /^app\/workflows\/([^/]+)\//.exec(path)?.[1];
 export function importProblem(from: string, to: string): string | null {
+  if (workflow(from) === 'wiki' && to.startsWith('tools/'))
+    return `${from} imports tooling; migration depends on Wiki, never Wiki on migration`;
+  if (
+    workflow(from) === 'wiki' &&
+    (workflow(to) === 'chat' ||
+      to.startsWith('app/agent/') ||
+      to.startsWith('app/vault/content/') ||
+      to === 'app/vault/records/sources.ts')
+  )
+    return `${from} imports source interpretation; supply owner reading through Product composition`;
   if (kit(from) && (to.startsWith('app/vault/') || to.startsWith('app/agent/')))
     return `${from} imports record interpretation; keep Vault and Agent knowledge with its owning module`;
   const target = workflow(to);

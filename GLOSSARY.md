@@ -76,6 +76,10 @@ corrections coexist with the original interpretation.
 The collection of distilled knowledge drawn from retained sources. Wiki pages connect that
 knowledge and cite the underlying source material.
 
+**Wiki page**:
+A page of distilled knowledge within the Wiki. Other retained records, such as conversations and
+agent-produced reports, are source material referenced by its citations rather than Wiki pages.
+
 **Page reference**:
 A source associated with a page as a whole, describing its provenance without asserting support
 for any particular statement.
