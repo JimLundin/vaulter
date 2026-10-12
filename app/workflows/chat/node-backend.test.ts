@@ -652,20 +652,27 @@ test('the Chat controller preserves content diagnostics, blocks another Send and
       }),
     }),
   });
-  await chat.send('Save this');
+  const submitted = chat.prepareSubmission({ text: 'Save this' });
+  if (submitted.status !== 'owned') throw new Error('Expected retained request');
+  await submitted.done;
   expect(chat.snapshot()).toMatchObject({
     busy: false,
     contentPersistence: { error: 'Content offline' },
   });
   chat.setDraft('Next message');
-  await chat.sendDraft();
+  expect(chat.prepareSubmission()).toEqual({
+    status: 'blocked',
+    reason: 'Resolve the pending recovery before sending.',
+  });
   expect(chat.snapshot().draft).toBe('Next message');
   expect(model.doStreamCalls).toHaveLength(2);
   fail = false;
   await chat.retryContentSave();
   expect(chat.snapshot().contentPersistence).toBeUndefined();
   expect(chat.snapshot().contentAccepted).toBe('content');
-  await chat.sendDraft();
+  const nextSubmission = chat.prepareSubmission();
+  if (nextSubmission.status !== 'owned') throw new Error('Expected retained request');
+  await nextSubmission.done;
   expect(model.doStreamCalls).toHaveLength(3);
   expect(effects).toBe(1);
   chat.dispose();

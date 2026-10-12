@@ -327,7 +327,7 @@ export function OpenProduct({
       },
     }),
   );
-  const { capture } = useChat(conversation);
+  const { capture, turns, selectionAvailability } = useChat(conversation);
   const navigation: Navigation[] = [
     { label: 'Chat', href: chatRoute.href(), icon: 'sparkles', current: onChat },
     { label: 'Wiki', href: wikiRoute.href(), icon: 'book', current: onWiki },
@@ -405,7 +405,7 @@ export function OpenProduct({
       keys: 'mod+j',
       run: () => showPanel(!panel),
     },
-    ...(conversation.snapshot().turns.length && !conversation.snapshot().busy
+    ...(turns.length && selectionAvailability.allowed
       ? [
           {
             id: 'agent.new',
@@ -413,8 +413,8 @@ export function OpenProduct({
             group: 'Chat',
             icon: 'plus' as const,
             run: () => {
-              conversation.newChat();
-              ask();
+              const outcome = conversation.newChat();
+              if (outcome.status === 'selected') ask();
             },
           },
         ]

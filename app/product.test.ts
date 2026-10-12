@@ -95,7 +95,9 @@ test('composed Chat and an independent Agent retain attributed generic History a
     instructions: 'Record the supplied thought.',
   };
   const chat = createProductConversation(options);
-  await chat.send('Remember the fictional morning.');
+  const outcome = chat.prepareSubmission({ text: 'Remember the fictional morning.' });
+  if (outcome.status !== 'owned') throw new Error('Expected retained request');
+  await outcome.done;
   const history = productNodeHistory(nodes);
   const entries = await history.entries();
   const publication = entries.find(({ differences }) =>

@@ -1,4 +1,4 @@
-// Live speech is a removable chat capability. The controller owns capture; views only render its state.
+// Transcription owns recording sessions and valid output; Chat owns draft association and views present state.
 import { useEffect, useLayoutEffect, useState, useSyncExternalStore } from 'react';
 
 import type { TranscriptionProvider, TranscriptionConnection } from '../../agent/transcription.ts';

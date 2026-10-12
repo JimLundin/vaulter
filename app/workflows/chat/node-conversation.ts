@@ -181,6 +181,7 @@ export function createNodeConversation(initial: NodeConversationOptions) {
     | undefined;
   const saveRecoveries = new WeakMap<NodeChatRun, Promise<void>>();
   const contentRecoveries = new WeakMap<NodeChatRun, Promise<void>>();
+  const completedReplies = new WeakSet<NodeChatRun>();
   let suggestedFor: string | undefined;
   let suggestionAbort: AbortController | undefined;
   let draftRevision = 0;
@@ -565,10 +566,10 @@ export function createNodeConversation(initial: NodeConversationOptions) {
       !(state.persistenceError || state.busy) &&
       state.phase !== 'recorded'
     ) {
+      acknowledgeCompletion(sent);
       try {
         const messages = await sentBackend.messages(conversation);
-        if (!disposed && active === sent)
-          set({ turns: messages.map(({ data }) => turn(data)), unread: views === 0 });
+        if (!disposed && active === sent) set({ turns: messages.map(({ data }) => turn(data)) });
       } catch (error) {
         if (!disposed && active === sent && id === conversation) {
           recordRefreshError = error instanceof Error ? error.message : String(error);
@@ -576,6 +577,16 @@ export function createNodeConversation(initial: NodeConversationOptions) {
         }
       }
     } else if (!state.busy) set({ busy: false });
+  }
+  function acknowledgeCompletion(retained: NodeChatRun) {
+    if (
+      completedReplies.has(retained) ||
+      !retained.snapshot().execution ||
+      state.phase === 'recorded'
+    )
+      return;
+    completedReplies.add(retained);
+    set({ unread: views === 0 });
   }
   async function refreshMessages(
     retained: NodeChatRun | undefined,
@@ -662,9 +673,7 @@ export function createNodeConversation(initial: NodeConversationOptions) {
       }
       return { status: 'performed' as const, action: current.action };
     },
-    ready,
     availability: () => options.availability,
-    stagedChanges: () => options.stagedChanges?.() ?? [],
     suggest,
     updateOptions: (next: NodeConversationOptions) => {
       if (disposed) return;
@@ -738,7 +747,6 @@ export function createNodeConversation(initial: NodeConversationOptions) {
     submissionAvailability,
     /** Capture the source revision before a review or another delayed submission decision. */
     draftIntent,
-    submit: (intent: ChatSubmissionIntent) => submit(intent),
     /** Prepare and retain a review task before requesting submission. */
     prepareSubmission: (intent = draftIntent()): ChatSubmissionOutcome | ChatSubmissionReview => {
       const permission = submissionAvailability(intent.text);
@@ -816,16 +824,6 @@ export function createNodeConversation(initial: NodeConversationOptions) {
         set({ review: { ...review, reason: outcome.reason } });
       return outcome;
     },
-    submitDraft: (): ChatSubmissionOutcome => submit(draftIntent()),
-    // Completion-compatible adapters until all callers use explicit owned outcomes (#60).
-    send: async (text: string) => {
-      const outcome = submit({ text });
-      if (outcome.status === 'owned') await outcome.done;
-    },
-    sendDraft: async () => {
-      const outcome = api.submitDraft();
-      if (outcome.status === 'owned') await outcome.done;
-    },
     stop: () => {
       active?.stop();
     },
@@ -844,8 +842,10 @@ export function createNodeConversation(initial: NodeConversationOptions) {
           reflect();
           if (retained.prepared() && retained.snapshot().persistenceStage !== 'initial')
             options.onConversation?.(conversation);
-          if (!(state.persistenceError || state.busy))
+          if (!(state.persistenceError || state.busy)) {
+            acknowledgeCompletion(retained);
             await refreshMessages(retained, owner, conversation);
+          }
         })
         .finally(() => {
           saveRecoveries.delete(retained);
@@ -954,8 +954,6 @@ export function createNodeConversation(initial: NodeConversationOptions) {
       };
     },
     selectionAvailability,
-    /** Identity for delayed conversational tasks such as review and prompt use. */
-    taskIdentity: () => selectionGeneration,
     open: async (conversation: string): Promise<ChatSelectionOutcome> => {
       const permission = selectionAvailability();
       if (!permission.allowed) {
@@ -974,9 +972,6 @@ export function createNodeConversation(initial: NodeConversationOptions) {
       });
       return readSelection(conversation, generation, backend);
     },
-    /** The vault's conversations, most recently active first. Read-only compatibility query. */
-    chats: () => backend.chats(),
-    subscribeRecords: (listener: () => void) => options.nodes.subscribe(listener),
     /** Shared record reading lifetime; views retain only whether their chooser is visible. */
     watchRecords: () => {
       if (disposed) return () => {};
@@ -1020,7 +1015,6 @@ export function createNodeConversation(initial: NodeConversationOptions) {
         return { status: 'failed', error: message };
       }
     },
-    openLatest: () => api.restore(),
     newChat: (): ChatSelectionOutcome => {
       const permission = selectionAvailability();
       if (!permission.allowed) {

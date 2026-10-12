@@ -114,7 +114,7 @@ test('a replaced Vault session destroys pending review and prompts without dispo
     expect(chat.snapshot().prompts).toHaveLength(1);
     chat.updateOptions(next.options);
     const closed = chat.snapshot();
-    expect(chat.ready()).toBe(false);
+    expect(chat.closed()).toBe(true);
     expect(chat.confirmReview().status).toBe('blocked');
     expect(chat.applyPrompt(1).status).toBe('blocked');
     chat.updateOptions(options);
@@ -171,7 +171,7 @@ test('an accepted run keeps its model context while later explicit work uses cha
   });
   const chat = createNodeConversation({ ...options, model: async () => oldModel });
   try {
-    const old = chat.submit({ text: 'First explicit work' });
+    const old = chat.prepareSubmission({ text: 'First explicit work' });
     if (old.status !== 'owned') throw new Error('Expected owned request');
     await started;
     chat.updateOptions({
@@ -185,7 +185,7 @@ test('an accepted run keeps its model context while later explicit work uses cha
     expect(chat.snapshot().turns.at(-1)?.parts).toEqual([
       { kind: 'text', text: 'Old capability answer' },
     ]);
-    const next = chat.submit({ text: 'Next explicit work' });
+    const next = chat.prepareSubmission({ text: 'Next explicit work' });
     if (next.status !== 'owned') throw new Error('Expected new request');
     await next.done;
     expect(next.request.model).toBe('new-model');
@@ -234,7 +234,7 @@ test('destroying Chat during held durable acceptance retains that record but adm
     },
   });
   try {
-    const outcome = chat.submit({ text: 'Accepted before shutdown' });
+    const outcome = chat.prepareSubmission({ text: 'Accepted before shutdown' });
     if (outcome.status !== 'owned') throw new Error('Expected request');
     await started;
     chat.dispose();
@@ -270,7 +270,7 @@ test('a recovery requested just before destruction cannot start another acceptan
     },
   });
   try {
-    const outcome = chat.submit({ text: 'Retained acceptance obligation' });
+    const outcome = chat.prepareSubmission({ text: 'Retained acceptance obligation' });
     if (outcome.status !== 'owned') throw new Error('Expected request');
     await vi.waitFor(() => expect(chat.snapshot().persistenceStage).toBe('initial'));
     const retry = chat.retrySave();
@@ -330,12 +330,12 @@ test('manual replacement publishes its newer draft before recording cancellation
   }));
   const { nodes, options } = await fixture();
   const chat = createNodeConversation({ ...options, transcription: voice });
-  let sent: ReturnType<typeof chat.submitDraft> | undefined;
+  let sent: ReturnType<typeof chat.prepareSubmission> | undefined;
   try {
     chat.setDraft('Old draft');
     await chat.captureAction();
     const unsubscribe = chat.subscribe(() => {
-      if (!sent && chat.snapshot().submissionAvailability.allowed) sent = chat.submitDraft();
+      if (!sent && chat.snapshot().submissionAvailability.allowed) sent = chat.prepareSubmission();
     });
     chat.setDraft('New manual replacement');
     unsubscribe();
@@ -440,9 +440,9 @@ test('changed permission and capabilities become available atomically to synchro
     },
   });
   chat.setDraft('New explicit work');
-  let owned: ReturnType<typeof chat.submitDraft> | undefined;
+  let owned: ReturnType<typeof chat.prepareSubmission> | undefined;
   const unsubscribe = chat.subscribe(() => {
-    if (!owned && chat.snapshot().submissionAvailability.allowed) owned = chat.submitDraft();
+    if (!owned && chat.snapshot().submissionAvailability.allowed) owned = chat.prepareSubmission();
   });
   try {
     chat.updateOptions({

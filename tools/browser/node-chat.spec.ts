@@ -5,6 +5,43 @@ async function movePreviewBelowToolbar(handle: { press: (key: string) => Promise
   for (let step = 0; step < 10; step++) await handle.press('Shift+ArrowDown');
 }
 
+for (const restriction of ['recording', 'save recovery']) {
+  test(`Search New chat follows shared selection permission during ${restriction}`, async ({
+    page,
+  }) => {
+    await page.goto(restriction === 'recording' ? '/preview/' : '/preview/?scenario=initial-save');
+    await movePreviewBelowToolbar(page.locator('[data-preview-drag-handle]'));
+    const main = page.getByRole('main');
+    const input = main.getByRole('textbox', { name: 'Message', exact: true });
+    await input.fill('Keep this conversation');
+    await input.press('Enter');
+    await expect(main.getByRole('button', { name: 'Stop', exact: true })).toBeHidden();
+    if (restriction === 'recording') {
+      await input.fill('Keep the recording draft');
+      await input.blur();
+      await main.getByRole('button', { name: 'Start voice interaction' }).click();
+      await expect(input).toHaveValue(/^Keep the recording draft Leave/);
+    } else {
+      await expect(main.getByRole('button', { name: 'Retry save', exact: true })).toBeVisible();
+      await input.fill('Keep the recovery draft');
+      await input.blur();
+    }
+    await page.getByRole('button', { name: 'Search', exact: true }).click();
+    const search = page.getByRole('dialog', { name: 'Search or ask' });
+    await search.getByRole('combobox').fill('New chat');
+    await expect(search.getByRole('option', { name: 'New chat', exact: true })).toHaveCount(0);
+    await search.getByRole('combobox').press('Escape');
+    if (restriction === 'recording')
+      await main.getByRole('button', { name: 'Finish recording', exact: true }).click();
+    else await main.getByRole('button', { name: 'Retry save', exact: true }).click();
+    await page.getByRole('button', { name: 'Search', exact: true }).click();
+    await search.getByRole('combobox').fill('New chat');
+    await search.getByRole('option', { name: 'New chat', exact: true }).click();
+    await expect(main.locator('[data-message="user"]')).toHaveCount(0);
+    await expect(input).toHaveValue('');
+  });
+}
+
 test('Search Ask is accepted once when Chat moves between the page and its supporting pane', {
   tag: '@phone',
 }, async ({ page }) => {

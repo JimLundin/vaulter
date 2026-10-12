@@ -42,7 +42,9 @@ test('node-backed conversation keeps its draft and execution across view close a
   const close = controller.viewing();
   close();
   expect(controller.snapshot().draft).toBe('A dictated draft');
-  await controller.sendDraft();
+  const submitted = controller.prepareSubmission();
+  if (submitted.status !== 'owned') throw new Error('Expected retained request');
+  await submitted.done;
   expect(controller.snapshot()).toMatchObject({ draft: '', busy: false, unread: true });
   const conversation = controller.conversation();
   expect(controller.snapshot().turns.map(({ role }) => role)).toEqual(['user', 'agent']);
@@ -86,7 +88,9 @@ test('updated caller model dependencies are used by the next node-backed Send', 
       return Promise.reject(new Error('New'));
     },
   });
-  await controller.send('Use new dependencies');
+  const submitted = controller.prepareSubmission({ text: 'Use new dependencies' });
+  if (submitted.status !== 'owned') throw new Error('Expected retained request');
+  await submitted.done;
   expect(old).toBe(0);
   expect(next).toBe(1);
 });
@@ -113,11 +117,12 @@ test('disposal prevents late execution completion from changing a closed control
       });
     },
   });
-  const sending = controller.send('A message');
+  const sending = controller.prepareSubmission({ text: 'A message' });
+  if (sending.status !== 'owned') throw new Error('Expected retained request');
   await loading;
   const snapshot = controller.snapshot();
   controller.dispose();
-  await sending;
+  await sending.done;
   expect(controller.snapshot()).toBe(snapshot);
 });
 
@@ -190,7 +195,8 @@ test('recovery keeps the controller busy while Agent resumes into a held provide
     enabledTools: [{ name: 'publish' }],
     tools: () => ({ publish: tool({ inputSchema: z.object({}), execute: () => 'Published' }) }),
   });
-  const sending = controller.send('A message');
+  const sending = controller.prepareSubmission({ text: 'A message' });
+  if (sending.status !== 'owned') throw new Error('Expected retained request');
   await new Promise<void>((resolve) => {
     const unsubscribe = controller.subscribe(() => {
       if (controller.snapshot().phase === 'paused') {
@@ -205,7 +211,7 @@ test('recovery keeps the controller busy while Agent resumes into a held provide
   expect(controller.snapshot().busy).toBe(true);
   expect(controller.snapshot().phase).toBe('running');
   release();
-  await sending;
+  await sending.done;
   expect(controller.snapshot().busy).toBe(false);
 });
 
@@ -257,7 +263,9 @@ test('Chat publishes content with the module-owned node tools and retains exact 
     writableKinds: ['content'],
     enabledTools: [{ name: 'createNode' }, { name: 'readNode' }, { name: 'updateNode' }],
   });
-  await controller.send('Remember this.');
+  const submitted = controller.prepareSubmission({ text: 'Remember this.' });
+  if (submitted.status !== 'owned') throw new Error('Expected retained request');
+  await submitted.done;
   const history = await nodes.history({ kinds: [{ scope: 'node', action: 'create' }] });
   expect(history).toHaveLength(1);
   expect(history[0]?.recordedBy).toBe('agent');
@@ -292,9 +300,9 @@ test('node Chat optional suggestions preserve the shared draft and unavailable n
     availability: 'Offline',
   });
   controller.setDraft('A retained thought');
-  await controller.sendDraft();
+  expect(controller.prepareSubmission()).toEqual({ status: 'blocked', reason: 'Offline' });
   expect(controller.snapshot()).toMatchObject({ draft: 'A retained thought', turns: [] });
-  expect(controller.ready()).toBe(false);
+  expect(controller.snapshot().submissionAvailability.allowed).toBe(false);
   controller.updateOptions({
     nodes,
     user: 'user',
@@ -389,22 +397,27 @@ test('node Chat Stop expires a held module tool factory and failed factories all
       return {};
     },
   });
-  const sending = chat.send('First');
+  const sending = chat.prepareSubmission({ text: 'First' });
+  if (sending.status !== 'owned') throw new Error('Expected retained request');
   await factoryEntered;
   chat.stop();
-  await sending;
+  await sending.done;
   expect(chat.snapshot().busy).toBe(false);
   expect(() => context.snapshot()).toThrow(/stopped/i);
   release();
   expect(model.doStreamCalls).toHaveLength(0);
   chat.updateOptions({ ...options, tools: () => Promise.reject(new Error('Factory failed')) });
-  await chat.send('Second');
+  const failedFactory = chat.prepareSubmission({ text: 'Second' });
+  if (failedFactory.status !== 'owned') throw new Error('Expected retained request');
+  await failedFactory.done;
   expect(chat.snapshot().turns.at(-1)?.error).toBe('Factory failed');
   chat.updateOptions({
     ...options,
     model: () => Promise.reject(new Error('Next explicit attempt')),
   });
-  await chat.send('Third');
+  const nextAttempt = chat.prepareSubmission({ text: 'Third' });
+  if (nextAttempt.status !== 'owned') throw new Error('Expected retained request');
+  await nextAttempt.done;
   expect(chat.snapshot().turns.at(-1)?.error).toBe('Next explicit attempt');
   chat.dispose();
 });
@@ -434,7 +447,9 @@ test('Send cancels pending suggestions and suggestion failure leaves node Chat m
     },
   });
   const suggesting = chat.suggest();
-  await chat.send('An explicit user message');
+  const submitted = chat.prepareSubmission({ text: 'An explicit user message' });
+  if (submitted.status !== 'owned') throw new Error('Expected retained request');
+  await submitted.done;
   expect(signal.aborted).toBe(true);
   release(['Late suggestion']);
   await suggesting;
@@ -445,8 +460,10 @@ test('Send cancels pending suggestions and suggestion failure leaves node Chat m
   });
   await chat.suggest();
   chat.setDraft('Another message');
-  expect(chat.ready()).toBe(true);
-  await chat.sendDraft();
+  expect(chat.snapshot().submissionAvailability.allowed).toBe(true);
+  const nextSubmission = chat.prepareSubmission();
+  if (nextSubmission.status !== 'owned') throw new Error('Expected retained request');
+  await nextSubmission.done;
   expect(chat.snapshot().turns.filter(({ role }) => role === 'user')).toHaveLength(2);
   chat.dispose();
 });

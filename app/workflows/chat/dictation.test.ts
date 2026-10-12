@@ -52,7 +52,10 @@ test('New and Send cannot replace the recording association or clear its draft w
   await chat.captureAction();
   events.text('Partial');
   chat.newChat();
-  await chat.sendDraft();
+  expect(chat.prepareSubmission()).toMatchObject({
+    status: 'blocked',
+    reason: 'Finish or cancel the current recording before sending.',
+  });
   expect(chat.conversation()).toBe(original);
   expect(chat.snapshot().draft).toBe('Keep prefix Partial');
   expect(chat.snapshot().capture.phase).toBe('listening');
@@ -183,7 +186,8 @@ test('Chat rejects starting capture during execution or unresolved save recovery
     model: () => Promise.reject(new Error('Must not execute before acceptance')),
   });
   chat.setDraft('Keep this draft');
-  const sending = chat.send('A separate request');
+  const sending = chat.prepareSubmission({ text: 'A separate request' });
+  if (sending.status !== 'owned') throw new Error('Expected retained request');
   expect(chat.snapshot().busy).toBe(true);
   expect(await chat.captureAction()).toMatchObject({
     status: 'blocked',
@@ -198,5 +202,5 @@ test('Chat rejects starting capture during execution or unresolved save recovery
   expect(chat.snapshot().draft).toBe('Keep this draft');
   chat.dispose();
   voice.dispose();
-  await sending;
+  await sending.done;
 });

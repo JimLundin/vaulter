@@ -228,8 +228,8 @@ do not wrap those children in another scrolling feed. `persistent` requests desk
 The kit owns the 340px width, header, inset, `md` transition, dismissal, gestures, focus return and
 bounded portals. Expanded/wide content stays beside the page; compact content uses the full-height
 bottom Drawer. Chat supporting content, saved-conversation selection, Wiki references and paired
-generic examples consume this seam. `ConversationPanel` is retired. `AdaptivePanel` and reading-support
-wrappers remain temporary for generic examples until #51 removes their separate geometry.
+generic examples consume this seam. `ConversationPanel`, `AdaptivePanel` and reading-support
+wrappers are retired; generic examples use the same supporting presentation seam.
 Wiki composes its typed page view from shared reading/page/section presentation and `SupportingPane`;
 `WikiPageSurface` and shell styling are removed. Shared `PassageCard` owns source-card presentation; Wiki retains citation interpretation.
 
@@ -259,7 +259,7 @@ and citation actions without expanding prose line boxes on touch devices. `Toolb
 48px header token and inset for every module. Its optional label names the toolbar.
 
 `Surface`, `Toolbar`, `ReadingColumn`, `Dock`, `OptionStrip`, `AutoScrollArea` and
-`AdaptivePanel` provide reusable containers and behavior. Each has a separate paired example.
+`SupportingPane` provide reusable containers and behavior. Each has a separate paired example.
 `Drawer` owns the drawer adapter, header, close button, typography and scrolling body for navigation,
 settings and supporting panels. Callers supply `open`, `onClose`, `title` and content; bare drawer
 parts and side sheets remain outside the public interface. The desktop sidebar has no mobile
@@ -402,11 +402,14 @@ dismissal is also covered by automated browser checks.
 The message field is present before focus and stays one row high while typing. Other feature pages
 retain the floating voice action above the footer.
 
-OpenAI WebRTC capture, transcript reconciliation and microphone lifecycle belong to the chat workflow.
-The kit presents voice states and actions without accessing microphone permissions or credentials.
-Speech updates the same persistent message draft as typing. The microphone starts or finishes capture;
-Send and Enter submit the shared draft. Corrected final text replaces the current recording's partial
-words while retaining the preceding draft. Further recordings append to manual corrections.
+Transcription owns recording admission, OpenAI WebRTC/provider connection, correction ordering,
+permissions and resource release. Chat owns applying valid recording revisions to their associated
+shared draft, retaining the starting prefix and replacing partial words with corrected final text.
+Manual replacement invalidates that association before cancellation; late output cannot replace the
+newer draft. The kit presents supplied phase/actions without microphone permissions or credentials.
+Connecting offers Cancel, listening offers Finish, and finishing offers Wait. Finish produces text
+without Send; Send and Enter use Chat's shared preparation/review policy. Further recordings append
+to manual corrections. These logical owners remain independent of the kit's presentation lifetime.
 `VoiceStatus` shows capture state and errors above the dock without changing the field's position.
 `Composer` shows the Enter arrow while the field has focus and replaces its inset voice/Send action
 with Stop during an agent response. Standalone voice controls keep their microphone icon and remain

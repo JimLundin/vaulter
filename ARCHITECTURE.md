@@ -114,15 +114,33 @@ retains its existing check semantics.
 
 ## Conversation lifetime
 
-Product creates one node-backed conversation above route selection. Closing its panel or moving
-to History does not cancel a run. The controller owns draft, live progress, subscriptions and unread
-state; accepted Chat history is reconstructed directly from NodeStore. Sign-out and unmount expire
-execution and suppress late view changes. `view.ts` owns presentation snapshots independently of
-execution. There is no file-backed Chat Agent/capture/controller path.
+Product creates one node-backed Chat interaction above route selection, scoped to its owning Vault
+session. Chat owns draft revisions, submission/review intent, selected conversation and pending
+selection, prompt consumption, record interpretation, recovery presentation and unread acknowledgement.
+The page, pane, chooser and application commands request these tasks through the same interface.
+Closing a view keeps task state and accepted execution; focus and chooser disclosure stay mounted
+presentation state. Unsubmitted drafts/reviews survive navigation within the session, without new
+reload persistence. Accepted history is reconstructed through NodeStore without executing Agent.
 
-The same controller claims each retained application prompt once before either Chat view sends or
-edits it. Route changes, reopening the pane and simultaneous page/pane rendering preserve an
-accepted Ask and an edited draft without consuming the request again.
+`prepareSubmission()` returns a blocked reason, retained review, or locally owned request with its
+completion. It rechecks current admission and staging before handoff. Chat retains stable text/identity
+before clearing only the source draft revision; local ownership does not claim durable acceptance.
+Review confirmation rechecks permission and staged evidence, requiring reconfirmation if evidence
+changed. New/Open share selection permission across commands, routes and chooser. The latest eligible
+selection wins; blocked intents preserve valid work, Open preserves draft, and New creates an unsaved
+identity. Product uses selection outcomes for navigation and reconciles failed/blocked routes.
+
+Chat claims each application prompt once. Eligible Ask uses the same preparation path. Editable
+fallback fills the draft without queued execution; capture/review conflicts retain text with explicit
+Use/Dismiss actions. Reopening or simultaneous views cannot reclaim a prompt. An unseen completed
+reply remains unread through failed reads/save recovery until an open view acknowledges it.
+
+Product supplies capabilities, navigation and a stable session scope. Same-session updates apply to
+subsequent explicit work while active execution retains its original backend and recording its admitted
+provider. Session replacement and React effect replay create fresh owners. Destruction is terminal,
+releases local execution/subscriptions and recording admitted by Chat, and invalidates late task/route
+callbacks. Chat borrows injected Transcription; it never disposes another owner's recording module or
+cancels independently admitted capture. Entered acceptance/effects retain their independent obligations.
 
 Agent independently owns effective context, run and tool records. Chat and Agent construct their own
 initial records, composed into one transaction before model/tool effects. Chat's local append queue
@@ -133,26 +151,29 @@ result without replay. Stop expires tools, drains entered effects and retains ac
 pending save obligations. Initial save recovery reconciles records without automatically executing.
 Missing local ownership leaves remote liveness unknown; reopening never replays unfinished tools.
 
-Product gates new Send on node availability, stable configured actor/Agent identities and model
-configuration. Bootstrap preserves migrated configuration and rejects deleted/incompatible identities.
+Product supplies node availability, stable configured actor/Agent identities and model
+configuration; Chat enforces conversational admission. Bootstrap preserves migrated configuration
+and rejects deleted/incompatible identities.
 Live progress and categorized saving failures use the public kit; pending saving stays recoverable
 after Stop. Accepted conversation selection is scoped by API/repository, separately from the demo.
 Product assembles the Settings route from the kit's theme control and chat's `ChatSettings` view.
-Chat owns its model preference; the controller reads it at the start of each new turn. The composer
+Chat owns its model preference; each new request retains the current configured model. The composer
 contains only message entry and dictation/send controls, with Enter to send and Shift+Enter for a
 new line. Public `Composer` owns the form, one-row textarea, inset actions, keyboard submission and
 send-icon focus presentation for both Chat and catalogue samples. Its controlled draft and action
 callbacks keep conversation lifetime in the workflow. Enter and Send share the form callback;
-native IME confirmation and Safari key code 229 remain editing events. Non-whitespace text, caller
-permission and an idle response are required to submit. Sync status appears with the app name in
-the sidebar header.
+Native IME confirmation and Safari key code 229 remain editing events. Chat requires non-whitespace
+text, current capabilities, idle recording/execution and resolved recovery before admitting submission.
+Displayed action availability is advisory. Sync status appears with the app name in the sidebar header.
 
-Product binds the transcription controller to the conversation's shared draft above route selection.
-Each recording retains the draft it starts with and replaces only that recording's partial words
-with corrected final text. Failure or interruption retains the last draft; cleared capture ignores
-late events. A subsequent recording appends to manual edits. Capture never submits a turn: Send and
-Enter use the same reviewed submission path for dictated and typed text. The kit's compact voice
-status grows above the anchored composer; unsubmitted speech has no separate feed entry.
+Product supplies Transcription independently above route selection. Transcription owns recording
+admission, connection lifecycle, correction ordering and resource release; Chat associates valid session
+revisions with the draft/conversation they began against. Corrected final text replaces that recording's
+partial suffix while preserving its prefix. Manual typing invalidates the association before requesting
+cancellation, so late speech cannot overwrite newer text. Failure/interruption retain available words.
+Connecting offers Cancel, listening offers Finish and finishing offers Wait. Finish never submits;
+Send and Enter use the same preparation path for dictated and typed text. The kit presents supplied
+phase/actions above its anchored composer; unsubmitted speech has no separate feed entry.
 The shared SendButton shows the Enter arrow on field focus and becomes the sole response Stop
 control. VoiceButton stays a microphone, disabled during an agent response.
 
@@ -218,8 +239,9 @@ share its layering, focus and gesture mechanics. Search uses inline Base UI Auto
 the existing Command interface; [the decision](docs/adr/0001-base-ui-search.md) records the removal
 of cmdk and its transitive Radix dependency. The private `presentation-policy.tsx` owns browser
 and bounded-preview choices for portals, bounds, modal behavior, dismissal and focus restoration.
-Adapters consume those choices while retaining library mechanics. AdaptivePanel keeps the same
-mounted drawer content as it becomes a compact drawer, expanded dialog or wide nonmodal panel.
+Adapters consume those choices while retaining library mechanics. SupportingPane keeps the same
+mounted content through compact drawer and expanded pane transitions; the separate AdaptivePanel
+geometry is retired.
 
 Search task composition now lives in shared application UI. Its subscribed container owns query,
 ranking, recent-entry selection and navigation/command/ask actions; `SearchView` accepts resolved
@@ -336,7 +358,8 @@ Chat owns `ChatSurface`, `ChatMessage` and `ConversationItem`: task labels, role
 accepted tool evidence, model/token metadata, unfinished activity and node selection. Message views
 accept existing typed `Turn` data; conversation rows accept `SavedChat` with explicit node actions.
 Neither record view needs a live store or execution controller. The subscribed Chat container
-retains draft, capture, review, recovery and execution actions. Its mounted supporting view calls
+presents the retained Chat interaction's draft, capture, review, selection, prompts and recovery actions.
+Its mounted supporting view calls
 `viewing()` only while open, so a reply finishing after close remains unread until reopened.
 
 Product supplies `ChatPanel` visibility and dismissal to the optional generic Frame aside; Product
@@ -351,5 +374,6 @@ The five old `ConversationPage`, `ConversationSurface`, `ConversationPanel`, `Co
 `ConversationWelcome` compositions are retired. Catalogue feed examples use generic presentation
 values. Prose typography and code-scroll presentation live in the kit; Chat's markdown/code renderer
 exception permits semantic text conversion and `<pre>` only, not custom pane controls, viewport
-queries, layout markup or presentation-library imports. The conversation chooser's production
-`usePreviewVariant` dependency remains specifically scheduled for #50.
+queries, layout markup or presentation-library imports. The conversation chooser receives its
+presentation variant explicitly; production preview-context dependencies and competing mounted
+reading/selection tasks are retired.

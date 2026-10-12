@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto';
-import { expect, test } from 'vitest';
+import { expect, test, vi } from 'vitest';
 import { githubNodeBackend } from './vault/storage/nodes/github.ts';
 import { fakeGitHub } from './vault/storage/github-client/fake-github.ts';
 import { create, request, seed } from './vault/nodes/fixtures.test-support.ts';
@@ -48,8 +48,14 @@ test('conversation and transaction projections include writes accepted on indepe
     });
   const chatA = readChats(first);
   const chatB = readChats(second);
-  expect((await chatA.chats()).map((chat) => chat.node)).toEqual(['chat-a', 'chat-b']);
-  expect(await chatB.chats()).toEqual(await chatA.chats());
+  const closeA = chatA.watchRecords();
+  const closeB = chatB.watchRecords();
+  await vi.waitFor(() => {
+    expect(chatA.snapshot().records.chats?.map((chat) => chat.node)).toEqual(['chat-a', 'chat-b']);
+    expect(chatB.snapshot().records.chats).toEqual(chatA.snapshot().records.chats);
+  });
+  closeA();
+  closeB();
   expect((await productNodeHistory(first).entries()).map((entry) => entry.transaction.id)).toEqual([
     'device-b',
     'device-a',

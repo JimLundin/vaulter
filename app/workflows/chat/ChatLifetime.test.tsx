@@ -6,6 +6,7 @@ import { MockLanguageModelV4, convertArrayToReadableStream } from 'ai/test';
 import { memoryNodeBackend } from '../../vault/nodes/memory.ts';
 import { create, request, seed } from '../../vault/nodes/fixtures.test-support.ts';
 import type { NodeStore } from '../../vault/nodes/store.ts';
+import { Text } from '../../ui/kit/index.ts';
 import { createNodeConversation } from './node-conversation.ts';
 import { createTranscription, useTranscription } from './transcription.ts';
 import { Chat } from './Chat.tsx';
@@ -146,7 +147,9 @@ test('a reply finishing with the mounted pane closed remains unread until it reo
     await act(async () => render(true));
     let accepted!: Promise<void>;
     await act(async () => {
-      accepted = conversation.send('A thought');
+      const outcome = conversation.prepareSubmission({ text: 'A thought' });
+      if (outcome.status !== 'owned') throw new Error('Expected retained request');
+      accepted = outcome.done;
     });
     await act(async () => render(false));
     await act(async () => {
@@ -460,7 +463,7 @@ test('StrictMode owns fresh Chat and recording lifetimes and replacing the Vault
     expect(document.body.querySelector('textarea')?.value).toBe('');
     expect(current.snapshot().prompts).toEqual([]);
     expect(current.snapshot().review).toBeUndefined();
-    expect(previous.ready()).toBe(false);
+    expect(previous.closed()).toBe(true);
     await act(async () => {
       current.setDraft('New session text');
       await current.captureAction();
@@ -497,7 +500,7 @@ test('mounted shared Chat ignores composition option identity changes without a 
     const snapshot = useNodeChat(conversation);
     return (
       <>
-        <span>{snapshot.capture.phase}</span>
+        <Text>{snapshot.capture.phase}</Text>
         <Chat conversation={conversation} arg={null} presentation={{ page: true }} />
       </>
     );

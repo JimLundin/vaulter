@@ -42,7 +42,9 @@ test('both visible Chat surfaces observe the same response-save progress', async
     );
   try {
     await act(async () => {
-      await conversation.send('Retain this');
+      const submitted = conversation.prepareSubmission({ text: 'Retain this' });
+      if (submitted.status !== 'owned') throw new Error('Expected retained request');
+      await submitted.done;
       root.render(
         <>
           <Chat conversation={conversation} arg={null} presentation={{ page: true }} />

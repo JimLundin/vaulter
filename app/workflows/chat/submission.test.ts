@@ -68,7 +68,7 @@ test('Chat owns a request before clearing its source and preserves newer typing 
   });
   try {
     chat.setDraft('  First request  ');
-    const owned = chat.submitDraft();
+    const owned = chat.prepareSubmission();
     expect(owned.status).toBe('owned');
     if (owned.status !== 'owned') throw new Error('Expected owned request');
     expect(owned.request).toMatchObject({
@@ -79,11 +79,17 @@ test('Chat owns a request before clearing its source and preserves newer typing 
     expect(chat.snapshot()).toMatchObject({ draft: '', submission: owned.request, busy: true });
     await entered;
     const busyState = chat.snapshot();
-    expect(chat.submitDraft()).toEqual({
+    expect(chat.prepareSubmission()).toEqual({
       status: 'blocked',
       reason: 'Wait for the Agent to finish.',
     });
-    expect(chat.snapshot()).toBe(busyState);
+    expect(chat.snapshot()).toMatchObject({
+      draft: busyState.draft,
+      turns: busyState.turns,
+      capture: busyState.capture,
+    });
+    expect(chat.snapshot().submission).toBe(busyState.submission);
+    expect(chat.snapshot().review).toBe(busyState.review);
     expect(model.doStreamCalls).toHaveLength(0);
     chat.setDraft('A newer unfinished draft');
     accept();
@@ -96,11 +102,17 @@ test('Chat owns a request before clearing its source and preserves newer typing 
     });
     expect(chat.snapshot().turns[0]?.parts).toEqual([{ kind: 'text', text: 'First request' }]);
     const recoveryState = chat.snapshot();
-    expect(chat.submitDraft()).toEqual({
+    expect(chat.prepareSubmission()).toEqual({
       status: 'blocked',
       reason: 'Resolve the pending recovery before sending.',
     });
-    expect(chat.snapshot()).toBe(recoveryState);
+    expect(chat.snapshot()).toMatchObject({
+      draft: recoveryState.draft,
+      turns: recoveryState.turns,
+      capture: recoveryState.capture,
+    });
+    expect(chat.snapshot().submission).toBe(recoveryState.submission);
+    expect(chat.snapshot().review).toBe(recoveryState.review);
     failing = false;
     await chat.retrySave();
     await owned.done;
@@ -141,20 +153,48 @@ test('pre-handoff staged-context failure preserves the source and remains a mean
 test('request ownership is observable atomically with busy admission, including synchronous subscribers', async () => {
   const { nodes, options } = await fixture();
   const chat = createNodeConversation(options);
-  let second: ReturnType<typeof chat.submit> | undefined;
+  let second: ReturnType<typeof chat.prepareSubmission> | undefined;
   let attempted = false;
   chat.setDraft('The first request');
   const unsubscribe = chat.subscribe(() => {
     if (!chat.snapshot().submission || attempted) return;
     attempted = true;
-    second = chat.submit({ text: 'Another request cannot overlap the handoff' });
+    second = chat.prepareSubmission({ text: 'Another request cannot overlap the handoff' });
   });
   try {
-    const first = chat.submitDraft();
+    const first = chat.prepareSubmission();
     expect(second).toEqual({ status: 'blocked', reason: 'Wait for the Agent to finish.' });
     if (first.status !== 'owned') throw new Error('Expected owned request');
     await first.done;
     expect(chat.snapshot().turns.filter(({ role }) => role === 'user')).toHaveLength(1);
+  } finally {
+    unsubscribe();
+    chat.dispose();
+    nodes.close();
+  }
+});
+
+test('review confirmation never publishes an idle handoff that admits a subscriber request', async () => {
+  const files = [{ path: 'Pending.md', before: 'before', text: 'after' }];
+  const { nodes, options } = await fixture({ stagedChanges: () => files });
+  const chat = createNodeConversation(options);
+  chat.setDraft('The reviewed request');
+  const review = chat.prepareSubmission();
+  if (review.status !== 'review') throw new Error('Expected review');
+  let attempted = false;
+  let second: ReturnType<typeof chat.prepareSubmission> | undefined;
+  const unsubscribe = chat.subscribe(() => {
+    if (chat.snapshot().review || attempted) return;
+    attempted = true;
+    second = chat.prepareSubmission({ text: 'A subscriber must not overlap confirmation' });
+  });
+  try {
+    const first = chat.confirmReview(review.id);
+    expect(second).toEqual({ status: 'blocked', reason: 'Wait for the Agent to finish.' });
+    if (first.status !== 'owned') throw new Error('Expected owned reviewed request');
+    await first.done;
+    expect(chat.snapshot().turns.filter(({ role }) => role === 'user')).toHaveLength(1);
+    expect(chat.snapshot().submission?.id).toBe(first.request.id);
   } finally {
     unsubscribe();
     chat.dispose();
@@ -186,8 +226,14 @@ test.each([
       const before = chat.snapshot();
       const identity = chat.conversation();
       expect(chat.snapshot().submissionAvailability).toEqual({ allowed: false, reason });
-      expect(chat.submitDraft()).toEqual({ status: 'blocked', reason });
-      expect(chat.snapshot()).toBe(before);
+      expect(chat.prepareSubmission()).toEqual({ status: 'blocked', reason });
+      expect(chat.snapshot()).toMatchObject({
+        draft: before.draft,
+        turns: before.turns,
+        capture: before.capture,
+      });
+      expect(chat.snapshot().submission).toBe(before.submission);
+      expect(chat.snapshot().review).toBe(before.review);
       expect(chat.conversation()).toBe(identity);
       expect(model.doStreamCalls).toHaveLength(0);
     } finally {
@@ -207,14 +253,20 @@ test('synchronous handoff failure keeps the source and its revision for a later 
     throw new Error('Request identity unavailable');
   });
   try {
-    expect(chat.submitDraft()).toEqual({
+    expect(chat.prepareSubmission()).toEqual({
       status: 'blocked',
       reason: 'Request identity unavailable',
     });
-    expect(chat.snapshot()).toBe(original);
+    expect(chat.snapshot()).toMatchObject({
+      draft: original.draft,
+      turns: original.turns,
+      capture: original.capture,
+    });
+    expect(chat.snapshot().submission).toBe(original.submission);
+    expect(chat.snapshot().review).toBe(original.review);
     expect(chat.draftIntent()).toEqual(intent);
     expect(model.doStreamCalls).toHaveLength(0);
-    const owned = chat.submitDraft();
+    const owned = chat.prepareSubmission();
     if (owned.status !== 'owned') throw new Error('Expected explicit retry to own request');
     await owned.done;
     expect(chat.snapshot().draft).toBe('');
@@ -237,7 +289,7 @@ test('asynchronous preparation failure preserves locally owned request text with
   });
   try {
     chat.setDraft('Owned before the read');
-    const outcome = chat.submitDraft();
+    const outcome = chat.prepareSubmission();
     if (outcome.status !== 'owned') throw new Error('Expected local ownership');
     chat.setDraft('New words during preparation');
     await outcome.done;
@@ -253,7 +305,9 @@ test('asynchronous preparation failure preserves locally owned request text with
     expect(model.doStreamCalls).toHaveLength(0);
     // The failed request was locally retained, never represented as durable acceptance.
     fail = false;
-    expect(await chat.chats()).toEqual([]);
+    const close = chat.watchRecords();
+    await vi.waitFor(() => expect(chat.snapshot().records.chats).toEqual([]));
+    close();
   } finally {
     chat.dispose();
     nodes.close();
@@ -275,7 +329,7 @@ test('retained reviewed text submits without clearing a later draft revision wit
     await outcome.done;
     expect(chat.snapshot().draft).toBe('Text for review');
     expect(chat.snapshot().turns[0]?.parts).toEqual([{ kind: 'text', text: 'Text for review' }]);
-    expect(chat.stagedChanges()).toEqual(files);
+    expect(options.stagedChanges?.()).toEqual(files);
   } finally {
     chat.dispose();
     nodes.close();
@@ -305,7 +359,7 @@ test('confirmation refreshes changed staged evidence and requires another explic
     expect(chat.snapshot().turns[0]?.parts).toEqual([
       { kind: 'text', text: 'The retained reviewed message' },
     ]);
-    expect(chat.stagedChanges()).toEqual(files);
+    expect(options.stagedChanges?.()).toEqual(files);
   } finally {
     chat.dispose();
     nodes.close();
@@ -331,7 +385,7 @@ test('review belongs to Chat across view closure and cancellation preserves the 
     expect(chat.snapshot().review).toBeUndefined();
     expect(chat.snapshot().draft).toBe('A later editable draft');
     expect(model.doStreamCalls).toHaveLength(0);
-    expect(chat.stagedChanges()).toEqual(files);
+    expect(options.stagedChanges?.()).toEqual(files);
   } finally {
     chat.dispose();
     nodes.close();
@@ -382,7 +436,6 @@ test('another submission cannot replace or bypass a retained review', async () =
     const review = chat.snapshot().review;
     chat.setDraft('Newer source draft');
     expect(chat.prepareSubmission().status).toBe('blocked');
-    expect(chat.submitDraft().status).toBe('blocked');
     expect(chat.snapshot().review).toBe(review);
     expect(chat.snapshot().draft).toBe('Newer source draft');
     expect(model.doStreamCalls).toHaveLength(0);
@@ -428,7 +481,7 @@ test('a completed transcription is a newer source revision than an earlier retai
     const earlier = chat.draftIntent();
     await chat.captureAction();
     await chat.captureAction();
-    const outcome = chat.submit(earlier);
+    const outcome = chat.prepareSubmission(earlier);
     if (outcome.status !== 'owned') throw new Error('Expected retained text ownership');
     await outcome.done;
     expect(chat.snapshot().draft).toBe('The earlier typed text New spoken words');
@@ -469,11 +522,17 @@ test.each(['connecting', 'listening', 'finishing'] as const)(
       }
       const before = chat.snapshot();
       expect(before.capture.phase).toBe(phase);
-      expect(chat.submitDraft()).toEqual({
+      expect(chat.prepareSubmission()).toEqual({
         status: 'blocked',
         reason: 'Finish or cancel the current recording before sending.',
       });
-      expect(chat.snapshot()).toBe(before);
+      expect(chat.snapshot()).toMatchObject({
+        draft: before.draft,
+        turns: before.turns,
+        capture: before.capture,
+      });
+      expect(chat.snapshot().submission).toBe(before.submission);
+      expect(chat.snapshot().review).toBe(before.review);
       expect(model.doStreamCalls).toHaveLength(0);
       if (phase === 'connecting') {
         await chat.captureAction();

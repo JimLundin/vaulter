@@ -1,4 +1,4 @@
-import { expect, test } from 'vitest';
+import { expect, test, vi } from 'vitest';
 import { memoryNodeBackend } from '../../vault/nodes/memory.ts';
 import { create, request, seed } from '../../vault/nodes/fixtures.test-support.ts';
 import type { NodeStore } from '../../vault/nodes/store.ts';
@@ -91,22 +91,25 @@ test('admitted New invalidates pending Open and creates no empty saved conversat
   expect(await opening).toEqual({ status: 'superseded' });
   expect(chat.conversation()).toBe(fresh);
   expect(chat.snapshot()).toMatchObject({ draft: '', turns: [] });
-  const saved = chat.chats();
+  const close = chat.watchRecords();
   reads[1]!.release();
-  expect((await saved).map((item) => item.node)).toEqual(['first', 'second']);
+  await vi.waitFor(() =>
+    expect(chat.snapshot().records.chats?.map((item) => item.node)).toEqual(['first', 'second']),
+  );
+  close();
   chat.dispose();
 });
 
 test('explicit Open supersedes startup latest restoration during its list read', async () => {
   const { chat, hold, reads } = await fixture();
   hold();
-  const restoration = chat.openLatest();
+  const restoration = chat.restore();
   const explicit = chat.open('second');
   reads[1]!.release();
   await explicit;
   reads[0]!.release();
   expect(await restoration).toEqual({ status: 'superseded' });
-  expect(await chat.openLatest()).toEqual({ status: 'superseded' });
+  expect(await chat.restore()).toEqual({ status: 'superseded' });
   expect(chat.conversation()).toBe('second');
   chat.dispose();
 });
@@ -179,7 +182,7 @@ test('request ownership invalidates selection reads before model preparation fin
   hold();
   const opening = chat.open('first');
   const current = chat.conversation();
-  const submission = chat.submitDraft();
+  const submission = chat.prepareSubmission();
   expect(submission.status).toBe('owned');
   reads[0]!.release();
   expect(await opening).toEqual({ status: 'superseded' });
