@@ -106,10 +106,20 @@ remain readable; their behavior belongs to features. Invalid remote records do n
 previous visible state. Hash-verified blobs preserve the existing Git client integrity checks.
 
 Refresh uses conditional refs, reads only new envelopes in bounded batches, and retains accepted
-records in memory. Snapshot projections are cached with bounded retention; reads do not
-replay IndexedDB on every call. First open still loads all recorded transactions, cold
-validation scans accumulated history, and remote refresh lists the repository's recursive tree.
-This is suitable for the first storage slice, not unlimited history. GitHub's recursive-tree limit
+records in memory. Cold validation builds identity, transaction, version and placement indexes
+incrementally, validating each proposed transaction against the accepted prefix. Historical
+snapshots share those indexes and resolve versions by cutoff; child lists are built on demand.
+Differences look up the preceding versions directly. Snapshot projections retain bounded caches;
+reads do not replay IndexedDB on every call. Indexes are private to Vault and contain generic node
+structure; feature interpretation and the NodeStore interface remain unchanged.
+
+Device-cache decoding and imported-history validation yield to browser tasks between envelopes
+after an 8 ms work budget or 32 records. Validation completes before any new history is published;
+invalid suffixes leave existing snapshots intact. Each envelope is still decoded and validated
+atomically, so a single unusually large transaction can exceed the budget.
+
+First open still loads all recorded transactions, and remote refresh lists the repository's
+recursive tree. This is suitable for the current storage slice, not unlimited history. GitHub's recursive-tree limit
 produces an explicit failure. Checkpoints/paged remote indexes and bounded cold reconstruction need
 measurements as usage grows. No garbage collection discards referenced historical evidence.
 

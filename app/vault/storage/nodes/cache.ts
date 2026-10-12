@@ -2,7 +2,8 @@
 import { Dexie } from 'dexie';
 import { digest } from '../../nodes/json.ts';
 import { parseRecord, type NodeRecord } from '../../nodes/validation.ts';
-import { validateRecords } from '../../nodes/history.ts';
+import { validateRecordsAsync } from '../../nodes/history.ts';
+import { loadingTurns } from '../../nodes/loading.ts';
 
 export interface RemoteHead {
   readonly commit: string;
@@ -34,14 +35,19 @@ export async function nodeCache(scope: string) {
       }));
       if (!saved.head) return null;
       const remote = saved.head.value as RemoteHead;
-      const values = saved.records.map((row) => {
+      const values: NodeRecord[] = [];
+      const turn = loadingTurns();
+      for (const row of saved.records) {
         const record = parseRecord(row.value);
         if (record.transaction.id !== row.id) throw new Error('Cached transaction key mismatch');
-        return record;
-      });
+        values.push(record);
+        const pause = turn();
+        // biome-ignore lint/performance/noAwaitInLoops: decode outside the Dexie transaction and allow browser input/paint.
+        if (pause !== undefined) await pause;
+      }
       return {
         head: remote,
-        records: validateRecords(
+        records: await validateRecordsAsync(
           values.sort((a, b) => a.transaction.sequence - b.transaction.sequence),
         ),
       };

@@ -3,8 +3,68 @@ import type { NodeAddress, NodeVersion } from './model.ts';
 import type { NodeCommit, NodeSnapshot, NodeDifference } from './store.ts';
 import type { NodeRecord } from './validation.ts';
 import { frozen, compare, canonical } from './json.ts';
+import { loadingTurns } from './loading.ts';
 
 export class NodeConflict extends Error {}
+
+// Private acceptance indexes. Loading extends these once per envelope; it never projects
+// every earlier snapshot. Feature payload interpretation remains with the owning module.
+function acceptanceState(records: readonly NodeRecord[] = []) {
+  const selected = new Map<string, NodeVersion>();
+  const transactions = new Map<string, NodeRecord>();
+  const versions = new Map<string, { sequence: number; version: NodeVersion }[]>();
+  const parents = new Map<string, Set<string>>();
+  const roots = new Set<string>();
+  let sequence = 0;
+  const append = (record: NodeRecord) => {
+    transactions.set(record.transaction.id, record);
+    ({ sequence } = record.transaction);
+    for (const version of record.versions) {
+      selected.set(version.key.node, version);
+      const history = versions.get(version.key.node) ?? [];
+      history.push({ sequence, version });
+      versions.set(version.key.node, history);
+      if (version.placement) {
+        const candidates = parents.get(version.placement.parent) ?? new Set<string>();
+        candidates.add(version.key.node);
+        parents.set(version.placement.parent, candidates);
+      } else roots.add(version.key.node);
+    }
+  };
+  for (const record of records) append(record);
+  const get = (node: string, cutoff: number): NodeVersion | undefined => {
+    if (cutoff === sequence) return selected.get(node);
+    const history = versions.get(node);
+    if (!history) return;
+    let start = 0;
+    let end = history.length;
+    while (start < end) {
+      const middle = (start + end) >>> 1;
+      if (history[middle].sequence <= cutoff) start = middle + 1;
+      else end = middle;
+    }
+    return history[start - 1]?.version;
+  };
+  const resolve = (address: NodeAddress, cutoff: number) => {
+    if (address.transaction === undefined) return get(address.node, cutoff);
+    const exactSequence = transactions.get(address.transaction)?.transaction.sequence;
+    if (exactSequence === undefined || exactSequence > cutoff) return;
+    const version = get(address.node, exactSequence);
+    return version?.key.transaction === address.transaction ? version : undefined;
+  };
+  return { selected, transactions, parents, roots, get, resolve, append, sequence: () => sequence };
+}
+
+// Only immutable accepted arrays are retained. CLI callers may still build mutable histories.
+const indexes = new WeakMap<readonly NodeRecord[], ReturnType<typeof acceptanceState>>();
+function indexedRecords(records: readonly NodeRecord[]) {
+  let index = indexes.get(records);
+  if (!index) {
+    index = acceptanceState(records);
+    if (Object.isFrozen(records)) indexes.set(records, index);
+  }
+  return index;
+}
 
 export function snapshotOf(records: readonly NodeRecord[], cutoff?: number): NodeSnapshot {
   const sequence = cutoff ?? records.at(-1)?.transaction.sequence ?? 0;
@@ -14,48 +74,46 @@ export function snapshotOf(records: readonly NodeRecord[], cutoff?: number): Nod
     sequence > (records.at(-1)?.transaction.sequence ?? 0)
   )
     throw new Error('Snapshot is outside recorded history');
-  const selected = new Map<string, NodeVersion>();
-  const exact = new Map<string, NodeVersion>();
-  const children = new Map<string, NodeVersion[]>();
-  for (const record of records) {
-    if (record.transaction.sequence > sequence) break;
-    for (const version of record.versions) {
-      selected.set(version.key.node, version);
-      exact.set(JSON.stringify([version.key.node, version.key.transaction]), version);
-    }
-  }
-  const roots: NodeVersion[] = [];
-  for (const version of selected.values()) {
-    if (version.data === null) continue;
-    if (!version.placement) {
-      roots.push(version);
-      continue;
-    }
-    const siblings = children.get(version.placement.parent) ?? [];
-    siblings.push(version);
-    children.set(version.placement.parent, siblings);
-  }
-  for (const siblings of children.values()) {
-    siblings.sort(
-      (a, b) => compare(a.placement!.order, b.placement!.order) || compare(a.key.node, b.key.node),
-    );
-    Object.freeze(siblings);
-  }
-  const empty = Object.freeze([]);
-  roots.sort((a, b) => compare(a.key.node, b.key.node));
-  const frozenRoots = Object.freeze(roots);
-  const resolve = (address: NodeAddress) =>
-    address.transaction === undefined
-      ? selected.get(address.node)
-      : exact.get(JSON.stringify([address.node, address.transaction]));
+  const index = indexedRecords(records);
+  const get = (node: string) => index.get(node, sequence);
+  const resolve = (address: NodeAddress) => index.resolve(address, sequence);
+  const children = new Map<string, readonly NodeVersion[]>();
+  const empty: readonly NodeVersion[] = Object.freeze([]);
+  let roots: readonly NodeVersion[] | undefined;
   return Object.freeze({
     sequence,
-    get: (node: string) => selected.get(node),
+    get,
     resolve,
-    roots: () => frozenRoots,
+    roots: () => {
+      roots ??= Object.freeze(
+        [...index.roots]
+          .flatMap((node) => {
+            const version = get(node);
+            return version?.data && !version.placement ? [version] : [];
+          })
+          .sort((a, b) => compare(a.key.node, b.key.node)),
+      );
+      return roots;
+    },
     children: (parent: string | NodeAddress) => {
       const address = typeof parent === 'string' ? { node: parent } : parent;
-      return resolve(address)?.data == null ? empty : (children.get(address.node) ?? empty);
+      if (resolve(address)?.data == null) return empty;
+      let siblings = children.get(address.node);
+      if (!siblings) {
+        siblings = Object.freeze(
+          [...(index.parents.get(address.node) ?? [])]
+            .flatMap((node) => {
+              const version = get(node);
+              return version?.data && version.placement?.parent === address.node ? [version] : [];
+            })
+            .sort(
+              (a, b) =>
+                compare(a.placement!.order, b.placement!.order) || compare(a.key.node, b.key.node),
+            ),
+        );
+        children.set(address.node, siblings);
+      }
+      return siblings;
     },
   });
 }
@@ -66,69 +124,71 @@ export function accept(
   requestDigest: string,
   recordedAt: string,
 ): NodeRecord {
-  const prior = records.find((r) => r.transaction.id === request.id);
+  return acceptIndexed(indexedRecords(records), request, requestDigest, recordedAt);
+}
+
+function acceptIndexed(
+  state: ReturnType<typeof acceptanceState>,
+  request: NodeCommit,
+  requestDigest: string,
+  recordedAt: string,
+): NodeRecord {
+  const prior = state.transactions.get(request.id);
   if (prior) {
     if (prior.requestDigest !== requestDigest)
       throw new Error('Transaction ID reused with different contents');
     return prior;
   }
-  const current = snapshotOf(records);
-  const selected = new Map<string, NodeVersion>();
-  for (const r of records) for (const v of r.versions) selected.set(v.key.node, v);
-  const changed = new Set<string>();
+  const changed = new Map<string, NodeVersion>();
+  const get = (node: string) => changed.get(node) ?? state.selected.get(node);
   const expect = (node: string, transaction: string | null) => {
-    if ((current.get(node)?.key.transaction ?? null) !== transaction)
+    if ((state.selected.get(node)?.key.transaction ?? null) !== transaction)
       throw new NodeConflict(`Conflict: ${node} changed since ${transaction ?? 'creation'}`);
   };
   for (const [node, transaction] of Object.entries(request.expectedReads ?? {}))
     expect(node, transaction);
   const versions = request.changes.map((change): NodeVersion => {
     if (changed.has(change.node)) throw new Error('Duplicate node identity');
-    changed.add(change.node);
     expect(change.node, change.expected);
-    if (change.data === null && !current.get(change.node))
+    if (change.data === null && !state.selected.has(change.node))
       throw new Error('Cannot delete a new identity');
-    return {
+    const version = {
       key: { node: change.node, transaction: request.id },
       placement: change.placement,
       connection: change.connection,
       data: change.data,
     };
+    changed.set(change.node, version);
+    return version;
   });
-  for (const version of versions) selected.set(version.key.node, version);
-  const exact = new Set(
-    records.flatMap((r) => r.versions.map((v) => JSON.stringify([v.key.node, v.key.transaction]))),
-  );
-  for (const version of versions)
-    exact.add(JSON.stringify([version.key.node, version.key.transaction]));
   for (const version of versions) {
-    if (version.placement && !selected.has(version.placement.parent))
+    if (version.placement && !get(version.placement.parent))
       throw new Error(`Unknown parent identity: ${version.placement.parent}`);
     if (version.connection)
       for (const endpoint of [version.connection.source, version.connection.target]) {
-        if (!selected.has(endpoint.node))
-          throw new Error(`Unknown node identity: ${endpoint.node}`);
+        if (!get(endpoint.node)) throw new Error(`Unknown node identity: ${endpoint.node}`);
         if (
           endpoint.transaction !== undefined &&
-          !exact.has(JSON.stringify([endpoint.node, endpoint.transaction]))
+          !(endpoint.transaction === request.id && changed.has(endpoint.node)) &&
+          !state.resolve(endpoint, state.sequence())
         )
           throw new Error(`Unknown exact version: ${endpoint.node} in ${endpoint.transaction}`);
       }
   }
-  if (!selected.has(request.recordedBy)) throw new Error('Unknown transaction author');
-  if (request.origin !== null && !selected.has(request.origin))
-    throw new Error('Unknown originating node');
-  if (request.undoOf !== null && !records.some((r) => r.transaction.id === request.undoOf))
+  if (!get(request.recordedBy)) throw new Error('Unknown transaction author');
+  if (request.origin !== null && !get(request.origin)) throw new Error('Unknown originating node');
+  if (request.undoOf !== null && !state.transactions.has(request.undoOf))
     throw new Error('Unknown undo transaction');
   // Only containment is acyclic. Target references may form ordinary graph cycles.
   const checked = new Set<string>();
-  for (const version of selected.values()) {
+  // The accepted prefix is acyclic: every new cycle must pass through a changed node.
+  for (const version of versions) {
     const path = new Set<string>();
     let cursor: NodeVersion | undefined = version;
     while (cursor && cursor.data !== null && !checked.has(cursor.key.node)) {
       if (path.has(cursor.key.node)) throw new Error('Containment cycle');
       path.add(cursor.key.node);
-      cursor = cursor.placement === null ? undefined : selected.get(cursor.placement.parent);
+      cursor = cursor.placement === null ? undefined : get(cursor.placement.parent);
     }
     for (const id of path) checked.add(id);
   }
@@ -136,7 +196,7 @@ export function accept(
     structuredClone({
       transaction: {
         id: request.id,
-        sequence: current.sequence + 1,
+        sequence: state.sequence() + 1,
         recordedAt,
         recordedBy: request.recordedBy,
         message: request.message,
@@ -157,52 +217,84 @@ export function validateRecords(
   values: readonly NodeRecord[],
   previous: readonly NodeRecord[] = [],
 ): readonly NodeRecord[] {
+  const work = validateHistory(values, previous);
+  let result = work.next();
+  while (!result.done) result = work.next();
+  return result.value;
+}
+
+/** Browser ingress uses the same validation, yielding between unpublished envelopes. */
+export async function validateRecordsAsync(
+  values: readonly NodeRecord[],
+  previous: readonly NodeRecord[] = [],
+): Promise<readonly NodeRecord[]> {
+  const turn = loadingTurns();
+  const work = validateHistory(values, previous);
+  let result = work.next();
+  while (!result.done) {
+    const pause = turn();
+    // biome-ignore lint/performance/noAwaitInLoops: an event-loop turn permits input and paint during loading.
+    if (pause !== undefined) await pause;
+    result = work.next();
+  }
+  return result.value;
+}
+
+function* validateHistory(
+  values: readonly NodeRecord[],
+  previous: readonly NodeRecord[],
+): Generator<void, readonly NodeRecord[]> {
   if (values.length < previous.length) throw new Error('Recorded history was removed');
   const checked: NodeRecord[] = [];
+  const state = acceptanceState(previous);
   for (const record of values) {
     const sequence = checked.length + 1;
     if (record.transaction.sequence !== sequence) throw new Error('Noncontiguous node history');
     const prior = previous[sequence - 1];
     if (prior) {
-      if (canonical(prior) !== canonical(record))
+      if (prior !== record && canonical(prior) !== canonical(record))
         throw new Error('Recorded transaction was rewritten');
       checked.push(prior);
+      yield;
       continue;
     }
-    const current = snapshotOf(checked);
     const { sequence: _sequence, recordedAt, ...transaction } = record.transaction;
     const request: NodeCommit = {
       ...transaction,
-      changes: record.versions.map(({ key, ...state }) => {
+      changes: record.versions.map(({ key, ...version }) => {
         if (key.transaction !== transaction.id)
           throw new Error('Version belongs to another transaction');
         return {
-          ...state,
+          ...version,
           node: key.node,
-          expected: current.get(key.node)?.key.transaction ?? null,
+          expected: state.selected.get(key.node)?.key.transaction ?? null,
         };
       }),
     };
-    const accepted = accept(checked, request, record.requestDigest, recordedAt);
+    const accepted = acceptIndexed(state, request, record.requestDigest, recordedAt);
     if (accepted.transaction.sequence !== sequence)
       throw new Error('Duplicate transaction identity');
-    checked.push(frozen(structuredClone(record)));
+    checked.push(accepted);
+    state.append(accepted);
+    yield;
   }
-  return Object.freeze(checked);
+  const records = Object.freeze(checked);
+  indexes.set(records, state);
+  return records;
 }
 
 export function differences(
   records: readonly NodeRecord[],
   transaction: string,
 ): readonly NodeDifference[] {
-  const record = records.find((value) => value.transaction.id === transaction);
+  const index = indexedRecords(records);
+  const record = index.transactions.get(transaction);
   if (!record) throw new Error('Unknown transaction');
-  const before = snapshotOf(records, record.transaction.sequence - 1);
   return Object.freeze(
     record.versions.map((after) =>
       Object.freeze({
         node: after.key.node,
-        before: before.get(after.key.node) ?? null,
+        before: index.get(after.key.node, record.transaction.sequence - 1) ?? null,
         after,
       }),
     ),

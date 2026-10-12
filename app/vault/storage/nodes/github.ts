@@ -1,7 +1,7 @@
 // GitHub is authoritative; local cache publication never counts as remote acceptance.
 import type { NodeBackend, NodeCommit } from '../../nodes/store.ts';
 import { parseCommit, parseRecord, type NodeRecord } from '../../nodes/validation.ts';
-import { accept, validateRecords } from '../../nodes/history.ts';
+import { accept, validateRecordsAsync } from '../../nodes/history.ts';
 import { canonical, digest } from '../../nodes/json.ts';
 import { nodeInterface, notifications } from '../../nodes/backend.ts';
 import { github, NotFastForward, REPO, API, type Repo } from '../github-client/api.ts';
@@ -127,7 +127,7 @@ export function githubNodeBackend(options: {
       loaded.push(...batch);
     }
     const accepted = newPaths.length
-      ? validateRecords(
+      ? await validateRecordsAsync(
           loaded.sort((a, b) => a.transaction.sequence - b.transaction.sequence),
           records,
         )
