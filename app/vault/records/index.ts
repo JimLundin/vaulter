@@ -3,7 +3,6 @@
 import type { z } from 'zod';
 import type { JsonObject } from '../nodes/model.ts';
 import { canonical, frozen } from '../nodes/json.ts';
-import { wikiSchemas } from './wiki.ts';
 import { graphSchemas } from './graph.ts';
 import { calendarSchemas } from './calendar.ts';
 import { decisionSchemas, questionSchemas, taskSchemas } from './lifecycle.ts';
@@ -11,7 +10,6 @@ import { referenceSchemas } from './references.ts';
 import { identitySchemas } from './identities.ts';
 
 export const recordSchemas: Readonly<Record<string, z.ZodType>> = {
-  ...wikiSchemas,
   ...graphSchemas,
   ...calendarSchemas,
   ...taskSchemas,

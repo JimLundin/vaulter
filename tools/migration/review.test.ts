@@ -71,6 +71,71 @@ test('retrieval follows structural sources but does not turn lexical overlap int
   ).toEqual([]);
 });
 
+test('retrieval reads Resource and independently owned Content sources through their owners', async () => {
+  const records = await fixture();
+  const commit = request('retained-sources', [
+    create('resource-paragraph', { kind: 'paragraph' }, 'resource'),
+    create(
+      'resource-words',
+      { kind: 'run', text: 'The studio keeps quiet mornings free for planning.' },
+      'resource-paragraph',
+    ),
+    create('report', {
+      kind: 'content',
+      title: 'Planning report',
+      text: 'The studio keeps quiet mornings free for planning.',
+    }),
+    {
+      ...create('report-link', { kind: 'relationship', predicate: 'source' }, 'page'),
+      connection: { source: { node: 'page' }, target: { node: 'report' } },
+    },
+  ]);
+  const retained = [
+    ...records,
+    accept(records, commit, await digest(commit), '2026-10-11T13:00:00Z'),
+  ];
+  const packet = prepareReviews(retained).find((entry) => entry.page === 'page')!;
+  expect(packet.unavailableSources).toBe(0);
+  const { candidates } = packet.blocks[0];
+  expect(candidates).toContainEqual(
+    expect.objectContaining({
+      address: { node: 'resource-paragraph', transaction: 'retained-sources' },
+      title: 'https://example.com',
+      sequence: 2,
+    }),
+  );
+  expect(candidates).toContainEqual(
+    expect.objectContaining({
+      address: { node: 'report', transaction: 'retained-sources' },
+      title: 'Planning report',
+      kind: 'capture',
+      sequence: 2,
+    }),
+  );
+  const selected = candidates.findIndex((candidate) => candidate.address.node === 'report');
+  const compiled = compileReviews(
+    retained,
+    [packet],
+    [
+      {
+        page: 'page',
+        rejected: 'Other passages omitted.',
+        citations: [
+          {
+            claim: 'claim',
+            claimQuote: 'quiet mornings',
+            candidate: selected,
+            passageQuote: 'quiet mornings',
+            rationale: 'The independently retained report supports the statement.',
+          },
+        ],
+      },
+    ],
+    'user',
+  );
+  expect(compiled.citations[0].passage.address.node).toBe('report');
+});
+
 test('agent verbatim selections compile into exact UTF-16 selections and reject fabricated candidates', async () => {
   const records = await fixture();
   const packets = prepareReviews(records);

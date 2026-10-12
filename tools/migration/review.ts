@@ -3,12 +3,13 @@ import { z } from 'zod';
 import { snapshotOf } from '../../app/vault/nodes/history.ts';
 import type { NodeVersion } from '../../app/vault/nodes/model.ts';
 import type { NodeRecord } from '../../app/vault/nodes/validation.ts';
-import { recordText } from '../../app/vault/records/text.ts';
-import { isWikiContent, selectText } from '../../app/vault/records/citations.ts';
+import { recordText } from '../../app/workflows/wiki/text.ts';
+import { isWikiContent, selectText } from '../../app/workflows/wiki/citations.ts';
 import { canonical } from '../../app/vault/nodes/json.ts';
 import type { EvidenceReview } from './enrichment.ts';
-import { pageReferenceLinks } from '../../app/workflows/wiki/references.ts';
-import { validateEvidence } from './evidence.ts';
+import { pageReferenceLinks, wikiClaims } from '../../app/workflows/wiki/references.ts';
+import { validateEvidence } from '../../app/workflows/wiki/evidence.ts';
+import { migrationSources, selectedCitations } from './wiki.ts';
 
 export interface ReviewPassage {
   address: { node: string; transaction: string };
@@ -79,29 +80,10 @@ export function prepareReviews(records: readonly NodeRecord[]): ReviewPacket[] {
   const packets: ReviewPacket[] = [];
   for (const page of pages) {
     const nodes = descendants(page);
-    const sourceLinks = pageReferenceLinks(page, view);
-    const sourceSectionNodes = new Set<string>();
-    const markReferences = (node: NodeVersion, within = false) => {
-      const children = view.children(node.key.node);
-      const heading = node.data?.kind === 'section' ? children[0] : undefined;
-      const inside =
-        within ||
-        !!(
-          heading &&
-          /^(references?|sources?|provenance)\s*:?$/i.test(recordText(heading, view).trim())
-        );
-      if (inside) sourceSectionNodes.add(node.key.node);
-      for (const child of children) markReferences(child, inside);
-    };
-    markReferences(page);
-    const claims = nodes
-      .filter(
-        (node) =>
-          ['paragraph', 'item', 'cell'].includes(String(node.data?.kind)) &&
-          !sourceSectionNodes.has(node.key.node),
-      )
-      .map((node) => ({ node, text: recordText(node, view) }))
-      .filter(({ text }) => termsOf(text).size >= 4 && text.length >= 35);
+    const sourceLinks = pageReferenceLinks(page, view, migrationSources);
+    const claims = wikiClaims(page, view, migrationSources).filter(
+      ({ text }) => termsOf(text).size >= 4 && text.length >= 35,
+    );
     const pool: ReviewPassage[] = [];
     const collected = new Set<string>();
     let unavailableSources = 0;
@@ -111,21 +93,17 @@ export function prepareReviews(records: readonly NodeRecord[]): ReviewPacket[] {
       collected.add(key);
       if (target.key.node === page.key.node) return;
       const snapshot = at(sequence);
-      const title = String(pageOf(target)?.data?.title ?? target.data?.title ?? 'Capture');
-      const kind = String(target.data?.kind);
+      const description = migrationSources.describe(target, snapshot);
+      const title = description?.title || 'Capture';
       if (isWikiContent(target, snapshot)) return;
-      if (
-        ![
-          'page',
-          'section',
-          'paragraph',
-          'item',
-          'run',
-          'message',
-          'exchange',
-          'conversation',
-        ].includes(kind)
-      ) {
+      let rootText: string;
+      try {
+        rootText = recordText(target, snapshot, migrationSources);
+      } catch {
+        unavailableSources++;
+        return;
+      }
+      if (!rootText) {
         unavailableSources++;
         return;
       }
@@ -135,9 +113,12 @@ export function prepareReviews(records: readonly NodeRecord[]): ReviewPacket[] {
           ['paragraph', 'message'].includes(String(node.data?.kind)) ||
           (node === target && ['item', 'run'].includes(String(node.data?.kind))),
       );
+      // Source owners may keep prose directly on the root rather than in Wiki text descendants.
+      if (!sources.length) sources.push(target);
       for (const source of sources) {
         if (isWikiContent(source, snapshot)) continue;
-        const context = recordText(source, snapshot);
+        const context = recordText(source, snapshot, migrationSources);
+        const sourceDescription = migrationSources.describe(source, snapshot);
         // Messages are chunked for retrieval; all offsets remain in the complete message projection.
         const parts =
           source.data?.kind === 'message'
@@ -152,8 +133,14 @@ export function prepareReviews(records: readonly NodeRecord[]): ReviewPacket[] {
             address: source.key,
             sequence,
             title,
-            kind: source.data?.kind === 'message' ? 'message' : 'page',
-            ...(typeof source.data?.role === 'string' ? { role: source.data.role } : {}),
+            kind:
+              source.data?.kind === 'message'
+                ? 'message'
+                : source === target &&
+                    !['paragraph', 'item', 'run'].includes(String(source.data?.kind))
+                  ? 'capture'
+                  : 'page',
+            ...(sourceDescription?.speaker ? { role: sourceDescription.speaker } : {}),
             text,
             start: part.index ?? 0,
             association,
@@ -188,7 +175,7 @@ export function prepareReviews(records: readonly NodeRecord[]): ReviewPacket[] {
       if (['page', 'section'].includes(String(target.data.kind))) {
         const parent = pageOf(target);
         if (parent && parent.key.node !== page.key.node) {
-          for (const ref of pageReferenceLinks(parent, view)) {
+          for (const ref of pageReferenceLinks(parent, view, migrationSources)) {
             const source = ref.connection && view.resolve(ref.connection.target);
             if (
               source?.data &&
@@ -294,14 +281,14 @@ export function compileReviews(
         },
         quote: selection.passageQuote,
       };
-      if (selectText(claim.address, claim.selection, view).text !== claim.quote)
+      if (selectText(claim.address, claim.selection, view, migrationSources).text !== claim.quote)
         throw new Error('Claim packet differs from historical projection');
       let historical = snapshots.get(candidate.sequence);
       if (!historical) {
         historical = snapshotOf(records, candidate.sequence);
         snapshots.set(candidate.sequence, historical);
       }
-      const selected = selectText(passage.address, passage.selection, historical);
+      const selected = selectText(passage.address, passage.selection, historical, migrationSources);
       if (selected.text !== passage.quote)
         throw new Error('Source packet differs from historical projection');
       citations.push({ claim, passage, rationale: selection.rationale });
@@ -315,6 +302,18 @@ export function compileReviews(
           canonical({ claim: entry.claim, passage: entry.passage }),
       ) === index,
   );
-  validateEvidence(records, unique);
+  validateEvidence(
+    view,
+    (sequence) => {
+      let historical = snapshots.get(sequence);
+      if (!historical) {
+        historical = snapshotOf(records, sequence);
+        snapshots.set(sequence, historical);
+      }
+      return historical;
+    },
+    unique,
+    selectedCitations(records, view),
+  );
   return { format: 1, reviewer, citations: unique };
 }

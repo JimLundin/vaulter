@@ -44,6 +44,8 @@ test('History expands a transaction and confirms guarded compensation without re
   await input.fill('vault it: keep mornings quiet');
   await input.press('Enter');
   await expect(page.getByText('Filed in', { exact: false })).toBeVisible();
+  // The visible reply streams before terminal acceptance; navigation must retain the completed reply.
+  await expect(page.getByRole('button', { name: 'Stop', exact: true })).toBeHidden();
   await page.goto('/preview/#/history/');
   const update = page.getByRole('button', { name: 'Update Preview thought', exact: true });
   await update.click();

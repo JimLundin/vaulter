@@ -17,20 +17,10 @@ import { unified } from 'unified';
 import { snapshotOf, validateRecords } from '../../app/vault/nodes/history.ts';
 import type { JsonObject, JsonValue, NodeVersion } from '../../app/vault/nodes/model.ts';
 import { type NodeRecord, parseRecord } from '../../app/vault/nodes/validation.ts';
-import { parseVaultRecord } from '../../app/vault/records/index.ts';
-import { containment } from '../../app/vault/records/wiki.ts';
-import {
-  parseMetadata,
-  parseMetadataReference,
-} from '../../app/workflows/chat/records/chat-metadata-schema.ts';
-import {
-  parseChatReference,
-  parseConversation,
-  parseExchange,
-  parseMessage,
-} from '../../app/workflows/chat/records/chat-schema.ts';
+import { containment } from '../../app/workflows/wiki/records.ts';
 import { asObject, json, list } from './records.ts';
 import { NODE_PREFIX, openSource } from './source.ts';
+import { parseMigrationRecord } from './wiki.ts';
 
 const option = (name: string, fallback: string) => {
   const i = process.argv.indexOf(`--${name}`);
@@ -61,21 +51,13 @@ const reason = (error: unknown) => (error instanceof Error ? error.message : Str
 const kindOf = (data: JsonObject | null | undefined) => (data ? String(data.kind) : '');
 
 // 1. Every version parses with its owning schema.
-const chatParsers: Record<string, (value: unknown) => unknown> = {
-  conversation: parseConversation,
-  exchange: parseExchange,
-  message: parseMessage,
-  reference: parseChatReference,
-  observation: parseMetadata,
-  metadataReference: parseMetadataReference,
-};
 let versions = 0;
 for (const r of history)
   for (const v of r.versions) {
     if (v.data === null) continue;
     versions++;
     try {
-      (chatParsers[kindOf(v.data)] ?? parseVaultRecord)(v.data);
+      parseMigrationRecord(v.data);
     } catch (error) {
       fail(`${r.transaction.sequence} ${kindOf(v.data)}: ${reason(error).slice(0, 200)}`);
     }

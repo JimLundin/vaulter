@@ -12,12 +12,15 @@ app/
   application-identities.ts  configured stable caller identities and atomic bootstrap
   workflows/
     chat/                    node conversations, composed Agent acceptance, draft lifetime, views, tests
+    wiki/                    page/block/citation definitions, preparation, historical reading, views
     rename-note/             rename operation, reference rewrites, model adapter, tests
     history/                 attributed transaction views, reading and guarded compensation
   vault/
     index.ts                 live vault interface and session
     nodes/                   immutable node model, acceptance, snapshots, memory adapter
     content/                 module-owned node content operations and tools
+    records/                 retained kinds awaiting modules, their validation and source reading
+    sources.ts               shared historical source-reading types
     documents/               notes, schema, links, graph, capture format, search
     validation/              permanent note and graph rules
     changes/                 persisted shared staging and checked writes
@@ -207,8 +210,9 @@ are checked by the same compiler-backed policies. The kit owns delegated hover d
 dismissal while application UI resolves links to supplied preview text.
 
 Wiki owns `WikiPageView`: typed `WikiPage`/`WikiBlock`/`WikiReference` projections, title and
-classification actions, connections, questions and reference selection. Product still reads through
-`readWiki` and supplies foreign-record routes; rendering does not load a store or execute an Agent.
+classification actions, connections, questions and reference selection. Its reading lifetime owns
+subscriptions, loading/error state and stale-read rejection. Product supplies the store and source
+readers; rendering does not load a store or execute an Agent.
 The view composes shared reading/page/section presentation and `SupportingPane`; a selection key
 resets the pane's scroll owner without querying its DOM. Source context remains mounted across
 responsive changes. Wiki semantic renderers may emit approved document markup and safe links;
@@ -338,7 +342,8 @@ files. A non-forced ref update is definitive acceptance; stale expectations reje
 remote races retry. Dexie is a plaintext rebuildable cache, not a separate source of authority.
 The [storage guide](docs/node-storage.md) and [persistence decision](docs/adr/0003-github-node-persistence.md)
 describe retry, ordering, offline, device storage, and history-size semantics. Chat/Agent produce nodes;
-History reads accepted node transactions and Search indexes legacy documents. [Consumer contracts](docs/node-consumers.md)
+History reads accepted node transactions and Search consumes Wiki entries with a legacy-document
+fallback during startup. [Consumer contracts](docs/node-consumers.md)
 live with their owning workflows: `workflows/chat/records/` holds Chat payloads, lossless schemas,
 acceptance requests, saved-message projections and its transcript-preservation policy;
 `workflows/history/nodes.ts` holds attributed History differences and compensation. Product supplies
@@ -351,6 +356,25 @@ History never imports execution/transcript producers. New Chat metadata is obser
 and Interpretations. Historical Agent metadata still decodes through Agent-owned schemas, preserving
 unknown JSON and older containment without rewriting records. Sensor collection and Vault migration
 remain separate work.
+
+## Wiki record ownership
+
+`workflows/wiki/records.ts` owns page, block, inline and Citation definitions and containment.
+Its pure reading and preparation entries are available to migration without React or browser
+dependencies. Only `kind: 'page'` records enter Wiki collections, queries and page routes.
+Content records remain independent source material and appear through historical citations.
+
+Wiki owns UTF-16 selections, source eligibility, current-claim applicability, provenance and
+evidence validation, and reference construction. Chat, Agent, Content and retained record readers
+interpret their own historical text and descriptions through the shared `vault/sources.ts` contract.
+Product and `tools/migration/wiki.ts` explicitly compose those readers. Wiki owns its block/inline
+text grammar even beneath foreign sources; historical page ancestry determines source exclusion.
+
+Migration retains Git reading, review packets and ranking, deterministic identities, authorship,
+envelopes and reports. It consumes Wiki preparation and validates an exact baseline before output;
+prepared descendant version expectations alone cannot detect newly inserted children. Wiki never
+imports migration or foreign source implementations. The compiler-resolved layout policy enforces
+these boundaries, and generic Vault records no longer import or re-export Wiki definitions.
 
 ## Chat record UI and shared presentation
 

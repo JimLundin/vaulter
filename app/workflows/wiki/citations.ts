@@ -1,8 +1,9 @@
 import type { z } from 'zod';
-import type { NodeAddress, NodeVersion } from '../nodes/model.ts';
-import type { NodeSnapshot } from '../nodes/store.ts';
-import { citation, textSelection } from './wiki.ts';
+import type { NodeAddress, NodeVersion } from '../../vault/nodes/model.ts';
+import type { NodeSnapshot } from '../../vault/nodes/store.ts';
+import { citation, textSelection } from './records.ts';
 import { recordText } from './text.ts';
+import type { SourceReader } from '../../vault/sources.ts';
 
 export type TextSelection = z.infer<typeof textSelection>;
 export interface SelectedText {
@@ -29,6 +30,7 @@ export function selectText(
   address: NodeAddress,
   selection: TextSelection,
   view: NodeSnapshot,
+  sources: SourceReader,
 ): SelectedText {
   textSelection.parse(selection);
   if (!address.transaction) throw new Error('Text selections require exact endpoints');
@@ -36,7 +38,7 @@ export function selectText(
   const node = view.resolve(address);
   if (!node?.data || view.get(address.node)?.key.transaction !== address.transaction)
     throw new Error('Endpoint was not live at the selected snapshot');
-  const context = recordText(node, view);
+  const context = recordText(node, view, sources);
   const boundary = (offset: number) => {
     if (offset === 0 || offset === context.length) return true;
     const before = context.charCodeAt(offset - 1);
@@ -52,16 +54,39 @@ export function selectText(
 export function readCitation(
   node: NodeVersion,
   snapshot: (sequence: number) => NodeSnapshot,
+  sources: SourceReader,
 ): { claim: SelectedText; passage: SelectedText } {
   const data = citation.parse(node.data);
   if (!('claim' in data)) throw new Error('Citation has no passage selection');
   if (!node.connection) throw new Error('Citation requires a connection');
   const source = snapshot(data.passage.sequence);
-  const passage = selectText(node.connection.target, data.passage, source);
+  const passage = selectText(node.connection.target, data.passage, source, sources);
   if (isWikiContent(passage.node, source))
     throw new Error('Wiki content is distilled material, not a citation source');
   return {
-    claim: selectText(node.connection.source, data.claim, snapshot(data.claim.sequence)),
+    claim: selectText(node.connection.source, data.claim, snapshot(data.claim.sequence), sources),
     passage,
   };
+}
+
+/** Page provenance selects one exact source in its retained Snapshot. */
+export function validatePageReference(
+  node: NodeVersion,
+  snapshot: (sequence: number) => NodeSnapshot,
+  sources: SourceReader,
+): NodeVersion {
+  const data = citation.parse(node.data);
+  if (!('scope' in data)) throw new Error('Citation is not a page reference');
+  if (!node.connection?.target.transaction)
+    throw new Error('Page references require exact endpoints');
+  const view = snapshot(data.sequence);
+  if (view.sequence !== data.sequence) throw new Error('Page reference snapshot does not match');
+  const source = view.resolve(node.connection.target);
+  if (!source?.data || view.get(source.key.node)?.key.transaction !== source.key.transaction)
+    throw new Error('Page reference snapshot does not select its exact endpoint');
+  if (isWikiContent(source, view))
+    throw new Error('Wiki content is distilled material, not a citation source');
+  // Reading the source makes unsupported source formats explicit, even without a selected range.
+  recordText(source, view, sources);
+  return source;
 }

@@ -2,6 +2,33 @@ import { expect, test } from 'vitest';
 import { memoryNodeBackend } from '../../vault/nodes/memory.ts';
 import { create, request, revise } from '../../vault/nodes/fixtures.test-support.ts';
 import { readWiki } from './pages.ts';
+import type { SourceReader } from '../../vault/sources.ts';
+
+// Supplied source adapter: Wiki verifies historical selection, not foreign payload decoding.
+const sources: SourceReader = {
+  text(node, { view, textOf }) {
+    if (['message', 'content'].includes(String(node.data?.kind)))
+      return String(node.data?.text ?? '');
+    if (['conversation', 'exchange'].includes(String(node.data?.kind)))
+      return view.children(node.key).map(textOf).filter(Boolean).join('\n');
+    if (node.data?.kind === 'relationship') return '';
+  },
+  describe(node, view) {
+    let ancestor = node;
+    const seen = new Set<string>();
+    while (ancestor.placement && !seen.has(ancestor.key.node)) {
+      seen.add(ancestor.key.node);
+      const parent = view.get(ancestor.placement.parent);
+      if (!parent?.data) break;
+      ancestor = parent;
+    }
+    return {
+      title: String(node.data?.title ?? ancestor.data?.title ?? 'Reference'),
+      href: ancestor.data?.kind === 'conversation' ? `#/chat/${ancestor.key.node}/` : undefined,
+      capture: ['message', 'exchange'].includes(String(node.data?.kind)),
+    };
+  },
+};
 
 test('exact composite citations retain source children and author at the original snapshot', async () => {
   const nodes = memoryNodeBackend();
@@ -30,7 +57,7 @@ test('exact composite citations retain source children and author at the origina
     ]),
   );
   await nodes.commit(request('removed', [await revise(nodes, 'message', null)]));
-  const pages = await readWiki(nodes, (node) => `#/chat/${node}/`);
+  const pages = await readWiki(nodes, sources);
   expect(pages[0]?.blocks[0]?.evidence[0]).toMatchObject({
     text: 'Original quiet mornings.',
     author: 'Original author',
@@ -62,7 +89,7 @@ test('Wiki resolves ordered blocks, internal links and migrated live page querie
       },
     ]),
   );
-  const pages = await readWiki(nodes);
+  const pages = await readWiki(nodes, sources);
   const index = pages.find((page) => page.id === 'page')!;
   expect(index.blocks.map((block) => block.id)).toEqual(['query', 'paragraph']);
   expect(index.blocks[1]?.children[0]?.href).toBe('#/wiki/place/');
@@ -132,7 +159,7 @@ test('Wiki separates classifications and page provenance from statement support'
       },
     ]),
   );
-  const wiki = await readWiki(nodes, (id) => `#/chat/${id}/`);
+  const wiki = await readWiki(nodes, sources);
   const page = wiki.find((entry) => entry.id === 'page')!;
   expect(page.metadata).toMatchObject([
     { scheme: 'area', key: 'work', label: 'Work', state: 'resolved' },
@@ -158,13 +185,13 @@ test('Wiki separates classifications and page provenance from statement support'
       await revise(nodes, 'source-words', { kind: 'run', text: 'Different schedule.' }),
     ]),
   );
-  const changed = (await readWiki(nodes)).find((entry) => entry.id === 'page')!;
+  const changed = (await readWiki(nodes, sources)).find((entry) => entry.id === 'page')!;
   expect(changed.blocks[0].evidence[0]).toMatchObject({
     text: 'Keep mornings free.',
     state: 'newer',
   });
   await nodes.commit(request('remove-source', [await revise(nodes, 'passage', null)]));
-  const deleted = (await readWiki(nodes)).find((entry) => entry.id === 'page')!;
+  const deleted = (await readWiki(nodes, sources)).find((entry) => entry.id === 'page')!;
   expect(deleted.blocks[0].evidence[0]).toMatchObject({
     context: 'Plan: Keep mornings free. End.',
     state: 'deleted',
@@ -172,9 +199,9 @@ test('Wiki separates classifications and page provenance from statement support'
   await nodes.commit(
     request('edit-claim', [await revise(nodes, 'b', { kind: 'run', text: 'afternoons free.' })]),
   );
-  expect((await readWiki(nodes)).find((entry) => entry.id === 'page')!.blocks[0].evidence).toEqual(
-    [],
-  );
+  expect(
+    (await readWiki(nodes, sources)).find((entry) => entry.id === 'page')!.blocks[0].evidence,
+  ).toEqual([]);
   nodes.close();
 });
 
@@ -205,10 +232,94 @@ test('historical sources remain exact beyond a full page of transaction history'
       ]),
     );
   }
-  const [page] = await readWiki(nodes);
+  const [page] = await readWiki(nodes, sources);
   expect(page.blocks[0].evidence[0]).toMatchObject({
     text: 'Original passage.',
     author: 'Original author',
+    state: 'newer',
+  });
+  nodes.close();
+});
+
+test('Wiki lists only its pages while foreign content stays available as historical evidence', async () => {
+  const nodes = memoryNodeBackend();
+  await nodes.commit(
+    request('original', [
+      create('user', { kind: 'actor', name: 'Author' }),
+      create('page', { kind: 'page', title: 'Wiki knowledge' }),
+      create('claim', { kind: 'paragraph' }, 'page'),
+      create('words', { kind: 'run', text: 'Keep mornings free.' }, 'claim'),
+      create('report', {
+        kind: 'content',
+        title: 'Source report',
+        text: 'Original quiet mornings.',
+      }),
+      create('query', { kind: 'query', sort: 'title' }, 'page'),
+      {
+        ...create('evidence', { kind: 'cite' }, 'claim'),
+        connection: {
+          source: { node: 'claim' },
+          target: { node: 'report', transaction: 'original' },
+        },
+      },
+    ]),
+  );
+  await nodes.commit(
+    request('edit', [
+      await revise(nodes, 'report', {
+        kind: 'content',
+        title: 'Changed report',
+        text: 'Later afternoons.',
+      }),
+    ]),
+  );
+  const pages = await readWiki(nodes, sources);
+  expect(pages.map((page) => page.id)).toEqual(['page']);
+  expect(
+    pages[0].blocks.find((block) => block.id === 'query')?.children.map((block) => block.id),
+  ).toEqual(['query:page']);
+  expect(pages[0].blocks.find((block) => block.id === 'claim')?.evidence[0]).toMatchObject({
+    title: 'Source report',
+    context: 'Original quiet mornings.',
+    state: 'newer',
+  });
+  expect(pages[0].blocks.find((block) => block.id === 'claim')?.evidence[0]?.href).toBeUndefined();
+  await nodes.commit(request('remove', [await revise(nodes, 'report', null)]));
+  const deleted = await readWiki(nodes, sources);
+  expect(deleted[0].blocks.find((block) => block.id === 'claim')?.evidence[0]).toMatchObject({
+    title: 'Source report',
+    context: 'Original quiet mornings.',
+    state: 'deleted',
+  });
+  nodes.close();
+});
+
+test('a newer unsupported source descendant preserves its supported historical quotation', async () => {
+  const nodes = memoryNodeBackend();
+  await nodes.commit(
+    request('original', [
+      create('user', { kind: 'actor' }),
+      create('page', { kind: 'page', title: 'Studio' }),
+      create('claim', { kind: 'paragraph' }, 'page'),
+      create('words', { kind: 'run', text: 'Quiet mornings.' }, 'claim'),
+      create('source', { kind: 'conversation', title: 'Planning' }),
+      create('source-words', { kind: 'run', text: 'Original quiet mornings.' }, 'source'),
+      {
+        ...create('citation', { kind: 'cite' }, 'claim'),
+        connection: {
+          source: { node: 'claim' },
+          target: { node: 'source', transaction: 'original' },
+        },
+      },
+    ]),
+  );
+  await nodes.commit(
+    request('new-format', [create('future', { kind: 'future-record' }, 'source')]),
+  );
+  const [page] = await readWiki(nodes, sources);
+  expect(page.blocks[0].evidence[0]).toMatchObject({
+    title: 'Planning',
+    text: 'Original quiet mornings.',
     state: 'newer',
   });
   nodes.close();

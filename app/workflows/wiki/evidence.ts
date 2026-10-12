@@ -1,39 +1,42 @@
-// Evidence review integrity shared by packet compilation and append-only enrichment.
-import { snapshotOf } from '../../app/vault/nodes/history.ts';
-import type { NodeAddress, NodeVersion } from '../../app/vault/nodes/model.ts';
-import type { NodeRecord } from '../../app/vault/nodes/validation.ts';
-import type { TextSelection } from '../../app/vault/records/citations.ts';
-import { citation } from '../../app/vault/records/wiki.ts';
+// Wiki evidence integrity is independent of storage history envelopes and migration review files.
+import type { NodeAddress, NodeVersion } from '../../vault/nodes/model.ts';
+import type { NodeSnapshot } from '../../vault/nodes/store.ts';
+import type { TextSelection } from './citations.ts';
+import { citation } from './records.ts';
 
-interface EvidenceEndpoint {
-  address: NodeAddress;
-  selection: TextSelection;
+export interface EvidenceEndpoint {
+  readonly address: NodeAddress;
+  readonly selection: TextSelection;
 }
 export interface EvidencePair {
-  claim: EvidenceEndpoint;
-  passage: EvidenceEndpoint;
+  readonly claim: EvidenceEndpoint;
+  readonly passage: EvidenceEndpoint;
 }
 
-/** Normalize inline selections to their text block, so run → paragraph → run cannot hide a cycle.
- * Keep identities across snapshots: an older copy of the same summary is not independent evidence. */
-export function auditEvidence(records: readonly NodeRecord[], pairs: readonly EvidencePair[]) {
-  const snapshots = new Map<number, ReturnType<typeof snapshotOf>>();
+/** Normalize inline selections to their text block. Identity survives historical snapshots:
+ * an older copy of the same summary is not independent evidence. */
+export function auditEvidence(
+  snapshot: (sequence: number) => NodeSnapshot,
+  pairs: readonly EvidencePair[],
+) {
   const endpoint = ({ address, selection }: EvidenceEndpoint) => {
-    let view = snapshots.get(selection.sequence);
-    if (!view) {
-      view = snapshotOf(records, selection.sequence);
-      snapshots.set(selection.sequence, view);
-    }
+    const view = snapshot(selection.sequence);
     let node = view.resolve(address);
     if (!node?.data) throw new Error('Evidence endpoint is unavailable');
     let block = node.key.node;
+    const seen = new Set<string>();
     while (['run', 'link'].includes(String(node.data?.kind)) && node.placement) {
+      if (seen.has(node.key.node)) break;
+      seen.add(node.key.node);
       const parent: NodeVersion | undefined = view.get(node.placement.parent);
       if (!parent?.data) break;
       node = parent;
       block = node.key.node;
     }
+    seen.clear();
     while (node.placement && node.data?.kind !== 'page') {
+      if (seen.has(node.key.node)) break;
+      seen.add(node.key.node);
       const parent: NodeVersion | undefined = view.get(node.placement.parent);
       if (!parent?.data) break;
       node = parent;
@@ -76,30 +79,32 @@ export function auditEvidence(records: readonly NodeRecord[], pairs: readonly Ev
   };
 }
 
-export function validateEvidence(records: readonly NodeRecord[], pairs: readonly EvidencePair[]) {
-  // Include existing statement citations so later enrichment cannot close a previously open chain.
-  const view = snapshotOf(records);
+/** Include every selected statement Citation, even one beneath a deleted container.
+ * Snapshot containment traversal alone cannot enumerate those retained live records. */
+export function validateEvidence(
+  view: NodeSnapshot,
+  snapshot: (sequence: number) => NodeSnapshot,
+  pairs: readonly EvidencePair[],
+  existingCitations: readonly NodeVersion[],
+) {
   const existing: EvidencePair[] = [];
-  for (const record of records)
-    for (const node of record.versions) {
-      if (
-        view.get(node.key.node)?.key.transaction !== node.key.transaction ||
-        node.data?.kind !== 'cite' ||
-        !node.connection ||
-        !node.data.claim ||
-        !node.data.passage
-      )
-        continue;
-      // These records share the canonical selection schema with newly reviewed pairs.
-      const data = citation.parse(node.data);
-      if (!('claim' in data)) continue;
-      const { claim, passage } = data;
-      existing.push({
-        claim: { address: node.connection.source, selection: claim },
-        passage: { address: node.connection.target, selection: passage },
-      });
-    }
-  const audit = auditEvidence(records, [...existing, ...pairs]);
+  for (const node of existingCitations) {
+    if (
+      view.get(node.key.node)?.key.transaction !== node.key.transaction ||
+      node.data?.kind !== 'cite' ||
+      !node.connection ||
+      !node.data.claim ||
+      !node.data.passage
+    )
+      continue;
+    const data = citation.parse(node.data);
+    if (!('claim' in data)) continue;
+    existing.push({
+      claim: { address: node.connection.source, selection: data.claim },
+      passage: { address: node.connection.target, selection: data.passage },
+    });
+  }
+  const audit = auditEvidence(snapshot, [...existing, ...pairs]);
   if (audit.wikiSources.length)
     throw new Error('Wiki content is distilled material, not a citation source');
   if (audit.self.length) throw new Error('Evidence cannot cite its own page or text block');

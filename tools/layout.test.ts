@@ -27,6 +27,55 @@ test('the dependency policy rejects cross-workflow imports and private kit acces
   );
 });
 
+test('Wiki owns its records while migration and source readers stay outside its implementation', () => {
+  expect(importProblem('app/workflows/wiki/records.ts', 'tools/migration/records.ts')).toContain(
+    'migration depends on Wiki',
+  );
+  expect(importProblem('app/workflows/wiki/pages.ts', 'app/agent/sources.ts')).toContain(
+    'source interpretation',
+  );
+  expect(importProblem('app/workflows/wiki/pages.ts', 'app/vault/content/sources.ts')).toContain(
+    'source interpretation',
+  );
+  expect(importProblem('app/workflows/wiki/pages.ts', 'app/vault/records/sources.ts')).toContain(
+    'source interpretation',
+  );
+  expect(importProblem('app/vault/records/index.ts', 'app/workflows/wiki/records.ts')).toContain(
+    'optional workflow',
+  );
+  expect(importProblem('app/product.tsx', 'app/workflows/wiki/records.ts')).toBeNull();
+  expect(importProblem('app/workflows/wiki/pages.ts', 'app/vault/sources.ts')).toBeNull();
+});
+
+test('compiler resolution rejects aliased and re-exported Wiki dependencies on migration', () => {
+  const root = mkdtempSync(join(tmpdir(), 'vaulter-wiki-ownership-'));
+  try {
+    mkdirSync(join(root, 'app/workflows/wiki'), { recursive: true });
+    mkdirSync(join(root, 'tools/migration'), { recursive: true });
+    writeFileSync(
+      join(root, 'tsconfig.json'),
+      JSON.stringify({
+        compilerOptions: {
+          module: 'ESNext',
+          moduleResolution: 'Bundler',
+          paths: { 'migration/*': ['./tools/migration/*'] },
+        },
+        include: ['app', 'tools'],
+      }),
+    );
+    writeFileSync(join(root, 'tools/migration/records.ts'), 'export const value = 1;');
+    writeFileSync(
+      join(root, 'app/workflows/wiki/records.ts'),
+      "export { value } from 'migration/records.ts';",
+    );
+    expect(checkLayout(root)).toEqual([
+      'app/workflows/wiki/records.ts imports tooling; migration depends on Wiki, never Wiki on migration',
+    ]);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('compiler-resolved aliases, dynamic imports and re-exports cannot hide a workflow dependency', () => {
   const root = mkdtempSync(join(tmpdir(), 'vaulter-import-policy-'));
   try {

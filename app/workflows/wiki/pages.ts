@@ -1,11 +1,11 @@
 import type { JsonObject, NodeVersion, Transaction } from '../../vault/nodes/model.ts';
 import type { NodeSnapshot, NodeStore } from '../../vault/nodes/store.ts';
 import type { Entry } from '../../vault/documents/search.ts';
-import { pattern } from '../../ui/routing.ts';
-import { recordText } from '../../vault/records/text.ts';
-import { citation as citationSchema } from '../../vault/records/wiki.ts';
-import { isWikiContent, readCitation } from '../../vault/records/citations.ts';
+import { recordText, UnsupportedSourceRecordError } from './text.ts';
+import { citation as citationSchema } from './records.ts';
+import { isWikiContent, readCitation, validatePageReference } from './citations.ts';
 import { pageReferenceLinks } from './references.ts';
+import type { SourceReader } from '../../vault/sources.ts';
 
 export interface WikiReference {
   id: string;
@@ -31,8 +31,6 @@ export interface WikiClassification {
   state: 'resolved' | 'unresolved' | 'deleted';
 }
 
-export const wikiRoute = pattern('/wiki/');
-export const pageRoute = pattern('/wiki/:node/');
 export interface WikiBlock {
   id: string;
   data: JsonObject;
@@ -53,10 +51,7 @@ export interface WikiPage {
 }
 
 /** Read the live collection; exact citation targets retain their original text after later edits. */
-export async function readWiki(
-  nodes: NodeStore,
-  conversationHref?: (node: string) => string,
-): Promise<WikiPage[]> {
+export async function readWiki(nodes: NodeStore, sources: SourceReader): Promise<WikiPage[]> {
   const snapshot = await nodes.snapshot();
   const transactions = new Map<string, Transaction>();
   let beforeSequence: number | undefined;
@@ -77,13 +72,11 @@ export async function readWiki(
     for (const child of snapshot.children(node.key.node)) collect(child);
   };
   for (const root of snapshot.roots()) collect(root);
-  const pageNodes = all.filter(
-    (node) => node.data?.kind === 'page' || node.data?.kind === 'content',
-  );
+  const pageNodes = all.filter((node) => node.data?.kind === 'page');
   const sourceSequences = new Set<number>();
   const referenceNodes = [
     ...all.filter((node) => node.data?.kind === 'cite'),
-    ...pageNodes.flatMap((page) => pageReferenceLinks(page, snapshot)),
+    ...pageNodes.flatMap((page) => pageReferenceLinks(page, snapshot, sources)),
   ];
   for (const node of referenceNodes) {
     if (node.data?.kind === 'cite') {
@@ -108,7 +101,7 @@ export async function readWiki(
     const seen = new Set<string>();
     let current: NodeVersion | undefined = node;
     while (current && !seen.has(current.key.node)) {
-      if (current.data?.kind === 'page' || current.data?.kind === 'content') return current;
+      if (current.data?.kind === 'page') return current;
       seen.add(current.key.node);
       current = current.placement ? snapshot.get(current.placement.parent) : undefined;
     }
@@ -116,21 +109,10 @@ export async function readWiki(
   };
   const hrefOf = (node: NodeVersion | undefined) => {
     if (!node?.data) return;
-    if (node.data.kind === 'resource' && typeof node.data.url === 'string') return node.data.url;
-    if (node.data.kind === 'conversation') return conversationHref?.(node.key.node);
-    let ancestor = node;
-    const seen = new Set<string>();
-    while (ancestor.placement && !seen.has(ancestor.key.node)) {
-      seen.add(ancestor.key.node);
-      const parent = snapshot.get(ancestor.placement.parent);
-      if (!parent?.data) break;
-      if (parent.data.kind === 'conversation') return conversationHref?.(parent.key.node);
-      ancestor = parent;
-    }
     const parent = pageOf(node);
     return parent
-      ? `#${pageRoute.href({ node: parent.key.node })}${parent !== node ? `#${encodeURIComponent(node.key.node)}` : ''}`
-      : undefined;
+      ? `#/wiki/${encodeURIComponent(parent.key.node)}/${parent !== node ? `#${encodeURIComponent(node.key.node)}` : ''}`
+      : sources.describe(node, snapshot)?.href;
   };
   const referenceOf = (citation: NodeVersion): WikiReference | undefined => {
     if (!citation.connection) return;
@@ -145,52 +127,49 @@ export async function readWiki(
     let text: string;
     let range: WikiReference['range'];
     let claim: WikiReference['claim'];
+    const atSnapshot = (sequence: number) => {
+      const selected = historical.get(sequence);
+      if (!selected) throw new Error('Citation snapshot is unavailable');
+      return selected;
+    };
     if (citation.data?.scope === 'page' && typeof citation.data.sequence === 'number') {
+      validatePageReference(citation, atSnapshot, sources);
       view = historical.get(citation.data.sequence);
-      if (!view || view.get(source.key.node)?.key.transaction !== source.key.transaction)
-        throw new Error('Page reference endpoint does not match its snapshot');
     }
     if (citation.data?.claim) {
-      const selection = readCitation(citation, (sequence) => {
-        const selected = historical.get(sequence);
-        if (!selected) throw new Error('Citation snapshot is unavailable');
-        return selected;
-      });
+      const selection = readCitation(citation, atSnapshot, sources);
       ({ context, text, range } = selection.passage);
       claim = selection.claim.range;
       view = historical.get(selection.passage.range.sequence);
     } else {
       if (!view) throw new Error('Reference snapshot is unavailable');
       if (isWikiContent(source, view)) return;
-      context = recordText(source, view);
+      context = recordText(source, view, sources);
       text = context;
     }
     const current = snapshot.get(source.key.node);
+    const changedText = () => {
+      try {
+        return recordText(current!, snapshot, sources) !== context;
+      } catch (error) {
+        // A new source format cannot invalidate the already supported historical quotation.
+        if (error instanceof UnsupportedSourceRecordError) return true;
+        throw error;
+      }
+    };
     // Descendant-only edits can change a composite's text without changing its own version.
     const state = !current?.data
       ? 'deleted'
-      : current.key.transaction !== source.key.transaction ||
-          recordText(current, snapshot) !== context
+      : current.key.transaction !== source.key.transaction || changedText()
         ? 'newer'
         : 'original';
     const author = transaction
       ? historical.get(transaction.sequence)?.get(transaction.recordedBy)
       : undefined;
-    let container = source;
-    while (container.placement && !container.data?.title) {
-      const parent = view?.get(container.placement.parent);
-      if (!parent?.data) break;
-      container = parent;
-    }
-    const title = String(
-      source.data.title ??
-        container.data?.title ??
-        (source.data.kind === 'resource' ? source.data.url : '') ??
-        '',
-    );
+    const description = view && sources.describe(source, view);
     return {
       id: citation.key.node,
-      title: title || String(citation.data?.text ?? 'Reference'),
+      title: description?.title || String(citation.data?.text ?? 'Reference'),
       text,
       context,
       range,
@@ -198,14 +177,10 @@ export async function readWiki(
       state,
       source: source.key,
       sequence: view?.sequence ?? snapshot.sequence,
-      speaker:
-        source.data.kind === 'message' &&
-        (source.data.role === 'user' || source.data.role === 'agent')
-          ? source.data.role
-          : undefined,
-      date: typeof source.data.at === 'string' ? source.data.at : transaction?.recordedAt,
+      speaker: description?.speaker,
+      date: description?.date ?? transaction?.recordedAt,
       author: String(author?.data?.name ?? ''),
-      href: hrefOf(source),
+      href: description?.href,
     };
   };
   const kindOf = (node: NodeVersion) => {
@@ -247,7 +222,7 @@ export async function readWiki(
             if (
               !(claim?.data && original && view) ||
               claim.key.node !== node.key.node ||
-              recordText(claim, snapshot) !== recordText(original, view)
+              recordText(claim, snapshot, sources) !== recordText(original, view, sources)
             )
               return [];
           }
@@ -331,9 +306,9 @@ export async function readWiki(
       const explicit = children.filter(
         (child) => child.data?.kind === 'cite' && child.data.scope === 'page',
       );
-      const links = pageReferenceLinks(node, snapshot);
+      const links = pageReferenceLinks(node, snapshot, sources);
       const referenced = new Set(explicit.map((child) => child.connection?.target.node));
-      const sources = [
+      const pageSources = [
         ...explicit,
         ...links.filter((link) => !referenced.has(link.connection?.target.node)),
       ]
@@ -350,13 +325,6 @@ export async function readWiki(
                 other.sequence === source.sequence,
             ) === index,
         );
-      if (data.kind === 'content' && typeof data.text === 'string')
-        blocks.unshift({
-          id: `${node.key.node}:body`,
-          data: { kind: 'paragraph', text: data.text },
-          children: [],
-          evidence: [],
-        });
       const kind = kindOf(node);
       const title = String(data.title ?? 'Untitled page');
       const summary = String(data.summary ?? '');
@@ -367,7 +335,7 @@ export async function readWiki(
         kind,
         blocks,
         metadata,
-        sources,
+        sources: pageSources,
         updated: (() => {
           const versions: NodeVersion[] = [];
           const collectVersions = (version: NodeVersion) => {
@@ -383,7 +351,7 @@ export async function readWiki(
           return latest?.recordedAt ?? '';
         })(),
         entry: {
-          href: pageRoute.href({ node: node.key.node }),
+          href: `/wiki/${encodeURIComponent(node.key.node)}/`,
           t: title,
           e: summary,
           a: Array.isArray(data.aliases) ? data.aliases.map(String) : [],

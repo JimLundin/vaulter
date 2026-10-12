@@ -1,7 +1,8 @@
-// Wiki records: a page is a container of blocks; blocks that hold text contain inline nodes. Each kind
-// is the props of its component. Unclaimed until the Wiki module exists (docs/specs/vault-records.md).
+// Wiki owns page, block, inline and citation definitions independently of storage and migration.
 import { z } from 'zod';
-import { localDate, text } from './common.ts';
+import type { JsonObject } from '../../vault/nodes/model.ts';
+import { canonical, frozen } from '../../vault/nodes/json.ts';
+import { localDate, text } from '../../vault/records/common.ts';
 
 export const page = z.strictObject({
   kind: z.literal('page'),
@@ -109,3 +110,18 @@ export const containment: Record<string, (kind: string, index: number) => boolea
   table: (kind) => kind === 'row',
   row: (kind) => kind === 'cell',
 };
+
+export type WikiData = z.infer<(typeof wikiSchemas)[keyof typeof wikiSchemas]>;
+export type PageData = z.infer<typeof page>;
+export type CitationData = z.infer<typeof citation>;
+
+/** Validate Wiki-owned records without changing their accepted JSON shape. */
+export function parseWikiRecord(value: unknown): JsonObject {
+  canonical(value);
+  const kind = (value as { kind?: unknown } | null)?.kind;
+  const schema =
+    typeof kind === 'string' ? wikiSchemas[kind as keyof typeof wikiSchemas] : undefined;
+  if (!schema) throw new Error(`Unknown Wiki record kind: ${String(kind)}`);
+  schema.parse(value);
+  return frozen(structuredClone(value)) as JsonObject;
+}

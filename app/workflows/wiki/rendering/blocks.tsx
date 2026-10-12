@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import type { WikiBlock, WikiReference } from '../pages.ts';
 import { isSafeUrl } from '../../../vault/documents/notes/safe-url.ts';
 import { Bars, Button, Sparkline, Text } from '../../../ui/kit/index.ts';
-import { wikiSchemas } from '../../../vault/records/wiki.ts';
+import { wikiSchemas } from '../records.ts';
 
 export const blockText = (block: WikiBlock): string =>
   typeof block.data.text === 'string'
