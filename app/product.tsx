@@ -235,35 +235,43 @@ export function OpenProduct({
         </Stack>
       );
     return (
-      <QuestionItem
-        question={question}
-        describeTarget={(target) => {
-          if (!(target.version && questionState.view)) return;
-          const description = wikiSources.describe(target.version, questionState.view);
-          if (description)
-            return {
-              ...description,
-              navigationLabel: description.href
-                ? `Open source context${description.title ? `: ${description.title}` : ''}`
-                : undefined,
-            };
-          const seen = new Set<string>();
-          let current = target.version;
-          while (current.data && !seen.has(current.key.node)) {
-            seen.add(current.key.node);
-            if (current.data.kind === 'page')
+      <Stack gap="xs">
+        {!!questionState.error && (
+          <Text role="status" tone="muted" size="sm">
+            Question details could not refresh; showing the last recorded status.{' '}
+            {questionState.error}
+          </Text>
+        )}
+        <QuestionItem
+          question={question}
+          describeTarget={(target) => {
+            if (!(target.version && questionState.view)) return;
+            const description = wikiSources.describe(target.version, questionState.view);
+            if (description)
               return {
-                title: String(current.data.title ?? 'Wiki answer'),
-                href: `#${pageRoute.href({ node: current.key.node })}`,
-                navigationLabel: `Open Wiki page: ${String(current.data.title ?? 'Wiki answer')}`,
+                ...description,
+                navigationLabel: description.href
+                  ? `Open source context${description.title ? `: ${description.title}` : ''}`
+                  : undefined,
               };
-            if (!current.placement) break;
-            const parent = questionState.view.get(current.placement.parent);
-            if (!parent?.data) break;
-            current = parent;
-          }
-        }}
-      />
+            const seen = new Set<string>();
+            let current = target.version;
+            while (current.data && !seen.has(current.key.node)) {
+              seen.add(current.key.node);
+              if (current.data.kind === 'page')
+                return {
+                  title: String(current.data.title ?? 'Wiki answer'),
+                  href: `#${pageRoute.href({ node: current.key.node })}`,
+                  navigationLabel: `Open Wiki page: ${String(current.data.title ?? 'Wiki answer')}`,
+                };
+              if (!current.placement) break;
+              const parent = questionState.view.get(current.placement.parent);
+              if (!parent?.data) break;
+              current = parent;
+            }
+          }}
+        />
+      </Stack>
     );
   };
   const layout = useLayout();
