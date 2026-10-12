@@ -48,11 +48,21 @@ export type ChatSubmissionOutcome =
   | { readonly status: 'owned'; readonly request: NodeChatRequest; readonly done: Promise<void> };
 export interface ChatSubmissionReview {
   readonly status: 'review';
+  readonly id: string;
+  readonly conversation: string;
   readonly intent: ChatSubmissionIntent;
-  readonly files: { path: string; before: string; text: string | null }[];
+  readonly files: readonly {
+    readonly path: string;
+    readonly before: string;
+    readonly text: string | null;
+  }[];
+  readonly reason?: string;
 }
 export interface NodeConversationState extends ChatState {
   readonly submission?: NodeChatRequest;
+  readonly review?: ChatSubmissionReview;
+  readonly reviewAvailability: ChatActionAvailability;
+  readonly actionReason?: string;
   readonly submissionAvailability: ChatActionAvailability;
   readonly capture: ChatCapture;
   readonly phase?: NodeChatRunState['phase'];
@@ -108,6 +118,7 @@ export function createNodeConversation(initial: NodeConversationOptions) {
     busy: false,
     unread: false,
     submissionAvailability: { allowed: false, reason: 'Enter a message.' },
+    reviewAvailability: { allowed: false, reason: 'There is no pending review.' },
     capture: { phase: 'idle', error: '', action: 'start', allowed: !!transcription },
   };
   const listeners = new Set<() => void>();
@@ -165,7 +176,14 @@ export function createNodeConversation(initial: NodeConversationOptions) {
   const set = (next: Partial<NodeConversationState>) => {
     if (disposed) return;
     state = { ...state, ...next };
-    state = { ...state, capture: captureState(), submissionAvailability: submissionAvailability() };
+    state = {
+      ...state,
+      capture: captureState(),
+      submissionAvailability: submissionAvailability(),
+      reviewAvailability: state.review
+        ? submissionPermission(state.review.intent.text)
+        : { allowed: false, reason: 'There is no pending review.' },
+    };
     for (const listener of listeners) listener();
   };
   const captureState = (): ChatCapture => {
@@ -201,7 +219,7 @@ export function createNodeConversation(initial: NodeConversationOptions) {
       ...(reason ? { reason } : {}),
     };
   };
-  const submissionAvailability = (text = state.draft): ChatActionAvailability => {
+  const submissionPermission = (text: string): ChatActionAvailability => {
     const reason = disposed
       ? 'This Chat session is closed.'
       : recording()
@@ -218,6 +236,13 @@ export function createNodeConversation(initial: NodeConversationOptions) {
                   : undefined));
     return { allowed: !reason, ...(reason ? { reason } : {}) };
   };
+  const submissionAvailability = (text = state.draft): ChatActionAvailability =>
+    state.review
+      ? {
+          allowed: false,
+          reason: 'Confirm or cancel the pending review before sending another message.',
+        }
+      : submissionPermission(text);
   const reflectCapture = () => {
     const next = transcription?.snapshot();
     const association = captureDraft;
@@ -273,8 +298,16 @@ export function createNodeConversation(initial: NodeConversationOptions) {
       contextError: current.contextError,
     });
   };
-  function submit(intent: ChatSubmissionIntent): ChatSubmissionOutcome {
-    const permission = submissionAvailability(intent.text);
+  function submit(
+    intent: ChatSubmissionIntent,
+    reviewed?: ChatSubmissionReview,
+  ): ChatSubmissionOutcome {
+    if (reviewed && (reviewed !== state.review || reviewed.conversation !== id))
+      return { status: 'blocked', reason: 'This review is no longer pending.' };
+    const permission =
+      reviewed && reviewed === state.review
+        ? submissionPermission(intent.text)
+        : submissionAvailability(intent.text);
     if (!permission.allowed) return { status: 'blocked', reason: permission.reason! };
     let request: NodeChatRequest;
     let sent: NodeChatRun;
@@ -311,6 +344,8 @@ export function createNodeConversation(initial: NodeConversationOptions) {
     set({
       suggestions: [],
       submission: request,
+      review: undefined,
+      actionReason: undefined,
       busy: true,
       phase: 'queued',
       ...(clearSource ? { draft: '' } : {}),
@@ -422,21 +457,83 @@ export function createNodeConversation(initial: NodeConversationOptions) {
     submissionAvailability,
     /** Capture the source revision before a review or another delayed submission decision. */
     draftIntent,
-    submit,
-    /** Temporary review adapter: #55 retains/revalidates this task instead of the view. */
+    submit: (intent: ChatSubmissionIntent) => submit(intent),
+    /** Prepare and retain a review task before requesting submission. */
     prepareSubmission: (intent = draftIntent()): ChatSubmissionOutcome | ChatSubmissionReview => {
       const permission = submissionAvailability(intent.text);
-      if (!permission.allowed) return { status: 'blocked', reason: permission.reason! };
+      if (!permission.allowed) {
+        set({ actionReason: permission.reason });
+        return { status: 'blocked', reason: permission.reason! };
+      }
       try {
         const files = options.stagedChanges?.() ?? [];
-        if (files.length) return { status: 'review', intent, files };
+        if (files.length) {
+          const review: ChatSubmissionReview = {
+            status: 'review',
+            id: crypto.randomUUID(),
+            conversation: id,
+            intent: Object.freeze({ ...intent }),
+            files: Object.freeze(files.map((file) => Object.freeze({ ...file }))),
+          };
+          set({ review, actionReason: undefined });
+          return review;
+        }
       } catch (error) {
-        return {
-          status: 'blocked',
-          reason: error instanceof Error ? error.message : String(error),
-        };
+        const reason = error instanceof Error ? error.message : String(error);
+        set({ actionReason: reason });
+        return { status: 'blocked', reason };
       }
-      return submit(intent);
+      const outcome = submit(intent);
+      if (outcome.status === 'blocked') set({ actionReason: outcome.reason });
+      return outcome;
+    },
+    cancelReview: (expectedId?: string) => {
+      if (expectedId && state.review?.id !== expectedId)
+        return { status: 'blocked' as const, reason: 'This review is no longer pending.' };
+      set({ review: undefined, actionReason: undefined });
+      return { status: 'cancelled' as const };
+    },
+    confirmReview: (expectedId?: string): ChatSubmissionOutcome | ChatSubmissionReview => {
+      const review = state.review;
+      if (!review || review.conversation !== id || (expectedId && review.id !== expectedId))
+        return { status: 'blocked', reason: 'There is no pending review for this conversation.' };
+      const permission = submissionPermission(review.intent.text);
+      if (!permission.allowed) {
+        set({ review: { ...review, reason: permission.reason } });
+        return { status: 'blocked', reason: permission.reason! };
+      }
+      try {
+        const files = options.stagedChanges?.() ?? [];
+        if (state.review !== review || disposed || review.conversation !== id)
+          return { status: 'blocked', reason: 'This review is no longer pending.' };
+        const unchanged =
+          files.length === review.files.length &&
+          files.every((file, i) => {
+            const previous = review.files[i]!;
+            return (
+              file.path === previous.path &&
+              file.before === previous.before &&
+              file.text === previous.text
+            );
+          });
+        if (!unchanged) {
+          const refreshed = {
+            ...review,
+            files: Object.freeze(files.map((file) => Object.freeze({ ...file }))),
+            reason: 'Pending changes changed. Review the updated evidence and confirm again.',
+          };
+          set({ review: refreshed });
+          return refreshed;
+        }
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : String(error);
+        if (state.review === review) set({ review: { ...review, reason } });
+        return { status: 'blocked', reason };
+      }
+      const outcome = submit(review.intent, review);
+      if (outcome.status === 'blocked' && state.review === review)
+        set({ review: { ...review, reason: outcome.reason } });
+      return outcome;
     },
     submitDraft: (): ChatSubmissionOutcome => submit(draftIntent()),
     // Completion-compatible adapters until all callers use explicit owned outcomes (#60).

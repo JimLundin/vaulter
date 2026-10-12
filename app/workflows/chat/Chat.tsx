@@ -15,12 +15,7 @@ import { ConversationList } from './ConversationList.tsx';
 import { ChatSurface, ChatWelcome, type ChatPresentation } from './ChatSurface.tsx';
 import { ChatMessage } from './ChatMessage.tsx';
 import { later } from '../../ui/later.ts';
-import type {
-  NodeConversation,
-  Prompt,
-  ChatSubmissionIntent,
-  ChatSubmissionReview,
-} from './node-conversation.ts';
+import type { NodeConversation, Prompt, ChatSubmissionIntent } from './node-conversation.ts';
 export type { Prompt } from './node-conversation.ts';
 import { useNodeChat } from './use-node-conversation.ts';
 import { model } from './model.ts';
@@ -50,6 +45,9 @@ export function Chat({
     phase,
     capture,
     submissionAvailability,
+    review,
+    reviewAvailability,
+    actionReason,
   } = useNodeChat(conversation);
   const [retrying, setRetrying] = useState(false);
   const [focused, setFocused] = useState(false);
@@ -64,16 +62,11 @@ export function Chat({
       onClose={() => setChoosing(false)}
     />
   );
-  // Temporary retained-source review adapter; #55 moves review task lifetime into Chat.
-  const [review, setReview] = useState<ChatSubmissionReview | null>(null);
-  const [actionReason, setActionReason] = useState<string | undefined>();
   const ref = useRef<HTMLTextAreaElement>(null);
   const type = conversation.setDraft;
   const say = useCallback(
     (intent: ChatSubmissionIntent) => {
       const outcome = conversation.prepareSubmission(intent);
-      setActionReason(outcome.status === 'blocked' ? outcome.reason : undefined);
-      if (outcome.status === 'review') setReview(outcome);
       if (outcome.status === 'owned') later(outcome.done);
     },
     [conversation],
@@ -238,12 +231,19 @@ export function Chat({
       ))}
 
       <Overlay
-        open={!!review}
-        onClose={() => setReview(null)}
+        open={visible && !!review}
+        share={conversation}
+        onClose={() => conversation.cancelReview(review?.id)}
         title="Review pending changes"
         description="These legacy file edits remain staged. Sending this message creates nodes and leaves these edits unchanged."
       >
         <Stack>
+          <Text>{review?.intent.text}</Text>
+          {(review?.reason || !reviewAvailability.allowed) && (
+            <Text role="alert" tone="danger">
+              {review?.reason ?? reviewAvailability.reason}
+            </Text>
+          )}
           {review?.files.map((file) => (
             <CodeDiff
               key={file.path}
@@ -253,19 +253,15 @@ export function Chat({
             />
           ))}
           <Row justify="end">
-            <Button variant="outline" onClick={() => setReview(null)}>
+            <Button variant="outline" onClick={() => conversation.cancelReview(review?.id)}>
               Cancel
             </Button>
             <Button
-              disabled={!conversation.submissionAvailability(review?.intent.text).allowed}
+              disabled={!reviewAvailability.allowed}
               onClick={() => {
                 if (!review) return;
-                const outcome = conversation.submit(review.intent);
-                setActionReason(outcome.status === 'blocked' ? outcome.reason : undefined);
-                if (outcome.status === 'owned') {
-                  setReview(null);
-                  later(outcome.done);
-                }
+                const outcome = conversation.confirmReview(review.id);
+                if (outcome.status === 'owned') later(outcome.done);
               }}
             >
               Send and keep staged edits

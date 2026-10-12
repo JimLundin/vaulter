@@ -200,3 +200,58 @@ test('changed supplied availability reaches mounted Chat without notifying subsc
     vi.unstubAllGlobals();
   }
 });
+
+test('retained review is presented once across simultaneous views and survives hiding all Chat views', async () => {
+  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+  const nodes = memoryNodeBackend();
+  const conversation = createNodeConversation({
+    nodes,
+    user: 'user',
+    agent: 'agent',
+    provider: 'fictional',
+    selectedModel: 'fictional',
+    instructions: 'Record.',
+    model: () => Promise.reject(new Error('Must not execute')),
+    suggestions: async () => [],
+    stagedChanges: () => [{ path: 'Pending.md', before: 'before', text: 'after' }],
+  });
+  const root = createRoot(document.body);
+  const render = (page: boolean, pane: boolean) =>
+    root.render(
+      <>
+        {page && <Chat conversation={conversation} arg={null} presentation={{ page: true }} />}
+        <Chat
+          conversation={conversation}
+          arg={null}
+          presentation={{ open: pane, onClose: () => undefined }}
+        />
+      </>,
+    );
+  try {
+    await act(async () => {
+      render(true, true);
+      conversation.setDraft('Retained review text');
+      conversation.prepareSubmission();
+    });
+    expect(document.querySelectorAll('[role="dialog"][aria-labelledby]')).toHaveLength(1);
+    expect(document.body.textContent).toContain('Retained review text');
+    await act(async () => render(false, false));
+    expect(conversation.snapshot().review?.intent.text).toBe('Retained review text');
+    await act(async () => render(false, true));
+    expect(document.body.textContent).toContain('Pending.md');
+    await act(async () => {
+      const cancel = [...document.querySelectorAll('button')].find(
+        (button) => button.textContent === 'Cancel',
+      );
+      cancel!.click();
+    });
+    expect(conversation.snapshot().review).toBeUndefined();
+    expect(conversation.snapshot().draft).toBe('Retained review text');
+  } finally {
+    await act(async () => root.unmount());
+    conversation.dispose();
+    nodes.close();
+    document.body.replaceChildren();
+    vi.unstubAllGlobals();
+  }
+});

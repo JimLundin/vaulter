@@ -1,5 +1,5 @@
 // One dialog tree: resizing moves and resizes it without discarding its contents or focus.
-import { type ReactNode, useRef } from 'react';
+import { type ReactNode, useRef, useLayoutEffect, useSyncExternalStore } from 'react';
 import { useLayout } from './hooks/use-layout.ts';
 import { Button } from './parts/button.tsx';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from './parts/dialog.tsx';
@@ -89,8 +89,50 @@ export function AdaptiveDialog({
   );
 }
 
-export function Overlay(
-  props: Omit<Parameters<typeof AdaptiveDialog>[0], 'fullScreen' | 'focusInput'>,
-) {
-  return <AdaptiveDialog {...props} />;
+export function Overlay({
+  share,
+  ...props
+}: Omit<Parameters<typeof AdaptiveDialog>[0], 'fullScreen' | 'focusInput'> & {
+  /** Multiple visible presentations of the same owner show one dialog. No task state is retained. */
+  share?: object;
+}) {
+  const presenting = useSharedOverlay(share, props.open);
+  return <AdaptiveDialog {...props} open={props.open && presenting} />;
+}
+
+interface OverlayPresentations {
+  entries: Set<object>;
+  listeners: Set<() => void>;
+}
+const sharedOverlays = new WeakMap<object, OverlayPresentations>();
+function useSharedOverlay(share: object | undefined, open: boolean) {
+  const token = useRef<object>({}).current;
+  const shared = share
+    ? (sharedOverlays.get(share) ??
+      (() => {
+        const entry: OverlayPresentations = { entries: new Set(), listeners: new Set() };
+        sharedOverlays.set(share, entry);
+        return entry;
+      })())
+    : undefined;
+  const current = useSyncExternalStore(
+    (listener) => {
+      shared?.listeners.add(listener);
+      return () => {
+        shared?.listeners.delete(listener);
+      };
+    },
+    () => shared && [...shared.entries].at(-1),
+    () => undefined,
+  );
+  useLayoutEffect(() => {
+    if (!(shared && open)) return;
+    shared.entries.add(token);
+    for (const listener of shared.listeners) listener();
+    return () => {
+      shared.entries.delete(token);
+      for (const listener of shared.listeners) listener();
+    };
+  }, [shared, open, token]);
+  return !shared || current === token;
 }
