@@ -15,7 +15,12 @@ import { ConversationList } from './ConversationList.tsx';
 import { ChatSurface, ChatWelcome, type ChatPresentation } from './ChatSurface.tsx';
 import { ChatMessage } from './ChatMessage.tsx';
 import { later } from '../../ui/later.ts';
-import type { NodeConversation, Prompt } from './node-conversation.ts';
+import type {
+  NodeConversation,
+  Prompt,
+  ChatSubmissionIntent,
+  ChatSubmissionReview,
+} from './node-conversation.ts';
 export type { Prompt } from './node-conversation.ts';
 import { useNodeChat } from './use-node-conversation.ts';
 import { model } from './model.ts';
@@ -29,7 +34,7 @@ export function Chat({
   arg: Prompt | null;
   presentation: ChatPresentation;
 }) {
-  const { newChat, send, stop, viewing } = conversation;
+  const { newChat, stop, viewing } = conversation;
   const [choosing, setChoosing] = useState(false);
   const showChats = () => setChoosing(true);
   const {
@@ -44,6 +49,7 @@ export function Chat({
     contextError,
     phase,
     capture,
+    submissionAvailability,
   } = useNodeChat(conversation);
   const [retrying, setRetrying] = useState(false);
   const [focused, setFocused] = useState(false);
@@ -58,24 +64,19 @@ export function Chat({
       onClose={() => setChoosing(false)}
     />
   );
-  const [review, setReview] = useState<{
-    text: string;
-    files: ReturnType<NodeConversation['stagedChanges']>;
-  } | null>(null);
+  // Temporary retained-source review adapter; #55 moves review task lifetime into Chat.
+  const [review, setReview] = useState<ChatSubmissionReview | null>(null);
+  const [actionReason, setActionReason] = useState<string | undefined>();
   const ref = useRef<HTMLTextAreaElement>(null);
   const type = conversation.setDraft;
   const say = useCallback(
-    (text: string) => {
-      const files = conversation.stagedChanges();
-      if (files.length) {
-        type(text);
-        setReview({ text, files });
-        return;
-      }
-      type('');
-      later(send(text));
+    (intent: ChatSubmissionIntent) => {
+      const outcome = conversation.prepareSubmission(intent);
+      setActionReason(outcome.status === 'blocked' ? outcome.reason : undefined);
+      if (outcome.status === 'review') setReview(outcome);
+      if (outcome.status === 'owned') later(outcome.done);
     },
-    [type, send, conversation],
+    [conversation],
   );
   useEffect(() => {
     if (visible) return viewing();
@@ -98,7 +99,7 @@ export function Chat({
   const showSuggestions = !(focused || input || busy || recording) && suggestions.length > 0;
   useEffect(() => {
     if (!(visible && arg && conversation.takePrompt(arg))) return;
-    if (arg.send && !conversation.snapshot().busy) say(arg.text);
+    if (arg.send && !conversation.snapshot().busy) say({ text: arg.text });
     else {
       type(arg.text);
       requestAnimationFrame(() => ref.current?.focus());
@@ -131,6 +132,11 @@ export function Chat({
       busy={busy || recording || !!persistenceError || !!contentPersistence || !!contextError}
       status={
         <Stack>
+          {!!actionReason && (
+            <Text role="alert" tone="danger">
+              {actionReason}
+            </Text>
+          )}
           <VoiceStatus phase={capture.phase} error={capture.error} />
           {!!conversation.availability() && (
             <Text role="status" tone="subtle">
@@ -208,15 +214,10 @@ export function Chat({
         <Composer
           draft={input}
           onDraftChange={type}
-          onSubmit={(text) => {
-            if (text.trim() && !(busy || recording)) say(text);
-          }}
+          onSubmit={() => say(conversation.draftIntent())}
           label="Message"
           placeholder={busy ? 'Working…' : recording ? 'Start speaking…' : 'Type a message…'}
-          canSubmit={
-            conversation.ready() &&
-            !(recording || persistenceError || contentPersistence || contextError)
-          }
+          canSubmit={submissionAvailability.allowed}
           busy={busy}
           readOnly={recording}
           voice={{
@@ -256,13 +257,15 @@ export function Chat({
               Cancel
             </Button>
             <Button
-              disabled={busy}
+              disabled={!conversation.submissionAvailability(review?.intent.text).allowed}
               onClick={() => {
                 if (!review) return;
-                const pending = review;
-                setReview(null);
-                type('');
-                later(send(pending.text));
+                const outcome = conversation.submit(review.intent);
+                setActionReason(outcome.status === 'blocked' ? outcome.reason : undefined);
+                if (outcome.status === 'owned') {
+                  setReview(null);
+                  later(outcome.done);
+                }
               }}
             >
               Send and keep staged edits

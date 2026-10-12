@@ -9,6 +9,7 @@ import { createNodeConversation } from './node-conversation.ts';
 import { createTranscription } from './transcription.ts';
 import { Chat } from './Chat.tsx';
 import { ChatIndicator } from './index.tsx';
+import { useNodeConversation } from './use-node-conversation.ts';
 
 test('a reply finishing with the mounted pane closed remains unread until it reopens', async () => {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
@@ -161,6 +162,39 @@ test('retained prompts are consumed once across page and panel views, including 
     await act(async () => root.unmount());
     conversation.dispose();
     voice.dispose();
+    nodes.close();
+    document.body.replaceChildren();
+    vi.unstubAllGlobals();
+  }
+});
+
+test('changed supplied availability reaches mounted Chat without notifying subscribers during React render', async () => {
+  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+  const nodes = memoryNodeBackend();
+  const options = {
+    nodes,
+    user: 'user',
+    agent: 'agent',
+    provider: 'fictional',
+    selectedModel: 'fictional',
+    instructions: 'Record.',
+    model: () => Promise.reject(new Error('Must not execute')),
+    suggestions: async () => [],
+  };
+  function Surface({ availability }: { availability?: string }) {
+    const conversation = useNodeConversation({ ...options, availability });
+    return <Chat conversation={conversation} arg={null} presentation={{ page: true }} />;
+  }
+  const root = createRoot(document.body);
+  const errors = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  try {
+    await act(async () => root.render(<Surface />));
+    await act(async () => root.render(<Surface availability="Saving is unavailable" />));
+    expect(document.body.textContent).toContain('Saving is unavailable');
+    expect(errors.mock.calls.flat().join(' ')).not.toContain('while rendering');
+  } finally {
+    await act(async () => root.unmount());
+    errors.mockRestore();
     nodes.close();
     document.body.replaceChildren();
     vi.unstubAllGlobals();

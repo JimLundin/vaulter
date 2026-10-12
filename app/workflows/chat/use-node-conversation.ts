@@ -1,4 +1,4 @@
-import { useEffect, useRef, useSyncExternalStore } from 'react';
+import { useEffect, useLayoutEffect, useRef, useSyncExternalStore } from 'react';
 import { later } from '../../ui/later.ts';
 import {
   createNodeConversation,
@@ -12,7 +12,10 @@ export function useNodeConversation(options: NodeConversationOptions) {
   const ref = useRef<NodeConversation | null>(null);
   ref.current ??= createNodeConversation(options);
   const conversation = ref.current;
-  conversation.updateOptions(options);
+  // Publish changed owner availability after render and before any browser action can run.
+  useLayoutEffect(() => {
+    conversation.updateOptions(options);
+  }, [conversation, options]);
   // biome-ignore lint/correctness/useExhaustiveDependencies: store synchronization must retry history restoration, while model availability never gates reads.
   useEffect(() => {
     // Reading accepted history does not require a configured model or permission to send.
