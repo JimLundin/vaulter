@@ -1,6 +1,6 @@
 # Module-owned UI with shared kit presentation
 
-Status: ownership implementation complete; final integration validation and review tracked with the delivery. Decision:
+Status: complete; implementation, integration validation and two-axis review passed. Decision:
 [ADR 0006](../adr/0006-module-ui-and-shared-presentation.md).
 
 ## Delivered ownership
@@ -46,6 +46,20 @@ The first architecture delivery concentrates shared presentation policy and move
 UI to its owning module. Chat lifetime, Wiki reading cost and broader Agent/Vault implementation
 privacy remain follow-up opportunities from the architecture review. They are not prerequisites
 for this migration.
+
+### Final validation
+
+The completed integration source at `7c61bcc` passed typecheck, lint, all 432 unit tests in 71 files,
+444 browser cases across phone, desktop and touch desktop, all six production browser cases, and
+production/design builds. Three existing real-map cases require explicit external-tile opt-in and
+were skipped by the normal offline suite. Lint and builds retain their existing non-failing warnings.
+
+Final Standards and Spec reviews have zero remaining findings. Review fixes prevent a retained
+Search Ask from executing again when Chat changes views, close computed-property, resolved-library
+and semantic-control enforcement gaps, preserve focus when a persistent pane closes on resize,
+and keep collapsed selections visible without repeated scrolling for long marked passages.
+The disposable History-removal evidence remains valid: only Product wiring changes outside the
+removed workflow, with retained snapshots, exact versions and differences still readable.
 
 ## Governing rules
 
