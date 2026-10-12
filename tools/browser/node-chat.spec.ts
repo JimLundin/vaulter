@@ -79,9 +79,9 @@ test('Search Ask is accepted once when Chat moves between the page and its suppo
   );
 });
 
-test('Search Ask during recording survives reopening, never auto-sends, and explicit Use submits once', async ({
-  page,
-}) => {
+test('Search Ask during recording survives reopening, never auto-sends, and explicit Use submits once', {
+  tag: '@phone',
+}, async ({ page }) => {
   await page.goto('/preview/');
   await movePreviewBelowToolbar(page.locator('[data-preview-drag-handle]'));
   const main = page.getByRole('main');

@@ -55,5 +55,9 @@ and mounted React/browser consumers. Retained regressions cover submission/revie
 output, selection versus review/prompts, changed capabilities/session shutdown, coalesced recovery,
 Stop/reload and no replay. Ticket #60 adds failed-read/response-save unread acknowledgement and actual
 Search New permission during recording/recovery. Compiler checks continue to cover declarations and
-helper paths without new exemptions. Final integration review and full unit/UI/production/build gates
-are recorded with the implementation workflow's evidence, against its final source.
+helper paths without new exemptions. Final verification follows
+[the testing policy](../agents/testing.md): focused local behavior/browser/compiler checks, lint and
+type checking, then complete verification in CI for the pushed feature commit. Integration review,
+selected local results and the exact commit's CI status are recorded with the implementation
+workflow's evidence. A focused local pass establishes its selected scope; full CI verification
+remains pending until the aggregate test job succeeds.
