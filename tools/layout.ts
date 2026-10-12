@@ -179,7 +179,11 @@ export function checkLayout(root: string): string[] {
           return node.properties.some((property) =>
             ts.isSpreadAssignment(property)
               ? semanticProps(property.expression, seen)
-              : (ts.isPropertyAssignment(property) || ts.isShorthandPropertyAssignment(property)) &&
+              : (ts.isPropertyAssignment(property) ||
+                  ts.isShorthandPropertyAssignment(property) ||
+                  ts.isMethodDeclaration(property) ||
+                  ts.isGetAccessorDeclaration(property) ||
+                  ts.isSetAccessorDeclaration(property)) &&
                 semanticControl(
                   propertyName(property.name),
                   ts.isPropertyAssignment(property) ? property.initializer : property.name,

@@ -23,6 +23,7 @@ import {
   InputGroupButton,
   NavigationSuite,
   Overlay,
+  PassageCard,
   RadioGroup,
   RadioGroupItem,
   Row,
@@ -43,6 +44,20 @@ import {
   ToggleGroup,
   ToggleGroupItem,
 } from '../index.ts';
+
+function TallPassageFixture() {
+  const prefix = 'Context before the marked selection. '.repeat(40);
+  const selected = 'A retained selection with many lines.\n'.repeat(30);
+  return (
+    <PassageCard
+      title="Long marked passage"
+      label="Long marked passage"
+      disclosureLabel="Expand long marked passage"
+      text={`${prefix}${selected}Context after the marked selection.`}
+      selection={{ start: prefix.length, end: prefix.length + selected.length }}
+    />
+  );
+}
 
 function SupportingPaneFixture() {
   const [open, setOpen] = useState(false);
@@ -406,7 +421,9 @@ function FieldFixture() {
 }
 
 createRoot(document.getElementById('app')!).render(
-  new URLSearchParams(location.search).has('supporting-pane') ? (
+  new URLSearchParams(location.search).has('tall-passage') ? (
+    <TallPassageFixture />
+  ) : new URLSearchParams(location.search).has('supporting-pane') ? (
     <SupportingPaneFixture />
   ) : new URLSearchParams(location.search).has('command-overlay') ? (
     <CommandOverlayFixture />
