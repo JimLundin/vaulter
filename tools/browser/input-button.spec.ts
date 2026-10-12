@@ -60,6 +60,8 @@ for (const appearance of ['light', 'dark'] as const) {
     await field.blur();
     await expect(mic).toBeVisible();
     await setPreviewMobile(banner, true);
+    await expect(page.getByRole('dialog', { name: 'Conversations', exact: true })).toBeHidden();
+    await expect(field).not.toBeFocused();
     await expect(field).toHaveValue('Keep my draft');
     await expect(composer.getByRole('button')).toHaveCount(1);
     await mic.click();

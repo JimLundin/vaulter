@@ -1,8 +1,9 @@
 // Resolved import rules for removable workflows. Used by CI through tools/layout.test.ts.
-import { API, SymbolFlags } from 'typescript/unstable/sync';
+import { API } from 'typescript/unstable/sync';
 import * as ts from 'typescript/unstable/ast';
 import { readdirSync } from 'node:fs';
 import { dirname, relative, resolve } from 'node:path';
+import { compilerValues } from './compiler-values.ts';
 
 const slash = (path: string) => path.replaceAll('\\', '/');
 const contentRenderer = (path: string) =>
@@ -107,7 +108,11 @@ export function checkLayout(root: string): string[] {
           (value.text.startsWith('.') ? resolve(dirname(filename), value.text) : null);
         if (
           !(kit(from) || /\.test\.[cm]?tsx?$/.test(from)) &&
-          /^(?:lucide-react|radix-ui|@base-ui|cmdk|sonner)(?:\/|$)/.test(value.text)
+          (/^(?:lucide-react|radix-ui|@base-ui|cmdk|sonner)(?:\/|$)/.test(value.text) ||
+            (!!target &&
+              /\/node_modules\/(?:lucide-react|radix-ui|@base-ui|cmdk|sonner)(?:\/|$)/.test(
+                slash(target),
+              )))
         )
           problems.push(`${from}: presentation dependencies belong behind app/ui/kit/index.ts`);
         if (
@@ -128,38 +133,90 @@ export function checkLayout(root: string): string[] {
         const problem = importProblem(from, to);
         if (problem) problems.push(problem);
       };
-      // Resolve imports, local value aliases and property aliases through the same compiler.
-      const valueTarget = (node: ts.Node, seen = new Set<number>()): ts.Node => {
-        if (ts.isAsExpression(node) || ts.isParenthesizedExpression(node))
-          return valueTarget(node.expression, seen);
-        const symbol = project.checker.getSymbolAtLocation(node);
-        const resolved =
-          symbol &&
-          (symbol.flags & SymbolFlags.Alias ? project.checker.getAliasedSymbol(symbol) : symbol);
-        if (!resolved || seen.has(resolved.id)) return node;
-        seen.add(resolved.id);
-        const declaration = resolved.declarations[0]?.resolve();
-        if (declaration && ts.isVariableDeclaration(declaration) && declaration.initializer)
-          return valueTarget(declaration.initializer, seen);
-        if (declaration && ts.isBindingElement(declaration))
-          return declaration.propertyName ?? declaration.name ?? node;
-        return declaration && ts.isFunctionDeclaration(declaration) && declaration.name
-          ? declaration.name
-          : node;
+      const {
+        name: valueName,
+        literal: intrinsic,
+        member,
+        propertyName,
+        value: aliasValue,
+        target: valueTarget,
+      } = compilerValues(project);
+      const semanticControl = (name: string, value?: ts.Node) =>
+        /^on[A-Z]/.test(name) ||
+        [
+          'tabIndex',
+          'contentEditable',
+          'draggable',
+          'aria-expanded',
+          'aria-controls',
+          'aria-pressed',
+          'aria-checked',
+          'aria-selected',
+          'aria-activedescendant',
+        ].includes(name) ||
+        (name === 'role' &&
+          ![
+            'article',
+            'note',
+            'presentation',
+            'none',
+            'img',
+            'document',
+            'list',
+            'listitem',
+            'table',
+            'row',
+            'cell',
+            'heading',
+            'separator',
+          ].includes(value ? (intrinsic(value) ?? '') : ''));
+      const semanticProps = (expression: ts.Node, seen = new Set<string>()): boolean => {
+        const node = aliasValue(expression);
+        const identity = `${node.getSourceFile().fileName}:${node.pos}:${node.end}`;
+        if (seen.has(identity)) return false;
+        seen.add(identity);
+        if (ts.isObjectLiteralExpression(node))
+          return node.properties.some((property) =>
+            ts.isSpreadAssignment(property)
+              ? semanticProps(property.expression, seen)
+              : (ts.isPropertyAssignment(property) || ts.isShorthandPropertyAssignment(property)) &&
+                semanticControl(
+                  propertyName(property.name),
+                  ts.isPropertyAssignment(property) ? property.initializer : property.name,
+                ),
+          );
+        if (ts.isCallExpression(node)) {
+          const declaration = valueTarget(node.expression)?.declarations[0]?.resolve();
+          if (!declaration) return false;
+          const returnsControl = (child: ts.Node): boolean => {
+            if (ts.isReturnStatement(child) && child.expression)
+              return semanticProps(child.expression, seen);
+            if (ts.isArrowFunction(child) && !ts.isBlock(child.body))
+              return semanticProps(child.body, seen);
+            return !!child.forEachChild(returnsControl);
+          };
+          return returnsControl(declaration);
+        }
+        return false;
       };
-      const valueName = (node: ts.Node) => {
-        const value = valueTarget(node);
-        return ts.isPropertyAccessExpression(value)
-          ? value.name.text
-          : ts.isIdentifier(value)
-            ? value.text
-            : '';
-      };
-      const intrinsic = (node: ts.Node) => {
-        const value = valueTarget(node);
-        return ts.isStringLiteral(value) ? value.text : undefined;
+      const viewportDimension = (property: ReturnType<typeof member>) => {
+        if (!property) return false;
+        if (['innerWidth', 'innerHeight', 'outerWidth', 'outerHeight'].includes(property.name))
+          return true;
+        return (
+          ['width', 'height'].includes(property.name) &&
+          !!property.object &&
+          valueName(property.object) === 'visualViewport'
+        );
       };
       const visit = (node: ts.Node) => {
+        // Alias initializers are visited directly; only member syntax needs compiler resolution.
+        const accessedMember =
+          ts.isPropertyAccessExpression(node) ||
+          ts.isElementAccessExpression(node) ||
+          ts.isBindingElement(node)
+            ? member(node)
+            : undefined;
         if ((ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) && node.moduleSpecifier)
           check(node.moduleSpecifier);
         if (
@@ -175,6 +232,22 @@ export function checkLayout(root: string): string[] {
               ts.isIdentifier(node.tagName) && /^[a-z]/.test(node.tagName.text)
                 ? node.tagName.text
                 : intrinsic(node.tagName);
+            if (
+              tag &&
+              (semanticRenderer(from) || chatCodeRenderer(from)) &&
+              node.attributes.properties.some((attribute) =>
+                ts.isJsxSpreadAttribute(attribute)
+                  ? semanticProps(attribute.expression)
+                  : ts.isJsxAttribute(attribute) &&
+                    semanticControl(
+                      attribute.name.getText(file),
+                      attribute.initializer && ts.isJsxExpression(attribute.initializer)
+                        ? attribute.initializer.expression
+                        : attribute.initializer,
+                    ),
+              )
+            )
+              problems.push(`${from}: semantic content controls belong in public kit components`);
             if (
               tag &&
               !(chatCodeRenderer(from) && tag === 'pre') &&
@@ -196,7 +269,7 @@ export function checkLayout(root: string): string[] {
               (property) =>
                 (ts.isPropertyAssignment(property) || ts.isShorthandPropertyAssignment(property)) &&
                 ['className', 'style', 'dangerouslySetInnerHTML'].includes(
-                  property.name.getText(file).replace(/['"]/g, ''),
+                  propertyName(property.name),
                 ),
             )
           )
@@ -228,6 +301,8 @@ export function checkLayout(root: string): string[] {
           from === 'app/product.tsx' ||
           /\.test\.[cm]?tsx?$/.test(from)
         );
+        if (outsidePresentation && viewportDimension(accessedMember))
+          problems.push(`${from}: viewport dimensions belong in the kit`);
         if (outsidePresentation && ts.isCallExpression(node)) {
           const name = valueName(node.expression);
           if (['useIsMobile', 'useLayout', 'useMedia'].includes(name))
@@ -249,7 +324,7 @@ export function checkLayout(root: string): string[] {
             from === 'app/ui/keys.ts' ||
             /\.test\.[cm]?tsx?$/.test(from)
           ) &&
-          ((ts.isPropertyAccessExpression(node) &&
+          ((accessedMember &&
             [
               'scrollTop',
               'scrollLeft',
@@ -260,7 +335,7 @@ export function checkLayout(root: string): string[] {
               'getBoundingClientRect',
               'scrollTo',
               'scrollIntoView',
-            ].includes(node.name.text)) ||
+            ].includes(accessedMember.name)) ||
             (ts.isNewExpression(node) && node.expression.getText(file) === 'ResizeObserver'))
         )
           problems.push(`${from}: passage measurement and scrolling belong in the kit`);

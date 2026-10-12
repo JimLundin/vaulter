@@ -587,3 +587,150 @@ test('the vault-link annotation exception permits data annotation without native
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test('computed style props and bracket measurement cannot escape through helper values', () => {
+  const root = mkdtempSync(join(tmpdir(), 'vaulter-computed-presentation-'));
+  try {
+    mkdirSync(join(root, 'app/workflows/example'), { recursive: true });
+    writeFileSync(
+      join(root, 'tsconfig.json'),
+      JSON.stringify({
+        compilerOptions: { module: 'ESNext', moduleResolution: 'Bundler', jsx: 'preserve' },
+        include: ['app'],
+      }),
+    );
+    const cases = {
+      computed: `const property='style'; const props={ [property]: { width: 500 } }; export const view=<Text {...props}/>;`,
+      spread: `const props={ ['className']: 'custom' }; function helper(){return {...props}}; export const view=<Text {...helper()}/>;`,
+      measurement: `export function measure(node:HTMLElement){return node['getBoundingClientRect']()}`,
+      scrolling: 'export function move(node:HTMLElement){const {scrollTo: move}=node;move(0,0);}',
+    };
+    for (const [name, source] of Object.entries(cases))
+      writeFileSync(join(root, `app/workflows/example/${name}.tsx`), source);
+    const problems = checkLayout(root);
+    for (const name of ['computed', 'spread'])
+      expect(problems).toContain(
+        `app/workflows/example/${name}.tsx: presentation props belong in the kit or content renderer`,
+      );
+    for (const name of ['measurement', 'scrolling'])
+      expect(problems).toContain(
+        `app/workflows/example/${name}.tsx: passage measurement and scrolling belong in the kit`,
+      );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('direct viewport dimensions and destructured aliases remain kit-owned', () => {
+  const root = mkdtempSync(join(tmpdir(), 'vaulter-viewport-dimensions-'));
+  try {
+    mkdirSync(join(root, 'app/workflows/example'), { recursive: true });
+    writeFileSync(
+      join(root, 'tsconfig.json'),
+      JSON.stringify({
+        compilerOptions: { module: 'ESNext', moduleResolution: 'Bundler' },
+        include: ['app'],
+      }),
+    );
+    const cases = {
+      width: 'export const compact=window.innerWidth<768;',
+      height: `export const height=window['innerHeight'];`,
+      visual: 'export const width=window.visualViewport?.width;',
+      visualAlias:
+        'const viewport=window.visualViewport; const {height:tall}=viewport!; export const height=tall;',
+      destructured: 'const {innerWidth:size}=window; export const compact=size<768;',
+      nested: `const {visualViewport:viewport}=window; const width=viewport?.['width']; export {width};`,
+    };
+    for (const [name, source] of Object.entries(cases))
+      writeFileSync(join(root, `app/workflows/example/${name}.ts`), source);
+    const problems = checkLayout(root);
+    for (const name of Object.keys(cases))
+      expect(problems).toContain(
+        `app/workflows/example/${name}.ts: viewport dimensions belong in the kit`,
+      );
+    writeFileSync(
+      join(root, 'app/workflows/example/data.ts'),
+      'const data={width:300,height:200};export const size=data.width+data.height;',
+    );
+    expect(checkLayout(root).some((problem) => problem.includes('/data.ts:'))).toBe(false);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('semantic rendering permits content and links but delegates custom controls to public Button', () => {
+  const root = mkdtempSync(join(tmpdir(), 'vaulter-semantic-controls-'));
+  try {
+    mkdirSync(join(root, 'app/workflows/wiki/rendering'), { recursive: true });
+    mkdirSync(join(root, 'app/ui/kit'), { recursive: true });
+    writeFileSync(
+      join(root, 'tsconfig.json'),
+      JSON.stringify({
+        compilerOptions: { module: 'ESNext', moduleResolution: 'Bundler', jsx: 'preserve' },
+        include: ['app'],
+      }),
+    );
+    writeFileSync(
+      join(root, 'app/ui/kit/index.ts'),
+      'export declare function Button(props:unknown):unknown;',
+    );
+    const file = join(root, 'app/workflows/wiki/rendering/blocks.tsx');
+    for (const source of [
+      `<span role="button" tabIndex={0} onClick={()=>{}}>Disclosure</span>`,
+      `<a href="#source" onClick={()=>{}}>Custom control</a>`,
+      `const action={['onKeyDown']:()=>{}};<span {...action}>Disclosure</span>`,
+      `const role='checkbox';<span role={role}>Check</span>`,
+      '<span contentEditable>Editor</span>',
+    ]) {
+      writeFileSync(file, source);
+      expect(checkLayout(root)).toContain(
+        'app/workflows/wiki/rendering/blocks.tsx: semantic content controls belong in public kit components',
+      );
+    }
+    writeFileSync(
+      file,
+      `import {Button} from '../../../ui/kit/index.ts';export const content=<p><a href="https://example.com" rel="noreferrer">Source</a><span role="note">Retained text</span><Button onClick={()=>{}} aria-pressed={false}>Evidence</Button></p>;`,
+    );
+    expect(checkLayout(root)).toEqual([]);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('installed presentation-library targets cannot hide behind path aliases or module loading forms', () => {
+  const root = mkdtempSync(join(tmpdir(), 'vaulter-library-targets-'));
+  try {
+    mkdirSync(join(root, 'app/workflows/example'), { recursive: true });
+    mkdirSync(join(root, 'app/ui/kit'), { recursive: true });
+    const library = fileURLToPath(
+      new URL('../node_modules/@base-ui/react/button/index.d.ts', import.meta.url),
+    );
+    writeFileSync(
+      join(root, 'tsconfig.json'),
+      JSON.stringify({
+        compilerOptions: {
+          module: 'ESNext',
+          moduleResolution: 'Bundler',
+          paths: { '@controls': [library] },
+        },
+        include: ['app'],
+      }),
+    );
+    const cases = {
+      import: `import {Button} from '@controls';export {Button};`,
+      export: `export {Button} from '@controls';`,
+      dynamic: `export const controls=()=>import('@controls');`,
+    };
+    for (const [name, source] of Object.entries(cases))
+      writeFileSync(join(root, `app/workflows/example/${name}.ts`), source);
+    writeFileSync(join(root, 'app/ui/kit/control.ts'), `export {Button} from '@controls';`);
+    const problems = checkLayout(root);
+    for (const name of Object.keys(cases))
+      expect(problems).toContain(
+        `app/workflows/example/${name}.ts: presentation dependencies belong behind app/ui/kit/index.ts`,
+      );
+    expect(problems.some((problem) => problem.includes('app/ui/kit/control.ts:'))).toBe(false);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});

@@ -120,6 +120,10 @@ state; accepted Chat history is reconstructed directly from NodeStore. Sign-out 
 execution and suppress late view changes. `view.ts` owns presentation snapshots independently of
 execution. There is no file-backed Chat Agent/capture/controller path.
 
+The same controller claims each retained application prompt once before either Chat view sends or
+edits it. Route changes, reopening the pane and simultaneous page/pane rendering preserve an
+accepted Ask and an edited draft without consuming the request again.
+
 Agent independently owns effective context, run and tool records. Chat and Agent construct their own
 initial records, composed into one transaction before model/tool effects. Chat's local append queue
 covers preparation and initial acceptance only, never the whole execution. Agent has no whole-Vault

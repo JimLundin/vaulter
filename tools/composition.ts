@@ -4,6 +4,7 @@ import { readdirSync } from 'node:fs';
 import { SymbolFlags, type Project, type Symbol as CompilerSymbol } from 'typescript/unstable/sync';
 // biome-ignore lint/performance/noNamespaceImport: Node-only compiler inspection.
 import * as ts from 'typescript/unstable/ast';
+import { compilerValues } from './compiler-values.ts';
 
 export interface CompositionRoot {
   source: string;
@@ -38,23 +39,7 @@ export function checkCompositions(
   const publicKit = project.program.getSourceFile(resolve(root, configuration.publicKit));
   if (!publicKit) throw new Error('Public kit is outside the checked TypeScript project');
   const path = (filename: string) => relative(root, filename).replaceAll('\\', '/');
-  const target = (node: ts.Node): CompilerSymbol | undefined => {
-    const symbol = checker.getSymbolAtLocation(node);
-    return symbol?.flags && symbol.flags & SymbolFlags.Alias
-      ? checker.getAliasedSymbol(symbol)
-      : symbol;
-  };
-  const aliasValue = (node: ts.Node, seen = new Set<string>()): ts.Node => {
-    if (ts.isAsExpression(node) || ts.isParenthesizedExpression(node))
-      return aliasValue(node.expression, seen);
-    const symbol = target(node);
-    if (!symbol || seen.has(String(symbol.id))) return node;
-    seen.add(String(symbol.id));
-    const declaration = symbol.declarations[0]?.resolve();
-    return declaration && ts.isVariableDeclaration(declaration) && declaration.initializer
-      ? aliasValue(declaration.initializer, seen)
-      : node;
-  };
+  const { target, value: aliasValue, propertyName } = compilerValues(project);
   const key = (symbol: CompilerSymbol | undefined) => (symbol ? String(symbol.id) : '');
   const publicTargets = new Map<string, string>();
   for (const symbol of checker.getExportsOfModule(checker.getSymbolAtLocation(publicKit)!)) {
@@ -256,9 +241,7 @@ export function checkCompositions(
         node.properties.some(
           (property) =>
             (ts.isPropertyAssignment(property) || ts.isShorthandPropertyAssignment(property)) &&
-            ['className', 'style', 'dangerouslySetInnerHTML'].includes(
-              property.name.getText(file).replace(/['"]/g, ''),
-            ),
+            ['className', 'style', 'dangerouslySetInnerHTML'].includes(propertyName(property.name)),
         )
       )
         report(node, 'custom presentation spread');

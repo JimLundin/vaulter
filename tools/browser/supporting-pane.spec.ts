@@ -1,5 +1,23 @@
 import { expect, test } from '@playwright/test';
 
+test('a persistent pane closing on resize preserves outside focus and leaves the next control clickable', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 844 });
+  await page.goto('/preview/');
+  const picker = page.getByRole('complementary', { name: 'Conversations', exact: true });
+  await expect(picker).toBeVisible();
+  const field = page.getByRole('textbox', { name: 'Message', exact: true });
+  await field.fill('Keep editing after resize');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.getByRole('dialog', { name: 'Conversations', exact: true })).toBeHidden();
+  await expect(field).toBeFocused();
+  await expect(field).toHaveValue('Keep editing after resize');
+  await field.blur();
+  await page.getByRole('button', { name: 'Start voice interaction', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Finish recording', exact: true })).toBeVisible();
+});
+
 test('supporting content stays beside the task in expanded space and preserves its nested task on phones', async ({
   page,
 }) => {
