@@ -126,6 +126,53 @@ test('failed Open retains selected history and draft and presents its own error'
   chat.dispose();
 });
 
+test('startup falls back to a saved conversation when remembered selection is absent', async () => {
+  const { chat } = await fixture();
+  chat.setDraft('Keep my draft');
+  expect(await chat.restore('absent-from-this-tab')).toMatchObject({
+    status: 'selected',
+    conversation: 'first',
+  });
+  expect(chat.snapshot().selection.error).toBeUndefined();
+  expect(chat.snapshot().draft).toBe('Keep my draft');
+  expect(chat.snapshot().turns[0]?.parts).toEqual([{ kind: 'text', text: 'first message' }]);
+  chat.dispose();
+});
+
+test('startup restores an available remembered conversation instead of the latest one', async () => {
+  const { chat } = await fixture();
+  expect(await chat.restore('second')).toMatchObject({
+    status: 'selected',
+    conversation: 'second',
+  });
+  expect(chat.snapshot().turns[0]?.parts).toEqual([{ kind: 'text', text: 'second message' }]);
+  chat.dispose();
+});
+
+test('startup opens an empty draft when remembered selection has no saved records', async () => {
+  const { chat, store } = await fixture();
+  await store.clear();
+  const draft = chat.conversation();
+  expect(await chat.restore('absent-from-this-tab')).toEqual({
+    status: 'selected',
+    conversation: draft,
+  });
+  expect(chat.snapshot().selection.error).toBeUndefined();
+  expect(chat.snapshot().turns).toEqual([]);
+  chat.dispose();
+});
+
+test('startup keeps explicit missing addresses visible as unavailable instead of selecting another chat', async () => {
+  const { chat, options } = await fixture();
+  chat.updateOptions({ ...options, conversation: 'missing' });
+  expect(await chat.restore('missing')).toEqual({
+    status: 'failed',
+    error: 'This conversation is unavailable.',
+  });
+  expect(chat.snapshot().turns).toEqual([]);
+  chat.dispose();
+});
+
 test('an ineligible Open does not cancel an eligible read and blocked selection preserves capture and draft', async () => {
   const { chat, options, hold, reads } = await fixture();
   const voice = createTranscription(async () => ({ close: () => {}, finish: async () => 'Final' }));

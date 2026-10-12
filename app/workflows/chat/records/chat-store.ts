@@ -130,7 +130,9 @@ export async function savedMessages(
   sequence?: number,
 ): Promise<readonly SavedMessage[]> {
   const snapshot = await store.snapshot(sequence);
-  parseConversation(snapshot.get(node)?.data);
+  const conversation = snapshot.get(node);
+  if (!conversation?.data) throw new Error('This conversation is unavailable.');
+  parseConversation(conversation.data);
   return frozen(
     snapshot.children(node).flatMap((exchange) => {
       if (exchange.data?.kind !== 'exchange') return [];

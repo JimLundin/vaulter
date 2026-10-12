@@ -1,5 +1,29 @@
 import { expect, test } from '@playwright/test';
 
+test('preview selection follows its tab records despite a selection retained by another tab', async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('vaulter:preview:conversation:v1', 'absent-from-this-tab');
+  });
+  await page.goto('/preview/');
+  const input = page.getByRole('textbox', { name: 'Message', exact: true });
+  await expect(input).toBeVisible();
+  await expect(page.getByText('Expected finite, acyclic JSON', { exact: false })).toHaveCount(0);
+  await input.fill('Remember this tab');
+  await input.press('Enter');
+  await expect(page.locator('[data-message="agent"]')).toBeVisible();
+  const selected = await page.evaluate(() => ({
+    local: localStorage.getItem('vaulter:preview:conversation:v1'),
+    tab: sessionStorage.getItem('vaulter:preview:conversation:v1'),
+  }));
+  expect(selected.local).toBe('absent-from-this-tab');
+  expect(selected.tab).toBeTruthy();
+  await page.reload();
+  await expect(page.locator('[data-message="user"]')).toContainText('Remember this tab');
+  await expect(page.getByText('Expected finite, acyclic JSON', { exact: false })).toHaveCount(0);
+});
+
 async function movePreviewBelowToolbar(handle: { press: (key: string) => Promise<void> }) {
   // Move the overlay out of the toolbar before using the app beneath it.
   for (let step = 0; step < 10; step++) await handle.press('Shift+ArrowDown');

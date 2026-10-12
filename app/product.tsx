@@ -152,6 +152,7 @@ export function OpenProduct({
 }) {
   const { vault, files, status, nodes, nodeStatus } = session;
   const conversationKey = preview ? previewConversationKey : productionConversationKey;
+  const selectionStorage = preview ? sessionStorage : localStorage;
   const setup = useMemo(
     () => (nodes ? createApplicationIdentities(nodes, identities) : null),
     [nodes, identities],
@@ -183,8 +184,8 @@ export function OpenProduct({
     if (nodeStatus.kind === 'synced') later(prepareIdentities());
   }, [prepareIdentities, nodeStatus.kind]);
   const retainedConversation = useMemo(
-    () => localStorage.getItem(conversationKey) ?? undefined,
-    [conversationKey],
+    () => selectionStorage.getItem(conversationKey) ?? undefined,
+    [conversationKey, selectionStorage],
   );
   const route = useRoute();
   const [pages, setPages] = useState<WikiPage[] | null>(null);
@@ -312,7 +313,7 @@ export function OpenProduct({
         const selected = conversationRoute.match(route.path)?.node;
         if (selected && selected !== id) go(conversationRoute.href({ node: id }));
         try {
-          localStorage.setItem(conversationKey, id);
+          selectionStorage.setItem(conversationKey, id);
         } catch {
           /* Selection retention cannot invalidate accepted records. */
         }

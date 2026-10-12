@@ -211,7 +211,7 @@ function Preview({ initialHead, nodes }: { initialHead: Head; nodes: NodeStore }
           chat={agent ? 'Live agent' : 'Scripted chat'}
           onReset={() => {
             sessionStorage.removeItem(previewJournalKey);
-            localStorage.removeItem(previewConversationKey);
+            sessionStorage.removeItem(previewConversationKey);
             location.reload();
           }}
           kitHref={import.meta.env.DEV ? '/ui/kit/' : './kit/'}
