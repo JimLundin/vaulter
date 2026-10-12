@@ -6,10 +6,15 @@ record kinds await their modules.
 Every record kind is the data one component renders: its payload is that component's props, and its
 structure (placement and connection) is what the component's container resolves. Each kind has one
 owning module, which ships its component and owns every write to it. Until a module exists, its
-schemas live in `app/vault/records/<module>.ts` and move into the module unchanged.
+schemas live in `app/vault/records/<module>.ts`. A module claims its kinds and owns their future
+design; it can evolve payloads, structure and presentation as its behavior develops. Changed required
+fields or meanings need explicit historical decoders and, where needed, appended upgrade transactions.
+Existing versions remain readable, including through exact addresses and historical selections.
 
-The vault migration writes exactly these shapes. Nothing is kept for compatibility with the Markdown
-vault: file paths, formats, frontmatter and transcript markers are not part of any record.
+Vault-owned translation targets each module's current validation. Source paths, formats, frontmatter
+and transcript markers belong to that translation, rather than constraining Vaulter's record design.
+Published history is preserved; its readability does not freeze the shapes of future writes.
+See [ADR 0007](../adr/0007-vault-owned-translation.md).
 
 ## Modelling rules
 
@@ -225,42 +230,20 @@ the Vaulter tools.
 | `node.create` (identities) | owner | when recorded | none | | none |
 | `vault.import`, one per historical change | its original author | its original time | none | its original message | none |
 
-## Migration
+## Translation and enrichment
 
-- **Block identity across revisions.** Consecutive revisions of a page are matched block by block
-  and inline node by inline node: exact text first, then the most similar text at the same position.
-  A match keeps its identity and gets a version only if it changed. Ambiguous matches are reported.
-- **Removed lifecycle records.** A question removed from its page is abandoned: the history does not
-  point to an answer. A follow-up removed from its page keeps its state; outcomes known only now are
-  recorded by the owner in a transaction of their own, after the imported history.
-- **Removed pages.** A page merged into another stays, with `merged-into` to it; a removed page keeps
-  its history as a removed page.
-- **Verification.** Every historical revision of every page renders back to its source text's
-  content; every turn is verbatim; every record parses with its module's schema.
+The private Vault owns the [migration tools](https://github.com/JimLundin/vault/tree/main/.vaulter/tooling/migration)
+and [operational runbook](https://github.com/JimLundin/vault/blob/main/.vaulter/tooling/wiki-migration.md).
+They interpret source history, choose extraction and enrichment policy, and compose the current
+Vaulter record owners. New extraction can produce richer records without requiring Vaulter to
+retain the source vault's organization or its original one-to-one mapping.
 
-## Running the migration
+The tooling pins a Vaulter Git revision and imports its existing owner entries. Updating that pin
+requires adapting translation and checking proposed writes against the new target definitions.
+Those source imports provide no stable SDK contract. Vaulter's modules evolve for application needs.
 
-`tools/migration/migrate.ts` regenerates the vault's node history from its Git history;
-`tools/migration/verify.ts` checks the result independently. Both read the vault repository next to
-this one and write nothing into either repository.
-
-```sh
-npm run migrate -- --out /tmp/vault-migration         # --vault-ref origin/main by default
-npm run migrate:verify -- --out /tmp/vault-migration
-```
-
-The output holds the transaction envelopes under `.vaulter/nodes/v1/transactions/`, the identity
-map, the transaction-to-commit map and a report: unresolved references, values a schema rejected,
-merged and removed pages, abandoned questions. Identities and transaction IDs are derived from
-source anchors, so an unchanged source regenerates byte-identical envelopes.
-
-The vault's imported history is now published. Preserve it and append enrichment; replacing its
-`vault:` or `migration:` envelopes invalidates exact references and violates the synchronized prefix.
-The replay importer is for scratch checks of the original import, not upgrading the published vault.
-
-```sh
-npm run migrate:enrich -- --vault-ref HEAD --out /tmp/wiki-enrichment-run
-```
-
-See [Wiki migration](../wiki-migration.md) for the finalized data mapping, passage selection contract,
-reviewed evidence input, dry-run results, and the remaining content-review queue.
+The imported history is already published. Preserve its immutable prefix and exact addresses;
+append enrichment and upgrades. Original import replay remains a scratch verification facility.
+Historical decoding and citation text semantics stay with the record owners, as required by
+[ADR 0002](../adr/0002-versioned-node-model.md) and [ADR 0005](../adr/0005-wiki-citation-selections.md).
+See [Wiki ingestion](../wiki-migration.md) for current preparation and evidence validation.

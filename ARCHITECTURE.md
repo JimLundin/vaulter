@@ -360,21 +360,34 @@ remain separate work.
 ## Wiki record ownership
 
 `workflows/wiki/records.ts` owns page, block, inline and Citation definitions and containment.
-Its pure reading and preparation entries are available to migration without React or browser
+Its pure reading and preparation entries are available to external ingestion without React or browser
 dependencies. Only `kind: 'page'` records enter Wiki collections, queries and page routes.
 Content records remain independent source material and appear through historical citations.
 
 Wiki owns UTF-16 selections, source eligibility, current-claim applicability, provenance and
 evidence validation, and reference construction. Chat, Agent, Content and retained record readers
 interpret their own historical text and descriptions through the shared `vault/sources.ts` contract.
-Product and `tools/migration/wiki.ts` explicitly compose those readers. Wiki owns its block/inline
-text grammar even beneath foreign sources; historical page ancestry determines source exclusion.
+Product and the private Vault's translation tooling explicitly compose those readers. Wiki owns its
+block/inline text grammar even beneath foreign sources; historical page ancestry determines source exclusion.
 
-Migration retains Git reading, review packets and ranking, deterministic identities, authorship,
-envelopes and reports. It consumes Wiki preparation and validates an exact baseline before output;
+The Vault owns Git reading, source extraction and enrichment policy, review packets and ranking,
+deterministic identities, authorship, envelopes and reports in `.vaulter/tooling/migration/`.
+Its tooling package pins public Vaulter code as a Git submodule at `.vaulter/tooling/vaulter/` and
+uses `#vaulter/*` imports of existing record-owner entries. The pin makes each translation reproducible;
+updating it requires adapting the consumer rather than preserving a separate Vaulter SDK or export
+catalogue. Private source readers and new extraction strategies evolve in the Vault.
+
+The tooling consumes Wiki preparation and validates an exact baseline before output;
 prepared descendant version expectations alone cannot detect newly inserted children. Wiki never
 imports migration or foreign source implementations. The compiler-resolved layout policy enforces
 these boundaries, and generic Vault records no longer import or re-export Wiki definitions.
+
+Modules own the design and validation of future records. Kinds awaiting modules in `vault/records/`
+are starting definitions, not a commitment to keep payloads unchanged. New required fields or changed
+meanings need module-owned historical decoding and appended upgrades while retaining existing exact
+addresses and selection semantics. Published history stays immutable without freezing future writes.
+[ADR 0007](docs/adr/0007-vault-owned-translation.md) records that separation;
+[Wiki ingestion](docs/wiki-migration.md) describes the current interface and links to Vault operations.
 
 ## Chat record UI and shared presentation
 

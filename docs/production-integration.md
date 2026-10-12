@@ -17,11 +17,13 @@ source navigation into persistent Chat and phone focus return. Deploy CI runs un
 built production checks on main before publishing to GitHub Pages. `version.json` records the
 published commit. Preview builds retain sample data separately.
 
-Migration modules and the underlying-source rule are committed alongside the UI projection.
-Private reviewed packets and verified append-only enrichment are retained in the private vault as
-recorded in [the migration handoffs](wiki-migration.md#private-migration-handoffs). The prepared
-enrichment has not been applied to the live vault; resuming migration requires the recorded baseline
-or regenerated output if vault history has advanced.
+The underlying-source rule and module-owned evidence preparation accompany the UI projection.
+Translation and enrichment now live in the private Vault's
+[migration tooling](https://github.com/JimLundin/vault/tree/main/.vaulter/tooling/migration).
+Private reviewed packets, publication status and handoffs belong to its
+[operational runbook](https://github.com/JimLundin/vault/blob/main/.vaulter/tooling/wiki-migration.md).
+Prepared enrichment requires its exact recorded baseline or regeneration if vault history advances;
+[Wiki ingestion](wiki-migration.md) describes Vaulter's current validation and reading contract.
 
 ## Consolidation
 
