@@ -15,16 +15,12 @@ import { ConversationList } from './ConversationList.tsx';
 import { ChatSurface, ChatWelcome, type ChatPresentation } from './ChatSurface.tsx';
 import { ChatMessage } from './ChatMessage.tsx';
 import { later } from '../../ui/later.ts';
-import type { NodeConversation } from './node-conversation.ts';
+import type { NodeConversation, Prompt } from './node-conversation.ts';
+export type { Prompt } from './node-conversation.ts';
 import { useNodeChat } from './use-node-conversation.ts';
 import { model } from './model.ts';
 import { useTranscript, type Transcription } from './transcription.ts';
 
-export interface Prompt {
-  text: string;
-  send: boolean;
-  n: number;
-}
 export function Chat({
   conversation,
   arg,
@@ -52,7 +48,6 @@ export function Chat({
     phase,
   } = useNodeChat(conversation);
   const [retrying, setRetrying] = useState(false);
-  const argSeen = useRef(0);
   const [focused, setFocused] = useState(false);
   const transcript = useTranscript(voice);
   const recording = ['connecting', 'listening', 'finishing'].includes(transcript.phase);
@@ -106,8 +101,7 @@ export function Chat({
   ]);
   const showSuggestions = !(focused || input || busy || recording) && suggestions.length > 0;
   useEffect(() => {
-    if (!(visible && arg) || arg.n === argSeen.current) return;
-    argSeen.current = arg.n;
+    if (!(visible && arg && conversation.takePrompt(arg))) return;
     if (arg.send && !conversation.snapshot().busy) say(arg.text);
     else {
       type(arg.text);

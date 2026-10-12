@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 import type { Locator } from '@playwright/test';
 
 const specimen = (family: Locator, device: 'desktop' | 'mobile') =>
-  family.locator(`[data-kit-preview="${device}"]`);
+  family.locator(`.kit-comparison-pair > .kit-device > [data-kit-preview="${device}"]`);
 async function contained(outer: Locator, inner: Locator) {
   const bounds = (await outer.boundingBox())!;
   const content = (await inner.boundingBox())!;
@@ -25,12 +25,21 @@ test('the entire catalogue renders paired live components without requests to ex
   });
   await page.goto('/ui/kit/');
   const families = page.locator('[data-kit-comparison]');
-  await expect(families).toHaveCount(37);
-  for (const family of await families.all()) {
-    await expect(specimen(family, 'desktop')).toHaveCount(1);
-    await expect(specimen(family, 'mobile')).toHaveCount(1);
-    const desktop = (await specimen(family, 'desktop').boundingBox())!;
-    const mobile = (await specimen(family, 'mobile').boundingBox())!;
+  await expect(families).toHaveCount(38);
+  const pairs = await families.evaluateAll((elements) =>
+    elements.map((family) =>
+      (['desktop', 'mobile'] as const).map((device) => {
+        const samples = family.querySelectorAll(
+          `.kit-comparison-pair > .kit-device > [data-kit-preview="${device}"]`,
+        );
+        const { x, y, width } = samples[0].getBoundingClientRect();
+        return { count: samples.length, x, y, width };
+      }),
+    ),
+  );
+  for (const [desktop, mobile] of pairs) {
+    expect(desktop.count).toBe(1);
+    expect(mobile.count).toBe(1);
     expect(desktop.width).toBe(800);
     expect(mobile.width).toBe(390);
     expect(mobile.x).toBeGreaterThan(desktop.x + desktop.width);

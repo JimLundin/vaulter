@@ -5,6 +5,43 @@ async function movePreviewBelowToolbar(handle: { press: (key: string) => Promise
   for (let step = 0; step < 10; step++) await handle.press('Shift+ArrowDown');
 }
 
+test('Search Ask is accepted once when Chat moves between the page and its supporting pane', async ({
+  page,
+}) => {
+  await page.goto('/preview/');
+  await movePreviewBelowToolbar(page.locator('[data-preview-drag-handle]'));
+  await page.getByRole('button', { name: 'Search', exact: true }).click();
+  const search = page.getByRole('dialog', { name: 'Search or ask' });
+  await search.getByRole('combobox').fill('Review prompt only once');
+  await search.getByRole('option', { name: 'Ask the agent: Review prompt only once' }).click();
+  await expect(page.getByRole('main').locator('[data-message="user"]')).toHaveCount(1);
+  await expect(
+    page.getByRole('main').getByRole('button', { name: 'Stop', exact: true }),
+  ).toBeHidden();
+  const accepted = await page.evaluate(() => sessionStorage.getItem('vaulter:preview:accepted:v1'));
+  // Hash navigation changes Product's composition without reloading its retained lifetime.
+  await page.evaluate(() => {
+    location.hash = '#/history/';
+  });
+  const pane = page.getByRole(test.info().project.name === 'phone' ? 'dialog' : 'complementary', {
+    name: 'Chat',
+    exact: true,
+  });
+  await expect(pane).toBeVisible();
+  await expect(pane.locator('[data-message="user"]')).toHaveCount(1);
+  await expect(pane.getByRole('button', { name: 'Stop', exact: true })).toBeHidden();
+  await page.evaluate(() => {
+    location.hash = '#/chat/';
+  });
+  await expect(
+    page.getByRole('main').getByRole('heading', { name: 'Chat', exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole('main').locator('[data-message="user"]')).toHaveCount(1);
+  expect(await page.evaluate(() => sessionStorage.getItem('vaulter:preview:accepted:v1'))).toBe(
+    accepted,
+  );
+});
+
 test('node-backed Send retains content receipts and accepted conversation across reload without replay', async ({
   page,
 }) => {
@@ -273,6 +310,8 @@ test('conversation picker opens saved node conversations and History lists every
   );
   await page.goto('/preview/#/history/');
   await expect(page.getByText(`#${count}`, { exact: true })).toBeVisible();
+  while (await page.getByRole('button', { name: 'Load earlier', exact: true }).isVisible())
+    await page.getByRole('button', { name: 'Load earlier', exact: true }).click();
   await expect(page.getByText('#1', { exact: true })).toBeVisible();
 });
 

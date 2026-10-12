@@ -88,3 +88,90 @@ test('a reply finishing with the mounted pane closed remains unread until it reo
     vi.unstubAllGlobals();
   }
 });
+
+test('retained prompts are consumed once across page and panel views, including edit-only drafts', async () => {
+  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+  const nodes = memoryNodeBackend();
+  await seed(nodes);
+  await nodes.commit(request('agent', [create('agent', { kind: 'agent', name: 'Fictional' })]));
+  const model = new MockLanguageModelV4({
+    doStream: async () => ({
+      stream: convertArrayToReadableStream([
+        { type: 'stream-start', warnings: [] },
+        { type: 'text-start', id: 'text' },
+        { type: 'text-delta', id: 'text', delta: 'One retained answer.' },
+        { type: 'text-end', id: 'text' },
+        {
+          type: 'finish',
+          finishReason: { unified: 'stop', raw: undefined },
+          usage: {
+            inputTokens: { total: 3, noCache: 3, cacheRead: 0, cacheWrite: 0 },
+            outputTokens: { total: 2, text: 2, reasoning: 0 },
+          },
+        },
+      ]),
+    }),
+  });
+  const conversation = createNodeConversation({
+    nodes,
+    user: 'user',
+    agent: 'agent',
+    provider: 'fictional',
+    model: async () => model,
+    selectedModel: 'fictional',
+    instructions: 'Record.',
+    suggestions: async () => [],
+  });
+  const voice = createTranscription(null);
+  const root = createRoot(document.body);
+  const sendPrompt = { text: 'Ask once', send: true, n: 1 };
+  const editPrompt = { text: 'Draft from a suggestion', send: false, n: 2 };
+  const render = (page: boolean, open: boolean, prompt = sendPrompt) =>
+    root.render(
+      <>
+        {page && (
+          <Chat
+            conversation={conversation}
+            arg={prompt}
+            voice={voice}
+            presentation={{ page: true }}
+          />
+        )}
+        <Chat
+          conversation={conversation}
+          arg={page ? null : prompt}
+          voice={voice}
+          presentation={{ open, onClose: () => undefined }}
+        />
+      </>,
+    );
+  const idle = () =>
+    act(async () => {
+      await vi.waitFor(() => expect(conversation.snapshot().busy).toBe(false));
+    });
+  try {
+    await act(async () => render(true, false));
+    await idle();
+    expect(conversation.snapshot().turns).toHaveLength(2);
+    await act(async () => render(false, true));
+    await idle();
+    await act(async () => render(false, false));
+    await act(async () => render(false, true));
+    await idle();
+    expect(model.doStreamCalls).toHaveLength(1);
+    expect(conversation.snapshot().turns).toHaveLength(2);
+    await act(async () => render(true, false, editPrompt));
+    expect(conversation.snapshot().draft).toBe('Draft from a suggestion');
+    await act(async () => conversation.setDraft('Edited unfinished draft'));
+    await act(async () => render(false, true, editPrompt));
+    expect(conversation.snapshot().draft).toBe('Edited unfinished draft');
+    expect(model.doStreamCalls).toHaveLength(1);
+  } finally {
+    await act(async () => root.unmount());
+    conversation.dispose();
+    voice.dispose();
+    nodes.close();
+    document.body.replaceChildren();
+    vi.unstubAllGlobals();
+  }
+});

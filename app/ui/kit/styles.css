@@ -301,6 +301,10 @@ body:has(.kit-design-window) {
 .kit-drawer:is([data-starting-style], [data-ending-style]) {
   transform: translate3d(0, 100%, 0);
 }
+.kit-drawer[data-closed],
+.kit-drawer[data-closed] * {
+  pointer-events: none;
+}
 .kit-drawer[data-swiping],
 .kit-drawer-backdrop[data-swiping] {
   transition-duration: 0ms;

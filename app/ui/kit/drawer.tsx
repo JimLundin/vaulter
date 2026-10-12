@@ -47,6 +47,12 @@ export function Drawer({
   const pane = placement === 'pane';
   const beside = placement !== 'default' && !compact;
   const inline = pane;
+  const previous = useRef({ open, beside });
+  const closingForResize = useRef(false);
+  if (previous.current.open !== open) {
+    closingForResize.current = !open && previous.current.beside && compact;
+  }
+  previous.current = { open, beside };
   const restoreFocus = usePresentationFocus(open);
   const policy = usePresentationPolicy();
   const opener = useRef<HTMLElement | null>(null);
@@ -102,6 +108,8 @@ export function Drawer({
         aria-describedby={description ? descriptionId : undefined}
         finalFocus={() => {
           if (!pane) return restoreFocus();
+          // A persistent pane can close during resize while another task owns focus.
+          if (closingForResize.current) return false;
           const target = opener.current;
           return target?.isConnected &&
             target.getClientRects().length &&

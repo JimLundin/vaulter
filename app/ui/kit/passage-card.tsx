@@ -64,9 +64,22 @@ export function PassageCard({
     };
     revealSelection();
     measure();
+    // Native keyboard scrolling may finish after collapsing an expanded passage.
+    const keepSelectionVisible = () => {
+      if (expanded) return;
+      const mark = context.querySelector('mark');
+      if (!mark) return;
+      const viewport = context.getBoundingClientRect();
+      const bounds = mark.getBoundingClientRect();
+      if (bounds.top < viewport.top || bounds.bottom > viewport.bottom) revealSelection();
+    };
+    context.addEventListener('scroll', keepSelectionVisible);
     const observer = new ResizeObserver(measure);
     observer.observe(context);
-    return () => observer.disconnect();
+    return () => {
+      context.removeEventListener('scroll', keepSelectionVisible);
+      observer.disconnect();
+    };
   }, [expanded, text, markStart, markEnd, start, end]);
   const truncated = start > 0 || end < text.length || clipped;
   return (

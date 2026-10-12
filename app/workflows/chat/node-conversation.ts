@@ -5,6 +5,12 @@ import type { NodeChatOptions, NodeChatRun, NodeChatRunState } from './node-back
 import type { MessageData } from './records/chat.ts';
 import { generateSuggestions, type SuggestionProvider } from './suggestions.ts';
 
+/** One task request supplied by the application composition, shared by page and panel views. */
+export interface Prompt {
+  text: string;
+  send: boolean;
+  n: number;
+}
 export interface NodeConversationOptions extends NodeChatOptions {
   readonly selectedModel: string;
   readonly conversation?: string;
@@ -70,6 +76,7 @@ export function createNodeConversation(initial: NodeConversationOptions) {
   let active: NodeChatRun | undefined;
   let activeBase: Turn[] = [];
   let views = 0;
+  let promptSeen = 0;
   let disposed = false;
   let suggestedFor: string | undefined;
   let suggestionAbort: AbortController | undefined;
@@ -266,6 +273,12 @@ export function createNodeConversation(initial: NodeConversationOptions) {
       } catch (error) {
         set({ contextError: error instanceof Error ? error.message : String(error) });
       }
+    },
+    /** Claim a retained request before either view performs its send or edit action. */
+    takePrompt: (prompt: Prompt) => {
+      if (disposed || prompt.n <= promptSeen) return false;
+      promptSeen = prompt.n;
+      return true;
     },
     viewing: () => {
       views++;
