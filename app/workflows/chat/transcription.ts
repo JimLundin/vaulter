@@ -1,5 +1,5 @@
 // Live speech is a removable chat capability. The controller owns capture; views only render its state.
-import { useEffect, useRef, useSyncExternalStore } from 'react';
+import { useEffect, useLayoutEffect, useState, useSyncExternalStore } from 'react';
 
 import type { TranscriptionProvider, TranscriptionConnection } from '../../agent/transcription.ts';
 export type {
@@ -37,6 +37,7 @@ export function createTranscription(initial: TranscriptionProvider | null) {
   let disposed = false;
   const listeners = new Set<() => void>();
   const set = (next: Partial<TranscriptionState>) => {
+    if (disposed) return;
     state = { ...state, ...next };
     if (!disposed) for (const listener of listeners) listener();
   };
@@ -58,6 +59,7 @@ export function createTranscription(initial: TranscriptionProvider | null) {
         : undefined;
   return {
     snapshot: () => state,
+    closed: () => disposed,
     subscribe(listener: () => void) {
       listeners.add(listener);
       return () => {
@@ -65,6 +67,7 @@ export function createTranscription(initial: TranscriptionProvider | null) {
       };
     },
     configure(next: TranscriptionProvider | null) {
+      if (disposed) return;
       provider = next;
       set({});
     },
@@ -78,12 +81,14 @@ export function createTranscription(initial: TranscriptionProvider | null) {
         });
         return;
       }
+      const selectedProvider = provider;
       release();
       const request = new AbortController();
       abort = request;
       set({ phase: 'connecting', text: '', error: '', session: crypto.randomUUID(), revision: 0 });
       try {
-        const session = await provider(
+        if (disposed || request.signal.aborted) return;
+        const session = await selectedProvider(
           {
             text(text) {
               if (!request.signal.aborted) set({ text, revision: state.revision + 1 });
@@ -104,7 +109,8 @@ export function createTranscription(initial: TranscriptionProvider | null) {
         if (!request.signal.aborted) fail(error);
       }
     },
-    async finish() {
+    async finish(session?: string) {
+      if (disposed || (session !== undefined && session !== state.session)) return;
       if (state.phase !== 'listening' || !connection) return;
       const request = abort;
       set({ phase: 'finishing' });
@@ -122,14 +128,13 @@ export function createTranscription(initial: TranscriptionProvider | null) {
         if (!request?.signal.aborted) fail(error);
       }
     },
-    reset() {
-      disposed = false;
-    },
-    clear() {
+    clear(session?: string) {
+      if (disposed || (session !== undefined && session !== state.session)) return;
       release();
       set({ phase: 'idle', text: '', error: '', session: null, revision: 0 });
     },
-    interrupt() {
+    interrupt(session?: string) {
+      if (disposed || (session !== undefined && session !== state.session)) return;
       if (!['connecting', 'listening', 'finishing'].includes(state.phase)) return;
       release();
       set({
@@ -139,6 +144,7 @@ export function createTranscription(initial: TranscriptionProvider | null) {
       });
     },
     dispose() {
+      if (disposed) return;
       disposed = true;
       release();
       listeners.clear();
@@ -148,26 +154,36 @@ export function createTranscription(initial: TranscriptionProvider | null) {
 export type Transcription = ReturnType<typeof createTranscription>;
 export const useTranscript = (voice: Transcription) =>
   useSyncExternalStore(voice.subscribe, voice.snapshot);
-export function useTranscription(provider: TranscriptionProvider | null) {
-  const ref = useRef<Transcription | null>(null);
-  if (!ref.current) ref.current = createTranscription(provider);
-  const voice = ref.current;
-  useEffect(() => {
-    voice.configure(provider);
-  }, [voice, provider]);
-  useEffect(() => {
-    voice.reset();
+export function useTranscription(provider: TranscriptionProvider | null, session?: object) {
+  const [lifetime, setLifetime] = useState(() => ({
+    session,
+    voice: createTranscription(provider),
+  }));
+  let current = lifetime;
+  if (lifetime.session !== session) {
+    current = { session, voice: createTranscription(provider) };
+    setLifetime(current);
+  }
+  const voice = current.voice;
+  // biome-ignore lint/correctness/useExhaustiveDependencies: this effect owns the session, not capability updates.
+  useLayoutEffect(() => {
+    // Effect replay creates a fresh owner; disposed sessions never regain authority.
+    const owned = voice.closed() ? createTranscription(provider) : voice;
+    if (owned !== voice) setLifetime({ session, voice: owned });
     const hidden = () => {
-      if (document.hidden) voice.interrupt();
+      if (document.hidden) owned.interrupt();
     };
-    const leaving = () => voice.interrupt();
+    const leaving = () => owned.interrupt();
     document.addEventListener('visibilitychange', hidden);
     addEventListener('pagehide', leaving);
     return () => {
       document.removeEventListener('visibilitychange', hidden);
       removeEventListener('pagehide', leaving);
-      voice.dispose();
+      owned.dispose();
     };
-  }, [voice]);
+  }, [session]);
+  useEffect(() => {
+    voice.configure(provider);
+  }, [voice, provider]);
   return voice;
 }

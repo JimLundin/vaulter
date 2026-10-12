@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { act } from 'react';
+import { act, StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { expect, test, vi } from 'vitest';
 import { MockLanguageModelV4, convertArrayToReadableStream } from 'ai/test';
@@ -7,10 +7,10 @@ import { memoryNodeBackend } from '../../vault/nodes/memory.ts';
 import { create, request, seed } from '../../vault/nodes/fixtures.test-support.ts';
 import type { NodeStore } from '../../vault/nodes/store.ts';
 import { createNodeConversation } from './node-conversation.ts';
-import { createTranscription } from './transcription.ts';
+import { createTranscription, useTranscription } from './transcription.ts';
 import { Chat } from './Chat.tsx';
 import { ChatIndicator } from './index.tsx';
-import { useNodeConversation } from './use-node-conversation.ts';
+import { useNodeConversation, useNodeChat } from './use-node-conversation.ts';
 
 test('requested history retries a failed read when store readiness changes', async () => {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
@@ -390,6 +390,126 @@ test('simultaneous and reopened Chat views retain blocked Ask with visible Use a
     await act(async () => root.unmount());
     conversation.dispose();
     voice.dispose();
+    nodes.close();
+    document.body.replaceChildren();
+    vi.unstubAllGlobals();
+  }
+});
+
+test('StrictMode owns fresh Chat and recording lifetimes and replacing the Vault session retains no old task', async () => {
+  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+  const nodes = memoryNodeBackend();
+  await seed(nodes);
+  let transcript!: import('./transcription.ts').TranscriptionEvents;
+  let recordingClosed = false;
+  const provider: import('./transcription.ts').TranscriptionProvider = async (events) => {
+    transcript = events;
+    return {
+      close: () => {
+        recordingClosed = true;
+      },
+      finish: async () => 'Final speech',
+    };
+  };
+  let current!: ReturnType<typeof useNodeConversation>;
+  function Surface({ session }: { session: object }) {
+    const voice = useTranscription(provider, session);
+    const conversation = useNodeConversation({
+      session,
+      nodes,
+      user: 'user',
+      agent: 'user',
+      provider: 'fictional',
+      selectedModel: '',
+      model: () => Promise.reject(new Error('Reading must not execute')),
+      instructions: '',
+      transcription: voice,
+      suggestions: async () => [],
+      stagedChanges: () => [{ path: 'Pending.md', before: 'before', text: 'after' }],
+    });
+    current = conversation;
+    return <Chat conversation={conversation} arg={null} presentation={{ page: true }} />;
+  }
+  const root = createRoot(document.body);
+  const first = {};
+  try {
+    await act(async () =>
+      root.render(
+        <StrictMode>
+          <Surface session={first} />
+        </StrictMode>,
+      ),
+    );
+    await act(async () => {
+      current.setDraft('Prefix');
+      await current.captureAction();
+      transcript.text('spoken words');
+    });
+    expect(document.body.querySelector('textarea')?.value).toBe('Prefix spoken words');
+    const previous = current;
+    await act(async () =>
+      root.render(
+        <StrictMode>
+          <Surface session={{}} />
+        </StrictMode>,
+      ),
+    );
+    expect(current).not.toBe(previous);
+    expect(recordingClosed).toBe(true);
+    await act(async () => transcript.text('Late closed speech'));
+    expect(document.body.querySelector('textarea')?.value).toBe('');
+    expect(current.snapshot().prompts).toEqual([]);
+    expect(current.snapshot().review).toBeUndefined();
+    expect(previous.ready()).toBe(false);
+    await act(async () => {
+      current.setDraft('New session text');
+      await current.captureAction();
+      transcript.text('fresh speech');
+    });
+    expect(document.body.querySelector('textarea')?.value).toBe('New session text fresh speech');
+  } finally {
+    await act(async () => root.unmount());
+    nodes.close();
+    document.body.replaceChildren();
+    vi.unstubAllGlobals();
+  }
+});
+
+test('mounted shared Chat ignores composition option identity changes without a render loop', async () => {
+  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+  const nodes = memoryNodeBackend();
+  await seed(nodes);
+  let renders = 0;
+  function Surface() {
+    renders++;
+    if (renders > 20) throw new Error('Chat composition entered a render loop');
+    const conversation = useNodeConversation({
+      nodes,
+      user: 'user',
+      agent: 'user',
+      provider: 'fictional',
+      selectedModel: '',
+      model: () => Promise.reject(new Error('No model expected')),
+      tools: () => ({}),
+      instructions: '',
+      suggestions: async () => [],
+    });
+    const snapshot = useNodeChat(conversation);
+    return (
+      <>
+        <span>{snapshot.capture.phase}</span>
+        <Chat conversation={conversation} arg={null} presentation={{ page: true }} />
+      </>
+    );
+  }
+  const root = createRoot(document.body);
+  try {
+    await act(async () => root.render(<Surface />));
+    await act(async () => root.render(<Surface />));
+    expect(document.body.textContent).toContain('idle');
+    expect(renders).toBeLessThan(20);
+  } finally {
+    await act(async () => root.unmount());
     nodes.close();
     document.body.replaceChildren();
     vi.unstubAllGlobals();

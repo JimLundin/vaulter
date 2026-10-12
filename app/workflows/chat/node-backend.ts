@@ -232,7 +232,7 @@ function responseFrom(
 
 export function createNodeChatBackend(options: NodeChatOptions) {
   const agent = createAgentBackend(options);
-  const handles = new Map<string, { identity: string; handle: NodeChatRun }>();
+  const handles = new Map<string, { identity: string; handle: NodeChatRun; release: () => void }>();
   let disposed = false;
   function send(input: NodeChatRequest): NodeChatRun {
     if (disposed) throw new Error('Chat backend is disposed');
@@ -276,6 +276,7 @@ export function createNodeChatBackend(options: NodeChatOptions) {
       },
     });
     const notify = (next: NodeChatRunState) => {
+      if (disposed) return;
       const current = execution?.snapshot();
       const saveStage = next.persistenceStage ?? current?.persistenceStage;
       const saveError = next.persistenceError ?? current?.persistenceError;
@@ -359,7 +360,7 @@ export function createNodeChatBackend(options: NodeChatOptions) {
       }
     };
     const saveResponse = async () => {
-      if (!(execution && prepared)) return state;
+      if (disposed || !(execution && prepared)) return state;
       let current = execution.snapshot();
       if (
         current.phase === 'unsaved' ||
@@ -380,6 +381,7 @@ export function createNodeChatBackend(options: NodeChatOptions) {
         projectionError = errorMessage(error);
         notify({ ...state, contextError: projectionError });
       }
+      if (disposed) return state;
       if (responseSave !== undefined) return responseSave;
       responseSave = (async () => {
         const response = responseFrom(prepared!, current);
@@ -455,6 +457,10 @@ export function createNodeChatBackend(options: NodeChatOptions) {
       options.nodes,
       request.conversation,
     )(async () => {
+      if (disposed) {
+        settleAcceptance();
+        return;
+      }
       if (await recordedRequest()) {
         settleAcceptance();
         return;
@@ -478,8 +484,9 @@ export function createNodeChatBackend(options: NodeChatOptions) {
       await acceptance;
     })
       .then(async () => {
-        if (!execution) return state;
+        if (disposed || !execution) return state;
         await execution.done;
+        if (disposed) return state;
         reflect();
         return await saveResponse();
       })
@@ -505,9 +512,11 @@ export function createNodeChatBackend(options: NodeChatOptions) {
         execution?.stop();
       },
       retryContentSave: () => {
+        if (disposed) return Promise.resolve(state);
         if (contentRetry !== undefined) return contentRetry;
         contentRetry = Promise.resolve()
           .then(async () => {
+            if (disposed) return state;
             await execution?.retryContentSave();
             reflect();
             return state;
@@ -521,10 +530,13 @@ export function createNodeChatBackend(options: NodeChatOptions) {
         return contentRetry;
       },
       refreshContext: () => {
+        if (disposed) return Promise.resolve(state);
         if (contextRefresh !== undefined) return contextRefresh;
         contextRefresh = Promise.resolve()
           .then(async () => {
+            if (disposed) return state;
             await execution?.refreshContext();
+            if (disposed) return state;
             if (projectionError && prepared) {
               try {
                 await readAgentRun(options.nodes, prepared.execution.run);
@@ -545,6 +557,7 @@ export function createNodeChatBackend(options: NodeChatOptions) {
         return contextRefresh;
       },
       retrySave: () => {
+        if (disposed) return Promise.resolve(state);
         if (retry !== undefined) return retry;
         retry = (async () => {
           if (pending) {
@@ -581,7 +594,22 @@ export function createNodeChatBackend(options: NodeChatOptions) {
         return retry;
       },
     };
-    handles.set(request.id, { identity, handle });
+    handles.set(request.id, {
+      identity,
+      handle,
+      release: () => {
+        if (!execution)
+          state = frozen({
+            ...state,
+            phase: 'stopped',
+            response: { ...state.response, status: 'stopped' },
+          });
+        settleAcceptance();
+        abort.abort();
+        execution?.stop();
+        listeners.clear();
+      },
+    });
     return handle;
   }
   return {
@@ -590,9 +618,10 @@ export function createNodeChatBackend(options: NodeChatOptions) {
     messages: (conversation: string, sequence?: number) =>
       savedMessages(options.nodes, conversation, sequence),
     dispose: () => {
+      if (disposed) return;
       disposed = true;
+      for (const { release } of handles.values()) release();
       agent.dispose();
-      for (const { handle } of handles.values()) handle.stop();
     },
   };
 }

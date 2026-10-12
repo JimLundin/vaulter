@@ -1,5 +1,5 @@
 // The product's explicit assembly. Only this file imports optional workflows.
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { LanguageModel } from 'ai';
 import {
   useVaultSession,
@@ -262,7 +262,16 @@ export function OpenProduct({
   );
   const remoteModel = provider?.model ?? null;
   const speechProvider = provider?.liveTranscription ?? null;
-  const voice = useTranscription(preview?.transcription ?? speechProvider);
+  // Initial store readiness belongs to this session; replacing an opened store starts a new one.
+  const chatScope = useRef<{ nodes: NodeStore | null; key: object }>({ nodes: null, key: {} });
+  if (chatScope.current.nodes !== nodes) {
+    chatScope.current = {
+      nodes,
+      key: chatScope.current.nodes === null && nodes ? chatScope.current.key : {},
+    };
+  }
+  const chatSession = chatScope.current.key;
+  const voice = useTranscription(preview?.transcription ?? speechProvider, chatSession);
   const availability = !nodes
     ? 'Opening the node store…'
     : nodeStatus.kind === 'error'
@@ -281,6 +290,7 @@ export function OpenProduct({
   const conversation = useConversation(
     productChatOptions({
       nodes: nodes ?? unavailableNodes,
+      session: chatSession,
       identities,
       provider: preview?.provider ?? (suppliedModel ? 'preview' : 'openai'),
       model: suppliedModel ?? remoteModel ?? unavailableModel,
@@ -443,8 +453,8 @@ export function OpenProduct({
             label: 'Sign out',
             group: 'Actions',
             run: () => {
-              voice.dispose();
               conversation.dispose();
+              voice.dispose();
               later(session.signOut!());
             },
           },
@@ -486,8 +496,8 @@ export function OpenProduct({
         signOut={
           session.signOut
             ? async () => {
-                voice.dispose();
                 conversation.dispose();
+                voice.dispose();
                 await session.signOut!();
               }
             : null

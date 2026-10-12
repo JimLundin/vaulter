@@ -155,3 +155,45 @@ test('reconciles corrected final text and out-of-order items, ignoring deltas af
   expect(buffer.text()).toBe('First sentence. Second sentence.');
   expect(buffer.final('first')).toBe(true);
 });
+
+test('destroyed recording ownership cannot be revived or changed by old callers', async () => {
+  const voice = createTranscription(async () => ({
+    close: () => undefined,
+    finish: async () => 'Words',
+  }));
+  await voice.start();
+  voice.dispose();
+  const closed = voice.snapshot();
+  voice.configure(null);
+  voice.clear();
+  voice.interrupt();
+  await voice.start();
+  await voice.finish();
+  voice.dispose();
+  expect(voice.snapshot()).toBe(closed);
+  expect(voice.availability()).toBe('The recording session is closed.');
+});
+
+test('admitted capture keeps its provider when a synchronous observer updates later capabilities', async () => {
+  const voice = createTranscription(async () => ({
+    close: () => undefined,
+    finish: async () => 'Original provider',
+  }));
+  let updated = false;
+  const unsubscribe = voice.subscribe(() => {
+    if (voice.snapshot().phase !== 'connecting' || updated) return;
+    updated = true;
+    voice.configure(async () => ({ close: () => undefined, finish: async () => 'Later provider' }));
+  });
+  try {
+    await voice.start();
+    await voice.finish();
+    expect(voice.snapshot().text).toBe('Original provider');
+    await voice.start();
+    await voice.finish();
+    expect(voice.snapshot().text).toBe('Later provider');
+  } finally {
+    unsubscribe();
+    voice.dispose();
+  }
+});

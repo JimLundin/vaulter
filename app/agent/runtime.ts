@@ -103,6 +103,7 @@ export function createAgentBackend(options: AgentBackendOptions) {
     const activity = new Map<string, ToolExecutionData>();
     let retry: Promise<AgentRunState> | undefined;
     const notify = (next: AgentRunState) => {
+      if (disposed) return;
       state = frozen(
         structuredClone({
           ...next,
@@ -130,6 +131,7 @@ export function createAgentBackend(options: AgentBackendOptions) {
     const done = (async () => {
       try {
         const existing = await readAgentRun(options.nodes, prepared.run);
+        if (disposed) return state;
         if (existing) {
           // The adapter validates the full retry identity, including caller-composed changes.
           await options.nodes.commit(prepared.commit);
@@ -156,6 +158,7 @@ export function createAgentBackend(options: AgentBackendOptions) {
           });
           return state;
         }
+        if (disposed) return state;
         let text = '';
         let output: AgentRunData['output'];
         let data = initialData;
@@ -351,14 +354,18 @@ export function createAgentBackend(options: AgentBackendOptions) {
           };
         }
         live = false;
+        if (disposed) return state;
         await toolController?.settle();
+        if (disposed) return state;
         await settleContent?.();
+        if (disposed) return state;
         data = {
           ...data,
           status: interrupted ? 'interrupted' : abort.signal.aborted ? 'stopped' : data.status,
           ...(interrupted ? { finishReason: 'invocationNotExecuted' } : {}),
         };
         terminal = () => {
+          if (disposed) return Promise.resolve(state);
           if (terminalWork !== undefined) return terminalWork;
           terminalWork = (async () => {
             if (toolPending) return state;
@@ -434,6 +441,7 @@ export function createAgentBackend(options: AgentBackendOptions) {
         abort.abort();
       },
       retryContentSave: () => {
+        if (disposed) return Promise.resolve(state);
         if (contentRetry !== undefined) return contentRetry;
         const retained = state.contentPersistence;
         if (!retained) return Promise.resolve(state);
@@ -464,9 +472,11 @@ export function createAgentBackend(options: AgentBackendOptions) {
         return contentRetry;
       },
       refreshContext: () => {
+        if (disposed) return Promise.resolve(state);
         if (contextRefresh !== undefined) return contextRefresh;
         contextRefresh = Promise.resolve()
           .then(async () => {
+            if (disposed) return state;
             try {
               if (refreshContent) await refreshContent();
               else await options.nodes.snapshot();
@@ -486,6 +496,7 @@ export function createAgentBackend(options: AgentBackendOptions) {
         return contextRefresh;
       },
       retrySave: () => {
+        if (disposed) return Promise.resolve(state);
         if (retry !== undefined) return retry;
         retry = (async () => {
           if (toolController?.pending()) {
@@ -497,7 +508,7 @@ export function createAgentBackend(options: AgentBackendOptions) {
             return state;
           }
           await done;
-          if (!pending) return state;
+          if (disposed || !pending) return state;
           try {
             await options.nodes.commit(pending);
             pending = undefined;
@@ -543,6 +554,7 @@ export function createAgentBackend(options: AgentBackendOptions) {
     },
     read: (run: string, sequence?: number) => readAgentRun(options.nodes, run, sequence),
     dispose: () => {
+      if (disposed) return;
       disposed = true;
       ownership.dispose();
     },
