@@ -1002,13 +1002,10 @@ export function createNodeConversation(initial: NodeConversationOptions) {
       const generation = ++selectionGeneration;
       const reader = backend;
       set({ selection: { pending: { conversation, source: 'restoration' } } });
-      // A route is an explicit address; a remembered selection is only a startup preference.
-      if (conversation && options.conversation === conversation)
-        return readSelection(conversation, generation, reader);
+      if (conversation) return readSelection(conversation, generation, reader);
       try {
-        const chats = await reader.chats();
+        const [latest] = await reader.chats();
         if (disposed || generation !== selectionGeneration) return { status: 'superseded' };
-        const latest = chats.find((chat) => chat.node === conversation) ?? chats[0];
         if (!latest) {
           set({ selection: {} });
           return { status: 'selected', conversation: id };
