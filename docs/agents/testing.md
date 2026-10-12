@@ -1,7 +1,8 @@
 # Testing
 
-Use the smallest test scope that exercises the change while editing. Broaden verification before
-delivery. Run commands from the worktree containing the change.
+Full-suite verification runs only in GitHub Actions. Use focused tests locally, then commit and
+push the feature branch for complete verification. Run local commands from the worktree containing
+the change.
 
 ## Edit loop
 
@@ -13,8 +14,17 @@ delivery. Run commands from the worktree containing the change.
 - For browser behavior, select the relevant spec and project, for example
   `npm run test:ui -- tools/browser/composer.spec.ts --project=desktop`.
   `--grep 'part of the test name'` narrows a spec further.
-- Run `test:architecture` when changing imports, exports, module ownership, public kit components,
-  shared compositions, or the policy checkers. Keep compiler fixture tests in that suite.
+- For imports and module ownership, run `npm run test:architecture -- tools/layout.test.ts`.
+  For shared compositions or public kit components, select `tools/composition.test.ts` or
+  `tools/catalogue.test.ts`. Keep compiler fixture tests in that suite.
+
+Test commands require a module path, spec, test-name filter, or changed-file selection locally.
+Selecting only a project, device or shard does not focus the behavior under test. Unscoped
+`npm test`, `test:fast`, `test:watch`, `test:architecture`, `test:ui`, `test:ui:matrix` and
+`test:production` exit before tests or servers start. `test:all` exits before any checks start.
+The runner configurations also enforce this for direct Vitest and Playwright commands.
+Listing tests and command help remain available. Let GitHub Actions supply its CI environment;
+use focused selection locally rather than setting CI variables to bypass the guard.
 
 ## Test placement and device coverage
 
@@ -30,17 +40,22 @@ supplied as an array. A paired specimen or explicit viewport loop already covers
 choose additional device tags only when emulation or pointer behavior adds a distinct assertion.
 Viewport resizing does not emulate mobile or change pointer capabilities.
 
-Use `npm run test:ui:matrix` to run every scenario on all three profiles when auditing device
-coverage or changing shared responsive and input mechanics. To run an untagged scenario on a
-particular device, select it through this command with `--project` and its spec or `--grep`.
+Use `npm run test:ui:matrix -- tools/browser/composer.spec.ts --project=phone` to debug an untagged
+scenario on a particular device. Full device audits run in CI through the workflow's
+`full_ui_matrix` input; use them when changing shared responsive and input mechanics.
 
 ## Delivery
 
-Run lint and type checking, both Vitest projects (`npm test`), the routine browser suite, and
-production acceptance before delivering test infrastructure changes. For other edits, choose
-the affected suites; shared kit or Product changes require the broader browser suite. Repeat
-passed checks when subsequent edits affect their scope or a failure leaves an unresolved concern.
-`npm run test:all` runs the complete routine verification once.
+1. Run focused tests for the change, plus lint and type checking as appropriate.
+2. Commit and push the feature branch to trigger full verification. Push changes during iteration
+   when broader feedback is useful; local full-suite completion is never a prerequisite.
+3. Inspect the Deploy workflow for the exact pushed commit. A successful aggregate `test` job
+   establishes full routine verification. If checks fail, use their reports to reproduce the
+   failure with a focused local command, fix it, and push again.
+
+Report the commit and CI result at delivery. If CI is pending, unavailable or failing, state that
+status explicitly; a focused local pass establishes only its selected scope. `test:all` remains
+available inside GitHub Actions for complete routine verification.
 
 CI runs all routine checks, with four browser shards. The aggregate `test` job requires every
 job and shard to pass before production deployment. Browser jobs retain blob reports and failure

@@ -15,7 +15,7 @@
     "test:fast": "vitest run --project=behavior",
     "test:watch": "vitest --project=behavior",
     "test:architecture": "vitest run --project=architecture",
-    "test:all": "npm run lint && npm run typecheck && npm test && npm run test:ui && npm run test:production",
+    "test:all": "node tools/ci-only.ts && npm run lint && npm run typecheck && npm test && npm run test:ui && npm run test:production",
     "typecheck": "tsc",
     "lint": "biome ci .",
     "format": "biome check --write .",

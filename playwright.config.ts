@@ -1,6 +1,9 @@
 import { defineConfig } from '@playwright/test';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
+import { requirePlaywrightTestScope } from './tools/test-scope.ts';
+
+requirePlaywrightTestScope();
 
 const port = process.env.VAULTER_UI_PORT ?? '4179';
 const fullMatrix = process.env.VAULTER_UI_MATRIX === 'full';

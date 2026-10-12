@@ -2,6 +2,9 @@ import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import { availableParallelism } from 'node:os';
 import { fileURLToPath } from 'node:url';
+import { requireTestScope } from './tools/test-scope.ts';
+
+requireTestScope('vitest', process.argv.slice(2));
 
 const root = fileURLToPath(new URL('.', import.meta.url));
 const architecture = [

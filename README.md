@@ -20,12 +20,12 @@ the application does not perform that migration. The design and its history: `PL
 | `npm run build:design` | the sample preview and component gallery into `dist-preview/` |
 | `npm run build` | the app into `dist/` |
 | `npm run lint` / `npm run format` | Biome: lint and format check (CI), or fix both in place. Style: 2 spaces, single quotes, semicolons, trailing commas, 100 columns (`biome.json`) |
-| `npm test` | both Vitest projects: behavior and compiler-backed architecture checks |
-| `npm run test:fast` / `npm run test:watch` | behavior tests once, or watch affected tests; append a module path to focus the run |
-| `npm run test:architecture` | module import rules, kit composition and catalogue coverage |
-| `npm run test:ui` / `npm run test:ui:matrix` | browser scenarios with audited device coverage, or every scenario on all three profiles |
-| `npm run test:production` | built application acceptance on desktop and phone |
-| `npm run test:all` | lint, types, both Vitest projects, routine browser coverage and production acceptance |
+| `npm test` | both Vitest projects in CI; requires a focused selection locally |
+| `npm run test:fast` / `npm run test:watch` | behavior tests once, or watch; requires a module path or test filter locally |
+| `npm run test:architecture` | module import rules, kit composition and catalogue coverage; select a checker locally |
+| `npm run test:ui` / `npm run test:ui:matrix` | audited browser coverage, or all three profiles; select a spec or test name locally |
+| `npm run test:production` | built application acceptance on desktop and phone; select a spec or test name locally |
+| `npm run test:all` | complete routine verification, CI only |
 | `npm run typecheck` | TypeScript over the app, tools and Vite/Vitest/Playwright configurations |
 | `node tools/seal-secrets.ts <out>` | seal the token and key with the password from the environment (what CI runs; see Publishing) |
 
@@ -59,6 +59,8 @@ For the edit loop, test the owning module, for example `npm run test:watch -- ap
 For browser work, start with a spec and device:
 `npm run test:ui -- tools/browser/composer.spec.ts --project=desktop`.
 The [testing guide](docs/agents/testing.md) explains test placement, device tags and delivery checks.
+Full suites run only in CI: test the change locally, commit and push your feature branch, then
+inspect CI for that commit. Unscoped local suite commands exit with a focused-command example.
 CI runs behavior, architecture, static and production checks independently alongside four browser
 shards; every check must pass before production deployment.
 

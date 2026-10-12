@@ -19,5 +19,7 @@ This is a single-context repo. Before exploring domain behavior or designing cha
 
 ### Testing
 
+Full-suite verification runs only in CI. Run focused checks locally, then push the feature branch
+and inspect its commit's CI results.
 Before choosing checks for an edit or final delivery, follow
 [docs/agents/testing.md](docs/agents/testing.md).

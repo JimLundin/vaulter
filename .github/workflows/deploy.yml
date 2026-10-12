@@ -7,6 +7,11 @@ name: Deploy
 on:
   push:
   workflow_dispatch:
+    inputs:
+      full_ui_matrix:
+        description: Run every browser scenario on all three device profiles
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -52,6 +57,8 @@ jobs:
   browser:
     name: Browser ${{ matrix.shard }}/4
     runs-on: ubuntu-latest
+    env:
+      VAULTER_UI_MATRIX: ${{ inputs.full_ui_matrix && 'full' || '' }}
     strategy:
       fail-fast: false
       matrix:
