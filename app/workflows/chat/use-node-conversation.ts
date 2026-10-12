@@ -16,19 +16,34 @@ export function useNodeConversation(options: NodeConversationOptions) {
   useLayoutEffect(() => {
     conversation.updateOptions(options);
   }, [conversation, options]);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: store synchronization must retry history restoration, while model availability never gates reads.
+  const requestedRoute = useRef<{ node: string; availability?: string } | undefined>(undefined);
+  const startup = useRef(true);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: capability readiness can retry startup reads; execution permission never gates them.
   useEffect(() => {
-    // Reading accepted history does not require a configured model or permission to send.
-    // Without a retained selection, continue the vault's most recently active conversation.
-    later(
-      (options.conversation
-        ? conversation.open(options.conversation)
-        : conversation.openLatest()
-      ).catch(() => {
-        /* No accepted conversation yet. */
-      }),
-    );
-  }, [conversation, options.conversation, options.availability]);
+    const restoring = startup.current;
+    startup.current = false;
+    const requested = options.conversation;
+    if (requested) {
+      const previous = requestedRoute.current;
+      if (
+        previous?.node === requested &&
+        (!conversation.snapshot().selection.error || previous.availability === options.availability)
+      )
+        return;
+      requestedRoute.current = { node: requested, availability: options.availability };
+      // Selection already published by the owner has just been reflected in Product navigation.
+      if (conversation.conversation() === requested && !conversation.snapshot().selection.pending)
+        return;
+      later(
+        (restoring ? conversation.restore(requested) : conversation.open(requested)).then(
+          (outcome) => options.onSelectionOutcome?.(outcome),
+        ),
+      );
+    } else {
+      requestedRoute.current = undefined;
+      later(conversation.restore(options.retainedConversation));
+    }
+  }, [conversation, options.conversation, options.retainedConversation, options.availability]);
   useEffect(() => () => conversation.dispose(), [conversation]);
   return conversation;
 }

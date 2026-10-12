@@ -9,6 +9,7 @@ import type {
   ChatRecovery,
 } from './node-backend.ts';
 import type { MessageData } from './records/chat.ts';
+import type { SavedChat } from './records/chat-store.ts';
 import { generateSuggestions, type SuggestionProvider } from './suggestions.ts';
 import type { Transcription, TranscriptionState } from './transcription.ts';
 
@@ -21,6 +22,8 @@ export interface Prompt {
 export interface NodeConversationOptions extends NodeChatOptions {
   readonly selectedModel: string;
   readonly conversation?: string;
+  readonly retainedConversation?: string;
+  readonly onSelectionOutcome?: (outcome: ChatSelectionOutcome) => void;
   readonly availability?: string;
   readonly suggestions?: SuggestionProvider;
   readonly stagedChanges?: () => { path: string; before: string; text: string | null }[];
@@ -67,8 +70,29 @@ export type ChatPromptOutcome =
   | ChatSubmissionOutcome
   | ChatSubmissionReview
   | { readonly status: 'ignored' | 'edited' };
+export type ChatSelectionOutcome =
+  | { readonly status: 'selected'; readonly conversation: string }
+  | { readonly status: 'blocked'; readonly reason: string }
+  | { readonly status: 'failed'; readonly error: string }
+  | { readonly status: 'superseded' };
+export interface ChatSelection {
+  readonly pending?: {
+    readonly conversation?: string;
+    readonly source: 'explicit' | 'restoration';
+  };
+  readonly error?: string;
+  readonly reason?: string;
+}
+export interface ChatRecords {
+  readonly chats: readonly SavedChat[] | null;
+  readonly loading: boolean;
+  readonly error?: string;
+}
 export interface NodeConversationState extends ChatState {
   readonly prompts: readonly ChatRetainedPrompt[];
+  readonly selection: ChatSelection;
+  readonly selectionAvailability: ChatActionAvailability;
+  readonly records: ChatRecords;
   readonly submission?: NodeChatRequest;
   readonly review?: ChatSubmissionReview;
   readonly reviewAvailability: ChatActionAvailability;
@@ -120,10 +144,13 @@ export function createNodeConversation(initial: NodeConversationOptions) {
   let activeBackend = backend;
   let unsubscribeActive: (() => void) | undefined;
   let options = initial;
-  let id = initial.conversation ?? crypto.randomUUID();
+  let id: string = crypto.randomUUID();
   let transcription = initial.transcription;
   let state: NodeConversationState = {
     draft: '',
+    selection: {},
+    selectionAvailability: { allowed: true },
+    records: { chats: null, loading: false },
     turns: [],
     suggestions: [],
     prompts: [],
@@ -154,6 +181,11 @@ export function createNodeConversation(initial: NodeConversationOptions) {
   let suggestedFor: string | undefined;
   let suggestionAbort: AbortController | undefined;
   let draftRevision = 0;
+  let selectionGeneration = 0;
+  let explicitSelection = false;
+  let recordsGeneration = 0;
+  let recordViews = 0;
+  let unsubscribeRecords: (() => void) | undefined;
   let captureDraft:
     | {
         prefix: string;
@@ -221,6 +253,7 @@ export function createNodeConversation(initial: NodeConversationOptions) {
       },
       capture: captureState(),
       submissionAvailability: submissionAvailability(),
+      selectionAvailability: selectionAvailability(),
       reviewAvailability: state.review
         ? submissionPermission(state.review.intent.text)
         : { allowed: false, reason: 'There is no pending review.' },
@@ -277,6 +310,85 @@ export function createNodeConversation(initial: NodeConversationOptions) {
                   : undefined));
     return { allowed: !reason, ...(reason ? { reason } : {}) };
   };
+  const selectionAvailability = (): ChatActionAvailability => {
+    const reason = disposed
+      ? 'This Chat session is closed.'
+      : recording()
+        ? 'Finish or cancel the current recording before switching conversations.'
+        : state.busy
+          ? 'Wait for the Agent to finish before switching conversations.'
+          : state.persistenceError || state.contentPersistence || state.contextError
+            ? 'Resolve the pending recovery before switching conversations.'
+            : undefined;
+    return { allowed: !reason, ...(reason ? { reason } : {}) };
+  };
+  const invalidateSelection = () => {
+    explicitSelection = true;
+    selectionGeneration++;
+  };
+  async function readSelection(
+    conversation: string,
+    generation: number,
+    reader: typeof backend,
+  ): Promise<ChatSelectionOutcome> {
+    try {
+      const messages = await reader.messages(conversation);
+      if (disposed || generation !== selectionGeneration) return { status: 'superseded' };
+      const permission = selectionAvailability();
+      if (!permission.allowed) {
+        set({ selection: { reason: permission.reason } });
+        return { status: 'blocked', reason: permission.reason! };
+      }
+      unsubscribeActive?.();
+      active = undefined;
+      recordRefreshError = undefined;
+      captureDraft = undefined;
+      suggestionAbort?.abort();
+      suggestedFor = undefined;
+      id = conversation;
+      set({
+        selection: {},
+        turns: messages.map(({ data }) => turn(data)),
+        submission: undefined,
+        review: undefined,
+        actionReason: undefined,
+        suggestions: [],
+        unread: false,
+        phase: undefined,
+        persistenceError: undefined,
+        persistenceStage: undefined,
+        contentPersistence: undefined,
+        contentAccepted: undefined,
+        contextError: undefined,
+      });
+      options.onConversation?.(conversation);
+      return { status: 'selected', conversation };
+    } catch (error) {
+      if (disposed || generation !== selectionGeneration) return { status: 'superseded' };
+      const message = error instanceof Error ? error.message : String(error);
+      set({ selection: { error: message } });
+      return { status: 'failed', error: message };
+    }
+  }
+  async function reloadRecords() {
+    const generation = ++recordsGeneration;
+    const reader = backend;
+    set({ records: { ...state.records, loading: true } });
+    try {
+      const chats = await reader.chats();
+      if (!disposed && generation === recordsGeneration)
+        set({ records: { chats, loading: false } });
+    } catch (error) {
+      if (!disposed && generation === recordsGeneration)
+        set({
+          records: {
+            ...state.records,
+            loading: false,
+            error: error instanceof Error ? error.message : String(error),
+          },
+        });
+    }
+  }
   const submissionAvailability = (text = state.draft): ChatActionAvailability =>
     state.review
       ? {
@@ -310,7 +422,12 @@ export function createNodeConversation(initial: NodeConversationOptions) {
     set({});
   };
   let unsubscribeCapture = transcription?.subscribe(reflectCapture);
-  state = { ...state, capture: captureState(), submissionAvailability: submissionAvailability() };
+  state = {
+    ...state,
+    capture: captureState(),
+    submissionAvailability: submissionAvailability(),
+    selectionAvailability: selectionAvailability(),
+  };
   const reflect = () => {
     if (!active) return;
     const current = active.snapshot();
@@ -365,6 +482,7 @@ export function createNodeConversation(initial: NodeConversationOptions) {
     } catch (error) {
       return { status: 'blocked', reason: error instanceof Error ? error.message : String(error) };
     }
+    invalidateSelection();
     suggestionAbort?.abort();
     suggestedFor = undefined;
     const at = new Date().toISOString();
@@ -384,6 +502,7 @@ export function createNodeConversation(initial: NodeConversationOptions) {
     }
     set({
       suggestions: [],
+      selection: {},
       submission: request,
       review: undefined,
       actionReason: undefined,
@@ -528,14 +647,16 @@ export function createNodeConversation(initial: NodeConversationOptions) {
         unsubscribeCapture = transcription?.subscribe(reflectCapture);
         set({});
       }
-      if (!changed) return;
-      const previous = backend;
-      backend = createNodeChatBackend(next);
-      if (previous !== activeBackend || !active) {
-        previous.dispose();
-        backends.delete(previous);
+      if (changed) {
+        const previous = backend;
+        backend = createNodeChatBackend(next);
+        if (previous !== activeBackend || !active) {
+          previous.dispose();
+          backends.delete(previous);
+        }
+        backends.add(backend);
       }
-      backends.add(backend);
+      if (permissionChanged && recordViews && state.records.error) void reloadRecords();
     },
     submissionAvailability,
     /** Capture the source revision before a review or another delayed submission decision. */
@@ -734,74 +855,96 @@ export function createNodeConversation(initial: NodeConversationOptions) {
         views--;
       };
     },
-    open: async (conversation: string) => {
-      if (
-        recording() ||
-        state.busy ||
-        state.persistenceError ||
-        state.contentPersistence ||
-        state.contextError ||
-        disposed
-      )
-        return;
-      const messages = await backend.messages(conversation);
-      if (
-        disposed ||
-        recording() ||
-        state.busy ||
-        state.persistenceError ||
-        state.contentPersistence ||
-        state.contextError
-      )
-        return;
-      unsubscribeActive?.();
-      active = undefined;
-      recordRefreshError = undefined;
-      id = conversation;
-      options.onConversation?.(conversation);
+    selectionAvailability,
+    /** Identity for delayed conversational tasks such as review and prompt use. */
+    taskIdentity: () => selectionGeneration,
+    open: async (conversation: string): Promise<ChatSelectionOutcome> => {
+      const permission = selectionAvailability();
+      if (!permission.allowed) {
+        set({ selection: { ...state.selection, reason: permission.reason } });
+        return { status: 'blocked', reason: permission.reason! };
+      }
+      invalidateSelection();
+      const generation = selectionGeneration;
       set({
-        turns: messages.map(({ data }) => turn(data)),
-        submission: undefined,
-        unread: false,
-        phase: undefined,
-        persistenceError: undefined,
-        persistenceStage: undefined,
-        contentPersistence: undefined,
-        contentAccepted: undefined,
-        contextError: undefined,
+        selection: { pending: { conversation, source: 'explicit' } },
+        review: undefined,
+        actionReason: undefined,
       });
+      return readSelection(conversation, generation, backend);
     },
-    /** The vault's conversations, most recently active first. */
+    /** The vault's conversations, most recently active first. Read-only compatibility query. */
     chats: () => backend.chats(),
     subscribeRecords: (listener: () => void) => options.nodes.subscribe(listener),
-    /** Continue the most recently active conversation, unless this one already has turns. */
-    openLatest: async () => {
-      if (state.turns.length || disposed) return;
-      const [latest] = await backend.chats();
-      if (!latest || state.turns.length || disposed) return;
-      await api.open(latest.node);
+    /** Shared record reading lifetime; views retain only whether their chooser is visible. */
+    watchRecords: () => {
+      recordViews++;
+      if (recordViews === 1) {
+        void reloadRecords();
+        unsubscribeRecords = options.nodes.subscribe(() => void reloadRecords());
+      }
+      return () => {
+        recordViews--;
+        if (!recordViews) {
+          unsubscribeRecords?.();
+          unsubscribeRecords = undefined;
+        }
+      };
     },
-    newChat: () => {
-      if (
-        disposed ||
-        recording() ||
-        state.busy ||
-        state.persistenceError ||
-        state.contentPersistence ||
-        state.contextError
-      )
-        return;
+    /** Startup restoration has lower priority than any admitted explicit conversational intent. */
+    restore: async (conversation?: string): Promise<ChatSelectionOutcome> => {
+      if (disposed || explicitSelection || state.turns.length) return { status: 'superseded' };
+      const permission = selectionAvailability();
+      if (!permission.allowed) return { status: 'blocked', reason: permission.reason! };
+      const generation = ++selectionGeneration;
+      const reader = backend;
+      set({ selection: { pending: { conversation, source: 'restoration' } } });
+      if (conversation) return readSelection(conversation, generation, reader);
+      try {
+        const [latest] = await reader.chats();
+        if (disposed || generation !== selectionGeneration) return { status: 'superseded' };
+        if (!latest) {
+          set({ selection: {} });
+          return { status: 'selected', conversation: id };
+        }
+        return readSelection(latest.node, generation, reader);
+      } catch (error) {
+        if (disposed || generation !== selectionGeneration) return { status: 'superseded' };
+        const message = error instanceof Error ? error.message : String(error);
+        set({ selection: { error: message } });
+        return { status: 'failed', error: message };
+      }
+    },
+    openLatest: () => api.restore(),
+    newChat: (): ChatSelectionOutcome => {
+      const permission = selectionAvailability();
+      if (!permission.allowed) {
+        set({ selection: { ...state.selection, reason: permission.reason } });
+        return { status: 'blocked', reason: permission.reason! };
+      }
+      let next: string;
+      try {
+        next = crypto.randomUUID();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        set({ selection: { ...state.selection, error: message } });
+        return { status: 'failed', error: message };
+      }
+      invalidateSelection();
       unsubscribeActive?.();
-      id = crypto.randomUUID();
+      id = next;
       draftRevision++;
+      captureDraft = undefined;
       active = undefined;
       recordRefreshError = undefined;
       suggestionAbort?.abort();
       suggestedFor = undefined;
-      options.onConversation?.(id);
       set({
+        selection: {},
         turns: [],
         submission: undefined,
+        review: undefined,
+        actionReason: undefined,
         draft: '',
         suggestions: [],
         unread: false,
@@ -812,8 +955,14 @@ export function createNodeConversation(initial: NodeConversationOptions) {
         contentAccepted: undefined,
         contextError: undefined,
       });
+      options.onConversation?.(id);
+      return { status: 'selected', conversation: id };
     },
     dispose: () => {
+      explicitSelection = true;
+      selectionGeneration++;
+      recordsGeneration++;
+      unsubscribeRecords?.();
       disposed = true;
       captureDraft = undefined;
       unsubscribeCapture?.();

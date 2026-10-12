@@ -14,64 +14,31 @@ export function ConversationList({
   conversation,
   open,
   onClose,
-  disabled = false,
   persistent = true,
   variant = 'numbered',
 }: {
   conversation: NodeConversation;
   open: boolean;
   onClose: () => void;
-  disabled?: boolean;
   persistent?: boolean;
   variant?: 'rule' | 'numbered' | 'badged';
 }) {
   const [visible, setVisible] = useState(false);
-  const state = useNodeChat(conversation);
-  const [chats, setChats] = useState<readonly SavedChat[] | null>(null);
-  const [error, setError] = useState('');
-  const [opening, setOpening] = useState(false);
-  const blocked =
-    disabled ||
-    opening ||
-    state.busy ||
-    !!state.persistenceError ||
-    !!state.contentPersistence ||
-    !!state.contextError;
+  const { records, selection, selectionAvailability } = useNodeChat(conversation);
+  const blocked = !selectionAvailability.allowed;
+  const chats = records.chats;
   useEffect(() => {
-    if (!visible) return;
-    let active = true;
-    let generation = 0;
-    const reload = async () => {
-      const request = ++generation;
-      try {
-        const result = await conversation.chats();
-        if (active && request === generation) {
-          setChats(result);
-          setError('');
-        }
-      } catch (e) {
-        if (active && request === generation) setError(String(e));
-      }
-    };
-    void reload();
-    const off = conversation.subscribeRecords(() => void reload());
-    return () => {
-      active = false;
-      off();
-    };
+    if (visible) return conversation.watchRecords();
   }, [conversation, visible]);
   const content = (
     <Stack>
-      {blocked && (
-        <Text role="status">
-          Finish recording or resolve the pending operation before switching conversations.
-        </Text>
-      )}
-      {!!error && (
+      {blocked && <Text role="status">{selectionAvailability.reason}</Text>}
+      {!!(records.error || selection.error) && (
         <Text role="alert" tone="danger">
-          {error}
+          {records.error || selection.error}
         </Text>
       )}
+      {!!selection.pending && <Text role="status">Opening conversation…</Text>}
       {chats === null ? (
         <Text>Loading conversations…</Text>
       ) : !chats.length ? (
@@ -105,15 +72,8 @@ export function ConversationList({
             selected={chat.node === conversation.conversation()}
             disabled={blocked}
             onOpen={async (node) => {
-              setOpening(true);
-              try {
-                await conversation.open(node);
-                if (conversation.conversation() === chat.node) onClose();
-              } catch (e) {
-                setError(String(e));
-              } finally {
-                setOpening(false);
-              }
+              const outcome = await conversation.open(node);
+              if (outcome.status === 'selected') onClose();
             }}
           />
         ))

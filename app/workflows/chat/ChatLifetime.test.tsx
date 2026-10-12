@@ -5,11 +5,90 @@ import { expect, test, vi } from 'vitest';
 import { MockLanguageModelV4, convertArrayToReadableStream } from 'ai/test';
 import { memoryNodeBackend } from '../../vault/nodes/memory.ts';
 import { create, request, seed } from '../../vault/nodes/fixtures.test-support.ts';
+import type { NodeStore } from '../../vault/nodes/store.ts';
 import { createNodeConversation } from './node-conversation.ts';
 import { createTranscription } from './transcription.ts';
 import { Chat } from './Chat.tsx';
 import { ChatIndicator } from './index.tsx';
 import { useNodeConversation } from './use-node-conversation.ts';
+
+test('requested history retries a failed read when store readiness changes', async () => {
+  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+  const store = memoryNodeBackend();
+  await seed(store);
+  await store.commit(
+    request('saved', [
+      create('saved-chat', {
+        kind: 'conversation',
+        title: 'Saved',
+        createdAt: '2026-10-10T12:00:00Z',
+      }),
+      create(
+        'saved-exchange',
+        { kind: 'exchange', startedAt: '2026-10-10T12:00:00Z' },
+        'saved-chat',
+      ),
+      create(
+        'saved-message',
+        {
+          kind: 'message',
+          role: 'user',
+          at: '2026-10-10T12:00:00Z',
+          text: 'Retained history is readable',
+        },
+        'saved-exchange',
+      ),
+    ]),
+  );
+  let unavailable = true;
+  const nodes: NodeStore = {
+    ...store,
+    snapshot: (sequence) =>
+      unavailable ? Promise.reject(new Error('Store is opening')) : store.snapshot(sequence),
+  };
+  const options = {
+    nodes,
+    user: 'user',
+    agent: 'user',
+    provider: 'fictional',
+    selectedModel: '',
+    instructions: '',
+    conversation: 'saved-chat',
+    model: () => Promise.reject(new Error('Reading must not execute')),
+  };
+  function Surface({
+    availability,
+    route = 'saved-chat',
+  }: {
+    availability: string;
+    route?: string;
+  }) {
+    const conversation = useNodeConversation({
+      ...options,
+      availability,
+      conversation: route || undefined,
+    });
+    return <Chat conversation={conversation} arg={null} presentation={{ page: true }} />;
+  }
+  const root = createRoot(document.body);
+  try {
+    await act(async () => root.render(<Surface availability="Opening the node store…" />));
+    expect(document.body.textContent).toContain('Store is opening');
+    // Product removes a failed conversation route so navigation remains truthful.
+    await act(async () => root.render(<Surface availability="Opening the node store…" route="" />));
+    unavailable = false;
+    await act(async () =>
+      root.render(<Surface availability="Configure a model before sending." route="" />),
+    );
+    expect(document.body.textContent).toContain('Retained history is readable');
+    expect(document.body.textContent).not.toContain('Store is opening');
+  } finally {
+    await act(async () => root.unmount());
+    store.close();
+    document.body.replaceChildren();
+    vi.unstubAllGlobals();
+  }
+});
 
 test('a reply finishing with the mounted pane closed remains unread until it reopens', async () => {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);

@@ -13,7 +13,7 @@ import { Search, Keys } from './ui/Search.tsx';
 import { Previews } from './ui/Previews.tsx';
 import { useKeys } from './ui/keys.ts';
 import { opened } from './ui/recent.ts';
-import { go, link, pattern, useRoute } from './ui/routing.ts';
+import { go, link, parseRoute, pattern, useRoute } from './ui/routing.ts';
 import { later } from './ui/later.ts';
 import {
   Button,
@@ -290,7 +290,15 @@ export function OpenProduct({
       suggestions: preview?.suggestions,
       availability,
       transcription: voice,
-      conversation: conversationRoute.match(route.path)?.node ?? retainedConversation,
+      conversation: conversationRoute.match(route.path)?.node,
+      retainedConversation,
+      onSelectionOutcome: (outcome) => {
+        if (
+          (outcome.status === 'blocked' || outcome.status === 'failed') &&
+          parseRoute(location.hash).path === route.path
+        )
+          go(chatRoute.href());
+      },
       onConversation: (id) => {
         const selected = conversationRoute.match(route.path)?.node;
         if (selected && selected !== id) go(conversationRoute.href({ node: id }));

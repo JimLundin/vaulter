@@ -42,6 +42,7 @@ export function Chat({
     phase,
     capture,
     submissionAvailability,
+    selection,
     review,
     reviewAvailability,
     actionReason,
@@ -53,7 +54,6 @@ export function Chat({
   const chooser = (
     <ConversationList
       conversation={conversation}
-      disabled={recording}
       open={visible && choosing}
       persistent={visible}
       onClose={() => setChoosing(false)}
@@ -97,19 +97,6 @@ export function Chat({
     const outcome = conversation.editDraft(text);
     if (outcome.status === 'edited') requestAnimationFrame(() => ref.current?.focus());
   };
-  if (!(conversation.ready() || turns.length || recovery.save))
-    return (
-      <ChatSurface
-        supporting={chooser}
-        presentation={presentation}
-        onNewChat={newChat}
-        onConversations={showChats}
-        busy={false}
-        composer={null}
-      >
-        <Text tone="muted">{conversation.availability() ?? 'Opening the node store…'}</Text>
-      </ChatSurface>
-    );
   return (
     <ChatSurface
       supporting={chooser}
@@ -117,7 +104,7 @@ export function Chat({
       onNewChat={newChat}
       onConversations={showChats}
       empty={!turns.length}
-      busy={busy || recording || !!recovery.save || !!recovery.content || !!recovery.refresh}
+      busy={!conversation.snapshot().selectionAvailability.allowed}
       status={
         <Stack>
           {prompts.map((prompt) => (
@@ -143,6 +130,13 @@ export function Chat({
               </Row>
             </Stack>
           ))}
+          {!!selection.pending && <Text role="status">Opening conversation…</Text>}
+          {!!selection.reason && <Text role="status">{selection.reason}</Text>}
+          {!!selection.error && (
+            <Text role="alert" tone="danger">
+              {selection.error}
+            </Text>
+          )}
           {!!actionReason && (
             <Text role="alert" tone="danger">
               {actionReason}

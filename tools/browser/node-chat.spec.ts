@@ -407,3 +407,45 @@ test('timeline conversation rows stay uniform and truncate titles beside right-a
   expect(rowText).toMatch(/\d{2}:30/);
   expect(rowText).not.toContain('Oct');
 });
+
+test('recording blocks direct conversation routes and failed reads reconcile navigation without losing the draft', async ({
+  page,
+}) => {
+  await page.goto('/preview/?conversations=numbered');
+  await movePreviewBelowToolbar(page.locator('[data-preview-drag-handle]'));
+  const picker = page.getByRole(test.info().project.name === 'phone' ? 'dialog' : 'complementary', {
+    name: 'Conversations',
+    exact: true,
+  });
+  if (test.info().project.name === 'phone')
+    await page.getByRole('button', { name: 'Conversations', exact: true }).click();
+  await picker.getByRole('button', { name: /Garden studio plans/ }).click();
+  const input = page.getByRole('textbox', { name: 'Message', exact: true });
+  await input.fill('Retained typed prefix');
+  await input.blur();
+  await page.getByRole('button', { name: 'Start voice interaction', exact: true }).click();
+  await expect(input).toHaveValue(/^Retained typed prefix/);
+  await page.evaluate(() => {
+    location.hash = '#/chat/missing-record/';
+  });
+  await expect(page).toHaveURL(/#\/chat\/$/);
+  await expect(
+    page.getByRole('status').filter({ hasText: 'before switching conversations' }).first(),
+  ).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Finish recording', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'New conversation', exact: true })).toBeDisabled();
+  await page.getByRole('button', { name: 'Finish recording', exact: true }).click();
+  const retained = await input.inputValue();
+  await page.evaluate(() => {
+    location.hash = '#/chat/missing-record/';
+  });
+  await expect(page).toHaveURL(/#\/chat\/$/);
+  await expect(page.getByRole('alert').first()).toBeVisible();
+  await expect(input).toHaveValue(retained);
+  if (test.info().project.name === 'phone')
+    await page.getByRole('button', { name: 'Conversations', exact: true }).click();
+  await expect(picker.getByRole('button', { name: /Garden studio plans/ })).toHaveAttribute(
+    'aria-current',
+    'true',
+  );
+});
