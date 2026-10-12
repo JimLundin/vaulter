@@ -282,6 +282,7 @@ export {
   Json,
   LiveStatus,
   LoadingStatus,
+  Loader,
   PreviewBar,
   ToolGroup,
   ToolResult,

@@ -16,11 +16,20 @@ export function Gate({ children }: { children: ReactNode }) {
   );
 }
 
-export function LoadingStatus({ children }: { children: ReactNode }) {
+export function LoadingStatus({ children = 'Loading…' }: { children?: ReactNode }) {
   return (
-    <div role="status" className="flex items-center gap-3 text-sm text-muted-foreground">
-      <LoaderCircle aria-hidden="true" className="size-5 shrink-0 motion-safe:animate-spin" />
+    <div role="status" className="kit-loading-status">
+      <LoaderCircle aria-hidden="true" className="kit-loading-spinner" />
       <span>{children}</span>
+    </div>
+  );
+}
+
+/** A content-area placeholder, usable directly or as a Suspense fallback. */
+export function Loader({ children = 'Loading…' }: { children?: ReactNode }) {
+  return (
+    <div className="kit-loader">
+      <LoadingStatus>{children}</LoadingStatus>
     </div>
   );
 }

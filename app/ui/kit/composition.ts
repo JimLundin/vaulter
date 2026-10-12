@@ -381,6 +381,7 @@ export const implementations = [
     mechanics: [
       'Gate',
       'LoadingStatus',
+      'Loader',
       'PreviewBar',
       'Activity',
       'ToolResult',

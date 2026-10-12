@@ -27,7 +27,7 @@ import {
   Gate,
   Heading,
   Link,
-  LoadingStatus,
+  Loader,
   Overlay,
   Page,
   SettingsMenu,
@@ -124,7 +124,7 @@ export function Product({
               <CardDescription>Getting your conversations and notes ready.</CardDescription>
             </CardHeader>
             <CardContent>
-              <LoadingStatus>Loading your vault…</LoadingStatus>
+              <Loader>Loading your vault…</Loader>
             </CardContent>
           </Card>
         )}

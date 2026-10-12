@@ -3,6 +3,56 @@ import { sampleFiles } from '../../app/preview/data.ts';
 import { seal } from '../../app/vault/session/sealed.ts';
 import { fakeGitHub } from '../../app/vault/storage/github-client/fake-github.ts';
 
+test('startup stays visible before JavaScript loads and hands over to the React loader', async ({
+  page,
+}) => {
+  const sealed = await seal({ github: 'fictional-token' }, 'fictional-password', undefined, 1000);
+  let releaseScript!: () => void;
+  const scriptReady = new Promise<void>((resolve) => {
+    releaseScript = resolve;
+  });
+  let releaseCredentials!: () => void;
+  const credentialsReady = new Promise<void>((resolve) => {
+    releaseCredentials = resolve;
+  });
+  await page.route('**/*.js', async (route) => {
+    await scriptReady;
+    await route.continue();
+  });
+  await page.route('**/secrets.json', async (route) => {
+    await credentialsReady;
+    await route.fulfill({ json: sealed });
+  });
+  try {
+    await page.emulateMedia({ colorScheme: 'dark', reducedMotion: 'no-preference' });
+    await page.goto('/#/chat/', { waitUntil: 'commit' });
+    const startup = page.locator('.kit-startup');
+    const status = page.getByRole('status').filter({ hasText: 'Loading your vault…' });
+    await expect(startup).toBeVisible();
+    await expect(startup.getByRole('heading', { name: 'Opening your vault' })).toBeVisible();
+    await expect(status).toBeVisible();
+    await expect(status.locator('svg')).toHaveCSS('animation-name', 'kit-loading-spin');
+    await expect(startup).toHaveCSS('background-color', 'rgb(9, 9, 11)');
+    await page.emulateMedia({ colorScheme: 'light', reducedMotion: 'reduce' });
+    await expect(startup).toHaveCSS('background-color', 'rgb(255, 255, 255)');
+    await expect(status.locator('svg')).toHaveCSS('animation-name', 'none');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
+    );
+    releaseScript();
+    await expect(startup).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: 'Opening your vault' })).toBeVisible();
+    await expect(status).toBeVisible();
+    await expect(status.locator('svg')).toHaveCSS('animation-name', 'none');
+    releaseCredentials();
+    await expect(status).toHaveCount(0);
+    await expect(page.getByLabel('Password', { exact: true })).toBeVisible();
+  } finally {
+    releaseScript();
+    releaseCredentials();
+  }
+});
+
 test('vault loading stays visible through credentials and data fetches, then opens the app', async ({
   page,
 }) => {
@@ -45,7 +95,7 @@ test('vault loading stays visible through credentials and data fetches, then ope
     await expect(title).toBeVisible();
     await expect(status).toBeVisible();
     await expect(page.getByText('Vaulter', { exact: true })).toBeVisible();
-    await expect(status.locator('svg')).toHaveCSS('animation-name', 'spin');
+    await expect(status.locator('svg')).toHaveCSS('animation-name', 'kit-loading-spin');
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await expect(status.locator('svg')).toHaveCSS('animation-name', 'none');
     releaseCredentials();

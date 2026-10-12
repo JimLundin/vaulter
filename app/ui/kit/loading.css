@@ -1,0 +1,66 @@
+/* Shared by the HTML startup screen and React loaders; no JavaScript or font downloads needed. */
+.kit-loading-status {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--muted-foreground, light-dark(#52525b, #a1a1aa));
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+.kit-loading-spinner {
+  width: 1.25rem;
+  height: 1.25rem;
+  flex-shrink: 0;
+}
+.kit-loader {
+  display: flex;
+  min-height: 12rem;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+.kit-startup {
+  box-sizing: border-box;
+  display: flex;
+  min-height: 100svh;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+  background: light-dark(#ffffff, #09090b);
+  color: light-dark(#18181b, #fafafa);
+  color-scheme: light dark;
+  font-family: system-ui, sans-serif;
+}
+body:has(.kit-startup) {
+  margin: 0;
+}
+.kit-startup-content {
+  width: 100%;
+  max-width: 25rem;
+}
+.kit-startup-brand {
+  margin: 0 0 1.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.kit-startup h1 {
+  margin: 0 0 0.5rem;
+  font-size: 1.375rem;
+  font-weight: 600;
+}
+.kit-startup-description {
+  margin: 0 0 1.5rem;
+  color: light-dark(#52525b, #a1a1aa);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .kit-loading-spinner {
+    animation: kit-loading-spin 1s linear infinite;
+  }
+}
+@keyframes kit-loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

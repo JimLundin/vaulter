@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button, FeaturePage, Input, Link, Stack, Text } from '../../ui/kit/index.ts';
+import { Button, FeaturePage, Input, Link, Loader, Stack, Text } from '../../ui/kit/index.ts';
 import { go } from '../../ui/routing.ts';
 import { wikiRoute, pageRoute, type WikiClassification, type WikiPage } from './pages.ts';
 import { WikiPageView } from './WikiPageView.tsx';
@@ -30,7 +30,7 @@ export function Wiki({
   if (!pages)
     return (
       <FeaturePage title="Wiki">
-        <Text>Opening pages…</Text>
+        <Loader>Opening pages…</Loader>
       </FeaturePage>
     );
   const page = pages.find((entry) => entry.id === node);

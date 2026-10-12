@@ -133,6 +133,7 @@ function Status() {
         <K.Text size="sm">Thinking about your notes…</K.Text>
       </K.Row>
       <K.LoadingStatus>Loading your vault…</K.LoadingStatus>
+      <K.Loader>Opening pages…</K.Loader>
       <K.Separator />
       <K.Button variant="outline" onClick={() => K.toast.success('Note saved', { toasterId })}>
         Show notification
@@ -1700,6 +1701,7 @@ export const catalogue: Specimen[] = [
       'AlertDescription',
       'Activity',
       'LoadingStatus',
+      'Loader',
       'Separator',
       'Toaster',
     ],
