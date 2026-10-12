@@ -1,5 +1,27 @@
 import { expect, test } from '@playwright/test';
 
+test('a marked passage taller than its collapsed viewport settles without corrective scroll activity', async ({
+  page,
+}) => {
+  await page.goto('/ui/kit/tests/browser.html?tall-passage');
+  const card = page.getByRole('region', { name: 'Long marked passage' });
+  const context = card.getByLabel('Passage context');
+  await expect(card.locator('mark')).toBeInViewport();
+  const activity = await context.evaluate(async (node) => {
+    let scrolls = 0;
+    const count = () => scrolls++;
+    node.addEventListener('scroll', count);
+    for (let frame = 0; frame < 20; frame++)
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    node.removeEventListener('scroll', count);
+    return scrolls;
+  });
+  expect(activity).toBeLessThan(3);
+  await expect(card.getByRole('button')).toHaveAttribute('aria-expanded', 'false');
+  await card.getByRole('button').click();
+  await expect(card.getByRole('button')).toHaveAttribute('aria-expanded', 'true');
+});
+
 test('shared passage cards keep exact marked text visible, expand by keyboard and keep paired state independent', async ({
   page,
 }) => {

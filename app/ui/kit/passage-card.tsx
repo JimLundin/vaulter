@@ -43,14 +43,16 @@ export function PassageCard({
       return;
     }
     const revealSelection = () => {
-      context.scrollTop = 0;
+      let target = 0;
       const mark = context.querySelector('mark');
       if (mark) {
         const viewport = context.getBoundingClientRect();
         const markedBounds = mark.getBoundingClientRect();
-        if (markedBounds.bottom > viewport.bottom)
-          context.scrollTop = Math.max(0, markedBounds.top - viewport.top - 24);
+        const bottom = markedBounds.bottom - viewport.top + context.scrollTop;
+        if (bottom > context.clientHeight)
+          target = Math.max(0, markedBounds.top - viewport.top + context.scrollTop - 24);
       }
+      if (Math.abs(context.scrollTop - target) > 1) context.scrollTop = target;
     };
     const measure = () => {
       if (!expanded) revealSelection();

@@ -679,6 +679,10 @@ test('semantic rendering permits content and links but delegates custom controls
       `<span role="button" tabIndex={0} onClick={()=>{}}>Disclosure</span>`,
       `<a href="#source" onClick={()=>{}}>Custom control</a>`,
       `const action={['onKeyDown']:()=>{}};<span {...action}>Disclosure</span>`,
+      'const props={onClick(){}};export const view=<span {...props}>Disclosure</span>;',
+      `const event='onKeyDown';const props={ [event](){}};export const view=<span {...props}>Disclosure</span>;`,
+      'const props={get onClick(){return ()=>{}}};export const view=<span {...props}>Disclosure</span>;',
+      'const props={set onClick(handler:()=>void){}};export const view=<span {...props}>Disclosure</span>;',
       `const role='checkbox';<span role={role}>Check</span>`,
       '<span contentEditable>Editor</span>',
     ]) {
