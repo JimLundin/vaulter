@@ -457,6 +457,91 @@ test('closed Voice keeps content acceptance separate from failed refresh and rel
   expect((await readAgentRun(options.nodes, voice.snapshot().run!))?.ownership).toBe('unknown');
 });
 
+test.each([
+  { action: 'close', refreshFails: false },
+  { action: 'terminal retry', refreshFails: false },
+  { action: 'close', refreshFails: true },
+])(
+  '$action during entered content refresh retains recovery (refreshFails=$refreshFails)',
+  async ({ action, refreshFails }) => {
+    let contentOffline = true;
+    let terminalOffline = action === 'terminal retry';
+    let holdRefresh = false;
+    let entered!: () => void;
+    let release!: () => void;
+    const refreshing = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const { options, callbacks: get } = await fixture((store) => ({
+      ...store,
+      snapshot: async (sequence) => {
+        if (holdRefresh) {
+          entered();
+          await held;
+          if (refreshFails) throw new Error('Late refresh offline');
+        }
+        return store.snapshot(sequence);
+      },
+      commit: async (value) => {
+        if (value.kind.action === 'completeRun' && terminalOffline)
+          throw new Error('Terminal offline');
+        if (value.kind.scope === 'paragraphFixture') {
+          // biome-ignore lint/suspicious/noUnnecessaryConditions: explicit retry changes this transport flag.
+          if (contentOffline) throw new Error('Content offline');
+          holdRefresh = true;
+        }
+        return store.commit(value);
+      },
+    }));
+    const voice = await createVoiceAgent(options);
+    const at = '2026-10-10T12:00:00Z';
+    await get().acceptUser('speech', 'Capture.', { started: at, ended: at });
+    await expect(
+      get().execute(
+        { callId: 'capture', name: 'captureParagraph', input: { text: 'hello' } },
+        get().signal,
+      ),
+    ).rejects.toThrow('Content offline');
+    await get().recordResponse('speech', [{ kind: 'text', text: 'Finished.' }], 'complete');
+    if (action === 'terminal retry') await voice.close();
+    contentOffline = false;
+    const retry = voice.retryContentSave();
+    await refreshing;
+    try {
+      if (action === 'close') await voice.close();
+      else {
+        terminalOffline = false;
+        await voice.retrySave();
+      }
+      expect(voice.snapshot().phase).toBe('paused');
+      expect(voice.snapshot().execution?.recoveryActivity?.refresh).toBe(true);
+      holdRefresh = false;
+      expect((await readAgentRun(options.nodes, voice.snapshot().run!))?.ownership).toBe('live');
+    } finally {
+      holdRefresh = false;
+      release();
+      await retry;
+    }
+    expect(voice.snapshot().execution?.recoveryActivity).toEqual({
+      save: false,
+      content: false,
+      refresh: false,
+    });
+    if (refreshFails) {
+      expect(voice.snapshot().execution?.contextError).toBe('Late refresh offline');
+      expect(voice.snapshot().phase).toBe('paused');
+      expect((await readAgentRun(options.nodes, voice.snapshot().run!))?.ownership).toBe('live');
+      await voice.refreshContext();
+      expect(voice.snapshot().execution?.contextError).toBeUndefined();
+    }
+    expect(voice.snapshot().phase).toBe('closed');
+    expect((await readAgentRun(options.nodes, voice.snapshot().run!))?.ownership).toBe('unknown');
+  },
+);
+
 test('a fictional voice caller retains independent Agent context, invocation, outcome and content', async () => {
   const nodes = memoryNodeBackend();
   await nodes.commit(

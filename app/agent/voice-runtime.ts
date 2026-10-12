@@ -165,7 +165,8 @@ export async function createVoiceAgent(options: VoiceAgentOptions) {
     const execution = turn.handle.snapshot();
     return (
       ['paused', 'unsaved'].includes(execution.phase) ||
-      !!(execution.contentPersistence || execution.contextError)
+      !!(execution.contentPersistence || execution.contextError) ||
+      Object.values(execution.recoveryActivity ?? {}).some(Boolean)
     );
   };
   const releaseRecovered = (turn: (typeof turns)[number]) => {
