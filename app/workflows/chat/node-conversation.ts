@@ -4,6 +4,7 @@ import { createNodeChatBackend } from './node-backend.ts';
 import type { NodeChatOptions, NodeChatRun, NodeChatRunState } from './node-backend.ts';
 import type { MessageData } from './records/chat.ts';
 import { generateSuggestions, type SuggestionProvider } from './suggestions.ts';
+import type { Transcription, TranscriptionState } from './transcription.ts';
 
 /** One task request supplied by the application composition, shared by page and panel views. */
 export interface Prompt {
@@ -18,8 +19,18 @@ export interface NodeConversationOptions extends NodeChatOptions {
   readonly suggestions?: SuggestionProvider;
   readonly stagedChanges?: () => { path: string; before: string; text: string | null }[];
   readonly onConversation?: (id: string) => void;
+  /** Supplied recording owner. Chat owns its draft association, not this borrowed module. */
+  readonly transcription?: Transcription;
+}
+export interface ChatCapture {
+  readonly phase: TranscriptionState['phase'];
+  readonly error: string;
+  readonly action: 'start' | 'cancel' | 'finish' | 'wait';
+  readonly allowed: boolean;
+  readonly reason?: string;
 }
 export interface NodeConversationState extends ChatState {
+  readonly capture: ChatCapture;
   readonly phase?: NodeChatRunState['phase'];
   readonly persistenceError?: string;
   readonly persistenceStage?: NodeChatRunState['persistenceStage'];
@@ -65,12 +76,14 @@ export function createNodeConversation(initial: NodeConversationOptions) {
   let unsubscribeActive: (() => void) | undefined;
   let options = initial;
   let id = initial.conversation ?? crypto.randomUUID();
+  let transcription = initial.transcription;
   let state: NodeConversationState = {
     draft: '',
     turns: [],
     suggestions: [],
     busy: false,
     unread: false,
+    capture: { phase: 'idle', error: '', action: 'start', allowed: !!transcription },
   };
   const listeners = new Set<() => void>();
   let active: NodeChatRun | undefined;
@@ -80,7 +93,19 @@ export function createNodeConversation(initial: NodeConversationOptions) {
   let disposed = false;
   let suggestedFor: string | undefined;
   let suggestionAbort: AbortController | undefined;
+  let draftRevision = 0;
+  let captureDraft:
+    | {
+        prefix: string;
+        conversation: string;
+        draftRevision: number;
+        session: string | null;
+        revision: number;
+      }
+    | undefined;
   const ready = () => !(disposed || options.availability);
+  const recording = () =>
+    ['connecting', 'listening', 'finishing'].includes(transcription?.snapshot().phase ?? 'idle');
   const suggest = async () => {
     if (
       !(ready() && options.model) ||
@@ -115,8 +140,64 @@ export function createNodeConversation(initial: NodeConversationOptions) {
   const set = (next: Partial<NodeConversationState>) => {
     if (disposed) return;
     state = { ...state, ...next };
+    state = { ...state, capture: captureState() };
     for (const listener of listeners) listener();
   };
+  const captureState = (): ChatCapture => {
+    const current = transcription?.snapshot();
+    const phase = current?.phase ?? 'idle';
+    const action =
+      phase === 'connecting'
+        ? 'cancel'
+        : phase === 'listening'
+          ? 'finish'
+          : phase === 'finishing'
+            ? 'wait'
+            : 'start';
+    const reason = disposed
+      ? 'This Chat session is closed.'
+      : action === 'wait'
+        ? 'Finishing the current transcript.'
+        : action !== 'start'
+          ? undefined
+          : !transcription
+            ? 'Live transcription is unavailable. You can still type.'
+            : (transcription.availability() ??
+              (state.busy
+                ? 'Wait for the Agent to finish.'
+                : state.persistenceError || state.contentPersistence || state.contextError
+                  ? 'Resolve the pending recovery before recording.'
+                  : undefined));
+    return {
+      phase,
+      error: current?.error ?? '',
+      action,
+      allowed: !reason,
+      ...(reason ? { reason } : {}),
+    };
+  };
+  const reflectCapture = () => {
+    const next = transcription?.snapshot();
+    const association = captureDraft;
+    if (next && association) {
+      if (next.phase === 'connecting' && !association.session) association.session = next.session;
+      if (
+        next.session === association.session &&
+        next.revision !== association.revision &&
+        association.conversation === id &&
+        association.draftRevision === draftRevision
+      ) {
+        association.revision = next.revision;
+        const separator =
+          association.prefix && next.text && !/\s$/.test(association.prefix) ? ' ' : '';
+        set({ draft: `${association.prefix}${separator}${next.text}` });
+      }
+      if (!['connecting', 'listening', 'finishing'].includes(next.phase)) captureDraft = undefined;
+    }
+    set({});
+  };
+  let unsubscribeCapture = transcription?.subscribe(reflectCapture);
+  state = { ...state, capture: captureState() };
   const reflect = () => {
     if (!active) return;
     const current = active.snapshot();
@@ -149,6 +230,7 @@ export function createNodeConversation(initial: NodeConversationOptions) {
     const said = text.trim();
     if (
       !ready() ||
+      recording() ||
       state.busy ||
       state.persistenceError ||
       state.contentPersistence ||
@@ -203,7 +285,33 @@ export function createNodeConversation(initial: NodeConversationOptions) {
       return () => listeners.delete(listener);
     },
     conversation: () => id,
-    setDraft: (draft: string) => set({ draft }),
+    setDraft: (draft: string) => {
+      if (disposed) return;
+      captureDraft = undefined;
+      draftRevision++;
+      set({ draft });
+      transcription?.clear();
+    },
+    captureAction: async () => {
+      const current = captureState();
+      if (!current.allowed) return { status: 'blocked' as const, reason: current.reason! };
+      if (current.action === 'cancel') {
+        captureDraft = undefined;
+        transcription?.clear();
+      } else if (current.action === 'finish') {
+        await transcription?.finish();
+      } else {
+        captureDraft = {
+          prefix: state.draft,
+          conversation: id,
+          draftRevision,
+          session: null,
+          revision: 0,
+        };
+        await transcription?.start();
+      }
+      return { status: 'performed' as const, action: current.action };
+    },
     ready,
     availability: () => options.availability,
     stagedChanges: () => options.stagedChanges?.() ?? [],
@@ -224,6 +332,13 @@ export function createNodeConversation(initial: NodeConversationOptions) {
         'contentPolicy',
       ].some((key) => Reflect.get(options, key) !== Reflect.get(next, key));
       options = next;
+      if (transcription !== next.transcription) {
+        captureDraft = undefined;
+        unsubscribeCapture?.();
+        transcription = next.transcription;
+        unsubscribeCapture = transcription?.subscribe(reflectCapture);
+        set({});
+      }
       if (!changed) return;
       const previous = backend;
       backend = createNodeChatBackend(next);
@@ -238,6 +353,7 @@ export function createNodeConversation(initial: NodeConversationOptions) {
       const text = state.draft;
       if (
         !(ready() && text.trim()) ||
+        recording() ||
         state.busy ||
         state.persistenceError ||
         state.contentPersistence ||
@@ -289,6 +405,7 @@ export function createNodeConversation(initial: NodeConversationOptions) {
     },
     open: async (conversation: string) => {
       if (
+        recording() ||
         state.busy ||
         state.persistenceError ||
         state.contentPersistence ||
@@ -299,6 +416,7 @@ export function createNodeConversation(initial: NodeConversationOptions) {
       const messages = await backend.messages(conversation);
       if (
         disposed ||
+        recording() ||
         state.busy ||
         state.persistenceError ||
         state.contentPersistence ||
@@ -333,6 +451,7 @@ export function createNodeConversation(initial: NodeConversationOptions) {
     newChat: () => {
       if (
         disposed ||
+        recording() ||
         state.busy ||
         state.persistenceError ||
         state.contentPersistence ||
@@ -360,6 +479,9 @@ export function createNodeConversation(initial: NodeConversationOptions) {
     },
     dispose: () => {
       disposed = true;
+      captureDraft = undefined;
+      unsubscribeCapture?.();
+      transcription?.interrupt();
       suggestionAbort?.abort();
       unsubscribeActive?.();
       for (const owned of backends) owned.dispose();

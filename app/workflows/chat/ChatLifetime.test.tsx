@@ -58,7 +58,6 @@ test('a reply finishing with the mounted pane closed remains unread until it reo
         <Chat
           conversation={conversation}
           arg={null}
-          voice={voice}
           presentation={{ open, onClose: () => undefined }}
         />
       </>,
@@ -129,18 +128,10 @@ test('retained prompts are consumed once across page and panel views, including 
   const render = (page: boolean, open: boolean, prompt = sendPrompt) =>
     root.render(
       <>
-        {page && (
-          <Chat
-            conversation={conversation}
-            arg={prompt}
-            voice={voice}
-            presentation={{ page: true }}
-          />
-        )}
+        {page && <Chat conversation={conversation} arg={prompt} presentation={{ page: true }} />}
         <Chat
           conversation={conversation}
           arg={page ? null : prompt}
-          voice={voice}
           presentation={{ open, onClose: () => undefined }}
         />
       </>,

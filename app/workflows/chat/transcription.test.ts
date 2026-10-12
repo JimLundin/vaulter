@@ -33,7 +33,11 @@ test('shows live text, waits for corrected final text, and releases capture with
   expect(close).not.toHaveBeenCalled();
   final.resolve('Leave space for a walk.');
   await done;
-  expect(voice.snapshot()).toEqual({ phase: 'ready', text: 'Leave space for a walk.', error: '' });
+  expect(voice.snapshot()).toMatchObject({
+    phase: 'ready',
+    text: 'Leave space for a walk.',
+    error: '',
+  });
   expect(signal.aborted).toBe(true);
   expect(close).toHaveBeenCalledOnce();
   expect(changed).toHaveBeenCalled();
@@ -54,7 +58,7 @@ test('cancels a connection still opening and ignores late text and errors', asyn
   events.error(new Error('Late failure'));
   pending.resolve({ close, finish: async () => '' });
   await starting;
-  expect(voice.snapshot()).toEqual({ phase: 'idle', text: '', error: '' });
+  expect(voice.snapshot()).toMatchObject({ phase: 'idle', text: '', error: '' });
   expect(close).toHaveBeenCalledOnce();
 });
 
@@ -94,7 +98,7 @@ test('permission failure and session errors leave typing available and preserve 
   await voice.start();
   events.text('Keep these words');
   events.error(new Error('Connection lost'));
-  expect(voice.snapshot()).toEqual({
+  expect(voice.snapshot()).toMatchObject({
     phase: 'error',
     text: 'Keep these words',
     error: 'Connection lost',
