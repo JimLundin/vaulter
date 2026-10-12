@@ -302,6 +302,7 @@ test('caller transcript save recovery retries the same projection without repeat
 
 test('closing after a terminal Agent save failure retains persistence-only recovery', async () => {
   let offline = true;
+  const saves: NodeCommit[] = [];
   const {
     nodes,
     options,
@@ -309,7 +310,11 @@ test('closing after a terminal Agent save failure retains persistence-only recov
   } = await fixture((store) => ({
     ...store,
     commit: async (value) => {
-      if (value.kind.action === 'completeRun' && offline) throw new Error('Terminal offline');
+      if (value.kind.action === 'completeRun') {
+        saves.push(value);
+        // biome-ignore lint/suspicious/noUnnecessaryConditions: recovery changes this transport flag.
+        if (offline) throw new Error('Terminal offline');
+      }
       return await store.commit(value);
     },
   }));
@@ -320,9 +325,136 @@ test('closing after a terminal Agent save failure retains persistence-only recov
   expect(voice.snapshot().phase).toBe('unsaved');
   const run = voice.snapshot().run!;
   await voice.close();
+  expect((await readAgentRun(options.nodes, run))?.ownership).toBe('live');
   offline = false;
   await voice.retrySave();
-  expect((await readAgentRun(nodes, run))?.data.status).toBe('complete');
+  expect(saves[1]).toEqual(saves[0]);
+  expect(await readAgentRun(options.nodes, run)).toMatchObject({
+    data: { status: 'complete' },
+    ownership: 'unknown',
+  });
+  await voice.retrySave();
+  expect(saves).toHaveLength(2);
+  expect((await nodes.history()).filter(({ kind }) => kind.action === 'startRun')).toHaveLength(1);
+});
+
+test('Close retains failed content publication and retries its exact request without repeating the tool', async () => {
+  let offline = true;
+  let effects = 0;
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const saves: NodeCommit[] = [];
+  const {
+    nodes,
+    options,
+    callbacks: get,
+  } = await fixture((store) => ({
+    ...store,
+    commit: async (value) => {
+      if (value.kind.scope === 'paragraphFixture') {
+        saves.push(value);
+        // biome-ignore lint/suspicious/noUnnecessaryConditions: explicit retry changes this transport flag.
+        if (offline) throw new Error('Content offline');
+        await held;
+      }
+      return store.commit(value);
+    },
+  }));
+  const voice = await createVoiceAgent({
+    ...options,
+    tools: async (context) => {
+      const supplied = await paragraphTools(context);
+      return {
+        captureParagraph: {
+          ...supplied.captureParagraph,
+          execute: async (input, execution) => {
+            effects++;
+            return supplied.captureParagraph!.execute!(input, execution);
+          },
+        },
+      };
+    },
+  });
+  const at = '2026-10-10T12:00:00Z';
+  await get().acceptUser('speech', 'Capture.', { started: at, ended: at });
+  await expect(
+    get().execute(
+      { callId: 'capture', name: 'captureParagraph', input: { text: 'hello' } },
+      get().signal,
+    ),
+  ).rejects.toThrow('Content offline');
+  await voice.retryContentSave();
+  expect(voice.snapshot().phase).toBe('responding');
+  await voice.close();
+  const run = voice.snapshot().run!;
+  expect(voice.snapshot().execution).toMatchObject({
+    phase: 'stopped',
+    contentPersistence: { error: 'Content offline' },
+  });
+  expect((await readAgentRun(options.nodes, run))?.ownership).toBe('live');
+  await voice.retryContentSave();
+  expect(voice.snapshot().execution?.contentPersistence?.error).toBe('Content offline');
+  expect((await readAgentRun(options.nodes, run))?.ownership).toBe('live');
+  offline = false;
+  const retry = voice.retryContentSave();
+  await vi.waitFor(() => expect(saves).toHaveLength(4));
+  expect((await readAgentRun(options.nodes, run))?.ownership).toBe('live');
+  release();
+  await retry;
+  expect(saves[1]).toEqual(saves[0]);
+  expect(saves[2]).toEqual(saves[0]);
+  expect(saves[3]).toEqual(saves[0]);
+  expect(voice.snapshot().execution?.contentPersistence).toBeUndefined();
+  expect((await readAgentRun(options.nodes, run))?.ownership).toBe('unknown');
+  expect(
+    (await nodes.history()).filter(({ kind }) => kind.scope === 'paragraphFixture'),
+  ).toHaveLength(1);
+  expect(effects).toBe(1);
+  await voice.retryContentSave();
+  expect(saves).toHaveLength(4);
+});
+
+test('closed Voice keeps content acceptance separate from failed refresh and releases recovery after refresh', async () => {
+  let contentOffline = true;
+  let readsFail = false;
+  const { options, callbacks: get } = await fixture((store) => ({
+    ...store,
+    snapshot: (sequence) =>
+      readsFail ? Promise.reject(new Error('Refresh offline')) : store.snapshot(sequence),
+    commit: async (value) => {
+      if (value.kind.scope === 'paragraphFixture') {
+        // biome-ignore lint/suspicious/noUnnecessaryConditions: explicit retry changes this transport flag.
+        if (contentOffline) throw new Error('Content offline');
+        readsFail = true;
+      }
+      return store.commit(value);
+    },
+  }));
+  const voice = await createVoiceAgent(options);
+  const at = '2026-10-10T12:00:00Z';
+  await get().acceptUser('speech', 'Capture.', { started: at, ended: at });
+  await expect(
+    get().execute(
+      { callId: 'capture', name: 'captureParagraph', input: { text: 'hello' } },
+      get().signal,
+    ),
+  ).rejects.toThrow('Content offline');
+  await voice.close();
+  contentOffline = false;
+  await voice.retryContentSave();
+  expect(voice.snapshot().execution?.contentPersistence).toBeUndefined();
+  expect(voice.snapshot().execution?.contextError).toBe('Refresh offline');
+  expect(voice.snapshot().phase).toBe('paused');
+  await voice.refreshContext();
+  expect(voice.snapshot().execution?.contextError).toBe('Refresh offline');
+  readsFail = false;
+  expect((await readAgentRun(options.nodes, voice.snapshot().run!))?.ownership).toBe('live');
+  await voice.refreshContext();
+  expect(voice.snapshot().execution?.contextError).toBeUndefined();
+  expect(voice.snapshot().phase).toBe('closed');
+  expect((await readAgentRun(options.nodes, voice.snapshot().run!))?.ownership).toBe('unknown');
 });
 
 test('a fictional voice caller retains independent Agent context, invocation, outcome and content', async () => {

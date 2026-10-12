@@ -101,7 +101,10 @@ test.each(['recover', 'close'])(
     ).toHaveLength(1);
     expect((await readAgentRun(nodes, run))?.tools[0]?.effects).toBe('uncertain');
     expect(events.error).not.toHaveBeenCalled();
-    if (action === 'close') await voice.close();
+    if (action === 'close') {
+      await voice.close();
+      expect(voice.snapshot().execution?.phase).toBe('paused');
+    }
     offline = false;
     await voice.retrySave();
     expect(saves[1]).toEqual(saves[0]);
@@ -115,6 +118,9 @@ test.each(['recover', 'close'])(
     } else {
       expect(creates(channel)).toBe(1);
       expect(outputs(channel)).toHaveLength(0);
+      expect(voice.snapshot().phase).toBe('closed');
+      await voice.retrySave();
+      expect(saves).toHaveLength(2);
     }
     await voice.close();
   },

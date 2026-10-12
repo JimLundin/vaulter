@@ -161,6 +161,32 @@ export async function createVoiceAgent(options: VoiceAgentOptions) {
   };
   const order = serial();
   const expire = () => current?.handle.stop();
+  const needsRecovery = (turn: (typeof turns)[number]) => {
+    const execution = turn.handle.snapshot();
+    return (
+      ['paused', 'unsaved'].includes(execution.phase) ||
+      !!(execution.contentPersistence || execution.contextError)
+    );
+  };
+  const releaseRecovered = (turn: (typeof turns)[number]) => {
+    if (!needsRecovery(turn)) turn.dispose();
+  };
+  const reflectRecovery = () => {
+    const execution = current?.handle.snapshot();
+    const phase = projections.length
+      ? 'unsaved'
+      : execution?.phase === 'paused' || execution?.phase === 'unsaved'
+        ? execution.phase
+        : signal.aborted
+          ? turns.some(needsRecovery)
+            ? 'paused'
+            : 'closed'
+          : execution && ['accepting', 'running', 'saving'].includes(execution.phase)
+            ? 'responding'
+            : 'listening';
+    notify({ ...state, execution, phase });
+    return state;
+  };
   let connection: Awaited<ReturnType<VoiceAgentOptions['connect']>> | undefined;
   let closing: Promise<void> | undefined;
   const close = () => {
@@ -172,16 +198,13 @@ export async function createVoiceAgent(options: VoiceAgentOptions) {
           turn.handle.stop();
           // biome-ignore lint/performance/noAwaitInLoops: drain each already accepted run.
           await turn.handle.done;
-          turn.dispose();
+          // Closing the protocol retains the stopped Agent owner until its pending saves recover.
+          releaseRecovered(turn);
         }
       });
       notify({
         ...state,
-        phase: projections.length
-          ? 'unsaved'
-          : turns.some(({ handle }) => ['paused', 'unsaved'].includes(handle.snapshot().phase))
-            ? 'paused'
-            : 'closed',
+        phase: projections.length ? 'unsaved' : turns.some(needsRecovery) ? 'paused' : 'closed',
       });
     });
     lifetime.abort();
@@ -435,12 +458,31 @@ export async function createVoiceAgent(options: VoiceAgentOptions) {
     mute: connection.mute,
     interrupt: connection.interrupt,
     close,
+    retryContentSave: async () => {
+      for (const turn of turns) {
+        if (!turn.handle.snapshot().contentPersistence) continue;
+        // biome-ignore lint/performance/noAwaitInLoops: each Agent owns its immutable content obligation.
+        await turn.handle.retryContentSave();
+        if (signal.aborted) releaseRecovered(turn);
+      }
+      return reflectRecovery();
+    },
+    refreshContext: async () => {
+      for (const turn of turns) {
+        if (!turn.handle.snapshot().contextError) continue;
+        // biome-ignore lint/performance/noAwaitInLoops: refresh each retained Agent reading obligation.
+        await turn.handle.refreshContext();
+        if (signal.aborted) releaseRecovered(turn);
+      }
+      return reflectRecovery();
+    },
     retrySave: async () => {
       for (const turn of turns) {
         if (turn.handle.snapshot().phase !== 'paused' && turn.handle.snapshot().phase !== 'unsaved')
           continue;
         // biome-ignore lint/performance/noAwaitInLoops: each retained persistence obligation has stable identity.
         await turn.handle.retrySave();
+        if (signal.aborted) releaseRecovered(turn);
       }
       while (projections.length) {
         try {
@@ -451,18 +493,7 @@ export async function createVoiceAgent(options: VoiceAgentOptions) {
           return state;
         }
       }
-      const execution = current?.handle.snapshot();
-      notify({
-        ...state,
-        execution,
-        phase:
-          execution && (execution.phase === 'paused' || execution.phase === 'unsaved')
-            ? execution.phase
-            : signal.aborted
-              ? 'closed'
-              : 'listening',
-      });
-      return state;
+      return reflectRecovery();
     },
   };
 }

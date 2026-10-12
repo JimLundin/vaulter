@@ -40,10 +40,14 @@ export function agentOwnership(nodes: NodeStore) {
           if (settled) release();
         },
       };
-      const isActive = () =>
-        ['accepting', 'running', 'saving', 'paused', 'unsaved'].includes(
-          owner.handle.snapshot().phase,
+      const isActive = () => {
+        const state = owner.handle.snapshot();
+        return (
+          ['accepting', 'running', 'saving', 'paused', 'unsaved'].includes(state.phase) ||
+          !!(state.contentPersistence || state.contextError) ||
+          Object.values(state.recoveryActivity ?? {}).some(Boolean)
         );
+      };
       if (!isActive()) return owner.handle;
       active.set(prepared.run, owner);
       owned.set(prepared.run, owner);

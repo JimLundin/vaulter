@@ -168,6 +168,12 @@ accepted Agent execution outcome.
 A tool outcome-save failure holds the actual execute promise and provider continuation until
 persistence-only recovery accepts the retained outcome. Interruption and Close expire executable
 access immediately, settle started effects and short commits, and preserve pending save handles.
+Close ends the voice protocol while retaining stopped Agent recovery owners. After their pending
+saves recover, Voice disposes those owners; full Agent backend destruction remains terminal.
+Voice exposes separate `retrySave`, `retryContentSave` and `refreshContext` actions for these
+retained obligations. Content acceptance can succeed while refresh remains pending; neither
+operation repeats a module effect or reopens the protocol. A settled run with pending content
+or refresh still has live local recovery ownership until recovery or explicit backend destruction.
 Closing a paused protocol does not wait indefinitely for Retry and never sends a late fabricated
 tool failure or requests another response. Reopening supplies history as data without executing
 unfinished invocations. Local protocol ordering is scoped to its session; unrelated voice and

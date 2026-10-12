@@ -179,10 +179,7 @@ export async function readAgentRun(
     data,
     context,
     tools,
-    ownership:
-      sequence === undefined && data.status === 'running' && hasLiveAgentOwner(store, run)
-        ? 'live'
-        : 'unknown',
+    ownership: sequence === undefined && hasLiveAgentOwner(store, run) ? 'live' : 'unknown',
   });
 }
 
