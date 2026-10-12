@@ -44,10 +44,17 @@ export function ChatSurface({
 }) {
   const actions = (
     <Row gap="xs">
-      <Button variant="ghost" size="compact" aria-label="Conversations" onClick={onConversations}>
-        <Icon name="list" />
-        Conversations
-      </Button>
+      <Row visible="compact">
+        <Button
+          variant="ghost"
+          size="compact"
+          iconOnly={true}
+          aria-label="Conversations"
+          onClick={onConversations}
+        >
+          <Icon name="list" />
+        </Button>
+      </Row>
       <Button
         variant="filled"
         size="compact"

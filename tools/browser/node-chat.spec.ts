@@ -457,7 +457,7 @@ for (const variant of ['numbered', 'badged', 'rule']) {
     const bounds = await panel.boundingBox();
     if (test.info().project.name !== 'phone') {
       expect(bounds!.x).toBeGreaterThan(page.viewportSize()!.width / 2);
-      await expect(page.getByRole('button', { name: 'Conversations', exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Conversations', exact: true })).toBeHidden();
       await expect(
         panel.getByRole('button', { name: 'Close conversations', exact: true }),
       ).toBeHidden();

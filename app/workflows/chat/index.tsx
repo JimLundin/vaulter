@@ -31,7 +31,7 @@ export function ChatPanel({
   onClose: () => void;
 }) {
   return (
-    <Suspense fallback={<Text tone="subtle">Loading conversation…</Text>}>
+    <Suspense fallback={open ? <Text tone="subtle">Loading conversation…</Text> : null}>
       <Chat conversation={conversation} arg={prompt} presentation={{ open, onClose }} />
     </Suspense>
   );

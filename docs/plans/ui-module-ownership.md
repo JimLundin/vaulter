@@ -296,8 +296,11 @@ Chat and chooser use SupportingPane with one feed scroll owner and anchored dock
 
 Visible standardization: supporting Chat stays beside content from 768px, uses the common pane
 header and width, and becomes the common full-height compact Drawer. Chat task toolbar and pane
-headers share a 48px token. Task actions use the same labelled controls in both arrangements;
-compact mouse controls remain 32px and touch targets remain 44px. Welcome content uses the selected shared typography.
+headers share a 48px token. New conversation stays labelled in both arrangements. Desktop keeps
+the persistent conversation list; compact layouts offer an icon-only Conversations opener.
+Compact mouse controls remain 32px and touch targets remain 44px. Welcome content uses the
+selected shared typography. The [Chat regression audit](../chat-ui-regression-audit.md) records
+the later repair of the restored desktop opener and closed-pane loading feedback.
 Fictional preview captures accompany validation outside the repository.
 
 Remaining preview-only dependency: `ConversationList` reads the `chat.conversation-list` preview
