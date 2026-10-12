@@ -26,6 +26,7 @@ const playwrightBooleanOptions = new Set([
   '--fully-parallel',
   '--headed',
   '--ignore-snapshots',
+  '--last-failed',
   '--no-deps',
   '--pass-with-no-tests',
   '--quiet',
@@ -52,7 +53,7 @@ function hasPlaywrightScope(args: string[]): boolean {
     }
     const [option, inlineValue] = argument.split(/[=](.*)/s);
     if (option === '--list' || option === '--help' || option === '-h') return true;
-    if (option === '--last-failed' || option === '--only-changed') return true;
+    if (option === '--only-changed') return true;
     if (playwrightBooleanOptions.has(option)) continue;
     const choices = playwrightOptionalOptions.get(option);
     if (choices) {

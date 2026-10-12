@@ -18,6 +18,7 @@ test.each([
   ['playwright', ['tools/browser/']],
   ['playwright', ['--', 'tools/browser/composer.spec.ts']],
   ['playwright', ['--debug', 'inspector', '--shuffle', '42']],
+  ['playwright', ['--last-failed']],
   ['all', ['app/workflows/chat']],
 ] satisfies ['vitest' | 'playwright' | 'all', string[]][])(
   '%s rejects an unscoped local invocation: %j',
@@ -46,7 +47,7 @@ test.each([
   ['playwright', ['-g=keeps focus']],
   ['playwright', ['--only-changed=main']],
   ['playwright', ['--only-changed']],
-  ['playwright', ['--last-failed']],
+  ['playwright', ['tools/browser/composer.spec.ts', '--last-failed']],
   ['playwright', ['--test-list=selected-tests.txt']],
   ['playwright', ['--list']],
   ['playwright', ['--help']],
