@@ -68,6 +68,47 @@ test('an unseen completed reply remains unread through failed record refresh and
   }
 });
 
+test('known Agent completion becomes unread while its Chat response save is still pending', async () => {
+  const { nodes, options } = await fixture();
+  let entered!: () => void;
+  let release!: () => void;
+  const saving = new Promise<void>((resolve) => {
+    entered = resolve;
+  });
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const conversation = createNodeConversation({
+    ...options,
+    nodes: {
+      ...nodes,
+      commit: async (value) => {
+        if (value.kind.action === 'completeResponse') {
+          entered();
+          await held;
+        }
+        return nodes.commit(value);
+      },
+    },
+  });
+  const submitted = conversation.prepareSubmission({ text: 'Reply outside Chat' });
+  if (submitted.status !== 'owned') throw new Error('Expected retained request');
+  try {
+    await saving;
+    expect(conversation.snapshot().turns[1]?.parts).toEqual([{ kind: 'text', text: 'Recorded.' }]);
+    expect(conversation.snapshot().unread).toBe(true);
+    const close = conversation.viewing();
+    expect(conversation.snapshot().unread).toBe(false);
+    close();
+  } finally {
+    release();
+    await submitted.done;
+  }
+  expect(conversation.snapshot().unread).toBe(false);
+  conversation.dispose();
+  nodes.close();
+});
+
 test('views share initial-acceptance recovery progress and reconciliation never executes unknown history', async () => {
   const { nodes, options } = await fixture();
   let failed = true;
@@ -117,6 +158,7 @@ test('views share initial-acceptance recovery progress and reconciliation never 
   await Promise.all([first, second, submitted.done]);
   expect(conversation.snapshot().recovery.save).toBeUndefined();
   expect(conversation.snapshot().phase).toBe('recorded');
+  expect(conversation.snapshot().unread).toBe(false);
   expect(conversation.snapshot().draft).toBe('A newer draft');
   expect(executions).toBe(0);
   conversation.dispose();
@@ -174,6 +216,11 @@ test('Chat response saving and accepted-record refresh remain separate shared ob
     save: { stage: 'response', error: 'Response save unavailable' },
     refresh: { error: 'Recorded view unavailable' },
   });
+  expect(conversation.snapshot().turns[1]?.parts).toEqual([{ kind: 'text', text: 'Recorded.' }]);
+  expect(conversation.snapshot().unread).toBe(true);
+  const acknowledge = conversation.viewing();
+  expect(conversation.snapshot().unread).toBe(false);
+  acknowledge();
   conversation.setDraft('Next request');
   conversation.stop();
   responseFails = false;
@@ -185,7 +232,7 @@ test('Chat response saving and accepted-record refresh remain separate shared ob
   await Promise.all([first, second]);
   expect(conversation.snapshot().recovery.save).toBeUndefined();
   expect(conversation.snapshot().recovery.refresh?.error).toBe('Recorded view unavailable');
-  expect(conversation.snapshot().unread).toBe(true);
+  expect(conversation.snapshot().unread).toBe(false);
   readsFail = false;
   holdReads = true;
   const refresh = conversation.refreshContext();
@@ -200,7 +247,7 @@ test('Chat response saving and accepted-record refresh remain separate shared ob
   expect(conversation.snapshot().recovery).toEqual({});
   expect(conversation.snapshot().draft).toBe('Next request');
   expect(conversation.snapshot().turns[1]?.parts).toEqual([{ kind: 'text', text: 'Recorded.' }]);
-  expect(conversation.snapshot().unread).toBe(true);
+  expect(conversation.snapshot().unread).toBe(false);
   const close = conversation.viewing();
   expect(conversation.snapshot().unread).toBe(false);
   close();

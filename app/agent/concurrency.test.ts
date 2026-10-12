@@ -1,4 +1,4 @@
-import { expect, test } from 'vitest';
+import { expect, test, vi } from 'vitest';
 import { tool } from 'ai';
 import { z } from 'zod';
 import { MockLanguageModelV4, convertArrayToReadableStream } from 'ai/test';
@@ -273,6 +273,120 @@ test('disposing a reader does not stop another caller and disposing a settled re
   expect((await recovering.read('recovery'))?.ownership).toBe('live');
   recovering.dispose();
   expect((await readAgentRun(transport, 'recovery'))?.ownership).toBe('unknown');
+});
+
+test('disposal retains ownership until an entered tool settles without terminalizing the run', async () => {
+  const { nodes, prepare } = await fixture();
+  const entered = gate();
+  const held = gate();
+  let context!: AgentToolContext;
+  const owner = createAgentBackend({
+    nodes,
+    model: async () => toolModel(),
+    tools: (supplied) => {
+      context = supplied;
+      return {
+        publish: tool({
+          inputSchema: z.object({}),
+          execute: async () => {
+            entered.release();
+            await held.held;
+            return 'Entered effect completed.';
+          },
+        }),
+      };
+    },
+  });
+  const prepared = await prepare('disposing-tool', true);
+  const run = owner.start(prepared);
+  await entered.held;
+  owner.dispose();
+  let settled = false;
+  void run.done.then(() => {
+    settled = true;
+  });
+  try {
+    expect(context.signal.aborted).toBe(true);
+    expect(() => context.snapshot()).toThrow('Agent run stopped');
+    expect(() => owner.start(prepared)).toThrow('disposed');
+    expect((await readAgentRun(nodes, prepared.run))?.ownership).toBe('live');
+    expect(settled).toBe(false);
+  } finally {
+    held.release();
+    await run.done;
+  }
+  const saved = await readAgentRun(nodes, prepared.run);
+  expect(saved).toMatchObject({ data: { status: 'running' }, ownership: 'unknown' });
+  expect(saved?.tools[0]?.data).toMatchObject({
+    status: 'complete',
+    output: 'Entered effect completed.',
+  });
+  expect((await nodes.history()).map(({ kind }) => kind.action)).not.toContain('completeRun');
+});
+
+test('disposal drains an entered detached content publication after its tool has settled', async () => {
+  const { nodes, prepare } = await fixture();
+  const entered = gate();
+  const held = gate();
+  const outcomeEntered = gate();
+  const outcomeHeld = gate();
+  let publication!: Promise<string>;
+  const transport = {
+    ...nodes,
+    commit: async (value: import('../vault/nodes/store.ts').NodeCommit) => {
+      if (value.id === 'disposing-content') {
+        entered.release();
+        await held.held;
+      }
+      if (value.kind.action === 'completeTool') {
+        outcomeEntered.release();
+        await outcomeHeld.held;
+      }
+      return nodes.commit(value);
+    },
+  };
+  const owner = createAgentBackend({
+    nodes: transport,
+    model: async () => toolModel(),
+    writableKinds: ['paragraph'],
+    tools: (context) => ({
+      publish: tool({
+        inputSchema: z.object({}),
+        execute: () => {
+          publication = context.commit({
+            id: 'disposing-content',
+            kind: nodeOperations.create,
+            message: null,
+            changes: [create('disposing-paragraph', { kind: 'paragraph', text: 'Entered.' })],
+          });
+          return 'Publication requested.';
+        },
+      }),
+    }),
+  });
+  const prepared = await prepare('disposing-publication', true);
+  const run = owner.start(prepared);
+  await Promise.all([entered.held, outcomeEntered.held]);
+  owner.dispose();
+  let settled = false;
+  void run.done.then(() => {
+    settled = true;
+  });
+  try {
+    outcomeHeld.release();
+    await vi.waitFor(async () => {
+      expect((await owner.read(prepared.run))?.tools[0]?.data.status).toBe('complete');
+    });
+    expect((await owner.read(prepared.run))?.ownership).toBe('live');
+    expect(settled).toBe(false);
+  } finally {
+    outcomeHeld.release();
+    held.release();
+    await Promise.all([run.done, publication]);
+  }
+  expect((await owner.read(prepared.run))?.ownership).toBe('unknown');
+  expect((await nodes.snapshot()).get('disposing-paragraph')?.data?.text).toBe('Entered.');
+  expect((await nodes.history()).map(({ kind }) => kind.action)).not.toContain('completeRun');
 });
 
 test('stopping a held model run does not expire another run\u0027s context or accepted content', async () => {

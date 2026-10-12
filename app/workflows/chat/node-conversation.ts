@@ -468,7 +468,8 @@ export function createNodeConversation(initial: NodeConversationOptions) {
   };
   const reflect = () => {
     if (disposed || !active) return;
-    const current = active.snapshot();
+    const retained = active;
+    const current = retained.snapshot();
     if (
       active.prepared() &&
       current.execution &&
@@ -493,6 +494,7 @@ export function createNodeConversation(initial: NodeConversationOptions) {
       contentAccepted: current.contentAccepted,
       contextError: current.contextError,
     });
+    if (active === retained) acknowledgeCompletion(retained);
   };
   function submit(
     intent: ChatSubmissionIntent,
@@ -566,7 +568,6 @@ export function createNodeConversation(initial: NodeConversationOptions) {
       !(state.persistenceError || state.busy) &&
       state.phase !== 'recorded'
     ) {
-      acknowledgeCompletion(sent);
       try {
         const messages = await sentBackend.messages(conversation);
         if (!disposed && active === sent) set({ turns: messages.map(({ data }) => turn(data)) });
@@ -579,10 +580,12 @@ export function createNodeConversation(initial: NodeConversationOptions) {
     } else if (!state.busy) set({ busy: false });
   }
   function acknowledgeCompletion(retained: NodeChatRun) {
+    const { execution } = retained.snapshot();
     if (
       completedReplies.has(retained) ||
-      !retained.snapshot().execution ||
-      state.phase === 'recorded'
+      !execution?.data.output ||
+      execution.data.status === 'running' ||
+      execution.phase === 'recorded'
     )
       return;
     completedReplies.add(retained);

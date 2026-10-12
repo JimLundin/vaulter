@@ -222,7 +222,6 @@ export function OpenProduct({
   const [panel, setPanel] = useState(
     () => layout === 'wide' && localStorage.getItem('vault-panel') === 'agent',
   );
-  const [prompt, setPrompt] = useState<Prompt | null>(null);
   const showPanel = (open: boolean) => {
     setPanel(open);
     if (open) localStorage.setItem('vault-panel', 'agent');
@@ -327,6 +326,13 @@ export function OpenProduct({
       },
     }),
   );
+  const [suppliedPrompt, setSuppliedPrompt] = useState<{
+    owner: typeof conversation;
+    value: Prompt;
+  } | null>(null);
+  const promptSequence = useRef(0);
+  // Supplied intent belongs to the receiving owner, including owners replaced by effect replay.
+  const prompt = suppliedPrompt?.owner === conversation ? suppliedPrompt.value : null;
   const { capture, turns, selectionAvailability } = useChat(conversation);
   const navigation: Navigation[] = [
     { label: 'Chat', href: chatRoute.href(), icon: 'sparkles', current: onChat },
@@ -350,7 +356,11 @@ export function OpenProduct({
     [files, pages],
   );
   const ask = (text?: string) => {
-    if (text) setPrompt((current) => ({ text, send: true, n: (current?.n ?? 0) + 1 }));
+    if (text)
+      setSuppliedPrompt({
+        owner: conversation,
+        value: { text, send: true, n: ++promptSequence.current },
+      });
     showPanel(true);
   };
   const voiceAction = () => {

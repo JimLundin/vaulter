@@ -354,9 +354,7 @@ export function createAgentBackend(options: AgentBackendOptions) {
           };
         }
         live = false;
-        if (disposed) return state;
         await toolController?.settle();
-        if (disposed) return state;
         await settleContent?.();
         if (disposed) return state;
         data = {
