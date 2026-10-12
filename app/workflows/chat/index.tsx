@@ -4,14 +4,12 @@ import { Activity, Text } from '../../ui/kit/index.ts';
 import type { NodeConversation as Conversation } from './node-conversation.ts';
 import { useNodeChat as useChat } from './use-node-conversation.ts';
 import type { Prompt } from './Chat.tsx';
-import type { Transcription } from './transcription.ts';
 export {
   useNodeConversation as useConversation,
   useNodeChat as useChat,
 } from './use-node-conversation.ts';
 export { openAIModel } from './model.ts';
 export { openAITranscription } from './openai-transcription.ts';
-export { useVoiceDraft } from './dictation.ts';
 export {
   useTranscription,
   useTranscript,
@@ -24,39 +22,30 @@ const Chat = lazy(() => import('./Chat.tsx').then((module) => ({ default: module
 export function ChatPanel({
   conversation,
   prompt = null,
-  voice,
   open,
   onClose,
 }: {
   conversation: Conversation;
   prompt?: Prompt | null;
-  voice: Transcription;
   open: boolean;
   onClose: () => void;
 }) {
   return (
     <Suspense fallback={<Text tone="subtle">Loading conversation…</Text>}>
-      <Chat
-        conversation={conversation}
-        arg={prompt}
-        voice={voice}
-        presentation={{ open, onClose }}
-      />
+      <Chat conversation={conversation} arg={prompt} presentation={{ open, onClose }} />
     </Suspense>
   );
 }
 export function ChatPage({
   conversation,
   prompt = null,
-  voice,
 }: {
   conversation: Conversation;
   prompt?: Prompt | null;
-  voice: Transcription;
 }) {
   return (
     <Suspense fallback={<Text tone="subtle">Loading conversation…</Text>}>
-      <Chat conversation={conversation} arg={prompt} voice={voice} presentation={{ page: true }} />
+      <Chat conversation={conversation} arg={prompt} presentation={{ page: true }} />
     </Suspense>
   );
 }

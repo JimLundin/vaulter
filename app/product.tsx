@@ -47,8 +47,6 @@ import {
   ChatPanel,
   ChatSettings,
   useTranscription,
-  useTranscript,
-  useVoiceDraft,
   type TranscriptionProvider,
   useConversation,
   useChat,
@@ -265,7 +263,6 @@ export function OpenProduct({
   const remoteModel = provider?.model ?? null;
   const speechProvider = provider?.liveTranscription ?? null;
   const voice = useTranscription(preview?.transcription ?? speechProvider);
-  const transcript = useTranscript(voice);
   const availability = !nodes
     ? 'Opening the node store…'
     : nodeStatus.kind === 'error'
@@ -292,6 +289,7 @@ export function OpenProduct({
         'Help the Vault owner using the supplied content tools. Content changes are published directly as nodes. Do not claim to edit or commit legacy files.',
       suggestions: preview?.suggestions,
       availability,
+      transcription: voice,
       conversation: conversationRoute.match(route.path)?.node ?? retainedConversation,
       onConversation: (id) => {
         const selected = conversationRoute.match(route.path)?.node;
@@ -311,8 +309,7 @@ export function OpenProduct({
       },
     }),
   );
-  const { busy: agentBusy } = useChat(conversation);
-  useVoiceDraft(conversation, voice);
+  const { capture } = useChat(conversation);
   const navigation: Navigation[] = [
     { label: 'Chat', href: chatRoute.href(), icon: 'sparkles', current: onChat },
     { label: 'Wiki', href: wikiRoute.href(), icon: 'book', current: onWiki },
@@ -339,26 +336,12 @@ export function OpenProduct({
     showPanel(true);
   };
   const voiceAction = () => {
-    if (transcript.phase === 'connecting') {
-      voice.clear();
-      return;
-    }
-    if (conversation.snapshot().busy) {
-      return;
-    }
-    if (transcript.phase === 'listening') {
-      if (mobile) {
-        showPanel(false);
-        go(chatRoute.href());
-      }
-      later(voice.finish());
-      return;
-    }
-    if (mobile) {
+    const capture = conversation.snapshot().capture;
+    if (mobile && capture.allowed && (capture.action === 'start' || capture.action === 'finish')) {
       showPanel(false);
       go(chatRoute.href());
     }
-    later(voice.start());
+    later(conversation.captureAction());
   };
   const commands: Command[] = [
     {
@@ -412,7 +395,6 @@ export function OpenProduct({
             group: 'Chat',
             icon: 'plus' as const,
             run: () => {
-              voice.clear();
               conversation.newChat();
               ask();
             },
@@ -505,14 +487,18 @@ export function OpenProduct({
         onSearch={() => setSearch(true)}
         primary={{
           compact: !onChat && (
-            <VoiceButton phase={transcript.phase} busy={agentBusy} onClick={voiceAction} />
+            <VoiceButton
+              phase={capture.phase}
+              busy={false}
+              disabled={!capture.allowed}
+              onClick={voiceAction}
+            />
           ),
         }}
         panel={
           <ChatPanel
             conversation={conversation}
             prompt={onChat ? null : prompt}
-            voice={voice}
             open={panel}
             onClose={() => showPanel(false)}
           />
@@ -525,7 +511,7 @@ export function OpenProduct({
           </Alert>
         )}
         {onChat ? (
-          <ChatPage conversation={conversation} prompt={prompt} voice={voice} />
+          <ChatPage conversation={conversation} prompt={prompt} />
         ) : onWiki ? (
           <Wiki key={wikiPage ?? 'wiki'} pages={pages} node={wikiPage} error={wikiError} />
         ) : onHistory ? (

@@ -19,17 +19,14 @@ import type { NodeConversation, Prompt } from './node-conversation.ts';
 export type { Prompt } from './node-conversation.ts';
 import { useNodeChat } from './use-node-conversation.ts';
 import { model } from './model.ts';
-import { useTranscript, type Transcription } from './transcription.ts';
 
 export function Chat({
   conversation,
   arg,
-  voice,
   presentation,
 }: {
   conversation: NodeConversation;
   arg: Prompt | null;
-  voice: Transcription;
   presentation: ChatPresentation;
 }) {
   const { newChat, send, stop, viewing } = conversation;
@@ -46,11 +43,11 @@ export function Chat({
     contentAccepted,
     contextError,
     phase,
+    capture,
   } = useNodeChat(conversation);
   const [retrying, setRetrying] = useState(false);
   const [focused, setFocused] = useState(false);
-  const transcript = useTranscript(voice);
-  const recording = ['connecting', 'listening', 'finishing'].includes(transcript.phase);
+  const recording = ['connecting', 'listening', 'finishing'].includes(capture.phase);
   const visible = presentation.page || presentation.open;
   const chooser = (
     <ConversationList
@@ -76,10 +73,9 @@ export function Chat({
         return;
       }
       type('');
-      voice.clear();
       later(send(text));
     },
-    [type, send, conversation, voice],
+    [type, send, conversation],
   );
   useEffect(() => {
     if (visible) return viewing();
@@ -112,17 +108,6 @@ export function Chat({
     type(text);
     requestAnimationFrame(() => ref.current?.focus());
   };
-  const voiceAction = () => {
-    if (transcript.phase === 'connecting') {
-      voice.clear();
-      return;
-    }
-    if (busy) {
-      return;
-    }
-    if (transcript.phase === 'listening') later(voice.finish());
-    else later(voice.start());
-  };
   if (!(conversation.ready() || turns.length || persistenceError))
     return (
       <ChatSurface
@@ -140,17 +125,13 @@ export function Chat({
     <ChatSurface
       supporting={chooser}
       presentation={presentation}
-      onNewChat={() => {
-        voice.clear();
-        newChat();
-        type('');
-      }}
+      onNewChat={newChat}
       onConversations={showChats}
       empty={!turns.length}
       busy={busy || recording || !!persistenceError || !!contentPersistence || !!contextError}
       status={
         <Stack>
-          <VoiceStatus phase={transcript.phase} error={transcript.error} />
+          <VoiceStatus phase={capture.phase} error={capture.error} />
           {!!conversation.availability() && (
             <Text role="status" tone="subtle">
               {conversation.availability()}
@@ -226,10 +207,7 @@ export function Chat({
       composer={
         <Composer
           draft={input}
-          onDraftChange={(text) => {
-            voice.clear();
-            type(text);
-          }}
+          onDraftChange={type}
           onSubmit={(text) => {
             if (text.trim() && !(busy || recording)) say(text);
           }}
@@ -241,7 +219,11 @@ export function Chat({
           }
           busy={busy}
           readOnly={recording}
-          voice={{ phase: transcript.phase, onClick: voiceAction }}
+          voice={{
+            phase: capture.phase,
+            disabled: !capture.allowed,
+            onClick: () => later(conversation.captureAction()),
+          }}
           onStop={stop}
           fieldRef={ref}
           onFocusChange={setFocused}
@@ -280,7 +262,6 @@ export function Chat({
                 const pending = review;
                 setReview(null);
                 type('');
-                voice.clear();
                 later(send(pending.text));
               }}
             >

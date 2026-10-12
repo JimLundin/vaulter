@@ -11,6 +11,9 @@ export interface TranscriptionState {
   phase: 'idle' | 'connecting' | 'listening' | 'finishing' | 'ready' | 'error';
   text: string;
   error: string;
+  /** Identity and ordering of output owned by one recording session. */
+  session: string | null;
+  revision: number;
 }
 
 const message = (error: unknown) =>
@@ -22,7 +25,13 @@ const message = (error: unknown) =>
 
 export function createTranscription(initial: TranscriptionProvider | null) {
   let provider = initial;
-  let state: TranscriptionState = { phase: 'idle', text: '', error: '' };
+  let state: TranscriptionState = {
+    phase: 'idle',
+    text: '',
+    error: '',
+    session: null,
+    revision: 0,
+  };
   let abort: AbortController | null = null;
   let connection: TranscriptionConnection | null = null;
   let disposed = false;
@@ -41,6 +50,12 @@ export function createTranscription(initial: TranscriptionProvider | null) {
     release();
     set({ phase: 'error', error: message(error) });
   };
+  const availability = () =>
+    disposed
+      ? 'The recording session is closed.'
+      : !provider
+        ? 'Unlock an OpenAI key to use live transcription. You can still type.'
+        : undefined;
   return {
     snapshot: () => state,
     subscribe(listener: () => void) {
@@ -51,7 +66,9 @@ export function createTranscription(initial: TranscriptionProvider | null) {
     },
     configure(next: TranscriptionProvider | null) {
       provider = next;
+      set({});
     },
+    availability,
     async start() {
       if (disposed || ['connecting', 'listening', 'finishing'].includes(state.phase)) return;
       if (!provider) {
@@ -64,12 +81,12 @@ export function createTranscription(initial: TranscriptionProvider | null) {
       release();
       const request = new AbortController();
       abort = request;
-      set({ phase: 'connecting', text: '', error: '' });
+      set({ phase: 'connecting', text: '', error: '', session: crypto.randomUUID(), revision: 0 });
       try {
         const session = await provider(
           {
             text(text) {
-              if (!request.signal.aborted) set({ text });
+              if (!request.signal.aborted) set({ text, revision: state.revision + 1 });
             },
             error(error) {
               if (!request.signal.aborted) fail(error);
@@ -95,7 +112,12 @@ export function createTranscription(initial: TranscriptionProvider | null) {
         const text = await connection.finish();
         if (request?.signal.aborted) return;
         release();
-        set({ phase: text.trim() ? 'ready' : 'idle', text, error: '' });
+        set({
+          phase: text.trim() ? 'ready' : 'idle',
+          text,
+          error: '',
+          revision: state.revision + 1,
+        });
       } catch (error) {
         if (!request?.signal.aborted) fail(error);
       }
@@ -105,7 +127,7 @@ export function createTranscription(initial: TranscriptionProvider | null) {
     },
     clear() {
       release();
-      set({ phase: 'idle', text: '', error: '' });
+      set({ phase: 'idle', text: '', error: '', session: null, revision: 0 });
     },
     interrupt() {
       if (!['connecting', 'listening', 'finishing'].includes(state.phase)) return;
