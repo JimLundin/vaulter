@@ -64,6 +64,7 @@ export interface ChatSubmissionReview {
 }
 export interface ChatRetainedPrompt extends Readonly<Prompt> {
   readonly conversation: string;
+  readonly task: number;
   readonly reason: string;
 }
 export type ChatPromptOutcome =
@@ -213,6 +214,8 @@ export function createNodeConversation(initial: NodeConversationOptions) {
     suggestionAbort?.abort();
     const abort = new AbortController();
     suggestionAbort = abort;
+    const conversation = id;
+    const generation = selectionGeneration;
     const context = {
       files: [],
       turns: state.turns.map(({ role, parts }) => ({
@@ -224,7 +227,12 @@ export function createNodeConversation(initial: NodeConversationOptions) {
       const suggestions = options.suggestions
         ? await options.suggestions(context, abort.signal)
         : await generateSuggestions(options.model, options.selectedModel, context, abort.signal);
-      if (!(disposed || abort.signal.aborted)) set({ suggestions });
+      if (
+        !(disposed || abort.signal.aborted) &&
+        id === conversation &&
+        generation === selectionGeneration
+      )
+        set({ suggestions });
     } catch {
       /* Suggestions are optional and never execute tools. */
     }
@@ -237,6 +245,14 @@ export function createNodeConversation(initial: NodeConversationOptions) {
     const reading = recordRefresh?.conversation === id && recordRefresh.retained === active;
     state = {
       ...state,
+      prompts: state.prompts.map((prompt) =>
+        prompt.conversation !== id || prompt.task !== selectionGeneration
+          ? Object.freeze({
+              ...prompt,
+              reason: 'Conversation changed. Review this text before using it.',
+            })
+          : prompt,
+      ),
       contextError: refreshError,
       recovery: {
         ...owned,
@@ -581,7 +597,10 @@ export function createNodeConversation(initial: NodeConversationOptions) {
   };
   const retainPrompt = (prompt: Readonly<Prompt>, reason: string) =>
     set({
-      prompts: [...state.prompts, Object.freeze({ ...prompt, conversation: id, reason })],
+      prompts: [
+        ...state.prompts,
+        Object.freeze({ ...prompt, conversation: id, task: selectionGeneration, reason }),
+      ],
     });
   const api = {
     snapshot: () => state,
@@ -833,14 +852,25 @@ export function createNodeConversation(initial: NodeConversationOptions) {
     applyPrompt: (n: number): ChatPromptOutcome => {
       const prompt = state.prompts.find((pending) => pending.n === n);
       if (!prompt) return { status: 'blocked', reason: 'This text is no longer pending.' };
+      if (prompt.conversation !== id || prompt.task !== selectionGeneration) {
+        const reason = 'Conversation changed. Review this text and use again.';
+        set({
+          prompts: state.prompts.map((pending) =>
+            pending === prompt
+              ? Object.freeze({ ...prompt, conversation: id, task: selectionGeneration, reason })
+              : pending,
+          ),
+        });
+        return { status: 'blocked', reason };
+      }
       const outcome = interpretPrompt(prompt);
       set({
         prompts:
           outcome.status === 'blocked'
             ? state.prompts.map((pending) =>
-                pending === prompt ? Object.freeze({ ...prompt, reason: outcome.reason }) : pending,
+                pending.n === n ? Object.freeze({ ...pending, reason: outcome.reason }) : pending,
               )
-            : state.prompts.filter((pending) => pending !== prompt),
+            : state.prompts.filter((pending) => pending.n !== n),
       });
       return outcome;
     },
@@ -866,8 +896,11 @@ export function createNodeConversation(initial: NodeConversationOptions) {
       }
       invalidateSelection();
       const generation = selectionGeneration;
+      suggestionAbort?.abort();
+      suggestedFor = undefined;
       set({
         selection: { pending: { conversation, source: 'explicit' } },
+        suggestions: [],
         review: undefined,
         actionReason: undefined,
       });

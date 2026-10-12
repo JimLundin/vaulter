@@ -42,6 +42,75 @@ test('Search Ask is accepted once when Chat moves between the page and its suppo
   );
 });
 
+test('Search Ask during recording survives reopening, never auto-sends, and explicit Use submits once', async ({
+  page,
+}) => {
+  await page.goto('/preview/');
+  await movePreviewBelowToolbar(page.locator('[data-preview-drag-handle]'));
+  const main = page.getByRole('main');
+  const input = main.getByRole('textbox', { name: 'Message', exact: true });
+  await input.fill('Keep my recorded draft');
+  await input.blur();
+  await main.getByRole('button', { name: 'Start voice interaction' }).click();
+  await expect(input).toHaveValue(/^Keep my recorded draft Leave/);
+  await page.getByRole('button', { name: 'Search', exact: true }).click();
+  const search = page.getByRole('dialog', { name: 'Search or ask' });
+  await search.getByRole('combobox').fill('Ask after recording');
+  await search.getByRole('option', { name: 'Ask the agent: Ask after recording' }).click();
+  const pane = page.getByRole(test.info().project.name === 'phone' ? 'dialog' : 'complementary', {
+    name: 'Chat',
+    exact: true,
+  });
+  const paneInput = pane.getByRole('textbox', { name: 'Message', exact: true });
+  await expect(pane.getByText('Ask after recording', { exact: true })).toBeVisible();
+  await expect(
+    pane.getByRole('status').filter({ hasText: 'before using this text' }),
+  ).toBeVisible();
+  await pane.getByRole('button', { name: 'Use', exact: true }).click();
+  await expect(paneInput).toHaveValue(/^Keep my recorded draft Leave/);
+  await pane.getByRole('button', { name: 'Finish recording', exact: true }).click();
+  await expect(paneInput).toBeEditable();
+  const draft = await paneInput.inputValue();
+  await page.evaluate(() => {
+    location.hash = '#/history/';
+  });
+  await expect(pane).toBeVisible();
+  await expect(pane.getByText('Ask after recording', { exact: true })).toBeVisible();
+  await pane.getByRole('button', { name: 'Close chat', exact: true }).click();
+  await page.evaluate(() => {
+    location.hash = '#/chat/';
+  });
+  await expect(main.getByRole('button', { name: 'Use', exact: true })).toBeVisible();
+  await expect(main.locator('[data-message="user"]')).toHaveCount(0);
+  await main.getByRole('button', { name: 'Use', exact: true }).click();
+  await expect(main.locator('[data-message="user"]')).toHaveCount(1);
+  await expect(main.getByRole('button', { name: 'Stop', exact: true })).toBeHidden();
+  await expect(input).toHaveValue(draft);
+  await expect(main.getByRole('button', { name: 'Use', exact: true })).toHaveCount(0);
+});
+
+test('Search Ask uses retained staged-change review without replacing the existing draft', async ({
+  page,
+}) => {
+  await page.goto('/preview/?legacy-staging');
+  await movePreviewBelowToolbar(page.locator('[data-preview-drag-handle]'));
+  const main = page.getByRole('main');
+  const input = main.getByRole('textbox', { name: 'Message', exact: true });
+  await input.fill('Keep my editable draft');
+  await page.getByRole('button', { name: 'Search', exact: true }).click();
+  const search = page.getByRole('dialog', { name: 'Search or ask' });
+  await search.getByRole('combobox').fill('Review this Search Ask');
+  await search.getByRole('option', { name: 'Ask the agent: Review this Search Ask' }).click();
+  const review = page.getByRole('dialog', { name: 'Review pending changes', exact: true });
+  await expect(review).toBeVisible();
+  await expect(review.getByText('Review this Search Ask', { exact: true })).toBeVisible();
+  await expect(input).toHaveValue('Keep my editable draft');
+  await expect(main.locator('[data-message="user"]')).toHaveCount(0);
+  await review.getByRole('button', { name: 'Send and keep staged edits' }).click();
+  await expect(main.locator('[data-message="user"]')).toHaveCount(1);
+  await expect(input).toHaveValue('Keep my editable draft');
+});
+
 test('node-backed Send retains content receipts and accepted conversation across reload without replay', {
   tag: '@phone',
 }, async ({ page }) => {
