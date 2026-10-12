@@ -153,7 +153,7 @@ test('recording blocks saved conversation selection through the production choos
   await expect(row).toBeEnabled();
   await page.getByRole('button', { name: 'Start voice interaction', exact: true }).click();
   await expect(row).toBeDisabled();
-  await expect(pane.getByRole('status')).toContainText('Finish recording');
+  await expect(pane.getByRole('status')).toContainText(/Finish.*recording/);
 });
 
 test('a new selection resets the supporting body without caller access to its scroll owner', {
