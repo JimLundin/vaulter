@@ -3,8 +3,11 @@
 The browser app Jim reads the vault in, at **https://jimlundin.github.io/vaulter/**. It holds no notes:
 behind a password it reads them at runtime from the vault, the private repo `JimLundin/vault`, keeps
 them in plaintext on the device, and works offline. Chat and Agent now produce nodes in the shared NodeStore. Legacy Search and History screens still
-read Markdown and its schema. The separate migration inside the Vault populates the target layout;
-the application does not perform that migration. The design and its history: `PLAN-browser-app.md`
+read Markdown and its schema. The Vault owns [translation and enrichment tooling](https://github.com/JimLundin/vault/tree/main/.vaulter/tooling/migration)
+that targets the current Vaulter modules. Its source readers, extraction policy and private review
+data evolve in the Vault; Vaulter modules own their current record validation and historical reads.
+See [Wiki ingestion](docs/wiki-migration.md) for the boundary and current interfaces.
+The design and its history: `PLAN-browser-app.md`
 (written while the app still lived in the vault, as `site/`, and the repos were `my-vault` and `vault-pages`).
 
 ## Commands

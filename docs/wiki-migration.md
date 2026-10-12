@@ -1,99 +1,65 @@
-# Wiki migration and evidence enrichment
+# Wiki ingestion and evidence
 
-The published Markdown import holds page content as ordered, independently versioned nodes.
-Enrichment appends to that baseline, preserving its identities, history, prose and lifecycle records.
+The private Vault owns [translation and enrichment tooling](https://github.com/JimLundin/vault/tree/main/.vaulter/tooling/migration).
+It interprets old files and Git history, chooses extraction and review policy, and targets the current
+Vaulter modules. Private content, review packets, examples and operational commands live in the
+[Vault runbook](https://github.com/JimLundin/vault/blob/main/.vaulter/tooling/wiki-migration.md).
 
-Wiki is the collection of distilled sources. Statements and page provenance cite underlying retained
-conversations, reports or independently captured material. Wiki pages, sections, paragraphs and
-inline nodes are navigation targets and retrieval aids. Their prose is never a citation source,
-including when it repeats the same fact or has no reciprocal link. Source eligibility follows the
-passage's containment in its historical snapshot.
+Vaulter owns target records and their interpretation. Wiki is distilled knowledge; its citations
+and page provenance refer to retained conversations, reports or independently captured material.
+Wiki pages and their descendants remain navigation and retrieval targets. Their prose cannot serve
+as evidence, including when linked from another page. Eligibility follows historical containment.
 
-Wiki owns the schemas, historical text grammar, source boundary, evidence validation and reference
-preparation in `app/workflows/wiki/`. Migration depends on those pure entries. Chat, Agent, Content
-and retained record owners supply source text and descriptions; migration composes them explicitly
-in `tools/migration/wiki.ts`. Git history, review ranking, deterministic identifiers, authorship,
-envelopes and reports remain migration responsibilities.
+## Current module interfaces
 
-| Existing content | Enrichment and projection |
+| Owner entry | Responsibility |
 | --- | --- |
-| Title, summary, aliases, created, geo/address | Page header and details |
-| Formatted prose, lists, tables, code | Original block and inline identities retained |
-| Type/tag relationships | Separate classifications resolved from terms |
-| Named relations and locations | Named connections with unresolved labels retained |
-| Dates, questions, tasks, decisions | Owning-module records with their existing lifecycle/history |
-| Capture links, explicit source sections and source relationships | Page references to retained sources; Wiki targets remain navigation |
-| Reviewed statement support | Exact claim-to-source citation with two historical selections |
+| [Wiki records](../app/workflows/wiki/records.ts) | Validate page, block, inline and Citation payloads with `parseWikiRecord` |
+| [Wiki preparation](../app/workflows/wiki/preparation.ts) | `prepareWikiReferences` prepares references and reviewed citations without publishing |
+| [Wiki evidence](../app/workflows/wiki/evidence.ts) and [citations](../app/workflows/wiki/citations.ts) | Validate source eligibility, historical selections and current claim applicability |
+| [Wiki pages](../app/workflows/wiki/pages.ts) | `readWiki` projects accepted history into pages and resolved references |
+| [Source reading](../app/vault/sources.ts) | `SourceReader` lets callers compose the historical text and descriptions supplied by record owners |
+| [NodeStore](../app/vault/nodes/store.ts) | Read snapshots and atomically append structurally valid transactions |
 
-## Historical selections
+Chat, Agent, Content and retained record owners interpret their own payloads. Product composes those
+readers for the application; Vault tooling composes them for ingestion. Source-specific parsing,
+retrieval, ranking, identity allocation and authorship stay with the translator. A richer extraction
+strategy can retain more source material and propose new records; the target module validates those
+records using its current definitions.
 
-[ADR-0005](adr/0005-wiki-citation-selections.md) defines the source boundary and selection semantics.
-A citation connects exact claim and passage versions. Its `unit: 'utf16'` data holds two nonempty,
-half-open ranges, each with the snapshot sequence in which its text was reviewed. A container's
-exact version does not freeze its children; the snapshot retains those descendants. Quotations are
-derived from history and never copied into citation data.
+The tooling pins Vaulter at `.vaulter/tooling/vaulter/` and maps `#vaulter/*` to existing source entries
+in that revision. Advancing the pin requires adapting and verifying the consumer. These entries are
+current source interfaces; they do not promise a separately versioned migration SDK.
 
-Inline fragments concatenate verbatim across formatting, blocks use newlines and table cells use
-tabs. Structural references contribute no text. Assistant text parts concatenate, and exchange
-preambles precede the turns; tool output is not source prose. Ranges cannot split surrogate pairs.
+## Historical selections and preparation
 
-Source context survives later edits/deletion and reports `newer` or `deleted`. An edited claim
-withholds old support if its current text differs, retaining the citation in history. Placement
-cannot retarget support to another claim. Transaction author describes who recorded the source;
-message `speaker` separately identifies the user/agent role. Import attribution is not a speaker.
+[ADR 0005](adr/0005-wiki-citation-selections.md) defines citation history. Each exact claim and passage
+address has a snapshot sequence and a nonempty half-open UTF-16 range. Exact container versions do
+not freeze their children; the snapshot selects their historical descendants. Quotations are derived
+from history. Inline fragments concatenate verbatim, blocks use newlines and table cells use tabs.
+Structural references add no text; ranges cannot split surrogate pairs. Changed text projection
+semantics need a new selection format, preserving the grammar of existing `unit: 'utf16'` selections.
 
-`WikiPage` exposes `metadata`, `sources` and `blocks`. `WikiReference` retains exact source,
-snapshot, context, selection, title and attribution. Historical reads paginate all transactions.
+Page references establish provenance without asserting support for a statement. Reviewed citations
+must establish the entire selected claim. Retrieval and lexical overlap identify candidates; source
+eligibility and referential integrity alone do not prove support. Historical source context survives
+later edits and deletion; an edited claim withholds support when its current text differs.
 
-## Review and enrichment
+`prepareWikiReferences` returns `baselineSequence`, proposed changes and expected reads. The caller
+must publish against exactly that baseline or reprepare: descendant version expectations cannot
+detect newly inserted children. The caller supplies every selected Citation version, including
+those beneath deleted containers. Preparation checks reviewed quotations against history and
+validates evidence before output. It does not publish or choose import identities and authorship.
 
-```sh
-npm run migrate:review -- --vault /home/jim/vault --vault-ref HEAD --out /tmp/wiki-review
-# Agents read the per-page packets and write decisions/<page>.json.
-npm run migrate:review -- --vault /home/jim/vault --compile /tmp/wiki-review
-npm run migrate:enrich -- --vault /home/jim/vault --review /tmp/wiki-review/evidence-review.json --out /tmp/wiki-enrichment
-```
-
-Retrieval follows linked Wiki pages to their source references and ranks only underlying passages.
-Lexical overlap finds candidates; it never establishes support. Every page with candidates needs a
-decision, including rejections. Review must establish the entire selected fragment: narrow or reject
-unsupported qualifiers and plans represented as completed events. Agent reports retain their
-attribution and report status; they do not independently verify an external fact. Uncaptured web
-resources have a URL but no passage text to select.
-
-[The fictional input example](wiki-evidence-review.example.json) shows exact addresses, snapshots,
-UTF-16 ranges, quotations and rationales, including multiple sources for one statement. Quotations
-guard review input; only reviewer and rationale are retained in transaction metadata.
-
-Compilation validates unique quotations, historical ranges, unchanged baseline, duplicate reviews,
-source eligibility and self/circular evidence. It checks actual historical containment rather than
-trusting a candidate's label. Direct enrichment input and citation readback share the Wiki source
-boundary. Compilation writes `evidence-review.json` and `review-report.json`, including the queue
-of unsupported blocks. Private packets, decisions, quotations and exclusions belong in the private
-vault, outside this public application repo.
-
-Enrichment reads committed Git history and emits new envelopes, `request.json` and `report.json`
-into a fresh directory outside the vault. It cannot publish. Output is valid immediately after the
-exact baseline it was prepared against; regenerate if the vault advances. Deterministic identities
-and requests permit retry without duplicates. Before output, verification checks retained nodes
-and text, new schemas, containment, historical readback and idempotence.
-
-Wiki preparation returns `baselineSequence`, prepared changes and expected reads without publishing.
-The exact baseline is required because version expectations for existing descendants cannot detect
-newly inserted children. Every selected accepted Citation participates in evidence validation,
-including citations beneath deleted containers that live containment traversal cannot enumerate.
-
-The original `migrate` / `migrate:verify` commands independently check historical Markdown import in
-scratch output. They must not replace published history or invalidate its exact addresses.
+The published import is immutable. Enrichment and upgrades append transactions, preserving existing
+addresses and historical selections. Future modules may change payloads and structure while supplying
+explicit historical decoders; the original import does not freeze their design.
+See [ADR 0007](adr/0007-vault-owned-translation.md).
 
 ## Private migration handoffs
 
-Retain migration packages in the private vault under `.vaulter/migrations/wiki/<date>/`.
-Each package's `HANDOFF.md` records its baseline, canonical review/output, outstanding work and
-verification; its manifest and checksums preserve integrity. Session-specific review details and
-private content stay in that package.
-
-The staging directory is separate from the live `.vaulter/nodes/v1/transactions/` namespace.
-Saving a package does not apply its proposed transactions. Before the full migration, pull the
-latest vault and regenerate/validate against the intended publication baseline. Verify the saved
-package before removing redundant temporary copies outside the vault.
+The Vault retains operational packages outside the live transaction namespace. Its
+[runbook](https://github.com/JimLundin/vault/blob/main/.vaulter/tooling/wiki-migration.md#private-migration-handoffs)
+records baselines, review artifacts, publication status and verification. Saving a package does not
+apply its proposed transactions. Original import replay is a scratch verification facility;
+published history is enriched through appended transactions prepared against the intended baseline.
