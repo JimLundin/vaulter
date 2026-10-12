@@ -255,3 +255,64 @@ test('retained review is presented once across simultaneous views and survives h
     vi.unstubAllGlobals();
   }
 });
+
+test('simultaneous and reopened Chat views retain blocked Ask with visible Use and Dismiss actions', async () => {
+  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+  const nodes = memoryNodeBackend();
+  const voice = createTranscription(async () => ({ finish: async () => 'Spoken', close() {} }));
+  const conversation = createNodeConversation({
+    nodes,
+    user: 'user',
+    agent: 'agent',
+    provider: 'fictional',
+    selectedModel: 'fictional',
+    instructions: 'Record.',
+    model: () => Promise.reject(new Error('Must not execute')),
+    suggestions: async () => [],
+    transcription: voice,
+  });
+  const root = createRoot(document.body);
+  const prompt = { n: 1, send: true, text: 'Retained blocked Ask' };
+  const render = (visible: boolean) =>
+    root.render(
+      <>
+        {visible && <Chat conversation={conversation} arg={prompt} presentation={{ page: true }} />}
+        <Chat
+          conversation={conversation}
+          arg={prompt}
+          presentation={{ open: visible, onClose: () => undefined }}
+        />
+      </>,
+    );
+  try {
+    conversation.setDraft('Preserved draft');
+    await conversation.captureAction();
+    await act(async () => render(true));
+    expect(document.body.textContent).toContain('Retained blocked Ask');
+    expect(document.body.textContent).toContain('before using this text');
+    expect(
+      [...document.querySelectorAll('button')].some((button) => button.textContent === 'Use'),
+    ).toBe(true);
+    expect(conversation.snapshot().prompts).toHaveLength(1);
+    await act(async () => render(false));
+    await act(async () => voice.clear());
+    await act(async () => render(true));
+    expect(conversation.snapshot().prompts).toHaveLength(1);
+    expect(conversation.snapshot().turns).toEqual([]);
+    expect(conversation.snapshot().draft).toBe('Preserved draft');
+    await act(async () => {
+      [...document.querySelectorAll('button')]
+        .find((button) => button.textContent === 'Dismiss')!
+        .click();
+    });
+    expect(conversation.snapshot().prompts).toEqual([]);
+    expect(conversation.snapshot().draft).toBe('Preserved draft');
+  } finally {
+    await act(async () => root.unmount());
+    conversation.dispose();
+    voice.dispose();
+    nodes.close();
+    document.body.replaceChildren();
+    vi.unstubAllGlobals();
+  }
+});

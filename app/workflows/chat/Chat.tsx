@@ -48,6 +48,7 @@ export function Chat({
     review,
     reviewAvailability,
     actionReason,
+    prompts,
   } = useNodeChat(conversation);
   const [retrying, setRetrying] = useState(false);
   const [focused, setFocused] = useState(false);
@@ -91,30 +92,15 @@ export function Chat({
   ]);
   const showSuggestions = !(focused || input || busy || recording) && suggestions.length > 0;
   useEffect(() => {
-    if (!(visible && arg && conversation.takePrompt(arg))) return;
-    if (arg.send && !conversation.snapshot().busy) say({ text: arg.text });
-    else {
-      type(arg.text);
-      requestAnimationFrame(() => ref.current?.focus());
-    }
-  }, [arg, conversation, say, type, visible]);
+    if (!(visible && arg)) return;
+    const outcome = conversation.receivePrompt(arg);
+    if (outcome.status === 'owned') later(outcome.done);
+    if (outcome.status === 'edited') requestAnimationFrame(() => ref.current?.focus());
+  }, [arg, conversation, visible]);
   const edit = (text: string) => {
-    type(text);
-    requestAnimationFrame(() => ref.current?.focus());
+    const outcome = conversation.editDraft(text);
+    if (outcome.status === 'edited') requestAnimationFrame(() => ref.current?.focus());
   };
-  if (!(conversation.ready() || turns.length || persistenceError))
-    return (
-      <ChatSurface
-        supporting={chooser}
-        presentation={presentation}
-        onNewChat={newChat}
-        onConversations={showChats}
-        busy={false}
-        composer={null}
-      >
-        <Text tone="muted">{conversation.availability() ?? 'Opening the node store…'}</Text>
-      </ChatSurface>
-    );
   return (
     <ChatSurface
       supporting={chooser}
@@ -125,6 +111,29 @@ export function Chat({
       busy={busy || recording || !!persistenceError || !!contentPersistence || !!contextError}
       status={
         <Stack>
+          {prompts.map((prompt) => (
+            <Stack key={prompt.n}>
+              <Text>{prompt.text}</Text>
+              <Text role="status" tone="subtle">
+                {prompt.reason}
+              </Text>
+              <Row justify="end">
+                <Button variant="outline" onClick={() => conversation.dismissPrompt(prompt.n)}>
+                  Dismiss
+                </Button>
+                <Button
+                  onClick={() => {
+                    const outcome = conversation.applyPrompt(prompt.n);
+                    if (outcome.status === 'owned') later(outcome.done);
+                    if (outcome.status === 'edited')
+                      requestAnimationFrame(() => ref.current?.focus());
+                  }}
+                >
+                  Use
+                </Button>
+              </Row>
+            </Stack>
+          ))}
           {!!actionReason && (
             <Text role="alert" tone="danger">
               {actionReason}

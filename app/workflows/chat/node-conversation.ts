@@ -58,7 +58,16 @@ export interface ChatSubmissionReview {
   }[];
   readonly reason?: string;
 }
+export interface ChatRetainedPrompt extends Readonly<Prompt> {
+  readonly conversation: string;
+  readonly reason: string;
+}
+export type ChatPromptOutcome =
+  | ChatSubmissionOutcome
+  | ChatSubmissionReview
+  | { readonly status: 'ignored' | 'edited' };
 export interface NodeConversationState extends ChatState {
+  readonly prompts: readonly ChatRetainedPrompt[];
   readonly submission?: NodeChatRequest;
   readonly review?: ChatSubmissionReview;
   readonly reviewAvailability: ChatActionAvailability;
@@ -115,6 +124,7 @@ export function createNodeConversation(initial: NodeConversationOptions) {
     draft: '',
     turns: [],
     suggestions: [],
+    prompts: [],
     busy: false,
     unread: false,
     submissionAvailability: { allowed: false, reason: 'Enter a message.' },
@@ -126,6 +136,7 @@ export function createNodeConversation(initial: NodeConversationOptions) {
   let activeBase: Turn[] = [];
   let views = 0;
   let promptSeen = 0;
+  let draftPrompt = 0;
   let disposed = false;
   let suggestedFor: string | undefined;
   let suggestionAbort: AbortController | undefined;
@@ -381,6 +392,28 @@ export function createNodeConversation(initial: NodeConversationOptions) {
     text: state.draft,
     sourceRevision: draftRevision,
   });
+  const draftEditPermission = (): ChatActionAvailability => {
+    const reason = disposed
+      ? 'This Chat session is closed.'
+      : recording()
+        ? 'Finish or cancel the current recording before using this text.'
+        : state.review
+          ? 'Confirm or cancel the pending review before using this text.'
+          : undefined;
+    return { allowed: !reason, ...(reason ? { reason } : {}) };
+  };
+  const interpretPrompt = (prompt: Readonly<Prompt>): ChatPromptOutcome => {
+    const permission = draftEditPermission();
+    if (!permission.allowed) return { status: 'blocked', reason: permission.reason! };
+    if (prompt.send && submissionAvailability(prompt.text).allowed)
+      return api.prepareSubmission({ text: prompt.text });
+    api.setDraft(prompt.text);
+    return { status: 'edited' };
+  };
+  const retainPrompt = (prompt: Readonly<Prompt>, reason: string) =>
+    set({
+      prompts: [...state.prompts, Object.freeze({ ...prompt, conversation: id, reason })],
+    });
   const api = {
     snapshot: () => state,
     subscribe: (listener: () => void) => {
@@ -572,11 +605,38 @@ export function createNodeConversation(initial: NodeConversationOptions) {
         set({ contextError: error instanceof Error ? error.message : String(error) });
       }
     },
-    /** Claim a retained request before either view performs its send or edit action. */
-    takePrompt: (prompt: Prompt) => {
-      if (disposed || prompt.n <= promptSeen) return false;
+    /** Claim and interpret supplied application text once for the retained Chat lifetime. */
+    receivePrompt: (prompt: Prompt): ChatPromptOutcome => {
+      if (disposed || prompt.n <= promptSeen) return { status: 'ignored' };
       promptSeen = prompt.n;
-      return true;
+      const outcome = interpretPrompt(prompt);
+      if (outcome.status === 'blocked') retainPrompt(prompt, outcome.reason);
+      return outcome;
+    },
+    /** Supplied/suggested text uses the same safe policy; manual typing remains setDraft. */
+    editDraft: (text: string): ChatPromptOutcome => {
+      const prompt = { n: --draftPrompt, text, send: false };
+      const outcome = interpretPrompt(prompt);
+      if (outcome.status === 'blocked') retainPrompt(prompt, outcome.reason);
+      return outcome;
+    },
+    applyPrompt: (n: number): ChatPromptOutcome => {
+      const prompt = state.prompts.find((pending) => pending.n === n);
+      if (!prompt) return { status: 'blocked', reason: 'This text is no longer pending.' };
+      const outcome = interpretPrompt(prompt);
+      set({
+        prompts:
+          outcome.status === 'blocked'
+            ? state.prompts.map((pending) =>
+                pending === prompt ? Object.freeze({ ...prompt, reason: outcome.reason }) : pending,
+              )
+            : state.prompts.filter((pending) => pending !== prompt),
+      });
+      return outcome;
+    },
+    dismissPrompt: (n: number) => {
+      set({ prompts: state.prompts.filter((prompt) => prompt.n !== n) });
+      return { status: 'dismissed' as const };
     },
     viewing: () => {
       views++;
