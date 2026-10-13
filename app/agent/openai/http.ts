@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { openAIEndpoint } from './defaults.ts';
 
 export interface OpenAIConnectionOptions {
   readonly apiKey: string;
@@ -9,8 +10,7 @@ export interface OpenAIConnectionOptions {
 }
 export function openAIHttp(options: OpenAIConnectionOptions) {
   if (!options.apiKey.trim()) throw new Error('An unlocked OpenAI key is required');
-  const root = (options.baseURL ?? 'https://api.openai.com/v1').replace(/\/+$/, '');
-  const api = root.endsWith('/v1') ? root : `${root}/v1`;
+  const api = openAIEndpoint(options.baseURL);
   const request = options.fetch ?? globalThis.fetch.bind(globalThis);
   return {
     api,

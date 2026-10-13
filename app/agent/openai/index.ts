@@ -8,6 +8,7 @@ import { openAIEmbeddings } from './embeddings.ts';
 import { openAIFileTranscription } from './file-transcription.ts';
 import { openAILiveVoice } from './live-voice.ts';
 import { openAIHttp, type OpenAIConnectionOptions } from './http.ts';
+import { DEFAULT_MODELS } from './defaults.ts';
 
 /** One session-scoped provider module. Secrets are captured here and never enter node records. */
 export function createOpenAICapabilities(
@@ -26,11 +27,11 @@ export function createOpenAICapabilities(
   const http = openAIHttp(options);
   const provider = createOpenAI({ apiKey: options.apiKey, baseURL: http.api, fetch: http.fetch });
   const models = Object.freeze({
-    llm: options.models?.llm ?? 'gpt-6-astra',
-    voice: options.models?.voice ?? 'gpt-realtime-2.1',
-    liveTranscription: options.models?.liveTranscription ?? 'gpt-live-transcribe',
-    fileTranscription: options.models?.fileTranscription ?? 'gpt-transcribe',
-    embeddings: options.models?.embeddings ?? 'text-embedding-3-small',
+    llm: options.models?.llm ?? DEFAULT_MODELS.llm,
+    voice: options.models?.voice ?? DEFAULT_MODELS.voice,
+    liveTranscription: options.models?.liveTranscription ?? DEFAULT_MODELS.liveTranscription,
+    fileTranscription: options.models?.fileTranscription ?? DEFAULT_MODELS.fileTranscription,
+    embeddings: options.models?.embeddings ?? DEFAULT_MODELS.embeddings,
   });
   const model = async (name = models.llm) =>
     wrapLanguageModel({

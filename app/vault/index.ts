@@ -83,6 +83,8 @@ export function useVaultSession(openBackend: OpenBackend, openNodes?: OpenNodes)
   const schema = files ? schemaFor(files) : null;
   return {
     vault,
+    identity: session.identity,
+    credentialPending: session.credentialPending,
     files,
     status: session.status,
     locked: session.locked,
@@ -92,6 +94,9 @@ export function useVaultSession(openBackend: OpenBackend, openNodes?: OpenNodes)
     refreshNodes: session.refreshNodes,
     // Only product composition receives these, to configure specific external callers.
     secrets: session.secrets,
+    preloadedSecrets: session.preloadedSecrets,
+    secretOverrides: session.secretOverrides,
+    updateSecret: session.updateSecret,
     blocked: schema instanceof Error ? schema.message : null,
   };
 }

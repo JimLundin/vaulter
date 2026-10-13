@@ -6,6 +6,7 @@ import type { JsonValue } from '../../vault/nodes/model.ts';
 import { canonical } from '../../vault/nodes/json.ts';
 import { serial } from '../../vault/storage/coordination.ts';
 import { openAIWebRTC } from './webrtc.ts';
+import { DEFAULT_MODELS, DEFAULT_VOICE } from './defaults.ts';
 import type { OpenAIConnectionOptions } from './http.ts';
 
 const functionCall = z.object({
@@ -278,14 +279,16 @@ export function openAILiveVoice(
         signal: combined,
         session: {
           type: 'realtime',
-          model: configuration.model ?? 'gpt-realtime-2.1',
+          model: configuration.model ?? DEFAULT_MODELS.voice,
           output_modalities: ['audio'],
           instructions,
           tools: definitions,
           tool_choice: 'auto',
           audio: {
             input: {
-              transcription: { model: configuration.transcriptionModel ?? 'gpt-live-transcribe' },
+              transcription: {
+                model: configuration.transcriptionModel ?? DEFAULT_MODELS.liveTranscription,
+              },
               turn_detection: {
                 type: 'semantic_vad',
                 create_response: false,
@@ -293,7 +296,7 @@ export function openAILiveVoice(
               },
               noise_reduction: { type: 'near_field' },
             },
-            output: { voice: configuration.voice ?? 'marin' },
+            output: { voice: configuration.voice ?? DEFAULT_VOICE },
           },
         },
         audio: events.audio,

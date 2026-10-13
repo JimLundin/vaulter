@@ -4,12 +4,13 @@
 import type { TranscriptionProvider } from '../transcription.ts';
 import { transcriptBuffer } from '../transcript.ts';
 import { openAIWebRTC } from './webrtc.ts';
+import { DEFAULT_MODELS, DEFAULT_OPENAI_API } from './defaults.ts';
 
-export const TRANSCRIPTION_MODEL = 'gpt-live-transcribe';
+export const TRANSCRIPTION_MODEL = DEFAULT_MODELS.liveTranscription;
 export const openAITranscription =
   (
     key: string,
-    baseURL = 'https://api.openai.com/v1',
+    baseURL = DEFAULT_OPENAI_API,
     options: { model?: string; fetch?: typeof fetch } = {},
   ): TranscriptionProvider =>
   async (events, signal) => {
@@ -46,7 +47,7 @@ export const openAITranscription =
         finishResolve?.(transcript.text());
       }
     };
-    const event = (event: Record<string, unknown>) => {
+    const receive = (event: Record<string, unknown>) => {
       if (closed) return;
       if (
         event.type === 'error' ||
@@ -101,7 +102,7 @@ export const openAITranscription =
             },
           },
         },
-        event,
+        event: receive,
         error: failed,
       });
       if (closed || signal.aborted) {

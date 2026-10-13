@@ -1,7 +1,7 @@
 // Private state shared by SettingField and its supported controls through ordinary layouts.
 import { createContext, useContext, useId, useLayoutEffect } from 'react';
 
-export type FieldControl = { id: string; kind: 'text' | 'group' | 'unsupported' };
+export type FieldControl = { id: string; kind: 'text' | 'select' | 'group' | 'unsupported' };
 
 export const FieldAssociation = createContext<{
   controlId: string;
@@ -11,7 +11,7 @@ export const FieldAssociation = createContext<{
 } | null>(null);
 
 function useFieldAssociation(
-  kind: 'text' | 'group' | 'unsupported' | undefined,
+  kind: FieldControl['kind'] | undefined,
   props: { id?: string; 'aria-describedby'?: string },
 ) {
   const field = useContext(FieldAssociation);
@@ -53,6 +53,22 @@ export const useFieldGroupAssociation = (props: {
   'aria-describedby'?: string;
 }) =>
   useFieldAssociation(!props.role || props.role === 'radiogroup' ? 'group' : 'unsupported', props);
+
+export const useFieldSelectAssociation = (props: {
+  id?: string;
+  role?: string;
+  multiple?: boolean;
+  size?: number;
+  'aria-describedby'?: string;
+}) =>
+  useFieldAssociation(
+    !props.multiple &&
+      (!props.size || props.size === 1) &&
+      (!props.role || props.role === 'combobox')
+      ? 'select'
+      : 'unsupported',
+    props,
+  );
 
 /** Unsupported kit controls register only to diagnose invalid field composition. */
 export const useFieldUnsupportedControl = () => {

@@ -27,6 +27,8 @@ export interface NodeConversationOptions extends NodeChatOptions {
   readonly retainedConversation?: string;
   readonly onSelectionOutcome?: (outcome: ChatSelectionOutcome) => void;
   readonly availability?: string;
+  /** Application admission for starting recording; finishing an owned recording stays available. */
+  readonly captureAvailability?: string;
   readonly suggestions?: SuggestionProvider;
   readonly stagedChanges?: () => { path: string; before: string; text: string | null }[];
   readonly onConversation?: (id: string) => void;
@@ -318,7 +320,8 @@ export function createNodeConversation(initial: NodeConversationOptions) {
             ? undefined
             : !transcription
               ? 'Live transcription is unavailable. You can still type.'
-              : (transcription.availability() ??
+              : (options.captureAvailability ??
+                transcription.availability() ??
                 (state.busy
                   ? 'Wait for the Agent to finish.'
                   : state.persistenceError || state.contentPersistence || state.contextError
@@ -716,7 +719,9 @@ export function createNodeConversation(initial: NodeConversationOptions) {
         suggestedFor = undefined;
       }
       const permissionChanged =
-        options.availability !== next.availability || options.selectedModel !== next.selectedModel;
+        options.availability !== next.availability ||
+        options.captureAvailability !== next.captureAvailability ||
+        options.selectedModel !== next.selectedModel;
       if (changed) {
         const previous = backend;
         backend = createNodeChatBackend(next);

@@ -38,7 +38,14 @@ without repeating effects. The separate legacy rename-note operation stages file
 rewrites. Legacy staged edits are preserved when sending node Chat messages.
 Consecutive tool calls fold into an expandable summary, with a live status showing the current action.
 The app includes a manifest and icons for installing it to the Home Screen.
-Settings holds the theme and agent model preferences, saved on this device. Enter sends an agent
+Settings groups Appearance, Chat instructions, Agent execution options, OpenAI models and voice,
+GitHub storage, and Jina credentials. Preferences apply to new runs and are saved on this device.
+Models, voice, step limits, output limits and retry counts offer dropdown choices with custom values.
+Login-preloaded keys show their configured status. Replace them, restore their login values, or clear
+optional keys with explicit actions; production credential overrides are encrypted on the device and
+removed by sign-out. Replacing the GitHub token reconnects storage before activating it. The API
+endpoints and vault repository show the installation's build configuration. Jina is retained for future
+web search. Enter sends an agent
 message; Shift+Enter adds a new line. Both devices use the same always-visible one-row message
 field with inset microphone and Send controls. Tap the microphone to dictate into that field,
 tap again to finish, then edit or submit with Send or Enter. Speech appends to any existing draft;

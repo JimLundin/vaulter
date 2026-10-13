@@ -119,3 +119,70 @@ test('staging refuses to mutate storage when Web Locks are unavailable', async (
   await expect(a.stage('Alpha.md', '# Unsafe')).rejects.toThrow('cannot coordinate');
   expect(await first.keep.get('overlay')).toBeNull();
 });
+
+test('closed adapters reject queued owners and cannot restore files or staging after clear', async () => {
+  const { fake, first, second, b } = await setup();
+  const entered = deferred();
+  const release = deferred();
+  const owner = first.coordinate(async () => {
+    entered.resolve();
+    await release.promise;
+  });
+  await entered.promise;
+  const staging = b.stage('Alpha.md', '# Late staging');
+  const rejected = expect(staging).rejects.toThrow('backend is closed');
+  second.close!();
+  release.resolve();
+  await Promise.all([owner, rejected]);
+  await second.clear!();
+  const requests = fake.state.calls.length;
+  await expect(second.refresh()).rejects.toThrow('backend is closed');
+  await expect(second.cached()).rejects.toThrow('backend is closed');
+  await expect(
+    second.write!([{ path: 'Alpha.md', text: '# Late write' }], 'late', async () => undefined),
+  ).rejects.toThrow('backend is closed');
+  await expect(
+    second.keep.set('overlay', { files: { 'Alpha.md': '# Late staging' } }),
+  ).rejects.toThrow('backend is closed');
+  expect(fake.state.calls).toHaveLength(requests);
+  expect(await first.cached()).toBeNull();
+  expect(await first.keep.get('overlay')).toBeNull();
+  expect(fake.filesAt()['Alpha.md']).toBe('# Alpha');
+  first.close!();
+});
+
+test('closing while GitHub accepts a write preserves its result and clear waits for its cache update', async () => {
+  const fake = await fakeGitHub({ 'Alpha.md': '# Alpha' });
+  const accepted = deferred();
+  const release = deferred();
+  const backend = githubBackend({
+    token: 'test',
+    api: 'https://gh.test',
+    fetch: async (url, init) => {
+      const response = await fake.fetchFn(url, init);
+      if (init?.method === 'PATCH') {
+        accepted.resolve();
+        await release.promise;
+      }
+      return response;
+    },
+  });
+  await backend.refresh();
+  const writing = backend.write!(
+    [{ path: 'Alpha.md', text: '# Accepted' }],
+    'accepted before closing',
+    async () => undefined,
+  );
+  await accepted.promise;
+  backend.close!();
+  const clearing = backend.clear!();
+  release.resolve();
+  const written = await writing;
+  await clearing;
+  expect(written.commit).toBe(fake.state.main);
+  expect(written.head.files[0].text).toBe('# Accepted');
+  expect(fake.filesAt()['Alpha.md']).toBe('# Accepted');
+  expect(await db.getAll('snapshot')).toEqual([]);
+  expect(await db.getAll('blobs')).toEqual([]);
+  expect(await db.getAll('keep')).toEqual([]);
+});
