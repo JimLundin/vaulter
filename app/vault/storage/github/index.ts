@@ -27,6 +27,10 @@ export function githubBackend(o: {
     },
   };
   const channel = typeof BroadcastChannel === 'undefined' ? null : new BroadcastChannel('vault');
+  let closed = false;
+  const notify = (message: string) => {
+    if (!closed) channel?.postMessage(message);
+  };
   let snap: Snapshot | null = null;
   let files: VaultFile[] = [];
   const head = (r: { snapshot: Snapshot; files: VaultFile[] }): Head => {
@@ -35,7 +39,7 @@ export function githubBackend(o: {
     return { files, version: snap.tree };
   };
   const wrote = (r: { snapshot: Snapshot; files: VaultFile[]; commit: string }) => {
-    channel?.postMessage('synced');
+    notify('synced');
     return { head: head(r), commit: r.commit };
   };
   const ready = () => {
@@ -57,7 +61,7 @@ export function githubBackend(o: {
           const cached = await adoptCache();
           const r = await sync(gh, snap);
           if (!r) return cached && cached.version !== before ? cached : null;
-          channel?.postMessage('synced');
+          notify('synced');
           return head(r);
         } catch (e) {
           if (e instanceof TypeError && !navigator.onLine)
@@ -112,7 +116,7 @@ export function githubBackend(o: {
       get: kept.get,
       set: async (id, value) => {
         await kept.set(id, value);
-        if (id === 'overlay') channel?.postMessage('staged');
+        if (id === 'overlay') notify('staged');
       },
       watch: (on) => {
         const changed = (event: MessageEvent) => {
@@ -123,5 +127,9 @@ export function githubBackend(o: {
       },
     },
     clear: () => browserWrites(() => browserCache(clear)),
+    close: () => {
+      closed = true;
+      channel?.close();
+    },
   };
 }

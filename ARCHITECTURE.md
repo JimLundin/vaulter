@@ -57,10 +57,13 @@ needed. Product passes dependencies and optional links explicitly. A workflow ne
 workflow, including in tests. For example, chat receives an optional history URL; it does not know
 where History lives. Product explicitly supplies content tools and provider capabilities to Chat.
 
-Keep a workflow's configurable fields in its own settings view, exported alongside its other views.
-Product passes `{ name, content }` entries to `SettingsMenu`; the kit groups each entry under that
-feature's name. Removing the feature also removes that entry. Application preferences such as
-Appearance are separate sections. Features without preferences need no empty settings section.
+Modules define their configuration through `SettingsDefinition` in `app/settings.ts`: field keys,
+labels, defaults, kinds and parsing. Agent owns invocation settings, Chat owns instructions, and
+OpenAI, GitHub storage and Jina own implementation-specific options and credentials. The shared
+preference store validates device preferences; `ModuleSettings` and `SecretSettings` render the
+definitions through public kit controls. Appearance uses the same definition with the kit's theme
+control. Product passes `{ name, content }` entries to `SettingsMenu`. Removing a module also removes
+its entry. Modules without preferences need no empty settings section.
 
 To remove History, delete `workflows/history/` and remove its import, route, navigation, command,
 page branch and optional history URLs from `product.tsx`. To remove rename, delete
@@ -159,8 +162,9 @@ configuration; Chat enforces conversational admission. Bootstrap preserves migra
 and rejects deleted/incompatible identities.
 Live progress and categorized saving failures use the public kit; pending saving stays recoverable
 after Stop. Accepted conversation selection is scoped by API/repository, separately from the demo.
-Product assembles the Settings route from the kit's theme control and chat's `ChatSettings` view.
-Chat owns its model preference; each new request retains the current configured model. The composer
+Product assembles Settings from the module definitions and subscribes to their current preferences.
+Each new request retains the configured model, instructions and Agent invocation settings. OpenAI
+capabilities use the provider's model, voice and embedding options. The composer
 contains only message entry and dictation/send controls, with Enter to send and Shift+Enter for a
 new line. Public `Composer` owns the form, one-row textarea, inset actions, keyboard submission and
 send-icon focus presentation for both Chat and catalogue samples. Its controlled draft and action
@@ -295,6 +299,15 @@ The browser uses GitHub through a plaintext IndexedDB cache, including offline s
 edits. Memory is the test adapter. No browser source depends on Node. The toolchain and `tools/` use
 Node 24. Deployment seals `dist/secrets.json`, which the app loads relative to its published root.
 Notes remain in the private vault; this repository ships application code only.
+
+The session merges login-preloaded credentials with encrypted device overrides. Settings renders
+configuration status and accepts replacement values without exposing the existing keys. Saving an
+override precedes activation; restoring removes it, and clearing an optional key records an explicit
+absence. A replacement GitHub token opens and refreshes candidate file/node adapters before swapping
+them into the session. Failure keeps the active adapters and credentials. Sign-out invalidates pending
+work, closes adapters and clears cached credentials and vault data. Development overrides last only
+for that session; preview credentials belong to its server. API endpoints and repository settings are
+read-only build configuration.
 
 `app/preview/` is an alternate bootstrap for design review. It supplies a memory backend and scripted
 model to the same Product views, with sample Markdown and an initial sample history entry. Product
