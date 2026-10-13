@@ -115,6 +115,10 @@ const enabledContentTools = [{ name: 'createNode' }, { name: 'readNode' }, { nam
 const productionConversationKey = `vaulter:conversation:${import.meta.env.VITE_GITHUB_API || 'https://api.github.com'}:${import.meta.env.VITE_VAULT_REPO || 'JimLundin/vault@main'}`;
 export const previewConversationKey = 'vaulter:preview:conversation:v1';
 
+type VaultSession = ReturnType<typeof useVaultSession>;
+type SuppliedSession = Omit<VaultSession, 'identity' | 'credentialPending'> &
+  Partial<Pick<VaultSession, 'identity' | 'credentialPending'>>;
+
 export function Product({
   openBackend,
   openNodes,
@@ -159,7 +163,7 @@ export function OpenProduct({
   preview,
   identities = defaultIdentities,
 }: {
-  session: ReturnType<typeof useVaultSession>;
+  session: SuppliedSession;
   model?: (name: string) => Promise<LanguageModel>;
   identities?: ApplicationIdentities;
   preview?: {
@@ -363,7 +367,7 @@ export function OpenProduct({
   );
   const remoteModel = provider?.model ?? null;
   const speechProvider = provider?.liveTranscription ?? null;
-  // Initial store readiness belongs to this session; replacing an opened store starts a new one.
+  // Supplied session identity survives credential reconnects; independent stores get a new owner.
   const chatScope = useRef<{ nodes: NodeStore | null; key: object }>({ nodes: null, key: {} });
   if (chatScope.current.nodes !== nodes) {
     chatScope.current = {
@@ -371,23 +375,25 @@ export function OpenProduct({
       key: chatScope.current.nodes === null && nodes ? chatScope.current.key : {},
     };
   }
-  const chatSession = chatScope.current.key;
+  const chatSession = session.identity ?? chatScope.current.key;
   const voice = useTranscription(preview?.transcription ?? speechProvider, chatSession);
-  const availability = !nodes
-    ? 'Opening the node store…'
-    : nodeStatus.kind === 'error'
-      ? `Node store error: ${nodeStatus.message}`
-      : nodeStatus.kind === 'offline'
-        ? 'The node store is offline. Connect to save messages.'
-        : nodeStatus.kind !== 'synced'
-          ? 'Opening the node store…'
-          : identityState.owner !== setup || !identityState.ready
-            ? identityState.error
-              ? `Identity setup failed: ${identityState.error}`
-              : 'Preparing Vault identities…'
-            : !(suppliedModel ?? remoteModel)
-              ? 'Configure an OpenAI key in Settings to send messages.'
-              : undefined;
+  const availability = session.credentialPending
+    ? 'Wait for the credential update to finish before starting agent activity.'
+    : !nodes
+      ? 'Opening the node store…'
+      : nodeStatus.kind === 'error'
+        ? `Node store error: ${nodeStatus.message}`
+        : nodeStatus.kind === 'offline'
+          ? 'The node store is offline. Connect to save messages.'
+          : nodeStatus.kind !== 'synced'
+            ? 'Opening the node store…'
+            : identityState.owner !== setup || !identityState.ready
+              ? identityState.error
+                ? `Identity setup failed: ${identityState.error}`
+                : 'Preparing Vault identities…'
+              : !(suppliedModel ?? remoteModel)
+                ? 'Configure an OpenAI key in Settings to send messages.'
+                : undefined;
   const conversation = useConversation(
     productChatOptions({
       nodes: nodes ?? unavailableNodes,
@@ -400,6 +406,9 @@ export function OpenProduct({
       settings: executionSettings,
       suggestions: preview?.suggestions,
       availability,
+      captureAvailability: session.credentialPending
+        ? 'Wait for the credential update to finish before starting recording.'
+        : undefined,
       transcription: voice,
       conversation: conversationRoute.match(route.path)?.node,
       retainedConversation,
@@ -438,11 +447,13 @@ export function OpenProduct({
   const { capture, turns, selectionAvailability, busy, recovery } = useChat(conversation);
   const credentialReason = preview
     ? 'Credentials are supplied by the preview server.'
-    : busy ||
-        Object.keys(recovery).length > 0 ||
-        ['connecting', 'listening', 'finishing'].includes(capture.phase)
-      ? 'Finish or stop the current agent activity before changing credentials.'
-      : undefined;
+    : session.credentialPending
+      ? 'Credentials are being updated. Wait for the update to finish.'
+      : busy ||
+          Object.keys(recovery).length > 0 ||
+          ['connecting', 'listening', 'finishing'].includes(capture.phase)
+        ? 'Finish or stop the current agent activity before changing credentials.'
+        : undefined;
   const configured = Object.fromEntries(
     (['github', 'openai', 'jina'] as const).map((key) => [key, Boolean(session.secrets?.[key])]),
   );

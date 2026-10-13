@@ -153,6 +153,7 @@ test('credential changes persist before use, retain storage, and restore preload
   const { session, factory, fileFactory } = await open(nodes, {
     secrets: { github: 'fictional-token', openai: 'preloaded-key', jina: 'preloaded-jina' },
   });
+  expect(session().credentialPending).toBe(false);
   let release!: () => void;
   vi.mocked(saveSecretOverrides).mockImplementationOnce(
     () =>
@@ -165,11 +166,13 @@ test('credential changes persist before use, retain storage, and restore preload
     updating = session().updateSecret('openai', 'device-key');
     await Promise.resolve();
   });
+  expect(session().credentialPending).toBe(true);
   expect(session().secrets?.openai).toBe('preloaded-key');
   await act(async () => {
     release();
     await updating;
   });
+  expect(session().credentialPending).toBe(false);
   expect(session().secrets?.openai).toBe('device-key');
   expect(session().secretOverrides).toEqual({ openai: 'device-key' });
   expect(factory).toHaveBeenCalledTimes(1);
@@ -190,9 +193,42 @@ test('failed credential persistence and invalid GitHub changes leave the active 
   });
   expect(session().secretOverrides).toEqual({});
   expect(session().secrets).toEqual({ github: 'fictional-token' });
+  expect(session().credentialPending).toBe(false);
   await expect(session().updateSecret('github', null)).rejects.toThrow('GitHub token');
   await expect(session().updateSecret('github', ' ')).rejects.toThrow('GitHub token');
   expect(factory).toHaveBeenCalledTimes(1);
+});
+
+test('queued credential changes keep the session pending until every edit finishes', async () => {
+  const { session } = await open(memoryNodeBackend());
+  const releases: (() => void)[] = [];
+  vi.mocked(saveSecretOverrides).mockImplementation(
+    () =>
+      new Promise<void>((resolve) => {
+        releases.push(resolve);
+      }),
+  );
+  let first!: Promise<void>;
+  let second!: Promise<void>;
+  await act(async () => {
+    first = session().updateSecret('openai', 'first-key');
+    second = session().updateSecret('jina', 'second-key');
+    await Promise.resolve();
+  });
+  expect(session().credentialPending).toBe(true);
+  await act(async () => {
+    releases[0]!();
+    await first;
+  });
+  expect(session().credentialPending).toBe(true);
+  expect(session().secrets?.openai).toBe('first-key');
+  expect(session().secrets?.jina).toBeUndefined();
+  await act(async () => {
+    releases[1]!();
+    await second;
+  });
+  expect(session().credentialPending).toBe(false);
+  expect(session().secrets?.jina).toBe('second-key');
 });
 
 test('GitHub replacement preserves the open vault while preparing and ignores old refresh results', async () => {
@@ -207,6 +243,7 @@ test('GitHub replacement preserves the open vault while preparing and ignores ol
     openBackend: (secrets) => (secrets.github === 'replacement-token' ? replacementFiles : files),
     openNodes: (secrets) => (secrets.github === 'replacement-token' ? replacementNodes : nodes),
   });
+  const { identity } = session();
   const originalHead = session().head;
   const oldSetHead = session().setHead;
   let releaseOld!: (head: NonNullable<Session['head']>) => void;
@@ -234,6 +271,8 @@ test('GitHub replacement preserves the open vault while preparing and ignores ol
     await Promise.resolve();
   });
   expect(session().nodes).toBe(nodes);
+  expect(session().credentialPending).toBe(true);
+  expect(session().identity).toBe(identity);
   expect(session().head).toBe(originalHead);
   expect(session().secrets?.github).toBe('fictional-token');
   await act(async () => {
@@ -241,6 +280,8 @@ test('GitHub replacement preserves the open vault while preparing and ignores ol
     await updating;
   });
   expect(session().nodes).toBe(replacementNodes);
+  expect(session().credentialPending).toBe(false);
+  expect(session().identity).toBe(identity);
   expect(session().backend).toBe(replacementFiles);
   expect(session().head).not.toBeNull();
   expect(closed).toHaveBeenCalledTimes(1);

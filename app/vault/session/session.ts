@@ -25,6 +25,9 @@ export type Status =
   | { kind: 'error'; message: string };
 
 export interface Session {
+  /** Stable through credential-driven adapter replacement within this unlocked session. */
+  identity: object;
+  credentialPending: boolean;
   backend: VaultBackend | null;
   head: Head | null;
   setHead: (h: Head) => void;
@@ -52,6 +55,9 @@ export function useSession(
   keeps: (path: string) => boolean,
   openNodes?: OpenNodes,
 ): Session {
+  const identity = useRef({}).current;
+  const [credentialPending, setCredentialPending] = useState(false);
+  const credentialUpdates = useRef(0);
   const [backend, setBackend] = useState<VaultBackend | null>(null);
   const [head, setHead] = useState<Head | null>(null);
   const [status, setStatus] = useState<Status>({ kind: 'loading' });
@@ -174,7 +180,14 @@ export function useSession(
 
   const updateSecret = (key: keyof Secrets, value: string | null | undefined) => {
     const runGeneration = generation.current;
-    return updates.current(async () => {
+    try {
+      checkSession(runGeneration);
+    } catch (error) {
+      return Promise.reject(error);
+    }
+    credentialUpdates.current++;
+    setCredentialPending(true);
+    const update = updates.current(async () => {
       checkSession(runGeneration);
       const previous = currentCredentials.current;
       if (!previous) throw new Error('Unlock the vault to change credentials.');
@@ -251,6 +264,11 @@ export function useSession(
         if (nodeReplacement) replacementNodes.current.delete(nodeReplacement);
       }
     }, lifetime.current.signal);
+    return update.finally(() => {
+      credentialUpdates.current--;
+      if (mounted.current && !signingOut.current)
+        setCredentialPending(credentialUpdates.current > 0);
+    });
   };
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: once, on mount; what it calls reads only refs and state setters
@@ -351,6 +369,8 @@ export function useSession(
   );
 
   return {
+    identity,
+    credentialPending,
     backend,
     head,
     setHead: setActiveHead,
@@ -394,6 +414,7 @@ export function useSession(
           setSecrets(null);
           setPreloadedSecrets(null);
           setSecretOverrides({});
+          setCredentialPending(false);
           setSealed(null);
           signingOut.current = (async () => {
             try {

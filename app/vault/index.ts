@@ -83,6 +83,8 @@ export function useVaultSession(openBackend: OpenBackend, openNodes?: OpenNodes)
   const schema = files ? schemaFor(files) : null;
   return {
     vault,
+    identity: session.identity,
+    credentialPending: session.credentialPending,
     files,
     status: session.status,
     locked: session.locked,

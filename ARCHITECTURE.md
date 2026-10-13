@@ -304,7 +304,9 @@ The session merges login-preloaded credentials with encrypted device overrides. 
 configuration status and accepts replacement values without exposing the existing keys. Saving an
 override precedes activation; restoring removes it, and clearing an optional key records an explicit
 absence. A replacement GitHub token opens and refreshes candidate file/node adapters before swapping
-them into the session. Failure keeps the active adapters and credentials. Sign-out invalidates pending
+them into the session. Failure keeps the active adapters and credentials. Pending credential
+replacement blocks new Agent activity. A stable session identity preserves the open
+conversation and draft across a successful adapter replacement. Sign-out invalidates pending
 work, closes adapters and clears cached credentials and vault data. Development overrides last only
 for that session; preview credentials belong to its server. API endpoints and repository settings are
 read-only build configuration.
