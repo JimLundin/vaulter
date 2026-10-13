@@ -221,11 +221,14 @@ export function Heading({
   );
 }
 
-/** Long-form semantic content shares typography, spacing and safe overflow presentation. */
+/** Prose styles apply to reading content; embedded Cards retain their own presentation. */
 export function Prose({ children, markdown }: { children?: ReactNode; markdown?: boolean }) {
   return (
     <div
-      className={cn('kit-prose font-serif text-lead [&_p]:m-0 [&_p+p]:mt-3', markdown && 'prose')}
+      className={cn(
+        'kit-prose font-serif text-lead [&_p:not([data-slot=card]_*)]:m-0 [&_p+p:not([data-slot=card]_*)]:mt-3',
+        markdown && 'prose',
+      )}
     >
       {children}
     </div>

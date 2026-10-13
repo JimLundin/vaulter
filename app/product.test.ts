@@ -244,7 +244,17 @@ test('Product agent asks a retained Question with its accepted receipt and stabl
     const question = view
       .children('preview:page:0')
       .find(({ data }) => data?.kind === 'question' && data.text === 'Where should the bench go?')!;
-    expect(question.data).toEqual({ kind: 'question', text: 'Where should the bench go?' });
+    expect(question.data).toMatchObject({
+      kind: 'question',
+      text: 'Where should the bench go?',
+      suggestions: expect.arrayContaining([
+        expect.objectContaining({ title: 'Prioritise morning work' }),
+      ]),
+    });
+    const context = view.children(question.key.node);
+    expect(context.map((node) => node.data?.predicate)).toEqual(['generated-from', 'informed-by']);
+    const source = view.resolve(context[0].connection!.target);
+    expect(source?.data?.text ?? source?.data?.content).toBe('ask me: Where should the bench go?');
     expect(question.placement?.parent).toBe('preview:page:0');
     const publication = (await nodes.history()).find(({ id }) => id === question.key.transaction)!;
     expect(publication.kind).toEqual({ scope: 'questions', action: 'ask' });

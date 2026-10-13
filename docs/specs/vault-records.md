@@ -174,7 +174,8 @@ question status or import another workflow.
 ```ts
 /** Placed under what it is about. Answered exactly when it has an answered-by relationship
     (→ decision, exchange, page or section). */
-type Question = { kind: 'question'; text: string; abandoned?: true };
+type Question = { kind: 'question'; text: string; abandoned?: true;
+                  suggestions?: { title: string; text: string; reason: string }[] };
 /** A person's direct response, placed under the Question and linked as exact evidence. */
 type Answer = { kind: 'answer'; text: string };
 ```
@@ -201,6 +202,26 @@ The module provides retained reading, asking through Agent tools, and answering 
 dedicated Questions view. `askQuestion` optionally places the Question under a live Wiki page or
 section; `listQuestionSubjects` discovers those Subjects. `listQuestions` and `readQuestion` expose
 the retained lifecycle and recorded answers to the Agent without inventing a response.
+
+New Agent questions include 1–4 distinct suggested answers prepared when asking. The Agent reads
+`listQuestionContext` for the triggering retained source and relevant Wiki knowledge, then supplies
+the proposals and exact text addresses to `askQuestion`. One transaction retains the Question and
+its proposals plus `generated-from` and `informed-by` relationships. Source material and existing
+knowledge have separate roles; suggestions are possible responses, not confirmed facts or Answers.
+Exact self-contained text versions preserve the grounding through later edits and removal. Composite
+pages and exchanges require snapshot selections and are not accepted by this generation interface.
+An empty knowledge list is valid when no relevant knowledge exists. Older Questions remain readable
+with no suggestions; they are not regenerated on viewing or reload.
+
+Questions and Wiki use the same Balanced drafts card. Every open card has an empty visible editor,
+editable suggestions when recorded, and an explicit **Write my own answer** choice. Choice changes
+retain each draft locally. Only **Save answer** records an Answer; failed saves preserve the draft,
+and changed Question wording requires review before saving. **Source & context** presents the retained
+text with newer, removed or unavailable notices and navigation to its context.
+
+The selected design and all comparisons are retained on
+[`prototype/questions-ui` at `fc3523e`](https://github.com/JimLundin/vaulter/tree/fc3523e), including
+the [design verdict](https://github.com/JimLundin/vaulter/blob/fc3523e/docs/prototypes/questions-ui.md).
 
 A direct answer publishes an `answer` record and an exact `answered-by` connection atomically.
 That transaction also versions the Question without changing its wording, guarding the version

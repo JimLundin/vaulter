@@ -48,6 +48,7 @@ function Typography() {
 }
 function Buttons() {
   const [count, setCount] = useState(0);
+  const [choice, setChoice] = useState<string>();
   return (
     <K.Stack gap="lg">
       <K.Row wrap={true}>
@@ -71,6 +72,25 @@ function Buttons() {
       <K.Text size="sm" tone="muted">
         Saved {count} times in this example.
       </K.Text>
+      <K.Stack gap="sm" role="group" aria-label="Card choices">
+        {['Morning walk', 'An evening at home'].map((label) => (
+          <K.SelectionRow
+            key={label}
+            appearance="card"
+            selected={choice === label}
+            onSelect={() => setChoice(label)}
+          >
+            <K.Stack gap="xs">
+              <K.Text as="span" size="sm" weight="medium">
+                {label}
+              </K.Text>
+              <K.Text as="span" size="sm" tone="muted">
+                A starting point that leaves room for your own plans.
+              </K.Text>
+            </K.Stack>
+          </K.SelectionRow>
+        ))}
+      </K.Stack>
       <K.ToggleGroup type="single" aria-label="Date range" defaultValue="day">
         <K.ToggleGroupItem value="day">Day</K.ToggleGroupItem>
         <K.ToggleGroupItem value="week">Week</K.ToggleGroupItem>
@@ -174,6 +194,14 @@ function Fields() {
             <K.FieldLabel htmlFor={`${id}-body`}>Notes</K.FieldLabel>
             <K.Textarea id={`${id}-body`} placeholder="Add a few details…" />
           </K.Field>
+          <K.Field>
+            <K.FieldLabel htmlFor={`${id}-draft`}>Longform draft</K.FieldLabel>
+            <K.Textarea
+              id={`${id}-draft`}
+              variant="longform"
+              placeholder="Room to start writing…"
+            />
+          </K.Field>
           <K.FieldSeparator>Notifications</K.FieldSeparator>
           <K.Field orientation="horizontal">
             <K.Checkbox id={`${id}-reminder`} defaultChecked={true} />
@@ -233,23 +261,39 @@ function GroupedFields() {
 }
 function Cards() {
   return (
-    <K.Card>
-      <K.CardHeader>
-        <K.CardTitle>Slow mornings</K.CardTitle>
-        <K.CardDescription>A little room before the day begins.</K.CardDescription>
-        <K.CardAction>
-          <K.Button variant="ghost" size="compact" iconOnly={true} aria-label="More options">
-            <K.Icon name="more" />
-          </K.Button>
-        </K.CardAction>
-      </K.CardHeader>
-      <K.CardContent>
-        <K.Text>Walk, make coffee, and write down one thought.</K.Text>
-      </K.CardContent>
-      <K.CardFooter>
-        <K.Button variant="outline">Open note</K.Button>
-      </K.CardFooter>
-    </K.Card>
+    <K.Stack>
+      <K.Card>
+        <K.CardHeader>
+          <K.CardTitle>Slow mornings</K.CardTitle>
+          <K.CardDescription>A little room before the day begins.</K.CardDescription>
+          <K.CardAction>
+            <K.Button variant="ghost" size="compact" iconOnly={true} aria-label="More options">
+              <K.Icon name="more" />
+            </K.Button>
+          </K.CardAction>
+        </K.CardHeader>
+        <K.CardContent>
+          <K.Text>Walk, make coffee, and write down one thought.</K.Text>
+        </K.CardContent>
+        <K.CardFooter>
+          <K.Button variant="outline">Open note</K.Button>
+        </K.CardFooter>
+      </K.Card>
+      <K.Prose>
+        <K.Text>Leave the afternoon free for making things.</K.Text>
+        <K.Card role="region" aria-label="Card in reading content">
+          <K.CardHeader>
+            <K.Heading level={2}>A card within a page</K.Heading>
+          </K.CardHeader>
+          <K.CardContent>
+            <K.Text size="sm">Make room for one small project.</K.Text>
+          </K.CardContent>
+          <K.CardFooter>
+            <K.Button>Save note</K.Button>
+          </K.CardFooter>
+        </K.Card>
+      </K.Prose>
+    </K.Stack>
   );
 }
 function Items() {
@@ -1309,6 +1353,9 @@ function SurfacePrimitives() {
             </K.Surface>
           </K.Surface>
           <K.Surface variant="bubble">A message-sized surface</K.Surface>
+          <K.Surface variant="subtle">
+            <K.Text>A gently framed group of related controls.</K.Text>
+          </K.Surface>
           <K.Surface variant="emblem">
             <K.Icon name="sparkles" />
           </K.Surface>

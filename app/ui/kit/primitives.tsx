@@ -10,6 +10,7 @@ import { useFieldSemanticDiagnostic } from './field-association.ts';
 
 const surfaces = {
   plain: '',
+  subtle: 'w-full gap-[var(--space-content)] self-start rounded-lg border bg-muted/30 p-4',
   bubble:
     'max-w-[85%] whitespace-pre-wrap rounded-2xl bg-muted px-3 py-2.5 text-body text-copy md:px-4 md:py-3',
   inset:

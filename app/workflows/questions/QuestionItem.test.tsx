@@ -27,13 +27,14 @@ afterEach(() => {
 function mount(
   onAnswer: (question: Question, text: string) => Promise<void>,
   disabledReason?: string,
+  record = question,
 ) {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
   const root = createRoot(document.body);
   roots.push(root);
   act(() =>
     root.render(
-      <QuestionItem question={question} onAnswer={onAnswer} disabledReason={disabledReason} />,
+      <QuestionItem question={record} onAnswer={onAnswer} disabledReason={disabledReason} />,
     ),
   );
   return root;
@@ -144,8 +145,7 @@ test('answer failures preserve the draft, pending saves reject duplicate submits
     .mockRejectedValueOnce(new Error('Save unavailable'))
     .mockImplementationOnce(() => waiting);
   mount(onAnswer);
-  await act(async () => button('Answer').click());
-  expect(document.querySelector('label')?.textContent).toBe('Answer');
+  expect(document.querySelector('label')?.textContent).toBe('Your answer');
   expect(button('Save answer').disabled).toBe(true);
   await act(async () => writeAnswer('  Beside the garden wall.  '));
   await act(async () => button('Save answer').click());
@@ -160,37 +160,44 @@ test('answer failures preserve the draft, pending saves reject duplicate submits
   });
   expect(onAnswer).toHaveBeenCalledTimes(2);
   expect(button('Saving answer…').disabled).toBe(true);
-  expect(button('Cancel').disabled).toBe(true);
+  expect(button('Write my own answerFree text, in your own words.').disabled).toBe(true);
   expect(document.querySelector('textarea')?.disabled).toBe(true);
   await act(async () => release());
-  expect(document.querySelector('textarea')).toBeNull();
-  await act(async () => button('Answer').click());
   expect(document.querySelector('textarea')?.value).toBe('');
 });
 
-test('read-only questions explain why answering is disabled and cancel discards an unsaved draft', async () => {
+test('read-only questions explain why answering is disabled and preserve an unsaved draft while reconnecting', async () => {
   const onAnswer = vi.fn(async () => undefined);
   const root = mount(onAnswer, 'Reconnect to answer questions.');
-  expect(button('Answer').disabled).toBe(true);
-  const reason = button('Answer').getAttribute('aria-describedby');
+  expect(button('Save answer').disabled).toBe(true);
+  const reason = button('Save answer').getAttribute('aria-describedby');
   expect(reason && document.getElementById(reason)?.textContent).toBe(
     'Reconnect to answer questions.',
   );
   await act(async () => root.render(<QuestionItem question={question} onAnswer={onAnswer} />));
-  await act(async () => button('Answer').click());
   await act(async () => writeAnswer('Temporary response'));
-  await act(async () => button('Cancel').click());
-  await act(async () => button('Answer').click());
-  expect(document.querySelector('textarea')?.value).toBe('');
+  await act(async () =>
+    root.render(
+      <QuestionItem
+        question={question}
+        onAnswer={onAnswer}
+        disabledReason="Reconnect to answer questions."
+      />,
+    ),
+  );
+  expect(document.querySelector('textarea')?.value).toBe('Temporary response');
+  expect(button('Save answer').disabled).toBe(true);
+  await act(async () => root.render(<QuestionItem question={question} onAnswer={onAnswer} />));
+  expect(document.querySelector('textarea')?.value).toBe('Temporary response');
   expect(onAnswer).not.toHaveBeenCalled();
 });
 
-test('an answer draft keeps the question version read when its editor opened', async () => {
+test('an answer draft blocks stale wording until the person reviews the current question', async () => {
   const onAnswer = vi
     .fn<(question: Question, text: string) => Promise<void>>()
     .mockRejectedValue(new Error('Question changed. Review it before answering.'));
   const root = mount(onAnswer);
-  await act(async () => button('Answer').click());
+  await act(async () => button('Write my own answerFree text, in your own words.').click());
   expect(document.activeElement).toBe(document.querySelector('textarea'));
   await act(async () => writeAnswer('Beside the garden wall.'));
   const changed: Question = {
@@ -200,9 +207,54 @@ test('an answer draft keeps the question version read when its editor opened', a
   };
   await act(async () => root.render(<QuestionItem question={changed} onAnswer={onAnswer} />));
   await act(async () => button('Save answer').click());
-  expect(onAnswer).toHaveBeenCalledWith(question, 'Beside the garden wall.');
+  expect(onAnswer).not.toHaveBeenCalled();
   expect(document.querySelector('[role="alert"]')?.textContent).toBe(
-    'Question changed. Review it before answering.',
+    'Question has changed; review its current wording before answering.',
   );
   expect(document.querySelector('textarea')?.value).toBe('Beside the garden wall.');
+  await act(async () => button('Use current question').click());
+  await act(async () => button('Save answer').click());
+  expect(onAnswer).toHaveBeenCalledWith(changed, 'Beside the garden wall.');
+});
+
+test('suggestions start editable drafts, keep each choice’s text and require an explicit save', async () => {
+  const onAnswer = vi.fn(async () => undefined);
+  const record: Question = {
+    ...question,
+    data: {
+      ...question.data,
+      suggestions: [
+        {
+          title: 'Garden wall',
+          text: 'Use the garden wall.',
+          reason: 'The source records its morning light.',
+        },
+        {
+          title: 'North wall',
+          text: 'Use the north wall.',
+          reason: 'The source records its sockets and shelves.',
+        },
+      ],
+    },
+  };
+  mount(onAnswer, undefined, record);
+  const choice = (title: string) =>
+    [...document.querySelectorAll('button')].find((item) => item.textContent?.startsWith(title))!;
+  expect(document.querySelector('textarea')?.value).toBe('');
+  expect([...document.querySelectorAll('button[aria-pressed=true]')]).toHaveLength(0);
+  await act(async () => choice('Garden wall').click());
+  expect(document.activeElement).toBe(document.querySelector('textarea'));
+  expect(document.querySelector('textarea')?.value).toBe('Use the garden wall.');
+  await act(async () => writeAnswer('Garden wall, with room for shelves.'));
+  await act(async () => choice('North wall').click());
+  expect(document.querySelector('textarea')?.value).toBe('Use the north wall.');
+  await act(async () => choice('Write my own answer').click());
+  await act(async () => writeAnswer('Keep the bench mobile.'));
+  await act(async () => choice('Garden wall').click());
+  expect(document.querySelector('textarea')?.value).toBe('Garden wall, with room for shelves.');
+  await act(async () => choice('Write my own answer').click());
+  expect(document.querySelector('textarea')?.value).toBe('Keep the bench mobile.');
+  expect(onAnswer).not.toHaveBeenCalled();
+  await act(async () => button('Save answer').click());
+  expect(onAnswer).toHaveBeenCalledExactlyOnceWith(record, 'Keep the bench mobile.');
 });

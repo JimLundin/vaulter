@@ -131,6 +131,13 @@ density changes the control size from 32px to at least 44px without enlarging th
 labels, badges, options and nested content occupy separate grid slots; touch actions never rely on
 oversized invisible hit areas or fixed absolute offsets.
 
+Cards retain their own typography and spacing inside Prose, so task cards look the same in a
+collection and in a Wiki page. The Cards catalogue includes a card within reading content.
+`SelectionRow appearance="card"` supplies bordered multiline choices with a selection marker.
+`Surface variant="subtle"` frames related controls with a quiet background and 16px padding.
+`Textarea variant="longform"` starts with 112px of writing space on desktop and touch devices,
+and grows with the draft. The catalogue demonstrates these presentations.
+
 Button has four styles: `filled` for primary create/submit actions, `outline` for secondary actions,
 `ghost` for quiet controls and `destructive` for destructive actions. Its two sizes are `standard`
 (44px) and `compact` (32px); `iconOnly` makes either size square without changing its corners.

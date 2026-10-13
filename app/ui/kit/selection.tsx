@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Button } from './parts/button.tsx';
 import { cn } from './lib/utils.ts';
+import { Icon } from './icons.tsx';
 
 /** A generic selectable row with a multiline label and optional supporting text. */
 export function SelectionRow({
@@ -9,6 +10,7 @@ export function SelectionRow({
   onSelect,
   children,
   compact = false,
+  appearance = 'plain',
   label,
   timestamp,
   marker = 'none',
@@ -19,6 +21,7 @@ export function SelectionRow({
   onSelect: () => void;
   children: ReactNode;
   compact?: boolean;
+  appearance?: 'plain' | 'card';
   label?: string;
   timestamp?: string;
   marker?: 'none' | 'number' | 'badge';
@@ -26,16 +29,32 @@ export function SelectionRow({
 }) {
   return (
     <Button
-      variant={selected ? 'outline' : 'ghost'}
+      type="button"
+      variant={appearance === 'card' || selected ? 'outline' : 'ghost'}
       disabled={disabled}
       aria-current={selected ? 'true' : undefined}
+      aria-pressed={appearance === 'card' ? selected : undefined}
+      data-selection-appearance={appearance}
       onClick={onSelect}
       className={cn(
         'h-auto min-h-11 w-full justify-start whitespace-normal py-3 text-left',
         compact && 'min-h-9 py-2',
         label && 'h-9 min-h-9 overflow-hidden',
+        appearance === 'card' && 'items-start gap-3 rounded-lg border-border p-4 shadow-none',
+        appearance === 'card' && selected && 'border-primary bg-accent ring-1 ring-primary',
       )}
     >
+      {appearance === 'card' && (
+        <span
+          aria-hidden={true}
+          className={cn(
+            'mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full border border-muted-foreground/40',
+            selected && 'border-primary bg-primary text-primary-foreground',
+          )}
+        >
+          {!!selected && <Icon name="check" size="sm" />}
+        </span>
+      )}
       {label ? (
         <span className="flex min-w-0 flex-1 items-center gap-3">
           {(marker === 'number' || marker === 'badge') && (
@@ -59,6 +78,8 @@ export function SelectionRow({
             </span>
           )}
         </span>
+      ) : appearance === 'card' ? (
+        <span className="flex min-w-0 flex-1 flex-col">{children}</span>
       ) : (
         children
       )}

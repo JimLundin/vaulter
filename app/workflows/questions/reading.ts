@@ -27,6 +27,8 @@ export interface Question {
   readonly subject?: QuestionTarget;
   readonly subjects: readonly QuestionTarget[];
   readonly answers: readonly QuestionTarget[];
+  readonly sources?: readonly QuestionTarget[];
+  readonly knowledge?: readonly QuestionTarget[];
   readonly created?: QuestionAttribution;
   readonly updated?: QuestionAttribution;
 }
@@ -64,13 +66,16 @@ export function readQuestion(
   const subject = node.placement ? target({ node: node.placement.parent }, view) : undefined;
   const subjects: QuestionTarget[] = subject ? [subject] : [];
   const answers: QuestionTarget[] = [];
+  const sources: QuestionTarget[] = [];
+  const knowledge: QuestionTarget[] = [];
   for (const relationship of relationships) {
     if (relationship.data?.kind !== 'relationship') continue;
     const { connection } = relationship;
     if (connection && connection.source.node !== node.key.node) continue;
     if (!connection && relationship.placement?.parent !== node.key.node) continue;
     const { predicate } = relationship.data;
-    if (predicate !== 'about' && predicate !== 'answered-by') continue;
+    if (!['about', 'answered-by', 'generated-from', 'informed-by'].includes(String(predicate)))
+      continue;
     const related = connection
       ? target(connection.target, view, relationship)
       : {
@@ -81,6 +86,8 @@ export function readQuestion(
             : {}),
         };
     if (predicate === 'answered-by') answers.push(related);
+    else if (predicate === 'generated-from') sources.push(related);
+    else if (predicate === 'informed-by') knowledge.push(related);
     else {
       const duplicate = subjects.some(
         (entry) => entry.address && related.address && sameAddress(entry.address, related.address),
@@ -98,6 +105,8 @@ export function readQuestion(
     subject,
     subjects,
     answers,
+    sources,
+    knowledge,
   };
 }
 

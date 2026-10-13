@@ -49,8 +49,19 @@ test('agent questions can be answered in Questions and remain on their Wiki page
     .getByRole('region', { name: /^(Open question|Answered)$/ })
     .filter({ hasText: 'Where should the bench go?' });
   await expect(record).toBeVisible();
-  await record.getByRole('button', { name: 'Answer', exact: true }).click();
-  await record.getByRole('textbox', { name: 'Answer', exact: true }).fill('Use the garden wall.');
+  const proposals = question.data?.suggestions as { title: string; text: string; reason: string }[];
+  expect(proposals).toHaveLength(2);
+  await expect(record.getByRole('textbox', { name: 'Your answer', exact: true })).toHaveValue('');
+  const beforeChoice = await journal(page);
+  await record.getByRole('button', { name: /^Prioritise morning work/ }).click();
+  await expect(record.getByRole('textbox', { name: 'Your answer', exact: true })).toHaveValue(
+    proposals[0].text,
+  );
+  expect(await journal(page)).toEqual(beforeChoice);
+  await record.getByRole('button', { name: /^Write my own answer/ }).click();
+  await record
+    .getByRole('textbox', { name: 'Your answer', exact: true })
+    .fill('Use the garden wall.');
   await record.getByRole('button', { name: 'Save answer', exact: true }).click();
   await expect(record).toHaveAttribute('aria-label', 'Answered');
   await expect(record).toContainText('Use the garden wall.');
@@ -79,6 +90,66 @@ test('agent questions can be answered in Questions and remain on their Wiki page
   ).toContainText('Use the garden wall.');
 });
 
+test('Balanced drafts preserve each choice, source context and shared card typography in Wiki', {
+  tag: '@phone',
+}, async ({ page }) => {
+  await page.goto('/preview/#/questions/preview:question/');
+  const record = page.getByRole('region', { name: 'Open question', exact: true });
+  await expect(record.getByRole('textbox', { name: 'Your answer', exact: true })).toBeEnabled();
+  await expect(page.getByText('Loading conversation…', { exact: true })).toBeHidden();
+  const initial = await journal(page);
+  const answer = record.getByRole('textbox', { name: 'Your answer', exact: true });
+  const choose = (title: string) => record.getByRole('button', { name: new RegExp(`^${title}`) });
+  await expect(answer).toHaveValue('');
+  await expect(record.getByRole('button', { name: 'Save answer', exact: true })).toBeDisabled();
+  await choose('Keep hand tools close').click();
+  await expect(answer).toBeFocused();
+  await answer.fill('Keep hand tools within reach and leave space to work.');
+  await choose('Store everything between sessions').click();
+  await expect(answer).toHaveValue(
+    'Store every tool after each session, with the chisels and hand plane together in an easy-to-reach drawer.',
+  );
+  await choose('Write my own answer').click();
+  await answer.fill('Use a mobile tool cart.');
+  await choose('Keep hand tools close').click();
+  await expect(answer).toHaveValue('Keep hand tools within reach and leave space to work.');
+  await choose('Write my own answer').click();
+  await expect(answer).toHaveValue('Use a mobile tool cart.');
+  expect(await journal(page)).toEqual(initial);
+  const source = record.getByRole('button', { name: 'Source & context', exact: true });
+  await source.click();
+  const drawer = page.getByRole('dialog', { name: 'Source & context', exact: true });
+  await expect(drawer).toContainText('I use chisels and a hand plane most mornings.');
+  await expect(drawer).toContainText('Leave the workbench clear at the end of each session.');
+  await page.keyboard.press('Escape');
+  await expect(drawer).toBeHidden();
+  await expect(source).toBeFocused();
+  await expect(answer).toHaveValue('Use a mobile tool cart.');
+  const typography = () =>
+    record.evaluate((node) => {
+      const style = getComputedStyle(node.querySelector('h2')!);
+      return {
+        font: style.fontFamily,
+        size: style.fontSize,
+        weight: style.fontWeight,
+        line: style.lineHeight,
+      };
+    });
+  const collectionStyle = await typography();
+  await page.evaluate(() => {
+    location.hash = '#/wiki/preview:page:0/';
+  });
+  await expect(page.getByRole('heading', { name: 'Garden studio', exact: true })).toBeVisible();
+  await expect(answer).toBeVisible();
+  expect(await typography()).toEqual(collectionStyle);
+  await expect(choose('Write my own answer')).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.reload();
+  await expect(choose('Keep hand tools close')).toBeVisible();
+  await expect(answer).toHaveValue('');
+  expect(await journal(page)).toEqual(initial);
+});
+
 test('Wiki answers update Questions filters and search without creating a second question', async ({
   page,
 }) => {
@@ -87,9 +158,8 @@ test('Wiki answers update Questions filters and search without creating a second
     .getByRole('region', { name: /^(Open question|Answered)$/ })
     .filter({ hasText: 'Which tools should stay?' });
   await expect(record).toBeVisible();
-  await record.getByRole('button', { name: 'Answer', exact: true }).click();
   await record
-    .getByRole('textbox', { name: 'Answer', exact: true })
+    .getByRole('textbox', { name: 'Your answer', exact: true })
     .fill('Keep the chisels and hand plane.');
   await record.getByRole('button', { name: 'Save answer', exact: true }).click();
   await expect(record).toHaveAttribute('aria-label', 'Answered');

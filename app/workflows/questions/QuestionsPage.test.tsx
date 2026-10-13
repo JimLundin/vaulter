@@ -128,7 +128,7 @@ test('loading and errors preserve retained questions and disable stale answer ac
   );
   expect(document.body.textContent).toContain(open.data.text);
   expect(document.body.textContent).toContain('Refreshing questions…');
-  expect(button('Answer').disabled).toBe(true);
+  expect(button('Write my own answerFree text, in your own words.').disabled).toBe(true);
   await act(async () =>
     root.render(
       <QuestionsPage
@@ -140,8 +140,8 @@ test('loading and errors preserve retained questions and disable stale answer ac
   );
   expect(document.querySelector('[role="alert"]')?.textContent).toBe('Reading unavailable');
   expect(document.body.textContent).toContain('Showing previously loaded questions.');
-  expect(button('Answer').disabled).toBe(true);
+  expect(button('Write my own answerFree text, in your own words.').disabled).toBe(true);
   await act(async () => root.render(<QuestionsPage {...collection} onAnswer={onAnswer} />));
   expect(document.querySelector('[role="alert"]')).toBeNull();
-  expect(button('Answer').disabled).toBe(false);
+  expect(button('Write my own answerFree text, in your own words.').disabled).toBe(false);
 });
