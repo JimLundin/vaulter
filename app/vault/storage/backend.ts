@@ -50,7 +50,7 @@ export interface VaultBackend {
   source?: (path: string) => string;
   /** Forgets everything this backend keeps on this device (signing out). */
   clear?: () => Promise<void>;
-  /** Release this adapter's subscriptions when its session closes or credentials change. */
+  /** Release subscriptions and reject further use when its session closes or credentials change. */
   close?: () => void;
   /** Small state the app keeps for this vault on this device (staged edits, worker results). */
   keep: {

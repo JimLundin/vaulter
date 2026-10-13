@@ -386,6 +386,7 @@ export function useSession(
           const store = activeNodes.current;
           activeBackend.current = null;
           activeNodes.current = null;
+          files?.close?.();
           closeReplacements();
           setBackend(null);
           setNodes(null);

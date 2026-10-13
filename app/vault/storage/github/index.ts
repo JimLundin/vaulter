@@ -17,7 +17,15 @@ export function githubBackend(o: {
    * is built on main's, so what isn't read is kept as it is. */
   keeps?: (path: string) => boolean;
 }): VaultBackend {
-  const client = github(o.token, o.repo, o.api, o.fetch);
+  let closed = false;
+  const checkOpen = () => {
+    if (closed) throw new Error('Vault backend is closed');
+  };
+  const fetchFn = o.fetch ?? ((...arguments_: Parameters<typeof fetch>) => fetch(...arguments_));
+  const client = github(o.token, o.repo, o.api, async (...arguments_) => {
+    checkOpen();
+    return await fetchFn(...arguments_);
+  });
   const keeps = o.keeps ?? (() => true);
   const gh: typeof client = {
     ...client,
@@ -27,7 +35,6 @@ export function githubBackend(o: {
     },
   };
   const channel = typeof BroadcastChannel === 'undefined' ? null : new BroadcastChannel('vault');
-  let closed = false;
   const notify = (message: string) => {
     if (!closed) channel?.postMessage(message);
   };
@@ -50,12 +57,21 @@ export function githubBackend(o: {
     const cached = await readCache();
     return cached && head(cached);
   };
+  const inCache = <T>(operation: () => Promise<T>) =>
+    browserCache(() => {
+      checkOpen();
+      return operation();
+    });
 
   return {
-    coordinate: browserWrites,
-    cached: () => browserCache(async () => adoptCache()),
+    coordinate: (operation, signal) =>
+      browserWrites(() => {
+        checkOpen();
+        return operation();
+      }, signal),
+    cached: () => inCache(adoptCache),
     refresh: () =>
-      browserCache(async () => {
+      inCache(async () => {
         try {
           const before = snap?.tree;
           const cached = await adoptCache();
@@ -72,22 +88,24 @@ export function githubBackend(o: {
     // Another tab synced or committed: its cache is ours too.
     watch(on) {
       const f = (event: MessageEvent) => {
-        if (event.data !== 'synced') return;
-        browserCache(async () => {
+        if (closed || event.data !== 'synced') return;
+        inCache(async () => {
           const cached = await adoptCache();
-          if (cached) on(cached);
-        }).catch((error: unknown) => reportError(error));
+          if (!closed && cached) on(cached);
+        }).catch((error: unknown) => {
+          if (!closed) reportError(error);
+        });
       };
-      channel?.addEventListener('message', f);
+      if (!closed) channel?.addEventListener('message', f);
       return () => channel?.removeEventListener('message', f);
     },
     write: (changes, message, verify: Verify) =>
-      browserCache(async () => {
+      inCache(async () => {
         await adoptCache();
         return wrote(await commitChanges(gh, ready(), files, changes, message, verify));
       }),
     revert: (sha, verify) =>
-      browserCache(async () => {
+      inCache(async () => {
         await adoptCache();
         return wrote(await revertCommit(gh, ready(), files, sha, verify));
       }),
@@ -95,6 +113,7 @@ export function githubBackend(o: {
     patch: async (sha) => (await gh.commit(sha)).files,
     // Two requests (the commit on the day, the compare), and for a changed file's old text the base tree once and its blob.
     async since(day) {
+      checkOpen();
       const s = ready();
       const base = await gh.commitAt(`${day}T00:00:00Z`);
       const now = new Map(files.map((f) => [f.path, f.text]));
@@ -113,19 +132,24 @@ export function githubBackend(o: {
     },
     source: (path) => sourceUrl(path, o.repo),
     keep: {
-      get: kept.get,
-      set: async (id, value) => {
-        await kept.set(id, value);
-        if (id === 'overlay') notify('staged');
+      get: async <T>(id: string) => {
+        checkOpen();
+        return await kept.get<T>(id);
       },
+      set: (id, value) =>
+        inCache(async () => {
+          await kept.set(id, value);
+          if (id === 'overlay') notify('staged');
+        }),
       watch: (on) => {
         const changed = (event: MessageEvent) => {
-          if (event.data === 'staged') on();
+          if (!closed && event.data === 'staged') on();
         };
-        channel?.addEventListener('message', changed);
+        if (!closed) channel?.addEventListener('message', changed);
         return () => channel?.removeEventListener('message', changed);
       },
     },
+    // Clearing remains available after close so sign-out can stop queued work before deleting cache.
     clear: () => browserWrites(() => browserCache(clear)),
     close: () => {
       closed = true;
