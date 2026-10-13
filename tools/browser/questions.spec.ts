@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+// biome-ignore lint/correctness/noUnresolvedImports: Biome cannot resolve Playwright's type re-export in CI.
 import type { Page } from '@playwright/test';
 import type { NodeCommit } from '../../app/vault/nodes/store.ts';
 
