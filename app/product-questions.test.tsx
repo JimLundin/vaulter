@@ -8,6 +8,7 @@ import { useWriter } from './vault/changes/writer.ts';
 import { memoryBackend } from './vault/storage/memory.ts';
 import { memoryNodeBackend } from './vault/nodes/memory.ts';
 import { create, request, revise } from './vault/nodes/fixtures.test-support.ts';
+import type { NodeCommit } from './vault/nodes/store.ts';
 
 test('Product composes the shared Questions owner for nested Wiki questions and retained answers', async () => {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
@@ -281,5 +282,174 @@ test('Product saves answers from Wiki and Questions and filters the retained sha
     document.body.replaceChildren();
     localStorage.clear();
     vi.unstubAllGlobals();
+  }
+});
+
+async function answerLifetimeFixture(signOut: (() => Promise<void>) | null = null) {
+  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+  localStorage.clear();
+  history.replaceState(null, '', '#/wiki/studio/');
+  const files = memoryBackend({});
+  const head = await files.backend.cached();
+  const rules = { problems: async () => [], keeps: () => true, what: 'Fictional files' };
+  const nodes = memoryNodeBackend();
+  await nodes.commit(
+    request('question-origin', [
+      create('user', { kind: 'actor' }),
+      create('studio', { kind: 'page', title: 'Garden studio' }),
+      create('section', { kind: 'section' }, 'studio'),
+      create(
+        'question',
+        { kind: 'question', text: 'Which wall should hold the bench?' },
+        'section',
+      ),
+    ]),
+  );
+  const root = createRoot(document.body);
+  function Surface() {
+    const writer = useWriter(files.backend, rules, head, () => undefined);
+    return (
+      <OpenProduct
+        session={{
+          identity: nodes,
+          vault: liveVault(() => writer),
+          files: head!.files,
+          status: { kind: 'synced', at: 0 },
+          locked: null,
+          signOut,
+          secrets: { github: 'fictional-token' },
+          preloadedSecrets: { github: 'fictional-token' },
+          secretOverrides: {},
+          updateSecret: async () => undefined,
+          blocked: null,
+          nodes,
+          nodeStatus: { kind: 'synced', at: 0 },
+          refreshNodes: async () => undefined,
+        }}
+      />
+    );
+  }
+  await act(async () => root.render(<Surface />));
+  const button = (label: string, scope: ParentNode = document) => {
+    const element = [...scope.querySelectorAll('button')].find(
+      (candidate) => candidate.textContent === label,
+    );
+    if (!element) throw new Error(`Missing button ${label}`);
+    return element;
+  };
+  const draft = async (text: string) => {
+    const element = document.querySelector('textarea')!;
+    await act(() => {
+      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(
+        element,
+        text,
+      );
+      element.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+  };
+  const navigate = async (hash: string) => {
+    await act(() => {
+      history.replaceState(null, '', hash);
+      globalThis.dispatchEvent(new HashChangeEvent('hashchange'));
+    });
+  };
+  const cleanup = async () => {
+    await act(async () => root.unmount());
+    nodes.close();
+    document.body.replaceChildren();
+    localStorage.clear();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  };
+  return { nodes, button, draft, navigate, cleanup };
+}
+
+test('Product retains an admitted Wiki answer across Chat navigation and retries its original request in Questions', async () => {
+  const fixture = await answerLifetimeFixture();
+  const { nodes, button, draft, navigate } = fixture;
+  const { commit } = nodes;
+  const attempts: NodeCommit[] = [];
+  let failPublication!: () => void;
+  vi.spyOn(nodes, 'commit').mockImplementation((value) => {
+    if (value.kind.scope !== 'questions' || value.kind.action !== 'answer') return commit(value);
+    attempts.push(value);
+    if (attempts.length === 1)
+      return new Promise((_, reject) => {
+        failPublication = () => reject(new Error('Answer publication unavailable.'));
+      });
+    return commit(value);
+  });
+  try {
+    await vi.waitFor(async () => {
+      await act(async () => undefined);
+      expect(document.querySelector('textarea')?.disabled).toBe(false);
+    });
+    await draft('Use the garden wall.');
+    await act(async () => button('Save answer').click());
+    await vi.waitFor(() => expect(attempts).toHaveLength(1));
+    await navigate('#/chat/');
+    expect(document.body.textContent).not.toContain('Which wall should hold the bench?');
+    await act(async () => failPublication());
+    await navigate('#/questions/');
+    await vi.waitFor(async () => {
+      await act(async () => undefined);
+      expect(button('Retry original answer').disabled).toBe(false);
+    });
+    expect(document.body.textContent).toContain('Use the garden wall.');
+    expect(document.body.textContent).toContain('Answer publication unavailable.');
+    await act(() => {
+      button('Retry original answer').click();
+      button('Retry original answer').click();
+    });
+    await vi.waitFor(async () => {
+      await act(async () => undefined);
+      expect(document.body.textContent).not.toContain('Retry original answer');
+    });
+    expect(attempts).toHaveLength(2);
+    expect(attempts[1]).toBe(attempts[0]);
+    expect(attempts[1]!.id).toBe(attempts[0]!.id);
+    const view = await nodes.snapshot();
+    const answers = view.children('question').filter((node) => node.data?.kind === 'answer');
+    expect(answers).toHaveLength(1);
+    expect(answers[0]!.data).toEqual({ kind: 'answer', text: 'Use the garden wall.' });
+    expect(answers[0]!.key.transaction).toBe(attempts[0]!.id);
+    await act(async () => button('Answered').click());
+    expect(document.body.textContent).toContain('Use the garden wall.');
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
+test('Product sign-out closes an admitted Answer before its pending Snapshot can publish', async () => {
+  const signOut = vi.fn<() => Promise<void>>();
+  signOut.mockResolvedValue();
+  const fixture = await answerLifetimeFixture(signOut);
+  const { nodes, button, draft } = fixture;
+  await vi.waitFor(async () => {
+    await act(async () => undefined);
+    expect(document.querySelector('textarea')?.disabled).toBe(false);
+  });
+  const view = await nodes.snapshot();
+  let releaseSnapshot!: () => void;
+  const snapshot = vi.spyOn(nodes, 'snapshot').mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        releaseSnapshot = () => resolve(view);
+      }),
+  );
+  const commit = vi.spyOn(nodes, 'commit');
+  try {
+    await draft('Use the garden wall.');
+    await act(async () => button('Save answer').click());
+    expect(snapshot).toHaveBeenCalledTimes(1);
+    await act(async () => button('Sign out').click());
+    expect(signOut).toHaveBeenCalledTimes(1);
+    await act(async () => releaseSnapshot());
+    await vi.waitFor(() =>
+      expect(document.body.textContent).toContain('Questions session is closed'),
+    );
+    expect(commit).not.toHaveBeenCalled();
+  } finally {
+    await fixture.cleanup();
   }
 });

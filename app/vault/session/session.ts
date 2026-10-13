@@ -16,6 +16,7 @@ import {
 } from './unlock.ts';
 import type { NodeBackend, NodeStore, OpenNodes } from '../nodes/store.ts';
 import { serial } from '../storage/coordination.ts';
+import { createSessionCredentials, type SessionCredentials } from './credentials.ts';
 
 export type Status =
   | { kind: 'loading' }
@@ -28,6 +29,7 @@ export interface Session {
   /** Stable through credential-driven adapter replacement within this unlocked session. */
   identity: object;
   credentialPending: boolean;
+  credentials: SessionCredentials;
   backend: VaultBackend | null;
   head: Head | null;
   setHead: (h: Head) => void;
@@ -368,9 +370,25 @@ export function useSession(
     [backend],
   );
 
+  const credentialGeneration = generation.current;
   return {
     identity,
     credentialPending,
+    credentials: createSessionCredentials(
+      { secrets, secretOverrides, credentialPending, updateSecret },
+      {
+        persistent: deployment.current !== null,
+        read: () => {
+          checkSession(credentialGeneration);
+          return {
+            secrets: currentCredentials.current?.secrets ?? null,
+            secretOverrides: currentCredentials.current?.secretOverrides ?? {},
+            credentialPending: credentialUpdates.current > 0,
+            updateSecret,
+          };
+        },
+      },
+    ),
     backend,
     head,
     setHead: setActiveHead,

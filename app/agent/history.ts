@@ -9,7 +9,7 @@ export type HistoryPart =
       readonly callId: string;
       readonly name: string;
       readonly input: JsonValue;
-      readonly status: 'running' | 'complete' | 'failed';
+      readonly status: 'running' | 'complete' | 'failed' | 'cancelled';
       readonly output?: JsonValue;
       readonly error?: string;
     };
@@ -39,7 +39,7 @@ export function historyModelMessages(history: readonly ProviderHistory[]): Model
               output:
                 part.status === 'running'
                   ? { type: 'error-text', value: 'Outcome is uncertain; do not repeat this tool.' }
-                  : part.status === 'failed'
+                  : part.status === 'failed' || part.status === 'cancelled'
                     ? {
                         type: 'error-text',
                         value: part.error ?? 'Tool failed; inspect recorded history.',

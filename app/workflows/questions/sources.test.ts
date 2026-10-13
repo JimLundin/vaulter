@@ -20,6 +20,10 @@ test('Question source text retains the historical grammar and subject attributio
   const current = await nodes.snapshot();
   const context = { view: original, textOf: () => 'Other text.' };
   expect(questionSources.text(original.get('question')!, context)).toBe('Where should it go?');
+  expect(questionSources.exactText?.(original.get('question')!, current)).toBe(
+    'Where should it go?',
+  );
+  expect(questionSources.exactText?.(current.get('question')!, current)).toBe('Which wall?');
   expect(questionSources.text(current.get('question')!, { ...context, view: current })).toBe(
     'Which wall?',
   );
@@ -28,6 +32,7 @@ test('Question source text retains the historical grammar and subject attributio
   });
   expect(questionSources.text(original.get('foreign')!, context)).toBeUndefined();
   expect(questionSources.describe(original.get('foreign')!, original)).toBeUndefined();
+  expect(questionSources.exactText?.(original.get('foreign')!, original)).toBeUndefined();
   nodes.close();
 });
 
@@ -50,5 +55,6 @@ test('Questions reads direct Answers as retained evidence with their original te
     'The garden wall.',
   );
   expect(questionSources.describe(answer, original)).toEqual({ title: 'Studio' });
+  expect(questionSources.exactText?.(answer, await nodes.snapshot())).toBe('The garden wall.');
   nodes.close();
 });

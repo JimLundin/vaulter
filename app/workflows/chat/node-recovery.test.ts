@@ -414,8 +414,8 @@ test('content publication recovery never conceals the separate completed outcome
   expect(attempts).toBe(1);
   expect(conversation.snapshot().turns[1]?.parts[0]).toMatchObject({
     kind: 'tool',
-    error: true,
-    result: 'Content acceptance unavailable',
+    status: 'failed',
+    error: 'Content acceptance unavailable',
   });
   conversation.dispose();
   nodes.close();

@@ -885,7 +885,7 @@ test.each(['response', 'terminal'] as const)(
             : nodes.commit(value),
       },
       model: async () => firstModel,
-      enabledTools: [{ name: 'publish' }],
+      enabledTools: [{ name: 'publish', version: 'recorded-v1' }],
       tools: () => ({
         publish: tool({
           inputSchema: z.object({}),
@@ -942,6 +942,7 @@ test.each(['response', 'terminal'] as const)(
           input: {},
           status: 'complete',
           output: { transaction: 'accepted-receipt' },
+          version: 'recorded-v1',
         }),
       ]),
     });

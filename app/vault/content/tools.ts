@@ -3,6 +3,7 @@ import { tool } from 'ai';
 import { z } from 'zod';
 import type { NodeCommit, NodeSnapshot, NodeDifference } from '../nodes/store.ts';
 import { nodeOperations } from '../nodes/operations.ts';
+import { contentToolActions } from './tool-actions.ts';
 
 interface ContentContext {
   readonly signal: AbortSignal;
@@ -19,7 +20,7 @@ const read = (context: ContentContext, node: string) => {
 };
 export function nodeContentTools(context: ContentContext) {
   return {
-    createNode: tool({
+    [contentToolActions.create]: tool({
       description:
         'Create and publish a content node in the Vault. Returns its identity and accepted transaction.',
       inputSchema: content,
@@ -43,7 +44,7 @@ export function nodeContentTools(context: ContentContext) {
         return { node, transaction, accepted: true };
       },
     }),
-    readNode: tool({
+    [contentToolActions.read]: tool({
       description: 'Read a content node at its current exact version.',
       inputSchema: z.object({ node: z.string().min(1) }),
       execute: ({ node }) => {
@@ -51,7 +52,7 @@ export function nodeContentTools(context: ContentContext) {
         return { node, transaction: version.key.transaction, data: version.data };
       },
     }),
-    updateNode: tool({
+    [contentToolActions.update]: tool({
       description: 'Update a content node, preserving its identity and prior versions.',
       inputSchema: content.extend({ node: z.string().min(1) }),
       execute: async ({ node, ...input }) => {

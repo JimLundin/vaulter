@@ -16,11 +16,17 @@ test('consecutive tool calls collapse into a summary while their accepted result
   await expect(group).toHaveCount(1);
   await expect(group.locator(':scope > summary')).toContainText('3 steps');
   await expect(group).not.toHaveAttribute('open');
-  await expect(group.getByText(/^createNode ·/)).toBeHidden();
+  await expect(group.getByText('Create content node', { exact: true })).toBeHidden();
   await group.locator(':scope > summary').click();
-  await expect(group.getByText(/^createNode ·/)).toBeVisible();
-  await expect(group.getByText(/^readNode ·/)).toBeVisible();
-  await expect(group.getByText(/^updateNode ·/)).toBeVisible();
+  await expect(group.getByText('Create content node', { exact: true })).toBeVisible();
+  await expect(group.getByText('Read content node', { exact: true })).toBeVisible();
+  await expect(group.getByText('Update content node', { exact: true })).toBeVisible();
+  const create = group.locator('details').filter({
+    has: page.locator(':scope > summary', { hasText: 'Create content node' }),
+  });
+  await create.locator(':scope > summary').click();
+  await expect(create.getByText('Preview thought', { exact: true })).toBeVisible();
+  await expect(create.getByText(/^Recorded transaction:/)).toBeVisible();
   await expect(page.getByText('Filed in', { exact: false })).toBeVisible();
   await expect(group.getByText('Accepted', { exact: true })).toHaveCount(3);
 });

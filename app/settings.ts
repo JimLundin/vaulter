@@ -8,7 +8,6 @@ export interface SettingDefinition {
   readonly placeholder?: string;
   readonly choices?: readonly { value: string; label: string }[];
   readonly allowCustom?: boolean;
-  readonly clearable?: boolean;
   readonly parse?: (value: string) => unknown;
 }
 

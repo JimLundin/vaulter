@@ -25,6 +25,8 @@ test('Agent source reading retains supplied text and never turns tool output JSO
         'run',
       ),
       create('foreign', { kind: 'foreign', content: 'Unknown content.' }),
+      create('system', { kind: 'contextInput', role: 'system', content: 'Private instructions.' }),
+      create('tool-result', { kind: 'contextInput', role: 'tool', content: 'Tool output.' }),
     ]),
   );
   const view = await nodes.snapshot();
@@ -32,6 +34,9 @@ test('Agent source reading retains supplied text and never turns tool output JSO
   expect(textOf(view.get('run')!)).toBe('Supplied historical text.');
   expect(textOf(view.get('structured')!)).toBe('');
   expect(textOf(view.get('tool')!)).toBe('');
+  expect(agentSources.exactText?.(view.get('input')!, view)).toBe('Supplied historical text.');
+  for (const node of ['run', 'structured', 'tool', 'foreign', 'system', 'tool-result'])
+    expect(agentSources.exactText?.(view.get(node)!, view)).toBeUndefined();
   expect(agentSources.describe(view.get('input')!, view)).toEqual({ title: '' });
   expect(agentSources.text(view.get('foreign')!, { view, textOf })).toBeUndefined();
   expect(agentSources.describe(view.get('foreign')!, view)).toBeUndefined();

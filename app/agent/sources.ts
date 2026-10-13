@@ -3,7 +3,13 @@ import type { SourceReader } from '../vault/sources.ts';
 
 const ownedKinds = new Set(['contextInput', 'agentRun', 'toolExecution']);
 
+export const isAgentContext = (node: NodeVersion) => node.data?.kind === 'contextInput';
+
 export const agentSources: SourceReader = {
+  exactText(node) {
+    if (!isAgentContext(node) || ['system', 'tool'].includes(String(node.data?.role))) return;
+    if (typeof node.data?.content === 'string') return node.data.content;
+  },
   text(node, { view, textOf }) {
     const { data } = node;
     if (!data || typeof data.kind !== 'string' || !ownedKinds.has(data.kind)) return;

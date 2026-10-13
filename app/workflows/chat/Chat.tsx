@@ -19,15 +19,18 @@ import type { NodeConversation, Prompt, ChatSubmissionIntent } from './node-conv
 export type { Prompt } from './node-conversation.ts';
 import { useNodeChat } from './use-node-conversation.ts';
 import { model } from './model.ts';
+import type { ToolPresentationAdapter } from '../../agent/tool-presentation.tsx';
 
 export function Chat({
   conversation,
   arg,
   presentation,
+  toolPresentations,
 }: {
   conversation: NodeConversation;
   arg: Prompt | null;
   presentation: ChatPresentation;
+  toolPresentations?: readonly ToolPresentationAdapter[];
 }) {
   const { newChat, stop, viewing } = conversation;
   const [choosing, setChoosing] = useState(false);
@@ -230,8 +233,13 @@ export function Chat({
     >
       {!turns.length && <ChatWelcome />}
       {turns.map((turn, i) => (
-        // biome-ignore lint/suspicious/noArrayIndexKey: turns only append
-        <ChatMessage key={i} turn={turn} live={busy && i === turns.length - 1} />
+        <ChatMessage
+          // biome-ignore lint/suspicious/noArrayIndexKey: turns only append
+          key={i}
+          turn={turn}
+          live={busy && i === turns.length - 1}
+          toolPresentations={toolPresentations}
+        />
       ))}
 
       <Overlay

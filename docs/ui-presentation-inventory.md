@@ -5,22 +5,22 @@ Audited after UI ownership migration. Every public kit value/type has its owner 
 | Export | Owner / implementation | Actual production consumers | Kit internal / catalogue / preview / tests | Destination |
 | --- | --- | --- | --- | --- |
 | `Activity` (value) | Kit: `app/ui/kit/surfaces.tsx` | `app/workflows/chat/index.tsx` | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
-| `Alert` (value) | Kit: `app/ui/kit/index.ts` | `app/product.tsx`<br>`app/ui/Unlock.tsx`<br>`app/workflows/history/NodeHistory.tsx` | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
-| `AlertDescription` (value) | Kit: `app/ui/kit/index.ts` | `app/product.tsx`<br>`app/ui/Unlock.tsx`<br>`app/workflows/history/NodeHistory.tsx` | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
+| `Alert` (value) | Kit: `app/ui/kit/index.ts` | `app/product.tsx`<br>`app/vault/Gate.tsx`<br>`app/vault/session/ui.tsx`<br>`app/workflows/history/NodeHistory.tsx` | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
+| `AlertDescription` (value) | Kit: `app/ui/kit/index.ts` | `app/product.tsx`<br>`app/vault/Gate.tsx`<br>`app/vault/session/ui.tsx`<br>`app/workflows/history/NodeHistory.tsx` | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
 | `AlertTitle` (value) | Kit: `app/ui/kit/index.ts` | — | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
 | `AutoScrollArea` (value) | Kit: `app/ui/kit/primitives.tsx` | `app/workflows/chat/ChatSurface.tsx` | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/supporting-pane.tsx` | Retained shared presentation |
 | `Avatar` (value) | Kit: `app/ui/kit/app.tsx` | — | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
-| `Badge` (value) | Kit: `app/ui/kit/index.ts` | — | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
+| `Badge` (value) | Kit: `app/ui/kit/index.ts` | `app/workflows/questions/QuestionItem.tsx` | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
 | `Bars` (value) | Kit: `app/ui/kit/chart.tsx` | `app/workflows/wiki/rendering/blocks.tsx` | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/tests/browser.tsx`<br>`app/ui/kit/tests/pieces.test.tsx` | Retained shared presentation |
 | `BarsProps` (type) | Kit: `app/ui/kit/chart.tsx` | — | — | Retained shared presentation |
-| `Brand` (value) | Kit: `app/ui/kit/app.tsx` | `app/product.tsx`<br>`app/ui/Unlock.tsx` | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/gallery.tsx`<br>`app/ui/kit/navigation.tsx` | Retained shared presentation |
-| `Button` (value) | Kit: `app/ui/kit/index.ts` | `app/product.tsx`<br>`app/ui/Frame.tsx`<br>`app/workflows/chat/Chat.tsx`<br>`app/workflows/chat/ChatSurface.tsx`<br>`app/workflows/history/NodeHistory.tsx`<br>`app/workflows/wiki/WikiPageView.tsx`<br>`app/workflows/wiki/index.tsx`<br>`app/workflows/wiki/rendering/blocks.tsx` | `app/preview/search.tsx`<br>`app/preview/wiki-example.tsx`<br>`app/ui/kit/catalogue.tsx`<br>`app/ui/kit/tests/browser.tsx`<br>`app/ui/kit/tests/controls.tsx`<br>`app/ui/kit/tests/render-composition.test.tsx`<br>`app/ui/kit/tests/setting-fields.test.tsx` | Retained shared presentation |
-| `Card` (value) | Kit: `app/ui/kit/index.ts` | `app/product.tsx`<br>`app/ui/Unlock.tsx` | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
+| `Brand` (value) | Kit: `app/ui/kit/app.tsx` | `app/vault/Gate.tsx`<br>`app/vault/session/ui.tsx` | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/gallery.tsx`<br>`app/ui/kit/navigation.tsx` | Retained shared presentation |
+| `Button` (value) | Kit: `app/ui/kit/index.ts` | `app/product.tsx`<br>`app/ui/ModuleSettings.tsx`<br>`app/vault/session/ui.tsx`<br>`app/workflows/chat/Chat.tsx`<br>`app/workflows/chat/ChatSurface.tsx`<br>`app/workflows/history/NodeHistory.tsx`<br>`app/workflows/questions/QuestionItem.tsx`<br>`app/workflows/wiki/WikiPageView.tsx`<br>`app/workflows/wiki/index.tsx`<br>`app/workflows/wiki/rendering/blocks.tsx` | `app/preview/search.tsx`<br>`app/preview/wiki-example.tsx`<br>`app/ui/kit/catalogue.tsx`<br>`app/ui/kit/tests/browser.tsx`<br>`app/ui/kit/tests/controls.tsx`<br>`app/ui/kit/tests/render-composition.test.tsx`<br>`app/ui/kit/tests/setting-fields.test.tsx` | Retained shared presentation |
+| `Card` (value) | Kit: `app/ui/kit/index.ts` | `app/vault/Gate.tsx`<br>`app/vault/session/ui.tsx`<br>`app/workflows/questions/QuestionItem.tsx` | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
 | `CardAction` (value) | Kit: `app/ui/kit/index.ts` | — | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
-| `CardContent` (value) | Kit: `app/ui/kit/index.ts` | `app/product.tsx`<br>`app/ui/Unlock.tsx` | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
-| `CardDescription` (value) | Kit: `app/ui/kit/index.ts` | `app/product.tsx`<br>`app/ui/Unlock.tsx` | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
+| `CardContent` (value) | Kit: `app/ui/kit/index.ts` | `app/vault/Gate.tsx`<br>`app/vault/session/ui.tsx`<br>`app/workflows/questions/QuestionItem.tsx` | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
+| `CardDescription` (value) | Kit: `app/ui/kit/index.ts` | `app/vault/Gate.tsx`<br>`app/vault/session/ui.tsx` | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
 | `CardFooter` (value) | Kit: `app/ui/kit/index.ts` | — | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
-| `CardHeader` (value) | Kit: `app/ui/kit/index.ts` | `app/product.tsx`<br>`app/ui/Unlock.tsx` | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
+| `CardHeader` (value) | Kit: `app/ui/kit/index.ts` | `app/vault/Gate.tsx`<br>`app/vault/session/ui.tsx`<br>`app/workflows/questions/QuestionItem.tsx` | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
 | `CardTitle` (value) | Kit: `app/ui/kit/index.ts` | — | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
 | `Checkbox` (value) | Kit: `app/ui/kit/index.ts` | — | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/tests/browser.tsx`<br>`app/ui/kit/tests/controls.tsx`<br>`app/ui/kit/tests/setting-fields.test.tsx` | Retained shared presentation |
 | `Chip` (value) | Kit: `app/ui/kit/app.tsx` | `app/workflows/wiki/WikiPageView.tsx` | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
@@ -29,7 +29,7 @@ Audited after UI ownership migration. Every public kit value/type has its owner 
 | `Cite` (value) | Kit: `app/ui/kit/app.tsx` | — | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
 | `CodeDiff` (value) | Kit: `app/ui/kit/diff.tsx` | `app/workflows/chat/Chat.tsx` | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/tests/pieces.test.tsx` | Retained shared presentation |
 | `CodeDiffProps` (type) | Kit: `app/ui/kit/diff.tsx` | — | — | Retained shared presentation |
-| `Columns` (value) | Kit: `app/ui/kit/app.tsx` | — | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/tests/controls.tsx` | Retained shared presentation |
+| `Columns` (value) | Kit: `app/ui/kit/app.tsx` | `app/workflows/questions/QuestionItem.tsx` | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/tests/controls.tsx` | Retained shared presentation |
 | `Command` (value) | Kit: `app/ui/kit/index.ts` | `app/ui/Search.tsx` | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/tests/browser.tsx`<br>`app/ui/kit/tests/controls.tsx` | Retained shared presentation |
 | `CommandEmpty` (value) | Kit: `app/ui/kit/index.ts` | `app/ui/Search.tsx` | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/tests/controls.tsx` | Retained shared presentation |
 | `CommandGroup` (value) | Kit: `app/ui/kit/index.ts` | `app/ui/Search.tsx` | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
@@ -47,7 +47,7 @@ Audited after UI ownership migration. Every public kit value/type has its owner 
 | `DialogFooter` (value) | Kit: `app/ui/kit/index.ts` | — | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
 | `Dock` (value) | Kit: `app/ui/kit/primitives.tsx` | `app/workflows/chat/ChatSurface.tsx` | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/supporting-pane.tsx` | Retained shared presentation |
 | `Dot` (value) | Kit: `app/ui/kit/app.tsx` | — | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
-| `Drawer` (value) | Kit: `app/ui/kit/drawer.tsx` | — | `app/ui/kit/app.tsx`<br>`app/ui/kit/catalogue.tsx`<br>`app/ui/kit/settings.tsx`<br>`app/ui/kit/supporting-pane.tsx`<br>`app/ui/kit/tests/browser.tsx` | Retained shared presentation |
+| `Drawer` (value) | Kit: `app/ui/kit/drawer.tsx` | `app/workflows/questions/QuestionItem.tsx` | `app/ui/kit/app.tsx`<br>`app/ui/kit/catalogue.tsx`<br>`app/ui/kit/settings.tsx`<br>`app/ui/kit/supporting-pane.tsx`<br>`app/ui/kit/tests/browser.tsx` | Retained shared presentation |
 | `DropdownMenu` (value) | Kit: `app/ui/kit/index.ts` | — | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/tests/browser.tsx` | Retained shared presentation |
 | `DropdownMenuCheckboxItem` (value) | Kit: `app/ui/kit/index.ts` | — | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
 | `DropdownMenuContent` (value) | Kit: `app/ui/kit/index.ts` | — | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/tests/browser.tsx` | Retained shared presentation |
@@ -69,31 +69,31 @@ Audited after UI ownership migration. Every public kit value/type has its owner 
 | `EmptyMedia` (value) | Kit: `app/ui/kit/index.ts` | — | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
 | `EmptyTitle` (value) | Kit: `app/ui/kit/index.ts` | — | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
 | `ExpandableRow` (value) | Kit: `app/ui/kit/expandable-row.tsx` | `app/workflows/history/NodeHistory.tsx` | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
-| `FeaturePage` (value) | Kit: `app/ui/kit/app.tsx` | `app/workflows/history/HistoryPage.tsx`<br>`app/workflows/wiki/index.tsx` | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/tests/browser.tsx` | Retained shared presentation |
-| `Field` (value) | Kit: `app/ui/kit/index.ts` | — | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/tests/field-options.test.ts` | Retained shared presentation |
+| `FeaturePage` (value) | Kit: `app/ui/kit/app.tsx` | `app/workflows/history/HistoryPage.tsx`<br>`app/workflows/questions/QuestionsPage.tsx`<br>`app/workflows/wiki/index.tsx` | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/tests/browser.tsx` | Retained shared presentation |
+| `Field` (value) | Kit: `app/ui/kit/index.ts` | `app/workflows/questions/QuestionItem.tsx` | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/tests/field-options.test.ts` | Retained shared presentation |
 | `FieldContent` (value) | Kit: `app/ui/kit/index.ts` | — | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
 | `FieldDescription` (value) | Kit: `app/ui/kit/index.ts` | — | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
-| `FieldError` (value) | Kit: `app/ui/kit/index.ts` | — | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
+| `FieldError` (value) | Kit: `app/ui/kit/index.ts` | `app/ui/ModuleSettings.tsx`<br>`app/vault/session/ui.tsx` | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
 | `FieldGroup` (value) | Kit: `app/ui/kit/index.ts` | — | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
-| `FieldLabel` (value) | Kit: `app/ui/kit/index.ts` | — | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
+| `FieldLabel` (value) | Kit: `app/ui/kit/index.ts` | `app/workflows/questions/QuestionItem.tsx` | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
 | `FieldLegend` (value) | Kit: `app/ui/kit/index.ts` | — | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/tests/field-options.test.ts` | Retained shared presentation |
 | `FieldSeparator` (value) | Kit: `app/ui/kit/index.ts` | — | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
 | `FieldSet` (value) | Kit: `app/ui/kit/index.ts` | — | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
 | `FieldTitle` (value) | Kit: `app/ui/kit/index.ts` | — | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
-| `Form` (value) | Kit: `app/ui/kit/app.tsx` | `app/ui/Unlock.tsx` | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/conversation.tsx` | Retained shared presentation |
+| `Form` (value) | Kit: `app/ui/kit/app.tsx` | `app/vault/session/ui.tsx`<br>`app/workflows/questions/QuestionItem.tsx` | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/conversation.tsx` | Retained shared presentation |
 | `Gap` (type) | Kit: `app/ui/kit/parts/layout.tsx` | — | `app/ui/kit/app.tsx` | Retained shared presentation |
-| `Gate` (value) | Kit: `app/ui/kit/surfaces.tsx` | `app/product.tsx`<br>`app/ui/Unlock.tsx` | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
-| `Heading` (value) | Kit: `app/ui/kit/parts/layout.tsx` | `app/product.tsx`<br>`app/workflows/chat/ChatSurface.tsx`<br>`app/workflows/wiki/WikiPageView.tsx` | `app/preview/record-examples.tsx`<br>`app/ui/kit/catalogue.tsx`<br>`app/ui/kit/settings.tsx` | Retained shared presentation |
+| `Gate` (value) | Kit: `app/ui/kit/surfaces.tsx` | `app/vault/Gate.tsx`<br>`app/vault/session/ui.tsx` | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
+| `Heading` (value) | Kit: `app/ui/kit/parts/layout.tsx` | `app/product.tsx`<br>`app/vault/Gate.tsx`<br>`app/workflows/chat/ChatSurface.tsx`<br>`app/workflows/questions/QuestionItem.tsx`<br>`app/workflows/wiki/WikiPageView.tsx` | `app/preview/record-examples.tsx`<br>`app/ui/kit/catalogue.tsx`<br>`app/ui/kit/settings.tsx` | Retained shared presentation |
 | `HoverPreview` (value) | Kit: `app/ui/kit/surfaces.tsx` | `app/ui/Previews.tsx` | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/tests/hover-preview.test.tsx` | Retained shared presentation |
-| `Icon` (value) | Kit: `app/ui/kit/icons.tsx` | `app/ui/Search.tsx`<br>`app/ui/Unlock.tsx`<br>`app/workflows/chat/ChatSurface.tsx`<br>`app/workflows/wiki/WikiPageView.tsx`<br>`app/workflows/wiki/rendering/references.tsx` | `app/ui/kit/app.tsx`<br>`app/ui/kit/catalogue.tsx`<br>`app/ui/kit/conversation.tsx`<br>`app/ui/kit/design-cycle.tsx`<br>`app/ui/kit/drawer.tsx`<br>`app/ui/kit/expandable-row.tsx`<br>`app/ui/kit/navigation.tsx`<br>`app/ui/kit/overlay.tsx`<br>`app/ui/kit/preview.tsx`<br>`app/ui/kit/surfaces.tsx`<br>`app/ui/kit/theme.tsx` | Retained shared presentation |
+| `Icon` (value) | Kit: `app/ui/kit/icons.tsx` | `app/ui/Search.tsx`<br>`app/vault/session/ui.tsx`<br>`app/workflows/chat/ChatSurface.tsx`<br>`app/workflows/questions/QuestionItem.tsx`<br>`app/workflows/wiki/WikiPageView.tsx`<br>`app/workflows/wiki/rendering/references.tsx` | `app/ui/kit/app.tsx`<br>`app/ui/kit/catalogue.tsx`<br>`app/ui/kit/conversation.tsx`<br>`app/ui/kit/design-cycle.tsx`<br>`app/ui/kit/drawer.tsx`<br>`app/ui/kit/expandable-row.tsx`<br>`app/ui/kit/navigation.tsx`<br>`app/ui/kit/overlay.tsx`<br>`app/ui/kit/preview.tsx`<br>`app/ui/kit/surfaces.tsx`<br>`app/ui/kit/theme.tsx` | Retained shared presentation |
 | `IconName` (type) | Kit: `app/ui/kit/icons.tsx` | `app/ui/command.ts` | `app/ui/kit/app.tsx`<br>`app/ui/kit/expandable-row.tsx`<br>`app/ui/kit/navigation.tsx`<br>`app/ui/kit/theme.tsx` | Retained shared presentation |
 | `iconNames` (value) | Kit: `app/ui/kit/icons.tsx` | — | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
 | `IconProps` (type) | Kit: `app/ui/kit/icons.tsx` | — | — | Retained shared presentation |
-| `Input` (value) | Kit: `app/ui/kit/index.ts` | `app/workflows/chat/settings.tsx`<br>`app/workflows/wiki/index.tsx` | `app/preview/search.tsx`<br>`app/ui/kit/catalogue.tsx`<br>`app/ui/kit/gallery.tsx`<br>`app/ui/kit/tests/browser.tsx`<br>`app/ui/kit/tests/controls.tsx`<br>`app/ui/kit/tests/setting-fields.test.tsx` | Retained shared presentation |
-| `InputGroup` (value) | Kit: `app/ui/kit/index.ts` | `app/ui/Unlock.tsx` | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/tests/browser.tsx`<br>`app/ui/kit/tests/setting-fields.test.tsx` | Retained shared presentation |
-| `InputGroupAddon` (value) | Kit: `app/ui/kit/index.ts` | `app/ui/Unlock.tsx` | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/tests/field-options.test.ts` | Retained shared presentation |
-| `InputGroupButton` (value) | Kit: `app/ui/kit/index.ts` | `app/ui/Unlock.tsx` | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/tests/browser.tsx`<br>`app/ui/kit/tests/setting-fields.test.tsx` | Retained shared presentation |
-| `InputGroupInput` (value) | Kit: `app/ui/kit/index.ts` | `app/ui/Unlock.tsx` | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/tests/browser.tsx`<br>`app/ui/kit/tests/setting-fields.test.tsx` | Retained shared presentation |
+| `Input` (value) | Kit: `app/ui/kit/index.ts` | `app/ui/ModuleSettings.tsx`<br>`app/vault/session/ui.tsx`<br>`app/workflows/questions/QuestionsPage.tsx`<br>`app/workflows/wiki/index.tsx` | `app/preview/search.tsx`<br>`app/ui/kit/catalogue.tsx`<br>`app/ui/kit/gallery.tsx`<br>`app/ui/kit/tests/browser.tsx`<br>`app/ui/kit/tests/controls.tsx`<br>`app/ui/kit/tests/setting-fields.test.tsx` | Retained shared presentation |
+| `InputGroup` (value) | Kit: `app/ui/kit/index.ts` | `app/vault/session/ui.tsx` | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/tests/browser.tsx`<br>`app/ui/kit/tests/setting-fields.test.tsx` | Retained shared presentation |
+| `InputGroupAddon` (value) | Kit: `app/ui/kit/index.ts` | `app/vault/session/ui.tsx` | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/tests/field-options.test.ts` | Retained shared presentation |
+| `InputGroupButton` (value) | Kit: `app/ui/kit/index.ts` | `app/vault/session/ui.tsx` | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/tests/browser.tsx`<br>`app/ui/kit/tests/setting-fields.test.tsx` | Retained shared presentation |
+| `InputGroupInput` (value) | Kit: `app/ui/kit/index.ts` | `app/vault/session/ui.tsx` | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/tests/browser.tsx`<br>`app/ui/kit/tests/setting-fields.test.tsx` | Retained shared presentation |
 | `InputGroupText` (value) | Kit: `app/ui/kit/index.ts` | — | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
 | `InputGroupTextarea` (value) | Kit: `app/ui/kit/index.ts` | — | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/tests/setting-fields.test.tsx` | Retained shared presentation |
 | `Item` (value) | Kit: `app/ui/kit/app.tsx` | — | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/tests/setting-fields.test.tsx` | Retained shared presentation |
@@ -106,17 +106,18 @@ Audited after UI ownership migration. Every public kit value/type has its owner 
 | `ItemMedia` (value) | Kit: `app/ui/kit/index.ts` | — | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
 | `ItemSeparator` (value) | Kit: `app/ui/kit/index.ts` | — | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
 | `ItemTitle` (value) | Kit: `app/ui/kit/index.ts` | — | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
-| `Json` (value) | Kit: `app/ui/kit/surfaces.tsx` | `app/workflows/chat/ChatMessage.tsx` | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
+| `Json` (value) | Kit: `app/ui/kit/surfaces.tsx` | `app/agent/tool-presentation.tsx` | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
 | `Kbd` (value) | Kit: `app/ui/kit/app.tsx` | `app/ui/Search.tsx` | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/navigation.tsx`<br>`app/ui/kit/tests/status-options.test.ts` | Retained shared presentation |
 | `KeyHint` (value) | Kit: `app/ui/kit/app.tsx` | — | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/tests/status-options.test.ts` | Retained shared presentation |
-| `Label` (value) | Kit: `app/ui/kit/index.ts` | `app/ui/Unlock.tsx` | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/tests/controls.tsx` | Retained shared presentation |
+| `Label` (value) | Kit: `app/ui/kit/index.ts` | `app/vault/session/ui.tsx` | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/tests/controls.tsx` | Retained shared presentation |
 | `LatLon` (type) | Kit: `app/ui/kit/map.tsx` | — | — | Retained shared presentation |
-| `Link` (value) | Kit: `app/ui/kit/index.ts` | `app/product.tsx`<br>`app/workflows/wiki/index.tsx`<br>`app/workflows/wiki/rendering/references.tsx` | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
+| `Link` (value) | Kit: `app/ui/kit/index.ts` | `app/product.tsx`<br>`app/workflows/questions/QuestionItem.tsx`<br>`app/workflows/questions/QuestionsPage.tsx`<br>`app/workflows/wiki/index.tsx`<br>`app/workflows/wiki/rendering/references.tsx` | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
 | `List` (value) | Kit: `app/ui/kit/app.tsx` | — | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
 | `ListDetail` (value) | Kit: `app/ui/kit/app.tsx` | — | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
 | `ListItem` (value) | Kit: `app/ui/kit/app.tsx` | — | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
 | `LiveStatus` (value) | Kit: `app/ui/kit/surfaces.tsx` | `app/workflows/chat/ChatMessage.tsx` | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
-| `LoadingStatus` (value) | Kit: `app/ui/kit/surfaces.tsx` | `app/product.tsx` | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
+| `LoadingStatus` (value) | Kit: `app/ui/kit/surfaces.tsx` | — | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
+| `Loader` (value) | Kit: `app/ui/kit/surfaces.tsx` | `app/vault/Gate.tsx`<br>`app/workflows/questions/QuestionsPage.tsx`<br>`app/workflows/wiki/index.tsx` | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/tests/loader.test.tsx` | Retained shared presentation |
 | `MapPoint` (type) | Kit: `app/ui/kit/map.tsx` | — | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/map-impl.tsx` | Retained shared presentation |
 | `MapRoute` (type) | Kit: `app/ui/kit/map.tsx` | — | `app/ui/kit/map-impl.tsx` | Retained shared presentation |
 | `MapView` (value) | Kit: `app/ui/kit/map.tsx` | — | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
@@ -145,19 +146,20 @@ Audited after UI ownership migration. Every public kit value/type has its owner 
 | `RadioGroupIndicator` (value) | Kit: `app/ui/kit/index.ts` | — | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
 | `RadioGroupItem` (value) | Kit: `app/ui/kit/index.ts` | — | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/tests/browser.tsx`<br>`app/ui/kit/tests/setting-fields.test.tsx` | Retained shared presentation |
 | `ReadingColumn` (value) | Kit: `app/ui/kit/primitives.tsx` | `app/workflows/chat/ChatSurface.tsx`<br>`app/workflows/wiki/WikiPageView.tsx` | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
-| `Row` (value) | Kit: `app/ui/kit/index.ts` | `app/product.tsx`<br>`app/ui/Search.tsx`<br>`app/workflows/chat/Chat.tsx`<br>`app/workflows/chat/ChatSurface.tsx`<br>`app/workflows/history/NodeHistory.tsx`<br>`app/workflows/wiki/WikiPageView.tsx`<br>`app/workflows/wiki/rendering/references.tsx` | `app/preview/record-examples.tsx`<br>`app/ui/kit/catalogue.tsx`<br>`app/ui/kit/tests/browser.tsx`<br>`app/ui/kit/tests/setting-fields.test.tsx` | Retained shared presentation |
+| `Row` (value) | Kit: `app/ui/kit/index.ts` | `app/product.tsx`<br>`app/ui/ModuleSettings.tsx`<br>`app/ui/Search.tsx`<br>`app/vault/session/ui.tsx`<br>`app/workflows/chat/Chat.tsx`<br>`app/workflows/chat/ChatSurface.tsx`<br>`app/workflows/history/NodeHistory.tsx`<br>`app/workflows/questions/QuestionItem.tsx`<br>`app/workflows/wiki/WikiPageView.tsx`<br>`app/workflows/wiki/rendering/references.tsx` | `app/preview/record-examples.tsx`<br>`app/ui/kit/catalogue.tsx`<br>`app/ui/kit/tests/browser.tsx`<br>`app/ui/kit/tests/setting-fields.test.tsx` | Retained shared presentation |
 | `RowAction` (value) | Kit: `app/ui/kit/expandable-row.tsx` | `app/workflows/history/NodeHistory.tsx` | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
 | `ScrollArea` (value) | Kit: `app/ui/kit/index.ts` | `app/workflows/wiki/WikiPageView.tsx` | `app/preview/record-examples.tsx`<br>`app/ui/kit/catalogue.tsx` | Retained shared presentation |
 | `SearchButton` (value) | Kit: `app/ui/kit/app.tsx` | — | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/navigation.tsx` | Retained shared presentation |
 | `SelectionGroupHeading` (value) | Kit: `app/ui/kit/selection.tsx` | `app/workflows/chat/ConversationList.tsx` | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
+| `Select` (value) | Kit: `app/ui/kit/index.ts` | `app/ui/ModuleSettings.tsx` | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/tests/browser.tsx`<br>`app/ui/kit/tests/setting-fields.test.tsx` | Retained shared presentation |
 | `SelectionList` (value) | Kit: `app/ui/kit/conversation.tsx` | — | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
-| `SelectionRow` (value) | Kit: `app/ui/kit/selection.tsx` | `app/workflows/chat/ConversationList.tsx` | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
+| `SelectionRow` (value) | Kit: `app/ui/kit/selection.tsx` | `app/workflows/chat/ConversationList.tsx`<br>`app/workflows/questions/QuestionItem.tsx` | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
 | `SendButton` (value) | Kit: `app/ui/kit/conversation.tsx` | — | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
 | `Separator` (value) | Kit: `app/ui/kit/index.ts` | — | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
 | `setTheme` (value) | Kit: `app/ui/kit/theme.tsx` | `app/product.tsx` | `app/ui/kit/tests/theme.test.tsx` | Retained shared presentation |
-| `SettingField` (value) | Kit: `app/ui/kit/settings.tsx` | `app/product.tsx`<br>`app/workflows/chat/settings.tsx` | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/tests/browser.tsx`<br>`app/ui/kit/tests/setting-fields.test.tsx` | Retained shared presentation |
+| `SettingField` (value) | Kit: `app/ui/kit/settings.tsx` | `app/ui/AppearanceSettings.tsx`<br>`app/ui/ModuleSettings.tsx`<br>`app/vault/session/ui.tsx` | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/tests/browser.tsx`<br>`app/ui/kit/tests/setting-fields.test.tsx` | Retained shared presentation |
 | `SettingsMenu` (value) | Kit: `app/ui/kit/settings.tsx` | `app/product.tsx` | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/tests/browser.tsx` | Retained shared presentation |
-| `SettingsSection` (value) | Kit: `app/ui/kit/settings.tsx` | `app/product.tsx` | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/tests/browser.tsx` | Retained shared presentation |
+| `SettingsSection` (value) | Kit: `app/ui/kit/settings.tsx` | — | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/tests/browser.tsx` | Retained shared presentation |
 | `Sidebar` (value) | Kit: `app/ui/kit/app.tsx` | — | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/navigation.tsx` | Retained shared presentation |
 | `SidebarContent` (value) | Kit: `app/ui/kit/index.ts` | — | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
 | `SidebarFooter` (value) | Kit: `app/ui/kit/index.ts` | — | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
@@ -185,29 +187,29 @@ Audited after UI ownership migration. Every public kit value/type has its owner 
 | `Sparkline` (value) | Kit: `app/ui/kit/chart.tsx` | `app/workflows/wiki/rendering/blocks.tsx` | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/tests/pieces.test.tsx` | Retained shared presentation |
 | `SparklineProps` (type) | Kit: `app/ui/kit/chart.tsx` | — | — | Retained shared presentation |
 | `SplitView` (value) | Kit: `app/ui/kit/selection.tsx` | `app/workflows/chat/ChatSurface.tsx`<br>`app/workflows/wiki/WikiPageView.tsx` | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/tests/browser.tsx` | Retained shared presentation |
-| `Stack` (value) | Kit: `app/ui/kit/index.ts` | `app/product.tsx`<br>`app/ui/Unlock.tsx`<br>`app/workflows/chat/Chat.tsx`<br>`app/workflows/chat/ChatMessage.tsx`<br>`app/workflows/chat/ChatSurface.tsx`<br>`app/workflows/chat/ConversationList.tsx`<br>`app/workflows/history/HistoryPage.tsx`<br>`app/workflows/history/NodeHistory.tsx`<br>`app/workflows/wiki/WikiPageView.tsx`<br>`app/workflows/wiki/index.tsx` | `app/preview/record-examples.tsx`<br>`app/preview/search.tsx`<br>`app/preview/wiki-example.tsx`<br>`app/ui/kit/catalogue.tsx`<br>`app/ui/kit/tests/browser.tsx`<br>`app/ui/kit/tests/controls.tsx`<br>`app/ui/kit/tests/setting-fields.test.tsx` | Retained shared presentation |
+| `Stack` (value) | Kit: `app/ui/kit/index.ts` | `app/agent/openai/Settings.tsx`<br>`app/agent/tool-presentation.tsx`<br>`app/product.tsx`<br>`app/ui/ModuleSettings.tsx`<br>`app/vault/content/tool-presentation.tsx`<br>`app/vault/session/ui.tsx`<br>`app/vault/storage/Settings.tsx`<br>`app/workflows/chat/Chat.tsx`<br>`app/workflows/chat/ChatMessage.tsx`<br>`app/workflows/chat/ChatSurface.tsx`<br>`app/workflows/chat/ConversationList.tsx`<br>`app/workflows/history/HistoryPage.tsx`<br>`app/workflows/history/NodeHistory.tsx`<br>`app/workflows/questions/EmbeddedQuestion.tsx`<br>`app/workflows/questions/QuestionItem.tsx`<br>`app/workflows/questions/QuestionsPage.tsx`<br>`app/workflows/questions/tool-presentation.tsx`<br>`app/workflows/wiki/WikiPageView.tsx`<br>`app/workflows/wiki/index.tsx` | `app/preview/record-examples.tsx`<br>`app/preview/search.tsx`<br>`app/preview/wiki-example.tsx`<br>`app/ui/kit/catalogue.tsx`<br>`app/ui/kit/tests/browser.tsx`<br>`app/ui/kit/tests/controls.tsx`<br>`app/ui/kit/tests/setting-fields.test.tsx` | Retained shared presentation |
 | `startTheme` (value) | Kit: `app/ui/kit/theme.tsx` | `app/main.tsx` | `app/preview/main.tsx`<br>`app/preview/record-examples.tsx`<br>`app/preview/wiki.tsx`<br>`app/ui/kit/main.tsx`<br>`app/ui/kit/tests/theme.test.tsx` | Retained shared presentation |
 | `SupportingPane` (value) | Kit: `app/ui/kit/supporting-pane.tsx` | `app/workflows/chat/ChatSurface.tsx`<br>`app/workflows/chat/ConversationList.tsx`<br>`app/workflows/wiki/WikiPageView.tsx` | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/tests/browser.tsx`<br>`app/ui/kit/tests/supporting-pane-types.test.ts` | Retained shared presentation |
-| `Surface` (value) | Kit: `app/ui/kit/primitives.tsx` | `app/workflows/wiki/WikiPageView.tsx` | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/conversation.tsx`<br>`app/ui/kit/settings.tsx`<br>`app/ui/kit/tests/setting-fields.test.tsx` | Retained shared presentation |
+| `Surface` (value) | Kit: `app/ui/kit/primitives.tsx` | `app/workflows/questions/QuestionItem.tsx`<br>`app/workflows/wiki/WikiPageView.tsx` | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/conversation.tsx`<br>`app/ui/kit/settings.tsx`<br>`app/ui/kit/tests/setting-fields.test.tsx` | Retained shared presentation |
 | `Tabs` (value) | Kit: `app/ui/kit/index.ts` | — | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/tests/browser.tsx`<br>`app/ui/kit/tests/controls.tsx` | Retained shared presentation |
 | `TabsContent` (value) | Kit: `app/ui/kit/index.ts` | — | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/tests/browser.tsx`<br>`app/ui/kit/tests/controls.tsx` | Retained shared presentation |
 | `TabsList` (value) | Kit: `app/ui/kit/index.ts` | — | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/tests/browser.tsx`<br>`app/ui/kit/tests/controls.tsx` | Retained shared presentation |
 | `TabsTrigger` (value) | Kit: `app/ui/kit/index.ts` | — | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/tests/browser.tsx`<br>`app/ui/kit/tests/controls.tsx` | Retained shared presentation |
-| `Text` (value) | Kit: `app/ui/kit/index.ts` | `app/product.tsx`<br>`app/ui/Frame.tsx`<br>`app/ui/Search.tsx`<br>`app/workflows/chat/Chat.tsx`<br>`app/workflows/chat/ChatMessage.tsx`<br>`app/workflows/chat/ChatSurface.tsx`<br>`app/workflows/chat/ConversationList.tsx`<br>`app/workflows/chat/index.tsx`<br>`app/workflows/history/HistoryPage.tsx`<br>`app/workflows/history/NodeHistory.tsx`<br>`app/workflows/wiki/WikiPageView.tsx`<br>`app/workflows/wiki/index.tsx`<br>`app/workflows/wiki/rendering/blocks.tsx`<br>`app/workflows/wiki/rendering/references.tsx` | `app/preview/main.tsx`<br>`app/preview/search.tsx`<br>`app/preview/wiki-example.tsx`<br>`app/ui/kit/catalogue.tsx`<br>`app/ui/kit/gallery.tsx`<br>`app/ui/kit/tests/browser.tsx`<br>`app/ui/kit/tests/controls.tsx` | Retained shared presentation |
-| `Textarea` (value) | Kit: `app/ui/kit/index.ts` | — | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/tests/browser.tsx`<br>`app/ui/kit/tests/setting-fields.test.tsx` | Retained shared presentation |
+| `Text` (value) | Kit: `app/ui/kit/index.ts` | `app/agent/tool-presentation.tsx`<br>`app/product.tsx`<br>`app/ui/Search.tsx`<br>`app/vault/content/tool-presentation.tsx`<br>`app/vault/session/ui.tsx`<br>`app/workflows/chat/Chat.tsx`<br>`app/workflows/chat/ChatMessage.tsx`<br>`app/workflows/chat/ChatSurface.tsx`<br>`app/workflows/chat/ConversationList.tsx`<br>`app/workflows/chat/index.tsx`<br>`app/workflows/history/HistoryPage.tsx`<br>`app/workflows/history/NodeHistory.tsx`<br>`app/workflows/questions/EmbeddedQuestion.tsx`<br>`app/workflows/questions/QuestionItem.tsx`<br>`app/workflows/questions/QuestionsPage.tsx`<br>`app/workflows/questions/tool-presentation.tsx`<br>`app/workflows/wiki/WikiPageView.tsx`<br>`app/workflows/wiki/index.tsx`<br>`app/workflows/wiki/rendering/blocks.tsx`<br>`app/workflows/wiki/rendering/references.tsx` | `app/agent/tool-presentation.test.tsx`<br>`app/preview/main.tsx`<br>`app/preview/search.tsx`<br>`app/preview/wiki-example.tsx`<br>`app/ui/kit/catalogue.tsx`<br>`app/ui/kit/gallery.tsx`<br>`app/ui/kit/tests/browser.tsx`<br>`app/ui/kit/tests/controls.tsx` | Retained shared presentation |
+| `Textarea` (value) | Kit: `app/ui/kit/index.ts` | `app/ui/ModuleSettings.tsx`<br>`app/workflows/questions/QuestionItem.tsx` | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/tests/browser.tsx`<br>`app/ui/kit/tests/setting-fields.test.tsx` | Retained shared presentation |
 | `TextProps` (type) | Kit: `app/ui/kit/parts/layout.tsx` | — | — | Retained shared presentation |
 | `Theme` (type) | Kit: `app/ui/kit/theme.tsx` | — | — | Retained shared presentation |
-| `ThemeSwitch` (value) | Kit: `app/ui/kit/theme.tsx` | `app/product.tsx` | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/gallery.tsx`<br>`app/ui/kit/tests/browser.tsx`<br>`app/ui/kit/tests/setting-fields.test.tsx` | Retained shared presentation |
+| `ThemeSwitch` (value) | Kit: `app/ui/kit/theme.tsx` | `app/ui/AppearanceSettings.tsx` | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/gallery.tsx`<br>`app/ui/kit/tests/browser.tsx`<br>`app/ui/kit/tests/setting-fields.test.tsx` | Retained shared presentation |
 | `Timeline` (value) | Kit: `app/ui/kit/app.tsx` | — | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
 | `TimelineItem` (value) | Kit: `app/ui/kit/app.tsx` | — | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
 | `toast` (value) | Kit: `../../home/jim/vaulter/node_modules/sonner/dist/index.d.mts` | — | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
 | `Toaster` (value) | Kit: `app/ui/kit/index.ts` | `app/ui/Frame.tsx` | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
-| `ToggleGroup` (value) | Kit: `app/ui/kit/index.ts` | — | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/tests/browser.tsx`<br>`app/ui/kit/tests/controls.tsx`<br>`app/ui/kit/tests/setting-fields.test.tsx` | Retained shared presentation |
-| `ToggleGroupItem` (value) | Kit: `app/ui/kit/index.ts` | — | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/tests/browser.tsx`<br>`app/ui/kit/tests/controls.tsx`<br>`app/ui/kit/tests/setting-fields.test.tsx` | Retained shared presentation |
+| `ToggleGroup` (value) | Kit: `app/ui/kit/index.ts` | `app/workflows/questions/QuestionsPage.tsx` | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/tests/browser.tsx`<br>`app/ui/kit/tests/controls.tsx`<br>`app/ui/kit/tests/setting-fields.test.tsx` | Retained shared presentation |
+| `ToggleGroupItem` (value) | Kit: `app/ui/kit/index.ts` | `app/workflows/questions/QuestionsPage.tsx` | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/tests/browser.tsx`<br>`app/ui/kit/tests/controls.tsx`<br>`app/ui/kit/tests/setting-fields.test.tsx` | Retained shared presentation |
 | `Tone` (type) | Kit: `app/ui/kit/app.tsx` | — | `app/ui/kit/map.tsx` | Retained shared presentation |
 | `Toolbar` (value) | Kit: `app/ui/kit/primitives.tsx` | `app/workflows/chat/ChatSurface.tsx`<br>`app/workflows/wiki/WikiPageView.tsx` | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
 | `ToolGroup` (value) | Kit: `app/ui/kit/surfaces.tsx` | `app/workflows/chat/ChatMessage.tsx` | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
-| `ToolResult` (value) | Kit: `app/ui/kit/surfaces.tsx` | `app/workflows/chat/ChatMessage.tsx` | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
+| `ToolResult` (value) | Kit: `app/ui/kit/surfaces.tsx` | `app/agent/tool-presentation.tsx` | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
 | `Tooltip` (value) | Kit: `app/ui/kit/index.ts` | — | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
 | `TooltipContent` (value) | Kit: `app/ui/kit/index.ts` | — | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
 | `TooltipProvider` (value) | Kit: `app/ui/kit/index.ts` | `app/ui/Frame.tsx` | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
@@ -232,6 +234,9 @@ Audited after UI ownership migration. Every public kit value/type has its owner 
 | ReferenceCard custom clipping/scroll/disclosure | Wiki reference interpretation; kit PassageCard mechanics |
 | ProvenancePrototype and prototype-provenance.tsx | Fictional app/preview records through real NodeStore/readWiki/module record views |
 | Preview variant hook in production ConversationList | Explicit caller selection variant; no preview context dependency |
+| app/ui/Unlock.tsx | Vault Session-owned Unlock in app/vault/session/ui.tsx |
+| SecretSettings in app/ui/ModuleSettings.tsx; Product credential maps and nullable task wiring | Vault Session credential projection/actions and CredentialSetting; provider-owned Settings views |
+| Product embedded Question loading/answer composition; Chat-owned Content and Questions tool receipt interpretation | Questions-owned embedded record/Answer implementation; Content/Questions receipt adapters through Agent-owned recorded Tool execution UI |
 
 ## Mechanics and composition ownership
 
@@ -250,6 +255,11 @@ specific browser responsibilities. Module record/rendering helpers cannot own me
 scrolling or viewport choices. The exact vault-link transform may annotate semantic data; it
 cannot produce native UI or import presentation libraries. Wiki block markup and Chat code/error
 content retain exact narrow semantic permissions.
+
+Provider settings views bind their own definitions and preference lifetime, and compose the
+Session-owned credential setting through its safe credential interface. Agent and Jina settings
+views therefore have no direct kit imports; OpenAI and GitHub settings directly use only Stack.
+The shared ModuleSettings renderer retains ordinary preference drafts, choices and reset behavior.
 
 Exports whose implementation is `index.ts` are styling-free public adapters over their named
 `parts/` control; the explicit private declaration inventory records those underlying owners.

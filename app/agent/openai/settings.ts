@@ -67,7 +67,6 @@ export function createOpenAISettings(
         label: 'OpenAI API key',
         description: 'Preloaded when you sign in. Changes are saved securely on this device.',
         kind: 'secret',
-        clearable: true,
       },
       modelSetting(
         'model',

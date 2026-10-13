@@ -15,6 +15,8 @@ export interface SourceDescription {
   readonly capture?: boolean;
 }
 export interface SourceReader {
+  /** Text stored in this exact version, without requiring a separate child Snapshot selection. */
+  readonly exactText?: (node: NodeVersion, view: NodeSnapshot) => string | undefined;
   /** Empty text is supported non-prose; undefined means this owner does not interpret the record. */
   readonly text: (node: NodeVersion, context: SourceTextContext) => string | undefined;
   /** Describe only directly owned records; describeSource supplies inherited passage attribution. */

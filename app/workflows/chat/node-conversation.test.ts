@@ -330,7 +330,7 @@ test('Chat publishes content with the module-owned node tools and retains exact 
   expect(controller.snapshot().turns[1]?.parts[0]).toMatchObject({
     kind: 'tool',
     name: 'createNode',
-    result: 'Accepted',
+    status: 'complete',
   });
 });
 
@@ -518,4 +518,140 @@ test('Send cancels pending suggestions and suggestion failure leaves node Chat m
   await nextSubmission.done;
   expect(chat.snapshot().turns.filter(({ role }) => role === 'user')).toHaveLength(2);
   chat.dispose();
+});
+
+test('retained tool projection keeps version, cancelled status and complete raw evidence without writes', async () => {
+  const nodes = memoryNodeBackend();
+  await seed(nodes);
+  const at = '2026-10-10T12:00:00Z';
+  const input = { text: 'Long historical input '.repeat(10) };
+  await nodes.commit(
+    request('retained-tool', [
+      create('chat', { kind: 'conversation', title: 'Evidence', createdAt: at }),
+      create('exchange', { kind: 'exchange', startedAt: at }, 'chat'),
+      create(
+        'message',
+        {
+          kind: 'message',
+          role: 'agent',
+          at,
+          status: 'interrupted',
+          parts: [
+            {
+              kind: 'tool',
+              callId: 'call',
+              name: 'futureTask',
+              version: 'future-v2',
+              input,
+              status: 'cancelled',
+              output: { retained: true },
+              error: 'Cancelled remotely',
+            },
+          ],
+        },
+        'exchange',
+      ),
+    ]),
+  );
+  let executions = 0;
+  const controller = createNodeConversation({
+    nodes,
+    user: 'user',
+    agent: 'agent',
+    provider: 'fictional',
+    selectedModel: 'fictional',
+    instructions: 'Record.',
+    model: () => {
+      executions++;
+      return Promise.reject(new Error('Reading must not execute'));
+    },
+  });
+  const before = await nodes.history();
+  expect((await controller.open('chat')).status).toBe('selected');
+  expect(controller.snapshot().turns[0]?.parts).toEqual([
+    {
+      kind: 'tool',
+      callId: 'call',
+      name: 'futureTask',
+      version: 'future-v2',
+      input,
+      status: 'cancelled',
+      output: { retained: true },
+      error: 'Cancelled remotely',
+    },
+  ]);
+  expect(executions).toBe(0);
+  expect(await nodes.history()).toEqual(before);
+  controller.dispose();
+  nodes.close();
+});
+
+test('only the exact unsaved Tool outcome carries pending-save evidence beside prior accepted calls', async () => {
+  const nodes = memoryNodeBackend();
+  await seed(nodes);
+  await nodes.commit(request('agent', [create('agent', { kind: 'agent' })]));
+  let rejectOutcome = true;
+  const controller = createNodeConversation({
+    nodes: {
+      ...nodes,
+      commit: (value) =>
+        value.kind.action === 'completeTool' &&
+        value.changes[0]?.data?.call === 'second' &&
+        rejectOutcome
+          ? Promise.reject(new Error('Outcome offline'))
+          : nodes.commit(value),
+    },
+    user: 'user',
+    agent: 'agent',
+    provider: 'fictional',
+    selectedModel: 'fictional',
+    instructions: 'Record.',
+    enabledTools: [{ name: 'record', version: 'v1' }],
+    tools: () => ({
+      record: tool({ inputSchema: z.object({}), execute: () => ({ accepted: true }) }),
+    }),
+    execution: async ({ tools, messages, signal }) => {
+      const definition = tools.record!;
+      if (definition.type === 'provider' || !definition.execute) throw new Error('Expected tool');
+      await definition.execute(
+        {},
+        { toolCallId: 'first', messages: [...messages], abortSignal: signal, context: {} },
+      );
+      await definition.execute(
+        {},
+        { toolCallId: 'second', messages: [...messages], abortSignal: signal, context: {} },
+      );
+      return { status: 'complete', text: 'Recorded.' };
+    },
+  });
+  const sending = controller.prepareSubmission({ text: 'Record both.' });
+  if (sending.status !== 'owned') throw new Error('Expected retained request');
+  await new Promise<void>((resolve) => {
+    const unsubscribe = controller.subscribe(() => {
+      if (controller.snapshot().phase === 'paused') {
+        unsubscribe();
+        resolve();
+      }
+    });
+  });
+  const parts = controller.snapshot().turns.at(-1)?.parts;
+  expect(parts?.[0]).toMatchObject({ callId: 'first', version: 'v1', status: 'complete' });
+  expect(parts?.[0]).not.toHaveProperty('savePending');
+  expect(parts?.[1]).toMatchObject({
+    callId: 'second',
+    version: 'v1',
+    status: 'complete',
+    savePending: true,
+  });
+  rejectOutcome = false;
+  await controller.retrySave();
+  await sending.done;
+  expect(
+    controller
+      .snapshot()
+      .turns.at(-1)
+      ?.parts.some((part) => part.kind === 'tool' && part.savePending),
+  ).toBe(false);
+  controller.dispose();
+  nodes.close();
 });

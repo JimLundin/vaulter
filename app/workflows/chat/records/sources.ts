@@ -11,28 +11,34 @@ const proseContainers = new Set([
 const relationships = new Set(['reference', 'metadataReference']);
 const ownedKinds = new Set([...proseContainers, ...relationships, 'message']);
 
+function messageText(node: NodeVersion): string | undefined {
+  const { data } = node;
+  if (data?.kind !== 'message') return;
+  if (typeof data.text === 'string') return data.text;
+  if (Array.isArray(data.parts))
+    return data.parts
+      .map((part) =>
+        part &&
+        typeof part === 'object' &&
+        !Array.isArray(part) &&
+        part.kind === 'text' &&
+        typeof part.text === 'string'
+          ? part.text
+          : '',
+      )
+      .join('');
+}
+
 /** Retained Chat prose has stable UTF-16 offsets; tool parts never contribute words. */
 export function chatSources(conversationHref?: (node: string) => string): SourceReader {
   return {
+    exactText: messageText,
     text(node, { view, textOf }) {
       const { data } = node;
       if (!data || typeof data.kind !== 'string' || !ownedKinds.has(data.kind)) return;
       if (relationships.has(data.kind)) return '';
-      if (data.kind === 'message') {
-        if (typeof data.text === 'string') return data.text;
-        if (Array.isArray(data.parts))
-          return data.parts
-            .map((part) =>
-              part &&
-              typeof part === 'object' &&
-              !Array.isArray(part) &&
-              part.kind === 'text' &&
-              typeof part.text === 'string'
-                ? part.text
-                : '',
-            )
-            .join('');
-      }
+      const message = messageText(node);
+      if (message !== undefined) return message;
       const fragments = view.children(node.key).map(textOf);
       if (data.kind === 'exchange' && typeof data.preamble === 'string')
         fragments.unshift(data.preamble);

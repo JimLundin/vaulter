@@ -115,7 +115,7 @@ export interface NodeConversationState extends ChatState {
   readonly contentAccepted?: string;
   readonly contextError?: string;
 }
-function turn(data: MessageData, live = false, outcomePending = false): Turn {
+function turn(data: MessageData, live = false, pendingToolCall?: string): Turn {
   if (data.role === 'user')
     return { role: 'user', at: data.at, parts: [{ kind: 'text', text: data.text }] };
   if (data.role === 'record')
@@ -130,17 +130,14 @@ function turn(data: MessageData, live = false, outcomePending = false): Turn {
       ? { kind: 'text', text: part.text }
       : {
           kind: 'tool',
+          callId: part.callId,
           name: part.name,
-          input: JSON.stringify(part.input).slice(0, 80),
-          args: part.input,
+          ...(part.version !== undefined ? { version: part.version } : {}),
+          input: part.input,
+          status: part.status,
           ...(part.output !== undefined ? { output: part.output } : {}),
-          ...(part.error
-            ? { error: true, result: part.error }
-            : part.status === 'running'
-              ? live
-                ? {}
-                : { result: 'Outcome uncertain' }
-              : { result: outcomePending ? 'Completed; save pending' : 'Accepted' }),
+          ...(part.error ? { error: part.error } : {}),
+          ...(part.callId === pendingToolCall ? { savePending: true } : {}),
         },
   );
   return {
@@ -505,7 +502,9 @@ export function createNodeConversation(initial: NodeConversationOptions) {
         turn(
           current.response,
           current.phase !== 'recorded',
-          current.persistenceStage === 'outcome',
+          current.execution?.pendingTool?.stage === 'outcome'
+            ? current.execution.pendingTool.execution.call
+            : undefined,
         ),
       ],
       phase: current.phase,

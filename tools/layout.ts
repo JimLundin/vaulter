@@ -41,6 +41,13 @@ const semanticTags = new Set([
 const chatCodeRenderer = (path: string) => path === 'app/workflows/chat/rendering/highlight.tsx';
 const kit = (path: string) => path.startsWith('app/ui/kit/');
 const workflow = (path: string) => /^app\/workflows\/([^/]+)\//.exec(path)?.[1];
+// These owner UI declarations compose presentation; storage/model implementations remain separate.
+const vaultUi = new Set([
+  'app/vault/Gate.tsx',
+  'app/vault/session/ui.tsx',
+  'app/vault/storage/Settings.tsx',
+  'app/vault/content/tool-presentation.tsx',
+]);
 export function importProblem(from: string, to: string): string | null {
   if (workflow(from) === 'wiki' && to.startsWith('tools/'))
     return `${from} imports tooling; migration depends on Wiki, never Wiki on migration`;
@@ -75,7 +82,11 @@ export function importProblem(from: string, to: string): string | null {
     to !== 'app/ui/kit/styles.css'
   )
     return `${from} imports a private kit file; use app/ui/kit/index.ts`;
-  if (from.startsWith('app/vault/') && to.startsWith('app/ui/'))
+  if (
+    from.startsWith('app/vault/') &&
+    to.startsWith('app/ui/') &&
+    !(vaultUi.has(from) && ['app/ui/kit/index.ts', 'app/ui/ModuleSettings.tsx'].includes(to))
+  )
     return `${from} imports presentation from the vault`;
   return null;
 }
