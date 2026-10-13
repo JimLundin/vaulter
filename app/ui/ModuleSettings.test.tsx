@@ -2,7 +2,7 @@
 import { act, useState, type ReactNode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
-import type { SettingsDefinition, SettingsStore } from '../settings.ts';
+import { createSettings, type SettingsDefinition, type SettingsStore } from '../settings.ts';
 import { ModuleSettings, SecretSettings } from './ModuleSettings.tsx';
 
 const roots: Root[] = [];
@@ -16,6 +16,7 @@ afterEach(async () => {
     for (const root of roots.splice(0)) root.unmount();
   });
   document.body.replaceChildren();
+  sessionStorage.clear();
   vi.unstubAllGlobals();
 });
 
@@ -41,6 +42,25 @@ function button(label: string) {
   const element = document.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`);
   if (!element) throw new Error(`Missing button ${label}`);
   return element;
+}
+
+function dropdown(label: string) {
+  const field = [...document.querySelectorAll('label')].find(
+    (candidate) => candidate.textContent === label,
+  );
+  const element = field && document.getElementById(field.htmlFor);
+  if (!(element instanceof HTMLSelectElement)) throw new Error(`Missing dropdown for ${label}`);
+  return element;
+}
+
+async function choose(label: string, optionLabel: string) {
+  await act(() => {
+    const select = dropdown(label);
+    const option = [...select.options].find((candidate) => candidate.textContent === optionLabel);
+    if (!option) throw new Error(`Missing ${optionLabel} option for ${label}`);
+    select.value = option.value;
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+  });
 }
 
 async function fill(element: HTMLInputElement | HTMLTextAreaElement, value: string) {
@@ -191,6 +211,85 @@ test('external updates and reset replace local drafts with current module values
   expect(input('Limit').value).toBe('3');
   expect(store.values().limit).toBe(3);
   expect(document.querySelector('[role="alert"]')).toBeNull();
+});
+
+const modelChoices: SettingsDefinition = {
+  id: 'model-choices',
+  name: 'Provider',
+  fields: [
+    {
+      key: 'model',
+      label: 'Model',
+      description: 'Used for new messages.',
+      defaultValue: 'default-model',
+      choices: [
+        { value: 'default-model', label: 'Default model' },
+        { value: 'other-model', label: 'Other model' },
+      ],
+      allowCustom: true,
+      parse: (value) => value.trim() || 'default-model',
+    },
+  ],
+};
+
+test('dropdowns persist choices and custom models without clearing the active model for blank drafts', async () => {
+  const store = createSettings(modelChoices, { storage: sessionStorage });
+  const root = await mount(<ModuleSettings definition={modelChoices} store={store} />);
+  expect(dropdown('Model').value).toBe('default-model');
+  expect(descriptions(dropdown('Model'))).toContain('Used for new messages.');
+  await choose('Model', 'Other model');
+  expect(store.values().model).toBe('other-model');
+  await choose('Model', 'Custom…');
+  expect(input('Custom model').value).toBe('');
+  expect(store.values().model).toBe('other-model');
+  await fill(input('Custom model'), '  ');
+  expect(store.values().model).toBe('other-model');
+  await fill(input('Custom model'), 'private-model');
+  expect(store.values().model).toBe('private-model');
+  await fill(input('Custom model'), '');
+  expect(store.values().model).toBe('private-model');
+  await act(async () => root.render(null));
+  const reopened = createSettings(modelChoices, { storage: sessionStorage });
+  await act(async () => root.render(<ModuleSettings definition={modelChoices} store={reopened} />));
+  expect(dropdown('Model').selectedOptions[0]?.textContent).toBe('Custom…');
+  expect(input('Custom model').value).toBe('private-model');
+  await choose('Model', 'Other model');
+  expect(document.querySelectorAll('input')).toHaveLength(0);
+  expect(reopened.values().model).toBe('other-model');
+  await choose('Model', 'Custom…');
+  await fill(input('Custom model'), 'next-model');
+  await act(async () => button('Reset Provider to defaults').click());
+  expect(dropdown('Model').value).toBe('default-model');
+  expect(document.querySelectorAll('input')).toHaveLength(0);
+});
+
+test('choice save failures keep the active value and link errors to the relevant dropdown or custom input', async () => {
+  const store = createSettings(modelChoices, { storage: sessionStorage });
+  await mount(<ModuleSettings definition={modelChoices} store={store} />);
+  const save = vi.spyOn(store, 'set').mockImplementation(() => {
+    throw new Error('Settings could not be saved.');
+  });
+  await choose('Model', 'Other model');
+  expect(store.values().model).toBe('default-model');
+  expect(dropdown('Model').getAttribute('aria-invalid')).toBe('true');
+  expect(descriptions(dropdown('Model'))).toContain('Settings could not be saved.');
+  await choose('Model', 'Custom…');
+  await fill(input('Custom model'), 'private-model');
+  expect(store.values().model).toBe('default-model');
+  expect(input('Custom model').getAttribute('aria-invalid')).toBe('true');
+  expect(descriptions(input('Custom model'))).toContain('Settings could not be saved.');
+  save.mockRestore();
+  await fill(input('Custom model'), 'private-model-retry');
+  expect(store.values().model).toBe('private-model-retry');
+  expect(document.querySelector('[role="alert"]')).toBeNull();
+  await act(async () => store.set('model', 'other-model'));
+  expect(dropdown('Model').value).toBe('other-model');
+  expect(document.querySelectorAll('input')).toHaveLength(0);
+  await choose('Model', 'Custom…');
+  await act(async () => store.set('model', 'default-model'));
+  await act(async () => store.set('model', 'other-model'));
+  expect(dropdown('Model').value).toBe('other-model');
+  expect(document.querySelectorAll('input')).toHaveLength(0);
 });
 
 const secrets: SettingsDefinition = {

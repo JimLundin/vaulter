@@ -6,6 +6,38 @@ test.beforeEach(async ({ page }) => {
   await expect(page.getByRole('dialog', { name: 'Settings', exact: true })).toBeVisible();
 });
 
+test('native dropdowns own label focus and keyboard selection through resize and reopening', {
+  tag: '@phone',
+}, async ({ page }) => {
+  const select = page.getByRole('combobox', { name: 'Selected model', exact: true });
+  await expect(select).toHaveAccessibleDescription('Used for future conversations.');
+  await expect(select).toHaveValue('balanced');
+  await page.getByText('Selected model', { exact: true }).click();
+  await expect(select).toBeFocused();
+  await select.press('ArrowDown');
+  await expect(select).toHaveValue('fast');
+  await expect(page.getByRole('status', { name: 'Selected model value' })).toHaveText('fast');
+  for (const width of [390, 1440, 768]) {
+    await page.setViewportSize({ width, height: 1000 });
+    await expect(select).toBeFocused();
+    await expect(select).toHaveValue('fast');
+    await expect(select).toHaveAccessibleDescription('Used for future conversations.');
+  }
+  await page.getByRole('button', { name: 'Close settings', exact: true }).click();
+  await page.getByRole('button', { name: 'Open field settings', exact: true }).click();
+  await expect(select).toHaveValue('fast');
+});
+
+test('disabled dropdowns retain native unavailability and touch targets', {
+  tag: '@phone',
+}, async ({ page, isMobile }) => {
+  const select = page.getByRole('combobox', { name: 'Unavailable model', exact: true });
+  await expect(select).toBeDisabled();
+  await expect(select).toHaveAccessibleDescription('Selection is unavailable.');
+  await expect(select).toHaveCSS('opacity', '0.5');
+  if (isMobile) expect((await select.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+});
+
 test('a text field owns its accessible name, description and native label activation', {
   tag: '@phone',
 }, async ({ page }) => {

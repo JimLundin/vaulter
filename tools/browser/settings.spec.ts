@@ -28,8 +28,21 @@ test('module settings persist valid preferences and keep credentials with their 
     .getByRole('textbox', { name: 'Instructions', exact: true })
     .fill('Use concise answers.');
   const openai = settings.getByRole('region', { name: 'OpenAI', exact: true });
-  await openai.getByRole('textbox', { name: 'Model', exact: true }).fill('review-model');
-  await openai.getByRole('textbox', { name: 'Voice', exact: true }).fill('cedar');
+  for (const label of [
+    'Model',
+    'Voice model',
+    'Live transcription model',
+    'File transcription model',
+    'Embedding model',
+    'Voice',
+  ])
+    await expect(openai.getByRole('combobox', { name: label, exact: true })).toBeAttached();
+  const model = openai.getByRole('combobox', { name: 'Model', exact: true });
+  const initialModel = await model.inputValue();
+  await model.selectOption({ label: 'Custom…' });
+  const customModel = openai.getByRole('textbox', { name: 'Custom model', exact: true });
+  await customModel.fill('review-model');
+  await openai.getByRole('combobox', { name: 'Voice', exact: true }).selectOption('cedar');
   for (const label of ['OpenAI API key', 'GitHub token', 'Jina API key']) {
     const key = settings.getByLabel(label, { exact: true });
     await expect(key).toHaveAttribute('type', 'password');
@@ -47,15 +60,28 @@ test('module settings persist valid preferences and keep credentials with their 
   );
   await page.reload();
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
-  await expect(settings.getByRole('textbox', { name: 'Model', exact: true })).toHaveValue(
-    'review-model',
-  );
+  await expect(model.locator('option:checked')).toHaveText('Custom…');
+  await expect(customModel).toHaveValue('review-model');
+  await expect(settings.getByRole('combobox', { name: 'Voice', exact: true })).toHaveValue('cedar');
   await expect(settings.getByRole('textbox', { name: 'Instructions', exact: true })).toHaveValue(
     'Use concise answers.',
   );
   await expect(settings.getByRole('textbox', { name: 'Temperature', exact: true })).toHaveValue(
     '0.6',
   );
+  await model.selectOption('gpt-6.1-sol');
+  await expect(customModel).toHaveCount(0);
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => JSON.parse(localStorage.getItem('vaulter.settings.openai') ?? '{}').model,
+      ),
+    )
+    .toBe('gpt-6.1-sol');
+  await settings.getByRole('button', { name: 'Reset OpenAI to defaults', exact: true }).click();
+  await expect(model).toHaveValue(initialModel);
+  await expect(customModel).toHaveCount(0);
+  await expect(settings.getByRole('combobox', { name: 'Voice', exact: true })).toHaveValue('marin');
   await settings.getByRole('button', { name: 'Reset Agent to defaults', exact: true }).click();
   await expect(settings.getByRole('textbox', { name: 'Maximum steps', exact: true })).toHaveValue(
     '12',
@@ -63,4 +89,50 @@ test('module settings persist valid preferences and keep credentials with their 
   await expect(settings.getByRole('textbox', { name: 'Temperature', exact: true })).toHaveValue('');
   await settings.getByRole('button', { name: 'Close settings', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Settings', exact: true })).toBeFocused();
+});
+
+test('model and voice dropdowns support labels, native selection and custom IDs', {
+  tag: '@phone',
+}, async ({ page }) => {
+  await page.goto('/preview/#/settings/');
+  const settings = page.getByRole('dialog', { name: 'Settings', exact: true });
+  const model = settings.getByRole('combobox', { name: 'Model', exact: true });
+  await settings.getByText('Model', { exact: true }).click();
+  await expect(model).toBeFocused();
+  await model.selectOption('gpt-6.1-sol');
+  const voice = settings.getByRole('combobox', { name: 'Voice', exact: true });
+  await settings.getByText('Voice', { exact: true }).click();
+  await expect(voice).toBeFocused();
+  await page.keyboard.press('Home');
+  const firstVoice = await voice.inputValue();
+  await page.keyboard.press('ArrowDown');
+  await expect(voice).not.toHaveValue(firstVoice);
+  await voice.selectOption('cedar');
+  await expect(voice).toHaveValue('cedar');
+  await model.selectOption({ label: 'Custom…' });
+  const customModel = settings.getByRole('textbox', { name: 'Custom model', exact: true });
+  await expect(customModel).toHaveValue('');
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => JSON.parse(localStorage.getItem('vaulter.settings.openai') ?? '{}').model,
+      ),
+    )
+    .toBe('gpt-6.1-sol');
+  await customModel.fill('   ');
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => JSON.parse(localStorage.getItem('vaulter.settings.openai') ?? '{}').model,
+      ),
+    )
+    .toBe('gpt-6.1-sol');
+  await settings.getByText('Custom model', { exact: true }).click();
+  await expect(customModel).toBeFocused();
+  await customModel.fill('installation-model');
+  await settings.getByRole('button', { name: 'Close settings', exact: true }).click();
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await expect(model.locator('option:checked')).toHaveText('Custom…');
+  await expect(customModel).toHaveValue('installation-model');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });

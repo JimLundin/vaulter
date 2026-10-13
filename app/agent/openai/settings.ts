@@ -6,17 +6,45 @@ import {
 } from '../../settings.ts';
 import { DEFAULT_MODELS, DEFAULT_VOICE, openAIEndpoint } from './defaults.ts';
 
+// Keep the suggested models specific to the API each capability uses. Compatible endpoints may
+// expose additional model IDs, so these choices remain suggestions rather than validation rules.
+// https://developers.openai.com/api/docs/models
+const MODEL_CHOICES = {
+  llm: ['gpt-6-astra', 'gpt-6.1-sol', 'gpt-6-luna'],
+  voice: ['gpt-realtime-2.1', 'gpt-realtime-2.1-mini'],
+  liveTranscription: ['gpt-live-transcribe', 'gpt-realtime-whisper'],
+  fileTranscription: ['gpt-transcribe', 'gpt-4o-transcribe', 'gpt-4o-mini-transcribe'],
+  embeddings: ['text-embedding-3-small', 'text-embedding-3-large'],
+};
+
+// https://developers.openai.com/api/docs/guides/realtime-conversations#voice-options
+const VOICE_CHOICES = [
+  'marin',
+  'cedar',
+  'alloy',
+  'ash',
+  'ballad',
+  'coral',
+  'echo',
+  'sage',
+  'shimmer',
+  'verse',
+];
+
 function modelSetting(
   key: string,
   label: string,
   description: string,
   defaultValue: string,
+  choices: readonly string[],
 ): SettingDefinition {
   return {
     key,
     label,
     description,
     defaultValue,
+    choices: [...new Set([defaultValue, ...choices])].map((value) => ({ value, label: value })),
+    allowCustom: true,
     parse: (value) => value.trim() || defaultValue,
   };
 }
@@ -41,32 +69,43 @@ export function createOpenAISettings(
         'Model',
         'Used for new messages. Saved on this device.',
         options.defaultModel ?? DEFAULT_MODELS.llm,
+        MODEL_CHOICES.llm,
       ),
       modelSetting(
         'voiceModel',
         'Voice model',
         'Used for spoken Agent responses.',
         DEFAULT_MODELS.voice,
+        MODEL_CHOICES.voice,
       ),
       modelSetting(
         'liveTranscriptionModel',
         'Live transcription model',
         'Used for microphone dictation and live voice transcripts.',
         DEFAULT_MODELS.liveTranscription,
+        MODEL_CHOICES.liveTranscription,
       ),
       modelSetting(
         'fileTranscriptionModel',
         'File transcription model',
         'Used when transcribing audio recordings.',
         DEFAULT_MODELS.fileTranscription,
+        MODEL_CHOICES.fileTranscription,
       ),
       modelSetting(
         'embeddingsModel',
         'Embedding model',
         'Used when producing text embeddings.',
         DEFAULT_MODELS.embeddings,
+        MODEL_CHOICES.embeddings,
       ),
-      modelSetting('voice', 'Voice', 'The voice used for spoken Agent responses.', DEFAULT_VOICE),
+      modelSetting(
+        'voice',
+        'Voice',
+        'The voice used for spoken Agent responses.',
+        DEFAULT_VOICE,
+        VOICE_CHOICES,
+      ),
       {
         key: 'embeddingDimensions',
         label: 'Embedding dimensions',

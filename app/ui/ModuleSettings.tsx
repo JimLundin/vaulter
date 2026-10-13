@@ -1,11 +1,19 @@
 // Module definitions supply meaning and persistence; this renderer shares field behavior.
-import { type ChangeEvent, useCallback, useId, useState, useSyncExternalStore } from 'react';
+import {
+  type ChangeEvent,
+  useCallback,
+  useEffect,
+  useId,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import type { SettingDefinition, SettingsDefinition, SettingsStore } from '../settings.ts';
 import {
   Button,
   FieldError,
   Input,
   Row,
+  Select,
   SettingField,
   Stack,
   Text,
@@ -25,6 +33,11 @@ function SettingControl({
   const [draft, setDraft] = useState<{ value: string; error?: string; previous: string } | null>(
     null,
   );
+  const [customSelection, setCustomSelection] = useState<string | null>(null);
+  useEffect(() => {
+    setDraft((current) => (current && current.previous !== value ? null : current));
+    setCustomSelection((current) => (current !== value ? null : current));
+  }, [value]);
   const currentDraft = draft && draft.previous === value ? draft : null;
   const update = (next: string) => {
     try {
@@ -51,6 +64,64 @@ function SettingControl({
       if (field.kind !== 'readonly') update(event.currentTarget.value);
     },
   };
+  if (field.choices) {
+    const displayedValue = currentDraft?.value ?? value;
+    const listed = field.choices.some((choice) => choice.value === displayedValue);
+    const custom = field.allowCustom && (customSelection === value || !listed);
+    let customValue = '__custom__';
+    while (field.choices.some((choice) => choice.value === customValue)) customValue += '_';
+    const choices = [
+      ...field.choices,
+      ...(!(listed || field.allowCustom) ? [{ value: displayedValue, label: displayedValue }] : []),
+      ...(field.allowCustom ? [{ value: customValue, label: 'Custom…' }] : []),
+    ];
+    return (
+      <Stack gap="sm">
+        <SettingField label={field.label} description={field.description}>
+          <Select
+            options={choices}
+            value={custom ? customValue : displayedValue}
+            disabled={field.kind === 'readonly'}
+            aria-invalid={!custom && currentDraft?.error ? true : undefined}
+            aria-describedby={!custom && currentDraft?.error ? errorId : undefined}
+            onChange={(event) => {
+              const next = event.currentTarget.value;
+              if (field.allowCustom && next === customValue) {
+                setCustomSelection(value);
+                setDraft({ value: listed ? '' : displayedValue, previous: value });
+              } else {
+                setCustomSelection(null);
+                update(next);
+              }
+            }}
+          />
+          {!custom && currentDraft?.error ? (
+            <FieldError id={errorId}>{currentDraft.error}</FieldError>
+          ) : null}
+        </SettingField>
+        {custom ? (
+          <SettingField
+            label={`Custom ${field.label.toLowerCase()}`}
+            description="Enter a value that is not listed. Leave blank to keep the current selection."
+          >
+            <Input
+              {...props}
+              placeholder={field.placeholder}
+              onChange={(event) => {
+                const next = event.currentTarget.value;
+                if (next.trim()) update(next);
+                else setDraft({ value: next, previous: value });
+                setCustomSelection(store.snapshot()[field.key] ?? value);
+              }}
+            />
+            {currentDraft?.error ? (
+              <FieldError id={errorId}>{currentDraft.error}</FieldError>
+            ) : null}
+          </SettingField>
+        ) : null}
+      </Stack>
+    );
+  }
   return (
     <SettingField label={field.label} description={field.description}>
       {field.kind === 'multiline' ? (

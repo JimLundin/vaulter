@@ -283,14 +283,14 @@ test('paired settings fields keep independent accessible meaning and native labe
   for (const sample of [desktop, mobile]) {
     await sample.getByRole('button', { name: 'Open settings' }).click();
   }
-  const first = desktop.getByRole('textbox', { name: 'Model', exact: true });
-  const second = mobile.getByRole('textbox', { name: 'Model', exact: true });
+  const first = desktop.getByRole('combobox', { name: 'Model', exact: true });
+  const second = mobile.getByRole('combobox', { name: 'Model', exact: true });
   expect(await first.getAttribute('id')).not.toBe(await second.getAttribute('id'));
   for (const sample of [desktop, mobile]) {
-    const input = sample.getByRole('textbox', { name: 'Model', exact: true });
-    await expect(input).toHaveAccessibleDescription('Used for conversations on this device.');
+    const select = sample.getByRole('combobox', { name: 'Model', exact: true });
+    await expect(select).toHaveAccessibleDescription('Used for conversations on this device.');
     await sample.getByText('Model', { exact: true }).click();
-    await expect(input).toBeFocused();
+    await expect(select).toBeFocused();
   }
   await expect(first).not.toBeFocused();
   await expect(second).toBeFocused();
@@ -299,7 +299,7 @@ test('paired settings fields keep independent accessible meaning and native labe
     await expect(
       dialog.getByRole('radiogroup', { name: 'Theme', exact: true }),
     ).toHaveAccessibleDescription('Choose how Vaulter looks.');
-    await dialog.getByRole('textbox', { name: 'Model', exact: true }).focus();
+    await dialog.getByRole('combobox', { name: 'Model', exact: true }).focus();
     await page.keyboard.press('Escape');
     await expect(dialog).toBeHidden();
   }
@@ -329,16 +329,17 @@ test('settings and search portals remain inside their example without locking th
       })
       .toBeLessThanOrEqual(1);
     await contained(sample, dialog);
-    const input = dialog.getByRole('textbox', { name: 'Model', exact: true });
-    await expect(input).toHaveAccessibleDescription('Used for conversations on this device.');
+    const select = dialog.getByRole('combobox', { name: 'Model', exact: true });
+    await expect(select).toHaveAccessibleDescription('Used for conversations on this device.');
     await dialog.getByText('Model', { exact: true }).click();
-    await expect(input).toBeFocused();
-    await input.fill(`${device} model`);
+    await expect(select).toBeFocused();
+    const value = device === 'desktop' ? 'balanced' : 'fast';
+    await select.selectOption(value);
     await page.keyboard.press('Escape');
     await expect(dialog).toBeHidden();
     await expect(trigger).toBeFocused();
     await trigger.click();
-    await expect(input).toHaveValue(`${device} model`);
+    await expect(select).toHaveValue(value);
     await page.keyboard.press('Escape');
     expect(await page.locator('body').evaluate((node) => node.style.overflow)).toBe('');
   }

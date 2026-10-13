@@ -57,8 +57,26 @@ function field(label: string) {
     (candidate) => candidate.textContent === label,
   );
   const control = caption ? document.getElementById(caption.htmlFor) : null;
-  if (!(control instanceof HTMLInputElement || control instanceof HTMLTextAreaElement))
+  if (
+    !(
+      control instanceof HTMLInputElement ||
+      control instanceof HTMLTextAreaElement ||
+      control instanceof HTMLSelectElement
+    )
+  )
     throw new Error(`Missing field ${label}`);
+  return control;
+}
+
+function textField(label: string) {
+  const control = field(label);
+  if (control instanceof HTMLSelectElement) throw new Error(`Expected text field ${label}`);
+  return control;
+}
+
+function selectField(label: string) {
+  const control = field(label);
+  if (!(control instanceof HTMLSelectElement)) throw new Error(`Expected dropdown ${label}`);
   return control;
 }
 
@@ -69,7 +87,7 @@ function button(label: string) {
 }
 
 async function fill(label: string, value: string) {
-  const control = field(label);
+  const control = textField(label);
   await act(() => {
     const prototype =
       control instanceof HTMLTextAreaElement
@@ -77,6 +95,17 @@ async function fill(label: string, value: string) {
         : HTMLInputElement.prototype;
     Object.getOwnPropertyDescriptor(prototype, 'value')!.set!.call(control, value);
     control.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+}
+
+async function select(label: string, value: string) {
+  const control = selectField(label);
+  await act(() => {
+    Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value')!.set!.call(
+      control,
+      value,
+    );
+    control.dispatchEvent(new Event('change', { bubbles: true }));
   });
 }
 
@@ -266,15 +295,25 @@ test.each([false, true])(
       'Embedding dimensions',
     ])
       expect(field(label)).toBeDefined();
-    expect(field('Model').value).toBe('legacy-model');
+    for (const label of [
+      'Model',
+      'Voice model',
+      'Live transcription model',
+      'File transcription model',
+      'Embedding model',
+      'Voice',
+    ])
+      expect(selectField(label)).toBeDefined();
+    expect(selectField('Model').selectedOptions[0]?.textContent).toBe('Custom…');
+    expect(textField('Custom model').value).toBe('legacy-model');
     expect(localStorage.getItem('vault.agent.model')).toBeNull();
-    expect(field('OpenAI API endpoint').readOnly).toBe(true);
-    expect(field('Vault repository').readOnly).toBe(true);
-    expect(field('GitHub API endpoint').readOnly).toBe(true);
+    expect(textField('OpenAI API endpoint').readOnly).toBe(true);
+    expect(textField('Vault repository').readOnly).toBe(true);
+    expect(textField('GitHub API endpoint').readOnly).toBe(true);
     expect(field('OpenAI API key').disabled).toBe(true);
     expect(document.body.textContent).toContain('Credentials are supplied by the preview server.');
     await fill('Message', 'Keep this draft while changing preferences.');
-    await fill('Model', 'configured-model');
+    await fill('Custom model', 'configured-model');
     await fill('Instructions', 'Use the supplied evidence.\nKeep answers concise.');
     await fill('Temperature', '0.4');
     await fill('Maximum output tokens', '256');
@@ -306,7 +345,8 @@ test.each([false, true])(
     expect(conversations).toHaveLength(1);
     await fill('Message', 'Continue the same conversation.');
     await openSettings();
-    await fill('Model', 'next-model');
+    await select('Model', 'gpt-6-astra');
+    expect(document.body.textContent).not.toContain('Custom model');
     await fill('Instructions', 'Prefer direct answers.');
     await fill('Temperature', '0');
     await act(() => button('Close settings').click());
@@ -314,7 +354,7 @@ test.each([false, true])(
     await submit();
     await act(async () => vi.waitFor(() => expect(model.doStreamCalls).toHaveLength(2)));
     await act(async () => vi.waitFor(() => expect(field('Message').disabled).toBe(false)));
-    expect(suppliedModel).toHaveBeenLastCalledWith('next-model');
+    expect(suppliedModel).toHaveBeenLastCalledWith('gpt-6-astra');
     expect(model.doStreamCalls[1]).toMatchObject({ temperature: 0, maxOutputTokens: 256 });
     expect(model.doStreamCalls[1]?.prompt).toEqual(
       expect.arrayContaining([
@@ -334,9 +374,9 @@ test.each([false, true])(
 test('credential settings mask login values and wire save, restore and clear without replacing the draft', async () => {
   const { updateSecret } = await fixture();
   expect(field('OpenAI API key').value).toBe('');
-  expect(field('OpenAI API key').type).toBe('password');
-  expect(field('GitHub token').placeholder).toBe('Configured');
-  expect(field('Jina API key').placeholder).toBe('Configured');
+  expect(textField('OpenAI API key').type).toBe('password');
+  expect(textField('GitHub token').placeholder).toBe('Configured');
+  expect(textField('Jina API key').placeholder).toBe('Configured');
   expect(field('OpenAI API key').disabled).toBe(false);
   expect(document.body.innerHTML).not.toContain('login-github');
   expect(document.body.innerHTML).not.toContain('login-openai');
@@ -353,7 +393,7 @@ test('credential settings mask login values and wire save, restore and clear wit
   expect(updateSecret).toHaveBeenLastCalledWith('openai', undefined);
   await act(async () => button('Clear Jina API key').click());
   expect(updateSecret).toHaveBeenLastCalledWith('jina', null);
-  expect(field('Jina API key').placeholder).toBe('Not configured');
+  expect(textField('Jina API key').placeholder).toBe('Not configured');
   expect(field('Message').value).toBe('Retain the draft through credential updates.');
 });
 

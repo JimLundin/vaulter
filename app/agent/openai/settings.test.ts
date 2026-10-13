@@ -111,6 +111,69 @@ test('OpenAI settings expose installed defaults and exclude credentials from pre
   expect(localStorage.getItem('vaulter.settings.openai')).not.toContain('fixture.example');
 });
 
+test('OpenAI model choices match each capability and retain the installation model', () => {
+  const definition = createOpenAISettings({ defaultModel: 'installed-model' });
+  const choices = (key: string) =>
+    definition.fields.find((field) => field.key === key)?.choices?.map((choice) => choice.value);
+  expect(choices('model')?.[0]).toBe('installed-model');
+  for (const field of definition.fields.filter((candidate) => candidate.choices)) {
+    const values = field.choices!.map((choice) => choice.value);
+    expect(values).toContain(field.defaultValue);
+    expect(new Set(values).size).toBe(values.length);
+  }
+  expect(choices('model')).toContain(DEFAULT_MODELS.llm);
+  expect(choices('model')).not.toContain(DEFAULT_MODELS.voice);
+  expect(choices('voiceModel')).toContain('gpt-realtime-2.1-mini');
+  expect(choices('voiceModel')).not.toContain(DEFAULT_MODELS.llm);
+  expect(choices('liveTranscriptionModel')).toContain('gpt-realtime-whisper');
+  // Committed-turn GPT-Transcribe requires WebSocket, while dictation uses WebRTC.
+  expect(choices('liveTranscriptionModel')).not.toContain(DEFAULT_MODELS.fileTranscription);
+  expect(choices('fileTranscriptionModel')).toContain('gpt-4o-mini-transcribe');
+  expect(choices('fileTranscriptionModel')).not.toContain(DEFAULT_MODELS.liveTranscription);
+  expect(choices('embeddingsModel')).toContain('text-embedding-3-large');
+  expect(choices('embeddingsModel')).not.toContain(DEFAULT_MODELS.llm);
+  expect(choices('voice')).toContain('cedar');
+  expect(choices('voice')).not.toContain(DEFAULT_MODELS.voice);
+  const defaultChoices = providerSettings.fields.find((field) => field.key === 'model')?.choices;
+  expect(defaultChoices?.filter((choice) => choice.value === DEFAULT_MODELS.llm)).toHaveLength(1);
+});
+
+test('dropdown suggestions preserve saved custom model and voice IDs across reopening and reset', () => {
+  const definition = createOpenAISettings({
+    defaultModel: 'installed-model',
+    baseURL: 'https://compatible.example',
+  });
+  const preferences = createSettings(definition);
+  const custom = {
+    model: 'custom-text',
+    voiceModel: 'custom-realtime',
+    liveTranscriptionModel: 'custom-live-transcription',
+    fileTranscriptionModel: 'custom-file-transcription',
+    embeddingsModel: 'custom-embeddings',
+    voice: 'custom-voice',
+  };
+  for (const [key, value] of Object.entries(custom)) {
+    expect(definition.fields.find((field) => field.key === key)?.allowCustom).toBe(true);
+    preferences.set(key, value);
+  }
+  const reopened = createOpenAIPreferences(definition);
+  expect(openAIOptions(reopened.values())).toEqual({
+    models: {
+      llm: custom.model,
+      voice: custom.voiceModel,
+      liveTranscription: custom.liveTranscriptionModel,
+      fileTranscription: custom.fileTranscriptionModel,
+      embeddings: custom.embeddingsModel,
+    },
+    voice: custom.voice,
+  });
+  reopened.reset();
+  expect(openAIOptions(reopened.values())).toEqual({
+    models: { ...DEFAULT_MODELS, llm: 'installed-model' },
+    voice: DEFAULT_VOICE,
+  });
+});
+
 test.each(['0', '-1', '1.5', 'Infinity', '9007199254740992'])(
   'rejects invalid embedding dimensions %s',
   (value) => {
