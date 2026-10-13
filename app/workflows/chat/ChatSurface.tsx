@@ -57,13 +57,13 @@ export function ChatSurface({
       </Row>
       <Button
         variant="filled"
-        size="compact"
+        size="standard"
+        iconOnly={true}
         aria-label="New conversation"
         disabled={busy}
         onClick={onNewChat}
       >
         <Icon name="plus" />
-        New
       </Button>
     </Row>
   );
