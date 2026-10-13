@@ -311,6 +311,7 @@ export const implementations = [
     mechanics: ['RadioGroup', 'RadioGroupItem', 'RadioGroupIndicator'],
   },
   { source: 'parts/scroll-area.tsx', mechanics: ['ScrollArea', 'ScrollBar'] },
+  { source: 'parts/select.tsx', mechanics: ['Select'] },
   { source: 'parts/separator.tsx', mechanics: ['Separator'] },
   {
     source: 'parts/sidebar.tsx',

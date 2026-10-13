@@ -49,7 +49,7 @@ test(
     const settings = page.getByRole('dialog', { name: 'Settings', exact: true });
     await expect(settings).toBeVisible();
     await expect(settings.getByRole('region', { name: 'Chat', exact: true })).toBeVisible();
-    await expect(settings.getByRole('textbox', { name: 'Model', exact: true })).toBeVisible();
+    await expect(settings.getByRole('combobox', { name: 'Model', exact: true })).toBeVisible();
     expect(page.url()).toBe(beforeSettings);
     await expect(
       page.getByRole('button', { name: 'Settings', exact: true, includeHidden: true }),
@@ -96,25 +96,29 @@ test('a direct settings URL opens the same menu and preserves the agent draft', 
 }, async ({ page }) => {
   await page.goto('/preview/#/settings/');
   const settings = page.getByRole('dialog', { name: 'Settings', exact: true });
-  await expect(settings.getByRole('textbox', { name: 'Model', exact: true })).toBeVisible();
+  await expect(settings.getByRole('combobox', { name: 'Model', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Close settings' }).click();
   await expect(page).toHaveURL(/#\/chat\/$/);
   const draft = page.getByRole('textbox', { name: 'Message', exact: true });
   await draft.fill('Keep this message while changing preferences');
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   await expect(settings).toBeVisible();
-  const model = settings.getByRole('textbox', { name: 'Model', exact: true });
+  const model = settings.getByRole('combobox', { name: 'Model', exact: true });
   await expect(model).toHaveAccessibleDescription('Used for new messages. Saved on this device.');
   await settings.getByText('Model', { exact: true }).click();
   await expect(model).toBeFocused();
-  await model.fill('example-model');
+  await model.selectOption({ label: 'Custom…' });
+  const customModel = settings.getByRole('textbox', { name: 'Custom model', exact: true });
+  await customModel.fill('example-model');
   await page.keyboard.press('Escape');
   await expect(draft).toHaveValue('Keep this message while changing preferences');
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
-  await expect(model).toHaveValue('example-model');
+  await expect(model.locator('option:checked')).toHaveText('Custom…');
+  await expect(customModel).toHaveValue('example-model');
   await page.reload();
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
-  await expect(model).toHaveValue('example-model');
+  await expect(model.locator('option:checked')).toHaveText('Custom…');
+  await expect(customModel).toHaveValue('example-model');
 });
 
 test('Appearance group retains keyboard selection and device preference after reopening and reload', {
@@ -584,7 +588,12 @@ test('the composer and search stay within the visual viewport when a keyboard op
   await page.getByRole('button', { name: 'Close search' }).click();
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   const settings = page.getByRole('dialog', { name: 'Settings', exact: true });
-  await settings.getByRole('textbox', { name: 'Model', exact: true }).fill('Keyboard preference');
+  await settings
+    .getByRole('combobox', { name: 'Model', exact: true })
+    .selectOption({ label: 'Custom…' });
+  await settings
+    .getByRole('textbox', { name: 'Custom model', exact: true })
+    .fill('Keyboard preference');
   await expect
     .poll(async () => {
       const box = (await settings.boundingBox())!;

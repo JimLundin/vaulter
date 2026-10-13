@@ -72,7 +72,7 @@ annotation transform may annotate semantic data, with no UI presentation permiss
 | `command-overlay.tsx` | shared responsive command-list overlay |
 | `expandable-row.tsx` | shared disclosure, metadata and compact actions |
 | `settings.tsx` | feature-named settings menu and shared form rows |
-| `field-association.ts` | private association state consumed by text controls and radio groups through nested layouts |
+| `field-association.ts` | private association state consumed by text controls, selects and radio groups through nested layouts |
 | `surfaces.tsx` | gates, preview notice, tool results, panels and unified diffs |
 | `chart.tsx`, `diff.tsx`, `map.tsx` | accessible charts, code diffs, lazy map presentation |
 | `styles.css`, `theme.tsx` | zinc color tokens, light/dark/system theme |

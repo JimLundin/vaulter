@@ -2,6 +2,7 @@ import type { EmbeddingProvider } from '../providers.ts';
 import { z } from 'zod';
 import { frozen } from '../../vault/nodes/json.ts';
 import { openAIHttp, type OpenAIConnectionOptions } from './http.ts';
+import { DEFAULT_MODELS } from './defaults.ts';
 
 const resultSchema = z.object({
   model: z.string().min(1),
@@ -20,7 +21,7 @@ export function openAIEmbeddings(
   options: OpenAIConnectionOptions & { readonly model?: string; readonly dimensions?: number },
 ): EmbeddingProvider {
   const http = openAIHttp(options);
-  const model = options.model ?? 'text-embedding-3-small';
+  const model = options.model ?? DEFAULT_MODELS.embeddings;
   const dimensions =
     options.dimensions ??
     (model === 'text-embedding-3-small'

@@ -220,7 +220,14 @@ function Fields() {
           <K.Field orientation="setting">
             <K.FieldLabel htmlFor={`${id}-model`}>Model</K.FieldLabel>
             <K.FieldContent>
-              <K.Input id={`${id}-model`} defaultValue="example-model" />
+              <K.Select
+                id={`${id}-model`}
+                defaultValue="balanced"
+                options={[
+                  { value: 'balanced', label: 'Balanced model' },
+                  { value: 'fast', label: 'Fast model' },
+                ]}
+              />
             </K.FieldContent>
             <K.FieldDescription>The shared settings arrangement.</K.FieldDescription>
           </K.Field>
@@ -779,9 +786,13 @@ function Search() {
 function Preferences({ model, onChange }: { model?: string; onChange?: (value: string) => void }) {
   return (
     <K.SettingField label="Model" description="Used for conversations on this device.">
-      <K.Input
+      <K.Select
+        options={[
+          { value: 'balanced', label: 'Balanced model' },
+          { value: 'fast', label: 'Fast model' },
+        ]}
         {...(model === undefined
-          ? { defaultValue: 'example-model' }
+          ? { defaultValue: 'balanced' }
           : { value: model, onChange: (event) => onChange?.(event.currentTarget.value) })}
       />
     </K.SettingField>
@@ -789,7 +800,7 @@ function Preferences({ model, onChange }: { model?: string; onChange?: (value: s
 }
 function Settings() {
   const [open, setOpen] = useState(false);
-  const [model, setModel] = useState('example-model');
+  const [model, setModel] = useState('balanced');
   return (
     <K.Stack>
       <K.Button variant="outline" onClick={() => setOpen(true)}>
@@ -1620,7 +1631,14 @@ export const catalogue: Specimen[] = [
     title: 'Settings',
     description:
       'Feature-owned text and choice fields with shared association: desktop dialog and phone drawer.',
-    components: ['SettingsMenu', 'SettingsSection', 'SettingField', 'ThemeSwitch', 'RadioGroup'],
+    components: [
+      'SettingsMenu',
+      'SettingsSection',
+      'SettingField',
+      'ThemeSwitch',
+      'RadioGroup',
+      'Select',
+    ],
     Sample: Settings,
   },
   {

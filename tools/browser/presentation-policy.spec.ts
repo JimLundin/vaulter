@@ -269,21 +269,22 @@ test('paired sample Escape closes only the focused sample and keeps the other ed
   const mobile = family.locator('[data-kit-preview="mobile"]');
   for (const sample of [desktop, mobile])
     await sample.getByRole('button', { name: 'Open settings' }).click();
-  await desktop
+  const desktopModel = desktop
     .getByRole('dialog', { name: 'Settings', exact: true })
-    .getByRole('textbox', { name: 'Model', exact: true })
-    .fill('desktop remains');
-  await mobile
+    .getByRole('combobox', { name: 'Model', exact: true });
+  const mobileModel = mobile
     .getByRole('dialog', { name: 'Settings', exact: true })
-    .getByRole('textbox', { name: 'Model', exact: true })
-    .fill('mobile remains');
+    .getByRole('combobox', { name: 'Model', exact: true });
+  await desktopModel.selectOption('fast');
+  await mobileModel.selectOption('balanced');
+  await mobileModel.focus();
   await page.keyboard.press('Escape');
   await expect(mobile.getByRole('dialog', { name: 'Settings', exact: true })).toBeHidden();
   await expect(desktop.getByRole('dialog', { name: 'Settings', exact: true })).toBeVisible();
-  await desktop
-    .getByRole('dialog', { name: 'Settings', exact: true })
-    .getByRole('textbox', { name: 'Model', exact: true })
-    .fill('still editable');
+  await expect(desktopModel).toHaveValue('fast');
+  await desktopModel.selectOption('balanced');
+  await expect(desktopModel).toHaveValue('balanced');
+  await desktopModel.focus();
   await page.keyboard.press('Escape');
   await expect(desktop.getByRole('dialog', { name: 'Settings', exact: true })).toBeHidden();
   await expect(desktop.getByRole('button', { name: 'Open settings' })).toBeFocused();
@@ -302,8 +303,8 @@ test('unmounting open settings samples leaves replacement surfaces and reopened 
       await sample.getByRole('button', { name: 'Open settings' }).click();
       await sample
         .getByRole('dialog', { name: 'Settings', exact: true })
-        .getByRole('textbox', { name: 'Model', exact: true })
-        .fill(`Task before unmount ${cycle}`);
+        .getByRole('combobox', { name: 'Model', exact: true })
+        .selectOption(cycle === 0 ? 'fast' : 'balanced');
     }
     await filter.fill('Search & commands');
     await expect(settings).toHaveCount(0);
@@ -321,10 +322,12 @@ test('unmounting open settings samples leaves replacement surfaces and reopened 
   const mobile = settings.locator('[data-kit-preview="mobile"]');
   const opener = mobile.getByRole('button', { name: 'Open settings' });
   await opener.click();
-  await mobile
+  const model = mobile
     .getByRole('dialog', { name: 'Settings', exact: true })
-    .getByRole('textbox', { name: 'Model', exact: true })
-    .fill('Task after unmount');
+    .getByRole('combobox', { name: 'Model', exact: true });
+  await model.selectOption('fast');
+  await expect(model).toHaveValue('fast');
+  await model.focus();
   await page.keyboard.press('Escape');
   await expect(mobile.getByRole('dialog', { name: 'Settings', exact: true })).toBeHidden();
   await expect(opener).toBeFocused();

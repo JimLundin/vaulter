@@ -89,7 +89,7 @@ export const parseToolExecution = (value: unknown) =>
   parsed<ToolExecutionData>(toolExecutionSchema, value);
 
 /** Invocation settings are narrower than historical JSON, whose unknown fields remain readable. */
-const modelSettings = z.strictObject({
+export const agentSettingsSchema = z.strictObject({
   maxSteps: z.number().int().positive().optional(),
   maxOutputTokens: z.number().int().positive().optional(),
   temperature: z.number().finite().min(0).max(2).optional(),
@@ -103,6 +103,6 @@ const modelSettings = z.strictObject({
 });
 export function parseAgentSettings(value: unknown): import('../vault/nodes/model.ts').JsonObject {
   canonical(value);
-  modelSettings.parse(value);
+  agentSettingsSchema.parse(value);
   return frozen(structuredClone(value)) as import('../vault/nodes/model.ts').JsonObject;
 }

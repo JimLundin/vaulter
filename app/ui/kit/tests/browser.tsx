@@ -29,6 +29,7 @@ import {
   Row,
   CommandOverlay,
   SettingField,
+  Select,
   FeaturePage,
   SettingsMenu,
   SettingsSection,
@@ -347,10 +348,35 @@ function ComposerFixture() {
 
 function FieldFixture() {
   const [open, setOpen] = useState(false);
+  const [model, setModel] = useState('balanced');
   return (
     <Stack>
       <Button onClick={() => setOpen(true)}>Open field settings</Button>
       <SettingsMenu open={open} onClose={() => setOpen(false)} features={[]}>
+        <SettingsSection title="Select association">
+          <SettingField label="Selected model" description="Used for future conversations.">
+            <Stack>
+              <Select
+                value={model}
+                onChange={(event) => setModel(event.currentTarget.value)}
+                options={[
+                  { value: 'balanced', label: 'Balanced model' },
+                  { value: 'fast', label: 'Fast model' },
+                ]}
+              />
+            </Stack>
+          </SettingField>
+          <Text role="status" aria-label="Selected model value">
+            {model}
+          </Text>
+          <SettingField label="Unavailable model" description="Selection is unavailable.">
+            <Select
+              disabled={true}
+              defaultValue="balanced"
+              options={[{ value: 'balanced', label: 'Balanced model' }]}
+            />
+          </SettingField>
+        </SettingsSection>
         <SettingsSection title="Text association">
           <SettingField label="Default model" description="Used for new conversations.">
             <Input defaultValue="Initial model" />
