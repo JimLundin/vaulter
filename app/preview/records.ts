@@ -189,10 +189,18 @@ export async function seedPreviewRecords(nodes: NodeStore): Promise<void> {
     await nodes.commit(
       request(transaction, [
         create('preview:tool-source', {
-          kind: 'content',
+          kind: 'resource',
           title: 'Studio tools conversation',
-          text: 'I use chisels and a hand plane most mornings. The power tools are for occasional projects, and there is not room to leave everything out.',
+          url: 'https://example.invalid/studio-tools',
         }),
+        create(
+          'preview:tool-source-text',
+          {
+            kind: 'run',
+            text: 'I use chisels and a hand plane most mornings. The power tools are for occasional projects, and there is not room to leave everything out.',
+          },
+          'preview:tool-source',
+        ),
         create('preview:tool-knowledge', { kind: 'paragraph' }, 'preview:page:0', 'c'),
         create(
           'preview:tool-knowledge-text',
@@ -223,7 +231,7 @@ export async function seedPreviewRecords(nodes: NodeStore): Promise<void> {
           connection: question.connection,
         },
         ...[
-          ['preview:question-source', 'generated-from', 'preview:tool-source'],
+          ['preview:question-source', 'generated-from', 'preview:tool-source-text'],
           ['preview:question-knowledge', 'informed-by', 'preview:tool-knowledge-text'],
         ].map(
           ([node, predicate, target], index): NodeChange => ({
