@@ -82,9 +82,11 @@ export const openAITranscription =
         signal,
         timeoutMs: 15_000,
         requestError: (path, status) =>
-          path === 'realtime/client_secrets'
-            ? `OpenAI transcription could not connect (${status}). Check your OpenAI key and API access.`
-            : `OpenAI transcription could not connect (${status}). Try again or type a message.`,
+          [404, 405, 501].includes(status)
+            ? `Live transcription is unavailable at the configured API endpoint (${status}).`
+            : path === 'realtime/client_secrets' && [401, 403].includes(status)
+              ? `OpenAI transcription could not connect (${status}). Check your OpenAI key and API access.`
+              : `OpenAI transcription could not connect (${status}). Try again or type a message.`,
         messages: {
           unavailable: 'Live transcription is unavailable in this browser. You can type a message.',
           credential: 'OpenAI did not return a transcription session credential.',

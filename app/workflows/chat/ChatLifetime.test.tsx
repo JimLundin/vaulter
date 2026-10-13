@@ -14,6 +14,77 @@ import { Chat } from './Chat.tsx';
 import { ChatIndicator } from './index.tsx';
 import { useNodeConversation, useNodeChat } from './use-node-conversation.ts';
 
+test.each([undefined, 'missing-retained-chat', 'saved-chat'])(
+  'a fresh chat page stays empty and error-free with retained selection %s',
+  async (retainedConversation) => {
+    vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+    if (retainedConversation)
+      localStorage.setItem(
+        'vaulter:conversation:https://api.github.com:JimLundin/vault@main',
+        retainedConversation,
+      );
+    const nodes = memoryNodeBackend();
+    await seed(nodes);
+    await nodes.commit(
+      request('saved', [
+        create('saved-chat', {
+          kind: 'conversation',
+          title: 'Saved',
+          createdAt: '2026-10-10T12:00:00Z',
+        }),
+        create(
+          'saved-exchange',
+          { kind: 'exchange', startedAt: '2026-10-10T12:00:00Z' },
+          'saved-chat',
+        ),
+        create(
+          'saved-message',
+          {
+            kind: 'message',
+            role: 'user',
+            at: '2026-10-10T12:00:00Z',
+            text: 'Earlier conversation',
+          },
+          'saved-exchange',
+        ),
+      ]),
+    );
+    const model = vi.fn(async () => {
+      throw new Error('Reading must not execute');
+    });
+    function Surface() {
+      const conversation = useNodeConversation({
+        nodes,
+        user: 'user',
+        agent: 'user',
+        provider: 'fictional',
+        selectedModel: '',
+        instructions: '',
+        model,
+        suggestions: async () => [],
+      });
+      return <Chat conversation={conversation} arg={null} presentation={{ page: true }} />;
+    }
+    const root = createRoot(document.body);
+    try {
+      await act(async () => root.render(<Surface />));
+      expect(
+        [...document.querySelectorAll('[role="alert"]')].map((element) => element.textContent),
+      ).toEqual([]);
+      expect(document.body.textContent).not.toContain('Earlier conversation');
+      expect(document.querySelector('[data-message]')).toBeNull();
+      expect(model).not.toHaveBeenCalled();
+      expect(await nodes.history()).toHaveLength(2);
+    } finally {
+      await act(async () => root.unmount());
+      nodes.close();
+      localStorage.clear();
+      document.body.replaceChildren();
+      vi.unstubAllGlobals();
+    }
+  },
+);
+
 test('requested history retries a failed read when store readiness changes', async () => {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
   const store = memoryNodeBackend();
@@ -76,14 +147,72 @@ test('requested history retries a failed read when store readiness changes', asy
   try {
     await act(async () => root.render(<Surface availability="Opening the node store…" />));
     expect(document.body.textContent).toContain('Store is opening');
-    // Product removes a failed conversation route so navigation remains truthful.
-    await act(async () => root.render(<Surface availability="Opening the node store…" route="" />));
     unavailable = false;
     await act(async () =>
-      root.render(<Surface availability="Configure a model before sending." route="" />),
+      root.render(<Surface availability="Configure a model before sending." />),
     );
     expect(document.body.textContent).toContain('Retained history is readable');
     expect(document.body.textContent).not.toContain('Store is opening');
+  } finally {
+    await act(async () => root.unmount());
+    store.close();
+    document.body.replaceChildren();
+    vi.unstubAllGlobals();
+  }
+});
+
+test('requested history waits for the initial node read without showing a false unavailable error', async () => {
+  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+  const store = memoryNodeBackend();
+  await seed(store);
+  await store.commit(
+    request('saved', [
+      create('saved-chat', {
+        kind: 'conversation',
+        title: 'Saved',
+        createdAt: '2026-10-10T12:00:00Z',
+      }),
+      create(
+        'saved-exchange',
+        { kind: 'exchange', startedAt: '2026-10-10T12:00:00Z' },
+        'saved-chat',
+      ),
+      create(
+        'saved-message',
+        { kind: 'message', role: 'user', at: '2026-10-10T12:00:00Z', text: 'Ready history' },
+        'saved-exchange',
+      ),
+    ]),
+  );
+  let ready = false;
+  const snapshot = vi.fn<NodeStore['snapshot']>((sequence) =>
+    ready ? store.snapshot(sequence) : Promise.reject(new Error('Conversation is unavailable')),
+  );
+  const nodes: NodeStore = { ...store, snapshot };
+  function Surface({ recordsReady }: { recordsReady: boolean }) {
+    const conversation = useNodeConversation({
+      nodes,
+      user: 'user',
+      agent: 'user',
+      provider: 'fictional',
+      selectedModel: '',
+      instructions: '',
+      conversation: 'saved-chat',
+      recordsReady,
+      suggestions: async () => [],
+      model: () => Promise.reject(new Error('Reading must not execute')),
+    });
+    return <Chat conversation={conversation} arg={null} presentation={{ page: true }} />;
+  }
+  const root = createRoot(document.body);
+  try {
+    await act(async () => root.render(<Surface recordsReady={false} />));
+    expect(snapshot).not.toHaveBeenCalled();
+    expect(document.querySelector('[role="alert"]')).toBeNull();
+    ready = true;
+    await act(async () => root.render(<Surface recordsReady={true} />));
+    expect(document.body.textContent).toContain('Ready history');
+    expect(document.querySelector('[role="alert"]')).toBeNull();
   } finally {
     await act(async () => root.unmount());
     store.close();

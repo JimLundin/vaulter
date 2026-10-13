@@ -138,6 +138,21 @@ test('OpenAI model choices match each capability and retain the installation mod
   expect(defaultChoices?.filter((choice) => choice.value === DEFAULT_MODELS.llm)).toHaveLength(1);
 });
 
+test('Foundry defaults to the supported recorded-audio model and retains explicit model choices', () => {
+  const baseURL =
+    'https://fictional.palantirfoundry.com/language-model-service/api/proxy/openai/v1';
+  const definition = createOpenAISettings({ baseURL });
+  const preferences = createSettings(definition);
+  expect(openAIOptions(preferences.values()).models.fileTranscription).toBe('gpt-4o-transcribe');
+  expect(createOpenAICapabilities({ apiKey: 'fictional', baseURL }).models.fileTranscription).toBe(
+    'gpt-4o-transcribe',
+  );
+  preferences.set('fileTranscriptionModel', 'custom-file-model');
+  expect(openAIOptions(createOpenAIPreferences(definition).values()).models.fileTranscription).toBe(
+    'custom-file-model',
+  );
+});
+
 test('dropdown suggestions preserve saved custom model and voice IDs across reopening and reset', () => {
   const definition = createOpenAISettings({
     defaultModel: 'installed-model',

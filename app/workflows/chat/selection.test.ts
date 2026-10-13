@@ -100,10 +100,10 @@ test('admitted New invalidates pending Open and creates no empty saved conversat
   chat.dispose();
 });
 
-test('explicit Open supersedes startup latest restoration during its list read', async () => {
+test('explicit Open supersedes startup restoration during its history read', async () => {
   const { chat, hold, reads } = await fixture();
   hold();
-  const restoration = chat.restore();
+  const restoration = chat.restore('first');
   const explicit = chat.open('second');
   reads[1]!.release();
   await explicit;
@@ -111,6 +111,17 @@ test('explicit Open supersedes startup latest restoration during its list read',
   expect(await restoration).toEqual({ status: 'superseded' });
   expect(await chat.restore()).toEqual({ status: 'superseded' });
   expect(chat.conversation()).toBe('second');
+  chat.dispose();
+});
+
+test('startup without a requested conversation neither reads history nor selects a saved chat', async () => {
+  const { chat, hold, reads } = await fixture();
+  const selected = chat.conversation();
+  hold();
+  expect(await chat.restore()).toEqual({ status: 'selected', conversation: selected });
+  expect(reads).toHaveLength(0);
+  expect(chat.conversation()).toBe(selected);
+  expect(chat.snapshot()).toMatchObject({ turns: [], selection: {} });
   chat.dispose();
 });
 

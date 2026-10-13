@@ -12,6 +12,7 @@ import { memoryBackend } from './vault/storage/memory.ts';
 import { memoryNodeBackend } from './vault/nodes/memory.ts';
 import type { NodeBackend } from './vault/nodes/store.ts';
 import type { Secrets } from './vault/session/sealed.ts';
+import { media } from './agent/openai/media.test-support.ts';
 
 type StreamResult = Awaited<ReturnType<MockLanguageModelV4['doStream']>>;
 const cleanups: (() => Promise<void>)[] = [];
@@ -403,6 +404,60 @@ test('credential settings mask login values and wire save, restore and clear wit
   expect(updateSecret).toHaveBeenLastCalledWith('jina', null);
   expect(textField('Jina API key').placeholder).toBe('Not configured');
   expect(field('Message').value).toBe('Retain the draft through credential updates.');
+});
+
+test('chat dictation falls back from a missing Realtime endpoint and keeps the configured key and draft', async () => {
+  const { track, fetch } = media();
+  class Recorder {
+    static isTypeSupported = () => true;
+    mimeType = 'audio/webm';
+    state = 'inactive';
+    ondataavailable: ((event: { data: Blob }) => void) | null = null;
+    onstop: (() => void) | null = null;
+    start() {
+      this.state = 'recording';
+    }
+    stop() {
+      this.state = 'inactive';
+      this.ondataavailable?.({ data: new Blob(['fictional audio'], { type: this.mimeType }) });
+      this.onstop?.();
+    }
+  }
+  vi.stubGlobal('MediaRecorder', Recorder);
+  fetch.mockReset().mockImplementation((url, init) => {
+    expect(new Headers(init!.headers).get('authorization')).toBe('Bearer custom-openai');
+    if (String(url).endsWith('/realtime/client_secrets'))
+      return Promise.resolve(new Response('Fictional missing Realtime endpoint', { status: 404 }));
+    expect(String(url)).toBe('https://api.openai.com/v1/audio/transcriptions');
+    expect(track.stop).toHaveBeenCalled();
+    expect(init!.body).toBeInstanceOf(FormData);
+    expect((init!.body as FormData).get('model')).toBe('gpt-4o-transcribe');
+    return Promise.resolve(Response.json({ text: 'Dictated words.' }));
+  });
+  vi.stubGlobal('fetch', fetch);
+  const { model, nodes } = await fixture();
+  await select('File transcription model', 'gpt-4o-transcribe');
+  await act(() => {
+    history.replaceState(null, '', '#/chat/');
+    globalThis.dispatchEvent(new HashChangeEvent('hashchange'));
+  });
+  await fill('Message', 'Keep my draft.');
+  const start = button('Start voice interaction');
+  await act(async () => start.click());
+  expect(
+    [...document.querySelectorAll('[role="alert"]')].map((element) => element.textContent),
+  ).toEqual([]);
+  expect(button('Finish recording')).toBeDefined();
+  expect(fetch).toHaveBeenCalledOnce();
+  await act(async () => button('Finish recording').click());
+  expect(field('Message').value).toBe('Keep my draft. Dictated words.');
+  expect(fetch).toHaveBeenCalledTimes(2);
+  expect(model.doStreamCalls).toHaveLength(0);
+  expect(await runs(nodes)).toEqual([]);
+  await act(async () => button('Start voice interaction').click());
+  expect(fetch).toHaveBeenCalledTimes(2);
+  await act(async () => button('Finish recording').click());
+  expect(fetch).toHaveBeenCalledTimes(3);
 });
 
 test('pending GitHub replacement blocks new activity and retains the draft and conversation across adapters', async () => {

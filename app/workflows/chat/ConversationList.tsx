@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   Stack,
+  Button,
   Text,
   SelectionRow,
   SelectionGroupHeading,
@@ -9,6 +10,7 @@ import {
 import type { NodeConversation } from './node-conversation.ts';
 import { useNodeChat } from './use-node-conversation.ts';
 import type { SavedChat } from './records/chat-store.ts';
+import { later } from '../../ui/later.ts';
 
 export function ConversationList({
   conversation,
@@ -77,6 +79,15 @@ export function ConversationList({
             }}
           />
         ))
+      )}
+      {!!records.hasMore && (
+        <Button
+          variant="outline"
+          disabled={records.loading}
+          onClick={() => later(conversation.loadOlderRecords())}
+        >
+          {records.loading ? 'Loading older conversations…' : 'Load older conversations'}
+        </Button>
       )}
     </Stack>
   );

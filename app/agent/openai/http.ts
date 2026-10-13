@@ -8,6 +8,19 @@ export interface OpenAIConnectionOptions {
   readonly timeoutMs?: number;
   readonly requestError?: (path: string, status: number) => string;
 }
+
+export class OpenAIRequestError extends Error {
+  readonly path: string;
+  readonly status: number;
+
+  constructor(path: string, status: number, message: string) {
+    super(message);
+    this.name = 'OpenAIRequestError';
+    this.path = path;
+    this.status = status;
+  }
+}
+
 export function openAIHttp(options: OpenAIConnectionOptions) {
   if (!options.apiKey.trim()) throw new Error('An unlocked OpenAI key is required');
   const api = openAIEndpoint(options.baseURL);
@@ -36,7 +49,9 @@ export function openAIHttp(options: OpenAIConnectionOptions) {
         ]),
       });
       if (!response.ok)
-        throw new Error(
+        throw new OpenAIRequestError(
+          path,
+          response.status,
           options.requestError?.(path, response.status) ??
             `OpenAI ${path} request failed (${response.status})`,
         );

@@ -4,7 +4,7 @@ import '@fontsource-variable/newsreader';
 import '../ui/kit/styles.css';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { OpenProduct, previewConversationKey } from '../product.tsx';
+import { OpenProduct } from '../product.tsx';
 import { later } from '../ui/later.ts';
 import { startTheme, Text, DesignPreview } from '../ui/kit/index.ts';
 import { useWriter, applyOverlay } from '../vault/changes/writer.ts';
@@ -213,7 +213,7 @@ function Preview({ initialHead, nodes }: { initialHead: Head; nodes: NodeStore }
       chat={agent ? 'Live agent' : 'Scripted chat'}
       onReset={() => {
         sessionStorage.removeItem(previewJournalKey);
-        sessionStorage.removeItem(previewConversationKey);
+        location.hash = '#/chat/';
         location.reload();
       }}
       kitHref={import.meta.env.DEV ? '/ui/kit/' : './kit/'}

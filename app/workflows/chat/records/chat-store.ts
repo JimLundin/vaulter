@@ -95,32 +95,50 @@ function projectMessage(snapshot: NodeSnapshot, version: NodeVersion): SavedMess
 const latest = (times: readonly string[]) =>
   times.reduce((a, b) => (Date.parse(b) > Date.parse(a) ? b : a));
 
+export const CONVERSATION_PAGE_SIZE = 20;
+
 /**
  * The vault's conversations: its conversation roots, however they were recorded, most recently
- * active first. Activity includes every exchange and message, independently of placement order.
+ * active first. Read dates for list activity without decoding exchange or message bodies.
  */
-export async function savedChats(store: NodeStore): Promise<readonly SavedChat[]> {
+export async function savedChats(
+  store: NodeStore,
+  query: { readonly limit?: number } = {},
+): Promise<readonly SavedChat[]> {
+  const limit = query.limit ?? CONVERSATION_PAGE_SIZE;
+  if (!Number.isInteger(limit) || limit < 0)
+    throw new Error('Conversation limit must be a nonnegative integer');
+  if (!limit) return Object.freeze([]);
   const snapshot = await store.snapshot();
-  const chats = snapshot.roots().flatMap((version): SavedChat[] => {
+  const chats = snapshot.roots().flatMap((version) => {
     if (version.data?.kind !== 'conversation') return [];
-    const data = parseConversation(version.data);
-    const times = [data.createdAt];
+    const times = [parseChatInstant(String(version.data.createdAt))];
     for (const exchange of snapshot.children(version.key.node)) {
       if (exchange.data?.kind !== 'exchange') continue;
-      const exchangeData = parseExchange(exchange.data);
-      times.push(exchangeData.startedAt);
-      if (exchangeData.endedAt) times.push(exchangeData.endedAt);
+      times.push(parseChatInstant(String(exchange.data.startedAt)));
+      if (exchange.data.endedAt) times.push(parseChatInstant(String(exchange.data.endedAt)));
       for (const child of snapshot.children(exchange.key.node))
-        if (child.data?.kind === 'message') times.push(parseMessage(child.data).at);
+        if (child.data?.kind === 'message') times.push(parseChatInstant(String(child.data.at)));
     }
-    return [{ node: version.key.node, data, activeAt: latest(times) }];
+    return [{ version, activeAt: latest(times) }];
   });
   return frozen(
-    chats.sort(
-      (a, b) =>
-        Date.parse(b.activeAt) - Date.parse(a.activeAt) ||
-        (a.node < b.node ? -1 : a.node > b.node ? 1 : 0),
-    ),
+    chats
+      .sort(
+        (a, b) =>
+          Date.parse(b.activeAt) - Date.parse(a.activeAt) ||
+          (a.version.key.node < b.version.key.node
+            ? -1
+            : a.version.key.node > b.version.key.node
+              ? 1
+              : 0),
+      )
+      .slice(0, limit)
+      .map(({ version, activeAt }) => ({
+        node: version.key.node,
+        data: parseConversation(version.data),
+        activeAt,
+      })),
   );
 }
 
@@ -130,7 +148,12 @@ export async function savedMessages(
   sequence?: number,
 ): Promise<readonly SavedMessage[]> {
   const snapshot = await store.snapshot(sequence);
-  parseConversation(snapshot.get(node)?.data);
+  const conversation = snapshot.get(node);
+  if (conversation?.data?.kind !== 'conversation')
+    throw new Error(
+      'Conversation is unavailable. Start a new chat or choose another conversation.',
+    );
+  parseConversation(conversation.data);
   return frozen(
     snapshot.children(node).flatMap((exchange) => {
       if (exchange.data?.kind !== 'exchange') return [];

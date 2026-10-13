@@ -39,6 +39,7 @@ export function useNodeConversation(options: NodeConversationOptions) {
     restoration.current = { owner: conversation, startup: true };
   // biome-ignore lint/correctness/useExhaustiveDependencies: capability readiness can retry startup reads; execution permission never gates them.
   useEffect(() => {
+    if (options.recordsReady === false) return;
     const restoring = restoration.current.startup;
     restoration.current.startup = false;
     const requested = options.conversation;
@@ -63,8 +64,7 @@ export function useNodeConversation(options: NodeConversationOptions) {
       );
     } else {
       restoration.current.requested = undefined;
-      later(conversation.restore(options.retainedConversation));
     }
-  }, [conversation, options.conversation, options.retainedConversation, options.availability]);
+  }, [conversation, options.conversation, options.availability, options.recordsReady]);
   return conversation;
 }
