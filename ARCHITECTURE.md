@@ -58,7 +58,8 @@ workflow, including in tests. For example, chat receives an optional history URL
 where History lives. Product explicitly supplies content tools and provider capabilities to Chat.
 
 Modules define their configuration through `SettingsDefinition` in `app/settings.ts`: field keys,
-labels, defaults, kinds and parsing. Agent owns invocation settings, Chat owns instructions, and
+labels, defaults, kinds, suggested choices, custom-value support and parsing. Agent owns invocation
+settings, Chat owns instructions, and
 OpenAI, GitHub storage and Jina own implementation-specific options and credentials. The shared
 preference store validates device preferences; `ModuleSettings` and `SecretSettings` render the
 definitions through public kit controls. Appearance uses the same definition with the kit's theme

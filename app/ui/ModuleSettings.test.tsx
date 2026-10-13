@@ -292,6 +292,54 @@ test('choice save failures keep the active value and link errors to the relevant
   expect(document.querySelectorAll('input')).toHaveLength(0);
 });
 
+test('numeric presets keep zero, validate custom values and allow selecting the provider default', async () => {
+  const definition: SettingsDefinition = {
+    id: 'numeric-choices',
+    name: 'Provider',
+    fields: [
+      {
+        key: 'retries',
+        label: 'Maximum retries',
+        description: 'Retries for requests.',
+        kind: 'number',
+        choices: [
+          { value: '', label: 'Provider default' },
+          { value: '0', label: 'No retries' },
+          { value: '2', label: '2' },
+        ],
+        allowCustom: true,
+        parse: (value) => {
+          if (!value.trim()) return;
+          const count = Number(value);
+          if (!Number.isInteger(count) || count < 0)
+            throw new Error('Enter a nonnegative integer.');
+          return count;
+        },
+      },
+    ],
+  };
+  const store = createSettings(definition, { storage: sessionStorage });
+  await mount(<ModuleSettings definition={definition} store={store} />);
+  expect(dropdown('Maximum retries').value).toBe('');
+  await choose('Maximum retries', 'No retries');
+  expect(store.values().retries).toBe(0);
+  await choose('Maximum retries', 'Custom…');
+  const custom = input('Custom maximum retries');
+  expect(custom.getAttribute('inputmode')).toBe('decimal');
+  await fill(custom, '-1');
+  expect(store.values().retries).toBe(0);
+  expect(custom.getAttribute('aria-invalid')).toBe('true');
+  expect(descriptions(custom)).toContain('Enter a nonnegative integer.');
+  await fill(custom, '7');
+  expect(store.values().retries).toBe(7);
+  expect(custom.hasAttribute('aria-invalid')).toBe(false);
+  await choose('Maximum retries', 'Provider default');
+  expect(store.values().retries).toBeUndefined();
+  expect(dropdown('Maximum retries').value).toBe('');
+  expect(document.querySelectorAll('input')).toHaveLength(0);
+  expect(JSON.parse(sessionStorage.getItem('vaulter.settings.numeric-choices')!)).toEqual({});
+});
+
 const secrets: SettingsDefinition = {
   id: 'credentials',
   name: 'Credentials',

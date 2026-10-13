@@ -185,6 +185,26 @@ test('unsubscribing removes storage listeners and subscribing later reads curren
   expect(settings.snapshot().text).toBe('changed while closed');
 });
 
+test('saving a field preserves preferences saved by another store before storage events arrive', () => {
+  const first = createSettings(definition);
+  const second = createSettings(definition);
+  first.set('text', 'saved elsewhere');
+  expect(second.snapshot().text).toBe('default');
+
+  second.set('limit', '8');
+
+  expect(second.values()).toEqual({
+    text: 'saved elsewhere',
+    limit: 8,
+    endpoint: 'https://installed.example',
+  });
+  expect(createSettings(definition).values()).toEqual(second.values());
+  expect(JSON.parse(localStorage.getItem(storageKey)!)).toEqual({
+    text: 'saved elsewhere',
+    limit: '8',
+  });
+});
+
 test('blocked browser storage access still allows settings for the current session', () => {
   vi.spyOn(globalThis, 'localStorage', 'get').mockImplementation(() => {
     throw new DOMException('Storage disabled', 'SecurityError');

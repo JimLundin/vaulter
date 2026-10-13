@@ -40,6 +40,7 @@ Consecutive tool calls fold into an expandable summary, with a live status showi
 The app includes a manifest and icons for installing it to the Home Screen.
 Settings groups Appearance, Chat instructions, Agent execution options, OpenAI models and voice,
 GitHub storage, and Jina credentials. Preferences apply to new runs and are saved on this device.
+Models, voice, step limits, output limits and retry counts offer dropdown choices with custom values.
 Login-preloaded keys show their configured status. Replace them, restore their login values, or clear
 optional keys with explicit actions; production credential overrides are encrypted on the device and
 removed by sign-out. Replacing the GitHub token reconnects storage before activating it. The API

@@ -10,6 +10,8 @@ test('module settings persist valid preferences and keep credentials with their 
     await expect(settings.getByRole('region', { name, exact: true })).toBeAttached();
   }
   const agent = settings.getByRole('region', { name: 'Agent', exact: true });
+  for (const label of ['Maximum steps', 'Maximum output tokens', 'Maximum retries'])
+    await expect(agent.getByRole('combobox', { name: label, exact: true })).toBeAttached();
   const temperature = agent.getByRole('textbox', { name: 'Temperature', exact: true });
   await temperature.fill('0.4');
   await temperature.fill('3');
@@ -83,12 +85,85 @@ test('module settings persist valid preferences and keep credentials with their 
   await expect(customModel).toHaveCount(0);
   await expect(settings.getByRole('combobox', { name: 'Voice', exact: true })).toHaveValue('marin');
   await settings.getByRole('button', { name: 'Reset Agent to defaults', exact: true }).click();
-  await expect(settings.getByRole('textbox', { name: 'Maximum steps', exact: true })).toHaveValue(
+  await expect(settings.getByRole('combobox', { name: 'Maximum steps', exact: true })).toHaveValue(
     '12',
   );
   await expect(settings.getByRole('textbox', { name: 'Temperature', exact: true })).toHaveValue('');
   await settings.getByRole('button', { name: 'Close settings', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Settings', exact: true })).toBeFocused();
+});
+
+test('Agent presets retain custom numeric drafts and provide explicit model and provider defaults', {
+  tag: '@phone',
+}, async ({ page }) => {
+  await page.goto('/preview/#/settings/');
+  const settings = page.getByRole('dialog', { name: 'Settings', exact: true });
+  const agent = settings.getByRole('region', { name: 'Agent', exact: true });
+  const steps = agent.getByRole('combobox', { name: 'Maximum steps', exact: true });
+  const output = agent.getByRole('combobox', { name: 'Maximum output tokens', exact: true });
+  const retries = agent.getByRole('combobox', { name: 'Maximum retries', exact: true });
+  for (const [label, control] of [
+    ['Maximum steps', steps],
+    ['Maximum output tokens', output],
+    ['Maximum retries', retries],
+  ] as const) {
+    await agent.getByText(label, { exact: true }).click();
+    await expect(control).toBeFocused();
+  }
+  await steps.selectOption('20');
+  await output.selectOption('256');
+  await retries.selectOption('0');
+  await expect
+    .poll(() =>
+      page.evaluate(() => JSON.parse(localStorage.getItem('vaulter.settings.agent') ?? '{}')),
+    )
+    .toEqual({ maxSteps: '20', maxOutputTokens: '256', maxRetries: '0' });
+  await output.selectOption({ label: 'Custom…' });
+  const customOutput = agent.getByRole('textbox', {
+    name: 'Custom maximum output tokens',
+    exact: true,
+  });
+  await expect(customOutput).toHaveValue('');
+  await expect(customOutput).toHaveAttribute('inputmode', 'decimal');
+  await agent.getByText('Custom maximum output tokens', { exact: true }).click();
+  await expect(customOutput).toBeFocused();
+  await customOutput.fill('0');
+  await expect(customOutput).toHaveAttribute('aria-invalid', 'true');
+  await expect(agent.getByRole('alert')).toContainText('Enter a valid maximum output tokens.');
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => JSON.parse(localStorage.getItem('vaulter.settings.agent') ?? '{}').maxOutputTokens,
+      ),
+    )
+    .toBe('256');
+  await customOutput.fill('1536');
+  await expect(customOutput).not.toHaveAttribute('aria-invalid');
+  await page.reload();
+  await expect(steps).toHaveValue('20');
+  await expect(output.locator('option:checked')).toHaveText('Custom…');
+  await expect(customOutput).toHaveValue('1536');
+  await expect(retries).toHaveValue('0');
+  await output.selectOption({ label: 'Model default' });
+  await retries.selectOption({ label: 'Provider default' });
+  await expect(customOutput).toHaveCount(0);
+  await expect
+    .poll(() =>
+      page.evaluate(() => JSON.parse(localStorage.getItem('vaulter.settings.agent') ?? '{}')),
+    )
+    .toEqual({ maxSteps: '20' });
+  await page.reload();
+  await expect(output).toHaveValue('');
+  await expect(retries).toHaveValue('');
+  await settings.getByRole('button', { name: 'Reset Agent to defaults', exact: true }).click();
+  await expect(steps).toHaveValue('12');
+  await expect(output).toHaveValue('');
+  await expect(retries).toHaveValue('');
+  await expect
+    .poll(() => page.evaluate(() => localStorage.getItem('vaulter.settings.agent')))
+    .toBeNull();
+  await settings.getByRole('button', { name: 'Close settings', exact: true }).click();
+  await expect(settings).toHaveCount(0);
 });
 
 test('model and voice dropdowns support labels, native selection and custom IDs', {

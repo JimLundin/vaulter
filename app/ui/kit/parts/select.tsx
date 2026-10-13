@@ -25,7 +25,11 @@ function Select({ className, options, ...props }: SelectProps) {
         {...association}
       >
         {options.map((option) => (
-          <option key={option.value} value={option.value}>
+          <option
+            key={option.value}
+            value={option.value}
+            className="bg-popover text-popover-foreground"
+          >
             {option.label}
           </option>
         ))}

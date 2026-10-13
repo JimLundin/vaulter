@@ -296,6 +296,9 @@ test.each([false, true])(
     ])
       expect(field(label)).toBeDefined();
     for (const label of [
+      'Maximum steps',
+      'Maximum output tokens',
+      'Maximum retries',
       'Model',
       'Voice model',
       'Live transcription model',
@@ -316,7 +319,9 @@ test.each([false, true])(
     await fill('Custom model', 'configured-model');
     await fill('Instructions', 'Use the supplied evidence.\nKeep answers concise.');
     await fill('Temperature', '0.4');
-    await fill('Maximum output tokens', '256');
+    await select('Maximum steps', '20');
+    await select('Maximum output tokens', '256');
+    await select('Maximum retries', '3');
     expect(field('Message').value).toBe('Keep this draft while changing preferences.');
     expect(model.doStreamCalls).toHaveLength(0);
     await act(() => button('Close settings').click());
@@ -337,7 +342,7 @@ test.each([false, true])(
     const [firstRun] = await runs(nodes);
     expect(firstRun?.data).toMatchObject({
       model: { requested: 'configured-model' },
-      settings: { maxSteps: 12, temperature: 0.4, maxOutputTokens: 256 },
+      settings: { maxSteps: 20, temperature: 0.4, maxOutputTokens: 256, maxRetries: 3 },
     });
     const conversations = (await nodes.snapshot())
       .roots()
@@ -345,6 +350,9 @@ test.each([false, true])(
     expect(conversations).toHaveLength(1);
     await fill('Message', 'Continue the same conversation.');
     await openSettings();
+    expect(selectField('Maximum steps').value).toBe('20');
+    expect(selectField('Maximum output tokens').value).toBe('256');
+    expect(selectField('Maximum retries').value).toBe('3');
     await select('Model', 'gpt-6-astra');
     expect(document.body.textContent).not.toContain('Custom model');
     await fill('Instructions', 'Prefer direct answers.');

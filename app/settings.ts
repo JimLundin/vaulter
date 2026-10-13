@@ -111,6 +111,9 @@ export function createSettings(
       const field = editable.find((candidate) => candidate.key === key);
       if (!field) throw new Error('This setting cannot be changed as a device preference.');
       field.parse?.(value);
+      // Storage events arrive asynchronously, and inactive modules do not subscribe to them.
+      // Merge this field into the latest accepted preferences before saving the whole module.
+      refresh();
       const next = { ...current, [key]: value };
       const overrides = Object.fromEntries(
         editable

@@ -107,6 +107,7 @@ function SettingControl({
             <Input
               {...props}
               placeholder={field.placeholder}
+              inputMode={field.kind === 'number' ? 'decimal' : undefined}
               onChange={(event) => {
                 const next = event.currentTarget.value;
                 if (next.trim()) update(next);

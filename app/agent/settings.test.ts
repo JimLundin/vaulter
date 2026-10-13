@@ -32,6 +32,57 @@ test('every validated invocation option is represented by the Agent settings mod
   );
 });
 
+test('numeric preset choices are valid invocation options and retain model or provider defaults', () => {
+  const preferences = createSettings(agentSettings, { storage: storage() });
+  const presetFields = agentSettings.fields.filter((field) => field.choices);
+  expect(presetFields.map((field) => field.key)).toEqual([
+    'maxSteps',
+    'maxOutputTokens',
+    'maxRetries',
+  ]);
+  for (const field of presetFields) {
+    expect(field.kind).toBe('number');
+    expect(field.allowCustom).toBe(true);
+    for (const choice of field.choices!) {
+      preferences.set(field.key, choice.value);
+      const options = agentOptions(preferences.values());
+      if (choice.value === '') expect(options).not.toHaveProperty(field.key);
+      else expect(options[field.key]).toBe(Number(choice.value));
+    }
+  }
+  expect(presetFields.find((field) => field.key === 'maxOutputTokens')?.choices).toContainEqual({
+    value: '',
+    label: 'Model default',
+  });
+  expect(presetFields.find((field) => field.key === 'maxRetries')?.choices).toContainEqual({
+    value: '',
+    label: 'Provider default',
+  });
+});
+
+test('numeric suggestions preserve custom limits through reopening, default selection and reset', () => {
+  const persistence = storage();
+  const preferences = createSettings(agentSettings, { storage: persistence });
+  preferences.set('maxSteps', '13');
+  preferences.set('maxOutputTokens', '1536');
+  preferences.set('maxRetries', '7');
+  const reopened = createSettings(agentSettings, { storage: persistence });
+  expect(agentOptions(reopened.values())).toEqual({
+    maxSteps: 13,
+    maxOutputTokens: 1536,
+    maxRetries: 7,
+  });
+  reopened.set('maxOutputTokens', '');
+  reopened.set('maxRetries', '');
+  expect(agentOptions(reopened.values())).toEqual({ maxSteps: 13 });
+  expect(agentOptions(createSettings(agentSettings, { storage: persistence }).values())).toEqual({
+    maxSteps: 13,
+  });
+  reopened.reset();
+  expect(agentOptions(reopened.values())).toEqual({ maxSteps: 12 });
+  expect(persistence.getItem('vaulter.settings.agent')).toBeNull();
+});
+
 test('Agent preferences preserve zero and negative settings, omit blanks and validate before saving', () => {
   const persistence = storage();
   const preferences = createSettings(agentSettings, { storage: persistence });

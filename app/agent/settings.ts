@@ -9,6 +9,7 @@ function numberSetting(
   label: string,
   description: string,
   defaultValue?: string,
+  choices?: SettingDefinition['choices'],
 ): SettingDefinition {
   return {
     key,
@@ -16,6 +17,7 @@ function numberSetting(
     description,
     kind: 'number',
     ...(defaultValue === undefined ? {} : { defaultValue }),
+    ...(choices ? { choices, allowCustom: true } : {}),
     parse: (value) => {
       if (!value.trim()) return;
       const number = Number(value);
@@ -31,11 +33,25 @@ export const agentSettings: SettingsDefinition = {
   id: 'agent',
   name: 'Agent',
   fields: [
-    numberSetting('maxSteps', 'Maximum steps', 'Maximum model steps for each new Agent run.', '12'),
+    numberSetting(
+      'maxSteps',
+      'Maximum steps',
+      'Maximum model steps for each new Agent run.',
+      '12',
+      [4, 8, 12, 20, 40].map((value) => ({ value: String(value), label: String(value) })),
+    ),
     numberSetting(
       'maxOutputTokens',
       'Maximum output tokens',
-      'A positive token limit. Leave blank for the model default.',
+      'A positive token limit, or choose Model default.',
+      undefined,
+      [
+        { value: '', label: 'Model default' },
+        ...[256, 512, 1024, 2048, 4096, 8192, 16_384].map((value) => ({
+          value: String(value),
+          label: String(value),
+        })),
+      ],
     ),
     numberSetting(
       'temperature',
@@ -74,7 +90,12 @@ export const agentSettings: SettingsDefinition = {
     numberSetting(
       'maxRetries',
       'Maximum retries',
-      'A nonnegative retry count. Leave blank for the provider default.',
+      'A nonnegative retry count, or choose Provider default.',
+      undefined,
+      [
+        { value: '', label: 'Provider default' },
+        ...[0, 1, 2, 3, 4, 5].map((value) => ({ value: String(value), label: String(value) })),
+      ],
     ),
   ],
 };
