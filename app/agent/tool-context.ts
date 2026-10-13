@@ -1,6 +1,7 @@
 import type { NodeSnapshot, NodeStore, NodeCommit } from '../vault/nodes/store.ts';
 import type { AgentToolContext, ContentWritePolicy } from './tools.ts';
 import { frozen } from '../vault/nodes/json.ts';
+import { NodePublicationRejected } from '../vault/nodes/history.ts';
 
 const ownedKinds = new Set(['agentRun', 'contextInput', 'toolExecution']);
 /** Agent-owned audit protection is independent of a caller's additional producer policy. */
@@ -42,6 +43,7 @@ export function agentContentContext(options: {
   };
   const context: AgentToolContext = {
     signal: options.signal,
+    author: frozen({ recordedBy: options.agent, origin: options.run }),
     snapshot: () => {
       check();
       if (refreshError !== undefined) throw refreshError;
@@ -135,7 +137,8 @@ export function agentContentContext(options: {
         try {
           accepted = await options.nodes.commit(publication);
         } catch (error) {
-          options.publicationFailed(publication, error);
+          if (!(error instanceof NodePublicationRejected))
+            options.publicationFailed(publication, error);
           throw error;
         }
         // Acceptance is authoritative. A read refresh cannot convert the receipt into failure.

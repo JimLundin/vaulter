@@ -27,6 +27,194 @@ test('the dependency policy rejects cross-workflow imports and private kit acces
   );
 });
 
+test('application tasks cannot construct raw node adapters', () => {
+  const entries = [
+    'app/vault/nodes/memory.ts',
+    'app/vault/nodes/backend.ts',
+    'app/vault/storage/nodes/github.ts',
+  ];
+  for (const entry of entries) {
+    for (const caller of [
+      'app/agent/tool-context.ts',
+      'app/workflows/questions/actions.ts',
+      'app/vault/content/tools.ts',
+      'app/product.tsx',
+    ])
+      expect(importProblem(caller, entry)).toContain('Product-supplied NodeStore');
+    for (const caller of [
+      'app/main.tsx',
+      'app/vault/nodes/memory.ts',
+      'app/vault/storage/nodes/github.ts',
+      'app/preview/nodes.ts',
+      'app/agent/tools.test.ts',
+      'app/vault/nodes/fixtures.test-support.ts',
+    ])
+      expect(importProblem(caller, entry)).toBeNull();
+  }
+  expect(
+    importProblem('app/agent/new-tool.ts', 'app/vault/nodes/fixtures.test-support.ts'),
+  ).toContain('fixtures cannot publish application data');
+  expect(
+    importProblem('app/agent/new-tool.test.ts', 'app/vault/nodes/fixtures.test-support.ts'),
+  ).toBeNull();
+  expect(
+    importProblem('app/preview/nodes.ts', 'app/vault/nodes/fixtures.test-support.ts'),
+  ).toBeNull();
+  expect(importProblem('app/agent/new-tool.ts', 'app/preview/nodes.ts')).toContain(
+    'fixtures cannot publish application data',
+  );
+  expect(importProblem('app/agent/new-tool.test.ts', 'app/preview/nodes.ts')).toBeNull();
+});
+
+test('raw session hooks remain with Vault assembly and Product through every import form', () => {
+  const root = mkdtempSync(join(tmpdir(), 'vaulter-node-session-policy-'));
+  try {
+    const files = {
+      'app/vault/session/session.ts':
+        'export function useSession() { return {nodes: {}}; } export type Session = {nodes: unknown};',
+      'app/vault/index.ts':
+        "import { useSession } from './session/session.ts'; export { useSession as open }; export function useVaultSession() { return useSession(); } export type { Session } from './session/session.ts';",
+      'app/product.tsx':
+        "import { useVaultSession } from './vault/index.ts'; const session = useVaultSession; export const exposed = session;",
+      'app/agent/import.ts':
+        "import { open as session } from '@/vault/index.ts'; export { session };",
+      'app/agent/value-alias.ts':
+        "import { exposed as session } from '@/product.tsx'; export { session };",
+      'app/agent/export.ts': "export { open } from '@/vault/index.ts';",
+      'app/agent/export-all.ts': "export * from '@/vault/index.ts';",
+      'app/agent/namespace.ts': "import * as vault from '@/vault/index.ts'; export { vault };",
+      'app/agent/export-namespace.ts': "export * as vault from '@/vault/index.ts';",
+      'app/agent/dynamic.ts': "export const vault = () => import('@/vault/index.ts');",
+      'app/agent/types.ts':
+        "import type { Session } from '@/vault/index.ts'; export type State = Session;",
+      'app/vault/session/owner.ts':
+        "import { useSession } from './session.ts'; export { useSession };",
+      'app/agent/session.test.ts':
+        "import { useSession } from '@/vault/session/session.ts'; import { useVaultSession } from '@/vault/index.ts'; export { useSession, useVaultSession };",
+    };
+    writeFileSync(
+      join(root, 'tsconfig.json'),
+      JSON.stringify({
+        compilerOptions: {
+          module: 'ESNext',
+          moduleResolution: 'Bundler',
+          jsx: 'preserve',
+          paths: { '@/*': ['./app/*'] },
+        },
+        include: ['app'],
+      }),
+    );
+    for (const [path, source] of Object.entries(files)) {
+      mkdirSync(join(root, path, '..'), { recursive: true });
+      writeFileSync(join(root, path), source);
+    }
+    expect(checkLayout(root).toSorted((a, b) => a.localeCompare(b))).toEqual(
+      ['import', 'value-alias', 'export', 'export-all', 'namespace', 'export-namespace', 'dynamic']
+        .map(
+          (name) =>
+            `app/agent/${name}.ts accesses a raw node session; use the Product-supplied NodeStore`,
+        )
+        .toSorted((a, b) => a.localeCompare(b)),
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('compiler resolution prevents raw node acceptance hidden by aliases and re-exports', () => {
+  const root = mkdtempSync(join(tmpdir(), 'vaulter-node-publication-policy-'));
+  try {
+    const files = {
+      'app/vault/nodes/memory.ts': 'export function memoryNodeBackend() { return {}; }',
+      'app/vault/nodes/history.ts':
+        'export function accept() {} export function validateRecords() {} export function validateRecordsAsync() {} export class NodeConflict extends Error {} export class NodePublicationRejected extends Error {} export function snapshotOf() {}',
+      'app/vault/nodes/public-looking.ts':
+        "export { memoryNodeBackend as build } from './memory.ts'; export { accept as publish, validateRecords as load, validateRecordsAsync as loadAsync, NodeConflict, NodePublicationRejected, snapshotOf } from './history.ts';",
+      'app/vault/nodes/aliased.ts':
+        "import { memoryNodeBackend } from './memory.ts'; const backend = memoryNodeBackend; export const build = backend;",
+      'app/workflows/example/value-alias.ts':
+        "import { build } from '@/vault/nodes/aliased.ts'; export { build };",
+      'app/workflows/example/import.ts':
+        "import { build as construct, publish as write, load, loadAsync } from '@/vault/nodes/public-looking.ts'; export { construct, write, load, loadAsync };",
+      'app/workflows/example/export.ts':
+        "export { build as construct, publish as write } from '@/vault/nodes/public-looking.ts';",
+      'app/workflows/example/export-all.ts': "export * from '@/vault/nodes/public-looking.ts';",
+      'app/workflows/example/namespace.ts':
+        "import * as persistence from '@/vault/nodes/public-looking.ts'; export { persistence };",
+      'app/workflows/example/export-namespace.ts':
+        "export * as persistence from '@/vault/nodes/public-looking.ts';",
+      'app/workflows/example/dynamic.ts':
+        "export const persistence = () => import('@/vault/nodes/public-looking.ts');",
+      'app/workflows/example/require.ts':
+        "export const persistence = require('@/vault/nodes/public-looking.ts');",
+      'app/workflows/example/errors-and-reading.ts':
+        "import { NodeConflict, NodePublicationRejected, snapshotOf } from '@/vault/nodes/public-looking.ts'; export { NodeConflict, NodePublicationRejected, snapshotOf };",
+    };
+    writeFileSync(
+      join(root, 'tsconfig.json'),
+      JSON.stringify({
+        compilerOptions: {
+          module: 'ESNext',
+          moduleResolution: 'Bundler',
+          paths: { '@/*': ['./app/*'] },
+        },
+        include: ['app'],
+      }),
+    );
+    for (const [path, source] of Object.entries(files)) {
+      mkdirSync(join(root, path, '..'), { recursive: true });
+      writeFileSync(join(root, path), source);
+    }
+    expect(checkLayout(root).toSorted((a, b) => a.localeCompare(b))).toEqual(
+      ['import', 'export', 'export-all', 'namespace', 'export-namespace', 'dynamic', 'value-alias']
+        .map(
+          (name) =>
+            `app/workflows/example/${name}.ts accesses raw node persistence; use the Product-supplied NodeStore`,
+        )
+        .concat(
+          'app/workflows/example/require.ts: module loading must resolve through TypeScript so ownership can be checked',
+        )
+        .toSorted((a, b) => a.localeCompare(b)),
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('Questions ownership factories remain private when another module re-exports them', () => {
+  const root = mkdtempSync(join(tmpdir(), 'vaulter-question-owner-policy-'));
+  try {
+    const files = {
+      'app/workflows/questions/actions.ts':
+        'export function createQuestionOwnership() { return {}; } export type QuestionWriter = {kind: string};',
+      'app/workflows/questions/tools.ts':
+        "import { createQuestionOwnership } from './actions.ts'; export const own = createQuestionOwnership;",
+      'app/product.tsx':
+        "import { createQuestionOwnership } from './workflows/questions/actions.ts'; const own = createQuestionOwnership; export const exposed = own; export type { QuestionWriter } from './workflows/questions/actions.ts';",
+      'app/agent/helper.ts':
+        "import { exposed as manufacture } from '../product.tsx'; export const own = manufacture;",
+      'app/agent/types.ts':
+        "import type { QuestionWriter } from '../product.tsx'; export type Author = QuestionWriter;",
+    };
+    writeFileSync(
+      join(root, 'tsconfig.json'),
+      JSON.stringify({
+        compilerOptions: { module: 'ESNext', moduleResolution: 'Bundler', jsx: 'preserve' },
+        include: ['app'],
+      }),
+    );
+    for (const [path, source] of Object.entries(files)) {
+      mkdirSync(join(root, path, '..'), { recursive: true });
+      writeFileSync(join(root, path), source);
+    }
+    expect(checkLayout(root)).toEqual([
+      'app/agent/helper.ts accesses Questions ownership; compose actions in app/product.tsx',
+    ]);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('Vault task UI composes shared presentation while persistence keeps its own implementation', () => {
   for (const source of [
     'app/vault/Gate.tsx',

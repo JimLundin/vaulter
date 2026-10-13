@@ -1,6 +1,6 @@
 // Fictional preview only: replay accepted requests through the production memory adapter.
 import { memoryNodeBackend } from '../vault/nodes/memory.ts';
-import type { NodeCommit } from '../vault/nodes/store.ts';
+import type { NodeCommit, NodePublicationRule } from '../vault/nodes/store.ts';
 import { frozen } from '../vault/nodes/json.ts';
 
 export const previewJournalKey = 'vaulter:preview:accepted:v1';
@@ -25,13 +25,13 @@ export async function previewNodes(storage: Storage, scenario?: string) {
             : false;
   return {
     ...memory,
-    commit: async (request: NodeCommit) => {
+    commit: async (request: NodeCommit, publication?: NodePublicationRule) => {
       const copy = frozen(structuredClone(request));
       const failing = !fault && match(copy);
       if (failing) fault = copy.id;
       if (failing && scenario !== 'lost-response' && scenario !== 'content-lost-response')
         throw new Error('The preview rejected this save once. Retry saving to continue.');
-      const accepted = await memory.commit(copy);
+      const accepted = await memory.commit(copy, publication);
       if (!journal.some((saved) => saved.id === copy.id)) {
         journal.push(copy);
         try {

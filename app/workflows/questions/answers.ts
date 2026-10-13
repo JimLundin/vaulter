@@ -1,9 +1,9 @@
 import { frozen } from '../../vault/nodes/json.ts';
-import { NodeConflict } from '../../vault/nodes/history.ts';
+import { NodeConflict, NodePublicationRejected } from '../../vault/nodes/history.ts';
 import type { NodeCommit, NodeStore } from '../../vault/nodes/store.ts';
 import type { QuestionAnswerHandler } from './QuestionItem.tsx';
-import { prepareAnswerQuestion } from './operations.ts';
-import { readQuestions, type Question } from './reading.ts';
+import { createQuestionOwnership } from './actions.ts';
+import type { Question } from './reading.ts';
 
 export interface QuestionAnswersOptions {
   /** Navigation and capability replacement retain this application session's task owner. */
@@ -14,6 +14,8 @@ export interface QuestionAnswersOptions {
   readonly availability?: string;
   /** Consult current session admission again after asynchronous reads and before publication. */
   readonly admission?: () => string | undefined;
+  /** The application supplies the same owner used by its publication checks. */
+  readonly ownership?: ReturnType<typeof createQuestionOwnership>;
 }
 
 export interface QuestionAnswers {
@@ -79,26 +81,17 @@ export function createQuestionAnswers(initial: QuestionAnswersOptions): Question
     const { recordedBy } = options;
     if (!task.request) {
       const view = await nodes.snapshot();
-      const current = (await readQuestions(nodes, view)).find(
-        (question) => question.id === task.question.id,
+      const ownership = options.ownership ?? createQuestionOwnership({ nodes });
+      const prepared = await ownership.answer(
+        view,
+        { question: task.question.key, text: task.text },
+        { kind: 'person', recordedBy, origin: task.question.id },
       );
-      if (current?.status !== 'open')
-        throw new Error('This question is no longer open. Review its current status.');
       // Admission can change while history is read; disposal prevents publication that has not begun.
       if (available() !== nodes)
         throw new Error('The node store changed. Review the question before saving an answer.');
       task.request = frozen({
-        ...prepareAnswerQuestion(view, {
-          id: crypto.randomUUID(),
-          node: crypto.randomUUID(),
-          relationship: crypto.randomUUID(),
-          question: task.question.key,
-          text: task.text,
-          relationships: current.answers.flatMap((target) => {
-            const relationship = target.relationship && view.get(target.relationship);
-            return relationship ? [relationship] : [];
-          }),
-        }),
+        ...prepared,
         recordedBy,
         origin: task.question.id,
         undoOf: null,
@@ -135,7 +128,12 @@ export function createQuestionAnswers(initial: QuestionAnswersOptions): Question
       })
       .catch((error: unknown) => {
         // Preparation never published. A conflict is also a definitive rejection, so new wording may be read.
-        if ((!task.entered || error instanceof NodeConflict) && tasks.get(question.id) === task)
+        if (
+          (!task.entered ||
+            error instanceof NodeConflict ||
+            error instanceof NodePublicationRejected) &&
+          tasks.get(question.id) === task
+        )
           tasks.delete(question.id);
         else task.error = error instanceof Error ? error.message : String(error);
         throw error;

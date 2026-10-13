@@ -4,6 +4,11 @@ import type { NodeCommit, NodeSnapshot, NodeDifference } from '../vault/nodes/st
 /** Trusted execution context; never part of model arguments. */
 export interface AgentToolContext {
   readonly signal: AbortSignal;
+  /** Trusted publication attribution supplied by Agent, never by tool arguments. */
+  readonly author?: {
+    readonly recordedBy: string;
+    readonly origin: string;
+  };
   readonly snapshot: () => NodeSnapshot;
   readonly commit: (
     request: Omit<NodeCommit, 'recordedBy' | 'origin' | 'undoOf'>,

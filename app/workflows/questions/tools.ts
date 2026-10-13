@@ -1,10 +1,15 @@
 import { tool } from 'ai';
 import { z } from 'zod';
 import type { AgentToolContext } from '../../agent/tools.ts';
-import type { JsonObject, NodeAddress, NodeVersion } from '../../vault/nodes/model.ts';
+import type { JsonObject, NodeVersion } from '../../vault/nodes/model.ts';
 import type { NodeSnapshot, NodeStore } from '../../vault/nodes/store.ts';
-import { prepareAskQuestion, questionSubject } from './operations.ts';
-import { answerSuggestions, parseAnswer } from './records.ts';
+import { questionSubject } from './operations.ts';
+import { parseAnswer } from './records.ts';
+import {
+  askQuestionInput,
+  createQuestionOwnership,
+  type QuestionContextReading,
+} from './actions.ts';
 import { readQuestions, type Question, type QuestionTarget } from './reading.ts';
 import { questionToolActions } from './tool-actions.ts';
 
@@ -47,43 +52,15 @@ function questionReceipt(question: Question): JsonObject {
   };
 }
 
-/** Product supplies foreign text ownership and distinguishes Wiki knowledge from source material. */
-export interface QuestionContextReading {
-  /** Only self-contained text versions: exact containers do not freeze their child prose. */
-  readonly text: (node: NodeVersion, view: NodeSnapshot) => string | undefined;
-  readonly isKnowledge: (node: NodeVersion, view: NodeSnapshot) => boolean;
-  readonly title: (node: NodeVersion, view: NodeSnapshot) => string;
-}
-
-const exactAddress = z.strictObject({ node: z.string().min(1), transaction: z.string().min(1) });
-const askInput = z.object({
-  text: z.string().trim().min(1),
-  subject: z.string().min(1).optional(),
-  suggestions: answerSuggestions,
-  source: exactAddress,
-  /** Empty when no relevant knowledge exists; never invent grounding to fill it. */
-  knowledge: z.array(exactAddress).max(6),
-});
+export type { QuestionContextReading } from './actions.ts';
 
 /** Agent tools retain requests for information; directly recorded answers belong to the person. */
 export function questionTools(
   context: AgentToolContext,
   nodes: NodeStore,
   reading: QuestionContextReading,
+  ownership = createQuestionOwnership({ nodes, reading }),
 ) {
-  const passage = (view: NodeSnapshot, address: Required<NodeAddress>, knowledge: boolean) => {
-    const version = view.resolve(address);
-    if (!version?.data || view.get(address.node)?.key.transaction !== address.transaction)
-      throw new Error('Question context has changed or is unavailable; read it again.');
-    if (!reading.text(version, view)?.trim())
-      throw new Error('Question context requires a self-contained text version.');
-    if (reading.isKnowledge(version, view) !== knowledge)
-      throw new Error(
-        knowledge
-          ? 'Existing knowledge must be Wiki text.'
-          : 'The Question source must be retained source material.',
-      );
-  };
   const collection = async () => {
     const view = context.snapshot();
     const questions = await readQuestions(nodes, view);
@@ -94,22 +71,24 @@ export function questionTools(
     [questionToolActions.ask]: tool({
       description:
         'Retain an open question with 1–4 editable suggested answers prepared now. Use listQuestionContext to read the triggering source and relevant existing knowledge first. Supply each suggestion’s title, complete answer text and grounded reason, the exact source address and the exact knowledge addresses used. These are proposals for the owner, never accepted answers. Supply a Wiki subject to also show the Question there.',
-      inputSchema: askInput,
+      inputSchema: askQuestionInput,
       execute: async (input) => {
         context.signal.throwIfAborted();
-        const preparedInput = askInput.parse(input);
-        const view = context.snapshot();
-        passage(view, preparedInput.source, false);
-        for (const knowledge of preparedInput.knowledge) passage(view, knowledge, true);
-        const question = crypto.randomUUID();
-        const transaction = await context.commit(
-          prepareAskQuestion(view, {
-            ...preparedInput,
-            node: question,
-            id: crypto.randomUUID(),
-          }),
-        );
-        return { question, transaction, accepted: true };
+        // Reject incomplete input before reading, including direct execution outside SDK validation.
+        const preparedInput = askQuestionInput.parse(input);
+        if (!context.author)
+          throw new Error('Question creation requires a trusted Agent invocation.');
+        const prepared = ownership.ask(context.snapshot(), preparedInput, {
+          kind: 'agent',
+          recordedBy: context.author.recordedBy,
+          origin: context.author.origin,
+        });
+        const transaction = await context.commit(prepared);
+        return {
+          question: prepared.changes[0]!.node,
+          transaction,
+          accepted: true,
+        };
       },
     }),
     [questionToolActions.context]: tool({

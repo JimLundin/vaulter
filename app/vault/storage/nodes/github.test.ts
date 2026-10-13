@@ -50,6 +50,94 @@ async function setup() {
   return { ...fake, store, open };
 }
 
+test('live publication veto uses refreshed history and makes no remote writes', async () => {
+  const { store, open, state } = await setup();
+  const input = request('vetoed', [
+    await revise(store, 'page', { title: 'Must not publish' }),
+    create('dependent', { text: 'Must not publish' }),
+  ]);
+  const remote = open();
+  await remote.refresh();
+  await remote.commit(
+    request('remote', [await revise(remote, 'evidence', { text: 'New evidence' })]),
+  );
+  const head = state.main;
+  state.calls.length = 0;
+  const policy = vi.fn(({ before, after }) => {
+    expect(before.sequence).toBe(2);
+    expect(before.get('evidence')?.data?.text).toBe('New evidence');
+    expect(after.sequence).toBe(3);
+    expect(after.get('dependent')?.data?.text).toBe('Must not publish');
+    throw new Error('Owner action required');
+  });
+  await expect(store.commit(input, policy)).rejects.toThrow('Owner action required');
+  expect(policy).toHaveBeenCalledOnce();
+  expect(state.calls.filter((call) => /^(POST|PATCH) /.test(call))).toEqual([]);
+  expect(state.main).toBe(head);
+  expect((await store.snapshot()).sequence).toBe(2);
+  expect((await store.snapshot()).get('page')?.data?.title).toBe('Studio');
+  expect((await store.snapshot()).get('dependent')).toBeUndefined();
+});
+
+test('a remote race reruns live publication policy before writing the rebased transaction', async () => {
+  const { open, fetchFn, state, filesAt } = await setup();
+  // Separate devices have distinct browser lock managers; the ref update coordinates their writes.
+  vi.stubGlobal('navigator', {
+    locks: { request: (_name: string, work: () => Promise<unknown>) => work() },
+  });
+  const remote = open();
+  await remote.refresh();
+  const remoteInput = request('remote', [
+    await revise(remote, 'evidence', { text: 'Authoritative update' }),
+  ]);
+  let raced = false;
+  const racing = (async (url, init) => {
+    if (init?.method === 'PATCH' && !raced) {
+      raced = true;
+      await remote.commit(remoteInput);
+    }
+    return fetchFn(url, init);
+  }) as typeof fetch;
+  const store = open(racing);
+  await store.refresh();
+  const input = request('protected', [await revise(store, 'page', { title: 'Must not publish' })]);
+  const observed: number[] = [];
+  const policy = vi.fn(({ before }) => {
+    observed.push(before.sequence);
+    if (before.get('evidence')?.data?.text === 'Authoritative update')
+      throw new Error('Updated source requires another action');
+  });
+  state.calls.length = 0;
+  await expect(store.commit(input, policy)).rejects.toThrow(
+    'Updated source requires another action',
+  );
+  expect(observed).toEqual([1, 2]);
+  expect(state.calls.filter((call) => call === 'POST /git/blobs')).toHaveLength(2);
+  expect(state.calls.filter((call) => call === 'PATCH /git/refs/heads/main')).toHaveLength(2);
+  expect(filesAt()[`${NODE_NAMESPACE}protected.json`]).toBeUndefined();
+  expect((await store.snapshot()).sequence).toBe(2);
+  expect((await store.snapshot()).get('page')?.data?.title).toBe('Studio');
+});
+
+test('accepted retries skip live publication policy after cache and remote history reload', async () => {
+  const { store, open, state } = await setup();
+  const input = request('once', [await revise(store, 'evidence', { text: 'Once' })]);
+  const policy = vi.fn();
+  const accepted = await store.commit(input, policy);
+  expect(policy).toHaveBeenCalledOnce();
+  const head = state.main;
+  store.close();
+  const next = open();
+  await next.refresh();
+  const expired = vi.fn(() => {
+    throw new Error('Action lifetime has ended');
+  });
+  expect(await next.commit(structuredClone(input), expired)).toEqual(accepted);
+  expect(expired).not.toHaveBeenCalled();
+  expect(state.main).toBe(head);
+  expect((await next.snapshot()).sequence).toBe(2);
+});
+
 test('node JSON and transaction metadata retain all keys through cache reopen and remote rebuild', async () => {
   const { store, open } = await setup();
   const data = JSON.parse('{"__proto__":{"text":"retain"},"constructor":2,"prototype":3}');

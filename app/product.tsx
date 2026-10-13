@@ -108,6 +108,7 @@ import {
   renderQuestionRecord,
 } from './workflows/questions/index.tsx';
 import { questionTools, type QuestionContextReading } from './workflows/questions/tools.ts';
+import { createQuestionOwnership } from './workflows/questions/actions.ts';
 import { questionSources } from './workflows/questions/sources.ts';
 import { questionEnabledTools } from './workflows/questions/tool-actions.ts';
 import { questionToolPresentation } from './workflows/questions/tool-presentation.tsx';
@@ -160,13 +161,81 @@ const questionContextReading: QuestionContextReading = {
     describeWikiTarget(node, view)?.title ||
     'Retained source',
 };
+const productNodeOwners = new WeakMap<
+  NodeStore,
+  {
+    readonly nodes: NodeStore;
+    readonly source: NodeStore;
+    readonly lifetime: QuestionOwnerLifetime;
+  }
+>();
+interface QuestionOwnerLifetime {
+  source: NodeStore;
+  session?: object;
+  readonly stores: WeakMap<NodeStore, NodeStore>;
+  readonly questions: ReturnType<typeof createQuestionOwnership>;
+}
+const productQuestionSessions = new WeakMap<object, QuestionOwnerLifetime>();
+
+function questionOwnerLifetime(source: NodeStore): QuestionOwnerLifetime {
+  // An owner can first be used independently, then adopted by a credential-replacing session.
+  const reading: NodeStore = {
+    snapshot: (sequence) => lifetime.source.snapshot(sequence),
+    history: (options) => lifetime.source.history(options),
+    changes: (transaction) => lifetime.source.changes(transaction),
+    subscribe: (listener) => lifetime.source.subscribe(listener),
+    commit: () => Promise.reject(new Error('Question source discovery cannot publish.')),
+  };
+  const lifetime = {
+    source,
+    stores: new WeakMap<NodeStore, NodeStore>(),
+    questions: createQuestionOwnership({ nodes: reading, reading: questionContextReading }),
+  };
+  return lifetime;
+}
+
+/** Every application task publishes through the same owner checks; storage remains generic. */
+export function productNodes(supplied: NodeStore, session?: object): NodeStore {
+  let retained = session ? productQuestionSessions.get(session) : undefined;
+  const known = productNodeOwners.get(supplied);
+  const source = known?.source ?? supplied;
+  retained ??=
+    known && (!(session && known.lifetime.session) || known.lifetime.session === session)
+      ? known.lifetime
+      : questionOwnerLifetime(source);
+  if (session) {
+    retained.source = source;
+    retained.session = session;
+    productQuestionSessions.set(session, retained);
+  }
+  const cached = retained.stores.get(source);
+  if (cached) return cached;
+  const { questions } = retained;
+  const nodes: NodeStore = {
+    snapshot: (sequence) => source.snapshot(sequence),
+    history: (options) => source.history(options),
+    changes: (transaction) => source.changes(transaction),
+    subscribe: (listener) => source.subscribe(listener),
+    commit: (request) => source.commit(request, questions.publication),
+  };
+  const owner = { nodes, source, lifetime: retained };
+  retained.stores.set(source, nodes);
+  productNodeOwners.set(source, owner);
+  productNodeOwners.set(nodes, owner);
+  return nodes;
+}
+
+function productQuestions(source: NodeStore) {
+  const nodes = productNodes(source);
+  return productNodeOwners.get(nodes)!.lifetime.questions;
+}
 const productToolFactories = new WeakMap<NodeStore, AgentToolFactory>();
 function productTools(nodes: NodeStore): AgentToolFactory {
   let factory = productToolFactories.get(nodes);
   if (!factory) {
     factory = (context) => ({
       ...nodeContentTools(context),
-      ...questionTools(context, nodes, questionContextReading),
+      ...questionTools(context, nodes, questionContextReading, productQuestions(nodes)),
     });
     productToolFactories.set(nodes, factory);
   }
@@ -211,7 +280,8 @@ export function OpenProduct({
     transcription: TranscriptionProvider;
   };
 }) {
-  const { vault, files, status, nodes, nodeStatus } = session;
+  const { vault, files, status, nodeStatus } = session;
+  const nodes = session.nodes ? productNodes(session.nodes, session.identity) : null;
   const providerDefinition = useMemo(
     () =>
       createOpenAISettings({
@@ -303,6 +373,7 @@ export function OpenProduct({
   const answers = useQuestionAnswers({
     session: chatSession,
     nodes,
+    ownership: nodes ? productQuestions(nodes) : undefined,
     recordedBy: identities.user,
     admission: () => admission.current,
   });
@@ -756,9 +827,10 @@ export function OpenProduct({
 
 /** Application composition for generic node History and guarded content compensation. */
 export function productNodeHistory(
-  nodes: NodeStore,
+  source: NodeStore,
   identities: ApplicationIdentities = defaultIdentities,
 ) {
+  const nodes = productNodes(source);
   const canUndo = (difference: NodeDifference) =>
     preservesAgentRecords(difference) &&
     preservesChatRecords(difference) &&
@@ -792,11 +864,13 @@ export function productChatOptions({
   identities = defaultIdentities,
   ...options
 }: ProductChatOptions): NodeConversationOptions {
+  const nodes = productNodes(options.nodes);
   return {
     ...options,
+    nodes,
     user: identities.user,
     agent: identities.agent,
-    tools: productTools(options.nodes),
+    tools: productTools(nodes),
     writableKinds: contentKinds,
     enabledTools: enabledContentTools,
     settings: options.settings ?? agentOptions(agentPreferences.values()),

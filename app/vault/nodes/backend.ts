@@ -1,5 +1,5 @@
 // Shared application reads and lifecycle; physical persistence stays behind this internal seam.
-import type { NodeBackend, NodeCommit } from './store.ts';
+import type { NodeBackend, NodeCommit, NodePublicationRule } from './store.ts';
 import type { NodeRecord } from './validation.ts';
 import { snapshotOf, differences } from './history.ts';
 import { frozen } from './json.ts';
@@ -7,7 +7,7 @@ import { sameOperation } from './operations.ts';
 
 export function nodeInterface(options: {
   read: () => readonly NodeRecord[];
-  append: (request: NodeCommit) => Promise<NodeRecord>;
+  append: (request: NodeCommit, publication?: NodePublicationRule) => Promise<NodeRecord>;
   cached: () => Promise<void>;
   refresh: () => Promise<void>;
   clear: () => Promise<void>;
@@ -21,10 +21,10 @@ export function nodeInterface(options: {
   const snapshots = new Map<number, ReturnType<typeof snapshotOf>>();
   let lastRecords: readonly NodeRecord[] | undefined;
   return {
-    commit: async (request) => {
+    commit: async (request, publication) => {
       ready();
       const copy = frozen(structuredClone(request));
-      return (await options.append(copy)).transaction;
+      return (await options.append(copy, publication)).transaction;
     },
     snapshot: (sequence) => {
       ready();

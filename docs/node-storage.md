@@ -45,6 +45,18 @@ deleting the actor or context. Feature/tool ingress must validate feature payloa
 The generic store validates JSON and structural integrity, not whether cited evidence supports a
 claim or whether an actor has permission to edit a node.
 
+Application ownership is composed by Product on top of that generic interface. Its supplied
+NodeStore always forwards the Questions publication rule; application callers cannot replace it.
+The rule runs synchronously inside actual acceptance after authoritative refresh in both adapters,
+before publishing any new Transaction. Questions interprets the previous and proposed records and
+verifies that its create or answer action produced the complete changes and required reads.
+Persistence imports no Questions definitions and serializes no publication permission.
+Historical validation and an identical already-accepted retry do not invoke new-action admission.
+Raw adapter construction and acceptance/loading functions stay with bootstrap, persistence and
+historical fixtures. Session hooks exposing raw nodes remain with Vault assembly and Product, and
+preview fixtures remain outside production callers. Compiler-resolved ownership checks in
+`tools/layout.test.ts` enforce these paths through aliases and re-exports.
+
 `history` paginates by `beforeSequence` and `limit`, with optional structured operation filters.
 `changes` returns complete before/after versions. `snapshot` captures immutable state at a cutoff;
 `resolve` accepts an identity or exact address. `children` accepts a parent identity or address and

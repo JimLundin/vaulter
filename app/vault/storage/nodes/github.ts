@@ -1,5 +1,5 @@
 // GitHub is authoritative; local cache publication never counts as remote acceptance.
-import type { NodeBackend, NodeCommit } from '../../nodes/store.ts';
+import type { NodeBackend, NodeCommit, NodePublicationRule } from '../../nodes/store.ts';
 import { parseCommit, parseRecord, type NodeRecord } from '../../nodes/validation.ts';
 import { accept, validateRecordsAsync } from '../../nodes/history.ts';
 import { canonical, digest } from '../../nodes/json.ts';
@@ -139,7 +139,10 @@ export function githubNodeBackend(options: {
     await cacheAccepted(next, accepted);
     events.notify();
   };
-  const append = async (input: NodeCommit): Promise<NodeRecord> => {
+  const append = async (
+    input: NodeCommit,
+    publication?: NodePublicationRule,
+  ): Promise<NodeRecord> => {
     const request = parseCommit(input);
     const requestDigest = await digest(request);
     await adoptCache();
@@ -148,7 +151,7 @@ export function githubNodeBackend(options: {
       await synchronize(false);
       checkOpen();
       const base = head!;
-      const record = accept(records, request, requestDigest, new Date().toISOString());
+      const record = accept(records, request, requestDigest, new Date().toISOString(), publication);
       if (records.includes(record)) return record;
       const path = pathOf(record.transaction.id);
       const text = canonical(record);
@@ -201,7 +204,7 @@ export function githubNodeBackend(options: {
     };
   return nodeInterface({
     read: () => records,
-    append: (request) => locked(() => append(request), true),
+    append: (request, publication) => locked(() => append(request, publication), true),
     cached: () => locked(adoptCache),
     refresh: () =>
       locked(async () => {
