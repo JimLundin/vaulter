@@ -1,10 +1,10 @@
 import { tool } from 'ai';
 import { z } from 'zod';
 import type { AgentToolContext } from '../../agent/tools.ts';
-import type { JsonObject, NodeVersion } from '../../vault/nodes/model.ts';
+import type { JsonObject, NodeAddress, NodeVersion } from '../../vault/nodes/model.ts';
 import type { NodeSnapshot, NodeStore } from '../../vault/nodes/store.ts';
 import { prepareAskQuestion, questionSubject } from './operations.ts';
-import { parseAnswer } from './records.ts';
+import { answerSuggestions, parseAnswer } from './records.ts';
 import { readQuestions, type Question, type QuestionTarget } from './reading.ts';
 
 function visibleNodes(view: NodeSnapshot) {
@@ -40,11 +40,49 @@ function questionReceipt(question: Question): JsonObject {
     status: question.status,
     subjects: question.subjects.map(targetReceipt),
     answers: question.answers.map(targetReceipt),
+    ...(question.data.suggestions ? { suggestions: question.data.suggestions } : {}),
+    sources: (question.sources ?? []).map(targetReceipt),
+    knowledge: (question.knowledge ?? []).map(targetReceipt),
   };
 }
 
+/** Product supplies foreign text ownership and distinguishes Wiki knowledge from source material. */
+export interface QuestionContextReading {
+  /** Only self-contained text versions: exact containers do not freeze their child prose. */
+  readonly text: (node: NodeVersion, view: NodeSnapshot) => string | undefined;
+  readonly isKnowledge: (node: NodeVersion, view: NodeSnapshot) => boolean;
+  readonly title: (node: NodeVersion, view: NodeSnapshot) => string;
+}
+
+const exactAddress = z.strictObject({ node: z.string().min(1), transaction: z.string().min(1) });
+const askInput = z.object({
+  text: z.string().trim().min(1),
+  subject: z.string().min(1).optional(),
+  suggestions: answerSuggestions,
+  source: exactAddress,
+  /** Empty when no relevant knowledge exists; never invent grounding to fill it. */
+  knowledge: z.array(exactAddress).max(6),
+});
+
 /** Agent tools retain requests for information; directly recorded answers belong to the person. */
-export function questionTools(context: AgentToolContext, nodes: NodeStore) {
+export function questionTools(
+  context: AgentToolContext,
+  nodes: NodeStore,
+  reading: QuestionContextReading,
+) {
+  const passage = (view: NodeSnapshot, address: Required<NodeAddress>, knowledge: boolean) => {
+    const version = view.resolve(address);
+    if (!version?.data || view.get(address.node)?.key.transaction !== address.transaction)
+      throw new Error('Question context has changed or is unavailable; read it again.');
+    if (!reading.text(version, view)?.trim())
+      throw new Error('Question context requires a self-contained text version.');
+    if (reading.isKnowledge(version, view) !== knowledge)
+      throw new Error(
+        knowledge
+          ? 'Existing knowledge must be Wiki text.'
+          : 'The Question source must be retained source material.',
+      );
+  };
   const collection = async () => {
     const view = context.snapshot();
     const questions = await readQuestions(nodes, view);
@@ -54,22 +92,77 @@ export function questionTools(context: AgentToolContext, nodes: NodeStore) {
   return {
     askQuestion: tool({
       description:
-        'Present and retain an open question for the Vault owner. Supply a Wiki subject identity to also show it on that page; omit the subject for the Questions collection.',
-      inputSchema: z.object({
-        text: z.string().trim().min(1),
-        subject: z.string().min(1).optional(),
-      }),
+        'Retain an open question with 1–4 editable suggested answers prepared now. Use listQuestionContext to read the triggering source and relevant existing knowledge first. Supply each suggestion’s title, complete answer text and grounded reason, the exact source address and the exact knowledge addresses used. These are proposals for the owner, never accepted answers. Supply a Wiki subject to also show the Question there.',
+      inputSchema: askInput,
       execute: async (input) => {
         context.signal.throwIfAborted();
+        const preparedInput = askInput.parse(input);
+        const view = context.snapshot();
+        passage(view, preparedInput.source, false);
+        for (const knowledge of preparedInput.knowledge) passage(view, knowledge, true);
         const question = crypto.randomUUID();
         const transaction = await context.commit(
-          prepareAskQuestion(context.snapshot(), {
-            ...input,
+          prepareAskQuestion(view, {
+            ...preparedInput,
             node: question,
             id: crypto.randomUUID(),
           }),
         );
         return { question, transaction, accepted: true };
+      },
+    }),
+    listQuestionContext: tool({
+      description:
+        'Read self-contained retained source passages and existing Wiki knowledge for generating a Question and its suggested answers. Returned node/transaction pairs identify the exact text shown. Search with words from the source, subject or question; omit query to browse. Reading and suggesting never records an Answer.',
+      inputSchema: z.object({ query: z.string().optional() }),
+      execute: async ({ query = '' }) => {
+        const tracked = context.snapshot();
+        // Discovery must not capture mutable execution records as dependencies of later asks.
+        const view = await nodes.snapshot(tracked.sequence);
+        context.signal.throwIfAborted();
+        const terms = query.toLocaleLowerCase().split(/\s+/).filter(Boolean);
+        const found = visibleNodes(view)
+          .flatMap((version) => {
+            if (
+              ['question', 'answer', 'agentRun', 'toolExecution'].includes(
+                String(version.data?.kind),
+              )
+            )
+              return [];
+            const text = reading.text(version, view);
+            if (!text?.trim()) return [];
+            const title = reading.title(version, view);
+            const haystack = `${title} ${text}`.toLocaleLowerCase();
+            const score = terms.filter((term) => haystack.includes(term)).length;
+            if (terms.length && !score) return [];
+            return [
+              {
+                node: version.key.node,
+                transaction: version.key.transaction,
+                title,
+                text,
+                knowledge: reading.isKnowledge(version, view),
+                score,
+              },
+            ];
+          })
+          .sort((first, second) => second.score - first.score);
+        const receipt = ({ node, transaction, title, text }: (typeof found)[number]) => ({
+          node,
+          transaction,
+          title,
+          text,
+        });
+        return {
+          sources: found
+            .filter((entry) => !entry.knowledge)
+            .slice(0, 20)
+            .map(receipt),
+          knowledge: found
+            .filter((entry) => entry.knowledge)
+            .slice(0, 20)
+            .map(receipt),
+        };
       },
     }),
     listQuestionSubjects: tool({

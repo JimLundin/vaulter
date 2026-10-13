@@ -2,7 +2,7 @@ import { frozen } from '../../vault/nodes/json.ts';
 import type { NodeAddress, NodeVersion, Placement } from '../../vault/nodes/model.ts';
 import type { NodeCommit, NodeSnapshot } from '../../vault/nodes/store.ts';
 import type { TransactionKind } from '../../vault/nodes/operations.ts';
-import { parseAnswer, parseQuestion } from './records.ts';
+import { parseAnswer, parseQuestion, type AnswerSuggestion } from './records.ts';
 import { readQuestion } from './reading.ts';
 
 declare module '../../vault/nodes/operations.ts' {
@@ -22,6 +22,10 @@ export interface AskQuestionOptions {
   readonly node: string;
   readonly text: string;
   readonly subject?: string;
+  readonly suggestions?: readonly AnswerSuggestion[];
+  /** Exact self-contained text versions read to prepare these proposals. */
+  readonly source?: Required<NodeAddress>;
+  readonly knowledge?: readonly Required<NodeAddress>[];
 }
 export interface AnswerQuestionOptions {
   readonly id: string;
@@ -70,8 +74,27 @@ export function prepareAskQuestion(
   view: NodeSnapshot,
   options: AskQuestionOptions,
 ): QuestionCommit {
-  const data = parseQuestion({ kind: 'question', text: options.text.trim() });
+  const data = parseQuestion({
+    kind: 'question',
+    text: options.text.trim(),
+    ...(options.suggestions ? { suggestions: options.suggestions } : {}),
+  });
   const expectedReads: Record<string, string | null> = {};
+  if (options.suggestions && !options.source)
+    throw new Error('Suggested answers require the source of the Question.');
+  const grounding = [
+    ...(options.source ? [{ predicate: 'generated-from', address: options.source }] : []),
+    ...(options.knowledge ?? []).map((address) => ({ predicate: 'informed-by', address })),
+  ];
+  for (const { address } of grounding) {
+    const version = view.resolve(address);
+    if (
+      !(address.transaction && version?.data) ||
+      view.get(address.node)?.key.transaction !== address.transaction
+    )
+      throw new Error('Question context has changed or is unavailable; read it again.');
+    expectedReads[address.node] = address.transaction;
+  }
   let placement: Placement | null = null;
   if (options.subject) {
     Object.assign(expectedReads, questionSubject(view, options.subject).expectedReads);
@@ -85,7 +108,19 @@ export function prepareAskQuestion(
     kind: questionOperations.ask,
     message: 'Ask a question',
     expectedReads,
-    changes: [{ node: options.node, expected: null, data, placement, connection: null }],
+    changes: [
+      { node: options.node, expected: null, data, placement, connection: null },
+      ...grounding.map(({ predicate, address }, index) => ({
+        node: `${options.node}:context:${index}`,
+        expected: null,
+        data: { kind: 'relationship', predicate },
+        placement: { parent: options.node, order: String(index).padStart(4, '0') },
+        connection: {
+          source: { node: options.node, transaction: options.id },
+          target: address,
+        },
+      })),
+    ],
   });
 }
 

@@ -91,6 +91,8 @@ import { HistoryPage } from './workflows/history/index.tsx';
 import { Wiki, type ForeignRecordRenderer } from './workflows/wiki/index.tsx';
 import { wikiRoute, pageRoute } from './workflows/wiki/routes.ts';
 import { useWikiReading, useWiki } from './workflows/wiki/use-wiki.ts';
+import { recordText } from './workflows/wiki/text.ts';
+import { isWikiContent } from './workflows/wiki/citations.ts';
 import {
   QuestionItem,
   QuestionsPage,
@@ -104,7 +106,7 @@ import {
   type QuestionTargetDescription,
 } from './workflows/questions/index.tsx';
 import { prepareAnswerQuestion } from './workflows/questions/operations.ts';
-import { questionTools } from './workflows/questions/tools.ts';
+import { questionTools, type QuestionContextReading } from './workflows/questions/tools.ts';
 import { questionSources } from './workflows/questions/sources.ts';
 
 const chatRoute = pattern('/chat/');
@@ -123,21 +125,77 @@ const unavailableModel = () =>
   Promise.reject(new Error('Configure an OpenAI key to send messages.'));
 const executionPreferences = createSettings(agentSettings);
 const storagePreferences = createSettings(githubSettings);
-const contentKinds = ['content', 'question'];
+const contentKinds = ['content', 'question', 'relationship'];
 const enabledContentTools = [
   { name: 'createNode' },
   { name: 'readNode' },
   { name: 'updateNode' },
   { name: 'askQuestion' },
   { name: 'listQuestionSubjects' },
+  { name: 'listQuestionContext' },
   { name: 'readQuestion' },
   { name: 'listQuestions' },
 ];
+const chatSourceReader = chatSources((node) => `#${conversationRoute.href({ node })}`);
+const sourceOwners = [
+  chatSourceReader,
+  contentSources,
+  questionSources,
+  retainedRecordSources,
+  agentSources,
+];
+const productSources: SourceReader = {
+  text: (node, context) => {
+    for (const owner of sourceOwners) {
+      const text = owner.text(node, context);
+      if (text !== undefined) return text;
+    }
+  },
+  describe: (node, view) => describeSource(node, view, sourceOwners),
+};
+const questionContextReading: QuestionContextReading = {
+  text: (node, view) => {
+    if (node.data?.kind === 'contextInput' && ['system', 'tool'].includes(String(node.data.role)))
+      return;
+    // Only text held in this version is self-contained. Composite sources need a snapshot selection.
+    if (
+      !(
+        typeof node.data?.text === 'string' ||
+        (node.data?.kind === 'message' && Array.isArray(node.data.parts)) ||
+        (node.data?.kind === 'contextInput' && typeof node.data.content === 'string')
+      )
+    )
+      return;
+    try {
+      return recordText(node, view, productSources);
+    } catch {
+      // Unsupported source records are not grounding passages.
+    }
+  },
+  isKnowledge: (node, view) => node.data?.kind !== 'contextInput' && isWikiContent(node, view),
+  title: (node, view) => {
+    const description = productSources.describe(node, view);
+    if (description?.title) return description.title;
+    let current = node;
+    const seen = new Set<string>();
+    while (current.data && !seen.has(current.key.node)) {
+      seen.add(current.key.node);
+      if (current.data.kind === 'page') return String(current.data.title ?? 'Wiki page');
+      const parent = current.placement && view.get(current.placement.parent);
+      if (!parent) break;
+      current = parent;
+    }
+    return 'Retained source';
+  },
+};
 const productToolFactories = new WeakMap<NodeStore, AgentToolFactory>();
 function productTools(nodes: NodeStore): AgentToolFactory {
   let factory = productToolFactories.get(nodes);
   if (!factory) {
-    factory = (context) => ({ ...nodeContentTools(context), ...questionTools(context, nodes) });
+    factory = (context) => ({
+      ...nodeContentTools(context),
+      ...questionTools(context, nodes, questionContextReading),
+    });
     productToolFactories.set(nodes, factory);
   }
   return factory;
@@ -272,19 +330,7 @@ export function OpenProduct({
     [conversationKey, selectionStorage],
   );
   const route = useRoute();
-  const wikiSources = useMemo<SourceReader>(() => {
-    const chat = chatSources((node) => `#${conversationRoute.href({ node })}`);
-    const owners = [chat, contentSources, questionSources, retainedRecordSources, agentSources];
-    return {
-      text: (node, context) =>
-        chat.text(node, context) ??
-        contentSources.text(node, context) ??
-        questionSources.text(node, context) ??
-        retainedRecordSources.text(node, context) ??
-        agentSources.text(node, context),
-      describe: (node, view) => describeSource(node, view, owners),
-    };
-  }, []);
+  const wikiSources = productSources;
   const wiki = useWikiReading(nodes, wikiSources);
   const { pages, error: wikiError } = useWiki(wiki);
   const wikiPage = pageRoute.match(route.path)?.node;
@@ -341,10 +387,12 @@ export function OpenProduct({
     target: QuestionTarget,
   ): QuestionTargetDescription | undefined => {
     if (!(target.version && questionState.view)) return;
+    const text = questionContextReading.text(target.version, questionState.view);
     const description = wikiSources.describe(target.version, questionState.view);
     if (description)
       return {
         ...description,
+        text,
         navigationLabel: description.href
           ? `Open source context${description.title ? `: ${description.title}` : ''}`
           : undefined,
@@ -356,6 +404,7 @@ export function OpenProduct({
       if (current.data.kind === 'page')
         return {
           title: String(current.data.title ?? 'Wiki page'),
+          text,
           href: `#${pageRoute.href({ node: current.key.node })}`,
           navigationLabel: `Open Wiki page: ${String(current.data.title ?? 'Wiki page')}`,
         };
@@ -364,6 +413,17 @@ export function OpenProduct({
       if (!parent?.data) break;
       current = parent;
     }
+    if (text) return { title: 'Retained source', text };
+  };
+  const describeQuestionAuthor = (question: Question) => {
+    const data = question.created && questionState.view?.resolve(question.created.author)?.data;
+    return typeof data?.name === 'string'
+      ? data.name
+      : data?.kind === 'agent'
+        ? 'agent'
+        : data?.kind === 'actor'
+          ? 'you'
+          : undefined;
   };
   const renderWikiRecord: ForeignRecordRenderer = (block) => {
     if (block.data.kind !== 'question') return;
@@ -390,6 +450,7 @@ export function OpenProduct({
         <QuestionItem
           question={question}
           describeTarget={describeQuestionTarget}
+          describeAuthor={describeQuestionAuthor}
           onAnswer={answerQuestion}
           disabledReason={answerAvailability}
         />
@@ -776,6 +837,7 @@ export function OpenProduct({
             state={questionState}
             node={selectedQuestion}
             describeTarget={describeQuestionTarget}
+            describeAuthor={describeQuestionAuthor}
             onAnswer={answerQuestion}
             disabledReason={answerAvailability}
           />

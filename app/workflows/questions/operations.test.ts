@@ -3,7 +3,7 @@ import { create, request, revise } from '../../vault/nodes/fixtures.test-support
 import { memoryNodeBackend } from '../../vault/nodes/memory.ts';
 import type { QuestionCommit } from './operations.ts';
 import { prepareAnswerQuestion, prepareAskQuestion } from './operations.ts';
-import { readQuestions } from './reading.ts';
+import { createQuestionsReading, readQuestions } from './reading.ts';
 import { parseAnswer } from './records.ts';
 
 const attributed = (prepared: QuestionCommit) => ({
@@ -269,4 +269,83 @@ test('Questions owns direct Answer grammar while retaining accepted text exactly
   expect(() => parseAnswer({ kind: 'answer', text: '' })).toThrow();
   expect(() => parseAnswer({ kind: 'question', text: 'Where?' })).toThrow();
   expect(() => parseAnswer({ kind: 'answer', text: 'Garden.', status: 'answered' })).toThrow();
+});
+
+test('asking retains proposals and exact source and knowledge together without recording an Answer', async () => {
+  const nodes = await fixture();
+  await nodes.commit(
+    request('context', [
+      create('source', { kind: 'content', text: 'The garden wall gets morning light.' }),
+      create('knowledge', { kind: 'run', text: 'Natural light matters for fine work.' }, 'page'),
+    ]),
+  );
+  const options = {
+    id: 'grounded-ask',
+    node: 'question',
+    text: 'Where should the bench go?',
+    subject: 'page',
+    suggestions: [
+      {
+        title: 'Garden wall',
+        text: 'Use the garden wall for natural light.',
+        reason: 'The source locates the light; existing knowledge prioritises fine work.',
+      },
+    ],
+    source: { node: 'source', transaction: 'context' },
+    knowledge: [{ node: 'knowledge', transaction: 'context' }],
+  };
+  const prepared = prepareAskQuestion(await nodes.snapshot(), options);
+  await nodes.commit(attributed(prepared));
+  const [question] = await readQuestions(nodes);
+  expect(question).toMatchObject({
+    status: 'open',
+    data: { suggestions: options.suggestions },
+    answers: [],
+    sources: [{ address: options.source, state: 'available' }],
+    knowledge: [{ address: options.knowledge[0], state: 'available' }],
+  });
+  expect((await nodes.changes(options.id)).some(({ after }) => after.data?.kind === 'answer')).toBe(
+    false,
+  );
+  await nodes.commit(
+    request('changed-context', [
+      await revise(nodes, 'source', { kind: 'content', text: 'The light is different now.' }),
+      await revise(nodes, 'knowledge', null),
+    ]),
+  );
+  expect((await readQuestions(nodes))[0]).toMatchObject({
+    status: 'open',
+    data: { suggestions: options.suggestions },
+    sources: [
+      { state: 'newer', version: { data: { text: 'The garden wall gets morning light.' } } },
+    ],
+    knowledge: [
+      { state: 'deleted', version: { data: { text: 'Natural light matters for fine work.' } } },
+    ],
+  });
+  const reading = createQuestionsReading(nodes);
+  await reading.reload();
+  expect(reading.snapshot().questions?.[0].data.suggestions).toEqual(options.suggestions);
+  reading.dispose();
+  nodes.close();
+});
+
+test('context changes before ask acceptance reject every proposal and grounding relationship', async () => {
+  const nodes = await fixture();
+  await nodes.commit(
+    request('context', [create('source', { kind: 'content', text: 'Morning light.' })]),
+  );
+  const prepared = prepareAskQuestion(await nodes.snapshot(), {
+    id: 'stale-ask',
+    node: 'question',
+    text: 'Where?',
+    suggestions: [{ title: 'Garden', text: 'Use the garden wall.', reason: 'Morning light.' }],
+    source: { node: 'source', transaction: 'context' },
+  });
+  await nodes.commit(request('change', [await revise(nodes, 'source', null)]));
+  await expect(nodes.commit(attributed(prepared))).rejects.toThrow('Conflict');
+  const view = await nodes.snapshot();
+  expect(view.get('question')).toBeUndefined();
+  expect(view.get('question:context:0')).toBeUndefined();
+  nodes.close();
 });

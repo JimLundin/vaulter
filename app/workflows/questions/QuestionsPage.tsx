@@ -30,6 +30,7 @@ export interface QuestionsPageProps {
   readonly state: QuestionsReadingState;
   readonly node?: string;
   readonly describeTarget?: (target: QuestionTarget) => QuestionTargetDescription | undefined;
+  readonly describeAuthor?: (question: Question) => string | undefined;
   readonly onAnswer?: QuestionAnswerHandler;
   readonly disabledReason?: string;
 }
@@ -39,6 +40,7 @@ export function QuestionsPage({
   state,
   node,
   describeTarget,
+  describeAuthor,
   onAnswer,
   disabledReason,
 }: QuestionsPageProps) {
@@ -63,9 +65,9 @@ export function QuestionsPage({
   return (
     <FeaturePage
       title="Questions"
-      description="Requests for information about subjects in your vault."
+      description="Use a suggestion as a starting point, then make the answer yours."
     >
-      <Stack>
+      <Stack gap="xl" inset="page" block="lg">
         {node ? (
           <Link href={`#${questionsRoute.href()}`}>All questions</Link>
         ) : (
@@ -73,7 +75,7 @@ export function QuestionsPage({
             <Input
               type="search"
               aria-label="Find questions"
-              placeholder="Find a question or subject…"
+              placeholder="Find a question, subject or source…"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
             />
@@ -110,6 +112,7 @@ export function QuestionsPage({
             <QuestionItem
               question={question}
               describeTarget={describeTarget}
+              describeAuthor={describeAuthor}
               onAnswer={onAnswer}
               disabledReason={answerDisabledReason}
             />
@@ -151,5 +154,12 @@ function searchText(
         ? parseAnswer(answer.version.data).text
         : describeTarget?.(answer)?.title || answer.label || '',
     ),
+    ...(question.sources ?? []).map(
+      (source) => describeTarget?.(source)?.title || source.label || '',
+    ),
+    ...(question.data.suggestions ?? []).flatMap((suggestion) => [
+      suggestion.title,
+      suggestion.text,
+    ]),
   ].join(' ');
 }

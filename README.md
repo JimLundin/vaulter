@@ -109,8 +109,8 @@ visible History and Search screens remain legacy file workflows. See [Agent reco
 
 ## Publishing
 
-Review the latest design before merging at **https://jimlundin.github.io/vaulter/preview/structure/**.
-The component gallery is at **https://jimlundin.github.io/vaulter/preview/structure/kit/**.
+Review the branch's current Product UI in its hosted sample preview before merging.
+The [preview workflow for agents](docs/agents/preview.md) covers comparisons and production promotion.
 Every branch push runs the checks. Non-main branches publish their sample preview at
 `/preview/<branch-name>/`, with the component gallery at `/preview/<branch-name>/kit/`.
 For example, `feature/input` publishes at `/preview/feature/input/`. `main` publishes production.
@@ -118,13 +118,13 @@ For example, `feature/input` publishes at `/preview/feature/input/`. `main` publ
 support have been integrated into `structure`. The historical branch still has its older workflow
 and should receive no further pushes.
 The banner identifies the preview commit; `version.json` records its branch.
-Use **Mobile** in the top banner to review the phone layout from your desktop. **Desktop** returns
-to the wide layout; **Window** follows your browser size. Switching retains your current page,
-draft and open settings/search fields. The banner stays above the whole app, including the sidebar.
+Use **Mobile** in the movable preview pill to review phone width from your desktop. Switch it off
+to follow the window. Switching retains your current page, draft and open settings/search fields.
+The pill overlays the app; drag its grip to move it, or use arrow keys and Home on the focused grip.
 The app, preview and gallery share one primary microphone/Enter action according to field focus.
 Both use the same Filled style as New chat and confirmation actions; an empty focused draft keeps
-Enter disabled. The completed A/B/C style picker has been removed from the preview bar.
-This preview uses the actual Product views, fictional notes, an in-memory backend,
+Enter disabled. The default preview has no active comparison or variation picker.
+It uses the actual current Product views, fictional notes, an in-memory backend,
 and a scripted local model. Try “vault it: leave space for a walk before work” to create, read and
 update a fictional content node through the actual Agent. Reload reopens accepted Chat history without
 replaying tools; Reset demo clears its tab journal. Try “ask me: Which tools should stay?” to save a
@@ -165,8 +165,7 @@ the deployed artifact has expired.
 `tools/publish-design.ts` refuses to publish if that exact production artifact is unavailable or if
 the preview contains `secrets.json` or `sw.js`. The `github-pages` environment permits branch
 deployments for these previews. Preview publishing does not merge the application branch or migrate vault data.
-An ordinary main deployment replaces the whole site, so it removes the preview until the next
-design preview publish.
+Main deployments publish production together with the retained branch previews.
 
 Notes don't publish: the app reads the vault's `main` itself. Every push here runs
 `.github/workflows/deploy.yml`: lint, the type check and the tests; on `main` it then builds, seals

@@ -46,6 +46,15 @@ export const previewModel: PreviewModel = {
     const writing = /vault it|file this|capture|remember|sign-off/i.test(said);
     const asking = /^ask me:\s*(.+)$/is.exec(said)?.[1].trim();
     const asked = results.find((result) => result.toolName === 'askQuestion');
+    const grounding = results.find((result) => result.toolName === 'listQuestionContext');
+    const groundingData = grounding?.output.type === 'json' ? grounding.output.value : null;
+    const passages =
+      groundingData && typeof groundingData === 'object' && 'sources' in groundingData
+        ? (groundingData as {
+            sources: { node: string; transaction: string; text: string }[];
+            knowledge: { node: string; transaction: string; text: string }[];
+          })
+        : undefined;
     const askedData = asked?.output.type === 'json' ? asked.output.value : null;
     const question =
       askedData && typeof askedData === 'object' && 'question' in askedData
@@ -58,10 +67,35 @@ export const previewModel: PreviewModel = {
         ? String(createdData.node)
         : '';
     let parts: StreamPart[];
-    if (asking && !asked) {
+    if (asking && !grounding) {
+      parts = [call('listQuestionContext', {})];
+    } else if (asking && !asked) {
+      const source = passages?.sources.find((item) => item.text === said) ?? passages?.sources[0];
+      const known = passages?.knowledge.find((item) => /mornings free/i.test(item.text));
+      if (!source)
+        throw new Error('The scripted preview needs a retained source for this question.');
       parts = [
         ...text('I’ll retain this question on the Garden studio page.'),
-        call('askQuestion', { text: asking, subject: 'preview:page:0' }),
+        call('askQuestion', {
+          text: asking,
+          subject: 'preview:page:0',
+          source: { node: source.node, transaction: source.transaction },
+          knowledge: known ? [{ node: known.node, transaction: known.transaction }] : [],
+          suggestions: [
+            {
+              title: 'Prioritise morning work',
+              text: 'Choose the option that keeps mornings free for making things.',
+              reason:
+                'The retained studio notes prioritise free mornings; use that as a starting point for this question.',
+            },
+            {
+              title: 'Leave the choice flexible',
+              text: 'Keep the choice flexible and revisit it after trying a morning in the studio.',
+              reason:
+                'The source leaves this question open; trying a morning can help refine the choice.',
+            },
+          ],
+        }),
       ];
     } else if (asking) {
       parts = text(

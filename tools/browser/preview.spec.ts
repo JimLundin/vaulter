@@ -7,6 +7,10 @@ test('the preview handle drags without toggling controls, stays bounded, and sup
   await page.goto('/preview/');
   await expect(page.getByRole('textbox', { name: 'Message', exact: true })).toBeVisible();
   const banner = page.getByRole('complementary', { name: 'Design preview' });
+  await expect(banner.getByRole('button', { name: 'Design variation', exact: true })).toHaveCount(
+    0,
+  );
+  await expect(banner.getByText('Current design', { exact: true })).toHaveCount(0);
   const handle = banner.locator('[data-preview-drag-handle]');
   const original = (await banner.boundingBox())!;
   const grip = (await handle.boundingBox())!;

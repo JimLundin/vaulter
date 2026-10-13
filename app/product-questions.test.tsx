@@ -67,7 +67,11 @@ test('Product composes the shared Questions owner for nested Wiki questions and 
   try {
     await act(async () => root.render(<Surface />));
     await act(async () => {
-      await vi.waitFor(() => expect(document.body.textContent).toContain('Open question'));
+      await vi.waitFor(() =>
+        expect(
+          document.querySelector('[data-slot=card][aria-label="Open question"]'),
+        ).not.toBeNull(),
+      );
     });
     expect(document.body.textContent).toContain('Which wall?');
     await act(async () => {
@@ -89,7 +93,7 @@ test('Product composes the shared Questions owner for nested Wiki questions and 
       await vi.waitFor(() => expect(document.body.textContent).toContain('Recorded answer'));
     });
     expect(document.body.textContent).not.toContain('Open question');
-    expect(document.querySelector('a[href="#/chat/chat/"]')?.textContent).toBe(
+    expect(document.querySelector('a[href="#/chat/chat/"]')?.getAttribute('aria-label')).toBe(
       'Open source context: Workbench planning',
     );
     await act(async () => {
@@ -191,11 +195,17 @@ test('Product saves answers from Wiki and Questions and filters the retained sha
   };
   const saveAnswer = async (text: string, answer: string, leavesOpenList = false) => {
     const section = [
-      ...document.querySelectorAll<HTMLElement>('section[aria-label="Open question"]'),
+      ...document.querySelectorAll<HTMLElement>('[data-slot=card][aria-label="Open question"]'),
     ].find((item) => item.textContent?.includes(text));
     expect(section).toBeDefined();
-    await act(async () => button('Answer', section!).click());
-    await input(section!.querySelector('textarea')!, answer);
+    await vi.waitFor(async () => {
+      // Flush each readiness update without holding it inside the polling act scope.
+      await act(async () => undefined);
+      expect(section!.querySelector('textarea')?.disabled).toBe(false);
+    });
+    const textarea = section!.querySelector('textarea');
+    expect(textarea).not.toBeNull();
+    await input(textarea!, answer);
     await act(async () => button('Save answer', section!).click());
     await act(async () => {
       await vi.waitFor(() => {

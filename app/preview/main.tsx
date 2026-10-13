@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { OpenProduct, previewConversationKey } from '../product.tsx';
 import { later } from '../ui/later.ts';
-import { startTheme, Text, DesignComparison, DesignPreview } from '../ui/kit/index.ts';
+import { startTheme, Text, DesignPreview } from '../ui/kit/index.ts';
 import { useWriter, applyOverlay } from '../vault/changes/writer.ts';
 import { liveVault } from '../vault/index.ts';
 import { memoryBackend } from '../vault/storage/memory.ts';
@@ -208,24 +208,18 @@ function Preview({ initialHead, nodes }: { initialHead: Head; nodes: NodeStore }
     />
   );
   return (
-    <DesignComparison
-      alternatives={[{ id: 'current', label: 'Current design', content: product }]}
-      preview={(controls, content) => (
-        <DesignPreview
-          label={`${agent ? 'Live agent preview' : 'Design preview'} · ${(import.meta.env.VITE_PREVIEW_COMMIT || 'local').slice(0, 7)}`}
-          chat={agent ? 'Live agent' : 'Scripted chat'}
-          onReset={() => {
-            sessionStorage.removeItem(previewJournalKey);
-            sessionStorage.removeItem(previewConversationKey);
-            location.reload();
-          }}
-          kitHref={import.meta.env.DEV ? '/ui/kit/' : './kit/'}
-          variantControls={controls}
-        >
-          {content}
-        </DesignPreview>
-      )}
-    />
+    <DesignPreview
+      label={`${agent ? 'Live agent preview' : 'Design preview'} · ${(import.meta.env.VITE_PREVIEW_COMMIT || 'local').slice(0, 7)}`}
+      chat={agent ? 'Live agent' : 'Scripted chat'}
+      onReset={() => {
+        sessionStorage.removeItem(previewJournalKey);
+        sessionStorage.removeItem(previewConversationKey);
+        location.reload();
+      }}
+      kitHref={import.meta.env.DEV ? '/ui/kit/' : './kit/'}
+    >
+      {product}
+    </DesignPreview>
   );
 }
 

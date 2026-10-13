@@ -492,7 +492,7 @@ body:has(.kit-design-window) {
         [data-slot="checkbox"],
         [data-slot="input"],
         [data-slot="select"],
-        [data-slot="textarea"],
+        [data-slot="textarea"]:not([data-variant="longform"]),
         [data-slot="input-group"],
         [data-slot="input-group-control"],
         [data-slot="tabs-trigger"],
@@ -537,7 +537,7 @@ body:has(.kit-design-window) {
         [data-slot="checkbox"],
         [data-slot="input"],
         [data-slot="select"],
-        [data-slot="textarea"],
+        [data-slot="textarea"]:not([data-variant="longform"]),
         [data-slot="input-group"],
         [data-slot="input-group-control"],
         [data-slot="tabs-trigger"],
@@ -868,22 +868,22 @@ body:has(.kit-design-window) {
   line-height: 1.75;
 }
 .kit-prose > * + *,
-.kit-prose section > * + * {
+.kit-prose section > * + *:not([data-slot="card"] *) {
   margin-top: 1.25rem;
 }
 .kit-prose section[id],
 .kit-prose p[id] {
   scroll-margin-top: 1rem;
 }
-.kit-prose :is(h2, h3, h4, h5, h6) {
+.kit-prose :is(h2, h3, h4, h5, h6):not([data-slot="card"] *) {
   font-family: var(--font-serif);
   font-size: var(--type-title);
   font-weight: 500;
 }
-.kit-prose p {
+.kit-prose p:not([data-slot="card"] *) {
   white-space: pre-wrap;
 }
-.kit-prose a {
+.kit-prose a:not([data-slot="card"] *) {
   color: var(--primary);
   text-decoration: underline;
   text-underline-offset: 3px;

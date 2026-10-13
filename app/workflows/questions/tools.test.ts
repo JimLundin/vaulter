@@ -6,9 +6,34 @@ import { prepareAgentRun, readAgentRun } from '../../agent/store.ts';
 import { create, request, revise } from '../../vault/nodes/fixtures.test-support.ts';
 import { memoryNodeBackend } from '../../vault/nodes/memory.ts';
 import { readQuestions } from './reading.ts';
-import { questionTools } from './tools.ts';
+import { questionTools as createQuestionTools, type QuestionContextReading } from './tools.ts';
 
 const execution = { toolCallId: 'question-call', messages: [], context: {} };
+const proposals = {
+  suggestions: [
+    {
+      title: 'Garden wall',
+      text: 'Use the garden wall.',
+      reason: 'The source describes its morning light.',
+    },
+  ],
+  source: { node: 'source', transaction: 'setup' },
+  knowledge: [],
+};
+const source = () =>
+  create('source', { kind: 'content', text: 'The garden wall gets the morning light.' });
+const reading: QuestionContextReading = {
+  text: (node) =>
+    typeof node.data?.text === 'string'
+      ? node.data.text
+      : typeof node.data?.content === 'string'
+        ? node.data.content
+        : undefined,
+  title: (node) => String(node.data?.title ?? 'Source'),
+  isKnowledge: (node) => node.data?.kind === 'run',
+};
+const questionTools = (context: AgentToolContext, nodes: ReturnType<typeof memoryNodeBackend>) =>
+  createQuestionTools(context, nodes, reading);
 
 test('Questions agent discovery and reads include retained Questions and exact direct Answer text', async () => {
   const nodes = memoryNodeBackend();
@@ -83,7 +108,9 @@ test('an expired Questions tool cannot publish a request', async () => {
     },
     nodes,
   );
-  await expect(tools.askQuestion.execute!({ text: 'Which wall?' }, execution)).rejects.toThrow();
+  await expect(
+    tools.askQuestion.execute!({ ...proposals, text: 'Which wall?' }, execution),
+  ).rejects.toThrow();
   expect(publications).toBe(0);
   nodes.close();
 });
@@ -93,6 +120,7 @@ test('subject discovery retains its captured snapshot and guards each live ances
   await nodes.commit(
     request('setup', [
       create('user', { kind: 'actor' }),
+      source(),
       create('container', { kind: 'content', text: 'Wiki collection.' }),
       create('page', { kind: 'page', title: 'Studio' }, 'container'),
       create('section', { kind: 'section' }, 'page'),
@@ -134,7 +162,7 @@ test('subject discovery retains its captured snapshot and guards each live ances
   ]);
   await nodes.commit(request('removed-container', [await revise(nodes, 'container', null)]));
   await expect(
-    tools.askQuestion.execute!({ text: 'Where should the bench go?' }, execution),
+    tools.askQuestion.execute!({ ...proposals, text: 'Where should the bench go?' }, execution),
   ).rejects.toThrow('Conflict');
   expect(await readQuestions(nodes)).toEqual([]);
   nodes.close();
@@ -145,6 +173,7 @@ test('Agent presents a Question with a durable accepted receipt, trusted attribu
   await nodes.commit(
     request('setup', [
       create('user', { kind: 'actor' }),
+      source(),
       create('agent', { kind: 'agent', name: 'Fictional Agent' }),
       create('page', { kind: 'page', title: 'Studio' }),
     ]),
@@ -158,9 +187,13 @@ test('Agent presents a Question with a durable accepted receipt, trusted attribu
     provider: 'fictional',
     model: 'fictional',
     settings: { maxSteps: 2 },
-    enabledTools: ['askQuestion', 'listQuestionSubjects', 'readQuestion', 'listQuestions'].map(
-      (name) => ({ name }),
-    ),
+    enabledTools: [
+      'askQuestion',
+      'listQuestionSubjects',
+      'listQuestionContext',
+      'readQuestion',
+      'listQuestions',
+    ].map((name) => ({ name })),
     context: [
       {
         data: {
@@ -184,7 +217,11 @@ test('Agent presents a Question with a durable accepted receipt, trusted attribu
                 type: 'tool-call' as const,
                 toolCallId: 'question-call',
                 toolName: 'askQuestion',
-                input: JSON.stringify({ text: 'Where should the bench go?', subject: 'page' }),
+                input: JSON.stringify({
+                  ...proposals,
+                  text: 'Where should the bench go?',
+                  subject: 'page',
+                }),
               },
             ]
           : [
@@ -208,9 +245,10 @@ test('Agent presents a Question with a durable accepted receipt, trusted attribu
     nodes,
     model: async () => model,
     tools,
-    writableKinds: ['question'],
+    writableKinds: ['question', 'relationship'],
   });
-  expect((await backend.start(prepared).done).phase).toBe('complete');
+  const outcome = await backend.start(prepared).done;
+  expect(outcome.phase, JSON.stringify(outcome)).toBe('complete');
   const [question] = await readQuestions(nodes);
   expect(question).toMatchObject({
     status: 'open',
@@ -221,7 +259,7 @@ test('Agent presents a Question with a durable accepted receipt, trusted attribu
   const saved = await readAgentRun(nodes, 'run');
   expect(saved?.tools[0]?.data).toMatchObject({
     status: 'complete',
-    input: { text: 'Where should the bench go?', subject: 'page' },
+    input: { ...proposals, text: 'Where should the bench go?', subject: 'page' },
     output: { question: question.id, transaction: question.key.transaction, accepted: true },
   });
   const before = (await nodes.history()).length;
@@ -242,6 +280,7 @@ test('Agent can discover subjects and retained questions between consecutive acc
   await nodes.commit(
     request('setup', [
       create('user', { kind: 'actor' }),
+      source(),
       create('agent', { kind: 'agent', name: 'Fictional Agent' }),
       create('container', { kind: 'content', text: 'Wiki collection.' }),
       create('page', { kind: 'page', title: 'Studio' }, 'container'),
@@ -257,9 +296,13 @@ test('Agent can discover subjects and retained questions between consecutive acc
     provider: 'fictional',
     model: 'fictional',
     settings: { maxSteps: 6 },
-    enabledTools: ['askQuestion', 'listQuestionSubjects', 'listQuestions', 'readQuestion'].map(
-      (name) => ({ name }),
-    ),
+    enabledTools: [
+      'askQuestion',
+      'listQuestionSubjects',
+      'listQuestionContext',
+      'listQuestions',
+      'readQuestion',
+    ].map((name) => ({ name })),
     context: [
       {
         data: {
@@ -277,11 +320,17 @@ test('Agent can discover subjects and retained questions between consecutive acc
     doStream: async () => {
       const [question] = await readQuestions(nodes);
       const calls = [
-        { name: 'askQuestion', input: { text: 'Where should the bench go?', subject: 'section' } },
+        {
+          name: 'askQuestion',
+          input: { ...proposals, text: 'Where should the bench go?', subject: 'section' },
+        },
         { name: 'listQuestionSubjects', input: {} },
         { name: 'listQuestions', input: {} },
         { name: 'readQuestion', input: { node: question?.id } },
-        { name: 'askQuestion', input: { text: 'Which tools should stay?', subject: 'page' } },
+        {
+          name: 'askQuestion',
+          input: { ...proposals, text: 'Which tools should stay?', subject: 'page' },
+        },
       ];
       const call = calls[step++];
       return {
@@ -317,10 +366,10 @@ test('Agent can discover subjects and retained questions between consecutive acc
     nodes,
     model: async () => model,
     tools: (context) => questionTools(context, nodes),
-    writableKinds: ['question'],
+    writableKinds: ['question', 'relationship'],
   });
   const state = await backend.start(prepared).done;
-  expect(state.phase).toBe('complete');
+  expect(state.phase, JSON.stringify(state)).toBe('complete');
   expect(state.contentPersistence).toBeUndefined();
   expect(
     (await readQuestions(nodes))
@@ -333,5 +382,97 @@ test('Agent can discover subjects and retained questions between consecutive acc
     { node: 'page', title: 'Studio', kind: 'page' },
     { node: 'section', title: 'Studio', kind: 'section' },
   ]);
+  nodes.close();
+});
+
+test('context discovery returns captured source and knowledge text without publishing or tracking unrelated activity', async () => {
+  const nodes = memoryNodeBackend();
+  await nodes.commit(
+    request('setup', [
+      create('user', { kind: 'actor' }),
+      source(),
+      create('knowledge', { kind: 'run', text: 'Light matters for fine work.' }),
+      create('run', { kind: 'agentRun' }),
+      create('tool', { kind: 'toolExecution', text: 'Mutable tool activity.' }, 'run'),
+    ]),
+  );
+  const view = await nodes.snapshot();
+  const commit = () => Promise.reject(new Error('Discovery must not publish.'));
+  const tools = questionTools(
+    {
+      signal: new AbortController().signal,
+      snapshot: () => ({
+        ...view,
+        get: () => {
+          throw new Error('Discovery must not track unrelated records.');
+        },
+        children: () => {
+          throw new Error('Discovery must not track unrelated records.');
+        },
+        roots: () => {
+          throw new Error('Discovery must not track unrelated records.');
+        },
+      }),
+      commit,
+    },
+    nodes,
+  );
+  await nodes.commit(request('later', [create('new', { kind: 'content', text: 'Later light.' })]));
+  expect(await tools.listQuestionContext.execute!({ query: 'light' }, execution)).toEqual({
+    sources: [
+      {
+        node: 'source',
+        transaction: 'setup',
+        title: 'Source',
+        text: 'The garden wall gets the morning light.',
+      },
+    ],
+    knowledge: [
+      {
+        node: 'knowledge',
+        transaction: 'setup',
+        title: 'Source',
+        text: 'Light matters for fine work.',
+      },
+    ],
+  });
+  nodes.close();
+});
+
+test('asking requires grounded proposals and rejects a Wiki passage used as the original source', async () => {
+  const nodes = memoryNodeBackend();
+  await nodes.commit(
+    request('setup', [
+      create('user', { kind: 'actor' }),
+      source(),
+      create('wiki', { kind: 'run', text: 'Existing knowledge.' }),
+    ]),
+  );
+  const commit = () => Promise.reject(new Error('Invalid proposals must not publish.'));
+  const tools = questionTools(
+    {
+      signal: new AbortController().signal,
+      snapshot: () => {
+        throw new Error('Schema must reject incomplete input first.');
+      },
+      commit,
+    },
+    nodes,
+  );
+  const incomplete = { text: 'Where?' } as Parameters<
+    NonNullable<typeof tools.askQuestion.execute>
+  >[0];
+  await expect(tools.askQuestion.execute!(incomplete, execution)).rejects.toThrow();
+  const validated = questionTools(
+    { signal: new AbortController().signal, snapshot: () => view, commit },
+    nodes,
+  );
+  const view = await nodes.snapshot();
+  await expect(
+    validated.askQuestion.execute!(
+      { ...proposals, text: 'Where?', source: { node: 'wiki', transaction: 'setup' } },
+      execution,
+    ),
+  ).rejects.toThrow('retained source material');
   nodes.close();
 });

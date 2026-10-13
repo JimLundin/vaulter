@@ -468,24 +468,22 @@ for (const variant of ['numbered', 'badged', 'rule']) {
   });
 }
 
-test('the preview pill shows the current design and keeps the Chat draft', {
+test('the neutral preview pill keeps the Chat draft without a variation picker', {
   tag: '@phone',
 }, async ({ page }) => {
   await page.goto('/preview/?conversations=numbered');
   const input = page.getByRole('textbox', { name: 'Message', exact: true });
-  await input.fill('Keep this draft while comparing');
+  await input.fill('Keep this draft while reviewing');
   const bar = page.getByRole('complementary', { name: 'Design preview', exact: true });
   if (test.info().project.name === 'phone') {
     await bar.getByRole('button', { name: 'Preview controls', exact: true }).click();
   }
-  await expect(bar.getByRole('button', { name: 'Design variation', exact: true })).toContainText(
-    'Current design',
-  );
-  await expect(bar.getByRole('button', { name: 'Previous design', exact: true })).toBeDisabled();
-  await expect(bar.getByRole('button', { name: 'Next design', exact: true })).toBeDisabled();
+  await expect(bar.getByRole('button', { name: 'Design variation', exact: true })).toHaveCount(0);
+  await expect(bar.getByRole('button', { name: 'Previous design', exact: true })).toHaveCount(0);
+  await expect(bar.getByRole('button', { name: 'Next design', exact: true })).toHaveCount(0);
   await expect(bar.getByRole('combobox', { name: 'Conversation variant' })).toHaveCount(0);
   await expect(bar.getByRole('button', { name: 'Next variant' })).toHaveCount(0);
-  await expect(input).toHaveValue('Keep this draft while comparing');
+  await expect(input).toHaveValue('Keep this draft while reviewing');
 });
 
 test('Chat is named separately from Agent execution and has no History action', {

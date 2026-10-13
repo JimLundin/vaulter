@@ -1,4 +1,4 @@
-// Bootstrap the product with its storage adapter and the ui-kit branch's design.
+// Bootstrap the current product with its production storage adapters.
 import '@fontsource-variable/geist';
 import '@fontsource-variable/geist-mono';
 import '@fontsource-variable/newsreader';
