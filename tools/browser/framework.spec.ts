@@ -211,23 +211,23 @@ test('the preview field keeps one inset action and its draft through focus and r
   await expect(input).toHaveValue('');
 });
 
-test('button hit targets resize without animating their geometry', {
+test('the new chat icon keeps the composer button size through viewport changes', {
   tag: ['@phone', '@touch'],
 }, async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 844 });
   await page.goto('/preview/');
   const add = page.getByRole('button', { name: 'New conversation', exact: true });
-  await expect(add).toHaveAttribute('data-size', 'compact');
+  await expect(add).toHaveAttribute('data-size', 'standard');
   // Slow feedback transitions so a layout transition cannot finish before the measurement.
   await add.evaluate((node) => {
     node.style.transitionDuration = '1s';
   });
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(add).toHaveAttribute('data-size', 'compact');
+  await expect(add).toHaveAttribute('data-size', 'standard');
   await expect(add).toHaveAttribute('aria-label', 'New conversation');
   const bounds = (await add.boundingBox())!;
-  expect(bounds.width).toBeGreaterThanOrEqual(44);
-  expect(bounds.height).toBe(test.info().project.name === 'desktop' ? 32 : 44);
+  expect(bounds.width).toBe(44);
+  expect(bounds.height).toBe(44);
   expect(
     await add.evaluate((node) =>
       node.getAnimations().map((animation) => (animation as CSSTransition).transitionProperty),
@@ -253,9 +253,7 @@ test('agent controls have even insets and suggestions remain one scrolling row w
     expect((await mic.boundingBox())!.height).toBe(send.height);
     if (width < 768) {
       const add = page.getByRole('button', { name: 'New conversation', exact: true });
-      expect((await add.boundingBox())!.height).toBe(
-        test.info().project.name === 'desktop' ? 32 : 44,
-      );
+      expect((await add.boundingBox())!.height).toBe(send.height);
       const toolbar = page.locator('header').filter({ has: add });
       const bar = (await toolbar.boundingBox())!;
       const action = (await add.boundingBox())!;
