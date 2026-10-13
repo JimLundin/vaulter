@@ -38,6 +38,10 @@ without repeating effects. The separate legacy rename-note operation stages file
 rewrites. Legacy staged edits are preserved when sending node Chat messages.
 Consecutive tool calls fold into an expandable summary, with a live status showing the current action.
 The app includes a manifest and icons for installing it to the Home Screen.
+Questions collects retained requests for information, with search and Open, Answered, Abandoned
+and All filters. The agent can ask a question about a Wiki page or section, where the same question
+also appears. Answer from either view; the response and its evidence link are saved together and
+remain readable after reload. The agent can consult retained questions and answers on later turns.
 Settings groups Appearance, Chat instructions, Agent execution options, OpenAI models and voice,
 GitHub storage, and Jina credentials. Preferences apply to new runs and are saved on this device.
 Models, voice, step limits, output limits and retry counts offer dropdown choices with custom values.
@@ -123,7 +127,9 @@ Enter disabled. The completed A/B/C style picker has been removed from the previ
 This preview uses the actual Product views, fictional notes, an in-memory backend,
 and a scripted local model. Try “vault it: leave space for a walk before work” to create, read and
 update a fictional content node through the actual Agent. Reload reopens accepted Chat history without
-replaying tools; Reset demo clears its tab journal. Query scenarios `initial-save`, `lost-response`,
+replaying tools; Reset demo clears its tab journal. Try “ask me: Which tools should stay?” to save a
+question about Garden studio, then answer it from Questions or the Wiki page.
+Query scenarios `initial-save`, `lost-response`,
 `outcome-save` and `terminal-save` demonstrate persistence recovery. It ships no credentials, reads
 no private vault contents, and registers no service worker. Search links still expose the current
 branch's missing reader routes; that remains an architecture review finding.

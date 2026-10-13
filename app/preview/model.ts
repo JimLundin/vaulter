@@ -44,6 +44,13 @@ export const previewModel: PreviewModel = {
           : [],
       );
     const writing = /vault it|file this|capture|remember|sign-off/i.test(said);
+    const asking = /^ask me:\s*(.+)$/is.exec(said)?.[1].trim();
+    const asked = results.find((result) => result.toolName === 'askQuestion');
+    const askedData = asked?.output.type === 'json' ? asked.output.value : null;
+    const question =
+      askedData && typeof askedData === 'object' && 'question' in askedData
+        ? String(askedData.question)
+        : '';
     const created = results.find((result) => result.toolName === 'createNode');
     const createdData = created?.output.type === 'json' ? created.output.value : null;
     const node =
@@ -51,7 +58,18 @@ export const previewModel: PreviewModel = {
         ? String(createdData.node)
         : '';
     let parts: StreamPart[];
-    if (writing && !created) {
+    if (asking && !asked) {
+      parts = [
+        ...text('I’ll retain this question on the Garden studio page.'),
+        call('askQuestion', { text: asking, subject: 'preview:page:0' }),
+      ];
+    } else if (asking) {
+      parts = text(
+        question
+          ? `Saved question: **${asking}**. [Open question](/questions/${encodeURIComponent(question)}/) to answer it, or visit **Garden studio** in the Wiki.`
+          : 'The question could not be saved. The tool receipt has the details.',
+      );
+    } else if (writing && !created) {
       parts = [
         ...text('I’ll publish this as a content node in the fictional Vault.'),
         call('createNode', { title: 'Preview thought', text: said }),
@@ -70,7 +88,7 @@ export const previewModel: PreviewModel = {
       parts = text(
         writing
           ? 'Filed in **Preview thought**, a content node with its original and updated versions retained. The tool receipts identify the accepted transactions.\n\nReload to reopen this accepted conversation, or use **Reset demo** to clear the fictional history.'
-          : 'Your sample vault has notes about **Slow mornings**, **Garden studio**, and a **Reading list**.\n\nThis is a scripted design preview. Try **“vault it: leave space for a walk before work”** to create, read and update a fictional content node.',
+          : 'Your sample vault has notes about **Slow mornings**, **Garden studio**, and a **Reading list**.\n\nThis is a scripted design preview. Try **“vault it: leave space for a walk before work”** to create, read and update a fictional content node, or **“ask me: which tools should stay?”** to retain a question you can answer in the Wiki or Questions.',
       );
     }
     const toolCalls = parts.some((part) => part.type === 'tool-call');

@@ -46,7 +46,7 @@ type Precision = 'second' | 'minute' | 'day' | 'approximate';
 | Graph | `relationship`, `term`; block `query` | `RelationList`, `TermChip`, `QueryBlock` |
 | Calendar | `date`; block `timeline` | `DateBadge`, `CalendarView`, `TimelineBlock` |
 | Tasks | `task` | `TaskItem`, `TaskList` |
-| Questions | `question` | `QuestionItem`, `QuestionList` |
+| Questions | `question`, `answer` | `QuestionItem`, `QuestionsPage` |
 | Decisions | `decision` | `DecisionItem`, `DecisionLog` |
 | References | `resource` | `ResourceLink` |
 | Places | fields on `page` | `MapView` |
@@ -175,6 +175,8 @@ question status or import another workflow.
 /** Placed under what it is about. Answered exactly when it has an answered-by relationship
     (→ decision, exchange, page or section). */
 type Question = { kind: 'question'; text: string; abandoned?: true };
+/** A person's direct response, placed under the Question and linked as exact evidence. */
+type Answer = { kind: 'answer'; text: string };
 ```
 
 One Question identity is shared across contexts. Its placement identifies its primary Subject;
@@ -195,8 +197,17 @@ citations. Existing answer relationships supply no such selection; the current p
 their node addresses and reports changes to the addressed node. Its links open the source's context,
 not an exact historical answer view.
 
-The current module provides reading and embedded presentation. Asking and answering through Chat,
-the Agent and a dedicated Questions view remain subsequent behavior to implement through this owner.
+The module provides retained reading, asking through Agent tools, and answering from Wiki or the
+dedicated Questions view. `askQuestion` optionally places the Question under a live Wiki page or
+section; `listQuestionSubjects` discovers those Subjects. `listQuestions` and `readQuestion` expose
+the retained lifecycle and recorded answers to the Agent without inventing a response.
+
+A direct answer publishes an `answer` record and an exact `answered-by` connection atomically.
+That transaction also versions the Question without changing its wording, guarding the version
+the person read so concurrent or repeated saves cannot answer the same open version twice. Existing
+answer evidence kinds and historical relationships remain readable. The person authors direct
+answers; an Agent run authors its questions. Transaction origin records the answering Question or
+asking run separately from the Subject.
 
 ## Decisions
 
