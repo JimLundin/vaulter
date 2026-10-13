@@ -10,7 +10,8 @@ const { get, put, del } = db;
 /** For tests: forget the open connection. */
 export const closeKeys = db.close;
 
-const REMEMBER = 30 * 864e5;
+export const REMEMBER_DAYS = 30;
+const REMEMBER = REMEMBER_DAYS * 864e5;
 const local = serial();
 const coordinate = <Value>(operation: () => Promise<Value>): Promise<Value> =>
   local(() =>

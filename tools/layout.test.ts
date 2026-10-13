@@ -27,6 +27,27 @@ test('the dependency policy rejects cross-workflow imports and private kit acces
   );
 });
 
+test('Vault task UI composes shared presentation while persistence keeps its own implementation', () => {
+  for (const source of [
+    'app/vault/Gate.tsx',
+    'app/vault/session/ui.tsx',
+    'app/vault/storage/Settings.tsx',
+    'app/vault/content/tool-presentation.tsx',
+  ]) {
+    expect(importProblem(source, 'app/ui/kit/index.ts')).toBeNull();
+    expect(importProblem(source, 'app/ui/kit/parts/button.tsx')).toContain('private kit');
+    expect(importProblem(source, 'app/ui/Frame.tsx')).toContain('presentation from the vault');
+  }
+  for (const source of [
+    'app/vault/session/session.ts',
+    'app/vault/nodes/store.ts',
+    'app/vault/storage/nodes/github.ts',
+    'app/vault/content/tools.ts',
+    'app/vault/session/new-helper.tsx',
+  ])
+    expect(importProblem(source, 'app/ui/kit/index.ts')).toContain('presentation from the vault');
+});
+
 test('Wiki owns its records while migration and source readers stay outside its implementation', () => {
   expect(importProblem('app/workflows/wiki/records.ts', 'tools/migration/records.ts')).toContain(
     'migration depends on Wiki',

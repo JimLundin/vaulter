@@ -1,9 +1,9 @@
 // @vitest-environment happy-dom
-import { act, useState, type ReactNode } from 'react';
+import { act, type ReactNode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { createSettings, type SettingsDefinition, type SettingsStore } from '../settings.ts';
-import { ModuleSettings, SecretSettings } from './ModuleSettings.tsx';
+import { ModuleSettings } from './ModuleSettings.tsx';
 
 const roots: Root[] = [];
 
@@ -338,109 +338,4 @@ test('numeric presets keep zero, validate custom values and allow selecting the 
   expect(dropdown('Maximum retries').value).toBe('');
   expect(document.querySelectorAll('input')).toHaveLength(0);
   expect(JSON.parse(sessionStorage.getItem('vaulter.settings.numeric-choices')!)).toEqual({});
-});
-
-const secrets: SettingsDefinition = {
-  id: 'credentials',
-  name: 'Credentials',
-  fields: [
-    {
-      key: 'provider',
-      label: 'Provider API key',
-      description: 'Used for requests.',
-      kind: 'secret',
-    },
-    {
-      key: 'github',
-      label: 'GitHub token',
-      description: 'Used for the vault.',
-      kind: 'secret',
-      clearable: false,
-    },
-  ],
-};
-
-test('credentials show only configuration status and save, restore or clear on explicit actions', async () => {
-  const onChange = vi.fn<(key: string, value: string | null | undefined) => Promise<void>>();
-  function Credentials() {
-    const [configured, setConfigured] = useState({ provider: true, github: true });
-    const [overridden, setOverridden] = useState({ provider: false, github: false });
-    return (
-      <SecretSettings
-        definition={secrets}
-        configured={configured}
-        overridden={overridden}
-        onChange={async (key, value) => {
-          await onChange(key, value);
-          setConfigured((current) => ({ ...current, [key]: value !== null }));
-          setOverridden((current) => ({ ...current, [key]: value !== undefined }));
-        }}
-      />
-    );
-  }
-  onChange.mockResolvedValue(undefined);
-  await mount(<Credentials />);
-  expect(input('Provider API key').value).toBe('');
-  expect(input('Provider API key').getAttribute('type')).toBe('password');
-  expect(input('Provider API key').getAttribute('placeholder')).toBe('Configured');
-  expect(descriptions(input('Provider API key'))).toContain('Using login value');
-  expect(document.querySelector('button[aria-label="Clear GitHub token"]')).toBeNull();
-  expect(button('Save Provider API key').disabled).toBe(true);
-  await fill(input('Provider API key'), 'replacement-key');
-  expect(onChange).not.toHaveBeenCalled();
-  await act(async () => button('Save Provider API key').click());
-  expect(onChange).toHaveBeenLastCalledWith('provider', 'replacement-key');
-  expect(input('Provider API key').value).toBe('');
-  expect(document.body.innerHTML).not.toContain('replacement-key');
-  expect(descriptions(input('Provider API key'))).toContain('Saved');
-  await act(async () => button('Restore login value for Provider API key').click());
-  expect(onChange).toHaveBeenLastCalledWith('provider', undefined);
-  expect(descriptions(input('Provider API key'))).toContain('Restored login value');
-  await act(async () => button('Clear Provider API key').click());
-  expect(onChange).toHaveBeenLastCalledWith('provider', null);
-  expect(input('Provider API key').getAttribute('placeholder')).toBe('Not configured');
-  expect(button('Clear Provider API key').disabled).toBe(true);
-});
-
-test('credential failures retain the draft for retry and unavailable settings explain the disabled controls', async () => {
-  const onChange = vi.fn<(key: string, value: string | null | undefined) => Promise<void>>();
-  onChange.mockRejectedValueOnce(new Error('Encrypted settings could not be saved.'));
-  onChange.mockResolvedValue(undefined);
-  const root = await mount(
-    <SecretSettings
-      definition={secrets}
-      configured={{}}
-      overridden={{}}
-      onChange={onChange}
-      persistent={false}
-    />,
-  );
-  expect(document.body.textContent).toContain('Credential changes last for this session.');
-  await fill(input('Provider API key'), 'retry-key');
-  await act(async () => button('Save Provider API key').click());
-  expect(input('Provider API key').value).toBe('retry-key');
-  expect(input('Provider API key').getAttribute('aria-invalid')).toBe('true');
-  expect(descriptions(input('Provider API key'))).toContain(
-    'Encrypted settings could not be saved.',
-  );
-  await act(async () => button('Save Provider API key').click());
-  expect(input('Provider API key').value).toBe('');
-  expect(document.querySelector('[role="alert"]')).toBeNull();
-  await act(async () =>
-    root.render(
-      <SecretSettings
-        definition={secrets}
-        configured={{ provider: true }}
-        overridden={{ provider: true }}
-        onChange={onChange}
-        disabledReason="Unlock your login to change credentials."
-      />,
-    ),
-  );
-  expect(input('Provider API key').disabled).toBe(true);
-  expect(button('Restore login value for Provider API key').disabled).toBe(true);
-  expect(button('Clear Provider API key').disabled).toBe(true);
-  expect(descriptions(input('Provider API key'))).toContain(
-    'Unlock your login to change credentials.',
-  );
 });

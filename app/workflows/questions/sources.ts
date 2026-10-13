@@ -4,6 +4,10 @@ import { parseAnswer, parseQuestion } from './records.ts';
 
 /** Questions retains the text grammar used by existing historical selections. */
 export const questionSources: SourceReader = {
+  exactText(node) {
+    if (node.data?.kind === 'answer') return parseAnswer(node.data).text;
+    if (node.data?.kind === 'question') return parseQuestion(node.data).text;
+  },
   text(node) {
     if (node.data?.kind === 'answer') return parseAnswer(node.data).text;
     if (node.data?.kind !== 'question') return;

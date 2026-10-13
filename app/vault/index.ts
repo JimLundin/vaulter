@@ -14,6 +14,14 @@ import { titleOf, excerptOf, hrefOf, kind, asList, topicsOf } from './documents/
 import { search, searchIndex } from './documents/search.ts';
 import type { OpenNodes } from './nodes/store.ts';
 export type { NodeStore, OpenNodes } from './nodes/store.ts';
+export { VaultGate } from './Gate.tsx';
+export { CredentialSetting, RefreshNodes, SessionStatus, SignOut, Unlock } from './session/ui.tsx';
+export {
+  createSessionCredentials,
+  restrictSessionCredentials,
+  type Credential,
+  type SessionCredentials,
+} from './session/credentials.ts';
 
 export type { Change, VaultFile } from './files.ts';
 export { applyChanges } from './files.ts';
@@ -85,6 +93,7 @@ export function useVaultSession(openBackend: OpenBackend, openNodes?: OpenNodes)
     vault,
     identity: session.identity,
     credentialPending: session.credentialPending,
+    credentials: session.credentials,
     files,
     status: session.status,
     locked: session.locked,

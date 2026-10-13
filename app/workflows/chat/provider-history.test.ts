@@ -2,7 +2,7 @@ import { expect, test } from 'vitest';
 import { historyModelMessages } from '../../agent/history.ts';
 import { chatModelMessages } from './node-backend.ts';
 
-test('provider history preserves successful, failed and uncertain tool outcomes consistently for text and voice', () => {
+test('provider history preserves successful, failed, cancelled and uncertain tool outcomes consistently for text and voice', () => {
   const parts = [
     {
       kind: 'tool' as const,
@@ -19,6 +19,14 @@ test('provider history preserves successful, failed and uncertain tool outcomes 
       input: {},
       status: 'failed' as const,
       error: 'Rejected',
+    },
+    {
+      kind: 'tool' as const,
+      callId: 'cancelled',
+      name: 'publish',
+      input: {},
+      status: 'cancelled' as const,
+      error: 'Stopped',
     },
     {
       kind: 'tool' as const,
@@ -64,6 +72,14 @@ test('provider history preserves successful, failed and uncertain tool outcomes 
         toolCallId: 'bad',
         toolName: 'publish',
         output: { type: 'error-text', value: 'Rejected' },
+      },
+    ],
+    [
+      {
+        type: 'tool-result',
+        toolCallId: 'cancelled',
+        toolName: 'publish',
+        output: { type: 'error-text', value: 'Stopped' },
       },
     ],
     [

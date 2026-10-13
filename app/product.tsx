@@ -6,19 +6,26 @@ import {
   noteSearchIndex,
   type OpenBackend,
   type OpenNodes,
+  VaultGate,
+  RefreshNodes,
+  SessionStatus,
+  SignOut,
+  createSessionCredentials,
+  restrictSessionCredentials,
 } from './vault/index.ts';
 import { Frame } from './ui/Frame.tsx';
-import { Unlock } from './ui/Unlock.tsx';
 import { Search, Keys } from './ui/Search.tsx';
 import { Previews } from './ui/Previews.tsx';
 import { useKeys } from './ui/keys.ts';
 import { opened } from './ui/recent.ts';
 import { go, link, parseRoute, pattern, useRoute } from './ui/routing.ts';
 import { later } from './ui/later.ts';
-import { createSettings } from './settings.ts';
-import { ModuleSettings, SecretSettings } from './ui/ModuleSettings.tsx';
 import { AppearanceSettings, appearanceSettings } from './ui/AppearanceSettings.tsx';
-import { agentSettings, agentOptions } from './agent/settings.ts';
+import { agentSettings, agentOptions, agentPreferences } from './agent/settings.ts';
+import { AgentSettings } from './agent/Settings.tsx';
+import { OpenAISettings } from './agent/openai/Settings.tsx';
+import { JinaSettings } from './agent/jina/Settings.tsx';
+import { GitHubSettings } from './vault/storage/Settings.tsx';
 import {
   createOpenAISettings,
   createOpenAIPreferences,
@@ -27,20 +34,13 @@ import {
 import { githubSettings } from './vault/storage/settings.ts';
 import { jinaSettings } from './agent/jina/settings.ts';
 import { chatPreferences, chatSettings } from './workflows/chat/preferences.ts';
-import type { Secrets } from './vault/session/sealed.ts';
+import { nodeWriteAvailability, nodeRecordsReady } from './vault/session/availability.ts';
 import {
   Button,
-  Brand,
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
   Alert,
   AlertDescription,
-  Gate,
   Heading,
   Link,
-  Loader,
   Overlay,
   Page,
   SettingsMenu,
@@ -68,16 +68,19 @@ import {
   type ApplicationIdentities,
 } from './application-identities.ts';
 import { nodeContentTools, canUndoContent } from './vault/content/tools.ts';
+import { contentEnabledTools } from './vault/content/tool-actions.ts';
+import { contentToolPresentation } from './vault/content/tool-presentation.tsx';
 import type { NodeDifference, NodeStore } from './vault/nodes/store.ts';
 import { createOpenAICapabilities } from './agent/openai/index.ts';
 import { preservesAgentRecords } from './agent/preservation.ts';
 import type { AgentToolFactory } from './agent/tools.ts';
-import { agentSources } from './agent/sources.ts';
+import { agentSources, isAgentContext } from './agent/sources.ts';
 import { preservesChatRecords } from './workflows/chat/records/chat.ts';
 import { chatSources } from './workflows/chat/records/sources.ts';
 import { contentSources } from './vault/content/sources.ts';
 import { retainedRecordSources } from './vault/records/sources.ts';
 import { describeSource, type SourceReader } from './vault/sources.ts';
+import { identityName } from './vault/records/identities.ts';
 import {
   createNodeConversation,
   type NodeConversationOptions,
@@ -91,23 +94,23 @@ import { HistoryPage } from './workflows/history/index.tsx';
 import { Wiki, type ForeignRecordRenderer } from './workflows/wiki/index.tsx';
 import { wikiRoute, pageRoute } from './workflows/wiki/routes.ts';
 import { useWikiReading, useWiki } from './workflows/wiki/use-wiki.ts';
-import { recordText } from './workflows/wiki/text.ts';
 import { isWikiContent } from './workflows/wiki/citations.ts';
+import { wikiSources as wikiSourceReader, describeWikiTarget } from './workflows/wiki/sources.ts';
 import {
-  QuestionItem,
   QuestionsPage,
   questionsRoute,
   questionRoute,
   useQuestions,
   useQuestionsReading,
-  readQuestions,
-  type Question,
-  type QuestionTarget,
-  type QuestionTargetDescription,
+  useQuestionAnswers,
+  questionAnswerAvailability,
+  questionDescriptions,
+  renderQuestionRecord,
 } from './workflows/questions/index.tsx';
-import { prepareAnswerQuestion } from './workflows/questions/operations.ts';
 import { questionTools, type QuestionContextReading } from './workflows/questions/tools.ts';
 import { questionSources } from './workflows/questions/sources.ts';
+import { questionEnabledTools } from './workflows/questions/tool-actions.ts';
+import { questionToolPresentation } from './workflows/questions/tool-presentation.tsx';
 
 const chatRoute = pattern('/chat/');
 const conversationRoute = pattern('/chat/:node/');
@@ -123,19 +126,9 @@ const unavailableNodes: NodeStore = {
 };
 const unavailableModel = () =>
   Promise.reject(new Error('Configure an OpenAI key to send messages.'));
-const executionPreferences = createSettings(agentSettings);
-const storagePreferences = createSettings(githubSettings);
 const contentKinds = ['content', 'question', 'relationship'];
-const enabledContentTools = [
-  { name: 'createNode' },
-  { name: 'readNode' },
-  { name: 'updateNode' },
-  { name: 'askQuestion' },
-  { name: 'listQuestionSubjects' },
-  { name: 'listQuestionContext' },
-  { name: 'readQuestion' },
-  { name: 'listQuestions' },
-];
+const enabledContentTools = [...contentEnabledTools, ...questionEnabledTools];
+const toolPresentations = [contentToolPresentation, questionToolPresentation];
 const chatSourceReader = chatSources((node) => `#${conversationRoute.href({ node })}`);
 const sourceOwners = [
   chatSourceReader,
@@ -145,6 +138,12 @@ const sourceOwners = [
   agentSources,
 ];
 const productSources: SourceReader = {
+  exactText: (node, view) => {
+    for (const owner of [...sourceOwners, wikiSourceReader]) {
+      const text = owner.exactText?.(node, view);
+      if (text !== undefined) return text;
+    }
+  },
   text: (node, context) => {
     for (const owner of sourceOwners) {
       const text = owner.text(node, context);
@@ -154,39 +153,12 @@ const productSources: SourceReader = {
   describe: (node, view) => describeSource(node, view, sourceOwners),
 };
 const questionContextReading: QuestionContextReading = {
-  text: (node, view) => {
-    if (node.data?.kind === 'contextInput' && ['system', 'tool'].includes(String(node.data.role)))
-      return;
-    // Only text held in this version is self-contained. Composite sources need a snapshot selection.
-    if (
-      !(
-        typeof node.data?.text === 'string' ||
-        (node.data?.kind === 'message' && Array.isArray(node.data.parts)) ||
-        (node.data?.kind === 'contextInput' && typeof node.data.content === 'string')
-      )
-    )
-      return;
-    try {
-      return recordText(node, view, productSources);
-    } catch {
-      // Unsupported source records are not grounding passages.
-    }
-  },
-  isKnowledge: (node, view) => node.data?.kind !== 'contextInput' && isWikiContent(node, view),
-  title: (node, view) => {
-    const description = productSources.describe(node, view);
-    if (description?.title) return description.title;
-    let current = node;
-    const seen = new Set<string>();
-    while (current.data && !seen.has(current.key.node)) {
-      seen.add(current.key.node);
-      if (current.data.kind === 'page') return String(current.data.title ?? 'Wiki page');
-      const parent = current.placement && view.get(current.placement.parent);
-      if (!parent) break;
-      current = parent;
-    }
-    return 'Retained source';
-  },
+  text: (node, view) => productSources.exactText?.(node, view),
+  isKnowledge: (node, view) => !isAgentContext(node) && isWikiContent(node, view),
+  title: (node, view) =>
+    productSources.describe(node, view)?.title ||
+    describeWikiTarget(node, view)?.title ||
+    'Retained source',
 };
 const productToolFactories = new WeakMap<NodeStore, AgentToolFactory>();
 function productTools(nodes: NodeStore): AgentToolFactory {
@@ -202,8 +174,8 @@ function productTools(nodes: NodeStore): AgentToolFactory {
 }
 
 type VaultSession = ReturnType<typeof useVaultSession>;
-type SuppliedSession = Omit<VaultSession, 'identity' | 'credentialPending'> &
-  Partial<Pick<VaultSession, 'identity' | 'credentialPending'>>;
+type SuppliedSession = Omit<VaultSession, 'identity' | 'credentialPending' | 'credentials'> &
+  Partial<Pick<VaultSession, 'identity' | 'credentialPending' | 'credentials'>>;
 
 export function Product({
   openBackend,
@@ -215,31 +187,11 @@ export function Product({
   identities?: ApplicationIdentities;
 }) {
   const session = useVaultSession(openBackend, openNodes);
-  if (session.locked) return <Unlock unlock={session.locked.unlock} />;
-  if (!session.files || session.blocked)
-    return (
-      <Gate>
-        <Brand />
-        {session.blocked || session.status.kind === 'error' ? (
-          <Alert variant="destructive">
-            <AlertDescription>
-              {session.blocked ?? (session.status.kind === 'error' ? session.status.message : '')}
-            </AlertDescription>
-          </Alert>
-        ) : (
-          <Card>
-            <CardHeader>
-              <Heading level={1}>Opening your vault</Heading>
-              <CardDescription>Getting your conversations and notes ready.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Loader>Loading your vault…</Loader>
-            </CardContent>
-          </Card>
-        )}
-      </Gate>
-    );
-  return <OpenProduct session={session} identities={identities} />;
+  return (
+    <VaultGate state={session}>
+      <OpenProduct session={session} identities={identities} />
+    </VaultGate>
+  );
 }
 
 /** The same product views with supplied session/model adapters, including the design preview. */
@@ -277,13 +229,13 @@ export function OpenProduct({
     providerPreferences.snapshot,
   );
   const executionValues = useSyncExternalStore(
-    executionPreferences.subscribe,
-    executionPreferences.snapshot,
+    agentPreferences.subscribe,
+    agentPreferences.snapshot,
   );
   const chatValues = useSyncExternalStore(chatPreferences.subscribe, chatPreferences.snapshot);
   // biome-ignore lint/correctness/useExhaustiveDependencies: the snapshot invalidates parsed settings from this store.
   const executionSettings = useMemo(
-    () => agentOptions(executionPreferences.values()),
+    () => agentOptions(agentPreferences.values()),
     [executionValues],
   );
   // biome-ignore lint/correctness/useExhaustiveDependencies: the snapshot invalidates parsed settings from this store.
@@ -331,124 +283,46 @@ export function OpenProduct({
   const onQuestions = !!questionsRoute.match(route.path) || !!selectedQuestion;
   const questions = useQuestionsReading(onWiki || onQuestions ? nodes : null);
   const questionState = useQuestions(questions);
-  const questionIndex = useMemo(
-    () => new Map(questionState.questions?.map((question) => [question.id, question])),
-    [questionState.questions],
+  // Session identity survives credential reconnects; independent supplied stores get a new owner.
+  const chatScope = useRef<{ nodes: NodeStore | null; key: object }>({ nodes: null, key: {} });
+  if (chatScope.current.nodes !== nodes) {
+    chatScope.current = {
+      nodes,
+      key: chatScope.current.nodes === null && nodes ? chatScope.current.key : {},
+    };
+  }
+  const chatSession = session.identity ?? chatScope.current.key;
+  const writeAdmission = session.credentialPending
+    ? 'Wait for the credential update to finish before saving changes.'
+    : (nodeWriteAvailability(nodeStatus, !!nodes) ??
+      (identityState.owner !== setup || !identityState.ready
+        ? 'Preparing Vault identities…'
+        : undefined));
+  const admission = useRef(writeAdmission);
+  admission.current = writeAdmission;
+  const answers = useQuestionAnswers({
+    session: chatSession,
+    nodes,
+    recordedBy: identities.user,
+    admission: () => admission.current,
+  });
+  const answerAvailability = questionAnswerAvailability(questionState, writeAdmission);
+  const descriptions = questionDescriptions(
+    questionState.view,
+    {
+      text: questionContextReading.text,
+      describe: (node, view) =>
+        productSources.describe(node, view) ?? describeWikiTarget(node, view),
+    },
+    identityName,
   );
-  const answerAvailability = !nodes
-    ? 'Opening the node store…'
-    : nodeStatus.kind === 'error'
-      ? `Node store error: ${nodeStatus.message}`
-      : nodeStatus.kind === 'offline'
-        ? 'Connect to save an answer.'
-        : nodeStatus.kind !== 'synced'
-          ? 'Opening the node store…'
-          : identityState.owner !== setup || !identityState.ready
-            ? 'Preparing Vault identities…'
-            : questionState.error
-              ? 'Refresh questions before saving an answer.'
-              : questionState.loading
-                ? 'Refreshing questions…'
-                : undefined;
-  const answerQuestion = async (question: Question, text: string) => {
-    if (!nodes || answerAvailability)
-      throw new Error(answerAvailability ?? 'Node store is unavailable.');
-    const view = await nodes.snapshot();
-    const current = (await readQuestions(nodes, view)).find((entry) => entry.id === question.id);
-    if (!current || current.status !== 'open')
-      throw new Error('This question is no longer open. Review its current status.');
-    const request = prepareAnswerQuestion(view, {
-      id: crypto.randomUUID(),
-      node: crypto.randomUUID(),
-      relationship: crypto.randomUUID(),
-      question: question.key,
-      text,
-      relationships: current.answers.flatMap((answer) => {
-        const relationship = answer.relationship && view.get(answer.relationship);
-        return relationship ? [relationship] : [];
-      }),
+  const renderWikiRecord: ForeignRecordRenderer = (record) =>
+    renderQuestionRecord(record, questionState, {
+      ...descriptions,
+      answers,
+      onAnswer: answers.answer,
+      disabledReason: writeAdmission,
     });
-    await nodes.commit({
-      ...request,
-      recordedBy: identities.user,
-      origin: question.id,
-      undoOf: null,
-    });
-  };
-  const describeQuestionTarget = (
-    target: QuestionTarget,
-  ): QuestionTargetDescription | undefined => {
-    if (!(target.version && questionState.view)) return;
-    const text = questionContextReading.text(target.version, questionState.view);
-    const description = wikiSources.describe(target.version, questionState.view);
-    if (description)
-      return {
-        ...description,
-        text,
-        navigationLabel: description.href
-          ? `Open source context${description.title ? `: ${description.title}` : ''}`
-          : undefined,
-      };
-    const seen = new Set<string>();
-    let current = target.version;
-    while (current.data && !seen.has(current.key.node)) {
-      seen.add(current.key.node);
-      if (current.data.kind === 'page')
-        return {
-          title: String(current.data.title ?? 'Wiki page'),
-          text,
-          href: `#${pageRoute.href({ node: current.key.node })}`,
-          navigationLabel: `Open Wiki page: ${String(current.data.title ?? 'Wiki page')}`,
-        };
-      if (!current.placement) break;
-      const parent = questionState.view.get(current.placement.parent);
-      if (!parent?.data) break;
-      current = parent;
-    }
-    if (text) return { title: 'Retained source', text };
-  };
-  const describeQuestionAuthor = (question: Question) => {
-    const data = question.created && questionState.view?.resolve(question.created.author)?.data;
-    return typeof data?.name === 'string'
-      ? data.name
-      : data?.kind === 'agent'
-        ? 'agent'
-        : data?.kind === 'actor'
-          ? 'you'
-          : undefined;
-  };
-  const renderWikiRecord: ForeignRecordRenderer = (block) => {
-    if (block.data.kind !== 'question') return;
-    const question = questionIndex.get(block.id);
-    if (!question)
-      return (
-        <Stack gap="xs">
-          <Text>{String(block.data.text ?? '')}</Text>
-          <Text tone="muted" size="sm">
-            {questionState.error
-              ? `Question details unavailable: ${questionState.error}`
-              : 'Loading question details…'}
-          </Text>
-        </Stack>
-      );
-    return (
-      <Stack gap="xs">
-        {!!questionState.error && (
-          <Text role="status" tone="muted" size="sm">
-            Question details could not refresh; showing the last recorded status.{' '}
-            {questionState.error}
-          </Text>
-        )}
-        <QuestionItem
-          question={question}
-          describeTarget={describeQuestionTarget}
-          describeAuthor={describeQuestionAuthor}
-          onAnswer={answerQuestion}
-          disabledReason={answerAvailability}
-        />
-      </Stack>
-    );
-  };
   const layout = useLayout();
   const mobile = layout === 'compact';
   const [search, setSearch] = useState(false);
@@ -499,33 +373,17 @@ export function OpenProduct({
   );
   const remoteModel = provider?.model ?? null;
   const speechProvider = provider?.dictation ?? null;
-  // Supplied session identity survives credential reconnects; independent stores get a new owner.
-  const chatScope = useRef<{ nodes: NodeStore | null; key: object }>({ nodes: null, key: {} });
-  if (chatScope.current.nodes !== nodes) {
-    chatScope.current = {
-      nodes,
-      key: chatScope.current.nodes === null && nodes ? chatScope.current.key : {},
-    };
-  }
-  const chatSession = session.identity ?? chatScope.current.key;
   const voice = useTranscription(preview?.transcription ?? speechProvider, chatSession);
   const availability = session.credentialPending
     ? 'Wait for the credential update to finish before starting agent activity.'
-    : !nodes
-      ? 'Opening the node store…'
-      : nodeStatus.kind === 'error'
-        ? `Node store error: ${nodeStatus.message}`
-        : nodeStatus.kind === 'offline'
-          ? 'The node store is offline. Connect to save messages.'
-          : nodeStatus.kind !== 'synced'
-            ? 'Opening the node store…'
-            : identityState.owner !== setup || !identityState.ready
-              ? identityState.error
-                ? `Identity setup failed: ${identityState.error}`
-                : 'Preparing Vault identities…'
-              : !(suppliedModel ?? remoteModel)
-                ? 'Configure an OpenAI key in Settings to send messages.'
-                : undefined;
+    : (nodeWriteAvailability(nodeStatus, !!nodes) ??
+      (identityState.owner !== setup || !identityState.ready
+        ? identityState.error
+          ? `Identity setup failed: ${identityState.error}`
+          : 'Preparing Vault identities…'
+        : !(suppliedModel ?? remoteModel)
+          ? 'Configure an OpenAI key in Settings to send messages.'
+          : undefined));
   const conversation = useConversation(
     productChatOptions({
       nodes: nodes ?? unavailableNodes,
@@ -544,7 +402,7 @@ export function OpenProduct({
         : undefined,
       transcription: voice,
       conversation: conversationRoute.match(route.path)?.node,
-      recordsReady: !!nodes && !['loading', 'syncing'].includes(nodeStatus.kind),
+      recordsReady: !!nodes && nodeRecordsReady(nodeStatus),
       onSelectionOutcome: (outcome) => {
         if (
           (outcome.status === 'blocked' || outcome.status === 'failed') &&
@@ -580,33 +438,39 @@ export function OpenProduct({
   const promptSequence = useRef(0);
   // Supplied intent belongs to the receiving owner, including owners replaced by effect replay.
   const prompt = suppliedPrompt?.owner === conversation ? suppliedPrompt.value : null;
-  const { capture, turns, selectionAvailability, busy, recovery } = useChat(conversation);
-  const credentialReason = preview
-    ? 'Credentials are supplied by the preview server.'
-    : session.credentialPending
-      ? 'Credentials are being updated. Wait for the update to finish.'
-      : busy ||
-          Object.keys(recovery).length > 0 ||
-          ['connecting', 'listening', 'finishing'].includes(capture.phase)
-        ? 'Finish or stop the current agent activity before changing credentials.'
-        : undefined;
-  const configured = Object.fromEntries(
-    (['github', 'openai', 'jina'] as const).map((key) => [key, Boolean(session.secrets?.[key])]),
-  );
-  const overridden = Object.fromEntries(
-    (['github', 'openai', 'jina'] as const).map((key) => [
-      key,
-      Object.hasOwn(session.secretOverrides, key),
-    ]),
-  );
-  const credentialProps = {
-    configured,
-    overridden,
-    disabledReason: credentialReason,
-    persistent: !import.meta.env.DEV,
-    onChange: (key: string, value: string | null | undefined) =>
-      session.updateSecret(key as keyof Secrets, value),
+  const { capture, turns, selectionAvailability } = useChat(conversation);
+  const currentSession = useRef(session);
+  currentSession.current = session;
+  const currentConversation = useRef(conversation);
+  currentConversation.current = conversation;
+  const credentialReason = () => {
+    if (preview) return 'Credentials are supplied by the preview server.';
+    const state = currentConversation.current.snapshot();
+    if (
+      state.busy ||
+      Object.keys(state.recovery).length > 0 ||
+      ['connecting', 'listening', 'finishing'].includes(state.capture.phase)
+    )
+      return 'Finish or stop the current agent activity before changing credentials.';
   };
+  const credentials = restrictSessionCredentials(
+    session.credentials ??
+      createSessionCredentials(session, {
+        persistent: false,
+        read: () => currentSession.current,
+      }),
+    credentialReason,
+  );
+  const signOut = session.signOut
+    ? async () => {
+        conversation.dispose();
+        voice.dispose();
+        wiki.dispose();
+        questions.dispose();
+        answers.dispose();
+        await session.signOut!();
+      }
+    : null;
   const navigation: Navigation[] = [
     { label: 'Chat', href: chatRoute.href(), icon: 'sparkles', current: onChat },
     { label: 'Wiki', href: wikiRoute.href(), icon: 'book', current: onWiki },
@@ -744,13 +608,7 @@ export function OpenProduct({
             id: 'signout',
             label: 'Sign out',
             group: 'Actions',
-            run: () => {
-              conversation.dispose();
-              voice.dispose();
-              wiki.dispose();
-              questions.dispose();
-              later(session.signOut!());
-            },
+            run: () => later(signOut!()),
           },
         ]
       : []),
@@ -773,31 +631,12 @@ export function OpenProduct({
   useEffect(() => {
     if (!route.anchor) document.querySelector('[data-region=""]')?.scrollTo(0, 0);
   }, [route.path]);
-  const statusLabel =
-    status.kind === 'synced'
-      ? `Synced ${new Date(status.at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`
-      : status.kind === 'error'
-        ? status.message
-        : status.kind === 'offline'
-          ? 'Offline'
-          : 'Syncing…';
   return (
     <>
       <Frame
         navigation={navigation}
-        status={statusLabel}
-        failed={status.kind === 'error' || status.kind === 'offline'}
-        signOut={
-          session.signOut
-            ? async () => {
-                conversation.dispose();
-                voice.dispose();
-                wiki.dispose();
-                questions.dispose();
-                await session.signOut!();
-              }
-            : null
-        }
+        status={<SessionStatus status={status} />}
+        signOut={signOut && <SignOut onSignOut={signOut} />}
         onSearch={() => setSearch(true)}
         primary={{
           compact: !onChat && (
@@ -812,6 +651,7 @@ export function OpenProduct({
         panel={
           <ChatPanel
             conversation={conversation}
+            toolPresentations={toolPresentations}
             prompt={onChat ? null : prompt}
             open={panel}
             onClose={() => showPanel(false)}
@@ -825,15 +665,19 @@ export function OpenProduct({
           </Alert>
         )}
         {onChat ? (
-          <ChatPage conversation={conversation} prompt={prompt} />
+          <ChatPage
+            conversation={conversation}
+            prompt={prompt}
+            toolPresentations={toolPresentations}
+          />
         ) : onQuestions ? (
           <QuestionsPage
             key={selectedQuestion ?? 'questions'}
             state={questionState}
             node={selectedQuestion}
-            describeTarget={describeQuestionTarget}
-            describeAuthor={describeQuestionAuthor}
-            onAnswer={answerQuestion}
+            {...descriptions}
+            answers={answers}
+            onAnswer={answers.answer}
             disabledReason={answerAvailability}
           />
         ) : onWiki ? (
@@ -846,21 +690,7 @@ export function OpenProduct({
           />
         ) : onHistory ? (
           <Stack>
-            <Row>
-              <Button
-                onClick={() => later(session.refreshNodes())}
-                disabled={nodeStatus.kind === 'syncing'}
-              >
-                Refresh vault
-              </Button>
-              <Text role="status">
-                {nodeStatus.kind === 'synced'
-                  ? `Synced ${new Date(nodeStatus.at).toLocaleTimeString()}`
-                  : nodeStatus.kind === 'error'
-                    ? nodeStatus.message
-                    : nodeStatus.kind}
-              </Text>
-            </Row>
+            <RefreshNodes status={nodeStatus} refresh={session.refreshNodes} />
             <HistoryPage nodes={nodeHistoryView} />
           </Stack>
         ) : (
@@ -879,29 +709,25 @@ export function OpenProduct({
           { name: chatSettings.name, content: <ChatSettings /> },
           {
             name: agentSettings.name,
-            content: <ModuleSettings definition={agentSettings} store={executionPreferences} />,
+            content: <AgentSettings />,
           },
           {
             name: providerDefinition.name,
             content: (
-              <Stack gap="lg">
-                <SecretSettings definition={providerDefinition} {...credentialProps} />
-                <ModuleSettings definition={providerDefinition} store={providerPreferences} />
-              </Stack>
+              <OpenAISettings
+                definition={providerDefinition}
+                preferences={providerPreferences}
+                credential={credentials.openai}
+              />
             ),
           },
           {
             name: githubSettings.name,
-            content: (
-              <Stack gap="lg">
-                <SecretSettings definition={githubSettings} {...credentialProps} />
-                <ModuleSettings definition={githubSettings} store={storagePreferences} />
-              </Stack>
-            ),
+            content: <GitHubSettings credential={credentials.github} />,
           },
           {
             name: jinaSettings.name,
-            content: <SecretSettings definition={jinaSettings} {...credentialProps} />,
+            content: <JinaSettings credential={credentials.jina} />,
           },
         ]}
       />
@@ -973,7 +799,7 @@ export function productChatOptions({
     tools: productTools(options.nodes),
     writableKinds: contentKinds,
     enabledTools: enabledContentTools,
-    settings: options.settings ?? agentOptions(executionPreferences.values()),
+    settings: options.settings ?? agentOptions(agentPreferences.values()),
   };
 }
 export function createProductConversation(options: ProductChatOptions) {

@@ -281,7 +281,7 @@ test('Product agent asks a retained Question with its accepted receipt and stabl
       .snapshot()
       .turns.flatMap(({ parts }) => parts)
       .find((part) => part.kind === 'tool' && part.name === 'askQuestion');
-    expect(accepted).toMatchObject({ kind: 'tool', output: receipt, result: 'Accepted' });
+    expect(accepted).toMatchObject({ kind: 'tool', output: receipt, status: 'complete' });
     const before = (await nodes.history()).length;
     await reopened.open(chat.conversation());
     expect(reopened.snapshot().turns.flatMap(({ parts }) => parts)).toEqual(

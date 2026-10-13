@@ -154,6 +154,10 @@ test('credential changes persist before use, retain storage, and restore preload
     secrets: { github: 'fictional-token', openai: 'preloaded-key', jina: 'preloaded-jina' },
   });
   expect(session().credentialPending).toBe(false);
+  expect(session().credentials.openai.persistent).toBe(true);
+  expect(session().credentials.openai.configured).toBe(true);
+  expect(session().credentials.openai.overridden).toBe(false);
+  expect(session().credentials.github.clear).toBeUndefined();
   let release!: () => void;
   vi.mocked(saveSecretOverrides).mockImplementationOnce(
     () =>
@@ -163,10 +167,11 @@ test('credential changes persist before use, retain storage, and restore preload
   );
   let updating!: Promise<void>;
   await act(async () => {
-    updating = session().updateSecret('openai', 'device-key');
+    updating = session().credentials.openai.save('device-key');
     await Promise.resolve();
   });
   expect(session().credentialPending).toBe(true);
+  expect(session().credentials.openai.disabledReason).toContain('being updated');
   expect(session().secrets?.openai).toBe('preloaded-key');
   await act(async () => {
     release();
@@ -175,12 +180,16 @@ test('credential changes persist before use, retain storage, and restore preload
   expect(session().credentialPending).toBe(false);
   expect(session().secrets?.openai).toBe('device-key');
   expect(session().secretOverrides).toEqual({ openai: 'device-key' });
+  expect(session().credentials.openai.overridden).toBe(true);
   expect(factory).toHaveBeenCalledTimes(1);
   expect(fileFactory).toHaveBeenCalledTimes(1);
-  await act(async () => session().updateSecret('jina', null));
+  await act(async () => session().credentials.jina.clear!());
   expect(session().secrets?.jina).toBeUndefined();
-  await act(async () => session().updateSecret('openai', undefined));
+  expect(session().credentials.jina.configured).toBe(false);
+  expect(session().credentials.jina.overridden).toBe(true);
+  await act(async () => session().credentials.openai.restore());
   expect(session().secrets?.openai).toBe('preloaded-key');
+  expect(session().credentials.openai.overridden).toBe(false);
   expect(session().secretOverrides).toEqual({ jina: null });
 });
 
@@ -229,6 +238,34 @@ test('queued credential changes keep the session pending until every edit finish
   });
   expect(session().credentialPending).toBe(false);
   expect(session().secrets?.jina).toBe('second-key');
+});
+
+test('retained safe credential handles reject pending updates and closed Session generations', async () => {
+  const { session, root } = await open(memoryNodeBackend());
+  const credential = session().credentials.openai;
+  let release!: () => void;
+  vi.mocked(saveSecretOverrides).mockImplementationOnce(
+    () =>
+      new Promise<void>((resolve) => {
+        release = resolve;
+      }),
+  );
+  let saving!: Promise<void>;
+  await act(async () => {
+    saving = credential.save('first-key');
+    await expect(credential.save('duplicate-key')).rejects.toThrow('being updated');
+  });
+  expect(saveSecretOverrides).toHaveBeenCalledTimes(1);
+  await act(async () => {
+    release();
+    await saving;
+  });
+  await act(async () => credential.restore());
+  expect(session().credentials.openai.configured).toBe(false);
+  await act(async () => root.unmount());
+  roots.splice(roots.indexOf(root), 1);
+  await expect(credential.save('late-key')).rejects.toThrow('session has closed');
+  expect(saveSecretOverrides).toHaveBeenCalledTimes(2);
 });
 
 test('GitHub replacement preserves the open vault while preparing and ignores old refresh results', async () => {

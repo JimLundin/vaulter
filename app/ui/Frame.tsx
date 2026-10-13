@@ -1,15 +1,13 @@
 // The product's frame: its navigation, given to the kit's NavigationSuite, which shows it as a sidebar on
 // desktop and as a bottom bar, menu sheet and floating primary action on a phone.
 import type { ReactNode } from 'react';
-import { Button, NavigationSuite, Text, Toaster, TooltipProvider } from './kit/index.ts';
+import { NavigationSuite, Toaster, TooltipProvider } from './kit/index.ts';
 import type { Navigation } from './command.ts';
 import { link, useRoute } from './routing.ts';
-import { later } from './later.ts';
 
 export function Frame({
   navigation,
   status,
-  failed,
   signOut,
   onSearch,
   primary,
@@ -17,9 +15,8 @@ export function Frame({
   children,
 }: {
   navigation: Navigation[];
-  status: string;
-  failed: boolean;
-  signOut: (() => Promise<void>) | null;
+  status: ReactNode;
+  signOut: ReactNode;
   onSearch: () => void;
   /** Optional primary controls: a sidebar control and/or a floating phone control. */
   primary?: { expanded?: ReactNode; compact?: ReactNode };
@@ -38,11 +35,7 @@ export function Frame({
   return (
     <TooltipProvider>
       <NavigationSuite
-        status={
-          <Text size="xs" tone={failed ? 'danger' : 'subtle'}>
-            {status}
-          </Text>
-        }
+        status={status}
         search={{ label: 'Search or ask…', keys: '⌘K', onSelect: onSearch }}
         destinations={navigation.filter((entry) => entry.kind !== 'action').map(place)}
         actions={navigation
@@ -55,13 +48,7 @@ export function Frame({
             expanded: entry.expanded,
           }))}
         primary={primary}
-        footer={
-          !!signOut && (
-            <Button variant="ghost" size="compact" onClick={() => later(signOut())}>
-              Sign out
-            </Button>
-          )
-        }
+        footer={signOut}
         aside={panel}
       >
         {children}

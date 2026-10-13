@@ -23,6 +23,8 @@ import {
 import { isSafeUrl } from '../../vault/documents/notes/safe-url.ts';
 import type { Question, QuestionTarget } from './reading.ts';
 import { parseAnswer } from './records.ts';
+import type { QuestionAnswers } from './answers.ts';
+import { useQuestionAnswerState } from './use-questions.ts';
 
 export interface QuestionTargetDescription {
   readonly title: string;
@@ -40,6 +42,7 @@ export interface QuestionItemProps {
   readonly describeTarget?: (target: QuestionTarget) => QuestionTargetDescription | undefined;
   readonly describeAuthor?: (question: Question) => string | undefined;
   readonly onAnswer?: QuestionAnswerHandler;
+  readonly answers?: QuestionAnswers;
   readonly disabledReason?: string;
 }
 
@@ -56,6 +59,7 @@ export function QuestionItem({
   describeTarget,
   describeAuthor,
   onAnswer,
+  answers,
   disabledReason,
 }: QuestionItemProps) {
   const [draft, setDraft] = useState<Draft>();
@@ -67,6 +71,9 @@ export function QuestionItem({
   const answerField = useRef<HTMLTextAreaElement>(null);
   const fieldId = useId();
   const reasonId = useId();
+  const answerState = useQuestionAnswerState(answers);
+  const attempt = answerState.attempts.find((entry) => entry.question.id === question.id);
+  const submitAnswer = answers?.answer ?? onAnswer;
   useLayoutEffect(() => {
     if (focusRequest) answerField.current?.focus();
   }, [focusRequest]);
@@ -77,8 +84,8 @@ export function QuestionItem({
     !!draft &&
     (draft.question.id !== question.id ||
       draft.question.key.transaction !== question.key.transaction);
-  const locked = pending || !!disabledReason;
-  const canAnswer = question.status === 'open' && !!onAnswer;
+  const locked = pending || !!disabledReason || !!attempt;
+  const canAnswer = question.status === 'open' && !!submitAnswer;
   const label =
     question.status === 'open'
       ? 'Open question'
@@ -108,19 +115,44 @@ export function QuestionItem({
     setFocusRequest((count) => count + 1);
   };
   const save = async () => {
-    if (!(onAnswer && draft && text.trim()) || locked || stale || submitting.current || !canAnswer)
+    if (
+      !(submitAnswer && draft && text.trim()) ||
+      locked ||
+      stale ||
+      submitting.current ||
+      !canAnswer
+    )
       return;
     submitting.current = true;
     setPending(true);
     setError(undefined);
     try {
-      await onAnswer(draft.question, text.trim());
+      await submitAnswer(draft.question, text.trim());
       setDraft(undefined);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
     } finally {
       submitting.current = false;
       setPending(false);
+    }
+  };
+  const retry = async () => {
+    if (
+      !(answers && attempt) ||
+      attempt.phase === 'pending' ||
+      disabledReason ||
+      submitting.current
+    )
+      return;
+    submitting.current = true;
+    setError(undefined);
+    try {
+      await answers.retry(question.id);
+      setDraft(undefined);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
+    } finally {
+      submitting.current = false;
     }
   };
   return (
@@ -143,7 +175,48 @@ export function QuestionItem({
           {!!question.answers.length && (
             <Targets targets={question.answers} describeTarget={describeTarget} />
           )}
-          {canAnswer ? (
+          {!!error && !attempt && !canAnswer && (
+            <Text role="alert" tone="danger">
+              {error}
+            </Text>
+          )}
+          {!!attempt && (
+            <Surface variant="subtle">
+              <Stack gap="md" role="group" aria-label="Retained answer">
+                <Text size="sm" weight="medium">
+                  Original answer
+                </Text>
+                <Text preserve={true}>{attempt.text}</Text>
+                <Text size="sm" tone="muted">
+                  For: {attempt.question.data.text}
+                </Text>
+                <Text role="status" size="sm" tone="muted">
+                  {attempt.phase === 'pending'
+                    ? 'Saving the original answer…'
+                    : 'The save outcome is uncertain. Retry the original answer before starting another draft.'}
+                </Text>
+                {!!(error || attempt.error) && (
+                  <Text role="alert" tone="danger">
+                    {error || attempt.error}
+                  </Text>
+                )}
+                <Button
+                  type="button"
+                  disabled={attempt.phase === 'pending' || !!disabledReason}
+                  aria-describedby={disabledReason ? reasonId : undefined}
+                  onClick={retry}
+                >
+                  Retry original answer
+                </Button>
+                {!!disabledReason && (
+                  <Text id={reasonId} size="xs" tone="muted">
+                    {disabledReason}
+                  </Text>
+                )}
+              </Stack>
+            </Surface>
+          )}
+          {canAnswer && !attempt ? (
             <Form
               aria-label={`Answer: ${question.data.text}`}
               onSubmit={(event) => {

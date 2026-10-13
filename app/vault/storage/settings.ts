@@ -10,7 +10,6 @@ export const githubSettings: SettingsDefinition = {
       label: 'GitHub token',
       description: 'Used to read and publish vault changes. Reconnects storage when replaced.',
       kind: 'secret',
-      clearable: false,
     },
     {
       key: 'repository',

@@ -19,13 +19,13 @@ app/
   vault/
     index.ts                 live vault interface and session
     nodes/                   immutable node model, acceptance, snapshots, memory adapter
-    content/                 module-owned node content operations and tools
+    content/                 node content operations, tools and recorded action receipts
     records/                 retained kinds awaiting modules, their validation and source reading
     sources.ts               shared historical source-reading types
     documents/               notes, schema, links, graph, capture format, search
     validation/              permanent note and graph rules
     changes/                 persisted shared staging and checked writes
-    session/                 unlocking, credential encryption, synchronization
+    session/                 unlocking, credential actions/UI, encryption, synchronization
     storage/                 file adapters and GitHub node persistence with plaintext Dexie cache
   ui/
     kit/                     component kit and reference design from ui-kit
@@ -33,7 +33,6 @@ app/
     Search.tsx                search and already bound commands
     routing.ts               generic hash-route mechanics
     keys.ts                  shortcuts and list navigation
-    Unlock.tsx               password form
     Previews.tsx             delegated hover previews
     recent.ts                local navigation history
     sw.ts                    offline application cache
@@ -61,10 +60,12 @@ where History lives. Product explicitly supplies content tools and provider capa
 Modules define their configuration through `SettingsDefinition` in `app/settings.ts`: field keys,
 labels, defaults, kinds, suggested choices, custom-value support and parsing. Agent owns invocation
 settings, Chat owns instructions, and
-OpenAI, GitHub storage and Jina own implementation-specific options and credentials. The shared
-preference store validates device preferences; `ModuleSettings` and `SecretSettings` render the
-definitions through public kit controls. Appearance uses the same definition with the kit's theme
-control. Product passes `{ name, content }` entries to `SettingsMenu`. Removing a module also removes
+OpenAI, GitHub storage and Jina own implementation-specific options and settings views. Session owns
+safe credential state, replacement/restore/clear actions and their React controls; provider views
+supply field meaning and consume those handles. The shared preference store validates device
+preferences; `ModuleSettings` renders ordinary definitions through public kit controls. OpenAI's
+settings and execution share one preference instance. Appearance uses the same definition with the
+kit's theme control. Product passes `{ name, content }` entries to `SettingsMenu`. Removing a module also removes
 its entry. Modules without preferences need no empty settings section.
 
 To remove History, delete `workflows/history/` and remove its import, route, navigation, command,
@@ -75,8 +76,9 @@ readable and checked. These two removals have been verified in disposable copies
 
 `tools/layout.test.ts` inspects the TypeScript AST and compiler-resolved targets, including aliased
 imports, dynamic imports and re-exports. Only Product may compose different workflows. Literal module
-paths make this check complete for source imports. The checker also prevents vault from importing UI
-and keeps callers on the kit's public exports. Cross-workflow integration tests should be kept with
+paths make this check complete for source imports. The checker permits named Vault task UI entries
+to consume shared presentation while prohibiting presentation in persistence implementations, and
+keeps callers on the kit's public exports. Cross-workflow integration tests should be kept with
 Product and removed with the corresponding wiring.
 
 ## Legacy file infrastructure owns file integrity
@@ -216,8 +218,9 @@ are checked by the same compiler-backed policies. The kit owns delegated hover d
 dismissal while application UI resolves links to supplied preview text.
 
 Wiki owns `WikiPageView`: typed `WikiPage`/`WikiBlock`/`WikiReference` projections, title and
-classification actions, connections, questions and reference selection. Its reading lifetime owns
-subscriptions, loading/error state and stale-read rejection. Product supplies the store and source
+classification actions, connections and reference selection. Questions supplies its own embedded
+record renderer through Product. Wiki's reading lifetime owns subscriptions, loading/error state
+and stale-read rejection. Product supplies the store and source
 readers; rendering does not load a store or execute an Agent.
 The view composes shared reading/page/section presentation and `SupportingPane`; a selection key
 resets the pane's scroll owner without querying its DOM. Source context remains mounted across
@@ -227,6 +230,14 @@ scrolling. Wiki supplies the exact selection, attribution, safe title navigation
 deleted notices. No source-card renderer exception remains. The old `WikiPageSurface` and shell CSS are
 removed. Toolbar now shares the pane's 48px header token, and Prose owns semantic content spacing,
 list/table/code overflow and typography across Wiki and Markdown callers.
+
+Questions owns Answer admission, a fresh Snapshot and retained incoming-answer discovery, exact
+wording expectations, preparation and atomic publication. Its session-scoped action owner is
+independent of the route-scoped reader, so admitted saves survive navigation. Uncertain retries
+retain the complete original transaction and remain available through the owner's recovery view.
+Session termination prevents work from entering publication; an entered commit remains accountable.
+Questions also owns collection and embedded rendering, while source owners supply exact grounding
+text, descriptions and identity interpretation.
 
 History now owns its transaction title/kind interpretation, sequence and historical attribution,
 difference summaries, and compensation copy/actions. Its `TransactionItem` accepts `NodeHistoryEntry`
@@ -408,8 +419,13 @@ addresses and selection semantics. Published history stays immutable without fre
 
 ## Chat record UI and shared presentation
 
-Chat owns `ChatSurface`, `ChatMessage` and `ConversationItem`: task labels, role interpretation,
-accepted tool evidence, model/token metadata, unfinished activity and node selection. Message views
+Chat owns `ChatSurface`, `ChatMessage` and `ConversationItem`: message placement, role interpretation,
+model/token metadata, unfinished activity and node selection. Agent owns recorded tool lifecycle and
+generic execution rendering. Content and Questions own their action identities, readable labels and
+receipt renderers; Product supplies those static adapters to Chat. Raw input/output, tool versions,
+errors and cancelled states remain evidence rather than becoming Chat-formatted foreign semantics.
+Unknown or retired actions retain a readable raw fallback. Rendering never creates executable tools
+or publishes records, and pending or uncertain effects never appear as accepted success. Message views
 accept existing typed `Turn` data; conversation rows accept `SavedChat` with explicit node actions.
 Neither record view needs a live store or execution controller. The subscribed Chat container
 presents the retained Chat interaction's draft, capture, review, selection, prompts and recovery actions.

@@ -59,8 +59,9 @@ export type MessagePart =
       readonly kind: 'tool';
       readonly callId: string;
       readonly name: string;
+      readonly version?: string;
       readonly input: JsonValue;
-      readonly status: 'running' | 'complete' | 'failed';
+      readonly status: 'running' | 'complete' | 'failed' | 'cancelled';
       readonly output?: JsonValue;
       readonly error?: string;
     };

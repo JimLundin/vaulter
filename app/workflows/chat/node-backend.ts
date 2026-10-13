@@ -228,9 +228,9 @@ function responseFrom(
     kind: 'tool',
     callId: data.call,
     name: data.name,
+    ...(data.version !== undefined ? { version: data.version } : {}),
     input: data.input,
-    status:
-      data.status === 'complete' ? 'complete' : data.status === 'running' ? 'running' : 'failed',
+    status: data.status,
     ...(data.output !== undefined ? { output: data.output } : {}),
     ...(data.error ? { error: data.error.message } : {}),
   }));

@@ -45,13 +45,9 @@ function projectMessage(snapshot: NodeSnapshot, version: NodeVersion): SavedMess
         kind: 'tool' as const,
         callId: receipt.call,
         name: receipt.name,
+        ...(receipt.version !== undefined ? { version: receipt.version } : {}),
         input: receipt.input,
-        status:
-          receipt.status === 'complete'
-            ? 'complete'
-            : receipt.status === 'running'
-              ? 'running'
-              : 'failed',
+        status: receipt.status,
         ...(receipt.output !== undefined ? { output: receipt.output } : {}),
         ...(receipt.error ? { error: receipt.error.message } : {}),
       } as const;
@@ -62,7 +58,7 @@ function projectMessage(snapshot: NodeSnapshot, version: NodeVersion): SavedMess
       } else {
         const prior = parts[index]!;
         if (prior.kind !== 'tool') continue;
-        const { output: _output, error: _error, ...retained } = prior;
+        const { output: _output, error: _error, version: _version, ...retained } = prior;
         parts[index] = { ...retained, ...recorded };
         sources[index] = tool.key;
       }

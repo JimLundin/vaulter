@@ -17,6 +17,9 @@ import {
 import type { Question, QuestionTarget, QuestionsReadingState } from './reading.ts';
 import { parseAnswer } from './records.ts';
 import { questionRoute, questionsRoute } from './routes.ts';
+import type { QuestionAnswers } from './answers.ts';
+import { questionAnswerAvailability } from './availability.ts';
+import { useQuestionAnswerState } from './use-questions.ts';
 
 type QuestionFilter = 'open' | 'all' | 'answered' | 'abandoned';
 const filters: readonly { value: QuestionFilter; label: string }[] = [
@@ -32,6 +35,7 @@ export interface QuestionsPageProps {
   readonly describeTarget?: (target: QuestionTarget) => QuestionTargetDescription | undefined;
   readonly describeAuthor?: (question: Question) => string | undefined;
   readonly onAnswer?: QuestionAnswerHandler;
+  readonly answers?: QuestionAnswers;
   readonly disabledReason?: string;
 }
 
@@ -42,26 +46,35 @@ export function QuestionsPage({
   describeTarget,
   describeAuthor,
   onAnswer,
+  answers,
   disabledReason,
 }: QuestionsPageProps) {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<QuestionFilter>('open');
   const { questions, loading, error } = state;
-  const selected = node ? questions?.find((question) => question.id === node) : undefined;
-  const matching = questions?.filter((question) => {
+  const answerState = useQuestionAnswerState(answers);
+  const retained = new Set(answerState.attempts.map((attempt) => attempt.question.id));
+  const collection =
+    questions || answerState.attempts.length
+      ? [
+          ...(questions ?? []),
+          ...answerState.attempts
+            .filter(
+              (attempt) => !questions?.some((question) => question.id === attempt.question.id),
+            )
+            .map((attempt) => attempt.question),
+        ]
+      : null;
+  const selected = node ? collection?.find((question) => question.id === node) : undefined;
+  const matching = collection?.filter((question) => {
     if (node) return question.id === node;
+    if (retained.has(question.id)) return true;
     return (
       (filter === 'all' || question.status === filter) &&
       searchText(question, describeTarget).toLocaleLowerCase().includes(query.toLocaleLowerCase())
     );
   });
-  const answerDisabledReason =
-    disabledReason ||
-    (error
-      ? 'Questions could not be refreshed. Reload before answering.'
-      : loading
-        ? 'Refreshing questions…'
-        : undefined);
+  const answerDisabledReason = questionAnswerAvailability(state, disabledReason);
   return (
     <FeaturePage
       title="Questions"
@@ -114,6 +127,7 @@ export function QuestionsPage({
               describeTarget={describeTarget}
               describeAuthor={describeAuthor}
               onAnswer={onAnswer}
+              answers={answers}
               disabledReason={answerDisabledReason}
             />
             {!node && (

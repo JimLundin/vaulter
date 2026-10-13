@@ -1,4 +1,4 @@
-import type { SettingDefinition, SettingsDefinition } from '../settings.ts';
+import { createSettings, type SettingDefinition, type SettingsDefinition } from '../settings.ts';
 import type { JsonObject } from '../vault/nodes/model.ts';
 import { agentSettingsSchema, parseAgentSettings } from './schema.ts';
 
@@ -109,3 +109,6 @@ export function agentOptions(values: Readonly<Record<string, unknown>>): JsonObj
     ),
   );
 }
+
+/** Execution and the Agent-owned settings view use the same preference lifetime. */
+export const agentPreferences = createSettings(agentSettings);

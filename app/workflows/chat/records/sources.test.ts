@@ -90,6 +90,10 @@ test('Chat source offsets concatenate only message prose and retain capture fram
   const reader = chatSources();
   const textOf = (node: NodeVersion): string => reader.text(node, { view, textOf }) ?? '';
   expect(textOf(view.get('answer')!)).toBe('Keep mornings 🪴 free.');
+  expect(reader.exactText?.(view.get('answer')!, view)).toBe('Keep mornings 🪴 free.');
+  expect(reader.exactText?.(view.get('empty')!, view)).toBe('');
+  expect(reader.exactText?.(view.get('exchange')!, view)).toBeUndefined();
+  expect(reader.exactText?.(view.get('reference')!, view)).toBeUndefined();
   expect(textOf(view.get('exchange')!)).toBe(
     'Imported framing.\nFirst question.\nKeep mornings 🪴 free.',
   );
@@ -195,6 +199,7 @@ test('Chat owns known metadata containers but does not guess another module payl
     reader.text(view.get('foreign')!, { view, textOf: () => 'Should not traverse' }),
   ).toBeUndefined();
   expect(reader.describe(view.get('foreign')!, view)).toBeUndefined();
+  expect(reader.exactText?.(view.get('foreign')!, view)).toBeUndefined();
   nodes.close();
 });
 

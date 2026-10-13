@@ -49,10 +49,9 @@ test('accepted Agent activity renders its receipt, uncertainty and cost without 
       {
         kind: 'tool',
         name: 'save',
-        input: 'a thought',
-        args: { title: 'Walks' },
+        input: { title: 'Walks' },
         output: { node: 'thought-1' },
-        result: 'Accepted receipt',
+        status: 'complete',
       },
     ],
   };
@@ -60,7 +59,7 @@ test('accepted Agent activity renders its receipt, uncertainty and cost without 
   try {
     await act(async () => root.render(<ChatMessage turn={turn} />));
     expect(document.body.textContent).toContain('The accepted thought is retained.');
-    expect(document.body.textContent).toContain('Accepted receipt');
+    expect(document.body.textContent).toContain('Accepted');
     expect(document.body.textContent).toContain('without resuming execution');
     expect(document.body.textContent).toContain('fictional-model · 123 in · 45 out');
     expect(document.body.textContent).not.toContain('Thinking…');

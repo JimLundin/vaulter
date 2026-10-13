@@ -6,6 +6,7 @@ import type { NodeSnapshot, NodeStore } from '../../vault/nodes/store.ts';
 import { prepareAskQuestion, questionSubject } from './operations.ts';
 import { answerSuggestions, parseAnswer } from './records.ts';
 import { readQuestions, type Question, type QuestionTarget } from './reading.ts';
+import { questionToolActions } from './tool-actions.ts';
 
 function visibleNodes(view: NodeSnapshot) {
   const result: NodeVersion[] = [];
@@ -90,7 +91,7 @@ export function questionTools(
     return questions;
   };
   return {
-    askQuestion: tool({
+    [questionToolActions.ask]: tool({
       description:
         'Retain an open question with 1–4 editable suggested answers prepared now. Use listQuestionContext to read the triggering source and relevant existing knowledge first. Supply each suggestion’s title, complete answer text and grounded reason, the exact source address and the exact knowledge addresses used. These are proposals for the owner, never accepted answers. Supply a Wiki subject to also show the Question there.',
       inputSchema: askInput,
@@ -111,7 +112,7 @@ export function questionTools(
         return { question, transaction, accepted: true };
       },
     }),
-    listQuestionContext: tool({
+    [questionToolActions.context]: tool({
       description:
         'Read self-contained retained source passages and existing Wiki knowledge for generating a Question and its suggested answers. Returned node/transaction pairs identify the exact text shown. Search with words from the source, subject or question; omit query to browse. Reading and suggesting never records an Answer.',
       inputSchema: z.object({ query: z.string().optional() }),
@@ -165,7 +166,7 @@ export function questionTools(
         };
       },
     }),
-    listQuestionSubjects: tool({
+    [questionToolActions.subjects]: tool({
       description:
         'List live Wiki pages and sections available as subjects for a retained Question.',
       inputSchema: z.object({}),
@@ -191,7 +192,7 @@ export function questionTools(
         });
       },
     }),
-    readQuestion: tool({
+    [questionToolActions.read]: tool({
       description: 'Read a retained Question, its current status and recorded Answer evidence.',
       inputSchema: z.object({ node: z.string().min(1) }),
       execute: async ({ node }) => {
@@ -200,7 +201,7 @@ export function questionTools(
         return questionReceipt(question);
       },
     }),
-    listQuestions: tool({
+    [questionToolActions.list]: tool({
       description:
         'List retained Questions, including their subjects, status and recorded answers.',
       inputSchema: z.object({}),

@@ -1,17 +1,8 @@
 // Chat presentation snapshots shared by its controller and views.
+import type { ToolEvidenceState } from '../../agent/tool-presentation.tsx';
 export type Part =
   | { kind: 'text'; text: string }
-  | {
-      kind: 'tool';
-      name: string;
-      /** The call in a line (brief), and in full. */
-      input: string;
-      args?: unknown;
-      output?: unknown;
-      result?: string;
-      error?: boolean;
-      commit?: string;
-    };
+  | (ToolEvidenceState & { kind: 'tool'; callId?: string });
 export interface Turn {
   role: 'user' | 'agent' | 'record';
   record?: { kind: 'summary'; label?: string };

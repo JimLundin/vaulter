@@ -4,6 +4,7 @@ import { Activity, Text } from '../../ui/kit/index.ts';
 import type { NodeConversation as Conversation } from './node-conversation.ts';
 import { useNodeChat as useChat } from './use-node-conversation.ts';
 import type { Prompt } from './Chat.tsx';
+import type { ToolPresentationAdapter } from '../../agent/tool-presentation.tsx';
 export {
   useNodeConversation as useConversation,
   useNodeChat as useChat,
@@ -24,28 +25,42 @@ export function ChatPanel({
   prompt = null,
   open,
   onClose,
+  toolPresentations,
 }: {
   conversation: Conversation;
   prompt?: Prompt | null;
   open: boolean;
   onClose: () => void;
+  toolPresentations?: readonly ToolPresentationAdapter[];
 }) {
   return (
     <Suspense fallback={<Text tone="subtle">Loading conversation…</Text>}>
-      <Chat conversation={conversation} arg={prompt} presentation={{ open, onClose }} />
+      <Chat
+        conversation={conversation}
+        arg={prompt}
+        presentation={{ open, onClose }}
+        toolPresentations={toolPresentations}
+      />
     </Suspense>
   );
 }
 export function ChatPage({
   conversation,
   prompt = null,
+  toolPresentations,
 }: {
   conversation: Conversation;
   prompt?: Prompt | null;
+  toolPresentations?: readonly ToolPresentationAdapter[];
 }) {
   return (
     <Suspense fallback={<Text tone="subtle">Loading conversation…</Text>}>
-      <Chat conversation={conversation} arg={prompt} presentation={{ page: true }} />
+      <Chat
+        conversation={conversation}
+        arg={prompt}
+        presentation={{ page: true }}
+        toolPresentations={toolPresentations}
+      />
     </Suspense>
   );
 }

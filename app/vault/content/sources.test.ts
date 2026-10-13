@@ -34,6 +34,10 @@ test('Content supplies its historical text and title as independently owned sour
     title: 'Original report',
   });
   expect(contentSources.describe(view.get('content')!, view)).toEqual({ title: 'Renamed report' });
+  expect(contentSources.exactText?.(historical.get('content')!, historical)).toBe(
+    'Keep mornings 🪴 free.',
+  );
+  expect(contentSources.exactText?.(view.get('foreign')!, view)).toBeUndefined();
   expect(contentSources.text(view.get('foreign')!, { view, textOf: () => '' })).toBeUndefined();
   expect(contentSources.describe(view.get('foreign')!, view)).toBeUndefined();
   nodes.close();
