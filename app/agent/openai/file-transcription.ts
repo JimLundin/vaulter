@@ -1,12 +1,13 @@
 import type { FileTranscriptionProvider } from '../providers.ts';
 import { z } from 'zod';
 import { openAIHttp, type OpenAIConnectionOptions } from './http.ts';
+import { DEFAULT_MODELS } from './defaults.ts';
 
 export function openAIFileTranscription(
   options: OpenAIConnectionOptions & { readonly model?: string },
 ): FileTranscriptionProvider {
   const http = openAIHttp(options);
-  const model = options.model ?? 'gpt-transcribe';
+  const model = options.model ?? DEFAULT_MODELS.fileTranscription;
   return async (audio: File, signal?: AbortSignal) => {
     if (!audio.size || audio.size > 25 * 1024 * 1024)
       throw new Error('Transcription requires a recording between 1 byte and 25 MB');

@@ -1,9 +1,112 @@
 import { expect, test } from '@playwright/test';
 
+function luminance(rgb: number[]) {
+  return rgb
+    .map((channel) => channel / 255)
+    .map((channel) => (channel <= 0.040_45 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4))
+    .reduce((sum, channel, index) => sum + channel * [0.2126, 0.7152, 0.0722][index], 0);
+}
+
 test.beforeEach(async ({ page }) => {
   await page.goto('/ui/kit/tests/browser.html?setting-fields');
   await page.getByRole('button', { name: 'Open field settings', exact: true }).click();
   await expect(page.getByRole('dialog', { name: 'Settings', exact: true })).toBeVisible();
+});
+
+test(
+  'open native dropdown options stay readable when device and app themes disagree',
+  {
+    tag: '@phone',
+  },
+  async ({ page }, testInfo) => {
+    const select = page.getByRole('combobox', { name: 'Selected model', exact: true });
+    const theme = page.getByRole('radiogroup', { name: 'Field theme', exact: true });
+    for (const system of ['light', 'dark'] as const) {
+      await page.emulateMedia({ colorScheme: system });
+      for (const choice of ['Dark', 'Light', 'Dark'] as const) {
+        await theme.getByRole('radio', { name: choice, exact: true }).click();
+        await select.scrollIntoViewIfNeeded();
+        const foreground = choice === 'Dark' ? 'rgb(250, 250, 250)' : 'rgb(24, 24, 27)';
+        await expect(select).toHaveCSS('color', foreground);
+        await expect(select).toHaveCSS('color-scheme', choice.toLowerCase());
+        const option = select.locator('option').nth(1);
+        await expect(option).toHaveCSS('color', foreground);
+        await expect(option).toHaveCSS(
+          'background-color',
+          choice === 'Dark' ? 'rgb(24, 24, 27)' : 'rgb(255, 255, 255)',
+        );
+        const box = (await select.boundingBox())!;
+        await select.click();
+        const screenshot = await page.screenshot();
+        await testInfo.attach(`${system}-device-${choice}-app-native-menu`, {
+          body: screenshot,
+          contentType: 'image/png',
+        });
+        const background = await page.evaluate(
+          async ({ encoded, x, y }) => {
+            const image = new Image();
+            image.src = `data:image/png;base64,${encoded}`;
+            await image.decode();
+            const canvas = document.createElement('canvas');
+            canvas.width = image.width;
+            canvas.height = image.height;
+            const context = canvas.getContext('2d')!;
+            context.drawImage(image, 0, 0);
+            return Array.from(context.getImageData(x, y, 1, 1).data).slice(0, 3);
+          },
+          {
+            encoded: screenshot.toString('base64'),
+            // This Chromium fixture opens downward; sample the second option away from its text.
+            x: Math.round(box.x + box.width - 12),
+            y: Math.round(box.y + box.height + 35),
+          },
+        );
+        const levels = [
+          luminance(foreground.match(/\d+/g)!.map(Number)),
+          luminance(background),
+        ].sort((a, b) => a - b);
+        const contrast = (levels[1] + 0.05) / (levels[0] + 0.05);
+        expect(contrast, `${choice} open option text contrast`).toBeGreaterThanOrEqual(4.5);
+        await page.keyboard.press('Escape');
+        await expect(select).toBeFocused();
+        await select.press('ArrowDown');
+        await expect(select).toHaveValue('fast');
+        await select.selectOption('balanced');
+      }
+    }
+  },
+);
+
+test('native dropdowns own label focus and keyboard selection through resize and reopening', {
+  tag: '@phone',
+}, async ({ page }) => {
+  const select = page.getByRole('combobox', { name: 'Selected model', exact: true });
+  await expect(select).toHaveAccessibleDescription('Used for future conversations.');
+  await expect(select).toHaveValue('balanced');
+  await page.getByText('Selected model', { exact: true }).click();
+  await expect(select).toBeFocused();
+  await select.press('ArrowDown');
+  await expect(select).toHaveValue('fast');
+  await expect(page.getByRole('status', { name: 'Selected model value' })).toHaveText('fast');
+  for (const width of [390, 1440, 768]) {
+    await page.setViewportSize({ width, height: 1000 });
+    await expect(select).toBeFocused();
+    await expect(select).toHaveValue('fast');
+    await expect(select).toHaveAccessibleDescription('Used for future conversations.');
+  }
+  await page.getByRole('button', { name: 'Close settings', exact: true }).click();
+  await page.getByRole('button', { name: 'Open field settings', exact: true }).click();
+  await expect(select).toHaveValue('fast');
+});
+
+test('disabled dropdowns retain native unavailability and touch targets', {
+  tag: '@phone',
+}, async ({ page, isMobile }) => {
+  const select = page.getByRole('combobox', { name: 'Unavailable model', exact: true });
+  await expect(select).toBeDisabled();
+  await expect(select).toHaveAccessibleDescription('Selection is unavailable.');
+  await expect(select).toHaveCSS('opacity', '0.5');
+  if (isMobile) expect((await select.boundingBox())!.height).toBeGreaterThanOrEqual(44);
 });
 
 test('a text field owns its accessible name, description and native label activation', {

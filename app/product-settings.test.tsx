@@ -1,0 +1,499 @@
+// @vitest-environment happy-dom
+// biome-ignore lint/correctness/noUnresolvedImports: React 19 exposes StrictMode; TypeScript and runtime tests verify it.
+import { act, StrictMode, useState } from 'react';
+import { createRoot } from 'react-dom/client';
+import { afterEach, beforeEach, expect, test, vi } from 'vitest';
+import { MockLanguageModelV4, convertArrayToReadableStream } from 'ai/test';
+import { OpenProduct } from './product.tsx';
+import { Surface } from './ui/kit/index.ts';
+import { liveVault } from './vault/index.ts';
+import { useWriter } from './vault/changes/writer.ts';
+import { memoryBackend } from './vault/storage/memory.ts';
+import { memoryNodeBackend } from './vault/nodes/memory.ts';
+import type { NodeBackend } from './vault/nodes/store.ts';
+import type { Secrets } from './vault/session/sealed.ts';
+
+type StreamResult = Awaited<ReturnType<MockLanguageModelV4['doStream']>>;
+const cleanups: (() => Promise<void>)[] = [];
+
+beforeEach(() => {
+  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+  localStorage.clear();
+  sessionStorage.clear();
+  history.replaceState(null, '', '#/settings/');
+});
+
+afterEach(async () => {
+  await Promise.all(cleanups.splice(0).map((cleanup) => cleanup()));
+  document.body.replaceChildren();
+  localStorage.clear();
+  sessionStorage.clear();
+  vi.unstubAllGlobals();
+});
+
+function answer(text: string): StreamResult {
+  return {
+    stream: convertArrayToReadableStream([
+      { type: 'stream-start', warnings: [] },
+      { type: 'text-start', id: 'text' },
+      { type: 'text-delta', id: 'text', delta: text },
+      { type: 'text-end', id: 'text' },
+      {
+        type: 'finish',
+        finishReason: { unified: 'stop', raw: undefined },
+        usage: {
+          inputTokens: { total: 1, noCache: 1, cacheRead: 0, cacheWrite: 0 },
+          outputTokens: { total: 1, text: 1, reasoning: 0 },
+        },
+      },
+    ]),
+  };
+}
+
+function field(label: string) {
+  const direct = document.querySelector<HTMLTextAreaElement>(`textarea[aria-label="${label}"]`);
+  if (direct) return direct;
+  const caption = [...document.querySelectorAll('label')].find(
+    (candidate) => candidate.textContent === label,
+  );
+  const control = caption ? document.getElementById(caption.htmlFor) : null;
+  if (
+    !(
+      control instanceof HTMLInputElement ||
+      control instanceof HTMLTextAreaElement ||
+      control instanceof HTMLSelectElement
+    )
+  )
+    throw new Error(`Missing field ${label}`);
+  return control;
+}
+
+function textField(label: string) {
+  const control = field(label);
+  if (control instanceof HTMLSelectElement) throw new Error(`Expected text field ${label}`);
+  return control;
+}
+
+function selectField(label: string) {
+  const control = field(label);
+  if (!(control instanceof HTMLSelectElement)) throw new Error(`Expected dropdown ${label}`);
+  return control;
+}
+
+function button(label: string) {
+  const control = document.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`);
+  if (!control) throw new Error(`Missing button ${label}`);
+  return control;
+}
+
+async function fill(label: string, value: string) {
+  const control = textField(label);
+  await act(() => {
+    const prototype =
+      control instanceof HTMLTextAreaElement
+        ? HTMLTextAreaElement.prototype
+        : HTMLInputElement.prototype;
+    Object.getOwnPropertyDescriptor(prototype, 'value')!.set!.call(control, value);
+    control.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+}
+
+async function select(label: string, value: string) {
+  const control = selectField(label);
+  await act(() => {
+    Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value')!.set!.call(
+      control,
+      value,
+    );
+    control.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+}
+
+async function submit() {
+  const { form } = field('Message');
+  if (!form) throw new Error('Missing message form');
+  await act(() => form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })));
+}
+
+async function openSettings() {
+  await act(() => {
+    history.replaceState(null, '', '#/settings/');
+    globalThis.dispatchEvent(new HashChangeEvent('hashchange'));
+  });
+  await act(async () => vi.waitFor(() => field('Model')));
+}
+
+async function fixture({
+  strict = false,
+  preview = false,
+  stream = async () => answer('Completed settings request.'),
+  nodes: initialNodes = memoryNodeBackend(),
+  identity = {},
+  credentialPending = false,
+  saveSecret = async () => undefined,
+}: {
+  strict?: boolean;
+  preview?: boolean;
+  stream?: () => Promise<StreamResult>;
+  nodes?: NodeBackend;
+  identity?: object;
+  credentialPending?: boolean;
+  saveSecret?: (key: keyof Secrets, value: string | null | undefined) => Promise<void>;
+} = {}) {
+  const files = memoryBackend({});
+  const head = await files.backend.cached();
+  const rules = { problems: async () => [], keeps: () => true, what: 'Fictional files' };
+  const adapters = new Set([initialNodes]);
+  const model = new MockLanguageModelV4({ doStream: stream });
+  const suppliedModel = vi.fn(async (_name: string) => model);
+  const updateSecret = vi.fn(saveSecret);
+  const preloadedSecrets = { github: 'login-github', openai: 'login-openai', jina: 'login-jina' };
+  const root = createRoot(document.body);
+  let configure!: (changes: {
+    nodes?: NodeBackend;
+    identity?: object;
+    credentialPending?: boolean;
+  }) => void;
+  function Fixture() {
+    const writer = useWriter(files.backend, rules, head, () => undefined);
+    const [secrets, setSecrets] = useState<Secrets>({
+      ...preloadedSecrets,
+      openai: 'custom-openai',
+    });
+    const [secretOverrides, setOverrides] = useState<Partial<Record<keyof Secrets, string | null>>>(
+      {
+        openai: 'custom-openai',
+      },
+    );
+    const [configuration, setConfiguration] = useState({
+      nodes: initialNodes,
+      identity,
+      credentialPending,
+    });
+    configure = (changes) => {
+      if (changes.nodes) adapters.add(changes.nodes);
+      setConfiguration((current) => ({ ...current, ...changes }));
+    };
+    return (
+      <Surface>
+        <OpenProduct
+          session={{
+            identity: configuration.identity,
+            credentialPending: configuration.credentialPending,
+            vault: liveVault(() => writer),
+            files: head!.files,
+            status: { kind: 'synced', at: 0 },
+            locked: null,
+            signOut: null,
+            secrets,
+            preloadedSecrets,
+            secretOverrides,
+            updateSecret: async (key, value) => {
+              configure({ credentialPending: true });
+              try {
+                await updateSecret(key, value);
+                setOverrides((current) => {
+                  const next = { ...current };
+                  if (value === undefined) delete next[key];
+                  else next[key] = value;
+                  return next;
+                });
+                setSecrets((current) => {
+                  const next = { ...current };
+                  if (value === null) delete next[key];
+                  else next[key] = value ?? preloadedSecrets[key];
+                  return next;
+                });
+              } finally {
+                configure({ credentialPending: false });
+              }
+            },
+            blocked: null,
+            nodes: configuration.nodes,
+            nodeStatus: { kind: 'synced', at: 0 },
+            refreshNodes: async () => undefined,
+          }}
+          model={suppliedModel}
+          preview={
+            preview
+              ? {
+                  defaultModel: 'fictional-model',
+                  suggestions: async () => [],
+                  transcription: async () => ({ close: () => undefined, finish: async () => '' }),
+                }
+              : undefined
+          }
+        />
+      </Surface>
+    );
+  }
+  cleanups.push(async () => {
+    await act(() => root.unmount());
+    for (const adapter of adapters) adapter.close();
+  });
+  await act(() =>
+    root.render(
+      strict ? (
+        <StrictMode>
+          <Fixture />
+        </StrictMode>
+      ) : (
+        <Fixture />
+      ),
+    ),
+  );
+  await act(async () => {
+    globalThis.dispatchEvent(new StorageEvent('storage', { key: null, storageArea: localStorage }));
+    await vi.waitFor(() => {
+      if (field('Message').disabled) throw new Error('Message composer is still unavailable');
+    });
+  });
+  return {
+    nodes: initialNodes,
+    model,
+    suppliedModel,
+    updateSecret,
+    configure: async (changes: Parameters<typeof configure>[0]) => act(() => configure(changes)),
+  };
+}
+
+async function runs(nodes: ReturnType<typeof memoryNodeBackend>) {
+  const view = await nodes.snapshot();
+  const changes = await Promise.all((await nodes.history()).map(({ id }) => nodes.changes(id)));
+  const identities = new Set(changes.flat().map(({ node }) => node));
+  return [...identities].flatMap((node) => {
+    const version = view.get(node);
+    return version?.data?.kind === 'agentRun' ? [version] : [];
+  });
+}
+
+test.each([false, true])(
+  'settings update future runs and retain drafts (StrictMode=%s)',
+  async (strict) => {
+    localStorage.setItem('vault.agent.model', 'legacy-model');
+    const { model, suppliedModel, nodes } = await fixture({ strict, preview: true });
+    for (const name of ['Appearance', 'Chat', 'Agent', 'OpenAI', 'GitHub storage', 'Jina'])
+      expect(document.querySelector(`section[aria-label="${name}"]`)).not.toBeNull();
+    for (const label of [
+      'Instructions',
+      'Maximum steps',
+      'Maximum output tokens',
+      'Temperature',
+      'Top P',
+      'Top K',
+      'Presence penalty',
+      'Frequency penalty',
+      'Stop sequences',
+      'Seed',
+      'Maximum retries',
+      'Model',
+      'Voice model',
+      'Live transcription model',
+      'File transcription model',
+      'Embedding model',
+      'Voice',
+      'Embedding dimensions',
+    ])
+      expect(field(label)).toBeDefined();
+    for (const label of [
+      'Maximum steps',
+      'Maximum output tokens',
+      'Maximum retries',
+      'Model',
+      'Voice model',
+      'Live transcription model',
+      'File transcription model',
+      'Embedding model',
+      'Voice',
+    ])
+      expect(selectField(label)).toBeDefined();
+    expect(selectField('Model').selectedOptions[0]?.textContent).toBe('Custom…');
+    expect(textField('Custom model').value).toBe('legacy-model');
+    expect(localStorage.getItem('vault.agent.model')).toBeNull();
+    expect(textField('OpenAI API endpoint').readOnly).toBe(true);
+    expect(textField('Vault repository').readOnly).toBe(true);
+    expect(textField('GitHub API endpoint').readOnly).toBe(true);
+    expect(field('OpenAI API key').disabled).toBe(true);
+    expect(document.body.textContent).toContain('Credentials are supplied by the preview server.');
+    await fill('Message', 'Keep this draft while changing preferences.');
+    await fill('Custom model', 'configured-model');
+    await fill('Instructions', 'Use the supplied evidence.\nKeep answers concise.');
+    await fill('Temperature', '0.4');
+    await select('Maximum steps', '20');
+    await select('Maximum output tokens', '256');
+    await select('Maximum retries', '3');
+    expect(field('Message').value).toBe('Keep this draft while changing preferences.');
+    expect(model.doStreamCalls).toHaveLength(0);
+    await act(() => button('Close settings').click());
+    expect(field('Message').value).toBe('Keep this draft while changing preferences.');
+    await submit();
+    await act(async () => vi.waitFor(() => expect(field('Message').disabled).toBe(false)));
+    expect(model.doStreamCalls).toHaveLength(1);
+    expect(suppliedModel).toHaveBeenLastCalledWith('configured-model');
+    expect(model.doStreamCalls[0]).toMatchObject({ temperature: 0.4, maxOutputTokens: 256 });
+    expect(model.doStreamCalls[0]?.prompt).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          role: 'system',
+          content: 'Use the supplied evidence.\nKeep answers concise.',
+        }),
+      ]),
+    );
+    const [firstRun] = await runs(nodes);
+    expect(firstRun?.data).toMatchObject({
+      model: { requested: 'configured-model' },
+      settings: { maxSteps: 20, temperature: 0.4, maxOutputTokens: 256, maxRetries: 3 },
+    });
+    const conversations = (await nodes.snapshot())
+      .roots()
+      .filter(({ data }) => data?.kind === 'conversation');
+    expect(conversations).toHaveLength(1);
+    await fill('Message', 'Continue the same conversation.');
+    await openSettings();
+    expect(selectField('Maximum steps').value).toBe('20');
+    expect(selectField('Maximum output tokens').value).toBe('256');
+    expect(selectField('Maximum retries').value).toBe('3');
+    await select('Model', 'gpt-6-astra');
+    expect(document.body.textContent).not.toContain('Custom model');
+    await fill('Instructions', 'Prefer direct answers.');
+    await fill('Temperature', '0');
+    await act(() => button('Close settings').click());
+    expect(field('Message').value).toBe('Continue the same conversation.');
+    await submit();
+    await act(async () => vi.waitFor(() => expect(model.doStreamCalls).toHaveLength(2)));
+    await act(async () => vi.waitFor(() => expect(field('Message').disabled).toBe(false)));
+    expect(suppliedModel).toHaveBeenLastCalledWith('gpt-6-astra');
+    expect(model.doStreamCalls[1]).toMatchObject({ temperature: 0, maxOutputTokens: 256 });
+    expect(model.doStreamCalls[1]?.prompt).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ role: 'system', content: 'Prefer direct answers.' }),
+      ]),
+    );
+    expect(
+      (await nodes.snapshot())
+        .roots()
+        .filter(({ data }) => data?.kind === 'conversation')
+        .map(({ key }) => key.node),
+    ).toEqual(conversations.map(({ key }) => key.node));
+    expect(await runs(nodes)).toHaveLength(2);
+  },
+);
+
+test('credential settings mask login values and wire save, restore and clear without replacing the draft', async () => {
+  const { updateSecret } = await fixture();
+  expect(field('OpenAI API key').value).toBe('');
+  expect(textField('OpenAI API key').type).toBe('password');
+  expect(textField('GitHub token').placeholder).toBe('Configured');
+  expect(textField('Jina API key').placeholder).toBe('Configured');
+  expect(field('OpenAI API key').disabled).toBe(false);
+  expect(document.body.innerHTML).not.toContain('login-github');
+  expect(document.body.innerHTML).not.toContain('login-openai');
+  expect(document.body.innerHTML).not.toContain('custom-openai');
+  expect(document.querySelector('button[aria-label="Clear GitHub token"]')).toBeNull();
+  await fill('Message', 'Retain the draft through credential updates.');
+  await fill('OpenAI API key', 'replacement-key');
+  expect(updateSecret).not.toHaveBeenCalled();
+  await act(async () => button('Save OpenAI API key').click());
+  expect(updateSecret).toHaveBeenLastCalledWith('openai', 'replacement-key');
+  expect(field('OpenAI API key').value).toBe('');
+  expect(field('Message').value).toBe('Retain the draft through credential updates.');
+  await act(async () => button('Restore login value for OpenAI API key').click());
+  expect(updateSecret).toHaveBeenLastCalledWith('openai', undefined);
+  await act(async () => button('Clear Jina API key').click());
+  expect(updateSecret).toHaveBeenLastCalledWith('jina', null);
+  expect(textField('Jina API key').placeholder).toBe('Not configured');
+  expect(field('Message').value).toBe('Retain the draft through credential updates.');
+});
+
+test('pending GitHub replacement blocks new activity and retains the draft and conversation across adapters', async () => {
+  let release!: () => void;
+  const saving = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const { nodes, model, updateSecret, configure } = await fixture({
+    identity: {},
+    saveSecret: () => saving,
+  });
+  await act(() => button('Close settings').click());
+  await fill('Message', 'Record the conversation before reconnecting.');
+  await submit();
+  await act(async () =>
+    vi.waitFor(() => expect(button('Start voice interaction').disabled).toBe(false)),
+  );
+  const conversations = (await nodes.snapshot())
+    .roots()
+    .filter(({ data }) => data?.kind === 'conversation')
+    .map(({ key }) => key.node);
+  expect(conversations).toHaveLength(1);
+  const recordedHistory = await nodes.history();
+  await fill('Message', 'Keep this draft in the same conversation.');
+  await openSettings();
+  await fill('GitHub token', 'replacement-token');
+  await act(() => button('Save GitHub token').click());
+  expect(updateSecret).toHaveBeenCalledExactlyOnceWith('github', 'replacement-token');
+  expect(field('OpenAI API key').disabled).toBe(true);
+  expect(button('Restore login value for OpenAI API key').disabled).toBe(true);
+  expect(button('Clear Jina API key').disabled).toBe(true);
+  await act(() => button('Clear Jina API key').click());
+  expect(updateSecret).toHaveBeenCalledTimes(1);
+  await act(() => button('Close settings').click());
+  await act(() => field('Message').focus());
+  expect(button('Send').disabled).toBe(true);
+  await submit();
+  expect(model.doStreamCalls).toHaveLength(1);
+  expect(await nodes.history()).toEqual(recordedHistory);
+  expect(field('Message').value).toBe('Keep this draft in the same conversation.');
+  await act(() => field('Message').blur());
+  expect(button('Start voice interaction').disabled).toBe(true);
+  await act(() => field('Message').focus());
+  const commit = vi.fn(nodes.commit);
+  const replacement = { ...nodes, commit };
+  await configure({ nodes: replacement });
+  expect(field('Message').value).toBe('Keep this draft in the same conversation.');
+  expect(document.body.textContent).toContain('Record the conversation before reconnecting.');
+  expect(document.body.textContent).toContain('Completed settings request.');
+  expect(button('Send').disabled).toBe(true);
+  await act(async () => {
+    release();
+  });
+  await act(async () => vi.waitFor(() => expect(button('Send').disabled).toBe(false)));
+  expect(field('Message').value).toBe('Keep this draft in the same conversation.');
+  await submit();
+  await act(async () => vi.waitFor(() => expect(model.doStreamCalls).toHaveLength(2)));
+  await act(async () =>
+    vi.waitFor(() => expect(button('Start voice interaction').disabled).toBe(false)),
+  );
+  expect(commit).toHaveBeenCalled();
+  expect(
+    (await nodes.snapshot())
+      .roots()
+      .filter(({ data }) => data?.kind === 'conversation')
+      .map(({ key }) => key.node),
+  ).toEqual(conversations);
+  expect(await runs(nodes)).toHaveLength(2);
+});
+
+test('active Agent work disables credential changes until the recorded run finishes', async () => {
+  let release: () => void = () => {
+    throw new Error('Held stream is not initialized');
+  };
+  const pending = new Promise<StreamResult>((resolve) => {
+    release = () => resolve(answer('Finished held Agent work.'));
+  });
+  const { model, updateSecret } = await fixture({ stream: () => pending });
+  expect(field('OpenAI API key').disabled).toBe(false);
+  await act(() => button('Close settings').click());
+  await fill('Message', 'Hold the Agent run.');
+  await submit();
+  await act(async () => vi.waitFor(() => expect(model.doStreamCalls).toHaveLength(1)));
+  await openSettings();
+  expect(field('OpenAI API key').disabled).toBe(true);
+  expect(button('Restore login value for OpenAI API key').disabled).toBe(true);
+  expect(button('Clear Jina API key').disabled).toBe(true);
+  expect(document.body.textContent).toContain('Finish or stop the current agent activity');
+  expect(updateSecret).not.toHaveBeenCalled();
+  await act(async () => {
+    release();
+    await vi.waitFor(() => expect(field('OpenAI API key').disabled).toBe(false));
+  });
+});

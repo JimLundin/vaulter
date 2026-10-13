@@ -88,6 +88,7 @@ import {
 } from './parts/item.tsx';
 import { Label as LabelPart } from './parts/label.tsx';
 import { ScrollArea as ScrollAreaPart } from './parts/scroll-area.tsx';
+import { Select as SelectPart } from './parts/select.tsx';
 import { Separator as SeparatorPart } from './parts/separator.tsx';
 import {
   SidebarContent as SidebarContentPart,
@@ -199,6 +200,7 @@ export const ItemDescription = unstyled(ItemDescriptionPart);
 export const ItemHeader = unstyled(ItemHeaderPart);
 export const ItemFooter = unstyled(ItemFooterPart);
 export const ScrollArea = unstyled(ScrollAreaPart);
+export const Select = unstyled(SelectPart, ['combobox']);
 export const Separator = unstyled(SeparatorPart);
 export const SidebarContent = unstyled(SidebarContentPart);
 export const SidebarFooter = unstyled(SidebarFooterPart);

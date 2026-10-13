@@ -17,6 +17,7 @@ import {
   RadioGroup,
   RadioGroupItem,
   Row,
+  Select,
   SettingField,
   Stack,
   Surface,
@@ -87,6 +88,88 @@ it('names and describes one nested radio group without repeating instructions on
       (item) => !item.hasAttribute('aria-describedby'),
     ),
   ).toBe(true);
+  expect(errors).toEqual([]);
+});
+
+it('associates one nested select with its native label and combines existing instructions', () => {
+  function ModelChoice() {
+    return (
+      <Select
+        id="chosen-model"
+        aria-label="Ignored"
+        aria-labelledby="old-name"
+        aria-describedby="extra extra"
+        defaultValue="fast"
+        options={[
+          { value: 'balanced', label: 'Balanced model' },
+          { value: 'fast', label: 'Fast model' },
+        ]}
+      />
+    );
+  }
+  const { host, errors } = render(
+    <React.StrictMode>
+      <p id="extra">Extra instructions.</p>
+      <SettingField label="Model" description="Choose the model for future conversations.">
+        <Stack>
+          <ModelChoice />
+        </Stack>
+      </SettingField>
+    </React.StrictMode>,
+  );
+  const select = host.querySelector('select')!;
+  expect(select.id).toBe('chosen-model');
+  expect(select.value).toBe('fast');
+  expect(host.querySelector('label')?.htmlFor).toBe(select.id);
+  expect(referencedText(select, 'aria-labelledby')).toBe('Model');
+  expect(referencedText(select, 'aria-describedby')).toBe(
+    'Extra instructions. Choose the model for future conversations.',
+  );
+  expect(select.hasAttribute('aria-label')).toBe(false);
+  expect(errors).toEqual([]);
+});
+
+it('reports native select changes and keeps a controlled rejected selection', () => {
+  const selections: string[] = [];
+  const { host, errors } = render(
+    <SettingField label="Fixed model" description="This choice is retained.">
+      <Select
+        value="balanced"
+        onChange={(event) => selections.push(event.currentTarget.value)}
+        options={[
+          { value: 'balanced', label: 'Balanced model' },
+          { value: 'fast', label: 'Fast model' },
+        ]}
+      />
+    </SettingField>,
+  );
+  const select = host.querySelector('select')!;
+  act(() => {
+    select.value = 'fast';
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+  expect(selections).toEqual(['fast']);
+  expect(select.value).toBe('balanced');
+  expect(errors).toEqual([]);
+});
+
+it('keeps a standalone select disabled and preserves its supplied accessibility references', () => {
+  const { host, errors } = render(
+    <Select
+      id="disabled-model"
+      aria-label="Unavailable model"
+      aria-describedby="extra extra"
+      aria-invalid={true}
+      disabled={true}
+      defaultValue="balanced"
+      options={[{ value: 'balanced', label: 'Balanced model' }]}
+    />,
+  );
+  const select = host.querySelector('select')!;
+  expect(select.disabled).toBe(true);
+  expect(select.getAttribute('aria-label')).toBe('Unavailable model');
+  expect(select.getAttribute('aria-describedby')).toBe('extra extra');
+  expect(select.getAttribute('aria-invalid')).toBe('true');
   expect(errors).toEqual([]);
 });
 
@@ -162,6 +245,20 @@ it.each([
     /found 2/,
   ],
   ['checkbox', <Checkbox />, /unsupported/],
+  [
+    'text and select',
+    <>
+      <Input />
+      <Select options={[{ value: 'one', label: 'One' }]} />
+    </>,
+    /found 2/,
+  ],
+  [
+    'multiple select',
+    <Select multiple={true} options={[{ value: 'one', label: 'One' }]} />,
+    /unsupported/,
+  ],
+  ['listbox select', <Select size={2} options={[{ value: 'one', label: 'One' }]} />, /unsupported/],
   [
     'raw select',
     <select>
@@ -357,6 +454,7 @@ it('diagnoses an unsupported public control added by state in a nested feature c
 it.each([
   ['textbox', <Input role="textbox" />],
   ['searchbox', <Input type="search" role="searchbox" />],
+  ['combobox', <Select role="combobox" options={[{ value: 'one', label: 'One' }]} />],
   [
     'radiogroup',
     <RadioGroup role="radiogroup">
@@ -379,6 +477,7 @@ it.each([
 it.each([
   ['input', <Input role="checkbox" aria-checked={false} />],
   ['textarea', <Textarea role="switch" aria-checked={false} />],
+  ['select', <Select role="listbox" options={[{ value: 'one', label: 'One' }]} />],
   [
     'radio group',
     <RadioGroup role="listbox">

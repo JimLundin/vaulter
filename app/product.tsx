@@ -1,5 +1,5 @@
 // The product's explicit assembly. Only this file imports optional workflows.
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import type { LanguageModel } from 'ai';
 import {
   useVaultSession,
@@ -15,6 +15,19 @@ import { useKeys } from './ui/keys.ts';
 import { opened } from './ui/recent.ts';
 import { go, link, parseRoute, pattern, useRoute } from './ui/routing.ts';
 import { later } from './ui/later.ts';
+import { createSettings } from './settings.ts';
+import { ModuleSettings, SecretSettings } from './ui/ModuleSettings.tsx';
+import { AppearanceSettings, appearanceSettings } from './ui/AppearanceSettings.tsx';
+import { agentSettings, agentOptions } from './agent/settings.ts';
+import {
+  createOpenAISettings,
+  createOpenAIPreferences,
+  openAIOptions,
+} from './agent/openai/settings.ts';
+import { githubSettings } from './vault/storage/settings.ts';
+import { jinaSettings } from './agent/jina/settings.ts';
+import { chatPreferences, chatSettings } from './workflows/chat/preferences.ts';
+import type { Secrets } from './vault/session/sealed.ts';
 import {
   Button,
   Brand,
@@ -31,13 +44,10 @@ import {
   Overlay,
   Page,
   SettingsMenu,
-  SettingsSection,
-  SettingField,
   VoiceButton,
   Row,
   Stack,
   Text,
-  ThemeSwitch,
   setTheme,
   useLayout,
 } from './ui/kit/index.ts';
@@ -60,7 +70,6 @@ import {
 import { nodeContentTools, canUndoContent } from './vault/content/tools.ts';
 import type { NodeDifference, NodeStore } from './vault/nodes/store.ts';
 import { createOpenAICapabilities } from './agent/openai/index.ts';
-import { model as selectedModel } from './workflows/chat/model.ts';
 import { preservesAgentRecords } from './agent/preservation.ts';
 import type { AgentToolFactory } from './agent/tools.ts';
 import { agentSources } from './agent/sources.ts';
@@ -112,7 +121,8 @@ const unavailableNodes: NodeStore = {
 };
 const unavailableModel = () =>
   Promise.reject(new Error('Configure an OpenAI key to send messages.'));
-const chatSettings = { maxSteps: 12 };
+const executionPreferences = createSettings(agentSettings);
+const storagePreferences = createSettings(githubSettings);
 const contentKinds = ['content', 'question'];
 const enabledContentTools = [
   { name: 'createNode' },
@@ -134,6 +144,10 @@ function productTools(nodes: NodeStore): AgentToolFactory {
 }
 const productionConversationKey = `vaulter:conversation:${import.meta.env.VITE_GITHUB_API || 'https://api.github.com'}:${import.meta.env.VITE_VAULT_REPO || 'JimLundin/vault@main'}`;
 export const previewConversationKey = 'vaulter:preview:conversation:v1';
+
+type VaultSession = ReturnType<typeof useVaultSession>;
+type SuppliedSession = Omit<VaultSession, 'identity' | 'credentialPending'> &
+  Partial<Pick<VaultSession, 'identity' | 'credentialPending'>>;
 
 export function Product({
   openBackend,
@@ -179,7 +193,7 @@ export function OpenProduct({
   preview,
   identities = defaultIdentities,
 }: {
-  session: ReturnType<typeof useVaultSession>;
+  session: SuppliedSession;
   model?: (name: string) => Promise<LanguageModel>;
   identities?: ApplicationIdentities;
   preview?: {
@@ -190,6 +204,37 @@ export function OpenProduct({
   };
 }) {
   const { vault, files, status, nodes, nodeStatus } = session;
+  const providerDefinition = useMemo(
+    () =>
+      createOpenAISettings({
+        defaultModel: preview?.defaultModel,
+        baseURL: import.meta.env.VITE_OPENAI_API,
+      }),
+    [preview?.defaultModel],
+  );
+  const providerPreferences = useMemo(
+    () => createOpenAIPreferences(providerDefinition),
+    [providerDefinition],
+  );
+  const providerValues = useSyncExternalStore(
+    providerPreferences.subscribe,
+    providerPreferences.snapshot,
+  );
+  const executionValues = useSyncExternalStore(
+    executionPreferences.subscribe,
+    executionPreferences.snapshot,
+  );
+  const chatValues = useSyncExternalStore(chatPreferences.subscribe, chatPreferences.snapshot);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the snapshot invalidates parsed settings from this store.
+  const executionSettings = useMemo(
+    () => agentOptions(executionPreferences.values()),
+    [executionValues],
+  );
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the snapshot invalidates parsed settings from this store.
+  const providerOptions = useMemo(
+    () => openAIOptions(providerPreferences.values()),
+    [providerValues, providerPreferences],
+  );
   const conversationKey = preview ? previewConversationKey : productionConversationKey;
   const selectionStorage = preview ? sessionStorage : localStorage;
   const setup = useMemo(
@@ -394,13 +439,14 @@ export function OpenProduct({
         ? createOpenAICapabilities({
             apiKey: session.secrets.openai,
             baseURL: import.meta.env.VITE_OPENAI_API || undefined,
+            ...providerOptions,
           })
         : null,
-    [session.secrets?.openai],
+    [session.secrets?.openai, providerOptions],
   );
   const remoteModel = provider?.model ?? null;
   const speechProvider = provider?.liveTranscription ?? null;
-  // Initial store readiness belongs to this session; replacing an opened store starts a new one.
+  // Supplied session identity survives credential reconnects; independent stores get a new owner.
   const chatScope = useRef<{ nodes: NodeStore | null; key: object }>({ nodes: null, key: {} });
   if (chatScope.current.nodes !== nodes) {
     chatScope.current = {
@@ -408,23 +454,25 @@ export function OpenProduct({
       key: chatScope.current.nodes === null && nodes ? chatScope.current.key : {},
     };
   }
-  const chatSession = chatScope.current.key;
+  const chatSession = session.identity ?? chatScope.current.key;
   const voice = useTranscription(preview?.transcription ?? speechProvider, chatSession);
-  const availability = !nodes
-    ? 'Opening the node store…'
-    : nodeStatus.kind === 'error'
-      ? `Node store error: ${nodeStatus.message}`
-      : nodeStatus.kind === 'offline'
-        ? 'The node store is offline. Connect to save messages.'
-        : nodeStatus.kind !== 'synced'
-          ? 'Opening the node store…'
-          : identityState.owner !== setup || !identityState.ready
-            ? identityState.error
-              ? `Identity setup failed: ${identityState.error}`
-              : 'Preparing Vault identities…'
-            : !(suppliedModel ?? remoteModel)
-              ? 'Configure an OpenAI key in Settings to send messages.'
-              : undefined;
+  const availability = session.credentialPending
+    ? 'Wait for the credential update to finish before starting agent activity.'
+    : !nodes
+      ? 'Opening the node store…'
+      : nodeStatus.kind === 'error'
+        ? `Node store error: ${nodeStatus.message}`
+        : nodeStatus.kind === 'offline'
+          ? 'The node store is offline. Connect to save messages.'
+          : nodeStatus.kind !== 'synced'
+            ? 'Opening the node store…'
+            : identityState.owner !== setup || !identityState.ready
+              ? identityState.error
+                ? `Identity setup failed: ${identityState.error}`
+                : 'Preparing Vault identities…'
+              : !(suppliedModel ?? remoteModel)
+                ? 'Configure an OpenAI key in Settings to send messages.'
+                : undefined;
   const conversation = useConversation(
     productChatOptions({
       nodes: nodes ?? unavailableNodes,
@@ -432,12 +480,15 @@ export function OpenProduct({
       identities,
       provider: preview?.provider ?? (suppliedModel ? 'preview' : 'openai'),
       model: suppliedModel ?? remoteModel ?? unavailableModel,
-      selectedModel: selectedModel(preview?.defaultModel),
+      selectedModel: providerOptions.models.llm,
       instructions:
-        'Help the Vault owner using the supplied tools. Content changes and questions are published directly as nodes. Use askQuestion to retain requests for missing information, and listQuestionSubjects to find the relevant Wiki page. Use listQuestions and readQuestion to consult retained questions and answers. Do not invent answers or claim to edit or commit legacy files.' +
-        (wikiPage ? ` The owner is viewing Wiki page ${wikiPage}.` : ''),
+        chatValues.instructions + (wikiPage ? ` The owner is viewing Wiki page ${wikiPage}.` : ''),
+      settings: executionSettings,
       suggestions: preview?.suggestions,
       availability,
+      captureAvailability: session.credentialPending
+        ? 'Wait for the credential update to finish before starting recording.'
+        : undefined,
       transcription: voice,
       conversation: conversationRoute.match(route.path)?.node,
       retainedConversation,
@@ -473,7 +524,33 @@ export function OpenProduct({
   const promptSequence = useRef(0);
   // Supplied intent belongs to the receiving owner, including owners replaced by effect replay.
   const prompt = suppliedPrompt?.owner === conversation ? suppliedPrompt.value : null;
-  const { capture, turns, selectionAvailability } = useChat(conversation);
+  const { capture, turns, selectionAvailability, busy, recovery } = useChat(conversation);
+  const credentialReason = preview
+    ? 'Credentials are supplied by the preview server.'
+    : session.credentialPending
+      ? 'Credentials are being updated. Wait for the update to finish.'
+      : busy ||
+          Object.keys(recovery).length > 0 ||
+          ['connecting', 'listening', 'finishing'].includes(capture.phase)
+        ? 'Finish or stop the current agent activity before changing credentials.'
+        : undefined;
+  const configured = Object.fromEntries(
+    (['github', 'openai', 'jina'] as const).map((key) => [key, Boolean(session.secrets?.[key])]),
+  );
+  const overridden = Object.fromEntries(
+    (['github', 'openai', 'jina'] as const).map((key) => [
+      key,
+      Object.hasOwn(session.secretOverrides, key),
+    ]),
+  );
+  const credentialProps = {
+    configured,
+    overridden,
+    disabledReason: credentialReason,
+    persistent: !import.meta.env.DEV,
+    onChange: (key: string, value: string | null | undefined) =>
+      session.updateSecret(key as keyof Secrets, value),
+  };
   const navigation: Navigation[] = [
     { label: 'Chat', href: chatRoute.href(), icon: 'sparkles', current: onChat },
     { label: 'Wiki', href: wikiRoute.href(), icon: 'book', current: onWiki },
@@ -741,18 +818,36 @@ export function OpenProduct({
         open={settingsOpen}
         onClose={closeSettings}
         features={[
-          { name: 'Chat', content: <ChatSettings defaultModel={preview?.defaultModel} /> },
+          { name: appearanceSettings.name, content: <AppearanceSettings /> },
+          { name: chatSettings.name, content: <ChatSettings /> },
+          {
+            name: agentSettings.name,
+            content: <ModuleSettings definition={agentSettings} store={executionPreferences} />,
+          },
+          {
+            name: providerDefinition.name,
+            content: (
+              <Stack gap="lg">
+                <SecretSettings definition={providerDefinition} {...credentialProps} />
+                <ModuleSettings definition={providerDefinition} store={providerPreferences} />
+              </Stack>
+            ),
+          },
+          {
+            name: githubSettings.name,
+            content: (
+              <Stack gap="lg">
+                <SecretSettings definition={githubSettings} {...credentialProps} />
+                <ModuleSettings definition={githubSettings} store={storagePreferences} />
+              </Stack>
+            ),
+          },
+          {
+            name: jinaSettings.name,
+            content: <SecretSettings definition={jinaSettings} {...credentialProps} />,
+          },
         ]}
-      >
-        <SettingsSection title="Appearance">
-          <SettingField
-            label="Theme"
-            description="Choose a theme, or follow your device's appearance."
-          >
-            <ThemeSwitch />
-          </SettingField>
-        </SettingsSection>
-      </SettingsMenu>
+      />
       <Search commands={commands} index={index} open={search} setSearch={setSearch} onAsk={ask} />
       <Previews index={index} />
       <Overlay
@@ -807,7 +902,7 @@ export function productNodeHistory(
 
 type ProductChatOptions = Omit<
   NodeConversationOptions,
-  'user' | 'agent' | 'tools' | 'writableKinds' | 'enabledTools' | 'settings'
+  'user' | 'agent' | 'tools' | 'writableKinds' | 'enabledTools'
 > & { readonly identities?: ApplicationIdentities };
 /** The same explicit composition used by the Product views and independent application callers. */
 export function productChatOptions({
@@ -821,7 +916,7 @@ export function productChatOptions({
     tools: productTools(options.nodes),
     writableKinds: contentKinds,
     enabledTools: enabledContentTools,
-    settings: chatSettings,
+    settings: options.settings ?? agentOptions(executionPreferences.values()),
   };
 }
 export function createProductConversation(options: ProductChatOptions) {

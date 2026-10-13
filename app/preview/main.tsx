@@ -184,6 +184,11 @@ function Preview({ initialHead, nodes }: { initialHead: Head; nodes: NodeStore }
         locked: null,
         signOut: null,
         secrets: null,
+        preloadedSecrets: null,
+        secretOverrides: {},
+        updateSecret: async () => {
+          throw new Error('Credentials are supplied by the preview server.');
+        },
         blocked: null,
         nodes,
         nodeStatus: { kind: 'synced', at: Date.now() },

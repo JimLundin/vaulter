@@ -1,9 +1,10 @@
 import type { LanguageModel } from 'ai';
+import { DEFAULT_MODELS } from '../../agent/openai/defaults.ts';
+import { LEGACY_MODEL_KEY, selectedOpenAIModel } from '../../agent/openai/settings.ts';
 
-export const MODEL_KEY = 'vault.agent.model';
-export const DEFAULT_MODEL = 'gpt-6-astra';
-export const model = (defaultModel = DEFAULT_MODEL) =>
-  localStorage.getItem(MODEL_KEY) || defaultModel;
+export const MODEL_KEY = LEGACY_MODEL_KEY;
+export const DEFAULT_MODEL = DEFAULT_MODELS.llm;
+export const model = selectedOpenAIModel;
 export type ModelProvider = (name: string) => Promise<LanguageModel>;
 
 export const openAIModel =

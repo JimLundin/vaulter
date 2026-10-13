@@ -117,12 +117,12 @@ export function SettingField({
       [...controls.current.values()].some((candidate) => candidate.kind === 'unsupported')
     ) {
       throw new Error(
-        `SettingField "${label}" contains an unsupported semantic control; use one supported text control or radio group.`,
+        `SettingField "${label}" contains an unsupported semantic control; use one supported text control, select or radio group.`,
       );
     }
     if (controls.current.size !== 1) {
       throw new Error(
-        `SettingField "${label}" requires exactly one supported text control or radio group; found ${controls.current.size}.`,
+        `SettingField "${label}" requires exactly one supported text control, select or radio group; found ${controls.current.size}.`,
       );
     }
     const control = controls.current.values().next().value;
