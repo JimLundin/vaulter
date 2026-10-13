@@ -171,6 +171,21 @@ Every producer raises questions through this module: the Sweep, the check, the A
 `QuestionItem` presentation. Product supplies that presentation to Wiki; Wiki does not decode
 question status or import another workflow.
 
+The Questions module owns every new application write affecting a Question, its Answers or their
+task Relationships. Its two supported actions create a Question and record a person's direct
+Answer. The creation action owns suggestions and grounding; the answering action owns the response,
+exact evidence link and reviewed Question expectations. Application callers use these actions
+instead of constructing Question records or Relationships. No edit, abandonment, deletion or
+retargeting action is provided.
+
+Product supplies a NodeStore that enforces this ownership for every application producer, including
+initial Chat/Agent Transactions. Admission compares the complete Questions-owned work and required
+reads with the owning action's retained authorization against authoritative history. Hand-written
+changes are rejected atomically, even when their payloads are otherwise valid. Permission is not
+stored in Vault records or inferred from transaction kind or author. Exact entered-save retries
+remain recoverable without repeating the action. Accepted historical loading and private Vault
+translation retain their existing paths and historical decoding.
+
 ```ts
 /** Placed under what it is about. Answered exactly when it has an answered-by relationship
     (→ decision, exchange, page or section). */

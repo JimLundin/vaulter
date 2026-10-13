@@ -38,6 +38,20 @@ export interface NodeSnapshot {
   readonly roots: () => readonly NodeVersion[];
 }
 
+/** Ephemeral live-publication policy; accepted history is not reinterpreted through this rule. */
+export interface NodePublicationContext {
+  readonly request: NodeCommit;
+  /** Authoritative accepted state, including backend refresh and any preceding writer. */
+  readonly before: NodeSnapshot;
+  /** Complete proposed state, including exact addresses created by this transaction. */
+  readonly after: NodeSnapshot;
+  /** Accepted versions in recording order, retaining identities through deletion and retagging. */
+  readonly versions: (node: NodeId) => readonly NodeVersion[];
+}
+
+/** Throw to reject the complete new transaction before physical publication. */
+export type NodePublicationRule = (context: NodePublicationContext) => void;
+
 export interface NodeDifference {
   readonly node: NodeId;
   readonly before: NodeVersion | null;
@@ -47,7 +61,7 @@ export interface NodeDifference {
 /** Domain operations; UI and tools use this interface rather than database tables. */
 export interface NodeStore {
   /** Validate and atomically publish complete versions, preserving previous states. */
-  readonly commit: (request: NodeCommit) => Promise<Transaction>;
+  readonly commit: (request: NodeCommit, publication?: NodePublicationRule) => Promise<Transaction>;
   readonly snapshot: (sequence?: number) => Promise<NodeSnapshot>;
   readonly history: (options?: {
     readonly beforeSequence?: number;

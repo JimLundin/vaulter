@@ -33,7 +33,11 @@ const reading: QuestionContextReading = {
   isKnowledge: (node) => node.data?.kind === 'run',
 };
 const questionTools = (context: AgentToolContext, nodes: ReturnType<typeof memoryNodeBackend>) =>
-  createQuestionTools(context, nodes, reading);
+  createQuestionTools(
+    { author: { recordedBy: 'agent', origin: 'run' }, ...context },
+    nodes,
+    reading,
+  );
 
 test('Questions agent discovery and reads include retained Questions and exact direct Answer text', async () => {
   const nodes = memoryNodeBackend();
@@ -112,6 +116,25 @@ test('an expired Questions tool cannot publish a request', async () => {
     tools.askQuestion.execute!({ ...proposals, text: 'Which wall?' }, execution),
   ).rejects.toThrow();
   expect(publications).toBe(0);
+  nodes.close();
+});
+
+test('Question creation requires trusted invocation attribution before source reads or publication', async () => {
+  const nodes = memoryNodeBackend();
+  const tools = createQuestionTools(
+    {
+      signal: new AbortController().signal,
+      snapshot: () => {
+        throw new Error('An untrusted invocation must not read.');
+      },
+      commit: () => Promise.reject(new Error('An untrusted invocation must not publish.')),
+    },
+    nodes,
+    reading,
+  );
+  await expect(
+    tools.askQuestion.execute!({ ...proposals, text: 'Which wall?' }, execution),
+  ).rejects.toThrow('trusted Agent invocation');
   nodes.close();
 });
 

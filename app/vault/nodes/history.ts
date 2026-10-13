@@ -1,11 +1,13 @@
 // Atomic acceptance and immutable projections shared by both adapters.
 import type { NodeAddress, NodeVersion } from './model.ts';
-import type { NodeCommit, NodeSnapshot, NodeDifference } from './store.ts';
+import type { NodeCommit, NodeSnapshot, NodeDifference, NodePublicationRule } from './store.ts';
 import type { NodeRecord } from './validation.ts';
 import { frozen, compare, canonical } from './json.ts';
 import { loadingTurns } from './loading.ts';
 
 export class NodeConflict extends Error {}
+/** A live owner rule rejected new publication; retrying cannot recover a transport failure. */
+export class NodePublicationRejected extends Error {}
 
 // Private acceptance indexes. Loading extends these once per envelope; it never projects
 // every earlier snapshot. Feature payload interpretation remains with the owning module.
@@ -52,7 +54,18 @@ function acceptanceState(records: readonly NodeRecord[] = []) {
     const version = get(address.node, exactSequence);
     return version?.key.transaction === address.transaction ? version : undefined;
   };
-  return { selected, transactions, parents, roots, get, resolve, append, sequence: () => sequence };
+  return {
+    selected,
+    transactions,
+    parents,
+    roots,
+    get,
+    resolve,
+    append,
+    versions: (node: string) =>
+      Object.freeze(versions.get(node)?.map(({ version }) => version) ?? []),
+    sequence: () => sequence,
+  };
 }
 
 // Only immutable accepted arrays are retained. CLI callers may still build mutable histories.
@@ -77,6 +90,22 @@ export function snapshotOf(records: readonly NodeRecord[], cutoff?: number): Nod
   const index = indexedRecords(records);
   const get = (node: string) => index.get(node, sequence);
   const resolve = (address: NodeAddress) => index.resolve(address, sequence);
+  return projection(
+    sequence,
+    get,
+    resolve,
+    index.roots,
+    (parent) => index.parents.get(parent) ?? [],
+  );
+}
+
+function projection(
+  sequence: number,
+  get: NodeSnapshot['get'],
+  resolve: NodeSnapshot['resolve'],
+  rootIds: Iterable<string>,
+  childIds: (parent: string) => Iterable<string>,
+): NodeSnapshot {
   const children = new Map<string, readonly NodeVersion[]>();
   const empty: readonly NodeVersion[] = Object.freeze([]);
   let roots: readonly NodeVersion[] | undefined;
@@ -86,7 +115,7 @@ export function snapshotOf(records: readonly NodeRecord[], cutoff?: number): Nod
     resolve,
     roots: () => {
       roots ??= Object.freeze(
-        [...index.roots]
+        [...rootIds]
           .flatMap((node) => {
             const version = get(node);
             return version?.data && !version.placement ? [version] : [];
@@ -101,7 +130,7 @@ export function snapshotOf(records: readonly NodeRecord[], cutoff?: number): Nod
       let siblings = children.get(address.node);
       if (!siblings) {
         siblings = Object.freeze(
-          [...(index.parents.get(address.node) ?? [])]
+          [...childIds(address.node)]
             .flatMap((node) => {
               const version = get(node);
               return version?.data && version.placement?.parent === address.node ? [version] : [];
@@ -123,8 +152,9 @@ export function accept(
   request: NodeCommit,
   requestDigest: string,
   recordedAt: string,
+  publication?: NodePublicationRule,
 ): NodeRecord {
-  return acceptIndexed(indexedRecords(records), request, requestDigest, recordedAt);
+  return acceptIndexed(indexedRecords(records), request, requestDigest, recordedAt, publication);
 }
 
 function acceptIndexed(
@@ -132,6 +162,7 @@ function acceptIndexed(
   request: NodeCommit,
   requestDigest: string,
   recordedAt: string,
+  publication?: NodePublicationRule,
 ): NodeRecord {
   const prior = state.transactions.get(request.id);
   if (prior) {
@@ -192,7 +223,7 @@ function acceptIndexed(
     }
     for (const id of path) checked.add(id);
   }
-  return frozen(
+  const record: NodeRecord = frozen(
     structuredClone({
       transaction: {
         id: request.id,
@@ -210,6 +241,61 @@ function acceptIndexed(
       requestDigest,
     }),
   );
+  if (publication) {
+    const sequence = state.sequence();
+    // Policy reads immutable proposed values; it cannot change the request digest or accepted record.
+    const proposed = new Map(record.versions.map((version) => [version.key.node, version]));
+    const beforeGet = (node: string) => state.get(node, sequence);
+    const beforeResolve = (address: NodeAddress) => state.resolve(address, sequence);
+    const afterGet = (node: string) => proposed.get(node) ?? beforeGet(node);
+    const afterResolve = (address: NodeAddress) =>
+      address.transaction === undefined
+        ? afterGet(address.node)
+        : address.transaction === request.id
+          ? proposed.get(address.node)
+          : beforeResolve(address);
+    const result: unknown = publication(
+      Object.freeze({
+        request: frozen(structuredClone(request)),
+        before: projection(
+          sequence,
+          beforeGet,
+          beforeResolve,
+          state.roots,
+          (parent) => state.parents.get(parent) ?? [],
+        ),
+        after: projection(
+          sequence + 1,
+          afterGet,
+          afterResolve,
+          (function* () {
+            yield* state.roots;
+            for (const version of record.versions)
+              if (!(version.placement || state.roots.has(version.key.node))) yield version.key.node;
+          })(),
+          (parent) =>
+            new Set([
+              ...(state.parents.get(parent) ?? []),
+              ...record.versions.flatMap((version) =>
+                version.placement?.parent === parent ? [version.key.node] : [],
+              ),
+            ]),
+        ),
+        versions: state.versions,
+      }),
+    );
+    if (
+      result !== null &&
+      (typeof result === 'object' || typeof result === 'function') &&
+      'then' in result &&
+      typeof result.then === 'function'
+    ) {
+      // A mistaken async rule must not grant publication or leave an unhandled rejection.
+      Promise.resolve(result).catch(() => undefined);
+      throw new NodePublicationRejected('Live publication rules must run synchronously');
+    }
+  }
+  return record;
 }
 
 /** Validate imported history before it becomes visible; append-only prefixes cannot be rewritten. */

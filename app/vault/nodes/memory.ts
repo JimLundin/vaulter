@@ -17,13 +17,13 @@ export function memoryNodeBackend(): NodeBackend {
   };
   return nodeInterface({
     read: () => records,
-    append: (request) =>
+    append: (request, publication) =>
       run(async () => {
         checkOpen();
         const value = parseCommit(request);
         const requestDigest = await digest(value);
         checkOpen();
-        const record = accept(records, value, requestDigest, new Date().toISOString());
+        const record = accept(records, value, requestDigest, new Date().toISOString(), publication);
         if (!records.includes(record)) {
           records = Object.freeze([...records, record]);
           events.notify();

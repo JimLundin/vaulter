@@ -2,13 +2,13 @@
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { expect, test, vi } from 'vitest';
-import { OpenProduct } from './product.tsx';
+import { OpenProduct, productNodes } from './product.tsx';
 import { liveVault } from './vault/index.ts';
 import { useWriter } from './vault/changes/writer.ts';
 import { memoryBackend } from './vault/storage/memory.ts';
 import { memoryNodeBackend } from './vault/nodes/memory.ts';
 import { create, request, revise } from './vault/nodes/fixtures.test-support.ts';
-import type { NodeCommit } from './vault/nodes/store.ts';
+import type { NodeCommit, NodeStore } from './vault/nodes/store.ts';
 
 test('Product composes the shared Questions owner for nested Wiki questions and retained answers', async () => {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
@@ -285,7 +285,10 @@ test('Product saves answers from Wiki and Questions and filters the retained sha
   }
 });
 
-async function answerLifetimeFixture(signOut: (() => Promise<void>) | null = null) {
+async function answerLifetimeFixture(
+  signOut: (() => Promise<void>) | null = null,
+  initialNodes?: (nodes: ReturnType<typeof memoryNodeBackend>) => NodeStore,
+) {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
   localStorage.clear();
   history.replaceState(null, '', '#/wiki/studio/');
@@ -305,6 +308,7 @@ async function answerLifetimeFixture(signOut: (() => Promise<void>) | null = nul
       ),
     ]),
   );
+  let suppliedNodes = initialNodes?.(nodes) ?? nodes;
   const root = createRoot(document.body);
   function Surface() {
     const writer = useWriter(files.backend, rules, head, () => undefined);
@@ -322,7 +326,7 @@ async function answerLifetimeFixture(signOut: (() => Promise<void>) | null = nul
           secretOverrides: {},
           updateSecret: async () => undefined,
           blocked: null,
-          nodes,
+          nodes: suppliedNodes,
           nodeStatus: { kind: 'synced', at: 0 },
           refreshNodes: async () => undefined,
         }}
@@ -361,8 +365,96 @@ async function answerLifetimeFixture(signOut: (() => Promise<void>) | null = nul
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
   };
-  return { nodes, button, draft, navigate, cleanup };
+  const replaceNodes = async (next: NodeStore) => {
+    suppliedNodes = next;
+    await act(async () => root.render(<Surface />));
+  };
+  return { nodes, button, draft, navigate, replaceNodes, cleanup };
 }
+
+test('credential replacement retains entered Answer permission and moves prewrapped owner reads to the new adapter', async () => {
+  let closed = false;
+  const attempts: NodeCommit[] = [];
+  const fixture = await answerLifetimeFixture(null, (raw) => {
+    const checkOpen = () => {
+      if (closed) throw new Error('The old credential adapter is closed.');
+    };
+    const transport: NodeStore = {
+      snapshot: (sequence) => {
+        checkOpen();
+        return raw.snapshot(sequence);
+      },
+      history: (options) => {
+        checkOpen();
+        return raw.history(options);
+      },
+      changes: (transaction) => {
+        checkOpen();
+        return raw.changes(transaction);
+      },
+      subscribe: raw.subscribe,
+      commit: (value, publication) => {
+        checkOpen();
+        if (value.kind.scope !== 'questions') return raw.commit(value, publication);
+        attempts.push(value);
+        // Enter actual authoritative owner admission, then lose publication availability.
+        return raw.commit(value, (context) => {
+          publication?.(context);
+          throw new Error('Credential expired during Answer publication.');
+        });
+      },
+    };
+    return productNodes(transport);
+  });
+  const { nodes, button, draft, navigate, replaceNodes } = fixture;
+  try {
+    await vi.waitFor(async () => {
+      await act(async () => undefined);
+      expect(document.querySelector('textarea')?.disabled).toBe(false);
+    });
+    await draft('Use the garden wall.');
+    await act(async () => button('Save answer').click());
+    await vi.waitFor(() => expect(document.body.textContent).toContain('Credential expired'));
+    const replacement: NodeStore = {
+      ...nodes,
+      commit: (value, publication) => {
+        if (value.kind.scope === 'questions') attempts.push(value);
+        return nodes.commit(value, publication);
+      },
+    };
+    closed = true;
+    await replaceNodes(replacement);
+    await act(async () => button('Retry original answer').click());
+    await vi.waitFor(() =>
+      expect(document.body.textContent).not.toContain('Retry original answer'),
+    );
+    expect(attempts).toHaveLength(2);
+    expect(attempts[1]).toBe(attempts[0]);
+    expect(
+      (await nodes.snapshot()).children('question').filter((node) => node.data?.kind === 'answer'),
+    ).toHaveLength(1);
+
+    await nodes.commit(
+      request('later-question', [
+        create('later-question', { kind: 'question', text: 'Which tools should stay?' }),
+      ]),
+    );
+    await navigate('#/questions/later-question/');
+    await vi.waitFor(() => expect(document.querySelector('textarea')?.disabled).toBe(false));
+    await draft('Keep the plane.');
+    await act(async () => button('Save answer').click());
+    await vi.waitFor(async () =>
+      expect(
+        (await nodes.snapshot())
+          .children('later-question')
+          .filter((node) => node.data?.kind === 'answer'),
+      ).toHaveLength(1),
+    );
+    expect(attempts).toHaveLength(3);
+  } finally {
+    await fixture.cleanup();
+  }
+});
 
 test('Product retains an admitted Wiki answer across Chat navigation and retries its original request in Questions', async () => {
   const fixture = await answerLifetimeFixture();
@@ -370,14 +462,15 @@ test('Product retains an admitted Wiki answer across Chat navigation and retries
   const { commit } = nodes;
   const attempts: NodeCommit[] = [];
   let failPublication!: () => void;
-  vi.spyOn(nodes, 'commit').mockImplementation((value) => {
-    if (value.kind.scope !== 'questions' || value.kind.action !== 'answer') return commit(value);
+  vi.spyOn(nodes, 'commit').mockImplementation((value, publication) => {
+    if (value.kind.scope !== 'questions' || value.kind.action !== 'answer')
+      return commit(value, publication);
     attempts.push(value);
     if (attempts.length === 1)
       return new Promise((_, reject) => {
         failPublication = () => reject(new Error('Answer publication unavailable.'));
       });
-    return commit(value);
+    return commit(value, publication);
   });
   try {
     await vi.waitFor(async () => {

@@ -1,5 +1,6 @@
 // Resolved import rules for removable workflows. Used by CI through tools/layout.test.ts.
-import { API } from 'typescript/unstable/sync';
+import { API, SymbolFlags, type Symbol as CompilerSymbol } from 'typescript/unstable/sync';
+// biome-ignore lint/performance/noNamespaceImport: Node-only compiler inspection.
 import * as ts from 'typescript/unstable/ast';
 import { readdirSync } from 'node:fs';
 import { dirname, relative, resolve } from 'node:path';
@@ -41,6 +42,33 @@ const semanticTags = new Set([
 const chatCodeRenderer = (path: string) => path === 'app/workflows/chat/rendering/highlight.tsx';
 const kit = (path: string) => path.startsWith('app/ui/kit/');
 const workflow = (path: string) => /^app\/workflows\/([^/]+)\//.exec(path)?.[1];
+const fixture = (path: string) =>
+  /\.(?:test|test-support)\.[cm]?tsx?$/.test(path) || path.startsWith('app/preview/');
+const testSource = (path: string) => /\.(?:test|test-support)\.[cm]?tsx?$/.test(path);
+const nodeImplementation = (path: string) =>
+  path.startsWith('app/vault/nodes/') || path.startsWith('app/vault/storage/nodes/');
+const rawNodeCaller = (path: string) =>
+  path === 'app/main.tsx' || nodeImplementation(path) || fixture(path);
+const rawNodeEntries = new Set([
+  'app/vault/nodes/memory.ts',
+  'app/vault/nodes/backend.ts',
+  'app/vault/storage/nodes/github.ts',
+]);
+const rawNodeSymbols = new Map([
+  ['app/vault/nodes/memory.ts', new Set(['memoryNodeBackend'])],
+  ['app/vault/nodes/backend.ts', new Set(['nodeInterface'])],
+  ['app/vault/storage/nodes/github.ts', new Set(['githubNodeBackend'])],
+  ['app/vault/nodes/history.ts', new Set(['accept', 'validateRecords', 'validateRecordsAsync'])],
+]);
+const sessionNodeSymbols = new Map([
+  ['app/vault/session/session.ts', new Set(['useSession'])],
+  ['app/vault/index.ts', new Set(['useVaultSession'])],
+]);
+const sessionNodeCaller = (from: string, owner: string) =>
+  fixture(from) ||
+  (owner === 'app/vault/session/session.ts'
+    ? from === 'app/vault/index.ts' || from.startsWith('app/vault/session/')
+    : from === 'app/product.tsx');
 // These owner UI declarations compose presentation; storage/model implementations remain separate.
 const vaultUi = new Set([
   'app/vault/Gate.tsx',
@@ -49,6 +77,12 @@ const vaultUi = new Set([
   'app/vault/content/tool-presentation.tsx',
 ]);
 export function importProblem(from: string, to: string): string | null {
+  if (to.startsWith('app/preview/') && !fixture(from))
+    return `${from} imports preview-only ${to}; fixtures cannot publish application data`;
+  if (testSource(to) && !fixture(from))
+    return `${from} imports test-only ${to}; fixtures cannot publish application data`;
+  if (rawNodeEntries.has(to) && !rawNodeCaller(from))
+    return `${from} imports raw node persistence; use the Product-supplied NodeStore`;
   if (workflow(from) === 'wiki' && to.startsWith('tools/'))
     return `${from} imports tooling; migration depends on Wiki, never Wiki on migration`;
   if (
@@ -115,7 +149,46 @@ export function checkLayout(root: string): string[] {
         problems.push(`${from}: source is outside the checked TypeScript project`);
         continue;
       }
-      const check = (value: ts.Expression) => {
+      const {
+        name: valueName,
+        literal: intrinsic,
+        member,
+        propertyName,
+        value: aliasValue,
+        target: valueTarget,
+      } = compilerValues(project);
+      const checkOwnedSymbol = (symbol: CompilerSymbol | undefined, seen = new Set<number>()) => {
+        if (!symbol) return;
+        const owned =
+          symbol.flags & SymbolFlags.Alias ? project.checker.getAliasedSymbol(symbol) : symbol;
+        if (seen.has(owned.id)) return;
+        seen.add(owned.id);
+        for (const declaration of owned.declarations) {
+          const resolvedDeclaration = declaration.resolve();
+          if (!resolvedDeclaration) continue;
+          const source = resolvedDeclaration.getSourceFile();
+          if (ts.isVariableDeclaration(resolvedDeclaration) && resolvedDeclaration.initializer)
+            checkOwnedSymbol(valueTarget(aliasValue(resolvedDeclaration.initializer)), seen);
+          const owner = slash(relative(root, source.fileName));
+          if (!rawNodeCaller(from) && rawNodeSymbols.get(owner)?.has(owned.name))
+            problems.push(
+              `${from} accesses raw node persistence; use the Product-supplied NodeStore`,
+            );
+          if (sessionNodeSymbols.get(owner)?.has(owned.name) && !sessionNodeCaller(from, owner))
+            problems.push(
+              `${from} accesses a raw node session; use the Product-supplied NodeStore`,
+            );
+          if (
+            owner === 'app/workflows/questions/actions.ts' &&
+            owned.name === 'createQuestionOwnership' &&
+            !(from === 'app/product.tsx' || workflow(from) === 'questions' || fixture(from))
+          )
+            problems.push(
+              `${from} accesses Questions ownership; compose actions in app/product.tsx`,
+            );
+        }
+      };
+      const check = (value: ts.Expression, allExports = false) => {
         if (!(ts.isStringLiteral(value) || ts.isNoSubstitutionTemplateLiteral(value))) {
           problems.push(`${from}: imports must use literal module paths so removal can be checked`);
           return;
@@ -127,6 +200,18 @@ export function checkLayout(root: string): string[] {
             ? resolve(dirname(filename), value.text)
             : resolved) ??
           (value.text.startsWith('.') ? resolve(dirname(filename), value.text) : null);
+        if (allExports) {
+          const moduleFile = target && project.program.getSourceFile(target);
+          const moduleSymbol =
+            symbol ?? (moduleFile && project.checker.getSymbolAtLocation(moduleFile));
+          if (moduleSymbol)
+            for (const exported of project.checker.getExportsOfModule(moduleSymbol))
+              checkOwnedSymbol(exported);
+          else
+            problems.push(
+              `${from}: module loading must resolve through TypeScript so ownership can be checked`,
+            );
+        }
         if (
           !(kit(from) || /\.test\.[cm]?tsx?$/.test(from)) &&
           (/^(?:lucide-react|radix-ui|@base-ui|cmdk|sonner)(?:\/|$)/.test(value.text) ||
@@ -154,14 +239,6 @@ export function checkLayout(root: string): string[] {
         const problem = importProblem(from, to);
         if (problem) problems.push(problem);
       };
-      const {
-        name: valueName,
-        literal: intrinsic,
-        member,
-        propertyName,
-        value: aliasValue,
-        target: valueTarget,
-      } = compilerValues(project);
       const semanticControl = (name: string, value?: ts.Node) =>
         /^on[A-Z]/.test(name) ||
         [
@@ -242,15 +319,28 @@ export function checkLayout(root: string): string[] {
           ts.isBindingElement(node)
             ? member(node)
             : undefined;
-        if ((ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) && node.moduleSpecifier)
-          check(node.moduleSpecifier);
+        if (ts.isImportDeclaration(node) && node.moduleSpecifier)
+          check(
+            node.moduleSpecifier,
+            !!node.importClause?.namedBindings &&
+              ts.isNamespaceImport(node.importClause.namedBindings),
+          );
+        if (ts.isExportDeclaration(node) && node.moduleSpecifier)
+          check(
+            node.moduleSpecifier,
+            !node.exportClause || ts.isNamespaceExport(node.exportClause),
+          );
+        if (ts.isImportSpecifier(node) || ts.isExportSpecifier(node))
+          checkOwnedSymbol(project.checker.getSymbolAtLocation(node.name));
+        if (ts.isImportClause(node) && node.name)
+          checkOwnedSymbol(project.checker.getSymbolAtLocation(node.name));
         if (
           ts.isCallExpression(node) &&
           (node.expression.kind === ts.SyntaxKind.ImportKeyword ||
             (ts.isIdentifier(node.expression) && node.expression.text === 'require')) &&
           node.arguments[0]
         )
-          check(node.arguments[0]);
+          check(node.arguments[0], true);
         if (!kit(from)) {
           if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) {
             const tag =

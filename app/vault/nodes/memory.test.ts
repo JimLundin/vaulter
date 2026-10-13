@@ -1,7 +1,97 @@
-import { expect, test } from 'vitest';
+import { expect, test, vi } from 'vitest';
 import { memoryNodeBackend } from './memory.ts';
 import { create, request, seed, revise } from './fixtures.test-support.ts';
 import { nodeClosure, undoNodes } from './operations-runtime.ts';
+
+test('live publication policy sees complete immutable state and can veto every proposed change atomically', async () => {
+  const store = memoryNodeBackend();
+  await seed(store);
+  await store.commit(request('removed', [await revise(store, 'evidence', null)]));
+  await store.commit(request('retagged', [await revise(store, 'evidence', { kind: 'other' })]));
+  const input = request('vetoed', [
+    await revise(store, 'page', { title: 'Must not publish' }),
+    {
+      ...create('linked', { text: 'Proposed' }, 'page'),
+      connection: {
+        source: { node: 'linked', transaction: 'vetoed' },
+        target: { node: 'evidence', transaction: 'seed' },
+      },
+    },
+    { ...(await revise(store, 'appearance', { kind: 'appearance' })), placement: null },
+  ]);
+  const notify = vi.fn();
+  store.subscribe(notify);
+  await expect(
+    store.commit(input, ({ request: proposed, before, after, versions }) => {
+      expect(proposed).toEqual(input);
+      expect(proposed).not.toBe(input);
+      expect(Object.isFrozen(proposed.changes[0].data)).toBe(true);
+      expect(before.sequence).toBe(3);
+      expect(after.sequence).toBe(4);
+      expect(before.get('page')?.data?.title).toBe('Studio');
+      expect(after.get('page')?.data?.title).toBe('Must not publish');
+      expect(before.resolve({ node: 'linked', transaction: 'vetoed' })).toBeUndefined();
+      expect(after.resolve({ node: 'linked', transaction: 'vetoed' })?.data?.text).toBe('Proposed');
+      expect(after.resolve({ node: 'user', transaction: 'vetoed' })).toBeUndefined();
+      expect(after.resolve({ node: 'evidence', transaction: 'seed' })?.data?.text).toBe(
+        'Keep mornings free.',
+      );
+      expect(before.children('page').map((version) => version.key.node)).toEqual(['appearance']);
+      expect(after.children('page').map((version) => version.key.node)).toEqual(['linked']);
+      expect(after.roots().map((version) => version.key.node)).toContain('appearance');
+      expect(versions('evidence').map((version) => version.data)).toEqual([
+        { kind: 'paragraph', text: 'Keep mornings free.' },
+        null,
+        { kind: 'other' },
+      ]);
+      expect(Object.isFrozen(versions('evidence'))).toBe(true);
+      expect(Object.isFrozen(versions('evidence')[0].data)).toBe(true);
+      expect(versions('linked')).toEqual([]);
+      throw new Error('Owner action required');
+    }),
+  ).rejects.toThrow('Owner action required');
+  const current = await store.snapshot();
+  expect(current.sequence).toBe(3);
+  expect(current.get('page')?.data?.title).toBe('Studio');
+  expect(current.get('linked')).toBeUndefined();
+  expect(current.children('page').map((version) => version.key.node)).toEqual(['appearance']);
+  expect(notify).not.toHaveBeenCalled();
+  store.close();
+});
+
+test('generic integrity runs before publication policy and accepted exact retries do not require policy again', async () => {
+  const store = memoryNodeBackend();
+  const publish = vi.fn();
+  const initial = request('initial', [create('user', { kind: 'actor' })]);
+  const accepted = await store.commit(initial, publish);
+  expect(publish).toHaveBeenCalledOnce();
+  const unavailable = vi.fn(() => {
+    throw new Error('Action lifetime has ended');
+  });
+  expect(await store.commit(structuredClone(initial), unavailable)).toEqual(accepted);
+  await expect(store.commit({ ...initial, message: 'Changed retry' }, unavailable)).rejects.toThrow(
+    'reused',
+  );
+  await expect(
+    store.commit(request('invalid', [create('child', {}, 'unknown')]), unavailable),
+  ).rejects.toThrow('Unknown parent');
+  await expect(
+    store.commit(request('stale', [create('user', { kind: 'other' })]), unavailable),
+  ).rejects.toThrow('Conflict');
+  expect(unavailable).not.toHaveBeenCalled();
+  expect((await store.snapshot()).sequence).toBe(1);
+  store.close();
+});
+
+test('an asynchronous publication rule cannot accept new history', async () => {
+  const store = memoryNodeBackend();
+  await expect(
+    store.commit(request('async', [create('user', { kind: 'actor' })]), async () => undefined),
+  ).rejects.toThrow('must run synchronously');
+  expect((await store.snapshot()).sequence).toBe(0);
+  expect((await store.snapshot()).get('user')).toBeUndefined();
+  store.close();
+});
 
 test('node content and transaction metadata retain every JSON key without changing retry identity', async () => {
   const store = memoryNodeBackend();

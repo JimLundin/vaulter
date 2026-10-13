@@ -81,6 +81,30 @@ to consume shared presentation while prohibiting presentation in persistence imp
 keeps callers on the kit's public exports. Cross-workflow integration tests should be kept with
 Product and removed with the corresponding wiring.
 
+Record ownership includes publication. Questions owns the complete creation and answering actions:
+payload validation, suggestions, grounding, direct Answer evidence, required reads and atomic
+changes. Callers request those actions through Product composition. Pure preparation entries remain
+available to the private Vault's translation, but do not authorize new application writes. The
+Questions ownership factory is private to Product and Questions; copying valid-looking payloads,
+setting a transaction kind or using the same author does not confer permission to publish.
+
+Every Product entry supplies an enforcing NodeStore, including independent Agent and Chat
+construction. Questions privately retains its action-produced work through entered publication and
+exact save retries. A generic publication rule runs against authoritative history at acceptance in
+both memory and GitHub adapters. Persistence owns structural integrity; Questions owns interpretation
+and admission of Question, Answer and task Relationship changes. An unauthorized change rejects the
+whole Transaction, including when bundled with initial Chat and Agent records. Historical loading
+and identical already-accepted retries retain their existing behavior.
+
+Raw node adapters and acceptance/loading functions are private to bootstrap, persistence and
+historical fixtures. Session hooks exposing raw handles remain with Vault session assembly and
+Product; preview fixtures cannot be imported by production callers. The compiler-backed layout policy
+checks these resolved origins through aliases and re-exports, while permitting ordinary node reads
+and errors. Keeping those handles out of task
+code prevents a new producer from bypassing the Product-supplied interface. This deepens the
+Questions module at its existing seam: callers gain leverage from two actions, and validation,
+construction, ownership and tests retain locality within Questions.
+
 ## Legacy file infrastructure owns file integrity
 
 The legacy file infrastructure owns note parsing, `meta/schema.yaml`, link and reference

@@ -62,6 +62,16 @@ must execute in their owning module, rather than delegate an unrecorded effect t
 The module owns its input schema, content payloads, operation validation and publication choice.
 Agent owns the run and tool activity, not a universal staging or review rule.
 
+Questions publication is restricted to that module's create and answer actions. Product supplies
+the same enforcing NodeStore to independent Agent execution, Chat composition and direct Answer
+tasks. An Agent tool delegates asking to Questions with its trusted Agent author and run origin;
+it cannot grant permission by constructing Question JSON, copying a transaction kind or bypassing
+the tool through initial caller-composed changes. Questions retains the complete authorized work
+and required reads, checked against authoritative history at atomic acceptance. Agent may add its
+tracked reads and compose foreign records without adding or changing Questions-owned work.
+An entered failed save retains that authorization for the exact existing recovery request, including
+after Stop, so saving never needs to repeat the tool or fabricate a new Question.
+
 Each `toolExecution` is a stable child of its run. It retains call identity, name/version, attempt,
 arguments, timing and status. Its connection source identifies the exact initial run version and
 its target identifies the exact initial invocation version. Invocation acceptance happens inside
