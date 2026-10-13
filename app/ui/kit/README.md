@@ -316,23 +316,23 @@ focus, scroll locking and focus return still use the normal browser behavior. Th
 layout and control behavior; they do not simulate a phone browser keyboard or microphone.
 
 The sample app uses public `DesignPreview` to center a floating dark pill over the workspace.
-Desktop shows its device and variant choices, kit link and reset in one row; on phones, tap the Preview pill to
-expand those same controls, then tap outside or press Escape to collapse it. **Window** follows
-the browser width, **Desktop** keeps a minimum 1024px workspace,
-and **Mobile** centers a 390px touch viewport, constrained to the browser width. Switching modes
+Desktop shows Mobile, the kit link and reset in one row; on phones, expand Preview controls,
+then tap outside or press Escape to collapse it. **Mobile** centers a 390px touch viewport,
+constrained to the browser width; switching it off follows the window. Switching modes
 rearranges the same mounted product and retains routes, drafts and open settings/search fields.
 Portals stay inside the selected viewport while the pill remains available. The frame follows
 the full visual viewport height, with the pill overlaying the app without reserving any layout
 space. The pill respects the top safe area.
-Drag the Preview label to move the pill with a mouse or touch. Its controls stay clickable,
+Drag the grip to move the pill with a mouse or touch. Its controls stay clickable,
 and its position is constrained when the panel expands or the visible viewport changes.
-With the label focused, arrow keys move it (Shift moves faster) and Home returns it to the top
+With the grip focused, arrow keys move it (Shift moves faster) and Home returns it to the top
 center. Position belongs to the mounted preview and resets on reload.
 
 `DesignComparison` supplies named alternatives and owns the selected variant. Its optional
 `preview` render callback receives the picker and selected content; pass the picker through
 `DesignPreview.variantControls` to put it beside the device choices in the floating pill.
-The live app currently registers one "Current design" alternative. The catalogue registers
+The default sample app renders the current Product directly with no variation picker.
+Explicit design experiments supply alternatives through this interface. The catalogue registers
 Note summary and Question summary to demonstrate independent variant selection. Device changes
 preserve the selected variant and its mounted fields; switching variants starts that variant's
 content afresh. The control shows previous/next arrows, a focusable current-design button and the

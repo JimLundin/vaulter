@@ -23,3 +23,8 @@ Full-suite verification runs only in CI. Run focused checks locally, then push t
 and inspect its commit's CI results.
 Before choosing checks for an edit or final delivery, follow
 [docs/agents/testing.md](docs/agents/testing.md).
+
+### UI previews
+
+Before creating UI variations, changing the preview, or promoting a selected design to production,
+follow [docs/agents/preview.md](docs/agents/preview.md).
