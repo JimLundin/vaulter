@@ -4,11 +4,12 @@ import type { AgentBackendOptions } from '../runtime.ts';
 import { createVoiceAgent, type VoiceAgentOptions } from '../voice-runtime.ts';
 import { createAgentBackend } from '../runtime.ts';
 import { openAITranscription } from './live-transcription.ts';
+import { openAIDictation } from './dictation.ts';
 import { openAIEmbeddings } from './embeddings.ts';
 import { openAIFileTranscription } from './file-transcription.ts';
 import { openAILiveVoice } from './live-voice.ts';
 import { openAIHttp, type OpenAIConnectionOptions } from './http.ts';
-import { DEFAULT_MODELS } from './defaults.ts';
+import { DEFAULT_MODELS, defaultFileTranscriptionModel } from './defaults.ts';
 
 /** One session-scoped provider module. Secrets are captured here and never enter node records. */
 export function createOpenAICapabilities(
@@ -30,7 +31,7 @@ export function createOpenAICapabilities(
     llm: options.models?.llm ?? DEFAULT_MODELS.llm,
     voice: options.models?.voice ?? DEFAULT_MODELS.voice,
     liveTranscription: options.models?.liveTranscription ?? DEFAULT_MODELS.liveTranscription,
-    fileTranscription: options.models?.fileTranscription ?? DEFAULT_MODELS.fileTranscription,
+    fileTranscription: options.models?.fileTranscription ?? defaultFileTranscriptionModel(http.api),
     embeddings: options.models?.embeddings ?? DEFAULT_MODELS.embeddings,
   });
   const model = async (name = models.llm) =>
@@ -54,6 +55,11 @@ export function createOpenAICapabilities(
     voice: options.voice,
     transcriptionModel: models.liveTranscription,
   });
+  const liveTranscription = openAITranscription(options.apiKey, http.api, {
+    model: models.liveTranscription,
+    fetch: http.fetch,
+  });
+  const transcribe = openAIFileTranscription({ ...options, model: models.fileTranscription });
   return {
     provider: 'openai' as const,
     models,
@@ -74,11 +80,9 @@ export function createOpenAICapabilities(
         transcriptionModel: models.liveTranscription,
         connect: liveVoice,
       }),
-    liveTranscription: openAITranscription(options.apiKey, http.api, {
-      model: models.liveTranscription,
-      fetch: http.fetch,
-    }),
-    transcribe: openAIFileTranscription({ ...options, model: models.fileTranscription }),
+    liveTranscription,
+    dictation: openAIDictation(liveTranscription, transcribe),
+    transcribe,
     embed: openAIEmbeddings({
       ...options,
       model: models.embeddings,

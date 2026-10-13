@@ -59,10 +59,17 @@ Other feature pages keep a floating microphone above the icon-only phone footer.
 
 Live transcription uses OpenAI's transcription-only WebRTC session with `gpt-live-transcribe` and
 the already-unlocked OpenAI key. Partial deltas print immediately; final text replaces the partial
-draft before sending. Recording does not submit a message. Audio goes to OpenAI only after starting
-the microphone; it is not stored in the vault. Errors and interruptions preserve partial text for
+draft before sending. If the configured API lacks Realtime endpoints, chat records audio locally
+and transcribes it when you tap Finish, using the File transcription model from Settings. Foundry
+defaults to its supported `gpt-4o-transcribe`. Recording does not submit a message. Audio goes to
+OpenAI only after starting the microphone; it is not stored in the vault. Errors and interruptions preserve partial text for
 editing. The sample preview uses a
 scripted transcript and makes no microphone or model requests.
+
+Opening `/chat/` starts with an empty conversation. Saved conversations load 20 at a time, most
+recently active first; Load older conversations brings in the next 20. Selecting a conversation
+or saving a message updates its URL so reload reopens that history. New returns to `/chat/`, and
+reload keeps it empty. Merely opening Chat does not create a saved conversation.
 
 All code is TypeScript. Node 24 runs the scripts directly (type stripping), so only erasable syntax,
 explicit `.ts` imports and `import type` (enforced by `tsconfig.json`).

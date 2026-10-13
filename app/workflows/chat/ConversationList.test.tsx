@@ -87,3 +87,84 @@ test('saved conversation loading and read errors remain visible and a later reco
     vi.unstubAllGlobals();
   }
 });
+
+test('the conversation picker loads twenty recent conversations at a time and retries failed pages without selecting one', async () => {
+  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+  const backend = memoryNodeBackend();
+  await seed(backend);
+  await backend.commit(
+    request(
+      'many-chats',
+      Array.from({ length: 65 }, (_, index) => {
+        const node = `chat-${String(index).padStart(2, '0')}`;
+        return create(node, {
+          kind: 'conversation',
+          title: node,
+          createdAt: new Date(Date.parse('2026-10-10T12:00:00Z') + index * 60_000).toISOString(),
+        });
+      }),
+    ),
+  );
+  let failure = false;
+  const nodes: NodeStore = {
+    ...backend,
+    snapshot: async (sequence) => {
+      if (failure) throw new Error('Older conversations could not load');
+      return backend.snapshot(sequence);
+    },
+  };
+  const conversation = createNodeConversation({
+    nodes,
+    user: 'user',
+    agent: 'user',
+    provider: 'fictional',
+    selectedModel: '',
+    instructions: '',
+    model: async () => {
+      throw new Error('Reading must not execute');
+    },
+  });
+  const selected = conversation.conversation();
+  const root = createRoot(document.body);
+  const rows = () =>
+    [...document.querySelectorAll('button')].filter((button) =>
+      button.textContent?.includes('chat-'),
+    );
+  const more = () =>
+    [...document.querySelectorAll('button')].find(
+      (button) => button.textContent === 'Load older conversations',
+    );
+  try {
+    await act(async () =>
+      root.render(
+        <ConversationList conversation={conversation} open={false} onClose={() => undefined} />,
+      ),
+    );
+    expect(rows()).toHaveLength(20);
+    expect(rows()[0]?.textContent).toContain('chat-64');
+    expect(more()).toBeDefined();
+    failure = true;
+    await act(async () => more()!.click());
+    expect(rows()).toHaveLength(20);
+    expect(document.querySelector('[role="alert"]')?.textContent).toContain(
+      'Older conversations could not load',
+    );
+    failure = false;
+    await act(async () => more()!.click());
+    expect(rows()).toHaveLength(40);
+    expect(document.querySelector('[role="alert"]')).toBeNull();
+    await act(async () => more()!.click());
+    expect(rows()).toHaveLength(60);
+    await act(async () => more()!.click());
+    expect(rows()).toHaveLength(65);
+    expect(more()).toBeUndefined();
+    expect(conversation.conversation()).toBe(selected);
+    expect(conversation.snapshot().turns).toEqual([]);
+  } finally {
+    await act(async () => root.unmount());
+    conversation.dispose();
+    backend.close();
+    document.body.replaceChildren();
+    vi.unstubAllGlobals();
+  }
+});

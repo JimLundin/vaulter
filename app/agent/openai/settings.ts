@@ -4,7 +4,12 @@ import {
   type SettingDefinition,
   type SettingsDefinition,
 } from '../../settings.ts';
-import { DEFAULT_MODELS, DEFAULT_VOICE, openAIEndpoint } from './defaults.ts';
+import {
+  DEFAULT_MODELS,
+  DEFAULT_VOICE,
+  openAIEndpoint,
+  defaultFileTranscriptionModel,
+} from './defaults.ts';
 
 // Keep the suggested models specific to the API each capability uses. Compatible endpoints may
 // expose additional model IDs, so these choices remain suggestions rather than validation rules.
@@ -88,8 +93,8 @@ export function createOpenAISettings(
       modelSetting(
         'fileTranscriptionModel',
         'File transcription model',
-        'Used when transcribing audio recordings.',
-        DEFAULT_MODELS.fileTranscription,
+        'Used for recordings and chat dictation when live transcription is unavailable.',
+        defaultFileTranscriptionModel(options.baseURL),
         MODEL_CHOICES.fileTranscription,
       ),
       modelSetting(

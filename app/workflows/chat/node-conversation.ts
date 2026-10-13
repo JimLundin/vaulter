@@ -9,7 +9,7 @@ import type {
   ChatRecovery,
 } from './node-backend.ts';
 import type { MessageData } from './records/chat.ts';
-import type { SavedChat } from './records/chat-store.ts';
+import { CONVERSATION_PAGE_SIZE, type SavedChat } from './records/chat-store.ts';
 import { generateSuggestions, type SuggestionProvider } from './suggestions.ts';
 import type { Transcription, TranscriptionState } from './transcription.ts';
 
@@ -24,7 +24,8 @@ export interface NodeConversationOptions extends NodeChatOptions {
   readonly session?: object;
   readonly selectedModel: string;
   readonly conversation?: string;
-  readonly retainedConversation?: string;
+  /** The initial cache/remote read has settled; model and write availability are independent. */
+  readonly recordsReady?: boolean;
   readonly onSelectionOutcome?: (outcome: ChatSelectionOutcome) => void;
   readonly availability?: string;
   /** Application admission for starting recording; finishing an owned recording stays available. */
@@ -32,6 +33,7 @@ export interface NodeConversationOptions extends NodeChatOptions {
   readonly suggestions?: SuggestionProvider;
   readonly stagedChanges?: () => { path: string; before: string; text: string | null }[];
   readonly onConversation?: (id: string) => void;
+  readonly onNewChat?: () => void;
   /** Supplied recording owner. Chat owns its draft association, not this borrowed module. */
   readonly transcription?: Transcription;
 }
@@ -91,6 +93,7 @@ export interface ChatSelection {
 export interface ChatRecords {
   readonly chats: readonly SavedChat[] | null;
   readonly loading: boolean;
+  readonly hasMore: boolean;
   readonly error?: string;
 }
 export interface NodeConversationState extends ChatState {
@@ -162,7 +165,7 @@ export function createNodeConversation(initial: NodeConversationOptions) {
     draft: '',
     selection: {},
     selectionAvailability: { allowed: true },
-    records: { chats: null, loading: false },
+    records: { chats: null, loading: false, hasMore: false },
     turns: [],
     suggestions: [],
     prompts: [],
@@ -198,6 +201,7 @@ export function createNodeConversation(initial: NodeConversationOptions) {
   let explicitSelection = false;
   let recordsGeneration = 0;
   let recordViews = 0;
+  let recordsLimit = CONVERSATION_PAGE_SIZE;
   let unsubscribeRecords: (() => void) | undefined;
   let captureSession: string | undefined;
   const releaseCapture = (interrupt = false) => {
@@ -413,13 +417,20 @@ export function createNodeConversation(initial: NodeConversationOptions) {
     }
   }
   async function reloadRecords() {
+    if (disposed || options.recordsReady === false) return;
     const generation = ++recordsGeneration;
     const reader = backend;
     set({ records: { ...state.records, loading: true } });
     try {
-      const chats = await reader.chats();
+      const chats = await reader.chats({ limit: recordsLimit + 1 });
       if (!disposed && generation === recordsGeneration)
-        set({ records: { chats, loading: false } });
+        set({
+          records: {
+            chats: Object.freeze(chats.slice(0, recordsLimit)),
+            loading: false,
+            hasMore: chats.length > recordsLimit,
+          },
+        });
     } catch (error) {
       if (!disposed && generation === recordsGeneration)
         set({
@@ -722,6 +733,7 @@ export function createNodeConversation(initial: NodeConversationOptions) {
         options.availability !== next.availability ||
         options.captureAvailability !== next.captureAvailability ||
         options.selectedModel !== next.selectedModel;
+      const readingBecameReady = options.recordsReady === false && next.recordsReady !== false;
       if (changed) {
         const previous = backend;
         backend = createNodeChatBackend(next);
@@ -747,16 +759,18 @@ export function createNodeConversation(initial: NodeConversationOptions) {
       if (storeChanged) {
         selectionGeneration++;
         recordsGeneration++;
+        recordsLimit = CONVERSATION_PAGE_SIZE;
         unsubscribeRecords?.();
         unsubscribeRecords = undefined;
-        set({ selection: {}, records: { chats: null, loading: false } });
+        set({ selection: {}, records: { chats: null, loading: false, hasMore: false } });
         if (recordViews) {
           unsubscribeRecords = options.nodes.subscribe(() => void reloadRecords());
           void reloadRecords();
         }
       } else {
         if (permissionChanged || transcriptionChanged) set({});
-        if (permissionChanged && recordViews && state.records.error) void reloadRecords();
+        if (recordViews && (readingBecameReady || (permissionChanged && state.records.error)))
+          void reloadRecords();
       }
       if (previousCapture) previousTranscription?.interrupt(previousCapture);
     },
@@ -1007,29 +1021,21 @@ export function createNodeConversation(initial: NodeConversationOptions) {
         }
       };
     },
+    loadOlderRecords: async () => {
+      if (disposed || state.records.loading || !state.records.hasMore) return;
+      recordsLimit = (state.records.chats?.length ?? 0) + CONVERSATION_PAGE_SIZE;
+      await reloadRecords();
+    },
     /** Startup restoration has lower priority than any admitted explicit conversational intent. */
     restore: async (conversation?: string): Promise<ChatSelectionOutcome> => {
       if (disposed || explicitSelection || state.turns.length) return { status: 'superseded' };
+      if (!conversation) return { status: 'selected', conversation: id };
       const permission = selectionAvailability();
       if (!permission.allowed) return { status: 'blocked', reason: permission.reason! };
       const generation = ++selectionGeneration;
       const reader = backend;
       set({ selection: { pending: { conversation, source: 'restoration' } } });
-      if (conversation) return readSelection(conversation, generation, reader);
-      try {
-        const [latest] = await reader.chats();
-        if (disposed || generation !== selectionGeneration) return { status: 'superseded' };
-        if (!latest) {
-          set({ selection: {} });
-          return { status: 'selected', conversation: id };
-        }
-        return readSelection(latest.node, generation, reader);
-      } catch (error) {
-        if (disposed || generation !== selectionGeneration) return { status: 'superseded' };
-        const message = error instanceof Error ? error.message : String(error);
-        set({ selection: { error: message } });
-        return { status: 'failed', error: message };
-      }
+      return readSelection(conversation, generation, reader);
     },
     newChat: (): ChatSelectionOutcome => {
       const permission = selectionAvailability();
@@ -1070,7 +1076,7 @@ export function createNodeConversation(initial: NodeConversationOptions) {
         contentAccepted: undefined,
         contextError: undefined,
       });
-      options.onConversation?.(id);
+      options.onNewChat?.();
       return { status: 'selected', conversation: id };
     },
     dispose: () => {

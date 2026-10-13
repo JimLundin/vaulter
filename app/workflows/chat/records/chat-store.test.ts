@@ -253,6 +253,53 @@ test('saved conversations are the conversation roots, however recorded, most rec
   store.close();
 });
 
+test('an unavailable saved conversation reports a selection error instead of an acyclic JSON error', async () => {
+  const store = memoryNodeBackend();
+  await seed(store);
+  expect(await savedChats(store)).toEqual([]);
+  await expect(savedMessages(store, 'missing-retained-chat')).rejects.toThrow(
+    'Conversation is unavailable',
+  );
+  store.close();
+});
+
+test('conversation lists limit recent results without decoding message bodies', async () => {
+  const store = memoryNodeBackend();
+  await seed(store);
+  await store.commit(
+    request(
+      'many-chats',
+      Array.from({ length: 45 }, (_, index) => {
+        const node = `chat-${String(index).padStart(2, '0')}`;
+        const activeAt = new Date(Date.parse(at) + index * 60_000).toISOString();
+        return [
+          create(node, { kind: 'conversation', title: node, createdAt: at }),
+          create(`${node}-exchange`, { kind: 'exchange', startedAt: at }, node),
+          create(
+            `${node}-message`,
+            {
+              kind: 'message',
+              role: 'agent',
+              at: activeAt,
+              status: 'complete',
+              parts: 'Unavailable message body',
+            },
+            `${node}-exchange`,
+          ),
+        ];
+      }).flat(),
+    ),
+  );
+  const chats = await savedChats(store, { limit: 20 });
+  expect(chats.map(({ node }) => node)).toEqual(
+    Array.from({ length: 20 }, (_, index) => `chat-${44 - index}`),
+  );
+  expect(chats[0]?.activeAt).toBe(new Date(Date.parse(at) + 44 * 60_000).toISOString());
+  expect(await savedChats(store, { limit: 0 })).toEqual([]);
+  await expect(savedMessages(store, 'chat-44')).rejects.toThrow();
+  store.close();
+});
+
 test('Chat owns its undo policy and protects both deleted and retagged records', async () => {
   const store = memoryNodeBackend();
   await seed(store);

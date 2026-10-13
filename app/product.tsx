@@ -200,8 +200,6 @@ function productTools(nodes: NodeStore): AgentToolFactory {
   }
   return factory;
 }
-const productionConversationKey = `vaulter:conversation:${import.meta.env.VITE_GITHUB_API || 'https://api.github.com'}:${import.meta.env.VITE_VAULT_REPO || 'JimLundin/vault@main'}`;
-export const previewConversationKey = 'vaulter:preview:conversation:v1';
 
 type VaultSession = ReturnType<typeof useVaultSession>;
 type SuppliedSession = Omit<VaultSession, 'identity' | 'credentialPending'> &
@@ -293,8 +291,6 @@ export function OpenProduct({
     () => openAIOptions(providerPreferences.values()),
     [providerValues, providerPreferences],
   );
-  const conversationKey = preview ? previewConversationKey : productionConversationKey;
-  const selectionStorage = preview ? sessionStorage : localStorage;
   const setup = useMemo(
     () => (nodes ? createApplicationIdentities(nodes, identities) : null),
     [nodes, identities],
@@ -325,10 +321,6 @@ export function OpenProduct({
   useEffect(() => {
     if (nodeStatus.kind === 'synced') later(prepareIdentities());
   }, [prepareIdentities, nodeStatus.kind]);
-  const retainedConversation = useMemo(
-    () => selectionStorage.getItem(conversationKey) ?? undefined,
-    [conversationKey, selectionStorage],
-  );
   const route = useRoute();
   const wikiSources = productSources;
   const wiki = useWikiReading(nodes, wikiSources);
@@ -506,7 +498,7 @@ export function OpenProduct({
     [session.secrets?.openai, providerOptions],
   );
   const remoteModel = provider?.model ?? null;
-  const speechProvider = provider?.liveTranscription ?? null;
+  const speechProvider = provider?.dictation ?? null;
   // Supplied session identity survives credential reconnects; independent stores get a new owner.
   const chatScope = useRef<{ nodes: NodeStore | null; key: object }>({ nodes: null, key: {} });
   if (chatScope.current.nodes !== nodes) {
@@ -552,7 +544,7 @@ export function OpenProduct({
         : undefined,
       transcription: voice,
       conversation: conversationRoute.match(route.path)?.node,
-      retainedConversation,
+      recordsReady: !!nodes && !['loading', 'syncing'].includes(nodeStatus.kind),
       onSelectionOutcome: (outcome) => {
         if (
           (outcome.status === 'blocked' || outcome.status === 'failed') &&
@@ -561,13 +553,16 @@ export function OpenProduct({
           go(chatRoute.href());
       },
       onConversation: (id) => {
-        const selected = conversationRoute.match(route.path)?.node;
-        if (selected && selected !== id) go(conversationRoute.href({ node: id }));
-        try {
-          selectionStorage.setItem(conversationKey, id);
-        } catch {
-          /* Selection retention cannot invalidate accepted records. */
-        }
+        const path = parseRoute(location.hash).path;
+        const selected = conversationRoute.match(path)?.node;
+        if (
+          selected !== id &&
+          (selected || path === '/' || chatRoute.match(path) || legacyChatRoute.match(path))
+        )
+          go(conversationRoute.href({ node: id }));
+      },
+      onNewChat: () => {
+        if (conversationRoute.match(parseRoute(location.hash).path)) go(chatRoute.href());
       },
       stagedChanges: () => {
         const before = new Map(vault.base().map((file) => [file.path, file.text]));
