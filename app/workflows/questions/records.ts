@@ -10,12 +10,24 @@ export const question = z.strictObject({
   /** Giving up requires an explicit recorded choice; an absent answer does not establish it. */
   abandoned: z.literal(true).optional(),
 });
-export const questionSchemas = { question } as const;
+export const answer = z.strictObject({
+  kind: z.literal('answer'),
+  text,
+});
+export const questionSchemas = { question, answer } as const;
 export type QuestionData = z.infer<typeof question>;
+export type AnswerData = z.infer<typeof answer>;
 
 /** Decode the original question shape without changing its recorded meaning or JSON. */
 export function parseQuestion(value: unknown): QuestionData & JsonObject {
   canonical(value);
   question.parse(value);
   return frozen(structuredClone(value)) as QuestionData & JsonObject;
+}
+
+/** Retain the evidence recorded directly in response to a Question. */
+export function parseAnswer(value: unknown): AnswerData & JsonObject {
+  canonical(value);
+  answer.parse(value);
+  return frozen(structuredClone(value)) as AnswerData & JsonObject;
 }

@@ -2,6 +2,9 @@ import { expect, test } from 'vitest';
 import { memoryNodeBackend } from './vault/nodes/memory.ts';
 import { create, request, seed, revise } from './vault/nodes/fixtures.test-support.ts';
 import { productNodeHistory } from './product.tsx';
+import { parseToolExecution } from './agent/schema.ts';
+import { seedPreviewRecords } from './preview/records.ts';
+import { previewModel } from './preview/model.ts';
 
 test('product History compensation preserves producer records and exact evidence while content undo appends history', async () => {
   const nodes = memoryNodeBackend();
@@ -210,5 +213,85 @@ test('History refuses mixed, deleted and retagged execution or transcript transa
         id: `undo-${node}`,
       }),
     ).rejects.toThrow('cannot be undone');
+  }
+});
+
+test('Product agent asks a retained Question with its accepted receipt and stable identity after reopen', async () => {
+  const nodes = memoryNodeBackend();
+  const { createApplicationIdentities } = await import('./application-identities.ts');
+  const setup = createApplicationIdentities(nodes);
+  await setup.ensure();
+  await seedPreviewRecords(nodes);
+  const { createProductConversation } = await import('./product.tsx');
+  const options = {
+    nodes,
+    identities: setup.identities,
+    model: async () => previewModel,
+    selectedModel: 'fictional',
+    provider: 'fictional',
+    instructions: 'Retain questions about the Garden studio.',
+  };
+  const chat = createProductConversation(options);
+  const reopened = createProductConversation({
+    ...options,
+    model: () => Promise.reject(new Error('Reading must not execute the agent')),
+  });
+  try {
+    const outcome = chat.prepareSubmission({ text: 'ask me: Where should the bench go?' });
+    if (outcome.status !== 'owned') throw new Error('Expected retained request');
+    await outcome.done;
+    const view = await nodes.snapshot();
+    const question = view
+      .children('preview:page:0')
+      .find(({ data }) => data?.kind === 'question' && data.text === 'Where should the bench go?')!;
+    expect(question.data).toEqual({ kind: 'question', text: 'Where should the bench go?' });
+    expect(question.placement?.parent).toBe('preview:page:0');
+    const publication = (await nodes.history()).find(({ id }) => id === question.key.transaction)!;
+    expect(publication.kind).toEqual({ scope: 'questions', action: 'ask' });
+    expect(publication.recordedBy).toBe(setup.identities.agent);
+    expect(publication.origin).not.toBeNull();
+    expect((await nodes.snapshot()).get(publication.origin!)?.data?.kind).toBe('agentRun');
+    const transactions = await nodes.history();
+    const changes = await Promise.all(transactions.map(({ id }) => nodes.changes(id)));
+    const completed = changes
+      .flat()
+      .find(
+        ({ after }) =>
+          after.data?.kind === 'toolExecution' &&
+          after.data.name === 'askQuestion' &&
+          after.data.status === 'complete',
+      )!;
+    const receipt = {
+      question: question.key.node,
+      transaction: question.key.transaction,
+      accepted: true,
+    };
+    expect(parseToolExecution(completed.after.data).output).toEqual(receipt);
+    const accepted = chat
+      .snapshot()
+      .turns.flatMap(({ parts }) => parts)
+      .find((part) => part.kind === 'tool' && part.name === 'askQuestion');
+    expect(accepted).toMatchObject({ kind: 'tool', output: receipt, result: 'Accepted' });
+    const before = (await nodes.history()).length;
+    await reopened.open(chat.conversation());
+    expect(reopened.snapshot().turns.flatMap(({ parts }) => parts)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ kind: 'tool', name: 'askQuestion', output: receipt }),
+      ]),
+    );
+    expect(
+      reopened
+        .snapshot()
+        .turns.flatMap(({ parts }) => parts)
+        .filter((part) => part.kind === 'text')
+        .map(({ text }) => text)
+        .join(''),
+    ).toContain(`/questions/${question.key.node}/`);
+    expect((await nodes.snapshot()).get(question.key.node)?.key).toEqual(question.key);
+    expect((await nodes.history()).length).toBe(before);
+  } finally {
+    chat.dispose();
+    reopened.dispose();
+    nodes.close();
   }
 });

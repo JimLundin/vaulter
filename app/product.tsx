@@ -62,6 +62,7 @@ import type { NodeDifference, NodeStore } from './vault/nodes/store.ts';
 import { createOpenAICapabilities } from './agent/openai/index.ts';
 import { model as selectedModel } from './workflows/chat/model.ts';
 import { preservesAgentRecords } from './agent/preservation.ts';
+import type { AgentToolFactory } from './agent/tools.ts';
 import { agentSources } from './agent/sources.ts';
 import { preservesChatRecords } from './workflows/chat/records/chat.ts';
 import { chatSources } from './workflows/chat/records/sources.ts';
@@ -81,9 +82,21 @@ import { HistoryPage } from './workflows/history/index.tsx';
 import { Wiki, type ForeignRecordRenderer } from './workflows/wiki/index.tsx';
 import { wikiRoute, pageRoute } from './workflows/wiki/routes.ts';
 import { useWikiReading, useWiki } from './workflows/wiki/use-wiki.ts';
-import { QuestionItem } from './workflows/questions/QuestionItem.tsx';
+import {
+  QuestionItem,
+  QuestionsPage,
+  questionsRoute,
+  questionRoute,
+  useQuestions,
+  useQuestionsReading,
+  readQuestions,
+  type Question,
+  type QuestionTarget,
+  type QuestionTargetDescription,
+} from './workflows/questions/index.tsx';
+import { prepareAnswerQuestion } from './workflows/questions/operations.ts';
+import { questionTools } from './workflows/questions/tools.ts';
 import { questionSources } from './workflows/questions/sources.ts';
-import { useQuestions, useQuestionsReading } from './workflows/questions/use-questions.ts';
 
 const chatRoute = pattern('/chat/');
 const conversationRoute = pattern('/chat/:node/');
@@ -100,8 +113,25 @@ const unavailableNodes: NodeStore = {
 const unavailableModel = () =>
   Promise.reject(new Error('Configure an OpenAI key to send messages.'));
 const chatSettings = { maxSteps: 12 };
-const contentKinds = ['content'];
-const enabledContentTools = [{ name: 'createNode' }, { name: 'readNode' }, { name: 'updateNode' }];
+const contentKinds = ['content', 'question'];
+const enabledContentTools = [
+  { name: 'createNode' },
+  { name: 'readNode' },
+  { name: 'updateNode' },
+  { name: 'askQuestion' },
+  { name: 'listQuestionSubjects' },
+  { name: 'readQuestion' },
+  { name: 'listQuestions' },
+];
+const productToolFactories = new WeakMap<NodeStore, AgentToolFactory>();
+function productTools(nodes: NodeStore): AgentToolFactory {
+  let factory = productToolFactories.get(nodes);
+  if (!factory) {
+    factory = (context) => ({ ...nodeContentTools(context), ...questionTools(context, nodes) });
+    productToolFactories.set(nodes, factory);
+  }
+  return factory;
+}
 const productionConversationKey = `vaulter:conversation:${import.meta.env.VITE_GITHUB_API || 'https://api.github.com'}:${import.meta.env.VITE_VAULT_REPO || 'JimLundin/vault@main'}`;
 export const previewConversationKey = 'vaulter:preview:conversation:v1';
 
@@ -214,12 +244,82 @@ export function OpenProduct({
   const { pages, error: wikiError } = useWiki(wiki);
   const wikiPage = pageRoute.match(route.path)?.node;
   const onWiki = !!wikiRoute.match(route.path) || !!wikiPage;
-  const questions = useQuestionsReading(onWiki ? nodes : null);
+  const selectedQuestion = questionRoute.match(route.path)?.node;
+  const onQuestions = !!questionsRoute.match(route.path) || !!selectedQuestion;
+  const questions = useQuestionsReading(onWiki || onQuestions ? nodes : null);
   const questionState = useQuestions(questions);
   const questionIndex = useMemo(
     () => new Map(questionState.questions?.map((question) => [question.id, question])),
     [questionState.questions],
   );
+  const answerAvailability = !nodes
+    ? 'Opening the node store…'
+    : nodeStatus.kind === 'error'
+      ? `Node store error: ${nodeStatus.message}`
+      : nodeStatus.kind === 'offline'
+        ? 'Connect to save an answer.'
+        : nodeStatus.kind !== 'synced'
+          ? 'Opening the node store…'
+          : identityState.owner !== setup || !identityState.ready
+            ? 'Preparing Vault identities…'
+            : questionState.error
+              ? 'Refresh questions before saving an answer.'
+              : questionState.loading
+                ? 'Refreshing questions…'
+                : undefined;
+  const answerQuestion = async (question: Question, text: string) => {
+    if (!nodes || answerAvailability)
+      throw new Error(answerAvailability ?? 'Node store is unavailable.');
+    const view = await nodes.snapshot();
+    const current = (await readQuestions(nodes, view)).find((entry) => entry.id === question.id);
+    if (!current || current.status !== 'open')
+      throw new Error('This question is no longer open. Review its current status.');
+    const request = prepareAnswerQuestion(view, {
+      id: crypto.randomUUID(),
+      node: crypto.randomUUID(),
+      relationship: crypto.randomUUID(),
+      question: question.key,
+      text,
+      relationships: current.answers.flatMap((answer) => {
+        const relationship = answer.relationship && view.get(answer.relationship);
+        return relationship ? [relationship] : [];
+      }),
+    });
+    await nodes.commit({
+      ...request,
+      recordedBy: identities.user,
+      origin: question.id,
+      undoOf: null,
+    });
+  };
+  const describeQuestionTarget = (
+    target: QuestionTarget,
+  ): QuestionTargetDescription | undefined => {
+    if (!(target.version && questionState.view)) return;
+    const description = wikiSources.describe(target.version, questionState.view);
+    if (description)
+      return {
+        ...description,
+        navigationLabel: description.href
+          ? `Open source context${description.title ? `: ${description.title}` : ''}`
+          : undefined,
+      };
+    const seen = new Set<string>();
+    let current = target.version;
+    while (current.data && !seen.has(current.key.node)) {
+      seen.add(current.key.node);
+      if (current.data.kind === 'page')
+        return {
+          title: String(current.data.title ?? 'Wiki page'),
+          href: `#${pageRoute.href({ node: current.key.node })}`,
+          navigationLabel: `Open Wiki page: ${String(current.data.title ?? 'Wiki page')}`,
+        };
+      if (!current.placement) break;
+      const parent = questionState.view.get(current.placement.parent);
+      if (!parent?.data) break;
+      current = parent;
+    }
+  };
   const renderWikiRecord: ForeignRecordRenderer = (block) => {
     if (block.data.kind !== 'question') return;
     const question = questionIndex.get(block.id);
@@ -244,32 +344,9 @@ export function OpenProduct({
         )}
         <QuestionItem
           question={question}
-          describeTarget={(target) => {
-            if (!(target.version && questionState.view)) return;
-            const description = wikiSources.describe(target.version, questionState.view);
-            if (description)
-              return {
-                ...description,
-                navigationLabel: description.href
-                  ? `Open source context${description.title ? `: ${description.title}` : ''}`
-                  : undefined,
-              };
-            const seen = new Set<string>();
-            let current = target.version;
-            while (current.data && !seen.has(current.key.node)) {
-              seen.add(current.key.node);
-              if (current.data.kind === 'page')
-                return {
-                  title: String(current.data.title ?? 'Wiki answer'),
-                  href: `#${pageRoute.href({ node: current.key.node })}`,
-                  navigationLabel: `Open Wiki page: ${String(current.data.title ?? 'Wiki answer')}`,
-                };
-              if (!current.placement) break;
-              const parent = questionState.view.get(current.placement.parent);
-              if (!parent?.data) break;
-              current = parent;
-            }
-          }}
+          describeTarget={describeQuestionTarget}
+          onAnswer={answerQuestion}
+          disabledReason={answerAvailability}
         />
       </Stack>
     );
@@ -308,7 +385,9 @@ export function OpenProduct({
         ? 'History'
         : onWiki
           ? (pages?.find((page) => page.id === wikiPage)?.title ?? 'Wiki')
-          : 'Not found';
+          : onQuestions
+            ? 'Questions'
+            : 'Not found';
   const provider = useMemo(
     () =>
       session.secrets?.openai
@@ -355,7 +434,8 @@ export function OpenProduct({
       model: suppliedModel ?? remoteModel ?? unavailableModel,
       selectedModel: selectedModel(preview?.defaultModel),
       instructions:
-        'Help the Vault owner using the supplied content tools. Content changes are published directly as nodes. Do not claim to edit or commit legacy files.',
+        'Help the Vault owner using the supplied tools. Content changes and questions are published directly as nodes. Use askQuestion to retain requests for missing information, and listQuestionSubjects to find the relevant Wiki page. Use listQuestions and readQuestion to consult retained questions and answers. Do not invent answers or claim to edit or commit legacy files.' +
+        (wikiPage ? ` The owner is viewing Wiki page ${wikiPage}.` : ''),
       suggestions: preview?.suggestions,
       availability,
       transcription: voice,
@@ -397,6 +477,7 @@ export function OpenProduct({
   const navigation: Navigation[] = [
     { label: 'Chat', href: chatRoute.href(), icon: 'sparkles', current: onChat },
     { label: 'Wiki', href: wikiRoute.href(), icon: 'book', current: onWiki },
+    { label: 'Questions', href: questionsRoute.href(), icon: 'help', current: onQuestions },
     ...(nodes ? [{ label: 'History', href: historyRoute.href(), icon: 'history' as const }] : []),
     {
       label: 'Settings',
@@ -447,6 +528,14 @@ export function OpenProduct({
       icon: 'sparkles',
       keys: 'g h',
       run: () => go(chatRoute.href()),
+    },
+    {
+      id: 'go.questions',
+      label: 'Questions',
+      group: 'Go to',
+      icon: 'help',
+      keys: 'g q',
+      run: () => go(questionsRoute.href()),
     },
     ...(nodes
       ? [
@@ -526,6 +615,7 @@ export function OpenProduct({
               conversation.dispose();
               voice.dispose();
               wiki.dispose();
+              questions.dispose();
               later(session.signOut!());
             },
           },
@@ -570,6 +660,7 @@ export function OpenProduct({
                 conversation.dispose();
                 voice.dispose();
                 wiki.dispose();
+                questions.dispose();
                 await session.signOut!();
               }
             : null
@@ -602,6 +693,15 @@ export function OpenProduct({
         )}
         {onChat ? (
           <ChatPage conversation={conversation} prompt={prompt} />
+        ) : onQuestions ? (
+          <QuestionsPage
+            key={selectedQuestion ?? 'questions'}
+            state={questionState}
+            node={selectedQuestion}
+            describeTarget={describeQuestionTarget}
+            onAnswer={answerQuestion}
+            disabledReason={answerAvailability}
+          />
         ) : onWiki ? (
           <Wiki
             key={wikiPage ?? 'wiki'}
@@ -718,7 +818,7 @@ export function productChatOptions({
     ...options,
     user: identities.user,
     agent: identities.agent,
-    tools: nodeContentTools,
+    tools: productTools(options.nodes),
     writableKinds: contentKinds,
     enabledTools: enabledContentTools,
     settings: chatSettings,

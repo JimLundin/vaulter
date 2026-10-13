@@ -13,6 +13,7 @@ app/
   workflows/
     chat/                    node conversations, composed Agent acceptance, draft lifetime, views, tests
     wiki/                    page/block/citation definitions, preparation, historical reading, views
+    questions/               retained requests, direct answers, agent tools and shared question views
     rename-note/             rename operation, reference rewrites, model adapter, tests
     history/                 attributed transaction views, reading and guarded compensation
   vault/
