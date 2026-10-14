@@ -294,7 +294,7 @@ export function QuestionItem({
                   label="Your answer"
                   submitOnEnter={false}
                   fieldRef={answerField}
-                  placeholder="Choose a suggestion or write your own answer…"
+                  placeholder="Write an answer…"
                   draft={text}
                   disabled={locked}
                   busy={pending}
