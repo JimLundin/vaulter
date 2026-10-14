@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import { Brand } from './app.tsx';
 import { Icon } from './icons.tsx';
 import type { NavigationAction, NavigationDestination } from './navigation.tsx';
-import type { PageSearchProps } from './page-controls-prototype.tsx';
+import type { PageSearchControl, PageFilterControl } from './page-controls-prototype.tsx';
 import {
   InputGroup,
   InputGroupAddon,
@@ -19,6 +19,8 @@ import {
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from './parts/dropdown-menu.tsx';
@@ -39,10 +41,11 @@ export function PrototypeCornerRail({
   settings,
   pageActions,
   pageSearch,
+  pageFilters,
   pageSearchVisible,
   onPageSearchOpen,
   onPageSearchClose,
-  onPageSearchMeasure,
+  onPageClearanceMeasure,
   onSearch,
   onNavigate,
   primaryAction,
@@ -55,11 +58,12 @@ export function PrototypeCornerRail({
   actions: NavigationAction[];
   settings?: NavigationAction;
   pageActions?: ReactNode;
-  pageSearch?: PageSearchProps & { id: string };
+  pageSearch?: PageSearchControl & { id: string };
+  pageFilters?: PageFilterControl;
   pageSearchVisible?: boolean;
   onPageSearchOpen?: () => void;
   onPageSearchClose?: () => void;
-  onPageSearchMeasure?: (clearance: number) => void;
+  onPageClearanceMeasure?: (clearance: number) => void;
   onSearch: () => void;
   onNavigate?: () => void;
   primaryAction?: NavigationAction;
@@ -76,7 +80,8 @@ export function PrototypeCornerRail({
   const searchSurface = useRef<HTMLElement>(null);
   const searchTrigger = useRef<HTMLButtonElement>(null);
   const focusSearch = useRef(false);
-  const [menu, setMenu] = useState<'navigation' | 'tools' | null>(null);
+  const [menu, setMenu] = useState<'navigation' | 'tools' | 'filters' | null>(null);
+  const menuPage = useRef(pageSearch?.id);
   const [geometry, setGeometry] = useState({
     left: 0,
     top: 0,
@@ -88,6 +93,12 @@ export function PrototypeCornerRail({
     insetBottom: 12,
     insetLeft: 12,
   });
+
+  useLayoutEffect(() => {
+    if (menuPage.current === pageSearch?.id) return;
+    menuPage.current = pageSearch?.id;
+    setMenu(null);
+  }, [pageSearch?.id]);
 
   useLayoutEffect(() => {
     if (pageSearchVisible && focusSearch.current) {
@@ -124,8 +135,15 @@ export function PrototypeCornerRail({
         insetLeft: Number.parseFloat(style.paddingLeft),
       };
       setGeometry((current) => (JSON.stringify(current) === JSON.stringify(next) ? current : next));
-      if (pageSearchVisible && searchSurface.current)
-        onPageSearchMeasure?.(searchSurface.current.offsetHeight + next.insetBottom + 12);
+      if (pageRail)
+        onPageClearanceMeasure?.(
+          Math.max(
+            node.offsetHeight,
+            pageSearchVisible ? (searchSurface.current?.offsetHeight ?? 0) : 0,
+          ) +
+            next.insetBottom +
+            12,
+        );
       const railLeft = bounds.right - next.insetRight - next.railWidth;
       const surfaces = new Set(policy.inputSurfaces());
       for (const surface of marked) if (!surfaces.has(surface)) clear(surface);
@@ -153,7 +171,7 @@ export function PrototypeCornerRail({
       releaseInputs();
       for (const surface of marked) clear(surface);
     };
-  }, [compact, policy, pageSearchVisible, onPageSearchMeasure]);
+  }, [compact, policy, pageRail, pageSearchVisible, onPageClearanceMeasure]);
 
   const menuWidth = Math.min(
     260,
@@ -304,6 +322,55 @@ export function PrototypeCornerRail({
                 >
                   <Icon name="search" />
                 </button>
+              )}
+              {!!pageFilters && (
+                <DropdownMenu
+                  open={menu === 'filters'}
+                  onOpenChange={(open) =>
+                    setMenu((current) =>
+                      open ? 'filters' : current === 'filters' ? null : current,
+                    )
+                  }
+                  modal={false}
+                >
+                  <DropdownMenuTrigger
+                    aria-label="Filters"
+                    aria-description={`${pageFilters.label}: ${pageFilters.options.find((option) => option.value === pageFilters.value)?.label ?? ''}`}
+                    className="kit-corner-rail-control"
+                    data-app-dock-action="page-filters"
+                    data-filtered={pageFilters.active || undefined}
+                  >
+                    <Icon name="filter" />
+                    {!!pageFilters.active && (
+                      <span aria-hidden={true} className="kit-corner-filter-indicator" />
+                    )}
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    anchor={rail}
+                    side="left"
+                    align="end"
+                    sideOffset={12}
+                    aria-label="Page filters"
+                    className="kit-app-dock-menu kit-corner-rail-menu"
+                    style={menuStyle}
+                  >
+                    <DropdownMenuLabel>{pageFilters.label}</DropdownMenuLabel>
+                    <DropdownMenuRadioGroup
+                      aria-label={pageFilters.label}
+                      value={pageFilters.value}
+                      onValueChange={(value) => {
+                        pageFilters.onValueChange(value);
+                        setMenu(null);
+                      }}
+                    >
+                      {pageFilters.options.map((option) => (
+                        <DropdownMenuRadioItem key={option.value} value={option.value}>
+                          <span className="kit-app-dock-item-label">{option.label}</span>
+                        </DropdownMenuRadioItem>
+                      ))}
+                    </DropdownMenuRadioGroup>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               )}
             </>
           )}

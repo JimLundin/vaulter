@@ -216,7 +216,7 @@ export function NavigationSuite({
   const pageRail = corner === 'corner-page-search' || corner === 'corner-page-input';
   const pageControls = usePrototypePageControls(compact && pageRail);
   const [openPageSearch, setOpenPageSearch] = useState<string | null>(null);
-  const [pageSearchClearance, setPageSearchClearance] = useState(88);
+  const [pageControlsClearance, setPageControlsClearance] = useState(172);
   const registeredSearch = pageControls.search;
   const pageSearch = registeredSearch?.search
     ? { id: registeredSearch.id, ...registeredSearch.search }
@@ -431,7 +431,7 @@ export function NavigationSuite({
         <WorkspaceFrame
           compactDesign={compactDesign}
           editing={editing}
-          prototypePageSearch={pageSearchVisible ? pageSearchClearance : undefined}
+          prototypePageClearance={pageRail ? pageControlsClearance : undefined}
           header={
             !!compactDesign &&
             !appRail &&
@@ -521,10 +521,11 @@ export function NavigationSuite({
             settings={settings}
             pageActions={pageControls.actions}
             pageSearch={pageSearch}
+            pageFilters={pageControls.filters}
             pageSearchVisible={pageSearchVisible}
             onPageSearchOpen={() => setOpenPageSearch(pageSearch?.id ?? null)}
             onPageSearchClose={() => setOpenPageSearch(null)}
-            onPageSearchMeasure={setPageSearchClearance}
+            onPageClearanceMeasure={setPageControlsClearance}
             onSearch={search.onSelect}
             onNavigate={onNavigate}
             primaryAction={primary?.menu}

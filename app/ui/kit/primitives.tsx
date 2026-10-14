@@ -7,7 +7,7 @@ import type { Unstyled } from './lib/unstyled.tsx';
 import { cn } from './lib/utils.ts';
 import { useLayout } from './hooks/use-layout.ts';
 import { useFieldSemanticDiagnostic } from './field-association.ts';
-import { usePrototypePageControl } from './page-controls-prototype.tsx';
+import { PageControls } from './page-controls-prototype.tsx';
 
 const surfaces = {
   plain: '',
@@ -50,7 +50,6 @@ export function Toolbar({
   label?: string;
   actions?: ReactNode;
 }) {
-  const inRail = usePrototypePageControl({ actions });
   return (
     <header
       role="toolbar"
@@ -58,7 +57,7 @@ export function Toolbar({
       className="flex h-[var(--supporting-header-height)] shrink-0 items-center justify-between gap-3 bg-background px-[var(--page-inset)]"
     >
       {children}
-      {!inRail && actions}
+      <PageControls actions={actions} />
     </header>
   );
 }

@@ -228,6 +228,16 @@ Settings opens over the current destination without changing its route or discar
 `FeaturePage` centers History and other screens on the same `--reading-width` as Agent. Page text
 remains left aligned within that centered column.
 
+In the page-rail prototype, `PageControls` is the shared module-page slot. Declare collection
+controls together with optional `actions`, `search` and `filters`; Chat's `Toolbar` supplies its
+actions through the same slot. Search takes a label, placeholder, value and callback. Filters takes
+a label, value, choices, callback and a module-owned `active` flag. Modules retain interpretation
+and state; the kit owns inline fallback, placement in app chrome, popup mechanics and input
+clearance. Optional children replace the ordinary inline filter rendering, as Wiki's Clear action
+does. Supporting-pane actions stay with their pane. Only the explicit page-rail comparison enables
+relocation; the neutral preview uses the ordinary inline presentation. The selected verdict and
+retained alternatives live in [the prototype record](../../preview/mobile-bottom-bar-prototype.md).
+
 `SupportingPane` is the shared supporting presentation seam. Supply `title`, `open`, `onClose`,
 content and optional header/actions. A `selection` identity resets its scrolling body. Supplying
 `dock` selects a following feed above an anchored dock, with optional `status` and `empty` inputs;

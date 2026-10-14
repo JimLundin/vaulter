@@ -370,7 +370,8 @@ body,
   color: var(--muted-foreground);
   font-size: 12px;
 }
-.kit-app-dock-menu [data-slot="dropdown-menu-item"] {
+.kit-app-dock-menu [data-slot="dropdown-menu-item"],
+.kit-app-dock-menu [data-slot="dropdown-menu-radio-item"] {
   min-height: 44px;
   border-radius: 12px;
 }
@@ -401,6 +402,7 @@ body,
 }
 .kit-corner-rail-control,
 [data-corner-page-actions] button {
+  position: relative;
   display: flex;
   width: 44px;
   min-width: 44px;
@@ -457,6 +459,15 @@ body,
   justify-content: center;
   padding: 0;
 }
+.kit-corner-filter-indicator {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--primary);
+}
 [data-dock][data-corner-input-lane="dock"],
 [data-navigation-prototype^="corner-"] [data-dock][data-corner-input-lane="dock"] {
   padding-right: max(16px, var(--corner-input-space));
@@ -505,11 +516,8 @@ body,
 .kit-corner-page-search input::-webkit-search-cancel-button {
   display: none;
 }
-[data-navigation-prototype^="corner-page-"] [data-feature-page] {
-  padding-bottom: max(76px, calc(64px + env(safe-area-inset-bottom)));
-}
-[data-prototype-page-search] [data-feature-page] {
-  padding-bottom: var(--prototype-page-search-space, 88px);
+[data-prototype-page-controls] [data-feature-page] {
+  padding-bottom: var(--prototype-page-controls-space, 172px);
 }
 
 /* biome-ignore lint/correctness/noUnknownFunction: Tailwind resolves the shared breakpoint token. */

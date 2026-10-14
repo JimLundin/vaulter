@@ -11,10 +11,12 @@ Run `npm run design:mobile-bar`. In the existing preview pill, enable Mobile and
 The default now puts page actions above the fixed Modules anchor, with a page Search button.
 The URL retains the selection.
 
-## Current comparison: page actions above the Modules anchor
+## Selected direction: page controls above the Modules anchor
 
 On 2026-10-14 the user selected variant 1 (`corner-split`) as the strongest structure, then asked
-for page actions above the module menu. The Modules button is now the bottom anchor; adding or
+for page actions above the module menu. The user then definitively selected the Search icon,
+requested filtering on the rail, and approved Settings beside the brand. The Modules button is
+the bottom anchor; adding or
 removing page actions changes only the height above it. The app still owns a freestanding rail
 fixed to the lower-right of the visible viewport, with all input surfaces in the lane to its left.
 
@@ -22,46 +24,64 @@ Open `/preview/?navigation=page-rail&variant=corner-page-search&conversations`, 
 
 | Variant | Chat | Questions and Wiki index |
 | --- | --- | --- |
-| `corner-page-search` | New conversation, Conversations, then Modules | Search above Modules; tapping Search reveals and focuses a bottom input to the left |
-| `corner-page-input` | New conversation, Conversations, then Modules | Modules beside an always-visible bottom search input |
+| `corner-page-search` — selected | New conversation, Conversations, then Modules | Search, Filters, then Modules; Search reveals and focuses a bottom input to the left |
+| `corner-page-input` — previous option | New conversation, Conversations, then Modules | Filters and Modules beside an always-visible bottom search input |
 
 The two search choices have the same page-owned filter behavior and fictional fixtures. The
 button option leaves more of the page visible at rest. Its input is nonmodal, so filtered results
 remain visible while typing. Clear resets the query; Close collapses the empty field and returns
-focus to Search. Escape clears and closes it. The input option makes filtering immediately available. Detail views
-without an index filter show only the Modules anchor. The search choice remains open for review.
+focus to Search. Escape clears and closes it. The input option remains available in the retained
+comparison, labelled Previous option. Detail views without collection controls show only Modules.
+The Search-icon choice is settled; the bottom-input alternative is retained for reference.
+
+Filters opens a compact single-choice list to the left of the rail. Questions supplies its existing
+Open, All, Answered and Abandoned status choices. Wiki supplies the classifications already present
+on its pages, plus All pages to clear the selection. A small dot marks a filter that limits the
+collection; the accessible description states the selected choice. Selecting a choice or pressing
+Escape returns focus to Filters. Search and filtering combine without copying their state into the
+app shell. Search input, filter menus and module menus retain their separate layers and hit targets.
 
 The anchor uses a grid icon to distinguish it from Chat's conversation-list action. Chat's rail
-is 52×148px; the Search-button rail is 52×100px and the single-anchor rail is 52×52px. Targets stay
+is 52×148px; the selected Search-and-Filters rail is also 52×148px, the bottom-input alternative is
+52×100px, and the single-anchor rail is 52×52px. Targets stay
 44×44px. The input retains its own rounded surface, with no background joining it to the rail.
-Shared presentation measures the search surface and bottom inset to reserve trailing scroll space;
-Questions' Save answer and final content remain reachable above it.
+Shared presentation measures the whole rail, any search surface and the bottom inset to reserve
+trailing scroll space; final content and Questions' Save answer can scroll above the full rail.
 The bottom field has its own app-owned input layer below expanded menus and dialogs. This keeps
 the last menu actions usable when search is visible, while the rail stays above those overlays.
 
 Settings moves to the right of the Vaulter brand in both the expanded mobile module menu and the
-desktop sidebar for these alternatives. Its previous footer row is removed. The menu's icon action
+desktop sidebar for these alternatives. Its previous footer row is removed. Its 16px icon matches
+the other menu and sidebar icons; the target stays 44px. The menu's icon action
 participates in shared menu keyboard navigation. Global Search and Start voice interaction remain
 in the Tools group of Modules, rather than occupying a permanent Tools button on the rail.
 
-Chat supplies its existing actions through Toolbar; supporting Chat panes retain their header
-actions. Questions and Wiki supply their existing filters through PageSearch. A small private
-prototype registration connects those presentation values to shared chrome. Handlers, draft
-lifetime, filtering, submission and persistence stay in their owning modules. The default Product
-preview and older comparison URLs retain their previous presentation.
+`PageControls` is the shared module-page slot with three optional contributions: `actions`, `search`
+and `filters`. Chat's Toolbar supplies its actions through this same slot; Questions and Wiki
+declare their collection controls together. Modules supply labels, choices, values and callbacks.
+The kit owns inline fallback, mobile relocation, input placement, menu focus, collision bounds and
+viewport clearance. There are no module-specific route decisions in Product or NavigationSuite.
+Existing inline filter content can be supplied as children; Wiki uses this to retain its Clear
+filter action outside the rail prototype. Supporting Chat panes retain their own header actions.
+Handlers, draft lifetime, filtering, submission and persistence stay in their owning modules. The
+ordinary Product preview remains neutral; older edge-bar comparison URLs are retained.
+
+The earlier Search-button versus bottom-input comparison, before the added Filters control, is
+captured at commit `5f8d12573869a361f06dda52b005bbf46c4d0850`. Its verdict is Search button. The
+current picker identifies the chosen rail and keeps the bottom-input option available separately.
 
 Temporary browser probes check both choices at 320, 390 and 430px, including changing action counts,
 conversation chooser dismissal and focus, New conversation and busy disablement, drafts, input
 height, Send/Stop hit targets, filtering and Clear/Close, Questions' Save answer, detail views,
-global Search, brand Settings with pointer and keyboard, and desktop/mobile transitions. Controlled
+status and classification filter selection, active indicators, global Search, brand Settings with
+pointer and keyboard, and desktop/mobile transitions. Controlled
 430/72 and 340/100 keyboard viewport resize/pan cases keep the rail and inputs usable. The probes
 also check the previous comparison and neutral preview, with no runtime errors.
 
 Focused existing browser checks cover Chat, Questions, Wiki, Composer, navigation and comparisons.
-The first run passed 33 of 35; two existing phone checks timed out while other checks were running,
-then both passed in a focused single-worker rerun. Shared composition, catalogue and ownership
-checks, lint, types and the bundled preview are checked before publishing. Complete verification
-belongs to the exact pushed commit's aggregate CI job. This remains a prototype comparison.
+Shared composition, catalogue and ownership checks, lint, types and the bundled preview are checked
+before publishing. Complete verification belongs to the exact pushed commit's aggregate CI job.
+This remains a prototype comparison.
 
 ## Previous comparison: fixed lower-right edge bars
 

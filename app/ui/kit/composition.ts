@@ -136,7 +136,7 @@ export const implementations = [
   { source: 'mobile-corner-rail-prototype.tsx', mechanics: ['PrototypeCornerRail'] },
   {
     source: 'page-controls-prototype.tsx',
-    mechanics: ['usePrototypePageControls', 'usePrototypePageControl', 'PageSearch'],
+    mechanics: ['usePrototypePageControls', 'usePrototypePageControl', 'PageControls'],
   },
   { source: 'command-overlay.tsx', mechanics: ['CommandOverlay'] },
   { source: 'composition.ts', mechanics: [] },

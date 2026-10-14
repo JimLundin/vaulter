@@ -1,4 +1,4 @@
-// Throwaway page-rail presentation. Modules retain their actions and filter state.
+// Throwaway page-rail presentation. Modules declare controls once and retain their state.
 import {
   createContext,
   type ReactNode,
@@ -10,8 +10,9 @@ import {
   useState,
 } from 'react';
 import { Input } from './parts/input.tsx';
+import { ToggleGroup, ToggleGroupItem } from './parts/toggle-group.tsx';
 
-export interface PageSearchProps {
+export interface PageSearchControl {
   label: string;
   placeholder: string;
   value: string;
@@ -19,10 +20,24 @@ export interface PageSearchProps {
   type?: 'text' | 'search';
 }
 
-interface PageControl {
-  actions?: ReactNode;
-  search?: PageSearchProps;
+export interface PageFilterControl {
+  label: string;
+  value: string;
+  options: readonly { value: string; label: string }[];
+  onValueChange: (value: string) => void;
+  /** The owning module decides whether its selected filter limits the collection. */
+  active: boolean;
 }
+
+export interface PageControlsProps {
+  actions?: ReactNode;
+  search?: PageSearchControl;
+  filters?: PageFilterControl;
+  /** Optional existing inline filter content; the rail uses the supplied filter choices. */
+  children?: ReactNode;
+}
+
+type PageControl = Omit<PageControlsProps, 'children'>;
 
 export const PrototypePageControlsContext = createContext<{
   enabled: boolean;
@@ -42,36 +57,53 @@ export function usePrototypePageControls(enabled: boolean) {
     context,
     actions: entries.find((entry) => entry.actions)?.actions,
     search: entries.find((entry) => entry.search),
+    filters: entries.find((entry) => entry.filters)?.filters,
   };
 }
 
-export function usePrototypePageControl({ actions, search }: PageControl) {
+export function usePrototypePageControl({ actions, search, filters }: PageControl) {
   const context = useContext(PrototypePageControlsContext);
   const id = useId();
   useLayoutEffect(() => {
-    if (!context?.enabled) return;
-    context.register(id, { actions, search });
+    if (!(context?.enabled && (actions || search || filters))) return;
+    context.register(id, { actions, search, filters });
     return () => context.register(id, null);
-  }, [context, id, actions, search]);
+  }, [context, id, actions, search, filters]);
   return !!context?.enabled;
 }
 
-/** A module-owned filter, shown inline normally or in the prototype's shared bottom input. */
-export function PageSearch(props: PageSearchProps) {
-  const { label, placeholder, value, onValueChange, type } = props;
-  const search = useMemo(
-    () => ({ label, placeholder, value, onValueChange, type }),
-    [label, placeholder, value, onValueChange, type],
-  );
-  const inRail = usePrototypePageControl({ search });
+/** The module-page control slot: inline normally, in shared app chrome in the compact prototype. */
+export function PageControls({ actions, search, filters, children }: PageControlsProps) {
+  const inRail = usePrototypePageControl({ actions, search, filters });
   if (inRail) return null;
   return (
-    <Input
-      type={type}
-      aria-label={label}
-      placeholder={placeholder}
-      value={value}
-      onChange={(event) => onValueChange(event.target.value)}
-    />
+    <>
+      {actions}
+      {!!search && (
+        <Input
+          type={search.type}
+          aria-label={search.label}
+          placeholder={search.placeholder}
+          value={search.value}
+          onChange={(event) => search.onValueChange(event.target.value)}
+        />
+      )}
+      {children !== undefined
+        ? children
+        : filters && (
+            <ToggleGroup
+              type="single"
+              aria-label={filters.label}
+              value={filters.value}
+              onValueChange={filters.onValueChange}
+            >
+              {filters.options.map((option) => (
+                <ToggleGroupItem key={option.value} value={option.value}>
+                  {option.label}
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
+          )}
+    </>
   );
 }

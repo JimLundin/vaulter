@@ -270,12 +270,12 @@ function Preview({ initialHead, nodes }: { initialHead: Head; nodes: NodeStore }
           ? [
               {
                 id: 'corner-page-search',
-                label: 'Page rail · Search button',
+                label: 'Selected rail · Search + Filters',
                 content: product('corner-page-search'),
               },
               {
                 id: 'corner-page-input',
-                label: 'Page rail · Bottom search input',
+                label: 'Previous option · Bottom search input',
                 content: product('corner-page-input'),
               },
             ]

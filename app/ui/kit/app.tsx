@@ -395,14 +395,14 @@ export function WorkspaceFrame({
   header,
   compactDesign,
   editing,
-  prototypePageSearch,
+  prototypePageClearance,
   children,
 }: {
   bar: ReactNode;
   header?: ReactNode;
   compactDesign?: CompactNavigationDesign;
   editing?: boolean;
-  prototypePageSearch?: number;
+  prototypePageClearance?: number;
   children: ReactNode;
 }) {
   const mobile = useLayout() === 'compact';
@@ -412,10 +412,12 @@ export function WorkspaceFrame({
       data-layout={mobile ? 'mobile-workspace' : 'desktop-workspace'}
       data-navigation-prototype={mobile ? compactDesign : undefined}
       data-editing={mobile && compactDesign ? editing : undefined}
-      data-prototype-page-search={mobile && prototypePageSearch ? '' : undefined}
+      data-prototype-page-controls={mobile && prototypePageClearance ? '' : undefined}
       style={
-        mobile && prototypePageSearch
-          ? ({ '--prototype-page-search-space': `${prototypePageSearch}px` } as React.CSSProperties)
+        mobile && prototypePageClearance
+          ? ({
+              '--prototype-page-controls-space': `${prototypePageClearance}px`,
+            } as React.CSSProperties)
           : undefined
       }
       className="flex h-[var(--viewport-height,100dvh)] min-w-0 flex-1 flex-col bg-background pt-[env(safe-area-inset-top)] md:pt-0"
