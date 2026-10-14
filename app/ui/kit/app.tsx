@@ -16,6 +16,7 @@ import { ItemGroup as ItemGroupPart, Item as ItemPart } from './parts/item.tsx';
 import { Kbd as KbdPart } from './parts/kbd.tsx';
 import { SidebarMenu as SidebarMenuPart, Sidebar as SidebarPart } from './parts/sidebar.tsx';
 import { useFieldSemanticDiagnostic } from './field-association.ts';
+import type { CompactNavigationDesign } from './navigation.tsx';
 
 export type Tone = 'neutral' | 'people' | 'places' | 'events';
 import { Link, gap, type Gap } from './parts/layout.tsx';
@@ -394,7 +395,7 @@ export function WorkspaceFrame({
 }: {
   bar: ReactNode;
   header?: ReactNode;
-  compactDesign?: 'slim' | 'dock' | 'header';
+  compactDesign?: CompactNavigationDesign;
   editing?: boolean;
   children: ReactNode;
 }) {

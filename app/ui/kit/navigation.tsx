@@ -56,7 +56,14 @@ export interface NavigationAction {
 }
 
 /** Throwaway mobile navigation options, retained on the prototype branch for design review. */
-export type CompactNavigationDesign = 'slim' | 'dock' | 'header';
+export type CompactNavigationDesign =
+  | 'slim'
+  | 'dock'
+  | 'header'
+  | 'dock-joined'
+  | 'dock-bubble'
+  | 'dock-shortcuts'
+  | 'dock-side';
 
 function PrototypeNavigationBar({
   design,
@@ -78,6 +85,8 @@ function PrototypeNavigationBar({
   onDone?: () => void;
 }) {
   const current = destinations.find((entry) => entry.current);
+  const floating = design.startsWith('dock');
+  const shortcuts = design === 'dock-shortcuts';
   const menuButton = (
     <button
       type="button"
@@ -87,7 +96,7 @@ function PrototypeNavigationBar({
       className="kit-navigation-prototype-button"
       onClick={onMenu}
     >
-      <Icon name="list" />
+      <Icon name={design === 'dock-bubble' || shortcuts ? 'more' : 'list'} />
       {design === 'slim' && <span>More</span>}
     </button>
   );
@@ -124,9 +133,13 @@ function PrototypeNavigationBar({
       </nav>
     );
   return (
-    <footer data-navigation-bar={design} className="kit-navigation-prototype-bar">
+    <footer
+      data-navigation-bar={design}
+      data-floating-dock={floating ? '' : undefined}
+      className="kit-navigation-prototype-bar"
+    >
       <nav aria-label="Page navigation" className="kit-navigation-prototype-items">
-        {design === 'slim' &&
+        {(design === 'slim' || shortcuts) &&
           destinations.slice(0, 3).map((entry) => (
             <a
               key={entry.href}
@@ -136,12 +149,12 @@ function PrototypeNavigationBar({
               className="kit-navigation-prototype-button"
             >
               <Icon name={entry.icon} />
-              <span>{entry.label}</span>
+              {design === 'slim' && <span>{entry.label}</span>}
             </a>
           ))}
         {menuButton}
-        {design === 'dock' && searchButton}
-        {design === 'dock' && primary && <div data-dock-secondary="">{primary}</div>}
+        {floating && design !== 'dock-bubble' && !shortcuts && searchButton}
+        {floating && primary && <div data-dock-secondary="">{primary}</div>}
       </nav>
     </footer>
   );

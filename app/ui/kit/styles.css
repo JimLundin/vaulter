@@ -123,7 +123,7 @@ body,
   outline: 2px solid var(--ring);
   outline-offset: 2px;
 }
-[data-navigation-bar="dock"] {
+[data-floating-dock] {
   position: absolute;
   bottom: max(12px, env(safe-area-inset-bottom));
   left: 16px;
@@ -134,10 +134,10 @@ body,
   box-shadow: 0 4px 20px #00000012;
   z-index: 20;
 }
-[data-navigation-bar="dock"] .kit-navigation-prototype-items {
+[data-floating-dock] .kit-navigation-prototype-items {
   justify-content: center;
 }
-[data-navigation-bar="dock"] .kit-navigation-prototype-button {
+[data-floating-dock] .kit-navigation-prototype-button {
   flex: none;
 }
 [data-dock-secondary] {
@@ -151,6 +151,123 @@ body,
   width: calc(100% - 108px);
   margin-left: 108px;
 }
+
+/* Joined dock: one floating capsule contains navigation and the existing composer. */
+[data-navigation-prototype="dock-joined"]:has([data-conversation-input]):not(
+  [data-editing="true"]
+)::after {
+  content: "";
+  position: absolute;
+  right: 16px;
+  bottom: max(12px, env(safe-area-inset-bottom));
+  left: 16px;
+  height: 56px;
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  background: var(--background);
+  box-shadow: 0 4px 20px #00000012;
+  pointer-events: none;
+  z-index: 1;
+}
+[data-navigation-prototype="dock-joined"]:has([data-conversation-input]) [data-floating-dock] {
+  left: 20px;
+  padding: 6px 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+[data-navigation-prototype="dock-joined"] [data-conversation-input] {
+  position: relative;
+  width: calc(100% - 100px);
+  margin-left: 100px;
+  z-index: 2;
+}
+[data-navigation-prototype="dock-joined"]:not([data-editing="true"])
+  [data-conversation-input]
+  [data-slot="input-group"] {
+  min-height: 56px;
+  border: 0;
+  border-radius: 24px;
+  background: transparent;
+  box-shadow: none;
+}
+[data-navigation-prototype="dock-joined"] [data-dock],
+[data-navigation-prototype="dock-bubble"] [data-dock] {
+  border: 0;
+  background: transparent;
+}
+
+/* Menu bubble: one circular navigation control gives the field more width. */
+[data-navigation-bar="dock-bubble"] {
+  padding: 6px;
+  border-radius: 28px;
+}
+[data-navigation-prototype="dock-bubble"] [data-conversation-input] {
+  width: calc(100% - 68px);
+  margin-left: 68px;
+}
+[data-navigation-prototype="dock-bubble"] [data-conversation-input] [data-slot="input-group"] {
+  border-radius: 24px;
+}
+[data-navigation-bar="dock-bubble"]:has([data-dock-secondary]) {
+  border-radius: 24px;
+}
+
+/* Page shortcuts: a small floating set of destinations, with the composer at full width above. */
+[data-navigation-bar="dock-shortcuts"] {
+  right: 16px;
+  left: 16px;
+  margin-inline: auto;
+  padding-inline: 8px;
+}
+[data-navigation-prototype="dock-shortcuts"] main {
+  padding-bottom: 80px;
+}
+[data-navigation-bar="dock-shortcuts"] .kit-navigation-prototype-items {
+  gap: 6px;
+}
+[data-navigation-bar="dock-shortcuts"] .kit-navigation-prototype-button {
+  border-radius: 16px;
+}
+[data-navigation-bar="dock-shortcuts"] .kit-navigation-prototype-button[aria-current="page"] {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+[data-navigation-prototype="dock-shortcuts"] [data-dock] {
+  border: 0;
+  background: transparent;
+}
+
+/* Side dock: navigation stacks at the thumb edge, above a full-width composer. */
+[data-navigation-bar="dock-side"] {
+  right: 16px;
+  bottom: max(92px, calc(env(safe-area-inset-bottom) + 80px));
+  left: auto;
+  padding: 5px;
+  border-radius: 28px;
+}
+[data-navigation-bar="dock-side"] .kit-navigation-prototype-items {
+  flex-direction: column;
+}
+[data-navigation-bar="dock-side"] [data-dock-secondary] {
+  border-top: 1px solid var(--border);
+  border-left: 0;
+}
+[data-navigation-prototype="dock-side"] [data-dock] {
+  border: 0;
+  background: transparent;
+}
+[data-navigation-prototype="dock-side"] [aria-label="Suggested prompts"] {
+  width: calc(100% - 68px);
+}
+[data-navigation-prototype="dock-side"]:not(:has([data-conversation-input])) main {
+  padding-bottom: 200px;
+}
+[data-navigation-prototype="dock-joined"]:not(:has([data-conversation-input])) main,
+[data-navigation-prototype="dock-bubble"]:not(:has([data-conversation-input])) main {
+  padding-bottom: 76px;
+}
+
 .kit-navigation-prototype-header {
   position: absolute;
   top: env(safe-area-inset-top);

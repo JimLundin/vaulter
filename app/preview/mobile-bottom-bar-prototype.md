@@ -5,10 +5,42 @@ open, while keeping navigation easy to reach?
 
 This comparison is throwaway work on `prototype/mobile-bottom-bar`. The ordinary preview still
 renders the current Product. The experiment supplies the same Product, fictional records and
-scripted Agent, with three alternative navigation arrangements.
+scripted Agent, with alternative navigation arrangements.
 
 Run `npm run design:mobile-bar`. In the existing preview pill, enable Mobile and cycle designs.
-The default is Slim tabs. The URL retains the selection:
+The default is now Joined dock. The URL retains the selection.
+
+## Floating-dock direction
+
+The user selected the floating dock on 2026-10-14: “floating dock is for sure the right way to go.”
+The remaining question is how navigation and the message field should share that floating area.
+The first comparison is retained below; the selected direction gets its own five-design comparison
+at `/preview/?navigation=dock&variant=dock-joined`.
+
+| Variant | Arrangement | Trade-off |
+| --- | --- | --- |
+| `dock` | Original Menu/Search capsule beside the composer | Familiar baseline; two separate surfaces |
+| `dock-joined` | Menu, Search and composer in one floating capsule | One bottom row and one surface; keeps direct Search |
+| `dock-bubble` | Circular More button beside a wider composer | More room to type; Search is inside Menu |
+| `dock-shortcuts` | Chat, Wiki, Questions and More in a floating capsule | Direct destinations; composer takes a second row |
+| `dock-side` | Vertical Menu/Search dock at the right edge | Full-width composer; controls are slightly higher |
+
+Every variant keeps the microphone available on other pages and hides the dock during text entry.
+Done restores navigation without clearing the draft. Side dock leaves suggested prompts clear.
+The picker is in the existing Preview controls, and updates the shareable `variant` query.
+
+Joined dock is the initial recommendation for this round. The specific floating layout has not
+been selected; these remain reviewable prototypes.
+
+All five dock variants passed bundled browser probes at 320, 390 and 430px, including navigation,
+Search, Settings, Wiki filtering, microphone access and draft retention. Dark mode and a controlled
+visual viewport reduced to 430px and panned by 72px keep the focused field visible. Device switching
+retains the draft, the picker survives reload, and the neutral preview has no active comparison.
+Focused navigation/comparison and kit ownership checks, lint, TypeScript and the design build pass.
+
+## First comparison
+
+The original `/preview/?navigation=prototype&variant=slim` URL keeps these alternatives:
 
 | Variant | Arrangement | Trade-off |
 | --- | --- | --- |
@@ -34,8 +66,7 @@ Settings, Search and draft retention work in phone emulation. The default naviga
 and preview checks pass on desktop and phone; kit ownership/composition checks, lint, TypeScript
 and the bundled design build pass.
 
-No design has been selected yet. Slim tabs is the starting recommendation because it exposes the
-main destinations and still clears the keyboard. Try the other two on a phone before deciding.
+The user selected the floating-dock direction; the follow-up comparison explores its layout.
 Headless phone emulation and controlled viewport changes do not display a real device keyboard.
 After selection, rewrite the selected behavior in the shared kit, add its browser regression
 coverage, and verify the production login/storage path before promotion. Retain this comparison
