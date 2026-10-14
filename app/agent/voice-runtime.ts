@@ -100,6 +100,7 @@ async function describe(tools: ToolSet) {
 export async function createVoiceAgent(options: VoiceAgentOptions) {
   if (!options.instructions.trim()) throw new Error('Voice agent instructions are required');
   const lifetime = new AbortController();
+  const recording = new AbortController();
   const signal = AbortSignal.any([options.signal, lifetime.signal]);
   const history = structuredClone(options.history ?? []) as VoiceHistory[];
   const instructions = voiceInstructions(options.instructions);
@@ -197,22 +198,24 @@ export async function createVoiceAgent(options: VoiceAgentOptions) {
   let closing: Promise<void> | undefined;
   const close = () => {
     if (closing !== undefined) return closing;
-    closing = Promise.resolve().then(async () => {
-      await connection?.close();
-      await order(async () => {
-        for (const turn of turns) {
-          turn.handle.stop();
-          // biome-ignore lint/performance/noAwaitInLoops: drain each already accepted run.
-          await turn.handle.done;
-          // Closing the protocol retains the stopped Agent owner until its pending saves recover.
-          releaseRecovered(turn);
-        }
-      });
-      notify({
-        ...state,
-        phase: projections.length ? 'unsaved' : turns.some(needsRecovery) ? 'paused' : 'closed',
-      });
-    });
+    closing = Promise.resolve()
+      .then(async () => {
+        await connection?.close();
+        await order(async () => {
+          for (const turn of turns) {
+            turn.handle.stop();
+            // biome-ignore lint/performance/noAwaitInLoops: drain each already accepted run.
+            await turn.handle.done;
+            // Closing the protocol retains the stopped Agent owner until its pending saves recover.
+            releaseRecovered(turn);
+          }
+        });
+        notify({
+          ...state,
+          phase: projections.length ? 'unsaved' : turns.some(needsRecovery) ? 'paused' : 'closed',
+        });
+      })
+      .finally(() => recording.abort());
     lifetime.abort();
     expire();
     return closing;
@@ -282,9 +285,12 @@ export async function createVoiceAgent(options: VoiceAgentOptions) {
             context,
             enabledTools,
           });
+          // Finalized protocol input drains after execution closes; caller preparation expires now.
+          const preparationSignal = options.prepareTurn ? signal : recording.signal;
+          preparationSignal.throwIfAborted();
           using writes = options.nodes
             .writer({ recordedBy: options.user, origin: options.origin ?? null })
-            .lifetime({ signal });
+            .lifetime({ signal: preparationSignal });
           const prepared = options.prepareTurn
             ? await cancellable(options.prepareTurn(input, writes), signal)
             : await prepareAgentRun(writes, {

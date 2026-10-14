@@ -15,6 +15,7 @@ afterEach(() => {
 });
 async function setup(transform: (nodes: NodeStore) => NodeStore = (nodes) => nodes) {
   const harness = media();
+  const abort = new AbortController();
   const nodes = memoryNodeBackend();
   await nodes.commit(
     request('seed', [create('user', { kind: 'actor' }), create('agent', { kind: 'agent' })]),
@@ -32,9 +33,9 @@ async function setup(transform: (nodes: NodeStore) => NodeStore = (nodes) => nod
     tools: paragraphTools,
     writableKinds: ['paragraph'],
     events,
-    signal: new AbortController().signal,
+    signal: abort.signal,
   });
-  return { ...harness, nodes, events, voice };
+  return { ...harness, nodes, events, voice, abort };
 }
 test('actual voice protocol accepts Agent context before response and durable direct tools before continuation', async () => {
   const { channel, nodes, voice, fetch, track } = await setup();
@@ -257,36 +258,54 @@ test('microphone cancellation stops late tracks before any endpoint call', async
   expect(fetch).not.toHaveBeenCalled();
 });
 
-test('Close drains finalized speech received while initial acceptance is held', async () => {
-  let release!: () => void;
-  let started!: () => void;
-  const entered = new Promise<void>((resolve) => {
-    started = resolve;
-  });
-  const held = new Promise<void>((resolve) => {
-    release = resolve;
-  });
-  let initial = true;
-  const { channel, nodes, voice } = await setup((store) => ({
-    ...store,
-    commit: async (value) => {
-      if (initial) {
-        initial = false;
-        started();
-        await held;
-      }
-      return await store.commit(value);
-    },
-  }));
-  speech(channel, 'one', 'First thought');
-  await entered;
-  speech(channel, 'two', 'Second thought');
-  const closing = voice.close();
-  release();
-  await closing;
-  expect((await nodes.history()).filter(({ kind }) => kind.action === 'startRun')).toHaveLength(2);
-  expect(creates(channel)).toBe(0);
-});
+test.each(['Close', 'Cancellation'])(
+  '%s drains finalized speech received while initial acceptance is held',
+  async (action) => {
+    let release!: () => void;
+    let started!: () => void;
+    const entered = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let initial = true;
+    const { channel, nodes, voice, abort } = await setup((store) => ({
+      ...store,
+      commit: async (value) => {
+        if (initial) {
+          initial = false;
+          started();
+          await held;
+        }
+        return await store.commit(value);
+      },
+    }));
+    speech(channel, 'one', 'First thought');
+    await entered;
+    speech(channel, 'two', 'Second thought');
+    if (action === 'Cancellation') abort.abort();
+    const closing = voice.close();
+    release();
+    await closing;
+    const accepted = (await nodes.history())
+      .filter(({ kind }) => kind.action === 'startRun')
+      .reverse();
+    const inputs = await Promise.all(
+      accepted.map(
+        async (transaction) =>
+          (await nodes.changes(transaction.id))
+            .filter(
+              ({ after }) => after.data?.kind === 'contextInput' && after.data.role === 'user',
+            )
+            .at(-1)?.after.data?.content,
+      ),
+    );
+    expect(inputs).toEqual(['First thought', 'Second thought']);
+    expect(voice.snapshot().phase).toBe('closed');
+    expect(creates(channel)).toBe(0);
+  },
+);
 
 test('invocation persistence failure prevents execution and recovery preserves uncertainty without protocol continuation', async () => {
   let offline = true;

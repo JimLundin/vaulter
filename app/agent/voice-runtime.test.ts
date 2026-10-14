@@ -319,6 +319,25 @@ test('Close expires turn preparation without waiting for an arbitrary caller pro
   }
 });
 
+test.each(['default', 'caller'])(
+  'closed Voice rejects late input before %s preparation',
+  async (preparation) => {
+    const { nodes, options, callbacks: get } = await fixture();
+    const prepareTurn = vi.fn(() => Promise.reject(new Error('Late caller preparation')));
+    const voice = await createVoiceAgent({
+      ...options,
+      prepareTurn: preparation === 'caller' ? prepareTurn : undefined,
+    });
+    await voice.close();
+    const at = '2026-10-10T12:00:00Z';
+    await expect(
+      get().acceptUser('late', 'Too late.', { started: at, ended: at }),
+    ).rejects.toMatchObject({ name: 'AbortError' });
+    expect(prepareTurn).not.toHaveBeenCalled();
+    expect((await nodes.history()).some(({ kind }) => kind.action === 'startRun')).toBe(false);
+  },
+);
+
 test('caller transcript save recovery retries the same projection without repeating Agent effects', async () => {
   const { nodes, options, callbacks: get } = await fixture();
   let offline = true;

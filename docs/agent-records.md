@@ -177,7 +177,10 @@ children before the provider can request a response or execute a call.
 
 The caller may supply a planned `origin` and provide `prepareTurn(input, lifetime)` to combine its
 own initial records with Agent's supplied context and selected tools inside that lifetime's
-calculation. Closing the voice session expires preparation even if a caller promise is still pending.
+calculation. Closing the voice session expires caller preparation even if its promise is still pending.
+Default preparation retains finalized speech queued before Close, using recording scopes that close
+after the protocol drains. These scopes remain subject to Vault session closure and cannot restart
+model or tool execution.
 Its `onResponse` callback owns transcript projection and publication. The callback receives a stable
 projection ID; use it to retain the
 core transcript request and retry that handle through a fresh lifetime. Agent retains the callback
