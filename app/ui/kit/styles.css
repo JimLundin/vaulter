@@ -489,6 +489,9 @@ body,
   position: absolute;
   pointer-events: auto;
 }
+.kit-corner-page-input-layer {
+  z-index: 45;
+}
 .kit-corner-page-search > [data-slot="input-group"] {
   min-height: 52px;
   box-shadow:

@@ -36,6 +36,8 @@ is 52×148px; the Search-button rail is 52×100px and the single-anchor rail is 
 44×44px. The input retains its own rounded surface, with no background joining it to the rail.
 Shared presentation measures the search surface and bottom inset to reserve trailing scroll space;
 Questions' Save answer and final content remain reachable above it.
+The bottom field has its own app-owned input layer below expanded menus and dialogs. This keeps
+the last menu actions usable when search is visible, while the rail stays above those overlays.
 
 Settings moves to the right of the Vaulter brand in both the expanded mobile module menu and the
 desktop sidebar for these alternatives. Its previous footer row is removed. The menu's icon action
