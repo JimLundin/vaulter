@@ -121,7 +121,9 @@ test('production uses Balanced drafts in Questions and Wiki and persists an expl
   const answer = card.getByRole('textbox', { name: 'Your answer', exact: true });
   await expect(answer).toBeEnabled();
   const entry = card.getByRole('group', { name: 'Your answer text box', exact: true });
-  await expect(entry.getByRole('button', { name: 'Save answer', exact: true })).toBeDisabled();
+  await expect(
+    entry.getByRole('button', { name: 'Start voice interaction', exact: true }),
+  ).toBeDisabled();
   await expect(answer).not.toBeFocused();
   if (compact) {
     await expect
@@ -160,11 +162,12 @@ test('production uses Balanced drafts in Questions and Wiki and persists an expl
     });
   const collection = await presentation();
   expect(collection.padding).toBe('24px');
-  expect(collection.editorHeight).toBeGreaterThanOrEqual(112);
+  expect(collection.editorHeight).toBe(44);
   expect(test.info().project.name === 'phone' ? collection.stacked : collection.horizontal).toBe(
     true,
   );
   await expect(answer).toHaveValue('');
+  await answer.focus();
   await expect(card.getByRole('button', { name: 'Save answer', exact: true })).toBeDisabled();
   const writesBeforeChoosing = fake.state.calls.filter((call) => call.startsWith('PATCH ')).length;
   await card.getByRole('button', { name: /^Keep hand tools close/ }).click();
@@ -191,7 +194,7 @@ test('production uses Balanced drafts in Questions and Wiki and persists an expl
   const wiki = await presentation();
   expect(wiki.heading).toEqual(collection.heading);
   expect(wiki.padding).toBe(collection.padding);
-  expect(wiki.editorHeight).toBeGreaterThanOrEqual(112);
+  expect(wiki.editorHeight).toBe(44);
   await card.getByRole('button', { name: /^Write my own answer/ }).click();
   await answer.fill('Use a mobile tool cart and leave the bench clear.');
   const writesBeforeEnter = fake.state.calls.filter((call) => call.startsWith('PATCH ')).length;
@@ -201,7 +204,7 @@ test('production uses Balanced drafts in Questions and Wiki and persists an expl
   expect(fake.state.calls.filter((call) => call.startsWith('PATCH '))).toHaveLength(
     writesBeforeEnter,
   );
-  await answer.blur();
+  await answer.focus();
   await card.getByRole('button', { name: 'Save answer', exact: true }).click();
   const answered = page.getByRole('region', { name: 'Answered', exact: true });
   await expect(answered).toContainText('Use a mobile tool cart and leave the bench clear.');

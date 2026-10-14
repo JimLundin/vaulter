@@ -13,7 +13,7 @@ import { readQuestions, type Question } from './reading.ts';
 
 function button(label: string): HTMLButtonElement {
   const match = [...document.querySelectorAll('button')].find(
-    (entry) => entry.textContent === label,
+    (entry) => entry.getAttribute('aria-label') === label || entry.textContent === label,
   );
   if (!match) throw new Error(`Missing ${label} button`);
   return match;

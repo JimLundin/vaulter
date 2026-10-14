@@ -292,7 +292,9 @@ function Fixture() {
 }
 
 function TextBoxFixture() {
-  const longform = new URLSearchParams(location.search).has('longform');
+  const parameters = new URLSearchParams(location.search);
+  const longform = parameters.has('longform');
+  const explicit = longform || parameters.has('explicit');
   const [draft, setDraft] = useState('');
   const [submitted, setSubmitted] = useState<string[]>([]);
   const [allowed, setAllowed] = useState(true);
@@ -307,15 +309,16 @@ function TextBoxFixture() {
     <Stack>
       <TextBox
         layout={longform ? 'longform' : 'compact'}
+        submitOnEnter={!explicit}
         draft={draft}
         onDraftChange={setDraft}
         onSubmit={(text) => setSubmitted([...submitted, text])}
-        label={longform ? 'Fixture answer' : 'Fixture message'}
+        label={explicit ? 'Fixture answer' : 'Fixture message'}
         description="The owner keeps this draft until it is accepted."
         error={error}
         placeholder="Write a controlled draft"
-        submitLabel={longform ? 'Save answer' : undefined}
-        pendingLabel={longform ? 'Saving answer…' : undefined}
+        submitLabel={explicit ? 'Save answer' : undefined}
+        pendingLabel={explicit ? 'Saving answer…' : undefined}
         canSubmit={allowed && !recording}
         busy={busy}
         readOnly={recording}
@@ -325,7 +328,7 @@ function TextBoxFixture() {
             : { phase, onClick: () => setPhase(phase === 'idle' ? 'listening' : 'idle') }
         }
         onStop={
-          longform
+          explicit
             ? undefined
             : () => {
                 setStops(stops + 1);

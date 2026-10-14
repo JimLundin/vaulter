@@ -4,7 +4,7 @@ import { memoryNodeBackend } from '../../vault/nodes/memory.ts';
 import { create, request, seed } from '../../vault/nodes/fixtures.test-support.ts';
 import type { NodeStore } from '../../vault/nodes/store.ts';
 import { createNodeConversation } from './node-conversation.ts';
-import { createTranscription } from './transcription.ts';
+import { createTranscription } from '../../transcription.ts';
 
 async function fixture() {
   const store = memoryNodeBackend();

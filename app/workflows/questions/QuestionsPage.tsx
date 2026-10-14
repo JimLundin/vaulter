@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import type { Transcription } from '../../transcription.ts';
 import { FeaturePage, PageControls, Link, Loader, Stack, Text } from '../../ui/kit/index.ts';
 import {
   QuestionItem,
@@ -28,6 +29,7 @@ export interface QuestionsPageProps {
   readonly onAnswer?: QuestionAnswerHandler;
   readonly answers?: QuestionAnswers;
   readonly disabledReason?: string;
+  readonly transcription?: Transcription;
 }
 
 /** One retained collection drives both this page and question records embedded in other views. */
@@ -39,6 +41,7 @@ export function QuestionsPage({
   onAnswer,
   answers,
   disabledReason,
+  transcription,
 }: QuestionsPageProps) {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<QuestionFilter>('open');
@@ -115,6 +118,7 @@ export function QuestionsPage({
               onAnswer={onAnswer}
               answers={answers}
               disabledReason={answerDisabledReason}
+              transcription={transcription}
             />
             {!node && (
               <Text size="sm">

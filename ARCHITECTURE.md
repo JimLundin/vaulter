@@ -10,6 +10,7 @@ app/
   product.tsx                optional workflow imports and all product wiring
   agent/                     independent execution, records, durable tools, recovery, providers
   application-identities.ts  configured stable caller identities and atomic bootstrap
+  transcription.ts           shared recording sessions, valid transcripts and microphone lifetime
   workflows/
     chat/                    node conversations, composed Agent acceptance, draft lifetime, views, tests
     wiki/                    page/block/citation definitions, preparation, historical reading, views
@@ -201,7 +202,8 @@ Native IME confirmation and Safari key code 229 remain editing events. Chat requ
 text, current capabilities, idle recording/execution and resolved recovery before admitting submission.
 Displayed action availability is advisory. Sync status appears with the app name in the sidebar header.
 
-Product supplies Transcription independently above route selection. Transcription owns recording
+Product supplies the shared Transcription in `app/transcription.ts` to Chat and Questions above
+route selection. Transcription owns recording
 admission, connection lifecycle, correction ordering and resource release; Chat associates valid session
 revisions with the draft/conversation they began against. Corrected final text replaces that recording's
 partial suffix while preserving its prefix. Manual typing invalidates the association before requesting
@@ -461,9 +463,12 @@ routes an external prompt to the Chat page or supporting task. Chat's page compo
 `ReadingColumn`, `Toolbar`, `AutoScrollArea` and `Dock`; the panel supplies direct message children
 and composer content to `SupportingPane`. Chat and its chooser use that single supporting policy.
 Pane width, responsive transitions, header height, dismissal and scrolling remain kit-owned.
-`TextBox` retains shared keyboard, native form, IME, focus and inset actions. Its compact Chat
-entry and longform Questions/settings entry share presentation and scoped floating-control protection;
+`TextBox` retains shared keyboard, native form, IME, focus and inset actions. Compact entry in Chat
+and Questions shares presentation and scoped floating-control protection with longform settings;
 workflow owners retain draft lifetime, validation, acceptance and persistence.
+Questions keeps Enter as editing and requires explicit Save. It associates dictated words with the
+selected answer draft, preserves typed prefixes and corrected transcripts, and releases its own
+recording when the question changes or its card leaves the view. Wiki uses the same Question card.
 
 The kit's `Message` receives caller attribution, reading side and content, with no Chat role schema.
 The five old `ConversationPage`, `ConversationSurface`, `ConversationPanel`, `ConversationFeed` and

@@ -16,12 +16,15 @@ import {
   Surface,
   Text,
   TextBox,
+  VoiceStatus,
 } from '../../ui/kit/index.ts';
+import type { Transcription } from '../../transcription.ts';
 import { isSafeUrl } from '../../vault/documents/notes/safe-url.ts';
 import type { Question, QuestionTarget } from './reading.ts';
 import { parseAnswer } from './records.ts';
 import type { QuestionAnswers } from './answers.ts';
 import { useQuestionAnswerState } from './use-questions.ts';
+import { useAnswerDictation } from './use-answer-dictation.ts';
 
 export interface QuestionTargetDescription {
   readonly title: string;
@@ -41,6 +44,7 @@ export interface QuestionItemProps {
   readonly onAnswer?: QuestionAnswerHandler;
   readonly answers?: QuestionAnswers;
   readonly disabledReason?: string;
+  readonly transcription?: Transcription;
 }
 
 interface Draft {
@@ -58,6 +62,7 @@ export function QuestionItem({
   onAnswer,
   answers,
   disabledReason,
+  transcription,
 }: QuestionItemProps) {
   const [draft, setDraft] = useState<Draft>();
   const [pending, setPending] = useState(false);
@@ -82,6 +87,25 @@ export function QuestionItem({
       draft.question.key.transaction !== question.key.transaction);
   const locked = pending || !!disabledReason || !!attempt;
   const canAnswer = question.status === 'open' && !!submitAnswer;
+  const edit = (next: string) => {
+    setDraft((previous) => {
+      const choice = previous?.choice ?? 'custom';
+      return {
+        question: previous?.question ?? question,
+        choice,
+        texts: { ...previous?.texts, [choice]: next },
+      };
+    });
+    setError(undefined);
+  };
+  const dictation = useAnswerDictation({
+    transcription,
+    question,
+    choice: draft?.choice ?? 'custom',
+    text,
+    onText: edit,
+    disabled: locked || stale || !canAnswer,
+  });
   const label =
     question.status === 'open'
       ? 'Open question'
@@ -101,7 +125,8 @@ export function QuestionItem({
   const sourceTitle =
     sources[0] && (describeTarget?.(sources[0])?.title || sources[0].label || 'Retained source');
   const choose = (choice: string, initial = '') => {
-    if (locked || stale) return;
+    if (locked || stale || dictation.recording()) return;
+    dictation.cancel();
     setDraft((previous) => ({
       question: previous?.question ?? question,
       choice,
@@ -115,6 +140,7 @@ export function QuestionItem({
       !(submitAnswer && draft && text.trim()) ||
       locked ||
       stale ||
+      dictation.recording() ||
       submitting.current ||
       !canAnswer
     )
@@ -233,7 +259,7 @@ export function QuestionItem({
                     key={suggestion.title}
                     appearance="card"
                     selected={draft?.choice === `suggestion:${index}`}
-                    disabled={locked || stale}
+                    disabled={locked || stale || dictation.active}
                     onSelect={() => choose(`suggestion:${index}`, suggestion.text)}
                   >
                     <Stack gap="xs" align="start">
@@ -249,7 +275,7 @@ export function QuestionItem({
                 <SelectionRow
                   appearance="card"
                   selected={draft?.choice === 'custom'}
-                  disabled={locked || stale}
+                  disabled={locked || stale || dictation.active}
                   onSelect={() => choose('custom')}
                 >
                   <Stack gap="xs" align="start">
@@ -263,15 +289,28 @@ export function QuestionItem({
                 </SelectionRow>
               </Stack>
               <Stack gap="md">
+                {dictation.active && <VoiceStatus phase={dictation.phase} error="" />}
                 <TextBox
                   label="Your answer"
-                  layout="longform"
+                  submitOnEnter={false}
                   fieldRef={answerField}
                   placeholder="Choose a suggestion or write your own answer…"
                   draft={text}
                   disabled={locked}
                   busy={pending}
-                  canSubmit={!(locked || stale)}
+                  readOnly={dictation.active}
+                  canSubmit={!(locked || stale || dictation.active)}
+                  voice={
+                    transcription
+                      ? {
+                          phase: dictation.phase,
+                          disabled: !dictation.allowed,
+                          onClick: () => {
+                            void dictation.action();
+                          },
+                        }
+                      : undefined
+                  }
                   submitLabel="Save answer"
                   pendingLabel="Saving answer…"
                   description={[
@@ -285,18 +324,11 @@ export function QuestionItem({
                   error={
                     stale
                       ? 'Question has changed; review its current wording before answering.'
-                      : error
+                      : error || dictation.error
                   }
                   onDraftChange={(next) => {
-                    setDraft((previous) => {
-                      const choice = previous?.choice ?? 'custom';
-                      return {
-                        question: previous?.question ?? question,
-                        choice,
-                        texts: { ...previous?.texts, [choice]: next },
-                      };
-                    });
-                    setError(undefined);
+                    dictation.cancel();
+                    edit(next);
                   }}
                   onSubmit={save}
                 />

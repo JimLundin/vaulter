@@ -8,7 +8,7 @@ const journal = (page: Page) =>
     () => JSON.parse(sessionStorage.getItem('vaulter:preview:accepted:v1') ?? '[]') as NodeCommit[],
   );
 
-test('Questions keeps multiline drafts and inset Save targets through responsive changes', {
+test('Questions keeps a compact field, multiline drafts and explicit Save through responsive changes', {
   tag: ['@phone', '@touch'],
 }, async ({ page }) => {
   await page.goto('/preview/#/questions/preview:question/');
@@ -36,10 +36,37 @@ test('Questions keeps multiline drafts and inset Save targets through responsive
     expect(action.x).toBeGreaterThanOrEqual(surface.x + 3);
     expect(action.x + action.width).toBeLessThanOrEqual(surface.x + surface.width - 3);
     expect(action.y + action.height).toBeLessThanOrEqual(surface.y + surface.height - 3);
-    expect(action.y).toBeGreaterThanOrEqual(field.y + field.height);
-    expect(field.height).toBeGreaterThanOrEqual(112);
+    expect(Math.abs(action.y - field.y)).toBeLessThanOrEqual(1);
+    expect(field.height).toBe(44);
   }
   expect(await journal(page)).toEqual(initial);
+});
+
+test('Questions dictates into the compact draft and saves only when explicitly requested', {
+  tag: ['@phone', '@touch'],
+}, async ({ page }) => {
+  await page.goto('/preview/#/questions/preview:question/');
+  await expect(page.getByText('Loading conversation…', { exact: true })).toBeHidden();
+  const entry = page.getByRole('group', { name: 'Your answer text box', exact: true });
+  const answer = entry.getByRole('textbox', { name: 'Your answer', exact: true });
+  await answer.fill('Keep the workbench clear.');
+  await answer.blur();
+  const initial = await journal(page);
+  await entry.getByRole('button', { name: 'Start voice interaction', exact: true }).click();
+  await expect(answer).toHaveAttribute('readonly');
+  const dictated =
+    'Keep the workbench clear. Leave space for a walk before work, and keep an afternoon free for the garden studio.';
+  await expect(answer).toHaveValue(dictated, { timeout: 15000 });
+  await entry.getByRole('button', { name: 'Finish recording', exact: true }).click();
+  await expect(answer).not.toHaveAttribute('readonly');
+  expect(await journal(page)).toEqual(initial);
+  await answer.focus();
+  await answer.press('End');
+  await answer.press('Enter');
+  await expect(answer).toHaveValue(`${dictated}\n`);
+  expect(await journal(page)).toEqual(initial);
+  await entry.getByRole('button', { name: 'Save answer', exact: true }).click();
+  await expect(page.getByRole('region', { name: 'Answered', exact: true })).toContainText(dictated);
 });
 
 async function askQuestion(page: Page, text: string) {
@@ -135,6 +162,7 @@ test('Balanced drafts preserve each choice, source context and shared card typog
   const answer = record.getByRole('textbox', { name: 'Your answer', exact: true });
   const choose = (title: string) => record.getByRole('button', { name: new RegExp(`^${title}`) });
   await expect(answer).toHaveValue('');
+  await answer.focus();
   await expect(record.getByRole('button', { name: 'Save answer', exact: true })).toBeDisabled();
   await choose('Keep hand tools close').click();
   await expect(answer).toBeFocused();

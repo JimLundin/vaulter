@@ -192,6 +192,12 @@ test('Questions search and filters share the rail while trailing Save stays reac
   await page.locator('main').evaluate((node) => {
     node.scrollTop = node.scrollHeight;
   });
+  await expectHitTarget(
+    page
+      .getByRole('group', { name: 'Your answer text box', exact: true })
+      .getByRole('button', { name: 'Start voice interaction', exact: true }),
+  );
+  await page.getByRole('textbox', { name: 'Your answer', exact: true }).focus();
   const save = page.getByRole('button', { name: 'Save answer', exact: true });
   await expectHitTarget(save);
   const saveBox = (await save.boundingBox())!;

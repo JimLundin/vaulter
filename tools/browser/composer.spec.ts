@@ -85,31 +85,35 @@ test('text-box descriptions and validation errors name both the field and its su
   }
 });
 
-test('longform entry keeps Enter as editing and saves explicitly without clearing the controlled draft', {
+test('explicit entry keeps Enter as editing and saves without clearing the controlled draft', {
   tag: ['@phone', '@touch'],
 }, async ({ page }) => {
-  await page.goto('/ui/kit/tests/browser.html?composer&longform');
-  const field = page.getByRole('textbox', { name: 'Fixture answer', exact: true });
-  await field.fill('First line');
-  expect((await field.boundingBox())!.height).toBeGreaterThanOrEqual(112);
-  await field.press('End');
-  await field.press('Enter');
-  await expect(field).toHaveValue('First line\n');
-  await expect(page.getByText('Submitted drafts: []', { exact: true })).toBeVisible();
-  await field.fill('First line\nA considered answer');
-  await page.getByRole('button', { name: 'Save answer', exact: true }).click();
-  await expect(
-    page.getByText('Submitted drafts: ["First line\\nA considered answer"]', { exact: true }),
-  ).toBeVisible();
-  await expect(field).toHaveValue('First line\nA considered answer');
-  await page.getByRole('button', { name: 'Begin response' }).click();
-  await expect(field).toBeDisabled();
-  await expect(page.getByRole('button', { name: 'Saving answer…', exact: true })).toBeDisabled();
-  await expect(page.getByRole('button', { name: 'Stop', exact: true })).toHaveCount(0);
-  await field.evaluate((node) => node.closest('form')?.requestSubmit());
-  await expect(
-    page.getByText('Submitted drafts: ["First line\\nA considered answer"]', { exact: true }),
-  ).toBeVisible();
+  for (const layout of ['longform', 'compact']) {
+    await page.goto(
+      `/ui/kit/tests/browser.html?composer&${layout === 'longform' ? 'longform' : 'explicit'}`,
+    );
+    const field = page.getByRole('textbox', { name: 'Fixture answer', exact: true });
+    await field.fill('First line');
+    expect((await field.boundingBox())!.height).toBe(layout === 'longform' ? 112 : 44);
+    await field.press('End');
+    await field.press('Enter');
+    await expect(field).toHaveValue('First line\n');
+    await expect(page.getByText('Submitted drafts: []', { exact: true })).toBeVisible();
+    await field.fill('First line\nA considered answer');
+    await page.getByRole('button', { name: 'Save answer', exact: true }).click();
+    await expect(
+      page.getByText('Submitted drafts: ["First line\\nA considered answer"]', { exact: true }),
+    ).toBeVisible();
+    await expect(field).toHaveValue('First line\nA considered answer');
+    await page.getByRole('button', { name: 'Begin response' }).click();
+    await expect(field).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Saving answer…', exact: true })).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Stop', exact: true })).toHaveCount(0);
+    await field.evaluate((node) => node.closest('form')?.requestSubmit());
+    await expect(
+      page.getByText('Submitted drafts: ["First line\\nA considered answer"]', { exact: true }),
+    ).toBeVisible();
+  }
 });
 
 test('the controlled TextBox reports edits and each Enter or Send once without clearing its owner’s draft', {

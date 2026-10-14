@@ -8,12 +8,13 @@ import { InputGroup, InputGroupAddon, InputGroupTextarea } from './parts/input-g
 import { Stack, Text } from './parts/layout.tsx';
 import { Surface } from './primitives.tsx';
 
-/** Compact Enter-to-submit or longform explicit submission, with the same controlled draft. */
+/** Controlled text entry with shared compact/longform presentation and submission mechanics. */
 export function TextBox({
   draft,
   onDraftChange,
   label,
   layout = 'compact',
+  submitOnEnter = layout === 'compact',
   description,
   error,
   placeholder,
@@ -33,6 +34,8 @@ export function TextBox({
   onDraftChange: (text: string) => void;
   label: string;
   layout?: 'compact' | 'longform';
+  /** Defaults to compact Enter-to-submit; explicit-save tasks keep Enter as editing. */
+  submitOnEnter?: boolean;
   description?: string;
   error?: string;
   placeholder?: string;
@@ -92,7 +95,7 @@ export function TextBox({
         onKeyDown={(event) => {
           // Safari reports Enter confirming composed text with keyCode 229.
           if (
-            layout === 'compact' &&
+            submitOnEnter &&
             eligible &&
             event.key === 'Enter' &&
             !event.shiftKey &&
@@ -119,7 +122,7 @@ export function TextBox({
           ) : onSubmit ? (
             layout === 'compact' && !busy ? (
               <SendButton
-                focused={voice ? true : focused}
+                focused={submitOnEnter && (voice ? true : focused)}
                 disabled={!eligible}
                 label={submitLabel}
                 aria-describedby={describedBy}

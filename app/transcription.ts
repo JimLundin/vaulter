@@ -1,12 +1,12 @@
-// Transcription owns recording sessions and valid output; Chat owns draft association and views present state.
+// Shared recording ownership; each workflow associates valid output with its own draft.
 import { useEffect, useLayoutEffect, useState, useSyncExternalStore } from 'react';
 
-import type { TranscriptionProvider, TranscriptionConnection } from '../../agent/transcription.ts';
+import type { TranscriptionProvider, TranscriptionConnection } from './agent/transcription.ts';
 export type {
   TranscriptionProvider,
   TranscriptionConnection,
   TranscriptionEvents,
-} from '../../agent/transcription.ts';
+} from './agent/transcription.ts';
 export interface TranscriptionState {
   phase: 'idle' | 'connecting' | 'listening' | 'finishing' | 'ready' | 'error';
   text: string;
@@ -18,10 +18,10 @@ export interface TranscriptionState {
 
 const message = (error: unknown) =>
   error instanceof DOMException && error.name === 'NotAllowedError'
-    ? 'Microphone access was denied. You can allow it in your browser or type a message.'
+    ? 'Microphone access was denied. You can allow it in your browser or type instead.'
     : error instanceof Error
       ? error.message
-      : 'The microphone could not connect. Try again or type a message.';
+      : 'The microphone could not connect. Try again or type instead.';
 
 export function createTranscription(initial: TranscriptionProvider | null) {
   let provider = initial;
@@ -139,8 +139,7 @@ export function createTranscription(initial: TranscriptionProvider | null) {
       release();
       set({
         phase: 'error',
-        error:
-          'Recording stopped. Your text is kept in the message field; check it before sending.',
+        error: 'Recording stopped. Your text is kept in the text box; review it before submitting.',
       });
     },
     dispose() {
@@ -152,8 +151,21 @@ export function createTranscription(initial: TranscriptionProvider | null) {
   };
 }
 export type Transcription = ReturnType<typeof createTranscription>;
-export const useTranscript = (voice: Transcription) =>
-  useSyncExternalStore(voice.subscribe, voice.snapshot);
+const emptyTranscript: TranscriptionState = {
+  phase: 'idle',
+  text: '',
+  error: '',
+  session: null,
+  revision: 0,
+};
+const emptySnapshot = () => emptyTranscript;
+const emptySubscription = () => () => {};
+export const useTranscript = (voice?: Transcription) =>
+  useSyncExternalStore(
+    voice?.subscribe ?? emptySubscription,
+    voice?.snapshot ?? emptySnapshot,
+    voice?.snapshot ?? emptySnapshot,
+  );
 export function useTranscription(provider: TranscriptionProvider | null, session?: object) {
   const [lifetime, setLifetime] = useState(() => ({
     session,

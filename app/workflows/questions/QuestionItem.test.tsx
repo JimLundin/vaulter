@@ -5,6 +5,11 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, expect, test, vi } from 'vitest';
 import { QuestionItem } from './QuestionItem.tsx';
 import type { Question } from './reading.ts';
+import {
+  createTranscription,
+  type Transcription,
+  type TranscriptionEvents,
+} from '../../transcription.ts';
 
 const question: Question = {
   id: 'question',
@@ -28,13 +33,19 @@ function mount(
   onAnswer: (question: Question, text: string) => Promise<void>,
   disabledReason?: string,
   record = question,
+  transcription?: Transcription,
 ) {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
   const root = createRoot(document.body);
   roots.push(root);
   act(() =>
     root.render(
-      <QuestionItem question={record} onAnswer={onAnswer} disabledReason={disabledReason} />,
+      <QuestionItem
+        question={record}
+        onAnswer={onAnswer}
+        disabledReason={disabledReason}
+        transcription={transcription}
+      />,
     ),
   );
   return root;
@@ -42,7 +53,7 @@ function mount(
 
 function button(label: string): HTMLButtonElement {
   const match = [...document.querySelectorAll('button')].find(
-    (entry) => entry.textContent === label,
+    (entry) => entry.getAttribute('aria-label') === label || entry.textContent === label,
   );
   if (!match) throw new Error(`Missing ${label} button`);
   return match;
@@ -56,6 +67,114 @@ function writeAnswer(text: string) {
   setter.call(textarea, text);
   textarea.dispatchEvent(new Event('input', { bubbles: true }));
 }
+
+test('dictation corrects the answer draft and waits for an explicit Save', async () => {
+  let events!: TranscriptionEvents;
+  let finish!: (text: string) => void;
+  const final = new Promise<string>((resolve) => {
+    finish = resolve;
+  });
+  const voice = createTranscription(async (next) => {
+    events = next;
+    return { close() {}, finish: () => final };
+  });
+  const onAnswer = vi.fn(async () => undefined);
+  mount(onAnswer, undefined, question, voice);
+  await act(async () => writeAnswer('Keep the bench clear.'));
+  await act(async () => button('Start voice interaction').click());
+  await act(async () => events.text('Leave space'));
+  expect(document.querySelector('textarea')?.value).toBe('Keep the bench clear. Leave space');
+  expect(document.querySelector('textarea')?.readOnly).toBe(true);
+  await act(async () => button('Finish recording').click());
+  await act(async () => {
+    document
+      .querySelector('form')
+      ?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+  });
+  expect(onAnswer).not.toHaveBeenCalled();
+  await act(async () => finish('Leave room for the hand plane.'));
+  expect(document.querySelector('textarea')?.value).toBe(
+    'Keep the bench clear. Leave room for the hand plane.',
+  );
+  expect(document.querySelector('textarea')?.readOnly).toBe(false);
+  expect(onAnswer).not.toHaveBeenCalled();
+  await act(async () => document.querySelector('textarea')?.focus());
+  await act(async () => button('Save answer').click());
+  expect(onAnswer).toHaveBeenCalledExactlyOnceWith(
+    question,
+    'Keep the bench clear. Leave room for the hand plane.',
+  );
+  voice.dispose();
+});
+
+test('changing the question during finalization keeps available words and rejects the late transcript', async () => {
+  let events!: TranscriptionEvents;
+  let signal!: AbortSignal;
+  let finish!: (text: string) => void;
+  const final = new Promise<string>((resolve) => {
+    finish = resolve;
+  });
+  const voice = createTranscription(async (next, abort) => {
+    events = next;
+    signal = abort;
+    return { close() {}, finish: () => final };
+  });
+  const onAnswer = vi.fn(async () => undefined);
+  const root = mount(onAnswer, undefined, question, voice);
+  await act(async () => button('Start voice interaction').click());
+  await act(async () => events.text('Keep the available words.'));
+  await act(async () => button('Finish recording').click());
+  const changed = { ...question, key: { ...question.key, transaction: 'reworded' } };
+  await act(async () =>
+    root.render(<QuestionItem question={changed} onAnswer={onAnswer} transcription={voice} />),
+  );
+  expect(signal.aborted).toBe(true);
+  await act(async () => finish('Late corrected words for the old question.'));
+  expect(document.querySelector('textarea')?.value).toBe('Keep the available words.');
+  expect(document.querySelector('[role="alert"]')?.textContent).toContain('Question has changed');
+  expect(onAnswer).not.toHaveBeenCalled();
+  voice.dispose();
+});
+
+test('an unrelated Question card cannot adopt or cancel another task’s recording', async () => {
+  let events!: TranscriptionEvents;
+  const voice = createTranscription(async (next) => {
+    events = next;
+    return { close() {}, finish: async () => 'Another task’s words.' };
+  });
+  await voice.start();
+  const onAnswer = vi.fn(async () => undefined);
+  const root = mount(onAnswer, undefined, question, voice);
+  expect(button('Start voice interaction').disabled).toBe(true);
+  await act(async () => events.text('Another task’s words.'));
+  expect(document.querySelector('textarea')?.value).toBe('');
+  await act(async () => root.render(null));
+  expect(voice.snapshot().phase).toBe('listening');
+  voice.dispose();
+});
+
+test('leaving an answer releases its microphone and a later card receives none of its text', async () => {
+  let events!: TranscriptionEvents;
+  let signal!: AbortSignal;
+  const voice = createTranscription(async (next, abort) => {
+    events = next;
+    signal = abort;
+    return { close() {}, finish: async () => 'Late words.' };
+  });
+  const onAnswer = vi.fn(async () => undefined);
+  const root = mount(onAnswer, undefined, question, voice);
+  await act(async () => button('Start voice interaction').click());
+  await act(async () => events.text('Available words.'));
+  await act(async () => root.render(null));
+  expect(signal.aborted).toBe(true);
+  await act(async () =>
+    root.render(<QuestionItem question={question} onAnswer={onAnswer} transcription={voice} />),
+  );
+  await act(async () => events.text('Late words.'));
+  expect(document.querySelector('textarea')?.value).toBe('');
+  expect(button('Start voice interaction').disabled).toBe(false);
+  voice.dispose();
+});
 
 test('the same projected question shows its lifecycle without copying or interpreting foreign records', () => {
   const open = renderToStaticMarkup(<QuestionItem question={question} />);
@@ -145,7 +264,7 @@ test('answer failures preserve the draft, pending saves reject duplicate submits
     .mockRejectedValueOnce(new Error('Save unavailable'))
     .mockImplementationOnce(() => waiting);
   mount(onAnswer);
-  expect(document.querySelector('label')?.textContent).toBe('Your answer');
+  expect(document.querySelector('textarea')?.getAttribute('aria-label')).toBe('Your answer');
   expect(button('Save answer').disabled).toBe(true);
   await act(async () => writeAnswer('  Beside the garden wall.  '));
   await act(async () => button('Save answer').click());
@@ -219,6 +338,11 @@ test('an answer draft blocks stale wording until the person reviews the current 
 
 test('suggestions start editable drafts, keep each choice’s text and require an explicit save', async () => {
   const onAnswer = vi.fn(async () => undefined);
+  let events!: TranscriptionEvents;
+  const voice = createTranscription(async (next) => {
+    events = next;
+    return { close() {}, finish: async () => 'with room for shelves.' };
+  });
   const record: Question = {
     ...question,
     data: {
@@ -237,7 +361,7 @@ test('suggestions start editable drafts, keep each choice’s text and require a
       ],
     },
   };
-  mount(onAnswer, undefined, record);
+  mount(onAnswer, undefined, record, voice);
   const choice = (title: string) =>
     [...document.querySelectorAll('button')].find((item) => item.textContent?.startsWith(title))!;
   expect(document.querySelector('textarea')?.value).toBe('');
@@ -245,7 +369,12 @@ test('suggestions start editable drafts, keep each choice’s text and require a
   await act(async () => choice('Garden wall').click());
   expect(document.activeElement).toBe(document.querySelector('textarea'));
   expect(document.querySelector('textarea')?.value).toBe('Use the garden wall.');
-  await act(async () => writeAnswer('Garden wall, with room for shelves.'));
+  await act(async () => writeAnswer('Garden wall,'));
+  await act(async () => document.querySelector('textarea')?.blur());
+  await act(async () => button('Start voice interaction').click());
+  await act(async () => events.text('with room'));
+  expect(choice('North wall').disabled).toBe(true);
+  await act(async () => button('Finish recording').click());
   await act(async () => choice('North wall').click());
   expect(document.querySelector('textarea')?.value).toBe('Use the north wall.');
   await act(async () => choice('Write my own answer').click());
@@ -257,4 +386,5 @@ test('suggestions start editable drafts, keep each choice’s text and require a
   expect(onAnswer).not.toHaveBeenCalled();
   await act(async () => button('Save answer').click());
   expect(onAnswer).toHaveBeenCalledExactlyOnceWith(record, 'Keep the bench mobile.');
+  voice.dispose();
 });

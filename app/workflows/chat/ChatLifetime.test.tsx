@@ -13,7 +13,7 @@ import { create, request, seed } from '../../vault/nodes/fixtures.test-support.t
 import type { NodeStore } from '../../vault/nodes/store.ts';
 import { Text } from '../../ui/kit/index.ts';
 import { createNodeConversation } from './node-conversation.ts';
-import { createTranscription, useTranscription } from './transcription.ts';
+import { createTranscription, useTranscription } from '../../transcription.ts';
 import { Chat } from './Chat.tsx';
 import { ChatIndicator } from './index.tsx';
 import { useNodeConversation, useNodeChat } from './use-node-conversation.ts';
@@ -541,9 +541,9 @@ test('StrictMode owns fresh Chat and recording lifetimes and replacing the Vault
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
   const nodes = memoryNodeBackend();
   await seed(nodes);
-  let transcript!: import('./transcription.ts').TranscriptionEvents;
+  let transcript!: import('../../transcription.ts').TranscriptionEvents;
   let recordingClosed = false;
-  const provider: import('./transcription.ts').TranscriptionProvider = async (events) => {
+  const provider: import('../../transcription.ts').TranscriptionProvider = async (events) => {
     transcript = events;
     return {
       close: () => {

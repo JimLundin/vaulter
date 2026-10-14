@@ -3,7 +3,7 @@ import { expect, test, vi } from 'vitest';
 import { memoryNodeBackend } from '../../vault/nodes/memory.ts';
 import { create, request, seed } from '../../vault/nodes/fixtures.test-support.ts';
 import { createNodeConversation } from './node-conversation.ts';
-import { createTranscription, type TranscriptionEvents } from './transcription.ts';
+import { createTranscription, type TranscriptionEvents } from '../../transcription.ts';
 
 const controller = (transcription: ReturnType<typeof createTranscription>) =>
   createNodeConversation({

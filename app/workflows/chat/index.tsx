@@ -11,12 +11,6 @@ export {
 } from './use-node-conversation.ts';
 export { openAIModel } from './model.ts';
 export { openAITranscription } from './openai-transcription.ts';
-export {
-  useTranscription,
-  useTranscript,
-  type Transcription,
-  type TranscriptionProvider,
-} from './transcription.ts';
 export { ChatSettings } from './settings.tsx';
 export type { Prompt } from './Chat.tsx';
 const Chat = lazy(() => import('./Chat.tsx').then((module) => ({ default: module.Chat })));

@@ -1,5 +1,6 @@
 // The product's explicit assembly. Only this file imports optional workflows.
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useTranscription, type TranscriptionProvider } from './transcription.ts';
 import type { LanguageModel } from 'ai';
 import {
   useVaultSession,
@@ -55,8 +56,6 @@ import {
   ChatPage,
   ChatPanel,
   ChatSettings,
-  useTranscription,
-  type TranscriptionProvider,
   useConversation,
   useChat,
   type Prompt,
@@ -393,6 +392,7 @@ export function OpenProduct({
       answers,
       onAnswer: answers.answer,
       disabledReason: writeAdmission,
+      transcription: voice,
     });
   const layout = useLayout();
   const mobile = layout === 'compact';
@@ -771,6 +771,7 @@ export function OpenProduct({
             answers={answers}
             onAnswer={answers.answer}
             disabledReason={answerAvailability}
+            transcription={voice}
           />
         ) : onWiki ? (
           <Wiki

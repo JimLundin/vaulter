@@ -233,7 +233,7 @@ for controlled free-text drafting and editing.
 | Consumer | Shared entry | Owner responsibility |
 |---|---|---|
 | Chat page and supporting pane | Compact TextBox | Draft lifetime, submission/review, voice capture and Stop |
-| Questions collection, details and embedded Wiki answers | Longform TextBox with Save answer | Suggestions, per-choice drafts, stale wording, acceptance and save/retry |
+| Questions collection, details and embedded Wiki answers | Compact TextBox with voice and explicit Save answer | Suggestions, per-choice drafts, dictation association, stale wording, acceptance and save/retry |
 | ModuleSettings: Chat Instructions and Agent Stop sequences | Longform TextBox without submission | Immediate edits, parsing, device preferences, invalid drafts and reset |
 | Text box, Feed & composer and Agent panel catalogue examples | The same public TextBox | Independent sample drafts and scripted acceptance |
 | Page/global search, credentials, passwords, numeric settings and single-value identifiers | Existing specialized controls | Search/navigation, secure/native input semantics and typed settings |

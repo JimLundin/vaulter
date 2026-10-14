@@ -176,12 +176,15 @@ test('Product saves answers from Wiki and Questions and filters the retained sha
     );
   }
   const button = (name: string, scope: ParentNode = document) => {
-    const target = [...scope.querySelectorAll('button')].find((item) => item.textContent === name);
+    const target = [...scope.querySelectorAll('button')].find(
+      (item) => item.getAttribute('aria-label') === name || item.textContent === name,
+    );
     expect(target).toBeDefined();
     return target!;
   };
   const input = async (element: HTMLInputElement | HTMLTextAreaElement, value: string) => {
     await act(() => {
+      element.focus();
       const prototype =
         element instanceof HTMLTextAreaElement
           ? HTMLTextAreaElement.prototype
@@ -338,7 +341,8 @@ async function answerLifetimeFixture(
   await act(async () => root.render(<Surface />));
   const button = (label: string, scope: ParentNode = document) => {
     const element = [...scope.querySelectorAll('button')].find(
-      (candidate) => candidate.textContent === label,
+      (candidate) =>
+        candidate.getAttribute('aria-label') === label || candidate.textContent === label,
     );
     if (!element) throw new Error(`Missing button ${label}`);
     return element;
@@ -346,6 +350,7 @@ async function answerLifetimeFixture(
   const draft = async (text: string) => {
     const element = document.querySelector('textarea')!;
     await act(() => {
+      element.focus();
       Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(
         element,
         text,

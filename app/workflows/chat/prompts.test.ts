@@ -5,7 +5,7 @@ import { memoryNodeBackend } from '../../vault/nodes/memory.ts';
 import { create, request, seed } from '../../vault/nodes/fixtures.test-support.ts';
 import type { NodeStore } from '../../vault/nodes/store.ts';
 import { createNodeConversation, type NodeConversationOptions } from './node-conversation.ts';
-import { createTranscription, type TranscriptionEvents } from './transcription.ts';
+import { createTranscription, type TranscriptionEvents } from '../../transcription.ts';
 
 async function fixture(overrides: Partial<NodeConversationOptions> = {}) {
   const nodes = memoryNodeBackend();

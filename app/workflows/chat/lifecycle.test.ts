@@ -6,8 +6,8 @@ import { expect, test, vi } from 'vitest';
 import { memoryNodeBackend } from '../../vault/nodes/memory.ts';
 import { seed } from '../../vault/nodes/fixtures.test-support.ts';
 import { createNodeConversation } from './node-conversation.ts';
-import { createTranscription } from './transcription.ts';
-import type { TranscriptionEvents } from './transcription.ts';
+import { createTranscription } from '../../transcription.ts';
+import type { TranscriptionEvents } from '../../transcription.ts';
 
 async function fixture() {
   const nodes = memoryNodeBackend();
