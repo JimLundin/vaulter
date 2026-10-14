@@ -6,7 +6,13 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { OpenProduct } from '../product.tsx';
 import { later } from '../ui/later.ts';
-import { startTheme, Text, DesignPreview } from '../ui/kit/index.ts';
+import {
+  startTheme,
+  Text,
+  DesignPreview,
+  DesignComparison,
+  type CompactNavigationDesign,
+} from '../ui/kit/index.ts';
 import { useWriter, applyOverlay } from '../vault/changes/writer.ts';
 import { liveVault } from '../vault/index.ts';
 import { memoryBackend } from '../vault/storage/memory.ts';
@@ -175,8 +181,9 @@ function Preview({ initialHead, nodes }: { initialHead: Head; nodes: NodeStore }
       );
   }, [vault]);
   const files = applyOverlay(head.files, writer.overlay);
-  const product = (
+  const product = (compactNavigation?: CompactNavigationDesign) => (
     <OpenProduct
+      compactNavigation={compactNavigation}
       session={{
         vault,
         files,
@@ -207,9 +214,9 @@ function Preview({ initialHead, nodes }: { initialHead: Head; nodes: NodeStore }
       }}
     />
   );
-  return (
+  const frame = (content: React.ReactNode, controls?: React.ReactNode) => (
     <DesignPreview
-      label={`${agent ? 'Live agent preview' : 'Design preview'} · ${(import.meta.env.VITE_PREVIEW_COMMIT || 'local').slice(0, 7)}`}
+      label={`${query.get('navigation') === 'prototype' ? 'Mobile navigation prototype' : agent ? 'Live agent preview' : 'Design preview'} · ${(import.meta.env.VITE_PREVIEW_COMMIT || 'local').slice(0, 7)}`}
       chat={agent ? 'Live agent' : 'Scripted chat'}
       onReset={() => {
         sessionStorage.removeItem(previewJournalKey);
@@ -217,9 +224,29 @@ function Preview({ initialHead, nodes }: { initialHead: Head; nodes: NodeStore }
         location.reload();
       }}
       kitHref={import.meta.env.DEV ? '/ui/kit/' : './kit/'}
+      variantControls={controls}
     >
-      {product}
+      {content}
     </DesignPreview>
+  );
+  if (query.get('navigation') !== 'prototype') return frame(product());
+  // Three mobile navigation prototypes in the actual Product. The neutral preview stays current.
+  return (
+    <DesignComparison
+      defaultValue={query.get('variant') ?? 'slim'}
+      onValueChange={(value) => {
+        const url = new URL(location.href);
+        url.searchParams.set('variant', value);
+        history.replaceState(history.state, '', url);
+      }}
+      alternatives={[
+        { id: 'current', label: 'Current bar', content: product() },
+        { id: 'slim', label: 'Slim tabs', content: product('slim') },
+        { id: 'dock', label: 'Floating dock', content: product('dock') },
+        { id: 'header', label: 'Header menu', content: product('header') },
+      ]}
+      preview={(controls, content) => frame(content, controls)}
+    />
   );
 }
 

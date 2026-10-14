@@ -17,6 +17,7 @@
     "format": "biome check --write .",
     "kit": "vite app/ui/kit",
     "design": "vite --mode design --open /preview/",
+    "design:mobile-bar": "vite --mode design --open '/preview/?navigation=prototype&variant=slim'",
     "design:agent": "vite --mode design --open '/preview/?agent=live'",
     "build:design": "vite build --mode design && node tools/prepare-design.ts && vite build app/ui/kit --outDir ../../../dist-preview/kit --emptyOutDir",
     "test:ui": "playwright test",

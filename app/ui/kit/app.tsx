@@ -385,14 +385,29 @@ export function PageHeader({
 }
 
 /** Keeps routed workflow state mounted when the viewport changes. */
-export function WorkspaceFrame({ bar, children }: { bar: ReactNode; children: ReactNode }) {
+export function WorkspaceFrame({
+  bar,
+  header,
+  compactDesign,
+  editing,
+  children,
+}: {
+  bar: ReactNode;
+  header?: ReactNode;
+  compactDesign?: 'slim' | 'dock' | 'header';
+  editing?: boolean;
+  children: ReactNode;
+}) {
   const mobile = useLayout() === 'compact';
   useViewport();
   return (
     <div
       data-layout={mobile ? 'mobile-workspace' : 'desktop-workspace'}
+      data-navigation-prototype={mobile ? compactDesign : undefined}
+      data-editing={mobile && compactDesign ? editing : undefined}
       className="flex h-[var(--viewport-height,100dvh)] min-w-0 flex-1 flex-col bg-background pt-[env(safe-area-inset-top)] md:pt-0"
     >
+      {mobile && header}
       <main data-region="" className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto">
         {children}
       </main>

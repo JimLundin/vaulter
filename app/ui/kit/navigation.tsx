@@ -13,6 +13,7 @@ import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import { Icon, type IconName } from './icons.tsx';
 import { useLayout } from './hooks/use-layout.ts';
+import { usePresentationPolicy } from './presentation-policy.tsx';
 import { Button } from './parts/button.tsx';
 import {
   Brand,
@@ -54,12 +55,105 @@ export interface NavigationAction {
   expanded?: boolean;
 }
 
+/** Throwaway mobile navigation options, retained on the prototype branch for design review. */
+export type CompactNavigationDesign = 'slim' | 'dock' | 'header';
+
+function PrototypeNavigationBar({
+  design,
+  destinations,
+  menu,
+  onMenu,
+  onSearch,
+  primary,
+  editing,
+  onDone,
+}: {
+  design: CompactNavigationDesign;
+  destinations: NavigationDestination[];
+  menu: boolean;
+  onMenu: () => void;
+  onSearch: () => void;
+  primary?: ReactNode;
+  editing?: boolean;
+  onDone?: () => void;
+}) {
+  const current = destinations.find((entry) => entry.current);
+  const menuButton = (
+    <button
+      type="button"
+      aria-label="Menu"
+      aria-expanded={menu}
+      title={current ? `Navigate from ${current.label}` : 'Navigate'}
+      className="kit-navigation-prototype-button"
+      onClick={onMenu}
+    >
+      <Icon name="list" />
+      {design === 'slim' && <span>More</span>}
+    </button>
+  );
+  const searchButton = (
+    <button
+      type="button"
+      aria-label="Search"
+      data-dock-secondary=""
+      className="kit-navigation-prototype-button"
+      onClick={onSearch}
+    >
+      <Icon name="search" />
+    </button>
+  );
+  if (design !== 'header' && editing)
+    return (
+      <nav aria-label="Editing controls" className="kit-navigation-prototype-header">
+        <button
+          type="button"
+          aria-label="Done editing"
+          className="kit-navigation-prototype-button"
+          onClick={onDone}
+        >
+          <Icon name="check" />
+          <span>Done</span>
+        </button>
+      </nav>
+    );
+  if (design === 'header')
+    return (
+      <nav aria-label="Page navigation" className="kit-navigation-prototype-header">
+        {menuButton}
+        {searchButton}
+      </nav>
+    );
+  return (
+    <footer data-navigation-bar={design} className="kit-navigation-prototype-bar">
+      <nav aria-label="Page navigation" className="kit-navigation-prototype-items">
+        {design === 'slim' &&
+          destinations.slice(0, 3).map((entry) => (
+            <a
+              key={entry.href}
+              href={entry.href}
+              aria-label={entry.label}
+              aria-current={entry.current ? 'page' : undefined}
+              className="kit-navigation-prototype-button"
+            >
+              <Icon name={entry.icon} />
+              <span>{entry.label}</span>
+            </a>
+          ))}
+        {menuButton}
+        {design === 'dock' && searchButton}
+        {design === 'dock' && primary && <div data-dock-secondary="">{primary}</div>}
+      </nav>
+    </footer>
+  );
+}
+
 export function NavigationSuite({
   status,
   search,
   destinations,
   actions,
   primary,
+  compactDesign,
   footer,
   aside,
   children,
@@ -73,6 +167,7 @@ export function NavigationSuite({
   /** Optional primary controls: at the sidebar's foot and floating above the phone bar. A product
    * can supply only the phone control when the desktop destination already covers the action. */
   primary?: { expanded?: ReactNode; compact?: ReactNode };
+  compactDesign?: CompactNavigationDesign;
   /** Account controls under everything else (sign out). */
   footer?: ReactNode;
   /** A panel beside the screen (desktop) or over it (phone). */
@@ -80,7 +175,38 @@ export function NavigationSuite({
   children: ReactNode;
 }) {
   const compact = useLayout() === 'compact';
+  const policy = usePresentationPolicy();
   const [menu, setMenu] = useState(false);
+  const [editing, setEditing] = useState(false);
+  useEffect(() => {
+    if (!compactDesign) return;
+    const document = policy.portal?.ownerDocument ?? globalThis.document;
+    let frame = 0;
+    const update = () => {
+      const active = document.activeElement;
+      setEditing(
+        active instanceof HTMLElement &&
+          policy.owns(active) &&
+          !active.matches(':disabled, [readonly]') &&
+          (active.matches(
+            'textarea, input:not([type]), input:is([type="text"], [type="search"], [type="email"], [type="url"], [type="tel"], [type="password"], [type="number"]), [role="textbox"], [role="searchbox"]',
+          ) ||
+            active.isContentEditable),
+      );
+    };
+    const changed = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(update);
+    };
+    update();
+    document.addEventListener('focusin', changed);
+    document.addEventListener('focusout', changed);
+    return () => {
+      cancelAnimationFrame(frame);
+      document.removeEventListener('focusin', changed);
+      document.removeEventListener('focusout', changed);
+    };
+  }, [compactDesign, policy]);
   useEffect(() => {
     if (!compact) setMenu(false);
   }, [compact]);
@@ -105,6 +231,35 @@ export function NavigationSuite({
           entries={menuEntries.map((entry) => ({ ...entry, active: entry.current }))}
           footer={
             <>
+              {!!compactDesign && (
+                <>
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      setMenu(false);
+                      search.onSelect();
+                    }}
+                  >
+                    <Icon name="search" />
+                    Search
+                  </Button>
+                  {actions.slice(0, 3).map((action) => (
+                    <Button
+                      key={action.label}
+                      variant="ghost"
+                      render={action.href ? <a href={action.href}>{action.label}</a> : undefined}
+                      onClick={() => {
+                        setMenu(false);
+                        if (!action.href) action.onSelect?.();
+                      }}
+                    >
+                      <Icon name={action.icon} />
+                      {action.label}
+                    </Button>
+                  ))}
+                  {primary?.compact}
+                </>
+              )}
               {actions
                 .slice(3)
                 .filter((action) => !action.href)
@@ -193,36 +348,68 @@ export function NavigationSuite({
         </Sidebar>
       )}
       <WorkspaceFrame
+        compactDesign={compactDesign}
+        editing={editing}
+        header={
+          !!compactDesign &&
+          (compactDesign === 'header' || editing) && (
+            <PrototypeNavigationBar
+              design={compactDesign}
+              destinations={destinations}
+              menu={menu}
+              onMenu={() => setMenu(true)}
+              onSearch={search.onSelect}
+              editing={editing}
+              onDone={() => {
+                const active = document.activeElement;
+                if (active instanceof HTMLElement && policy.owns(active)) active.blur();
+              }}
+            />
+          )
+        }
         bar={
-          <MobileBar
-            items={[
-              <MobileActionButton
-                key="menu"
-                icon="list"
-                label="Menu"
-                expanded={menu}
-                onClick={() => setMenu(true)}
-              />,
-              <MobileActionButton
-                key="search"
-                icon="search"
-                label="Search"
-                onClick={search.onSelect}
-              />,
-              ...barActions.map((action) => (
+          compactDesign ? (
+            compactDesign !== 'header' && (
+              <PrototypeNavigationBar
+                design={compactDesign}
+                destinations={destinations}
+                menu={menu}
+                onMenu={() => setMenu(true)}
+                onSearch={search.onSelect}
+                primary={primary?.compact}
+              />
+            )
+          ) : (
+            <MobileBar
+              items={[
                 <MobileActionButton
-                  key={action.label}
-                  icon={action.icon}
-                  label={action.label}
-                  current={action.current}
-                  expanded={action.expanded}
-                  href={action.href}
-                  onClick={action.href ? undefined : action.onSelect}
-                />
-              )),
-            ]}
-            floating={primary?.compact}
-          />
+                  key="menu"
+                  icon="list"
+                  label="Menu"
+                  expanded={menu}
+                  onClick={() => setMenu(true)}
+                />,
+                <MobileActionButton
+                  key="search"
+                  icon="search"
+                  label="Search"
+                  onClick={search.onSelect}
+                />,
+                ...barActions.map((action) => (
+                  <MobileActionButton
+                    key={action.label}
+                    icon={action.icon}
+                    label={action.label}
+                    current={action.current}
+                    expanded={action.expanded}
+                    href={action.href}
+                    onClick={action.href ? undefined : action.onSelect}
+                  />
+                )),
+              ]}
+              floating={primary?.compact}
+            />
+          )
         }
       >
         {children}

@@ -306,6 +306,7 @@ export {
   NavigationSuite,
   type NavigationAction,
   type NavigationDestination,
+  type CompactNavigationDesign,
 } from './navigation.tsx';
 export { Overlay } from './overlay.tsx';
 export { CommandOverlay } from './command-overlay.tsx';

@@ -267,11 +267,14 @@ export function Product({
 export function OpenProduct({
   session,
   model: suppliedModel,
+  compactNavigation,
   preview,
   identities = defaultIdentities,
 }: {
   session: SuppliedSession;
   model?: (name: string) => Promise<LanguageModel>;
+  /** Temporary design seam for the mobile bottom-bar comparison. */
+  compactNavigation?: import('./ui/kit/index.ts').CompactNavigationDesign;
   identities?: ApplicationIdentities;
   preview?: {
     provider?: string;
@@ -705,6 +708,7 @@ export function OpenProduct({
   return (
     <>
       <Frame
+        compactDesign={compactNavigation}
         navigation={navigation}
         status={<SessionStatus status={status} />}
         signOut={signOut && <SignOut onSignOut={signOut} />}

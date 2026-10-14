@@ -158,7 +158,7 @@ export const implementations = [
     mechanics: ['color', 'drawRoutes', 'addMarkers', 'frameAll', 'MapImpl'],
   },
   { source: 'map.tsx', mechanics: ['useImpl', 'MapView'] },
-  { source: 'navigation.tsx', mechanics: ['NavigationSuite'] },
+  { source: 'navigation.tsx', mechanics: ['NavigationSuite', 'PrototypeNavigationBar'] },
   { source: 'overlay.tsx', mechanics: ['AdaptiveDialog'] },
   {
     source: 'parts/alert.tsx',

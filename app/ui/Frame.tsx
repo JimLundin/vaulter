@@ -2,6 +2,7 @@
 // desktop and as a bottom bar, menu sheet and floating primary action on a phone.
 import type { ReactNode } from 'react';
 import { NavigationSuite, Toaster, TooltipProvider } from './kit/index.ts';
+import type { CompactNavigationDesign } from './kit/index.ts';
 import type { Navigation } from './command.ts';
 import { link, useRoute } from './routing.ts';
 
@@ -11,6 +12,7 @@ export function Frame({
   signOut,
   onSearch,
   primary,
+  compactDesign,
   panel,
   children,
 }: {
@@ -20,6 +22,7 @@ export function Frame({
   onSearch: () => void;
   /** Optional primary controls: a sidebar control and/or a floating phone control. */
   primary?: { expanded?: ReactNode; compact?: ReactNode };
+  compactDesign?: CompactNavigationDesign;
   panel?: ReactNode;
   children: ReactNode;
 }) {
@@ -48,6 +51,7 @@ export function Frame({
             expanded: entry.expanded,
           }))}
         primary={primary}
+        compactDesign={compactDesign}
         footer={signOut}
         aside={panel}
       >

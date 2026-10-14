@@ -70,6 +70,118 @@ body,
 .kit-specimen-content {
   height: 100%;
 }
+
+/* Throwaway bottom-bar comparison. Only the explicit preview experiment opts in. */
+[data-navigation-prototype] {
+  position: relative;
+}
+.kit-navigation-prototype-bar {
+  flex-shrink: 0;
+  border-top: 1px solid var(--border);
+  padding: 2px 8px max(2px, env(safe-area-inset-bottom));
+  background: var(--background);
+}
+.kit-navigation-prototype-items {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  gap: 4px;
+}
+.kit-navigation-prototype-button {
+  display: flex;
+  min-height: 44px;
+  min-width: 44px;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--muted-foreground);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+}
+.kit-navigation-prototype-button svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+.kit-navigation-prototype-button:hover,
+.kit-navigation-prototype-button[aria-expanded="true"] {
+  background: var(--muted);
+  color: var(--foreground);
+}
+.kit-navigation-prototype-button[aria-current="page"] {
+  background: var(--muted);
+  color: var(--foreground);
+}
+.kit-navigation-prototype-button:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+[data-navigation-bar="dock"] {
+  position: absolute;
+  bottom: max(12px, env(safe-area-inset-bottom));
+  left: 16px;
+  width: fit-content;
+  padding: 5px;
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  box-shadow: 0 4px 20px #00000012;
+  z-index: 20;
+}
+[data-navigation-bar="dock"] .kit-navigation-prototype-items {
+  justify-content: center;
+}
+[data-navigation-bar="dock"] .kit-navigation-prototype-button {
+  flex: none;
+}
+[data-dock-secondary] {
+  border-left: 1px solid var(--border);
+  border-radius: 0;
+}
+[data-navigation-prototype="dock"]:not(:has([data-conversation-input])) main {
+  padding-bottom: 76px;
+}
+[data-navigation-prototype="dock"] [data-conversation-input] {
+  width: calc(100% - 108px);
+  margin-left: 108px;
+}
+.kit-navigation-prototype-header {
+  position: absolute;
+  top: env(safe-area-inset-top);
+  left: 8px;
+  display: flex;
+  gap: 2px;
+  z-index: 20;
+}
+[data-navigation-prototype="header"] main header:first-of-type,
+[data-navigation-prototype][data-editing="true"] main header:first-of-type {
+  padding-left: 108px;
+}
+[data-navigation-prototype][data-editing="true"] > footer {
+  display: none;
+}
+[data-navigation-prototype][data-editing="true"] main {
+  padding-bottom: 0;
+}
+[data-navigation-prototype][data-editing="true"] [data-conversation-input] {
+  width: 100%;
+  margin-left: 0;
+}
+[data-navigation-prototype][data-editing="true"] [data-dock] {
+  padding-block: 8px;
+  padding-bottom: max(8px, env(safe-area-inset-bottom));
+  background: var(--background);
+}
+[data-navigation-prototype][data-editing="true"] [aria-label="Suggested prompts"] {
+  display: none;
+}
+
 /* biome-ignore lint/correctness/noUnknownFunction: Tailwind resolves the shared breakpoint token. */
 @container kit (width >= theme(--breakpoint-md)) {
   .kit-presentation {

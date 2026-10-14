@@ -88,7 +88,10 @@ export function ReadingColumn({
 /** Status grows above the trailing input; compact space supplies an edge-to-edge surface. */
 export function Dock({ children, status }: { children: ReactNode; status?: ReactNode }) {
   return (
-    <div className="flex shrink-0 flex-col gap-2 border-t bg-surface px-4 py-3 md:border-0 md:bg-transparent md:px-0">
+    <div
+      data-dock=""
+      className="flex shrink-0 flex-col gap-2 border-t bg-surface px-4 py-3 md:border-0 md:bg-transparent md:px-0"
+    >
       {status}
       {children}
     </div>
