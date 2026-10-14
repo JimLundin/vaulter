@@ -494,6 +494,7 @@ body,
 }
 .kit-corner-page-search > [data-slot="input-group"] {
   min-height: 52px;
+  background: var(--background);
   box-shadow:
     0 8px 28px #0000001c,
     0 2px 6px #0000000a;
