@@ -1,6 +1,5 @@
-// Throwaway app-level docks. Viewport bounds, thumb placement and global editing set geometry.
+// Throwaway app-level edge rails. Preferred thumb placement is independent of temporary clearance.
 import {
-  type CSSProperties,
   type KeyboardEvent,
   type PointerEvent,
   type ReactNode,
@@ -23,78 +22,146 @@ import {
   DropdownMenuTrigger,
 } from './parts/dropdown-menu.tsx';
 
-export type FreestandingDockDesign =
-  | 'free-rail'
-  | 'free-rail-single'
-  | 'free-cluster'
-  | 'free-orbit';
+export type FreestandingDockDesign = 'free-rail' | 'free-rail-single';
 
+type Position = { left: number; top: number };
+type Geometry = {
+  bounds: { left: number; top: number; width: number; height: number };
+  width: number;
+  height: number;
+  insets: { left: number; top: number; right: number; bottom: number };
+  inputs: { left: number; top: number; right: number; bottom: number }[];
+};
 const defaultPlacement = { edge: 'right' as 'left' | 'right', height: 0.16 };
+
+/** Choose the closest clear position along the edge, including while dragging. */
+function resolveDockPosition(position: Position, geometry: Geometry): Position {
+  const { bounds, width, height, insets, inputs } = geometry;
+  const minTop = insets.top;
+  const maxTop = Math.max(minTop, bounds.height - height - insets.bottom);
+  const left = Math.max(insets.left, Math.min(bounds.width - width - insets.right, position.left));
+  const top = Math.max(minTop, Math.min(maxTop, position.top));
+  const gap = 8;
+  const obstructions = inputs
+    .filter(
+      (rect) =>
+        left + width + gap > rect.left - bounds.left && left - gap < rect.right - bounds.left,
+    )
+    .map((rect) => ({
+      start: rect.top - bounds.top - height - gap,
+      end: rect.bottom - bounds.top + gap,
+    }));
+  const candidates = [
+    top,
+    minTop,
+    maxTop,
+    ...obstructions.flatMap(({ start, end }) => [start, end]),
+  ]
+    .filter((candidate) => candidate >= minTop && candidate <= maxTop)
+    .filter((candidate) =>
+      obstructions.every(({ start, end }) => candidate <= start || candidate >= end),
+    )
+    .sort((a, b) => Math.abs(a - top) - Math.abs(b - top) || a - b);
+  return { left, top: candidates[0] ?? minTop };
+}
 
 export function PrototypeAppDock({
   design,
   compact,
-  editing,
   status,
   destinations,
   actions,
   onSearch,
   onNavigate,
-  primary,
   primaryAction,
   footer,
 }: {
   design: FreestandingDockDesign;
   compact: boolean;
-  editing: boolean;
   status: ReactNode;
   destinations: NavigationDestination[];
   actions: NavigationAction[];
   onSearch: () => void;
   onNavigate?: () => void;
-  primary?: ReactNode;
   primaryAction?: NavigationAction;
   footer?: ReactNode;
 }) {
   const policy = usePresentationPolicy();
   const dock = useRef<HTMLElement>(null);
-  const [bounds, setBounds] = useState({ left: 0, top: 0, width: 390, height: 844 });
+  const single = design === 'free-rail-single';
+  const [geometry, setGeometry] = useState<Geometry>({
+    bounds: { left: 0, top: 0, width: 390, height: 844 },
+    width: 60,
+    height: single ? 60 : 110,
+    insets: { left: 12, top: 12, right: 12, bottom: 12 },
+    inputs: [],
+  });
+  const { bounds, insets } = geometry;
   const [placement, setPlacement] = useState(defaultPlacement);
-  const [expanded, setExpanded] = useState(false);
   const [menu, setMenu] = useState<'navigation' | 'tools' | null>(null);
-  const [dragPosition, setDragPosition] = useState<{ left: number; top: number } | null>(null);
+  const [dragPosition, setDragPosition] = useState<Position | null>(null);
   const drag = useRef<{
     id: number;
     x: number;
     y: number;
-    left: number;
-    top: number;
+    origin: Position;
+    position: Position;
     moved: boolean;
   } | null>(null);
   const suppressClick = useRef(false);
-  const rail = design === 'free-rail' || design === 'free-rail-single';
-  const single = design === 'free-rail-single';
-  const bottomInset = editing ? 88 : 12;
-  const minimal = design === 'free-orbit';
-  const collapsed = minimal && !expanded;
 
   useLayoutEffect(() => {
+    const node = dock.current;
+    if (!(compact && node?.parentElement)) return;
+    const layer = node.parentElement;
     const measure = () => {
-      const next = policy.bounds();
-      setBounds({ left: next.left, top: next.top, width: next.width, height: next.height });
+      const rect = policy.bounds();
+      const style = getComputedStyle(layer);
+      const next: Geometry = {
+        bounds: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
+        width: node.offsetWidth,
+        height: node.offsetHeight,
+        insets: {
+          left: Number.parseFloat(style.paddingLeft),
+          top: Number.parseFloat(style.paddingTop),
+          right: Number.parseFloat(style.paddingRight),
+          bottom: Number.parseFloat(style.paddingBottom),
+        },
+        inputs: policy
+          .inputBounds()
+          .map(({ left, top, right, bottom }) => ({ left, top, right, bottom })),
+      };
+      setGeometry((current) => (JSON.stringify(current) === JSON.stringify(next) ? current : next));
     };
     measure();
-    return policy.watchBounds(measure);
-  }, [policy]);
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    const releaseInputs = policy.watchInputs(measure);
+    return () => {
+      observer.disconnect();
+      releaseInputs();
+    };
+  }, [compact, policy]);
 
+  const position = resolveDockPosition(
+    dragPosition ?? {
+      left: placement.edge === 'left' ? insets.left : bounds.width - geometry.width - insets.right,
+      top:
+        bounds.height - geometry.height - Math.max(insets.bottom, bounds.height * placement.height),
+    },
+    geometry,
+  );
   const finishDrag = (event: PointerEvent<HTMLElement>) => {
     const current = drag.current;
     if (!current || current.id !== event.pointerId) return;
     if (current.moved) {
-      const rect = event.currentTarget.getBoundingClientRect();
+      // Save the requested placement, rather than the temporary input-safe rendering.
       setPlacement({
-        edge: rect.left + rect.width / 2 < bounds.left + bounds.width / 2 ? 'left' : 'right',
-        height: Math.max(0, (bounds.top + bounds.height - rect.bottom) / bounds.height),
+        edge: current.position.left + geometry.width / 2 < bounds.width / 2 ? 'left' : 'right',
+        height: Math.max(
+          0,
+          (bounds.height - current.position.top - geometry.height) / bounds.height,
+        ),
       });
     }
     drag.current = null;
@@ -108,7 +175,7 @@ export function PrototypeAppDock({
       edge: current.edge === 'right' ? 'left' : 'right',
     }));
   const moveWithKeys = (event: KeyboardEvent<HTMLElement>) => {
-    if (rail && !event.altKey) return;
+    if (!event.altKey) return;
     if (event.key === 'Home') setPlacement(defaultPlacement);
     else if (event.key === 'End') setPlacement((current) => ({ ...current, height: 0 }));
     else if (event.key === 'ArrowLeft' || event.key === 'ArrowRight')
@@ -121,7 +188,7 @@ export function PrototypeAppDock({
         ...current,
         height: Math.max(
           0,
-          Math.min(0.6, current.height + (event.key === 'ArrowUp' ? 12 : -12) / bounds.height),
+          Math.min(1, current.height + (event.key === 'ArrowUp' ? 12 : -12) / bounds.height),
         ),
       }));
     else return;
@@ -136,24 +203,20 @@ export function PrototypeAppDock({
     >
       <Icon name={entry.icon} />
       <span className="kit-app-dock-item-label">{entry.label}</span>
-      {entry.current && <Icon name="check" />}
+      {!!entry.current && <Icon name="check" />}
     </DropdownMenuItem>
   ));
   const actionItems = (
     <>
-      {rail && (
-        <>
-          <DropdownMenuItem onClick={onSearch}>
-            <Icon name="search" />
-            Search
-          </DropdownMenuItem>
-          {primaryAction && (
-            <DropdownMenuItem onClick={primaryAction.onSelect} disabled={primaryAction.disabled}>
-              <Icon name={primaryAction.icon} />
-              {primaryAction.label}
-            </DropdownMenuItem>
-          )}
-        </>
+      <DropdownMenuItem onClick={onSearch}>
+        <Icon name="search" />
+        Search
+      </DropdownMenuItem>
+      {!!primaryAction && (
+        <DropdownMenuItem onClick={primaryAction.onSelect} disabled={primaryAction.disabled}>
+          <Icon name={primaryAction.icon} />
+          {primaryAction.label}
+        </DropdownMenuItem>
       )}
       {actions.map((action) => (
         <DropdownMenuItem
@@ -184,136 +247,6 @@ export function PrototypeAppDock({
       </DropdownMenuItem>
     </>
   );
-  const menuControl = (
-    <DropdownMenu
-      open={menu === 'navigation'}
-      onOpenChange={(open) =>
-        setMenu((current) => (open ? 'navigation' : current === 'navigation' ? null : current))
-      }
-      modal={false}
-    >
-      <DropdownMenuTrigger
-        aria-label={rail ? (single ? 'App menu' : 'Modules') : 'Menu'}
-        className="kit-app-dock-control"
-        data-app-dock-action="menu"
-        title={
-          rail
-            ? 'Drag to reposition. Alt + arrow keys move; Alt + End aligns to bottom.'
-            : 'Drag to reposition.'
-        }
-        onKeyDown={rail ? moveWithKeys : undefined}
-      >
-        <Icon name="list" />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent
-        anchor={dock}
-        side={placement.edge === 'right' ? 'left' : 'right'}
-        align="end"
-        sideOffset={12}
-        aria-label="App navigation"
-        className="kit-app-dock-menu"
-        style={{
-          width: Math.min(260, bounds.width - (design === 'free-cluster' ? 140 : 92)),
-          maxHeight: bounds.height - 24,
-        }}
-      >
-        {rail && (
-          <div className="kit-app-dock-menu-brand">
-            <Brand status={status} />
-          </div>
-        )}
-        <DropdownMenuGroup aria-label="Modules">
-          {rail && <DropdownMenuLabel>Modules</DropdownMenuLabel>}
-          {destinationItems}
-        </DropdownMenuGroup>
-        {(!rail || single) && (
-          <>
-            <DropdownMenuSeparator />
-            <DropdownMenuGroup aria-label="Tools">
-              {rail && <DropdownMenuLabel>Tools</DropdownMenuLabel>}
-              {actionItems}
-            </DropdownMenuGroup>
-            <DropdownMenuSeparator />
-            <DropdownMenuGroup aria-label="Dock position">
-              {rail && <DropdownMenuLabel>Dock position</DropdownMenuLabel>}
-              {placementItems}
-            </DropdownMenuGroup>
-            {footer}
-          </>
-        )}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-  const toolsControl = (
-    <DropdownMenu
-      open={menu === 'tools'}
-      onOpenChange={(open) =>
-        setMenu((current) => (open ? 'tools' : current === 'tools' ? null : current))
-      }
-      modal={false}
-    >
-      <DropdownMenuTrigger
-        aria-label="Tools"
-        className="kit-app-dock-control"
-        data-app-dock-action="tools"
-        title="Drag to reposition. Alt + arrow keys move; Alt + End aligns to bottom."
-        onKeyDown={moveWithKeys}
-      >
-        <Icon name="more" />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent
-        anchor={dock}
-        side={placement.edge === 'right' ? 'left' : 'right'}
-        align="end"
-        sideOffset={12}
-        aria-label="App tools"
-        className="kit-app-dock-menu"
-        style={{ width: Math.min(260, bounds.width - 92), maxHeight: bounds.height - 24 }}
-      >
-        <DropdownMenuGroup aria-label="Tools">
-          <DropdownMenuLabel>Tools</DropdownMenuLabel>
-          {actionItems}
-        </DropdownMenuGroup>
-        <DropdownMenuSeparator />
-        <DropdownMenuGroup aria-label="Dock position">
-          <DropdownMenuLabel>Dock position</DropdownMenuLabel>
-          {placementItems}
-        </DropdownMenuGroup>
-        {footer}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-  const searchControl = (
-    <button
-      type="button"
-      aria-label="Search"
-      data-app-dock-action="search"
-      className="kit-app-dock-control"
-      onClick={onSearch}
-    >
-      <Icon name="search" />
-    </button>
-  );
-  const primaryControl = primary && (
-    <div data-app-dock-action="primary" className="kit-app-dock-primary">
-      {primary}
-    </div>
-  );
-  const launcher = (
-    <button
-      type="button"
-      aria-label={expanded ? 'Close app dock' : 'Open app dock'}
-      aria-expanded={expanded}
-      className="kit-app-dock-control kit-app-dock-launcher"
-      title="Drag to reposition. Open for app controls."
-      onPointerDown={(event) => {
-        if (editing) event.preventDefault();
-      }}
-      onClick={() => setExpanded((current) => !current)}
-    >
-      <Icon name={expanded ? 'close' : 'more'} />
-    </button>
-  );
   if (!compact) return null;
   return createPortal(
     <div
@@ -331,20 +264,10 @@ export function PrototypeAppDock({
         ref={dock}
         aria-label="App dock"
         data-app-dock={design}
-        data-rail={rail ? '' : undefined}
         data-edge={placement.edge}
-        data-collapsed={collapsed ? '' : undefined}
-        data-expanded={expanded ? '' : undefined}
         data-dragging={dragPosition ? '' : undefined}
         className="kit-app-dock"
-        style={
-          {
-            '--app-dock-bottom': `${Math.max(bottomInset, bounds.height * placement.height)}px`,
-            ...(dragPosition
-              ? { left: dragPosition.left, top: dragPosition.top, right: 'auto', bottom: 'auto' }
-              : {}),
-          } as CSSProperties
-        }
+        style={position}
         onPointerDown={(event) => {
           if (
             event.button !== 0 ||
@@ -354,13 +277,12 @@ export function PrototypeAppDock({
           )
             return;
           suppressClick.current = false;
-          const rect = event.currentTarget.getBoundingClientRect();
           drag.current = {
             id: event.pointerId,
             x: event.clientX,
             y: event.clientY,
-            left: rect.left - bounds.left,
-            top: rect.top - bounds.top,
+            origin: position,
+            position,
             moved: false,
           };
         }}
@@ -374,25 +296,17 @@ export function PrototypeAppDock({
           suppressClick.current = true;
           setMenu(null);
           event.currentTarget.setPointerCapture(event.pointerId);
-          const orbit = design === 'free-orbit' && !collapsed;
-          setDragPosition({
+          current.position = {
             left: Math.max(
-              orbit && placement.edge === 'right' ? 88 : 12,
-              Math.min(
-                bounds.width -
-                  event.currentTarget.offsetWidth -
-                  (orbit && placement.edge === 'left' ? 88 : 12),
-                current.left + dx,
-              ),
+              insets.left,
+              Math.min(bounds.width - geometry.width - insets.right, current.origin.left + dx),
             ),
             top: Math.max(
-              orbit ? 108 : 12,
-              Math.min(
-                bounds.height - event.currentTarget.offsetHeight - bottomInset,
-                current.top + dy,
-              ),
+              insets.top,
+              Math.min(bounds.height - geometry.height - insets.bottom, current.origin.top + dy),
             ),
-          });
+          };
+          setDragPosition(current.position);
         }}
         onPointerUp={finishDrag}
         onPointerCancel={finishDrag}
@@ -406,42 +320,93 @@ export function PrototypeAppDock({
           event.stopPropagation();
         }}
       >
-        {rail ? (
-          <>
-            {menuControl}
-            {!single && toolsControl}
-          </>
-        ) : design === 'free-orbit' ? (
-          <>
-            <div className="kit-app-dock-orbit" hidden={collapsed}>
-              {menuControl}
-              {searchControl}
-              {primaryControl}
+        <DropdownMenu
+          open={menu === 'navigation'}
+          onOpenChange={(open) =>
+            setMenu((current) => (open ? 'navigation' : current === 'navigation' ? null : current))
+          }
+          modal={false}
+        >
+          <DropdownMenuTrigger
+            aria-label={single ? 'App menu' : 'Modules'}
+            className="kit-app-dock-control"
+            data-app-dock-action="menu"
+            title="Drag to reposition. Alt + arrow keys move; Alt + End aligns to bottom."
+            onKeyDown={moveWithKeys}
+          >
+            <Icon name="list" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            anchor={dock}
+            side={placement.edge === 'right' ? 'left' : 'right'}
+            align="end"
+            sideOffset={12}
+            aria-label="App navigation"
+            className="kit-app-dock-menu"
+            style={{ width: Math.min(260, bounds.width - 92), maxHeight: bounds.height - 24 }}
+          >
+            <div className="kit-app-dock-menu-brand">
+              <Brand status={status} />
             </div>
-            {launcher}
-          </>
-        ) : collapsed ? (
-          launcher
-        ) : (
-          <>
-            {menuControl}
-            {searchControl}
-            {primaryControl}
-            {minimal ? (
-              launcher
-            ) : (
-              <button
-                type="button"
-                aria-label="Move dock"
-                className="kit-app-dock-control kit-app-dock-grip"
-                title="Drag to reposition. Tap to switch edges. Arrow keys move; Home resets."
-                onClick={flipEdge}
-                onKeyDown={moveWithKeys}
-              >
-                <Icon name="grip" />
-              </button>
+            <DropdownMenuGroup aria-label="Modules">
+              <DropdownMenuLabel>Modules</DropdownMenuLabel>
+              {destinationItems}
+            </DropdownMenuGroup>
+            {single && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuGroup aria-label="Tools">
+                  <DropdownMenuLabel>Tools</DropdownMenuLabel>
+                  {actionItems}
+                </DropdownMenuGroup>
+                <DropdownMenuSeparator />
+                <DropdownMenuGroup aria-label="Dock position">
+                  <DropdownMenuLabel>Dock position</DropdownMenuLabel>
+                  {placementItems}
+                </DropdownMenuGroup>
+                {footer}
+              </>
             )}
-          </>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        {!single && (
+          <DropdownMenu
+            open={menu === 'tools'}
+            onOpenChange={(open) =>
+              setMenu((current) => (open ? 'tools' : current === 'tools' ? null : current))
+            }
+            modal={false}
+          >
+            <DropdownMenuTrigger
+              aria-label="Tools"
+              className="kit-app-dock-control"
+              data-app-dock-action="tools"
+              title="Drag to reposition. Alt + arrow keys move; Alt + End aligns to bottom."
+              onKeyDown={moveWithKeys}
+            >
+              <Icon name="more" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              anchor={dock}
+              side={placement.edge === 'right' ? 'left' : 'right'}
+              align="end"
+              sideOffset={12}
+              aria-label="App tools"
+              className="kit-app-dock-menu"
+              style={{ width: Math.min(260, bounds.width - 92), maxHeight: bounds.height - 24 }}
+            >
+              <DropdownMenuGroup aria-label="Tools">
+                <DropdownMenuLabel>Tools</DropdownMenuLabel>
+                {actionItems}
+              </DropdownMenuGroup>
+              <DropdownMenuSeparator />
+              <DropdownMenuGroup aria-label="Dock position">
+                <DropdownMenuLabel>Dock position</DropdownMenuLabel>
+                {placementItems}
+              </DropdownMenuGroup>
+              {footer}
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
       </nav>
     </div>,

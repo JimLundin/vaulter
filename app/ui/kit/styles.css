@@ -301,15 +301,17 @@ body,
   display: none;
 }
 
-/* Freestanding app docks: viewport-relative, never sized or positioned from workflow elements. */
+/* App-owned edge rails use viewport bounds and shared input clearance. */
 .kit-app-dock-layer {
+  padding-top: max(12px, env(safe-area-inset-top));
+  padding-right: max(12px, env(safe-area-inset-right));
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
+  padding-left: max(12px, env(safe-area-inset-left));
   pointer-events: none;
   z-index: 55;
 }
 .kit-app-dock {
   position: absolute;
-  right: max(12px, env(safe-area-inset-right));
-  bottom: min(var(--app-dock-bottom), calc(100% - 216px));
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -325,12 +327,7 @@ body,
   touch-action: none;
   user-select: none;
 }
-.kit-app-dock[data-edge="left"] {
-  right: auto;
-  left: max(12px, env(safe-area-inset-left));
-}
-.kit-app-dock-control,
-.kit-app-dock-primary > button {
+.kit-app-dock-control {
   display: flex;
   width: 46px;
   min-width: 46px;
@@ -344,84 +341,18 @@ body,
   color: var(--foreground);
   cursor: pointer;
 }
-.kit-app-dock-control svg,
-.kit-app-dock-primary svg {
+.kit-app-dock-control svg {
   width: 20px;
   height: 20px;
 }
-.kit-app-dock-primary > button,
-.kit-app-dock-launcher {
-  background: var(--primary);
-  color: var(--primary-foreground);
-}
 .kit-app-dock-control:hover,
-.kit-app-dock-control[aria-expanded="true"]:not(.kit-app-dock-launcher) {
+.kit-app-dock-control[aria-expanded="true"] {
   background: var(--muted);
   color: var(--foreground);
-}
-.kit-app-dock-grip {
-  color: var(--muted-foreground);
 }
 .kit-app-dock-control:focus-visible {
   outline: 2px solid var(--ring);
   outline-offset: 2px;
-}
-.kit-app-dock[data-collapsed] {
-  bottom: min(var(--app-dock-bottom), calc(100% - 72px));
-}
-.kit-app-dock[data-rail] {
-  bottom: min(max(var(--app-dock-bottom), env(safe-area-inset-bottom)), calc(100% - 122px));
-}
-.kit-app-dock[data-app-dock="free-rail-single"] {
-  bottom: min(max(var(--app-dock-bottom), env(safe-area-inset-bottom)), calc(100% - 72px));
-}
-.kit-app-dock[data-app-dock="free-cluster"] {
-  display: grid;
-  grid-template-columns: repeat(2, 46px);
-  width: 110px;
-  border-radius: 28px;
-  bottom: min(var(--app-dock-bottom), calc(100% - 122px));
-}
-.kit-app-dock[data-app-dock="free-orbit"] {
-  bottom: min(var(--app-dock-bottom), calc(100% - 168px));
-  border-radius: 50%;
-}
-.kit-app-dock-orbit {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-.kit-app-dock-orbit [data-app-dock-action] {
-  position: absolute;
-  display: flex;
-  width: 56px;
-  height: 56px;
-  padding: 4px;
-  border: 1px solid var(--border);
-  border-radius: 50%;
-  background: var(--background);
-  box-shadow: 0 8px 28px #0000001c;
-  pointer-events: auto;
-}
-.kit-app-dock-orbit [data-app-dock-action="menu"] {
-  right: 76px;
-  bottom: 0;
-}
-.kit-app-dock-orbit [data-app-dock-action="search"] {
-  right: 66px;
-  bottom: 66px;
-}
-.kit-app-dock-orbit [data-app-dock-action="primary"] {
-  right: 0;
-  bottom: 96px;
-}
-.kit-app-dock[data-edge="left"] .kit-app-dock-orbit [data-app-dock-action="menu"] {
-  right: auto;
-  left: 76px;
-}
-.kit-app-dock[data-edge="left"] .kit-app-dock-orbit [data-app-dock-action="search"] {
-  right: auto;
-  left: 66px;
 }
 .kit-app-dock-menu {
   width: 260px;

@@ -59,7 +59,7 @@ annotation transform may annotate semantic data, with no UI presentation permiss
 | `index.ts` | public components, icons and theme controls |
 | `catalogue.tsx`, `gallery.tsx` | live examples, component coverage, search and paired catalogue |
 | `presentation.tsx` | shared bounded PresentationPreview adapter and private production context |
-| `presentation-policy.tsx` | private owner of scope, modal choice, dismissal, focus history and popup bounds |
+| `presentation-policy.tsx` | private owner of scope, modal choice, dismissal, focus history, popup bounds and registered input clearance |
 | `preview.tsx` | floating `DesignPreview` controls, adaptive viewport and Mobile width toggle |
 | `parts/`, `hooks/` | shared layout/type primitives, shadcn controls and their hooks |
 | `primitives.tsx` | reusable surfaces, reading/dock geometry and following scroll container |

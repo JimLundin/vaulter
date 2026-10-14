@@ -196,10 +196,7 @@ export function NavigationSuite({
 }) {
   const compact = useLayout() === 'compact';
   const freestanding =
-    compactDesign === 'free-rail' ||
-    compactDesign === 'free-rail-single' ||
-    compactDesign === 'free-cluster' ||
-    compactDesign === 'free-orbit'
+    compactDesign === 'free-rail' || compactDesign === 'free-rail-single'
       ? compactDesign
       : undefined;
   const policy = usePresentationPolicy();
@@ -449,13 +446,11 @@ export function NavigationSuite({
         <PrototypeAppDock
           design={freestanding}
           compact={compact}
-          editing={editing}
           status={status}
           destinations={destinations}
           actions={actions}
           onSearch={search.onSelect}
           onNavigate={onNavigate}
-          primary={primary?.compact}
           primaryAction={primary?.menu}
           footer={footer}
         />

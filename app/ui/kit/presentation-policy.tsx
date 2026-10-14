@@ -1,6 +1,7 @@
 // Private environment policy. Adapters retain the library's focus, collision and gesture mechanics.
 import {
   createContext,
+  type RefObject,
   type ReactNode,
   useContext,
   useEffect,
@@ -13,7 +14,11 @@ import { usePresentation } from './presentation.tsx';
 import { useLayout } from './hooks/use-layout.ts';
 
 type Surface = { id: string; parent?: string };
-type Environment = { surfaces: Surface[] };
+type Environment = {
+  surfaces: Surface[];
+  inputs: Set<HTMLElement>;
+  inputListeners: Set<() => void>;
+};
 const environments = new WeakMap<object, Environment>();
 const serverEnvironment = {};
 const SurfaceContext = createContext<string | undefined>(undefined);
@@ -79,6 +84,48 @@ function usableFocusTarget(node: HTMLElement) {
   );
 }
 
+/** A grouped field protects its inset actions too; standalone forms protect their submit targets. */
+function inputElements(environment: Environment) {
+  const elements = new Set<HTMLElement>();
+  for (const input of environment.inputs) {
+    const group = input.closest<HTMLElement>('[data-slot="input-group"]');
+    elements.add(group ?? input);
+    if (group) continue;
+    for (const action of input
+      .closest('form')
+      ?.querySelectorAll<HTMLElement>(
+        'button[type="submit"], button:not([type]), input[type="submit"]',
+      ) ?? [])
+      elements.add(action);
+  }
+  return [...elements];
+}
+
+/** Offscreen portions of a scrolling field do not exclude usable viewport space. */
+function visibleInputBounds(node: HTMLElement, viewport: DOMRect) {
+  if (!(node.isConnected && node.getClientRects().length)) return;
+  if (getComputedStyle(node).visibility !== 'visible') return;
+  const rect = node.getBoundingClientRect();
+  let left = Math.max(rect.left, viewport.left);
+  let top = Math.max(rect.top, viewport.top);
+  let right = Math.min(rect.right, viewport.right);
+  let bottom = Math.min(rect.bottom, viewport.bottom);
+  for (let parent = node.parentElement; parent; parent = parent.parentElement) {
+    const style = getComputedStyle(parent);
+    if (style.overflowX === 'visible' && style.overflowY === 'visible') continue;
+    const clip = parent.getBoundingClientRect();
+    if (style.overflowX !== 'visible') {
+      left = Math.max(left, clip.left + parent.clientLeft);
+      right = Math.min(right, clip.left + parent.clientLeft + parent.clientWidth);
+    }
+    if (style.overflowY !== 'visible') {
+      top = Math.max(top, clip.top + parent.clientTop);
+      bottom = Math.min(bottom, clip.top + parent.clientTop + parent.clientHeight);
+    }
+  }
+  if (right > left && bottom > top) return new DOMRect(left, top, right - left, bottom - top);
+}
+
 export function usePresentationPolicy() {
   const presentation = usePresentation();
   const layout = useLayout();
@@ -87,7 +134,7 @@ export function usePresentationPolicy() {
     const root = portal ?? globalThis.document ?? serverEnvironment;
     let value = environments.get(root);
     if (!value) {
-      value = { surfaces: [] };
+      value = { surfaces: [], inputs: new Set(), inputListeners: new Set() };
       environments.set(root, value);
     }
     return value;
@@ -132,9 +179,81 @@ export function usePresentationPolicy() {
           window.visualViewport?.removeEventListener('scroll', changed);
         };
       },
+      protectInput(node: HTMLElement) {
+        environment.inputs.add(node);
+        for (const changed of environment.inputListeners) changed();
+        return () => {
+          environment.inputs.delete(node);
+          for (const changed of environment.inputListeners) changed();
+        };
+      },
+      inputBounds() {
+        const viewport = this.bounds();
+        return inputElements(environment).flatMap((node) => {
+          const rect = visibleInputBounds(node, viewport);
+          return rect ? [rect] : [];
+        });
+      },
+      watchInputs(changed: () => void) {
+        let frame = 0;
+        const observed = new Set<HTMLElement>();
+        const observe = () => {
+          const next = new Set<HTMLElement>(inputElements(environment));
+          for (const node of environment.inputs) {
+            for (let parent = node.parentElement; parent; parent = parent.parentElement) {
+              next.add(parent);
+              if (parent === portal) break;
+            }
+          }
+          for (const node of observed) {
+            if (next.has(node)) continue;
+            observer.unobserve(node);
+            observed.delete(node);
+          }
+          for (const node of next) {
+            if (observed.has(node)) continue;
+            observer.observe(node);
+            observed.add(node);
+          }
+        };
+        const schedule = () => {
+          if (frame) return;
+          frame = requestAnimationFrame(() => {
+            frame = 0;
+            observe();
+            changed();
+          });
+        };
+        const observer = new ResizeObserver(schedule);
+        const mutations = new MutationObserver(schedule);
+        mutations.observe(portal ?? document.body, {
+          subtree: true,
+          childList: true,
+          attributes: true,
+          attributeFilter: ['class', 'style', 'hidden'],
+        });
+        const releaseBounds = this.watchBounds(schedule);
+        environment.inputListeners.add(schedule);
+        observe();
+        return () => {
+          cancelAnimationFrame(frame);
+          observer.disconnect();
+          mutations.disconnect();
+          releaseBounds();
+          environment.inputListeners.delete(schedule);
+        };
+      },
     }),
     [portal, layout, environment],
   );
+}
+
+/** Input primitives register geometry in their own presentation scope, without a public prop. */
+export function useInputProtection(ref: RefObject<HTMLElement | null>) {
+  const policy = usePresentationPolicy();
+  useLayoutEffect(() => {
+    if (ref.current) return policy.protectInput(ref.current);
+  }, [ref, policy]);
 }
 
 export function PresentationSurface({ id, children }: { id: string; children: ReactNode }) {

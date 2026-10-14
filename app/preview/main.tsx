@@ -218,7 +218,7 @@ function Preview({ initialHead, nodes }: { initialHead: Head; nodes: NodeStore }
   const freestandingComparison = navigationComparison === 'freestanding';
   const frame = (content: React.ReactNode, controls?: React.ReactNode) => (
     <DesignPreview
-      label={`${freestandingComparison ? 'Freestanding app docks' : navigationComparison === 'dock' ? 'Floating dock prototypes' : navigationComparison === 'prototype' ? 'Mobile navigation prototype' : agent ? 'Live agent preview' : 'Design preview'} · ${(import.meta.env.VITE_PREVIEW_COMMIT || 'local').slice(0, 7)}`}
+      label={`${freestandingComparison ? 'Freestanding edge rails' : navigationComparison === 'dock' ? 'Floating dock prototypes' : navigationComparison === 'prototype' ? 'Mobile navigation prototype' : agent ? 'Live agent preview' : 'Design preview'} · ${(import.meta.env.VITE_PREVIEW_COMMIT || 'local').slice(0, 7)}`}
       chat={agent ? 'Live agent' : 'Scripted chat'}
       onReset={() => {
         sessionStorage.removeItem(previewJournalKey);
@@ -234,8 +234,8 @@ function Preview({ initialHead, nodes }: { initialHead: Head; nodes: NodeStore }
   const dockComparison = navigationComparison === 'dock';
   if (!(freestandingComparison || dockComparison || navigationComparison === 'prototype'))
     return frame(product());
-  // Minimal edge rails refine the selected direction alongside the earlier app-level docks.
-  // Earlier comparisons keep their original URLs as the primary source for those rounds.
+  // Only the selected edge rails remain in the active comparison.
+  // Earlier bottom-bar comparisons keep their URLs; rejected app docks remain in branch history.
   return (
     <DesignComparison
       defaultValue={
@@ -256,8 +256,6 @@ function Preview({ initialHead, nodes }: { initialHead: Head; nodes: NodeStore }
                 label: 'Edge rail · one button',
                 content: product('free-rail-single'),
               },
-              { id: 'free-cluster', label: 'Thumb cluster', content: product('free-cluster') },
-              { id: 'free-orbit', label: 'Expandable puck', content: product('free-orbit') },
             ]
           : dockComparison
             ? [
