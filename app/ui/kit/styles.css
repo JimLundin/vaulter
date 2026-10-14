@@ -181,6 +181,34 @@ body,
   margin-inline-start: 0;
   margin-inline-end: auto;
 }
+/* Text entry shares one outer treatment. Long answers keep the full writing width above
+ * their inset action row; compact entry reserves measured space beside the action. */
+[data-text-box] {
+  width: 100%;
+}
+[data-text-box-layout] {
+  padding: var(--space-control);
+}
+[data-text-box-layout="longform"] {
+  flex-direction: column;
+  align-items: stretch;
+}
+[data-text-box-layout="longform"] > [data-slot="input-group-control"] {
+  padding-right: 12px;
+}
+[data-text-box-layout="longform"] > [data-slot="input-group-addon"] {
+  position: static;
+  align-self: flex-end;
+  max-width: 100%;
+  margin-top: var(--space-control);
+}
+[data-text-box-layout="longform"] [data-slot="button"] {
+  min-width: 44px;
+  min-height: 44px;
+  height: auto;
+  max-width: 100%;
+  white-space: normal;
+}
 [data-edge-page-actions]:empty {
   display: none;
 }
@@ -638,7 +666,7 @@ body:has(.kit-design-window) {
         [data-slot="select"],
         [data-slot="textarea"]:not([data-variant="longform"]),
         [data-slot="input-group"],
-        [data-slot="input-group-control"],
+        [data-slot="input-group-control"]:not([data-variant="longform"]),
         [data-slot="tabs-trigger"],
         [data-slot="toggle-group-item"],
         [data-slot="command-input-wrapper"],
@@ -683,7 +711,7 @@ body:has(.kit-design-window) {
         [data-slot="select"],
         [data-slot="textarea"]:not([data-variant="longform"]),
         [data-slot="input-group"],
-        [data-slot="input-group-control"],
+        [data-slot="input-group-control"]:not([data-variant="longform"]),
         [data-slot="tabs-trigger"],
         [data-slot="toggle-group-item"],
         [data-slot="command-input-wrapper"],

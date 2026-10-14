@@ -16,7 +16,7 @@ async function expectChatRail(page: Page) {
         const viewport = window.visualViewport!;
         const rail = document.querySelector('[data-edge-rail]')!.getBoundingClientRect();
         const input = document
-          .querySelector('[aria-label="Message composer"]')!
+          .querySelector('[aria-label="Message text box"]')!
           .getBoundingClientRect();
         const dock = document.querySelector('[data-dock]')!;
         return (
@@ -252,9 +252,18 @@ test.describe('production recorded dictation', () => {
     const input = page.getByRole('textbox', { name: 'Message', exact: true });
     await expect(input).toBeEnabled();
     await input.fill('Keep this draft.');
+    await input.dispatchEvent('keydown', { key: 'Enter', isComposing: true, bubbles: true });
+    await input.dispatchEvent('keydown', { key: 'Enter', keyCode: 229, bubbles: true });
+    await expect(input).toHaveValue('Keep this draft.');
+    await input.press('End');
+    await input.press('Shift+Enter');
+    await expect(input).toHaveValue('Keep this draft.\n');
+    await input.fill('Keep this draft.');
     await input.blur();
+    if (test.info().project.name === 'phone') await expectChatRail(page);
     await page.getByRole('button', { name: 'Start voice interaction', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Finish recording', exact: true })).toBeVisible();
+    if (test.info().project.name === 'phone') await expectChatRail(page);
     await expect(page.getByRole('alert')).toHaveCount(0);
     await expect
       .poll(() => page.evaluate(() => Reflect.get(globalThis, 'dictationCapture').chunks()))

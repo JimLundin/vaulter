@@ -7,9 +7,6 @@ import {
   CardHeader,
   Columns,
   Drawer,
-  Field,
-  FieldLabel,
-  Form,
   Heading,
   Icon,
   Link,
@@ -18,7 +15,7 @@ import {
   Stack,
   Surface,
   Text,
-  Textarea,
+  TextBox,
 } from '../../ui/kit/index.ts';
 import { isSafeUrl } from '../../vault/documents/notes/safe-url.ts';
 import type { Question, QuestionTarget } from './reading.ts';
@@ -69,7 +66,6 @@ export function QuestionItem({
   const [focusRequest, setFocusRequest] = useState(0);
   const submitting = useRef(false);
   const answerField = useRef<HTMLTextAreaElement>(null);
-  const fieldId = useId();
   const reasonId = useId();
   const answerState = useQuestionAnswerState(answers);
   const attempt = answerState.attempts.find((entry) => entry.question.id === question.id);
@@ -217,136 +213,109 @@ export function QuestionItem({
             </Surface>
           )}
           {canAnswer && !attempt ? (
-            <Form
-              aria-label={`Answer: ${question.data.text}`}
-              onSubmit={(event) => {
-                event.preventDefault();
-                return save();
-              }}
-            >
-              <Columns gap="xl">
-                <Stack gap="md" role="group" aria-label={`Answer choices: ${question.data.text}`}>
-                  <Stack gap="xs">
-                    <Row gap="sm">
-                      <Icon name="sparkles" size="sm" />
-                      <Text size="sm" weight="medium">
-                        Suggested answers
-                      </Text>
-                    </Row>
-                    <Text size="xs" tone="muted">
-                      {suggestions.length
-                        ? 'Prepared from the source and existing knowledge.'
-                        : 'No suggested answers were recorded for this question.'}
+            <Columns gap="xl">
+              <Stack gap="md" role="group" aria-label={`Answer choices: ${question.data.text}`}>
+                <Stack gap="xs">
+                  <Row gap="sm">
+                    <Icon name="sparkles" size="sm" />
+                    <Text size="sm" weight="medium">
+                      Suggested answers
                     </Text>
-                  </Stack>
-                  {suggestions.map((suggestion, index) => (
-                    <SelectionRow
-                      key={suggestion.title}
-                      appearance="card"
-                      selected={draft?.choice === `suggestion:${index}`}
-                      disabled={locked || stale}
-                      onSelect={() => choose(`suggestion:${index}`, suggestion.text)}
-                    >
-                      <Stack gap="xs" align="start">
-                        <Text as="span" size="sm" weight="medium">
-                          {suggestion.title}
-                        </Text>
-                        <Text as="span" size="sm" tone="muted">
-                          {suggestion.reason}
-                        </Text>
-                      </Stack>
-                    </SelectionRow>
-                  ))}
+                  </Row>
+                  <Text size="xs" tone="muted">
+                    {suggestions.length
+                      ? 'Prepared from the source and existing knowledge.'
+                      : 'No suggested answers were recorded for this question.'}
+                  </Text>
+                </Stack>
+                {suggestions.map((suggestion, index) => (
                   <SelectionRow
+                    key={suggestion.title}
                     appearance="card"
-                    selected={draft?.choice === 'custom'}
+                    selected={draft?.choice === `suggestion:${index}`}
                     disabled={locked || stale}
-                    onSelect={() => choose('custom')}
+                    onSelect={() => choose(`suggestion:${index}`, suggestion.text)}
                   >
                     <Stack gap="xs" align="start">
                       <Text as="span" size="sm" weight="medium">
-                        Write my own answer
+                        {suggestion.title}
                       </Text>
-                      <Text as="span" size="xs" tone="muted">
-                        Free text, in your own words.
+                      <Text as="span" size="sm" tone="muted">
+                        {suggestion.reason}
                       </Text>
                     </Stack>
                   </SelectionRow>
-                </Stack>
-                <Surface variant="subtle">
-                  <Stack gap="md">
-                    <Field orientation="vertical">
-                      <FieldLabel htmlFor={fieldId}>Your answer</FieldLabel>
-                      <Textarea
-                        ref={answerField}
-                        id={fieldId}
-                        aria-describedby={`${fieldId}-description${disabledReason ? ` ${reasonId}` : ''}`}
-                        variant="longform"
-                        rows={5}
-                        placeholder="Choose a suggestion or write your own answer…"
-                        value={text}
-                        disabled={locked}
-                        onChange={(event) => {
-                          const next = event.target.value;
-                          setDraft((previous) => {
-                            const choice = previous?.choice ?? 'custom';
-                            return {
-                              question: previous?.question ?? question,
-                              choice,
-                              texts: { ...previous?.texts, [choice]: next },
-                            };
-                          });
-                          setError(undefined);
-                        }}
-                      />
-                      <Text id={`${fieldId}-description`} size="xs" tone="muted">
-                        {selected
-                          ? `Draft from “${selected.title}”.`
-                          : 'Choose a suggestion or write freely.'}
-                      </Text>
-                    </Field>
-                    {stale && (
-                      <Stack gap="sm">
-                        <Text role="alert" tone="danger">
-                          Question has changed; review its current wording before answering.
-                        </Text>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          disabled={locked}
-                          onClick={() => {
-                            setDraft({ question, choice: 'custom', texts: { custom: text } });
-                            setError(undefined);
-                            setFocusRequest((count) => count + 1);
-                          }}
-                        >
-                          Use current question
-                        </Button>
-                      </Stack>
-                    )}
-                    {!!error && (
-                      <Text role="alert" tone="danger">
-                        {error}
-                      </Text>
-                    )}
-                    <Row wrap={true}>
-                      <Button
-                        type="submit"
-                        disabled={locked || stale || !text.trim()}
-                        aria-describedby={disabledReason ? reasonId : undefined}
-                      >
-                        {pending ? 'Saving answer…' : 'Save answer'}
-                      </Button>
-                    </Row>
-                    {!!disabledReason && (
-                      <Text id={reasonId} size="xs" tone="muted">
-                        {disabledReason}
-                      </Text>
-                    )}
+                ))}
+                <SelectionRow
+                  appearance="card"
+                  selected={draft?.choice === 'custom'}
+                  disabled={locked || stale}
+                  onSelect={() => choose('custom')}
+                >
+                  <Stack gap="xs" align="start">
+                    <Text as="span" size="sm" weight="medium">
+                      Write my own answer
+                    </Text>
+                    <Text as="span" size="xs" tone="muted">
+                      Free text, in your own words.
+                    </Text>
                   </Stack>
-                </Surface>
-              </Columns>
-            </Form>
+                </SelectionRow>
+              </Stack>
+              <Stack gap="md">
+                <TextBox
+                  label="Your answer"
+                  layout="longform"
+                  fieldRef={answerField}
+                  placeholder="Choose a suggestion or write your own answer…"
+                  draft={text}
+                  disabled={locked}
+                  busy={pending}
+                  canSubmit={!(locked || stale)}
+                  submitLabel="Save answer"
+                  pendingLabel="Saving answer…"
+                  description={[
+                    selected
+                      ? `Draft from “${selected.title}”.`
+                      : 'Choose a suggestion or write freely.',
+                    disabledReason,
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
+                  error={
+                    stale
+                      ? 'Question has changed; review its current wording before answering.'
+                      : error
+                  }
+                  onDraftChange={(next) => {
+                    setDraft((previous) => {
+                      const choice = previous?.choice ?? 'custom';
+                      return {
+                        question: previous?.question ?? question,
+                        choice,
+                        texts: { ...previous?.texts, [choice]: next },
+                      };
+                    });
+                    setError(undefined);
+                  }}
+                  onSubmit={save}
+                />
+                {stale && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={locked}
+                    onClick={() => {
+                      setDraft({ question, choice: 'custom', texts: { custom: text } });
+                      setError(undefined);
+                      setFocusRequest((count) => count + 1);
+                    }}
+                  >
+                    Use current question
+                  </Button>
+                )}
+              </Stack>
+            </Columns>
           ) : (
             <Text size="sm" tone="muted">
               {question.status === 'answered'

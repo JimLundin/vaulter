@@ -189,7 +189,7 @@ test('the preview field keeps one inset action and its draft through focus and r
     if (width < 768) {
       const action = page.getByRole('button', { name: 'Send', exact: true });
       await expect(action).toHaveCount(1);
-      const field = (await page.getByRole('group', { name: 'Message composer' }).boundingBox())!;
+      const field = (await page.getByRole('group', { name: 'Message text box' }).boundingBox())!;
       const voice = (await action.boundingBox())!;
       expect(voice.x).toBeGreaterThan(field.x);
       expect(voice.x + voice.width).toBeLessThan(field.x + field.width);
@@ -512,14 +512,14 @@ test('Enter sends, Shift+Enter and IME keep editing, and suggestions live outsid
   await expect(suggestion).toBeVisible();
   await expect(
     page
-      .getByRole('group', { name: 'Message composer' })
+      .getByRole('group', { name: 'Message text box' })
       .getByRole('button', { name: 'How could I make more room for slow mornings?', exact: true }),
   ).toHaveCount(0);
   await suggestion.click();
   const input = page.getByRole('textbox', { name: 'Message', exact: true });
   await expect(input).toBeFocused();
   await expect(input).toHaveAttribute('rows', '1');
-  const composer = page.getByRole('group', { name: 'Message composer' });
+  const composer = page.getByRole('group', { name: 'Message text box' });
   expect((await composer.boundingBox())!.height).toBeLessThanOrEqual(56);
   expect((await input.boundingBox())!.height).toBe(44);
   await input.fill('   ');
@@ -642,7 +642,7 @@ test('dictation keeps the composer anchored and only submission stops an agent r
   await page.goto('/preview/');
   const input = page.getByRole('textbox', { name: 'Message', exact: true });
   await input.fill('A typed introduction.');
-  const composer = page.getByRole('group', { name: 'Message composer' });
+  const composer = page.getByRole('group', { name: 'Message text box' });
   const before = (await composer.boundingBox())!;
   await input.blur();
   await page.getByRole('button', { name: 'Start voice interaction' }).click();

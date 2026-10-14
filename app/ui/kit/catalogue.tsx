@@ -985,7 +985,7 @@ function Agent() {
               />
             )}
 
-            <K.Composer
+            <K.TextBox
               draft={draft}
               onDraftChange={(text) => {
                 setVoice('idle');
@@ -1006,6 +1006,62 @@ function Agent() {
     </>
   );
 }
+function TextBoxes() {
+  const [note, setNote] = useState('');
+  const [answer, setAnswer] = useState('');
+  const [instructions, setInstructions] = useState('Use concise answers.');
+  const [saved, setSaved] = useState('');
+  return (
+    <K.NavigationSuite
+      status="Local sample"
+      search={{ label: 'Search', onSelect: noop }}
+      destinations={[{ label: 'Text entry', href: '#text-box', icon: 'edit', current: true }]}
+      actions={[]}
+    >
+      <K.FeaturePage
+        title="Text entry"
+        description="One field for short notes and considered answers."
+      >
+        <K.Stack gap="lg">
+          <K.TextBox
+            label="Quick note"
+            draft={note}
+            onDraftChange={setNote}
+            placeholder="Write a quick note…"
+            canSubmit={true}
+            onSubmit={(text) => {
+              setSaved(text.trim());
+              setNote('');
+            }}
+          />
+          <K.TextBox
+            label="Long answer"
+            layout="longform"
+            description="Write freely. Save when the answer is ready."
+            placeholder="Take room for a longer answer…"
+            draft={answer}
+            onDraftChange={setAnswer}
+            canSubmit={true}
+            submitLabel="Save answer"
+            onSubmit={(text) => {
+              setSaved(text.trim());
+              setAnswer('');
+            }}
+          />
+          <K.TextBox
+            label="Instructions"
+            layout="longform"
+            description="Edits take effect immediately in this sample."
+            draft={instructions}
+            onDraftChange={setInstructions}
+          />
+          <K.Text role="status">{saved ? `Saved: ${saved}` : 'Nothing saved yet.'}</K.Text>
+        </K.Stack>
+      </K.FeaturePage>
+    </K.NavigationSuite>
+  );
+}
+
 function AgentPanel() {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState('');
@@ -1031,7 +1087,7 @@ function AgentPanel() {
           </K.Button>
         }
         dock={
-          <K.Composer
+          <K.TextBox
             draft={draft}
             onDraftChange={setDraft}
             onSubmit={(text) => {
@@ -1040,7 +1096,7 @@ function AgentPanel() {
               setDraft('');
             }}
             label="Panel message"
-            sendLabel="Send panel message"
+            submitLabel="Send panel message"
             canSubmit={true}
           />
         }
@@ -1488,7 +1544,7 @@ function SupportingPaneSample() {
           }
           dock={
             feed ? (
-              <K.Composer
+              <K.TextBox
                 draft={draft}
                 onDraftChange={setDraft}
                 canSubmit={true}
@@ -1605,6 +1661,15 @@ function BoundedPresentation() {
 
 export const catalogue: Specimen[] = [
   {
+    id: 'text-box',
+    title: 'Text box',
+    description:
+      'Compact submission, longer answers and immediate edits share the same text entry.',
+    components: ['TextBox'],
+    Sample: TextBoxes,
+    fullBleed: true,
+  },
+  {
     id: 'passages',
     title: 'Passage disclosure',
     description:
@@ -1639,7 +1704,7 @@ export const catalogue: Specimen[] = [
       'SplitView',
       'Message',
       'Markdown',
-      'Composer',
+      'TextBox',
       'SendButton',
       'PromptSuggestions',
     ],

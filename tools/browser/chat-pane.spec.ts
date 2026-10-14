@@ -75,7 +75,7 @@ test('Chat supporting pane keeps one following feed, draft and accepted activity
     expect(await original!.evaluate((node) => node.isConnected)).toBe(true);
     expect(await pane.locator('[data-slot="scroll-area-viewport"]').count()).toBe(1);
     const feed = (await pane.locator('[data-slot="scroll-area-viewport"]').boundingBox())!;
-    const composer = (await pane.getByRole('group', { name: 'Message composer' }).boundingBox())!;
+    const composer = (await pane.getByRole('group', { name: 'Message text box' }).boundingBox())!;
     expect(feed.y + feed.height).toBeLessThanOrEqual(composer.y);
   }
   const journal = await page.evaluate(() => sessionStorage.getItem('vaulter:preview:accepted:v1'));

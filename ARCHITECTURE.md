@@ -461,7 +461,9 @@ routes an external prompt to the Chat page or supporting task. Chat's page compo
 `ReadingColumn`, `Toolbar`, `AutoScrollArea` and `Dock`; the panel supplies direct message children
 and composer content to `SupportingPane`. Chat and its chooser use that single supporting policy.
 Pane width, responsive transitions, header height, dismissal and scrolling remain kit-owned.
-Composer retains shared keyboard, native form, IME, focus and Stop controls.
+`TextBox` retains shared keyboard, native form, IME, focus and inset actions. Its compact Chat
+entry and longform Questions/settings entry share presentation and scoped floating-control protection;
+workflow owners retain draft lifetime, validation, acceptance and persistence.
 
 The kit's `Message` receives caller attribution, reading side and content, with no Chat role schema.
 The five old `ConversationPage`, `ConversationSurface`, `ConversationPanel`, `ConversationFeed` and

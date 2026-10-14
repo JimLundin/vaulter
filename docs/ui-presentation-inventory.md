@@ -39,7 +39,6 @@ Audited after UI ownership migration. Every public kit value/type has its owner 
 | `CommandOverlay` (value) | Kit: `app/ui/kit/command-overlay.tsx` | `app/ui/Search.tsx` | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/tests/browser.tsx` | Retained shared presentation |
 | `CommandSeparator` (value) | Kit: `app/ui/kit/index.ts` | — | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
 | `CommandShortcut` (value) | Kit: `app/ui/kit/index.ts` | `app/ui/Search.tsx` | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
-| `Composer` (value) | Kit: `app/ui/kit/conversation.tsx` | `app/workflows/chat/Chat.tsx` | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/tests/browser.tsx` | Retained shared presentation |
 | `Count` (value) | Kit: `app/ui/kit/app.tsx` | — | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
 | `DesignComparison` (value) | Kit: `app/ui/kit/design-comparison.tsx` | — | `app/preview/main.tsx`<br>`app/preview/record-examples.tsx`<br>`app/ui/kit/catalogue.tsx`<br>`app/ui/kit/tests/design-comparison.test.tsx` | Retained shared presentation |
 | `DesignPreview` (value) | Kit: `app/ui/kit/preview.tsx` | — | `app/preview/main.tsx`<br>`app/preview/record-examples.tsx`<br>`app/preview/wiki.tsx`<br>`app/ui/kit/catalogue.tsx` | Retained shared presentation |
@@ -70,17 +69,17 @@ Audited after UI ownership migration. Every public kit value/type has its owner 
 | `EmptyTitle` (value) | Kit: `app/ui/kit/index.ts` | — | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
 | `ExpandableRow` (value) | Kit: `app/ui/kit/expandable-row.tsx` | `app/vault/transactions/history/NodeHistory.tsx` | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
 | `FeaturePage` (value) | Kit: `app/ui/kit/app.tsx` | `app/vault/transactions/history/HistoryPage.tsx`<br>`app/workflows/questions/QuestionsPage.tsx`<br>`app/workflows/wiki/index.tsx` | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/tests/browser.tsx` | Retained shared presentation |
-| `Field` (value) | Kit: `app/ui/kit/index.ts` | `app/workflows/questions/QuestionItem.tsx` | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/tests/field-options.test.ts` | Retained shared presentation |
+| `Field` (value) | Kit: `app/ui/kit/index.ts` | — | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/tests/field-options.test.ts` | Retained shared presentation |
 | `FieldContent` (value) | Kit: `app/ui/kit/index.ts` | — | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
 | `FieldDescription` (value) | Kit: `app/ui/kit/index.ts` | — | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
 | `FieldError` (value) | Kit: `app/ui/kit/index.ts` | `app/ui/ModuleSettings.tsx`<br>`app/vault/session/ui.tsx` | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
 | `FieldGroup` (value) | Kit: `app/ui/kit/index.ts` | — | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
-| `FieldLabel` (value) | Kit: `app/ui/kit/index.ts` | `app/workflows/questions/QuestionItem.tsx` | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
+| `FieldLabel` (value) | Kit: `app/ui/kit/index.ts` | — | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
 | `FieldLegend` (value) | Kit: `app/ui/kit/index.ts` | — | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/tests/field-options.test.ts` | Retained shared presentation |
 | `FieldSeparator` (value) | Kit: `app/ui/kit/index.ts` | — | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
 | `FieldSet` (value) | Kit: `app/ui/kit/index.ts` | — | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
 | `FieldTitle` (value) | Kit: `app/ui/kit/index.ts` | — | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
-| `Form` (value) | Kit: `app/ui/kit/app.tsx` | `app/vault/session/ui.tsx`<br>`app/workflows/questions/QuestionItem.tsx` | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/conversation.tsx` | Retained shared presentation |
+| `Form` (value) | Kit: `app/ui/kit/app.tsx` | `app/vault/session/ui.tsx` | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/text-box.tsx` | Retained shared presentation |
 | `Gap` (type) | Kit: `app/ui/kit/parts/layout.tsx` | — | `app/ui/kit/app.tsx` | Retained shared presentation |
 | `Gate` (value) | Kit: `app/ui/kit/surfaces.tsx` | `app/vault/Gate.tsx`<br>`app/vault/session/ui.tsx` | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
 | `Heading` (value) | Kit: `app/ui/kit/parts/layout.tsx` | `app/product.tsx`<br>`app/vault/Gate.tsx`<br>`app/workflows/chat/ChatSurface.tsx`<br>`app/workflows/questions/QuestionItem.tsx`<br>`app/workflows/wiki/WikiPageView.tsx` | `app/preview/record-examples.tsx`<br>`app/ui/kit/catalogue.tsx`<br>`app/ui/kit/settings.tsx` | Retained shared presentation |
@@ -198,7 +197,8 @@ Audited after UI ownership migration. Every public kit value/type has its owner 
 | `TabsList` (value) | Kit: `app/ui/kit/index.ts` | — | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/tests/browser.tsx`<br>`app/ui/kit/tests/controls.tsx` | Retained shared presentation |
 | `TabsTrigger` (value) | Kit: `app/ui/kit/index.ts` | — | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/tests/browser.tsx`<br>`app/ui/kit/tests/controls.tsx` | Retained shared presentation |
 | `Text` (value) | Kit: `app/ui/kit/index.ts` | `app/agent/tool-presentation.tsx`<br>`app/product.tsx`<br>`app/ui/Search.tsx`<br>`app/vault/content/tool-presentation.tsx`<br>`app/vault/session/ui.tsx`<br>`app/workflows/chat/Chat.tsx`<br>`app/workflows/chat/ChatMessage.tsx`<br>`app/workflows/chat/ChatSurface.tsx`<br>`app/workflows/chat/ConversationList.tsx`<br>`app/workflows/chat/index.tsx`<br>`app/vault/transactions/history/HistoryPage.tsx`<br>`app/vault/transactions/history/NodeHistory.tsx`<br>`app/workflows/questions/EmbeddedQuestion.tsx`<br>`app/workflows/questions/QuestionItem.tsx`<br>`app/workflows/questions/QuestionsPage.tsx`<br>`app/workflows/questions/tool-presentation.tsx`<br>`app/workflows/wiki/WikiPageView.tsx`<br>`app/workflows/wiki/index.tsx`<br>`app/workflows/wiki/rendering/blocks.tsx`<br>`app/workflows/wiki/rendering/references.tsx` | `app/agent/tool-presentation.test.tsx`<br>`app/preview/main.tsx`<br>`app/preview/search.tsx`<br>`app/preview/wiki-example.tsx`<br>`app/ui/kit/catalogue.tsx`<br>`app/ui/kit/gallery.tsx`<br>`app/ui/kit/tests/browser.tsx`<br>`app/ui/kit/tests/controls.tsx` | Retained shared presentation |
-| `Textarea` (value) | Kit: `app/ui/kit/index.ts` | `app/ui/ModuleSettings.tsx`<br>`app/workflows/questions/QuestionItem.tsx` | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/tests/browser.tsx`<br>`app/ui/kit/tests/setting-fields.test.tsx` | Retained shared presentation |
+| `TextBox` (value) | Kit: `app/ui/kit/text-box.tsx` | `app/workflows/chat/Chat.tsx`<br>`app/workflows/questions/QuestionItem.tsx`<br>`app/ui/ModuleSettings.tsx` | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/tests/browser.tsx` | Shared controlled compact/longform text entry (#70) |
+| `Textarea` (value) | Kit: `app/ui/kit/index.ts` | — | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/tests/browser.tsx`<br>`app/ui/kit/tests/setting-fields.test.tsx` | Retained shared presentation |
 | `TextProps` (type) | Kit: `app/ui/kit/parts/layout.tsx` | — | — | Retained shared presentation |
 | `Theme` (type) | Kit: `app/ui/kit/theme.tsx` | — | — | Retained shared presentation |
 | `ThemeSwitch` (value) | Kit: `app/ui/kit/theme.tsx` | `app/ui/AppearanceSettings.tsx` | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/gallery.tsx`<br>`app/ui/kit/tests/browser.tsx`<br>`app/ui/kit/tests/setting-fields.test.tsx` | Retained shared presentation |
@@ -223,6 +223,26 @@ Audited after UI ownership migration. Every public kit value/type has its owner 
 | `VoiceButton` (value) | Kit: `app/ui/kit/conversation.tsx` | `app/product.tsx` | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
 | `VoiceStatus` (value) | Kit: `app/ui/kit/conversation.tsx` | `app/workflows/chat/Chat.tsx` | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
 | `WorkspaceFrame` (value) | Kit: `app/ui/kit/app.tsx` | — | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/navigation.tsx` | Retained shared presentation |
+
+## Text-entry consumers (#70)
+
+The public [TextBox interface](../app/ui/kit/README.md#textbox-interface) owns shared field/action
+assembly and input protection. The migration scope follows the input's task, with one composition
+for controlled free-text drafting and editing.
+
+| Consumer | Shared entry | Owner responsibility |
+|---|---|---|
+| Chat page and supporting pane | Compact TextBox | Draft lifetime, submission/review, voice capture and Stop |
+| Questions collection, details and embedded Wiki answers | Longform TextBox with Save answer | Suggestions, per-choice drafts, stale wording, acceptance and save/retry |
+| ModuleSettings: Chat Instructions and Agent Stop sequences | Longform TextBox without submission | Immediate edits, parsing, device preferences, invalid drafts and reset |
+| Text box, Feed & composer and Agent panel catalogue examples | The same public TextBox | Independent sample drafts and scripted acceptance |
+| Page/global search, credentials, passwords, numeric settings and single-value identifiers | Existing specialized controls | Search/navigation, secure/native input semantics and typed settings |
+
+Input primitives register the complete TextBox surface in shared presentation policy. Floating app
+navigation protects that surface before focus, after blur, during capture/saving and across viewport
+changes. Callers do not calculate rail offsets. Primitive catalogue/policy fixtures remain low-level
+examples rather than alternative module entry interfaces. `Composer` is replaced by `TextBox` without
+an additional public alias.
 
 ## Retired ownership paths
 

@@ -19,5 +19,7 @@ Verification lives in `tools/browser/edge-rail.spec.ts` and the production Quest
 Production checks use real login and storage with fictional transports, explicit answer writes
 and reload. A physical phone remains useful for native keyboard and thumb-reach review.
 
-The compact Chat input backing is removed as part of this promotion (#71). A single shared text
-box across Chat, Questions and other editors remains separate work in #70.
+The compact Chat input backing is removed as part of this promotion (#71). The shared `TextBox`
+composition (#70) registers its complete field, actions and feedback through the same scoped input
+protection used by the rail. Chat, Questions/Wiki answers and multiline settings share that entry;
+protection does not depend on focus or the active workflow.

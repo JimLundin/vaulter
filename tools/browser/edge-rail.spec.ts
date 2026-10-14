@@ -19,6 +19,18 @@ async function expectHitTarget(control: Locator) {
     .toBe(true);
 }
 
+async function expectInputLane(page: Page, label: string) {
+  await expect
+    .poll(async () => {
+      const entry = (await page
+        .getByRole('group', { name: `${label} text box`, exact: true })
+        .boundingBox())!;
+      const rail = (await page.locator('[data-edge-rail]').boundingBox())!;
+      return entry.x + entry.width <= rail.x - 11;
+    })
+    .toBe(true);
+}
+
 async function expectAnchor(page: Page, count: number) {
   const rail = page.locator('[data-edge-rail]');
   await expect(rail.getByRole('button')).toHaveCount(count);
@@ -64,8 +76,12 @@ async function setKeyboardViewport(page: Page, height: number, top: number) {
 test('the freestanding rail follows the keyboard viewport and leaves Chat controls in a left lane', {
   tag: '@phone',
 }, async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/preview/?conversations');
   const message = page.getByRole('textbox', { name: 'Message', exact: true });
+  await expect(message).not.toBeFocused();
+  await expectInputLane(page, 'Message');
+  await expectHitTarget(page.getByRole('button', { name: 'Start voice interaction', exact: true }));
   for (const width of [320, 390, 430]) {
     await page.setViewportSize({ width, height: 844 });
     await message.fill('Keep this draft beside the rail');
@@ -78,15 +94,30 @@ test('the freestanding rail follows the keyboard viewport and leaves Chat contro
       await setKeyboardViewport(page, height, top);
       const rail = await expectAnchor(page, 3);
       const bounds = (await rail.boundingBox())!;
-      const input = (await page.getByRole('group', { name: 'Message composer' }).boundingBox())!;
+      const input = (await page.getByRole('group', { name: 'Message text box' }).boundingBox())!;
       expect(input.x + input.width).toBeLessThanOrEqual(bounds.x - 11);
       await expectHitTarget(page.getByRole('button', { name: 'Send', exact: true }));
       await expect(message).toBeFocused();
       await expect(message).toHaveValue('Keep this draft beside the rail');
       await expect(page.locator('[data-dock]')).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+      await message.blur();
+      await expectInputLane(page, 'Message');
+      await expectHitTarget(
+        page.getByRole('button', { name: 'Start voice interaction', exact: true }),
+      );
     }
     await setKeyboardViewport(page, 844, 0);
   }
+  await page.getByRole('button', { name: 'Start voice interaction', exact: true }).click();
+  await expect(message).toHaveValue(/^Keep this draft beside the rail Leave/);
+  await setKeyboardViewport(page, 430, 72);
+  await expectInputLane(page, 'Message');
+  const finish = page.getByRole('button', { name: 'Finish recording', exact: true });
+  await expectHitTarget(finish);
+  await expect(message).not.toBeFocused();
+  await finish.click();
+  await setKeyboardViewport(page, 844, 0);
+  await message.fill('Keep this draft beside the rail');
   const conversations = page.getByRole('button', { name: 'Conversations', exact: true });
   await conversations.click();
   const chooser = page.getByRole('dialog', { name: 'Conversations', exact: true });
@@ -115,6 +146,7 @@ test('Questions search and filters share the rail while trailing Save stays reac
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/preview/#/questions/');
   await expectAnchor(page, 3);
+  await expectInputLane(page, 'Your answer');
   const trigger = page.getByRole('button', { name: 'Find questions', exact: true });
   const field = page.getByRole('searchbox', { name: 'Find questions', exact: true });
   await expect(field).toHaveCount(0);
@@ -155,6 +187,8 @@ test('Questions search and filters share the rail while trailing Save stays reac
   await page
     .getByRole('textbox', { name: 'Your answer', exact: true })
     .fill('Leave the bench clear.');
+  await page.getByRole('textbox', { name: 'Your answer', exact: true }).blur();
+  await expectInputLane(page, 'Your answer');
   await page.locator('main').evaluate((node) => {
     node.scrollTop = node.scrollHeight;
   });

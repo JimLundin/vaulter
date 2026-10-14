@@ -13,6 +13,58 @@ async function contained(outer: Locator, inner: Locator) {
   expect(content.y + content.height).toBeLessThanOrEqual(bounds.y + bounds.height + 1);
 }
 
+test('paired text boxes retain independent longform drafts and scope their floating-control clearance', async ({
+  page,
+}) => {
+  await page.goto('/ui/kit/');
+  await page.getByRole('searchbox', { name: 'Find a component' }).fill('Text box');
+  const family = page.locator('[data-kit-comparison="text-box"]');
+  const mobile = specimen(family, 'mobile');
+  const desktop = specimen(family, 'desktop');
+  const mobileAnswer = mobile.getByRole('textbox', { name: 'Long answer', exact: true });
+  const desktopAnswer = desktop.getByRole('textbox', { name: 'Long answer', exact: true });
+  await expect(mobileAnswer).toHaveValue('');
+  await expect(desktopAnswer).toHaveValue('');
+  await mobileAnswer.fill('Mobile answer');
+  await mobileAnswer.press('End');
+  await mobileAnswer.press('Enter');
+  await desktopAnswer.fill('Desktop answer');
+  await desktopAnswer.evaluate((node) => node.setAttribute('data-original-field', ''));
+  for (const width of [1000, 390, 1440]) {
+    await page.setViewportSize({ width, height: 1000 });
+    await expect(mobileAnswer).toHaveValue('Mobile answer\n');
+    await expect(desktopAnswer).toHaveValue('Desktop answer');
+    await expect(desktopAnswer).toBeFocused();
+    await expect(desktopAnswer).toHaveAttribute('data-original-field', '');
+    await expect(desktop.locator('[data-edge-rail]')).toHaveCount(0);
+    await expect(desktop.locator('[data-edge-input-lane]')).toHaveCount(0);
+  }
+  const save = mobile.getByRole('button', { name: 'Save answer', exact: true });
+  await save.scrollIntoViewIfNeeded();
+  await mobileAnswer.blur();
+  await expect
+    .poll(async () => {
+      const rail = (await mobile.locator('[data-edge-rail]').boundingBox())!;
+      const entry = (await mobile
+        .getByRole('group', { name: 'Long answer text box', exact: true })
+        .boundingBox())!;
+      return entry.x + entry.width <= rail.x - 11;
+    })
+    .toBe(true);
+  await save.click();
+  await expect(mobileAnswer).toHaveValue('');
+  await expect(mobile.getByRole('status')).toHaveText('Saved: Mobile answer');
+  await expect(desktopAnswer).toHaveValue('Desktop answer');
+  const instructions = mobile.getByRole('textbox', { name: 'Instructions', exact: true });
+  await instructions.fill('Keep this local setting');
+  await instructions.press('End');
+  await instructions.press('Enter');
+  await expect(instructions).toHaveValue('Keep this local setting\n');
+  await expect(desktop.getByRole('textbox', { name: 'Instructions', exact: true })).toHaveValue(
+    'Use concise answers.',
+  );
+});
+
 test('the entire catalogue renders paired live components without requests to external services', {
   tag: '@phone',
 }, async ({ page, baseURL }) => {
@@ -24,7 +76,7 @@ test('the entire catalogue renders paired live components without requests to ex
   });
   await page.goto('/ui/kit/');
   const families = page.locator('[data-kit-comparison]');
-  await expect(families).toHaveCount(38);
+  await expect(families).toHaveCount(39);
   const pairs = await families.evaluateAll((elements) =>
     elements.map((family) =>
       (['desktop', 'mobile'] as const).map((device) => {
@@ -107,7 +159,7 @@ test('paired agent samples keep independent drafts and send through the shared o
   ).toHaveClass(/lucide-corner-down-left/);
   await expect(desktop.getByRole('button', { name: 'Start voice interaction' })).toBeVisible();
   await expect(
-    desktop.getByRole('group', { name: 'Message composer' }).getByRole('button'),
+    desktop.getByRole('group', { name: 'Message text box' }).getByRole('button'),
   ).toHaveCount(1);
   await mobile.getByRole('textbox', { name: 'Message', exact: true }).press('Enter');
   await expect(mobile.locator('[data-message="user"]')).toContainText('A phone thought');
@@ -118,11 +170,11 @@ test('paired agent samples keep independent drafts and send through the shared o
   await expect(mobile.getByRole('button', { name: 'Send', exact: true })).toBeDisabled();
   await mobile.getByRole('textbox', { name: 'Message', exact: true }).blur();
   const beforeDictation = (await mobile
-    .getByRole('group', { name: 'Message composer' })
+    .getByRole('group', { name: 'Message text box' })
     .boundingBox())!;
   await mobile.getByRole('button', { name: 'Start voice interaction' }).click();
   await expect(mobile.getByRole('textbox', { name: 'Message', exact: true })).toHaveValue(/^Leave/);
-  expect((await mobile.getByRole('group', { name: 'Message composer' }).boundingBox())!.y).toBe(
+  expect((await mobile.getByRole('group', { name: 'Message text box' }).boundingBox())!.y).toBe(
     beforeDictation.y,
   );
   await expect(desktop.getByRole('textbox', { name: 'Message', exact: true })).toHaveValue(
@@ -147,7 +199,7 @@ test('paired agent samples keep independent drafts and send through the shared o
     .boundingBox())!;
   expect(Math.abs(field.y + field.height / 2 - (voice.y + voice.height / 2))).toBeLessThan(1);
   expect(
-    (await mobile.getByRole('group', { name: 'Message composer' }).boundingBox())!.height,
+    (await mobile.getByRole('group', { name: 'Message text box' }).boundingBox())!.height,
   ).toBeLessThanOrEqual(56);
   await page.setViewportSize({ width: 1440, height: 1000 });
   await expect(desktop.getByRole('textbox', { name: 'Message', exact: true })).toHaveValue(
@@ -526,7 +578,7 @@ test('Escape after sending closes the last interacted panel while another sample
   );
 });
 
-test('catalogue suggestions fill and focus their own public Composer field', async ({ page }) => {
+test('catalogue suggestions fill and focus their own public TextBox field', async ({ page }) => {
   await page.goto('/ui/kit/');
   await page.getByRole('searchbox', { name: 'Find a component' }).fill('Feed & composer');
   const family = page.locator('[data-kit-comparison="agent"]');

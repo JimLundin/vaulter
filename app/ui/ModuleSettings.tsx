@@ -16,7 +16,7 @@ import {
   Select,
   SettingField,
   Stack,
-  Textarea,
+  TextBox,
 } from './kit/index.ts';
 
 function SettingControl({
@@ -122,13 +122,22 @@ function SettingControl({
       </Stack>
     );
   }
+  if (field.kind === 'multiline') {
+    return (
+      <TextBox
+        label={field.label}
+        layout="longform"
+        description={field.description}
+        placeholder={field.placeholder ?? field.defaultValue}
+        draft={currentDraft?.value ?? value}
+        onDraftChange={update}
+        error={currentDraft?.error}
+      />
+    );
+  }
   return (
     <SettingField label={field.label} description={field.description}>
-      {field.kind === 'multiline' ? (
-        <Textarea {...props} />
-      ) : (
-        <Input {...props} inputMode={field.kind === 'number' ? 'decimal' : undefined} />
-      )}
+      <Input {...props} inputMode={field.kind === 'number' ? 'decimal' : undefined} />
       {currentDraft?.error ? <FieldError id={errorId}>{currentDraft.error}</FieldError> : null}
     </SettingField>
   );

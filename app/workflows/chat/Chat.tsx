@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Button,
   CodeDiff,
-  Composer,
+  TextBox,
   PromptSuggestions,
   VoiceStatus,
   Overlay,
@@ -211,7 +211,7 @@ export function Chat({
         showSuggestions ? <PromptSuggestions suggestions={suggestions} onSelect={edit} /> : null
       }
       composer={
-        <Composer
+        <TextBox
           draft={input}
           onDraftChange={type}
           onSubmit={() => say(conversation.draftIntent())}

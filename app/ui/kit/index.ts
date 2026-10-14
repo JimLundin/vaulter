@@ -291,7 +291,6 @@ export {
   UnifiedDiff,
 } from './surfaces.tsx';
 export {
-  Composer,
   SendButton,
   SelectionList,
   PromptSuggestions,
@@ -360,3 +359,5 @@ export { PresentationPreview } from './presentation.tsx';
 export { SupportingPane } from './supporting-pane.tsx';
 
 export { PassageCard } from './passage-card.tsx';
+
+export { TextBox } from './text-box.tsx';

@@ -160,7 +160,7 @@ test('phone preview controls expand from a centered pill and follow the visible 
   await expect
     .poll(async () => (await page.locator('[data-design-preview]').boundingBox())!.height)
     .toBe(500);
-  const composer = (await page.getByRole('group', { name: 'Message composer' }).boundingBox())!;
+  const composer = (await page.getByRole('group', { name: 'Message text box' }).boundingBox())!;
   expect(composer.y + composer.height).toBeLessThanOrEqual(500);
   await page.evaluate(() => {
     Object.defineProperty(window.visualViewport, 'offsetTop', { value: 90 });
@@ -170,7 +170,7 @@ test('phone preview controls expand from a centered pill and follow the visible 
   expect((await viewport.boundingBox())!.y).toBe(90);
   expect((await viewport.boundingBox())!.height).toBe(500);
   const pannedComposer = (await page
-    .getByRole('group', { name: 'Message composer' })
+    .getByRole('group', { name: 'Message text box' })
     .boundingBox())!;
   expect(pannedComposer.y + pannedComposer.height).toBeLessThanOrEqual(590);
   expect(await page.evaluate(() => getComputedStyle(document.documentElement).overflowY)).toBe(

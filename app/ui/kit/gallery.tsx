@@ -23,6 +23,7 @@ function Comparison({
     ),
   ];
   const height = [
+    'text-box',
     'navigation',
     'agent',
     'agent-panel',

@@ -247,7 +247,7 @@ async function fixture({
   await act(async () => {
     globalThis.dispatchEvent(new StorageEvent('storage', { key: null, storageArea: localStorage }));
     await vi.waitFor(() => {
-      if (field('Message').disabled) throw new Error('Message composer is still unavailable');
+      if (field('Message').disabled) throw new Error('Message text box is still unavailable');
     });
   });
   return {

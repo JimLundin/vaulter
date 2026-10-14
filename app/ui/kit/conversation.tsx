@@ -1,9 +1,7 @@
 // Shared message presentation and entry mechanics; task owners supply interpretation and actions.
-import { type ReactNode, type Ref, useEffect, useState } from 'react';
+import type { ReactNode } from 'react';
 import { Stack, Text, Prose } from './parts/layout.tsx';
-import { Form } from './app.tsx';
 import { Button } from './parts/button.tsx';
-import { InputGroup, InputGroupAddon, InputGroupTextarea } from './parts/input-group.tsx';
 import { Icon } from './icons.tsx';
 import { useLayout } from './hooks/use-layout.ts';
 import { Surface, OptionStrip } from './primitives.tsx';
@@ -73,125 +71,20 @@ export function Message({
 export function Markdown({ children }: { children: ReactNode }) {
   return <Prose markdown={true}>{children}</Prose>;
 }
-/** Controlled entry: the owner retains draft lifetime and the authority to accept submission. */
-export function Composer({
-  draft,
-  onDraftChange,
-  onSubmit,
-  label,
-  placeholder,
-  canSubmit,
-  busy = false,
-  disabled = false,
-  readOnly = false,
-  voice,
-  onStop,
-  fieldRef,
-  onFocusChange,
-  sendLabel,
-}: {
-  draft: string;
-  onDraftChange: (text: string) => void;
-  onSubmit: (text: string) => void;
-  label: string;
-  placeholder?: string;
-  canSubmit: boolean;
-  busy?: boolean;
-  disabled?: boolean;
-  readOnly?: boolean;
-  voice?: { phase: VoicePhase; onClick: () => void; disabled?: boolean };
-  onStop?: () => void;
-  fieldRef?: Ref<HTMLTextAreaElement>;
-  onFocusChange?: (focused: boolean) => void;
-  sendLabel?: string;
-}) {
-  const [focused, setFocused] = useState(false);
-  const eligible = !!draft.trim() && canSubmit && !busy;
-  const voiceActive = voice && ['connecting', 'listening', 'finishing'].includes(voice.phase);
-  const showVoice = voice && !busy && (voiceActive || !focused);
-  useEffect(() => {
-    if (busy) {
-      setFocused(false);
-      onFocusChange?.(false);
-    }
-  }, [busy, onFocusChange]);
-  const focus = (value: boolean) => {
-    setFocused(value);
-    onFocusChange?.(value);
-  };
-  return (
-    <Surface as="fieldset" aria-label="Message composer">
-      <Form
-        layout="inline"
-        onSubmit={(event) => {
-          event.preventDefault();
-          if (eligible) onSubmit(draft);
-        }}
-      >
-        <InputGroup variant="composer">
-          <InputGroupTextarea
-            variant="inline"
-            ref={fieldRef}
-            rows={1}
-            aria-label={label}
-            placeholder={placeholder}
-            value={draft}
-            disabled={busy || disabled}
-            readOnly={readOnly}
-            aria-busy={readOnly}
-            onChange={(event) => onDraftChange(event.currentTarget.value)}
-            onFocus={() => focus(true)}
-            onBlur={() => focus(false)}
-            onKeyDown={(event) => {
-              // Safari reports Enter confirming composed text with keyCode 229.
-              if (
-                eligible &&
-                event.key === 'Enter' &&
-                !event.shiftKey &&
-                !event.nativeEvent.isComposing &&
-                event.nativeEvent.keyCode !== 229
-              ) {
-                event.preventDefault();
-                event.currentTarget.form?.requestSubmit();
-              }
-            }}
-          />
-          <InputGroupAddon align="inset-end">
-            {!!voice && showVoice && (
-              <VoiceButton
-                phase={voice.phase}
-                onClick={voice.onClick}
-                disabled={disabled || voice.disabled}
-                busy={busy}
-              />
-            )}
-            {!showVoice && (
-              <SendButton
-                busy={busy}
-                focused={voice ? true : focused}
-                disabled={disabled || !eligible}
-                onStop={onStop}
-                label={sendLabel}
-              />
-            )}
-          </InputGroupAddon>
-        </InputGroup>
-      </Form>
-    </Surface>
-  );
-}
 export function SendButton({
   busy,
   focused,
   disabled,
   onStop,
   label = 'Send',
+  'aria-describedby': describedBy,
 }: {
   busy?: boolean;
   focused?: boolean;
   disabled?: boolean;
   onStop?: () => void;
   label?: string;
+  'aria-describedby'?: string;
 }) {
   return (
     <Button
@@ -200,6 +93,7 @@ export function SendButton({
       size="standard"
       iconOnly={true}
       aria-label={busy ? 'Stop' : label}
+      aria-describedby={describedBy}
       disabled={!busy && disabled}
       onPointerDown={(event) => event.preventDefault()}
       onClick={busy ? onStop : undefined}
@@ -214,11 +108,13 @@ export function VoiceButton({
   busy,
   disabled,
   onClick,
+  'aria-describedby': describedBy,
 }: {
   phase: VoicePhase;
   busy: boolean;
   disabled?: boolean;
   onClick: () => void;
+  'aria-describedby'?: string;
 }) {
   const waiting = phase === 'connecting' || phase === 'finishing';
   const recording = phase === 'listening';
@@ -238,6 +134,7 @@ export function VoiceButton({
       iconOnly={true}
       pending={waiting}
       aria-label={label}
+      aria-describedby={describedBy}
       aria-pressed={recording}
       disabled={disabled || busy || phase === 'finishing'}
       onClick={onClick}

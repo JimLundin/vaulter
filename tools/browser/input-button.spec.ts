@@ -11,7 +11,7 @@ for (const appearance of ['light', 'dark'] as const) {
     const banner = page.getByRole('complementary', { name: 'Design preview' });
     await expect(banner.getByRole('group', { name: 'Input button style preview' })).toHaveCount(0);
     await expect(banner.getByRole('combobox', { name: 'Input button variant' })).toHaveCount(0);
-    const composer = page.getByRole('group', { name: 'Message composer' });
+    const composer = page.getByRole('group', { name: 'Message text box' });
     const field = page.getByRole('textbox', { name: 'Message', exact: true });
     const mic = page.getByRole('button', { name: 'Start voice interaction' });
     const send = page.getByRole('button', { name: 'Send', exact: true });

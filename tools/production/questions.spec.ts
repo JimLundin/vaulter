@@ -120,6 +120,18 @@ test('production uses Balanced drafts in Questions and Wiki and persists an expl
   const card = page.getByRole('region', { name: 'Open question', exact: true });
   const answer = card.getByRole('textbox', { name: 'Your answer', exact: true });
   await expect(answer).toBeEnabled();
+  const entry = card.getByRole('group', { name: 'Your answer text box', exact: true });
+  await expect(entry.getByRole('button', { name: 'Save answer', exact: true })).toBeDisabled();
+  await expect(answer).not.toBeFocused();
+  if (compact) {
+    await expect
+      .poll(async () => {
+        const box = (await entry.boundingBox())!;
+        const rail = (await page.locator('[data-edge-rail]').boundingBox())!;
+        return box.x + box.width <= rail.x - 11;
+      })
+      .toBe(true);
+  }
   await expect(page.getByText('Loading conversation…', { exact: true })).toBeHidden();
   await page.evaluate(() => document.fonts.ready);
   await expect(
@@ -182,6 +194,14 @@ test('production uses Balanced drafts in Questions and Wiki and persists an expl
   expect(wiki.editorHeight).toBeGreaterThanOrEqual(112);
   await card.getByRole('button', { name: /^Write my own answer/ }).click();
   await answer.fill('Use a mobile tool cart and leave the bench clear.');
+  const writesBeforeEnter = fake.state.calls.filter((call) => call.startsWith('PATCH ')).length;
+  await answer.press('End');
+  await answer.press('Enter');
+  await expect(answer).toHaveValue('Use a mobile tool cart and leave the bench clear.\n');
+  expect(fake.state.calls.filter((call) => call.startsWith('PATCH '))).toHaveLength(
+    writesBeforeEnter,
+  );
+  await answer.blur();
   await card.getByRole('button', { name: 'Save answer', exact: true }).click();
   const answered = page.getByRole('region', { name: 'Answered', exact: true });
   await expect(answered).toContainText('Use a mobile tool cart and leave the bench clear.');

@@ -84,10 +84,15 @@ function usableFocusTarget(node: HTMLElement) {
   );
 }
 
-/** A grouped field protects its inset actions too; standalone forms protect their submit targets. */
+/** A text box protects its entire composition, including actions and feedback, before focus. */
 function inputElements(environment: Environment) {
   const elements = new Set<HTMLElement>();
   for (const input of environment.inputs) {
+    const textBox = input.closest<HTMLElement>('[data-text-box]');
+    if (textBox) {
+      elements.add(textBox);
+      continue;
+    }
     const group = input.closest<HTMLElement>('[data-slot="input-group"]');
     elements.add(group ?? input);
     if (group) continue;

@@ -8,6 +8,40 @@ const journal = (page: Page) =>
     () => JSON.parse(sessionStorage.getItem('vaulter:preview:accepted:v1') ?? '[]') as NodeCommit[],
   );
 
+test('Questions keeps multiline drafts and inset Save targets through responsive changes', {
+  tag: ['@phone', '@touch'],
+}, async ({ page }) => {
+  await page.goto('/preview/#/questions/preview:question/');
+  const answer = page.getByRole('textbox', { name: 'Your answer', exact: true });
+  await expect(answer).toBeEnabled();
+  const initial = await journal(page);
+  await answer.fill('Use a mobile tool cart.');
+  await answer.press('End');
+  await answer.press('Enter');
+  await expect(answer).toHaveValue('Use a mobile tool cart.\n');
+  const entry = page.getByRole('group', { name: 'Your answer text box', exact: true });
+  const save = entry.getByRole('button', { name: 'Save answer', exact: true });
+  await expect(save).toBeEnabled();
+  await answer.evaluate((node) => node.setAttribute('data-original-field', ''));
+  for (const width of [1440, 390, 320]) {
+    await page.setViewportSize({ width, height: 1000 });
+    await expect(answer).toBeFocused();
+    await expect(answer).toHaveAttribute('data-original-field', '');
+    await expect(answer).toHaveValue('Use a mobile tool cart.\n');
+    const surface = (await entry.locator('[data-slot="input-group"]').boundingBox())!;
+    const field = (await answer.boundingBox())!;
+    const action = (await save.boundingBox())!;
+    expect(action.width).toBeGreaterThanOrEqual(44);
+    expect(action.height).toBeGreaterThanOrEqual(44);
+    expect(action.x).toBeGreaterThanOrEqual(surface.x + 3);
+    expect(action.x + action.width).toBeLessThanOrEqual(surface.x + surface.width - 3);
+    expect(action.y + action.height).toBeLessThanOrEqual(surface.y + surface.height - 3);
+    expect(action.y).toBeGreaterThanOrEqual(field.y + field.height);
+    expect(field.height).toBeGreaterThanOrEqual(112);
+  }
+  expect(await journal(page)).toEqual(initial);
+});
+
 async function askQuestion(page: Page, text: string) {
   const input = page.getByRole('textbox', { name: 'Message', exact: true });
   await input.fill(`ask me: ${text}`);

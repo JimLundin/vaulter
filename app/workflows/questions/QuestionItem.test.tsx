@@ -171,7 +171,7 @@ test('read-only questions explain why answering is disabled and preserve an unsa
   const root = mount(onAnswer, 'Reconnect to answer questions.');
   expect(button('Save answer').disabled).toBe(true);
   const reason = button('Save answer').getAttribute('aria-describedby');
-  expect(reason && document.getElementById(reason)?.textContent).toBe(
+  expect(reason && document.getElementById(reason)?.textContent).toContain(
     'Reconnect to answer questions.',
   );
   await act(async () => root.render(<QuestionItem question={question} onAnswer={onAnswer} />));

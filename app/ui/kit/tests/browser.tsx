@@ -11,7 +11,7 @@ import {
   CommandItem,
   CommandList,
   SupportingPane,
-  Composer,
+  TextBox,
   Drawer,
   DropdownMenu,
   DropdownMenuContent,
@@ -291,32 +291,47 @@ function Fixture() {
   );
 }
 
-function ComposerFixture() {
+function TextBoxFixture() {
+  const longform = new URLSearchParams(location.search).has('longform');
   const [draft, setDraft] = useState('');
   const [submitted, setSubmitted] = useState<string[]>([]);
   const [allowed, setAllowed] = useState(true);
   const [busy, setBusy] = useState(false);
   const [stops, setStops] = useState(0);
   const [focused, setFocused] = useState(false);
+  const [error, setError] = useState('');
   const [phase, setPhase] = useState<'idle' | 'connecting' | 'listening' | 'finishing'>('idle');
   const fieldRef = useRef<HTMLTextAreaElement>(null);
   const recording = phase !== 'idle';
-  return (
+  const content = (
     <Stack>
-      <Composer
+      <TextBox
+        layout={longform ? 'longform' : 'compact'}
         draft={draft}
         onDraftChange={setDraft}
         onSubmit={(text) => setSubmitted([...submitted, text])}
-        label="Fixture message"
+        label={longform ? 'Fixture answer' : 'Fixture message'}
+        description="The owner keeps this draft until it is accepted."
+        error={error}
         placeholder="Write a controlled draft"
+        submitLabel={longform ? 'Save answer' : undefined}
+        pendingLabel={longform ? 'Saving answer…' : undefined}
         canSubmit={allowed && !recording}
         busy={busy}
         readOnly={recording}
-        voice={{ phase, onClick: () => setPhase(phase === 'idle' ? 'listening' : 'idle') }}
-        onStop={() => {
-          setStops(stops + 1);
-          setBusy(false);
-        }}
+        voice={
+          longform
+            ? undefined
+            : { phase, onClick: () => setPhase(phase === 'idle' ? 'listening' : 'idle') }
+        }
+        onStop={
+          longform
+            ? undefined
+            : () => {
+                setStops(stops + 1);
+                setBusy(false);
+              }
+        }
         fieldRef={fieldRef}
         onFocusChange={setFocused}
       />
@@ -327,6 +342,9 @@ function ComposerFixture() {
         {allowed ? 'Deny submission' : 'Allow submission'}
       </Button>
       <Button onClick={() => setBusy(true)}>Begin response</Button>
+      <Button onClick={() => setError('Review the wording before submitting.')}>
+        Show validation error
+      </Button>
       <Row wrap={true}>
         {(['connecting', 'listening', 'finishing', 'idle'] as const).map((state) => (
           <Button key={state} onClick={() => setPhase(state)}>
@@ -343,6 +361,18 @@ function ComposerFixture() {
         Use suggested thought
       </Button>
     </Stack>
+  );
+  return new URLSearchParams(location.search).has('rail') ? (
+    <NavigationSuite
+      status="Local sample"
+      search={{ label: 'Search', onSelect: () => undefined }}
+      destinations={[{ label: 'Text entry', href: '#entry', icon: 'edit', current: true }]}
+      actions={[]}
+    >
+      <FeaturePage title="Controlled text entry">{content}</FeaturePage>
+    </NavigationSuite>
+  ) : (
+    content
   );
 }
 
@@ -458,7 +488,7 @@ createRoot(document.getElementById('app')!).render(
   ) : new URLSearchParams(location.search).has('setting-fields') ? (
     <FieldFixture />
   ) : new URLSearchParams(location.search).has('composer') ? (
-    <ComposerFixture />
+    <TextBoxFixture />
   ) : (
     <Fixture />
   ),

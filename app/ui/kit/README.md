@@ -70,7 +70,8 @@ annotation transform may annotate semantic data, with no UI presentation permiss
 | `navigation.tsx` | `NavigationSuite`: one navigation as a sidebar or a freestanding edge rail |
 | `page-controls.tsx` | module-owned actions, search and filters with shared responsive placement |
 | `mobile-edge-rail.tsx` | private lower-right rail, inward menus and input clearance |
-| `conversation.tsx` | neutral message attribution, composer, voice and suggestions mechanics |
+| `conversation.tsx` | neutral message attribution, voice, action states and suggestions |
+| `text-box.tsx` | controlled compact/longform text entry, inset actions and field feedback |
 | `command-overlay.tsx` | shared responsive command-list overlay |
 | `expandable-row.tsx` | shared disclosure, metadata and compact actions |
 | `settings.tsx` | feature-named settings menu and shared form rows |
@@ -432,7 +433,7 @@ Connecting offers Cancel, listening offers Finish, and finishing offers Wait. Fi
 without Send; Send and Enter use Chat's shared preparation/review policy. Further recordings append
 to manual corrections. These logical owners remain independent of the kit's presentation lifetime.
 `VoiceStatus` shows capture state and errors above the dock without changing the field's position.
-`Composer` shows the Enter arrow while the field has focus and replaces its inset voice/Send action
+`TextBox` shows the Enter arrow while the field has focus and replaces its inset voice/Send action
 with Stop during an agent response. Standalone voice controls keep their microphone icon and remain
 disabled until the response finishes.
 The conversation feed contains submitted messages only. Read-only fields follow incoming words without taking focus. Drafts remain
@@ -474,52 +475,96 @@ children are rejected; raw controls hidden in an opaque feature component are ou
 composition policy. Declare identifiers only on a control
 when another reference needs them; field labels and descriptions require no identifier plumbing.
 
-## Composer interface
+## TextBox interface
 
-`Composer` owns the form, one-row textarea, inset actions, keyboard submission and focus-dependent
-Send icon. Every Chat and catalogue caller supplies the same controlled interaction:
+`TextBox` is the public composition for free-text entry. Chat, Questions (including answers embedded
+in Wiki), and multiline ModuleSettings fields use it. It owns the field, optional form, inset
+submission/voice/Stop actions, labels, descriptions, errors, focus feedback and keyboard policy.
+Consumers supply controlled values and task actions; they do not assemble these mechanics.
 
 ```tsx
-const fieldRef = useRef<HTMLTextAreaElement>(null);
-<Composer
+<TextBox
   draft={draft}
   onDraftChange={setDraft}
   onSubmit={submitDraft}
   label="Message"
   placeholder="Type a message…"
-  canSubmit={!recording}
+  canSubmit={submissionAllowed}
   busy={responding}
+  voice={{ phase: capturePhase, onClick: captureAction, disabled: !captureAllowed }}
   readOnly={recording}
-  voice={{ phase: capturePhase, onClick: toggleCapture }}
   onStop={stopResponse}
   fieldRef={fieldRef}
-  onFocusChange={observeFocus}
+  onFocusChange={setFocused}
+/>
+
+<TextBox
+  layout="longform"
+  label="Your answer"
+  description="Choose a suggestion or write freely."
+  error={saveError}
+  draft={answer}
+  onDraftChange={editAnswer}
+  onSubmit={saveAnswer}
+  canSubmit={canAnswer}
+  busy={saving}
+  submitLabel="Save answer"
+  pendingLabel="Saving answer…"
 />
 ```
 
-`draft`, `onDraftChange`, `onSubmit`, `label` and `canSubmit` are required. Draft changes report the
-complete value; submission reports the current text without clearing or normalizing it. The owner
-accepts or rejects submission, opens staged-change review, and clears the draft only when appropriate.
-`canSubmit` carries workflow restrictions such as capture. Composer also blocks whitespace-only
-text and response-busy submission. Enter and Send use the same form callback once per action.
-Shift+Enter, native IME composition and Safari key code 229 keep editing. An ineligible Enter remains
-unhandled, so editable fields retain native newline behavior.
+`draft`, `onDraftChange` and `label` are required. Draft changes report the complete value;
+submission reports the current text without clearing or normalizing it. The owner decides when a
+submission is accepted and when to clear its draft. Questions retains choice selection, per-choice
+drafts, stale-question review, save/retry state and duplicate-submission protection. Chat retains
+review, capture, cancellation and its conversation's draft lifetime.
 
-Optional `busy` disables the field and microphone and replaces Send with an explicit Stop button;
-Enter never invokes Stop. `disabled` and `readOnly` control field editability. `placeholder`,
-`sendLabel`, `voice` (phase, click action, optional disabled state), `onStop`, `fieldRef` and
-`onFocusChange` support existing adapters without exposing keyboard or icon coordination.
-Suggestions remain outside Composer; fill the controlled draft and use `fieldRef` to focus it.
-Transcripts update the owner’s draft without focusing the field. Status stays above the anchored dock.
-The same textarea survives responsive and preview presentation changes.
+`layout="compact"` (the default) keeps a 44px, one-row textarea with internal scrolling. Enter
+submits through the same form path as the action only when the draft has non-whitespace text,
+`canSubmit` is true, and the field is neither busy, disabled nor read-only. `canSubmit` defaults to
+false. Shift+Enter, native IME composition and Safari key code 229 keep editing. An ineligible Enter
+keeps native editing behavior. Each handled action invokes `onSubmit` once; authoritative acceptance
+and replay prevention remain with the owner.
 
-Public `SendButton` remains for standalone action-state catalogue coverage. `ComposerActions` has no
-remaining callers and is removed; ordinary callers use Composer without assembling forms or actions.
-The paired Agent and Agent panel samples retain independent controlled drafts and scripted actions.
+`layout="longform"` shows a visible field label and at least 112px of writing space, growing with
+its draft. Enter and Shift+Enter insert newlines; saving requires the explicit submission action.
+Its inset action row sits below the writing area inside the same rounded surface, leaving the full
+width available to the text. Both layouts use the same spacing, focus/error treatment and at least
+44px field/action touch targets on desktop, phone and touch desktop.
+
+Omit `onSubmit` for immediate-edit settings. TextBox renders the same longform field without a form
+or submit action; `onDraftChange` still reports every edit to the settings owner. Search, passwords,
+credentials, numeric settings and single-value identifiers keep their specialized controls.
+Primitive-only catalogue and policy fixtures still demonstrate `Input`, `Textarea` and `InputGroup`.
+
+`busy` disables editing and submission. An explicit `onStop` replaces the submission action while
+busy; without it the action stays disabled with `pendingLabel` (default “Saving…”). `submitLabel`
+defaults to “Send”. Voice phase and availability come from the owner. Transcripts update the controlled
+draft without taking focus, and the owner can use `fieldRef` to focus a chosen suggestion.
+`onFocusChange` lets Chat observe focus for suggestion visibility. `description` and `error` are
+associated with the field and its inset actions; an error also marks the field invalid and is announced.
+
+### Floating-control protection
+
+The kit registers each mounted TextBox's complete surface with its own presentation scope. App
+navigation uses that shared input-protection contract to reserve space beside its floating controls,
+including the field, inset actions and feedback. Docked entry uses the same contract through `Dock`.
+Registration is independent of focus, draft contents, capture, saving and disabled state. Viewport
+resize/pan, scrolling, mounting and content geometry changes update the measurement; switching to
+expanded navigation removes the clearance. Modules supply no rail selectors, offsets or geometry.
+The rail remains freestanding and app-owned.
+
+Responsive and preview-device changes retain the mounted field, focus and controlled draft. The
+paired Text box, Feed & composer and Agent panel samples own independent drafts and scoped geometry.
+`SendButton` remains available for standalone action-state examples. The former public `Composer`
+name is retired; ordinary callers use TextBox directly.
 
 ## Verifying a kit change
 
-Run `npm run typecheck`, `npm test`, `npm run lint` and `npm run test:ui`. Install Chromium once with
+Run `npm run typecheck`, `npm run lint` and focused tests under
+[the testing policy](../../../docs/agents/testing.md). Full-suite verification runs in CI for the
+exact pushed commit. For text entry, use `npm run test:ui -- tools/browser/composer.spec.ts` and the
+relevant Questions, catalogue and edge-rail scenarios. Install Chromium once with
 `npx playwright install chromium` (`--with-deps` on Linux CI). The browser suite starts its own sample
 server on port 4179 and leaves the design-review server on 4178 running. It uses the public kit fixture
 at `tests/browser.html` and the sample preview, with no private vault or paid API.
