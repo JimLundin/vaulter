@@ -12,6 +12,15 @@ the strongest implementation precedent: it preserves a preferred position while 
 resolving a keyboard-safe position. Neither source establishes automatic avoidance of Vaulter's
 visible text-field controls; that needs a shared presentation rule.
 
+The user's subsequent direction supersedes the collision proposal below: fix the rail in the
+lower-right of the visible viewport and place shared text inputs to its left. The current
+comparison is `?navigation=edge&variant=corner-split`; see
+[the prototype record](mobile-bottom-bar-prototype.md#current-comparison-fixed-lower-right-edge-bars).
+Samsung remains the visual reference for a small edge control opening growing lists, and
+Material supports reachable, independent lower-right geometry. The reserved input lane is
+Vaulter's prototype decision; these sources do not establish it as their own input behavior.
+The earlier AOSP-inspired recommendation is retained below as research history.
+
 ## Verified primary references
 
 | Reference | Verified behavior | What applies here |
@@ -44,7 +53,7 @@ and [an expanded menu example](https://cdsassets.apple.com/live/7WUAS350/images/
 These screenshots were downloaded and visually checked during research. Keep them as cited
 references rather than copied application assets.
 
-## Proposal for Vaulter
+## Earlier proposal for Vaulter
 
 This section is a design recommendation inferred from the references and the selected direction.
 It is not a claim that Samsung or Apple implements these rules.
@@ -80,7 +89,7 @@ obstruction. Moving the rail manually is useful customization; it should not be 
 a message. A global permanent bottom floor would also lose the requested bottom alignment on
 pages with no input.
 
-## Checks for the next iteration
+## Checks for the earlier clearance iteration
 
 - Verify the entire input/action hit region stays clear before focus, with a draft, during voice
   input and while sending; repeat on either edge and with one- and two-button rails.

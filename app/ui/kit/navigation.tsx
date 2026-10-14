@@ -15,6 +15,7 @@ import { Icon, type IconName } from './icons.tsx';
 import { useLayout } from './hooks/use-layout.ts';
 import { usePresentationPolicy } from './presentation-policy.tsx';
 import { PrototypeAppDock, type FreestandingDockDesign } from './mobile-dock-prototype.tsx';
+import { PrototypeCornerRail, type CornerRailDesign } from './mobile-corner-rail-prototype.tsx';
 import { Button } from './parts/button.tsx';
 import {
   Brand,
@@ -66,7 +67,8 @@ export type CompactNavigationDesign =
   | 'dock-bubble'
   | 'dock-shortcuts'
   | 'dock-side'
-  | FreestandingDockDesign;
+  | FreestandingDockDesign
+  | CornerRailDesign;
 
 function PrototypeNavigationBar({
   design,
@@ -199,6 +201,13 @@ export function NavigationSuite({
     compactDesign === 'free-rail' || compactDesign === 'free-rail-single'
       ? compactDesign
       : undefined;
+  const corner =
+    compactDesign === 'corner-split' ||
+    compactDesign === 'corner-tab' ||
+    compactDesign === 'corner-search'
+      ? compactDesign
+      : undefined;
+  const appRail = !!(freestanding || corner);
   const policy = usePresentationPolicy();
   const [menu, setMenu] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -248,7 +257,7 @@ export function NavigationSuite({
   return (
     <SidebarProvider>
       {compact ? (
-        !freestanding && (
+        !appRail && (
           <NavigationSheet
             open={menu}
             onClose={() => setMenu(false)}
@@ -378,7 +387,7 @@ export function NavigationSuite({
         editing={editing}
         header={
           !!compactDesign &&
-          !freestanding &&
+          !appRail &&
           (compactDesign === 'header' || editing) && (
             <PrototypeNavigationBar
               design={compactDesign}
@@ -395,7 +404,7 @@ export function NavigationSuite({
           )
         }
         bar={
-          freestanding ? null : compactDesign ? (
+          appRail ? null : compactDesign ? (
             compactDesign !== 'header' && (
               <PrototypeNavigationBar
                 design={compactDesign}
@@ -445,6 +454,19 @@ export function NavigationSuite({
       {freestanding && (
         <PrototypeAppDock
           design={freestanding}
+          compact={compact}
+          status={status}
+          destinations={destinations}
+          actions={actions}
+          onSearch={search.onSelect}
+          onNavigate={onNavigate}
+          primaryAction={primary?.menu}
+          footer={footer}
+        />
+      )}
+      {!!corner && (
+        <PrototypeCornerRail
+          design={corner}
           compact={compact}
           status={status}
           destinations={destinations}

@@ -277,7 +277,9 @@ body,
   z-index: 20;
 }
 [data-navigation-prototype="header"] main header:first-of-type,
-[data-navigation-prototype]:not([data-navigation-prototype^="free-"])[data-editing="true"]
+[data-navigation-prototype]:not([data-navigation-prototype^="free-"]):not(
+    [data-navigation-prototype^="corner-"]
+  )[data-editing="true"]
   main
   header:first-of-type {
   padding-left: 108px;
@@ -379,6 +381,85 @@ body,
   min-width: 0;
   flex: 1;
   overflow-wrap: anywhere;
+}
+
+/* Fixed corner comparison: the rail owns its edge; shared input surfaces occupy the lane left of it. */
+.kit-corner-rail {
+  position: absolute;
+  display: flex;
+  width: 52px;
+  flex-direction: column;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--background);
+  box-shadow:
+    0 8px 28px #0000001c,
+    0 2px 6px #0000000a;
+  pointer-events: auto;
+}
+.kit-corner-rail-control {
+  display: flex;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--foreground);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.kit-corner-rail-control svg {
+  width: 20px;
+  height: 20px;
+}
+.kit-corner-rail-control:hover,
+.kit-corner-rail-control[aria-expanded="true"] {
+  background: var(--muted);
+}
+.kit-corner-rail-control:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+[data-app-dock="corner-tab"] {
+  width: 46px;
+  padding: 0;
+  border-radius: 14px;
+}
+[data-app-dock="corner-tab"] .kit-corner-rail-control {
+  height: 90px;
+  flex-direction: column;
+  gap: 8px;
+}
+.kit-corner-rail-tab-label {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-size: 12px;
+  font-weight: 500;
+}
+[data-app-dock="corner-search"] .kit-corner-rail-control:last-of-type {
+  background: var(--muted);
+}
+.kit-corner-rail-menu {
+  border-radius: 16px;
+}
+[data-dock][data-corner-input-lane="dock"],
+[data-navigation-prototype^="corner-"] [data-dock][data-corner-input-lane="dock"] {
+  padding-right: max(16px, var(--corner-input-space));
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
+  border: 0;
+  background: transparent;
+}
+[data-corner-input-lane="field"] {
+  max-width: min(100%, var(--corner-input-space));
+  align-self: flex-start;
+  margin-inline-start: 0;
+  margin-inline-end: auto;
 }
 
 /* biome-ignore lint/correctness/noUnknownFunction: Tailwind resolves the shared breakpoint token. */

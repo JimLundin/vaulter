@@ -410,7 +410,9 @@ export function OpenProduct({
     if (open) localStorage.setItem('vault-panel', 'agent');
     else localStorage.removeItem('vault-panel');
   };
-  const freestandingDock = compactNavigation?.startsWith('free-') ?? false;
+  const freestandingDock =
+    !!compactNavigation &&
+    (compactNavigation.startsWith('free-') || compactNavigation.startsWith('corner-'));
   const dismissSupportingTasks = () => {
     setSettings(false);
     setSearch(false);

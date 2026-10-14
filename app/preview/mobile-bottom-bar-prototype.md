@@ -8,9 +8,61 @@ renders the current Product. The experiment supplies the same Product, fictional
 scripted Agent, with alternative navigation arrangements.
 
 Run `npm run design:mobile-bar`. In the existing preview pill, enable Mobile and cycle designs.
-The default is now the two-button Edge rail. The URL retains the selection.
+The default is now the fixed Modules + Tools rail. The URL retains the selection.
 
-## Selected direction: minimal edge rail
+## Current comparison: fixed lower-right edge bars
+
+The user's latest direction on 2026-10-14 reverses the earlier input-clearance relationship:
+the rail stays fixed in the lower-right corner and the text input places itself to the left.
+The corner is relative to the visible viewport, so the same controls remain above the keyboard.
+The rail never follows an input's height, focus, scrolling or module. No placement controls or
+dragging are part of this comparison.
+
+Open `/preview/?navigation=edge&variant=corner-split`, or cycle these three choices in Preview:
+
+| Variant | Resting controls | Expanded list |
+| --- | --- | --- |
+| `corner-split` | Modules + Tools, in a 52×100px rail | Separate module and tool lists keep each group short and close to the thumb |
+| `corner-tab` | One labelled Menu tab, 46×92px | A single sidebar-style list groups Modules and Tools; gives the input slightly more width |
+| `corner-search` | Search + Menu, in a 52×100px rail | Search opens directly; Menu contains Modules, voice and Settings |
+
+All controls retain at least 44px touch targets. Menus expand inward to the left, retain the
+current-module marker and scroll within the available viewport. They use the existing shared
+menu adapters for focus, keyboard navigation, outside dismissal and collision bounds. The
+same global Search, Settings and voice actions apply on every module.
+
+The app rail owns its own portal outside the module workspace. Shared kit input registration
+identifies the input group, surrounding Dock or standalone form. Docks reserve right padding
+for the rail and a 12px gap; the entire trailing input stack, including status and suggestions,
+stays in the left lane. Standalone forms keep the field and its submission actions to the left
+too. Geometry is measured from stable outer edges, so narrowing a field does not repeatedly
+recalculate from its own narrowed width. The shared rule also applies to portalled Chat panes.
+Private styles and markers are removed when returning to the desktop layout.
+
+The input keeps its own surface; the surrounding compact Dock backing is transparent in these
+variants. That previews the direction of [ticket #71](https://github.com/JimLundin/vaulter/issues/71).
+[Ticket #70](https://github.com/JimLundin/vaulter/issues/70) still owns the production work to unify
+Chat, Questions and other inputs. This experiment changes shared presentation geometry without
+moving draft lifetime, submission, persistence or voice ownership out of their modules.
+
+The ordinary preview remains current Product. The earlier adaptive-rail comparison remains at
+`?navigation=freestanding&variant=free-rail`; its last delivery was `d396750`. The fixed input lane
+is a new comparison, and the former collision recommendation below is retained as history.
+
+Browser probes pass for all three variants at 320, 390 and 430px: fixed right/bottom placement,
+input and action hit regions, changing input height, focus and draft retention, module changes,
+Questions and Save answer, safe areas, and controlled 430/72 and 340/100 keyboard resize/pan.
+Additional checks drive scripted voice capture, Finish recording, Send and busy Stop; global
+actions, supporting Chat Docks, scrolling menus, keyboard focus, dark appearance, device changes,
+input-lane cleanup, the reload-stable picker and neutral/earlier previews. These are throwaway
+browser probes, not new production regression tests. Focused existing Composer, navigation and
+comparison checks pass (22), as do shared composition, catalogue and ownership checks (60), lint,
+types and the design build. Full verification belongs to the exact pushed commit's CI.
+
+Physical phone review is still needed for thumb reach and native keyboard behavior. No variant
+has been selected for production promotion.
+
+## Earlier comparison: minimal edge rail
 
 The user selected Edge rail on 2026-10-14, with two refinements: allow bottom alignment when there
 is no text field to clear, and reduce the rail to one or two buttons that expand into lists.

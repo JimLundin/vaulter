@@ -194,6 +194,15 @@ export function usePresentationPolicy() {
           return rect ? [rect] : [];
         });
       },
+      inputSurfaces() {
+        return [
+          ...new Set(
+            inputElements(environment).map(
+              (node) => node.closest<HTMLElement>('[data-dock]') ?? node.closest('form') ?? node,
+            ),
+          ),
+        ];
+      },
       watchInputs(changed: () => void) {
         let frame = 0;
         const observed = new Set<HTMLElement>();
