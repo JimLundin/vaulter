@@ -8,7 +8,52 @@ renders the current Product. The experiment supplies the same Product, fictional
 scripted Agent, with alternative navigation arrangements.
 
 Run `npm run design:mobile-bar`. In the existing preview pill, enable Mobile and cycle designs.
-The default is now Thumb cluster. The URL retains the selection.
+The default is now the two-button Edge rail. The URL retains the selection.
+
+## Selected direction: minimal edge rail
+
+The user selected Edge rail on 2026-10-14, with two refinements: allow bottom alignment when there
+is no text field to clear, and reduce the rail to one or two buttons that expand into lists.
+Modules must remain a growing list, rather than becoming permanent buttons in the rail.
+
+The freestanding comparison now defaults to `/preview/?navigation=freestanding&variant=free-rail`.
+It includes two refinements of that selected direction, alongside Thumb cluster and Expandable
+puck from the previous round:
+
+| Variant | Resting controls | Expanded list |
+| --- | --- | --- |
+| `free-rail` | Modules and Tools | Modules shows the brand, sync status and full destination list with a current marker; Tools shows Search, voice, Settings and dock placement |
+| `free-rail-single` | App menu | One sidebar-style list with Modules, Tools and dock placement groups |
+
+The two-button rail is 60×110px, down from the original four-control rail's 60×210px. The one-button
+rail is 60×60px. Both retain 46px targets and expand beside the chosen edge. Lists scroll within
+the visible viewport as modules grow. The two-button version is the default because its shorter
+lists keep common destinations and actions closer to the thumb.
+
+The old unconditional 88px bottom floor is removed. Dragging can reach 12px from the bottom;
+Tools also offers Align to bottom. Alt + arrow keys move the focused rail control, Alt + End aligns
+it to the bottom, and Alt + Home resets its comfortable initial height. These keys leave ordinary
+menu keyboard navigation available. Both edges honor safe-area insets.
+
+Text-field focus applies a global 88px clearance above the visible viewport's bottom. Leaving
+editing restores the chosen placement. This uses the application focus policy, not a module,
+composer measurement or route. The rail does not add a footer row or change its button count while
+typing. Its app-level portal, actions and placement survive module navigation and device changes.
+
+This remains a design prototype. The original freestanding rail is retained in commit `1b72cd9`,
+and the earlier comparisons below retain their URLs and verdicts.
+
+Bundled phone probes pass for both refinements at 320, 390 and 430px: bottom alignment, either
+edge, current module, Search, voice, Settings, draft retention and unchanged control count while
+typing. A controlled 430px visible viewport panned by 72px keeps the rail and field in view; the
+combined menu scrolls. Touch dragging changes height and edge without opening a menu. Device
+switching keeps the mounted field, draft and placement; menu keyboard navigation, picker reload,
+dark appearance and the neutral preview also pass. The retained cluster and puck still navigate.
+
+Focused navigation/comparison (12 checks), Settings/Composer (16 checks), Product behavior (4
+checks), shared compositions and the design build pass, along with lint and types. The full local
+ownership scan returns no violations in 23s; its 15s test timeout is recorded for CI verification.
+Keyboard geometry is simulated here; physical keyboard and thumb reach remain a device review.
 
 ## Freestanding app dock
 
@@ -25,7 +70,7 @@ the dock, keeping destinations within reach rather than sending the user to the 
 
 | Variant | Arrangement | Trade-off |
 | --- | --- | --- |
-| `free-rail` | Vertical Menu, Search, voice and grip at either edge | Direct controls; collapses to a reachable puck while typing |
+| `free-rail` (original at `1b72cd9`) | Vertical Menu, Search, voice and grip at either edge | Direct controls; collapses to a reachable puck while typing |
 | `free-cluster` | Two-by-two Menu, Search, voice and grip | All controls in a shorter thumb area; occupies more width |
 | `free-orbit` | Small puck expands into three controls around the thumb | Smallest resting footprint; one extra tap |
 
@@ -34,9 +79,9 @@ and moves with arrow keys; Home resets. Navigation offers the same placement con
 Position stays in memory across module navigation and device changes. Visible viewport resize/pan
 keeps the dock above the keyboard. None of these designs hides navigation during text entry.
 
-Thumb cluster is the initial recommendation because the global controls are concentrated in a
-shorter reach than the rail. The specific arrangement remains unselected. Earlier comparisons are
-retained for reference; they do not meet the clarified independence requirement.
+Thumb cluster was the initial recommendation because the global controls were concentrated in a
+shorter reach than the original rail. The user instead selected Edge rail and requested the minimal
+refinement above. Earlier comparisons are retained for reference.
 
 Bundled browser probes confirm the same dock element, controls and geometry across Chat, Wiki,
 Questions and History. At 320, 390 and 430px both edges keep targets at least 44px and navigation

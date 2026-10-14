@@ -369,6 +369,12 @@ body,
 .kit-app-dock[data-collapsed] {
   bottom: min(var(--app-dock-bottom), calc(100% - 72px));
 }
+.kit-app-dock[data-rail] {
+  bottom: min(max(var(--app-dock-bottom), env(safe-area-inset-bottom)), calc(100% - 122px));
+}
+.kit-app-dock[data-app-dock="free-rail-single"] {
+  bottom: min(max(var(--app-dock-bottom), env(safe-area-inset-bottom)), calc(100% - 72px));
+}
 .kit-app-dock[data-app-dock="free-cluster"] {
   display: grid;
   grid-template-columns: repeat(2, 46px);
@@ -418,10 +424,18 @@ body,
   left: 66px;
 }
 .kit-app-dock-menu {
-  width: 220px;
+  width: 260px;
   max-width: calc(100vw - 92px);
   border-radius: 20px;
   padding: 6px;
+}
+.kit-app-dock-menu-brand {
+  padding: 10px 6px 12px;
+}
+.kit-app-dock-menu [data-slot="dropdown-menu-label"] {
+  padding: 8px 10px 4px;
+  color: var(--muted-foreground);
+  font-size: 12px;
 }
 .kit-app-dock-menu [data-slot="dropdown-menu-item"] {
   min-height: 44px;
@@ -429,6 +443,11 @@ body,
 }
 .kit-app-dock-menu [aria-current="page"] {
   background: var(--muted);
+}
+.kit-app-dock-item-label {
+  min-width: 0;
+  flex: 1;
+  overflow-wrap: anywhere;
 }
 
 /* biome-ignore lint/correctness/noUnknownFunction: Tailwind resolves the shared breakpoint token. */

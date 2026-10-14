@@ -234,13 +234,13 @@ function Preview({ initialHead, nodes }: { initialHead: Head; nodes: NodeStore }
   const dockComparison = navigationComparison === 'dock';
   if (!(freestandingComparison || dockComparison || navigationComparison === 'prototype'))
     return frame(product());
-  // Three app-level docks compare thumb reach without coupling to the active module.
+  // Minimal edge rails refine the selected direction alongside the earlier app-level docks.
   // Earlier comparisons keep their original URLs as the primary source for those rounds.
   return (
     <DesignComparison
       defaultValue={
         query.get('variant') ??
-        (freestandingComparison ? 'free-cluster' : dockComparison ? 'dock-joined' : 'slim')
+        (freestandingComparison ? 'free-rail' : dockComparison ? 'dock-joined' : 'slim')
       }
       onValueChange={(value) => {
         const url = new URL(location.href);
@@ -250,7 +250,12 @@ function Preview({ initialHead, nodes }: { initialHead: Head; nodes: NodeStore }
       alternatives={
         freestandingComparison
           ? [
-              { id: 'free-rail', label: 'Edge rail', content: product('free-rail') },
+              { id: 'free-rail', label: 'Edge rail · two buttons', content: product('free-rail') },
+              {
+                id: 'free-rail-single',
+                label: 'Edge rail · one button',
+                content: product('free-rail-single'),
+              },
               { id: 'free-cluster', label: 'Thumb cluster', content: product('free-cluster') },
               { id: 'free-orbit', label: 'Expandable puck', content: product('free-orbit') },
             ]

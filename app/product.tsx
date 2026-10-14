@@ -726,6 +726,26 @@ export function OpenProduct({
         }}
         onNavigate={freestandingDock ? dismissSupportingTasks : undefined}
         primary={{
+          menu: freestandingDock
+            ? {
+                label:
+                  capture.phase === 'connecting'
+                    ? 'Cancel recording'
+                    : capture.phase === 'listening'
+                      ? 'Finish recording'
+                      : capture.phase === 'finishing'
+                        ? 'Finishing transcript'
+                        : 'Start voice interaction',
+                icon:
+                  capture.phase === 'listening'
+                    ? 'stop'
+                    : capture.phase === 'connecting' || capture.phase === 'finishing'
+                      ? 'clock'
+                      : 'mic',
+                disabled: !capture.allowed || capture.phase === 'finishing',
+                onSelect: voiceAction,
+              }
+            : undefined,
           compact: (freestandingDock || !onChat) && (
             <VoiceButton
               phase={capture.phase}

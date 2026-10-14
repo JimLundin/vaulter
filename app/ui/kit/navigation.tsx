@@ -54,6 +54,7 @@ export interface NavigationAction {
   keys?: string;
   current?: boolean;
   expanded?: boolean;
+  disabled?: boolean;
 }
 
 /** Throwaway mobile navigation options, retained on the prototype branch for design review. */
@@ -183,8 +184,9 @@ export function NavigationSuite({
   destinations: NavigationDestination[];
   actions: NavigationAction[];
   /** Optional primary controls: at the sidebar's foot and floating above the phone bar. A product
-   * can supply only the phone control when the desktop destination already covers the action. */
-  primary?: { expanded?: ReactNode; compact?: ReactNode };
+   * can supply only the phone control when the desktop destination already covers the action.
+   * The prototype rail uses the menu action instead of a persistent primary button. */
+  primary?: { expanded?: ReactNode; compact?: ReactNode; menu?: NavigationAction };
   compactDesign?: CompactNavigationDesign;
   /** Account controls under everything else (sign out). */
   footer?: ReactNode;
@@ -195,6 +197,7 @@ export function NavigationSuite({
   const compact = useLayout() === 'compact';
   const freestanding =
     compactDesign === 'free-rail' ||
+    compactDesign === 'free-rail-single' ||
     compactDesign === 'free-cluster' ||
     compactDesign === 'free-orbit'
       ? compactDesign
@@ -447,11 +450,13 @@ export function NavigationSuite({
           design={freestanding}
           compact={compact}
           editing={editing}
+          status={status}
           destinations={destinations}
           actions={actions}
           onSearch={search.onSelect}
           onNavigate={onNavigate}
           primary={primary?.compact}
+          primaryAction={primary?.menu}
           footer={footer}
         />
       )}
