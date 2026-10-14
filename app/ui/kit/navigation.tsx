@@ -73,7 +73,7 @@ export function NavigationSuite({
     <PageControlsContext.Provider value={pageControls.context}>
       <SidebarProvider>
         {!compact && (
-          <Sidebar>
+          <Sidebar data-app-navigation="">
             <SidebarHeader>
               <Brand
                 status={status}

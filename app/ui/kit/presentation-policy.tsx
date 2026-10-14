@@ -295,7 +295,13 @@ export function usePresentationSurface(open: boolean) {
   };
 }
 
-type FocusTarget = { node: HTMLElement; tag: string; name: string; labelled: boolean };
+type FocusTarget = {
+  node: HTMLElement;
+  tag: string;
+  name: string;
+  action: boolean;
+  navigation: boolean;
+};
 
 /** Remember the opener path, including a command in Search which disappears on selection. */
 export function usePresentationFocus(open: boolean) {
@@ -315,8 +321,9 @@ export function usePresentationFocus(open: boolean) {
         {
           node,
           tag: node.tagName.toLowerCase(),
-          name: node.getAttribute('aria-label') ?? node.textContent ?? '',
-          labelled: node.hasAttribute('aria-label'),
+          name: (node.getAttribute('aria-label') ?? node.textContent ?? '').trim(),
+          action: node.matches('button, a, [role="menuitem"]'),
+          navigation: !!node.closest('[data-app-navigation]'),
         },
         ...targets.current.filter((target) => target.node !== node),
       ].slice(0, 10);
@@ -331,12 +338,22 @@ export function usePresentationFocus(open: boolean) {
       if (same.tag === 'body') continue;
       const target = visible(same.node)
         ? same.node
-        : [...(policy.portal ?? document).querySelectorAll<HTMLElement>(same.tag)].find(
+        : [
+            ...(policy.portal ?? document).querySelectorAll<HTMLElement>(
+              same.action ? 'button, a, [role="menuitem"]' : same.tag,
+            ),
+          ].find(
             (node) =>
               visible(node) &&
-              (same.labelled ? node.getAttribute('aria-label') : node.textContent) === same.name,
+              (node.getAttribute('aria-label') ?? node.textContent ?? '').trim() === same.name,
           );
       if (target) return target;
+      if (same.navigation) {
+        const modules = (policy.portal ?? document).querySelector<HTMLElement>(
+          '[data-app-modules]',
+        );
+        if (modules && visible(modules)) return modules;
+      }
     }
   };
 }

@@ -281,9 +281,9 @@ test('agent controls have even insets and suggestions remain one scrolling row w
   }
 });
 
-test('settings is a shared drawer that keeps feature fields and focus when resized', async ({
-  page,
-}) => {
+test('settings is a shared drawer that keeps feature fields and focus when resized', {
+  tag: '@phone',
+}, async ({ page }) => {
   await page.goto('/ui/kit/tests/browser.html');
   await openAppAction(page, 'Settings');
   const settings = page.getByRole('dialog', { name: 'Settings', exact: true });
@@ -403,9 +403,9 @@ test(
   },
 );
 
-test('search keeps its query, selected result and focus through every size threshold', async ({
-  page,
-}) => {
+test('search keeps its query, selected result and focus through every size threshold', {
+  tag: '@phone',
+}, async ({ page }) => {
   await page.goto('/ui/kit/tests/browser.html');
   await openAppAction(page, 'Search');
   const input = page.getByRole('combobox');

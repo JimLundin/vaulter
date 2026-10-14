@@ -1,9 +1,9 @@
 import { openAppAction } from './app-navigation.ts';
 import { expect, test } from '@playwright/test';
 
-test('opening a second preview tab keeps conversation selection with each tabs records', async ({
-  page,
-}) => {
+test('opening a second preview tab keeps conversation selection with each tabs records', {
+  tag: '@phone',
+}, async ({ page }) => {
   await page.goto('/preview/');
   const input = page.getByRole('textbox', { name: 'Message', exact: true });
   await input.fill('Remember this tab');
@@ -12,6 +12,8 @@ test('opening a second preview tab keeps conversation selection with each tabs r
   const other = await page.context().newPage();
   await other.goto('/preview/');
   await expect(other.getByRole('textbox', { name: 'Message', exact: true })).toBeVisible();
+  const conversations = other.getByRole('button', { name: 'Conversations', exact: true });
+  if (await conversations.isVisible()) await conversations.click();
   await expect(other.getByText('No saved conversations yet.', { exact: true })).toBeVisible();
   await expect(other.getByText('Expected finite, acyclic JSON', { exact: false })).toHaveCount(0);
   await page.reload();

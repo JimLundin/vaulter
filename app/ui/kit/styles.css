@@ -78,7 +78,7 @@ body,
   padding-bottom: max(12px, env(safe-area-inset-bottom));
   padding-left: max(12px, env(safe-area-inset-left));
   pointer-events: none;
-  z-index: 55;
+  z-index: 49;
 }
 .kit-edge-rail {
   position: absolute;

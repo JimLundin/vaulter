@@ -337,6 +337,7 @@ test('preview device changes keep open settings and search inside the app frame'
     else await expect(settings).toHaveCSS('border-top-left-radius', '12px');
   }
   await settings.getByRole('button', { name: 'Close settings' }).click();
+  await expectAppActionFocus(page, 'Settings');
   await openAppAction(page, 'Search');
   const search = page.getByRole('dialog', { name: 'Search or ask', exact: true });
   const query = search.getByRole('combobox');

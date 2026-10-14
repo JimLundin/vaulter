@@ -326,6 +326,7 @@ export function MobileEdgeRail({
           >
             <DropdownMenuTrigger
               aria-label="Modules"
+              data-app-modules=""
               className="kit-edge-rail-control kit-edge-modules-anchor"
             >
               <Icon name="grid" />
@@ -336,6 +337,7 @@ export function MobileEdgeRail({
               align="end"
               sideOffset={12}
               aria-label="App navigation"
+              data-app-navigation=""
               className="kit-edge-rail-menu"
               style={menuStyle}
             >
@@ -383,7 +385,7 @@ export function MobileEdgeRail({
               <DropdownMenuSeparator />
               <DropdownMenuGroup aria-label="Tools">
                 <DropdownMenuLabel>Tools</DropdownMenuLabel>
-                <DropdownMenuItem onClick={onSearch}>
+                <DropdownMenuItem aria-label="Search" onClick={onSearch}>
                   <Icon name="search" />
                   Search
                 </DropdownMenuItem>
