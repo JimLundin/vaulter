@@ -550,6 +550,8 @@ defaults to “Send”. Voice phase and availability come from the owner. Transc
 draft without taking focus, and the owner can use `fieldRef` to focus a chosen suggestion.
 `onFocusChange` lets Chat observe focus for suggestion visibility. `description` and `error` are
 associated with the field and its inset actions; an error also marks the field invalid and is announced.
+Tabbing from the field to its inset Save action keeps that action mounted. Focus presentation resets
+when focus leaves the text box, so explicit submission remains reachable by keyboard.
 
 ### Floating-control protection
 

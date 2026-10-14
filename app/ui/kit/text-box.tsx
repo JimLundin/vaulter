@@ -91,7 +91,6 @@ export function TextBox({
         readOnly={readOnly}
         onChange={(event) => onDraftChange(event.currentTarget.value)}
         onFocus={() => focus(true)}
-        onBlur={() => focus(false)}
         onKeyDown={(event) => {
           // Safari reports Enter confirming composed text with keyCode 229.
           if (
@@ -145,7 +144,14 @@ export function TextBox({
     </InputGroup>
   );
   return (
-    <Surface as="fieldset" data-text-box={layout} aria-label={`${label} text box`}>
+    <Surface
+      as="fieldset"
+      data-text-box={layout}
+      aria-label={`${label} text box`}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) focus(false);
+      }}
+    >
       <Stack gap="sm">
         {layout === 'longform' && <FieldLabel htmlFor={id}>{label}</FieldLabel>}
         {onSubmit ? (

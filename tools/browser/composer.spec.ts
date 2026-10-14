@@ -100,7 +100,9 @@ test('explicit entry keeps Enter as editing and saves without clearing the contr
     await expect(field).toHaveValue('First line\n');
     await expect(page.getByText('Submitted drafts: []', { exact: true })).toBeVisible();
     await field.fill('First line\nA considered answer');
-    await page.getByRole('button', { name: 'Save answer', exact: true }).click();
+    await field.press('Tab');
+    await expect(page.getByRole('button', { name: 'Save answer', exact: true })).toBeFocused();
+    await page.keyboard.press('Enter');
     await expect(
       page.getByText('Submitted drafts: ["First line\\nA considered answer"]', { exact: true }),
     ).toBeVisible();
