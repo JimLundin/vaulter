@@ -206,7 +206,7 @@ adds one.
 | Page toolbar actions | Icons extending above the Modules anchor | `Toolbar` → `PageControls` |
 | Inline collection search and filters | Search icon opens a bottom field to the rail’s left; Filters opens choices inward | `PageControls` |
 | Form rows: label left, control right | The same fields stacked vertically | `SettingsMenu`, `SettingField` |
-| One-row composer with inset microphone and send | The same always-visible field and inset controls | Chat-owned composition over `Toolbar`, `AutoScrollArea` and `Dock`, `Composer` |
+| One-row composer with inset microphone and send | The same always-visible field and inset controls | Chat-owned composition over `Toolbar`, `AutoScrollArea` and `Dock`, `TextBox` |
 | Titled expandable rows with labelled actions | The same rows with accessible icon actions | `ExpandableRow`, `RowAction` |
 | Single horizontally scrolling prompt row | The same row, with a fade at clipped edges | `PromptSuggestions`, `OptionStrip` |
 

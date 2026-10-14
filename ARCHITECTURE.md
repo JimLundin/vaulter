@@ -194,7 +194,7 @@ Product assembles Settings from the module definitions and subscribes to their c
 Each new request retains the configured model, instructions and Agent invocation settings. OpenAI
 capabilities use the provider's model, voice and embedding options. The composer
 contains only message entry and dictation/send controls, with Enter to send and Shift+Enter for a
-new line. Public `Composer` owns the form, one-row textarea, inset actions, keyboard submission and
+new line. Public `TextBox` owns the form, compact textarea, inset actions, keyboard submission and
 send-icon focus presentation for both Chat and catalogue samples. Its controlled draft and action
 callbacks keep conversation lifetime in the workflow. Enter and Send share the form callback;
 Native IME confirmation and Safari key code 229 remain editing events. Chat requires non-whitespace
