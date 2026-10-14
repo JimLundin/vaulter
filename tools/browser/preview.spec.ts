@@ -1,4 +1,4 @@
-import { openAppAction } from './app-navigation.ts';
+import { expectAppActionFocus, openAppAction } from './app-navigation.ts';
 import { expect, test } from '@playwright/test';
 import { setPreviewMobile } from './preview-controls.ts';
 
