@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { navigateToModule } from '../browser/app-navigation.ts';
 import { fakeGitHub } from '../../app/vault/storage/github-client/fake-github.ts';
 import { create, request } from '../../app/vault/nodes/fixtures.test-support.ts';
 import { accept } from '../../app/vault/nodes/history.ts';
@@ -87,6 +88,35 @@ test('production uses Balanced drafts in Questions and Wiki and persists an expl
   await page.goto('/#/questions/tools-question/');
   await page.getByLabel('Password', { exact: true }).fill(password);
   await page.getByRole('button', { name: 'Open vault', exact: true }).click();
+  await expect(page.getByRole('textbox', { name: 'Your answer', exact: true })).toBeEnabled();
+  await navigateToModule(page, 'Questions');
+  await expect(page.getByRole('heading', { name: 'Questions', exact: true })).toBeVisible();
+  const compact = test.info().project.name === 'phone';
+  if (compact) {
+    await expect(page.locator('[data-edge-rail]').getByRole('button')).toHaveCount(3);
+    await page.getByRole('button', { name: 'Find questions', exact: true }).click();
+  }
+  const search = page.getByRole('searchbox', { name: 'Find questions', exact: true });
+  await search.fill('No matching fictional question');
+  await expect(page.getByText('No questions found.', { exact: true })).toBeVisible();
+  await search.fill('Which tools should stay?');
+  await expect(page.getByRole('textbox', { name: 'Your answer', exact: true })).toBeVisible();
+  if (compact) {
+    await page.getByRole('button', { name: 'Filters', exact: true }).click();
+    await page.getByRole('menuitemradio', { name: 'All', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Filters', exact: true })).toBeFocused();
+    await expect(page.getByRole('button', { name: 'Filters', exact: true })).not.toHaveAttribute(
+      'data-filtered',
+      'true',
+    );
+    await search.focus();
+    await search.press('Escape');
+    await expect(search).toHaveCount(0);
+  } else await search.fill('');
+  await page
+    .getByRole('link', { name: 'Question details: Which tools should stay?', exact: true })
+    .click();
+  if (compact) await expect(page.locator('[data-edge-rail]').getByRole('button')).toHaveCount(1);
   const card = page.getByRole('region', { name: 'Open question', exact: true });
   const answer = card.getByRole('textbox', { name: 'Your answer', exact: true });
   await expect(answer).toBeEnabled();
@@ -176,7 +206,11 @@ test('production uses Balanced drafts in Questions and Wiki and persists an expl
   await page.evaluate(() => {
     location.hash = '#/questions/';
   });
-  await page.getByRole('main').getByRole('button', { name: 'Answered', exact: true }).click();
+  if (compact) {
+    await page.getByRole('button', { name: 'Filters', exact: true }).click();
+    await page.getByRole('menuitemradio', { name: 'Answered', exact: true }).click();
+  } else
+    await page.getByRole('main').getByRole('button', { name: 'Answered', exact: true }).click();
   await expect(answered).toContainText('Use a mobile tool cart and leave the bench clear.');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });

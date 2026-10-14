@@ -1,10 +1,11 @@
+import { openAppAction, expectAppActionFocus } from './app-navigation.ts';
 import { expect, test } from '@playwright/test';
 
 test('module settings persist valid preferences and keep credentials with their implementation', {
   tag: '@phone',
 }, async ({ page }) => {
   await page.goto('/preview/');
-  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await openAppAction(page, 'Settings');
   const settings = page.getByRole('dialog', { name: 'Settings', exact: true });
   for (const name of ['Appearance', 'Chat', 'Agent', 'OpenAI', 'GitHub storage', 'Jina']) {
     await expect(settings.getByRole('region', { name, exact: true })).toBeAttached();
@@ -61,7 +62,7 @@ test('module settings persist valid preferences and keep credentials with their 
     'https://api.openai.com/v1',
   );
   await page.reload();
-  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await openAppAction(page, 'Settings');
   await expect(model.locator('option:checked')).toHaveText('Custom…');
   await expect(customModel).toHaveValue('review-model');
   await expect(settings.getByRole('combobox', { name: 'Voice', exact: true })).toHaveValue('cedar');
@@ -90,7 +91,7 @@ test('module settings persist valid preferences and keep credentials with their 
   );
   await expect(settings.getByRole('textbox', { name: 'Temperature', exact: true })).toHaveValue('');
   await settings.getByRole('button', { name: 'Close settings', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Settings', exact: true })).toBeFocused();
+  await expectAppActionFocus(page, 'Settings');
 });
 
 test('Agent presets retain custom numeric drafts and provide explicit model and provider defaults', {
@@ -206,7 +207,7 @@ test('model and voice dropdowns support labels, native selection and custom IDs'
   await expect(customModel).toBeFocused();
   await customModel.fill('installation-model');
   await settings.getByRole('button', { name: 'Close settings', exact: true }).click();
-  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await openAppAction(page, 'Settings');
   await expect(model.locator('option:checked')).toHaveText('Custom…');
   await expect(customModel).toHaveValue('installation-model');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

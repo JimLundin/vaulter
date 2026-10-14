@@ -1,3 +1,4 @@
+import { expectAppActionFocus, openAppAction } from './app-navigation.ts';
 import { expect, test } from '@playwright/test';
 import { setPreviewMobile } from './preview-controls.ts';
 
@@ -191,17 +192,17 @@ test('the desktop sidebar paints its full surface including the outer spacing', 
   expect(colors.outer).not.toBe('rgba(0, 0, 0, 0)');
 });
 
-test('the mobile Menu highlights only while hovered or open, with rounded corners', {
+test('the Modules anchor keeps its rounded surface and marks the selected destination in its menu', {
   tag: ['@phone', '@touch'],
 }, async ({ page }) => {
   await page.goto('/preview/');
   await setPreviewMobile(page.locator('body'), true);
-  const menu = page.getByRole('button', { name: 'Menu', exact: true });
+  const menu = page.getByRole('button', { name: 'Modules', exact: true });
   await page.mouse.move(0, 0);
   await expect(menu).toHaveAttribute('aria-expanded', 'false');
   await expect(menu).not.toHaveAttribute('aria-current');
-  await expect(menu).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
-  await expect(menu).toHaveCSS('border-radius', '8px');
+  await expect(menu).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+  await expect(menu).toHaveCSS('border-radius', '12px');
   if (!(await page.evaluate(() => matchMedia('(hover: none)').matches))) {
     await menu.hover();
     await expect(menu).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
@@ -210,26 +211,26 @@ test('the mobile Menu highlights only while hovered or open, with rounded corner
   await page.mouse.move(0, 0);
   await expect(menu).toHaveAttribute('aria-expanded', 'true');
   await expect(menu).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
-  const navigation = page.getByRole('navigation', { name: 'Main navigation' });
-  await expect(navigation.getByRole('link', { name: 'Chat', exact: true })).toHaveAttribute(
+  const navigation = page.getByRole('menu', { name: 'App navigation', exact: true });
+  await expect(navigation.getByRole('menuitem', { name: 'Chat', exact: true })).toHaveAttribute(
     'aria-current',
     'page',
   );
-  await navigation.getByRole('link', { name: 'History', exact: true }).click();
+  await navigation.getByRole('menuitem', { name: 'History', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'History', exact: true })).toBeVisible();
   await page.mouse.move(0, 0);
   await expect(menu).toHaveAttribute('aria-expanded', 'false');
   await expect(menu).not.toHaveAttribute('aria-current');
-  await expect(menu).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+  await expect(menu).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
   await menu.click();
-  await expect(navigation.getByRole('link', { name: 'History', exact: true })).toHaveAttribute(
+  await expect(navigation.getByRole('menuitem', { name: 'History', exact: true })).toHaveAttribute(
     'aria-current',
     'page',
   );
   await page.keyboard.press('Escape');
   await page.mouse.move(0, 0);
   await expect(menu).toBeFocused();
-  await expect(menu).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+  await expect(menu).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
 });
 
 test('the preview pill overlays the full-height workspace and device selection preserves the draft', {
@@ -271,7 +272,7 @@ test('the preview pill overlays the full-height workspace and device selection p
   expect((await phone.boundingBox())!.width).toBe(390);
   expect((await phone.boundingBox())!.y).toBe(0);
   expect((await phone.boundingBox())!.height).toBe(1000);
-  await expect(phone.getByRole('button', { name: 'Settings', exact: true })).toBeVisible();
+  await expect(phone.getByRole('button', { name: 'Modules', exact: true })).toBeVisible();
   await expect(input).toHaveValue('Keep my draft while reviewing the phone layout');
   await expect(input).toHaveAttribute('data-original-preview-draft', '');
   expect(page.url()).toBe(route);
@@ -294,8 +295,8 @@ test('the preview pill overlays the full-height workspace and device selection p
   expect(content.y).toBe(0);
   expect((await phone.boundingBox())!.height).toBe(844);
   await expect(page.locator('[data-brand]')).toHaveCount(0);
-  await page.getByRole('button', { name: 'Menu', exact: true }).click();
-  const menu = page.getByRole('dialog', { name: 'Menu', exact: true });
+  await page.getByRole('button', { name: 'Modules', exact: true }).click();
+  const menu = page.getByRole('menu', { name: 'App navigation', exact: true });
   await expect(menu.getByText('Vaulter', { exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
@@ -306,7 +307,7 @@ test('preview device changes keep open settings and search inside the app frame'
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto('/preview/');
   const banner = page.getByRole('complementary', { name: 'Design preview' });
-  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await openAppAction(page, 'Settings');
   const settings = page.getByRole('dialog', { name: 'Settings', exact: true });
   const model = settings.getByRole('combobox', { name: 'Model', exact: true });
   await model.selectOption({ label: 'Custom…' });
@@ -336,7 +337,8 @@ test('preview device changes keep open settings and search inside the app frame'
     else await expect(settings).toHaveCSS('border-top-left-radius', '12px');
   }
   await settings.getByRole('button', { name: 'Close settings' }).click();
-  await page.getByRole('button', { name: 'Search', exact: true }).click();
+  await expectAppActionFocus(page, 'Settings');
+  await openAppAction(page, 'Search');
   const search = page.getByRole('dialog', { name: 'Search or ask', exact: true });
   const query = search.getByRole('combobox');
   await query.fill('Garden');

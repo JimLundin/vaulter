@@ -1,11 +1,19 @@
 import * as React from 'react';
 import { cn } from '../lib/utils.ts';
 import { useFieldTextAssociation } from '../field-association.ts';
+import { useInputProtection } from '../presentation-policy.tsx';
 
-function Input({ className, type, ...props }: React.ComponentProps<'input'>) {
+function Input({ className, type, ref: forwardedRef, ...props }: React.ComponentProps<'input'>) {
   const association = useFieldTextAssociation({ ...props, type });
+  const ref = React.useRef<HTMLInputElement>(null);
+  useInputProtection(ref);
   return (
     <input
+      ref={(node) => {
+        ref.current = node;
+        if (typeof forwardedRef === 'function') return forwardedRef(node);
+        if (forwardedRef) forwardedRef.current = node;
+      }}
       type={type}
       data-slot="input"
       className={cn(

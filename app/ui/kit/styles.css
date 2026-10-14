@@ -70,6 +70,150 @@ body,
 .kit-specimen-content {
   height: 100%;
 }
+
+/* App chrome follows the visible viewport; page controls extend above its Modules anchor. */
+.kit-edge-rail-layer {
+  padding-top: max(12px, env(safe-area-inset-top));
+  padding-right: max(12px, env(safe-area-inset-right));
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
+  padding-left: max(12px, env(safe-area-inset-left));
+  pointer-events: none;
+  z-index: 49;
+}
+.kit-edge-rail {
+  position: absolute;
+  display: flex;
+  width: 52px;
+  flex-direction: column;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--background);
+  box-shadow:
+    0 8px 28px #0000001c,
+    0 2px 6px #0000000a;
+  pointer-events: auto;
+}
+.kit-edge-rail-control,
+[data-edge-page-actions] button {
+  position: relative;
+  display: flex;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--foreground);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.kit-edge-rail-control svg,
+[data-edge-page-actions] button svg {
+  width: 20px;
+  height: 20px;
+}
+.kit-edge-rail-control:hover,
+.kit-edge-rail-control[aria-expanded="true"],
+[data-edge-page-actions] button:hover {
+  background: var(--muted);
+}
+.kit-edge-rail-control:focus-visible,
+[data-edge-page-actions] button:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+.kit-edge-modules-anchor {
+  background: var(--muted);
+}
+.kit-edge-filter-indicator {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--primary);
+}
+.kit-edge-rail-menu {
+  border-radius: 16px;
+  padding: 6px;
+}
+.kit-edge-menu-brand {
+  padding: 10px 6px 12px;
+}
+.kit-edge-rail-menu [data-slot="dropdown-menu-label"] {
+  padding: 8px 10px 4px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.kit-edge-rail-menu [data-slot="dropdown-menu-item"],
+.kit-edge-rail-menu [data-slot="dropdown-menu-radio-item"] {
+  min-height: 44px;
+  border-radius: 12px;
+}
+.kit-edge-rail-menu [aria-current="page"] {
+  background: var(--muted);
+}
+.kit-edge-item-label {
+  min-width: 0;
+  flex: 1;
+  overflow-wrap: anywhere;
+}
+.kit-edge-brand-action {
+  width: 44px;
+  justify-content: center;
+  padding: 0;
+}
+[data-dock][data-edge-input-lane="dock"] {
+  padding-right: max(16px, var(--edge-input-space));
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
+  border: 0;
+  background: transparent;
+}
+[data-edge-input-lane="field"] {
+  max-width: min(100%, var(--edge-input-space));
+  align-self: flex-start;
+  margin-inline-start: 0;
+  margin-inline-end: auto;
+}
+[data-edge-page-actions]:empty {
+  display: none;
+}
+[data-edge-page-actions] > div {
+  flex-direction: column-reverse;
+  gap: 4px;
+}
+[data-edge-page-actions] button {
+  box-shadow: none;
+}
+.kit-edge-page-search {
+  position: absolute;
+  pointer-events: auto;
+}
+.kit-page-search-layer {
+  z-index: 45;
+}
+.kit-edge-page-search > [data-slot="input-group"] {
+  min-height: 52px;
+  background: var(--background);
+  box-shadow:
+    0 8px 28px #0000001c,
+    0 2px 6px #0000000a;
+}
+.kit-edge-page-search [data-slot="input-group-addon"][data-align="inline-end"] {
+  padding-right: 3px;
+}
+.kit-edge-page-search input::-webkit-search-cancel-button {
+  display: none;
+}
+[data-page-controls] [data-feature-page] {
+  padding-bottom: var(--page-controls-space, 172px);
+}
 /* biome-ignore lint/correctness/noUnknownFunction: Tailwind resolves the shared breakpoint token. */
 @container kit (width >= theme(--breakpoint-md)) {
   .kit-presentation {

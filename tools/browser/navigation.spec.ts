@@ -12,10 +12,10 @@ for (const theme of ['light', 'dark']) {
         document.documentElement.style.colorScheme = appearance;
       }, theme);
       if (info.project.name === 'phone') {
-        const menu = page.getByRole('button', { name: 'Menu', exact: true });
+        const menu = page.getByRole('button', { name: 'Modules', exact: true });
         await menu.click();
-        const agent = page.getByRole('link', { name: 'Chat', exact: true });
-        const history = page.getByRole('link', { name: 'History', exact: true });
+        const agent = page.getByRole('menuitem', { name: 'Chat', exact: true });
+        const history = page.getByRole('menuitem', { name: 'History', exact: true });
         const highlight = theme === 'light' ? 'rgb(244, 244, 245)' : 'rgb(39, 39, 42)';
         await expect(agent).toHaveAttribute('aria-current', 'page');
         await expect(agent).toHaveCSS('background-color', highlight);
@@ -44,7 +44,7 @@ for (const theme of ['light', 'dark']) {
       await settings.click();
       await expect(
         page.getByRole('button', { name: 'Settings', exact: true, includeHidden: true }),
-      ).toHaveCSS('background-color', highlight);
+      ).toHaveAttribute('aria-expanded', 'true');
       await page.getByRole('button', { name: 'Close settings', exact: true }).click();
       await page.mouse.move(1000, 500);
       await expect(settings).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');

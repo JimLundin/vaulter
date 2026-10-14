@@ -1,3 +1,4 @@
+import { openAppAction, expectAppActionFocus } from './app-navigation.ts';
 import { expect, test } from '@playwright/test';
 
 test('long kit samples have a visible scrollbar without hovering', { tag: '@phone' }, async ({
@@ -67,7 +68,7 @@ test('a short settings drawer scrolls its body while the close control stays rea
 }, async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 560 });
   await page.goto('/preview/');
-  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await openAppAction(page, 'Settings');
   const dialog = page.getByRole('dialog', { name: 'Settings', exact: true });
   const track = dialog.locator('[data-slot="scroll-area-scrollbar"]');
   await expect(track).toBeVisible();
@@ -80,7 +81,7 @@ test('a short settings drawer scrolls its body while the close control stays rea
   await expect(dialog.getByLabel('Jina API key', { exact: true })).toBeInViewport();
   await expect(dialog.getByRole('button', { name: 'Close settings' })).toBeInViewport();
   await dialog.getByRole('button', { name: 'Close settings' }).click();
-  await expect(page.getByRole('button', { name: 'Settings', exact: true })).toBeFocused();
+  await expectAppActionFocus(page, 'Settings');
 });
 
 test('the shared feed follows appended content and lets the reader scroll back', async ({

@@ -1,3 +1,4 @@
+import { openAppAction, expectAppActionFocus } from './app-navigation.ts';
 import { expect, test } from '@playwright/test';
 import { setPreviewMobile } from './preview-controls.ts';
 // biome-ignore lint/correctness/noUnresolvedImports: Playwright re-exports these browser types.
@@ -28,13 +29,13 @@ test('the compact supporting panel fills the available height and dismisses with
 }, async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/ui/kit/tests/browser.html');
-  await page.getByRole('button', { name: 'Open agent' }).click();
+  await openAppAction(page, 'Open agent');
   const panel = page.getByRole('dialog', { name: 'Chat', exact: true });
   await expect(panel).toBeVisible();
   await expect.poll(async () => (await panel.boundingBox())!.height).toBeGreaterThanOrEqual(843);
   await swipeDown(page, panel);
   await expect(panel).toBeHidden();
-  await expect(page.getByRole('button', { name: 'Open agent' })).toBeFocused();
+  await expectAppActionFocus(page, 'Open agent');
 });
 
 test('Mobile design preview keeps touch dismissal inside its frame and leaves review controls usable', {
@@ -44,7 +45,7 @@ test('Mobile design preview keeps touch dismissal inside its frame and leaves re
   await page.goto('/preview/');
   const controls = page.getByRole('complementary', { name: 'Design preview' });
   await setPreviewMobile(controls, true);
-  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await openAppAction(page, 'Settings');
   const drawer = page.getByRole('dialog', { name: 'Settings', exact: true });
   await expect(drawer).toBeVisible();
   await expect(drawer.getByRole('button', { name: 'Close settings' })).toHaveCSS(

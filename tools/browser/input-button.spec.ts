@@ -15,16 +15,14 @@ for (const appearance of ['light', 'dark'] as const) {
     const field = page.getByRole('textbox', { name: 'Message', exact: true });
     const mic = page.getByRole('button', { name: 'Start voice interaction' });
     const send = page.getByRole('button', { name: 'Send', exact: true });
-    const treatment = await page
-      .getByRole('button', { name: 'New conversation', exact: true })
-      .evaluate((node) => {
-        const style = getComputedStyle(node);
-        return {
-          background: style.backgroundColor,
-          color: style.color,
-          border: style.borderTopWidth,
-        };
-      });
+    const treatment = await mic.evaluate((node) => {
+      const style = getComputedStyle(node);
+      return {
+        background: style.backgroundColor,
+        color: style.color,
+        border: style.borderTopWidth,
+      };
+    });
     expect(treatment.border).toBe('0px');
     expect(treatment.background).toBe(
       appearance === 'light' ? 'rgb(24, 24, 27)' : 'rgb(250, 250, 250)',

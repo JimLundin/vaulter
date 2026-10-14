@@ -1,7 +1,8 @@
 // The product's frame: its navigation, given to the kit's NavigationSuite, which shows it as a sidebar on
-// desktop and as a bottom bar, menu sheet and floating primary action on a phone.
+// desktop and as a freestanding edge rail on a phone.
 import type { ReactNode } from 'react';
 import { NavigationSuite, Toaster, TooltipProvider } from './kit/index.ts';
+import type { NavigationAction } from './kit/index.ts';
 import type { Navigation } from './command.ts';
 import { link, useRoute } from './routing.ts';
 
@@ -10,6 +11,7 @@ export function Frame({
   status,
   signOut,
   onSearch,
+  onNavigate,
   primary,
   panel,
   children,
@@ -18,8 +20,9 @@ export function Frame({
   status: ReactNode;
   signOut: ReactNode;
   onSearch: () => void;
-  /** Optional primary controls: a sidebar control and/or a floating phone control. */
-  primary?: { expanded?: ReactNode; compact?: ReactNode };
+  onNavigate?: () => void;
+  /** Optional primary task: sidebar content and/or a compact Tools action. */
+  primary?: { expanded?: ReactNode; menu?: NavigationAction };
   panel?: ReactNode;
   children: ReactNode;
 }) {
@@ -37,6 +40,7 @@ export function Frame({
       <NavigationSuite
         status={status}
         search={{ label: 'Search or ask…', keys: '⌘K', onSelect: onSearch }}
+        onNavigate={onNavigate}
         destinations={navigation.filter((entry) => entry.kind !== 'action').map(place)}
         actions={navigation
           .filter((entry) => entry.kind === 'action')

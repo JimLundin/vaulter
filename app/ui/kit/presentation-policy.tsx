@@ -1,6 +1,7 @@
 // Private environment policy. Adapters retain the library's focus, collision and gesture mechanics.
 import {
   createContext,
+  type RefObject,
   type ReactNode,
   useContext,
   useEffect,
@@ -13,7 +14,11 @@ import { usePresentation } from './presentation.tsx';
 import { useLayout } from './hooks/use-layout.ts';
 
 type Surface = { id: string; parent?: string };
-type Environment = { surfaces: Surface[] };
+type Environment = {
+  surfaces: Surface[];
+  inputs: Set<HTMLElement>;
+  inputListeners: Set<() => void>;
+};
 const environments = new WeakMap<object, Environment>();
 const serverEnvironment = {};
 const SurfaceContext = createContext<string | undefined>(undefined);
@@ -79,6 +84,23 @@ function usableFocusTarget(node: HTMLElement) {
   );
 }
 
+/** A grouped field protects its inset actions too; standalone forms protect their submit targets. */
+function inputElements(environment: Environment) {
+  const elements = new Set<HTMLElement>();
+  for (const input of environment.inputs) {
+    const group = input.closest<HTMLElement>('[data-slot="input-group"]');
+    elements.add(group ?? input);
+    if (group) continue;
+    for (const action of input
+      .closest('form')
+      ?.querySelectorAll<HTMLElement>(
+        'button[type="submit"], button:not([type]), input[type="submit"]',
+      ) ?? [])
+      elements.add(action);
+  }
+  return [...elements];
+}
+
 export function usePresentationPolicy() {
   const presentation = usePresentation();
   const layout = useLayout();
@@ -87,7 +109,7 @@ export function usePresentationPolicy() {
     const root = portal ?? globalThis.document ?? serverEnvironment;
     let value = environments.get(root);
     if (!value) {
-      value = { surfaces: [] };
+      value = { surfaces: [], inputs: new Set(), inputListeners: new Set() };
       environments.set(root, value);
     }
     return value;
@@ -132,9 +154,83 @@ export function usePresentationPolicy() {
           window.visualViewport?.removeEventListener('scroll', changed);
         };
       },
+      protectInput(node: HTMLElement) {
+        environment.inputs.add(node);
+        for (const changed of environment.inputListeners) changed();
+        return () => {
+          environment.inputs.delete(node);
+          for (const changed of environment.inputListeners) changed();
+        };
+      },
+      inputSurfaces() {
+        return [
+          ...new Set(
+            inputElements(environment).map(
+              (node) => node.closest<HTMLElement>('[data-dock]') ?? node.closest('form') ?? node,
+            ),
+          ),
+        ];
+      },
+      watchInputs(changed: () => void) {
+        let frame = 0;
+        const observed = new Set<HTMLElement>();
+        const observe = () => {
+          const next = new Set<HTMLElement>(inputElements(environment));
+          for (const node of environment.inputs) {
+            for (let parent = node.parentElement; parent; parent = parent.parentElement) {
+              next.add(parent);
+              if (parent === portal) break;
+            }
+          }
+          for (const node of observed) {
+            if (next.has(node)) continue;
+            observer.unobserve(node);
+            observed.delete(node);
+          }
+          for (const node of next) {
+            if (observed.has(node)) continue;
+            observer.observe(node);
+            observed.add(node);
+          }
+        };
+        const schedule = () => {
+          if (frame) return;
+          frame = requestAnimationFrame(() => {
+            frame = 0;
+            observe();
+            changed();
+          });
+        };
+        const observer = new ResizeObserver(schedule);
+        const mutations = new MutationObserver(schedule);
+        mutations.observe(portal ?? document.body, {
+          subtree: true,
+          childList: true,
+          attributes: true,
+          attributeFilter: ['class', 'style', 'hidden'],
+        });
+        const releaseBounds = this.watchBounds(schedule);
+        environment.inputListeners.add(schedule);
+        observe();
+        return () => {
+          cancelAnimationFrame(frame);
+          observer.disconnect();
+          mutations.disconnect();
+          releaseBounds();
+          environment.inputListeners.delete(schedule);
+        };
+      },
     }),
     [portal, layout, environment],
   );
+}
+
+/** Input primitives register geometry in their own presentation scope, without a public prop. */
+export function useInputProtection(ref: RefObject<HTMLElement | null>) {
+  const policy = usePresentationPolicy();
+  useLayoutEffect(() => {
+    if (ref.current) return policy.protectInput(ref.current);
+  }, [ref, policy]);
 }
 
 export function PresentationSurface({ id, children }: { id: string; children: ReactNode }) {
@@ -199,7 +295,13 @@ export function usePresentationSurface(open: boolean) {
   };
 }
 
-type FocusTarget = { node: HTMLElement; tag: string; name: string; labelled: boolean };
+type FocusTarget = {
+  node: HTMLElement;
+  tag: string;
+  name: string;
+  action: boolean;
+  navigation: boolean;
+};
 
 /** Remember the opener path, including a command in Search which disappears on selection. */
 export function usePresentationFocus(open: boolean) {
@@ -219,8 +321,9 @@ export function usePresentationFocus(open: boolean) {
         {
           node,
           tag: node.tagName.toLowerCase(),
-          name: node.getAttribute('aria-label') ?? node.textContent ?? '',
-          labelled: node.hasAttribute('aria-label'),
+          name: (node.getAttribute('aria-label') ?? node.textContent ?? '').trim(),
+          action: node.matches('button, a, [role="menuitem"]'),
+          navigation: !!node.closest('[data-app-navigation]'),
         },
         ...targets.current.filter((target) => target.node !== node),
       ].slice(0, 10);
@@ -235,12 +338,22 @@ export function usePresentationFocus(open: boolean) {
       if (same.tag === 'body') continue;
       const target = visible(same.node)
         ? same.node
-        : [...(policy.portal ?? document).querySelectorAll<HTMLElement>(same.tag)].find(
+        : [
+            ...(policy.portal ?? document).querySelectorAll<HTMLElement>(
+              same.action ? 'button, a, [role="menuitem"]' : same.tag,
+            ),
+          ].find(
             (node) =>
               visible(node) &&
-              (same.labelled ? node.getAttribute('aria-label') : node.textContent) === same.name,
+              (node.getAttribute('aria-label') ?? node.textContent ?? '').trim() === same.name,
           );
       if (target) return target;
+      if (same.navigation) {
+        const modules = (policy.portal ?? document).querySelector<HTMLElement>(
+          '[data-app-modules]',
+        );
+        if (modules && visible(modules)) return modules;
+      }
     }
   };
 }

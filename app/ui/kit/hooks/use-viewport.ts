@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { usePresentation } from '../presentation.tsx';
 
 // Mobile keyboards resize the visual viewport, which can be smaller than 100dvh. Keep the composer
-// and footer in that space, including browsers that pan the viewport while an input has focus.
+// and app controls in that space, including browsers that pan while an input has focus.
 export function useViewport() {
   const presentation = usePresentation();
   useEffect(() => {

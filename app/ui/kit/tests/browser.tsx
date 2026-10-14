@@ -188,7 +188,7 @@ function Fixture() {
       }))}
       primary={{
         expanded: <Button onClick={() => setPanel(true)}>Open agent</Button>,
-        compact: <Button onClick={() => setPanel(true)}>Open agent</Button>,
+        menu: { label: 'Open agent', icon: 'sparkles', onSelect: () => setPanel(true) },
       }}
       aside={
         <SupportingPane title="Chat" open={panel} onClose={() => setPanel(false)}>

@@ -125,16 +125,18 @@ Audited after UI ownership migration. Every public kit value/type has its owner 
 | `Mark` (value) | Kit: `app/ui/kit/app.tsx` | — | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
 | `Markdown` (value) | Kit: `app/ui/kit/conversation.tsx` | `app/workflows/chat/ChatMessage.tsx` | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
 | `Message` (value) | Kit: `app/ui/kit/conversation.tsx` | `app/workflows/chat/ChatMessage.tsx` | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
-| `MobileActionButton` (value) | Kit: `app/ui/kit/app.tsx` | — | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/navigation.tsx` | Retained shared presentation |
-| `MobileBar` (value) | Kit: `app/ui/kit/app.tsx` | — | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/navigation.tsx` | Retained shared presentation |
+| `MobileActionButton` (value) | Kit: `app/ui/kit/app.tsx` | — | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
+| `MobileBar` (value) | Kit: `app/ui/kit/app.tsx` | — | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
 | `NavigationAction` (type) | Kit: `app/ui/kit/navigation.tsx` | — | — | Retained shared presentation |
 | `NavigationDestination` (type) | Kit: `app/ui/kit/navigation.tsx` | — | — | Retained shared presentation |
-| `NavigationSheet` (value) | Kit: `app/ui/kit/app.tsx` | — | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/navigation.tsx` | Retained shared presentation |
+| `NavigationSheet` (value) | Kit: `app/ui/kit/app.tsx` | — | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
 | `NavigationSuite` (value) | Kit: `app/ui/kit/navigation.tsx` | `app/ui/Frame.tsx` | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/tests/browser.tsx` | Retained shared presentation |
 | `Notice` (value) | Kit: `app/ui/kit/app.tsx` | — | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
 | `OptionStrip` (value) | Kit: `app/ui/kit/primitives.tsx` | — | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/conversation.tsx` | Retained shared presentation |
 | `Overlay` (value) | Kit: `app/ui/kit/overlay.tsx` | `app/product.tsx`<br>`app/workflows/chat/Chat.tsx`<br>`app/vault/transactions/history/NodeHistory.tsx` | `app/preview/search.tsx`<br>`app/ui/kit/catalogue.tsx`<br>`app/ui/kit/tests/browser.tsx` | Retained shared presentation |
 | `Page` (value) | Kit: `app/ui/kit/app.tsx` | `app/product.tsx`<br>`app/workflows/wiki/WikiPageView.tsx` | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
+| `PageControls` (value) | Kit: `app/ui/kit/page-controls.tsx` | `app/workflows/questions/QuestionsPage.tsx`<br>`app/workflows/wiki/index.tsx` | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/primitives.tsx` | Retained shared presentation |
+| `PageControlsProps`, `PageSearchControl`, `PageFilterControl` (types) | Kit: `app/ui/kit/page-controls.tsx` | — | `app/ui/kit/navigation.tsx`<br>`app/ui/kit/mobile-edge-rail.tsx` | Retained shared presentation |
 | `PageHeader` (value) | Kit: `app/ui/kit/app.tsx` | — | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
 | `Panel` (value) | Kit: `app/ui/kit/app.tsx` | — | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
 | `PassageCard` (value) | Kit: `app/ui/kit/passage-card.tsx` | `app/workflows/wiki/rendering/references.tsx` | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
@@ -267,3 +269,9 @@ An export with no direct production caller may still compose a production compon
 the internal consumer column records that relationship separately from actual direct application
 use. DesignPreview, DesignComparison and PresentationPreview are neutral bounded presentation
 adapters: their current callers are previews/catalogue, and they contain no fictional record schema.
+
+Compact navigation now uses the private `mobile-edge-rail.tsx` composition. `PageControls` owns the
+shared inline/rail placement contract; modules retain search, filter and action semantics. Input
+primitives register protected surfaces through `presentation-policy.tsx`, and the rail owns their
+clearance. The comparison is preserved through the archive linked in
+[the selected design delivery](design/mobile-edge-rail.md).

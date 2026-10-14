@@ -67,7 +67,9 @@ annotation transform may annotate semantic data, with no UI presentation permiss
 | `app.tsx` | spacing, typography, pages, expanded sidebar and shared workspace frame |
 | `overlay.tsx` | one dialog tree, centered or bottom-aligned; full-screen search in compact space |
 | `drawer.tsx` | the public `Drawer`, centered in expanded space and rising from the bottom in compact space |
-| `navigation.tsx` | `NavigationSuite`: one navigation as a sidebar or a bottom bar |
+| `navigation.tsx` | `NavigationSuite`: one navigation as a sidebar or a freestanding edge rail |
+| `page-controls.tsx` | module-owned actions, search and filters with shared responsive placement |
+| `mobile-edge-rail.tsx` | private lower-right rail, inward menus and input clearance |
 | `conversation.tsx` | neutral message attribution, composer, voice and suggestions mechanics |
 | `command-overlay.tsx` | shared responsive command-list overlay |
 | `expandable-row.tsx` | shared disclosure, metadata and compact actions |
@@ -190,36 +192,47 @@ adds one.
 
 | Expanded (desktop) | Compact (phone) | Kit |
 |---|---|---|
-| Sidebar | Bottom bar, plus the menu drawer it opens | `NavigationSuite` |
-| Sidebar list of destinations | Menu drawer rising from the bar | `NavigationSuite` → `NavigationSheet` → `Drawer` |
-| Sidebar search field (⌘K) | Search icon in the bar | `NavigationSuite` `search` |
-| Sidebar footer rows (Settings) | Icons in the bar | `NavigationSuite` `actions` |
-| Optional primary sidebar control | Optional floating control above the bar | `NavigationSuite` `primary` |
-| Brand and sync status at the sidebar's top | Menu drawer header | `Brand` |
+| Sidebar | Freestanding lower-right rail and inward Modules menu | `NavigationSuite` |
+| Sidebar list of destinations | Destinations in the Modules menu | `NavigationSuite` → private edge rail → `DropdownMenu` |
+| Sidebar search field (⌘K) | Search action in the Modules menu | `NavigationSuite` `search` |
+| Settings beside the Vaulter mark; other actions in sidebar footer | Settings beside the mark; other actions under Tools in Modules | `NavigationSuite` `actions` |
+| Optional primary sidebar control | Optional action under Tools in Modules | `NavigationSuite` `primary` |
+| Brand and sync status at the sidebar's top | Modules menu header | `Brand` |
 | Page header at the top of the reading column | Bordered header strip | `PageHeader` |
 | Centered dialog | Bottom-aligned dialog | `Overlay` |
-| Settings dialog over the current feature | Settings drawer, sharing Menu's surface | `SettingsMenu` → `Drawer` |
+| Settings dialog over the current feature | Settings drawer over the current feature | `SettingsMenu` → `Drawer` |
 | Side panel (wide) or centered dialog | Full-height bottom drawer | `SupportingPane` → `Drawer` |
-| Labelled toolbar buttons | Icon buttons with an `aria-label` | Chat-owned composition over `Toolbar`, `AutoScrollArea` and `Dock` |
+| Page toolbar actions | Icons extending above the Modules anchor | `Toolbar` → `PageControls` |
+| Inline collection search and filters | Search icon opens a bottom field to the rail’s left; Filters opens choices inward | `PageControls` |
 | Form rows: label left, control right | The same fields stacked vertically | `SettingsMenu`, `SettingField` |
 | One-row composer with inset microphone and send | The same always-visible field and inset controls | Chat-owned composition over `Toolbar`, `AutoScrollArea` and `Dock`, `Composer` |
 | Titled expandable rows with labelled actions | The same rows with accessible icon actions | `ExpandableRow`, `RowAction` |
 | Single horizontally scrolling prompt row | The same row, with a fade at clipped edges | `PromptSuggestions`, `OptionStrip` |
 
-**Navigation is declared once.** The product lists every place as data (`Navigation` in
-`ui/command.ts`). A *destination* (the default) is a place in a list that may grow without limit: the
-agent, history, a note, a calendar. An *action* (`kind: 'action'`) is one of the few controls every
-screen keeps. The bottom bar keeps the first three actions beside Menu and Search; additional
-actions move into the menu. Ordinary bar controls are square and icon-only with the standard control
-radius on hover and open-state backgrounds; Menu is highlighted only while its drawer is open.
-Desktop navigation stays expanded on the left; it has no collapse shortcut, state or cookie.
-Sidebar primitives retain plain rows, visible actions, headings/groups, nested destinations,
-counts, separators and optional-icon loading rows for planned navigation. `SidebarProvider` is
-now a generic workspace wrapper, and `SidebarInset` retains only its generic content layout.
-Loading Skeleton presentation remains private to the usable navigation loading rows.
-The current feature is marked in the drawer. The voice action floats
-above them as a circle. `Frame` hands both lists to `NavigationSuite`, which picks the shape. Adding a feature means adding an entry, not editing two
-layouts.
+**Navigation is declared once.** Product lists destinations and application actions in
+`ui/command.ts`. `Frame` passes them to `NavigationSuite`, which chooses the sidebar or the compact
+rail. Modules always occupies the bottom anchor; page controls extend above it. Destinations and
+Tools stay in its inward menu as the application grows. Settings sits beside the Vaulter mark in
+both arrangements with a 16px icon and 44px target. Rail controls use 20px icons and 44px targets in a
+52px surface. Desktop navigation stays expanded on the left.
+
+**Modules declare their page controls.** `PageControls` accepts optional `actions`, `search` and
+`filters`. Modules retain values, choices, busy state and handlers. Shared navigation owns placement:
+inline on desktop, in the rail on compact layouts. `Toolbar.actions` uses the same contract. Chat
+supplies New conversation and Conversations; Questions and Wiki supply collection Search and
+Filters. Detail pages without these controls keep the Modules anchor alone. Outside navigation,
+`PageControls` falls back to inline controls. Its optional children preserve an existing inline
+filter presentation while the compact menu uses the supplied choices.
+
+The rail anchors to the lower right of the visible viewport, including keyboard resizing, panning
+and safe-area insets. Shared input primitives register their grouped field, form or trailing Dock
+within their presentation scope. Navigation reserves the lane to its left and measures trailing
+scroll clearance from the full rail and open Search field. Search stays nonmodal, can be cleared or
+closed, and returns focus to its icon on Escape. Filters uses the shared radio-choice menu and
+returns focus to its trigger. Bounded kit samples retain independent controls and geometry.
+
+The selected design and archived comparison are recorded in
+[the edge rail delivery](../../../docs/design/mobile-edge-rail.md).
 
 **Feature preferences are assembled once.** `SettingsMenu` takes `{ name, content }` entries from
 Product, using each name as its section heading. Fields and persistence remain in the feature's
@@ -263,14 +276,15 @@ label/control/description placement. Theme choices use the shared `RadioGroup` p
 Row/Stack can express semantic fieldsets. Prose owns document spacing and table/code overflow;
 Wiki supplies approved markup and content meaning. `Button variant="inline"` presents inline title
 and citation actions without expanding prose line boxes on touch devices. `Toolbar` uses the same
-48px header token and inset for every module. Its optional label names the toolbar.
+48px header token and inset for every module. Its optional label names the toolbar; its `actions`
+slot uses `PageControls` to move page actions into compact navigation.
 
 `Surface`, `Toolbar`, `ReadingColumn`, `Dock`, `OptionStrip`, `AutoScrollArea` and
 `SupportingPane` provide reusable containers and behavior. Each has a separate paired example.
-`Drawer` owns the drawer adapter, header, close button, typography and scrolling body for navigation,
-settings and supporting panels. Callers supply `open`, `onClose`, `title` and content; bare drawer
+`Drawer` owns the drawer adapter, header, close button, typography and scrolling body for settings
+and supporting panels. Callers supply `open`, `onClose`, `title` and content; bare drawer
 parts and side sheets remain outside the public interface. The desktop sidebar has no mobile
-overlay path: `NavigationSuite` owns its compact bottom bar and navigation drawer.
+overlay path: `NavigationSuite` owns its compact edge rail and Modules menu.
 The private presentation owner chooses portal scope, modal policy, dismissal ownership and
 focus return; the Base UI adapter owns focus trapping, background effects and swipe mechanics.
 Closing nested or overlapping drawers preserves any remaining modal task. Bounded Settings

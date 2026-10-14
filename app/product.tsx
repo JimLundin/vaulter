@@ -44,7 +44,6 @@ import {
   Overlay,
   Page,
   SettingsMenu,
-  VoiceButton,
   Row,
   Stack,
   Text,
@@ -408,6 +407,12 @@ export function OpenProduct({
     if (open) localStorage.setItem('vault-panel', 'agent');
     else localStorage.removeItem('vault-panel');
   };
+  const dismissSupportingTasks = () => {
+    setSettings(false);
+    setSearch(false);
+    setHelp(false);
+    showPanel(false);
+  };
   const onSettings = !!settingsRoute.match(route.path);
   const onChat =
     route.path === '/' ||
@@ -574,6 +579,7 @@ export function OpenProduct({
     showPanel(true);
   };
   const voiceAction = () => {
+    if (mobile) dismissSupportingTasks();
     const capture = conversation.snapshot().capture;
     if (mobile && capture.allowed && (capture.action === 'start' || capture.action === 'finish')) {
       showPanel(false);
@@ -709,16 +715,30 @@ export function OpenProduct({
         navigation={navigation}
         status={<SessionStatus status={status} />}
         signOut={signOut && <SignOut onSignOut={signOut} />}
-        onSearch={() => setSearch(true)}
+        onSearch={() => {
+          if (mobile) dismissSupportingTasks();
+          setSearch(true);
+        }}
+        onNavigate={mobile ? dismissSupportingTasks : undefined}
         primary={{
-          compact: !onChat && (
-            <VoiceButton
-              phase={capture.phase}
-              busy={false}
-              disabled={!capture.allowed}
-              onClick={voiceAction}
-            />
-          ),
+          menu: {
+            label:
+              capture.phase === 'connecting'
+                ? 'Cancel recording'
+                : capture.phase === 'listening'
+                  ? 'Finish recording'
+                  : capture.phase === 'finishing'
+                    ? 'Finishing transcript'
+                    : 'Start voice interaction',
+            icon:
+              capture.phase === 'listening'
+                ? 'stop'
+                : capture.phase === 'connecting' || capture.phase === 'finishing'
+                  ? 'clock'
+                  : 'mic',
+            disabled: !capture.allowed || capture.phase === 'finishing',
+            onSelect: voiceAction,
+          },
         }}
         panel={
           <ChatPanel

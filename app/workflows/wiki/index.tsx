@@ -1,5 +1,13 @@
 import { useState } from 'react';
-import { Button, FeaturePage, Input, Link, Loader, Stack, Text } from '../../ui/kit/index.ts';
+import {
+  Button,
+  FeaturePage,
+  PageControls,
+  Link,
+  Loader,
+  Stack,
+  Text,
+} from '../../ui/kit/index.ts';
 import { go } from '../../ui/routing.ts';
 import type { WikiClassification, WikiPage } from './pages.ts';
 import { wikiRoute, pageRoute } from './routes.ts';
@@ -70,23 +78,44 @@ export function Wiki({
         ...entry.metadata.map((term) => term.label),
       ].some((value) => value.toLocaleLowerCase().includes(query.toLocaleLowerCase())),
   );
+  const classifications = [
+    ...new Map(
+      [...(filter ? [filter] : []), ...pages.flatMap((entry) => entry.metadata)].map((term) => [
+        term.id,
+        term,
+      ]),
+    ).values(),
+  ].sort((a, b) => a.label.localeCompare(b.label));
   return (
     <FeaturePage
       title={filter ? `Pages tagged ${filter.label}` : 'Wiki'}
       description="People, places and ideas in your vault."
     >
       <Stack>
-        <Input
-          aria-label="Find pages"
-          placeholder="Find a page, subject or tag…"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-        />
-        {!!filter && (
-          <Button variant="ghost" onClick={() => setFilter(undefined)}>
-            Clear {filter.label} filter ×
-          </Button>
-        )}
+        <PageControls
+          search={{
+            label: 'Find pages',
+            placeholder: 'Find a page, subject or tag…',
+            value: query,
+            onValueChange: setQuery,
+          }}
+          filters={{
+            label: 'Pages',
+            value: filter?.id ?? '',
+            options: [
+              { value: '', label: 'All pages' },
+              ...classifications.map((term) => ({ value: term.id, label: term.label })),
+            ],
+            active: !!filter,
+            onValueChange: (value) => setFilter(classifications.find((term) => term.id === value)),
+          }}
+        >
+          {filter ? (
+            <Button variant="ghost" onClick={() => setFilter(undefined)}>
+              Clear {filter.label} filter ×
+            </Button>
+          ) : null}
+        </PageControls>
         {matching.map((entry) => (
           <Stack key={entry.id} gap="xs">
             <Link

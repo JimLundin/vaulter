@@ -159,6 +159,8 @@ export const implementations = [
   },
   { source: 'map.tsx', mechanics: ['useImpl', 'MapView'] },
   { source: 'navigation.tsx', mechanics: ['NavigationSuite'] },
+  { source: 'mobile-edge-rail.tsx', mechanics: ['MobileEdgeRail'] },
+  { source: 'page-controls.tsx', mechanics: ['usePageControls', 'usePageControl', 'PageControls'] },
   { source: 'overlay.tsx', mechanics: ['AdaptiveDialog'] },
   {
     source: 'parts/alert.tsx',
@@ -364,6 +366,8 @@ export const implementations = [
       'retainInteractionScope',
       'usableFocusTarget',
       'usePresentationPolicy',
+      'useInputProtection',
+      'inputElements',
       'usePresentationSurface',
       'usePresentationFocus',
     ],
