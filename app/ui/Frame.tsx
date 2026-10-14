@@ -11,6 +11,7 @@ export function Frame({
   status,
   signOut,
   onSearch,
+  onNavigate,
   primary,
   compactDesign,
   panel,
@@ -20,6 +21,7 @@ export function Frame({
   status: ReactNode;
   signOut: ReactNode;
   onSearch: () => void;
+  onNavigate?: () => void;
   /** Optional primary controls: a sidebar control and/or a floating phone control. */
   primary?: { expanded?: ReactNode; compact?: ReactNode };
   compactDesign?: CompactNavigationDesign;
@@ -40,6 +42,7 @@ export function Frame({
       <NavigationSuite
         status={status}
         search={{ label: 'Search or ask…', keys: '⌘K', onSelect: onSearch }}
+        onNavigate={onNavigate}
         destinations={navigation.filter((entry) => entry.kind !== 'action').map(place)}
         actions={navigation
           .filter((entry) => entry.kind === 'action')

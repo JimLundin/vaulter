@@ -132,6 +132,7 @@ export const implementations = [
     ],
   },
   { source: 'chart.tsx', mechanics: ['Table', 'Bars', 'Sparkline'] },
+  { source: 'mobile-dock-prototype.tsx', mechanics: ['PrototypeAppDock'] },
   { source: 'command-overlay.tsx', mechanics: ['CommandOverlay'] },
   { source: 'composition.ts', mechanics: [] },
   { source: 'conversation.tsx', mechanics: [] },

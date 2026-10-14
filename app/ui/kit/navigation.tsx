@@ -14,6 +14,7 @@ import { useEffect, useState } from 'react';
 import { Icon, type IconName } from './icons.tsx';
 import { useLayout } from './hooks/use-layout.ts';
 import { usePresentationPolicy } from './presentation-policy.tsx';
+import { PrototypeAppDock, type FreestandingDockDesign } from './mobile-dock-prototype.tsx';
 import { Button } from './parts/button.tsx';
 import {
   Brand,
@@ -63,7 +64,8 @@ export type CompactNavigationDesign =
   | 'dock-joined'
   | 'dock-bubble'
   | 'dock-shortcuts'
-  | 'dock-side';
+  | 'dock-side'
+  | FreestandingDockDesign;
 
 function PrototypeNavigationBar({
   design,
@@ -163,6 +165,7 @@ function PrototypeNavigationBar({
 export function NavigationSuite({
   status,
   search,
+  onNavigate,
   destinations,
   actions,
   primary,
@@ -175,6 +178,8 @@ export function NavigationSuite({
   status: ReactNode;
   /** The search field on desktop, the search icon on a phone. */
   search: { label: string; keys?: string; onSelect: () => void };
+  /** Dismiss supporting tasks when selecting a destination from the freestanding app dock. */
+  onNavigate?: () => void;
   destinations: NavigationDestination[];
   actions: NavigationAction[];
   /** Optional primary controls: at the sidebar's foot and floating above the phone bar. A product
@@ -188,6 +193,12 @@ export function NavigationSuite({
   children: ReactNode;
 }) {
   const compact = useLayout() === 'compact';
+  const freestanding =
+    compactDesign === 'free-rail' ||
+    compactDesign === 'free-cluster' ||
+    compactDesign === 'free-orbit'
+      ? compactDesign
+      : undefined;
   const policy = usePresentationPolicy();
   const [menu, setMenu] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -237,65 +248,67 @@ export function NavigationSuite({
   return (
     <SidebarProvider>
       {compact ? (
-        <NavigationSheet
-          open={menu}
-          onClose={() => setMenu(false)}
-          brand={<Brand status={status} />}
-          entries={menuEntries.map((entry) => ({ ...entry, active: entry.current }))}
-          footer={
-            <>
-              {!!compactDesign && (
-                <>
-                  <Button
-                    variant="ghost"
-                    onClick={() => {
-                      setMenu(false);
-                      search.onSelect();
-                    }}
-                  >
-                    <Icon name="search" />
-                    Search
-                  </Button>
-                  {actions.slice(0, 3).map((action) => (
+        !freestanding && (
+          <NavigationSheet
+            open={menu}
+            onClose={() => setMenu(false)}
+            brand={<Brand status={status} />}
+            entries={menuEntries.map((entry) => ({ ...entry, active: entry.current }))}
+            footer={
+              <>
+                {!!compactDesign && (
+                  <>
                     <Button
-                      key={action.label}
                       variant="ghost"
-                      render={action.href ? <a href={action.href}>{action.label}</a> : undefined}
                       onClick={() => {
                         setMenu(false);
-                        if (!action.href) action.onSelect?.();
+                        search.onSelect();
                       }}
+                    >
+                      <Icon name="search" />
+                      Search
+                    </Button>
+                    {actions.slice(0, 3).map((action) => (
+                      <Button
+                        key={action.label}
+                        variant="ghost"
+                        render={action.href ? <a href={action.href}>{action.label}</a> : undefined}
+                        onClick={() => {
+                          setMenu(false);
+                          if (!action.href) action.onSelect?.();
+                        }}
+                      >
+                        <Icon name={action.icon} />
+                        {action.label}
+                      </Button>
+                    ))}
+                    {primary?.compact}
+                  </>
+                )}
+                {actions
+                  .slice(3)
+                  .filter((action) => !action.href)
+                  .map((action) => (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="compact"
+                      key={action.label}
+                      onClick={() => {
+                        setMenu(false);
+                        action.onSelect?.();
+                      }}
+                      className="w-full justify-start"
                     >
                       <Icon name={action.icon} />
                       {action.label}
                     </Button>
                   ))}
-                  {primary?.compact}
-                </>
-              )}
-              {actions
-                .slice(3)
-                .filter((action) => !action.href)
-                .map((action) => (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="compact"
-                    key={action.label}
-                    onClick={() => {
-                      setMenu(false);
-                      action.onSelect?.();
-                    }}
-                    className="w-full justify-start"
-                  >
-                    <Icon name={action.icon} />
-                    {action.label}
-                  </Button>
-                ))}
-              {footer}
-            </>
-          }
-        />
+                {footer}
+              </>
+            }
+          />
+        )
       ) : (
         <Sidebar>
           <SidebarHeader>
@@ -365,6 +378,7 @@ export function NavigationSuite({
         editing={editing}
         header={
           !!compactDesign &&
+          !freestanding &&
           (compactDesign === 'header' || editing) && (
             <PrototypeNavigationBar
               design={compactDesign}
@@ -381,7 +395,7 @@ export function NavigationSuite({
           )
         }
         bar={
-          compactDesign ? (
+          freestanding ? null : compactDesign ? (
             compactDesign !== 'header' && (
               <PrototypeNavigationBar
                 design={compactDesign}
@@ -428,6 +442,19 @@ export function NavigationSuite({
         {children}
       </WorkspaceFrame>
       {aside}
+      {freestanding && (
+        <PrototypeAppDock
+          design={freestanding}
+          compact={compact}
+          editing={editing}
+          destinations={destinations}
+          actions={actions}
+          onSearch={search.onSelect}
+          onNavigate={onNavigate}
+          primary={primary?.compact}
+          footer={footer}
+        />
+      )}
     </SidebarProvider>
   );
 }

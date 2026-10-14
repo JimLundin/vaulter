@@ -8,7 +8,44 @@ renders the current Product. The experiment supplies the same Product, fictional
 scripted Agent, with alternative navigation arrangements.
 
 Run `npm run design:mobile-bar`. In the existing preview pill, enable Mobile and cycle designs.
-The default is now Joined dock. The URL retains the selection.
+The default is now Thumb cluster. The URL retains the selection.
+
+## Freestanding app dock
+
+The user's clarification on 2026-10-14 supersedes the joined-capsule recommendation: the dock is
+an independent application element, stays within thumb reach, and must not attach to or depend on
+the active module. Side dock was the strongest direction, but its page-dependent controls and
+disappearance during typing did not satisfy that requirement.
+
+Three follow-up designs at `/preview/?navigation=freestanding&variant=free-cluster` share one
+app-level portal outside the workflow workspace. Position uses only visible viewport bounds and
+the user's chosen edge and height. Navigation, Search and voice are the same on every page. Chat's
+composer stays with Chat; it does not determine the dock's geometry. App navigation opens beside
+the dock, keeping destinations within reach rather than sending the user to the page header.
+
+| Variant | Arrangement | Trade-off |
+| --- | --- | --- |
+| `free-rail` | Vertical Menu, Search, voice and grip at either edge | Direct controls; collapses to a reachable puck while typing |
+| `free-cluster` | Two-by-two Menu, Search, voice and grip | All controls in a shorter thumb area; occupies more width |
+| `free-orbit` | Small puck expands into three controls around the thumb | Smallest resting footprint; one extra tap |
+
+Drag any dock to a comfortable height or the opposite edge. The grip also switches edges on tap
+and moves with arrow keys; Home resets. Navigation offers the same placement controls for the puck.
+Position stays in memory across module navigation and device changes. Visible viewport resize/pan
+keeps the dock above the keyboard. None of these designs hides navigation during text entry.
+
+Thumb cluster is the initial recommendation because the global controls are concentrated in a
+shorter reach than the rail. The specific arrangement remains unselected. Earlier comparisons are
+retained for reference; they do not meet the clarified independence requirement.
+
+Bundled browser probes confirm the same dock element, controls and geometry across Chat, Wiki,
+Questions and History. At 320, 390 and 430px both edges keep targets at least 44px and navigation
+inside the viewport. A controlled 430px visual viewport panned by 72px retains focus and keeps the
+dock reachable; switching modules retains the draft. Touch and mouse dragging snap to the chosen
+edge without activating controls. Dock navigation dismisses Settings and Search; device switching
+retains the draft and placement, and the picker survives reload. Dark mode, focused navigation,
+comparison, Settings, Product behavior and kit ownership checks pass, along with lint, types and
+the design build. Physical keyboard and ergonomic acceptance remain a device review.
 
 ## Floating-dock direction
 
@@ -29,8 +66,8 @@ Every variant keeps the microphone available on other pages and hides the dock d
 Done restores navigation without clearing the draft. Side dock leaves suggested prompts clear.
 The picker is in the existing Preview controls, and updates the shareable `variant` query.
 
-Joined dock is the initial recommendation for this round. The specific floating layout has not
-been selected; these remain reviewable prototypes.
+Joined dock was the initial recommendation for this round, superseded by the freestanding
+requirement above. The specific floating layout has not been selected.
 
 All five dock variants passed bundled browser probes at 320, 390 and 430px, including navigation,
 Search, Settings, Wiki filtering, microphone access and draft retention. Dark mode and a controlled

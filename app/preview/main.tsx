@@ -214,9 +214,11 @@ function Preview({ initialHead, nodes }: { initialHead: Head; nodes: NodeStore }
       }}
     />
   );
+  const navigationComparison = query.get('navigation');
+  const freestandingComparison = navigationComparison === 'freestanding';
   const frame = (content: React.ReactNode, controls?: React.ReactNode) => (
     <DesignPreview
-      label={`${query.get('navigation') === 'dock' ? 'Floating dock prototypes' : query.get('navigation') === 'prototype' ? 'Mobile navigation prototype' : agent ? 'Live agent preview' : 'Design preview'} · ${(import.meta.env.VITE_PREVIEW_COMMIT || 'local').slice(0, 7)}`}
+      label={`${freestandingComparison ? 'Freestanding app docks' : navigationComparison === 'dock' ? 'Floating dock prototypes' : navigationComparison === 'prototype' ? 'Mobile navigation prototype' : agent ? 'Live agent preview' : 'Design preview'} · ${(import.meta.env.VITE_PREVIEW_COMMIT || 'local').slice(0, 7)}`}
       chat={agent ? 'Live agent' : 'Scripted chat'}
       onReset={() => {
         sessionStorage.removeItem(previewJournalKey);
@@ -229,32 +231,47 @@ function Preview({ initialHead, nodes }: { initialHead: Head; nodes: NodeStore }
       {content}
     </DesignPreview>
   );
-  const dockComparison = query.get('navigation') === 'dock';
-  if (!(dockComparison || query.get('navigation') === 'prototype')) return frame(product());
-  // The floating-dock family was selected; keep the first comparison at its original URL.
+  const dockComparison = navigationComparison === 'dock';
+  if (!(freestandingComparison || dockComparison || navigationComparison === 'prototype'))
+    return frame(product());
+  // Three app-level docks compare thumb reach without coupling to the active module.
+  // Earlier comparisons keep their original URLs as the primary source for those rounds.
   return (
     <DesignComparison
-      defaultValue={query.get('variant') ?? (dockComparison ? 'dock-joined' : 'slim')}
+      defaultValue={
+        query.get('variant') ??
+        (freestandingComparison ? 'free-cluster' : dockComparison ? 'dock-joined' : 'slim')
+      }
       onValueChange={(value) => {
         const url = new URL(location.href);
         url.searchParams.set('variant', value);
         history.replaceState(history.state, '', url);
       }}
       alternatives={
-        dockComparison
+        freestandingComparison
           ? [
-              { id: 'dock', label: 'Original split dock', content: product('dock') },
-              { id: 'dock-joined', label: 'Joined dock', content: product('dock-joined') },
-              { id: 'dock-bubble', label: 'Menu bubble', content: product('dock-bubble') },
-              { id: 'dock-shortcuts', label: 'Page shortcuts', content: product('dock-shortcuts') },
-              { id: 'dock-side', label: 'Side dock', content: product('dock-side') },
+              { id: 'free-rail', label: 'Edge rail', content: product('free-rail') },
+              { id: 'free-cluster', label: 'Thumb cluster', content: product('free-cluster') },
+              { id: 'free-orbit', label: 'Expandable puck', content: product('free-orbit') },
             ]
-          : [
-              { id: 'current', label: 'Current bar', content: product() },
-              { id: 'slim', label: 'Slim tabs', content: product('slim') },
-              { id: 'dock', label: 'Floating dock', content: product('dock') },
-              { id: 'header', label: 'Header menu', content: product('header') },
-            ]
+          : dockComparison
+            ? [
+                { id: 'dock', label: 'Original split dock', content: product('dock') },
+                { id: 'dock-joined', label: 'Joined dock', content: product('dock-joined') },
+                { id: 'dock-bubble', label: 'Menu bubble', content: product('dock-bubble') },
+                {
+                  id: 'dock-shortcuts',
+                  label: 'Page shortcuts',
+                  content: product('dock-shortcuts'),
+                },
+                { id: 'dock-side', label: 'Side dock', content: product('dock-side') },
+              ]
+            : [
+                { id: 'current', label: 'Current bar', content: product() },
+                { id: 'slim', label: 'Slim tabs', content: product('slim') },
+                { id: 'dock', label: 'Floating dock', content: product('dock') },
+                { id: 'header', label: 'Header menu', content: product('header') },
+              ]
       }
       preview={(controls, content) => frame(content, controls)}
     />

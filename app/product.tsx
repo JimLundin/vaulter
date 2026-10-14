@@ -410,6 +410,13 @@ export function OpenProduct({
     if (open) localStorage.setItem('vault-panel', 'agent');
     else localStorage.removeItem('vault-panel');
   };
+  const freestandingDock = compactNavigation?.startsWith('free-') ?? false;
+  const dismissSupportingTasks = () => {
+    setSettings(false);
+    setSearch(false);
+    setHelp(false);
+    showPanel(false);
+  };
   const onSettings = !!settingsRoute.match(route.path);
   const onChat =
     route.path === '/' ||
@@ -576,6 +583,7 @@ export function OpenProduct({
     showPanel(true);
   };
   const voiceAction = () => {
+    if (freestandingDock) dismissSupportingTasks();
     const capture = conversation.snapshot().capture;
     if (mobile && capture.allowed && (capture.action === 'start' || capture.action === 'finish')) {
       showPanel(false);
@@ -712,9 +720,13 @@ export function OpenProduct({
         navigation={navigation}
         status={<SessionStatus status={status} />}
         signOut={signOut && <SignOut onSignOut={signOut} />}
-        onSearch={() => setSearch(true)}
+        onSearch={() => {
+          if (freestandingDock) dismissSupportingTasks();
+          setSearch(true);
+        }}
+        onNavigate={freestandingDock ? dismissSupportingTasks : undefined}
         primary={{
-          compact: !onChat && (
+          compact: (freestandingDock || !onChat) && (
             <VoiceButton
               phase={capture.phase}
               busy={false}
