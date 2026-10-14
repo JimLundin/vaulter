@@ -8,9 +8,60 @@ renders the current Product. The experiment supplies the same Product, fictional
 scripted Agent, with alternative navigation arrangements.
 
 Run `npm run design:mobile-bar`. In the existing preview pill, enable Mobile and cycle designs.
-The default is now the fixed Modules + Tools rail. The URL retains the selection.
+The default now puts page actions above the fixed Modules anchor, with a page Search button.
+The URL retains the selection.
 
-## Current comparison: fixed lower-right edge bars
+## Current comparison: page actions above the Modules anchor
+
+On 2026-10-14 the user selected variant 1 (`corner-split`) as the strongest structure, then asked
+for page actions above the module menu. The Modules button is now the bottom anchor; adding or
+removing page actions changes only the height above it. The app still owns a freestanding rail
+fixed to the lower-right of the visible viewport, with all input surfaces in the lane to its left.
+
+Open `/preview/?navigation=page-rail&variant=corner-page-search&conversations`, or compare:
+
+| Variant | Chat | Questions and Wiki index |
+| --- | --- | --- |
+| `corner-page-search` | New conversation, Conversations, then Modules | Search above Modules; tapping Search reveals and focuses a bottom input to the left |
+| `corner-page-input` | New conversation, Conversations, then Modules | Modules beside an always-visible bottom search input |
+
+The two search choices have the same page-owned filter behavior and fictional fixtures. The
+button option leaves more of the page visible at rest. Its input is nonmodal, so filtered results
+remain visible while typing. Clear resets the query; Close collapses the empty field and returns
+focus to Search. Escape clears and closes it. The input option makes filtering immediately available. Detail views
+without an index filter show only the Modules anchor. The search choice remains open for review.
+
+The anchor uses a grid icon to distinguish it from Chat's conversation-list action. Chat's rail
+is 52×148px; the Search-button rail is 52×100px and the single-anchor rail is 52×52px. Targets stay
+44×44px. The input retains its own rounded surface, with no background joining it to the rail.
+Shared presentation measures the search surface and bottom inset to reserve trailing scroll space;
+Questions' Save answer and final content remain reachable above it.
+
+Settings moves to the right of the Vaulter brand in both the expanded mobile module menu and the
+desktop sidebar for these alternatives. Its previous footer row is removed. The menu's icon action
+participates in shared menu keyboard navigation. Global Search and Start voice interaction remain
+in the Tools group of Modules, rather than occupying a permanent Tools button on the rail.
+
+Chat supplies its existing actions through Toolbar; supporting Chat panes retain their header
+actions. Questions and Wiki supply their existing filters through PageSearch. A small private
+prototype registration connects those presentation values to shared chrome. Handlers, draft
+lifetime, filtering, submission and persistence stay in their owning modules. The default Product
+preview and older comparison URLs retain their previous presentation.
+
+Temporary browser probes check both choices at 320, 390 and 430px, including changing action counts,
+conversation chooser dismissal and focus, New conversation and busy disablement, drafts, input
+height, Send/Stop hit targets, filtering and Clear/Close, Questions' Save answer, detail views,
+global Search, brand Settings with pointer and keyboard, and desktop/mobile transitions. Controlled
+430/72 and 340/100 keyboard viewport resize/pan cases keep the rail and inputs usable. The probes
+also check the previous comparison and neutral preview, with no runtime errors.
+
+Focused existing browser checks cover Chat, Questions, Wiki, Composer, navigation and comparisons.
+The first run passed 33 of 35; two existing phone checks timed out while other checks were running,
+then both passed in a focused single-worker rerun. Shared composition, catalogue and ownership
+checks, lint, types and the bundled preview are checked before publishing. Complete verification
+belongs to the exact pushed commit's aggregate CI job. This remains a prototype comparison.
+
+## Previous comparison: fixed lower-right edge bars
 
 The user's latest direction on 2026-10-14 reverses the earlier input-clearance relationship:
 the rail stays fixed in the lower-right corner and the text input places itself to the left.
@@ -59,8 +110,8 @@ browser probes, not new production regression tests. Focused existing Composer, 
 comparison checks pass (22), as do shared composition, catalogue and ownership checks (60), lint,
 types and the design build. Full verification belongs to the exact pushed commit's CI.
 
-Physical phone review is still needed for thumb reach and native keyboard behavior. No variant
-has been selected for production promotion.
+Physical phone review is still needed for thumb reach and native keyboard behavior. Variant 1's
+structure was selected for the next comparison above; no production promotion has been requested.
 
 ## Earlier comparison: minimal edge rail
 

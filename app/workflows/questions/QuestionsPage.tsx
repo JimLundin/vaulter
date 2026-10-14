@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   FeaturePage,
-  Input,
+  PageSearch,
   Link,
   Loader,
   Stack,
@@ -85,12 +85,12 @@ export function QuestionsPage({
           <Link href={`#${questionsRoute.href()}`}>All questions</Link>
         ) : (
           <>
-            <Input
+            <PageSearch
               type="search"
-              aria-label="Find questions"
+              label="Find questions"
               placeholder="Find a question, subject or source…"
               value={query}
-              onChange={(event) => setQuery(event.target.value)}
+              onValueChange={setQuery}
             />
             <ToggleGroup
               type="single"

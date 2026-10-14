@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button, FeaturePage, Input, Link, Loader, Stack, Text } from '../../ui/kit/index.ts';
+import { Button, FeaturePage, PageSearch, Link, Loader, Stack, Text } from '../../ui/kit/index.ts';
 import { go } from '../../ui/routing.ts';
 import type { WikiClassification, WikiPage } from './pages.ts';
 import { wikiRoute, pageRoute } from './routes.ts';
@@ -76,11 +76,11 @@ export function Wiki({
       description="People, places and ideas in your vault."
     >
       <Stack>
-        <Input
-          aria-label="Find pages"
+        <PageSearch
+          label="Find pages"
           placeholder="Find a page, subject or tag…"
           value={query}
-          onChange={(event) => setQuery(event.target.value)}
+          onValueChange={setQuery}
         />
         {!!filter && (
           <Button variant="ghost" onClick={() => setFilter(undefined)}>

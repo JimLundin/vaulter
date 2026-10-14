@@ -7,6 +7,7 @@ import type { Unstyled } from './lib/unstyled.tsx';
 import { cn } from './lib/utils.ts';
 import { useLayout } from './hooks/use-layout.ts';
 import { useFieldSemanticDiagnostic } from './field-association.ts';
+import { usePrototypePageControl } from './page-controls-prototype.tsx';
 
 const surfaces = {
   plain: '',
@@ -40,7 +41,16 @@ export function Surface({
 }
 
 /** Page toolbars use the shared supporting-header height and inset in every arrangement. */
-export function Toolbar({ children, label }: { children: ReactNode; label?: string }) {
+export function Toolbar({
+  children,
+  label,
+  actions,
+}: {
+  children: ReactNode;
+  label?: string;
+  actions?: ReactNode;
+}) {
+  const inRail = usePrototypePageControl({ actions });
   return (
     <header
       role="toolbar"
@@ -48,6 +58,7 @@ export function Toolbar({ children, label }: { children: ReactNode; label?: stri
       className="flex h-[var(--supporting-header-height)] shrink-0 items-center justify-between gap-3 bg-background px-[var(--page-inset)]"
     >
       {children}
+      {!inRail && actions}
     </header>
   );
 }

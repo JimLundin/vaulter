@@ -399,7 +399,8 @@ body,
     0 2px 6px #0000000a;
   pointer-events: auto;
 }
-.kit-corner-rail-control {
+.kit-corner-rail-control,
+[data-corner-page-actions] button {
   display: flex;
   width: 44px;
   min-width: 44px;
@@ -414,15 +415,18 @@ body,
   cursor: pointer;
   touch-action: manipulation;
 }
-.kit-corner-rail-control svg {
+.kit-corner-rail-control svg,
+[data-corner-page-actions] button svg {
   width: 20px;
   height: 20px;
 }
 .kit-corner-rail-control:hover,
-.kit-corner-rail-control[aria-expanded="true"] {
+.kit-corner-rail-control[aria-expanded="true"],
+[data-corner-page-actions] button:hover {
   background: var(--muted);
 }
-.kit-corner-rail-control:focus-visible {
+.kit-corner-rail-control:focus-visible,
+[data-corner-page-actions] button:focus-visible {
   outline: 2px solid var(--ring);
   outline-offset: 2px;
 }
@@ -448,6 +452,11 @@ body,
 .kit-corner-rail-menu {
   border-radius: 16px;
 }
+.kit-corner-brand-action {
+  width: 44px;
+  justify-content: center;
+  padding: 0;
+}
 [data-dock][data-corner-input-lane="dock"],
 [data-navigation-prototype^="corner-"] [data-dock][data-corner-input-lane="dock"] {
   padding-right: max(16px, var(--corner-input-space));
@@ -460,6 +469,43 @@ body,
   align-self: flex-start;
   margin-inline-start: 0;
   margin-inline-end: auto;
+}
+
+/* Page actions extend upward from the constant Modules anchor. */
+[data-corner-page-actions]:empty {
+  display: none;
+}
+[data-corner-page-actions] > div {
+  flex-direction: column-reverse;
+  gap: 4px;
+}
+[data-corner-page-actions] button {
+  box-shadow: none;
+}
+[data-app-dock^="corner-page-"] > [data-app-dock-action="menu"] {
+  background: var(--muted);
+}
+.kit-corner-page-search {
+  position: absolute;
+  pointer-events: auto;
+}
+.kit-corner-page-search > [data-slot="input-group"] {
+  min-height: 52px;
+  box-shadow:
+    0 8px 28px #0000001c,
+    0 2px 6px #0000000a;
+}
+.kit-corner-page-search [data-slot="input-group-addon"][data-align="inline-end"] {
+  padding-right: 3px;
+}
+.kit-corner-page-search input::-webkit-search-cancel-button {
+  display: none;
+}
+[data-navigation-prototype^="corner-page-"] [data-feature-page] {
+  padding-bottom: max(76px, calc(64px + env(safe-area-inset-bottom)));
+}
+[data-prototype-page-search] [data-feature-page] {
+  padding-bottom: var(--prototype-page-search-space, 88px);
 }
 
 /* biome-ignore lint/correctness/noUnknownFunction: Tailwind resolves the shared breakpoint token. */

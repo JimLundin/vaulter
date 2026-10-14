@@ -217,9 +217,10 @@ function Preview({ initialHead, nodes }: { initialHead: Head; nodes: NodeStore }
   const navigationComparison = query.get('navigation');
   const freestandingComparison = navigationComparison === 'freestanding';
   const cornerComparison = navigationComparison === 'edge';
+  const pageRailComparison = navigationComparison === 'page-rail';
   const frame = (content: React.ReactNode, controls?: React.ReactNode) => (
     <DesignPreview
-      label={`${cornerComparison ? 'Fixed corner edge bars' : freestandingComparison ? 'Freestanding edge rails' : navigationComparison === 'dock' ? 'Floating dock prototypes' : navigationComparison === 'prototype' ? 'Mobile navigation prototype' : agent ? 'Live agent preview' : 'Design preview'} · ${(import.meta.env.VITE_PREVIEW_COMMIT || 'local').slice(0, 7)}`}
+      label={`${pageRailComparison ? 'Page actions on the edge rail' : cornerComparison ? 'Fixed corner edge bars' : freestandingComparison ? 'Freestanding edge rails' : navigationComparison === 'dock' ? 'Floating dock prototypes' : navigationComparison === 'prototype' ? 'Mobile navigation prototype' : agent ? 'Live agent preview' : 'Design preview'} · ${(import.meta.env.VITE_PREVIEW_COMMIT || 'local').slice(0, 7)}`}
       chat={agent ? 'Live agent' : 'Scripted chat'}
       onReset={() => {
         sessionStorage.removeItem(previewJournalKey);
@@ -235,6 +236,7 @@ function Preview({ initialHead, nodes }: { initialHead: Head; nodes: NodeStore }
   const dockComparison = navigationComparison === 'dock';
   if (
     !(
+      pageRailComparison ||
       cornerComparison ||
       freestandingComparison ||
       dockComparison ||
@@ -248,13 +250,15 @@ function Preview({ initialHead, nodes }: { initialHead: Head; nodes: NodeStore }
     <DesignComparison
       defaultValue={
         query.get('variant') ??
-        (cornerComparison
-          ? 'corner-split'
-          : freestandingComparison
-            ? 'free-rail'
-            : dockComparison
-              ? 'dock-joined'
-              : 'slim')
+        (pageRailComparison
+          ? 'corner-page-search'
+          : cornerComparison
+            ? 'corner-split'
+            : freestandingComparison
+              ? 'free-rail'
+              : dockComparison
+                ? 'dock-joined'
+                : 'slim')
       }
       onValueChange={(value) => {
         const url = new URL(location.href);
@@ -262,51 +266,68 @@ function Preview({ initialHead, nodes }: { initialHead: Head; nodes: NodeStore }
         history.replaceState(history.state, '', url);
       }}
       alternatives={
-        cornerComparison
+        pageRailComparison
           ? [
               {
-                id: 'corner-split',
-                label: 'Fixed edge · Modules + Tools',
-                content: product('corner-split'),
+                id: 'corner-page-search',
+                label: 'Page rail · Search button',
+                content: product('corner-page-search'),
               },
-              { id: 'corner-tab', label: 'Fixed edge · Menu tab', content: product('corner-tab') },
               {
-                id: 'corner-search',
-                label: 'Fixed edge · Search + Menu',
-                content: product('corner-search'),
+                id: 'corner-page-input',
+                label: 'Page rail · Bottom search input',
+                content: product('corner-page-input'),
               },
             ]
-          : freestandingComparison
+          : cornerComparison
             ? [
                 {
-                  id: 'free-rail',
-                  label: 'Edge rail · two buttons',
-                  content: product('free-rail'),
+                  id: 'corner-split',
+                  label: 'Fixed edge · Modules + Tools',
+                  content: product('corner-split'),
                 },
                 {
-                  id: 'free-rail-single',
-                  label: 'Edge rail · one button',
-                  content: product('free-rail-single'),
+                  id: 'corner-tab',
+                  label: 'Fixed edge · Menu tab',
+                  content: product('corner-tab'),
+                },
+                {
+                  id: 'corner-search',
+                  label: 'Fixed edge · Search + Menu',
+                  content: product('corner-search'),
                 },
               ]
-            : dockComparison
+            : freestandingComparison
               ? [
-                  { id: 'dock', label: 'Original split dock', content: product('dock') },
-                  { id: 'dock-joined', label: 'Joined dock', content: product('dock-joined') },
-                  { id: 'dock-bubble', label: 'Menu bubble', content: product('dock-bubble') },
                   {
-                    id: 'dock-shortcuts',
-                    label: 'Page shortcuts',
-                    content: product('dock-shortcuts'),
+                    id: 'free-rail',
+                    label: 'Edge rail · two buttons',
+                    content: product('free-rail'),
                   },
-                  { id: 'dock-side', label: 'Side dock', content: product('dock-side') },
+                  {
+                    id: 'free-rail-single',
+                    label: 'Edge rail · one button',
+                    content: product('free-rail-single'),
+                  },
                 ]
-              : [
-                  { id: 'current', label: 'Current bar', content: product() },
-                  { id: 'slim', label: 'Slim tabs', content: product('slim') },
-                  { id: 'dock', label: 'Floating dock', content: product('dock') },
-                  { id: 'header', label: 'Header menu', content: product('header') },
-                ]
+              : dockComparison
+                ? [
+                    { id: 'dock', label: 'Original split dock', content: product('dock') },
+                    { id: 'dock-joined', label: 'Joined dock', content: product('dock-joined') },
+                    { id: 'dock-bubble', label: 'Menu bubble', content: product('dock-bubble') },
+                    {
+                      id: 'dock-shortcuts',
+                      label: 'Page shortcuts',
+                      content: product('dock-shortcuts'),
+                    },
+                    { id: 'dock-side', label: 'Side dock', content: product('dock-side') },
+                  ]
+                : [
+                    { id: 'current', label: 'Current bar', content: product() },
+                    { id: 'slim', label: 'Slim tabs', content: product('slim') },
+                    { id: 'dock', label: 'Floating dock', content: product('dock') },
+                    { id: 'header', label: 'Header menu', content: product('header') },
+                  ]
       }
       preview={(controls, content) => frame(content, controls)}
     />

@@ -16,6 +16,10 @@ import { useLayout } from './hooks/use-layout.ts';
 import { usePresentationPolicy } from './presentation-policy.tsx';
 import { PrototypeAppDock, type FreestandingDockDesign } from './mobile-dock-prototype.tsx';
 import { PrototypeCornerRail, type CornerRailDesign } from './mobile-corner-rail-prototype.tsx';
+import {
+  PrototypePageControlsContext,
+  usePrototypePageControls,
+} from './page-controls-prototype.tsx';
 import { Button } from './parts/button.tsx';
 import {
   Brand,
@@ -204,9 +208,27 @@ export function NavigationSuite({
   const corner =
     compactDesign === 'corner-split' ||
     compactDesign === 'corner-tab' ||
-    compactDesign === 'corner-search'
+    compactDesign === 'corner-search' ||
+    compactDesign === 'corner-page-search' ||
+    compactDesign === 'corner-page-input'
       ? compactDesign
       : undefined;
+  const pageRail = corner === 'corner-page-search' || corner === 'corner-page-input';
+  const pageControls = usePrototypePageControls(compact && pageRail);
+  const [openPageSearch, setOpenPageSearch] = useState<string | null>(null);
+  const [pageSearchClearance, setPageSearchClearance] = useState(88);
+  const registeredSearch = pageControls.search;
+  const pageSearch = registeredSearch?.search
+    ? { id: registeredSearch.id, ...registeredSearch.search }
+    : undefined;
+  const pageSearchVisible = !!(
+    compact &&
+    pageRail &&
+    pageSearch &&
+    (corner === 'corner-page-input' || openPageSearch === pageSearch.id)
+  );
+  const settings = pageRail ? actions.find((action) => action.icon === 'settings') : undefined;
+  const remainingActions = actions.filter((action) => action !== settings);
   const appRail = !!(freestanding || corner);
   const policy = usePresentationPolicy();
   const [menu, setMenu] = useState(false);
@@ -255,228 +277,261 @@ export function NavigationSuite({
   ];
 
   return (
-    <SidebarProvider>
-      {compact ? (
-        !appRail && (
-          <NavigationSheet
-            open={menu}
-            onClose={() => setMenu(false)}
-            brand={<Brand status={status} />}
-            entries={menuEntries.map((entry) => ({ ...entry, active: entry.current }))}
-            footer={
-              <>
-                {!!compactDesign && (
-                  <>
-                    <Button
-                      variant="ghost"
-                      onClick={() => {
-                        setMenu(false);
-                        search.onSelect();
-                      }}
-                    >
-                      <Icon name="search" />
-                      Search
-                    </Button>
-                    {actions.slice(0, 3).map((action) => (
+    <PrototypePageControlsContext.Provider value={pageControls.context}>
+      <SidebarProvider>
+        {compact ? (
+          !appRail && (
+            <NavigationSheet
+              open={menu}
+              onClose={() => setMenu(false)}
+              brand={<Brand status={status} />}
+              entries={menuEntries.map((entry) => ({ ...entry, active: entry.current }))}
+              footer={
+                <>
+                  {!!compactDesign && (
+                    <>
                       <Button
-                        key={action.label}
                         variant="ghost"
-                        render={action.href ? <a href={action.href}>{action.label}</a> : undefined}
                         onClick={() => {
                           setMenu(false);
-                          if (!action.href) action.onSelect?.();
+                          search.onSelect();
                         }}
+                      >
+                        <Icon name="search" />
+                        Search
+                      </Button>
+                      {actions.slice(0, 3).map((action) => (
+                        <Button
+                          key={action.label}
+                          variant="ghost"
+                          render={
+                            action.href ? <a href={action.href}>{action.label}</a> : undefined
+                          }
+                          onClick={() => {
+                            setMenu(false);
+                            if (!action.href) action.onSelect?.();
+                          }}
+                        >
+                          <Icon name={action.icon} />
+                          {action.label}
+                        </Button>
+                      ))}
+                      {primary?.compact}
+                    </>
+                  )}
+                  {actions
+                    .slice(3)
+                    .filter((action) => !action.href)
+                    .map((action) => (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="compact"
+                        key={action.label}
+                        onClick={() => {
+                          setMenu(false);
+                          action.onSelect?.();
+                        }}
+                        className="w-full justify-start"
                       >
                         <Icon name={action.icon} />
                         {action.label}
                       </Button>
                     ))}
-                    {primary?.compact}
-                  </>
-                )}
-                {actions
-                  .slice(3)
-                  .filter((action) => !action.href)
-                  .map((action) => (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="compact"
-                      key={action.label}
-                      onClick={() => {
-                        setMenu(false);
-                        action.onSelect?.();
-                      }}
-                      className="w-full justify-start"
-                    >
-                      <Icon name={action.icon} />
-                      {action.label}
-                    </Button>
-                  ))}
-                {footer}
-              </>
-            }
-          />
-        )
-      ) : (
-        <Sidebar>
-          <SidebarHeader>
-            <Brand status={status} />
-            <SearchButton
-              label={search.label}
-              name="Search"
-              keys={search.keys}
-              onClick={search.onSelect}
-            />
-          </SidebarHeader>
-          <SidebarContent>
-            <SidebarMenu>
-              {destinations.map((entry) => (
-                <SidebarMenuItem key={entry.href}>
-                  <SidebarMenuButton
-                    render={
-                      <a
-                        href={entry.href}
-                        aria-label={entry.label}
-                        aria-current={entry.current ? 'page' : undefined}
-                      />
-                    }
-                    isActive={entry.current}
-                  >
-                    <Icon name={entry.icon} />
-                    {entry.label}
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarContent>
-          <SidebarFooter>
-            <SidebarMenu>
-              {actions.map((action) => (
-                <SidebarMenuItem key={action.label}>
-                  <SidebarMenuButton
-                    aria-label={action.label}
-                    aria-expanded={action.expanded}
-                    render={
-                      action.href ? (
-                        // biome-ignore lint/a11y/useAnchorContent: useRender supplies the SidebarMenuButton children to this anchor.
-                        <a
-                          href={action.href}
-                          aria-label={action.label}
-                          aria-current={action.current ? 'page' : undefined}
-                        />
-                      ) : undefined
-                    }
-                    isActive={!!action.current}
-                    onClick={action.href ? undefined : action.onSelect}
-                  >
-                    <Icon name={action.icon} />
-                    <span className="flex-1">{action.label}</span>
-                    {!action.href && action.keys ? <Kbd>{action.keys}</Kbd> : null}
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-            {primary?.expanded}
-            {footer}
-          </SidebarFooter>
-        </Sidebar>
-      )}
-      <WorkspaceFrame
-        compactDesign={compactDesign}
-        editing={editing}
-        header={
-          !!compactDesign &&
-          !appRail &&
-          (compactDesign === 'header' || editing) && (
-            <PrototypeNavigationBar
-              design={compactDesign}
-              destinations={destinations}
-              menu={menu}
-              onMenu={() => setMenu(true)}
-              onSearch={search.onSelect}
-              editing={editing}
-              onDone={() => {
-                const active = document.activeElement;
-                if (active instanceof HTMLElement && policy.owns(active)) active.blur();
-              }}
+                  {footer}
+                </>
+              }
             />
           )
-        }
-        bar={
-          appRail ? null : compactDesign ? (
-            compactDesign !== 'header' && (
+        ) : (
+          <Sidebar>
+            <SidebarHeader>
+              <Brand
+                status={status}
+                actions={
+                  settings && (
+                    <Button
+                      variant="ghost"
+                      size="standard"
+                      iconOnly={true}
+                      aria-label={settings.label}
+                      aria-expanded={settings.expanded}
+                      title={settings.label}
+                      disabled={settings.disabled}
+                      render={
+                        settings.href ? <a href={settings.href}>{settings.label}</a> : undefined
+                      }
+                      onClick={settings.href ? undefined : settings.onSelect}
+                    >
+                      <Icon name={settings.icon} />
+                    </Button>
+                  )
+                }
+              />
+              <SearchButton
+                label={search.label}
+                name="Search"
+                keys={search.keys}
+                onClick={search.onSelect}
+              />
+            </SidebarHeader>
+            <SidebarContent>
+              <SidebarMenu>
+                {destinations.map((entry) => (
+                  <SidebarMenuItem key={entry.href}>
+                    <SidebarMenuButton
+                      render={
+                        <a
+                          href={entry.href}
+                          aria-label={entry.label}
+                          aria-current={entry.current ? 'page' : undefined}
+                        />
+                      }
+                      isActive={entry.current}
+                    >
+                      <Icon name={entry.icon} />
+                      {entry.label}
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarContent>
+            <SidebarFooter>
+              <SidebarMenu>
+                {remainingActions.map((action) => (
+                  <SidebarMenuItem key={action.label}>
+                    <SidebarMenuButton
+                      aria-label={action.label}
+                      aria-expanded={action.expanded}
+                      render={
+                        action.href ? (
+                          // biome-ignore lint/a11y/useAnchorContent: useRender supplies the SidebarMenuButton children to this anchor.
+                          <a
+                            href={action.href}
+                            aria-label={action.label}
+                            aria-current={action.current ? 'page' : undefined}
+                          />
+                        ) : undefined
+                      }
+                      isActive={!!action.current}
+                      onClick={action.href ? undefined : action.onSelect}
+                    >
+                      <Icon name={action.icon} />
+                      <span className="flex-1">{action.label}</span>
+                      {!action.href && action.keys ? <Kbd>{action.keys}</Kbd> : null}
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+              {primary?.expanded}
+              {footer}
+            </SidebarFooter>
+          </Sidebar>
+        )}
+        <WorkspaceFrame
+          compactDesign={compactDesign}
+          editing={editing}
+          prototypePageSearch={pageSearchVisible ? pageSearchClearance : undefined}
+          header={
+            !!compactDesign &&
+            !appRail &&
+            (compactDesign === 'header' || editing) && (
               <PrototypeNavigationBar
                 design={compactDesign}
                 destinations={destinations}
                 menu={menu}
                 onMenu={() => setMenu(true)}
                 onSearch={search.onSelect}
-                primary={primary?.compact}
+                editing={editing}
+                onDone={() => {
+                  const active = document.activeElement;
+                  if (active instanceof HTMLElement && policy.owns(active)) active.blur();
+                }}
               />
             )
-          ) : (
-            <MobileBar
-              items={[
-                <MobileActionButton
-                  key="menu"
-                  icon="list"
-                  label="Menu"
-                  expanded={menu}
-                  onClick={() => setMenu(true)}
-                />,
-                <MobileActionButton
-                  key="search"
-                  icon="search"
-                  label="Search"
-                  onClick={search.onSelect}
-                />,
-                ...barActions.map((action) => (
+          }
+          bar={
+            appRail ? null : compactDesign ? (
+              compactDesign !== 'header' && (
+                <PrototypeNavigationBar
+                  design={compactDesign}
+                  destinations={destinations}
+                  menu={menu}
+                  onMenu={() => setMenu(true)}
+                  onSearch={search.onSelect}
+                  primary={primary?.compact}
+                />
+              )
+            ) : (
+              <MobileBar
+                items={[
                   <MobileActionButton
-                    key={action.label}
-                    icon={action.icon}
-                    label={action.label}
-                    current={action.current}
-                    expanded={action.expanded}
-                    href={action.href}
-                    onClick={action.href ? undefined : action.onSelect}
-                  />
-                )),
-              ]}
-              floating={primary?.compact}
-            />
-          )
-        }
-      >
-        {children}
-      </WorkspaceFrame>
-      {aside}
-      {freestanding && (
-        <PrototypeAppDock
-          design={freestanding}
-          compact={compact}
-          status={status}
-          destinations={destinations}
-          actions={actions}
-          onSearch={search.onSelect}
-          onNavigate={onNavigate}
-          primaryAction={primary?.menu}
-          footer={footer}
-        />
-      )}
-      {!!corner && (
-        <PrototypeCornerRail
-          design={corner}
-          compact={compact}
-          status={status}
-          destinations={destinations}
-          actions={actions}
-          onSearch={search.onSelect}
-          onNavigate={onNavigate}
-          primaryAction={primary?.menu}
-          footer={footer}
-        />
-      )}
-    </SidebarProvider>
+                    key="menu"
+                    icon="list"
+                    label="Menu"
+                    expanded={menu}
+                    onClick={() => setMenu(true)}
+                  />,
+                  <MobileActionButton
+                    key="search"
+                    icon="search"
+                    label="Search"
+                    onClick={search.onSelect}
+                  />,
+                  ...barActions.map((action) => (
+                    <MobileActionButton
+                      key={action.label}
+                      icon={action.icon}
+                      label={action.label}
+                      current={action.current}
+                      expanded={action.expanded}
+                      href={action.href}
+                      onClick={action.href ? undefined : action.onSelect}
+                    />
+                  )),
+                ]}
+                floating={primary?.compact}
+              />
+            )
+          }
+        >
+          {children}
+        </WorkspaceFrame>
+        {aside}
+        {freestanding && (
+          <PrototypeAppDock
+            design={freestanding}
+            compact={compact}
+            status={status}
+            destinations={destinations}
+            actions={actions}
+            onSearch={search.onSelect}
+            onNavigate={onNavigate}
+            primaryAction={primary?.menu}
+            footer={footer}
+          />
+        )}
+        {!!corner && (
+          <PrototypeCornerRail
+            design={corner}
+            compact={compact}
+            status={status}
+            destinations={destinations}
+            actions={remainingActions}
+            settings={settings}
+            pageActions={pageControls.actions}
+            pageSearch={pageSearch}
+            pageSearchVisible={pageSearchVisible}
+            onPageSearchOpen={() => setOpenPageSearch(pageSearch?.id ?? null)}
+            onPageSearchClose={() => setOpenPageSearch(null)}
+            onPageSearchMeasure={setPageSearchClearance}
+            onSearch={search.onSelect}
+            onNavigate={onNavigate}
+            primaryAction={primary?.menu}
+            footer={footer}
+          />
+        )}
+      </SidebarProvider>
+    </PrototypePageControlsContext.Provider>
   );
 }

@@ -302,15 +302,16 @@ export function MobileActionButton({
 }
 
 /** The app's mark and name, at the top of the sidebar. */
-export const Brand = ({ status }: { status?: ReactNode }) => (
+export const Brand = ({ status, actions }: { status?: ReactNode; actions?: ReactNode }) => (
   <div className="flex items-center gap-2.5 px-1.5">
     <div className="flex size-[30px] items-center justify-center rounded-[9px] bg-primary text-sm font-semibold text-primary-foreground">
       V
     </div>
-    <div className="flex min-w-0 flex-col gap-0.5">
+    <div className="flex min-w-0 flex-1 flex-col gap-0.5">
       <div className="text-base font-semibold">Vaulter</div>
       {status}
     </div>
+    {actions}
   </div>
 );
 
@@ -343,7 +344,10 @@ export function FeaturePage({
   children: ReactNode;
 }) {
   return (
-    <article className="w-full md:px-[var(--page-inset)] md:py-[var(--page-block)]">
+    <article
+      data-feature-page=""
+      className="w-full md:px-[var(--page-inset)] md:py-[var(--page-block)]"
+    >
       <div
         data-reading-column=""
         className="mx-auto flex w-full max-w-[var(--reading-width)] flex-col md:gap-6"
@@ -391,12 +395,14 @@ export function WorkspaceFrame({
   header,
   compactDesign,
   editing,
+  prototypePageSearch,
   children,
 }: {
   bar: ReactNode;
   header?: ReactNode;
   compactDesign?: CompactNavigationDesign;
   editing?: boolean;
+  prototypePageSearch?: number;
   children: ReactNode;
 }) {
   const mobile = useLayout() === 'compact';
@@ -406,6 +412,12 @@ export function WorkspaceFrame({
       data-layout={mobile ? 'mobile-workspace' : 'desktop-workspace'}
       data-navigation-prototype={mobile ? compactDesign : undefined}
       data-editing={mobile && compactDesign ? editing : undefined}
+      data-prototype-page-search={mobile && prototypePageSearch ? '' : undefined}
+      style={
+        mobile && prototypePageSearch
+          ? ({ '--prototype-page-search-space': `${prototypePageSearch}px` } as React.CSSProperties)
+          : undefined
+      }
       className="flex h-[var(--viewport-height,100dvh)] min-w-0 flex-1 flex-col bg-background pt-[env(safe-area-inset-top)] md:pt-0"
     >
       {mobile && header}

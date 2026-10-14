@@ -1,10 +1,17 @@
-// Throwaway comparison: split menus, a labelled Menu tab and direct Search, fixed lower-right.
+// Throwaway comparisons: fixed lower-right menus, with optional module-owned page controls above.
 // Shared input surfaces leave room to the left; the app rail never follows a module's input.
 import { type ReactNode, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Brand } from './app.tsx';
 import { Icon } from './icons.tsx';
 import type { NavigationAction, NavigationDestination } from './navigation.tsx';
+import type { PageSearchProps } from './page-controls-prototype.tsx';
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from './parts/input-group.tsx';
 import { usePresentationPolicy } from './presentation-policy.tsx';
 import {
   DropdownMenu,
@@ -16,7 +23,12 @@ import {
   DropdownMenuTrigger,
 } from './parts/dropdown-menu.tsx';
 
-export type CornerRailDesign = 'corner-split' | 'corner-tab' | 'corner-search';
+export type CornerRailDesign =
+  | 'corner-split'
+  | 'corner-tab'
+  | 'corner-search'
+  | 'corner-page-search'
+  | 'corner-page-input';
 
 export function PrototypeCornerRail({
   design,
@@ -24,6 +36,13 @@ export function PrototypeCornerRail({
   status,
   destinations,
   actions,
+  settings,
+  pageActions,
+  pageSearch,
+  pageSearchVisible,
+  onPageSearchOpen,
+  onPageSearchClose,
+  onPageSearchMeasure,
   onSearch,
   onNavigate,
   primaryAction,
@@ -34,6 +53,13 @@ export function PrototypeCornerRail({
   status: ReactNode;
   destinations: NavigationDestination[];
   actions: NavigationAction[];
+  settings?: NavigationAction;
+  pageActions?: ReactNode;
+  pageSearch?: PageSearchProps & { id: string };
+  pageSearchVisible?: boolean;
+  onPageSearchOpen?: () => void;
+  onPageSearchClose?: () => void;
+  onPageSearchMeasure?: (clearance: number) => void;
   onSearch: () => void;
   onNavigate?: () => void;
   primaryAction?: NavigationAction;
@@ -44,6 +70,12 @@ export function PrototypeCornerRail({
   const split = design === 'corner-split';
   const tab = design === 'corner-tab';
   const directSearch = design === 'corner-search';
+  const pageRail = design === 'corner-page-search' || design === 'corner-page-input';
+  const searchButton = design === 'corner-page-search';
+  const searchField = useRef<HTMLInputElement>(null);
+  const searchSurface = useRef<HTMLElement>(null);
+  const searchTrigger = useRef<HTMLButtonElement>(null);
+  const focusSearch = useRef(false);
   const [menu, setMenu] = useState<'navigation' | 'tools' | null>(null);
   const [geometry, setGeometry] = useState({
     left: 0,
@@ -56,6 +88,13 @@ export function PrototypeCornerRail({
     insetBottom: 12,
     insetLeft: 12,
   });
+
+  useLayoutEffect(() => {
+    if (pageSearchVisible && focusSearch.current) {
+      searchField.current?.focus({ preventScroll: true });
+      focusSearch.current = false;
+    }
+  }, [pageSearchVisible]);
 
   useLayoutEffect(() => {
     const node = rail.current;
@@ -85,6 +124,8 @@ export function PrototypeCornerRail({
         insetLeft: Number.parseFloat(style.paddingLeft),
       };
       setGeometry((current) => (JSON.stringify(current) === JSON.stringify(next) ? current : next));
+      if (pageSearchVisible && searchSurface.current)
+        onPageSearchMeasure?.(searchSurface.current.offsetHeight + next.insetBottom + 12);
       const railLeft = bounds.right - next.insetRight - next.railWidth;
       const surfaces = new Set(policy.inputSurfaces());
       for (const surface of marked) if (!surfaces.has(surface)) clear(surface);
@@ -105,13 +146,14 @@ export function PrototypeCornerRail({
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(node);
+    if (searchSurface.current) observer.observe(searchSurface.current);
     const releaseInputs = policy.watchInputs(measure);
     return () => {
       observer.disconnect();
       releaseInputs();
       for (const surface of marked) clear(surface);
     };
-  }, [compact, policy]);
+  }, [compact, policy, pageSearchVisible, onPageSearchMeasure]);
 
   const menuWidth = Math.min(
     260,
@@ -173,6 +215,61 @@ export function PrototypeCornerRail({
         height: geometry.height,
       }}
     >
+      {!!pageSearch && pageSearchVisible && (
+        <search
+          ref={searchSurface}
+          aria-label={pageSearch.label}
+          className="kit-corner-page-search"
+          style={{
+            left: Math.max(16, geometry.insetLeft),
+            right: geometry.insetRight + geometry.railWidth + 12,
+            bottom: geometry.insetBottom,
+          }}
+        >
+          <InputGroup variant="composer">
+            <InputGroupAddon>
+              <Icon name="search" />
+            </InputGroupAddon>
+            <InputGroupInput
+              ref={searchField}
+              type={pageSearch.type}
+              aria-label={pageSearch.label}
+              placeholder={pageSearch.placeholder}
+              value={pageSearch.value}
+              onChange={(event) => pageSearch.onValueChange(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key !== 'Escape') return;
+                event.preventDefault();
+                if (searchButton) {
+                  pageSearch.onValueChange('');
+                  onPageSearchClose?.();
+                  searchTrigger.current?.focus({ preventScroll: true });
+                } else event.currentTarget.blur();
+              }}
+            />
+            {(searchButton || !!pageSearch.value) && (
+              <InputGroupAddon align="inline-end">
+                <InputGroupButton
+                  iconOnly={true}
+                  size="standard"
+                  aria-label={pageSearch.value ? 'Clear search' : 'Close search'}
+                  onClick={() => {
+                    if (pageSearch.value) {
+                      pageSearch.onValueChange('');
+                      searchField.current?.focus({ preventScroll: true });
+                    } else {
+                      onPageSearchClose?.();
+                      searchTrigger.current?.focus({ preventScroll: true });
+                    }
+                  }}
+                >
+                  <Icon name="close" />
+                </InputGroupButton>
+              </InputGroupAddon>
+            )}
+          </InputGroup>
+        </search>
+      )}
       <nav
         ref={rail}
         aria-label="App dock"
@@ -181,6 +278,31 @@ export function PrototypeCornerRail({
         className="kit-corner-rail"
         style={{ right: geometry.insetRight, bottom: geometry.insetBottom }}
       >
+        {!!pageRail && (
+          <>
+            <div data-corner-page-actions="">{pageActions}</div>
+            {!!pageSearch && searchButton && (
+              <button
+                ref={searchTrigger}
+                type="button"
+                aria-label={pageSearch.label}
+                aria-expanded={pageSearchVisible}
+                className="kit-corner-rail-control"
+                data-app-dock-action="page-search"
+                onClick={() => {
+                  setMenu(null);
+                  focusSearch.current = true;
+                  if (pageSearchVisible) {
+                    searchField.current?.focus({ preventScroll: true });
+                    focusSearch.current = false;
+                  } else onPageSearchOpen?.();
+                }}
+              >
+                <Icon name="search" />
+              </button>
+            )}
+          </>
+        )}
         {directSearch && (
           <button
             type="button"
@@ -203,11 +325,11 @@ export function PrototypeCornerRail({
           modal={false}
         >
           <DropdownMenuTrigger
-            aria-label={split ? 'Modules' : 'App menu'}
+            aria-label={split || pageRail ? 'Modules' : 'App menu'}
             className="kit-corner-rail-control"
             data-app-dock-action="menu"
           >
-            <Icon name={directSearch ? 'more' : 'list'} />
+            <Icon name={pageRail ? 'grid' : directSearch ? 'more' : 'list'} />
             {tab && <span className="kit-corner-rail-tab-label">Menu</span>}
           </DropdownMenuTrigger>
           <DropdownMenuContent
@@ -220,7 +342,29 @@ export function PrototypeCornerRail({
             style={menuStyle}
           >
             <div className="kit-app-dock-menu-brand">
-              <Brand status={status} />
+              <Brand
+                status={status}
+                actions={
+                  settings && (
+                    <DropdownMenuItem
+                      className="kit-corner-brand-action"
+                      aria-label={settings.label}
+                      aria-expanded={settings.expanded}
+                      title={settings.label}
+                      disabled={settings.disabled}
+                      render={
+                        settings.href ? <a href={settings.href}>{settings.label}</a> : undefined
+                      }
+                      onClick={() => {
+                        setMenu(null);
+                        if (!settings.href) settings.onSelect?.();
+                      }}
+                    >
+                      <Icon name={settings.icon} />
+                    </DropdownMenuItem>
+                  )
+                }
+              />
             </div>
             <DropdownMenuGroup aria-label="Modules">
               <DropdownMenuLabel>Modules</DropdownMenuLabel>
