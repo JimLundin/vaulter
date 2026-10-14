@@ -1,12 +1,17 @@
-import type { NodeSnapshot, NodeStore, NodeCommit } from '../vault/nodes/store.ts';
+import type { NodeSnapshot } from '../vault/nodes/store.ts';
+import type {
+  TransactionRequest,
+  TransactionStore,
+  WriteLifetime,
+} from '../vault/transactions/store.ts';
+import { composeChanges } from '../vault/transactions/composition.ts';
 import type { AgentToolContext, ContentWritePolicy } from './tools.ts';
 import { frozen } from '../vault/nodes/json.ts';
-import { NodePublicationRejected } from '../vault/nodes/history.ts';
 
 const ownedKinds = new Set(['agentRun', 'contextInput', 'toolExecution']);
 /** Agent-owned audit protection is independent of a caller's additional producer policy. */
 export function agentContentContext(options: {
-  readonly nodes: NodeStore;
+  readonly nodes: TransactionStore;
   readonly agent: string;
   readonly run: string;
   readonly signal: AbortSignal;
@@ -15,14 +20,14 @@ export function agentContentContext(options: {
   readonly writableKinds: readonly string[];
   readonly contentPolicy?: ContentWritePolicy;
   readonly snapshot: NodeSnapshot;
-  readonly publicationFailed: (request: NodeCommit, error: unknown) => void;
+  readonly publicationFailed: (request: TransactionRequest<void>, error: unknown) => void;
   readonly refreshFailed: (error: unknown) => void;
 }) {
   let { snapshot } = options;
   let refreshError: unknown;
   const reads = new Map<string, string | null>();
   let tail: Promise<unknown> = Promise.resolve();
-  const writes = new Set<Promise<string>>();
+  const scopes = new Set<WriteLifetime>();
   const check = () => {
     if (!options.live() || options.signal.aborted)
       throw new DOMException('Agent run stopped', 'AbortError');
@@ -77,7 +82,7 @@ export function agentContentContext(options: {
         },
       };
     },
-    commit: (input) => {
+    write: (calculate) => {
       try {
         check();
         if (!options.executing())
@@ -85,61 +90,78 @@ export function agentContentContext(options: {
       } catch (error) {
         return Promise.reject(error);
       }
-      const request = frozen(structuredClone(input));
       const writing = tail.then(async () => {
         check();
         if (!options.executing())
           throw new Error('Tools cannot publish outside an accepted invocation');
-        const expectedReads = new Map([...Object.entries(request.expectedReads ?? {}), ...reads]);
-        for (const change of request.changes) {
-          const before = snapshot.get(change.node);
-          if (owns(change.node, expectedReads) || ownedKinds.has(String(change.data?.kind)))
-            throw new Error('Tools cannot modify Agent execution records');
-          for (const data of [before?.data, change.data])
+        // This invocation admitted the calculation. Its detached publication may finish after
+        // the tool returns; Stop and session closure still prevent entering persistence.
+        using writes = options.nodes
+          .writer({ recordedBy: options.agent, origin: options.run, admission: check })
+          .lifetime({ signal: options.signal });
+        scopes.add(writes);
+        let changed: readonly string[] = [];
+        const publication = writes.write(async ({ id }) => {
+          const input = await calculate(id);
+          const request = {
+            ...input,
+            ...composeChanges(input, { changes: [], expectedReads: Object.fromEntries(reads) }),
+          };
+          const expectedReads = new Map(Object.entries(request.expectedReads ?? {}));
+          for (const change of request.changes) {
+            const before = snapshot.get(change.node);
+            if (owns(change.node, expectedReads) || ownedKinds.has(String(change.data?.kind)))
+              throw new Error('Tools cannot modify Agent execution records');
+            for (const data of [before?.data, change.data])
+              if (
+                data &&
+                (typeof data.kind !== 'string' || !options.writableKinds.includes(data.kind))
+              )
+                throw new Error('Tool write is outside its supplied content kinds');
+            if (change.placement && owns(change.placement.parent, expectedReads))
+              throw new Error('Tools cannot place content inside Agent execution records');
             if (
-              data &&
-              (typeof data.kind !== 'string' || !options.writableKinds.includes(data.kind))
+              change.placement &&
+              !request.changes.some((other) => other.node === change.placement?.parent)
+            ) {
+              const parent = snapshot.get(change.placement.parent);
+              if (!expectedReads.has(change.placement.parent))
+                expectedReads.set(change.placement.parent, parent?.key.transaction ?? null);
+            }
+            if (
+              options.contentPolicy &&
+              !options.contentPolicy({
+                node: change.node,
+                before: before ?? null,
+                after: {
+                  key: { node: change.node, transaction: id },
+                  data: change.data,
+                  placement: change.placement,
+                  connection: change.connection,
+                },
+              })
             )
-              throw new Error('Tool write is outside its supplied content kinds');
-          if (change.placement && owns(change.placement.parent, expectedReads))
-            throw new Error('Tools cannot place content inside Agent execution records');
-          if (
-            change.placement &&
-            !request.changes.some((other) => other.node === change.placement?.parent)
-          ) {
-            const parent = snapshot.get(change.placement.parent);
-            if (!expectedReads.has(change.placement.parent))
-              expectedReads.set(change.placement.parent, parent?.key.transaction ?? null);
+              throw new Error('Tool write violates its supplied producer policy');
           }
-          if (
-            options.contentPolicy &&
-            !options.contentPolicy({
-              node: change.node,
-              before: before ?? null,
-              after: {
-                key: { node: change.node, transaction: request.id },
-                data: change.data,
-                placement: change.placement,
-                connection: change.connection,
-              },
-            })
-          )
-            throw new Error('Tool write violates its supplied producer policy');
-        }
-        const publication = frozen({
-          ...request,
-          expectedReads: Object.fromEntries(expectedReads),
-          recordedBy: options.agent,
-          origin: options.run,
-          undoOf: null,
+          changed = request.changes.map((change) => change.node);
+          return {
+            value: undefined,
+            transaction: {
+              ...request,
+              expectedReads: Object.fromEntries(expectedReads),
+              undoOf: null,
+            },
+          };
         });
-        let accepted: Awaited<ReturnType<NodeStore['commit']>>;
+        let accepted: Awaited<typeof publication.result>;
         try {
-          accepted = await options.nodes.commit(publication);
+          accepted = await publication.result;
         } catch (error) {
-          if (!(error instanceof NodePublicationRejected))
+          if (publication.snapshot().finalized && publication.snapshot().phase !== 'rejected')
             options.publicationFailed(publication, error);
           throw error;
+        } finally {
+          scopes.delete(writes);
         }
         // Acceptance is authoritative. A read refresh cannot convert the receipt into failure.
         try {
@@ -148,23 +170,21 @@ export function agentContentContext(options: {
           refreshError = error;
           options.refreshFailed(error);
         }
-        for (const change of request.changes)
-          if (reads.has(change.node)) reads.set(change.node, accepted.id);
-        return accepted.id;
+        for (const node of changed) if (reads.has(node)) reads.set(node, accepted.transaction.id);
+        return accepted.transaction.id;
       });
       tail = writing.catch(() => undefined);
-      writes.add(writing);
-      writing.then(
-        () => writes.delete(writing),
-        () => writes.delete(writing),
-      );
       return writing;
     },
   };
   return {
     context,
     check,
-    settle: () => Promise.allSettled([...writes]),
+    settle: async () => {
+      const pending = [...scopes];
+      for (const scope of pending) scope.close();
+      await Promise.all(pending.map((scope) => scope[Symbol.asyncDispose]()));
+    },
     refresh: async () => {
       const latest = await options.nodes.snapshot();
       // Refresh never revives an expired context or rebases previously declared read dependencies.

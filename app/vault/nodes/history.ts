@@ -6,7 +6,7 @@ import { frozen, compare, canonical } from './json.ts';
 import { loadingTurns } from './loading.ts';
 
 export class NodeConflict extends Error {}
-/** A live owner rule rejected new publication; retrying cannot recover a transport failure. */
+/** Definitive pre-publication rejection, including integrity and live owner rules. */
 export class NodePublicationRejected extends Error {}
 
 // Private acceptance indexes. Loading extends these once per envelope; it never projects
@@ -154,7 +154,14 @@ export function accept(
   recordedAt: string,
   publication?: NodePublicationRule,
 ): NodeRecord {
-  return acceptIndexed(indexedRecords(records), request, requestDigest, recordedAt, publication);
+  try {
+    return acceptIndexed(indexedRecords(records), request, requestDigest, recordedAt, publication);
+  } catch (error) {
+    if (error instanceof NodeConflict || error instanceof NodePublicationRejected) throw error;
+    throw new NodePublicationRejected(error instanceof Error ? error.message : String(error), {
+      cause: error,
+    });
+  }
 }
 
 function acceptIndexed(

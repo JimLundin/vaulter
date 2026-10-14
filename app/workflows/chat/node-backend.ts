@@ -1,12 +1,18 @@
 import type { ModelMessage } from 'ai';
 import { historyModelMessages } from '../../agent/history.ts';
 import type { JsonObject } from '../../vault/nodes/model.ts';
-import type { NodeCommit, NodeStore } from '../../vault/nodes/store.ts';
+import type { NodeCommit } from '../../vault/nodes/store.ts';
+import type {
+  TransactionStore,
+  TransactionRequest,
+  WriteLifetime,
+} from '../../vault/transactions/store.ts';
+import { composeChanges } from '../../vault/transactions/composition.ts';
 import { canonical, frozen } from '../../vault/nodes/json.ts';
 import { serial } from '../../vault/storage/coordination.ts';
 import { createAgentBackend } from '../../agent/runtime.ts';
 import type { AgentBackendOptions, AgentRun, AgentRunState } from '../../agent/runtime.ts';
-import { prepareAgentRun, readAgentRun } from '../../agent/store.ts';
+import { calculateAgentRun, readAgentRun } from '../../agent/store.ts';
 import type { PreparedAgentRun, SuppliedContext } from '../../agent/store.ts';
 import type { AgentRunData } from '../../agent/records.ts';
 import {
@@ -81,12 +87,12 @@ export interface NodeChatRun {
   readonly prepared: () => PreparedNodeChat | undefined;
 }
 const errorMessage = (error: unknown) => (error instanceof Error ? error.message : String(error));
-const queueByStore = new WeakMap<NodeStore, Map<string, ReturnType<typeof serial>>>();
-function appendQueue(nodes: NodeStore, conversation: string) {
-  let queues = queueByStore.get(nodes);
+const queueByStore = new WeakMap<object, Map<string, ReturnType<typeof serial>>>();
+function appendQueue(nodes: TransactionStore, conversation: string) {
+  let queues = queueByStore.get(nodes.identity);
   if (!queues) {
     queues = new Map();
-    queueByStore.set(nodes, queues);
+    queueByStore.set(nodes.identity, queues);
   }
   let queue = queues.get(conversation);
   if (!queue) {
@@ -123,90 +129,103 @@ export function chatModelMessages(
 }
 /** Complete same-ID acceptance request; retain this whole value through uncertain retries. */
 export async function prepareNodeChatSubmission(
+  lifetime: WriteLifetime,
   options: NodeChatOptions,
   request: NodeChatRequest,
 ): Promise<PreparedNodeChat> {
-  const snapshot = await options.nodes.snapshot();
-  const history = snapshot.get(request.conversation)?.data
-    ? await savedMessages(options.nodes, request.conversation, snapshot.sequence)
-    : [];
-  const at = new Date().toISOString();
-  const submission = await prepareChatSubmission(options.nodes, {
-    transaction: request.id,
-    conversation: request.conversation,
-    user: options.user,
-    text: request.text,
-    model: request.model,
-    at,
-  });
-  const context: SuppliedContext[] = [
-    {
+  const publication = lifetime.prepare(async ({ id, nodes, origin }) => {
+    if (!origin) throw new Error('Chat submission requires its planned Exchange origin');
+    const snapshot = await nodes.snapshot();
+    const history = snapshot.get(request.conversation)?.data
+      ? await savedMessages(nodes, request.conversation, snapshot.sequence)
+      : [];
+    const at = new Date().toISOString();
+    const submission = await prepareChatSubmission(nodes, {
+      transaction: id,
+      conversation: request.conversation,
+      exchange: origin,
+      user: options.user,
+      text: request.text,
+      model: request.model,
+      at,
+    });
+    const context: SuppliedContext[] = [
+      {
+        data: {
+          kind: 'contextInput',
+          role: 'system',
+          position: 0,
+          transformation: 'verbatim',
+          content: options.instructions,
+        },
+      },
+    ];
+    for (const message of history) {
+      const fragments =
+        message.data.role === 'agent'
+          ? message.data.parts.map((part, index) => ({
+              ...message,
+              data: { ...message.data, parts: [part] } as MessageData,
+              target: message.sources?.[index] ?? message.version.key,
+            }))
+          : [{ ...message, target: message.version.key }];
+      for (const fragment of fragments)
+        for (const effective of chatModelMessages([fragment]))
+          context.push({
+            data: {
+              kind: 'contextInput',
+              role: effective.role,
+              position: context.length,
+              transformation: 'generated',
+              content: { message: JSON.parse(canonical(effective)) },
+            },
+            target: fragment.target,
+          });
+    }
+    const user = submission.changes.find(
+      (change) => change.data?.kind === 'message' && change.data.role === 'user',
+    )!;
+    context.push({
       data: {
         kind: 'contextInput',
-        role: 'system',
-        position: 0,
+        role: 'user',
+        position: context.length,
         transformation: 'verbatim',
-        content: options.instructions,
+        content: request.text,
       },
-    },
-  ];
-  for (const message of history) {
-    const fragments =
-      message.data.role === 'agent'
-        ? message.data.parts.map((part, index) => ({
-            ...message,
-            data: { ...message.data, parts: [part] } as MessageData,
-            target: message.sources?.[index] ?? message.version.key,
-          }))
-        : [{ ...message, target: message.version.key }];
-    for (const fragment of fragments)
-      for (const effective of chatModelMessages([fragment]))
-        context.push({
-          data: {
-            kind: 'contextInput',
-            role: effective.role,
-            position: context.length,
-            transformation: 'generated',
-            content: { message: JSON.parse(canonical(effective)) },
-          },
-          target: fragment.target,
-        });
-  }
-  const user = submission.changes.find(
-    (change) => change.data?.kind === 'message' && change.data.role === 'user',
-  )!;
-  context.push({
-    data: {
-      kind: 'contextInput',
-      role: 'user',
-      position: context.length,
-      transformation: 'verbatim',
-      content: request.text,
-    },
-    target: { node: user.node, transaction: request.id },
+      target: { node: user.node, transaction: id },
+    });
+    const execution = await calculateAgentRun(nodes, {
+      id,
+      run: crypto.randomUUID(),
+      agent: options.agent,
+      recordedBy: options.user,
+      origin: submission.origin,
+      at,
+      provider: options.provider,
+      model: request.model,
+      settings: options.settings ?? {},
+      enabledTools: options.enabledTools ?? [],
+      context,
+    });
+    const composed = frozen({
+      ...submission,
+      ...composeChanges(submission, execution.commit),
+      metadata: { chatRequest: request.id },
+    });
+    const value = frozen({
+      request: structuredClone(request),
+      submission,
+      run: execution.run,
+      commit: composed,
+    });
+    return { value, transaction: composed };
   });
-  const execution = await prepareAgentRun(options.nodes, {
-    id: request.id,
-    run: crypto.randomUUID(),
-    agent: options.agent,
-    recordedBy: options.user,
-    origin: submission.origin,
-    at,
-    provider: options.provider,
-    model: request.model,
-    settings: options.settings ?? {},
-    enabledTools: options.enabledTools ?? [],
-    context,
-  });
-  const composed = frozen({
-    ...submission,
-    changes: [...submission.changes, ...execution.commit.changes],
-    expectedReads: { ...submission.expectedReads, ...execution.commit.expectedReads },
-  });
-  return frozen({
-    request: structuredClone(request),
-    submission,
-    execution: { run: execution.run, commit: composed },
+  const value = await publication.ready;
+  return Object.freeze({
+    request: value.request,
+    submission: value.submission,
+    execution: { run: value.run, commit: value.commit, publication, cancel: lifetime.close },
   });
 }
 
@@ -219,7 +238,7 @@ function responseFrom(
   )!;
   const retainedTools = (state.tools ?? []).map(({ node, data }) => ({ node, data }));
   if (state.pendingTool?.stage === 'outcome') {
-    const { node } = state.pendingTool.request.changes[0]!;
+    const { node } = state.pendingTool;
     const index = retainedTools.findIndex((tool) => tool.node === node);
     if (index >= 0) retainedTools[index] = { node, data: state.pendingTool.execution };
     else retainedTools.push({ node, data: state.pendingTool.execution });
@@ -269,7 +288,7 @@ export function createNodeChatBackend(options: NodeChatOptions) {
     const listeners = new Set<() => void>();
     let prepared: PreparedNodeChat | undefined;
     let execution: AgentRun | undefined;
-    let pending: NodeCommit | undefined;
+    let pending: TransactionRequest<unknown> | undefined;
     let responseSave: Promise<NodeChatRunState> | undefined;
     let retry: Promise<NodeChatRunState> | undefined;
     let contentRetry: Promise<NodeChatRunState> | undefined;
@@ -312,7 +331,10 @@ export function createNodeChatBackend(options: NodeChatOptions) {
                 error: saveError,
                 label: saveLabels[saveStage],
                 inProgress: saving,
-                allowed: !(saving || disposed),
+                allowed:
+                  !(saving || disposed) &&
+                  pending?.snapshot().phase !== 'rejected' &&
+                  current?.pendingTool?.retryable !== false,
               },
             }
           : {}),
@@ -404,10 +426,16 @@ export function createNodeChatBackend(options: NodeChatOptions) {
       if (responseSave !== undefined) return responseSave;
       responseSave = (async () => {
         const response = responseFrom(prepared!, current);
-        pending = prepareChatResponse(prepared!.submission, response, options.agent);
+        using writes = options.nodes
+          .writer({ recordedBy: options.agent, origin: prepared!.submission.origin })
+          .lifetime();
+        pending = writes.write(({ id }) => ({
+          value: response,
+          transaction: prepareChatResponse(prepared!.submission, response, options.agent, id),
+        }));
         notify({ ...state, phase: 'saving', response });
         try {
-          await options.nodes.commit(pending);
+          await pending.result;
           pending = undefined;
           notify({
             ...state,
@@ -437,7 +465,10 @@ export function createNodeChatBackend(options: NodeChatOptions) {
       for (;;) {
         // biome-ignore lint/performance/noAwaitInLoops: history pagination depends on its previous cursor.
         const page = await options.nodes.history({ beforeSequence, limit: 100 });
-        const accepted = page.find((transaction) => transaction.id === request.id);
+        const accepted = page.find(
+          (transaction) =>
+            transaction.metadata?.chatRequest === request.id || transaction.id === request.id,
+        );
         if (accepted) {
           const differences = await options.nodes.changes(accepted.id);
           const user = differences.find(
@@ -490,7 +521,10 @@ export function createNodeChatBackend(options: NodeChatOptions) {
         notify({ ...state, phase: 'stopped', response: { ...state.response, status: 'stopped' } });
         return;
       }
-      prepared = await prepareNodeChatSubmission(options, request);
+      using writes = options.nodes
+        .writer({ recordedBy: options.user, origin: crypto.randomUUID() })
+        .lifetime({ signal: abort.signal });
+      prepared = await prepareNodeChatSubmission(writes, options, request);
       if (abort.signal.aborted || disposed) {
         settleAcceptance();
         notify({ ...state, phase: 'stopped', response: { ...state.response, status: 'stopped' } });
@@ -513,8 +547,12 @@ export function createNodeChatBackend(options: NodeChatOptions) {
         settleAcceptance();
         notify({
           ...state,
-          phase: 'failed',
-          response: { ...state.response, status: 'failed', error: errorMessage(error) },
+          phase: abort.signal.aborted ? 'stopped' : 'failed',
+          response: {
+            ...state.response,
+            status: abort.signal.aborted ? 'stopped' : 'failed',
+            ...(!abort.signal.aborted ? { error: errorMessage(error) } : {}),
+          },
         });
         return state;
       });
@@ -581,7 +619,10 @@ export function createNodeChatBackend(options: NodeChatOptions) {
         retry = (async () => {
           if (pending) {
             try {
-              await options.nodes.commit(pending);
+              using writes = options.nodes
+                .writer({ recordedBy: options.agent, origin: prepared!.submission.origin })
+                .lifetime();
+              await writes.retry(pending);
               pending = undefined;
               notify({
                 ...state,

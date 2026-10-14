@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+import { transactionFixture } from '../../vault/transactions/fixtures.test-support.ts';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { expect, test, vi } from 'vitest';
@@ -18,7 +19,7 @@ test('both visible Chat surfaces observe the same response-save progress', async
     release = resolve;
   });
   const conversation = createNodeConversation({
-    nodes: {
+    nodes: transactionFixture({
       ...nodes,
       commit: async (value) => {
         if (value.kind.action === 'completeResponse') {
@@ -27,7 +28,7 @@ test('both visible Chat surfaces observe the same response-save progress', async
         }
         return nodes.commit(value);
       },
-    },
+    }),
     user: 'user',
     agent: 'agent',
     provider: 'fictional',

@@ -9,18 +9,24 @@ test('optional workflows are composed only by Product and use the public kit', (
   expect(checkLayout(fileURLToPath(new URL('..', import.meta.url)))).toEqual([]);
 }, 15_000);
 test('the dependency policy rejects cross-workflow imports and private kit access', () => {
-  expect(importProblem('app/workflows/chat/Chat.tsx', 'app/workflows/history/index.tsx')).toContain(
-    'compose',
-  );
+  expect(
+    importProblem('app/workflows/chat/Chat.tsx', 'app/workflows/questions/index.tsx'),
+  ).toContain('compose');
   expect(importProblem('app/vault/index.ts', 'app/workflows/rename-note/index.ts')).toContain(
     'optional workflow',
   );
   expect(importProblem('app/ui/Frame.tsx', 'app/workflows/chat/index.tsx')).toContain(
     'optional workflow',
   );
-  expect(importProblem('app/product.tsx', 'app/workflows/history/index.tsx')).toBeNull();
+  expect(importProblem('app/product.tsx', 'app/vault/transactions/history/index.tsx')).toBeNull();
   expect(
-    importProblem('app/workflows/history/index.tsx', 'app/workflows/history/HistoryPage.tsx'),
+    importProblem('app/workflows/chat/Chat.tsx', 'app/vault/transactions/history/nodes.ts'),
+  ).toBeNull();
+  expect(
+    importProblem(
+      'app/vault/transactions/history/index.tsx',
+      'app/vault/transactions/history/HistoryPage.tsx',
+    ),
   ).toBeNull();
   expect(importProblem('app/workflows/chat/Chat.tsx', 'app/ui/kit/parts/button.tsx')).toContain(
     'private kit',
@@ -40,7 +46,7 @@ test('application tasks cannot construct raw node adapters', () => {
       'app/vault/content/tools.ts',
       'app/product.tsx',
     ])
-      expect(importProblem(caller, entry)).toContain('Product-supplied NodeStore');
+      expect(importProblem(caller, entry)).toContain('Product-supplied TransactionStore');
     for (const caller of [
       'app/main.tsx',
       'app/vault/nodes/memory.ts',
@@ -112,7 +118,7 @@ test('raw session hooks remain with Vault assembly and Product through every imp
       ['import', 'value-alias', 'export', 'export-all', 'namespace', 'export-namespace', 'dynamic']
         .map(
           (name) =>
-            `app/agent/${name}.ts accesses a raw node session; use the Product-supplied NodeStore`,
+            `app/agent/${name}.ts accesses a raw node session; use the Product-supplied TransactionStore`,
         )
         .toSorted((a, b) => a.localeCompare(b)),
     );
@@ -169,12 +175,63 @@ test('compiler resolution prevents raw node acceptance hidden by aliases and re-
       ['import', 'export', 'export-all', 'namespace', 'export-namespace', 'dynamic', 'value-alias']
         .map(
           (name) =>
-            `app/workflows/example/${name}.ts accesses raw node persistence; use the Product-supplied NodeStore`,
+            `app/workflows/example/${name}.ts accesses raw node persistence; use the Product-supplied TransactionStore`,
         )
         .concat(
           'app/workflows/example/require.ts: module loading must resolve through TypeScript so ownership can be checked',
         )
         .toSorted((a, b) => a.localeCompare(b)),
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('application writers cannot access raw Node commit through properties, destructuring or aliases', () => {
+  const root = mkdtempSync(join(tmpdir(), 'vaulter-node-commit-policy-'));
+  try {
+    const files = {
+      'app/vault/nodes/store.ts':
+        'export interface NodeStore { commit(): void; snapshot(): void; } export interface NodeBackend extends NodeStore { close(): void; }',
+      'app/vault/nodes/reading.ts':
+        "export type { NodeStore as Store, NodeBackend as Backend } from './store.ts';",
+      'app/workflows/example/property.ts':
+        "import type { Store } from '@/vault/nodes/reading.ts'; export const write = (nodes: Store) => nodes.commit();",
+      'app/workflows/example/element.ts':
+        "import type { Backend } from '@/vault/nodes/reading.ts'; const method = 'commit'; export const write = (nodes: Backend) => nodes[method]();",
+      'app/workflows/example/destructure.ts':
+        "import type { Store } from '@/vault/nodes/reading.ts'; declare const nodes: Store; const { commit: publish } = nodes; export const write = publish;",
+      'app/workflows/example/alias.ts':
+        "import type { Store } from '@/vault/nodes/reading.ts'; declare const nodes: Store; const borrowed = nodes; const publish = borrowed.commit; export const write = publish;",
+      'app/workflows/example/read.ts':
+        "import type { Store } from '@/vault/nodes/reading.ts'; export const read = (nodes: Store) => nodes.snapshot();",
+      'app/workflows/example/legacy.ts':
+        'interface Files { commit(): void; } export const save = (files: Files) => files.commit();',
+      'app/vault/transactions/lifetime.ts':
+        "import type { NodeStore } from '../nodes/store.ts'; export const persist = (nodes: NodeStore) => nodes.commit();",
+      'app/workflows/example/seed.test.ts':
+        "import type { Store } from '@/vault/nodes/reading.ts'; export const seed = (nodes: Store) => nodes.commit();",
+    };
+    writeFileSync(
+      join(root, 'tsconfig.json'),
+      JSON.stringify({
+        compilerOptions: {
+          module: 'ESNext',
+          moduleResolution: 'Bundler',
+          paths: { '@/*': ['./app/*'] },
+        },
+        include: ['app'],
+      }),
+    );
+    for (const [path, source] of Object.entries(files)) {
+      mkdirSync(join(root, path, '..'), { recursive: true });
+      writeFileSync(join(root, path), source);
+    }
+    expect(checkLayout(root).sort()).toEqual(
+      ['alias', 'destructure', 'element', 'property'].map(
+        (name) =>
+          `app/workflows/example/${name}.ts accesses raw Node commit; use a TransactionStore write lifetime`,
+      ),
     );
   } finally {
     rmSync(root, { recursive: true, force: true });

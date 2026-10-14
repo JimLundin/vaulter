@@ -2,7 +2,7 @@ import { tool } from 'ai';
 import { z } from 'zod';
 import type { AgentToolContext } from '../../agent/tools.ts';
 import type { JsonObject, NodeVersion } from '../../vault/nodes/model.ts';
-import type { NodeSnapshot, NodeStore } from '../../vault/nodes/store.ts';
+import type { NodeSnapshot, NodeReading } from '../../vault/nodes/store.ts';
 import { questionSubject } from './operations.ts';
 import { parseAnswer } from './records.ts';
 import {
@@ -57,7 +57,7 @@ export type { QuestionContextReading } from './actions.ts';
 /** Agent tools retain requests for information; directly recorded answers belong to the person. */
 export function questionTools(
   context: AgentToolContext,
-  nodes: NodeStore,
+  nodes: NodeReading,
   reading: QuestionContextReading,
   ownership = createQuestionOwnership({ nodes, reading }),
 ) {
@@ -78,14 +78,20 @@ export function questionTools(
         const preparedInput = askQuestionInput.parse(input);
         if (!context.author)
           throw new Error('Question creation requires a trusted Agent invocation.');
-        const prepared = ownership.ask(context.snapshot(), preparedInput, {
-          kind: 'agent',
-          recordedBy: context.author.recordedBy,
-          origin: context.author.origin,
+        const author = context.author;
+        let question!: string;
+        const transaction = await context.write((id) => {
+          const prepared = ownership.ask(context.snapshot(), preparedInput, {
+            id,
+            kind: 'agent',
+            recordedBy: author.recordedBy,
+            origin: author.origin,
+          });
+          question = prepared.changes[0]!.node;
+          return prepared;
         });
-        const transaction = await context.commit(prepared);
         return {
-          question: prepared.changes[0]!.node,
+          question,
           transaction,
           accepted: true,
         };

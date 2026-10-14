@@ -1,3 +1,4 @@
+import { transactionFixture } from '../../vault/transactions/fixtures.test-support.ts';
 import { expect, test, vi } from 'vitest';
 import { memoryNodeBackend } from '../../vault/nodes/memory.ts';
 import { create, request, seed } from '../../vault/nodes/fixtures.test-support.ts';
@@ -27,7 +28,7 @@ test('an unseen completed reply remains unread through failed record refresh and
   let executions = 0;
   const conversation = createNodeConversation({
     ...options,
-    nodes: {
+    nodes: transactionFixture({
       ...nodes,
       snapshot: (sequence) =>
         readsFail
@@ -38,7 +39,7 @@ test('an unseen completed reply remains unread through failed record refresh and
         if (value.kind.action === 'completeResponse') readsFail = true;
         return accepted;
       },
-    },
+    }),
     execution: async () => {
       executions++;
       return await options.execution();
@@ -80,7 +81,7 @@ test('known Agent completion becomes unread while its Chat response save is stil
   });
   const conversation = createNodeConversation({
     ...options,
-    nodes: {
+    nodes: transactionFixture({
       ...nodes,
       commit: async (value) => {
         if (value.kind.action === 'completeResponse') {
@@ -89,7 +90,7 @@ test('known Agent completion becomes unread while its Chat response save is stil
         }
         return nodes.commit(value);
       },
-    },
+    }),
   });
   const submitted = conversation.prepareSubmission({ text: 'Reply outside Chat' });
   if (submitted.status !== 'owned') throw new Error('Expected retained request');
@@ -120,7 +121,7 @@ test('views share initial-acceptance recovery progress and reconciliation never 
   });
   const conversation = createNodeConversation({
     ...options,
-    nodes: {
+    nodes: transactionFixture({
       ...nodes,
       commit: async (value) => {
         if (value.changes.some(({ data }) => data?.kind === 'exchange')) {
@@ -130,7 +131,7 @@ test('views share initial-acceptance recovery progress and reconciliation never 
         }
         return nodes.commit(value);
       },
-    },
+    }),
     execution: async () => {
       executions++;
       return await options.execution();
@@ -183,7 +184,7 @@ test('Chat response saving and accepted-record refresh remain separate shared ob
   });
   const conversation = createNodeConversation({
     ...options,
-    nodes: {
+    nodes: transactionFixture({
       ...nodes,
       snapshot: async (sequence) => {
         if (readsFail) throw new Error('Recorded view unavailable');
@@ -202,7 +203,7 @@ test('Chat response saving and accepted-record refresh remain separate shared ob
         }
         return nodes.commit(value);
       },
-    },
+    }),
     execution: async () => {
       executions++;
       return await options.execution();
@@ -273,7 +274,7 @@ test('a completed recovery read cannot replace a newly admitted conversation or 
   let acceptedOldResponse = false;
   const conversation = createNodeConversation({
     ...options,
-    nodes: {
+    nodes: transactionFixture({
       ...nodes,
       snapshot: async (sequence) => {
         if (holdRead) {
@@ -295,7 +296,7 @@ test('a completed recovery read cannot replace a newly admitted conversation or 
         }
         return nodes.commit(value);
       },
-    },
+    }),
   });
   const previous = conversation.prepareSubmission({ text: 'Previous request' });
   if (previous.status !== 'owned') throw new Error('Expected retained request');
@@ -339,10 +340,10 @@ test('content publication recovery never conceals the separate completed outcome
   });
   const conversation = createNodeConversation({
     ...options,
-    nodes: {
+    nodes: transactionFixture({
       ...nodes,
       commit: async (value) => {
-        if (value.id === 'content') {
+        if (value.changes.some((change) => change.node === 'content')) {
           if (contentFails) throw new Error('Content acceptance unavailable');
           await waiting;
         }
@@ -350,7 +351,7 @@ test('content publication recovery never conceals the separate completed outcome
           throw new Error('Outcome save unavailable');
         return nodes.commit(value);
       },
-    },
+    }),
     writableKinds: ['paragraph'],
     enabledTools: [{ name: 'publish' }],
     tools: (context) => ({
@@ -359,12 +360,12 @@ test('content publication recovery never conceals the separate completed outcome
         execute: async () => {
           attempts++;
           return {
-            transaction: await context.commit({
-              id: 'content',
+            transaction: await context.write((id) => ({
+              id,
               kind: nodeOperations.create,
               message: null,
               changes: [create('content', { kind: 'paragraph', text: 'Retained content' })],
-            }),
+            })),
           };
         },
       }),
@@ -432,7 +433,7 @@ test('a synchronous observer cannot start a competing owner retry during admissi
   });
   const backend = createNodeChatBackend({
     ...options,
-    nodes: {
+    nodes: transactionFixture({
       ...nodes,
       commit: async (value) => {
         if (value.kind.action === 'completeResponse') {
@@ -442,7 +443,7 @@ test('a synchronous observer cannot start a competing owner retry during admissi
         }
         return nodes.commit(value);
       },
-    },
+    }),
   });
   const retained = backend.send({
     id: 'request',
@@ -473,13 +474,13 @@ test('a failed retry returns settled owner progress while retaining its exact re
   const { createNodeChatBackend } = await import('./node-backend.ts');
   const backend = createNodeChatBackend({
     ...options,
-    nodes: {
+    nodes: transactionFixture({
       ...nodes,
       commit: (value) =>
         value.kind.action === 'completeResponse'
           ? Promise.reject(new Error('Response unavailable'))
           : nodes.commit(value),
-    },
+    }),
   });
   const retained = backend.send({
     id: 'request',

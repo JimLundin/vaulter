@@ -6,7 +6,8 @@ import { fakeGitHub } from '../github-client/fake-github.ts';
 import { serial } from '../coordination.ts';
 import { seed, request, create, revise } from '../../nodes/fixtures.test-support.ts';
 import type { NodeBackend } from '../../nodes/store.ts';
-import { undoNodes } from '../../nodes/operations-runtime.ts';
+import { transactionHistory } from '../../transactions/history/nodes.ts';
+import { transactionFixture } from '../../transactions/fixtures.test-support.ts';
 
 let stores: NodeBackend[] = [];
 beforeEach(() => {
@@ -186,7 +187,10 @@ test('one envelope is remotely accepted, legacy files preserved, exact citations
   expect((await cached.snapshot()).resolve(citation.connection!.target)?.data?.text).toBe(
     'Keep mornings free.',
   );
-  await undoNodes(cached, done.id, 'user');
+  await transactionHistory(transactionFixture(cached), {
+    recordedBy: 'user',
+    canUndo: () => true,
+  }).compensate(done.id);
   const newDevice = open();
   await newDevice.refresh();
   expect((await newDevice.snapshot()).resolve(citation.key)).toEqual(citation);

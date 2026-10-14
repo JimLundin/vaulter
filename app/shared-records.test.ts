@@ -1,3 +1,4 @@
+import { transactionFixture } from './vault/transactions/fixtures.test-support.ts';
 import 'fake-indexeddb/auto';
 import { expect, test, vi } from 'vitest';
 import { githubNodeBackend } from './vault/storage/nodes/github.ts';
@@ -40,7 +41,7 @@ test('conversation and transaction projections include writes accepted on indepe
 
   const readChats = (nodes: NodeBackend) =>
     createProductConversation({
-      nodes,
+      nodes: transactionFixture(nodes),
       provider: 'fictional',
       model: () => Promise.reject(new Error('Read only')),
       selectedModel: 'fictional',
@@ -56,13 +57,13 @@ test('conversation and transaction projections include writes accepted on indepe
   });
   closeA();
   closeB();
-  expect((await productNodeHistory(first).entries()).map((entry) => entry.transaction.id)).toEqual([
-    'device-b',
-    'device-a',
-    'seed',
-  ]);
-  expect(await productNodeHistory(second).entries()).toEqual(
-    await productNodeHistory(first).entries(),
+  expect(
+    (await productNodeHistory(transactionFixture(first)).entries()).map(
+      (entry) => entry.transaction.id,
+    ),
+  ).toEqual(['device-b', 'device-a', 'seed']);
+  expect(await productNodeHistory(transactionFixture(second)).entries()).toEqual(
+    await productNodeHistory(transactionFixture(first)).entries(),
   );
   chatA.dispose();
   chatB.dispose();

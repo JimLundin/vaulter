@@ -1,5 +1,9 @@
 import type { ToolSet } from 'ai';
-import type { NodeCommit, NodeSnapshot, NodeDifference } from '../vault/nodes/store.ts';
+import type { NodeSnapshot, NodeDifference } from '../vault/nodes/store.ts';
+import type { TransactionDraft } from '../vault/transactions/store.ts';
+
+export type ToolChanges = Omit<TransactionDraft, 'undoOf'>;
+export type ToolCalculation = (id: string) => ToolChanges | Promise<ToolChanges>;
 
 /** Trusted execution context; never part of model arguments. */
 export interface AgentToolContext {
@@ -10,9 +14,8 @@ export interface AgentToolContext {
     readonly origin: string;
   };
   readonly snapshot: () => NodeSnapshot;
-  readonly commit: (
-    request: Omit<NodeCommit, 'recordedBy' | 'origin' | 'undoOf'>,
-  ) => Promise<string>;
+  /** The core supplies identity before the tool constructs changes or exact references. */
+  readonly write: (calculate: ToolCalculation) => Promise<string>;
 }
 export type AgentToolFactory = (context: AgentToolContext) => ToolSet | Promise<ToolSet>;
 /** Caller composes the policy owned by its producer (for example Chat transcript protection). */

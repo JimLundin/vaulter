@@ -701,7 +701,7 @@ export function createNodeConversation(initial: NodeConversationOptions) {
     suggest,
     updateOptions: (next: NodeConversationOptions) => {
       if (disposed) return;
-      if ((options.session ?? options.nodes) !== (next.session ?? next.nodes)) {
+      if ((options.session ?? options.nodes.identity) !== (next.session ?? next.nodes.identity)) {
         api.dispose();
         return;
       }

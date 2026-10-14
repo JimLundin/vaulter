@@ -9,7 +9,7 @@ import {
 export const useNodeChat = (conversation: NodeConversation) =>
   useSyncExternalStore(conversation.subscribe, conversation.snapshot);
 export function useNodeConversation(options: NodeConversationOptions) {
-  const session = options.session ?? options.nodes;
+  const session = options.session ?? options.nodes.identity;
   const [lifetime, setLifetime] = useState(() => ({
     session,
     conversation: createNodeConversation(options),

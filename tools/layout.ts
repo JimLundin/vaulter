@@ -63,18 +63,23 @@ const rawNodeSymbols = new Map([
 const sessionNodeSymbols = new Map([
   ['app/vault/session/session.ts', new Set(['useSession'])],
   ['app/vault/index.ts', new Set(['useVaultSession'])],
+  ['app/vault/transactions/lifetime.ts', new Set(['createTransactionSession'])],
 ]);
 const sessionNodeCaller = (from: string, owner: string) =>
   fixture(from) ||
-  (owner === 'app/vault/session/session.ts'
-    ? from === 'app/vault/index.ts' || from.startsWith('app/vault/session/')
-    : from === 'app/product.tsx');
+  (owner === 'app/vault/transactions/lifetime.ts'
+    ? from === 'app/product.tsx' || from === 'app/vault/session/session.ts'
+    : owner === 'app/vault/session/session.ts'
+      ? from === 'app/vault/index.ts' || from.startsWith('app/vault/session/')
+      : from === 'app/product.tsx');
 // These owner UI declarations compose presentation; storage/model implementations remain separate.
 const vaultUi = new Set([
   'app/vault/Gate.tsx',
   'app/vault/session/ui.tsx',
   'app/vault/storage/Settings.tsx',
   'app/vault/content/tool-presentation.tsx',
+  'app/vault/transactions/history/NodeHistory.tsx',
+  'app/vault/transactions/history/HistoryPage.tsx',
 ]);
 export function importProblem(from: string, to: string): string | null {
   if (to.startsWith('app/preview/') && !fixture(from))
@@ -82,7 +87,7 @@ export function importProblem(from: string, to: string): string | null {
   if (testSource(to) && !fixture(from))
     return `${from} imports test-only ${to}; fixtures cannot publish application data`;
   if (rawNodeEntries.has(to) && !rawNodeCaller(from))
-    return `${from} imports raw node persistence; use the Product-supplied NodeStore`;
+    return `${from} imports raw node persistence; use the Product-supplied TransactionStore`;
   if (workflow(from) === 'wiki' && to.startsWith('tools/'))
     return `${from} imports tooling; migration depends on Wiki, never Wiki on migration`;
   if (
@@ -172,11 +177,11 @@ export function checkLayout(root: string): string[] {
           const owner = slash(relative(root, source.fileName));
           if (!rawNodeCaller(from) && rawNodeSymbols.get(owner)?.has(owned.name))
             problems.push(
-              `${from} accesses raw node persistence; use the Product-supplied NodeStore`,
+              `${from} accesses raw node persistence; use the Product-supplied TransactionStore`,
             );
           if (sessionNodeSymbols.get(owner)?.has(owned.name) && !sessionNodeCaller(from, owner))
             problems.push(
-              `${from} accesses a raw node session; use the Product-supplied NodeStore`,
+              `${from} accesses a raw node session; use the Product-supplied TransactionStore`,
             );
           if (
             owner === 'app/workflows/questions/actions.ts' &&
@@ -334,6 +339,31 @@ export function checkLayout(root: string): string[] {
           checkOwnedSymbol(project.checker.getSymbolAtLocation(node.name));
         if (ts.isImportClause(node) && node.name)
           checkOwnedSymbol(project.checker.getSymbolAtLocation(node.name));
+        if (
+          accessedMember?.name === 'commit' &&
+          accessedMember.object &&
+          !(
+            nodeImplementation(from) ||
+            fixture(from) ||
+            from === 'app/vault/transactions/lifetime.ts'
+          )
+        ) {
+          const type = project.checker.getTypeAtLocation(accessedMember.object);
+          const commit =
+            type &&
+            project.checker
+              .getPropertiesOfType(type)
+              .find((property) => property.name === 'commit');
+          if (
+            commit?.declarations.some((declaration) => {
+              const owner = declaration.resolve()?.getSourceFile().fileName;
+              return owner && slash(relative(root, owner)) === 'app/vault/nodes/store.ts';
+            })
+          )
+            problems.push(
+              `${from} accesses raw Node commit; use a TransactionStore write lifetime`,
+            );
+        }
         if (
           ts.isCallExpression(node) &&
           (node.expression.kind === ts.SyntaxKind.ImportKeyword ||

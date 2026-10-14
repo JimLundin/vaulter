@@ -1,3 +1,4 @@
+import { transactionFixture } from '../../vault/transactions/fixtures.test-support.ts';
 import { expect, test, vi } from 'vitest';
 import { memoryNodeBackend } from '../../vault/nodes/memory.ts';
 import { create, request, seed } from '../../vault/nodes/fixtures.test-support.ts';
@@ -6,7 +7,7 @@ import { createTranscription, type TranscriptionEvents } from './transcription.t
 
 const controller = (transcription: ReturnType<typeof createTranscription>) =>
   createNodeConversation({
-    nodes: memoryNodeBackend(),
+    nodes: transactionFixture(memoryNodeBackend()),
     user: 'user',
     agent: 'agent',
     provider: 'fictional',
@@ -176,7 +177,7 @@ test('Chat rejects starting capture during execution or unresolved save recovery
   await seed(nodes);
   await nodes.commit(request('agent', [create('agent', { kind: 'agent', name: 'Fictional' })]));
   const chat = createNodeConversation({
-    nodes: { ...nodes, commit: () => Promise.reject(new Error('Offline')) },
+    nodes: transactionFixture({ ...nodes, commit: () => Promise.reject(new Error('Offline')) }),
     user: 'user',
     agent: 'agent',
     provider: 'fictional',

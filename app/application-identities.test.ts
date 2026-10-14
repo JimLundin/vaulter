@@ -1,10 +1,11 @@
+import { transactionFixture } from './vault/transactions/fixtures.test-support.ts';
 import { expect, test } from 'vitest';
 import { memoryNodeBackend } from './vault/nodes/memory.ts';
 import { createApplicationIdentities } from './application-identities.ts';
 
 test('application identity setup is stable across callers and preserves migrated Agent configuration', async () => {
   const nodes = memoryNodeBackend();
-  const setup = createApplicationIdentities(nodes);
+  const setup = createApplicationIdentities(transactionFixture(nodes));
   await setup.ensure();
   const ids = setup.identities;
   expect((await nodes.snapshot()).get(ids.user)?.data?.kind).toBe('actor');
@@ -26,7 +27,7 @@ test('application identity setup is stable across callers and preserves migrated
       },
     ],
   });
-  await createApplicationIdentities(nodes).ensure();
+  await createApplicationIdentities(transactionFixture(nodes)).ensure();
   expect((await nodes.snapshot()).get(ids.agent)?.data?.instructions).toBe(
     'Retain this configuration.',
   );
@@ -45,7 +46,7 @@ test('identity bootstrap retries a rejected request unchanged and never restores
       return memory.commit(request);
     },
   };
-  const setup = createApplicationIdentities(nodes);
+  const setup = createApplicationIdentities(transactionFixture(nodes));
   await expect(setup.ensure()).rejects.toThrow('Offline');
   reject = false;
   await setup.ensure();
@@ -68,7 +69,7 @@ test('identity bootstrap retries a rejected request unchanged and never restores
       },
     ],
   });
-  await expect(createApplicationIdentities(nodes).ensure()).rejects.toThrow(
+  await expect(createApplicationIdentities(transactionFixture(nodes)).ensure()).rejects.toThrow(
     'deleted or has an incompatible kind',
   );
 });

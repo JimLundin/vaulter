@@ -1,3 +1,4 @@
+import { transactionFixture } from '../../vault/transactions/fixtures.test-support.ts';
 import { expect, test, vi } from 'vitest';
 import type { NodeCommit, NodeStore } from '../../vault/nodes/store.ts';
 import { memoryNodeBackend } from '../../vault/nodes/memory.ts';
@@ -29,7 +30,11 @@ function deferred() {
 
 test('Answer execution rereads retained relationships outside reachable containment before publishing', async () => {
   const { nodes, question } = await fixture();
-  const answers = createQuestionAnswers({ session: {}, nodes, recordedBy: 'user' });
+  const answers = createQuestionAnswers({
+    session: {},
+    nodes: transactionFixture(nodes),
+    recordedBy: 'user',
+  });
   await nodes.commit(
     request('external-answer', [
       {
@@ -47,7 +52,11 @@ test('Answer execution rereads retained relationships outside reachable containm
 
 test('Answer execution retains the exact wording read by the draft and rejects a later edit', async () => {
   const { nodes, question } = await fixture();
-  const answers = createQuestionAnswers({ session: {}, nodes, recordedBy: 'user' });
+  const answers = createQuestionAnswers({
+    session: {},
+    nodes: transactionFixture(nodes),
+    recordedBy: 'user',
+  });
   await nodes.commit(
     request('reworded', [
       await revise(nodes, 'question', { kind: 'question', text: 'Which room?' }),
@@ -74,7 +83,7 @@ test('concurrent Answer callers share one request and reject a different draft w
   });
   const answers = createQuestionAnswers({
     session: {},
-    nodes: { ...nodes, commit },
+    nodes: transactionFixture({ ...nodes, commit }),
     recordedBy: 'user',
   });
   const first = answers.answer(question, 'Garden.');
@@ -101,18 +110,22 @@ test('uncertain acceptance retries the same complete request after capability re
     },
   };
   const session = {};
-  const answers = createQuestionAnswers({ session, nodes: uncertain, recordedBy: 'user' });
+  const answers = createQuestionAnswers({
+    session,
+    nodes: transactionFixture(uncertain),
+    recordedBy: 'user',
+  });
   await expect(answers.answer(question, 'Garden.')).rejects.toThrow('Response lost');
   expect((await readQuestions(nodes))[0].status).toBe('answered');
   answers.configure({
     session,
-    nodes: {
+    nodes: transactionFixture({
       ...nodes,
       commit: (value) => {
         requests.push(value);
         return nodes.commit(value);
       },
-    },
+    }),
     recordedBy: 'changed-author',
   });
   const [refreshed] = await readQuestions(nodes);
@@ -131,10 +144,10 @@ test('retrying after uncertain rejection keeps the original wording guard even w
   const session = {};
   const answers = createQuestionAnswers({
     session,
-    nodes: {
+    nodes: transactionFixture({
       ...nodes,
       commit: () => Promise.reject(new Error('Connection lost before acceptance')),
-    },
+    }),
     recordedBy: 'user',
   });
   await expect(answers.answer(question, 'Garden.')).rejects.toThrow('Connection lost');
@@ -143,7 +156,7 @@ test('retrying after uncertain rejection keeps the original wording guard even w
       await revise(nodes, 'question', { kind: 'question', text: 'Which room?' }),
     ]),
   );
-  answers.configure({ session, nodes, recordedBy: 'user' });
+  answers.configure({ session, nodes: transactionFixture(nodes), recordedBy: 'user' });
   const [current] = await readQuestions(nodes);
   await expect(answers.answer(current, 'Garden.')).rejects.toThrow('Conflict');
   expect((await readQuestions(nodes))[0].status).toBe('open');
@@ -158,7 +171,7 @@ test('definitive conflict permits a fresh draft instead of retaining an uncertai
   let changed = false;
   const answers = createQuestionAnswers({
     session: {},
-    nodes: {
+    nodes: transactionFixture({
       ...nodes,
       commit: async (value) => {
         if (!changed) {
@@ -171,7 +184,7 @@ test('definitive conflict permits a fresh draft instead of retaining an uncertai
         }
         return nodes.commit(value);
       },
-    },
+    }),
     recordedBy: 'user',
   });
   await expect(answers.answer(question, 'Garden.')).rejects.toThrow('Conflict');
@@ -196,13 +209,17 @@ test.each(['admission', 'dispose', 'session'] as const)(
       },
     };
     const commit = vi.spyOn(store, 'commit');
-    const answers = createQuestionAnswers({ session, nodes: store, recordedBy: 'user' });
+    const answers = createQuestionAnswers({
+      session,
+      nodes: transactionFixture(store),
+      recordedBy: 'user',
+    });
     const answering = answers.answer(question, 'Garden.');
     if (change === 'dispose') answers.dispose();
     else
       answers.configure({
         session: change === 'session' ? {} : session,
-        nodes: store,
+        nodes: transactionFixture(store),
         recordedBy: 'user',
         availability: 'Reconnect before answering.',
       });
@@ -223,7 +240,7 @@ test('session disposal does not interrupt publication that has already entered t
   });
   const answers = createQuestionAnswers({
     session: {},
-    nodes: { ...nodes, commit },
+    nodes: transactionFixture({ ...nodes, commit }),
     recordedBy: 'user',
   });
   const answering = answers.answer(question, 'Garden.');
@@ -243,14 +260,14 @@ test('authoritative admission blocks a save when session state changes without a
   const commit = vi.fn(nodes.commit);
   const answers = createQuestionAnswers({
     session: {},
-    nodes: {
+    nodes: transactionFixture({
       ...nodes,
       commit,
       snapshot: async (...args) => {
         await reading.promise;
         return nodes.snapshot(...args);
       },
-    },
+    }),
     recordedBy: 'user',
     admission: () => reason,
   });
@@ -278,9 +295,13 @@ test('replacing the node capability during preparation rereads it on the next An
   };
   const replacementCommit = vi.fn(nodes.commit);
   const replacement: NodeStore = { ...nodes, commit: replacementCommit };
-  const answers = createQuestionAnswers({ session, nodes: original, recordedBy: 'user' });
+  const answers = createQuestionAnswers({
+    session,
+    nodes: transactionFixture(original),
+    recordedBy: 'user',
+  });
   const answering = answers.answer(question, 'Garden.');
-  answers.configure({ session, nodes: replacement, recordedBy: 'user' });
+  answers.configure({ session, nodes: transactionFixture(replacement), recordedBy: 'user' });
   reading.resolve();
   await expect(answering).rejects.toThrow('node store changed');
   expect(originalCommit).not.toHaveBeenCalled();

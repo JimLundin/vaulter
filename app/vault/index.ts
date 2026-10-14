@@ -13,7 +13,8 @@ import { notesOf } from './documents/notes/notes.ts';
 import { titleOf, excerptOf, hrefOf, kind, asList, topicsOf } from './documents/notes/fields.ts';
 import { search, searchIndex } from './documents/search.ts';
 import type { OpenNodes } from './nodes/store.ts';
-export type { NodeStore, OpenNodes } from './nodes/store.ts';
+export type { NodeReading, OpenNodes } from './nodes/store.ts';
+export type { TransactionStore, TransactionRequest, WriteLifetime } from './transactions/store.ts';
 export { VaultGate } from './Gate.tsx';
 export { CredentialSetting, RefreshNodes, SessionStatus, SignOut, Unlock } from './session/ui.tsx';
 export {

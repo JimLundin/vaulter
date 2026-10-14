@@ -1,3 +1,7 @@
+import {
+  transactionFixture,
+  transactionOptionsFixture,
+} from '../../vault/transactions/fixtures.test-support.ts';
 import { expect, test } from 'vitest';
 import { tool } from 'ai';
 import { z } from 'zod';
@@ -5,9 +9,18 @@ import { MockLanguageModelV4, convertArrayToReadableStream } from 'ai/test';
 import { memoryNodeBackend } from '../../vault/nodes/memory.ts';
 import { create, request, seed, revise } from '../../vault/nodes/fixtures.test-support.ts';
 import { nodeOperations } from '../../vault/nodes/operations.ts';
+import type { NodeReading } from '../../vault/nodes/store.ts';
 import { readAgentRun } from '../../agent/store.ts';
 import { createNodeChatBackend, prepareNodeChatSubmission } from './node-backend.ts';
 import { createNodeConversation } from './node-conversation.ts';
+
+async function submissionChanges(nodes: NodeReading) {
+  const transaction = (await nodes.history()).find(
+    (value) => value.metadata?.chatRequest === 'send',
+  );
+  if (!transaction) throw new Error('Expected the accepted Send request');
+  return nodes.changes(transaction.id);
+}
 
 type Part =
   Awaited<ReturnType<MockLanguageModelV4['doStream']>>['stream'] extends ReadableStream<infer Value>
@@ -52,7 +65,7 @@ test.each(['stop', 'dispose'] as const)(
     let models = 0;
     const backend = createNodeChatBackend({
       ...options,
-      nodes: {
+      nodes: transactionFixture({
         ...nodes,
         snapshot: async (sequence) => {
           if (first) {
@@ -62,7 +75,7 @@ test.each(['stop', 'dispose'] as const)(
           }
           return nodes.snapshot(sequence);
         },
-      },
+      }),
       model: () => {
         models++;
         return options.model();
@@ -118,8 +131,15 @@ test('next Chat submission supplies a retained summary as labeled source context
       ),
     ]),
   );
-  const prepared = await prepareNodeChatSubmission(options, send());
-  await nodes.commit(prepared.execution.commit);
+  using writes = transactionFixture(nodes)
+    .writer({ recordedBy: 'user', origin: crypto.randomUUID() })
+    .lifetime();
+  const prepared = await prepareNodeChatSubmission(
+    writes,
+    transactionOptionsFixture(options),
+    send(),
+  );
+  await prepared.execution.publication.accept();
   const run = (await readAgentRun(nodes, prepared.execution.run))!;
   const [summaryContext] = run.context.filter(({ references }) =>
     references.some(({ connection }) => connection?.target.node === 'summary'),
@@ -202,6 +222,7 @@ test('provider execution retains summary chronology as context and receives only
   let calls = 0;
   const backend = createNodeChatBackend({
     ...executionOptions,
+    nodes: transactionFixture(executionOptions.nodes),
     execution: ({ instructions, messages }) => {
       calls++;
       expect(instructions).toEqual([{ role: 'system', content: options.instructions }]);
@@ -244,8 +265,9 @@ test('Chat accepts message/run/context together then records attributed tool act
   });
   const backend = createNodeChatBackend({
     ...options,
+    nodes: transactionFixture(options.nodes),
     model: async () => {
-      const diffs = await nodes.changes('send');
+      const diffs = await submissionChanges(nodes);
       expect(diffs.some(({ after }) => after.data?.kind === 'message')).toBe(true);
       expect(diffs.some(({ after }) => after.data?.kind === 'agentRun')).toBe(true);
       return model;
@@ -256,12 +278,12 @@ test('Chat accepts message/run/context together then records attributed tool act
       publish: tool({
         inputSchema: z.object({ text: z.string() }),
         execute: async ({ text }) => ({
-          transaction: await context.commit({
-            id: 'content',
+          transaction: await context.write((id) => ({
+            id,
             kind: nodeOperations.create,
             message: null,
             changes: [create('content', { kind: 'paragraph', text })],
-          }),
+          })),
         }),
       }),
     }),
@@ -273,17 +295,27 @@ test('Chat accepts message/run/context together then records attributed tool act
   expect(messages[1]?.data).toMatchObject({
     status: 'complete',
     parts: [
-      { kind: 'tool', callId: 'call', status: 'complete', output: { transaction: 'content' } },
+      {
+        kind: 'tool',
+        callId: 'call',
+        status: 'complete',
+        output: { transaction: (await nodes.snapshot()).get('content')!.key.transaction },
+      },
       { kind: 'text', text: 'Recorded.' },
     ],
   });
-  const run = (await nodes.changes('send')).find(({ after }) => after.data?.kind === 'agentRun')!;
+  const run = (await submissionChanges(nodes)).find(
+    ({ after }) => after.data?.kind === 'agentRun',
+  )!;
   expect((await readAgentRun(nodes, run.node))?.tools[0]?.data.status).toBe('complete');
   expect((await nodes.snapshot()).get('content')?.data?.text).toBe('Accepted content');
   const response = (await nodes.history()).find(({ kind }) => kind.action === 'completeResponse')!;
   expect(await nodes.changes(response.id)).toHaveLength(1);
-  expect((await nodes.snapshot()).get('conversation')?.key.transaction).toBe('send');
-  expect((await nodes.history()).find(({ id }) => id === 'content')).toMatchObject({
+  expect((await nodes.snapshot()).get('conversation')?.key.transaction).toBe(
+    run.after.key.transaction,
+  );
+  const contentTransaction = (await nodes.snapshot()).get('content')!.key.transaction;
+  expect((await nodes.history()).find(({ id }) => id === contentTransaction)).toMatchObject({
     recordedBy: 'agent',
     origin: run.node,
   });
@@ -296,14 +328,14 @@ test('a rejected composed acceptance publishes nothing and retry retains all pre
   const writes: unknown[] = [];
   const backend = createNodeChatBackend({
     ...options,
-    nodes: {
+    nodes: transactionFixture({
       ...nodes,
       commit: (value) => {
         writes.push(value);
         // biome-ignore lint/suspicious/noUnnecessaryConditions: caller changes injected failure after acceptance settles.
         return rejected ? Promise.reject(new Error('Offline')) : nodes.commit(value);
       },
-    },
+    }),
     model: () => {
       models++;
       return Promise.resolve(new MockLanguageModelV4({ doStream: [answer()] }));
@@ -325,7 +357,7 @@ test('a rejected composed acceptance publishes nothing and retry retains all pre
   expect(handle.prepared()).toBe(original);
   expect(models).toBe(0);
   expect(
-    (await nodes.changes('send')).filter(({ after }) => after.data?.kind === 'agentRun'),
+    (await submissionChanges(nodes)).filter(({ after }) => after.data?.kind === 'agentRun'),
   ).toHaveLength(1);
 });
 
@@ -337,7 +369,7 @@ test('a failed Chat response save retries independently of completed Agent execu
   const backend = createNodeChatBackend({
     ...options,
     model: async () => model,
-    nodes: {
+    nodes: transactionFixture({
       ...nodes,
       commit: (value) => {
         if (value.kind.action === 'completeResponse') {
@@ -347,7 +379,7 @@ test('a failed Chat response save retries independently of completed Agent execu
         }
         return nodes.commit(value);
       },
-    },
+    }),
   });
   const handle = backend.send(send());
   expect(await handle.done).toMatchObject({
@@ -365,11 +397,12 @@ test('a failed Chat response save retries independently of completed Agent execu
 
 test('opening a saved request and its tool receipts never starts another Agent run', async () => {
   const { nodes, options } = await fixture();
-  const backend = createNodeChatBackend(options);
+  const backend = createNodeChatBackend(transactionOptionsFixture(options));
   await backend.send(send()).done;
   let models = 0;
   const reopened = createNodeChatBackend({
     ...options,
+    nodes: transactionFixture(options.nodes),
     model: () => {
       models++;
       return Promise.reject(new Error('No replay'));
@@ -386,7 +419,7 @@ test('opening a saved request and its tool receipts never starts another Agent r
 
 test('later conversation context retains exact accepted messages and effective instructions', async () => {
   const { nodes, options } = await fixture();
-  const backend = createNodeChatBackend(options);
+  const backend = createNodeChatBackend(transactionOptionsFixture(options));
   await backend.send(send()).done;
   const firstMessages = await backend.messages('conversation');
   const next = backend.send({ ...send('second'), text: 'What did I say?' });
@@ -422,6 +455,7 @@ test('Chat orders only acceptance, allowing the next append while a previous Age
   let calls = 0;
   const backend = createNodeChatBackend({
     ...options,
+    nodes: transactionFixture(options.nodes),
     model: () => {
       if (calls++ === 0) {
         entered();
@@ -447,11 +481,13 @@ test('a queued append waits for unresolved acceptance then uses its accepted sib
   let failing = true;
   const backend = createNodeChatBackend({
     ...options,
-    nodes: {
+    nodes: transactionFixture({
       ...nodes,
       commit: (value) =>
-        value.id === 'send' && failing ? Promise.reject(new Error('Offline')) : nodes.commit(value),
-    },
+        value.metadata?.chatRequest === 'send' && failing
+          ? Promise.reject(new Error('Offline'))
+          : nodes.commit(value),
+    }),
   });
   const first = backend.send(send());
   await new Promise<void>((resolve) => {
@@ -486,13 +522,13 @@ test('recovered Agent outcome is followed by a durable Chat response without rep
   });
   const backend = createNodeChatBackend({
     ...options,
-    nodes: {
+    nodes: transactionFixture({
       ...nodes,
       commit: (value) =>
         value.kind.action === 'completeTool' && outcomeFails
           ? Promise.reject(new Error('Outcome offline'))
           : nodes.commit(value),
-    },
+    }),
     model: async () => model,
     enabledTools: [{ name: 'publish' }],
     tools: () => ({
@@ -530,13 +566,13 @@ test('Chat Stop preserves accepted tool results and saves its stopped response a
   let outcomeFails = true;
   const backend = createNodeChatBackend({
     ...options,
-    nodes: {
+    nodes: transactionFixture({
       ...nodes,
       commit: (value) =>
         value.kind.action === 'completeTool' && outcomeFails
           ? Promise.reject(new Error('Outcome offline'))
           : nodes.commit(value),
-    },
+    }),
     model: async () =>
       new MockLanguageModelV4({
         doStream: [
@@ -571,11 +607,13 @@ test('a repeated failed initial retry keeps later append preparation blocked', a
   let fail = true;
   const backend = createNodeChatBackend({
     ...options,
-    nodes: {
+    nodes: transactionFixture({
       ...nodes,
       commit: (value) =>
-        value.id === 'send' && fail ? Promise.reject(new Error('Offline')) : nodes.commit(value),
-    },
+        value.metadata?.chatRequest === 'send' && fail
+          ? Promise.reject(new Error('Offline'))
+          : nodes.commit(value),
+    }),
   });
   const first = backend.send(send());
   await new Promise<void>((resolve) => {
@@ -596,7 +634,7 @@ test('closing Chat with unresolved acceptance releases local append ownership wi
   const { nodes, options } = await fixture();
   const backend = createNodeChatBackend({
     ...options,
-    nodes: { ...nodes, commit: () => Promise.reject(new Error('Offline')) },
+    nodes: transactionFixture({ ...nodes, commit: () => Promise.reject(new Error('Offline')) }),
   });
   const first = backend.send(send());
   await new Promise<void>((resolve) => {
@@ -623,6 +661,7 @@ test('accepted tool receipts appear in later model context without replaying the
   });
   const backend = createNodeChatBackend({
     ...options,
+    nodes: transactionFixture(options.nodes),
     model: async () => firstModel,
     enabledTools: [{ name: 'publish' }],
     tools: () => ({
@@ -634,7 +673,11 @@ test('accepted tool receipts appear in later model context without replaying the
   });
   await backend.send(send()).done;
   const nextModel = new MockLanguageModelV4({ doStream: [answer()] });
-  const second = createNodeChatBackend({ ...options, model: async () => nextModel }).send({
+  const second = createNodeChatBackend({
+    ...options,
+    nodes: transactionFixture(options.nodes),
+    model: async () => nextModel,
+  }).send({
     ...send('second'),
     text: 'What happened?',
   });
@@ -670,10 +713,10 @@ test.each(['lost', 'rejected'] as const)(
     });
     const backend = createNodeChatBackend({
       ...options,
-      nodes: {
+      nodes: transactionFixture({
         ...nodes,
         commit: async (value) => {
-          if (value.id === 'content') {
+          if (value.changes.some((change) => change.node === 'content')) {
             writes.push(value);
             if (lost && failure === 'rejected') {
               lost = false;
@@ -690,7 +733,7 @@ test.each(['lost', 'rejected'] as const)(
             throw new Error('Response offline');
           return nodes.commit(value);
         },
-      },
+      }),
       model: async () => model,
       enabledTools: [{ name: 'publish' }],
       writableKinds: ['paragraph'],
@@ -699,12 +742,12 @@ test.each(['lost', 'rejected'] as const)(
           inputSchema: z.object({}),
           execute: async () => {
             effects++;
-            return context.commit({
-              id: 'content',
+            return context.write((id) => ({
+              id,
               kind: nodeOperations.create,
               message: null,
               changes: [create('content', { kind: 'paragraph', text: 'Accepted once' })],
-            });
+            }));
           },
         }),
       }),
@@ -714,14 +757,14 @@ test.each(['lost', 'rejected'] as const)(
       persistenceStage: 'response',
       contentPersistence: {
         error: 'Content response lost',
-        request: { id: 'content', recordedBy: 'agent' },
+        id: expect.any(String),
       },
     });
     await handle.retryContentSave();
     expect(handle.snapshot()).toMatchObject({
       persistenceStage: 'response',
       persistenceError: 'Response offline',
-      contentAccepted: 'content',
+      contentAccepted: expect.any(String),
     });
     expect(handle.snapshot().contentPersistence).toBeUndefined();
     expect(writes[1]).toEqual(writes[0]);
@@ -755,13 +798,13 @@ test('the Chat controller preserves content diagnostics, blocks another Send and
   const chat = createNodeConversation({
     ...options,
     selectedModel: 'fictional',
-    nodes: {
+    nodes: transactionFixture({
       ...nodes,
       commit: (value) =>
-        value.id === 'content' && fail
+        value.changes.some((change) => change.node === 'content') && fail
           ? Promise.reject(new Error('Content offline'))
           : nodes.commit(value),
-    },
+    }),
     model: async () => model,
     enabledTools: [{ name: 'publish' }],
     writableKinds: ['paragraph'],
@@ -770,12 +813,12 @@ test('the Chat controller preserves content diagnostics, blocks another Send and
         inputSchema: z.object({}),
         execute: () => {
           effects++;
-          return context.commit({
-            id: 'content',
+          return context.write((id) => ({
+            id,
             kind: nodeOperations.create,
             message: null,
             changes: [create('content', { kind: 'paragraph', text: 'Accepted' })],
-          });
+          }));
         },
       }),
     }),
@@ -797,7 +840,9 @@ test('the Chat controller preserves content diagnostics, blocks another Send and
   fail = false;
   await chat.retryContentSave();
   expect(chat.snapshot().contentPersistence).toBeUndefined();
-  expect(chat.snapshot().contentAccepted).toBe('content');
+  expect(chat.snapshot().contentAccepted).toBe(
+    (await nodes.snapshot()).get('content')!.key.transaction,
+  );
   const nextSubmission = chat.prepareSubmission();
   if (nextSubmission.status !== 'owned') throw new Error('Expected retained request');
   await nextSubmission.done;
@@ -812,11 +857,11 @@ test('Chat retains an accepted-content context refresh error until an explicit r
   let effects = 0;
   const backend = createNodeChatBackend({
     ...options,
-    nodes: {
+    nodes: transactionFixture({
       ...nodes,
       commit: async (value) => {
         const accepted = await nodes.commit(value);
-        if (value.id === 'content') failRefresh = true;
+        if (value.changes.some((change) => change.node === 'content')) failRefresh = true;
         return accepted;
       },
       snapshot: (sequence) => {
@@ -826,7 +871,7 @@ test('Chat retains an accepted-content context refresh error until an explicit r
         }
         return nodes.snapshot(sequence);
       },
-    },
+    }),
     model: async () =>
       new MockLanguageModelV4({
         doStream: [
@@ -844,12 +889,12 @@ test('Chat retains an accepted-content context refresh error until an explicit r
         inputSchema: z.object({}),
         execute: async () => {
           effects++;
-          return context.commit({
-            id: 'content',
+          return context.write((id) => ({
+            id,
             kind: nodeOperations.create,
             message: null,
             changes: [create('content', { kind: 'paragraph', text: 'Accepted' })],
-          });
+          }));
         },
       }),
     }),
@@ -877,13 +922,13 @@ test.each(['response', 'terminal'] as const)(
     });
     const backend = createNodeChatBackend({
       ...options,
-      nodes: {
+      nodes: transactionFixture({
         ...nodes,
         commit: (value) =>
           value.kind.action === (failure === 'response' ? 'completeResponse' : 'completeRun')
             ? Promise.reject(new Error('Save offline'))
             : nodes.commit(value),
-      },
+      }),
       model: async () => firstModel,
       enabledTools: [{ name: 'publish', version: 'recorded-v1' }],
       tools: () => ({
@@ -926,6 +971,7 @@ test.each(['response', 'terminal'] as const)(
     const nextModel = new MockLanguageModelV4({ doStream: [answer()] });
     const reopened = createNodeChatBackend({
       ...options,
+      nodes: transactionFixture(options.nodes),
       model: async () => {
         modelLoads++;
         return nextModel;
@@ -982,13 +1028,13 @@ test('reopening a running invocation retains uncertainty and supplies its exact 
   let effects = 0;
   const backend = createNodeChatBackend({
     ...options,
-    nodes: {
+    nodes: transactionFixture({
       ...nodes,
       commit: (value) =>
         value.kind.action === 'completeTool'
           ? Promise.reject(new Error('Outcome offline'))
           : nodes.commit(value),
-    },
+    }),
     model: async () =>
       new MockLanguageModelV4({
         doStream: [
@@ -1019,7 +1065,7 @@ test('reopening a running invocation retains uncertainty and supplies its exact 
   first.stop();
   await first.done;
   const run = (await readAgentRun(nodes, first.prepared()!.execution.run))!;
-  const reopened = createNodeChatBackend(options);
+  const reopened = createNodeChatBackend(transactionOptionsFixture(options));
   const messages = await reopened.messages('conversation');
   expect(messages[1]?.data).toMatchObject({
     status: 'running',
@@ -1048,13 +1094,13 @@ test.each([['Reco'], ['Rec', 'o'], ['Recorded.']] as const)(
     const firstModel = new MockLanguageModelV4({ doStream: [answer()] });
     const backend = createNodeChatBackend({
       ...options,
-      nodes: {
+      nodes: transactionFixture({
         ...nodes,
         commit: (value) =>
           value.kind.action === 'completeResponse'
             ? Promise.reject(new Error('Response offline'))
             : nodes.commit(value),
-      },
+      }),
       model: async () => firstModel,
     });
     const first = backend.send(send());
@@ -1079,7 +1125,7 @@ test.each([['Reco'], ['Rec', 'o'], ['Recorded.']] as const)(
     const run = (await readAgentRun(nodes, first.prepared()!.execution.run))!;
     const original = (await nodes.snapshot()).get(initial.node)!;
     const before = (await nodes.history()).length;
-    const reopened = createNodeChatBackend(options);
+    const reopened = createNodeChatBackend(transactionOptionsFixture(options));
     const messages = await reopened.messages('conversation');
     expect(messages[1]?.data).toMatchObject({
       status: 'running',

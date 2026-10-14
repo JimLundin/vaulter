@@ -1,3 +1,7 @@
+import {
+  transactionFixture,
+  transactionOptionsFixture,
+} from '../../vault/transactions/fixtures.test-support.ts';
 import { expect, test } from 'vitest';
 import { tool } from 'ai';
 import { z } from 'zod';
@@ -30,7 +34,7 @@ test('opening a retained summary displays the record without executing an Agent 
   );
   let executions = 0;
   const controller = createNodeConversation({
-    nodes,
+    nodes: transactionFixture(nodes),
     user: 'user',
     agent: 'agent',
     provider: 'fictional',
@@ -89,7 +93,7 @@ test('node-backed conversation keeps its draft and execution across view close a
     selectedModel: 'fictional',
     instructions: 'Record useful content.',
   };
-  const controller = createNodeConversation(options);
+  const controller = createNodeConversation(transactionOptionsFixture(options));
   controller.setDraft('A dictated draft');
   const close = controller.viewing();
   close();
@@ -102,6 +106,7 @@ test('node-backed conversation keeps its draft and execution across view close a
   expect(controller.snapshot().turns.map(({ role }) => role)).toEqual(['user', 'agent']);
   const reopened = createNodeConversation({
     ...options,
+    nodes: transactionFixture(options.nodes),
     conversation,
     model: () => Promise.reject(new Error('Must not execute')),
   });
@@ -128,6 +133,7 @@ test('updated caller model dependencies are used by the next node-backed Send', 
   };
   const controller = createNodeConversation({
     ...base,
+    nodes: transactionFixture(base.nodes),
     model: () => {
       old++;
       return Promise.reject(new Error('Old'));
@@ -135,6 +141,7 @@ test('updated caller model dependencies are used by the next node-backed Send', 
   });
   controller.updateOptions({
     ...base,
+    nodes: transactionFixture(base.nodes),
     model: () => {
       next++;
       return Promise.reject(new Error('New'));
@@ -156,7 +163,7 @@ test('disposal prevents late execution completion from changing a closed control
     entered = resolve;
   });
   const controller = createNodeConversation({
-    nodes,
+    nodes: transactionFixture(nodes),
     user: 'user',
     agent: 'agent',
     provider: 'fictional',
@@ -230,13 +237,13 @@ test('recovery keeps the controller busy while Agent resumes into a held provide
     },
   });
   const controller = createNodeConversation({
-    nodes: {
+    nodes: transactionFixture({
       ...nodes,
       commit: (value) =>
         value.kind.action === 'completeTool' && failing
           ? Promise.reject(new Error('Offline'))
           : nodes.commit(value),
-    },
+    }),
     user: 'user',
     agent: 'agent',
     provider: 'fictional',
@@ -303,7 +310,7 @@ test('Chat publishes content with the module-owned node tools and retains exact 
     }),
   });
   const controller = createNodeConversation({
-    nodes,
+    nodes: transactionFixture(nodes),
     user: 'user',
     agent: 'agent',
     provider: 'fictional',
@@ -339,7 +346,7 @@ test('node Chat optional suggestions preserve the shared draft and unavailable n
   await seed(nodes);
   await nodes.commit(request('agent', [create('agent', { kind: 'agent' })]));
   const controller = createNodeConversation({
-    nodes,
+    nodes: transactionFixture(nodes),
     user: 'user',
     agent: 'agent',
     provider: 'fictional',
@@ -356,7 +363,7 @@ test('node Chat optional suggestions preserve the shared draft and unavailable n
   expect(controller.snapshot()).toMatchObject({ draft: 'A retained thought', turns: [] });
   expect(controller.snapshot().submissionAvailability.allowed).toBe(false);
   controller.updateOptions({
-    nodes,
+    nodes: transactionFixture(nodes),
     user: 'user',
     agent: 'agent',
     provider: 'fictional',
@@ -397,7 +404,7 @@ test('node Chat caches suggestions per model and discards late suggestions after
     model: () => Promise.reject(new Error('No model requested for suggestions')),
     suggestions,
   };
-  const chat = createNodeConversation(options);
+  const chat = createNodeConversation(transactionOptionsFixture(options));
   const first = chat.suggest();
   await chat.suggest();
   expect(requested).toBe(1);
@@ -409,7 +416,11 @@ test('node Chat caches suggestions per model and discards late suggestions after
   release(['Current']);
   await second;
   expect(chat.snapshot().suggestions).toEqual(['Current']);
-  chat.updateOptions({ ...options, selectedModel: 'another' });
+  chat.updateOptions({
+    ...options,
+    nodes: transactionFixture(options.nodes),
+    selectedModel: 'another',
+  });
   const third = chat.suggest();
   chat.dispose();
   release(['Disposed']);
@@ -442,6 +453,7 @@ test('node Chat Stop expires a held module tool factory and failed factories all
   };
   const chat = createNodeConversation({
     ...options,
+    nodes: transactionFixture(options.nodes),
     tools: async (current) => {
       context = current;
       entered();
@@ -458,13 +470,18 @@ test('node Chat Stop expires a held module tool factory and failed factories all
   expect(() => context.snapshot()).toThrow(/stopped/i);
   release();
   expect(model.doStreamCalls).toHaveLength(0);
-  chat.updateOptions({ ...options, tools: () => Promise.reject(new Error('Factory failed')) });
+  chat.updateOptions({
+    ...options,
+    nodes: transactionFixture(options.nodes),
+    tools: () => Promise.reject(new Error('Factory failed')),
+  });
   const failedFactory = chat.prepareSubmission({ text: 'Second' });
   if (failedFactory.status !== 'owned') throw new Error('Expected retained request');
   await failedFactory.done;
   expect(chat.snapshot().turns.at(-1)?.error).toBe('Factory failed');
   chat.updateOptions({
     ...options,
+    nodes: transactionFixture(options.nodes),
     model: () => Promise.reject(new Error('Next explicit attempt')),
   });
   const nextAttempt = chat.prepareSubmission({ text: 'Third' });
@@ -491,6 +508,7 @@ test('Send cancels pending suggestions and suggestion failure leaves node Chat m
   };
   const chat = createNodeConversation({
     ...options,
+    nodes: transactionFixture(options.nodes),
     suggestions: (_context, cancellation) => {
       signal = cancellation;
       return new Promise<string[]>((resolve) => {
@@ -508,6 +526,7 @@ test('Send cancels pending suggestions and suggestion failure leaves node Chat m
   expect(chat.snapshot().suggestions).toEqual([]);
   chat.updateOptions({
     ...options,
+    nodes: transactionFixture(options.nodes),
     suggestions: () => Promise.reject(new Error('Suggestions offline')),
   });
   await chat.suggest();
@@ -555,7 +574,7 @@ test('retained tool projection keeps version, cancelled status and complete raw 
   );
   let executions = 0;
   const controller = createNodeConversation({
-    nodes,
+    nodes: transactionFixture(nodes),
     user: 'user',
     agent: 'agent',
     provider: 'fictional',
@@ -592,7 +611,7 @@ test('only the exact unsaved Tool outcome carries pending-save evidence beside p
   await nodes.commit(request('agent', [create('agent', { kind: 'agent' })]));
   let rejectOutcome = true;
   const controller = createNodeConversation({
-    nodes: {
+    nodes: transactionFixture({
       ...nodes,
       commit: (value) =>
         value.kind.action === 'completeTool' &&
@@ -600,7 +619,7 @@ test('only the exact unsaved Tool outcome carries pending-save evidence beside p
         rejectOutcome
           ? Promise.reject(new Error('Outcome offline'))
           : nodes.commit(value),
-    },
+    }),
     user: 'user',
     agent: 'agent',
     provider: 'fictional',

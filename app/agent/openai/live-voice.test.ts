@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+import { transactionFixture } from '../../vault/transactions/fixtures.test-support.ts';
 import { afterEach, expect, test, vi } from 'vitest';
 import { createOpenAICapabilities } from './index.ts';
 import { media, speech, response, done, call, creates, outputs } from './media.test-support.ts';
@@ -24,7 +25,7 @@ async function setup(transform: (nodes: NodeStore) => NodeStore = (nodes) => nod
     fetch: harness.fetch,
   });
   const voice = await capabilities.voiceAgent({
-    nodes: transform(nodes),
+    nodes: transactionFixture(transform(nodes)),
     user: 'user',
     agent: 'agent',
     instructions: 'Capture paragraphs.',

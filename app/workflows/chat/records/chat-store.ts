@@ -3,7 +3,7 @@ import type { NodeVersion } from '../../../vault/nodes/model.ts';
 import type {
   NodeChange,
   NodeCommit,
-  NodeStore,
+  NodeReading,
   NodeSnapshot,
 } from '../../../vault/nodes/store.ts';
 import { parseAgentRun, parseToolExecution } from '../../../agent/schema.ts';
@@ -98,7 +98,7 @@ export const CONVERSATION_PAGE_SIZE = 20;
  * active first. Read dates for list activity without decoding exchange or message bodies.
  */
 export async function savedChats(
-  store: NodeStore,
+  store: NodeReading,
   query: { readonly limit?: number } = {},
 ): Promise<readonly SavedChat[]> {
   const limit = query.limit ?? CONVERSATION_PAGE_SIZE;
@@ -139,7 +139,7 @@ export async function savedChats(
 }
 
 export async function savedMessages(
-  store: NodeStore,
+  store: NodeReading,
   node: string,
   sequence?: number,
 ): Promise<readonly SavedMessage[]> {
@@ -165,10 +165,11 @@ export async function savedMessages(
 
 /** Prepare once and retain this entire request for an uncertain-acceptance retry. */
 export async function prepareChatSubmission(
-  store: NodeStore,
+  store: NodeReading,
   options: {
     readonly transaction: string;
     readonly conversation: string;
+    readonly exchange: string;
     readonly user: string;
     readonly text: string;
     readonly at: string;
@@ -206,7 +207,7 @@ export async function prepareChatSubmission(
       createdAt: options.at,
     });
   else parseConversation(existing.data);
-  const exchange = crypto.randomUUID();
+  const exchange = options.exchange;
   // Append after the current last order without renumbering existing exchanges.
   const order = `${snapshot.children(options.conversation).at(-1)?.placement?.order ?? ''}a`;
   create(exchange, { kind: 'exchange', startedAt: options.at }, options.conversation, order);
@@ -249,6 +250,7 @@ export function prepareChatResponse(
   submission: NodeCommit,
   data: Extract<MessageData, { role: 'agent' }>,
   agentAuthor: string,
+  id: string,
 ): NodeCommit {
   if (data.status === 'running') throw new Error('Terminal responses cannot be running');
   const agent = submission.changes.find(
@@ -259,7 +261,7 @@ export function prepareChatResponse(
   if (parsed.role !== 'agent' || data.at !== agent.data?.at)
     throw new Error('Response must retain the submitted agent message timestamp');
   return frozen({
-    id: crypto.randomUUID(),
+    id,
     recordedBy: agentAuthor,
     origin: submission.origin,
     kind: data.status === 'stopped' ? chatOperations.stopResponse : chatOperations.completeResponse,

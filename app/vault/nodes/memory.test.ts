@@ -1,7 +1,9 @@
 import { expect, test, vi } from 'vitest';
 import { memoryNodeBackend } from './memory.ts';
 import { create, request, seed, revise } from './fixtures.test-support.ts';
-import { nodeClosure, undoNodes } from './operations-runtime.ts';
+import { nodeClosure } from './operations-runtime.ts';
+import { transactionHistory } from '../transactions/history/nodes.ts';
+import { transactionFixture } from '../transactions/fixtures.test-support.ts';
 
 test('live publication policy sees complete immutable state and can veto every proposed change atomically', async () => {
   const store = memoryNodeBackend();
@@ -245,7 +247,10 @@ test('exact citations retain both endpoints through later versions, deletion, mo
     true,
   );
   expect(Object.isFrozen(citation.connection!.target)).toBe(true);
-  await undoNodes(store, 'citation', 'user');
+  await transactionHistory(transactionFixture(store), {
+    recordedBy: 'user',
+    canUndo: () => true,
+  }).compensate('citation');
   expect((await store.snapshot()).get('citation')?.data).toBeNull();
   expect((await store.snapshot()).resolve(citation.key)).toEqual(citation);
   store.close();

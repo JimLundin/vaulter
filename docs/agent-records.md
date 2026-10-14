@@ -1,6 +1,6 @@
 # Agent-owned records
 
-The Vault is the collection of nodes in NodeStore. Agent execution produces records in that
+The Vault is the collection of nodes exposed through TransactionStore. Agent execution produces records in that
 collection independently of Chat. The separate Vault migration can populate these same payloads
 and relationships; the application does not translate or import the existing Vault.
 
@@ -27,10 +27,12 @@ An input obtained from a node has a `metadataReference` child with role `supplie
 source addresses the exact input version and its target addresses the exact evidence version.
 Later evidence edits do not change the supplied context.
 
-The public preparation operation returns an immutable run identity and complete NodeCommit with
-stable identities. A caller may combine its own changes and expected reads with that commit under
-the same transaction ID, then pass the complete request to Agent start. Acceptance of that entire
-request precedes any model loading or execution. Keep the complete prepared request for retries.
+`prepareAgentRun(lifetime, options)` uses a core prepared request and returns its run plan and
+publication handle. Core allocates the Transaction ID and pins author and origin before calculation.
+A caller composing its own records uses `calculateAgentRun()` and `composeChanges()` inside that
+calculation, before finalization. Agent rejects later changes to the finalized plan. Acceptance of
+the entire request precedes any model loading or execution. Recovery uses the retained core handle
+through a fresh `using` lifetime.
 
 ## Outcomes and recovery
 
@@ -46,7 +48,8 @@ prepared outcome without repeating the model. A failed or uncertain initial save
 initial acceptance. It does not start execution after recovery.
 
 Reopening reads recorded runs and effective inputs without execution. A previously accepted ID is
-validated through NodeStore's complete retry identity, then read. A recorded `running` status
+checked against its recorded initial versions, then read. Reading does not enter persistence.
+A recorded `running` status
 remains running: a reader without a local controller cannot prove abandonment. The live handle
 reports `recorded` to distinguish a read-only accepted running record from local execution.
 
@@ -63,7 +66,7 @@ The module owns its input schema, content payloads, operation validation and pub
 Agent owns the run and tool activity, not a universal staging or review rule.
 
 Questions publication is restricted to that module's create and answer actions. Product supplies
-the same enforcing NodeStore to independent Agent execution, Chat composition and direct Answer
+the same enforcing TransactionStore to independent Agent execution, Chat composition and direct Answer
 tasks. An Agent tool delegates asking to Questions with its trusted Agent author and run origin;
 it cannot grant permission by constructing Question JSON, copying a transaction kind or bypassing
 the tool through initial caller-composed changes. Questions retains the complete authorized work
@@ -84,7 +87,7 @@ its invocation/outcome stage and retained execution data. Retry saves the retain
 without replaying tools; Stop drains entered work and preserves pending obligations. Reopening
 exposes recorded running invocations unchanged.
 
-The supplied execution context provides cancellation, guarded NodeStore reads and publication
+The supplied execution context provides cancellation, guarded Node reads and `write(calculate)`
 with the stable Agent author and run origin. Model input cannot override those identities or
 undo attribution. Changed-node expectations and declared identity/children reads reject stale
 publication atomically. Exact evidence reads preserve their version without silently rebasing.
@@ -103,14 +106,14 @@ The independent Agent handle can retry a paused tool outcome while execution is 
 submits the unchanged prepared write, including its transaction identity and attribution. After
 acceptance the same executing call resolves and provider continuation resumes; the module is not
 invoked again. Failed tool outcomes use the same recovery path and preserve their original errors.
-Lost acceptance responses reconcile through NodeStore's complete idempotent request identity.
+Lost acceptance responses reconcile through core retries of the exact finalized request.
 
 The live state distinguishes persistence stages (`initial`, `invocation`, `content`, `outcome`,
 `terminal`). Outcome failures retain `pendingTool`. Content publication failures retain their
 attributed request and error separately. A snapshot refresh failure after accepted content remains
 an observable context error; it does not convert accepted publication into a failed tool receipt.
 No automatic content retry claims exactly-once effects for arbitrary external tools.
-The explicit `retryContentSave` operation resubmits only the immutable attributed NodeCommit;
+The explicit `retryContentSave` operation retries only the retained finalized Transaction request;
 `contentAccepted` acknowledges its acceptance separately from the original tool outcome. It never
 repeats external effects or fabricates a successful receipt. `refreshContext` retries reading current
 nodes, retaining declared stale-read dependencies and never reviving stopped tool access. Content
@@ -139,7 +142,7 @@ or declared read has become stale. A supplying module can coordinate its own ope
 wrapping them before passing its tools to Agent. Reading a parent and its existing children does
 not protect the absence of a future child, so stronger operation predicates belong to that module.
 
-Within the same NodeStore instance, simultaneous starts for the same prepared run share one
+Within the same unlocked Transaction session, simultaneous starts for the same prepared run share one
 controller. The complete prepared request must match, including caller-composed changes and
 expectations. This is local deduplication, not a cross-tab/device lease or proof that arbitrary
 external effects run exactly once. Backend disposal stops only controllers it created; another
@@ -147,10 +150,15 @@ reader sharing a controller does not acquire its disposal ownership.
 
 Current reads expose `ownership: 'live'` when a local execution or recovery controller remains
 available. A paused or unsaved controller can be live while its model is not progressing. The
-value is otherwise `unknown`, including historical snapshots and runs on another NodeStore
-instance. Unknown ownership does not prove abandonment, and neither value rewrites the accepted
+value is otherwise `unknown`, including historical snapshots and runs in another Transaction
+session. Unknown ownership does not prove abandonment, and neither value rewrites the accepted
 run status or resumes execution. Disposing an owner expires execution and releases its evidence
 once any work already in progress has settled.
+
+Every publication has a `using` lifetime. Core async disposal drains entered persistence only;
+Agent separately waits for already-started tool effects before recording terminal activity. A tool
+may start a detached write during its accepted invocation; Stop still expires publication that has
+not entered persistence. Core disposal never waits for model execution or a recovery barrier.
 
 ## Existing live voice execution
 
@@ -167,10 +175,12 @@ once before execution; the durable invocation retains effective arguments. Effec
 instructions and the ordered user, assistant and tool history are retained as `contextInput`
 children before the provider can request a response or execute a call.
 
-The caller may provide `prepareTurn` to combine its own initial records with Agent's supplied
-context and selected tools in one transaction. Its `onResponse` callback owns transcript
-projection and publication. The callback receives a stable projection ID; retain a complete
-prepared transcript request under that ID and reuse it on retries. Agent retains the callback
+The caller may supply a planned `origin` and provide `prepareTurn(input, lifetime)` to combine its
+own initial records with Agent's supplied context and selected tools inside that lifetime's
+calculation. Closing the voice session expires preparation even if a caller promise is still pending.
+Its `onResponse` callback owns transcript projection and publication. The callback receives a stable
+projection ID; use it to retain the
+core transcript request and retry that handle through a fresh lifetime. Agent retains the callback
 arguments after a save failure without regenerating the ID or repeating execution. Transcript
 status is supplied separately so buffered playback interruption need not rewrite an already
 accepted Agent execution outcome.

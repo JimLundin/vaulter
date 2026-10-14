@@ -19,8 +19,7 @@ export const paragraphTools: AgentToolFactory = (context) => ({
     }),
     execute: async ({ text }) => {
       const node = crypto.randomUUID();
-      const transaction = await context.commit({
-        id: crypto.randomUUID(),
+      const transaction = await context.write(() => ({
         kind: { scope: 'paragraphFixture', action: 'capture' },
         message: null,
         changes: [
@@ -32,7 +31,7 @@ export const paragraphTools: AgentToolFactory = (context) => ({
             connection: null,
           },
         ],
-      });
+      }));
       return { node, transaction, text };
     },
   }),

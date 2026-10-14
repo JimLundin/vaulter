@@ -1,3 +1,4 @@
+import { transactionFixture } from '../vault/transactions/fixtures.test-support.ts';
 import { expect, test } from 'vitest';
 import { tool } from 'ai';
 import { z } from 'zod';
@@ -5,7 +6,8 @@ import { MockLanguageModelV4, convertArrayToReadableStream } from 'ai/test';
 import { memoryNodeBackend } from '../vault/nodes/memory.ts';
 import { create, request, seed } from '../vault/nodes/fixtures.test-support.ts';
 import { nodeOperations } from '../vault/nodes/operations.ts';
-import { prepareAgentRun, readAgentRun } from './store.ts';
+import { readAgentRun } from './store.ts';
+import { prepareAgentRunFixture as prepareAgentRun } from './preparation.test-support.ts';
 import { createAgentBackend } from './runtime.ts';
 import type { AgentRun, AgentRunState } from './runtime.ts';
 
@@ -82,7 +84,7 @@ test('retry saves a retained successful outcome during pause and resumes without
     doStream: [call('first', 'first'), call('later', 'later'), answer()],
   });
   const handle = createAgentBackend({
-    nodes: {
+    nodes: transactionFixture({
       ...nodes,
       commit: async (value) => {
         if (value.kind.action === 'completeTool') {
@@ -92,7 +94,7 @@ test('retry saves a retained successful outcome during pause and resumes without
         }
         return await nodes.commit(value);
       },
-    },
+    }),
     model: async () => model,
     tools: () => ({
       first: tool({
@@ -129,13 +131,13 @@ test('a failed tool outcome is saved and reported honestly after recovery withou
   let executions = 0;
   const model = new MockLanguageModelV4({ doStream: [call('first', 'first'), answer()] });
   const handle = createAgentBackend({
-    nodes: {
+    nodes: transactionFixture({
       ...nodes,
       commit: async (value) => {
         if (value.kind.action === 'completeTool' && failing) throw new Error('Outcome offline');
         return await nodes.commit(value);
       },
-    },
+    }),
     model: async () => model,
     tools: () => ({
       first: tool({
@@ -171,25 +173,25 @@ test('Stop retains a pending completed outcome and retry saves it before recordi
     doStream: [call('first', 'first'), call('later', 'later'), answer()],
   });
   const handle = createAgentBackend({
-    nodes: {
+    nodes: transactionFixture({
       ...nodes,
       commit: async (value) => {
         if (value.kind.action === 'completeTool' && failing) throw new Error('Offline');
         return await nodes.commit(value);
       },
-    },
+    }),
     model: async () => model,
     writableKinds: ['paragraph'],
     tools: (context) => ({
       first: tool({
         inputSchema: z.object({}),
         execute: async () => ({
-          transaction: await context.commit({
-            id: 'content',
+          transaction: await context.write((id) => ({
+            id,
             kind: nodeOperations.create,
             message: null,
             changes: [create('content', { kind: 'paragraph', text: 'Accepted' })],
-          }),
+          })),
         }),
       }),
       later: tool({
@@ -213,7 +215,7 @@ test('Stop retains a pending completed outcome and retry saves it before recordi
   expect((await readAgentRun(nodes, 'run'))?.data.status).toBe('stopped');
   expect((await readAgentRun(nodes, 'run'))?.tools[0]?.data).toMatchObject({
     status: 'complete',
-    output: { transaction: 'content' },
+    output: { transaction: (await nodes.snapshot()).get('content')!.key.transaction },
   });
   expect(later).toBe(0);
   expect(model.doStreamCalls).toHaveLength(1);
@@ -225,7 +227,7 @@ test('lost outcome acceptance reuses the immutable receipt and never repeats con
   let executions = 0;
   const writes: unknown[] = [];
   const handle = createAgentBackend({
-    nodes: {
+    nodes: transactionFixture({
       ...nodes,
       commit: async (value) => {
         const accepted = await nodes.commit(value);
@@ -238,7 +240,7 @@ test('lost outcome acceptance reuses the immutable receipt and never repeats con
         }
         return accepted;
       },
-    },
+    }),
     model: async () => new MockLanguageModelV4({ doStream: [call('first', 'first'), answer()] }),
     tools: () => ({
       first: tool({
@@ -254,9 +256,9 @@ test('lost outcome acceptance reuses the immutable receipt and never repeats con
   await waitFor(handle, (state) => state.phase === 'paused');
   expect((await readAgentRun(nodes, 'run'))?.tools[0]?.data.status).toBe('complete');
   const retained = handle.snapshot().pendingTool!;
-  expect(Object.isFrozen(retained.request)).toBe(true);
-  const changed = { ...retained.request, message: 'Different saved identity' };
-  await expect(nodes.commit(changed)).rejects.toThrow();
+  expect(Object.isFrozen(retained)).toBe(true);
+  expect('request' in retained).toBe(false);
+  expect(writes[0]).toMatchObject({ id: retained.id });
   await handle.retrySave();
   expect((await handle.done).phase).toBe('complete');
   expect(writes[1]).toEqual(writes[0]);
@@ -275,34 +277,34 @@ test('Stop drains entered publication and retains its known result while queued 
   });
   let queued: Promise<string> | undefined;
   const handle = createAgentBackend({
-    nodes: {
+    nodes: transactionFixture({
       ...nodes,
       commit: async (value) => {
-        if (value.id === 'content') {
+        if (value.changes.some((change) => change.node === 'content')) {
           entered();
           await hold;
         }
         return await nodes.commit(value);
       },
-    },
+    }),
     model: async () => new MockLanguageModelV4({ doStream: [call('first', 'first'), answer()] }),
     writableKinds: ['paragraph'],
     tools: (context) => ({
       first: tool({
         inputSchema: z.object({}),
         execute: async () => {
-          const accepted = context.commit({
-            id: 'content',
+          const accepted = context.write((id) => ({
+            id,
             kind: nodeOperations.create,
             message: null,
             changes: [create('content', { kind: 'paragraph', text: 'Accepted during Stop' })],
-          });
-          queued = context.commit({
-            id: 'queued',
+          }));
+          queued = context.write((id) => ({
+            id,
             kind: nodeOperations.create,
             message: null,
             changes: [create('queued', { kind: 'paragraph', text: 'Must not publish' })],
-          });
+          }));
           queued.catch(() => undefined);
           return { transaction: await accepted };
         },
@@ -328,7 +330,7 @@ test('Stop drains entered publication and retains its known result while queued 
   expect((await nodes.snapshot()).get('content')?.data?.text).toBe('Accepted during Stop');
   expect((await readAgentRun(nodes, 'run'))?.tools[0]?.data).toMatchObject({
     status: 'complete',
-    output: { transaction: 'content' },
+    output: { transaction: (await nodes.snapshot()).get('content')!.key.transaction },
   });
 });
 
@@ -338,7 +340,7 @@ test('an invocation whose save response was lost retries persistence without sta
   let effects = 0;
   const model = new MockLanguageModelV4({ doStream: [call('first', 'first'), answer()] });
   const handle = createAgentBackend({
-    nodes: {
+    nodes: transactionFixture({
       ...nodes,
       commit: async (value) => {
         const accepted = await nodes.commit(value);
@@ -348,7 +350,7 @@ test('an invocation whose save response was lost retries persistence without sta
         }
         return accepted;
       },
-    },
+    }),
     model: async () => model,
     tools: () => ({
       first: tool({
@@ -369,7 +371,7 @@ test('an invocation whose save response was lost retries persistence without sta
   const recorded = await readAgentRun(nodes, 'run');
   expect(recorded?.tools[0]?.data.status).toBe('running');
   const reopened = createAgentBackend({
-    nodes,
+    nodes: transactionFixture(nodes, {}),
     model: () => Promise.reject(new Error('No replay')),
   });
   expect((await reopened.start(prepared).done).phase).toBe('interrupted');
@@ -380,28 +382,28 @@ test('content acceptance is not reported as failure when refreshing its read sna
   const { nodes, prepared } = await fixture();
   let refreshFails = false;
   const handle = createAgentBackend({
-    nodes: {
+    nodes: transactionFixture({
       ...nodes,
       snapshot: (sequence) =>
         refreshFails ? Promise.reject(new Error('Snapshot unavailable')) : nodes.snapshot(sequence),
       commit: async (value) => {
         const accepted = await nodes.commit(value);
-        if (value.id === 'content') refreshFails = true;
+        if (value.changes.some((change) => change.node === 'content')) refreshFails = true;
         return accepted;
       },
-    },
+    }),
     model: async () => new MockLanguageModelV4({ doStream: [call('first', 'first'), answer()] }),
     writableKinds: ['paragraph'],
     tools: (context) => ({
       first: tool({
         inputSchema: z.object({}),
         execute: async () => ({
-          transaction: await context.commit({
-            id: 'content',
+          transaction: await context.write((id) => ({
+            id,
             kind: nodeOperations.create,
             message: null,
             changes: [create('content', { kind: 'paragraph', text: 'Accepted' })],
-          }),
+          })),
         }),
       }),
       later: tool({ inputSchema: z.object({}), execute: () => 'Unused' }),
@@ -410,7 +412,7 @@ test('content acceptance is not reported as failure when refreshing its read sna
   await handle.done;
   expect((await readAgentRun(nodes, 'run'))?.tools[0]?.data).toMatchObject({
     status: 'complete',
-    output: { transaction: 'content' },
+    output: { transaction: (await nodes.snapshot()).get('content')!.key.transaction },
   });
   expect(handle.snapshot().contextError).toBe('Snapshot unavailable');
 });
@@ -418,25 +420,25 @@ test('content acceptance is not reported as failure when refreshing its read sna
 test('content publication failure is distinguishable from a tool outcome save failure', async () => {
   const { nodes, prepared } = await fixture();
   const handle = createAgentBackend({
-    nodes: {
+    nodes: transactionFixture({
       ...nodes,
       commit: (value) =>
-        value.id === 'content'
+        value.changes.some((change) => change.node === 'content')
           ? Promise.reject(new Error('Content rejected'))
           : nodes.commit(value),
-    },
+    }),
     model: async () => new MockLanguageModelV4({ doStream: [call('first', 'first'), answer()] }),
     writableKinds: ['paragraph'],
     tools: (context) => ({
       first: tool({
         inputSchema: z.object({}),
         execute: async () =>
-          await context.commit({
-            id: 'content',
+          await context.write((id) => ({
+            id,
             kind: nodeOperations.create,
             message: null,
             changes: [create('content', { kind: 'paragraph', text: 'Rejected' })],
-          }),
+          })),
       }),
       later: tool({ inputSchema: z.object({}), execute: () => 'Unused' }),
     }),
@@ -444,7 +446,7 @@ test('content publication failure is distinguishable from a tool outcome save fa
   await handle.done;
   expect(handle.snapshot()).toMatchObject({
     persistenceStage: 'content',
-    contentPersistence: { error: 'Content rejected', request: { id: 'content' } },
+    contentPersistence: { error: 'Content rejected', id: expect.any(String) },
   });
   expect(handle.snapshot().pendingTool).toBeUndefined();
   expect((await nodes.snapshot()).get('content')).toBeUndefined();
@@ -463,7 +465,7 @@ test('Stop during invocation acceptance drains its receipt without starting the 
   });
   let effects = 0;
   const handle = createAgentBackend({
-    nodes: {
+    nodes: transactionFixture({
       ...nodes,
       commit: async (value) => {
         if (value.kind.action === 'recordTool') {
@@ -472,7 +474,7 @@ test('Stop during invocation acceptance drains its receipt without starting the 
         }
         return await nodes.commit(value);
       },
-    },
+    }),
     model: async () => new MockLanguageModelV4({ doStream: [call('first', 'first'), answer()] }),
     tools: () => ({
       first: tool({
@@ -492,7 +494,7 @@ test('Stop during invocation acceptance drains its receipt without starting the 
   expect(effects).toBe(0);
   expect((await readAgentRun(nodes, 'run'))?.tools[0]?.data.status).toBe('running');
   const reopened = createAgentBackend({
-    nodes,
+    nodes: transactionFixture(nodes),
     model: () => Promise.reject(new Error('No replay')),
   });
   expect((await reopened.start(prepared).done).phase).toBe('stopped');
@@ -509,7 +511,7 @@ test('Stop during a delayed outcome write waits for acceptance and preserves its
     release = resolve;
   });
   const handle = createAgentBackend({
-    nodes: {
+    nodes: transactionFixture({
       ...nodes,
       commit: async (value) => {
         if (value.kind.action === 'completeTool') {
@@ -518,7 +520,7 @@ test('Stop during a delayed outcome write waits for acceptance and preserves its
         }
         return await nodes.commit(value);
       },
-    },
+    }),
     model: async () => new MockLanguageModelV4({ doStream: [call('first', 'first'), answer()] }),
     tools: () => ({
       first: tool({ inputSchema: z.object({}), execute: () => 'Completed before Stop' }),
@@ -540,7 +542,7 @@ test('retry during Stop clears the outcome obligation before an independently re
   let outcomeFails = true;
   let terminalFails = true;
   const handle = createAgentBackend({
-    nodes: {
+    nodes: transactionFixture({
       ...nodes,
       commit: (value) => {
         if (value.kind.action === 'completeTool' && outcomeFails)
@@ -549,7 +551,7 @@ test('retry during Stop clears the outcome obligation before an independently re
           return Promise.reject(new Error('Terminal offline'));
         return nodes.commit(value);
       },
-    },
+    }),
     model: async () => new MockLanguageModelV4({ doStream: [call('first', 'first'), answer()] }),
     tools: () => ({
       first: tool({ inputSchema: z.object({}), execute: () => 'Known result' }),
@@ -581,7 +583,7 @@ test('Stop during recovery acceptance produces one terminal write after the outc
   });
   let terminals = 0;
   const handle = createAgentBackend({
-    nodes: {
+    nodes: transactionFixture({
       ...nodes,
       commit: async (value) => {
         if (value.kind.action === 'completeTool') {
@@ -595,7 +597,7 @@ test('Stop during recovery acceptance produces one terminal write after the outc
         if (value.kind.action === 'stopRun') terminals++;
         return await nodes.commit(value);
       },
-    },
+    }),
     model: async () => new MockLanguageModelV4({ doStream: [call('first', 'first'), answer()] }),
     tools: () => ({
       first: tool({ inputSchema: z.object({}), execute: () => 'Known' }),
@@ -619,7 +621,7 @@ test('a saved terminal response can be retried with its same identity while pres
   const writes: unknown[] = [];
   const model = new MockLanguageModelV4({ doStream: [call('first', 'first'), answer()] });
   const handle = createAgentBackend({
-    nodes: {
+    nodes: transactionFixture({
       ...nodes,
       commit: (value) => {
         if (value.kind.action === 'completeRun') {
@@ -629,7 +631,7 @@ test('a saved terminal response can be retried with its same identity while pres
         }
         return nodes.commit(value);
       },
-    },
+    }),
     model: async () => model,
     tools: () => ({
       first: tool({ inputSchema: z.object({}), execute: () => 'Accepted result' }),
@@ -648,13 +650,13 @@ test('an unfinished historical invocation exposes uncertain effects without star
   const { nodes, prepared } = await fixture();
   let failing = true;
   const handle = createAgentBackend({
-    nodes: {
+    nodes: transactionFixture({
       ...nodes,
       commit: (value) =>
         value.kind.action === 'completeTool' && failing
           ? Promise.reject(new Error('Offline'))
           : nodes.commit(value),
-    },
+    }),
     model: async () => new MockLanguageModelV4({ doStream: [call('first', 'first'), answer()] }),
     tools: () => ({
       first: tool({ inputSchema: z.object({}), execute: () => 'Known only to old owner' }),
@@ -666,7 +668,7 @@ test('an unfinished historical invocation exposes uncertain effects without star
   expect(recorded?.tools[0]?.effects).toBe('uncertain');
   let models = 0;
   const reopened = createAgentBackend({
-    nodes,
+    nodes: transactionFixture(nodes, {}),
     model: () => {
       models++;
       return Promise.reject(new Error('No replay'));

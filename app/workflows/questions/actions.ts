@@ -7,7 +7,7 @@ import type {
   NodePublicationContext,
   NodePublicationRule,
   NodeSnapshot,
-  NodeStore,
+  NodeReading,
 } from '../../vault/nodes/store.ts';
 import { prepareAnswerQuestion, prepareAskQuestion, type QuestionCommit } from './operations.ts';
 import { readQuestions } from './reading.ts';
@@ -39,6 +39,8 @@ export interface AnswerQuestionInput {
 
 /** Trusted producer identity, supplied by Product or an accepted Agent invocation. */
 export interface QuestionWriter {
+  /** Identity allocated by the core before this action calculates changes. */
+  readonly id: string;
   readonly kind: 'agent' | 'person';
   readonly recordedBy: string;
   readonly origin: string | null;
@@ -145,7 +147,7 @@ function questionChanges(context: NodePublicationContext): NodeCommit['changes']
  * lifetime with the enforcing node interface; callers can request actions, never bless raw work.
  */
 export function createQuestionOwnership(options: {
-  readonly nodes: NodeStore;
+  readonly nodes: NodeReading;
   readonly reading?: QuestionContextReading;
 }): QuestionOwnership {
   const issued = new Map<string, IssuedQuestionWork>();
@@ -215,7 +217,7 @@ export function createQuestionOwnership(options: {
       for (const knowledge of prepared.knowledge) passage(selected, knowledge, true);
       const request = prepareAskQuestion(selected, {
         ...prepared,
-        id: crypto.randomUUID(),
+        id: writer.id,
         node: crypto.randomUUID(),
       });
       return remember(
@@ -232,7 +234,7 @@ export function createQuestionOwnership(options: {
         throw new Error('This question is no longer open. Review its current status.');
       return remember(
         prepareAnswerQuestion(view, {
-          id: crypto.randomUUID(),
+          id: writer.id,
           node: crypto.randomUUID(),
           relationship: crypto.randomUUID(),
           question: input.question,

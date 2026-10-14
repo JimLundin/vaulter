@@ -1,7 +1,7 @@
 // Independent browser Agent lifetime. Callers own context assembly and presentation.
 import { streamText, isStepCount } from 'ai';
 import type { ModelMessage, SystemModelMessage } from 'ai';
-import type { NodeCommit, NodeStore } from '../vault/nodes/store.ts';
+import type { TransactionRequest, TransactionStore } from '../vault/transactions/store.ts';
 import { canonical, frozen, compare } from '../vault/nodes/json.ts';
 import { cancellable } from '../vault/storage/coordination.ts';
 import type { LanguageModelProvider, AgentExecutionProvider } from './providers.ts';
@@ -40,7 +40,7 @@ export interface AgentRunState {
   readonly tools?: readonly { readonly node: string; readonly data: ToolExecutionData }[];
   readonly pendingTool?: PendingToolSave;
   readonly contextError?: string;
-  readonly contentPersistence?: { readonly request: NodeCommit; readonly error: string };
+  readonly contentPersistence?: { readonly id: string; readonly error: string };
   readonly contentAccepted?: string;
 }
 export interface AgentRun {
@@ -54,7 +54,7 @@ export interface AgentRun {
   readonly refreshContext: () => Promise<AgentRunState>;
 }
 export interface AgentBackendOptions {
-  readonly nodes: NodeStore;
+  readonly nodes: TransactionStore;
   readonly model?: LanguageModelProvider;
   readonly execution?: AgentExecutionProvider;
   readonly tools?: AgentToolFactory;
@@ -71,8 +71,14 @@ export function createAgentBackend(options: AgentBackendOptions) {
   let disposed = false;
   function start(input: PreparedAgentRun): AgentRun {
     if (disposed) throw new Error('Agent backend is disposed');
-    const prepared = frozen(structuredClone(input));
-    const identity = canonical(prepared);
+    const prepared = Object.freeze({
+      ...frozen(structuredClone({ run: input.run, commit: input.commit })),
+      publication: input.publication,
+      cancel: input.cancel,
+    });
+    const identity = canonical({ run: prepared.run, commit: prepared.commit });
+    if (prepared.publication.id !== prepared.commit.id)
+      throw new Error('Agent preparation must belong to its core request');
     const known = runs.get(prepared.commit.id);
     if (known) {
       if (known.identity !== identity) throw new Error('Request ID reused with different contents');
@@ -87,7 +93,8 @@ export function createAgentBackend(options: AgentBackendOptions) {
     const abort = new AbortController();
     const listeners = new Set<() => void>();
     let state: AgentRunState = frozen({ phase: 'accepting', data: initialData, text: '' });
-    let pending: NodeCommit | undefined;
+    let pending: TransactionRequest<unknown> | undefined;
+    let contentPending: TransactionRequest<void> | undefined;
     let initialSave = false;
     let toolPending: PendingToolSave | undefined;
     let toolController: ReturnType<typeof durableTools> | undefined;
@@ -130,11 +137,14 @@ export function createAgentBackend(options: AgentBackendOptions) {
     };
     const done = (async () => {
       try {
+        const calculated = await prepared.publication.ready;
+        if (canonical({ run: calculated.run, commit: calculated.commit }) !== identity)
+          throw new Error('Request ID reused with different contents');
         const existing = await readAgentRun(options.nodes, prepared.run);
         if (disposed) return state;
         if (existing) {
-          // The adapter validates the full retry identity, including caller-composed changes.
-          await options.nodes.commit(prepared.commit);
+          // The core-owned preparation is immutable. Reopening accepted records is reading;
+          // explicit recovery of an uncertain attempt still goes through a new write lifetime.
           await verifyAgentAcceptance(options.nodes, prepared);
           await restored();
           return state;
@@ -143,10 +153,10 @@ export function createAgentBackend(options: AgentBackendOptions) {
           notify({ phase: 'stopped', data: { ...initialData, status: 'stopped' }, text: '' });
           return state;
         }
-        pending = prepared.commit;
+        pending = prepared.publication;
         initialSave = true;
         try {
-          await options.nodes.commit(pending);
+          await prepared.publication.accept();
           pending = undefined;
           initialSave = false;
         } catch (error) {
@@ -158,6 +168,7 @@ export function createAgentBackend(options: AgentBackendOptions) {
           });
           return state;
         }
+        await verifyAgentAcceptance(options.nodes, prepared);
         if (disposed) return state;
         let text = '';
         let output: AgentRunData['output'];
@@ -181,10 +192,11 @@ export function createAgentBackend(options: AgentBackendOptions) {
             contentPolicy: options.contentPolicy,
             snapshot: await options.nodes.snapshot(),
             publicationFailed: (request, error) => {
+              contentPending = request;
               notify({
                 ...state,
                 persistenceStage: 'content',
-                contentPersistence: { request, error: errorMessage(error) },
+                contentPersistence: { id: request.id, error: errorMessage(error) },
               });
             },
             refreshFailed: (error) => {
@@ -373,7 +385,13 @@ export function createAgentBackend(options: AgentBackendOptions) {
               timing: { elapsedMs: performance.now() - started },
               output: { ...output, text },
             });
-            pending = prepareAgentOutcome(prepared, terminalData);
+            using writes = options.nodes
+              .writer({ recordedBy: initial.connection!.target.node, origin: prepared.run })
+              .lifetime();
+            pending = writes.write(({ id }) => ({
+              value: undefined,
+              transaction: prepareAgentOutcome(prepared, terminalData, id),
+            }));
             notify({
               ...state,
               phase: 'saving',
@@ -382,7 +400,7 @@ export function createAgentBackend(options: AgentBackendOptions) {
               tools: [...activity].map(([node, toolData]) => ({ node, data: toolData })),
             });
             try {
-              await options.nodes.commit(pending);
+              await pending.result;
               pending = undefined;
               notify({
                 ...state,
@@ -416,11 +434,13 @@ export function createAgentBackend(options: AgentBackendOptions) {
         await terminal();
       } catch (error) {
         notify({
-          phase: 'failed',
+          phase: abort.signal.aborted ? 'stopped' : 'failed',
           data: {
             ...initialData,
-            status: 'failed',
-            error: { code: 'invalidRequest', message: errorMessage(error) },
+            status: abort.signal.aborted ? 'stopped' : 'failed',
+            ...(!abort.signal.aborted
+              ? { error: { code: 'invalidRequest', message: errorMessage(error) } }
+              : {}),
           },
           text: '',
         });
@@ -436,27 +456,33 @@ export function createAgentBackend(options: AgentBackendOptions) {
       done,
       stop: () => {
         live = false;
+        prepared.cancel(new DOMException('Agent run stopped', 'AbortError'));
         abort.abort();
       },
       retryContentSave: () => {
         if (disposed) return Promise.resolve(state);
         if (contentRetry !== undefined) return contentRetry;
         const retained = state.contentPersistence;
-        if (!retained) return Promise.resolve(state);
+        if (!(retained && contentPending)) return Promise.resolve(state);
+        const request = contentPending;
         contentRetry = (async () => {
           try {
-            await options.nodes.commit(retained.request);
+            using writes = options.nodes
+              .writer({ recordedBy: initial.connection!.target.node, origin: prepared.run })
+              .lifetime();
+            await writes.retry(request);
+            contentPending = undefined;
             const { contentPersistence: _content, ...rest } = state;
             notify({
               ...rest,
-              contentAccepted: retained.request.id,
+              contentAccepted: request.id,
               ...(state.persistenceStage === 'content' ? { persistenceStage: undefined } : {}),
             });
             await handle.refreshContext();
           } catch (error) {
             notify({
               ...state,
-              contentPersistence: { request: retained.request, error: errorMessage(error) },
+              contentPersistence: { id: request.id, error: errorMessage(error) },
             });
           }
           return state;
@@ -508,7 +534,14 @@ export function createAgentBackend(options: AgentBackendOptions) {
           await done;
           if (disposed || !pending) return state;
           try {
-            await options.nodes.commit(pending);
+            using writes = options.nodes
+              .writer(
+                initialSave
+                  ? { recordedBy: prepared.commit.recordedBy, origin: prepared.commit.origin }
+                  : { recordedBy: initial.connection!.target.node, origin: prepared.run },
+              )
+              .lifetime();
+            await writes.retry(pending);
             pending = undefined;
             if (initialSave) {
               initialSave = false;
@@ -547,7 +580,11 @@ export function createAgentBackend(options: AgentBackendOptions) {
   return {
     start: (input: PreparedAgentRun) => {
       if (disposed) throw new Error('Agent backend is disposed');
-      const prepared = frozen(structuredClone(input));
+      const prepared = Object.freeze({
+        ...frozen(structuredClone({ run: input.run, commit: input.commit })),
+        publication: input.publication,
+        cancel: input.cancel,
+      });
       return ownership.start(prepared, () => start(prepared));
     },
     read: (run: string, sequence?: number) => readAgentRun(options.nodes, run, sequence),

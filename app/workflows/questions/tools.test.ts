@@ -1,8 +1,10 @@
+import { transactionFixture } from '../../vault/transactions/fixtures.test-support.ts';
 import { expect, test } from 'vitest';
 import { MockLanguageModelV4, convertArrayToReadableStream } from 'ai/test';
 import type { AgentToolContext } from '../../agent/tools.ts';
 import { createAgentBackend } from '../../agent/runtime.ts';
-import { prepareAgentRun, readAgentRun } from '../../agent/store.ts';
+import { readAgentRun } from '../../agent/store.ts';
+import { prepareAgentRunFixture as prepareAgentRun } from '../../agent/preparation.test-support.ts';
 import { create, request, revise } from '../../vault/nodes/fixtures.test-support.ts';
 import { memoryNodeBackend } from '../../vault/nodes/memory.ts';
 import { readQuestions } from './reading.ts';
@@ -63,7 +65,7 @@ test('Questions agent discovery and reads include retained Questions and exact d
   const context: AgentToolContext = {
     signal: new AbortController().signal,
     snapshot: () => view,
-    commit: () => Promise.reject(new Error('Reads must not publish')),
+    write: () => Promise.reject(new Error('Reads must not publish')),
   };
   const tools = questionTools(context, nodes);
   expect(await tools.listQuestionSubjects.execute!({}, execution)).toEqual([
@@ -105,7 +107,7 @@ test('an expired Questions tool cannot publish a request', async () => {
     {
       signal: stopped.signal,
       snapshot: () => view,
-      commit: () => {
+      write: () => {
         publications++;
         return Promise.resolve('unexpected');
       },
@@ -127,7 +129,7 @@ test('Question creation requires trusted invocation attribution before source re
       snapshot: () => {
         throw new Error('An untrusted invocation must not read.');
       },
-      commit: () => Promise.reject(new Error('An untrusted invocation must not publish.')),
+      write: () => Promise.reject(new Error('An untrusted invocation must not publish.')),
     },
     nodes,
     reading,
@@ -166,16 +168,20 @@ test('subject discovery retains its captured snapshot and guards each live ances
     {
       signal: new AbortController().signal,
       snapshot: () => tracked,
-      commit: async (prepared) =>
-        (
+      write: async (calculate) => {
+        const id = crypto.randomUUID();
+        const prepared = await calculate(id);
+        return (
           await nodes.commit({
             ...prepared,
+            id,
             expectedReads: { ...prepared.expectedReads, ...expectedReads },
             recordedBy: 'user',
             origin: null,
             undoOf: null,
           })
-        ).id,
+        ).id;
+      },
     },
     nodes,
   );
@@ -201,7 +207,7 @@ test('Agent presents a Question with a durable accepted receipt, trusted attribu
       create('page', { kind: 'page', title: 'Studio' }),
     ]),
   );
-  const prepared = await prepareAgentRun(nodes, {
+  const prepared = await prepareAgentRun(transactionFixture(nodes), {
     id: 'start',
     run: 'run',
     agent: 'agent',
@@ -265,7 +271,7 @@ test('Agent presents a Question with a durable accepted receipt, trusted attribu
   });
   const tools = (context: AgentToolContext) => questionTools(context, nodes);
   const backend = createAgentBackend({
-    nodes,
+    nodes: transactionFixture(nodes),
     model: async () => model,
     tools,
     writableKinds: ['question', 'relationship'],
@@ -287,7 +293,7 @@ test('Agent presents a Question with a durable accepted receipt, trusted attribu
   });
   const before = (await nodes.history()).length;
   const reopened = createAgentBackend({
-    nodes,
+    nodes: transactionFixture(nodes),
     tools,
     model: () => Promise.reject(new Error('Must not execute')),
   });
@@ -310,7 +316,7 @@ test('Agent can discover subjects and retained questions between consecutive acc
       create('section', { kind: 'section' }, 'page'),
     ]),
   );
-  const prepared = await prepareAgentRun(nodes, {
+  const prepared = await prepareAgentRun(transactionFixture(nodes), {
     id: 'start',
     run: 'run',
     agent: 'agent',
@@ -386,7 +392,7 @@ test('Agent can discover subjects and retained questions between consecutive acc
     },
   });
   const backend = createAgentBackend({
-    nodes,
+    nodes: transactionFixture(nodes),
     model: async () => model,
     tools: (context) => questionTools(context, nodes),
     writableKinds: ['question', 'relationship'],
@@ -436,7 +442,7 @@ test('context discovery returns captured source and knowledge text without publi
           throw new Error('Discovery must not track unrelated records.');
         },
       }),
-      commit,
+      write: commit,
     },
     nodes,
   );
@@ -478,7 +484,7 @@ test('asking requires grounded proposals and rejects a Wiki passage used as the 
       snapshot: () => {
         throw new Error('Schema must reject incomplete input first.');
       },
-      commit,
+      write: commit,
     },
     nodes,
   );
@@ -487,7 +493,14 @@ test('asking requires grounded proposals and rejects a Wiki passage used as the 
   >[0];
   await expect(tools.askQuestion.execute!(incomplete, execution)).rejects.toThrow();
   const validated = questionTools(
-    { signal: new AbortController().signal, snapshot: () => view, commit },
+    {
+      signal: new AbortController().signal,
+      snapshot: () => view,
+      write: async (calculate) => {
+        await calculate(crypto.randomUUID());
+        return commit();
+      },
+    },
     nodes,
   );
   const view = await nodes.snapshot();

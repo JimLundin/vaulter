@@ -28,7 +28,7 @@ export interface ReferencePreparation {
 
 /** The caller must publish against exactly baselineSequence, or reprepare against its new Snapshot.
  * Descendant read expectations cover edits/removals; they cannot guard newly inserted children.
- * The generic NodeStore does not enforce this complete-baseline requirement on its own. */
+ * The generic NodeReading does not enforce this complete-baseline requirement on its own. */
 export function prepareWikiReferences(
   view: NodeSnapshot,
   snapshot: (sequence: number) => NodeSnapshot,

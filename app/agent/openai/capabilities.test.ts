@@ -1,3 +1,4 @@
+import { transactionFixture } from '../../vault/transactions/fixtures.test-support.ts';
 import { expect, test, vi } from 'vitest';
 import { generateText } from 'ai';
 import { createOpenAICapabilities } from './index.ts';
@@ -5,7 +6,8 @@ import { openAIEmbeddings } from './embeddings.ts';
 import { openAIFileTranscription } from './file-transcription.ts';
 import { memoryNodeBackend } from '../../vault/nodes/memory.ts';
 import { create, request } from '../../vault/nodes/fixtures.test-support.ts';
-import { prepareAgentRun, readAgentRun } from '../store.ts';
+import { readAgentRun } from '../store.ts';
+import { prepareAgentRunFixture as prepareAgentRun } from '../preparation.test-support.ts';
 
 function completion(text: string) {
   return {
@@ -108,7 +110,7 @@ test('streams OpenAI into an independent accepted Agent run and records served m
     return streamed('A streamed answer');
   });
   const capabilities = createOpenAICapabilities({ apiKey: 'fixture-secret', fetch });
-  const backend = capabilities.agent({ nodes });
+  const backend = capabilities.agent({ nodes: transactionFixture(nodes) });
   expect((await backend.start(prepared).done).phase).toBe('complete');
   expect((await readAgentRun(nodes, 'run'))?.data).toMatchObject({
     model: { requested: 'fixture-llm', served: 'fixture-llm' },
@@ -116,7 +118,9 @@ test('streams OpenAI into an independent accepted Agent run and records served m
     output: { text: 'A streamed answer' },
   });
   expect(JSON.parse(fetch.mock.calls[0]![1]!.body as string).store).toBe(false);
-  expect(JSON.stringify(await nodes.changes('send'))).not.toContain('fixture-secret');
+  expect(JSON.stringify(await nodes.changes(prepared.publication.id))).not.toContain(
+    'fixture-secret',
+  );
   backend.dispose();
 });
 

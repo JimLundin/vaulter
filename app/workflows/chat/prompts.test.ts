@@ -1,3 +1,4 @@
+import { transactionFixture } from '../../vault/transactions/fixtures.test-support.ts';
 import { expect, test } from 'vitest';
 import { MockLanguageModelV4, convertArrayToReadableStream } from 'ai/test';
 import { memoryNodeBackend } from '../../vault/nodes/memory.ts';
@@ -28,8 +29,8 @@ async function fixture(overrides: Partial<NodeConversationOptions> = {}) {
       ]),
     }),
   });
-  const options = {
-    nodes,
+  const options: NodeConversationOptions = {
+    nodes: transactionFixture(nodes),
     user: 'user',
     agent: 'agent',
     provider: 'fictional',
@@ -237,7 +238,7 @@ test('suggestions arriving after an admitted Open cannot publish into the changi
       return nodes.snapshot(sequence);
     },
   };
-  const chat = createNodeConversation({ ...options, nodes: reader });
+  const chat = createNodeConversation({ ...options, nodes: transactionFixture(reader) });
   try {
     const suggesting = chat.suggest();
     const opening = chat.open('missing');
@@ -264,7 +265,7 @@ test('an admitted Open removes displayed suggestions before the selected convers
       return nodes.snapshot(sequence);
     },
   };
-  const chat = createNodeConversation({ ...options, nodes: reader });
+  const chat = createNodeConversation({ ...options, nodes: transactionFixture(reader) });
   try {
     await chat.suggest();
     expect(chat.snapshot().suggestions).toEqual(['Old suggestion']);
@@ -321,7 +322,7 @@ test('a prompt claimed during a pending Open detects its later selected identity
       return nodes.snapshot(sequence);
     },
   };
-  const chat = createNodeConversation({ ...options, nodes: reader });
+  const chat = createNodeConversation({ ...options, nodes: transactionFixture(reader) });
   try {
     const opening = chat.open('saved-chat');
     chat.setDraft('Reviewed while opening');

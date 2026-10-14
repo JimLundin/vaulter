@@ -1,5 +1,5 @@
 // Fictional fixtures shared by adapter acceptance tests.
-import type { NodeChange, NodeCommit, NodeStore } from './store.ts';
+import type { NodeChange, NodeCommit, NodeReading, NodeStore } from './store.ts';
 import { nodeOperations } from './operations.ts';
 
 export const create = (node: string, data: NodeChange['data'], parent?: string): NodeChange => ({
@@ -31,7 +31,7 @@ export const seed = (store: NodeStore) =>
     ]),
   );
 export async function revise(
-  store: NodeStore,
+  store: NodeReading,
   node: string,
   data: NodeChange['data'],
 ): Promise<NodeChange> {

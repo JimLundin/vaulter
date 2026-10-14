@@ -1,4 +1,4 @@
-import type { NodeStore } from '../../vault/nodes/store.ts';
+import type { NodeReading } from '../../vault/nodes/store.ts';
 import type { SourceReader } from '../../vault/sources.ts';
 import { readWiki, type WikiPage } from './pages.ts';
 
@@ -18,7 +18,7 @@ export interface WikiReading {
 }
 
 /** Own the subscribed collection without owning the supplied store or source readers. */
-export function createWikiReading(nodes: NodeStore | null, sources: SourceReader): WikiReading {
+export function createWikiReading(nodes: NodeReading | null, sources: SourceReader): WikiReading {
   let state: WikiReadingState = { pages: null, loading: !!nodes };
   let generation = 0;
   let disposed = false;

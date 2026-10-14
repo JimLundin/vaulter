@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+import { transactionFixture } from '../../vault/transactions/fixtures.test-support.ts';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { expect, test, vi } from 'vitest';
@@ -52,7 +53,7 @@ test.each([false, true])(
     const session = {};
     const answers = createQuestionAnswers({
       session,
-      nodes: {
+      nodes: transactionFixture({
         ...nodes,
         commit: async (value) => {
           requests.push(value);
@@ -60,7 +61,7 @@ test.each([false, true])(
           if (accepted) await nodes.commit(value);
           throw new Error('Save response lost');
         },
-      },
+      }),
       recordedBy: 'user',
     });
     const root = createRoot(document.body);
@@ -105,13 +106,13 @@ test.each([false, true])(
       expect(button('Retry original answer').disabled).toBe(false);
       answers.configure({
         session,
-        nodes: {
+        nodes: transactionFixture({
           ...nodes,
           commit: (value) => {
             requests.push(value);
             return nodes.commit(value);
           },
-        },
+        }),
         recordedBy: 'changed-author',
       });
       await act(async () => {
@@ -140,7 +141,10 @@ test('reworded Questions keep recovery visible and a definitive retry conflict r
   const session = {};
   const answers = createQuestionAnswers({
     session,
-    nodes: { ...nodes, commit: () => Promise.reject(new Error('Connection lost')) },
+    nodes: transactionFixture({
+      ...nodes,
+      commit: () => Promise.reject(new Error('Connection lost')),
+    }),
     recordedBy: 'user',
   });
   await expect(answers.answer(question, 'Garden wall.')).rejects.toThrow('Connection lost');
@@ -150,7 +154,7 @@ test('reworded Questions keep recovery visible and a definitive retry conflict r
     ]),
   );
   const [current] = await readQuestions(nodes);
-  answers.configure({ session, nodes, recordedBy: 'user' });
+  answers.configure({ session, nodes: transactionFixture(nodes), recordedBy: 'user' });
   const root = createRoot(document.body);
   try {
     await act(() =>

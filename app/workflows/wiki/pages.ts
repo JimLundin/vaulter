@@ -1,5 +1,5 @@
 import type { JsonObject, NodeVersion, Transaction } from '../../vault/nodes/model.ts';
-import type { NodeSnapshot, NodeStore } from '../../vault/nodes/store.ts';
+import type { NodeSnapshot, NodeReading } from '../../vault/nodes/store.ts';
 import type { Entry } from '../../vault/documents/search.ts';
 import { recordText, UnsupportedSourceRecordError } from './text.ts';
 import { citation as citationSchema } from './records.ts';
@@ -51,7 +51,7 @@ export interface WikiPage {
 }
 
 /** Read the live collection; exact citation targets retain their original text after later edits. */
-export async function readWiki(nodes: NodeStore, sources: SourceReader): Promise<WikiPage[]> {
+export async function readWiki(nodes: NodeReading, sources: SourceReader): Promise<WikiPage[]> {
   const snapshot = await nodes.snapshot();
   const transactions = new Map<string, Transaction>();
   let beforeSequence: number | undefined;

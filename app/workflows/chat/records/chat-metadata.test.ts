@@ -1,8 +1,24 @@
 import { expect, test } from 'vitest';
 import { memoryNodeBackend } from '../../../vault/nodes/memory.ts';
 import { create, request, seed } from '../../../vault/nodes/fixtures.test-support.ts';
-import { recordChatMetadata } from './chat-metadata-store.ts';
+import { recordChatMetadata, type MetadataEntry } from './chat-metadata-store.ts';
+import type { NodeStore } from '../../../vault/nodes/store.ts';
+import { transactionFixture } from '../../../vault/transactions/fixtures.test-support.ts';
 import type { InterpretationData, ObservationData } from './chat-metadata.ts';
+
+async function saveMetadata(
+  store: NodeStore,
+  input: {
+    readonly recordedBy: string;
+    readonly exchange: string;
+    readonly entries: readonly MetadataEntry[];
+  },
+) {
+  using writes = transactionFixture(store)
+    .writer({ recordedBy: input.recordedBy, origin: input.exchange })
+    .lifetime();
+  return (await recordChatMetadata(writes, input).result).transaction;
+}
 
 const observation: ObservationData = {
   kind: 'observation',
@@ -53,7 +69,6 @@ test('late observations and corrections append exact evidence without versioning
   );
   const before = await store.snapshot();
   const input = {
-    transaction: 'observation',
     recordedBy: 'user',
     exchange: 'exchange',
     entries: [
@@ -72,8 +87,15 @@ test('late observations and corrections append exact evidence without versioning
       },
     ],
   };
-  const recorded = await recordChatMetadata(store, input);
-  expect(await recordChatMetadata(store, input)).toEqual(recorded);
+  using writes = transactionFixture(store)
+    .writer({ recordedBy: 'user', origin: 'exchange' })
+    .lifetime();
+  const pending = recordChatMetadata(writes, input);
+  const recorded = (await pending.result).transaction;
+  expect((await writes.retry(pending)).transaction).toEqual(recorded);
+  expect((await store.snapshot()).get('observed-message')?.connection?.source.transaction).toBe(
+    recorded.id,
+  );
   const interpretation: InterpretationData = {
     kind: 'interpretation',
     category: 'event',
@@ -83,8 +105,7 @@ test('late observations and corrections append exact evidence without versioning
     method: { name: 'dateResolution', version: '1' },
     details: { date: '2026-10-09', timezone: 'Europe/Stockholm' },
   };
-  await recordChatMetadata(store, {
-    transaction: 'interpretation',
+  await saveMetadata(store, {
     recordedBy: 'user',
     exchange: 'exchange',
     entries: [
@@ -108,8 +129,7 @@ test('late observations and corrections append exact evidence without versioning
     ],
   });
   const first = (await store.snapshot()).get('interpretation')!;
-  await recordChatMetadata(store, {
-    transaction: 'correction',
+  const correction = await saveMetadata(store, {
     recordedBy: 'user',
     exchange: 'exchange',
     entries: [
@@ -140,23 +160,21 @@ test('late observations and corrections append exact evidence without versioning
   expect(now.get('conversation')).toBe(before.get('conversation'));
   expect(now.resolve(first.key)).toBe(first);
   expect(now.get('location')?.data).toEqual(observation);
-  expect((await store.changes('correction')).map((change) => change.node)).toEqual([
+  expect((await store.changes(correction.id)).map((change) => change.node)).toEqual([
     'correction',
     'correction-evidence',
     'corrects',
   ]);
-  await expect(recordChatMetadata(store, { ...input, transaction: 'rewrite' })).rejects.toThrow(
-    'Conflict',
-  );
+  await expect(saveMetadata(store, input)).rejects.toThrow('Conflict');
   store.close();
 });
 
 test('invalid measurement units, dates, exact targets, and selection ranges reject atomically', async () => {
   const store = memoryNodeBackend();
   await seed(store);
-  const base = { transaction: 'bad', recordedBy: 'user', exchange: 'page' };
-  expect(() =>
-    recordChatMetadata(store, {
+  const base = { recordedBy: 'user', exchange: 'page' };
+  await expect(
+    saveMetadata(store, {
       ...base,
       entries: [
         {
@@ -166,9 +184,9 @@ test('invalid measurement units, dates, exact targets, and selection ranges reje
         },
       ],
     }),
-  ).toThrow('observation time');
-  expect(() =>
-    recordChatMetadata(store, {
+  ).rejects.toThrow('observation time');
+  await expect(
+    saveMetadata(store, {
       ...base,
       entries: [
         {
@@ -190,9 +208,9 @@ test('invalid measurement units, dates, exact targets, and selection ranges reje
         },
       ],
     }),
-  ).toThrow('ends before');
+  ).rejects.toThrow('ends before');
   await expect(
-    recordChatMetadata(store, {
+    saveMetadata(store, {
       ...base,
       entries: [
         {
@@ -253,7 +271,6 @@ test('legacy execution metadata decodes through Agent schemas without dropping o
 });
 
 test('new Chat metadata production refuses Agent execution payloads while the historical decoder retains them', async () => {
-  const { recordChatMetadata } = await import('./chat-metadata-store.ts');
   const { memoryNodeBackend } = await import('../../../vault/nodes/memory.ts');
   const nodes = memoryNodeBackend();
   const run = {
@@ -265,9 +282,8 @@ test('new Chat metadata production refuses Agent execution payloads while the hi
     settings: {},
     enabledTools: [],
   };
-  expect(() =>
-    recordChatMetadata(nodes, {
-      transaction: 'attempt',
+  await expect(
+    saveMetadata(nodes, {
       recordedBy: 'user',
       exchange: 'exchange',
       entries: [
@@ -280,6 +296,6 @@ test('new Chat metadata production refuses Agent execution payloads while the hi
         },
       ],
     }),
-  ).toThrow('Agent owns execution metadata');
+  ).rejects.toThrow('Agent owns execution metadata');
   expect(await nodes.history()).toEqual([]);
 });

@@ -41,6 +41,10 @@ present at that point in history.
 A group of changes recorded and applied together as one unit, with its author and originating
 context retained in history.
 
+**Transaction request**:
+A proposed group of changes with its intended author and originating context. Repeating a request
+seeks acceptance of those same changes; revising them creates a different request.
+
 **Transaction author**:
 The user, agent, or system responsible for producing a transaction's changes, represented by a node.
 

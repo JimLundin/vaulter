@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+import { transactionFixture } from './vault/transactions/fixtures.test-support.ts';
 // biome-ignore lint/correctness/noUnresolvedImports: React 19 exposes StrictMode; TypeScript and runtime tests verify it.
 import { act, StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -57,7 +58,7 @@ test.each([false, true])(
             secretOverrides: {},
             updateSecret: async () => undefined,
             blocked: null,
-            nodes,
+            nodes: transactionFixture(nodes),
             nodeStatus: { kind: 'synced', at: 0 },
             refreshNodes: async () => undefined,
           }}

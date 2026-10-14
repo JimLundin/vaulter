@@ -4,7 +4,7 @@ import '@fontsource-variable/newsreader';
 import '../ui/kit/styles.css';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { OpenProduct } from '../product.tsx';
+import { OpenProduct, productNodes } from '../product.tsx';
 import { later } from '../ui/later.ts';
 import { startTheme, Text, DesignPreview } from '../ui/kit/index.ts';
 import { useWriter, applyOverlay } from '../vault/changes/writer.ts';
@@ -190,7 +190,7 @@ function Preview({ initialHead, nodes }: { initialHead: Head; nodes: NodeStore }
           throw new Error('Credentials are supplied by the preview server.');
         },
         blocked: null,
-        nodes,
+        nodes: productNodes(nodes),
         nodeStatus: { kind: 'synced', at: Date.now() },
         refreshNodes: async () => undefined,
       }}

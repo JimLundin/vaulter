@@ -22,8 +22,8 @@ import {
 import { prepareAskQuestion, type QuestionCommit } from './operations.ts';
 import { readQuestions } from './reading.ts';
 
-const agent: QuestionWriter = { kind: 'agent', recordedBy: 'agent', origin: 'context' };
-const person: QuestionWriter = { kind: 'person', recordedBy: 'user', origin: null };
+const agent: Omit<QuestionWriter, 'id'> = { kind: 'agent', recordedBy: 'agent', origin: 'context' };
+const person: Omit<QuestionWriter, 'id'> = { kind: 'person', recordedBy: 'user', origin: null };
 const reading: QuestionContextReading = {
   text: (node) => (typeof node.data?.text === 'string' ? node.data.text : undefined),
   isKnowledge: (node) => node.data?.kind === 'run',
@@ -70,7 +70,7 @@ async function fixture() {
 
 test('Questions actions construct and authorize complete grounded Questions and direct Answers', async () => {
   const { raw, nodes, actions } = await fixture();
-  const asked = actions.ask(await nodes.snapshot(), input, agent);
+  const asked = actions.ask(await nodes.snapshot(), input, { ...agent, id: crypto.randomUUID() });
   expect(asked.changes).toHaveLength(3);
   expect(asked.expectedReads).toMatchObject({ source: 'setup', knowledge: 'setup', page: 'setup' });
   await nodes.commit(structuredClone(attributed(asked)));
@@ -85,7 +85,7 @@ test('Questions actions construct and authorize complete grounded Questions and 
   const answered = await actions.answer(
     await nodes.snapshot(),
     { question: question.key, text: '  The garden wall.  ' },
-    person,
+    { ...person, id: crypto.randomUUID() },
   );
   expect(answered.changes).toHaveLength(3);
   expect(answered.expectedReads).toMatchObject({ [question.id]: asked.id });
@@ -100,7 +100,9 @@ test('Questions actions construct and authorize complete grounded Questions and 
 test('Questions actions admit only grounded Agent creation and a person recording the Answer', async () => {
   const { raw, nodes, actions } = await fixture();
   const view = await nodes.snapshot();
-  expect(() => actions.ask(view, input, person)).toThrow('Agent action');
+  expect(() => actions.ask(view, input, { ...person, id: crypto.randomUUID() })).toThrow(
+    'Agent action',
+  );
   const invalid = [
     { ...input, suggestions: [] },
     { ...input, source: undefined },
@@ -110,15 +112,21 @@ test('Questions actions admit only grounded Agent creation and a person recordin
     { ...input, subject: 'source' },
   ];
   for (const value of invalid)
-    expect(() => actions.ask(view, value as AskQuestionInput, agent)).toThrow();
+    expect(() =>
+      actions.ask(view, value as AskQuestionInput, { ...agent, id: crypto.randomUUID() }),
+    ).toThrow();
   await expect(
     actions.answer(
       view,
       { question: { node: 'missing', transaction: 'setup' }, text: 'Yes.' },
-      agent,
+      { ...agent, id: crypto.randomUUID() },
     ),
   ).rejects.toThrow('Only a person');
-  const withoutKnowledge = actions.ask(view, { ...input, knowledge: [] }, agent);
+  const withoutKnowledge = actions.ask(
+    view,
+    { ...input, knowledge: [] },
+    { ...agent, id: crypto.randomUUID() },
+  );
   await nodes.commit(attributed(withoutKnowledge));
   expect((await readQuestions(nodes))[0].knowledge).toEqual([]);
   raw.close();
@@ -149,7 +157,7 @@ test('the creation action retains foreign ancestry used to admit knowledge with 
       subject: undefined,
       knowledge: [{ node: 'knowledge', transaction: 'placed-knowledge' }],
     },
-    agent,
+    { ...agent, id: crypto.randomUUID() },
   );
   expect(asked.expectedReads).toMatchObject({ page: 'setup', knowledge: 'placed-knowledge' });
   await raw.commit(request('removed-knowledge-parent', [await revise(raw, 'page', null)]));
@@ -186,7 +194,9 @@ test('plausible raw preparation and incomplete Question writes have no action pe
 
 test('action permission rejects missing, changed, or additional Questions-owned work atomically', async () => {
   const { raw, nodes, actions } = await fixture();
-  const asked = attributed(actions.ask(await nodes.snapshot(), input, agent));
+  const asked = attributed(
+    actions.ask(await nodes.snapshot(), input, { ...agent, id: crypto.randomUUID() }),
+  );
   const attempts: NodeCommit[] = [
     { ...asked, changes: asked.changes.slice(0, -1) },
     {
@@ -231,13 +241,15 @@ test('action permission rejects missing, changed, or additional Questions-owned 
 
 test('an Answer action cannot lose or retarget its evidence Relationship', async () => {
   const { raw, nodes, actions } = await fixture();
-  await nodes.commit(attributed(actions.ask(await nodes.snapshot(), input, agent)));
+  await nodes.commit(
+    attributed(actions.ask(await nodes.snapshot(), input, { ...agent, id: crypto.randomUUID() })),
+  );
   const [question] = await readQuestions(nodes);
   const answered = attributed(
     await actions.answer(
       await nodes.snapshot(),
       { question: question.key, text: 'Garden.' },
-      person,
+      { ...person, id: crypto.randomUUID() },
     ),
     person,
   );
@@ -261,7 +273,9 @@ test('an Answer action cannot lose or retarget its evidence Relationship', async
 
 test('other owners may add their changes and reads before admission, and exact accepted retries remain valid', async () => {
   const { raw, nodes, actions } = await fixture();
-  const asked = attributed(actions.ask(await nodes.snapshot(), input, agent));
+  const asked = attributed(
+    actions.ask(await nodes.snapshot(), input, { ...agent, id: crypto.randomUUID() }),
+  );
   const combined = {
     ...asked,
     kind: request('other-owner-operation', []).kind,
@@ -325,7 +339,9 @@ describe('Questions action publication through GitHub', () => {
 
   test('authoritative refresh rejects a stale creation action before writing, then accepts fresh owner actions', async () => {
     const { open, raw, nodes, actions, state } = await remoteFixture();
-    const stale = attributed(actions.ask(await nodes.snapshot(), input, agent));
+    const stale = attributed(
+      actions.ask(await nodes.snapshot(), input, { ...agent, id: crypto.randomUUID() }),
+    );
     const remote = open();
     await remote.refresh();
     await remote.commit(
@@ -342,14 +358,14 @@ describe('Questions action publication through GitHub', () => {
     const fresh = actions.ask(
       await nodes.snapshot(),
       { ...input, source: { node: 'source', transaction: 'changed-source' } },
-      agent,
+      { ...agent, id: crypto.randomUUID() },
     );
     await nodes.commit(attributed(fresh));
     const [question] = await readQuestions(nodes);
     const answered = await actions.answer(
       await nodes.snapshot(),
       { question: question.key, text: 'The garden wall.' },
-      person,
+      { ...person, id: crypto.randomUUID() },
     );
     await nodes.commit(attributed(answered, person));
     expect((await readQuestions(raw))[0]).toMatchObject({
@@ -408,7 +424,9 @@ describe('Questions action publication through GitHub', () => {
     const failing = open(flaky);
     await failing.refresh();
     const actions = createQuestionOwnership({ nodes: failing, reading });
-    const asked = attributed(actions.ask(await failing.snapshot(), input, agent));
+    const asked = attributed(
+      actions.ask(await failing.snapshot(), input, { ...agent, id: crypto.randomUUID() }),
+    );
     await expect(failing.commit(asked, actions.publication)).rejects.toThrow('Lost acceptance');
     expect((await failing.snapshot()).get(asked.changes[0].node)).toBeUndefined();
     const acceptedHead = state.main;
@@ -430,7 +448,9 @@ describe('Questions action publication through GitHub', () => {
 
 test('an entered publication retains its complete request across an uncertain save and retry', async () => {
   const { raw, actions } = await fixture();
-  const asked = attributed(actions.ask(await raw.snapshot(), input, agent));
+  const asked = attributed(
+    actions.ask(await raw.snapshot(), input, { ...agent, id: crypto.randomUUID() }),
+  );
   let uncertain = true;
   const publication: NodePublicationRule = (context) => {
     actions.publication(context);
@@ -500,7 +520,7 @@ test('ownership survives historical Question and Answer deletion, payload retagg
 
 test('Questions rejects foreign task Relationships and new containment while allowing incoming references', async () => {
   const { raw, nodes, actions } = await fixture();
-  const asked = actions.ask(await nodes.snapshot(), input, agent);
+  const asked = actions.ask(await nodes.snapshot(), input, { ...agent, id: crypto.randomUUID() });
   await nodes.commit(attributed(asked));
   const question = asked.changes[0].node;
   const owned = [
@@ -543,11 +563,19 @@ test('historical text-only Questions remain answerable and concurrent direct Ans
   const view = await nodes.snapshot();
   const question = { node: 'question', transaction: 'historical-question' };
   const first = attributed(
-    await actions.answer(view, { question, text: 'Garden.' }, person),
+    await actions.answer(
+      view,
+      { question, text: 'Garden.' },
+      { ...person, id: crypto.randomUUID() },
+    ),
     person,
   );
   const second = attributed(
-    await actions.answer(view, { question, text: 'Street.' }, person),
+    await actions.answer(
+      view,
+      { question, text: 'Street.' },
+      { ...person, id: crypto.randomUUID() },
+    ),
     person,
   );
   await nodes.commit(first);
@@ -584,7 +612,7 @@ test('answer admission retains historical outgoing evidence outside reachable co
     actions.answer(
       await nodes.snapshot(),
       { question: { node: 'question', transaction: 'historical-question' }, text: 'Garden.' },
-      person,
+      { ...person, id: crypto.randomUUID() },
     ),
   ).rejects.toThrow('no longer open');
   await expect(

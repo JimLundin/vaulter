@@ -1,5 +1,5 @@
 import type { NodeAddress, NodeVersion, Transaction } from '../../vault/nodes/model.ts';
-import type { NodeSnapshot, NodeStore } from '../../vault/nodes/store.ts';
+import type { NodeSnapshot, NodeReading } from '../../vault/nodes/store.ts';
 import { parseQuestion, type QuestionData } from './records.ts';
 
 export interface QuestionTarget {
@@ -125,7 +125,7 @@ function attribution(transaction: Transaction): QuestionAttribution {
 
 /** List retained questions, including questions whose subject is no longer reachable from a root. */
 export async function readQuestions(
-  nodes: NodeStore,
+  nodes: NodeReading,
   selectedView?: NodeSnapshot,
 ): Promise<Question[]> {
   const view = selectedView ?? (await nodes.snapshot());
@@ -195,7 +195,7 @@ export interface QuestionsReading {
 }
 
 /** Own the shared collection and its subscription; callers supply the store lifetime. */
-export function createQuestionsReading(nodes: NodeStore | null): QuestionsReading {
+export function createQuestionsReading(nodes: NodeReading | null): QuestionsReading {
   let state: QuestionsReadingState = { questions: null, loading: !!nodes };
   let generation = 0;
   let disposed = false;

@@ -1,3 +1,7 @@
+import {
+  transactionFixture,
+  transactionOptionsFixture,
+} from '../vault/transactions/fixtures.test-support.ts';
 import { expect, test, vi } from 'vitest';
 import { tool } from 'ai';
 import { z } from 'zod';
@@ -5,7 +9,8 @@ import { MockLanguageModelV4, convertArrayToReadableStream } from 'ai/test';
 import { memoryNodeBackend } from '../vault/nodes/memory.ts';
 import { create, request, seed } from '../vault/nodes/fixtures.test-support.ts';
 import { createAgentBackend } from './runtime.ts';
-import { prepareAgentRun, readAgentRun } from './store.ts';
+import { readAgentRunFixture as readAgentRun } from './preparation.test-support.ts';
+import { prepareAgentRunFixture as prepareAgentRun } from './preparation.test-support.ts';
 import { nodeOperations } from '../vault/nodes/operations.ts';
 import { serial } from '../vault/storage/coordination.ts';
 import type { AgentToolContext } from './tools.ts';
@@ -104,8 +109,8 @@ test('simultaneous callers share one live run while validating the full prepared
       return answer();
     },
   };
-  const firstBackend = createAgentBackend(options);
-  const secondBackend = createAgentBackend(options);
+  const firstBackend = createAgentBackend(transactionOptionsFixture(options));
+  const secondBackend = createAgentBackend(transactionOptionsFixture(options));
   const first = firstBackend.start(prepared);
   const second = secondBackend.start(prepared);
   await entered.held;
@@ -134,15 +139,15 @@ test('a supplying module coordinates its operations while an unrelated held-tool
   const queued = gate();
   const coordinate = serial();
   const content = (context: AgentToolContext, name: string) =>
-    context.commit({
-      id: `${name}-content`,
+    context.write((id) => ({
+      id,
       kind: nodeOperations.create,
       message: null,
       changes: [create(`${name}-paragraph`, { kind: 'paragraph', text: name })],
-    });
+    }));
   const coordinated = (name: string) =>
     createAgentBackend({
-      nodes,
+      nodes: transactionFixture(nodes),
       model: async () => toolModel(),
       writableKinds: ['paragraph'],
       tools: (context) => ({
@@ -166,7 +171,7 @@ test('a supplying module coordinates its operations while an unrelated held-tool
   const second = coordinated('queued').start(queuedRequest);
   await queued.held;
   const independent = createAgentBackend({
-    nodes,
+    nodes: transactionFixture(nodes),
     model: async () => toolModel(),
     writableKinds: ['paragraph'],
     tools: (context) => ({
@@ -186,12 +191,12 @@ test('a supplying module coordinates its operations while an unrelated held-tool
     held.release();
     await Promise.all([first.done, second.done]);
   }
-  const publications = (await nodes.history()).filter(({ id }) => id.endsWith('-content'));
-  expect(publications.map(({ id }) => id)).toEqual([
-    'queued-content',
-    'first-content',
-    'unrelated-content',
-  ]);
+  const view = await nodes.snapshot();
+  const contentTransactions = ['queued', 'first', 'unrelated'].map(
+    (name) => view.get(`${name}-paragraph`)!.key.transaction,
+  );
+  const publications = (await nodes.history()).filter(({ id }) => contentTransactions.includes(id));
+  expect(publications.map(({ id }) => id)).toEqual(contentTransactions);
   expect(new Set(publications.map(({ sequence }) => sequence)).size).toBe(3);
   expect((await readAgentRun(nodes, 'queued'))?.tools[0]?.data.status).toBe('complete');
 });
@@ -202,14 +207,17 @@ test('readers share available local ownership evidence while unknown ownership s
   const loading = gate();
   const entered = gate();
   const owner = createAgentBackend({
-    nodes,
+    nodes: transactionFixture(nodes),
     model: async () => {
       entered.release();
       await loading.held;
       return answer();
     },
   });
-  const reader = createAgentBackend({ nodes, model: async () => answer() });
+  const reader = createAgentBackend({
+    nodes: transactionFixture(nodes),
+    model: async () => answer(),
+  });
   const handle = owner.start(prepared);
   await entered.held;
   try {
@@ -244,14 +252,17 @@ test('disposing a reader does not stop another caller and disposing a settled re
   const loading = gate();
   const entered = gate();
   const owner = createAgentBackend({
-    nodes,
+    nodes: transactionFixture(nodes),
     model: async () => {
       entered.release();
       await loading.held;
       return answer();
     },
   });
-  const reader = createAgentBackend({ nodes, model: async () => answer() });
+  const reader = createAgentBackend({
+    nodes: transactionFixture(nodes),
+    model: async () => answer(),
+  });
   const handle = owner.start(prepared);
   expect(reader.start(prepared)).toBe(handle);
   await entered.held;
@@ -267,7 +278,10 @@ test('disposing a reader does not stop another caller and disposing a settled re
       throw new Error('Acceptance response lost');
     },
   };
-  const recovering = createAgentBackend({ nodes: transport, model: async () => answer() });
+  const recovering = createAgentBackend({
+    nodes: transactionFixture(transport),
+    model: async () => answer(),
+  });
   const recovery = recovering.start(recoveryRequest);
   expect((await recovery.done).phase).toBe('unsaved');
   expect((await recovering.read('recovery'))?.ownership).toBe('live');
@@ -281,7 +295,7 @@ test('disposal retains ownership until an entered tool settles without terminali
   const held = gate();
   let context!: AgentToolContext;
   const owner = createAgentBackend({
-    nodes,
+    nodes: transactionFixture(nodes),
     model: async () => toolModel(),
     tools: (supplied) => {
       context = supplied;
@@ -334,7 +348,7 @@ test('disposal drains an entered detached content publication after its tool has
   const transport = {
     ...nodes,
     commit: async (value: import('../vault/nodes/store.ts').NodeCommit) => {
-      if (value.id === 'disposing-content') {
+      if (value.changes.some((change) => change.node === 'disposing-paragraph')) {
         entered.release();
         await held.held;
       }
@@ -346,19 +360,19 @@ test('disposal drains an entered detached content publication after its tool has
     },
   };
   const owner = createAgentBackend({
-    nodes: transport,
+    nodes: transactionFixture(transport),
     model: async () => toolModel(),
     writableKinds: ['paragraph'],
     tools: (context) => ({
       publish: tool({
         inputSchema: z.object({}),
         execute: () => {
-          publication = context.commit({
-            id: 'disposing-content',
+          publication = context.write((id) => ({
+            id,
             kind: nodeOperations.create,
             message: null,
             changes: [create('disposing-paragraph', { kind: 'paragraph', text: 'Entered.' })],
-          });
+          }));
           return 'Publication requested.';
         },
       }),
@@ -396,7 +410,7 @@ test('stopping a held model run does not expire another run\u0027s context or ac
   const effectEntered = gate();
   const effectRelease = gate();
   const first = createAgentBackend({
-    nodes,
+    nodes: transactionFixture(nodes),
     model: async () => {
       modelEntered.release();
       await loading.held;
@@ -406,7 +420,7 @@ test('stopping a held model run does not expire another run\u0027s context or ac
   await modelEntered.held;
   let supplied!: AgentToolContext;
   const second = createAgentBackend({
-    nodes,
+    nodes: transactionFixture(nodes),
     model: async () => toolModel(),
     writableKinds: ['paragraph'],
     tools: (context) => {
@@ -417,12 +431,12 @@ test('stopping a held model run does not expire another run\u0027s context or ac
           execute: async () => {
             effectEntered.release();
             await effectRelease.held;
-            return await context.commit({
-              id: 'surviving-content',
+            return await context.write((id) => ({
+              id,
               kind: nodeOperations.create,
               message: null,
               changes: [create('surviving-paragraph', { kind: 'paragraph', text: 'Survived.' })],
-            });
+            }));
           },
         }),
       };
@@ -452,7 +466,7 @@ test.each(['changed-node', 'declared-read'])(
     const staleEntered = gate();
     const staleRelease = gate();
     const stale = createAgentBackend({
-      nodes,
+      nodes: transactionFixture(nodes),
       model: async () => toolModel(),
       writableKinds: ['paragraph'],
       tools: (context) => ({
@@ -462,8 +476,8 @@ test.each(['changed-node', 'declared-read'])(
             const before = context.snapshot().get('evidence')!;
             staleEntered.release();
             await staleRelease.held;
-            return await context.commit({
-              id: 'stale-publication',
+            return await context.write((id) => ({
+              id,
               kind: nodeOperations.update,
               message: null,
               ...(dependency === 'declared-read'
@@ -483,14 +497,14 @@ test.each(['changed-node', 'declared-read'])(
                     ]
                   : []),
               ],
-            });
+            }));
           },
         }),
       }),
     }).start(await prepare('stale', true));
     await staleEntered.held;
     const fresh = createAgentBackend({
-      nodes,
+      nodes: transactionFixture(nodes),
       model: async () => toolModel(),
       writableKinds: ['paragraph'],
       tools: (context) => ({
@@ -498,8 +512,8 @@ test.each(['changed-node', 'declared-read'])(
           inputSchema: z.object({}),
           execute: async () => {
             const before = context.snapshot().get('evidence')!;
-            return await context.commit({
-              id: 'fresh-publication',
+            return await context.write((id) => ({
+              id,
               kind: nodeOperations.update,
               message: null,
               changes: [
@@ -511,7 +525,7 @@ test.each(['changed-node', 'declared-read'])(
                   data: { kind: 'paragraph', text: 'Fresh edit.' },
                 },
               ],
-            });
+            }));
           },
         }),
       }),

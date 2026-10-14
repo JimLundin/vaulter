@@ -1,10 +1,9 @@
-import type { NodeStore } from './store.ts';
-import type { NodeAddress, NodeVersion, Transaction } from './model.ts';
-import { transactionOperations } from './operations.ts';
+import type { NodeReading } from './store.ts';
+import type { NodeAddress, NodeVersion } from './model.ts';
 
 /** Reachability in a selected snapshot; exact targets preserve individual versions, not subtrees. */
 export async function nodeClosure(
-  store: NodeStore,
+  store: NodeReading,
   root: NodeAddress,
   sequence?: number,
 ): Promise<readonly NodeVersion[]> {
@@ -24,28 +23,4 @@ export async function nodeClosure(
     if (version.connection) pending.push(version.connection.target);
   }
   return Object.freeze(result);
-}
-
-/** Append guarded compensation; identities, original transactions, and exact citations remain. */
-export async function undoNodes(
-  store: NodeStore,
-  transaction: string,
-  recordedBy: string,
-): Promise<Transaction> {
-  const differences = await store.changes(transaction);
-  return store.commit({
-    id: crypto.randomUUID(),
-    recordedBy,
-    origin: null,
-    undoOf: transaction,
-    kind: transactionOperations.undo,
-    message: `Undo ${transaction}`,
-    changes: differences.map(({ node, before, after }) => ({
-      node,
-      expected: after.key.transaction,
-      placement: before?.placement ?? null,
-      connection: before?.connection ?? null,
-      data: before?.data ?? null,
-    })),
-  });
 }

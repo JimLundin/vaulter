@@ -1,3 +1,4 @@
+import { transactionFixture } from '../../vault/transactions/fixtures.test-support.ts';
 import { expect, test, vi } from 'vitest';
 import { MockLanguageModelV4, convertArrayToReadableStream } from 'ai/test';
 import { memoryNodeBackend } from '../../vault/nodes/memory.ts';
@@ -27,8 +28,8 @@ async function fixture(overrides: Partial<NodeConversationOptions> = {}) {
       ]),
     }),
   });
-  const options = {
-    nodes,
+  const options: NodeConversationOptions = {
+    nodes: transactionFixture(nodes),
     user: 'user',
     agent: 'agent',
     provider: 'fictional',
@@ -54,7 +55,7 @@ test('Chat owns a request before clearing its source and preserves newer typing 
   let failing = true;
   const chat = createNodeConversation({
     ...options,
-    nodes: {
+    nodes: transactionFixture({
       ...nodes,
       commit: async (value) => {
         if (value.kind.scope === 'chat' && value.kind.action === 'submit' && failing) {
@@ -64,7 +65,7 @@ test('Chat owns a request before clearing its source and preserves newer typing 
         }
         return nodes.commit(value);
       },
-    },
+    }),
   });
   try {
     chat.setDraft('  First request  ');
@@ -282,10 +283,10 @@ test('asynchronous preparation failure preserves locally owned request text with
   let fail = true;
   const chat = createNodeConversation({
     ...options,
-    nodes: {
+    nodes: transactionFixture({
       ...nodes,
       snapshot: () => (fail ? Promise.reject(new Error('Snapshot unavailable')) : nodes.snapshot()),
-    },
+    }),
   });
   try {
     chat.setDraft('Owned before the read');

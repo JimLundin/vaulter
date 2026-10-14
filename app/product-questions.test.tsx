@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+import { transactionFixture } from './vault/transactions/fixtures.test-support.ts';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { expect, test, vi } from 'vitest';
@@ -9,6 +10,7 @@ import { memoryBackend } from './vault/storage/memory.ts';
 import { memoryNodeBackend } from './vault/nodes/memory.ts';
 import { create, request, revise } from './vault/nodes/fixtures.test-support.ts';
 import type { NodeCommit, NodeStore } from './vault/nodes/store.ts';
+import type { TransactionStore } from './vault/transactions/store.ts';
 
 test('Product composes the shared Questions owner for nested Wiki questions and retained answers', async () => {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
@@ -58,7 +60,7 @@ test('Product composes the shared Questions owner for nested Wiki questions and 
           secretOverrides: {},
           updateSecret: async () => undefined,
           blocked: null,
-          nodes,
+          nodes: transactionFixture(nodes),
           nodeStatus: { kind: 'synced', at: 0 },
           refreshNodes: async () => undefined,
         }}
@@ -166,7 +168,7 @@ test('Product saves answers from Wiki and Questions and filters the retained sha
           secretOverrides: {},
           updateSecret: async () => undefined,
           blocked: null,
-          nodes,
+          nodes: transactionFixture(nodes),
           nodeStatus: { kind: 'synced', at: 0 },
           refreshNodes: async () => undefined,
         }}
@@ -287,7 +289,7 @@ test('Product saves answers from Wiki and Questions and filters the retained sha
 
 async function answerLifetimeFixture(
   signOut: (() => Promise<void>) | null = null,
-  initialNodes?: (nodes: ReturnType<typeof memoryNodeBackend>) => NodeStore,
+  initialNodes?: (nodes: ReturnType<typeof memoryNodeBackend>) => NodeStore | TransactionStore,
 ) {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
   localStorage.clear();
@@ -326,7 +328,7 @@ async function answerLifetimeFixture(
           secretOverrides: {},
           updateSecret: async () => undefined,
           blocked: null,
-          nodes: suppliedNodes,
+          nodes: transactionFixture(suppliedNodes),
           nodeStatus: { kind: 'synced', at: 0 },
           refreshNodes: async () => undefined,
         }}
@@ -365,7 +367,7 @@ async function answerLifetimeFixture(
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
   };
-  const replaceNodes = async (next: NodeStore) => {
+  const replaceNodes = async (next: NodeStore | TransactionStore) => {
     suppliedNodes = next;
     await act(async () => root.render(<Surface />));
   };
@@ -398,13 +400,17 @@ test('credential replacement retains entered Answer permission and moves prewrap
         if (value.kind.scope !== 'questions') return raw.commit(value, publication);
         attempts.push(value);
         // Enter actual authoritative owner admission, then lose publication availability.
-        return raw.commit(value, (context) => {
-          publication?.(context);
-          throw new Error('Credential expired during Answer publication.');
-        });
+        return raw
+          .commit(value, (context) => {
+            publication?.(context);
+            throw new Error('Credential expired during Answer publication.');
+          })
+          .catch(() => {
+            throw new Error('Credential expired during Answer publication.');
+          });
       },
     };
-    return productNodes(transport);
+    return productNodes(transactionFixture(transport));
   });
   const { nodes, button, draft, navigate, replaceNodes } = fixture;
   try {

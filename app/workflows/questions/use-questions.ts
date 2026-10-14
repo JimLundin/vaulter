@@ -1,5 +1,5 @@
 import { useLayoutEffect, useState, useSyncExternalStore } from 'react';
-import type { NodeStore } from '../../vault/nodes/store.ts';
+import type { NodeReading } from '../../vault/nodes/store.ts';
 import { createQuestionsReading, type QuestionsReading } from './reading.ts';
 import {
   createQuestionAnswers,
@@ -24,7 +24,7 @@ export function useQuestionAnswerState(answers?: QuestionAnswers) {
 export const useQuestions = (reading: QuestionsReading) =>
   useSyncExternalStore(reading.subscribe, reading.snapshot);
 
-export function useQuestionsReading(nodes: NodeStore | null): QuestionsReading {
+export function useQuestionsReading(nodes: NodeReading | null): QuestionsReading {
   const [lifetime, setLifetime] = useState(() => ({
     nodes,
     reading: createQuestionsReading(nodes),

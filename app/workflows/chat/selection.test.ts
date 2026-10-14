@@ -1,3 +1,4 @@
+import { transactionOptionsFixture } from '../../vault/transactions/fixtures.test-support.ts';
 import { expect, test, vi } from 'vitest';
 import { memoryNodeBackend } from '../../vault/nodes/memory.ts';
 import { create, request, seed } from '../../vault/nodes/fixtures.test-support.ts';
@@ -50,7 +51,7 @@ async function fixture() {
       throw new Error('Reading must not execute');
     },
   };
-  const chat = createNodeConversation(options);
+  const chat = createNodeConversation(transactionOptionsFixture(options));
   return {
     store,
     chat,
@@ -140,7 +141,7 @@ test('failed Open retains selected history and draft and presents its own error'
 test('an ineligible Open does not cancel an eligible read and blocked selection preserves capture and draft', async () => {
   const { chat, options, hold, reads } = await fixture();
   const voice = createTranscription(async () => ({ close: () => {}, finish: async () => 'Final' }));
-  chat.updateOptions({ ...options, transcription: voice });
+  chat.updateOptions(transactionOptionsFixture({ ...options, transcription: voice }));
   chat.setDraft('Prefix');
   hold();
   const valid = chat.open('first');
@@ -168,7 +169,7 @@ test('an ineligible Open does not cancel an eligible read and blocked selection 
 test('selection rechecks capture after a read without changing the selected task', async () => {
   const { chat, options, hold, reads } = await fixture();
   const voice = createTranscription(async () => ({ close: () => {}, finish: async () => 'Final' }));
-  chat.updateOptions({ ...options, transcription: voice });
+  chat.updateOptions(transactionOptionsFixture({ ...options, transcription: voice }));
   chat.setDraft('Prefix');
   hold();
   const opening = chat.open('first');
@@ -188,7 +189,9 @@ test('selection rechecks capture after a read without changing the selected task
 
 test('request ownership invalidates selection reads before model preparation finishes', async () => {
   const { chat, options, hold, reads } = await fixture();
-  chat.updateOptions({ ...options, selectedModel: 'fictional', availability: undefined });
+  chat.updateOptions(
+    transactionOptionsFixture({ ...options, selectedModel: 'fictional', availability: undefined }),
+  );
   chat.setDraft('Owned request');
   hold();
   const opening = chat.open('first');
@@ -215,12 +218,14 @@ test('disposal invalidates held read completion and retains the last closed snap
 
 test('eligible Open revokes an earlier review before its read finishes', async () => {
   const { chat, options, hold, reads } = await fixture();
-  chat.updateOptions({
-    ...options,
-    selectedModel: 'fictional',
-    availability: undefined,
-    stagedChanges: () => [{ path: 'draft.md', before: 'Old', text: 'Changed' }],
-  });
+  chat.updateOptions(
+    transactionOptionsFixture({
+      ...options,
+      selectedModel: 'fictional',
+      availability: undefined,
+      stagedChanges: () => [{ path: 'draft.md', before: 'Old', text: 'Changed' }],
+    }),
+  );
   chat.setDraft('Review this');
   const review = chat.prepareSubmission();
   if (review.status !== 'review') throw new Error('Expected review');
@@ -237,13 +242,15 @@ test('eligible Open revokes an earlier review before its read finishes', async (
 test('capture-blocked selection keeps an earlier review available after recording finishes', async () => {
   const { chat, options } = await fixture();
   const voice = createTranscription(async () => ({ close: () => {}, finish: async () => 'Final' }));
-  chat.updateOptions({
-    ...options,
-    selectedModel: 'fictional',
-    availability: undefined,
-    transcription: voice,
-    stagedChanges: () => [{ path: 'draft.md', before: 'Old', text: 'Changed' }],
-  });
+  chat.updateOptions(
+    transactionOptionsFixture({
+      ...options,
+      selectedModel: 'fictional',
+      availability: undefined,
+      transcription: voice,
+      stagedChanges: () => [{ path: 'draft.md', before: 'Old', text: 'Changed' }],
+    }),
+  );
   chat.setDraft('Review this');
   const review = chat.prepareSubmission();
   if (review.status !== 'review') throw new Error('Expected review');
@@ -260,12 +267,14 @@ test('capture-blocked selection keeps an earlier review available after recordin
 
 test('a review begun during a pending Open cannot remain attached to newly selected history', async () => {
   const { chat, options, hold, reads } = await fixture();
-  chat.updateOptions({
-    ...options,
-    selectedModel: 'fictional',
-    availability: undefined,
-    stagedChanges: () => [{ path: 'draft.md', before: 'Old', text: 'Changed' }],
-  });
+  chat.updateOptions(
+    transactionOptionsFixture({
+      ...options,
+      selectedModel: 'fictional',
+      availability: undefined,
+      stagedChanges: () => [{ path: 'draft.md', before: 'Old', text: 'Changed' }],
+    }),
+  );
   chat.setDraft('Retain my draft');
   hold();
   const opening = chat.open('first');

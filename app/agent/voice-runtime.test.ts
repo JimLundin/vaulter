@@ -1,9 +1,10 @@
+import { transactionFixture } from '../vault/transactions/fixtures.test-support.ts';
 import { expect, test, vi } from 'vitest';
 import { memoryNodeBackend } from '../vault/nodes/memory.ts';
 import { create, request } from '../vault/nodes/fixtures.test-support.ts';
 import { paragraphTools } from './tool-fixture.test-support.ts';
-import { readAgentRun } from './store.ts';
-import { prepareAgentRun } from './store.ts';
+import { calculateAgentRun, readAgentRun } from './store.ts';
+import { prepareAgentRunFixture as prepareAgentRun } from './preparation.test-support.ts';
 import { createAgentBackend } from './runtime.ts';
 import { MockLanguageModelV4, convertArrayToReadableStream } from 'ai/test';
 import { createVoiceAgent } from './voice-runtime.ts';
@@ -20,7 +21,7 @@ async function fixture(transform: (nodes: NodeStore) => NodeStore = (nodes) => n
   );
   let callbacks!: LiveVoiceOptions<VoiceHistory, VoicePart>;
   const options: VoiceAgentOptions = {
-    nodes: transform(nodes),
+    nodes: transactionFixture(transform(nodes)),
     user: 'user',
     agent: 'agent',
     instructions: 'Capture paragraphs.',
@@ -152,12 +153,12 @@ test('an unrelated text run progresses while a voice module effect is held', asy
         execute: async () => {
           started();
           await held;
-          return await context.commit({
-            id: 'voice-content',
+          return await context.write((id) => ({
+            id,
             kind: { scope: 'paragraphFixture', action: 'capture' },
             message: null,
             changes: [create('voice-paragraph', { kind: 'paragraph', text: 'Voice' })],
-          });
+          }));
         },
       }),
     }),
@@ -188,7 +189,7 @@ test('an unrelated text run progresses while a voice module effect is held', asy
     ],
   });
   const text = createAgentBackend({
-    nodes,
+    nodes: transactionFixture(nodes),
     model: () =>
       Promise.resolve(
         new MockLanguageModelV4({
@@ -225,36 +226,39 @@ test('caller callbacks compose their initial records and project transcripts out
   const onResponse = vi.fn(() => Promise.resolve());
   const voice = await createVoiceAgent({
     ...options,
+    origin: 'caller-context',
     onResponse,
-    prepareTurn: async (input) => {
-      const prepared = await prepareAgentRun(nodes, {
-        id: 'caller-start',
-        run: 'caller-run',
-        agent: 'agent',
-        recordedBy: 'user',
-        at: input.timing.ended,
-        provider: input.provider,
-        model: input.model,
-        settings: {},
-        context: input.context,
-        enabledTools: input.enabledTools,
-      });
-      return {
-        ...prepared,
-        commit: {
+    prepareTurn: async (input, writes) => {
+      const publication = writes.prepare(async ({ id, nodes: reading, recordedBy, origin }) => {
+        const prepared = await calculateAgentRun(reading, {
+          id,
+          run: 'caller-run',
+          agent: 'agent',
+          recordedBy,
+          origin,
+          at: input.timing.ended,
+          provider: input.provider,
+          model: input.model,
+          settings: {},
+          context: input.context,
+          enabledTools: input.enabledTools,
+        });
+        const transaction = {
           ...prepared.commit,
-          origin: 'caller-context',
           changes: [
             create('caller-context', { kind: 'fictionalOrigin', text: input.text }),
             ...prepared.commit.changes,
           ],
-        },
-      };
+        };
+        return { value: { ...prepared, commit: transaction }, transaction };
+      });
+      return { ...(await publication.ready), publication, cancel: writes.close };
     },
   });
   const at = '2026-10-10T12:00:00Z';
   await get().acceptUser('speech', 'Compose this.', { started: at, ended: at });
-  expect((await nodes.changes('caller-start')).map(({ node }) => node)).toContain('caller-context');
+  const initial = (await nodes.snapshot()).get('caller-run')!.key.transaction;
+  expect((await nodes.changes(initial)).map(({ node }) => node)).toContain('caller-context');
   await get().recordResponse('speech', [{ kind: 'text', text: 'Composed.' }], 'complete');
   expect(onResponse).toHaveBeenCalledWith(
     'speech',
@@ -264,6 +268,55 @@ test('caller callbacks compose their initial records and project transcripts out
     expect.any(String),
   );
   await voice.close();
+});
+
+test('Close expires turn preparation without waiting for an arbitrary caller promise', async () => {
+  const { nodes, options, callbacks: get } = await fixture();
+  let enter!: () => void;
+  const entered = new Promise<void>((resolve) => {
+    enter = resolve;
+  });
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const calculate = vi.fn(() => ({
+    value: undefined,
+    transaction: {
+      kind: { scope: 'node', action: 'create' } as const,
+      message: null,
+      undoOf: null,
+      changes: [create('late', { kind: 'content' })],
+    },
+  }));
+  const voice = await createVoiceAgent({
+    ...options,
+    prepareTurn: async (_input, writes) => {
+      enter();
+      await held;
+      writes.write(calculate);
+      throw new Error('Late preparation must not run');
+    },
+  });
+  const at = '2026-10-10T12:00:00Z';
+  const accepting = get().acceptUser('speech', 'Close during preparation.', {
+    started: at,
+    ended: at,
+  });
+  const rejected = expect(accepting).rejects.toMatchObject({ name: 'AbortError' });
+  await entered;
+  try {
+    await voice.close();
+    await rejected;
+    expect(voice.snapshot().phase).toBe('closed');
+    release();
+    await Promise.resolve();
+    expect(calculate).not.toHaveBeenCalled();
+    expect((await nodes.snapshot()).get('late')).toBeUndefined();
+  } finally {
+    release();
+    await voice.close();
+  }
 });
 
 test('caller transcript save recovery retries the same projection without repeating Agent effects', async () => {
@@ -549,7 +602,7 @@ test('a fictional voice caller retains independent Agent context, invocation, ou
   );
   let callbacks!: LiveVoiceOptions<VoiceHistory, VoicePart>;
   const voice = await createVoiceAgent({
-    nodes,
+    nodes: transactionFixture(nodes),
     user: 'user',
     agent: 'agent',
     instructions: 'Capture paragraphs.',

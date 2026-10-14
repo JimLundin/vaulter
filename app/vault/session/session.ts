@@ -14,7 +14,9 @@ import {
   type Credentials,
   type SecretOverrides,
 } from './unlock.ts';
-import type { NodeBackend, NodeStore, OpenNodes } from '../nodes/store.ts';
+import type { NodeBackend, OpenNodes } from '../nodes/store.ts';
+import type { TransactionStore } from '../transactions/store.ts';
+import { createTransactionSession } from '../transactions/lifetime.ts';
 import { serial } from '../storage/coordination.ts';
 import { createSessionCredentials, type SessionCredentials } from './credentials.ts';
 
@@ -42,7 +44,7 @@ export interface Session {
   /** Set while the secrets wait for the password. */
   locked: { unlock: (password: string) => Promise<void> } | null;
   signOut: (() => Promise<void>) | null;
-  nodes: NodeStore | null;
+  nodes: TransactionStore | null;
   nodeStatus: Status;
   refreshNodes: () => Promise<void>;
 }
@@ -70,6 +72,7 @@ export function useSession(
   const [nodes, setNodes] = useState<NodeBackend | null>(null);
   const [nodeStatus, setNodeStatus] = useState<Status>({ kind: 'loading' });
   const activeNodes = useRef<NodeBackend | null>(null);
+  const transactions = useRef(createTransactionSession());
   const activeBackend = useRef<VaultBackend | null>(null);
   const currentCredentials = useRef<Credentials | null>(null);
   const deployment = useRef<Sealed | null>(null);
@@ -163,7 +166,9 @@ export function useSession(
       throw error;
     }
     activeBackend.current?.close?.();
-    activeNodes.current?.close();
+    void transactions.current.replace(store ?? null, (previous) =>
+      (previous as NodeBackend).close(),
+    );
     activeBackend.current = fileBackend;
     activeNodes.current = store ?? null;
     publishCredentials(credentials);
@@ -244,16 +249,18 @@ export function useSession(
         checkSession(runGeneration);
         if (replacement) {
           const previousBackend = activeBackend.current;
-          const previousNodes = activeNodes.current;
           activeBackend.current = replacement;
           activeNodes.current = nodeReplacement ?? null;
+          // Advance generation before React can schedule another application calculation.
+          void transactions.current.replace(nodeReplacement ?? null, (previous) =>
+            (previous as NodeBackend).close(),
+          );
           setBackend(replacement);
           if (replacementHead) setHead(replacementHead);
           setNodes(nodeReplacement ?? null);
           setStatus({ kind: 'synced', at: Date.now() });
           if (nodeReplacement) setNodeStatus({ kind: 'synced', at: Date.now() });
           previousBackend?.close?.();
-          previousNodes?.close();
         }
         publishCredentials(next);
       } catch (error) {
@@ -301,6 +308,7 @@ export function useSession(
     };
     mounted.current = true;
     lifetime.current = new AbortController();
+    transactions.current = createTransactionSession();
     start().catch((e) => {
       if (mounted.current && generation.current === runGeneration)
         setStatus({ kind: 'error', message: String(e) });
@@ -313,7 +321,10 @@ export function useSession(
       deployment.current = null;
       closeReplacements();
       activeBackend.current?.close?.();
-      activeNodes.current?.close();
+      const writes = transactions.current;
+      const store = activeNodes.current;
+      writes.close();
+      void writes.drain().then(() => store?.close());
       activeBackend.current = null;
       activeNodes.current = null;
     };
@@ -397,7 +408,7 @@ export function useSession(
     preloadedSecrets,
     secretOverrides,
     updateSecret,
-    nodes,
+    nodes: nodes ? transactions.current.nodes : null,
     nodeStatus,
     refreshNodes: () => (nodes ? refreshNodes(nodes) : Promise.resolve()),
     locked:
@@ -418,6 +429,8 @@ export function useSession(
           if (signingOut.current !== null) return signingOut.current;
           generation.current++;
           lifetime.current.abort(new Error('The vault session has closed.'));
+          const writes = transactions.current;
+          writes.close();
           currentCredentials.current = null;
           deployment.current = null;
           const files = activeBackend.current;
@@ -436,6 +449,7 @@ export function useSession(
           setSealed(null);
           signingOut.current = (async () => {
             try {
+              await writes.drain();
               const cleared = await Promise.allSettled([
                 Promise.resolve().then(() => files?.clear?.()),
                 Promise.resolve().then(() => store?.clear()),

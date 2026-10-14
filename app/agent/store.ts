@@ -1,6 +1,7 @@
 import type { JsonObject, NodeAddress, NodeVersion } from '../vault/nodes/model.ts';
-import type { NodeCommit, NodeChange, NodeStore } from '../vault/nodes/store.ts';
+import type { NodeCommit, NodeChange, NodeReading } from '../vault/nodes/store.ts';
 import { canonical, frozen } from '../vault/nodes/json.ts';
+import type { WriteLifetime, PreparedRequest } from '../vault/transactions/store.ts';
 import type { TransactionKind } from '../vault/nodes/operations.ts';
 import type { AgentRunData, ContextInputData, ToolExecutionData } from './records.ts';
 import { hasLiveAgentOwner } from './ownership.ts';
@@ -24,9 +25,13 @@ export const agentOperations = {
   completeTool: { scope: 'agent', action: 'completeTool' },
 } as const satisfies Readonly<Record<string, TransactionKind>>;
 
-export interface PreparedAgentRun {
+export interface AgentRunPlan {
   readonly run: string;
   readonly commit: NodeCommit;
+}
+export interface PreparedAgentRun extends AgentRunPlan {
+  readonly publication: PreparedRequest<AgentRunPlan>;
+  readonly cancel: WriteLifetime['close'];
 }
 export interface SuppliedContext {
   readonly data: ContextInputData;
@@ -48,10 +53,10 @@ export interface AgentStartOptions {
 }
 
 /** Prepare once. A caller can compose these changes with its own in the same transaction. */
-export async function prepareAgentRun(
-  store: NodeStore,
+export async function calculateAgentRun(
+  store: NodeReading,
   options: AgentStartOptions,
-): Promise<PreparedAgentRun> {
+): Promise<AgentRunPlan> {
   if (!(options.id && options.run && options.agent && options.recordedBy))
     throw new Error('Agent start requires stable identities');
   const snapshot = await store.snapshot();
@@ -123,6 +128,18 @@ export async function prepareAgentRun(
   );
 }
 
+/** Allocate the request before constructing any exact references or reading its dependencies. */
+export async function prepareAgentRun(
+  lifetime: WriteLifetime,
+  options: Omit<AgentStartOptions, 'id' | 'recordedBy' | 'origin'>,
+): Promise<PreparedAgentRun> {
+  const publication = lifetime.prepare(async ({ id, nodes, recordedBy, origin }) => {
+    const value = await calculateAgentRun(nodes, { ...options, id, recordedBy, origin });
+    return { value, transaction: value.commit };
+  });
+  return Object.freeze({ ...(await publication.ready), publication, cancel: lifetime.close });
+}
+
 export interface SavedAgentRun {
   readonly version: NodeVersion;
   readonly data: AgentRunData;
@@ -141,7 +158,7 @@ export interface SavedAgentRun {
 }
 /** Read-only reconstruction never executes the model or invents an interruption. */
 export async function readAgentRun(
-  store: NodeStore,
+  store: NodeReading,
   run: string,
   sequence?: number,
 ): Promise<SavedAgentRun | undefined> {
@@ -185,7 +202,7 @@ export async function readAgentRun(
 
 /** Verify accepted Agent records without imposing a caller's transaction kind or origin. */
 export async function verifyAgentAcceptance(
-  store: NodeStore,
+  store: NodeReading,
   prepared: PreparedAgentRun,
 ): Promise<void> {
   const differences = await store.changes(prepared.commit.id);
@@ -204,12 +221,16 @@ export async function verifyAgentAcceptance(
   }
 }
 
-export function prepareAgentOutcome(prepared: PreparedAgentRun, data: AgentRunData): NodeCommit {
+export function prepareAgentOutcome(
+  prepared: AgentRunPlan,
+  data: AgentRunData,
+  id: string,
+): NodeCommit {
   if (data.status === 'running') throw new Error('Agent outcome must be terminal');
   const initial = prepared.commit.changes.find((change) => change.node === prepared.run)!;
   const agent = initial.connection!.target.node;
   return frozen({
-    id: crypto.randomUUID(),
+    id,
     recordedBy: agent,
     origin: prepared.run,
     kind: data.status === 'stopped' ? agentOperations.stopRun : agentOperations.completeRun,

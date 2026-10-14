@@ -1,5 +1,5 @@
-// History is a removable workflow. It receives the vault's node history from Product.
-import { FeaturePage, Stack, Text } from '../../ui/kit/index.ts';
+// Core History presents transactions; Product supplies content-owner compensation policy.
+import { FeaturePage, Stack, Text } from '../../../ui/kit/index.ts';
 import { NodeHistory, type NodeHistorySource } from './NodeHistory.tsx';
 
 export function HistoryPage({ nodes }: { nodes?: NodeHistorySource }) {

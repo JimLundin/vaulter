@@ -15,6 +15,9 @@ import {
 } from './unlock.ts';
 import type { Secrets } from './sealed.ts';
 import type { VaultBackend } from '../storage/backend.ts';
+import { create, seed } from '../nodes/fixtures.test-support.ts';
+import { nodeOperations } from '../nodes/operations.ts';
+import { PreparationReplaced, WriteClosed } from '../transactions/lifetime.ts';
 
 vi.mock('./unlock.ts', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./unlock.ts')>()),
@@ -88,7 +91,10 @@ test('unlocked session injects credentials, loads cache before remote refresh, a
   const { session, factory, root } = await open(nodes);
   expect(factory).toHaveBeenCalledWith({ secrets: { github: 'fictional-token' } });
   expect(order).toEqual(['cached', 'refresh']);
-  expect(session().nodes).toBe(nodes);
+  expect(session().nodes).not.toHaveProperty('commit');
+  const snapshot = vi.spyOn(nodes, 'snapshot');
+  await session().nodes!.snapshot();
+  expect(snapshot).toHaveBeenCalledOnce();
   expect(session().nodeStatus.kind).toBe('synced');
   await act(async () => root.unmount());
   roots.splice(roots.indexOf(root), 1);
@@ -281,6 +287,7 @@ test('GitHub replacement preserves the open vault while preparing and ignores ol
     openNodes: (secrets) => (secrets.github === 'replacement-token' ? replacementNodes : nodes),
   });
   const { identity } = session();
+  const originalNodes = session().nodes;
   const originalHead = session().head;
   const oldSetHead = session().setHead;
   let releaseOld!: (head: NonNullable<Session['head']>) => void;
@@ -307,7 +314,7 @@ test('GitHub replacement preserves the open vault while preparing and ignores ol
     updating = session().updateSecret('github', 'replacement-token');
     await Promise.resolve();
   });
-  expect(session().nodes).toBe(nodes);
+  expect(session().nodes).toBe(originalNodes);
   expect(session().credentialPending).toBe(true);
   expect(session().identity).toBe(identity);
   expect(session().head).toBe(originalHead);
@@ -316,7 +323,11 @@ test('GitHub replacement preserves the open vault while preparing and ignores ol
     releaseReplacement();
     await updating;
   });
-  expect(session().nodes).toBe(replacementNodes);
+  expect(session().nodes).not.toBe(originalNodes);
+  expect(session().nodes?.identity).toBe(originalNodes?.identity);
+  const snapshot = vi.spyOn(replacementNodes, 'snapshot');
+  await originalNodes!.snapshot();
+  expect(snapshot).toHaveBeenCalledOnce();
   expect(session().credentialPending).toBe(false);
   expect(session().identity).toBe(identity);
   expect(session().backend).toBe(replacementFiles);
@@ -333,6 +344,150 @@ test('GitHub replacement preserves the open vault while preparing and ignores ol
   expect(session().status.kind).toBe('synced');
 });
 
+test('replacement invalidates preparation before React updates and retires the old adapter after entered writes settle', async () => {
+  const nodes = memoryNodeBackend();
+  const replacement = memoryNodeBackend();
+  await seed(nodes);
+  await seed(replacement);
+  let enter!: () => void;
+  const entered = new Promise<void>((resolve) => {
+    enter = resolve;
+  });
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let finishCalculation!: () => void;
+  const calculating = new Promise<void>((resolve) => {
+    finishCalculation = resolve;
+  });
+  const commit = nodes.commit;
+  vi.spyOn(nodes, 'commit').mockImplementation(async (request, publication) => {
+    enter();
+    await held;
+    return commit(request, publication);
+  });
+  const close = vi.spyOn(nodes, 'close');
+  const { session } = await open(nodes, {
+    openNodes: (secrets) => (secrets.github === 'replacement-token' ? replacement : nodes),
+  });
+  const original = session().nodes!;
+  using writes = original.writer({ recordedBy: 'user', origin: null }).lifetime();
+  const accepted = writes.write(() => ({
+    value: 'entered',
+    transaction: {
+      kind: nodeOperations.create,
+      message: null,
+      undoOf: null,
+      changes: [create('entered', { kind: 'content' })],
+    },
+  }));
+  await entered;
+  const unfinished = writes.prepare(async () => {
+    await calculating;
+    return {
+      value: 'late',
+      transaction: {
+        kind: nodeOperations.create,
+        message: null,
+        undoOf: null,
+        changes: [create('late', { kind: 'content' })],
+      },
+    };
+  });
+  let invalidatedBeforeRender = false;
+  const unsubscribe = original.subscribe(() => {
+    if (unfinished.snapshot().phase === 'rejected')
+      invalidatedBeforeRender = session().nodes === original;
+  });
+  try {
+    await act(async () => session().updateSecret('github', 'replacement-token'));
+    expect(invalidatedBeforeRender).toBe(true);
+    expect(session().nodes).not.toBe(original);
+    expect(session().nodes!.identity).toBe(original.identity);
+    await expect(unfinished.ready).rejects.toBeInstanceOf(PreparationReplaced);
+    expect(close).not.toHaveBeenCalled();
+    await act(async () => {
+      release();
+      await accepted.result;
+    });
+    expect(accepted.snapshot().phase).toBe('accepted');
+    expect(close).toHaveBeenCalledOnce();
+    finishCalculation();
+    expect((await replacement.snapshot()).get('late')).toBeUndefined();
+  } finally {
+    unsubscribe();
+    release();
+    finishCalculation();
+    await accepted.result;
+  }
+});
+
+test('sign-out closes new writes and retry immediately, then drains persistence before clearing and reloading', async () => {
+  const nodes = memoryNodeBackend();
+  await seed(nodes);
+  let enter!: () => void;
+  const entered = new Promise<void>((resolve) => {
+    enter = resolve;
+  });
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const commit = nodes.commit;
+  vi.spyOn(nodes, 'commit').mockImplementation(async (request, publication) => {
+    enter();
+    await held;
+    return commit(request, publication);
+  });
+  const clear = vi.spyOn(nodes, 'clear');
+  const close = vi.spyOn(nodes, 'close');
+  const reload = vi.spyOn(location, 'reload').mockImplementation(() => undefined);
+  vi.mocked(forget).mockResolvedValue();
+  const { session } = await open(nodes);
+  const managed = session().nodes!;
+  using writes = managed.writer({ recordedBy: 'user', origin: null }).lifetime();
+  const calculate = () => ({
+    value: undefined,
+    transaction: {
+      kind: nodeOperations.create,
+      message: null,
+      undoOf: null,
+      changes: [create('entered', { kind: 'content' })],
+    },
+  });
+  const request = writes.write(calculate);
+  await entered;
+  const prepared = writes.prepare(calculate);
+  let ending!: Promise<void>;
+  try {
+    await act(async () => {
+      ending = session().signOut!();
+      expect(() => writes.write(calculate)).toThrow(WriteClosed);
+      using recovery = managed.writer({ recordedBy: 'user', origin: null }).lifetime();
+      await expect(recovery.retry(prepared)).rejects.toBeInstanceOf(WriteClosed);
+    });
+    expect(clear).not.toHaveBeenCalled();
+    expect(close).not.toHaveBeenCalled();
+    expect(forget).not.toHaveBeenCalled();
+    expect(reload).not.toHaveBeenCalled();
+    expect(request.snapshot().phase).toBe('publishing');
+    await act(async () => {
+      release();
+      await ending;
+    });
+    expect(request.snapshot().phase).toBe('accepted');
+    expect(clear).toHaveBeenCalledOnce();
+    expect(close).toHaveBeenCalledOnce();
+    expect(forget).toHaveBeenCalledOnce();
+    expect(reload).toHaveBeenCalledOnce();
+    expect(session().nodes).toBeNull();
+  } finally {
+    release();
+    await ending;
+  }
+});
+
 test('failed GitHub replacement retains the previous adapters and never saves rejected credentials', async () => {
   const nodes = memoryNodeBackend();
   const replacementNodes = memoryNodeBackend();
@@ -345,13 +500,14 @@ test('failed GitHub replacement retains the previous adapters and never saves re
     openNodes: (secrets) => (secrets.github === 'replacement-token' ? replacementNodes : nodes),
   });
   const originalHead = session().head;
+  const originalNodes = session().nodes;
   await act(async () => {
     await expect(session().updateSecret('github', 'replacement-token')).rejects.toThrow(
       'Replacement rejected',
     );
   });
   expect(session().backend).toBe(files);
-  expect(session().nodes).toBe(nodes);
+  expect(session().nodes).toBe(originalNodes);
   expect(session().head).toBe(originalHead);
   expect(session().secrets?.github).toBe('fictional-token');
   expect(session().secretOverrides).toEqual({});
@@ -371,6 +527,7 @@ test('failed persistence after preparing GitHub replacement closes candidates an
     openBackend: (secrets) => (secrets.github === 'replacement-token' ? replacement : files),
     openNodes: (secrets) => (secrets.github === 'replacement-token' ? candidate : nodes),
   });
+  const originalNodes = session().nodes;
   vi.mocked(saveSecretOverrides).mockRejectedValueOnce(new Error('Device storage full'));
   await act(async () => {
     await expect(session().updateSecret('github', 'replacement-token')).rejects.toThrow(
@@ -378,7 +535,7 @@ test('failed persistence after preparing GitHub replacement closes candidates an
     );
   });
   expect(session().backend).toBe(files);
-  expect(session().nodes).toBe(nodes);
+  expect(session().nodes).toBe(originalNodes);
   expect(session().secrets?.github).toBe('fictional-token');
   expect(closeFiles).toHaveBeenCalledOnce();
   expect(closeNodes).toHaveBeenCalledOnce();

@@ -1,12 +1,12 @@
 import { useLayoutEffect, useState, useSyncExternalStore } from 'react';
-import type { NodeStore } from '../../vault/nodes/store.ts';
+import type { NodeReading } from '../../vault/nodes/store.ts';
 import type { SourceReader } from '../../vault/sources.ts';
 import { createWikiReading, type WikiReading } from './reading.ts';
 
 export const useWiki = (reading: WikiReading) =>
   useSyncExternalStore(reading.subscribe, reading.snapshot);
 
-export function useWikiReading(nodes: NodeStore | null, sources: SourceReader): WikiReading {
+export function useWikiReading(nodes: NodeReading | null, sources: SourceReader): WikiReading {
   const [lifetime, setLifetime] = useState(() => ({
     nodes,
     sources,

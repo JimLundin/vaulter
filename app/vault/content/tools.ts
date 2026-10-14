@@ -1,16 +1,15 @@
 // Content module operations: accepted publication is immediate, without legacy file staging.
 import { tool } from 'ai';
 import { z } from 'zod';
-import type { NodeCommit, NodeSnapshot, NodeDifference } from '../nodes/store.ts';
+import type { NodeSnapshot, NodeDifference } from '../nodes/store.ts';
 import { nodeOperations } from '../nodes/operations.ts';
+import type { TransactionDraft } from '../transactions/store.ts';
 import { contentToolActions } from './tool-actions.ts';
 
 interface ContentContext {
   readonly signal: AbortSignal;
   readonly snapshot: () => NodeSnapshot;
-  readonly commit: (
-    request: Omit<NodeCommit, 'recordedBy' | 'origin' | 'undoOf'>,
-  ) => Promise<string>;
+  readonly write: (calculate: (id: string) => Omit<TransactionDraft, 'undoOf'>) => Promise<string>;
 }
 const content = z.object({ title: z.string().trim().min(1).max(200), text: z.string().min(1) });
 const read = (context: ContentContext, node: string) => {
@@ -27,8 +26,7 @@ export function nodeContentTools(context: ContentContext) {
       execute: async (input) => {
         context.signal.throwIfAborted();
         const node = crypto.randomUUID();
-        const transaction = await context.commit({
-          id: crypto.randomUUID(),
+        const transaction = await context.write(() => ({
           kind: nodeOperations.create,
           message: `Create ${input.title}`,
           changes: [
@@ -40,7 +38,7 @@ export function nodeContentTools(context: ContentContext) {
               data: { kind: 'content', ...input },
             },
           ],
-        });
+        }));
         return { node, transaction, accepted: true };
       },
     }),
@@ -56,20 +54,21 @@ export function nodeContentTools(context: ContentContext) {
       description: 'Update a content node, preserving its identity and prior versions.',
       inputSchema: content.extend({ node: z.string().min(1) }),
       execute: async ({ node, ...input }) => {
-        const version = read(context, node);
-        const transaction = await context.commit({
-          id: crypto.randomUUID(),
-          kind: nodeOperations.update,
-          message: `Update ${input.title}`,
-          changes: [
-            {
-              node,
-              expected: version.key.transaction,
-              placement: version.placement,
-              connection: version.connection,
-              data: { ...version.data, kind: 'content', ...input },
-            },
-          ],
+        const transaction = await context.write(() => {
+          const version = read(context, node);
+          return {
+            kind: nodeOperations.update,
+            message: `Update ${input.title}`,
+            changes: [
+              {
+                node,
+                expected: version.key.transaction,
+                placement: version.placement,
+                connection: version.connection,
+                data: { ...version.data, kind: 'content', ...input },
+              },
+            ],
+          };
         });
         return { node, transaction, accepted: true };
       },

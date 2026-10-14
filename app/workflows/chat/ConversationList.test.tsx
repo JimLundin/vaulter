@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+import { transactionFixture } from '../../vault/transactions/fixtures.test-support.ts';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { expect, test, vi } from 'vitest';
@@ -35,7 +36,7 @@ test('saved conversation loading and read errors remain visible and a later reco
     },
   };
   const conversation = createNodeConversation({
-    nodes,
+    nodes: transactionFixture(nodes),
     user: 'user',
     agent: 'user',
     provider: 'fictional',
@@ -114,7 +115,7 @@ test('the conversation picker loads twenty recent conversations at a time and re
     },
   };
   const conversation = createNodeConversation({
-    nodes,
+    nodes: transactionFixture(nodes),
     user: 'user',
     agent: 'user',
     provider: 'fictional',

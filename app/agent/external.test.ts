@@ -1,10 +1,12 @@
+import { transactionFixture } from '../vault/transactions/fixtures.test-support.ts';
 import { expect, test } from 'vitest';
 import { tool } from 'ai';
 import { z } from 'zod';
 import { memoryNodeBackend } from '../vault/nodes/memory.ts';
 import { create, request } from '../vault/nodes/fixtures.test-support.ts';
 import { nodeOperations } from '../vault/nodes/operations.ts';
-import { prepareAgentRun, readAgentRun } from './store.ts';
+import { readAgentRun } from './store.ts';
+import { prepareAgentRunFixture as prepareAgentRun } from './preparation.test-support.ts';
 import { createAgentBackend } from './runtime.ts';
 
 test('an external voice provider executes through accepted Agent context and durable module tools', async () => {
@@ -35,7 +37,7 @@ test('an external voice provider executes through accepted Agent context and dur
     ],
   });
   const backend = createAgentBackend({
-    nodes,
+    nodes: transactionFixture(nodes),
     execution: async ({ messages, tools, signal }) => {
       expect((await readAgentRun(nodes, 'run'))?.data.status).toBe('running');
       expect(messages).toEqual([{ role: 'user', content: 'Capture this.' }]);
@@ -54,12 +56,12 @@ test('an external voice provider executes through accepted Agent context and dur
         inputSchema: z.object({}),
         execute: async () => {
           expect((await readAgentRun(nodes, 'run'))?.tools[0]?.data.status).toBe('running');
-          return await context.commit({
-            id: 'content',
+          return await context.write((id) => ({
+            id,
             kind: nodeOperations.create,
             message: null,
             changes: [create('paragraph', { kind: 'paragraph', text: 'Captured' })],
-          });
+          }));
         },
       }),
     }),
@@ -67,7 +69,7 @@ test('an external voice provider executes through accepted Agent context and dur
   expect((await backend.start(prepared).done).phase).toBe('complete');
   expect((await readAgentRun(nodes, 'run'))?.data.output).toMatchObject({
     text: 'Captured.',
-    receipt: 'content',
+    receipt: (await nodes.snapshot()).get('paragraph')!.key.transaction,
   });
   expect((await readAgentRun(nodes, 'run'))?.tools[0]?.data.status).toBe('complete');
 });

@@ -1,12 +1,62 @@
-import { expect, test } from 'vitest';
-import { memoryNodeBackend } from '../../vault/nodes/memory.ts';
-import { create, request, revise, seed } from '../../vault/nodes/fixtures.test-support.ts';
-import { nodeHistory, prepareContentUndo } from './nodes.ts';
-import { nodeOperations } from '../../vault/nodes/operations.ts';
-import type { NodeDifference } from '../../vault/nodes/store.ts';
+import { expect, test, vi } from 'vitest';
+import { memoryNodeBackend } from '../../nodes/memory.ts';
+import { create, request, revise, seed } from '../../nodes/fixtures.test-support.ts';
+import { nodeHistory, prepareContentUndo, transactionHistory } from './nodes.ts';
+import { createTransactionSession } from '../lifetime.ts';
+import { nodeOperations } from '../../nodes/operations.ts';
+import type { NodeCommit, NodeDifference } from '../../nodes/store.ts';
 
 const canUndo = ({ before, after }: NodeDifference) =>
   [before, after].every((version) => version?.data == null || version.data.kind === 'paragraph');
+
+test('History coalesces compensation preparation and retries exact accepted work after adapter replacement', async () => {
+  const store = memoryNodeBackend();
+  await seed(store);
+  await store.commit(
+    request('edit', [await revise(store, 'evidence', { kind: 'paragraph', text: 'Changed' })]),
+  );
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const changes = vi.fn(async (transaction: string) => {
+    await held;
+    return store.changes(transaction);
+  });
+  const attempts: NodeCommit[] = [];
+  const session = createTransactionSession({
+    ...store,
+    changes,
+    commit: async (request) => {
+      attempts.push(request);
+      await store.commit(request);
+      throw new Error('Response lost');
+    },
+  });
+  const history = transactionHistory(session.nodes, { recordedBy: 'user', canUndo });
+  const first = history.compensate('edit');
+  expect(history.compensate('edit')).toBe(first);
+  release();
+  await expect(first).rejects.toThrow('Response lost');
+  await session.replace({
+    ...store,
+    changes,
+    commit: (request) => {
+      attempts.push(request);
+      return store.commit(request);
+    },
+  });
+  const recovered = await history.compensate('edit');
+  expect(recovered.undoOf).toBe('edit');
+  expect(attempts).toHaveLength(2);
+  expect(attempts[1]).toBe(attempts[0]);
+  expect(changes).toHaveBeenCalledOnce();
+  expect((await store.history()).filter(({ undoOf }) => undoOf === 'edit')).toHaveLength(1);
+  expect((await store.snapshot()).get('evidence')?.data?.text).toBe('Keep mornings free.');
+  session.close();
+  await session.drain();
+  store.close();
+});
 
 test('History resolves attribution at transaction cutoffs and retains complete structural differences', async () => {
   const store = memoryNodeBackend();

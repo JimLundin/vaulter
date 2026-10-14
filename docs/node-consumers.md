@@ -1,15 +1,16 @@
 # Node consumer contracts
 
-NodeStore provides one Vault representation. [Chat](chat-nodes.md) owns conversation/exchange/message
+Core Transactions provides the shared reading and scoped writing interface to the Vault.
+[Chat](chat-nodes.md) owns conversation/exchange/message
 production and its provenance; [Agent](agent-records.md) independently owns runs, effective context
 and tool executions. Product explicitly composes their initial records, models and module-owned tools.
 Storage retains generic JSON, versions, attribution, placement and connections without knowledge of
-producer payloads. The visible History/Search screens remain legacy file workflows, while generic
-node History reads and guarded compensation are available to application callers. Sensor collection
+producer payloads. Core owns the History screen, reading and guarded compensation; Search retains
+its legacy file workflow. Sensor collection
 and migration are separate work.
 
 ```text
-NodeStore: Vault nodes and immutable transactions
+TransactionStore: Vault reads and scoped Transaction requests
   ├─ Chat: conversation → exchange → user/Agent messages
   ├─ Agent: independent run → effective context and durable tool executions
   ├─ Content tools: accepted content nodes and versions
@@ -30,15 +31,15 @@ survive at every depth. No accepted content is sanitized or silently dropped. Un
 shapes or new kind/status discriminators require deliberate decoding and migration before these
 feature readers support their behavior; the generic store remains able to retain their JSON.
 
-`prepareChatSubmission()` returns one immutable `NodeCommit`; the caller retains and commits
-that exact request for retries. It requires an existing live user identity and a valid existing
-conversation, or creates a conversation atomically with the exchange. Declared reads guard the
-author and conversation against changes before acceptance. Identity generation happens during
-preparation, so calling preparation again is a new request, not a persistence retry.
+`prepareNodeChatSubmission()` receives a write lifetime and calculates Chat and Agent changes in
+one core request. The pure `prepareChatSubmission()` helper requires an existing live user identity
+and a valid existing conversation, or creates a conversation atomically with the exchange.
+Declared reads guard the author and conversation against changes before acceptance. Core allocates
+the Transaction identity before calculation and retains finalized contents for saving-only retries.
 
-`prepareChatResponse()` returns a separate immutable request attributed to the supplied agent
-identity. It versions only the agent message, retains its submission timestamp and placement,
-and expects the submission version. Completed, failed, stopped and interrupted are terminal
+`prepareChatResponse()` calculates a separate response inside a write lifetime attributed to the
+supplied agent identity. It versions only the agent message, retains its submission timestamp and
+placement, and expects the submission version. Completed, failed, stopped and interrupted are terminal
 states; running is rejected. The stopped operation has its own kind; the other terminal outcomes
 use `completeResponse` with their explicit payload status. Content tools publish independent
 transactions so response completion or Stop cannot undo accepted content.
@@ -58,12 +59,14 @@ Disabled, unsupported, denied, unavailable, timed out and failed are distinct ou
 than invented measurements. Run/tool payloads describe execution; these types do not execute it.
 
 `chat-metadata-schema.ts` validates subject/value correlations, dates, units, JSON and UTF-16
-selection ranges while retaining complete payloads. `recordChatMetadata()` creates entries and
-reference children atomically. Exact structural endpoints are mandatory; interpretations require
-an exact evidence link. Late enrichment and corrections create new identities without versioning
-the conversation, exchange or original message. The caller supplies stable IDs, author and
-exchange from trusted context and retains them for identical retries. Changing the interpretation
-creates a correction linked to original evidence, rather than overwriting it.
+selection ranges while retaining complete payloads. `recordChatMetadata(lifetime, options)` creates
+entries and reference children atomically and returns the core request handle. Exact structural
+endpoints are mandatory; interpretations require an exact evidence link. Late enrichment and
+corrections create new identities without versioning
+the conversation, exchange or original message. The caller supplies Node identities and pins author
+and exchange through its writer context; core allocates the Transaction ID before constructing exact
+self-references. Retain the handle for identical retries through a fresh lifetime. Changing the
+interpretation creates a correction linked to original evidence, rather than overwriting it.
 
 Browser sensors and collection orchestration are outside this integration. The new Chat producer
 accepts only its metadata payloads. Historical `parseMetadata` delegates old run/context/tool
@@ -74,25 +77,28 @@ or the semantic validity of a selected text range in a particular projection.
 
 ## History contract
 
-`app/workflows/history/nodes.ts` exports `nodeHistory()` with the store's cursor/limit/kind filters.
+`app/vault/transactions/history/nodes.ts` exports `nodeHistory()` with the store's cursor/limit/kind filters.
 Each entry includes the transaction, author and origin resolved at that transaction's cutoff, and
 complete before/after node versions. This exposes content, placement, connection, retargeting and
 tombstones without interpreting Git hashes or reconstructing file patches. New actor names do not
 rewrite historical attribution. A consumer can request `store.snapshot(transaction.sequence)` to
 reconstruct the complete state at any listed transaction.
 
-`prepareContentUndo()` builds an immutable compensating request with caller-supplied retry ID,
-author and `undoOf`. It restores previous data/placement/connection or appends a tombstone for
-new content. Expected versions reject any intervening affected-node change atomically. Its required
+`transactionHistory()` owns compensation preparation, coalesced attempts and uncertain-request
+retention. Its `compensate(transaction)` or `undo(entry)` operation uses a fresh write lifetime;
+repeating an uncertain operation retries the exact finalized request. `prepareContentUndo()` is its
+pure calculation helper, using the core-allocated ID, author and `undoOf`. It restores previous data,
+placement and connection or appends a tombstone for new content. Expected versions reject any
+intervening affected-node change atomically. Its required
 `canUndo` callback is supplied by Product from feature-owned policies. Chat exports
 `preservesChatRecords()` to reject changes to its transcript/provenance payloads, checking both
 before and after versions, including deletions and retagging. Mixed transactions are refused if
 any change fails the composed policy. Product combines `preservesAgentRecords`,
 `preservesChatRecords` and content-owned `canUndoContent`. Agent conservatively preserves all
 metadata reference nodes. History never imports either producer or hardcodes its record kinds.
-This helper is a consumer operation, not a generic permission boundary. The central store's general
-`undoNodes` remains available for other policies. Actor authorization and allowed content operations belong
-to the runtime's trusted writer context.
+Product retains this History owner across reading-facade replacement. Other consumers supply their
+own `canUndo` policy to `transactionHistory`; actor authorization and allowed content operations
+belong to trusted writer context. History UI and operations live under `app/vault/transactions/history/`.
 
 ## Integrated producer behavior
 
@@ -105,7 +111,7 @@ from execution failures, with saving-only retries. Stop preserves accepted conte
 work. Reopening reconstructs records without replay; absent local ownership leaves liveness unknown.
 
 `productNodeHistory` exposes generic History and composed compensation. Removing a workflow removes
-its execution/decoding code, while NodeStore history, differences and snapshots still retain every
+its execution/decoding code, while core History, differences and snapshots still retain every
 accepted generic record. Separate producer/content transactions let content undo preserve transcript
 and audit evidence. Migration inside the Vault and remote history growth remain separate work.
 

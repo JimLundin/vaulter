@@ -1,3 +1,4 @@
+import { transactionFixture } from '../vault/transactions/fixtures.test-support.ts';
 import { expect, test } from 'vitest';
 import { tool } from 'ai';
 type ModelStream = Awaited<ReturnType<MockLanguageModelV4['doStream']>>['stream'];
@@ -7,7 +8,8 @@ import { MockLanguageModelV4, convertArrayToReadableStream } from 'ai/test';
 import { memoryNodeBackend } from '../vault/nodes/memory.ts';
 import { create, request, seed } from '../vault/nodes/fixtures.test-support.ts';
 import { nodeOperations } from '../vault/nodes/operations.ts';
-import { prepareAgentRun, readAgentRun } from './store.ts';
+import { readAgentRun } from './store.ts';
+import { prepareAgentRunFixture as prepareAgentRun } from './preparation.test-support.ts';
 import { createAgentBackend } from './runtime.ts';
 import type { AgentToolFactory } from './tools.ts';
 
@@ -76,12 +78,12 @@ test('a module publishes content through a durable attributed invocation and rea
           input: { text: 'New content' },
           call: 'call',
         });
-        const transaction = await context.commit({
-          id: 'published',
+        const transaction = await context.write((id) => ({
+          id,
           kind: nodeOperations.create,
           message: null,
           changes: [create('published-content', { kind: 'paragraph', text })],
-        });
+        }));
         return { node: 'published-content', transaction };
       },
     }),
@@ -90,7 +92,7 @@ test('a module publishes content through a durable attributed invocation and rea
     doStream: [calls('publish', { text: 'New content' }), answer()],
   });
   const backend = createAgentBackend({
-    nodes,
+    nodes: transactionFixture(nodes),
     model: async () => languageModel,
     tools,
     writableKinds: ['paragraph'],
@@ -99,21 +101,26 @@ test('a module publishes content through a durable attributed invocation and rea
   const saved = await readAgentRun(nodes, 'run');
   expect(saved?.tools[0]?.data).toMatchObject({
     status: 'complete',
-    output: { node: 'published-content', transaction: 'published' },
+    output: {
+      node: 'published-content',
+      transaction: (await nodes.snapshot()).get('published-content')!.key.transaction,
+    },
   });
   expect(saved?.tools[0]?.version.placement?.parent).toBe('run');
   expect(saved?.tools[0]?.version.connection?.source).toEqual({
     node: 'run',
-    transaction: 'start',
+    transaction: prepared.commit.id,
   });
   expect((await nodes.snapshot()).get('published-content')?.data?.text).toBe('New content');
-  expect((await nodes.history()).find(({ id }) => id === 'published')).toMatchObject({
+  expect(
+    (await nodes.history()).find(({ kind }) => kind.scope === 'node' && kind.action === 'create'),
+  ).toMatchObject({
     recordedBy: 'agent',
     origin: 'run',
   });
   expect(languageModel.doStreamCalls).toHaveLength(2);
   const reopen = createAgentBackend({
-    nodes,
+    nodes: transactionFixture(nodes),
     model: () => Promise.reject(new Error('Must not run')),
     tools,
   });
@@ -132,7 +139,7 @@ test('invocation persistence must finish before an SDK tool executes and failure
   });
   let effects = 0;
   const backend = createAgentBackend({
-    nodes: {
+    nodes: transactionFixture({
       ...nodes,
       commit: async (value) => {
         if (value.kind.action === 'recordTool') {
@@ -142,7 +149,7 @@ test('invocation persistence must finish before an SDK tool executes and failure
         }
         return await nodes.commit(value);
       },
-    },
+    }),
     model: async () =>
       new MockLanguageModelV4({ doStream: [calls('publish', { text: 'New' }), answer()] }),
     tools: () => ({
@@ -183,13 +190,13 @@ test('an outcome save failure retains completed activity and pauses before the n
   let first = 0;
   let later = 0;
   const backend = createAgentBackend({
-    nodes: {
+    nodes: transactionFixture({
       ...nodes,
       commit: async (value) => {
         if (value.kind.action === 'completeTool') throw new Error('Outcome offline');
         return await nodes.commit(value);
       },
-    },
+    }),
     model: async () => languageModel,
     tools: () => ({
       first: tool({
@@ -234,7 +241,7 @@ test('an outcome save failure retains completed activity and pauses before the n
 test('a module updates its content locally with trusted attribution and preserves structural history', async () => {
   const { nodes, prepared } = await fixture(['update']);
   const backend = createAgentBackend({
-    nodes,
+    nodes: transactionFixture(nodes),
     model: async () => new MockLanguageModelV4({ doStream: [calls('update', {}), answer()] }),
     writableKinds: ['paragraph'],
     tools: (context) => ({
@@ -259,18 +266,19 @@ test('a module updates its content locally with trusted attribution and preserve
               },
             ],
           };
-          return { transaction: await context.commit(claimed) };
+          return { transaction: await context.write((_id) => claimed) };
         },
       }),
     }),
   });
   expect((await backend.start(prepared).done).phase).toBe('complete');
-  expect((await nodes.history()).find(({ id }) => id === 'edited')).toMatchObject({
+  const edited = (await nodes.snapshot()).get('evidence')!.key.transaction;
+  expect((await nodes.history()).find(({ id }) => id === edited)).toMatchObject({
     recordedBy: 'agent',
     origin: 'run',
     undoOf: null,
   });
-  expect(await nodes.changes('edited')).toHaveLength(1);
+  expect(await nodes.changes(edited)).toHaveLength(1);
   expect((await nodes.snapshot()).get('evidence')?.data?.text).toBe('Keep afternoons free.');
   expect((await nodes.snapshot()).get('appearance')?.key.transaction).toBe('seed');
 });
@@ -278,7 +286,7 @@ test('a module updates its content locally with trusted attribution and preserve
 test('declared reads reject a complete stale publication and record the tool failure durably', async () => {
   const { nodes, prepared } = await fixture(['update']);
   const backend = createAgentBackend({
-    nodes,
+    nodes: transactionFixture(nodes),
     model: async () => new MockLanguageModelV4({ doStream: [calls('update', {}), answer()] }),
     writableKinds: ['paragraph'],
     tools: (context) => ({
@@ -294,15 +302,15 @@ test('declared reads reject a complete stale publication and record the tool fai
               },
             ]),
           );
-          return await context.commit({
-            id: 'stale',
+          return await context.write((id) => ({
+            id,
             kind: nodeOperations.create,
             message: null,
             changes: [
               create('first-content', { kind: 'paragraph', text: 'From stale evidence' }),
               create('second-content', { kind: 'paragraph', text: 'Also stale' }),
             ],
-          });
+          }));
         },
       }),
     }),
@@ -323,7 +331,7 @@ test('a supplied Interpretation operation retains exact evidence and a proposal 
     doStream: [calls('interpret', {}), calls('propose', {}, 'proposal-call'), answer()],
   });
   const backend = createAgentBackend({
-    nodes,
+    nodes: transactionFixture(nodes),
     model: async () => languageModel,
     writableKinds: ['interpretation', 'metadataReference', 'fictionalProposal'],
     tools: (context) => ({
@@ -331,8 +339,8 @@ test('a supplied Interpretation operation retains exact evidence and a proposal 
         inputSchema: z.object({}),
         execute: async () => {
           const evidence = context.snapshot().resolve({ node: 'evidence', transaction: 'seed' })!;
-          return await context.commit({
-            id: 'interpretation',
+          return await context.write((id) => ({
+            id,
             kind: nodeOperations.create,
             message: null,
             changes: [
@@ -348,19 +356,19 @@ test('a supplied Interpretation operation retains exact evidence and a proposal 
                 ...create('evidence-link', { kind: 'metadataReference', role: 'evidence' }),
                 placement: { parent: 'interpretation', order: 'a' },
                 connection: {
-                  source: { node: 'interpretation', transaction: 'interpretation' },
+                  source: { node: 'interpretation', transaction: id },
                   target: evidence.key,
                 },
               },
             ],
-          });
+          }));
         },
       }),
       propose: tool({
         inputSchema: z.object({}),
         execute: async () =>
-          await context.commit({
-            id: 'proposal',
+          await context.write((id) => ({
+            id,
             kind: nodeOperations.create,
             message: null,
             changes: [
@@ -370,7 +378,7 @@ test('a supplied Interpretation operation retains exact evidence and a proposal 
                 status: 'pendingReview',
               }),
             ],
-          }),
+          })),
       }),
     }),
   });
@@ -407,7 +415,7 @@ test('Agent protects execution records while the caller composes its own transcr
     ],
   });
   const backend = createAgentBackend({
-    nodes,
+    nodes: transactionFixture(nodes),
     model: async () => languageModel,
     writableKinds: ['paragraph', 'agentRun', 'message'],
     contentPolicy: preservesTranscript,
@@ -416,8 +424,8 @@ test('Agent protects execution records while the caller composes its own transcr
         inputSchema: z.object({ node: z.string() }),
         execute: async ({ node }) => {
           const before = context.snapshot().get(node)!;
-          return await context.commit({
-            id: `retag-${node}`,
+          return await context.write((id) => ({
+            id,
             kind: nodeOperations.update,
             message: null,
             changes: [
@@ -429,7 +437,7 @@ test('Agent protects execution records while the caller composes its own transcr
                 connection: before.connection,
               },
             ],
-          });
+          }));
         },
       }),
     }),
@@ -447,19 +455,19 @@ test('module definitions cannot publish before their invocation is accepted and 
   const { nodes, prepared } = await fixture();
   let context!: import('./tools.ts').AgentToolContext;
   const backend = createAgentBackend({
-    nodes,
+    nodes: transactionFixture(nodes),
     model: async () =>
       new MockLanguageModelV4({ doStream: [calls('publish', { text: 'New' }), answer()] }),
     writableKinds: ['paragraph'],
     tools: async (owned) => {
       context = owned;
       await expect(
-        owned.commit({
-          id: 'early-effect',
+        owned.write((id) => ({
+          id,
           kind: nodeOperations.create,
           message: null,
           changes: [create('early', { kind: 'paragraph', text: 'Too early' })],
-        }),
+        })),
       ).rejects.toThrow();
       return {
         publish: tool({
@@ -486,13 +494,13 @@ test('a failed first outcome also gates other tools emitted in the same model re
   let later = 0;
   const model = new MockLanguageModelV4({ doStream: [both, answer()] });
   const handle = createAgentBackend({
-    nodes: {
+    nodes: transactionFixture({
       ...nodes,
       commit: async (value) => {
         if (value.kind.action === 'completeTool') throw new Error('Offline');
         return await nodes.commit(value);
       },
-    },
+    }),
     model: async () => model,
     tools: () => ({
       first: tool({ inputSchema: z.object({}), execute: () => 'First' }),
@@ -541,7 +549,7 @@ test('Agent retains a supplying module\u0027s accepted tool version in its durab
     ],
   });
   const handle = createAgentBackend({
-    nodes,
+    nodes: transactionFixture(nodes),
     model: async () => new MockLanguageModelV4({ doStream: [calls('publish', {}), answer()] }),
     tools: () => ({ publish: tool({ inputSchema: z.object({}), execute: () => 'Published' }) }),
   }).start(prepared);
@@ -578,7 +586,7 @@ test('owned execution references remain protected from a content operation that 
     (change) => change.data?.kind === 'metadataReference',
   )!;
   const handle = createAgentBackend({
-    nodes,
+    nodes: transactionFixture(nodes),
     model: async () => new MockLanguageModelV4({ doStream: [calls('retag', {}), answer()] }),
     writableKinds: ['metadataReference', 'paragraph'],
     tools: (context) => ({
@@ -586,8 +594,8 @@ test('owned execution references remain protected from a content operation that 
         inputSchema: z.object({}),
         execute: async () => {
           const before = context.snapshot().get(reference.node)!;
-          return await context.commit({
-            id: 'retag-reference',
+          return await context.write((id) => ({
+            id,
             kind: nodeOperations.update,
             message: null,
             changes: [
@@ -599,7 +607,7 @@ test('owned execution references remain protected from a content operation that 
                 data: { kind: 'paragraph', text: 'Discard exact evidence' },
               },
             ],
-          });
+          }));
         },
       }),
     }),
@@ -615,7 +623,7 @@ test('accepted tool names must match caller selection and Agent installs no impl
   const languageModel = new MockLanguageModelV4({ doStream: [answer()] });
   let effects = 0;
   const handle = createAgentBackend({
-    nodes,
+    nodes: transactionFixture(nodes),
     model: async () => languageModel,
     tools: () => ({
       unselected: tool({
@@ -636,7 +644,7 @@ test('accepted tool names must match caller selection and Agent installs no impl
 test('a current write snapshot cannot erase stale dependencies captured through a retained read handle', async () => {
   const { nodes, prepared } = await fixture(['publish']);
   const handle = createAgentBackend({
-    nodes,
+    nodes: transactionFixture(nodes),
     model: async () => new MockLanguageModelV4({ doStream: [calls('publish', {}), answer()] }),
     writableKinds: ['paragraph'],
     tools: (context) => ({
@@ -653,14 +661,14 @@ test('a current write snapshot cannot erase stale dependencies captured through 
               },
             ]),
           );
-          await context.commit({
-            id: 'unrelated-write',
+          await context.write((id) => ({
+            id,
             kind: nodeOperations.create,
             message: null,
             changes: [
               create('unrelated', { kind: 'paragraph', text: 'Still depends on old evidence' }),
             ],
-          });
+          }));
           return 'Unexpected';
         },
       }),

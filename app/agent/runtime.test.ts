@@ -1,39 +1,49 @@
+import { transactionFixture } from '../vault/transactions/fixtures.test-support.ts';
 import { expect, test } from 'vitest';
 import { MockLanguageModelV4, convertArrayToReadableStream } from 'ai/test';
 import { memoryNodeBackend } from '../vault/nodes/memory.ts';
 import { create, request, revise, seed } from '../vault/nodes/fixtures.test-support.ts';
-import { prepareAgentRun, readAgentRun } from './store.ts';
+import { readAgentRun } from './store.ts';
+import { prepareAgentRunFixture as prepareAgentRun } from './preparation.test-support.ts';
 import { createAgentBackend } from './runtime.ts';
 
 const at = '2026-10-10T12:00:00Z';
-async function fixture() {
+async function fixture(
+  compose?: Parameters<typeof prepareAgentRun>[2],
+  origin: string | null = null,
+) {
   const nodes = memoryNodeBackend();
   await seed(nodes);
   await nodes.commit(
     request('actors', [create('agent', { kind: 'agent', name: 'Fictional Agent' })]),
   );
-  const prepared = await prepareAgentRun(nodes, {
-    id: 'start',
-    run: 'run',
-    agent: 'agent',
-    recordedBy: 'user',
-    at,
-    provider: 'fictional',
-    model: 'fictional-model',
-    settings: { temperature: 0 },
-    context: [
-      {
-        data: {
-          kind: 'contextInput',
-          role: 'user',
-          position: 0,
-          transformation: 'verbatim',
-          content: 'Keep mornings free.',
+  const prepared = await prepareAgentRun(
+    nodes,
+    {
+      id: 'start',
+      origin,
+      run: 'run',
+      agent: 'agent',
+      recordedBy: 'user',
+      at,
+      provider: 'fictional',
+      model: 'fictional-model',
+      settings: { temperature: 0 },
+      context: [
+        {
+          data: {
+            kind: 'contextInput',
+            role: 'user',
+            position: 0,
+            transformation: 'verbatim',
+            content: 'Keep mornings free.',
+          },
+          target: { node: 'evidence', transaction: 'seed' },
         },
-        target: { node: 'evidence', transaction: 'seed' },
-      },
-    ],
-  });
+      ],
+    },
+    compose,
+  );
   return { nodes, prepared };
 }
 function model(text = 'Recorded.') {
@@ -61,7 +71,7 @@ test('a caller runs Agent without Chat and reads exact supplied context and dura
   const { nodes, prepared } = await fixture();
   const languageModel = model();
   const backend = createAgentBackend({
-    nodes,
+    nodes: transactionFixture(nodes),
     model: async () => {
       expect((await readAgentRun(nodes, 'run'))?.data.status).toBe('running');
       return languageModel;
@@ -92,13 +102,13 @@ test('a caller runs Agent without Chat and reads exact supplied context and dura
   });
   expect(await nodes.changes(history[0]!.id)).toHaveLength(1);
   expect(
-    (await nodes.changes('start')).some(({ after }) =>
+    (await nodes.changes(prepared.commit.id)).some(({ after }) =>
       ['conversation', 'exchange', 'message'].includes(String(after.data?.kind)),
     ),
   ).toBe(false);
   expect((await readAgentRun(nodes, 'run', history[1]!.sequence))?.data.status).toBe('running');
   const reopened = createAgentBackend({
-    nodes,
+    nodes: transactionFixture(nodes),
     model: () => Promise.reject(new Error('Must not execute')),
   });
   expect((await reopened.start(prepared).done).phase).toBe('complete');
@@ -118,7 +128,7 @@ test('a rejected or delayed initial acceptance invokes no model and a lost respo
   });
   const commits: unknown[] = [];
   const backend = createAgentBackend({
-    nodes: {
+    nodes: transactionFixture({
       ...nodes,
       commit: async (value) => {
         commits.push(value);
@@ -128,7 +138,7 @@ test('a rejected or delayed initial acceptance invokes no model and a lost respo
         if (commits.length === 1) throw new Error('Lost acceptance response');
         return await nodes.commit(value);
       },
-    },
+    }),
     model: async () => languageModel,
   });
   const handle = backend.start(prepared);
@@ -155,16 +165,16 @@ test('Stop during initial acceptance records a stopped run without invoking a mo
   });
   let models = 0;
   const backend = createAgentBackend({
-    nodes: {
+    nodes: transactionFixture({
       ...nodes,
       commit: async (value) => {
-        if (value.id === 'start') {
+        if (value.id === prepared.commit.id) {
           entered();
           await held;
         }
         return await nodes.commit(value);
       },
-    },
+    }),
     model: () => {
       models++;
       return Promise.resolve(model());
@@ -188,7 +198,7 @@ test('a completed outcome remains visible when saving fails and retry never repe
   let rejectOutcome = true;
   const saves: unknown[] = [];
   const backend = createAgentBackend({
-    nodes: {
+    nodes: transactionFixture({
       ...nodes,
       commit: async (value) => {
         if (value.kind.action === 'completeRun') {
@@ -198,7 +208,7 @@ test('a completed outcome remains visible when saving fails and retry never repe
         }
         return await nodes.commit(value);
       },
-    },
+    }),
     model: async () => languageModel,
   });
   const handle = backend.start(prepared);
@@ -218,13 +228,19 @@ test('a completed outcome remains visible when saving fails and retry never repe
 
 test('changed contents under a retained identity are rejected even after reopening', async () => {
   const { nodes, prepared } = await fixture();
-  const backend = createAgentBackend({ nodes, model: async () => model() });
+  const backend = createAgentBackend({
+    nodes: transactionFixture(nodes),
+    model: async () => model(),
+  });
   const handle = backend.start(prepared);
   await handle.done;
   expect(backend.start(prepared)).toBe(handle);
   const changed = { ...prepared, commit: { ...prepared.commit, message: 'Different request' } };
   expect(() => backend.start(changed)).toThrow('different contents');
-  const reopened = createAgentBackend({ nodes, model: async () => model() });
+  const reopened = createAgentBackend({
+    nodes: transactionFixture(nodes),
+    model: async () => model(),
+  });
   expect(await reopened.start(changed).done).toMatchObject({ phase: 'failed' });
   expect((await readAgentRun(nodes, 'run'))?.data.status).toBe('complete');
 });
@@ -232,7 +248,7 @@ test('changed contents under a retained identity are rejected even after reopeni
 test('execution failure is recorded separately from persistence failure', async () => {
   const { nodes, prepared } = await fixture();
   const backend = createAgentBackend({
-    nodes,
+    nodes: transactionFixture(nodes),
     model: () => Promise.reject(new Error('Provider unavailable')),
   });
   const result = await backend.start(prepared).done;
@@ -254,7 +270,7 @@ test('Stop while model loading settles without relying on provider cancellation'
     entered = resolve;
   });
   const backend = createAgentBackend({
-    nodes,
+    nodes: transactionFixture(nodes),
     model: () => {
       entered();
       return new Promise(() => {
@@ -302,7 +318,10 @@ test('generated structured context and supplied settings describe the effective 
     ],
   });
   const languageModel = model();
-  const handle = createAgentBackend({ nodes, model: async () => languageModel }).start(prepared);
+  const handle = createAgentBackend({
+    nodes: transactionFixture(nodes),
+    model: async () => languageModel,
+  }).start(prepared);
   expect((await handle.done).phase).toBe('complete');
   expect(languageModel.doStreamCalls[0]?.prompt).toEqual([
     { role: 'system', content: 'Answer briefly.' },
@@ -312,27 +331,30 @@ test('generated structured context and supplied settings describe the effective 
 });
 
 test('caller-owned records compose atomically with Agent start and execution requires that acceptance', async () => {
-  const { nodes, prepared } = await fixture();
-  const composed = {
-    ...prepared,
-    commit: {
-      ...prepared.commit,
-      origin: 'caller',
-      changes: [
-        create('caller', { kind: 'fictionalTask', title: 'Organize a morning' }),
-        ...prepared.commit.changes,
-      ],
-    },
-  };
+  const { nodes, prepared } = await fixture(
+    (prepared) => ({
+      ...prepared,
+      commit: {
+        ...prepared.commit,
+        origin: 'caller',
+        changes: [
+          create('caller', { kind: 'fictionalTask', title: 'Organize a morning' }),
+          ...prepared.commit.changes,
+        ],
+      },
+    }),
+    'caller',
+  );
+  const composed = prepared;
   const backend = createAgentBackend({
-    nodes,
+    nodes: transactionFixture(nodes),
     model: async () => {
       expect((await nodes.snapshot()).get('caller')?.data?.title).toBe('Organize a morning');
       return model();
     },
   });
   expect((await backend.start(composed).done).phase).toBe('complete');
-  expect((await nodes.changes('start')).map(({ node }) => node)).toContain('caller');
+  expect((await nodes.changes(prepared.commit.id)).map(({ node }) => node)).toContain('caller');
   const changed = {
     ...composed,
     commit: {
@@ -345,7 +367,12 @@ test('caller-owned records compose atomically with Agent start and execution req
     },
   };
   expect(
-    (await createAgentBackend({ nodes, model: async () => model() }).start(changed).done).phase,
+    (
+      await createAgentBackend({
+        nodes: transactionFixture(nodes),
+        model: async () => model(),
+      }).start(changed).done
+    ).phase,
   ).toBe('failed');
 });
 
@@ -418,7 +445,10 @@ test('recorded author configuration and provider identity stay exact across late
       ]),
     }),
   });
-  await createAgentBackend({ nodes, model: async () => languageModel }).start(prepared).done;
+  await createAgentBackend({
+    nodes: transactionFixture(nodes),
+    model: async () => languageModel,
+  }).start(prepared).done;
   await nodes.commit(
     request('changed-agent', [
       await revise(nodes, 'agent', { kind: 'agent', name: 'Changed Agent' }),
@@ -433,8 +463,7 @@ test('recorded author configuration and provider identity stay exact across late
 });
 
 test('composed context for another run cannot replace this run\u0027s supplied model inputs', async () => {
-  const { nodes, prepared } = await fixture();
-  const composed = {
+  const { nodes, prepared } = await fixture((prepared) => ({
     ...prepared,
     commit: {
       ...prepared.commit,
@@ -453,9 +482,13 @@ test('composed context for another run cannot replace this run\u0027s supplied m
         },
       ],
     },
-  };
+  }));
+  const composed = prepared;
   const languageModel = model();
-  await createAgentBackend({ nodes, model: async () => languageModel }).start(composed).done;
+  await createAgentBackend({
+    nodes: transactionFixture(nodes),
+    model: async () => languageModel,
+  }).start(composed).done;
   expect(languageModel.doStreamCalls[0]?.prompt).toEqual([
     { role: 'user', content: [{ type: 'text', text: 'Keep mornings free.' }] },
   ]);

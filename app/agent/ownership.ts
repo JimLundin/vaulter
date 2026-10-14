@@ -1,4 +1,4 @@
-import type { NodeStore } from '../vault/nodes/store.ts';
+import type { NodeReading } from '../vault/nodes/store.ts';
 import { canonical } from '../vault/nodes/json.ts';
 import type { AgentRun } from './runtime.ts';
 import type { PreparedAgentRun } from './store.ts';
@@ -9,21 +9,25 @@ interface Owner {
   readonly dispose: () => void;
 }
 
-// Local controller evidence only. Different adapters/tabs/devices have no implied lease.
-const stores = new WeakMap<NodeStore, Map<string, Owner>>();
+// Local controller evidence only. Different sessions/tabs/devices have no implied lease.
+const stores = new WeakMap<object, Map<string, Owner>>();
+const ownerKey = (nodes: NodeReading): object =>
+  'identity' in nodes && typeof nodes.identity === 'object' && nodes.identity !== null
+    ? nodes.identity
+    : nodes;
 
-export function hasLiveAgentOwner(nodes: NodeStore, run: string): boolean {
-  return stores.get(nodes)?.has(run) ?? false;
+export function hasLiveAgentOwner(nodes: NodeReading, run: string): boolean {
+  return stores.get(ownerKey(nodes))?.has(run) ?? false;
 }
 
 /** Reconcile synchronous starts by run; never queue unrelated execution. */
-export function agentOwnership(nodes: NodeStore) {
+export function agentOwnership(nodes: NodeReading) {
   const owned = new Map<string, Owner>();
-  const active = stores.get(nodes) ?? new Map<string, Owner>();
-  stores.set(nodes, active);
+  const active = stores.get(ownerKey(nodes)) ?? new Map<string, Owner>();
+  stores.set(ownerKey(nodes), active);
   return {
     start: (prepared: PreparedAgentRun, create: () => AgentRun): AgentRun => {
-      const identity = canonical(prepared);
+      const identity = canonical({ run: prepared.run, commit: prepared.commit });
       const known = active.get(prepared.run);
       if (known) {
         if (known.identity !== identity)

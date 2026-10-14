@@ -59,9 +59,7 @@ export interface NodeDifference {
 }
 
 /** Domain operations; UI and tools use this interface rather than database tables. */
-export interface NodeStore {
-  /** Validate and atomically publish complete versions, preserving previous states. */
-  readonly commit: (request: NodeCommit, publication?: NodePublicationRule) => Promise<Transaction>;
+export interface NodeReading {
   readonly snapshot: (sequence?: number) => Promise<NodeSnapshot>;
   readonly history: (options?: {
     readonly beforeSequence?: number;
@@ -73,7 +71,12 @@ export interface NodeStore {
   readonly subscribe: (listener: () => void) => () => void;
 }
 
-/** Session-owned adapter lifecycle; workflows receive only NodeStore. */
+/** Persistence and fixture interface. Application writers use TransactionStore lifetimes. */
+export interface NodeStore extends NodeReading {
+  readonly commit: (request: NodeCommit, publication?: NodePublicationRule) => Promise<Transaction>;
+}
+
+/** Session-owned adapter lifecycle; workflows receive only managed reading and writing. */
 export interface NodeBackend extends NodeStore {
   /** Load the device cache without contacting the remote. */
   readonly cached: () => Promise<void>;

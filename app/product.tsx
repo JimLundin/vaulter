@@ -71,6 +71,8 @@ import { nodeContentTools, canUndoContent } from './vault/content/tools.ts';
 import { contentEnabledTools } from './vault/content/tool-actions.ts';
 import { contentToolPresentation } from './vault/content/tool-presentation.tsx';
 import type { NodeDifference, NodeStore } from './vault/nodes/store.ts';
+import type { TransactionStore } from './vault/transactions/store.ts';
+import { createTransactionSession, withPublication } from './vault/transactions/lifetime.ts';
 import { createOpenAICapabilities } from './agent/openai/index.ts';
 import { preservesAgentRecords } from './agent/preservation.ts';
 import type { AgentToolFactory } from './agent/tools.ts';
@@ -85,12 +87,8 @@ import {
   createNodeConversation,
   type NodeConversationOptions,
 } from './workflows/chat/node-conversation.ts';
-import {
-  nodeHistory,
-  prepareContentUndo,
-  type NodeHistoryEntry,
-} from './workflows/history/nodes.ts';
-import { HistoryPage } from './workflows/history/index.tsx';
+import { transactionHistory } from './vault/transactions/history/nodes.ts';
+import { HistoryPage } from './vault/transactions/history/index.tsx';
 import { Wiki, type ForeignRecordRenderer } from './workflows/wiki/index.tsx';
 import { wikiRoute, pageRoute } from './workflows/wiki/routes.ts';
 import { useWikiReading, useWiki } from './workflows/wiki/use-wiki.ts';
@@ -118,8 +116,13 @@ const conversationRoute = pattern('/chat/:node/');
 const legacyChatRoute = pattern('/agent/');
 const historyRoute = pattern('/history/');
 const settingsRoute = pattern('/settings/');
-const unavailableNodes: NodeStore = {
-  commit: () => Promise.reject(new Error('Node store is unavailable.')),
+const unavailableNodes: TransactionStore = {
+  identity: {},
+  writer: () => ({
+    lifetime: () => {
+      throw new Error('Node store is unavailable.');
+    },
+  }),
   snapshot: () => Promise.reject(new Error('Node store is unavailable.')),
   history: async () => [],
   changes: async () => [],
@@ -161,76 +164,70 @@ const questionContextReading: QuestionContextReading = {
     describeWikiTarget(node, view)?.title ||
     'Retained source',
 };
-const productNodeOwners = new WeakMap<
-  NodeStore,
-  {
-    readonly nodes: NodeStore;
-    readonly source: NodeStore;
-    readonly lifetime: QuestionOwnerLifetime;
-  }
->();
-interface QuestionOwnerLifetime {
-  source: NodeStore;
-  session?: object;
-  readonly stores: WeakMap<NodeStore, NodeStore>;
+interface ProductNodeOwner {
+  nodes: TransactionStore;
   readonly questions: ReturnType<typeof createQuestionOwnership>;
+  readonly histories: Map<string, ReturnType<typeof transactionHistory>>;
+  readonly transactions?: ReturnType<typeof createTransactionSession>;
+  source: NodeStore | TransactionStore;
+  session?: object;
 }
-const productQuestionSessions = new WeakMap<object, QuestionOwnerLifetime>();
+const productNodeOwners = new WeakMap<object, ProductNodeOwner>();
+const productQuestionSessions = new WeakMap<object, ProductNodeOwner>();
 
-function questionOwnerLifetime(source: NodeStore): QuestionOwnerLifetime {
-  // An owner can first be used independently, then adopted by a credential-replacing session.
-  const reading: NodeStore = {
-    snapshot: (sequence) => lifetime.source.snapshot(sequence),
-    history: (options) => lifetime.source.history(options),
-    changes: (transaction) => lifetime.source.changes(transaction),
-    subscribe: (listener) => lifetime.source.subscribe(listener),
-    commit: () => Promise.reject(new Error('Question source discovery cannot publish.')),
-  };
-  const lifetime = {
-    source,
-    stores: new WeakMap<NodeStore, NodeStore>(),
-    questions: createQuestionOwnership({ nodes: reading, reading: questionContextReading }),
-  };
-  return lifetime;
-}
-
-/** Every application task publishes through the same owner checks; storage remains generic. */
-export function productNodes(supplied: NodeStore, session?: object): NodeStore {
-  let retained = session ? productQuestionSessions.get(session) : undefined;
-  const known = productNodeOwners.get(supplied);
-  const source = known?.source ?? supplied;
-  retained ??=
-    known && (!(session && known.lifetime.session) || known.lifetime.session === session)
-      ? known.lifetime
-      : questionOwnerLifetime(source);
-  if (session) {
-    retained.source = source;
-    retained.session = session;
-    productQuestionSessions.set(session, retained);
+/** Product supplies owner rules; the core owns the session and every publication attempt. */
+export function productNodes(
+  supplied: NodeStore | TransactionStore,
+  session?: object,
+): TransactionStore {
+  let owner =
+    (session && productQuestionSessions.get(session)) ||
+    productNodeOwners.get(supplied) ||
+    ('writer' in supplied ? productNodeOwners.get(supplied.identity) : undefined);
+  if (owner && session && owner.session && owner.session !== session) owner = undefined;
+  if (!owner) {
+    const transactions = 'writer' in supplied ? undefined : createTransactionSession(supplied);
+    const reading = transactions?.nodes ?? (supplied as TransactionStore);
+    const questions = createQuestionOwnership({ nodes: reading, reading: questionContextReading });
+    owner = {
+      nodes: withPublication(reading, questions.publication),
+      questions,
+      histories: new Map(),
+      transactions,
+      source: supplied,
+    };
+    productNodeOwners.set(reading.identity, owner);
+    productNodeOwners.set(reading, owner);
+    productNodeOwners.set(owner.nodes, owner);
+  } else if (owner.source !== supplied && owner.nodes !== supplied) {
+    let reading: TransactionStore;
+    if ('writer' in supplied) {
+      if (supplied.identity !== owner.nodes.identity)
+        throw new Error('Adapter replacement must retain the Vault Transaction session.');
+      reading = supplied;
+    } else {
+      if (!owner.transactions)
+        throw new Error('Replace the adapter through its owning Vault Transaction session.');
+      void owner.transactions.replace(supplied);
+      reading = owner.transactions.nodes;
+    }
+    owner.nodes = withPublication(reading, owner.questions.publication);
+    productNodeOwners.set(owner.nodes, owner);
+    owner.source = supplied;
   }
-  const cached = retained.stores.get(source);
-  if (cached) return cached;
-  const { questions } = retained;
-  const nodes: NodeStore = {
-    snapshot: (sequence) => source.snapshot(sequence),
-    history: (options) => source.history(options),
-    changes: (transaction) => source.changes(transaction),
-    subscribe: (listener) => source.subscribe(listener),
-    commit: (request) => source.commit(request, questions.publication),
-  };
-  const owner = { nodes, source, lifetime: retained };
-  retained.stores.set(source, nodes);
-  productNodeOwners.set(source, owner);
-  productNodeOwners.set(nodes, owner);
-  return nodes;
+  productNodeOwners.set(supplied, owner);
+  if (session) {
+    owner.session = session;
+    productQuestionSessions.set(session, owner);
+  }
+  return owner.nodes;
 }
 
-function productQuestions(source: NodeStore) {
-  const nodes = productNodes(source);
-  return productNodeOwners.get(nodes)!.lifetime.questions;
+function productQuestions(source: TransactionStore) {
+  return (productNodeOwners.get(source) ?? productNodeOwners.get(productNodes(source)))!.questions;
 }
-const productToolFactories = new WeakMap<NodeStore, AgentToolFactory>();
-function productTools(nodes: NodeStore): AgentToolFactory {
+const productToolFactories = new WeakMap<TransactionStore, AgentToolFactory>();
+function productTools(nodes: TransactionStore): AgentToolFactory {
   let factory = productToolFactories.get(nodes);
   if (!factory) {
     factory = (context) => ({
@@ -313,9 +310,10 @@ export function OpenProduct({
     () => openAIOptions(providerPreferences.values()),
     [providerValues, providerPreferences],
   );
+  // biome-ignore lint/correctness/useExhaustiveDependencies: borrowed facades follow adapter replacement; identity owns bootstrap recovery.
   const setup = useMemo(
     () => (nodes ? createApplicationIdentities(nodes, identities) : null),
-    [nodes, identities],
+    [nodes?.identity, identities.user, identities.agent],
   );
   const nodeHistoryView = useMemo(
     () => (nodes ? productNodeHistory(nodes, identities) : undefined),
@@ -354,8 +352,11 @@ export function OpenProduct({
   const questions = useQuestionsReading(onWiki || onQuestions ? nodes : null);
   const questionState = useQuestions(questions);
   // Session identity survives credential reconnects; independent supplied stores get a new owner.
-  const chatScope = useRef<{ nodes: NodeStore | null; key: object }>({ nodes: null, key: {} });
-  if (chatScope.current.nodes !== nodes) {
+  const chatScope = useRef<{ nodes: TransactionStore | null; key: object }>({
+    nodes: null,
+    key: {},
+  });
+  if (chatScope.current.nodes?.identity !== nodes?.identity) {
     chatScope.current = {
       nodes,
       key: chatScope.current.nodes === null && nodes ? chatScope.current.key : {},
@@ -827,38 +828,26 @@ export function OpenProduct({
 
 /** Application composition for generic node History and guarded content compensation. */
 export function productNodeHistory(
-  source: NodeStore,
+  source: NodeStore | TransactionStore,
   identities: ApplicationIdentities = defaultIdentities,
 ) {
   const nodes = productNodes(source);
+  const histories = productNodeOwners.get(nodes)!.histories;
+  const existing = histories.get(identities.user);
+  if (existing) return existing;
   const canUndo = (difference: NodeDifference) =>
     preservesAgentRecords(difference) &&
     preservesChatRecords(difference) &&
     canUndoContent(difference);
-  const prepareUndo = (options: { transaction: string; recordedBy: string; id: string }) =>
-    prepareContentUndo(nodes, { ...options, canUndo });
-  return {
-    entries: (options?: Parameters<NodeStore['history']>[0]) => nodeHistory(nodes, options),
-    subscribe: nodes.subscribe,
-    prepareUndo,
-    canUndo: (entry: NodeHistoryEntry) =>
-      entry.differences.length > 0 && entry.differences.every(canUndo),
-    /** Compensates as the owner; acceptance rejects it if an affected node changed since. */
-    undo: async (entry: NodeHistoryEntry) =>
-      nodes.commit(
-        await prepareUndo({
-          transaction: entry.transaction.id,
-          recordedBy: identities.user,
-          id: crypto.randomUUID(),
-        }),
-      ),
-  };
+  const history = transactionHistory(nodes, { recordedBy: identities.user, canUndo });
+  histories.set(identities.user, history);
+  return history;
 }
 
 type ProductChatOptions = Omit<
   NodeConversationOptions,
-  'user' | 'agent' | 'tools' | 'writableKinds' | 'enabledTools'
-> & { readonly identities?: ApplicationIdentities };
+  'user' | 'agent' | 'tools' | 'writableKinds' | 'enabledTools' | 'nodes'
+> & { readonly nodes: NodeStore | TransactionStore; readonly identities?: ApplicationIdentities };
 /** The same explicit composition used by the Product views and independent application callers. */
 export function productChatOptions({
   identities = defaultIdentities,

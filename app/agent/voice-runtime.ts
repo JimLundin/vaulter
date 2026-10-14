@@ -1,7 +1,7 @@
 import { asSchema } from 'ai';
 import { historyModelMessages } from './history.ts';
 import type { ToolSet } from 'ai';
-import type { NodeStore } from '../vault/nodes/store.ts';
+import type { TransactionStore, WriteLifetime } from '../vault/transactions/store.ts';
 import type { JsonValue } from '../vault/nodes/model.ts';
 import { canonical, frozen } from '../vault/nodes/json.ts';
 import { cancellable, serial } from '../vault/storage/coordination.ts';
@@ -27,9 +27,11 @@ export interface VoiceTurnPreparation {
   readonly enabledTools: readonly { readonly name: string }[];
 }
 export interface VoiceAgentOptions {
-  readonly nodes: NodeStore;
+  readonly nodes: TransactionStore;
   readonly user: string;
   readonly agent: string;
+  /** Planned caller context; it may be created by the initial turn calculation. */
+  readonly origin?: string | null;
   readonly instructions: string;
   readonly writableKinds?: readonly string[];
   readonly contentPolicy?: ContentWritePolicy;
@@ -42,7 +44,10 @@ export interface VoiceAgentOptions {
   readonly signal: AbortSignal;
   readonly history?: readonly VoiceHistory[];
   /** Caller may compose its own initial records, preserving the effective supplied context. */
-  readonly prepareTurn?: (input: VoiceTurnPreparation) => Promise<PreparedAgentRun>;
+  readonly prepareTurn?: (
+    input: VoiceTurnPreparation,
+    lifetime: WriteLifetime,
+  ) => Promise<PreparedAgentRun>;
   /** Caller owns transcript persistence; retain the exact prepared request under projection ID for retry. */
   readonly onResponse?: (
     item: string,
@@ -116,7 +121,7 @@ export async function createVoiceAgent(options: VoiceAgentOptions) {
     snapshot: () => {
       throw new Error('Tool declarations cannot read before an accepted turn');
     },
-    commit: () =>
+    write: () =>
       Promise.reject(new Error('Tool declarations cannot write before an accepted turn')),
   };
   const declarations = await cancellable(
@@ -277,13 +282,14 @@ export async function createVoiceAgent(options: VoiceAgentOptions) {
             context,
             enabledTools,
           });
+          using writes = options.nodes
+            .writer({ recordedBy: options.user, origin: options.origin ?? null })
+            .lifetime({ signal });
           const prepared = options.prepareTurn
-            ? await options.prepareTurn(input)
-            : await prepareAgentRun(options.nodes, {
-                id: crypto.randomUUID(),
+            ? await cancellable(options.prepareTurn(input, writes), signal)
+            : await prepareAgentRun(writes, {
                 run: crypto.randomUUID(),
                 agent: options.agent,
-                recordedBy: options.user,
                 at: timing.ended,
                 provider: options.provider,
                 model: options.model,

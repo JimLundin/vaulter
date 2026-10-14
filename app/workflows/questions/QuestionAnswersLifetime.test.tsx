@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+import { transactionFixture } from '../../vault/transactions/fixtures.test-support.ts';
 // biome-ignore lint/correctness/noUnresolvedImports: React 19 exposes StrictMode; TypeScript and the build verify it.
 import { act, StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -22,7 +23,7 @@ test('Answer hook keeps one owner across navigation and capabilities, replaces s
     await act(() =>
       root.render(
         <StrictMode>
-          <Surface options={{ session, nodes, recordedBy: 'user' }} />
+          <Surface options={{ session, nodes: transactionFixture(nodes), recordedBy: 'user' }} />
         </StrictMode>,
       ),
     );
@@ -35,7 +36,7 @@ test('Answer hook keeps one owner across navigation and capabilities, replaces s
           <Surface
             options={{
               session,
-              nodes: replacementNodes,
+              nodes: transactionFixture(replacementNodes),
               recordedBy: 'user',
               availability: 'Reconnect before answering.',
             }}
@@ -48,7 +49,13 @@ test('Answer hook keeps one owner across navigation and capabilities, replaces s
     await act(() =>
       root.render(
         <StrictMode>
-          <Surface options={{ session: {}, nodes: replacementNodes, recordedBy: 'user' }} />
+          <Surface
+            options={{
+              session: {},
+              nodes: transactionFixture(replacementNodes),
+              recordedBy: 'user',
+            }}
+          />
         </StrictMode>,
       ),
     );

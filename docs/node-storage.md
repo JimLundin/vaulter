@@ -6,19 +6,20 @@ recorded data. Valid submitted content is preserved; edits and undo append new v
 transactions without modifying earlier records.
 
 [Chat](chat-nodes.md) and [independent Agent](agent-records.md) produce accepted nodes through this
-contract, and Product supplies models, identities and module-owned tools explicitly. Generic
-[History operations](node-consumers.md) read transactions and prepare guarded compensation. The
-visible Search/History screens retain their legacy file workflows; sensor collection is not part of
-this producer integration. Migration is separate work inside the Vault.
+contract, and Product supplies models, identities and module-owned tools explicitly. Core
+[History operations](node-consumers.md) and the History screen read transactions and prepare guarded
+compensation. Search retains its legacy file workflow; sensor collection is not part of this
+producer integration. Migration is separate work inside the Vault.
 The [captured spike](https://github.com/JimLundin/vaulter/tree/33a77c4) is the design experiment;
 its standalone shell, scratch keys, reset actions, and full replay reads are not shipped here.
 
 ## Application interface
 
-`session.nodes` is a `NodeStore`, or null before the node adapter is available. `session.nodeStatus`
+`session.nodes` is a `TransactionStore`, or null before the node adapter is available. `session.nodeStatus`
 tracks its synchronization separately from the legacy file session. Bootstrap supplies `OpenNodes`;
 the design preview supplies the memory adapter. Workflows receive no key, token, Git client, or
-adapter lifecycle methods.
+adapter lifecycle methods. Read-only consumers use `NodeReading`; application writers receive the
+same reads plus `writer(context).lifetime()`. The facade has no raw `commit` member, even at runtime.
 
 ```ts
 const snapshot = await nodes.snapshot();
@@ -35,25 +36,51 @@ an existing version pair, including versions created together by that transactio
 interpret the transaction as a cutoff. Identity addresses inherit the viewing snapshot.
 Placement's parent is an identity; connections describe source/target independently of placement.
 
-`commit` takes complete proposed states and expected previous transaction IDs. Null expects a new
-identity, not a deleted one. The writer assigns acceptance sequence and recorded time and creates
-one version per changed node. Source reads that informed a calculation can be declared in
-`expectedReads`. Conflicts reject the complete group. Retry the same transaction ID and contents
-when transport acceptance is uncertain; a changed request under that ID is rejected. The writer
-context supplies required `recordedBy` and optional `origin`; those references remain valid after
-deleting the actor or context. Feature/tool ingress must validate feature payloads and attribution.
-The generic store validates JSON and structural integrity, not whether cited evidence supports a
-claim or whether an actor has permission to edit a node.
+Every application write uses `using` or `await using`, as decided in
+[ADR 0009](adr/0009-scoped-transaction-writes.md):
+
+```ts
+using writes = nodes.writer({ recordedBy: userId, origin: null }).lifetime();
+const request = writes.write(async ({ id, nodes: reading }) =>
+  calculateChanges(await reading.snapshot(), id),
+);
+const receipt = await request.result;
+```
+
+The callback returns `{ value, transaction }`. Core allocates its ID and pins trusted author and
+origin before the callback runs. It validates, copies and freezes only persisted JSON; the owner
+value keeps its identity. `prepare()` calculates the same way but waits for explicit `accept()`.
+`ready` resolves the calculated value; `result` permanently represents the initial attempt.
+
+Proposed changes contain complete states and expected previous Transaction IDs. Null expects a new
+identity, not a deleted one. `expectedReads` guards source reads used by a calculation. Composition
+rejects duplicate changed Nodes and contradictory expectations, retaining explicitly required reads.
+Persistence assigns acceptance sequence and recorded time and creates one version per changed Node.
+Author and origin may be created in that same request, and historical references survive deletion.
+
+After uncertain acceptance or closure before publication, a fresh lifetime with the same author and
+origin calls `retry(request)`. Only finalized requests can be retried; neither their ID nor their
+contents change, and their calculation never runs again. Same-request attempts coalesce while
+independent requests may enter concurrently. Conflicts and structural/publication rejections are
+definitive; core never rebases them. Recovery returns its own receipt without replacing `result`.
+
+Both disposal symbols close admission synchronously. Async disposal also waits for entered adapter
+promises through recording their outcomes. It does not wait for arbitrary calculation, model, tool
+or recovery promises. Owners retain their own effect-completion and ordering policies.
+Replacement invalidates unfinished calculation immediately, preserves finalized requests and session
+identity, and supplies a fresh reading facade. Previously borrowed facades direct new reads and writes
+to the current adapter. Sign-out closes admission, drains entered writes, then clears and closes storage.
 
 Application ownership is composed by Product on top of that generic interface. Its supplied
-NodeStore always forwards the Questions publication rule; application callers cannot replace it.
+TransactionStore always forwards the Questions publication rule; application callers cannot replace it.
 The rule runs synchronously inside actual acceptance after authoritative refresh in both adapters,
 before publishing any new Transaction. Questions interprets the previous and proposed records and
 verifies that its create or answer action produced the complete changes and required reads.
 Persistence imports no Questions definitions and serializes no publication permission.
 Historical validation and an identical already-accepted retry do not invoke new-action admission.
 Raw adapter construction and acceptance/loading functions stay with bootstrap, persistence and
-historical fixtures. Session hooks exposing raw nodes remain with Vault assembly and Product, and
+historical fixtures. Raw `NodeStore.commit` stays inside core Transactions and persistence. Session
+hooks remain with Vault assembly and Product, and
 preview fixtures remain outside production callers. Compiler-resolved ownership checks in
 `tools/layout.test.ts` enforce these paths through aliases and re-exports.
 
@@ -64,8 +91,8 @@ derives live ordered placement at the viewing cutoff. An exact live parent versi
 children even when the parent's current identity state is deleted; an absent or deleted addressed
 parent exposes none.
 `nodeClosure` follows children and connection targets, not sources, tracking exact keys to retain
-multiple versions of one identity. `undoNodes` appends guarded compensation instead of deleting
-history; intervening versions reject it. Transcript preservation requires separate chat/content
+multiple versions of one identity. `transactionHistory()` retains guarded compensation requests
+instead of deleting history; intervening versions reject them. Transcript preservation requires separate chat/content
 transactions in the consuming workflow.
 
 An exact root address fixes that record, not its descendants. Select a historical snapshot to
@@ -94,7 +121,7 @@ The device cache stores plaintext structured values, with no cache keys or owner
 Credentials in `secrets.json` remain password-encrypted and never enter transaction records.
 The cache is partitioned by endpoint, repository, branch, and namespace. It stores each envelope
 once plus a plaintext remote head; no CryptoKey is persisted there.
-Signing out clears the device records and closes the adapter while retaining remote history.
+Signing out drains entered writes before clearing device records and closing the adapter, while retaining remote history.
 A new unlock retains plaintext cache data; signing out clears it. The plaintext cache format
 resets old encrypted device records without migrating them; remote history refills on refresh.
 
@@ -123,7 +150,7 @@ incrementally, validating each proposed transaction against the accepted prefix.
 snapshots share those indexes and resolve versions by cutoff; child lists are built on demand.
 Differences look up the preceding versions directly. Snapshot projections retain bounded caches;
 reads do not replay IndexedDB on every call. Indexes are private to Vault and contain generic node
-structure; feature interpretation and the NodeStore interface remain unchanged.
+structure; feature interpretation remains with its owning module.
 
 Device-cache decoding and imported-history validation yield to browser tasks between envelopes
 after an 8 ms work budget or 32 records. Validation completes before any new history is published;
@@ -141,8 +168,10 @@ Adapter tests exercise atomic acceptance, exact citation retention, localized ve
 composition, compensation, conflicts/read dependencies, immutable metadata, retry identity, lost
 responses, competing devices, plaintext reopen/rebuild, cache failures, incremental remote reads,
 and refusal of altered envelopes. Session tests verify cache-before-refresh, credential injection,
-independent error status, close, and sign-out cleanup using fictional records.
+independent error status, synchronous replacement invalidation, delayed adapter retirement, and
+sign-out draining and cleanup using fictional records. Core tests cover scope closure, immutable
+retries, admission, independent writes, composition, original-result retention and disposal.
 
 Product integration tests exercise Chat→Agent→content→durable receipts→response→reopened records,
 independent Agent execution and producer-owned compensation. Text/voice execution and recovery use
-the same NodeStore. No test accesses the private Vault or performs the separate migration.
+the same TransactionStore. No test accesses the private Vault or performs the separate migration.

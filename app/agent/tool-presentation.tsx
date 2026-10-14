@@ -13,7 +13,7 @@ export interface RecordedToolEvidence {
   readonly error?: string;
 }
 
-/** Static reading adapters never require executable tools, credentials or a NodeStore. */
+/** Static reading adapters never require executable tools, credentials or a NodeReading. */
 export interface ToolPresentation {
   readonly title: string;
   readonly live: string;

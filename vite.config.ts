@@ -73,6 +73,7 @@ export default defineConfig(({ command, mode }) => {
     base: './',
     plugins: [noEval(), react(), tailwindcss(), csp(), ...(agent ? [agent.guard] : [])],
     worker: { plugins: () => [noEval()] },
+    oxc: { target: ['chrome111', 'edge111', 'firefox114', 'safari16.4', 'ios16.4'] },
     server: { proxy: agent?.proxy },
     // shadcn/ui's imports: @/components/ui/…, @/lib/utils.
     resolve: { alias: { '@': fileURLToPath(new URL('app', import.meta.url)) } },

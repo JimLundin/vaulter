@@ -1,6 +1,6 @@
+// @vitest-environment happy-dom
 // biome-ignore-all lint/correctness/useUniqueElementIds: Explicit and duplicate identities are intentional public-interface regression cases.
 // biome-ignore-all lint/correctness/useJsxKeyInIterable: Each table entry renders independently into a fresh root, never as siblings.
-// @vitest-environment happy-dom
 import * as React from 'react';
 import { act, Component, useState, type ReactNode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';

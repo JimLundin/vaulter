@@ -1,10 +1,11 @@
+import { transactionFixture } from './vault/transactions/fixtures.test-support.ts';
 import { expect, test } from 'vitest';
 import { tool } from 'ai';
 import { z } from 'zod';
 import { productChatOptions, productNodes } from './product.tsx';
 import { memoryNodeBackend } from './vault/nodes/memory.ts';
 import { create, request, revise } from './vault/nodes/fixtures.test-support.ts';
-import { prepareAgentRun } from './agent/store.ts';
+import { prepareAgentRunFixture as prepareAgentRun } from './agent/preparation.test-support.ts';
 import { createAgentBackend } from './agent/runtime.ts';
 import { agentContentContext } from './agent/tool-context.ts';
 import { NodePublicationRejected } from './vault/nodes/history.ts';
@@ -21,16 +22,18 @@ test('every Product node entry rejects handcrafted Questions and task Relationsh
       create('source', { kind: 'content', text: 'Garden wall.' }),
     ]),
   );
-  const nodes = productNodes(raw);
+  const nodes = productNodes(transactionFixture(raw));
   expect(productNodes(nodes)).toBe(nodes);
   const configured = productChatOptions({
-    nodes: raw,
+    nodes: transactionFixture(raw),
     model: async () => previewModel,
     selectedModel: 'fictional',
     provider: 'fictional',
     instructions: '',
   });
   expect(configured.nodes).toBe(nodes);
+  expect('commit' in nodes).toBe(false);
+  using writes = nodes.writer({ recordedBy: 'user', origin: null }).lifetime();
   const before = await nodes.snapshot();
   const retagged = await revise(nodes, 'question', { kind: 'content', text: 'Retagged.' });
   for (const changes of [
@@ -52,45 +55,60 @@ test('every Product node entry rejects handcrafted Questions and task Relationsh
     ],
   ]) {
     await expect(
-      nodes.commit(
-        request(`forged-${changes[0]!.node}`, [
+      writes.write(() => ({
+        value: undefined,
+        transaction: request(`forged-${changes[0]!.node}`, [
           create(`foreign-${changes[0]!.node}`, { kind: 'content', text: 'Atomic companion.' }),
           ...changes,
         ]),
-      ),
+      })).result,
     ).rejects.toBeInstanceOf(NodePublicationRejected);
   }
   expect((await nodes.snapshot()).sequence).toBe(before.sequence);
   expect((await nodes.snapshot()).get('question')?.data?.kind).toBe('question');
   // Foreign references to the Question stay with their source owner.
-  await nodes.commit(
-    request('reference', [
+  await writes.write(() => ({
+    value: undefined,
+    transaction: request('reference', [
       {
         ...create('reference', { kind: 'relationship', predicate: 'mentions' }),
         connection: { source: { node: 'source' }, target: { node: 'question' } },
       },
     ]),
-  );
+  })).result;
   expect((await nodes.snapshot()).get('reference')).toBeDefined();
   raw.close();
 });
 
 test('an initial Chat/Agent transaction cannot smuggle a Question around the tool publication seam', async () => {
   const raw = memoryNodeBackend();
-  const setup = createApplicationIdentities(raw);
+  const setup = createApplicationIdentities(transactionFixture(raw));
   await setup.ensure();
-  const nodes = productNodes(raw);
-  const prepared = await prepareAgentRun(nodes, {
-    id: 'initial',
-    run: 'run',
-    agent: setup.identities.agent,
-    recordedBy: setup.identities.user,
-    at: '2026-10-13T12:00:00Z',
-    provider: 'fictional',
-    model: 'fictional',
-    settings: {},
-    context: [],
-  });
+  const nodes = productNodes(transactionFixture(raw));
+  const prepared = await prepareAgentRun(
+    nodes,
+    {
+      id: 'initial',
+      run: 'run',
+      agent: setup.identities.agent,
+      recordedBy: setup.identities.user,
+      at: '2026-10-13T12:00:00Z',
+      provider: 'fictional',
+      model: 'fictional',
+      settings: {},
+      context: [],
+    },
+    (prepared) => ({
+      ...prepared,
+      commit: {
+        ...prepared.commit,
+        changes: [
+          ...prepared.commit.changes,
+          create('smuggled', { kind: 'question', text: 'Where?' }),
+        ],
+      },
+    }),
+  );
   let models = 0;
   const backend = createAgentBackend({
     nodes,
@@ -99,16 +117,7 @@ test('an initial Chat/Agent transaction cannot smuggle a Question around the too
       return Promise.resolve(previewModel);
     },
   });
-  const outcome = await backend.start({
-    ...prepared,
-    commit: {
-      ...prepared.commit,
-      changes: [
-        ...prepared.commit.changes,
-        create('smuggled', { kind: 'question', text: 'Where?' }),
-      ],
-    },
-  }).done;
+  const outcome = await backend.start(prepared).done;
   expect(outcome.phase).toBe('unsaved');
   expect(outcome.persistenceError).toContain('Questions create or answer action');
   expect(models).toBe(0);
@@ -127,7 +136,7 @@ test('another admitted tool cannot write Questions or leave owner rejection as a
       create('run', { kind: 'agentRun' }),
     ]),
   );
-  const nodes = productNodes(raw);
+  const nodes = productNodes(transactionFixture(raw));
   let failedSaves = 0;
   const guarded = agentContentContext({
     nodes,
@@ -146,12 +155,12 @@ test('another admitted tool cannot write Questions or leave owner rejection as a
   const supplied = tool({
     inputSchema: z.object({}),
     execute: () =>
-      guarded.context.commit({
-        id: 'tool-forged',
+      guarded.context.write((id) => ({
+        id,
         kind: { scope: 'questions', action: 'ask' },
         message: null,
         changes: [create('tool-question', { kind: 'question', text: 'Where?' })],
-      }),
+      })),
   });
   await expect(
     supplied.execute!({}, { toolCallId: 'call', messages: [], context: {} }),
@@ -163,7 +172,7 @@ test('another admitted tool cannot write Questions or leave owner rejection as a
 
 test('a stopped Agent retries its original authorized Question after uncertain publication without replay', async () => {
   const raw = memoryNodeBackend();
-  const setup = createApplicationIdentities(raw);
+  const setup = createApplicationIdentities(transactionFixture(raw));
   await setup.ensure();
   await raw.commit({
     ...request('source', [
@@ -187,7 +196,7 @@ test('a stopped Agent retries its original authorized Question after uncertain p
     },
   };
   const configured = productChatOptions({
-    nodes: transport,
+    nodes: transactionFixture(transport),
     identities: setup.identities,
     model: async () => previewModel,
     selectedModel: 'fictional',

@@ -1,4 +1,8 @@
 // @vitest-environment happy-dom
+import {
+  transactionFixture,
+  transactionOptionsFixture,
+} from '../../vault/transactions/fixtures.test-support.ts';
 // biome-ignore lint/correctness/noUnresolvedImports: React 19 exposes StrictMode; TypeScript and runtime tests verify it.
 import { act, StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -54,7 +58,7 @@ test.each([undefined, 'missing-retained-chat', 'saved-chat'])(
     });
     function Surface() {
       const conversation = useNodeConversation({
-        nodes,
+        nodes: transactionFixture(nodes),
         user: 'user',
         agent: 'user',
         provider: 'fictional',
@@ -136,11 +140,13 @@ test('requested history retries a failed read when store readiness changes', asy
     availability: string;
     route?: string;
   }) {
-    const conversation = useNodeConversation({
-      ...options,
-      availability,
-      conversation: route || undefined,
-    });
+    const conversation = useNodeConversation(
+      transactionOptionsFixture({
+        ...options,
+        availability,
+        conversation: route || undefined,
+      }),
+    );
     return <Chat conversation={conversation} arg={null} presentation={{ page: true }} />;
   }
   const root = createRoot(document.body);
@@ -191,7 +197,7 @@ test('requested history waits for the initial node read without showing a false 
   const nodes: NodeStore = { ...store, snapshot };
   function Surface({ recordsReady }: { recordsReady: boolean }) {
     const conversation = useNodeConversation({
-      nodes,
+      nodes: transactionFixture(nodes),
       user: 'user',
       agent: 'user',
       provider: 'fictional',
@@ -252,7 +258,7 @@ test('a reply finishing with the mounted pane closed remains unread until it reo
     },
   });
   const conversation = createNodeConversation({
-    nodes,
+    nodes: transactionFixture(nodes),
     user: 'user',
     agent: 'agent',
     provider: 'fictional',
@@ -325,7 +331,7 @@ test('retained prompts are consumed once across page and panel views, including 
     }),
   });
   const conversation = createNodeConversation({
-    nodes,
+    nodes: transactionFixture(nodes),
     user: 'user',
     agent: 'agent',
     provider: 'fictional',
@@ -394,7 +400,9 @@ test('changed supplied availability reaches mounted Chat without notifying subsc
     suggestions: async () => [],
   };
   function Surface({ availability }: { availability?: string }) {
-    const conversation = useNodeConversation({ ...options, availability });
+    const conversation = useNodeConversation(
+      transactionOptionsFixture({ ...options, availability }),
+    );
     return <Chat conversation={conversation} arg={null} presentation={{ page: true }} />;
   }
   const root = createRoot(document.body);
@@ -417,7 +425,7 @@ test('retained review is presented once across simultaneous views and survives h
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
   const nodes = memoryNodeBackend();
   const conversation = createNodeConversation({
-    nodes,
+    nodes: transactionFixture(nodes),
     user: 'user',
     agent: 'agent',
     provider: 'fictional',
@@ -473,7 +481,7 @@ test('simultaneous and reopened Chat views retain blocked Ask with visible Use a
   const nodes = memoryNodeBackend();
   const voice = createTranscription(async () => ({ finish: async () => 'Spoken', close() {} }));
   const conversation = createNodeConversation({
-    nodes,
+    nodes: transactionFixture(nodes),
     user: 'user',
     agent: 'agent',
     provider: 'fictional',
@@ -549,7 +557,7 @@ test('StrictMode owns fresh Chat and recording lifetimes and replacing the Vault
     const voice = useTranscription(provider, session);
     const conversation = useNodeConversation({
       session,
-      nodes,
+      nodes: transactionFixture(nodes),
       user: 'user',
       agent: 'user',
       provider: 'fictional',
@@ -617,7 +625,7 @@ test('mounted shared Chat ignores composition option identity changes without a 
     renders++;
     if (renders > 20) throw new Error('Chat composition entered a render loop');
     const conversation = useNodeConversation({
-      nodes,
+      nodes: transactionFixture(nodes),
       user: 'user',
       agent: 'user',
       provider: 'fictional',

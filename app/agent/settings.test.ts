@@ -1,10 +1,12 @@
+import { transactionFixture } from '../vault/transactions/fixtures.test-support.ts';
 import { expect, test } from 'vitest';
 import { MockLanguageModelV4, convertArrayToReadableStream } from 'ai/test';
 import { createSettings } from '../settings.ts';
 import { memoryNodeBackend } from '../vault/nodes/memory.ts';
 import { create, request } from '../vault/nodes/fixtures.test-support.ts';
 import { createAgentBackend } from './runtime.ts';
-import { prepareAgentRun, readAgentRun } from './store.ts';
+import { readAgentRun } from './store.ts';
+import { prepareAgentRunFixture as prepareAgentRun } from './preparation.test-support.ts';
 import { agentSettings, agentOptions } from './settings.ts';
 import { agentSettingsSchema } from './schema.ts';
 
@@ -186,7 +188,10 @@ test('configured Agent sampling is retained in the run and reaches the provider'
       ]),
     }),
   });
-  const backend = createAgentBackend({ nodes, model: async () => languageModel });
+  const backend = createAgentBackend({
+    nodes: transactionFixture(nodes),
+    model: async () => languageModel,
+  });
   expect((await backend.start(prepared).done).phase).toBe('complete');
   expect((await readAgentRun(nodes, 'run'))?.data.settings).toEqual(options);
   expect(languageModel.doStreamCalls[0]).toMatchObject({

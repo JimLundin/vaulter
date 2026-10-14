@@ -5,16 +5,18 @@ Agent owns runs, supplied context and tool activity. Both produce into the same 
 no file translation or migration belongs to this path.
 
 The node-backed backend accepts a stable Send identity, conversation, text and model. Chat prepares
-its submission records; Agent independently prepares its run and effective context. Caller
-composition combines their changes and read expectations into one same-ID acceptance transaction.
-No model or tool executes before all those records are accepted. Keep the complete prepared value
-for uncertain acceptance retries rather than preparing new identities or timestamps.
+its submission records; Agent independently calculates its run and effective context. Inside one
+write lifetime, caller composition combines their changes and read expectations before core
+finalizes the request. The core Transaction ID is distinct from the public Send ID, retained as
+`metadata.chatRequest`; historical lookup also supports earlier Send IDs used as Transaction IDs.
+No model or tool executes before all those records are accepted. Saving retries use the finalized
+core handle without preparing new identities or timestamps.
 
 A conversation's append queue covers preparation and initial acceptance, then releases. Unrelated
 Agent execution and even the next accepted append can progress while a previous response runs.
 An unresolved initial acceptance holds that local append queue until persistence is reconciled;
-repeated failed retries cannot release it. This coordinates one NodeStore instance, not a new
-cross-device predicate lease. This backend concurrency is not UI Send permission: the retained Chat
+repeated failed retries cannot release it. This coordinates the stable Transaction session identity
+through adapter replacement; it does not introduce a cross-device predicate lease. The retained Chat
 interaction blocks another submission while execution is busy or recovery remains unresolved.
 Appending creates the exchange/message/run/context children without
 rewriting the conversation or earlier messages. NodeStore retains atomic stale-read conflicts.
@@ -31,7 +33,7 @@ A failed response write retains its full request and is retryable without model/
 Agent invocation/outcome/terminal persistence states remain visible alongside the response stage.
 Stop preserves accepted content and known activity; stopped outcome recovery can finish the
 response without a new tool call. A historical Send lookup is read-only by public request semantics;
-actual write retries use only the retained complete prepared request and NodeStore digest identity.
+actual write retries use a fresh `using` lifetime and the retained finalized core request.
 
 ## Retained Chat interaction
 
@@ -86,9 +88,11 @@ cannot mark the same reply unread again.
 
 Draft, review, prompts, selection and accepted run survive ordinary view closure within the owning
 application session. Focus and chooser disclosure remain presentation state. Unsubmitted task state
-is not newly persisted across reload. Product supplies a stable Vault session scope, NodeStore,
+is not newly persisted across reload. Product supplies a stable Vault session scope, TransactionStore,
 identities and capabilities. Same-session readiness/configuration changes apply to later work while
 an active request keeps its admitted backend/context and a recording keeps its original provider.
+Adapter replacement invalidates unfinished write calculations and stale selection reads while
+retaining finalized requests, append ordering and drafts in the same session.
 Session replacement and React effect replay create fresh owners, not revived disposed instances.
 
 Construction acquires no recording subscription until the owner is used/committed. Chat owns its
@@ -102,7 +106,7 @@ idempotent and does not destroy retained Chat work.
 
 ## Product composition and caller configuration
 
-The product supplies the session NodeStore, selected OpenAI capabilities and the content module's
+The product supplies the session TransactionStore, selected OpenAI capabilities and the content module's
 `createNode`, `readNode` and `updateNode` tools to node-backed Chat. The tools publish content directly
 as `{kind: 'content', title: string, text: string}` nodes with no containment or connection by default.
 Updates preserve identity, placement, connections and optional unknown fields, append one version,
@@ -115,7 +119,7 @@ Caller configuration supplies user and Agent identities through `OpenProduct.ide
 are `vaulter:owner` and `vaulter:agent`, configured for this personal application and unrelated to
 GitHub token identity or device identity. Missing records are bootstrapped atomically as actor/Agent
 nodes; existing migrated records and Agent configuration remain intact. Deleted or incompatible
-configured identities require explicit caller correction. A rejected bootstrap retains the exact
+configured identities require explicit caller correction. An uncertain bootstrap retains the exact
 request for retry; concurrent acceptance is reconciled by reading the same valid pair. Configure
 preexisting migrated IDs to avoid introducing a second author/Agent identity.
 

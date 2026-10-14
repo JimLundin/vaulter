@@ -20,6 +20,7 @@ import type { MessageData } from './chat.ts';
 const at = '2026-10-10T12:00:00Z';
 const submit = (transaction = 'send', conversation = 'conversation') => ({
   transaction,
+  exchange: crypto.randomUUID(),
   conversation,
   user: 'user',
   text: 'Keep studio mornings free.',
@@ -50,7 +51,7 @@ test('submission and terminal response are independently retriable and append no
   const running = await savedMessages(store, 'conversation');
   expect(running.map(({ data }) => data.role)).toEqual(['user', 'agent']);
   expect(running[1].data).toMatchObject({ status: 'running' });
-  const terminal = prepareChatResponse(submission, response, 'agent');
+  const terminal = prepareChatResponse(submission, response, 'agent', crypto.randomUUID());
   const completed = await store.commit(terminal);
   expect(await store.commit(terminal)).toEqual(completed);
   expect(await store.changes(terminal.id)).toHaveLength(1);
@@ -99,14 +100,29 @@ test('terminal state validation prevents running responses and timestamp replace
   const store = memoryNodeBackend();
   await seed(store);
   const submission = await prepareChatSubmission(store, submit());
-  expect(() => prepareChatResponse(submission, { ...response, status: 'running' }, 'user')).toThrow(
-    'running',
-  );
   expect(() =>
-    prepareChatResponse(submission, { ...response, at: '2026-10-11T12:00:00Z' }, 'user'),
+    prepareChatResponse(
+      submission,
+      { ...response, status: 'running' },
+      'user',
+      crypto.randomUUID(),
+    ),
+  ).toThrow('running');
+  expect(() =>
+    prepareChatResponse(
+      submission,
+      { ...response, at: '2026-10-11T12:00:00Z' },
+      'user',
+      crypto.randomUUID(),
+    ),
   ).toThrow('timestamp');
   for (const status of ['stopped', 'failed', 'interrupted'] as const) {
-    const terminal = prepareChatResponse(submission, { ...response, status }, 'user');
+    const terminal = prepareChatResponse(
+      submission,
+      { ...response, status },
+      'user',
+      crypto.randomUUID(),
+    );
     expect(terminal.kind).toEqual(
       status === 'stopped' ? chatOperations.stopResponse : chatOperations.completeResponse,
     );

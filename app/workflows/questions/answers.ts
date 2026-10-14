@@ -1,6 +1,5 @@
 import { frozen } from '../../vault/nodes/json.ts';
-import { NodeConflict, NodePublicationRejected } from '../../vault/nodes/history.ts';
-import type { NodeCommit, NodeStore } from '../../vault/nodes/store.ts';
+import type { TransactionRequest, TransactionStore } from '../../vault/transactions/store.ts';
 import type { QuestionAnswerHandler } from './QuestionItem.tsx';
 import { createQuestionOwnership } from './actions.ts';
 import type { Question } from './reading.ts';
@@ -8,7 +7,7 @@ import type { Question } from './reading.ts';
 export interface QuestionAnswersOptions {
   /** Navigation and capability replacement retain this application session's task owner. */
   readonly session: object;
-  readonly nodes: NodeStore | null;
+  readonly nodes: TransactionStore | null;
   /** Supplied by the trusted application, never chosen by an Answer's text or record. */
   readonly recordedBy: string;
   readonly availability?: string;
@@ -43,9 +42,9 @@ export interface QuestionAnswersState {
 interface AnswerTask {
   readonly question: Question;
   readonly text: string;
+  readonly recordedBy: string;
   /** Retain the whole request after entering publication: retries never generate another Answer. */
-  request?: NodeCommit;
-  entered?: boolean;
+  request?: TransactionRequest<void>;
   pending?: Promise<void>;
   error?: string;
 }
@@ -54,6 +53,7 @@ interface AnswerTask {
 export function createQuestionAnswers(initial: QuestionAnswersOptions): QuestionAnswers {
   let options = initial;
   let disposed = false;
+  const abort = new AbortController();
   const tasks = new Map<string, AnswerTask>();
   let state: QuestionAnswersState = frozen({ attempts: [] });
   const listeners = new Set<() => void>();
@@ -78,29 +78,31 @@ export function createQuestionAnswers(initial: QuestionAnswersOptions): Question
   };
   const run = async (task: AnswerTask) => {
     const nodes = available();
-    const { recordedBy } = options;
-    if (!task.request) {
-      const view = await nodes.snapshot();
-      const ownership = options.ownership ?? createQuestionOwnership({ nodes });
-      const prepared = await ownership.answer(
-        view,
-        { question: task.question.key, text: task.text },
-        { kind: 'person', recordedBy, origin: task.question.id },
-      );
-      // Admission can change while history is read; disposal prevents publication that has not begun.
-      if (available() !== nodes)
-        throw new Error('The node store changed. Review the question before saving an answer.');
-      task.request = frozen({
-        ...prepared,
+    const { recordedBy } = task;
+    using writes = nodes
+      .writer({
         recordedBy,
         origin: task.question.id,
-        undoOf: null,
+        admission: () => {
+          if (available() !== nodes)
+            throw new Error('The node store changed. Review the question before saving an answer.');
+        },
+      })
+      .lifetime({ signal: abort.signal });
+    if (task.request) await writes.retry(task.request);
+    else {
+      task.request = writes.write(async ({ id, nodes: reading }) => {
+        const view = await reading.snapshot();
+        const ownership = options.ownership ?? createQuestionOwnership({ nodes: reading });
+        const transaction = await ownership.answer(
+          view,
+          { question: task.question.key, text: task.text },
+          { id, kind: 'person', recordedBy, origin: task.question.id },
+        );
+        return { value: undefined, transaction: { ...transaction, undoOf: null } };
       });
+      await task.request.result;
     }
-    available();
-    // An entered commit remains accountable even when navigation or session cleanup follows it.
-    task.entered = true;
-    await nodes.commit(task.request);
   };
   const answer: QuestionAnswerHandler = (question, text) => {
     try {
@@ -112,13 +114,18 @@ export function createQuestionAnswers(initial: QuestionAnswersOptions): Question
     const existing = tasks.get(question.id);
     if (
       existing &&
-      ((!existing.entered && existing.question.key.transaction !== question.key.transaction) ||
+      ((!existing.request?.snapshot().finalized &&
+        existing.question.key.transaction !== question.key.transaction) ||
         existing.text !== trimmed)
     )
       return Promise.reject(
         new Error('Finish retrying the original answer before saving a different answer.'),
       );
-    const task: AnswerTask = existing ?? { question, text: trimmed };
+    const task: AnswerTask = existing ?? {
+      question,
+      text: trimmed,
+      recordedBy: options.recordedBy,
+    };
     if (task.pending !== undefined) return task.pending;
     tasks.set(question.id, task);
     task.error = undefined;
@@ -129,9 +136,7 @@ export function createQuestionAnswers(initial: QuestionAnswersOptions): Question
       .catch((error: unknown) => {
         // Preparation never published. A conflict is also a definitive rejection, so new wording may be read.
         if (
-          (!task.entered ||
-            error instanceof NodeConflict ||
-            error instanceof NodePublicationRejected) &&
+          (!task.request?.snapshot().finalized || task.request.snapshot().phase === 'rejected') &&
           tasks.get(question.id) === task
         )
           tasks.delete(question.id);
@@ -164,6 +169,7 @@ export function createQuestionAnswers(initial: QuestionAnswersOptions): Question
       if (disposed) return;
       if (initial.session !== next.session) {
         disposed = true;
+        abort.abort(new Error('This Questions session is closed.'));
         listeners.clear();
         return;
       }
@@ -172,6 +178,7 @@ export function createQuestionAnswers(initial: QuestionAnswersOptions): Question
     closed: () => disposed,
     dispose: () => {
       disposed = true;
+      abort.abort(new Error('This Questions session is closed.'));
       listeners.clear();
     },
   };
