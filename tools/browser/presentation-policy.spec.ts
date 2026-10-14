@@ -1,3 +1,4 @@
+import { openAppAction, expectAppActionFocus } from './app-navigation.ts';
 import { expect, test } from '@playwright/test';
 
 for (const childTitle of ['Supporting review', 'Supporting details']) {
@@ -45,7 +46,7 @@ for (const targetWidth of [1440, 900]) {
   }, async ({ page }) => {
     await page.setViewportSize({ width: targetWidth === 1440 ? 900 : 1440, height: 844 });
     await page.goto('/ui/kit/tests/browser.html');
-    await page.getByRole('button', { name: 'Open agent', exact: true }).click();
+    await openAppAction(page, 'Open agent');
     const draft = page.getByRole('textbox', { name: 'Panel draft' });
     await draft.fill('Keep parent draft');
     const original = await draft.elementHandle();
@@ -135,7 +136,7 @@ test('a nested review closes before its drawer and leaves the parent usable', {
 }, async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/ui/kit/tests/browser.html');
-  await page.getByRole('button', { name: 'Open agent', exact: true }).click();
+  await openAppAction(page, 'Open agent');
   const parent = page.getByRole('dialog', { name: 'Chat', exact: true });
   await parent.getByRole('textbox', { name: 'Panel draft' }).fill('Retain this task');
   await parent.getByRole('button', { name: 'Review in panel' }).click();
@@ -152,7 +153,7 @@ test('a nested review closes before its drawer and leaves the parent usable', {
   expect(await parent.evaluate((node) => node.contains(document.activeElement))).toBe(true);
   await page.keyboard.press('Escape');
   await expect(parent).toBeHidden();
-  await expect(page.getByRole('button', { name: 'Open agent', exact: true })).toBeFocused();
+  await expectAppActionFocus(page, 'Open agent');
   await expect(page.getByRole('textbox', { name: 'Preference' })).toBeVisible();
 });
 

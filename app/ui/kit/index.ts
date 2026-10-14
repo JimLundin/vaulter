@@ -321,6 +321,12 @@ export {
 export { Drawer } from './drawer.tsx';
 export { DesignPreview } from './preview.tsx';
 export { DesignComparison } from './design-comparison.tsx';
+export {
+  PageControls,
+  type PageControlsProps,
+  type PageSearchControl,
+  type PageFilterControl,
+} from './page-controls.tsx';
 
 import {
   RadioGroup as RadioGroupPart,

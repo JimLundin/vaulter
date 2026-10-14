@@ -150,9 +150,16 @@ test('Balanced drafts preserve each choice, source context and shared card typog
   expect(await journal(page)).toEqual(initial);
 });
 
-test('Wiki answers update Questions filters and search without creating a second question', async ({
-  page,
-}) => {
+test('Wiki answers update Questions filters and search without creating a second question', {
+  tag: '@phone',
+}, async ({ page }) => {
+  const compact = test.info().project.name === 'phone';
+  const selectStatus = async (name: string) => {
+    if (compact) {
+      await page.getByRole('button', { name: 'Filters', exact: true }).click();
+      await page.getByRole('menuitemradio', { name, exact: true }).click();
+    } else await page.getByRole('main').getByRole('button', { name, exact: true }).click();
+  };
   await page.goto('/preview/#/wiki/preview:page:0/');
   const record = page
     .getByRole('region', { name: /^(Open question|Answered)$/ })
@@ -168,14 +175,23 @@ test('Wiki answers update Questions filters and search without creating a second
   });
   const main = page.getByRole('main');
   await expect(main.getByRole('heading', { name: 'Questions', exact: true })).toBeVisible();
-  await expect(main.getByRole('button', { name: 'Open', exact: true })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
+  if (compact) {
+    await page.getByRole('button', { name: 'Filters', exact: true }).click();
+    await expect(page.getByRole('menuitemradio', { name: 'Open', exact: true })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
+    await page.keyboard.press('Escape');
+  } else
+    await expect(main.getByRole('button', { name: 'Open', exact: true })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
   await expect(main.getByText('No open questions.', { exact: true })).toBeVisible();
-  await main.getByRole('button', { name: 'Answered', exact: true }).click();
+  await selectStatus('Answered');
   await expect(main.getByText('Keep the chisels and hand plane.', { exact: true })).toBeVisible();
-  const search = main.getByRole('searchbox', { name: 'Find questions', exact: true });
+  if (compact) await page.getByRole('button', { name: 'Find questions', exact: true }).click();
+  const search = page.getByRole('searchbox', { name: 'Find questions', exact: true });
   await search.fill('hand plane');
   await expect(main.getByText('Which tools should stay?', { exact: true })).toBeVisible();
   await search.fill('Garden studio');
@@ -183,14 +199,14 @@ test('Wiki answers update Questions filters and search without creating a second
   await search.fill('unrelated subject');
   await expect(main.getByText('No questions found.', { exact: true })).toBeVisible();
   await search.fill('');
-  await main.getByRole('button', { name: 'Abandoned', exact: true }).click();
+  await selectStatus('Abandoned');
   await expect(main.getByText('No questions found.', { exact: true })).toBeVisible();
-  await main.getByRole('button', { name: 'All', exact: true }).click();
+  await selectStatus('All');
   await expect(main.getByText('Keep the chisels and hand plane.', { exact: true })).toBeVisible();
   const before = await journal(page);
   await page.reload();
   await expect(main.getByText('No open questions.', { exact: true })).toBeVisible();
-  await main.getByRole('button', { name: 'Answered', exact: true }).click();
+  await selectStatus('Answered');
   await expect(main.getByText('Keep the chisels and hand plane.', { exact: true })).toBeVisible();
   expect(await journal(page)).toEqual(before);
   const questions = before

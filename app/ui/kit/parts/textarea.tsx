@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { cn } from '../lib/utils.ts';
 import { useFieldTextAssociation } from '../field-association.ts';
+import { useInputProtection } from '../presentation-policy.tsx';
 
 function Textarea({
   className,
@@ -10,6 +11,7 @@ function Textarea({
 }: React.ComponentProps<'textarea'> & { variant?: 'default' | 'inline' | 'longform' }) {
   const association = useFieldTextAssociation(props);
   const ref = React.useRef<HTMLTextAreaElement>(null);
+  useInputProtection(ref);
   React.useLayoutEffect(() => {
     // Dictated input follows incoming words without focusing the field or opening a keyboard.
     if (props.readOnly && ref.current) ref.current.scrollTop = ref.current.scrollHeight;

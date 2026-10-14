@@ -1,3 +1,4 @@
+import { openAppAction } from './app-navigation.ts';
 import { expect, test } from '@playwright/test';
 
 test('opening a second preview tab keeps conversation selection with each tabs records', async ({
@@ -45,7 +46,7 @@ for (const restriction of ['recording', 'save recovery']) {
       await input.fill('Keep the recovery draft');
       await input.blur();
     }
-    await page.getByRole('button', { name: 'Search', exact: true }).click();
+    await openAppAction(page, 'Search');
     const search = page.getByRole('dialog', { name: 'Search or ask' });
     await search.getByRole('combobox').fill('New chat');
     await expect(search.getByRole('option', { name: 'New chat', exact: true })).toHaveCount(0);
@@ -53,7 +54,7 @@ for (const restriction of ['recording', 'save recovery']) {
     if (restriction === 'recording')
       await main.getByRole('button', { name: 'Finish recording', exact: true }).click();
     else await main.getByRole('button', { name: 'Retry save', exact: true }).click();
-    await page.getByRole('button', { name: 'Search', exact: true }).click();
+    await openAppAction(page, 'Search');
     await search.getByRole('combobox').fill('New chat');
     await search.getByRole('option', { name: 'New chat', exact: true }).click();
     await expect(main.locator('[data-message="user"]')).toHaveCount(0);
@@ -66,7 +67,7 @@ test('Search Ask is accepted once when Chat moves between the page and its suppo
 }, async ({ page }) => {
   await page.goto('/preview/');
   await movePreviewBelowToolbar(page.locator('[data-preview-drag-handle]'));
-  await page.getByRole('button', { name: 'Search', exact: true }).click();
+  await openAppAction(page, 'Search');
   const search = page.getByRole('dialog', { name: 'Search or ask' });
   await search.getByRole('combobox').fill('Review prompt only once');
   await search.getByRole('option', { name: 'Ask the agent: Review prompt only once' }).click();
@@ -109,7 +110,7 @@ test('Search Ask during recording survives reopening, never auto-sends, and expl
   await input.blur();
   await main.getByRole('button', { name: 'Start voice interaction' }).click();
   await expect(input).toHaveValue(/^Keep my recorded draft Leave/);
-  await page.getByRole('button', { name: 'Search', exact: true }).click();
+  await openAppAction(page, 'Search');
   const search = page.getByRole('dialog', { name: 'Search or ask' });
   await search.getByRole('combobox').fill('Ask after recording');
   await search.getByRole('option', { name: 'Ask the agent: Ask after recording' }).click();
@@ -153,7 +154,7 @@ test('Search Ask uses retained staged-change review without replacing the existi
   const main = page.getByRole('main');
   const input = main.getByRole('textbox', { name: 'Message', exact: true });
   await input.fill('Keep my editable draft');
-  await page.getByRole('button', { name: 'Search', exact: true }).click();
+  await openAppAction(page, 'Search');
   const search = page.getByRole('dialog', { name: 'Search or ask' });
   await search.getByRole('combobox').fill('Review this Search Ask');
   await search.getByRole('option', { name: 'Ask the agent: Review this Search Ask' }).click();

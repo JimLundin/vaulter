@@ -7,6 +7,7 @@ import type { Unstyled } from './lib/unstyled.tsx';
 import { cn } from './lib/utils.ts';
 import { useLayout } from './hooks/use-layout.ts';
 import { useFieldSemanticDiagnostic } from './field-association.ts';
+import { PageControls } from './page-controls.tsx';
 
 const surfaces = {
   plain: '',
@@ -40,7 +41,15 @@ export function Surface({
 }
 
 /** Page toolbars use the shared supporting-header height and inset in every arrangement. */
-export function Toolbar({ children, label }: { children: ReactNode; label?: string }) {
+export function Toolbar({
+  children,
+  label,
+  actions,
+}: {
+  children: ReactNode;
+  label?: string;
+  actions?: ReactNode;
+}) {
   return (
     <header
       role="toolbar"
@@ -48,6 +57,7 @@ export function Toolbar({ children, label }: { children: ReactNode; label?: stri
       className="flex h-[var(--supporting-header-height)] shrink-0 items-center justify-between gap-3 bg-background px-[var(--page-inset)]"
     >
       {children}
+      <PageControls actions={actions} />
     </header>
   );
 }
@@ -85,10 +95,13 @@ export function ReadingColumn({
   );
 }
 
-/** Status grows above the trailing input; compact space supplies an edge-to-edge surface. */
+/** Status grows above the trailing input; the app rail reserves its own lane beside this surface. */
 export function Dock({ children, status }: { children: ReactNode; status?: ReactNode }) {
   return (
-    <div className="flex shrink-0 flex-col gap-2 border-t bg-surface px-4 py-3 md:border-0 md:bg-transparent md:px-0">
+    <div
+      data-dock=""
+      className="flex shrink-0 flex-col gap-2 border-t bg-surface px-4 py-3 md:border-0 md:bg-transparent md:px-0"
+    >
       {status}
       {children}
     </div>

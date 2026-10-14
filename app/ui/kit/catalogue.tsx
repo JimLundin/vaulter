@@ -1107,6 +1107,8 @@ function Voice() {
   );
 }
 function Navigation() {
+  const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState('all');
   const [settings, setSettings] = useState(false);
   const [search, setSearch] = useState(false);
   const [current, setCurrent] = useState('Agent');
@@ -1128,7 +1130,25 @@ function Navigation() {
     >
       <K.FeaturePage title={current} description="Shared navigation and feature content.">
         <K.Stack>
-          <K.Text>The sidebar becomes a footer and a menu drawer.</K.Text>
+          <K.Text>The sidebar becomes a freestanding edge rail with an inward Modules menu.</K.Text>
+          <K.PageControls
+            search={{
+              label: 'Find sample items',
+              placeholder: 'Find an item…',
+              value: query,
+              onValueChange: setQuery,
+            }}
+            filters={{
+              label: 'Sample status',
+              value: filter,
+              options: [
+                { value: 'all', label: 'All' },
+                { value: 'open', label: 'Open' },
+              ],
+              onValueChange: setFilter,
+              active: filter !== 'all',
+            }}
+          />
           <K.Button
             variant="outline"
             onClick={() => setCurrent(current === 'Agent' ? 'History' : 'Agent')}
@@ -1604,7 +1624,7 @@ export const catalogue: Specimen[] = [
     id: 'navigation',
     title: 'Navigation & workspace',
     description: 'One feature list: sidebar on desktop, footer and menu drawer on phone.',
-    components: ['NavigationSuite', 'FeaturePage'],
+    components: ['NavigationSuite', 'FeaturePage', 'PageControls'],
     Sample: Navigation,
     fullBleed: true,
   },

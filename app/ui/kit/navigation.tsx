@@ -1,30 +1,11 @@
-// One navigation, declared once as data and shown in the shape that fits the window — the idea of
-// Material 3's NavigationSuiteScaffold and SwiftUI's sidebar-adaptable TabView. Two size classes:
-//
-//   expanded (≥768px)   a sidebar: brand and search field on top, destinations in the middle, actions
-//                       and the primary action at the foot
-//   compact (<768px)    a bottom bar: Menu, search and the actions as icons; the destinations in a menu
-//                       sheet that rises from the bar; the primary action floating above the bar
-//
-// Destinations are places that can grow without limit (a note, history, a calendar); actions are the few
-// controls every screen keeps (search, settings). Whatever a product adds goes in one of the two lists,
-// and both shapes follow. The kit README's correspondence table lists every pair.
-import type { ReactNode } from 'react';
-import { useEffect, useState } from 'react';
+// Declare destinations and app actions once. The kit owns sidebar and compact edge-rail placement.
+import { type ReactNode, useState } from 'react';
 import { Icon, type IconName } from './icons.tsx';
 import { useLayout } from './hooks/use-layout.ts';
+import { MobileEdgeRail } from './mobile-edge-rail.tsx';
+import { PageControlsContext, usePageControls } from './page-controls.tsx';
 import { Button } from './parts/button.tsx';
-import {
-  Brand,
-  Kbd,
-  MobileActionButton,
-  MobileBar,
-  NavigationSheet,
-  SearchButton,
-  Sidebar,
-  SidebarMenu,
-  WorkspaceFrame,
-} from './app.tsx';
+import { Brand, Kbd, SearchButton, Sidebar, SidebarMenu, WorkspaceFrame } from './app.tsx';
 import {
   SidebarContent,
   SidebarFooter,
@@ -34,7 +15,7 @@ import {
   SidebarProvider,
 } from './parts/sidebar.tsx';
 
-/** A place: a sidebar row on desktop, a row in the menu sheet on a phone. */
+/** A module destination: a sidebar row on desktop and a Modules menu item on a phone. */
 export interface NavigationDestination {
   label: string;
   href: string;
@@ -42,21 +23,22 @@ export interface NavigationDestination {
   current: boolean;
 }
 
-/** A control every screen keeps: a sidebar footer row on desktop, a bar icon on a phone. */
+/** An app action, retained in the sidebar or the compact Modules menu. */
 export interface NavigationAction {
   label: string;
   icon: IconName;
-  /** A link, for an action that is also a screen (settings). */
   href?: string;
   onSelect?: () => void;
   keys?: string;
   current?: boolean;
   expanded?: boolean;
+  disabled?: boolean;
 }
 
 export function NavigationSuite({
   status,
   search,
+  onNavigate,
   destinations,
   actions,
   primary,
@@ -64,170 +46,142 @@ export function NavigationSuite({
   aside,
   children,
 }: {
-  /** The sync status beside the brand. */
   status: ReactNode;
-  /** The search field on desktop, the search icon on a phone. */
+  /** Global search, distinct from the current module's collection search. */
   search: { label: string; keys?: string; onSelect: () => void };
+  onNavigate?: () => void;
   destinations: NavigationDestination[];
   actions: NavigationAction[];
-  /** Optional primary controls: at the sidebar's foot and floating above the phone bar. A product
-   * can supply only the phone control when the desktop destination already covers the action. */
-  primary?: { expanded?: ReactNode; compact?: ReactNode };
-  /** Account controls under everything else (sign out). */
+  primary?: { expanded?: ReactNode; menu?: NavigationAction };
   footer?: ReactNode;
-  /** A panel beside the screen (desktop) or over it (phone). */
   aside?: ReactNode;
   children: ReactNode;
 }) {
   const compact = useLayout() === 'compact';
-  const [menu, setMenu] = useState(false);
-  useEffect(() => {
-    if (!compact) setMenu(false);
-  }, [compact]);
-  // The footer stays finite as features grow. Further linked actions remain available in the menu.
-  const barActions = actions.slice(0, 3);
-  const menuEntries = [
-    ...destinations,
-    ...actions
-      .slice(3)
-      .flatMap((action) =>
-        action.href ? [{ ...action, href: action.href, current: !!action.current }] : [],
-      ),
-  ];
+  const pageControls = usePageControls(compact);
+  const [openSearch, setOpenSearch] = useState<string | null>(null);
+  const [clearance, setClearance] = useState(172);
+  const registeredSearch = pageControls.search;
+  const pageSearch = registeredSearch?.search
+    ? { id: registeredSearch.id, ...registeredSearch.search }
+    : undefined;
+  const searchVisible = !!(compact && pageSearch && openSearch === pageSearch.id);
+  const settings = actions.find((action) => action.icon === 'settings');
+  const otherActions = actions.filter((action) => action !== settings);
 
   return (
-    <SidebarProvider>
-      {compact ? (
-        <NavigationSheet
-          open={menu}
-          onClose={() => setMenu(false)}
-          brand={<Brand status={status} />}
-          entries={menuEntries.map((entry) => ({ ...entry, active: entry.current }))}
-          footer={
-            <>
-              {actions
-                .slice(3)
-                .filter((action) => !action.href)
-                .map((action) => (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="compact"
-                    key={action.label}
-                    onClick={() => {
-                      setMenu(false);
-                      action.onSelect?.();
-                    }}
-                    className="w-full justify-start"
-                  >
-                    <Icon name={action.icon} />
-                    {action.label}
-                  </Button>
-                ))}
-              {footer}
-            </>
-          }
-        />
-      ) : (
-        <Sidebar>
-          <SidebarHeader>
-            <Brand status={status} />
-            <SearchButton
-              label={search.label}
-              name="Search"
-              keys={search.keys}
-              onClick={search.onSelect}
-            />
-          </SidebarHeader>
-          <SidebarContent>
-            <SidebarMenu>
-              {destinations.map((entry) => (
-                <SidebarMenuItem key={entry.href}>
-                  <SidebarMenuButton
-                    render={
-                      <a
-                        href={entry.href}
-                        aria-label={entry.label}
-                        aria-current={entry.current ? 'page' : undefined}
-                      />
-                    }
-                    isActive={entry.current}
-                  >
-                    <Icon name={entry.icon} />
-                    {entry.label}
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarContent>
-          <SidebarFooter>
-            <SidebarMenu>
-              {actions.map((action) => (
-                <SidebarMenuItem key={action.label}>
-                  <SidebarMenuButton
-                    aria-label={action.label}
-                    aria-expanded={action.expanded}
-                    render={
-                      action.href ? (
-                        // biome-ignore lint/a11y/useAnchorContent: useRender supplies the SidebarMenuButton children to this anchor.
-                        <a
-                          href={action.href}
-                          aria-label={action.label}
-                          aria-current={action.current ? 'page' : undefined}
-                        />
-                      ) : undefined
-                    }
-                    isActive={!!action.current}
-                    onClick={action.href ? undefined : action.onSelect}
-                  >
-                    <Icon name={action.icon} />
-                    <span className="flex-1">{action.label}</span>
-                    {!action.href && action.keys ? <Kbd>{action.keys}</Kbd> : null}
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-            {primary?.expanded}
-            {footer}
-          </SidebarFooter>
-        </Sidebar>
-      )}
-      <WorkspaceFrame
-        bar={
-          <MobileBar
-            items={[
-              <MobileActionButton
-                key="menu"
-                icon="list"
-                label="Menu"
-                expanded={menu}
-                onClick={() => setMenu(true)}
-              />,
-              <MobileActionButton
-                key="search"
-                icon="search"
-                label="Search"
+    <PageControlsContext.Provider value={pageControls.context}>
+      <SidebarProvider>
+        {!compact && (
+          <Sidebar>
+            <SidebarHeader>
+              <Brand
+                status={status}
+                actions={
+                  settings && (
+                    <Button
+                      variant="ghost"
+                      size="standard"
+                      iconOnly={true}
+                      aria-label={settings.label}
+                      aria-expanded={settings.expanded}
+                      title={settings.label}
+                      disabled={settings.disabled}
+                      render={
+                        settings.href ? <a href={settings.href}>{settings.label}</a> : undefined
+                      }
+                      onClick={settings.href ? undefined : settings.onSelect}
+                    >
+                      <Icon name={settings.icon} />
+                    </Button>
+                  )
+                }
+              />
+              <SearchButton
+                label={search.label}
+                name="Search"
+                keys={search.keys}
                 onClick={search.onSelect}
-              />,
-              ...barActions.map((action) => (
-                <MobileActionButton
-                  key={action.label}
-                  icon={action.icon}
-                  label={action.label}
-                  current={action.current}
-                  expanded={action.expanded}
-                  href={action.href}
-                  onClick={action.href ? undefined : action.onSelect}
-                />
-              )),
-            ]}
-            floating={primary?.compact}
-          />
-        }
-      >
-        {children}
-      </WorkspaceFrame>
-      {aside}
-    </SidebarProvider>
+              />
+            </SidebarHeader>
+            <SidebarContent>
+              <SidebarMenu>
+                {destinations.map((entry) => (
+                  <SidebarMenuItem key={entry.href}>
+                    <SidebarMenuButton
+                      render={
+                        <a
+                          href={entry.href}
+                          aria-label={entry.label}
+                          aria-current={entry.current ? 'page' : undefined}
+                        />
+                      }
+                      isActive={entry.current}
+                      onClick={onNavigate}
+                    >
+                      <Icon name={entry.icon} />
+                      {entry.label}
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarContent>
+            <SidebarFooter>
+              <SidebarMenu>
+                {otherActions.map((action) => (
+                  <SidebarMenuItem key={action.label}>
+                    <SidebarMenuButton
+                      aria-label={action.label}
+                      aria-expanded={action.expanded}
+                      disabled={action.disabled}
+                      render={
+                        action.href ? (
+                          // biome-ignore lint/a11y/useAnchorContent: useRender supplies the SidebarMenuButton children to this anchor.
+                          <a
+                            href={action.href}
+                            aria-label={action.label}
+                            aria-current={action.current ? 'page' : undefined}
+                          />
+                        ) : undefined
+                      }
+                      isActive={!!action.current}
+                      onClick={action.href ? undefined : action.onSelect}
+                    >
+                      <Icon name={action.icon} />
+                      <span className="flex-1">{action.label}</span>
+                      {!action.href && action.keys ? <Kbd>{action.keys}</Kbd> : null}
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+              {primary?.expanded}
+              {footer}
+            </SidebarFooter>
+          </Sidebar>
+        )}
+        <WorkspaceFrame bar={null} pageControlsClearance={clearance}>
+          {children}
+        </WorkspaceFrame>
+        {aside}
+        <MobileEdgeRail
+          compact={compact}
+          status={status}
+          destinations={destinations}
+          actions={otherActions}
+          settings={settings}
+          pageActions={pageControls.actions}
+          pageSearch={pageSearch}
+          pageFilters={pageControls.filters}
+          searchVisible={searchVisible}
+          onSearchOpen={() => setOpenSearch(pageSearch?.id ?? null)}
+          onSearchClose={() => setOpenSearch(null)}
+          onClearance={setClearance}
+          onSearch={search.onSelect}
+          onNavigate={onNavigate}
+          primary={primary?.menu}
+          footer={footer}
+        />
+      </SidebarProvider>
+    </PageControlsContext.Provider>
   );
 }

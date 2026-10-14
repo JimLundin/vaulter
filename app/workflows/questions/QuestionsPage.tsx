@@ -1,14 +1,5 @@
 import { useState } from 'react';
-import {
-  FeaturePage,
-  Input,
-  Link,
-  Loader,
-  Stack,
-  Text,
-  ToggleGroup,
-  ToggleGroupItem,
-} from '../../ui/kit/index.ts';
+import { FeaturePage, PageControls, Link, Loader, Stack, Text } from '../../ui/kit/index.ts';
 import {
   QuestionItem,
   type QuestionAnswerHandler,
@@ -84,30 +75,25 @@ export function QuestionsPage({
         {node ? (
           <Link href={`#${questionsRoute.href()}`}>All questions</Link>
         ) : (
-          <>
-            <Input
-              type="search"
-              aria-label="Find questions"
-              placeholder="Find a question, subject or source…"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-            />
-            <ToggleGroup
-              type="single"
-              aria-label="Question status"
-              value={filter}
-              onValueChange={(value: string) => {
+          <PageControls
+            search={{
+              type: 'search',
+              label: 'Find questions',
+              placeholder: 'Find a question, subject or source…',
+              value: query,
+              onValueChange: setQuery,
+            }}
+            filters={{
+              label: 'Question status',
+              value: filter,
+              options: filters,
+              active: filter !== 'all',
+              onValueChange: (value) => {
                 const chosen = filters.find((entry) => entry.value === value);
                 if (chosen) setFilter(chosen.value);
-              }}
-            >
-              {filters.map((entry) => (
-                <ToggleGroupItem key={entry.value} value={entry.value}>
-                  {entry.label}
-                </ToggleGroupItem>
-              ))}
-            </ToggleGroup>
-          </>
+              },
+            }}
+          />
         )}
         {!!error && (
           <Text role="alert" tone="danger">

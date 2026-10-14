@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { navigateToModule } from '../browser/app-navigation.ts';
 import { fakeGitHub } from '../../app/vault/storage/github-client/fake-github.ts';
 import { memoryNodeBackend } from '../../app/vault/nodes/memory.ts';
 import { create, request } from '../../app/vault/nodes/fixtures.test-support.ts';
@@ -130,9 +131,7 @@ test('production opens real Wiki pages and exact evidence alongside persistent C
   expect(policy).not.toContain('unsafe-eval');
   await page.getByLabel('Password', { exact: true }).fill(password);
   await page.getByRole('button', { name: 'Open vault', exact: true }).click();
-  if (test.info().project.name === 'phone')
-    await page.getByRole('button', { name: 'Menu', exact: true }).click();
-  await page.getByRole('link', { name: 'Wiki', exact: true }).click();
+  await navigateToModule(page, 'Wiki');
   await expect(page).toHaveURL(/#\/wiki\/$/);
   await page.getByRole('link', { name: 'Garden studio', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Garden studio', exact: true })).toBeVisible();
@@ -211,9 +210,7 @@ test('production opens real Wiki pages and exact evidence alongside persistent C
   await expect(page.locator('[data-message="user"]')).toContainText(
     'I want quiet mornings in the studio.',
   );
-  if (test.info().project.name === 'phone')
-    await page.getByRole('button', { name: 'Menu', exact: true }).click();
-  await page.getByRole('link', { name: 'Chat', exact: true }).click();
+  await navigateToModule(page, 'Chat');
   const conversations = page.getByRole('button', { name: 'Conversations', exact: true });
   if (test.info().project.name === 'phone') {
     await expect(conversations).toBeVisible();

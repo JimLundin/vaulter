@@ -56,13 +56,17 @@ function DropdownMenuTrigger({ ...props }: DropdownMenuPrimitive.Trigger.Props) 
 }
 
 type MenuContentProps = DropdownMenuPrimitive.Popup.Props &
-  Pick<DropdownMenuPrimitive.Positioner.Props, 'side' | 'align' | 'sideOffset' | 'alignOffset'>;
+  Pick<
+    DropdownMenuPrimitive.Positioner.Props,
+    'side' | 'align' | 'sideOffset' | 'alignOffset' | 'anchor'
+  >;
 function DropdownMenuContent({
   className,
   sideOffset = 4,
   side = 'bottom',
   align = 'center',
   alignOffset,
+  anchor,
   ...props
 }: MenuContentProps) {
   const policy = usePresentationPolicy();
@@ -75,6 +79,7 @@ function DropdownMenuContent({
         align={align}
         sideOffset={sideOffset}
         alignOffset={alignOffset}
+        anchor={anchor}
         {...positioning}
       >
         <DropdownMenuPrimitive.Popup

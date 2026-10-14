@@ -12,13 +12,16 @@ import { Skeleton } from './skeleton.tsx';
 
 const SIDEBAR_WIDTH = '16rem';
 
-/** Shared workspace wrapper and width token; phone Menu state belongs to NavigationSuite. */
+/** Shared workspace wrapper and width token; compact menu state belongs to NavigationSuite. */
 function SidebarProvider({ className, style, children, ...props }: React.ComponentProps<'div'>) {
   return (
     <div
       data-slot="sidebar-wrapper"
       style={{ '--sidebar-width': SIDEBAR_WIDTH, ...style } as React.CSSProperties}
-      className={cn('flex h-[var(--viewport-height,100dvh)] min-h-0 w-full', className)}
+      className={cn(
+        'relative top-[var(--viewport-top,0px)] flex h-[var(--viewport-height,100dvh)] min-h-0 w-full',
+        className,
+      )}
       {...props}
     >
       {children}

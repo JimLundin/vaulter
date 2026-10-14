@@ -1,3 +1,4 @@
+import { openAppAction, expectAppActionFocus, navigateToModule } from './app-navigation.ts';
 import { expect, test } from '@playwright/test';
 
 test(
@@ -8,24 +9,24 @@ test(
     await page.goto('/preview/');
     await expect(page.getByRole('heading', { name: 'What’s on your mind?' })).toBeVisible();
     if (compact) {
-      const menu = page.getByRole('button', { name: 'Menu', exact: true });
-      const footer = page.locator('footer').filter({ has: menu });
-      await expect(footer).toHaveText('');
-      for (const control of await footer.locator(':scope > button, :scope > a').all()) {
-        expect(await control.evaluate((node) => getComputedStyle(node).borderRadius)).toBe('8px');
+      const menu = page.getByRole('button', { name: 'Modules', exact: true });
+      const rail = page.getByRole('navigation', { name: 'App controls', exact: true });
+      await expect(rail.getByRole('button')).toHaveCount(3);
+      for (const control of await rail.getByRole('button').all()) {
+        expect((await control.boundingBox())!.width).toBe(44);
+        expect((await control.boundingBox())!.height).toBe(44);
         expect(await control.getAttribute('aria-label')).toBeTruthy();
       }
       const voice = page.getByRole('button', { name: 'Start voice interaction' });
       const voiceBox = await voice.boundingBox();
-      const footerBox = await footer.boundingBox();
-      expect(voiceBox!.y + voiceBox!.height).toBeLessThan(footerBox!.y);
-      expect(footerBox!.height).toBeLessThanOrEqual(60);
+      const railBox = (await rail.boundingBox())!;
+      expect(voiceBox!.x + voiceBox!.width).toBeLessThan(railBox.x);
+      expect(railBox.y + railBox.height).toBe(832);
+      await expect(page.locator('[data-layout="mobile-workspace"] > footer')).toHaveCount(0);
       await menu.click();
-      await expect(
-        page.getByRole('button', { name: 'Menu', exact: true, includeHidden: true }),
-      ).toHaveAttribute('aria-expanded', 'true');
-      await expect(page.getByRole('link', { name: 'Chat', exact: true })).toBeVisible();
-      await page.getByRole('button', { name: 'Close menu' }).click();
+      await expect(menu).toHaveAttribute('aria-expanded', 'true');
+      await expect(page.getByRole('menuitem', { name: 'Chat', exact: true })).toBeVisible();
+      await page.keyboard.press('Escape');
       await expect(menu).toBeFocused();
     } else {
       const workspace = page.locator('[data-layout="desktop-workspace"]');
@@ -45,35 +46,30 @@ test(
       await expect(page.getByRole('button', { name: 'Ask the agent', exact: true })).toHaveCount(0);
     }
     const beforeSettings = page.url();
-    await page.getByRole('button', { name: 'Settings', exact: true }).click();
+    await openAppAction(page, 'Settings');
     const settings = page.getByRole('dialog', { name: 'Settings', exact: true });
     await expect(settings).toBeVisible();
     await expect(settings.getByRole('region', { name: 'Chat', exact: true })).toBeVisible();
     await expect(settings.getByRole('combobox', { name: 'Model', exact: true })).toBeVisible();
     expect(page.url()).toBe(beforeSettings);
-    await expect(
-      page.getByRole('button', { name: 'Settings', exact: true, includeHidden: true }),
-    ).toHaveAttribute('aria-expanded', 'true');
+    if (!compact)
+      await expect(
+        page.getByRole('button', { name: 'Settings', exact: true, includeHidden: true }),
+      ).toHaveAttribute('aria-expanded', 'true');
     await page.getByRole('button', { name: 'Close settings' }).click();
     await expect(settings).toBeHidden();
-    await expect(page.getByRole('button', { name: 'Settings', exact: true })).toBeFocused();
-    if (compact) await page.getByRole('button', { name: 'Menu', exact: true }).click();
-    const historyLink = compact
-      ? page
-          .getByRole('navigation', { name: 'Main navigation' })
-          .getByRole('link', { name: 'History', exact: true })
-      : page.locator('[data-sidebar="menu-button"]').filter({ hasText: 'History' });
-    await historyLink.click();
+    await expectAppActionFocus(page, 'Settings');
+    await navigateToModule(page, 'History');
     await expect(page.getByRole('heading', { name: 'History', exact: true })).toBeVisible();
     const historyURL = page.url();
-    await page.getByRole('button', { name: 'Settings', exact: true }).click();
+    await openAppAction(page, 'Settings');
     await expect(settings).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(settings).toBeHidden();
     expect(page.url()).toBe(historyURL);
     await expect(page.getByRole('heading', { name: 'History', exact: true })).toBeVisible();
     // Settings reached through Search uses the same menu and leaves History underneath.
-    await page.getByRole('button', { name: 'Search', exact: true }).click();
+    await openAppAction(page, 'Search');
     await page
       .getByRole('dialog', { name: 'Search or ask', exact: true })
       .getByRole('combobox')
@@ -84,7 +80,7 @@ test(
     await expect(page.getByRole('button', { name: 'Close settings' })).toBeFocused();
     await page.keyboard.press('Escape');
     await expect(settings).toBeHidden();
-    await expect(page.getByRole('button', { name: 'Search', exact: true })).toBeFocused();
+    await expectAppActionFocus(page, 'Search');
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,
     );
@@ -101,7 +97,7 @@ test('a direct settings URL opens the same menu and preserves the agent draft', 
   await expect(page).toHaveURL(/#\/chat\/$/);
   const draft = page.getByRole('textbox', { name: 'Message', exact: true });
   await draft.fill('Keep this message while changing preferences');
-  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await openAppAction(page, 'Settings');
   await expect(settings).toBeVisible();
   const model = settings.getByRole('combobox', { name: 'Model', exact: true });
   await expect(model).toHaveAccessibleDescription('Used for new messages. Saved on this device.');
@@ -112,11 +108,11 @@ test('a direct settings URL opens the same menu and preserves the agent draft', 
   await customModel.fill('example-model');
   await page.keyboard.press('Escape');
   await expect(draft).toHaveValue('Keep this message while changing preferences');
-  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await openAppAction(page, 'Settings');
   await expect(model.locator('option:checked')).toHaveText('Custom…');
   await expect(customModel).toHaveValue('example-model');
   await page.reload();
-  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await openAppAction(page, 'Settings');
   await expect(model.locator('option:checked')).toHaveText('Custom…');
   await expect(customModel).toHaveValue('example-model');
 });
@@ -139,10 +135,10 @@ test('Appearance group retains keyboard selection and device preference after re
   await expect(dark).toBeChecked();
   await expect.poll(() => page.evaluate(() => localStorage.getItem('vaulter.theme'))).toBe('dark');
   await page.keyboard.press('Escape');
-  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await openAppAction(page, 'Settings');
   await expect(group.getByRole('radio', { name: 'Dark', exact: true })).toBeChecked();
   await page.reload();
-  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await openAppAction(page, 'Settings');
   await expect.poll(() => page.evaluate(() => localStorage.getItem('vaulter.theme'))).toBe('dark');
   await expect(group.getByRole('radio', { name: 'Dark', exact: true })).toBeChecked();
 });
@@ -254,8 +250,7 @@ test('agent controls have even insets and suggestions remain one scrolling row w
     if (width < 768) {
       const add = page.getByRole('button', { name: 'New conversation', exact: true });
       expect((await add.boundingBox())!.height).toBe(send.height);
-      const toolbar = page.locator('header').filter({ has: add });
-      const bar = (await toolbar.boundingBox())!;
+      const bar = (await page.locator('[data-edge-rail]').boundingBox())!;
       const action = (await add.boundingBox())!;
       expect(action.y - bar.y).toBeGreaterThanOrEqual(2);
       expect(bar.y + bar.height - action.y - action.height).toBeGreaterThanOrEqual(2);
@@ -290,7 +285,7 @@ test('settings is a shared drawer that keeps feature fields and focus when resiz
   page,
 }) => {
   await page.goto('/ui/kit/tests/browser.html');
-  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await openAppAction(page, 'Settings');
   const settings = page.getByRole('dialog', { name: 'Settings', exact: true });
   const field = settings.getByRole('textbox', { name: 'Calendar preference' });
   await expect(page.getByRole('button', { name: 'Close settings' })).toBeFocused();
@@ -320,9 +315,9 @@ test('settings is a shared drawer that keeps feature fields and focus when resiz
   }
   await page.keyboard.press('Escape');
   await expect(settings).toBeHidden();
-  await expect(page.getByRole('button', { name: 'Settings', exact: true })).toBeFocused();
+  await expectAppActionFocus(page, 'Settings');
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await openAppAction(page, 'Settings');
   await expect(field).toHaveValue('Keep this draft');
 });
 
@@ -342,9 +337,11 @@ test(
     expect(iconBox.width).toBe(compactBox.height);
     expect(iconBox.height).toBe(compactBox.height);
     await expect(icon).toHaveCSS('border-radius', '8px');
-    expect(
-      (await page.getByRole('button', { name: 'Open agent', exact: true }).boundingBox())!.height,
-    ).toBe(44);
+    const primary = page.getByRole('button', {
+      name: info.project.name === 'phone' ? 'Modules' : 'Open agent',
+      exact: true,
+    });
+    expect((await primary.boundingBox())!.height).toBe(44);
     const slots = [
       'button',
       'checkbox',
@@ -410,7 +407,7 @@ test('search keeps its query, selected result and focus through every size thres
   page,
 }) => {
   await page.goto('/ui/kit/tests/browser.html');
-  await page.getByRole('button', { name: 'Search', exact: true }).click();
+  await openAppAction(page, 'Search');
   const input = page.getByRole('combobox');
   await expect(input).toBeFocused();
   await input.fill('Result');
@@ -429,7 +426,7 @@ test('search keeps its query, selected result and focus through every size thres
   ).toBe(true);
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toBeHidden();
-  await expect(page.getByRole('button', { name: 'Search', exact: true })).toBeFocused();
+  await expectAppActionFocus(page, 'Search');
 });
 
 test('settings fields and open review drafts keep their DOM state when rearranged', async ({
@@ -458,7 +455,7 @@ test('agent panel preserves its draft while becoming modal, and traps focus only
   page,
 }) => {
   await page.goto('/ui/kit/tests/browser.html');
-  await page.getByRole('button', { name: 'Open agent' }).click();
+  await openAppAction(page, 'Open agent');
   const draft = page.getByRole('textbox', { name: 'Panel draft' });
   await draft.fill('A preserved agent draft');
   for (const width of [1280, 1279, 767, 768, 1440, 390]) {
@@ -483,24 +480,25 @@ test('agent panel preserves its draft while becoming modal, and traps focus only
   await expect(page.getByRole('textbox', { name: 'Preference' })).toBeFocused();
 });
 
-test('a growing navigation keeps overflow actions available without making the footer grow', async ({
+test('a growing navigation keeps destinations and tools in a minimal rail menu', async ({
   page,
 }) => {
   await page.setViewportSize({ width: 320, height: 640 });
   await page.goto('/ui/kit/tests/browser.html');
-  const menu = page.getByRole('button', { name: 'Menu', exact: true });
-  const footer = page.locator('footer').filter({ has: menu });
-  await expect(footer.locator(':scope > button, :scope > a')).toHaveCount(5);
+  const menu = page.getByRole('button', { name: 'Modules', exact: true });
+  const rail = page.getByRole('navigation', { name: 'App controls', exact: true });
+  await expect(rail.getByRole('button')).toHaveCount(1);
   await menu.click();
-  await expect(page.getByRole('link', { name: 'Extra', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Close menu' }).click();
+  await expect(page.getByRole('menuitem', { name: 'Extra', exact: true })).toBeVisible();
+  await expect(page.getByRole('menuitem', { name: 'Help', exact: true })).toBeVisible();
+  await page.keyboard.press('Escape');
   await expect(menu).toBeFocused();
   await menu.click();
   await page.setViewportSize({ width: 1440, height: 900 });
-  await expect(page.getByRole('dialog', { name: 'Menu', exact: true })).toBeHidden();
-  await expect(page.getByRole('link', { name: 'Extra', exact: true })).toBeVisible();
+  await expect(page.getByRole('menu', { name: 'App navigation', exact: true })).toBeHidden();
+  await expect(page.getByRole('link', { name: 'Agent', exact: true })).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(page.getByRole('dialog', { name: 'Menu', exact: true })).toBeHidden();
+  await expect(page.getByRole('menu', { name: 'App navigation', exact: true })).toBeHidden();
 });
 
 test('Enter sends, Shift+Enter and IME keep editing, and suggestions live outside the composer', {
@@ -573,7 +571,7 @@ test('the composer and search stay within the visual viewport when a keyboard op
     .toBeLessThanOrEqual(1);
   const send = await page.getByRole('button', { name: 'Send', exact: true }).boundingBox();
   expect(send!.y + send!.height).toBeLessThanOrEqual(440);
-  await page.getByRole('button', { name: 'Search', exact: true }).click();
+  await openAppAction(page, 'Search');
   await expect
     .poll(async () => {
       const search = (await page.getByRole('dialog').boundingBox())!;
@@ -584,7 +582,7 @@ test('the composer and search stay within the visual viewport when a keyboard op
     page.getByRole('dialog', { name: 'Search or ask', exact: true }).getByRole('combobox'),
   ).toBeFocused();
   await page.getByRole('button', { name: 'Close search' }).click();
-  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await openAppAction(page, 'Settings');
   const settings = page.getByRole('dialog', { name: 'Settings', exact: true });
   await settings
     .getByRole('combobox', { name: 'Model', exact: true })
@@ -627,7 +625,7 @@ test('the composer and search stay within the visual viewport when a keyboard op
 test('Escape closes the nested review before closing the agent panel', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/ui/kit/tests/browser.html');
-  await page.getByRole('button', { name: 'Open agent' }).click();
+  await openAppAction(page, 'Open agent');
   await page.getByRole('button', { name: 'Review in panel' }).click();
   await expect(page.getByRole('dialog', { name: 'Review', exact: true })).toBeVisible();
   await page.keyboard.press('Escape');
@@ -733,10 +731,9 @@ test('live transcription updates the shared message field and uses the normal se
   await expect(page.getByRole('button', { name: 'Start voice interaction' })).toBeVisible();
   await expect(page.getByRole('region', { name: 'Live transcription' })).toHaveCount(0);
   await input.fill(`${text} Edited before sending.`);
-  await page.getByRole('button', { name: 'Menu', exact: true }).click();
-  await page.getByRole('link', { name: 'History', exact: true }).click();
+  await navigateToModule(page, 'History');
   await expect(page.getByRole('heading', { name: 'History', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Start voice interaction' }).click();
+  await openAppAction(page, 'Start voice interaction');
   await expect(input).toHaveValue(/Edited before sending\. Leave/);
   await page.getByRole('button', { name: 'Finish recording' }).click();
   await expect(input).toBeEditable();
@@ -770,13 +767,9 @@ test('Chat retains the shared draft when its view closes and reopens', { tag: '@
   await page.goto('/preview/');
   const field = page.getByRole('textbox', { name: 'Message', exact: true });
   await field.fill('An unfinished workflow thought');
-  const navigationMenu = page.getByRole('button', { name: 'Menu', exact: true });
-  if (await navigationMenu.isVisible()) await navigationMenu.click();
-  await page.getByRole('link', { name: 'History', exact: true }).last().click();
+  await navigateToModule(page, 'History');
   await expect(page.getByRole('heading', { name: 'History', exact: true })).toBeVisible();
-  const menu = page.getByRole('button', { name: 'Menu', exact: true });
-  if (await menu.isVisible()) await menu.click();
-  await page.getByRole('link', { name: 'Chat', exact: true }).click();
+  await navigateToModule(page, 'Chat');
   await expect(field).toHaveValue('An unfinished workflow thought');
   await field.press('Enter');
   await expect(page.locator('[data-message="user"] [data-surface="bubble"]')).toHaveText(

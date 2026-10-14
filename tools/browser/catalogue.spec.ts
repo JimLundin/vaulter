@@ -63,10 +63,10 @@ test('each sample retains its own responsive CSS, touch density and navigation a
     await page.setViewportSize({ width, height: 1000 });
     await expect(desktop.locator('[data-layout="desktop-workspace"]')).toHaveCount(1);
     await expect(mobile.locator('[data-layout="mobile-workspace"]')).toHaveCount(1);
-    await expect(desktop.getByRole('button', { name: 'Menu', exact: true })).toHaveCount(0);
-    await expect(mobile.getByRole('button', { name: 'Menu', exact: true })).toHaveCount(1);
+    await expect(desktop.getByRole('button', { name: 'Modules', exact: true })).toHaveCount(0);
+    await expect(mobile.getByRole('button', { name: 'Modules', exact: true })).toHaveCount(1);
     await expect(desktop.locator('[data-region="nav"]')).toBeVisible();
-    await expect(mobile.locator('footer')).toHaveCount(1);
+    await expect(mobile.locator('[data-edge-rail]')).toHaveCount(1);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,
     );

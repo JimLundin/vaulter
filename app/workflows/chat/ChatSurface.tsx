@@ -80,9 +80,8 @@ export function ChatSurface({
   );
   const page = (
     <ReadingColumn page={true} label="Conversation">
-      <Toolbar label="Chat actions">
+      <Toolbar label="Chat actions" actions={actions}>
         {header}
-        {actions}
       </Toolbar>
       <AutoScrollArea empty={empty}>{children}</AutoScrollArea>
       <Dock status={status}>{dock}</Dock>

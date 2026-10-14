@@ -5,6 +5,31 @@ import { accept } from '../../app/vault/nodes/history.ts';
 import { digest } from '../../app/vault/nodes/json.ts';
 import { seal } from '../../app/vault/session/sealed.ts';
 import { sampleFiles } from '../../app/preview/data.ts';
+// biome-ignore lint/correctness/noUnresolvedImports: Playwright re-exports these browser types.
+import type { Page } from '@playwright/test';
+
+async function expectChatRail(page: Page) {
+  await expect(page.locator('[data-edge-rail]').getByRole('button')).toHaveCount(3);
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const viewport = window.visualViewport!;
+        const rail = document.querySelector('[data-edge-rail]')!.getBoundingClientRect();
+        const input = document
+          .querySelector('[aria-label="Message composer"]')!
+          .getBoundingClientRect();
+        const dock = document.querySelector('[data-dock]')!;
+        return (
+          Math.abs(rail.right - (viewport.offsetLeft + viewport.width - 12)) <= 1 &&
+          Math.abs(rail.bottom - (viewport.offsetTop + viewport.height - 12)) <= 1 &&
+          input.right <= rail.left - 11 &&
+          Math.abs(input.bottom - (viewport.offsetTop + viewport.height - 12)) <= 1 &&
+          getComputedStyle(dock).backgroundColor === 'rgba(0, 0, 0, 0)'
+        );
+      }),
+    )
+    .toBe(true);
+}
 
 test.use({
   permissions: ['microphone'],
@@ -71,6 +96,41 @@ test('production opens a fresh chat, pages saved conversations and retains only 
   await expect(page.locator('[data-message]')).toHaveCount(0);
   await expect(page.getByRole('alert')).toHaveCount(0);
   const compact = test.info().project.name === 'phone';
+  if (compact) {
+    for (const theme of ['light', 'dark']) {
+      await page.evaluate((theme) => {
+        document.documentElement.classList.remove('light', 'dark');
+        document.documentElement.classList.add(theme);
+      }, theme);
+      await expectChatRail(page);
+    }
+    const draft = page.getByRole('textbox', { name: 'Message', exact: true });
+    await draft.fill('Keep this draft above the keyboard.');
+    await page.evaluate(() => {
+      Object.defineProperties(window.visualViewport!, {
+        height: { configurable: true, get: () => 340 },
+        offsetTop: { configurable: true, get: () => 100 },
+      });
+      window.visualViewport!.dispatchEvent(new Event('resize'));
+      window.visualViewport!.dispatchEvent(new Event('scroll'));
+    });
+    await expectChatRail(page);
+    await expect(draft).toBeFocused();
+    await expect(draft).toHaveValue('Keep this draft above the keyboard.');
+    const send = page.getByRole('button', { name: 'Send', exact: true });
+    // This fixture has no model key, so Send retains its disabled state while staying clear.
+    await expect(send).toBeDisabled();
+    const sendBox = (await send.boundingBox())!;
+    const railBox = (await page.locator('[data-edge-rail]').boundingBox())!;
+    expect(sendBox.x + sendBox.width).toBeLessThanOrEqual(railBox.x - 11);
+    await page.evaluate(() => {
+      Reflect.deleteProperty(window.visualViewport!, 'height');
+      Reflect.deleteProperty(window.visualViewport!, 'offsetTop');
+      window.visualViewport!.dispatchEvent(new Event('resize'));
+      window.visualViewport!.dispatchEvent(new Event('scroll'));
+    });
+    await expectChatRail(page);
+  }
   if (compact) await page.getByRole('button', { name: 'Conversations', exact: true }).click();
   const picker = page.getByRole(compact ? 'dialog' : 'complementary', {
     name: 'Conversations',
@@ -87,6 +147,7 @@ test('production opens a fresh chat, pages saved conversations and retains only 
   await rows.filter({ hasText: 'chat-00' }).click();
   await expect(page).toHaveURL(/#\/chat\/chat-00\/$/);
   await expect(page.locator('[data-message="user"]')).toContainText('Recorded message 0');
+  if (compact) await expectChatRail(page);
   await page.reload();
   await expect(page.locator('[data-message="user"]')).toContainText('Recorded message 0');
   await page.getByRole('button', { name: 'New conversation', exact: true }).click();
@@ -202,6 +263,19 @@ test.describe('production recorded dictation', () => {
     expect(uploads).toBe(0);
     await page.getByRole('button', { name: 'Finish recording', exact: true }).click();
     await expect(input).toHaveValue('Keep this draft. Dictated words for review.');
+    await input.focus();
+    const send = page.getByRole('button', { name: 'Send', exact: true });
+    await expect(send).toBeEnabled();
+    expect(
+      await send.evaluate((node) => {
+        const rect = node.getBoundingClientRect();
+        const target = document.elementFromPoint(
+          rect.left + rect.width / 2,
+          rect.top + rect.height / 2,
+        );
+        return target === node || node.contains(target);
+      }),
+    ).toBe(true);
     await expect(page.locator('[data-message]')).toHaveCount(0);
     await expect(page.getByRole('alert')).toHaveCount(0);
     expect(uploads).toBe(1);
