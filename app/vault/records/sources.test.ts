@@ -81,7 +81,9 @@ test('unclaimed records keep their retained text format instead of interpreting 
   const view = await nodes.snapshot();
   const context = { view, textOf: () => 'Child text.' };
   expect(retainedRecordSources.text(view.get('question')!, context)).toBeUndefined();
-  for (const node of ['task', 'decision', 'term'])
+  expect(retainedRecordSources.text(view.get('term')!, context)).toBeUndefined();
+  expect(retainedRecordSources.describe(view.get('term')!, view)).toBeUndefined();
+  for (const node of ['task', 'decision'])
     expect(retainedRecordSources.text(view.get(node)!, context)).toBe('');
   expect(retainedRecordSources.text(view.get('timeline')!, context)).toBe('Child text.');
   nodes.close();

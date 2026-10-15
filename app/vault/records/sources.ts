@@ -2,24 +2,12 @@ import type { NodeVersion } from '../nodes/model.ts';
 import type { SourceReader } from '../sources.ts';
 
 // These definitions remain unclaimed until their owning modules are implemented.
-const ownedKinds = new Set([
-  'relationship',
-  'term',
-  'query',
-  'task',
-  'decision',
-  'date',
-  'timeline',
-  'resource',
-  'actor',
-  'agent',
-]);
+const ownedKinds = new Set(['task', 'decision', 'date', 'timeline', 'resource', 'actor', 'agent']);
 
 export const retainedRecordSources: SourceReader = {
   text(node, { view, textOf }) {
     const { data } = node;
     if (!data || typeof data.kind !== 'string' || !ownedKinds.has(data.kind)) return;
-    if (data.kind === 'relationship') return '';
     return view.children(node.key).map(textOf).filter(Boolean).join('\n');
   },
   describe(node, view) {

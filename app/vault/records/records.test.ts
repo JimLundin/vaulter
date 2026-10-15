@@ -4,6 +4,13 @@ import { parseVaultRecord } from './index.ts';
 test('each kind validates its own shape and rejects anything else', () => {
   expect(() => parseVaultRecord({ kind: 'page', title: 'Rut' })).toThrow('Unknown record kind');
   expect(() => parseVaultRecord({ kind: 'question', text: 'Who?' })).toThrow('Unknown record kind');
+  expect(() => parseVaultRecord({ kind: 'relationship', predicate: 'tag' })).toThrow(
+    'Unknown record kind',
+  );
+  expect(() => parseVaultRecord({ kind: 'term', scheme: 'tag', key: 'work' })).toThrow(
+    'Unknown record kind',
+  );
+  expect(() => parseVaultRecord({ kind: 'query' })).toThrow('Unknown record kind');
   expect(() => parseVaultRecord({ kind: 'unknown' })).toThrow('Unknown record kind');
   expect(() =>
     parseVaultRecord({ kind: 'task', what: 'Renew the gym membership', status: 'paused' }),
