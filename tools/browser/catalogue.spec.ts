@@ -611,11 +611,28 @@ test('labelled suggestions select an editable draft by keyboard in both kit layo
     await expect(field).toHaveValue('Leave space for a walk before work.');
     await expect(choice).toHaveAttribute('aria-pressed', 'true');
     await expect(sample.getByRole('status')).toHaveText('Nothing saved yet.');
-    const first = (await choice.boundingBox())!;
+    const list = (await suggestions.boundingBox())!;
+    let bottom = list.y;
     for (const option of await suggestions.getByRole('button').all()) {
       const bounds = (await option.boundingBox())!;
-      expect(bounds.y).toBe(first.y);
-      if (device === 'mobile') expect(bounds.height).toBeGreaterThanOrEqual(44);
+      expect(bounds.y).toBeGreaterThanOrEqual(bottom);
+      expect(bounds.x).toBeCloseTo(list.x, 0);
+      expect(bounds.width).toBeCloseTo(list.width, 0);
+      expect(bounds.height).toBeGreaterThanOrEqual(44);
+      expect(
+        await option.evaluate((node) => {
+          const button = node.getBoundingClientRect();
+          const content = document.createRange();
+          content.selectNodeContents(node);
+          return [...content.getClientRects()].every(
+            (part) =>
+              part.left >= button.left &&
+              part.right <= button.right &&
+              part.bottom <= button.bottom,
+          );
+        }),
+      ).toBe(true);
+      bottom = bounds.y + bounds.height;
     }
   }
 });

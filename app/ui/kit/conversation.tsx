@@ -4,7 +4,7 @@ import { Stack, Text, Prose } from './parts/layout.tsx';
 import { Button } from './parts/button.tsx';
 import { Icon } from './icons.tsx';
 import { useLayout } from './hooks/use-layout.ts';
-import { Surface, OptionStrip } from './primitives.tsx';
+import { Surface } from './primitives.tsx';
 
 /** Generic selection rows; callers supply labels, metadata and current selection. */
 export function SelectionList({
@@ -176,22 +176,21 @@ export function PromptSuggestions({
 }) {
   if (!suggestions.length) return null;
   return (
-    <Stack as="section" aria-label={label} gap="sm">
-      <OptionStrip>
-        {suggestions.map((suggestion) => (
-          <Button
-            key={suggestion.value}
-            type="button"
-            variant={selected === suggestion.value ? 'filled' : 'outline'}
-            size="compact"
-            aria-pressed={selected === undefined ? undefined : selected === suggestion.value}
-            disabled={disabled}
-            onClick={() => onSelect(suggestion.value)}
-          >
-            {suggestion.label}
-          </Button>
-        ))}
-      </OptionStrip>
+    <Stack as="section" aria-label={label} gap="none">
+      {suggestions.map((suggestion) => (
+        <Button
+          key={suggestion.value}
+          type="button"
+          variant="suggestion"
+          size="compact"
+          aria-pressed={selected === undefined ? undefined : selected === suggestion.value}
+          disabled={disabled}
+          onClick={() => onSelect(suggestion.value)}
+        >
+          {suggestion.label}
+          <Icon name="arrow-up-right" />
+        </Button>
+      ))}
     </Stack>
   );
 }

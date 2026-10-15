@@ -365,6 +365,10 @@ test('suggestions start editable drafts, keep each choice’s text and require a
     [...document.querySelectorAll('button')].find((item) => item.textContent?.startsWith(title))!;
   expect(document.querySelector('textarea')?.value).toBe('');
   expect([...document.querySelectorAll('button[aria-pressed=true]')]).toHaveLength(0);
+  expect(document.body.textContent).not.toContain('Write my own');
+  await act(async () => writeAnswer('Keep the bench mobile.'));
+  expect(document.querySelector('textarea')?.value).toBe('Keep the bench mobile.');
+  expect(onAnswer).not.toHaveBeenCalled();
   await act(async () => choice('Garden wall').click());
   expect(document.activeElement).toBe(document.querySelector('textarea'));
   expect(document.querySelector('textarea')?.value).toBe('Use the garden wall.');
@@ -376,12 +380,12 @@ test('suggestions start editable drafts, keep each choice’s text and require a
   await act(async () => button('Finish recording').click());
   await act(async () => choice('North wall').click());
   expect(document.querySelector('textarea')?.value).toBe('Use the north wall.');
-  await act(async () => choice('Write my own').click());
-  await act(async () => writeAnswer('Keep the bench mobile.'));
+  await act(async () => writeAnswer('North wall, beside the shelves.'));
   await act(async () => choice('Garden wall').click());
   expect(document.querySelector('textarea')?.value).toBe('Garden wall, with room for shelves.');
-  await act(async () => choice('Write my own').click());
-  expect(document.querySelector('textarea')?.value).toBe('Keep the bench mobile.');
+  await act(async () => choice('North wall').click());
+  expect(document.querySelector('textarea')?.value).toBe('North wall, beside the shelves.');
+  await act(async () => writeAnswer('Keep the bench mobile.'));
   expect(onAnswer).not.toHaveBeenCalled();
   await act(async () => button('Save answer').click());
   expect(onAnswer).toHaveBeenCalledExactlyOnceWith(record, 'Keep the bench mobile.');

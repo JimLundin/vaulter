@@ -15,6 +15,7 @@ const buttonVariants = cva(
         outline:
           'border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50',
         ghost: 'hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50',
+        suggestion: 'kit-prompt-suggestion',
         inline: 'kit-inline-action',
       },
       // Visual sizes; styles.css gives every standalone control a 44px touch target.

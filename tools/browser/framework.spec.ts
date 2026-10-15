@@ -231,7 +231,7 @@ test('the new chat icon keeps the composer button size through viewport changes'
   ).toEqual([]);
 });
 
-test('agent controls have even insets and suggestions remain one scrolling row with edge fades', {
+test('agent controls have even insets and every suggested prompt is visible without sideways scrolling', {
   tag: ['@phone', '@touch'],
 }, async ({ page }) => {
   await page.goto('/preview/');
@@ -256,28 +256,13 @@ test('agent controls have even insets and suggestions remain one scrolling row w
       expect(bar.y + bar.height - action.y - action.height).toBeGreaterThanOrEqual(2);
     }
     await expect(page.getByText('Ideas to explore', { exact: true })).toHaveCount(0);
-    const strip = page.getByRole('region', { name: 'Suggested prompts' });
-    const buttons = strip.getByRole('button');
-    const first = (await buttons.first().boundingBox())!;
+    const suggestions = page.getByRole('region', { name: 'Suggested prompts' });
+    const buttons = suggestions.getByRole('button');
+    await expect(buttons).toHaveCount(3);
     for (const button of await buttons.all()) {
-      expect((await button.boundingBox())!.y).toBe(first.y);
-      await expect(button).toHaveCSS('white-space', 'nowrap');
+      await expect(button).toBeInViewport();
     }
-    const viewport = strip.locator('[data-slot="scroll-area-viewport"]');
-    const scrolling = strip.locator('.kit-option-strip');
-    await expect(scrolling).toHaveAttribute('data-overflow-end', 'true');
-    await expect(scrolling).toHaveAttribute('data-overflow-start', 'false');
-    expect(await viewport.evaluate((node) => getComputedStyle(node).maskImage)).toContain(
-      'gradient',
-    );
-    await viewport.evaluate((node) => {
-      node.scrollLeft = node.scrollWidth;
-    });
-    await expect(scrolling).toHaveAttribute('data-overflow-start', 'true');
-    await expect(scrolling).toHaveAttribute('data-overflow-end', 'false');
-    await viewport.evaluate((node) => {
-      node.scrollLeft = 0;
-    });
+    expect(await suggestions.evaluate((node) => node.scrollWidth <= node.clientWidth)).toBe(true);
   }
 });
 

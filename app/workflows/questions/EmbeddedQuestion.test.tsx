@@ -82,7 +82,7 @@ test('embedded read errors preserve the Question and disable its Answer action u
   }
 });
 
-test('Question target and author descriptions resolve its addresses while foreign owners interpret payloads', async () => {
+test('Question target descriptions resolve its addresses while foreign owners interpret payloads', async () => {
   const nodes = memoryNodeBackend();
   await nodes.commit(
     request('asked', [
@@ -91,14 +91,10 @@ test('Question target and author descriptions resolve its addresses while foreig
     ]),
   );
   const view = await nodes.snapshot();
-  const descriptions = questionDescriptions(
-    view,
-    {
-      text: vi.fn(() => 'Foreign exact prose'),
-      describe: vi.fn(() => ({ title: 'Planning', href: '#/foreign/planning/' })),
-    },
-    vi.fn(() => 'Foreign identity name'),
-  );
+  const descriptions = questionDescriptions(view, {
+    text: vi.fn(() => 'Foreign exact prose'),
+    describe: vi.fn(() => ({ title: 'Planning', href: '#/foreign/planning/' })),
+  });
   expect(
     descriptions.describeTarget({ version: view.get('evidence'), state: 'available' }),
   ).toEqual({
@@ -107,32 +103,21 @@ test('Question target and author descriptions resolve its addresses while foreig
     text: 'Foreign exact prose',
     navigationLabel: 'Open source context: Planning',
   });
-  expect(
-    descriptions.describeAuthor({
-      ...question,
-      created: { transaction: 'asked', at: '', author: { node: 'user' }, origin: null },
+  const wiki = questionDescriptions(view, {
+    text: () => undefined,
+    describe: () => ({
+      title: 'Studio',
+      href: '#/wiki/studio/',
+      navigationLabel: 'Open Wiki page: Studio',
     }),
-  ).toBe('Foreign identity name');
-  const wiki = questionDescriptions(
-    view,
-    {
-      text: () => undefined,
-      describe: () => ({
-        title: 'Studio',
-        href: '#/wiki/studio/',
-        navigationLabel: 'Open Wiki page: Studio',
-      }),
-    },
-    () => undefined,
-  );
+  });
   expect(
     wiki.describeTarget({ version: view.get('evidence'), state: 'available' })?.navigationLabel,
   ).toBe('Open Wiki page: Studio');
-  const unnamed = questionDescriptions(
-    view,
-    { text: () => 'Retained prose', describe: () => undefined },
-    () => undefined,
-  );
+  const unnamed = questionDescriptions(view, {
+    text: () => 'Retained prose',
+    describe: () => undefined,
+  });
   expect(unnamed.describeTarget({ version: view.get('evidence'), state: 'available' })).toEqual({
     title: 'Retained source',
     text: 'Retained prose',

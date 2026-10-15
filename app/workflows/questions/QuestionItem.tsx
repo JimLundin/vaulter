@@ -5,9 +5,7 @@ import {
   Card,
   CardContent,
   CardHeader,
-  Drawer,
   Heading,
-  Icon,
   Link,
   PromptSuggestions,
   Row,
@@ -25,6 +23,8 @@ import type { QuestionAnswers } from './answers.ts';
 import { useQuestionAnswerState } from './use-questions.ts';
 import { useAnswerDictation } from './use-answer-dictation.ts';
 
+const sourceSentences = new Intl.Segmenter(undefined, { granularity: 'sentence' });
+
 export interface QuestionTargetDescription {
   readonly title: string;
   /** Foreign source owners supply the text of self-contained exact versions. */
@@ -39,7 +39,6 @@ export type QuestionAnswerHandler = (question: Question, text: string) => Promis
 export interface QuestionItemProps {
   readonly question: Question;
   readonly describeTarget?: (target: QuestionTarget) => QuestionTargetDescription | undefined;
-  readonly describeAuthor?: (question: Question) => string | undefined;
   readonly onAnswer?: QuestionAnswerHandler;
   readonly answers?: QuestionAnswers;
   readonly disabledReason?: string;
@@ -57,7 +56,6 @@ interface Draft {
 export function QuestionItem({
   question,
   describeTarget,
-  describeAuthor,
   onAnswer,
   answers,
   disabledReason,
@@ -66,7 +64,6 @@ export function QuestionItem({
   const [draft, setDraft] = useState<Draft>();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string>();
-  const [contextOpen, setContextOpen] = useState(false);
   const [focusRequest, setFocusRequest] = useState(0);
   const submitting = useRef(false);
   const answerField = useRef<HTMLTextAreaElement>(null);
@@ -110,23 +107,15 @@ export function QuestionItem({
       : question.status === 'answered'
         ? 'Answered'
         : 'Abandoned';
-  const date =
-    question.created &&
-    new Date(question.created.at).toLocaleDateString('en-GB', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-    });
-  const author = describeAuthor?.(question);
-  const sources = question.sources ?? [];
-  const knowledge = question.knowledge ?? [];
-  const hasContext = !!(
-    sources.length ||
-    knowledge.length ||
-    question.data.suggestions?.length ||
-    author ||
-    date
-  );
+  const sourceText = question.sources
+    ?.map((source) => describeTarget?.(source)?.text?.replace(/\s+/g, ' ').trim())
+    .find((value) => value);
+  const firstSentence =
+    sourceText && sourceSentences.segment(sourceText).containing(0)?.segment.trim();
+  const context =
+    firstSentence && firstSentence.length > 120
+      ? `${firstSentence.slice(0, 117).replace(/\s+\S*$/, '')}…`
+      : firstSentence;
   const choose = (choice: string, initial = '') => {
     if (locked || stale || dictation.recording()) return;
     dictation.cancel();
@@ -183,34 +172,20 @@ export function QuestionItem({
   return (
     <Card role="region" aria-label={label}>
       <CardHeader>
-        <Row justify="between" align="start">
-          <Stack gap="sm" grow={true}>
-            <Heading level={2}>{question.data.text}</Heading>
-            {!!(question.subjects.length || question.status !== 'open') && (
-              <Row wrap={true}>
-                {question.status !== 'open' && <Badge>{label}</Badge>}
-                <Targets
-                  targets={question.subjects}
-                  describeTarget={describeTarget}
-                  subject={true}
-                />
-              </Row>
-            )}
-          </Stack>
-          {hasContext && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="compact"
-              iconOnly={true}
-              aria-label="Source & context"
-              title="Source & context"
-              onClick={() => setContextOpen(true)}
-            >
-              <Icon name="book" size="sm" />
-            </Button>
+        <Stack gap="sm">
+          <Heading level={2}>{question.data.text}</Heading>
+          {!!context && (
+            <Text size="sm" tone="muted">
+              {context}
+            </Text>
           )}
-        </Row>
+          {!!(question.subjects.length || question.status !== 'open') && (
+            <Row wrap={true}>
+              {question.status !== 'open' && <Badge>{label}</Badge>}
+              <Targets targets={question.subjects} describeTarget={describeTarget} subject={true} />
+            </Row>
+          )}
+        </Stack>
       </CardHeader>
       <CardContent>
         <Stack gap="lg">
@@ -262,17 +237,10 @@ export function QuestionItem({
             <Stack gap="sm">
               <PromptSuggestions
                 label="Suggested answers"
-                suggestions={
-                  suggestions.length
-                    ? [
-                        ...suggestions.map((suggestion, index) => ({
-                          value: `suggestion:${index}`,
-                          label: suggestion.title,
-                        })),
-                        { value: 'custom', label: 'Write my own' },
-                      ]
-                    : []
-                }
+                suggestions={suggestions.map((suggestion, index) => ({
+                  value: `suggestion:${index}`,
+                  label: suggestion.title,
+                }))}
                 selected={draft?.choice ?? ''}
                 disabled={locked || stale || dictation.active}
                 onSelect={(choice) =>
@@ -339,49 +307,6 @@ export function QuestionItem({
           ) : null}
         </Stack>
       </CardContent>
-      <Drawer
-        title="Source & context"
-        description={question.data.text}
-        open={contextOpen}
-        onClose={() => setContextOpen(false)}
-      >
-        <Stack gap="lg">
-          {!!(author || date) && (
-            <Text size="xs" tone="muted">
-              {author ? `Asked by ${author}` : 'Asked'}
-              {date ? ` · ${date}` : ''}
-            </Text>
-          )}
-          <Grounding
-            title="Source of the question"
-            targets={sources}
-            describeTarget={describeTarget}
-          />
-          <Grounding
-            title="Existing knowledge"
-            targets={knowledge}
-            describeTarget={describeTarget}
-          />
-          {!!question.data.suggestions?.length && (
-            <Stack gap="sm">
-              <Heading level={3}>Why these suggestions?</Heading>
-              {question.data.suggestions.map((suggestion) => (
-                <Stack key={suggestion.title} gap="xs">
-                  <Text size="sm" weight="medium">
-                    {suggestion.title}
-                  </Text>
-                  <Text size="sm" preserve={true}>
-                    {suggestion.text}
-                  </Text>
-                  <Text size="sm" tone="muted">
-                    {suggestion.reason}
-                  </Text>
-                </Stack>
-              ))}
-            </Stack>
-          )}
-        </Stack>
-      </Drawer>
     </Card>
   );
 }
@@ -453,59 +378,6 @@ function Targets({
               />
               {availability ? ` · ${availability}` : ''}
             </Text>
-          </Stack>
-        );
-      })}
-    </Stack>
-  );
-}
-
-function Grounding({
-  title,
-  targets,
-  describeTarget,
-}: {
-  title: string;
-  targets: readonly QuestionTarget[];
-  describeTarget?: QuestionItemProps['describeTarget'];
-}) {
-  return (
-    <Stack gap="sm">
-      <Text size="xs" tone="muted">
-        {title}
-      </Text>
-      {!targets.length && (
-        <Text size="sm" tone="muted">
-          No context recorded.
-        </Text>
-      )}
-      {targets.map((target, index) => {
-        const description = describeTarget?.(target);
-        return (
-          <Stack key={target.relationship ?? index} gap="xs">
-            <Text size="sm" weight="medium">
-              <TargetLink target={target} description={description} fallback="Retained context" />
-            </Text>
-            {description?.text ? (
-              <Surface variant="grouped">
-                <Text size="sm" preserve={true}>
-                  “{description.text}”
-                </Text>
-              </Surface>
-            ) : (
-              <Text size="sm" tone="muted">
-                Recorded context unavailable.
-              </Text>
-            )}
-            {target.state !== 'available' && (
-              <Text size="sm" tone="muted">
-                {target.state === 'newer'
-                  ? 'Recorded context; newer content available.'
-                  : target.state === 'deleted'
-                    ? 'Context removed; recorded version retained.'
-                    : 'Recorded context unavailable.'}
-              </Text>
-            )}
           </Stack>
         );
       })}

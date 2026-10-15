@@ -80,7 +80,6 @@ import { chatSources } from './workflows/chat/records/sources.ts';
 import { contentSources } from './vault/content/sources.ts';
 import { retainedRecordSources } from './vault/records/sources.ts';
 import { describeSource, type SourceReader } from './vault/sources.ts';
-import { identityName } from './vault/records/identities.ts';
 import {
   createNodeConversation,
   type NodeConversationOptions,
@@ -375,15 +374,10 @@ export function OpenProduct({
     admission: () => admission.current,
   });
   const answerAvailability = questionAnswerAvailability(questionState, writeAdmission);
-  const descriptions = questionDescriptions(
-    questionState.view,
-    {
-      text: questionContextReading.text,
-      describe: (node, view) =>
-        productSources.describe(node, view) ?? describeWikiTarget(node, view),
-    },
-    identityName,
-  );
+  const descriptions = questionDescriptions(questionState.view, {
+    text: questionContextReading.text,
+    describe: (node, view) => productSources.describe(node, view) ?? describeWikiTarget(node, view),
+  });
   const renderWikiRecord: ForeignRecordRenderer = (record) =>
     renderQuestionRecord(record, questionState, {
       ...descriptions,

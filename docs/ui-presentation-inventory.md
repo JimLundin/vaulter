@@ -141,7 +141,7 @@ Audited after UI ownership migration. Every public kit value/type has its owner 
 | `PassageCard` (value) | Kit: `app/ui/kit/passage-card.tsx` | `app/workflows/wiki/rendering/references.tsx` | `app/ui/kit/catalogue.tsx` | Retained shared presentation |
 | `PresentationPreview` (value) | Kit: `app/ui/kit/presentation.tsx` | — | `app/preview/record-examples.tsx`<br>`app/ui/kit/catalogue.tsx`<br>`app/ui/kit/gallery.tsx`<br>`app/ui/kit/tests/hover-preview.test.tsx` | Retained shared presentation |
 | `PreviewBar` (value) | Kit: `app/ui/kit/surfaces.tsx` | — | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/preview.tsx` | Retained shared presentation |
-| `PromptSuggestions` (value) | Kit: `app/ui/kit/conversation.tsx` | `app/workflows/chat/Chat.tsx`<br>`app/workflows/questions/QuestionItem.tsx` | `app/ui/kit/catalogue.tsx` | Shared compact suggestion row with caller-owned selection and drafts |
+| `PromptSuggestions` (value) | Kit: `app/ui/kit/conversation.tsx` | `app/workflows/chat/Chat.tsx`<br>`app/workflows/questions/QuestionItem.tsx` | `app/ui/kit/catalogue.tsx` | Shared suggestion list with complete wrapping labels and caller-owned selection and drafts |
 | `Prose` (value) | Kit: `app/ui/kit/parts/layout.tsx` | `app/workflows/wiki/WikiPageView.tsx` | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/conversation.tsx` | Retained shared presentation |
 | `RadioGroup` (value) | Kit: `app/ui/kit/index.ts` | — | `app/ui/kit/catalogue.tsx`<br>`app/ui/kit/tests/browser.tsx`<br>`app/ui/kit/tests/setting-fields.test.tsx` | Retained shared presentation |
 | `RadioGroupIndicator` (value) | Kit: `app/ui/kit/index.ts` | — | `app/ui/kit/catalogue.tsx` | Retained shared presentation |

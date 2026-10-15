@@ -8,7 +8,7 @@ import {
   type QuestionItemProps,
   type QuestionTargetDescription,
 } from './QuestionItem.tsx';
-import type { Question, QuestionTarget, QuestionsReadingState } from './reading.ts';
+import type { QuestionTarget, QuestionsReadingState } from './reading.ts';
 import { questionAnswerAvailability } from './availability.ts';
 import { useQuestionAnswerState } from './use-questions.ts';
 
@@ -22,7 +22,6 @@ export function questionDescriptions(
       view: NodeSnapshot,
     ) => (SourceDescription & { readonly navigationLabel?: string }) | undefined;
   },
-  authorName: (node: NodeVersion) => string | undefined,
 ) {
   return {
     describeTarget: (target: QuestionTarget): QuestionTargetDescription | undefined => {
@@ -40,10 +39,6 @@ export function questionDescriptions(
               : undefined),
         };
       if (text) return { title: 'Retained source', text };
-    },
-    describeAuthor: (question: Question) => {
-      const author = question.created && view?.resolve(question.created.author);
-      return author ? authorName(author) : undefined;
     },
   };
 }

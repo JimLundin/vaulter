@@ -942,6 +942,40 @@ body:has(.kit-design-window) {
   text-underline-offset: 3px;
 }
 
+/* Suggestions keep their complete labels in one reading order above the editable draft. */
+.kit-prompt-suggestion {
+  width: 100%;
+  min-width: 0;
+  height: auto;
+  min-height: 44px;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 12px 8px;
+  border: 0;
+  border-inline-start: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: var(--foreground);
+  font-weight: 400;
+  line-height: 1.45;
+  text-align: start;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.kit-prompt-suggestion + .kit-prompt-suggestion {
+  border-top: 1px solid var(--border);
+}
+.kit-prompt-suggestion > svg {
+  color: var(--muted-foreground);
+}
+.kit-prompt-suggestion:hover,
+.kit-prompt-suggestion[aria-pressed="true"] {
+  background: var(--muted);
+}
+.kit-prompt-suggestion[aria-pressed="true"] {
+  border-inline-start-color: var(--foreground);
+}
+
 .kit-option-strip > [data-slot="scroll-area-viewport"] > div {
   display: block !important;
   width: max-content;
@@ -1003,12 +1037,20 @@ body:has(.kit-design-window) {
 }
 
 /* Persistent reading support shares its app-height frame with Chat and Wiki. */
+.kit-split-main {
+  min-width: min(100%, 18rem);
+}
 .kit-supporting-drawer-anchor:has([data-drawer-placement="pane"][data-layout="wide"]) {
   display: block;
   width: var(--drawer-width);
   height: 100%;
   min-height: 0;
   flex-shrink: 0;
+}
+/* Leave the main column readable when navigation and a supporting pane share a narrower window. */
+.kit-split-view
+> .kit-supporting-drawer-anchor:has([data-drawer-placement="pane"][data-layout="wide"]) {
+  max-width: max(0px, calc(100% - 18rem));
 }
 .kit-supporting-drawer-anchor
   .kit-drawer-viewport:has(> [data-drawer-placement="pane"][data-layout="wide"]) {
@@ -1021,6 +1063,7 @@ body:has(.kit-design-window) {
   position: relative;
   top: auto;
   align-self: stretch;
+  width: 100%;
   height: 100%;
   max-height: 100%;
   border: 0;

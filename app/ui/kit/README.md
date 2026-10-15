@@ -267,8 +267,10 @@ exception are removed; shared mechanics live in `passage-card.tsx`/`passage-card
 ### Primitive composition
 
 Agent and Settings contain no intrinsic HTML, CSS classes or inline styling. They assemble public
-building blocks. `Button` owns shared action styles, sizes and icon-only layout. `OptionStrip` owns
-prompt-option presentation. The composer uses the shared primary and supporting action styles.
+building blocks. `Button` owns shared action styles, sizes and icon-only layout. Its `suggestion`
+variant presents complete wrapping labels in full-width rows with separators. `PromptSuggestions`
+composes those rows for Questions and Chat; `OptionStrip` remains available for horizontal options.
+The composer uses the shared primary and supporting action styles.
 `InputGroup`,
 `InputGroupTextarea variant="inline"` and `InputGroupAddon align="inset-end"` own the one-row
 field and inset actions. `Field orientation="setting"` owns responsive

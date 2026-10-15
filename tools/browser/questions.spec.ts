@@ -154,7 +154,6 @@ test('agent questions can be answered in Questions and remain on their Wiki page
     proposals[0].text,
   );
   expect(await journal(page)).toEqual(beforeChoice);
-  await record.getByRole('button', { name: 'Write my own', exact: true }).click();
   await record
     .getByRole('textbox', { name: 'Your answer', exact: true })
     .fill('Use the garden wall.');
@@ -188,7 +187,7 @@ test('agent questions can be answered in Questions and remain on their Wiki page
   ).toContainText('Use the garden wall.');
 });
 
-test('compact suggestions preserve each draft, source context and shared card typography in Wiki', {
+test('suggestion lists preserve edited drafts, inline context and shared card typography in Wiki', {
   tag: '@phone',
 }, async ({ page }) => {
   await page.goto('/preview/#/questions/');
@@ -208,21 +207,18 @@ test('compact suggestions preserve each draft, source context and shared card ty
   await expect(answer).toHaveValue(
     'Store every tool after each session, with the chisels and hand plane together in an easy-to-reach drawer.',
   );
-  await choose('Write my own').click();
   await answer.fill('Use a mobile tool cart.');
   await choose('Keep hand tools close').click();
   await expect(answer).toHaveValue('Keep hand tools within reach and leave space to work.');
-  await choose('Write my own').click();
+  await choose('Store everything between sessions').click();
   await expect(answer).toHaveValue('Use a mobile tool cart.');
   expect(await journal(page)).toEqual(initial);
-  const source = record.getByRole('button', { name: 'Source & context', exact: true });
-  await source.click();
-  const drawer = page.getByRole('dialog', { name: 'Source & context', exact: true });
-  await expect(drawer).toContainText('I use chisels and a hand plane most mornings.');
-  await expect(drawer).toContainText('Leave the workbench clear at the end of each session.');
-  await page.keyboard.press('Escape');
-  await expect(drawer).toBeHidden();
-  await expect(source).toBeFocused();
+  await expect(record).toContainText('I use chisels and a hand plane most mornings.');
+  await expect(record.getByRole('link', { name: /Garden studio/ })).toBeVisible();
+  await expect(record.getByRole('button', { name: 'Source & context', exact: true })).toHaveCount(
+    0,
+  );
+  await expect(choose('Write my own')).toHaveCount(0);
   await expect(answer).toHaveValue('Use a mobile tool cart.');
   const typography = () =>
     record.evaluate((node) => {
@@ -241,7 +237,13 @@ test('compact suggestions preserve each draft, source context and shared card ty
   await expect(page.getByRole('heading', { name: 'Garden studio', exact: true })).toBeVisible();
   await expect(answer).toBeVisible();
   expect(await typography()).toEqual(collectionStyle);
-  await expect(choose('Write my own')).toBeVisible();
+  await expect(record).toContainText('I use chisels and a hand plane most mornings.');
+  await expect(record.getByRole('button', { name: 'Source & context', exact: true })).toHaveCount(
+    0,
+  );
+  await expect(choose('Write my own')).toHaveCount(0);
+  await answer.fill('A direct answer without choosing a suggestion.');
+  await expect(answer).toHaveValue('A direct answer without choosing a suggestion.');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.reload();
   await expect(choose('Keep hand tools close')).toBeVisible();

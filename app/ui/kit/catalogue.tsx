@@ -1031,7 +1031,10 @@ function TextBoxes() {
               label="Suggested starting points"
               suggestions={[
                 { value: 'Leave space for a walk before work.', label: 'Make time for a walk' },
-                { value: 'Keep a morning free for the studio.', label: 'Keep a morning free' },
+                {
+                  value: 'Keep a morning free for the studio.',
+                  label: 'Keep a morning free for making things in the garden studio',
+                },
               ]}
               selected={note}
               onSelect={(text) => {

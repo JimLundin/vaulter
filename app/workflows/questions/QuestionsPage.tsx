@@ -23,7 +23,6 @@ const filters: readonly { value: QuestionFilter; label: string }[] = [
 export interface QuestionsPageProps {
   readonly state: QuestionsReadingState;
   readonly describeTarget?: (target: QuestionTarget) => QuestionTargetDescription | undefined;
-  readonly describeAuthor?: (question: Question) => string | undefined;
   readonly onAnswer?: QuestionAnswerHandler;
   readonly answers?: QuestionAnswers;
   readonly disabledReason?: string;
@@ -34,7 +33,6 @@ export interface QuestionsPageProps {
 export function QuestionsPage({
   state,
   describeTarget,
-  describeAuthor,
   onAnswer,
   answers,
   disabledReason,
@@ -99,7 +97,6 @@ export function QuestionsPage({
             key={question.id}
             question={question}
             describeTarget={describeTarget}
-            describeAuthor={describeAuthor}
             onAnswer={onAnswer}
             answers={answers}
             disabledReason={answerDisabledReason}
