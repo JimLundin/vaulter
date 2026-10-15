@@ -86,8 +86,6 @@ tools/
   testing/                   focused-test and CI-only runner guards
   browser/                   browser integration specs and fixtures
   production/                built production browser specs and runner configuration
-  check.ts                   standalone source-file integrity checks
-  vault-check/               private Vault source-note/schema/graph checking
 ```
 
 `app/ui/` contains only the kit. Shared application behavior has named owners: for example,
@@ -149,7 +147,7 @@ its entry. Modules without preferences need no empty settings section.
 expressions. Workflow isolation and production/fixture separation include type-only references.
 Value and dynamic import cycles are rejected separately; type cycles do not imply runtime cycles.
 Raw persistence and session construction remain restricted even through aliases. The checker also
-keeps standalone source checking out of the browser, prohibits imports back into Application, and
+prohibits imports back into Application and
 keeps UI callers on public kit exports. The kit owns presentation; lower-level record and persistence
 implementations cannot import views.
 
@@ -190,10 +188,7 @@ submits node messages directly after admission; pending node persistence still u
 recovery actions. Shared search entries/ranking live in Search, safe URLs in Navigation, and
 Markdown rendering in Chat.
 
-The private Vault's existing source CI can still call `tools/check.ts`. Its note/schema/graph
-implementation lives in `tools/vault-check/`, outside the browser dependency graph. Translation
-and enrichment remain owned by the private Vault under ADR 0007. Removing application file
-support does not delete or rewrite files in the private repository.
+Source translation and enrichment belong to the private Vault under ADR 0007.
 
 ## Conversation lifetime
 

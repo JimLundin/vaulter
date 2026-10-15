@@ -13,7 +13,6 @@ See [Architecture](ARCHITECTURE.md) for module boundaries and [ADRs](docs/adr/) 
 | Command | Does |
 |---|---|
 | `npm ci` | install |
-| `npm run check` | the permanent note, schema and graph integrity checks over `../vault`, or `node tools/check.ts --vault <dir>`; the vault's CI uses the same check |
 | `npm run dev` | the app on the vault through GitHub, as built, in any browser, but with no password: it loads right in with the secrets from `.env.local` (gitignored): `VAULT_GITHUB_TOKEN`, and optionally `VAULT_OPENAI_KEY` and `VAULT_JINA_KEY`, the names CI seals. Only dev gets them; a build has none. Its commits go to the vault's `main`, as the app's do |
 | `npm run kit` | the live component kit gallery |
 | `npm run design` | the current branch UI at `http://localhost:5173/preview/`, with fictional notes and scripted chat; no password, keys or vault connection |
@@ -97,10 +96,7 @@ Every public component must have an example; CI checks coverage and app-wide kit
 Workflow views compose its public components; styles stay in the kit, with a scoped exception for Markdown rendering. `tools/architecture/layout.test.ts` enforces the import rules
 in CI, including dynamic imports and aliases.
 
-The private Vault's standalone source checker remains available through `tools/check.ts`, with
-its implementation in `tools/vault-check/`. The browser does not load Markdown files or
-`meta/schema.yaml`. Node transactions enforce structural integrity and each supplying module
-validates its own content.
+Node transactions enforce structural integrity and each supplying module validates its own content.
 
 ## Central node storage
 
@@ -176,9 +172,6 @@ Notes don't publish: the app reads the vault's `main` itself. Every push here ru
 `dist/secrets.json` from this repo's secrets, and deploys `dist/` to GitHub Pages (Settings → Pages →
 Source: GitHub Actions). This repo is public: never commit a `secrets.json`, notes, or anything personal
 (test fixtures and examples are fictional).
-
-The vault's own CI (`vault/.github/workflows/check.yml`) checks out this repo's `main` and runs its
-check over the notes, so a change to the rules here applies to the vault's next push.
 
 What the seal needs, in this repo's settings:
 

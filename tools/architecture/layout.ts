@@ -85,8 +85,6 @@ const vaultUi = new Set([
   'app/vault/transactions/history/HistoryPage.tsx',
 ]);
 export function importProblem(from: string, to: string): string | null {
-  if (from.startsWith('app/') && to.startsWith('tools/vault-check/'))
-    return `${from} imports standalone vault checking; browser data uses Nodes`;
   if (to.startsWith('app/preview/') && !fixture(from))
     return `${from} imports preview-only ${to}; fixtures cannot publish application data`;
   if (testSource(to) && !fixture(from))

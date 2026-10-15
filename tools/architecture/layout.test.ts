@@ -1046,11 +1046,8 @@ test('installed presentation-library targets cannot hide behind path aliases or 
   }
 });
 
-test('module owners cannot depend on their consumers or standalone vault checking', () => {
+test('module owners cannot depend on their consumers', () => {
   for (const owner of ['runtime', 'navigation', 'settings', 'vault/nodes']) {
-    expect(
-      importProblem(`app/${owner}/core.ts`, 'tools/vault-check/validation/check.ts'),
-    ).toContain('standalone vault checking');
     expect(importProblem(`app/${owner}/core.ts`, 'app/application/composition.ts')).toContain(
       'imports Application composition',
     );
