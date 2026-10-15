@@ -47,6 +47,14 @@ supplied as an array. A paired specimen or explicit viewport loop already covers
 choose additional device tags only when emulation or pointer behavior adds a distinct assertion.
 Viewport resizing does not emulate mobile or change pointer capabilities.
 
+Keep browser checks efficient: load each specimen once before looping over viewport sizes, and
+advance scripted demo timers with Playwright's clock when the elapsed time is not being tested.
+CI traces the first retry instead of recording every successful test. Each browser shard writes
+elapsed time, combined test time and its ten slowest attempts to the job summary. CI bundles the
+existing specimen URLs once per shard and installs only Chromium's headless shell. Local checks
+use the development server; set `VAULTER_UI_BUILD=1` to verify a focused selection against the
+bundled fixtures. The test build uses fictional provider settings and is never published.
+
 Use `npm run test:ui:matrix -- app/ui/kit/composer.browser.test.ts --project=phone` to debug an untagged
 scenario on a particular device. Full device audits run in CI through the workflow's
 `full_ui_matrix` input; use them when changing shared responsive and input mechanics.

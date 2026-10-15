@@ -28,7 +28,8 @@ declare const __PREVIEW_AGENT__: {
   defaultModel?: string;
   transcriptionModel: string;
 } | null;
-const liveAgent = import.meta.env.DEV && query.get('agent') === 'live';
+const liveAgent =
+  (import.meta.env.DEV || import.meta.env.MODE === 'browser-test') && query.get('agent') === 'live';
 const agentConnection = __PREVIEW_AGENT__;
 const agent =
   liveAgent && agentConnection

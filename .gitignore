@@ -1,6 +1,7 @@
 node_modules/
 dist/
 dist-preview/
+dist-browser/
 dist-pages/
 # Sealed in CI, never committed.
 app/public/secrets.json
