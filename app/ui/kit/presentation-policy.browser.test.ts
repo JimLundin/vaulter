@@ -40,11 +40,11 @@ for (const childTitle of ['Supporting review', 'Supporting details']) {
   });
 }
 
-for (const targetWidth of [1440, 900]) {
+for (const targetWidth of [1440, 390]) {
   test(`a nested review retains its task while its panel resizes to ${targetWidth}px`, {
     tag: '@phone',
   }, async ({ page }) => {
-    await page.setViewportSize({ width: targetWidth === 1440 ? 900 : 1440, height: 844 });
+    await page.setViewportSize({ width: targetWidth === 1440 ? 390 : 1440, height: 844 });
     await page.goto('/ui/kit/tests/browser.html');
     await openAppAction(page, 'Open agent');
     const draft = page.getByRole('textbox', { name: 'Panel draft' });
