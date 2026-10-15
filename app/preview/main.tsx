@@ -5,7 +5,8 @@ import '../ui/kit/styles.css';
 import { createRoot } from 'react-dom/client';
 import { OpenApplication } from '../application/index.tsx';
 import { applicationNodes } from '../application/composition.ts';
-import { startTheme, Text, DesignPreview } from '../ui/kit/index.ts';
+import { startTheme, Text, DesignPreview, DesignComparison } from '../ui/kit/index.ts';
+import { GraphPrototype, graphDesigns } from './prototype-graph.tsx';
 import { previewModel } from './model.ts';
 import { createOpenAICapabilities } from '../agent/openai/index.ts';
 import { recordedTranscription } from '../agent/recorded-transcription.ts';
@@ -138,8 +139,9 @@ const openingNodes = previewNodes(sessionStorage, query.get('scenario') ?? undef
   },
 );
 function Preview({ nodes }: { nodes: NodeStore }) {
-  const product = (
+  const product = (design?: string) => (
     <OpenApplication
+      renderGraph={design ? (props) => <GraphPrototype {...props} design={design} /> : undefined}
       session={{
         ready: true,
         locked: null,
@@ -167,6 +169,35 @@ function Preview({ nodes }: { nodes: NodeStore }) {
       }}
     />
   );
+  if (query.get('compare') === 'graph')
+    return (
+      <DesignComparison
+        defaultValue={query.get('variant') ?? 'canvas'}
+        onValueChange={(variant) => {
+          const url = new URL(location.href);
+          url.searchParams.set('variant', variant);
+          history.replaceState(history.state, '', url);
+        }}
+        alternatives={[
+          { ...graphDesigns[0], content: product(graphDesigns[0].id) },
+          { ...graphDesigns[1], content: product(graphDesigns[1].id) },
+          { ...graphDesigns[2], content: product(graphDesigns[2].id) },
+        ]}
+        preview={(controls, content) => (
+          <DesignPreview
+            label="Graph design comparison"
+            variantControls={controls}
+            kitHref={import.meta.env.DEV ? '/ui/kit/' : './kit/'}
+            onReset={() => {
+              sessionStorage.removeItem(previewJournalKey);
+              location.reload();
+            }}
+          >
+            {content}
+          </DesignPreview>
+        )}
+      />
+    );
   return (
     <DesignPreview
       label={`${agent ? 'Live agent preview' : 'Design preview'} · ${(import.meta.env.VITE_PREVIEW_COMMIT || 'local').slice(0, 7)}`}
@@ -178,7 +209,7 @@ function Preview({ nodes }: { nodes: NodeStore }) {
       }}
       kitHref={import.meta.env.DEV ? '/ui/kit/' : './kit/'}
     >
-      {product}
+      {product()}
     </DesignPreview>
   );
 }
