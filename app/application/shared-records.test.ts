@@ -1,14 +1,11 @@
-import { transactionFixture } from './vault/transactions/fixtures.test-support.ts';
+import { transactionFixture } from '../vault/transactions/fixtures.test-support.ts';
 import 'fake-indexeddb/auto';
 import { expect, test, vi } from 'vitest';
-import { githubNodeBackend } from './vault/storage/nodes/github.ts';
-import { fakeGitHub } from './vault/storage/github-client/fake-github.ts';
-import { create, request, seed } from './vault/nodes/fixtures.test-support.ts';
-import type { NodeBackend } from './vault/nodes/store.ts';
-import {
-  createApplicationConversation,
-  applicationNodeHistory,
-} from './application/composition.ts';
+import { githubNodeBackend } from '../vault/storage/nodes/github.ts';
+import { fakeGitHub } from '../vault/storage/github-client/fake-github.ts';
+import { create, request, seed } from '../vault/nodes/fixtures.test-support.ts';
+import type { NodeBackend } from '../vault/nodes/store.ts';
+import { createApplicationConversation, applicationNodeHistory } from './composition.ts';
 
 test('conversation and transaction projections include writes accepted on independent devices', async () => {
   const fake = await fakeGitHub({});
