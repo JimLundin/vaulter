@@ -5,13 +5,10 @@ import {
   Card,
   CardContent,
   CardHeader,
-  Columns,
-  Drawer,
   Heading,
-  Icon,
   Link,
+  PromptSuggestions,
   Row,
-  SelectionRow,
   Stack,
   Surface,
   Text,
@@ -25,6 +22,8 @@ import { parseAnswer } from './records.ts';
 import type { QuestionAnswers } from './answers.ts';
 import { useQuestionAnswerState } from './use-questions.ts';
 import { useAnswerDictation } from './use-answer-dictation.ts';
+
+const sourceSentences = new Intl.Segmenter(undefined, { granularity: 'sentence' });
 
 export interface QuestionTargetDescription {
   readonly title: string;
@@ -40,7 +39,6 @@ export type QuestionAnswerHandler = (question: Question, text: string) => Promis
 export interface QuestionItemProps {
   readonly question: Question;
   readonly describeTarget?: (target: QuestionTarget) => QuestionTargetDescription | undefined;
-  readonly describeAuthor?: (question: Question) => string | undefined;
   readonly onAnswer?: QuestionAnswerHandler;
   readonly answers?: QuestionAnswers;
   readonly disabledReason?: string;
@@ -54,11 +52,10 @@ interface Draft {
   readonly texts: Readonly<Record<string, string>>;
 }
 
-/** Balanced drafts: one Questions-owned card reused by the collection and Wiki. */
+/** One Questions-owned card, with the same suggestions and text entry used by Chat. */
 export function QuestionItem({
   question,
   describeTarget,
-  describeAuthor,
   onAnswer,
   answers,
   disabledReason,
@@ -67,7 +64,6 @@ export function QuestionItem({
   const [draft, setDraft] = useState<Draft>();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string>();
-  const [contextOpen, setContextOpen] = useState(false);
   const [focusRequest, setFocusRequest] = useState(0);
   const submitting = useRef(false);
   const answerField = useRef<HTMLTextAreaElement>(null);
@@ -80,7 +76,6 @@ export function QuestionItem({
   }, [focusRequest]);
   const suggestions = (draft?.question ?? question).data.suggestions ?? [];
   const text = draft ? (draft.texts[draft.choice] ?? '') : '';
-  const selected = suggestions.find((_, index) => draft?.choice === `suggestion:${index}`);
   const stale =
     !!draft &&
     (draft.question.id !== question.id ||
@@ -112,18 +107,15 @@ export function QuestionItem({
       : question.status === 'answered'
         ? 'Answered'
         : 'Abandoned';
-  const date =
-    question.created &&
-    new Date(question.created.at).toLocaleDateString('en-GB', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-    });
-  const author = describeAuthor?.(question);
-  const sources = question.sources ?? [];
-  const knowledge = question.knowledge ?? [];
-  const sourceTitle =
-    sources[0] && (describeTarget?.(sources[0])?.title || sources[0].label || 'Retained source');
+  const sourceText = question.sources
+    ?.map((source) => describeTarget?.(source)?.text?.replace(/\s+/g, ' ').trim())
+    .find((value) => value);
+  const firstSentence =
+    sourceText && sourceSentences.segment(sourceText).containing(0)?.segment.trim();
+  const context =
+    firstSentence && firstSentence.length > 120
+      ? `${firstSentence.slice(0, 117).replace(/\s+\S*$/, '')}…`
+      : firstSentence;
   const choose = (choice: string, initial = '') => {
     if (locked || stale || dictation.recording()) return;
     dictation.cancel();
@@ -180,17 +172,20 @@ export function QuestionItem({
   return (
     <Card role="region" aria-label={label}>
       <CardHeader>
-        <Row justify="between" wrap={true}>
-          <Badge>{question.status === 'open' ? 'Open' : label}</Badge>
-          {!!(author || date) && (
-            <Text size="xs" tone="muted">
-              {author ? `Asked by ${author}` : 'Asked'}
-              {date ? ` · ${date}` : ''}
+        <Stack gap="sm">
+          <Heading level={2}>{question.data.text}</Heading>
+          {!!context && (
+            <Text size="sm" tone="muted">
+              {context}
             </Text>
           )}
-        </Row>
-        <Heading level={2}>{question.data.text}</Heading>
-        <Targets targets={question.subjects} describeTarget={describeTarget} subject={true} />
+          {!!(question.subjects.length || question.status !== 'open') && (
+            <Row wrap={true}>
+              {question.status !== 'open' && <Badge>{label}</Badge>}
+              <Targets targets={question.subjects} describeTarget={describeTarget} subject={true} />
+            </Row>
+          )}
+        </Stack>
       </CardHeader>
       <CardContent>
         <Stack gap="lg">
@@ -239,178 +234,79 @@ export function QuestionItem({
             </Surface>
           )}
           {canAnswer && !attempt ? (
-            <Columns gap="xl">
-              <Stack gap="md" role="group" aria-label={`Answer choices: ${question.data.text}`}>
-                <Stack gap="xs">
-                  <Row gap="sm">
-                    <Icon name="sparkles" size="sm" />
-                    <Text size="sm" weight="medium">
-                      Suggested answers
-                    </Text>
-                  </Row>
-                  <Text size="xs" tone="muted">
-                    {suggestions.length
-                      ? 'Prepared from the source and existing knowledge.'
-                      : 'No suggested answers were recorded for this question.'}
-                  </Text>
-                </Stack>
-                {suggestions.map((suggestion, index) => (
-                  <SelectionRow
-                    key={suggestion.title}
-                    appearance="card"
-                    selected={draft?.choice === `suggestion:${index}`}
-                    disabled={locked || stale || dictation.active}
-                    onSelect={() => choose(`suggestion:${index}`, suggestion.text)}
-                  >
-                    <Stack gap="xs" align="start">
-                      <Text as="span" size="sm" weight="medium">
-                        {suggestion.title}
-                      </Text>
-                      <Text as="span" size="sm" tone="muted">
-                        {suggestion.reason}
-                      </Text>
-                    </Stack>
-                  </SelectionRow>
-                ))}
-                <SelectionRow
-                  appearance="card"
-                  selected={draft?.choice === 'custom'}
-                  disabled={locked || stale || dictation.active}
-                  onSelect={() => choose('custom')}
-                >
-                  <Stack gap="xs" align="start">
-                    <Text as="span" size="sm" weight="medium">
-                      Write my own answer
-                    </Text>
-                    <Text as="span" size="xs" tone="muted">
-                      Free text, in your own words.
-                    </Text>
-                  </Stack>
-                </SelectionRow>
-              </Stack>
-              <Stack gap="md">
-                {dictation.active && <VoiceStatus phase={dictation.phase} error="" />}
-                <TextBox
-                  label="Your answer"
-                  fieldRef={answerField}
-                  placeholder="Write an answer…"
-                  draft={text}
+            <Stack gap="sm">
+              <PromptSuggestions
+                label="Suggested answers"
+                suggestions={suggestions.map((suggestion, index) => ({
+                  value: `suggestion:${index}`,
+                  label: suggestion.title,
+                }))}
+                selected={draft?.choice ?? ''}
+                disabled={locked || stale || dictation.active}
+                onSelect={(choice) =>
+                  choose(
+                    choice,
+                    suggestions.find((_, index) => choice === `suggestion:${index}`)?.text,
+                  )
+                }
+              />
+              {dictation.active && <VoiceStatus phase={dictation.phase} error="" />}
+              <TextBox
+                label="Your answer"
+                fieldRef={answerField}
+                placeholder="Write an answer…"
+                draft={text}
+                disabled={locked}
+                busy={pending}
+                readOnly={dictation.active}
+                canSubmit={!(locked || stale || dictation.active)}
+                voice={
+                  transcription
+                    ? {
+                        phase: dictation.phase,
+                        disabled: !dictation.allowed,
+                        onClick: () => {
+                          void dictation.action();
+                        },
+                      }
+                    : undefined
+                }
+                submitLabel="Save answer"
+                pendingLabel="Saving answer…"
+                description={disabledReason}
+                error={
+                  stale
+                    ? 'Question has changed; review its current wording before answering.'
+                    : error || dictation.error
+                }
+                onDraftChange={(next) => {
+                  dictation.cancel();
+                  edit(next);
+                }}
+                onSubmit={save}
+              />
+              {stale && (
+                <Button
+                  type="button"
+                  variant="outline"
                   disabled={locked}
-                  busy={pending}
-                  readOnly={dictation.active}
-                  canSubmit={!(locked || stale || dictation.active)}
-                  voice={
-                    transcription
-                      ? {
-                          phase: dictation.phase,
-                          disabled: !dictation.allowed,
-                          onClick: () => {
-                            void dictation.action();
-                          },
-                        }
-                      : undefined
-                  }
-                  submitLabel="Save answer"
-                  pendingLabel="Saving answer…"
-                  description={[
-                    selected
-                      ? `Draft from “${selected.title}”.`
-                      : 'Choose a suggestion or write freely.',
-                    disabledReason,
-                  ]
-                    .filter(Boolean)
-                    .join(' ')}
-                  error={
-                    stale
-                      ? 'Question has changed; review its current wording before answering.'
-                      : error || dictation.error
-                  }
-                  onDraftChange={(next) => {
-                    dictation.cancel();
-                    edit(next);
+                  onClick={() => {
+                    setDraft({ question, choice: 'custom', texts: { custom: text } });
+                    setError(undefined);
+                    setFocusRequest((count) => count + 1);
                   }}
-                  onSubmit={save}
-                />
-                {stale && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={locked}
-                    onClick={() => {
-                      setDraft({ question, choice: 'custom', texts: { custom: text } });
-                      setError(undefined);
-                      setFocusRequest((count) => count + 1);
-                    }}
-                  >
-                    Use current question
-                  </Button>
-                )}
-              </Stack>
-            </Columns>
-          ) : (
+                >
+                  Use current question
+                </Button>
+              )}
+            </Stack>
+          ) : !attempt && question.status === 'open' ? (
             <Text size="sm" tone="muted">
-              {question.status === 'answered'
-                ? 'This question has a recorded answer.'
-                : question.status === 'abandoned'
-                  ? 'This question was explicitly abandoned.'
-                  : (disabledReason ?? 'Answering is unavailable.')}
+              {disabledReason ?? 'Answering is unavailable.'}
             </Text>
-          )}
-          {!!(sources.length || knowledge.length) && (
-            <Row justify="between" wrap={true}>
-              <Text size="xs" tone="muted">
-                {sourceTitle ? `From ${sourceTitle}` : 'Recorded question context'}
-              </Text>
-              <Button
-                type="button"
-                variant="ghost"
-                size="compact"
-                onClick={() => setContextOpen(true)}
-              >
-                <Icon name="book" size="sm" />
-                Source & context
-              </Button>
-            </Row>
-          )}
+          ) : null}
         </Stack>
       </CardContent>
-      <Drawer
-        title="Source & context"
-        description={question.data.text}
-        open={contextOpen}
-        onClose={() => setContextOpen(false)}
-      >
-        <Stack gap="lg">
-          <Grounding
-            title="Source of the question"
-            targets={sources}
-            describeTarget={describeTarget}
-          />
-          <Grounding
-            title="Existing knowledge"
-            targets={knowledge}
-            describeTarget={describeTarget}
-          />
-          {!!question.data.suggestions?.length && (
-            <Stack gap="sm">
-              <Heading level={3}>Why these suggestions?</Heading>
-              {question.data.suggestions.map((suggestion) => (
-                <Stack key={suggestion.title} gap="xs">
-                  <Text size="sm" weight="medium">
-                    {suggestion.title}
-                  </Text>
-                  <Text size="sm" preserve={true}>
-                    {suggestion.text}
-                  </Text>
-                  <Text size="sm" tone="muted">
-                    {suggestion.reason}
-                  </Text>
-                </Stack>
-              ))}
-            </Stack>
-          )}
-        </Stack>
-      </Drawer>
     </Card>
   );
 }
@@ -482,59 +378,6 @@ function Targets({
               />
               {availability ? ` · ${availability}` : ''}
             </Text>
-          </Stack>
-        );
-      })}
-    </Stack>
-  );
-}
-
-function Grounding({
-  title,
-  targets,
-  describeTarget,
-}: {
-  title: string;
-  targets: readonly QuestionTarget[];
-  describeTarget?: QuestionItemProps['describeTarget'];
-}) {
-  return (
-    <Stack gap="sm">
-      <Text size="xs" tone="muted">
-        {title}
-      </Text>
-      {!targets.length && (
-        <Text size="sm" tone="muted">
-          No context recorded.
-        </Text>
-      )}
-      {targets.map((target, index) => {
-        const description = describeTarget?.(target);
-        return (
-          <Stack key={target.relationship ?? index} gap="xs">
-            <Text size="sm" weight="medium">
-              <TargetLink target={target} description={description} fallback="Retained context" />
-            </Text>
-            {description?.text ? (
-              <Surface variant="grouped">
-                <Text size="sm" preserve={true}>
-                  “{description.text}”
-                </Text>
-              </Surface>
-            ) : (
-              <Text size="sm" tone="muted">
-                Recorded context unavailable.
-              </Text>
-            )}
-            {target.state !== 'available' && (
-              <Text size="sm" tone="muted">
-                {target.state === 'newer'
-                  ? 'Recorded context; newer content available.'
-                  : target.state === 'deleted'
-                    ? 'Context removed; recorded version retained.'
-                    : 'Recorded context unavailable.'}
-              </Text>
-            )}
           </Stack>
         );
       })}

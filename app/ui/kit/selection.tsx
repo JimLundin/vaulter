@@ -89,8 +89,8 @@ export function SelectionRow({
 
 export function SplitView({ main, supporting }: { main: ReactNode; supporting: ReactNode }) {
   return (
-    <div className="flex h-full min-h-0 min-w-0 flex-1">
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col">{main}</div>
+    <div className="kit-split-view flex h-full min-h-0 min-w-0 flex-1">
+      <div className="kit-split-main flex min-h-0 min-w-0 flex-1 flex-col">{main}</div>
       {supporting}
     </div>
   );

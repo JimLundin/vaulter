@@ -30,6 +30,6 @@ export {
   type EmbeddedQuestionProps,
 } from './EmbeddedQuestion.tsx';
 export { questionAnswerAvailability } from './availability.ts';
-export { questionRoute, questionsRoute } from './routes.ts';
+export { questionsRoute } from './routes.ts';
 export { questionToolActions, questionEnabledTools } from './tool-actions.ts';
 export { QuestionToolReceipt, questionToolPresentation } from './tool-presentation.tsx';

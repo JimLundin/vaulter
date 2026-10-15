@@ -228,13 +228,20 @@ pages and exchanges require snapshot selections and are not accepted by this gen
 An empty knowledge list is valid when no relevant knowledge exists. Older Questions remain readable
 with no suggestions; they are not regenerated on viewing or reload.
 
-Questions and Wiki use the same Balanced drafts card. Every open card has an empty visible editor,
-editable suggestions when recorded, and an explicit **Write my own answer** choice. Choice changes
-retain each draft locally. Only **Save answer** records an Answer; failed saves preserve the draft,
-and changed Question wording requires review before saving. **Source & context** presents the retained
-text with newer, removed or unavailable notices and navigation to its context.
+Questions provides a searchable, filterable list with inline answers. There is no separate page for
+an individual Question; older question links open the same list. Questions and Wiki use the same
+compact card, with the question wording, Subject, a brief excerpt of the triggering source, suggested
+answers and an empty visible editor. Keep context minimal and directly on the question; no separate
+context button or panel is needed. Questions and Chat share a list of full-width suggestion rows
+whose complete labels wrap. Choosing a suggestion fills and focuses the editable field; choice
+changes retain each suggestion's edited draft locally. A person can always type directly into the
+field, so there is no **Write my own** option. Only **Save answer** records an Answer; failed saves
+preserve the draft, and changed Question wording requires review before saving.
 
-The selected design and all comparisons are retained on
+The [suggestion design verdict](../prototypes/suggestion-designs.md) records the selected list and
+links to the retained comparison.
+
+The earlier design and its comparisons are retained on
 [`prototype/questions-ui` at `fc3523e`](https://github.com/JimLundin/vaulter/tree/fc3523e), including
 the [design verdict](https://github.com/JimLundin/vaulter/blob/fc3523e/docs/prototypes/questions-ui.md).
 

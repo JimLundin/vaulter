@@ -4,7 +4,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, expect, test, vi } from 'vitest';
 import { QuestionsPage, type QuestionsPageProps } from './QuestionsPage.tsx';
 import type { Question } from './reading.ts';
-import { questionRoute, questionsRoute } from './routes.ts';
+import { questionsRoute } from './routes.ts';
 
 const open: Question = {
   id: 'open',
@@ -99,18 +99,23 @@ test('the collection defaults to open questions, filters every lifecycle and sea
   expect(document.body.textContent).not.toContain(answered.data.text);
 });
 
-test('an individual question stays visible after answering and missing deep links are explicit', async () => {
-  const root = mount({ ...collection, node: answered.id });
+test('answers stay in the collection with no separate question-detail navigation', async () => {
+  mount({ ...collection, onAnswer: async () => undefined });
+  expect(document.querySelector('textarea')?.getAttribute('aria-label')).toBe('Your answer');
+  expect(document.querySelector('a[href^="#/questions/"]')).toBeNull();
+  await act(async () => button('Answered').click());
   expect(document.body.textContent).toContain(answered.data.text);
   expect(document.body.textContent).toContain('The garden wall.');
   expect(document.body.textContent).not.toContain(open.data.text);
-  expect(document.querySelector('a[href="#/questions/"]')?.textContent).toBe('All questions');
-  await act(async () => root.render(<QuestionsPage {...collection} node="removed" />));
-  expect(document.body.textContent).toContain('This question is missing or has been removed.');
+  expect(document.querySelector('input[aria-label="Find questions"]')).not.toBeNull();
+});
+
+test('Questions links always target the collection and retained detail links still match it', () => {
   expect(questionsRoute.href()).toBe('/questions/');
-  expect(questionRoute.match(questionRoute.href({ node: 'question / identity' }))).toEqual({
-    node: 'question / identity',
-  });
+  expect(questionsRoute.match('/questions/')).toEqual({});
+  expect(questionsRoute.match('/questions/question%20%2F%20identity/')).toEqual({});
+  expect(questionsRoute.match('/questions/removed/')).toEqual({});
+  expect(questionsRoute.match('/wiki/')).toBeNull();
 });
 
 test('loading and errors preserve retained questions and disable stale answer actions', async () => {
@@ -128,7 +133,7 @@ test('loading and errors preserve retained questions and disable stale answer ac
   );
   expect(document.body.textContent).toContain(open.data.text);
   expect(document.body.textContent).toContain('Refreshing questions…');
-  expect(button('Write my own answerFree text, in your own words.').disabled).toBe(true);
+  expect(document.querySelector('textarea')?.disabled).toBe(true);
   await act(async () =>
     root.render(
       <QuestionsPage
@@ -140,8 +145,8 @@ test('loading and errors preserve retained questions and disable stale answer ac
   );
   expect(document.querySelector('[role="alert"]')?.textContent).toBe('Reading unavailable');
   expect(document.body.textContent).toContain('Showing previously loaded questions.');
-  expect(button('Write my own answerFree text, in your own words.').disabled).toBe(true);
+  expect(document.querySelector('textarea')?.disabled).toBe(true);
   await act(async () => root.render(<QuestionsPage {...collection} onAnswer={onAnswer} />));
   expect(document.querySelector('[role="alert"]')).toBeNull();
-  expect(button('Write my own answerFree text, in your own words.').disabled).toBe(false);
+  expect(document.querySelector('textarea')?.disabled).toBe(false);
 });

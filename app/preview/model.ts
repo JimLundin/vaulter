@@ -100,7 +100,7 @@ export const previewModel: PreviewModel = {
     } else if (asking) {
       parts = text(
         question
-          ? `Saved question: **${asking}**. [Open question](/questions/${encodeURIComponent(question)}/) to answer it, or visit **Garden studio** in the Wiki.`
+          ? `Saved question: **${asking}**. [Open questions](/questions/) to answer it, or visit **Garden studio** in the Wiki.`
           : 'The question could not be saved. The tool receipt has the details.',
       );
     } else if (writing && !created) {

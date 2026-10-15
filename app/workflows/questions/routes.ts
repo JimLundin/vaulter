@@ -1,4 +1,10 @@
 import { pattern } from '../../ui/routing.ts';
 
-export const questionsRoute = pattern('/questions/');
-export const questionRoute = pattern('/questions/:node/');
+const collection = pattern('/questions/');
+const formerDetail = pattern('/questions/:node/');
+
+/** Retained links to individual questions now open the collection too. */
+export const questionsRoute = {
+  ...collection,
+  match: (path: string) => collection.match(path) ?? (formerDetail.match(path) ? {} : null),
+};

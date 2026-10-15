@@ -80,7 +80,6 @@ import { chatSources } from './workflows/chat/records/sources.ts';
 import { contentSources } from './vault/content/sources.ts';
 import { retainedRecordSources } from './vault/records/sources.ts';
 import { describeSource, type SourceReader } from './vault/sources.ts';
-import { identityName } from './vault/records/identities.ts';
 import {
   createNodeConversation,
   type NodeConversationOptions,
@@ -95,7 +94,6 @@ import { wikiSources as wikiSourceReader, describeWikiTarget } from './workflows
 import {
   QuestionsPage,
   questionsRoute,
-  questionRoute,
   useQuestions,
   useQuestionsReading,
   useQuestionAnswers,
@@ -345,8 +343,7 @@ export function OpenProduct({
   const { pages, error: wikiError } = useWiki(wiki);
   const wikiPage = pageRoute.match(route.path)?.node;
   const onWiki = !!wikiRoute.match(route.path) || !!wikiPage;
-  const selectedQuestion = questionRoute.match(route.path)?.node;
-  const onQuestions = !!questionsRoute.match(route.path) || !!selectedQuestion;
+  const onQuestions = !!questionsRoute.match(route.path);
   const questions = useQuestionsReading(onWiki || onQuestions ? nodes : null);
   const questionState = useQuestions(questions);
   // Session identity survives credential reconnects; independent supplied stores get a new owner.
@@ -377,15 +374,10 @@ export function OpenProduct({
     admission: () => admission.current,
   });
   const answerAvailability = questionAnswerAvailability(questionState, writeAdmission);
-  const descriptions = questionDescriptions(
-    questionState.view,
-    {
-      text: questionContextReading.text,
-      describe: (node, view) =>
-        productSources.describe(node, view) ?? describeWikiTarget(node, view),
-    },
-    identityName,
-  );
+  const descriptions = questionDescriptions(questionState.view, {
+    text: questionContextReading.text,
+    describe: (node, view) => productSources.describe(node, view) ?? describeWikiTarget(node, view),
+  });
   const renderWikiRecord: ForeignRecordRenderer = (record) =>
     renderQuestionRecord(record, questionState, {
       ...descriptions,
@@ -764,9 +756,7 @@ export function OpenProduct({
           />
         ) : onQuestions ? (
           <QuestionsPage
-            key={selectedQuestion ?? 'questions'}
             state={questionState}
-            node={selectedQuestion}
             {...descriptions}
             answers={answers}
             onAnswer={answers.answer}

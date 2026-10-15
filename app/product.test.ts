@@ -313,7 +313,7 @@ test('Product agent asks a retained Question with its accepted receipt and stabl
         .filter((part) => part.kind === 'text')
         .map(({ text }) => text)
         .join(''),
-    ).toContain(`/questions/${question.key.node}/`);
+    ).toContain('[Open questions](/questions/)');
     expect((await nodes.snapshot()).get(question.key.node)?.key).toEqual(question.key);
     expect((await nodes.history()).length).toBe(before);
   } finally {

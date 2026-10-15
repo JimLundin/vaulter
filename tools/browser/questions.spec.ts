@@ -8,10 +8,38 @@ const journal = (page: Page) =>
     () => JSON.parse(sessionStorage.getItem('vaulter:preview:accepted:v1') ?? '[]') as NodeCommit[],
   );
 
+async function selectStatus(page: Page, name: string) {
+  await expect(page.getByRole('heading', { name: 'Questions', exact: true })).toBeVisible();
+  const filters = page.getByRole('button', { name: 'Filters', exact: true });
+  if (await filters.isVisible()) {
+    await filters.click();
+    await page.getByRole('menuitemradio', { name, exact: true }).click();
+  } else await page.getByRole('main').getByRole('button', { name, exact: true }).click();
+}
+
+test('retained question links open the list and returning to Questions keeps the inline draft', {
+  tag: '@phone',
+}, async ({ page }) => {
+  await page.goto('/preview/#/questions/removed-question/');
+  await expect(page.getByRole('heading', { name: 'Questions', exact: true })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'Which tools should stay?', exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole('link', { name: /Question details|All questions/ })).toHaveCount(0);
+  await selectStatus(page, 'All');
+  const answer = page.getByRole('textbox', { name: 'Your answer', exact: true });
+  await answer.fill('Keep the tools within reach.');
+  await page.evaluate(() => {
+    location.hash = '#/questions/';
+  });
+  await expect(page).toHaveURL(/#\/questions\/$/);
+  await expect(answer).toHaveValue('Keep the tools within reach.');
+});
+
 test('Questions keeps its compact multiline draft through responsive changes and submits with Enter', {
   tag: ['@phone', '@touch'],
 }, async ({ page }) => {
-  await page.goto('/preview/#/questions/preview:question/');
+  await page.goto('/preview/#/questions/');
   const answer = page.getByRole('textbox', { name: 'Your answer', exact: true });
   await expect(answer).toBeEnabled();
   const initial = await journal(page);
@@ -41,6 +69,8 @@ test('Questions keeps its compact multiline draft through responsive changes and
   }
   expect(await journal(page)).toEqual(initial);
   await answer.press('Enter');
+  await expect(page.getByText('No open questions.', { exact: true })).toBeVisible();
+  await selectStatus(page, 'Answered');
   await expect(page.getByRole('region', { name: 'Answered', exact: true })).toContainText(
     'Use a mobile tool cart.',
   );
@@ -49,7 +79,7 @@ test('Questions keeps its compact multiline draft through responsive changes and
 test('Questions dictates into the compact draft and saves only when explicitly requested', {
   tag: ['@phone', '@touch'],
 }, async ({ page }) => {
-  await page.goto('/preview/#/questions/preview:question/');
+  await page.goto('/preview/#/questions/');
   await expect(page.getByText('Loading conversation…', { exact: true })).toBeHidden();
   const entry = page.getByRole('group', { name: 'Your answer text box', exact: true });
   const answer = entry.getByRole('textbox', { name: 'Your answer', exact: true });
@@ -60,7 +90,7 @@ test('Questions dictates into the compact draft and saves only when explicitly r
   await expect(answer).toHaveAttribute('readonly');
   const dictated =
     'Keep the workbench clear. Leave space for a walk before work, and keep an afternoon free for the garden studio.';
-  await expect(answer).toHaveValue(dictated, { timeout: 15000 });
+  await expect(answer).toHaveValue(dictated, { timeout: 15_000 });
   await entry.getByRole('button', { name: 'Finish recording', exact: true }).click();
   await expect(answer).not.toHaveAttribute('readonly');
   expect(await journal(page)).toEqual(initial);
@@ -70,6 +100,7 @@ test('Questions dictates into the compact draft and saves only when explicitly r
   await expect(answer).toHaveValue(`${dictated}\n`);
   expect(await journal(page)).toEqual(initial);
   await entry.getByRole('button', { name: 'Save answer', exact: true }).click();
+  await selectStatus(page, 'Answered');
   await expect(page.getByRole('region', { name: 'Answered', exact: true })).toContainText(dictated);
 });
 
@@ -99,8 +130,8 @@ async function askQuestion(page: Page, text: string) {
     transaction: publication.id,
     accepted: true,
   });
-  const receipt = page.getByRole('link', { name: 'Open question', exact: true });
-  await expect(receipt).toHaveAttribute('href', `#/questions/${question.node}/`);
+  const receipt = page.getByRole('link', { name: 'Open questions', exact: true });
+  await expect(receipt).toHaveAttribute('href', '#/questions/');
   return { question, publication, receipt };
 }
 
@@ -123,11 +154,11 @@ test('agent questions can be answered in Questions and remain on their Wiki page
     proposals[0].text,
   );
   expect(await journal(page)).toEqual(beforeChoice);
-  await record.getByRole('button', { name: /^Write my own answer/ }).click();
   await record
     .getByRole('textbox', { name: 'Your answer', exact: true })
     .fill('Use the garden wall.');
   await record.getByRole('button', { name: 'Save answer', exact: true }).click();
+  await selectStatus(page, 'Answered');
   await expect(record).toHaveAttribute('aria-label', 'Answered');
   await expect(record).toContainText('Use the garden wall.');
   const answered = (await journal(page)).find(
@@ -140,6 +171,7 @@ test('agent questions can be answered in Questions and remain on their Wiki page
   expect(relationship.connection?.target).toEqual({ node: answer.node, transaction: answered.id });
   const accepted = await journal(page);
   await page.reload();
+  await selectStatus(page, 'Answered');
   await expect(page.getByRole('region', { name: 'Answered', exact: true })).toContainText(
     'Use the garden wall.',
   );
@@ -155,10 +187,10 @@ test('agent questions can be answered in Questions and remain on their Wiki page
   ).toContainText('Use the garden wall.');
 });
 
-test('Balanced drafts preserve each choice, source context and shared card typography in Wiki', {
+test('suggestion lists preserve edited drafts, inline context and shared card typography in Wiki', {
   tag: '@phone',
 }, async ({ page }) => {
-  await page.goto('/preview/#/questions/preview:question/');
+  await page.goto('/preview/#/questions/');
   const record = page.getByRole('region', { name: 'Open question', exact: true });
   await expect(record.getByRole('textbox', { name: 'Your answer', exact: true })).toBeEnabled();
   await expect(page.getByText('Loading conversation…', { exact: true })).toBeHidden();
@@ -175,21 +207,18 @@ test('Balanced drafts preserve each choice, source context and shared card typog
   await expect(answer).toHaveValue(
     'Store every tool after each session, with the chisels and hand plane together in an easy-to-reach drawer.',
   );
-  await choose('Write my own answer').click();
   await answer.fill('Use a mobile tool cart.');
   await choose('Keep hand tools close').click();
   await expect(answer).toHaveValue('Keep hand tools within reach and leave space to work.');
-  await choose('Write my own answer').click();
+  await choose('Store everything between sessions').click();
   await expect(answer).toHaveValue('Use a mobile tool cart.');
   expect(await journal(page)).toEqual(initial);
-  const source = record.getByRole('button', { name: 'Source & context', exact: true });
-  await source.click();
-  const drawer = page.getByRole('dialog', { name: 'Source & context', exact: true });
-  await expect(drawer).toContainText('I use chisels and a hand plane most mornings.');
-  await expect(drawer).toContainText('Leave the workbench clear at the end of each session.');
-  await page.keyboard.press('Escape');
-  await expect(drawer).toBeHidden();
-  await expect(source).toBeFocused();
+  await expect(record).toContainText('I use chisels and a hand plane most mornings.');
+  await expect(record.getByRole('link', { name: /Garden studio/ })).toBeVisible();
+  await expect(record.getByRole('button', { name: 'Source & context', exact: true })).toHaveCount(
+    0,
+  );
+  await expect(choose('Write my own')).toHaveCount(0);
   await expect(answer).toHaveValue('Use a mobile tool cart.');
   const typography = () =>
     record.evaluate((node) => {
@@ -208,7 +237,13 @@ test('Balanced drafts preserve each choice, source context and shared card typog
   await expect(page.getByRole('heading', { name: 'Garden studio', exact: true })).toBeVisible();
   await expect(answer).toBeVisible();
   expect(await typography()).toEqual(collectionStyle);
-  await expect(choose('Write my own answer')).toBeVisible();
+  await expect(record).toContainText('I use chisels and a hand plane most mornings.');
+  await expect(record.getByRole('button', { name: 'Source & context', exact: true })).toHaveCount(
+    0,
+  );
+  await expect(choose('Write my own')).toHaveCount(0);
+  await answer.fill('A direct answer without choosing a suggestion.');
+  await expect(answer).toHaveValue('A direct answer without choosing a suggestion.');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.reload();
   await expect(choose('Keep hand tools close')).toBeVisible();
@@ -220,12 +255,6 @@ test('Wiki answers update Questions filters and search without creating a second
   tag: '@phone',
 }, async ({ page }) => {
   const compact = test.info().project.name === 'phone';
-  const selectStatus = async (name: string) => {
-    if (compact) {
-      await page.getByRole('button', { name: 'Filters', exact: true }).click();
-      await page.getByRole('menuitemradio', { name, exact: true }).click();
-    } else await page.getByRole('main').getByRole('button', { name, exact: true }).click();
-  };
   await page.goto('/preview/#/wiki/preview:page:0/');
   const record = page
     .getByRole('region', { name: /^(Open question|Answered)$/ })
@@ -254,7 +283,7 @@ test('Wiki answers update Questions filters and search without creating a second
       'true',
     );
   await expect(main.getByText('No open questions.', { exact: true })).toBeVisible();
-  await selectStatus('Answered');
+  await selectStatus(page, 'Answered');
   await expect(main.getByText('Keep the chisels and hand plane.', { exact: true })).toBeVisible();
   if (compact) await page.getByRole('button', { name: 'Find questions', exact: true }).click();
   const search = page.getByRole('searchbox', { name: 'Find questions', exact: true });
@@ -265,14 +294,14 @@ test('Wiki answers update Questions filters and search without creating a second
   await search.fill('unrelated subject');
   await expect(main.getByText('No questions found.', { exact: true })).toBeVisible();
   await search.fill('');
-  await selectStatus('Abandoned');
+  await selectStatus(page, 'Abandoned');
   await expect(main.getByText('No questions found.', { exact: true })).toBeVisible();
-  await selectStatus('All');
+  await selectStatus(page, 'All');
   await expect(main.getByText('Keep the chisels and hand plane.', { exact: true })).toBeVisible();
   const before = await journal(page);
   await page.reload();
   await expect(main.getByText('No open questions.', { exact: true })).toBeVisible();
-  await selectStatus('Answered');
+  await selectStatus(page, 'Answered');
   await expect(main.getByText('Keep the chisels and hand plane.', { exact: true })).toBeVisible();
   expect(await journal(page)).toEqual(before);
   const questions = before

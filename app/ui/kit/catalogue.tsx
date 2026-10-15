@@ -977,7 +977,9 @@ function Agent() {
           <K.Stack gap="sm">
             {!(focused || draft || messages.length || voice === 'listening') && (
               <K.PromptSuggestions
-                suggestions={['Make room for slow mornings', 'What have I noticed this week?']}
+                suggestions={['Make room for slow mornings', 'What have I noticed this week?'].map(
+                  (text) => ({ value: text, label: text }),
+                )}
                 onSelect={(text) => {
                   setDraft(text);
                   requestAnimationFrame(() => fieldRef.current?.focus());
@@ -1008,6 +1010,7 @@ function Agent() {
 }
 function TextBoxes() {
   const [note, setNote] = useState('');
+  const noteField = useRef<HTMLTextAreaElement>(null);
   const [answer, setAnswer] = useState('');
   const [instructions, setInstructions] = useState('Use concise answers.');
   const [saved, setSaved] = useState('');
@@ -1023,17 +1026,35 @@ function TextBoxes() {
         description="One field for short notes and considered answers."
       >
         <K.Stack gap="lg">
-          <K.TextBox
-            label="Quick note"
-            draft={note}
-            onDraftChange={setNote}
-            placeholder="Write a quick note…"
-            canSubmit={true}
-            onSubmit={(text) => {
-              setSaved(text.trim());
-              setNote('');
-            }}
-          />
+          <K.Stack gap="sm">
+            <K.PromptSuggestions
+              label="Suggested starting points"
+              suggestions={[
+                { value: 'Leave space for a walk before work.', label: 'Make time for a walk' },
+                {
+                  value: 'Keep a morning free for the studio.',
+                  label: 'Keep a morning free for making things in the garden studio',
+                },
+              ]}
+              selected={note}
+              onSelect={(text) => {
+                setNote(text);
+                requestAnimationFrame(() => noteField.current?.focus());
+              }}
+            />
+            <K.TextBox
+              label="Quick note"
+              fieldRef={noteField}
+              draft={note}
+              onDraftChange={setNote}
+              placeholder="Write a quick note…"
+              canSubmit={true}
+              onSubmit={(text) => {
+                setSaved(text.trim());
+                setNote('');
+              }}
+            />
+          </K.Stack>
           <K.TextBox
             label="Long answer"
             layout="longform"
@@ -1665,7 +1686,7 @@ export const catalogue: Specimen[] = [
     title: 'Text box',
     description:
       'Compact submission, longer answers and immediate edits share the same text entry.',
-    components: ['TextBox'],
+    components: ['TextBox', 'PromptSuggestions'],
     Sample: TextBoxes,
     fullBleed: true,
   },

@@ -8,7 +8,7 @@ import { parseRecord } from '../../app/vault/nodes/validation.ts';
 import { seal } from '../../app/vault/session/sealed.ts';
 import { sampleFiles } from '../../app/preview/data.ts';
 
-test('production uses Balanced drafts in Questions and Wiki and persists an explicit answer', async ({
+test('production shares suggestion lists and inline context in Questions and Wiki and persists an explicit answer', async ({
   page,
 }) => {
   const transaction = 'questions-fixture';
@@ -85,7 +85,7 @@ test('production uses Balanced drafts in Questions and Wiki and persists an expl
       headers: Object.fromEntries(response.headers),
     });
   });
-  await page.goto('/#/questions/tools-question/');
+  await page.goto('/#/questions/');
   await page.getByLabel('Password', { exact: true }).fill(password);
   await page.getByRole('button', { name: 'Open vault', exact: true }).click();
   await expect(page.getByRole('textbox', { name: 'Your answer', exact: true })).toBeEnabled();
@@ -113,10 +113,8 @@ test('production uses Balanced drafts in Questions and Wiki and persists an expl
     await search.press('Escape');
     await expect(search).toHaveCount(0);
   } else await search.fill('');
-  await page
-    .getByRole('link', { name: 'Question details: Which tools should stay?', exact: true })
-    .click();
-  if (compact) await expect(page.locator('[data-edge-rail]').getByRole('button')).toHaveCount(1);
+  await expect(page.getByRole('link', { name: /Question details/ })).toHaveCount(0);
+  if (compact) await expect(page.locator('[data-edge-rail]').getByRole('button')).toHaveCount(3);
   const card = page.getByRole('region', { name: 'Open question', exact: true });
   const answer = card.getByRole('textbox', { name: 'Your answer', exact: true });
   await expect(answer).toBeEnabled();
@@ -143,8 +141,8 @@ test('production uses Balanced drafts in Questions and Wiki and persists an expl
     card.evaluate((node) => {
       const heading = getComputedStyle(node.querySelector('h2')!);
       const content = getComputedStyle(node.querySelector('[data-slot="card-content"]')!);
-      const choice = node
-        .querySelector('[data-selection-appearance="card"]')!
+      const suggestions = node
+        .querySelector('section[aria-label="Suggested answers"]')!
         .getBoundingClientRect();
       const editor = node.querySelector('textarea')!.getBoundingClientRect();
       return {
@@ -156,21 +154,26 @@ test('production uses Balanced drafts in Questions and Wiki and persists an expl
         },
         padding: content.paddingInline,
         editorHeight: editor.height,
-        horizontal: choice.right <= editor.left + 1 && editor.y < choice.bottom,
-        stacked: editor.y >= choice.bottom,
+        stacked: editor.y >= suggestions.bottom,
       };
     });
   const collection = await presentation();
   expect(collection.padding).toBe('24px');
   expect(collection.editorHeight).toBe(44);
-  expect(test.info().project.name === 'phone' ? collection.stacked : collection.horizontal).toBe(
-    true,
-  );
+  expect(collection.stacked).toBe(true);
+  await expect(card).toContainText('I use the hand plane every morning');
+  await expect(card.getByRole('button', { name: 'Source & context', exact: true })).toHaveCount(0);
+  await expect(card.getByRole('button', { name: 'Write my own', exact: true })).toHaveCount(0);
+  await expect(card).not.toContainText('The source describes daily use');
+  await expect(card).not.toContainText('Prepared from the source');
   await expect(answer).toHaveValue('');
   await answer.focus();
   await expect(card.getByRole('button', { name: 'Save answer', exact: true })).toBeDisabled();
   const writesBeforeChoosing = fake.state.calls.filter((call) => call.startsWith('PATCH ')).length;
-  await card.getByRole('button', { name: /^Keep hand tools close/ }).click();
+  const firstSuggestion = card.getByRole('button', { name: 'Keep hand tools close', exact: true });
+  await firstSuggestion.focus();
+  await firstSuggestion.press('Enter');
+  await expect(answer).toBeFocused();
   await expect(answer).toHaveValue(
     'Keep the hand plane within reach and clear the bench after each session.',
   );
@@ -181,12 +184,6 @@ test('production uses Balanced drafts in Questions and Wiki and persists an expl
   expect(fake.state.calls.filter((call) => call.startsWith('PATCH '))).toHaveLength(
     writesBeforeChoosing,
   );
-  await card.getByRole('button', { name: 'Source & context', exact: true }).click();
-  const context = page.getByRole('dialog', { name: 'Source & context', exact: true });
-  await expect(context).toContainText('I use the hand plane every morning');
-  await expect(context).toContainText('Keep the workbench clear.');
-  await page.keyboard.press('Escape');
-  await expect(context).toBeHidden();
   await page.evaluate(() => {
     location.hash = '#/wiki/studio/';
   });
@@ -195,7 +192,7 @@ test('production uses Balanced drafts in Questions and Wiki and persists an expl
   expect(wiki.heading).toEqual(collection.heading);
   expect(wiki.padding).toBe(collection.padding);
   expect(wiki.editorHeight).toBe(44);
-  await card.getByRole('button', { name: /^Write my own answer/ }).click();
+  await expect(card).toContainText('I use the hand plane every morning');
   await answer.fill('Use a mobile tool cart and leave the bench clear.');
   const writesBeforeSubmit = fake.state.calls.filter((call) => call.startsWith('PATCH ')).length;
   await answer.press('End');

@@ -82,7 +82,7 @@ test('production dictates into a Question draft and persists only its explicit a
       });
     }
   });
-  await page.goto('/#/questions/spoken-question/');
+  await page.goto('/#/questions/');
   await page.getByLabel('Password', { exact: true }).fill(password);
   await page.getByRole('button', { name: 'Open vault', exact: true }).click();
   const entry = page.getByRole('group', { name: 'Your answer text box', exact: true });
@@ -111,8 +111,17 @@ test('production dictates into a Question draft and persists only its explicit a
   await expect(answer).toHaveValue(`${text}\n`);
   expect(writes()).toBe(before);
   await answer.press('Enter');
+  const showAnswered = async () => {
+    if (test.info().project.name === 'phone') {
+      await page.getByRole('button', { name: 'Filters', exact: true }).click();
+      await page.getByRole('menuitemradio', { name: 'Answered', exact: true }).click();
+    } else
+      await page.getByRole('main').getByRole('button', { name: 'Answered', exact: true }).click();
+  };
+  await showAnswered();
   await expect(page.getByRole('region', { name: 'Answered', exact: true })).toContainText(text);
   await page.reload();
+  await showAnswered();
   await expect(page.getByRole('region', { name: 'Answered', exact: true })).toContainText(text);
   expect(modelRequests).toBe(0);
 });

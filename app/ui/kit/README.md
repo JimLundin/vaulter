@@ -137,6 +137,7 @@ oversized invisible hit areas or fixed absolute offsets.
 Cards retain their own typography and spacing inside Prose, so task cards look the same in a
 collection and in a Wiki page. The Cards catalogue includes a card within reading content.
 `SelectionRow appearance="card"` supplies bordered multiline choices with a selection marker.
+Questions and Chat use the quieter `PromptSuggestions` row above `TextBox` for editable suggestions.
 `Surface variant="subtle"` frames related controls with a quiet background and 16px padding.
 `Textarea variant="longform"` starts with 112px of writing space on desktop and touch devices,
 and grows with the draft. The catalogue demonstrates these presentations.
@@ -266,8 +267,10 @@ exception are removed; shared mechanics live in `passage-card.tsx`/`passage-card
 ### Primitive composition
 
 Agent and Settings contain no intrinsic HTML, CSS classes or inline styling. They assemble public
-building blocks. `Button` owns shared action styles, sizes and icon-only layout. `OptionStrip` owns
-prompt-option presentation. The composer uses the shared primary and supporting action styles.
+building blocks. `Button` owns shared action styles, sizes and icon-only layout. Its `suggestion`
+variant presents complete wrapping labels in full-width rows with separators. `PromptSuggestions`
+composes those rows for Questions and Chat; `OptionStrip` remains available for horizontal options.
+The composer uses the shared primary and supporting action styles.
 `InputGroup`,
 `InputGroupTextarea variant="inline"` and `InputGroupAddon align="inset-end"` own the one-row
 field and inset actions. `Field orientation="setting"` owns responsive
@@ -477,6 +480,14 @@ when another reference needs them; field labels and descriptions require no iden
 
 ## TextBox interface
 
+`PromptSuggestions` presents the same compact, horizontally scrolling buttons for Chat prompts and
+Question answers. Callers supply `{ value, label }` options, `onSelect(value)`, and an optional
+accessible `label` (default “Suggested prompts”). Labels can name a longer draft owned by the
+caller. `selected` marks the active option, and `disabled` blocks the whole row during unavailable
+or in-progress work. Selection never submits a form. Callers fill and focus their `TextBox`; Question
+drafts and suggestion explanations stay with Questions. The Feed & composer and Text box catalogue
+examples show both forms of this shared presentation.
+
 `TextBox` is the public composition for free-text entry. Chat, Questions (including answers embedded
 in Wiki), and multiline ModuleSettings fields use it. It owns the field, optional form, inset
 submission/voice/Stop actions, labels, descriptions, errors, focus feedback and keyboard policy.
@@ -500,7 +511,6 @@ Consumers supply controlled values and task actions; they do not assemble these 
 
 <TextBox
   label="Your answer"
-  description="Choose a suggestion or write freely."
   error={saveError}
   draft={answer}
   onDraftChange={editAnswer}
