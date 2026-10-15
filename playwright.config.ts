@@ -1,5 +1,6 @@
 import { defineConfig } from '@playwright/test';
 import process from 'node:process';
+import { availableParallelism } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { requirePlaywrightTestScope } from './tools/testing/test-scope.ts';
 
@@ -15,7 +16,7 @@ export default defineConfig({
   testIgnore: '**/*.production.browser.test.ts',
   timeout: 30_000,
   fullyParallel: true,
-  workers: 2,
+  workers: process.env.CI ? Math.min(4, availableParallelism()) : 2,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [['list'], ['blob'], ['./tools/testing/browser-timings.ts']] : 'list',

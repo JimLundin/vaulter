@@ -86,8 +86,9 @@ Report the commit and CI result at delivery. If CI is pending, unavailable or fa
 status explicitly; a focused local pass establishes only its selected scope. `test:all` remains
 available inside GitHub Actions for complete routine verification.
 
-CI runs all routine checks, with four browser shards. The aggregate `test` job requires every
-job and shard to pass before production deployment. Browser jobs retain blob reports and failure
+CI runs all routine checks, with four browser shards using up to four workers within the runner's
+available CPU capacity. Local browser checks default to two workers. The aggregate `test` job
+requires every job and shard to pass before production deployment. Browser jobs retain blob reports and failure
 traces for seven days; production failures retain an HTML report and traces. A missing device
 tag is a coverage decision to review, not a reason to treat a focused local pass as full coverage.
 
