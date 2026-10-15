@@ -156,11 +156,14 @@ test('every feature page centers the same reading column', async ({ page }) => {
       const main = page.locator('main[data-region]');
       const column = main.locator('[data-reading-column]');
       await expect(column).toBeVisible();
-      const parent = (await (path === '/preview/' ? column.locator('..') : main).boundingBox())!;
+      await expect
+        .poll(async () => {
+          const parent = (await (path === '/preview/' ? column.locator('..') : main).boundingBox())!;
+          const child = (await column.boundingBox())!;
+          return Math.abs(child.x + child.width / 2 - (parent.x + parent.width / 2));
+        })
+        .toBeLessThanOrEqual(1);
       const child = (await column.boundingBox())!;
-      expect(
-        Math.abs(child.x + child.width / 2 - (parent.x + parent.width / 2)),
-      ).toBeLessThanOrEqual(1);
       expect(child.width).toBeLessThanOrEqual(768);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
         true,
