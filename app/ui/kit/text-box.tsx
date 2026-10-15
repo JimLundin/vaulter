@@ -14,7 +14,6 @@ export function TextBox({
   onDraftChange,
   label,
   layout = 'compact',
-  submitOnEnter = layout === 'compact',
   description,
   error,
   placeholder,
@@ -34,8 +33,6 @@ export function TextBox({
   onDraftChange: (text: string) => void;
   label: string;
   layout?: 'compact' | 'longform';
-  /** Defaults to compact Enter-to-submit; explicit-save tasks keep Enter as editing. */
-  submitOnEnter?: boolean;
   description?: string;
   error?: string;
   placeholder?: string;
@@ -94,15 +91,13 @@ export function TextBox({
         onKeyDown={(event) => {
           // Safari reports Enter confirming composed text with keyCode 229.
           if (
-            submitOnEnter &&
-            eligible &&
             event.key === 'Enter' &&
             !event.shiftKey &&
             !event.nativeEvent.isComposing &&
             event.nativeEvent.keyCode !== 229
           ) {
             event.preventDefault();
-            event.currentTarget.form?.requestSubmit();
+            if (eligible) event.currentTarget.form?.requestSubmit();
           }
         }}
       />
@@ -121,7 +116,7 @@ export function TextBox({
           ) : onSubmit ? (
             layout === 'compact' && !busy ? (
               <SendButton
-                focused={submitOnEnter && (voice ? true : focused)}
+                focused={voice ? true : focused}
                 disabled={!eligible}
                 label={submitLabel}
                 aria-describedby={describedBy}

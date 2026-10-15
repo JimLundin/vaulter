@@ -466,9 +466,11 @@ Pane width, responsive transitions, header height, dismissal and scrolling remai
 `TextBox` retains shared keyboard, native form, IME, focus and inset actions. Compact entry in Chat
 and Questions shares presentation and scoped floating-control protection with longform settings;
 workflow owners retain draft lifetime, validation, acceptance and persistence.
-Questions keeps Enter as editing and requires explicit Save. It associates dictated words with the
-selected answer draft, preserves typed prefixes and corrected transcripts, and releases its own
-recording when the question changes or its card leaves the view. Wiki uses the same Question card.
+Enter submits in both layouts, Shift+Enter inserts a newline, and IME confirmation keeps editing.
+Unavailable submission leaves the draft unchanged. Questions uses the same Enter/Save path,
+associates dictated words with the selected answer draft, preserves typed prefixes and corrected
+transcripts, and releases its recording when the question changes or its card leaves the view.
+Wiki uses the same Question card.
 
 The kit's `Message` receives caller attribution, reading side and content, with no Chat role schema.
 The five old `ConversationPage`, `ConversationSurface`, `ConversationPanel`, `ConversationFeed` and

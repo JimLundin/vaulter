@@ -499,7 +499,6 @@ Consumers supply controlled values and task actions; they do not assemble these 
 />
 
 <TextBox
-  submitOnEnter={false}
   label="Your answer"
   description="Choose a suggestion or write freely."
   error={saveError}
@@ -523,24 +522,22 @@ protection. Chat retains
 review, capture, cancellation and its conversation's draft lifetime.
 
 `layout="compact"` (the default) keeps a 44px, one-row textarea with internal scrolling. Chat and
-Questions both use this layout. With `submitOnEnter` enabled, Enter submits through the same form
-path as the action only when the draft has non-whitespace text,
+Questions both use this layout. In both layouts, Enter submits through the same form path as the
+action only when the draft has non-whitespace text,
 `canSubmit` is true, and the field is neither busy, disabled nor read-only. `canSubmit` defaults to
-false. Shift+Enter, native IME composition and Safari key code 229 keep editing. An ineligible Enter
-keeps native editing behavior. `submitOnEnter` defaults to true for compact and false for longform.
-Questions supplies `submitOnEnter={false}`: Enter inserts a newline, and only the inset Save action
-submits. Each handled action invokes `onSubmit` once; authoritative acceptance
-and replay prevention remain with the owner.
+false. Plain Enter never inserts a newline, including when submission is unavailable. Shift+Enter
+inserts a newline; native IME composition and Safari key code 229 keep editing without submitting.
+Questions saves through either Enter or its inset Save action. Each handled action invokes
+`onSubmit` once; authoritative acceptance and replay prevention remain with the owner.
 
 `layout="longform"` shows a visible field label and at least 112px of writing space, growing with
-its draft. By default, Enter and Shift+Enter insert newlines; saving requires the explicit
-submission action.
-Its inset action row sits below the writing area inside the same rounded surface, leaving the full
-width available to the text. Both layouts use the same spacing, focus/error treatment and at least
+its draft. Its inset action row sits below the writing area inside the same rounded surface, leaving
+the full width available to the text. Both layouts use the same spacing, focus/error treatment and at least
 44px field/action touch targets on desktop, phone and touch desktop.
 
 Omit `onSubmit` for immediate-edit settings. TextBox renders the same longform field without a form
-or submit action; `onDraftChange` still reports every edit to the settings owner. Search, passwords,
+or submit action; `onDraftChange` still reports every edit to the settings owner. Enter leaves the
+current value unchanged, and Shift+Enter inserts a newline. Search, passwords,
 credentials, numeric settings and single-value identifiers keep their specialized controls.
 Primitive-only catalogue and policy fixtures still demonstrate `Input`, `Textarea` and `InputGroup`.
 

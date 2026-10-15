@@ -197,15 +197,14 @@ test('production uses Balanced drafts in Questions and Wiki and persists an expl
   expect(wiki.editorHeight).toBe(44);
   await card.getByRole('button', { name: /^Write my own answer/ }).click();
   await answer.fill('Use a mobile tool cart and leave the bench clear.');
-  const writesBeforeEnter = fake.state.calls.filter((call) => call.startsWith('PATCH ')).length;
+  const writesBeforeSubmit = fake.state.calls.filter((call) => call.startsWith('PATCH ')).length;
   await answer.press('End');
-  await answer.press('Enter');
+  await answer.press('Shift+Enter');
   await expect(answer).toHaveValue('Use a mobile tool cart and leave the bench clear.\n');
   expect(fake.state.calls.filter((call) => call.startsWith('PATCH '))).toHaveLength(
-    writesBeforeEnter,
+    writesBeforeSubmit,
   );
-  await answer.focus();
-  await card.getByRole('button', { name: 'Save answer', exact: true }).click();
+  await answer.press('Enter');
   const answered = page.getByRole('region', { name: 'Answered', exact: true });
   await expect(answered).toContainText('Use a mobile tool cart and leave the bench clear.');
   const saved = Object.entries(fake.filesAt())

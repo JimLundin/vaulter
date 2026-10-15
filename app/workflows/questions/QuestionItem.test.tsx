@@ -68,7 +68,7 @@ function writeAnswer(text: string) {
   textarea.dispatchEvent(new Event('input', { bubbles: true }));
 }
 
-test('dictation corrects the answer draft and waits for an explicit Save', async () => {
+test('dictation corrects the answer draft and waits for explicit submission', async () => {
   let events!: TranscriptionEvents;
   let finish!: (text: string) => void;
   const final = new Promise<string>((resolve) => {

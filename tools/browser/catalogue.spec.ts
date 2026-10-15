@@ -27,7 +27,7 @@ test('paired text boxes retain independent longform drafts and scope their float
   await expect(desktopAnswer).toHaveValue('');
   await mobileAnswer.fill('Mobile answer');
   await mobileAnswer.press('End');
-  await mobileAnswer.press('Enter');
+  await mobileAnswer.press('Shift+Enter');
   await desktopAnswer.fill('Desktop answer');
   await desktopAnswer.evaluate((node) => node.setAttribute('data-original-field', ''));
   for (const width of [1000, 390, 1440]) {
@@ -51,7 +51,7 @@ test('paired text boxes retain independent longform drafts and scope their float
       return entry.x + entry.width <= rail.x - 11;
     })
     .toBe(true);
-  await save.click();
+  await mobileAnswer.press('Enter');
   await expect(mobileAnswer).toHaveValue('');
   await expect(mobile.getByRole('status')).toHaveText('Saved: Mobile answer');
   await expect(desktopAnswer).toHaveValue('Desktop answer');
@@ -59,6 +59,8 @@ test('paired text boxes retain independent longform drafts and scope their float
   await instructions.fill('Keep this local setting');
   await instructions.press('End');
   await instructions.press('Enter');
+  await expect(instructions).toHaveValue('Keep this local setting');
+  await instructions.press('Shift+Enter');
   await expect(instructions).toHaveValue('Keep this local setting\n');
   await expect(desktop.getByRole('textbox', { name: 'Instructions', exact: true })).toHaveValue(
     'Use concise answers.',

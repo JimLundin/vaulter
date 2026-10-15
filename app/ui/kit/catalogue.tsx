@@ -1037,7 +1037,7 @@ function TextBoxes() {
           <K.TextBox
             label="Long answer"
             layout="longform"
-            description="Write freely. Save when the answer is ready."
+            description="Enter saves. Shift+Enter adds a new line."
             placeholder="Take room for a longer answer…"
             draft={answer}
             onDraftChange={setAnswer}

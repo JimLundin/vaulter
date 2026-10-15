@@ -107,12 +107,10 @@ test('production dictates into a Question draft and persists only its explicit a
   expect(modelRequests).toBe(0);
   await answer.focus();
   await answer.press('End');
-  await answer.press('Enter');
+  await answer.press('Shift+Enter');
   await expect(answer).toHaveValue(`${text}\n`);
   expect(writes()).toBe(before);
-  await answer.press('Tab');
-  await expect(entry.getByRole('button', { name: 'Save answer', exact: true })).toBeFocused();
-  await page.keyboard.press('Enter');
+  await answer.press('Enter');
   await expect(page.getByRole('region', { name: 'Answered', exact: true })).toContainText(text);
   await page.reload();
   await expect(page.getByRole('region', { name: 'Answered', exact: true })).toContainText(text);

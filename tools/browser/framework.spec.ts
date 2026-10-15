@@ -524,7 +524,7 @@ test('Enter sends, Shift+Enter and IME keep editing, and suggestions live outsid
   expect((await input.boundingBox())!.height).toBe(44);
   await input.fill('   ');
   await input.press('Enter');
-  await expect(input).toHaveValue('   \n');
+  await expect(input).toHaveValue('   ');
   await expect(page.locator('[data-message="user"]')).toHaveCount(0);
   await input.fill('First line');
   await input.press('End');

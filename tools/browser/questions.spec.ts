@@ -8,7 +8,7 @@ const journal = (page: Page) =>
     () => JSON.parse(sessionStorage.getItem('vaulter:preview:accepted:v1') ?? '[]') as NodeCommit[],
   );
 
-test('Questions keeps a compact field, multiline drafts and explicit Save through responsive changes', {
+test('Questions keeps its compact multiline draft through responsive changes and submits with Enter', {
   tag: ['@phone', '@touch'],
 }, async ({ page }) => {
   await page.goto('/preview/#/questions/preview:question/');
@@ -17,7 +17,7 @@ test('Questions keeps a compact field, multiline drafts and explicit Save throug
   const initial = await journal(page);
   await answer.fill('Use a mobile tool cart.');
   await answer.press('End');
-  await answer.press('Enter');
+  await answer.press('Shift+Enter');
   await expect(answer).toHaveValue('Use a mobile tool cart.\n');
   const entry = page.getByRole('group', { name: 'Your answer text box', exact: true });
   const save = entry.getByRole('button', { name: 'Save answer', exact: true });
@@ -40,6 +40,10 @@ test('Questions keeps a compact field, multiline drafts and explicit Save throug
     expect(field.height).toBe(44);
   }
   expect(await journal(page)).toEqual(initial);
+  await answer.press('Enter');
+  await expect(page.getByRole('region', { name: 'Answered', exact: true })).toContainText(
+    'Use a mobile tool cart.',
+  );
 });
 
 test('Questions dictates into the compact draft and saves only when explicitly requested', {
@@ -62,7 +66,7 @@ test('Questions dictates into the compact draft and saves only when explicitly r
   expect(await journal(page)).toEqual(initial);
   await answer.focus();
   await answer.press('End');
-  await answer.press('Enter');
+  await answer.press('Shift+Enter');
   await expect(answer).toHaveValue(`${dictated}\n`);
   expect(await journal(page)).toEqual(initial);
   await entry.getByRole('button', { name: 'Save answer', exact: true }).click();

@@ -292,7 +292,6 @@ export function QuestionItem({
                 {dictation.active && <VoiceStatus phase={dictation.phase} error="" />}
                 <TextBox
                   label="Your answer"
-                  submitOnEnter={false}
                   fieldRef={answerField}
                   placeholder="Write an answer…"
                   draft={text}

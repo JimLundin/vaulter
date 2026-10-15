@@ -27,9 +27,14 @@ test('module settings persist valid preferences and keep credentials with their 
     .toBe('0.4');
   await temperature.fill('0.6');
   await expect(temperature).not.toHaveAttribute('aria-invalid');
-  await settings
-    .getByRole('textbox', { name: 'Instructions', exact: true })
-    .fill('Use concise answers.');
+  const instructions = settings.getByRole('textbox', { name: 'Instructions', exact: true });
+  await instructions.fill('Use concise answers.');
+  await instructions.press('End');
+  await instructions.press('Enter');
+  await expect(instructions).toHaveValue('Use concise answers.');
+  await instructions.press('Shift+Enter');
+  await expect(instructions).toHaveValue('Use concise answers.\n');
+  await instructions.pressSequentially('Keep the sources.');
   const openai = settings.getByRole('region', { name: 'OpenAI', exact: true });
   for (const label of [
     'Model',
@@ -66,9 +71,7 @@ test('module settings persist valid preferences and keep credentials with their 
   await expect(model.locator('option:checked')).toHaveText('Custom…');
   await expect(customModel).toHaveValue('review-model');
   await expect(settings.getByRole('combobox', { name: 'Voice', exact: true })).toHaveValue('cedar');
-  await expect(settings.getByRole('textbox', { name: 'Instructions', exact: true })).toHaveValue(
-    'Use concise answers.',
-  );
+  await expect(instructions).toHaveValue('Use concise answers.\nKeep the sources.');
   await expect(settings.getByRole('textbox', { name: 'Temperature', exact: true })).toHaveValue(
     '0.6',
   );

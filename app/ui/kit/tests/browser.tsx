@@ -309,7 +309,6 @@ function TextBoxFixture() {
     <Stack>
       <TextBox
         layout={longform ? 'longform' : 'compact'}
-        submitOnEnter={!explicit}
         draft={draft}
         onDraftChange={setDraft}
         onSubmit={(text) => setSubmitted([...submitted, text])}

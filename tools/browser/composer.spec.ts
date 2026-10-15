@@ -85,7 +85,7 @@ test('text-box descriptions and validation errors name both the field and its su
   }
 });
 
-test('explicit entry keeps Enter as editing and saves without clearing the controlled draft', {
+test('Save actions submit on Enter in compact and longform entry without clearing the controlled draft', {
   tag: ['@phone', '@touch'],
 }, async ({ page }) => {
   for (const layout of ['longform', 'compact']) {
@@ -93,27 +93,40 @@ test('explicit entry keeps Enter as editing and saves without clearing the contr
       `/ui/kit/tests/browser.html?composer&${layout === 'longform' ? 'longform' : 'explicit'}`,
     );
     const field = page.getByRole('textbox', { name: 'Fixture answer', exact: true });
+    await field.focus();
+    await field.press('Enter');
+    await expect(field).toHaveValue('');
     await field.fill('First line');
     expect((await field.boundingBox())!.height).toBe(layout === 'longform' ? 112 : 44);
     await field.press('End');
-    await field.press('Enter');
+    await field.press('Shift+Enter');
     await expect(field).toHaveValue('First line\n');
     await expect(page.getByText('Submitted drafts: []', { exact: true })).toBeVisible();
     await field.fill('First line\nA considered answer');
-    await field.press('Tab');
-    await expect(page.getByRole('button', { name: 'Save answer', exact: true })).toBeFocused();
-    await page.keyboard.press('Enter');
+    await field.press('Enter');
     await expect(
       page.getByText('Submitted drafts: ["First line\\nA considered answer"]', { exact: true }),
     ).toBeVisible();
     await expect(field).toHaveValue('First line\nA considered answer');
+    await field.fill('An edited answer');
+    await field.press('Tab');
+    await expect(page.getByRole('button', { name: 'Save answer', exact: true })).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(
+      page.getByText('Submitted drafts: ["First line\\nA considered answer","An edited answer"]', {
+        exact: true,
+      }),
+    ).toBeVisible();
+    await expect(field).toHaveValue('An edited answer');
     await page.getByRole('button', { name: 'Begin response' }).click();
     await expect(field).toBeDisabled();
     await expect(page.getByRole('button', { name: 'Saving answer…', exact: true })).toBeDisabled();
     await expect(page.getByRole('button', { name: 'Stop', exact: true })).toHaveCount(0);
     await field.evaluate((node) => node.closest('form')?.requestSubmit());
     await expect(
-      page.getByText('Submitted drafts: ["First line\\nA considered answer"]', { exact: true }),
+      page.getByText('Submitted drafts: ["First line\\nA considered answer","An edited answer"]', {
+        exact: true,
+      }),
     ).toBeVisible();
   }
 });
@@ -157,7 +170,7 @@ test('Shift+Enter and native or Safari composition keep editing in the controlle
   await expect(page.getByText('Submitted drafts: []', { exact: true })).toBeVisible();
 });
 
-test('empty, whitespace and caller-denied drafts cannot submit and unhandled Enter stays an editing action', {
+test('empty, whitespace and caller-denied drafts stay unchanged when Enter cannot submit', {
   tag: '@phone',
 }, async ({ page }) => {
   await page.goto('/ui/kit/tests/browser.html?composer');
@@ -165,10 +178,12 @@ test('empty, whitespace and caller-denied drafts cannot submit and unhandled Ent
   const send = page.getByRole('button', { name: 'Send', exact: true });
   await field.focus();
   await expect(send).toBeDisabled();
+  await field.press('Enter');
+  await expect(field).toHaveValue('');
   await field.fill('   ');
   await field.press('End');
   await field.press('Enter');
-  await expect(field).toHaveValue('   \n');
+  await expect(field).toHaveValue('   ');
   await expect(send).toBeDisabled();
   await field.fill('A retained thought');
   await page.getByRole('button', { name: 'Deny submission' }).click();
@@ -177,7 +192,7 @@ test('empty, whitespace and caller-denied drafts cannot submit and unhandled Ent
   await expect(send).toBeDisabled();
   await field.press('End');
   await field.press('Enter');
-  await expect(field).toHaveValue('A retained thought\n');
+  await expect(field).toHaveValue('A retained thought');
   // Native form submissions also go through the shared eligibility check.
   await field.evaluate((node) => node.closest('form')?.requestSubmit());
   await expect(page.getByText('Submitted drafts: []', { exact: true })).toBeVisible();
