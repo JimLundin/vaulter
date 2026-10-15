@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { later } from '../../ui/later.ts';
+import { later } from '../../runtime/later.ts';
 import {
   createNodeConversation,
   type NodeConversationOptions,
@@ -51,7 +51,7 @@ export function useNodeConversation(options: NodeConversationOptions) {
       )
         return;
       restoration.current.requested = { node: requested, availability: options.availability };
-      // Selection already published by the owner has just been reflected in Product navigation.
+      // Selection already published by the owner has just been reflected in Application navigation.
       if (conversation.conversation() === requested && !conversation.snapshot().selection.pending)
         return;
       later(

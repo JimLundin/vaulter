@@ -12,7 +12,7 @@ import { createAgentBackend } from './runtime.ts';
 import { readAgentRunFixture as readAgentRun } from './preparation.test-support.ts';
 import { prepareAgentRunFixture as prepareAgentRun } from './preparation.test-support.ts';
 import { nodeOperations } from '../vault/nodes/operations.ts';
-import { serial } from '../vault/storage/coordination.ts';
+import { serial } from '../runtime/async.ts';
 import type { AgentToolContext } from './tools.ts';
 
 function gate() {

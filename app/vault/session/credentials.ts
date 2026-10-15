@@ -70,7 +70,7 @@ export function createSessionCredentials(
   });
 }
 
-/** Product supplies application restrictions without interpreting credential state or tasks. */
+/** Application supplies application restrictions without interpreting credential state or tasks. */
 export function restrictSessionCredentials(
   credentials: SessionCredentials,
   reason?: string | (() => string | undefined),

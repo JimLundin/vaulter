@@ -4,7 +4,7 @@ import { isSafeUrl } from '../../../vault/documents/notes/safe-url.ts';
 import { Bars, Button, Sparkline, Text } from '../../../ui/kit/index.ts';
 import { wikiSchemas } from '../records.ts';
 
-/** Product supplies the owning module's UI for records included in Wiki content. */
+/** Application supplies the owning module's UI for records included in Wiki content. */
 export type ForeignRecordRenderer = (block: WikiBlock) => ReactNode | undefined;
 
 export const blockText = (block: WikiBlock): string =>

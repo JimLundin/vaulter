@@ -16,7 +16,7 @@ import type { ReactNode } from 'react';
 import { remarkVaultLinks } from '../../../vault/documents/notes/remark-vault-links.ts';
 import { isSafeUrl } from '../../../vault/documents/notes/safe-url.ts';
 import { hrefOf, type Note } from '../../../vault/documents/notes/fields.ts';
-import { link } from '../../../ui/routing.ts';
+import { link } from '../../../navigation/routing.ts';
 import { Pre } from './highlight.tsx';
 
 /** Every heading gets the GitHub-style id that vault links (#heading) point at. */

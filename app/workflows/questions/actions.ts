@@ -13,14 +13,6 @@ import { prepareAnswerQuestion, prepareAskQuestion, type QuestionCommit } from '
 import { readQuestions } from './reading.ts';
 import { answerSuggestions } from './records.ts';
 
-/** Product supplies foreign text ownership and distinguishes Wiki knowledge from source material. */
-export interface QuestionContextReading {
-  /** Exact containers do not freeze their child prose; only self-contained text is eligible. */
-  readonly text: (node: NodeVersion, view: NodeSnapshot) => string | undefined;
-  readonly isKnowledge: (node: NodeVersion, view: NodeSnapshot) => boolean;
-  readonly title: (node: NodeVersion, view: NodeSnapshot) => string;
-}
-
 const exactAddress = z.strictObject({ node: z.string().min(1), transaction: z.string().min(1) });
 export const askQuestionInput = z.object({
   text: z.string().trim().min(1),
@@ -37,7 +29,7 @@ export interface AnswerQuestionInput {
   readonly text: string;
 }
 
-/** Trusted producer identity, supplied by Product or an accepted Agent invocation. */
+/** Trusted producer identity, supplied by Application or an accepted Agent invocation. */
 export interface QuestionWriter {
   /** Identity allocated by the core before this action calculates changes. */
   readonly id: string;
@@ -75,35 +67,6 @@ interface IssuedQuestionWork {
 
 const changeContents = (changes: NodeCommit['changes']) =>
   canonical([...changes].sort((first, second) => compare(first.node, second.node)));
-
-/** Owner-supplied text admission may depend on foreign ancestry; retain those reads with the action. */
-function actionSnapshot(view: NodeSnapshot, reads: Record<string, string | null>): NodeSnapshot {
-  const track = (node: string) => {
-    reads[node] = view.get(node)?.key.transaction ?? null;
-  };
-  return {
-    sequence: view.sequence,
-    get: (node) => {
-      track(node);
-      return view.get(node);
-    },
-    resolve: (address) => {
-      track(address.node);
-      return view.resolve(address);
-    },
-    children: (parent) => {
-      track(typeof parent === 'string' ? parent : parent.node);
-      const children = view.children(parent);
-      for (const child of children) track(child.key.node);
-      return children;
-    },
-    roots: () => {
-      const roots = view.roots();
-      for (const root of roots) track(root.key.node);
-      return roots;
-    },
-  };
-}
 
 /** Retained ownership follows identity, even after a deletion, move, or payload retag. */
 function questionChanges(context: NodePublicationContext): NodeCommit['changes'] {
@@ -143,12 +106,11 @@ function questionChanges(context: NodePublicationContext): NodeCommit['changes']
 }
 
 /**
- * Questions owns live write construction and its publication permission. Product composes this
+ * Questions owns live write construction and its publication permission. Application composes this
  * lifetime with the enforcing node interface; callers can request actions, never bless raw work.
  */
 export function createQuestionOwnership(options: {
   readonly nodes: NodeReading;
-  readonly reading?: QuestionContextReading;
 }): QuestionOwnership {
   const issued = new Map<string, IssuedQuestionWork>();
   const remember = (request: QuestionCommit, writer: QuestionWriter) => {
@@ -191,37 +153,13 @@ export function createQuestionOwnership(options: {
     if (work.finalized !== undefined && work.finalized !== finalized) return reject();
     work.finalized = finalized;
   };
-  const passage = (view: NodeSnapshot, address: Required<NodeAddress>, knowledge: boolean) => {
-    const { reading } = options;
-    if (!reading) throw new Error('Question source reading is unavailable.');
-    const version = view.resolve(address);
-    if (!version?.data || view.get(address.node)?.key.transaction !== address.transaction)
-      throw new Error('Question context has changed or is unavailable; read it again.');
-    if (!reading.text(version, view)?.trim())
-      throw new Error('Question context requires a self-contained text version.');
-    if (reading.isKnowledge(version, view) !== knowledge)
-      throw new Error(
-        knowledge
-          ? 'Existing knowledge must be Wiki text.'
-          : 'The Question source must be retained source material.',
-      );
-  };
   return {
     publication,
     ask: (view, input, writer) => {
       if (writer.kind !== 'agent') throw new Error('Questions are created by an Agent action.');
       const prepared = askQuestionInput.parse(input);
-      const expectedReads: Record<string, string | null> = {};
-      const selected = actionSnapshot(view, expectedReads);
-      passage(selected, prepared.source, false);
-      for (const knowledge of prepared.knowledge) passage(selected, knowledge, true);
-      const request = prepareAskQuestion(selected, {
-        ...prepared,
-        id: writer.id,
-        node: crypto.randomUUID(),
-      });
       return remember(
-        frozen({ ...request, expectedReads: { ...request.expectedReads, ...expectedReads } }),
+        prepareAskQuestion(view, { ...prepared, id: writer.id, node: crypto.randomUUID() }),
         writer,
       );
     },

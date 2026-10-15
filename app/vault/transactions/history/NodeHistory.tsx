@@ -1,5 +1,5 @@
 // The vault's recorded node history, newest first. Generic: it names changed nodes by their kind and
-// common label fields, never interpreting another workflow's records; Product supplies undo policy.
+// common label fields, never interpreting another workflow's records; Application supplies undo policy.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,

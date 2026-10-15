@@ -1,10 +1,11 @@
+import type { OpenBackend, OpenNodes } from './adapters.ts';
 // Which vault the app is on, and its state: GitHub through the device cache, in every browser. Built, the
 // secrets are unlocked with the password (unlock.ts); in dev they come from the environment (vite.config.ts)
 // and it loads right in. Opens from what the device kept, then refreshes: at once, when the tab comes back (at most every
 // 30 s), and when the backend says something changed.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Sealed, Secrets } from './sealed.ts';
-import { Offline, type Head, type OpenBackend, type VaultBackend } from '../storage/backend.ts';
+import { Offline, type Head, type VaultBackend } from '../storage/files/backend.ts';
 import {
   applySecretOverrides,
   forget,
@@ -14,10 +15,10 @@ import {
   type Credentials,
   type SecretOverrides,
 } from './unlock.ts';
-import type { NodeBackend, OpenNodes } from '../nodes/store.ts';
+import type { NodeBackend } from '../nodes/store.ts';
 import type { TransactionStore } from '../transactions/store.ts';
 import { createTransactionSession } from '../transactions/lifetime.ts';
-import { serial } from '../storage/coordination.ts';
+import { serial } from '../../runtime/async.ts';
 import { createSessionCredentials, type SessionCredentials } from './credentials.ts';
 
 export type Status =

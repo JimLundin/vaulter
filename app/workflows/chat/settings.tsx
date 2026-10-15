@@ -1,4 +1,4 @@
-import { ModuleSettings } from '../../ui/ModuleSettings.tsx';
+import { ModuleSettings } from '../../settings/ModuleSettings.tsx';
 import { chatPreferences, chatSettings } from './preferences.ts';
 
 export function ChatSettings() {

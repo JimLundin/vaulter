@@ -41,6 +41,9 @@ const semanticTags = new Set([
 // Chat permits semantic code markup, never a renderer-wide presentation exemption.
 const chatCodeRenderer = (path: string) => path === 'app/workflows/chat/rendering/highlight.tsx';
 const kit = (path: string) => path.startsWith('app/ui/kit/');
+const compositionEntry = (path: string) =>
+  ['app/application/index.tsx', 'app/application/composition.ts'].includes(path);
+const applicationTest = (path: string) => path.startsWith('app/application/') && testSource(path);
 const workflow = (path: string) => /^app\/workflows\/([^/]+)\//.exec(path)?.[1];
 const fixture = (path: string) =>
   /\.(?:test|test-support)\.[cm]?tsx?$/.test(path) || path.startsWith('app/preview/');
@@ -68,10 +71,10 @@ const sessionNodeSymbols = new Map([
 const sessionNodeCaller = (from: string, owner: string) =>
   fixture(from) ||
   (owner === 'app/vault/transactions/lifetime.ts'
-    ? from === 'app/product.tsx' || from === 'app/vault/session/session.ts'
+    ? from === 'app/application/composition.ts' || from === 'app/vault/session/session.ts'
     : owner === 'app/vault/session/session.ts'
       ? from === 'app/vault/index.ts' || from.startsWith('app/vault/session/')
-      : from === 'app/product.tsx');
+      : from === 'app/application/index.tsx');
 // These owner UI declarations compose presentation; storage/model implementations remain separate.
 const vaultUi = new Set([
   'app/vault/Gate.tsx',
@@ -87,7 +90,7 @@ export function importProblem(from: string, to: string): string | null {
   if (testSource(to) && !fixture(from))
     return `${from} imports test-only ${to}; fixtures cannot publish application data`;
   if (rawNodeEntries.has(to) && !rawNodeCaller(from))
-    return `${from} imports raw node persistence; use the Product-supplied TransactionStore`;
+    return `${from} imports raw node persistence; use the Application-supplied TransactionStore`;
   if (workflow(from) === 'wiki' && to.startsWith('tools/'))
     return `${from} imports tooling; migration depends on Wiki, never Wiki on migration`;
   if (
@@ -97,13 +100,14 @@ export function importProblem(from: string, to: string): string | null {
       to.startsWith('app/vault/content/') ||
       to === 'app/vault/records/sources.ts')
   )
-    return `${from} imports source interpretation; supply owner reading through Product composition`;
+    return `${from} imports source interpretation; supply owner reading through Application composition`;
   if (kit(from) && (to.startsWith('app/vault/') || to.startsWith('app/agent/')))
     return `${from} imports record interpretation; keep Vault and Agent knowledge with its owning module`;
   const target = workflow(to);
   if (
     target &&
-    from !== 'app/product.tsx' &&
+    !compositionEntry(from) &&
+    !applicationTest(from) &&
     // Explicit preview-owned adapters consume public module reading and record UI interfaces.
     !(
       target === 'wiki' &&
@@ -111,9 +115,22 @@ export function importProblem(from: string, to: string): string | null {
     ) &&
     workflow(from) !== target
   )
-    return `${from} imports optional workflow ${target}; compose it in app/product.tsx`;
-  if (kit(from) && to.startsWith('app/ui/') && !kit(to))
-    return `${from} imports shared application UI ${to}; task UI belongs outside the kit`;
+    return `${from} imports optional workflow ${target}; compose it in app/application/index.tsx`;
+  if (
+    to.startsWith('app/application/') &&
+    !from.startsWith('app/application/') &&
+    from !== 'app/main.tsx' &&
+    !fixture(from)
+  )
+    return `${from} imports Application composition; dependencies point from Application to module owners`;
+  if (kit(from) && to.startsWith('app/') && !kit(to) && !to.startsWith('app/runtime/'))
+    return `${from} imports application behavior ${to}; the kit owns generic presentation only`;
+  if (
+    (from.startsWith('app/vault/storage/files/') && to.startsWith('app/vault/storage/nodes/')) ||
+    (from.startsWith('app/vault/storage/nodes/') && to.startsWith('app/vault/storage/files/'))
+  )
+    return `${from} imports another persistence format; share transport through storage/github-client`;
+
   if (
     to.startsWith('app/ui/kit/') &&
     !from.startsWith('app/ui/kit/') &&
@@ -123,10 +140,24 @@ export function importProblem(from: string, to: string): string | null {
     return `${from} imports a private kit file; use app/ui/kit/index.ts`;
   if (
     from.startsWith('app/vault/') &&
-    to.startsWith('app/ui/') &&
-    !(vaultUi.has(from) && ['app/ui/kit/index.ts', 'app/ui/ModuleSettings.tsx'].includes(to))
+    (to.startsWith('app/ui/') || to === 'app/settings/ModuleSettings.tsx') &&
+    !(vaultUi.has(from) && ['app/ui/kit/index.ts', 'app/settings/ModuleSettings.tsx'].includes(to))
   )
     return `${from} imports presentation from the vault`;
+  for (const [owner, allowed] of [
+    ['app/runtime/', ['app/runtime/']],
+    ['app/navigation/', ['app/navigation/', 'app/runtime/', 'app/ui/kit/']],
+    ['app/settings/', ['app/settings/', 'app/runtime/', 'app/ui/kit/']],
+    ['app/vault/nodes/', ['app/vault/nodes/', 'app/runtime/']],
+  ] as const) {
+    if (
+      from.startsWith(owner) &&
+      !fixture(from) &&
+      to.startsWith('app/') &&
+      !allowed.some((prefix) => to.startsWith(prefix))
+    )
+      return `${from} imports higher-level ${to}; keep ${owner} independent of its consumers`;
+  }
   return null;
 }
 function sources(directory: string): string[] {
@@ -147,8 +178,13 @@ export function checkLayout(root: string): string[] {
   try {
     const problems: string[] = [];
     const graph = new Map<string, Set<string>>();
+    const runtimeGraph = new Map<string, Set<string>>();
     for (const filename of sources(resolve(root, 'app'))) {
       const from = slash(relative(root, filename));
+      if (from.startsWith('app/ui/') && !kit(from) && !fixture(from))
+        problems.push(
+          `${from}: app/ui contains only the kit; place application behavior with its owner`,
+        );
       const file = project.program.getSourceFile(filename);
       if (!file) {
         problems.push(`${from}: source is outside the checked TypeScript project`);
@@ -177,23 +213,27 @@ export function checkLayout(root: string): string[] {
           const owner = slash(relative(root, source.fileName));
           if (!rawNodeCaller(from) && rawNodeSymbols.get(owner)?.has(owned.name))
             problems.push(
-              `${from} accesses raw node persistence; use the Product-supplied TransactionStore`,
+              `${from} accesses raw node persistence; use the Application-supplied TransactionStore`,
             );
           if (sessionNodeSymbols.get(owner)?.has(owned.name) && !sessionNodeCaller(from, owner))
             problems.push(
-              `${from} accesses a raw node session; use the Product-supplied TransactionStore`,
+              `${from} accesses a raw node session; use the Application-supplied TransactionStore`,
             );
           if (
             owner === 'app/workflows/questions/actions.ts' &&
             owned.name === 'createQuestionOwnership' &&
-            !(from === 'app/product.tsx' || workflow(from) === 'questions' || fixture(from))
+            !(
+              from === 'app/application/composition.ts' ||
+              workflow(from) === 'questions' ||
+              fixture(from)
+            )
           )
             problems.push(
-              `${from} accesses Questions ownership; compose actions in app/product.tsx`,
+              `${from} accesses Questions ownership; compose actions in app/application/composition.ts`,
             );
         }
       };
-      const check = (value: ts.Expression, allExports = false) => {
+      const check = (value: ts.Expression, allExports = false, runtime = true) => {
         if (!(ts.isStringLiteral(value) || ts.isNoSubstitutionTemplateLiteral(value))) {
           problems.push(`${from}: imports must use literal module paths so removal can be checked`);
           return;
@@ -231,7 +271,7 @@ export function checkLayout(root: string): string[] {
           /\.css$/.test(value.text) &&
           target &&
           slash(relative(root, target)) !== 'app/ui/kit/styles.css' &&
-          !(from === 'app/product.tsx' && contentRenderer(slash(relative(root, target))))
+          !(from === 'app/application/index.tsx' && contentRenderer(slash(relative(root, target))))
         )
           problems.push(`${from}: app styles belong in the kit or content renderer`);
         if (!target) return;
@@ -240,6 +280,11 @@ export function checkLayout(root: string): string[] {
           const dependencies = graph.get(from) ?? new Set<string>();
           dependencies.add(to);
           graph.set(from, dependencies);
+          if (runtime && !fixture(from) && !fixture(to) && !to.endsWith('.css')) {
+            const values = runtimeGraph.get(from) ?? new Set<string>();
+            values.add(to);
+            runtimeGraph.set(from, values);
+          }
         }
         const problem = importProblem(from, to);
         if (problem) problems.push(problem);
@@ -329,12 +374,33 @@ export function checkLayout(root: string): string[] {
             node.moduleSpecifier,
             !!node.importClause?.namedBindings &&
               ts.isNamespaceImport(node.importClause.namedBindings),
+            node.importClause?.phaseModifier !== ts.SyntaxKind.TypeKeyword &&
+              !(
+                node.importClause?.namedBindings &&
+                ts.isNamedImports(node.importClause.namedBindings) &&
+                !node.importClause.name &&
+                node.importClause.namedBindings.elements.length > 0 &&
+                node.importClause.namedBindings.elements.every((item) => item.isTypeOnly)
+              ),
           );
         if (ts.isExportDeclaration(node) && node.moduleSpecifier)
           check(
             node.moduleSpecifier,
             !node.exportClause || ts.isNamespaceExport(node.exportClause),
+            !(
+              node.isTypeOnly ||
+              (node.exportClause &&
+                ts.isNamedExports(node.exportClause) &&
+                node.exportClause.elements.length > 0 &&
+                node.exportClause.elements.every((item) => item.isTypeOnly))
+            ),
           );
+        if (
+          ts.isImportTypeNode(node) &&
+          ts.isLiteralTypeNode(node.argument) &&
+          ts.isStringLiteral(node.argument.literal)
+        )
+          check(node.argument.literal, false, false);
         if (ts.isImportSpecifier(node) || ts.isExportSpecifier(node))
           checkOwnedSymbol(project.checker.getSymbolAtLocation(node.name));
         if (ts.isImportClause(node) && node.name)
@@ -433,17 +499,17 @@ export function checkLayout(root: string): string[] {
               `${from}: intrinsic element factories belong in the kit or content renderer`,
             );
         }
-        // The size class is the kit's: views outside it never branch on the viewport. Product may
+        // The size class is the kit's: views outside it never branch on the viewport. Application may
         // read it to choose a route or restore a panel.
         if (
-          !(kit(from) || from === 'app/product.tsx' || /\.test\.[cm]?tsx?$/.test(from)) &&
+          !(kit(from) || from === 'app/application/index.tsx' || /\.test\.[cm]?tsx?$/.test(from)) &&
           ts.isImportSpecifier(node) &&
           ['useIsMobile', 'useLayout', 'useMedia'].includes((node.propertyName ?? node.name).text)
         )
           problems.push(`${from}: size-dependent presentation belongs in the kit`);
         const outsidePresentation = !(
           kit(from) ||
-          from === 'app/product.tsx' ||
+          from === 'app/application/index.tsx' ||
           /\.test\.[cm]?tsx?$/.test(from)
         );
         if (outsidePresentation && viewportDimension(accessedMember))
@@ -460,15 +526,10 @@ export function checkLayout(root: string): string[] {
           )
             problems.push(`${from}: viewport queries belong in the kit`);
         }
-        // Product restores a route anchor; the keyboard adapter moves the selected task row.
+        // Application restores a route anchor; the kit owns list focus and scrolling.
         // Other module/helper/semantic sources do not own measured presentation or scrolling.
         if (
-          !(
-            kit(from) ||
-            from === 'app/product.tsx' ||
-            from === 'app/ui/keys.ts' ||
-            /\.test\.[cm]?tsx?$/.test(from)
-          ) &&
+          !(kit(from) || from === 'app/application/index.tsx' || /\.test\.[cm]?tsx?$/.test(from)) &&
           ((accessedMember &&
             [
               'scrollTop',
@@ -490,7 +551,7 @@ export function checkLayout(root: string): string[] {
     }
     // This is the architectural source graph, including type-only imports. Emitted tree shaking
     // must not hide fictional records or preview tooling in a production dependency.
-    for (const entry of ['app/main.tsx', 'app/ui/sw.ts']) {
+    for (const entry of ['app/main.tsx', 'app/runtime/sw.ts']) {
       const visited = new Set<string>();
       const walk = (from: string) => {
         if (visited.has(from)) return;
@@ -508,6 +569,22 @@ export function checkLayout(root: string): string[] {
       };
       walk(entry);
     }
+    // Type-only edges still obey ownership/reachability rules above, but cannot execute a cycle.
+    const visited = new Set<string>();
+    const active: string[] = [];
+    const walkRuntime = (from: string) => {
+      const start = active.indexOf(from);
+      if (start !== -1) {
+        problems.push(`Runtime import cycle: ${[...active.slice(start), from].join(' -> ')}`);
+        return;
+      }
+      if (visited.has(from)) return;
+      visited.add(from);
+      active.push(from);
+      for (const to of [...(runtimeGraph.get(from) ?? [])].sort()) walkRuntime(to);
+      active.pop();
+    };
+    for (const from of [...runtimeGraph.keys()].sort()) walkRuntime(from);
     return [...new Set(problems)];
   } finally {
     snapshot.dispose();

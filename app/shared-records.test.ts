@@ -5,7 +5,10 @@ import { githubNodeBackend } from './vault/storage/nodes/github.ts';
 import { fakeGitHub } from './vault/storage/github-client/fake-github.ts';
 import { create, request, seed } from './vault/nodes/fixtures.test-support.ts';
 import type { NodeBackend } from './vault/nodes/store.ts';
-import { createProductConversation, productNodeHistory } from './product.tsx';
+import {
+  createApplicationConversation,
+  applicationNodeHistory,
+} from './application/composition.ts';
 
 test('conversation and transaction projections include writes accepted on independent devices', async () => {
   const fake = await fakeGitHub({});
@@ -40,7 +43,7 @@ test('conversation and transaction projections include writes accepted on indepe
   await second.refresh();
 
   const readChats = (nodes: NodeBackend) =>
-    createProductConversation({
+    createApplicationConversation({
       nodes: transactionFixture(nodes),
       provider: 'fictional',
       model: () => Promise.reject(new Error('Read only')),
@@ -58,12 +61,12 @@ test('conversation and transaction projections include writes accepted on indepe
   closeA();
   closeB();
   expect(
-    (await productNodeHistory(transactionFixture(first)).entries()).map(
+    (await applicationNodeHistory(transactionFixture(first)).entries()).map(
       (entry) => entry.transaction.id,
     ),
   ).toEqual(['device-b', 'device-a', 'seed']);
-  expect(await productNodeHistory(transactionFixture(second)).entries()).toEqual(
-    await productNodeHistory(transactionFixture(first)).entries(),
+  expect(await applicationNodeHistory(transactionFixture(second)).entries()).toEqual(
+    await applicationNodeHistory(transactionFixture(first)).entries(),
   );
   chatA.dispose();
   chatB.dispose();

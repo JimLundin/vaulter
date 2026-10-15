@@ -2,7 +2,8 @@
 import { useMemo, useRef } from 'react';
 import { applyOverlay, useWriter, type Writer } from './changes/writer.ts';
 import { useSession } from './session/session.ts';
-import type { OpenBackend } from './storage/backend.ts';
+import type { OpenBackend, OpenNodes } from './session/adapters.ts';
+export type { OpenBackend, OpenNodes } from './session/adapters.ts';
 import type { VaultFile } from './files.ts';
 import type { Vault } from './changes/operations.ts';
 export type { Vault, OwnedVault, WriteOptions } from './changes/operations.ts';
@@ -12,8 +13,7 @@ import { schemaFor } from './documents/notes/schema.ts';
 import { notesOf } from './documents/notes/notes.ts';
 import { titleOf, excerptOf, hrefOf, kind, asList, topicsOf } from './documents/notes/fields.ts';
 import { search, searchIndex } from './documents/search.ts';
-import type { OpenNodes } from './nodes/store.ts';
-export type { NodeReading, OpenNodes } from './nodes/store.ts';
+export type { NodeReading } from './nodes/store.ts';
 export type { TransactionStore, TransactionRequest, WriteLifetime } from './transactions/store.ts';
 export { VaultGate } from './Gate.tsx';
 export { CredentialSetting, RefreshNodes, SessionStatus, SignOut, Unlock } from './session/ui.tsx';
@@ -26,8 +26,8 @@ export {
 
 export type { Change, VaultFile } from './files.ts';
 export { applyChanges } from './files.ts';
-export { CheckFailed, Conflict } from './storage/backend.ts';
-export type { OpenBackend, CommitSummary } from './storage/backend.ts';
+export { CheckFailed, Conflict } from './storage/files/backend.ts';
+export type { CommitSummary } from './storage/files/backend.ts';
 export { graphOf } from './documents/graph.ts';
 export { notesOf } from './documents/notes/notes.ts';
 export { titleOf, hrefOf, kind } from './documents/notes/fields.ts';

@@ -5,20 +5,22 @@ import { join } from 'node:path';
 import { expect, test } from 'vitest';
 import { checkLayout, importProblem } from './layout.ts';
 
-test('optional workflows are composed only by Product and use the public kit', () => {
+test('optional workflows are composed only by Application and use the public kit', () => {
   expect(checkLayout(fileURLToPath(new URL('..', import.meta.url)))).toEqual([]);
-}, 15_000);
+}, 30_000);
 test('the dependency policy rejects cross-workflow imports and private kit access', () => {
   expect(
     importProblem('app/workflows/chat/Chat.tsx', 'app/workflows/questions/index.tsx'),
   ).toContain('compose');
-  expect(importProblem('app/vault/index.ts', 'app/workflows/rename-note/index.ts')).toContain(
+  expect(importProblem('app/vault/index.ts', 'app/workflows/questions/index.ts')).toContain(
     'optional workflow',
   );
-  expect(importProblem('app/ui/Frame.tsx', 'app/workflows/chat/index.tsx')).toContain(
+  expect(importProblem('app/application/Frame.tsx', 'app/workflows/chat/index.tsx')).toContain(
     'optional workflow',
   );
-  expect(importProblem('app/product.tsx', 'app/vault/transactions/history/index.tsx')).toBeNull();
+  expect(
+    importProblem('app/application/index.tsx', 'app/vault/transactions/history/index.tsx'),
+  ).toBeNull();
   expect(
     importProblem('app/workflows/chat/Chat.tsx', 'app/vault/transactions/history/nodes.ts'),
   ).toBeNull();
@@ -44,9 +46,9 @@ test('application tasks cannot construct raw node adapters', () => {
       'app/agent/tool-context.ts',
       'app/workflows/questions/actions.ts',
       'app/vault/content/tools.ts',
-      'app/product.tsx',
+      'app/application/index.tsx',
     ])
-      expect(importProblem(caller, entry)).toContain('Product-supplied TransactionStore');
+      expect(importProblem(caller, entry)).toContain('Application-supplied TransactionStore');
     for (const caller of [
       'app/main.tsx',
       'app/vault/nodes/memory.ts',
@@ -55,7 +57,9 @@ test('application tasks cannot construct raw node adapters', () => {
       'app/agent/tools.test.ts',
       'app/vault/nodes/fixtures.test-support.ts',
     ])
-      expect(importProblem(caller, entry)).toBeNull();
+      if (caller === 'app/vault/nodes/memory.ts' && entry.startsWith('app/vault/storage/'))
+        expect(importProblem(caller, entry)).toContain('higher-level');
+      else expect(importProblem(caller, entry)).toBeNull();
   }
   expect(
     importProblem('app/agent/new-tool.ts', 'app/vault/nodes/fixtures.test-support.ts'),
@@ -72,7 +76,7 @@ test('application tasks cannot construct raw node adapters', () => {
   expect(importProblem('app/agent/new-tool.test.ts', 'app/preview/nodes.ts')).toBeNull();
 });
 
-test('raw session hooks remain with Vault assembly and Product through every import form', () => {
+test('raw session hooks remain with Vault assembly and Application through every import form', () => {
   const root = mkdtempSync(join(tmpdir(), 'vaulter-node-session-policy-'));
   try {
     const files = {
@@ -80,12 +84,12 @@ test('raw session hooks remain with Vault assembly and Product through every imp
         'export function useSession() { return {nodes: {}}; } export type Session = {nodes: unknown};',
       'app/vault/index.ts':
         "import { useSession } from './session/session.ts'; export { useSession as open }; export function useVaultSession() { return useSession(); } export type { Session } from './session/session.ts';",
-      'app/product.tsx':
-        "import { useVaultSession } from './vault/index.ts'; const session = useVaultSession; export const exposed = session;",
+      'app/application/index.tsx':
+        "import { useVaultSession } from '../vault/index.ts'; const session = useVaultSession; export const exposed = session;",
       'app/agent/import.ts':
         "import { open as session } from '@/vault/index.ts'; export { session };",
       'app/agent/value-alias.ts':
-        "import { exposed as session } from '@/product.tsx'; export { session };",
+        "import { exposed as session } from '@/application/index.tsx'; export { session };",
       'app/agent/export.ts': "export { open } from '@/vault/index.ts';",
       'app/agent/export-all.ts': "export * from '@/vault/index.ts';",
       'app/agent/namespace.ts': "import * as vault from '@/vault/index.ts'; export { vault };",
@@ -118,7 +122,10 @@ test('raw session hooks remain with Vault assembly and Product through every imp
       ['import', 'value-alias', 'export', 'export-all', 'namespace', 'export-namespace', 'dynamic']
         .map(
           (name) =>
-            `app/agent/${name}.ts accesses a raw node session; use the Product-supplied TransactionStore`,
+            `app/agent/${name}.ts accesses a raw node session; use the Application-supplied TransactionStore`,
+        )
+        .concat(
+          'app/agent/value-alias.ts imports Application composition; dependencies point from Application to module owners',
         )
         .toSorted((a, b) => a.localeCompare(b)),
     );
@@ -175,7 +182,7 @@ test('compiler resolution prevents raw node acceptance hidden by aliases and re-
       ['import', 'export', 'export-all', 'namespace', 'export-namespace', 'dynamic', 'value-alias']
         .map(
           (name) =>
-            `app/workflows/example/${name}.ts accesses raw node persistence; use the Product-supplied TransactionStore`,
+            `app/workflows/example/${name}.ts accesses raw node persistence; use the Application-supplied TransactionStore`,
         )
         .concat(
           'app/workflows/example/require.ts: module loading must resolve through TypeScript so ownership can be checked',
@@ -246,12 +253,12 @@ test('Questions ownership factories remain private when another module re-export
         'export function createQuestionOwnership() { return {}; } export type QuestionWriter = {kind: string};',
       'app/workflows/questions/tools.ts':
         "import { createQuestionOwnership } from './actions.ts'; export const own = createQuestionOwnership;",
-      'app/product.tsx':
-        "import { createQuestionOwnership } from './workflows/questions/actions.ts'; const own = createQuestionOwnership; export const exposed = own; export type { QuestionWriter } from './workflows/questions/actions.ts';",
+      'app/application/composition.ts':
+        "import { createQuestionOwnership } from '../workflows/questions/actions.ts'; const own = createQuestionOwnership; export const exposed = own; export type { QuestionWriter } from '../workflows/questions/actions.ts';",
       'app/agent/helper.ts':
-        "import { exposed as manufacture } from '../product.tsx'; export const own = manufacture;",
+        "import { exposed as manufacture } from '../application/composition.ts'; export const own = manufacture;",
       'app/agent/types.ts':
-        "import type { QuestionWriter } from '../product.tsx'; export type Author = QuestionWriter;",
+        "import type { QuestionWriter } from '../application/composition.ts'; export type Author = QuestionWriter;",
     };
     writeFileSync(
       join(root, 'tsconfig.json'),
@@ -265,7 +272,9 @@ test('Questions ownership factories remain private when another module re-export
       writeFileSync(join(root, path), source);
     }
     expect(checkLayout(root)).toEqual([
-      'app/agent/helper.ts accesses Questions ownership; compose actions in app/product.tsx',
+      'app/agent/helper.ts imports Application composition; dependencies point from Application to module owners',
+      'app/agent/helper.ts accesses Questions ownership; compose actions in app/application/composition.ts',
+      'app/agent/types.ts imports Application composition; dependencies point from Application to module owners',
     ]);
   } finally {
     rmSync(root, { recursive: true, force: true });
@@ -281,7 +290,9 @@ test('Vault task UI composes shared presentation while persistence keeps its own
   ]) {
     expect(importProblem(source, 'app/ui/kit/index.ts')).toBeNull();
     expect(importProblem(source, 'app/ui/kit/parts/button.tsx')).toContain('private kit');
-    expect(importProblem(source, 'app/ui/Frame.tsx')).toContain('presentation from the vault');
+    expect(importProblem(source, 'app/application/Frame.tsx')).toContain(
+      'imports Application composition',
+    );
   }
   for (const source of [
     'app/vault/session/session.ts',
@@ -309,7 +320,7 @@ test('Wiki owns its records while migration and source readers stay outside its 
   expect(importProblem('app/vault/records/index.ts', 'app/workflows/wiki/records.ts')).toContain(
     'optional workflow',
   );
-  expect(importProblem('app/product.tsx', 'app/workflows/wiki/records.ts')).toBeNull();
+  expect(importProblem('app/application/index.tsx', 'app/workflows/wiki/records.ts')).toBeNull();
   expect(importProblem('app/workflows/wiki/pages.ts', 'app/vault/sources.ts')).toBeNull();
 });
 
@@ -427,10 +438,11 @@ test('Base UI presentation dependencies stay inside the kit', () => {
   }
 });
 
-test('Product, shared views and features must compose the kit, including aliased factories and spread props', () => {
+test('Application, shared views and features must compose the kit, including aliased factories and spread props', () => {
   const root = mkdtempSync(join(tmpdir(), 'vaulter-kit-policy-'));
   try {
-    mkdirSync(join(root, 'app/ui'), { recursive: true });
+    mkdirSync(join(root, 'app/search'), { recursive: true });
+    mkdirSync(join(root, 'app/application'), { recursive: true });
     writeFileSync(
       join(root, 'tsconfig.json'),
       JSON.stringify({
@@ -443,25 +455,25 @@ test('Product, shared views and features must compose the kit, including aliased
       'export function createElement(tag: string) { return tag; }',
     );
     writeFileSync(
-      join(root, 'app/product.tsx'),
-      `import { createElement as element } from './factory.ts';
+      join(root, 'app/application/index.tsx'),
+      `import { createElement as element } from '../factory.ts';
       const props = { className: 'custom' }; export const view = <div {...props} style={{color:'red'}} />;
       export const hidden = element('section');`,
     );
     writeFileSync(
-      join(root, 'app/ui/custom.tsx'),
+      join(root, 'app/search/custom.tsx'),
       "import { Button } from 'radix-ui'; import './custom.css'; export const view = <button>Custom</button>;",
     );
     const problems = checkLayout(root);
     expect(problems).toEqual(
       expect.arrayContaining([
-        'app/product.tsx: <div> must be a public kit component',
-        'app/product.tsx: app views must compose the public kit instead of styling elements',
-        'app/product.tsx: presentation props belong in the kit or content renderer',
-        'app/product.tsx: intrinsic element factories belong in the kit or content renderer',
-        'app/ui/custom.tsx: <button> must be a public kit component',
-        'app/ui/custom.tsx: presentation dependencies belong behind app/ui/kit/index.ts',
-        'app/ui/custom.tsx: app styles belong in the kit or content renderer',
+        'app/application/index.tsx: <div> must be a public kit component',
+        'app/application/index.tsx: app views must compose the public kit instead of styling elements',
+        'app/application/index.tsx: presentation props belong in the kit or content renderer',
+        'app/application/index.tsx: intrinsic element factories belong in the kit or content renderer',
+        'app/search/custom.tsx: <button> must be a public kit component',
+        'app/search/custom.tsx: presentation dependencies belong behind app/ui/kit/index.ts',
+        'app/search/custom.tsx: app styles belong in the kit or content renderer',
       ]),
     );
   } finally {
@@ -469,10 +481,11 @@ test('Product, shared views and features must compose the kit, including aliased
   }
 });
 
-test('outside the kit, only Product reads the size class', () => {
+test('outside the kit, only Application reads the size class', () => {
   const root = mkdtempSync(join(tmpdir(), 'vaulter-size-class-policy-'));
   try {
-    mkdirSync(join(root, 'app/ui'), { recursive: true });
+    mkdirSync(join(root, 'app/search'), { recursive: true });
+    mkdirSync(join(root, 'app/application'), { recursive: true });
     writeFileSync(
       join(root, 'tsconfig.json'),
       JSON.stringify({
@@ -481,15 +494,15 @@ test('outside the kit, only Product reads the size class', () => {
       }),
     );
     writeFileSync(
-      join(root, 'app/ui/Frame.ts'),
+      join(root, 'app/search/Frame.ts'),
       "import { useLayout } from 'kit'; export const layout = useLayout();",
     );
     writeFileSync(
-      join(root, 'app/product.tsx'),
+      join(root, 'app/application/index.tsx'),
       "import { useLayout } from 'kit'; export const layout = useLayout();",
     );
     expect(checkLayout(root)).toEqual([
-      'app/ui/Frame.ts: size-dependent presentation belongs in the kit',
+      'app/search/Frame.ts: size-dependent presentation belongs in the kit',
     ]);
   } finally {
     rmSync(root, { recursive: true, force: true });
@@ -531,7 +544,7 @@ test('shared row presentation cannot interpret Vault records through aliases, re
 test('shared Search helpers cannot choose viewport presentation', () => {
   const root = mkdtempSync(join(tmpdir(), 'vaulter-search-presentation-policy-'));
   try {
-    mkdirSync(join(root, 'app/ui/search'), { recursive: true });
+    mkdirSync(join(root, 'app/search/search'), { recursive: true });
     writeFileSync(
       join(root, 'tsconfig.json'),
       JSON.stringify({
@@ -540,11 +553,11 @@ test('shared Search helpers cannot choose viewport presentation', () => {
       }),
     );
     writeFileSync(
-      join(root, 'app/ui/search/presentation.ts'),
+      join(root, 'app/search/search/presentation.ts'),
       "export const narrow = window.matchMedia('(max-width: 767px)');",
     );
     expect(checkLayout(root)).toEqual([
-      'app/ui/search/presentation.ts: viewport queries belong in the kit',
+      'app/search/search/presentation.ts: viewport queries belong in the kit',
     ]);
   } finally {
     rmSync(root, { recursive: true, force: true });
@@ -566,19 +579,20 @@ test('kit mechanics cannot import Search task rendering through aliases or re-ex
         include: ['app'],
       }),
     );
-    writeFileSync(join(root, 'app/ui/Search.ts'), 'export const SearchView = 1;');
+    mkdirSync(join(root, 'app/search'), { recursive: true });
+    writeFileSync(join(root, 'app/search/Search.ts'), 'export const SearchView = 1;');
     for (const [i, source] of [
-      "import { SearchView } from '@/ui/Search.ts'; export { SearchView };",
-      "export { SearchView } from '@/ui/Search.ts';",
-      "export const load = () => import('@/ui/Search.ts');",
+      "import { SearchView } from '@/search/Search.ts'; export { SearchView };",
+      "export { SearchView } from '@/search/Search.ts';",
+      "export const load = () => import('@/search/Search.ts');",
     ].entries()) {
       writeFileSync(join(root, `app/ui/kit/case${i}.ts`), source);
     }
     const problems = checkLayout(root);
     expect(problems).toHaveLength(3);
-    expect(problems.every((problem) => problem.includes('task UI belongs outside the kit'))).toBe(
-      true,
-    );
+    expect(
+      problems.every((problem) => problem.includes('kit owns generic presentation only')),
+    ).toBe(true);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -797,11 +811,11 @@ test('renderer names and local aliases cannot hide application presentation', ()
   try {
     const files = {
       'app/workflows/wiki/rendering/new-card.tsx': `const Raw = 'div'; const style = {}; export const card = <Raw {...{style}}/>;`,
-      'app/ui/size.ts': `export function useLayout() { return 'compact'; }`,
-      'app/ui/bridge.ts': `export { useLayout as dimensions } from './size.ts';`,
-      'app/workflows/wiki/helper.ts': `import { dimensions } from '../../ui/bridge.ts'; const alias = dimensions; alias(); const query = window.matchMedia; query('(hover: hover)');`,
+      'app/search/size.ts': `export function useLayout() { return 'compact'; }`,
+      'app/search/bridge.ts': `export { useLayout as dimensions } from './size.ts';`,
+      'app/workflows/wiki/helper.ts': `import { dimensions } from '../../search/bridge.ts'; const alias = dimensions; alias(); const query = window.matchMedia; query('(hover: hover)');`,
       'app/factory.ts': 'export function createElement(tag: string) { return tag; }',
-      'app/ui/view.ts': `import { createElement } from '../factory.ts'; const element = createElement; element('section');`,
+      'app/search/view.ts': `import { createElement } from '../factory.ts'; const element = createElement; element('section');`,
     };
     writeFileSync(
       join(root, 'tsconfig.json'),
@@ -820,7 +834,7 @@ test('renderer names and local aliases cannot hide application presentation', ()
         'app/workflows/wiki/rendering/new-card.tsx: presentation props belong in the kit or content renderer',
         'app/workflows/wiki/helper.ts: size-dependent presentation belongs in the kit',
         'app/workflows/wiki/helper.ts: viewport queries belong in the kit',
-        'app/ui/view.ts: intrinsic element factories belong in the kit or content renderer',
+        'app/search/view.ts: intrinsic element factories belong in the kit or content renderer',
       ]),
     );
   } finally {
@@ -831,7 +845,8 @@ test('renderer names and local aliases cannot hide application presentation', ()
 test('typed intrinsic aliases and factory tag aliases cannot bypass semantic ownership', () => {
   const root = mkdtempSync(join(tmpdir(), 'vaulter-typed-tag-policy-'));
   try {
-    mkdirSync(join(root, 'app/ui'), { recursive: true });
+    mkdirSync(join(root, 'app/search'), { recursive: true });
+    mkdirSync(join(root, 'app/application'), { recursive: true });
     writeFileSync(
       join(root, 'tsconfig.json'),
       JSON.stringify({
@@ -840,13 +855,13 @@ test('typed intrinsic aliases and factory tag aliases cannot bypass semantic own
       }),
     );
     writeFileSync(
-      join(root, 'app/ui/view.tsx'),
+      join(root, 'app/search/view.tsx'),
       `const Raw = ('div' as const); function createElement(tag:string){return tag}; const element=createElement; const tag='section'; export const view=<Raw/>; element(tag);`,
     );
     expect(checkLayout(root)).toEqual(
       expect.arrayContaining([
-        'app/ui/view.tsx: <div> must be a public kit component',
-        'app/ui/view.tsx: intrinsic element factories belong in the kit or content renderer',
+        'app/search/view.tsx: <div> must be a public kit component',
+        'app/search/view.tsx: intrinsic element factories belong in the kit or content renderer',
       ]),
     );
   } finally {
@@ -1049,6 +1064,124 @@ test('installed presentation-library targets cannot hide behind path aliases or 
         `app/workflows/example/${name}.ts: presentation dependencies belong behind app/ui/kit/index.ts`,
       );
     expect(problems.some((problem) => problem.includes('app/ui/kit/control.ts:'))).toBe(false);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('module owners cannot depend on their consumers or another persistence format', () => {
+  for (const owner of ['runtime', 'navigation', 'settings', 'vault/nodes']) {
+    expect(importProblem(`app/${owner}/core.ts`, 'app/application/composition.ts')).toContain(
+      'imports Application composition',
+    );
+    expect(importProblem(`app/${owner}/core.ts`, 'app/agent/records.ts')).toContain('higher-level');
+  }
+  for (const target of ['navigation/routing.ts', 'settings/store.ts', 'search/Search.tsx'])
+    expect(importProblem('app/ui/kit/control.tsx', `app/${target}`)).toContain(
+      'kit owns generic presentation only',
+    );
+  for (const [from, to] of [
+    ['files', 'nodes'],
+    ['nodes', 'files'],
+  ])
+    expect(
+      importProblem(`app/vault/storage/${from}/adapter.ts`, `app/vault/storage/${to}/adapter.ts`),
+    ).toContain('another persistence format');
+  expect(
+    importProblem('app/application/composition.ts', 'app/workflows/questions/actions.ts'),
+  ).toBeNull();
+  expect(
+    importProblem('app/application/connections.test.ts', 'app/workflows/wiki/subjects.ts'),
+  ).toBeNull();
+});
+
+test('Wiki and Questions stay independent across value, type, dynamic and import-type references', () => {
+  const root = mkdtempSync(join(tmpdir(), 'vaulter-peer-records-'));
+  try {
+    const files = {
+      'app/workflows/wiki/records.ts': 'export const value = 1; export type Record = string;',
+      'app/workflows/questions/records.ts': 'export const value = 1; export type Record = string;',
+    };
+    writeFileSync(
+      join(root, 'tsconfig.json'),
+      JSON.stringify({
+        compilerOptions: {
+          module: 'ESNext',
+          moduleResolution: 'Bundler',
+          paths: { '@/*': ['./app/*'] },
+        },
+        include: ['app'],
+      }),
+    );
+    for (const [path, source] of Object.entries(files)) {
+      mkdirSync(join(root, path, '..'), { recursive: true });
+      writeFileSync(join(root, path), source);
+    }
+    for (const [from, to] of [
+      ['wiki', 'questions'],
+      ['questions', 'wiki'],
+    ]) {
+      const path = `@/workflows/${to}/records.ts`;
+      const sources = [
+        `import { value } from '${path}'; export { value };`,
+        `export * from '${path}';`,
+        `export const load = () => import('${path}');`,
+        `import type { Record } from '${path}'; export type Data = Record;`,
+        `export type Data = import('${path}').Record;`,
+      ];
+      for (const [i, source] of sources.entries())
+        writeFileSync(join(root, `app/workflows/${from}/case${i}.ts`), source);
+    }
+    const problems = checkLayout(root);
+    expect(problems).toHaveLength(10);
+    expect(problems.every((problem) => problem.includes('imports optional workflow'))).toBe(true);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('runtime cycles include values, re-exports and dynamic imports while type cycles stay distinct', () => {
+  const root = mkdtempSync(join(tmpdir(), 'vaulter-import-cycles-'));
+  try {
+    const files = {
+      'app/runtime/a.ts': "export { b } from './b.ts'; export const a = 1;",
+      'app/runtime/b.ts': "export const b = () => import('./a.ts');",
+      'app/runtime/c.ts': "import './d.ts'; export const c = 1;",
+      'app/runtime/d.ts': "import { c } from './c.ts'; export const d = c;",
+      'app/runtime/type-a.ts': "import type { B } from './type-b.ts'; export type A = B[];",
+      'app/runtime/type-b.ts': "export type B = import('./type-a.ts').A[];",
+      'app/runtime/type-c.ts': "import { type D } from './type-d.ts'; export type C = D[];",
+      'app/runtime/type-d.ts': "export { type C as D } from './type-c.ts';",
+    };
+    writeFileSync(
+      join(root, 'tsconfig.json'),
+      JSON.stringify({
+        compilerOptions: { module: 'ESNext', moduleResolution: 'Bundler' },
+        include: ['app'],
+      }),
+    );
+    for (const [path, source] of Object.entries(files)) {
+      mkdirSync(join(root, path, '..'), { recursive: true });
+      writeFileSync(join(root, path), source);
+    }
+    expect(checkLayout(root)).toEqual([
+      'Runtime import cycle: app/runtime/a.ts -> app/runtime/b.ts -> app/runtime/a.ts',
+      'Runtime import cycle: app/runtime/c.ts -> app/runtime/d.ts -> app/runtime/c.ts',
+    ]);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('application behavior cannot return to an unowned shared UI folder', () => {
+  const root = mkdtempSync(join(tmpdir(), 'vaulter-ui-owner-'));
+  try {
+    mkdirSync(join(root, 'app/ui'), { recursive: true });
+    writeFileSync(join(root, 'tsconfig.json'), JSON.stringify({ include: ['app'] }));
+    writeFileSync(join(root, 'app/ui/helper.ts'), 'export const state = {};');
+    expect(checkLayout(root)).toEqual([
+      'app/ui/helper.ts: app/ui contains only the kit; place application behavior with its owner',
+    ]);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

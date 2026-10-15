@@ -6,7 +6,7 @@ import { canonical, digest } from '../../nodes/json.ts';
 import { nodeInterface, notifications } from '../../nodes/backend.ts';
 import { github, NotFastForward, REPO, API, type Repo } from '../github-client/api.ts';
 import { blobSha } from '../blob-sha.ts';
-import { serial } from '../coordination.ts';
+import { serial } from '../../../runtime/async.ts';
 import { nodeCache, type RemoteHead } from './cache.ts';
 
 export const NODE_NAMESPACE = '.vaulter/nodes/v1/transactions/';

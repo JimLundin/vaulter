@@ -1,16 +1,12 @@
-import type { JsonObject, NodeAddress, NodeVersion } from '../vault/nodes/model.ts';
+import { readAgentRunAt, type RecordedAgentRun } from './reading.ts';
+import type { JsonObject, NodeAddress } from '../vault/nodes/model.ts';
 import type { NodeCommit, NodeChange, NodeReading } from '../vault/nodes/store.ts';
 import { canonical, frozen } from '../vault/nodes/json.ts';
 import type { WriteLifetime, PreparedRequest } from '../vault/transactions/store.ts';
 import type { TransactionKind } from '../vault/nodes/operations.ts';
-import type { AgentRunData, ContextInputData, ToolExecutionData } from './records.ts';
+import type { AgentRunData, ContextInputData } from './records.ts';
 import { hasLiveAgentOwner } from './ownership.ts';
-import {
-  parseAgentRun,
-  parseContextInput,
-  parseAgentSettings,
-  parseToolExecution,
-} from './schema.ts';
+import { parseAgentRun, parseContextInput, parseAgentSettings } from './schema.ts';
 
 declare module '../vault/nodes/operations.ts' {
   interface TransactionActions {
@@ -140,62 +136,21 @@ export async function prepareAgentRun(
   return Object.freeze({ ...(await publication.ready), publication, cancel: lifetime.close });
 }
 
-export interface SavedAgentRun {
-  readonly version: NodeVersion;
-  readonly data: AgentRunData;
+export interface SavedAgentRun extends RecordedAgentRun {
   /** Local execution/recovery controller evidence; absence does not prove abandonment. */
   readonly ownership: 'live' | 'unknown';
-  readonly tools: readonly {
-    readonly version: NodeVersion;
-    readonly data: ToolExecutionData;
-    readonly effects: 'recorded' | 'uncertain';
-  }[];
-  readonly context: readonly {
-    readonly version: NodeVersion;
-    readonly data: ContextInputData;
-    readonly references: readonly NodeVersion[];
-  }[];
 }
+
 /** Read-only reconstruction never executes the model or invents an interruption. */
 export async function readAgentRun(
   store: NodeReading,
   run: string,
   sequence?: number,
 ): Promise<SavedAgentRun | undefined> {
-  const snapshot = await store.snapshot(sequence);
-  const version = snapshot.get(run);
-  if (!version?.data) return undefined;
-  const data = parseAgentRun(version.data);
-  const context = snapshot.children(run).flatMap((input) =>
-    input.data?.kind === 'contextInput'
-      ? [
-          {
-            version: input,
-            data: parseContextInput(input.data),
-            references: snapshot
-              .children(input.key.node)
-              .filter((reference) => reference.data?.kind === 'metadataReference'),
-          },
-        ]
-      : [],
-  );
-  const tools = snapshot.children(run).flatMap((tool) =>
-    tool.data?.kind === 'toolExecution'
-      ? [
-          {
-            version: tool,
-            data: parseToolExecution(tool.data),
-            effects:
-              tool.data.status === 'running' ? ('uncertain' as const) : ('recorded' as const),
-          },
-        ]
-      : [],
-  );
+  const recorded = readAgentRunAt(await store.snapshot(sequence), run);
+  if (!recorded) return;
   return frozen({
-    version,
-    data,
-    context,
-    tools,
+    ...recorded,
     ownership: sequence === undefined && hasLiveAgentOwner(store, run) ? 'live' : 'unknown',
   });
 }

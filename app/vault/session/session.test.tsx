@@ -3,7 +3,7 @@ import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, expect, test, vi } from 'vitest';
 import { useSession, type Session } from './session.ts';
-import { memoryBackend } from '../storage/memory.ts';
+import { memoryBackend } from '../storage/files/memory.ts';
 import { memoryNodeBackend } from '../nodes/memory.ts';
 import type { NodeBackend } from '../nodes/store.ts';
 import {
@@ -14,7 +14,7 @@ import {
   type Credentials,
 } from './unlock.ts';
 import type { Secrets } from './sealed.ts';
-import type { VaultBackend } from '../storage/backend.ts';
+import type { VaultBackend } from '../storage/files/backend.ts';
 import { create, seed } from '../nodes/fixtures.test-support.ts';
 import { nodeOperations } from '../nodes/operations.ts';
 import { PreparationReplaced, WriteClosed } from '../transactions/lifetime.ts';

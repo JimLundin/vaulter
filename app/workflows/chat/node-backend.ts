@@ -9,7 +9,7 @@ import type {
 } from '../../vault/transactions/store.ts';
 import { composeChanges } from '../../vault/transactions/composition.ts';
 import { canonical, frozen } from '../../vault/nodes/json.ts';
-import { serial } from '../../vault/storage/coordination.ts';
+import { serial } from '../../runtime/async.ts';
 import { createAgentBackend } from '../../agent/runtime.ts';
 import type { AgentBackendOptions, AgentRun, AgentRunState } from '../../agent/runtime.ts';
 import { calculateAgentRun, readAgentRun } from '../../agent/store.ts';

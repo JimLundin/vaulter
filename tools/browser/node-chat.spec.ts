@@ -78,7 +78,7 @@ test('Search Ask is accepted once when Chat moves between the page and its suppo
     page.getByRole('main').getByRole('button', { name: 'Stop', exact: true }),
   ).toBeHidden();
   const accepted = await page.evaluate(() => sessionStorage.getItem('vaulter:preview:accepted:v1'));
-  // Hash navigation changes Product's composition without reloading its retained lifetime.
+  // Hash navigation changes Application's composition without reloading its retained lifetime.
   await page.evaluate(() => {
     location.hash = '#/history/';
   });

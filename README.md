@@ -2,8 +2,7 @@
 
 The browser app Jim reads the vault in, at **https://jimlundin.github.io/vaulter/**. It holds no notes:
 behind a password it reads them at runtime from the vault, the private repo `JimLundin/vault`, keeps
-them in plaintext on the device, and works offline. Chat and Agent now produce nodes in the shared NodeStore. Legacy Search and History screens still
-read Markdown and its schema. The Vault owns [translation and enrichment tooling](https://github.com/JimLundin/vault/tree/main/.vaulter/tooling/migration)
+them in plaintext on the device, and works offline. Chat and Agent now produce nodes in the shared NodeStore. Search retains a legacy Markdown fallback; History reads accepted Node Transactions. The Vault owns [translation and enrichment tooling](https://github.com/JimLundin/vault/tree/main/.vaulter/tooling/migration)
 that targets the current Vaulter modules. Its source readers, extraction policy and private review
 data evolve in the Vault; Vaulter modules own their current record validation and historical reads.
 See [Wiki ingestion](docs/wiki-migration.md) for the boundary and current interfaces.
@@ -32,10 +31,10 @@ The design and its history: `PLAN-browser-app.md`
 | `npm run typecheck` | TypeScript over the app, tools and Vite/Vitest/Playwright configurations |
 | `node tools/seal-secrets.ts <out>` | seal the token and key with the password from the environment (what CI runs; see Publishing) |
 
-Product composes node-backed Chat, independent Agent and module-owned content tools. Content
+Application composes node-backed Chat, independent Agent and module-owned content tools. Content
 publication records immutable node history and attributed tool receipts; failed saves are recoverable
-without repeating effects. The separate legacy rename-note operation stages file moves and reference
-rewrites. Legacy staged edits are preserved when sending node Chat messages.
+without repeating effects. The unused legacy rename workflow is retired. Legacy file support and
+staged edits remain independent of Node Chat.
 Consecutive tool calls fold into an expandable summary, with a live status showing the current action.
 The app includes a manifest and icons for installing it to the Home Screen.
 Questions collects retained requests for information, with search and Open, Answered, Abandoned
@@ -85,10 +84,14 @@ inspect CI for that commit. Unscoped local suite commands exit with a focused-co
 CI runs behavior, architecture, static and production checks independently alongside four browser
 shards; every check must pass before production deployment.
 
-`app/product.tsx` composes the optional workflows in `app/workflows/`. Each task owns its behavior,
-views and tests. Removing a feature means deleting its folder and its wiring in Product. The
+`app/application/` composes the optional workflows in `app/workflows/`. Its `index.tsx` owns the shell
+and views; `composition.ts` connects record readers, tools and publication rules. Each task owns its behavior,
+views and tests. Removing a feature means deleting its folder and its wiring in Application. The
 permanent `app/vault/` module owns notes, schema, graph, validation, credential encryption and checked writes.
-See [ARCHITECTURE.md](ARCHITECTURE.md) for the interfaces and dependency rules.
+Wiki and Questions share Node references without importing one another. Agent selects their
+connections, and Application supplies embedded record rendering. Generic controls live in
+`app/ui/kit/`; Settings, Navigation, Search and Runtime own their respective application behavior.
+See [ARCHITECTURE.md](ARCHITECTURE.md) for the module map, ownership and dependency rules.
 
 The app uses the component kit and reference design from branch `ui-kit`, in `app/ui/kit/`. Run
 `npm run kit` to open its searchable catalogue, with live desktop and mobile examples side by side.
@@ -109,14 +112,14 @@ transaction envelope into the private vault's `.vaulter/nodes/v1/transactions/` 
 a plaintext Dexie device cache. Node-backed Chat accepts its message
 and initial Agent run together, while Agent can also execute independently of conversations. Modules
 choose their tools and publication rules. Generic History reads expose records, cutoffs and differences
-without running producers; Product composes Agent/Chat/content preservation for compensation. The
+without running producers; Application composes Agent/Chat/content preservation for compensation. The
 visible History and Search screens remain legacy file workflows. See [Agent records](docs/agent-records.md),
 [Chat nodes](docs/chat-nodes.md), [consumer contracts](docs/node-consumers.md) and
 [node storage](docs/node-storage.md) for target layouts, recovery, acceptance and current limits.
 
 ## Publishing
 
-Review the branch's current Product UI in its hosted sample preview before merging.
+Review the branch's current Application UI in its hosted sample preview before merging.
 The [preview workflow for agents](docs/agents/preview.md) covers comparisons and production promotion.
 Every branch push runs the checks. Non-main branches publish their sample preview at
 `/preview/<branch-name>/`, with the component gallery at `/preview/<branch-name>/kit/`.
@@ -131,7 +134,7 @@ The pill overlays the app; drag its grip to move it, or use arrow keys and Home 
 The app, preview and gallery share one primary microphone/Enter action according to field focus.
 Both use the same Filled style as New chat and confirmation actions; an empty focused draft keeps
 Enter disabled. The default preview has no active comparison or variation picker.
-It uses the actual current Product views, fictional notes, an in-memory backend,
+It uses the actual current Application views, fictional notes, an in-memory backend,
 and a scripted local model. Try “vault it: leave space for a walk before work” to create, read and
 update a fictional content node through the actual Agent. Reload reopens accepted Chat history without
 replaying tools; Reset demo clears its tab journal. Try “ask me: Which tools should stay?” to save a

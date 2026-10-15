@@ -3,7 +3,7 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { Dexie } from 'dexie';
 import { githubNodeBackend, NODE_NAMESPACE } from './github.ts';
 import { fakeGitHub } from '../github-client/fake-github.ts';
-import { serial } from '../coordination.ts';
+import { serial } from '../../../runtime/async.ts';
 import { seed, request, create, revise } from '../../nodes/fixtures.test-support.ts';
 import type { NodeBackend } from '../../nodes/store.ts';
 import { transactionHistory } from '../../transactions/history/nodes.ts';

@@ -7,7 +7,7 @@ import type {
 } from '../vault/transactions/store.ts';
 import type { JsonValue } from '../vault/nodes/model.ts';
 import { canonical, frozen } from '../vault/nodes/json.ts';
-import { cancellable } from '../vault/storage/coordination.ts';
+import { cancellable } from '../runtime/async.ts';
 import { parseToolExecution } from './schema.ts';
 import { agentOperations } from './store.ts';
 import type { ToolExecutionData } from './records.ts';

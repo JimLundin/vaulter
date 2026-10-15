@@ -1,11 +1,8 @@
+import type { QuestionAnswerHandler } from './answers.ts';
 import { useState } from 'react';
 import type { Transcription } from '../../transcription.ts';
 import { FeaturePage, PageControls, Loader, Stack, Text } from '../../ui/kit/index.ts';
-import {
-  QuestionItem,
-  type QuestionAnswerHandler,
-  type QuestionTargetDescription,
-} from './QuestionItem.tsx';
+import { QuestionItem, type QuestionTargetDescription } from './QuestionItem.tsx';
 import type { Question, QuestionTarget, QuestionsReadingState } from './reading.ts';
 import { parseAnswer } from './records.ts';
 import type { QuestionAnswers } from './answers.ts';

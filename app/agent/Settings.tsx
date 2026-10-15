@@ -1,4 +1,4 @@
-import { ModuleSettings } from '../ui/ModuleSettings.tsx';
+import { ModuleSettings } from '../settings/ModuleSettings.tsx';
 import { agentPreferences, agentSettings } from './settings.ts';
 
 export function AgentSettings() {

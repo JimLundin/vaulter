@@ -53,6 +53,13 @@ A recorded `running` status
 remains running: a reader without a local controller cannot prove abandonment. The live handle
 reports `recorded` to distinguish a read-only accepted running record from local execution.
 
+`agent/reading.ts` owns historical run, context and tool decoding. `readAgentRunAt(snapshot, id)`
+returns recorded data without local execution ownership. `agentRunsIn(snapshot, origin, includes)`
+returns run/tool activity for a caller's accepted submissions without expanding effective inputs;
+Chat projects those typed results into its own
+messages. `readAgentRun(store, id)` adds local ownership only for a current read. An explicit
+historical cutoff never consults today's live controller.
+
 `toolExecution` payload ownership also moves to Agent while preserving existing fields and JSON.
 Module-owned tools use durable invocation/outcome gates and the recovery described below. The
 caller supplies capabilities explicitly; Agent introduces no global execution queue.
@@ -65,7 +72,7 @@ must execute in their owning module, rather than delegate an unrecorded effect t
 The module owns its input schema, content payloads, operation validation and publication choice.
 Agent owns the run and tool activity, not a universal staging or review rule.
 
-Questions publication is restricted to that module's create and answer actions. Product supplies
+Questions publication is restricted to that module's create and answer actions. Application supplies
 the same enforcing TransactionStore to independent Agent execution, Chat composition and direct Answer
 tasks. An Agent tool delegates asking to Questions with its trusted Agent author and run origin;
 it cannot grant permission by constructing Question JSON, copying a transaction kind or bypassing
@@ -74,6 +81,14 @@ and required reads, checked against authoritative history at atomic acceptance. 
 tracked reads and compose foreign records without adding or changing Questions-owned work.
 An entered failed save retains that authorization for the exact existing recovery request, including
 after Stop, so saving never needs to repeat the tool or fabricate a new Question.
+
+Agent discovery owns source/knowledge selection and subject discovery. Application composes exact
+text readers and Wiki's subject reader into `AgentContextReading`; Questions does not consume that
+interface. Agent validates grounding before delegating to the Questions action, and its tracked
+Snapshot reads guard the selected evidence and classification ancestry at acceptance. Discovery
+scans an untracked snapshot at the same sequence, then tracks selected subjects, so mutable Agent
+activity does not become an accidental dependency of a later ask. Historical discovery tool names
+remain `listQuestionContext` and `listQuestionSubjects`; their receipts are Agent-owned.
 
 Each `toolExecution` is a stable child of its run. It retains call identity, name/version, attempt,
 arguments, timing and status. Its connection source identifies the exact initial run version and
@@ -219,7 +234,7 @@ generic history and snapshots independently of installed execution providers.
 `preservesAgentRecords` rejects compensation involving run/context/tool payloads on either side.
 It conservatively retains every `metadataReference`, including references shared with other
 producers; this prevents losing exact execution evidence without inferring ownership from JSON
-strings. Product composes it with Chat's transcript/provenance and content module's supported
+strings. Application composes it with Chat's transcript/provenance and content module's supported
 compensation policy. History imports no producer. Generic storage can retain unknown kinds and
 operations even when a removed producer decoder is unavailable.
 

@@ -14,7 +14,7 @@ import {
 import { ConversationList } from './ConversationList.tsx';
 import { ChatSurface, ChatWelcome, type ChatPresentation } from './ChatSurface.tsx';
 import { ChatMessage } from './ChatMessage.tsx';
-import { later } from '../../ui/later.ts';
+import { later } from '../../runtime/later.ts';
 import type { NodeConversation, Prompt, ChatSubmissionIntent } from './node-conversation.ts';
 export type { Prompt } from './node-conversation.ts';
 import { useNodeChat } from './use-node-conversation.ts';

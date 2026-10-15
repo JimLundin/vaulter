@@ -6,14 +6,14 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { applyChanges, type Change, type FileRules, type VaultFile } from '../files.ts';
 import { blobSha } from '../storage/blob-sha.ts';
 import { StagedChanges, type Vault, type OwnedVault, type WriteOptions } from './operations.ts';
-import { cancellable, serial } from '../storage/coordination.ts';
+import { cancellable, serial } from '../../runtime/async.ts';
 import {
   CheckFailed,
   Conflict,
   type Head,
   type VaultBackend,
   type Verify,
-} from '../storage/backend.ts';
+} from '../storage/files/backend.ts';
 
 /** path -> new text, or null to delete; `from`: each path's content id when first staged (null: new file). */
 export interface Overlay {

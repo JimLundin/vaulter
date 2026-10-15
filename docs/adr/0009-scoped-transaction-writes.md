@@ -15,6 +15,6 @@ scope closes, avoiding both caller-owned retry protocols and a general resource 
 Session replacement invalidates unfinished preparation and supplies a fresh reading facade while
 retaining the request registry and session identity. Old adapters retire after entered writes
 settle; sign-out closes admission before draining and clearing storage. History reading, its screen
-and guarded compensation live with core Transactions, with Product supplying content permission.
+and guarded compensation live with core Transactions, with Application supplying content permission.
 Application facades expose no raw `commit` member. Persisted Transactions and Node versions retain
 the representations in ADRs 0002 and 0003.

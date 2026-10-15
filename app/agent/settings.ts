@@ -1,4 +1,8 @@
-import { createSettings, type SettingDefinition, type SettingsDefinition } from '../settings.ts';
+import {
+  createSettings,
+  type SettingDefinition,
+  type SettingsDefinition,
+} from '../settings/store.ts';
 import type { JsonObject } from '../vault/nodes/model.ts';
 import { agentSettingsSchema, parseAgentSettings } from './schema.ts';
 

@@ -20,7 +20,7 @@ import { Heading } from './parts/layout.tsx';
 import { Surface } from './primitives.tsx';
 import { Drawer } from './drawer.tsx';
 
-/** Product supplies feature-owned fields, grouped under each feature's name. */
+/** Application supplies feature-owned fields, grouped under each feature's name. */
 export function SettingsMenu({
   open,
   onClose,
