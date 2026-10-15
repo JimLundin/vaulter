@@ -38,6 +38,7 @@ import { discoveryPresentation } from '../agent/discovery-presentation.tsx';
 import { listWikiSubjects } from '../workflows/wiki/subjects.ts';
 import { readGraph } from '../workflows/graph/reading.ts';
 import { graphSources } from '../workflows/graph/sources.ts';
+import type { GraphDescription } from '../workflows/graph/explorer.ts';
 
 const contentKinds = ['content', 'question', 'relationship'];
 const enabledContentTools = [
@@ -86,6 +87,9 @@ export const agentContextReading: AgentContextReading = {
     describeWikiTarget(node, view)?.title ||
     'Retained source',
 };
+
+export const applicationGraphDescription: GraphDescription = (node, view) =>
+  describeWikiTarget(node, view) ?? applicationSources.describe(node, view);
 
 /** Graph reads the same selected Vault snapshot as its caller's collection projections. */
 export async function applicationGraph(

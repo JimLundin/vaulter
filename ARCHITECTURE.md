@@ -39,7 +39,7 @@ workflows. There is no extension registry, common workflow manifest or runtime f
 | Agent | Execution, context discovery, grounding choices, durable tool activity, recovery, historical decoding | Wiki or Question payload interpretation |
 | Chat | Conversations, messages, drafts, capture, projecting typed Agent activity into a transcript | Decoding Agent records |
 | Wiki | Pages, blocks, citations, subject discovery and page presentation | Creating or answering Questions |
-| Graph | Relationships, vocabulary Terms, snapshot traversal and live Query evaluation | Wiki page membership or presentation, persistence |
+| Graph | Relationships, vocabulary Terms, snapshot traversal, live Query evaluation and exploration UI | Wiki page membership or presentation, persistence |
 | Questions | Question/Answer records, action admission, atomic references, collection and embedded UI | Wiki classification or deciding which evidence to use |
 | Transactions / History | Write lifetimes, acceptance/recovery state, history and guarded compensation | Producer-specific admission or undo policy |
 | Session | Credentials, unlocking, adapter creation/replacement and cache lifetime | Record meaning |

@@ -9,6 +9,12 @@ One supporting-pane policy owns geometry and interaction across those clients.
 The [public interface](index.ts) defines the kit's exports; catalogue and composition checks
 verify their examples and implementation ownership.
 
+`NetworkDiagram` presents caller-supplied node labels and directed edges in a bounded neighborhood.
+The selected node sits at the center; surrounding nodes use native buttons with 44px minimum
+targets and keyboard selection. Callers limit the neighborhood and supply a complete relationship
+list alongside it. The kit owns geometry and accessible diagram text, without interpreting Vault
+records. Its live example is in the Charts catalogue specimen.
+
 `composition.ts` explicitly inventories every implementation source and exact named declarations
 that own DOM/library mechanics. All other declarations are checked compositions of approved
 presentation, including private helpers and public wrappers such as Overlay, ItemGroup and

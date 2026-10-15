@@ -271,6 +271,7 @@ export {
   type Tone,
 } from './app.tsx';
 export { Bars, type BarsProps, Sparkline, type SparklineProps } from './chart.tsx';
+export { NetworkDiagram, type NetworkNode, type NetworkEdge } from './network.tsx';
 export { CodeDiff, type CodeDiffProps } from './diff.tsx';
 export { useLayout, type SizeClass } from './hooks/use-layout.ts';
 export { Icon, type IconName, type IconProps, iconNames } from './icons.tsx';

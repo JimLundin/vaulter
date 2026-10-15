@@ -538,6 +538,19 @@ function Charts() {
         ]}
       />
       <K.Sparkline label="Notes over time" values={[3, 5, 2, 7, 4, 6, 8]} />
+      <K.NetworkDiagram
+        label="Related ideas"
+        nodes={[
+          { id: 'studio', label: 'Garden studio', selected: true },
+          { id: 'making', label: 'Making things' },
+          { id: 'mornings', label: 'Slow mornings' },
+        ]}
+        edges={[
+          { id: 'one', source: 'studio', target: 'making', label: 'Supports' },
+          { id: 'two', source: 'mornings', target: 'studio', label: 'Happens in' },
+        ]}
+        onSelect={noop}
+      />
     </K.Stack>
   );
 }
@@ -2013,7 +2026,7 @@ export const catalogue: Specimen[] = [
     id: 'charts',
     title: 'Charts',
     description: 'Accessible bars and sparklines with shared data.',
-    components: ['Bars', 'Sparkline'],
+    components: ['Bars', 'Sparkline', 'NetworkDiagram'],
     Sample: Charts,
   },
   {

@@ -11,6 +11,7 @@ import {
   applicationNodeHistory,
   applicationChatOptions,
   applicationSources,
+  applicationGraphDescription,
   agentContextReading,
   toolPresentations,
 } from './composition.ts';
@@ -86,6 +87,9 @@ import { Wiki, type ForeignRecordRenderer } from '../workflows/wiki/index.tsx';
 import { wikiRoute, pageRoute } from '../workflows/wiki/routes.ts';
 import { useWikiReading, useWiki } from '../workflows/wiki/use-wiki.ts';
 import { describeWikiTarget } from '../workflows/wiki/sources.ts';
+import { GraphPage } from '../workflows/graph/GraphPage.tsx';
+import { graphRoute, graphSubjectRoute } from '../workflows/graph/routes.ts';
+import { useGraph, useGraphExplorer } from '../workflows/graph/use-graph.ts';
 import {
   QuestionsPage,
   questionsRoute,
@@ -218,6 +222,10 @@ export function OpenApplication({
   const wikiPage = pageRoute.match(route.path)?.node;
   const onWiki = !!wikiRoute.match(route.path) || !!wikiPage;
   const onQuestions = !!questionsRoute.match(route.path);
+  const graphSubject = graphSubjectRoute.match(route.path)?.node;
+  const onGraph = !!graphRoute.match(route.path) || !!graphSubject;
+  const graph = useGraphExplorer(onGraph ? nodes : null, applicationGraphDescription);
+  const graphState = useGraph(graph);
   const questions = useQuestionsReading(onWiki || onQuestions ? nodes : null);
   const questionState = useQuestions(questions);
   // Session identity survives credential reconnects; independent supplied stores get a new owner.
@@ -303,7 +311,9 @@ export function OpenApplication({
           ? (pages?.find((page) => page.id === wikiPage)?.title ?? 'Wiki')
           : onQuestions
             ? 'Questions'
-            : 'Not found';
+            : onGraph
+              ? 'Graph'
+              : 'Not found';
   const provider = useMemo(
     () =>
       session.secrets?.openai
@@ -404,6 +414,7 @@ export function OpenApplication({
         voice.dispose();
         wiki.dispose();
         questions.dispose();
+        graph.dispose();
         answers.dispose();
         await session.signOut!();
       }
@@ -411,6 +422,7 @@ export function OpenApplication({
   const navigation: Navigation[] = [
     { label: 'Chat', href: chatRoute.href(), icon: 'sparkles', current: onChat },
     { label: 'Wiki', href: wikiRoute.href(), icon: 'book', current: onWiki },
+    { label: 'Graph', href: graphRoute.href(), icon: 'network', current: onGraph },
     { label: 'Questions', href: questionsRoute.href(), icon: 'help', current: onQuestions },
     ...(nodes ? [{ label: 'History', href: historyRoute.href(), icon: 'history' as const }] : []),
     {
@@ -445,6 +457,14 @@ export function OpenApplication({
     later(conversation.captureAction());
   };
   const commands: Command[] = [
+    {
+      id: 'go.graph',
+      label: 'Graph',
+      group: 'Go to',
+      icon: 'network',
+      keys: 'g g',
+      run: () => go(graphRoute.href()),
+    },
     {
       id: 'go.wiki',
       label: 'Wiki',
@@ -628,6 +648,8 @@ export function OpenApplication({
             disabledReason={answerAvailability}
             transcription={voice}
           />
+        ) : onGraph ? (
+          <GraphPage state={graphState} node={graphSubject} onRetry={() => later(graph.reload())} />
         ) : onWiki ? (
           <Wiki
             key={wikiPage ?? 'wiki'}

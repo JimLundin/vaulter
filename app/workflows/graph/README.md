@@ -64,7 +64,30 @@ The reserved Graph schemas and historical source interpretation have moved from 
 this module. Consumers of the old `vault/records/graph.ts` entry must use `graph/records.ts` when
 advancing their Vaulter pin. The payload shapes remain unchanged.
 
-This foundation supplies record validation and reading. Publication actions, Agent tools, a Graph
-screen and migrating Wiki's existing presentation projections to an Application-supplied Graph
-reading are subsequent slices. Wiki's current presentation remains compatible with stored Graph
-records. Workflow isolation still prohibits Wiki importing Graph directly.
+The Graph screen is available from the sidebar, the compact Modules menu and the `g g` command.
+`/graph/` opens the subject with the most connections; `/graph/:node/` retains a selected subject
+through reload. Connections supports subject search, incoming/outgoing filtering, a diagram of up
+to six nearby subjects, a complete relationship list and source links. Vocabulary exposes scheme,
+usage, inverse and symmetric labels. The diagram uses the public kit's `NetworkDiagram` with native
+keyboard-accessible buttons. Graph owns the subscribed reading lifetime in `explorer.ts`, retaining
+the previous result on a failed refresh and rejecting late responses after replacement or disposal.
+Application supplies descriptions from record owners; Graph never imports Wiki.
+
+Publication actions, Agent tools and migrating Wiki's existing presentation projections to an
+Application-supplied Graph reading remain subsequent slices. Wiki's current presentation stays
+compatible with stored Graph records. Workflow isolation prohibits Wiki importing Graph directly.
+
+```mermaid
+flowchart TD
+  Snapshot[Vault Snapshot] --> Reader[Graph reading]
+  Records[Relationship / Term / Query schemas] --> Reader
+  Reader --> Vocabulary[Vocabulary]
+  Reader --> Relationships[Incoming / outgoing relationships]
+  Reader --> Traversal[Traversal with cycle detection]
+  Candidates[Owner-supplied candidates] --> Queries[Live query results]
+  Reader --> Queries
+  Reader --> Explorer[Subscribed Graph explorer]
+  Descriptions[Application-composed record descriptions] --> Explorer
+  Explorer --> Screen[Graph screen]
+  Screen --> Kit[Kit NetworkDiagram and presentation]
+```
