@@ -44,8 +44,8 @@ const compositionEntry = (path: string) =>
 const applicationTest = (path: string) => path.startsWith('app/application/') && testSource(path);
 const workflow = (path: string) => /^app\/workflows\/([^/]+)\//.exec(path)?.[1];
 const fixture = (path: string) =>
-  /\.(?:test|test-support)\.[cm]?tsx?$/.test(path) || path.startsWith('app/preview/');
-const testSource = (path: string) => /\.(?:test|test-support)\.[cm]?tsx?$/.test(path);
+  /\.(?:test|type-test|test-support)\.[cm]?tsx?$/.test(path) || path.startsWith('app/preview/');
+const testSource = (path: string) => /\.(?:test|type-test|test-support)\.[cm]?tsx?$/.test(path);
 const nodeImplementation = (path: string) =>
   path.startsWith('app/vault/nodes/') || path.startsWith('app/vault/storage/nodes/');
 const rawNodeCaller = (path: string) =>

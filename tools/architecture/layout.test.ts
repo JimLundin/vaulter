@@ -74,6 +74,12 @@ test('application tasks cannot construct raw node adapters', () => {
     'fixtures cannot publish application data',
   );
   expect(importProblem('app/agent/new-tool.test.ts', 'app/preview/nodes.ts')).toBeNull();
+  expect(importProblem('app/agent/new-tool.ts', 'app/agent/contracts.type-test.ts')).toContain(
+    'fixtures cannot publish application data',
+  );
+  expect(
+    importProblem('app/agent/new-tool.type-test.ts', 'app/vault/nodes/fixtures.test-support.ts'),
+  ).toBeNull();
 });
 
 test('browser drivers are shared across test owners without exposing private kit code', () => {
