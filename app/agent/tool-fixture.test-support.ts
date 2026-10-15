@@ -2,7 +2,7 @@ import { tool } from 'ai';
 import { z } from 'zod';
 import type { AgentToolFactory } from './tools.ts';
 
-// Fictional feature operation used to verify Product-supplied tools with either conversation mode.
+// Fictional feature operation used to verify Application-supplied tools with either conversation mode.
 declare module '../vault/nodes/operations.ts' {
   interface TransactionActions {
     readonly paragraphFixture: 'capture';

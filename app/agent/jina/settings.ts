@@ -1,4 +1,4 @@
-import type { SettingsDefinition } from '../../settings.ts';
+import type { SettingsDefinition } from '../../settings/store.ts';
 
 export const jinaSettings: SettingsDefinition = {
   id: 'jina',

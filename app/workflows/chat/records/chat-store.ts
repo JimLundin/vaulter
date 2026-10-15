@@ -6,7 +6,7 @@ import type {
   NodeReading,
   NodeSnapshot,
 } from '../../../vault/nodes/store.ts';
-import { parseAgentRun, parseToolExecution } from '../../../agent/schema.ts';
+import { agentRunsIn } from '../../../agent/reading.ts';
 import { parseConversation, parseExchange, parseMessage, parseChatInstant } from './chat-schema.ts';
 import { frozen } from '../../../vault/nodes/json.ts';
 import { chatOperations, type ConversationData, type MessageData } from './chat.ts';
@@ -30,17 +30,13 @@ function projectMessage(snapshot: NodeSnapshot, version: NodeVersion): SavedMess
     return { version, data };
   const parts = [...data.parts];
   const sources = parts.map(() => version.key);
-  for (const run of snapshot.children(version.placement.parent)) {
-    if (run.data?.kind !== 'agentRun') continue;
-    const start = run.connection?.source.transaction;
-    if (!start) continue;
-    const submitted = snapshot.resolve({ node: version.key.node, transaction: start });
-    if (submitted?.data?.role !== 'agent' || submitted.placement?.parent !== run.placement?.parent)
-      continue;
-    const execution = parseAgentRun(run.data);
-    for (const tool of snapshot.children(run.key.node)) {
-      if (tool.data?.kind !== 'toolExecution') continue;
-      const receipt = parseToolExecution(tool.data);
+  const origin = version.placement.parent;
+  const executions = agentRunsIn(snapshot, origin, (transaction) => {
+    const submitted = snapshot.resolve({ node: version.key.node, transaction });
+    return submitted?.data?.role === 'agent' && submitted.placement?.parent === origin;
+  });
+  for (const { version: run, data: execution, tools } of executions) {
+    for (const { version: tool, data: receipt } of tools) {
       const recorded = {
         kind: 'tool' as const,
         callId: receipt.call,

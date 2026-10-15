@@ -1,5 +1,5 @@
 import type { Change, VaultFile } from '../files.ts';
-import type { VaultBackend } from '../storage/backend.ts';
+import type { VaultBackend } from '../storage/files/backend.ts';
 
 export interface WriteOptions {
   /** A sequence must explicitly include existing edits, or refuse to start with them. */

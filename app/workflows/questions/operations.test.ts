@@ -18,17 +18,17 @@ async function fixture() {
   await nodes.commit(
     request('setup', [
       create('user', { kind: 'actor' }),
-      create('page', { kind: 'page', title: 'Studio' }),
-      create('section', { kind: 'section' }, 'page'),
+      create('page', { kind: 'subject', title: 'Studio' }),
+      create('section', { kind: 'subject' }, 'page'),
       create('heading', { kind: 'heading' }, 'section'),
-      create('detached-section', { kind: 'section' }),
+      create('detached-section', { kind: 'subject' }),
       create('foreign', { kind: 'content', text: 'Source record.' }),
     ]),
   );
   return nodes;
 }
 
-test('Questions prepares retained asks with optional Wiki placement and no ancestor changes', async () => {
+test('Questions prepares retained asks with Agent-selected placement and no ancestor changes', async () => {
   const nodes = await fixture();
   const view = await nodes.snapshot();
   const prepared = prepareAskQuestion(view, {
@@ -70,13 +70,17 @@ test('Questions prepares retained asks with optional Wiki placement and no ances
   nodes.close();
 });
 
-test('Questions rejects empty requests and unavailable or unsupported Wiki subjects', async () => {
+test('Questions rejects empty requests and unavailable subjects', async () => {
   const nodes = await fixture();
   const options = { id: 'asked', node: 'question', text: 'Where?' };
   const view = await nodes.snapshot();
   expect(() => prepareAskQuestion(view, { ...options, text: ' \n ' })).toThrow();
-  for (const subject of ['missing', 'foreign', 'detached-section'])
-    expect(() => prepareAskQuestion(view, { ...options, subject })).toThrow();
+  expect(() => prepareAskQuestion(view, { ...options, subject: 'missing' })).toThrow();
+  for (const subject of ['foreign', 'detached-section']) {
+    const prepared = prepareAskQuestion(view, { ...options, subject });
+    expect(prepared.changes[0]?.placement?.parent).toBe(subject);
+    expect(prepared.expectedReads?.[subject]).toBe('setup');
+  }
   await nodes.commit(request('removed-page', [await revise(nodes, 'page', null)]));
   const removed = await nodes.snapshot();
   expect(() => prepareAskQuestion(removed, { ...options, subject: 'section' })).toThrow();

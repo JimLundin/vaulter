@@ -4,14 +4,15 @@ import '@fontsource-variable/newsreader';
 import '../ui/kit/styles.css';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { OpenProduct, productNodes } from '../product.tsx';
-import { later } from '../ui/later.ts';
+import { OpenApplication } from '../application/index.tsx';
+import { applicationNodes } from '../application/composition.ts';
+import { later } from '../runtime/later.ts';
 import { startTheme, Text, DesignPreview } from '../ui/kit/index.ts';
 import { useWriter, applyOverlay } from '../vault/changes/writer.ts';
 import { liveVault } from '../vault/index.ts';
-import { memoryBackend } from '../vault/storage/memory.ts';
+import { memoryBackend } from '../vault/storage/files/memory.ts';
 import { vaultRules } from '../vault/validation/rules.ts';
-import type { Head } from '../vault/storage/backend.ts';
+import type { Head } from '../vault/storage/files/backend.ts';
 import { sampleFiles, note } from './data.ts';
 import { previewModel } from './model.ts';
 import { createOpenAICapabilities } from '../agent/openai/index.ts';
@@ -176,7 +177,7 @@ function Preview({ initialHead, nodes }: { initialHead: Head; nodes: NodeStore }
   }, [vault]);
   const files = applyOverlay(head.files, writer.overlay);
   const product = (
-    <OpenProduct
+    <OpenApplication
       session={{
         vault,
         files,
@@ -190,7 +191,7 @@ function Preview({ initialHead, nodes }: { initialHead: Head; nodes: NodeStore }
           throw new Error('Credentials are supplied by the preview server.');
         },
         blocked: null,
-        nodes: productNodes(nodes),
+        nodes: applicationNodes(nodes),
         nodeStatus: { kind: 'synced', at: Date.now() },
         refreshNodes: async () => undefined,
       }}

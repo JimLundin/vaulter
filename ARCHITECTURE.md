@@ -1,64 +1,141 @@
 # Architecture
 
-Features are user workflows, composed directly in `app/product.tsx`. Each workflow exports the named
-functions and views it needs. There is no extension descriptor, host, slot registration, or runtime
-feature toggle.
+Application composes independently owned modules. A code dependency points from a caller to the
+module whose interface it uses. A relationship stored between Nodes does not create a dependency
+between their owning modules. Agent chooses those relationships; Application wires the available
+record actions, readers and renderers into Agent and the views.
+
+```mermaid
+flowchart TD
+  Bootstrap[Bootstrap: main / preview] --> Application
+  Application --> Agent
+  Application --> Chat
+  Application --> Wiki
+  Application --> Questions
+  Application --> Search
+  Application --> Session
+  Application --> History[Transactions / History]
+  Chat --> Agent
+  Agent --> Transactions
+  Questions --> Transactions
+  Wiki --> Nodes[Node reading]
+  History --> Transactions
+  Transactions --> Nodes
+  Session --> Transactions
+  Session --> Storage[Storage adapters]
+  Storage --> Nodes
+  Search --> Documents[Document search]
+```
+
+The graph shows the principal code dependencies. All UI owners may compose the public kit; record
+modules may use Settings, Navigation and Runtime where needed. Those supporting modules never
+import their consumers. No workflow imports a sibling workflow, including through a type-only
+reference. Only the explicit Application composition entries and their integration tests combine
+workflows. There is no extension registry, common workflow manifest or runtime feature toggle.
+
+| Owner | Responsibility | Does not own |
+|---|---|---|
+| Application | Routes, shell, identities, module selection, record/tool/source composition | Record schemas or persistence |
+| Agent | Execution, context discovery, grounding choices, durable tool activity, recovery, historical decoding | Wiki or Question payload interpretation |
+| Chat | Conversations, messages, drafts, capture, projecting typed Agent activity into a transcript | Decoding Agent records |
+| Wiki | Pages, blocks, citations, subject discovery and page presentation | Creating or answering Questions |
+| Questions | Question/Answer records, action admission, atomic references, collection and embedded UI | Wiki classification or deciding which evidence to use |
+| Transactions / History | Write lifetimes, acceptance/recovery state, history and guarded compensation | Producer-specific admission or undo policy |
+| Session | Credentials, unlocking, adapter creation/replacement and cache lifetime | Record meaning |
+| Storage | File and Node persistence adapters, caches and shared GitHub transport | Features, credentials UI or record meaning |
+| UI kit | Generic presentation, controls, focus, scrolling, responsive layout and styling | Routes, preference storage or record interpretation |
+| Settings / Navigation / Search / Runtime | Preferences and settings binding / routes and commands / search interaction / scheduling and service worker | Workflow composition |
 
 ```text
 app/
-  main.tsx                   bootstrap, fonts, theme, GitHub adapter
-  product.tsx                optional workflow imports and all product wiring
-  agent/                     independent execution, records, durable tools, recovery, providers
-  application-identities.ts  configured stable caller identities and atomic bootstrap
-  transcription.ts           shared recording sessions, valid transcripts and microphone lifetime
+  main.tsx                   production bootstrap and adapter selection
+  application/
+    index.tsx                mounted shell and module views
+    composition.ts           record sources, tools, publication rules and independent caller factories
+    identities.ts            stable configured authors and atomic bootstrap
+    routes.ts                application destinations
+    Frame.tsx                navigation choices supplied to the kit
+    AppearanceSettings.tsx   application appearance preferences
+    Previews.tsx              delegated document previews
+  agent/                     execution, discovery, historical reading, tools, providers and recovery
   workflows/
-    chat/                    node conversations, composed Agent acceptance, draft lifetime, views, tests
-    wiki/                    page/block/citation definitions, preparation, historical reading, views
-    questions/               retained requests, direct answers, agent tools and shared question views
-    rename-note/             rename operation, reference rewrites, model adapter, tests
-    history/                 attributed transaction views, reading and guarded compensation
+    chat/                    conversations, messages, capture and Chat UI
+    wiki/                    pages, blocks, citations, subjects and Wiki UI
+    questions/               Question/Answer actions, reading, tools and record UI
+  navigation/                generic hash routes, command contracts and keyboard dispatch
+  search/                    search interaction and device-local recent destinations
+  settings/                  validated device preferences and module settings binding
+  runtime/                   scheduling, cancellation and offline application cache
+  transcription.ts           shared recording sessions and microphone lifetime
   vault/
-    index.ts                 live vault interface and session
-    nodes/                   immutable node model, acceptance, snapshots, memory adapter
-    content/                 node content operations, tools and recorded action receipts
-    records/                 retained kinds awaiting modules, their validation and source reading
-    sources.ts               shared historical source-reading types
-    documents/               notes, schema, links, graph, capture format, search
-    validation/              permanent note and graph rules
-    changes/                 persisted shared staging and checked writes
-    session/                 unlocking, credential actions/UI, encryption, synchronization
-    storage/                 file adapters and GitHub node persistence with plaintext Dexie cache
-  ui/
-    kit/                     component kit and reference design from ui-kit
-    Frame.tsx                direct desktop/mobile layout composition
-    Search.tsx                search and already bound commands
-    routing.ts               generic hash-route mechanics
-    keys.ts                  shortcuts and list navigation
-    Previews.tsx             delegated hover previews
-    recent.ts                local navigation history
-    sw.ts                    offline application cache
+    nodes/                   immutable model, acceptance, snapshots and memory adapter
+    transactions/            scoped write lifetime, recovery and History UI/compensation
+    content/                 content operations, tools and recorded action receipts
+    records/                 retained kinds awaiting modules and their source reading
+    sources.ts               generic historical source-reading contract
+    documents/               legacy note/schema/link interpretation and search
+    validation/              permanent note and graph integrity rules
+    changes/                 persisted file staging and checked writes
+    session/                 credentials, encryption and file/Node adapter lifetime
+    storage/
+      files/                 legacy file contract, memory and GitHub adapters
+      nodes/                 GitHub transaction persistence
+      github-client/         shared GitHub transport
+      coordination.ts        browser ownership locks
+  ui/kit/                    public generic presentation and its private implementation
+  preview/                   fictional adapters and examples
  tools/
-  check.ts                   the same vault integrity checks over files on disk
-  layout.ts                  resolved dependency and kit-use policy
-  layout.test.ts             enforces the policy in CI
-  composition.ts             private-helper composition policy and building-block usage
-  composition.test.ts        CI policy check and temporary source-project acceptance tests
-  seal-secrets.ts            deployment secret sealing
+  layout.ts                  compiler-resolved dependencies, cycles and presentation ownership
+  composition.ts             kit implementation and building-block policy
+  check.ts                   permanent file integrity checks
 ```
+
+`app/ui/` contains only the kit. Shared application behavior has named owners: for example,
+Settings binds preferences to kit controls, Search binds results and commands to a kit overlay,
+and Application selects navigation entries for the kit's layout. Module-owned record UI stays
+beside the record it interprets, as required by [ADR 0006](docs/adr/0006-module-ui-and-shared-presentation.md).
+
+## Wiki, Questions and Agent
+
+```mermaid
+flowchart LR
+  Agent -->|choose subject and exact evidence| Actions[Questions actions]
+  Actions -->|atomic record references| Vault[Vault Nodes]
+  Wiki -->|read page containment| Vault
+  Questions -->|read questions and answers| Vault
+  Application -->|supply foreign-record renderer| Wiki
+  Application -->|compose embedded Question UI| Questions
+```
+
+Wiki and Questions do not call one another or consume one another's reading interfaces.
+Questions accepts a generic live Node as its optional subject and exact Node addresses for source
+and knowledge evidence. It validates availability, schema, attribution and atomic publication.
+Agent discovers Wiki subjects and classifies evidence through owner-supplied readers composed by
+Application. Agent's grounding reads remain conflict expectations until the Question is accepted.
+The historical tool names `listQuestionSubjects` and `listQuestionContext` belong to Agent discovery;
+Questions owns `askQuestion`, `readQuestion` and `listQuestions`.
+
+Wiki receives a generic foreign-record renderer. Application dispatches a Question record to the
+Questions-owned embedded UI and supplies its actions. Rendering a record in a Wiki page therefore
+adds no Wiki-to-Questions code dependency. The stored subject and evidence references connect data;
+Agent makes the choice, Questions records it, and each view reads through its own interface.
 
 ## Adding or removing a workflow
 
-Create a folder under `app/workflows/` for the task, including its views, operations, state, adapters,
-and tests. Small tasks need only a few files. Give callers ordinary named exports: for example,
-`renameNote(vault, { from, to })`. Model adapters validate external inputs with Zod and call the same
-operation. No common workflow manifest is required.
+Create a folder under `app/workflows/` with its views, operations, state, adapters and tests.
+Expose ordinary named functions and views, such as Questions' creation/answering actions. External
+inputs are validated by the owning module. Wire views, routes and navigation in
+`application/index.tsx`; wire readers, tools and publication rules in `application/composition.ts`.
+Module integration tests live in `app/application/`.
 
-Wire the task in `product.tsx`: imports, routes, navigation, commands, callbacks, and model tools as
-needed. Product passes dependencies and optional links explicitly. A workflow never imports another
-workflow, including in tests. For example, chat receives an optional history URL; it does not know
-where History lives. Product explicitly supplies content tools and provider capabilities to Chat.
+Remove a workflow by deleting its folder and Application wiring. Persisted Nodes remain in the
+Vault; remaining readers retain their generic unknown-record behavior. History is core Transaction
+infrastructure under `vault/transactions/history/`, as decided in ADR 0009. The unused legacy
+`rename-note` workflow has been removed; the active legacy file infrastructure remains independently
+owned under Vault. Renaming a Node means appending changed content to the same stable identity;
+it does not require a separate module or rewriting identity references.
 
-Modules define their configuration through `SettingsDefinition` in `app/settings.ts`: field keys,
+Modules define their configuration through `SettingsDefinition` in `app/settings/store.ts`: field keys,
 labels, defaults, kinds, suggested choices, custom-value support and parsing. Agent owns invocation
 settings, Chat owns instructions, and
 OpenAI, GitHub storage and Jina own implementation-specific options and settings views. Session owns
@@ -66,30 +143,25 @@ safe credential state, replacement/restore/clear actions and their React control
 supply field meaning and consume those handles. The shared preference store validates device
 preferences; `ModuleSettings` renders ordinary definitions through public kit controls. OpenAI's
 settings and execution share one preference instance. Appearance uses the same definition with the
-kit's theme control. Product passes `{ name, content }` entries to `SettingsMenu`. Removing a module also removes
+kit's theme control. Application passes `{ name, content }` entries to `SettingsMenu`. Removing a module also removes
 its entry. Modules without preferences need no empty settings section.
 
-To remove History, delete `workflows/history/` and remove its import, route, navigation, command,
-page branch and optional history URLs from `product.tsx`. To remove rename, delete
-`workflows/rename-note/` and remove any application caller wiring. Run typecheck, tests and build.
-No vault, kit, or other workflow edit is required. Old routes show “Not found”. Persisted data remains
-readable and checked. These two removals have been verified in disposable copies.
-
-`tools/layout.test.ts` inspects the TypeScript AST and compiler-resolved targets, including aliased
-imports, dynamic imports and re-exports. Only Product may compose different workflows. Literal module
-paths make this check complete for source imports. The checker permits named Vault task UI entries
-to consume shared presentation while prohibiting presentation in persistence implementations, and
-keeps callers on the kit's public exports. Cross-workflow integration tests should be kept with
-Product and removed with the corresponding wiring.
+`tools/layout.test.ts` checks compiler-resolved imports, re-exports, dynamic imports and import-type
+expressions. Workflow isolation and production/fixture separation include type-only references.
+Value and dynamic import cycles are rejected separately; type cycles do not imply runtime cycles.
+Raw persistence and session construction remain restricted even through aliases. The checker also
+keeps file and Node persistence formats independent, prohibits imports back into Application, and
+keeps UI callers on public kit exports. The kit owns presentation; lower-level record and persistence
+implementations cannot import views.
 
 Record ownership includes publication. Questions owns the complete creation and answering actions:
-payload validation, suggestions, grounding, direct Answer evidence, required reads and atomic
-changes. Callers request those actions through Product composition. Pure preparation entries remain
+payload validation, suggested-answer shape, direct Answer evidence, required reads and atomic
+changes. Callers request those actions through Application composition. Pure preparation entries remain
 available to the private Vault's translation, but do not authorize new application writes. The
-Questions ownership factory is private to Product and Questions; copying valid-looking payloads,
+Questions ownership factory is private to Application and Questions; copying valid-looking payloads,
 setting a transaction kind or using the same author does not confer permission to publish.
 
-Every Product entry supplies an enforcing NodeStore, including independent Agent and Chat
+Every Application entry supplies an enforcing NodeStore, including independent Agent and Chat
 construction. Questions privately retains its action-produced work through entered publication and
 exact save retries. A generic publication rule runs against authoritative history at acceptance in
 both memory and GitHub adapters. Persistence owns structural integrity; Questions owns interpretation
@@ -99,10 +171,10 @@ and identical already-accepted retries retain their existing behavior.
 
 Raw node adapters and acceptance/loading functions are private to bootstrap, persistence and
 historical fixtures. Session hooks exposing raw handles remain with Vault session assembly and
-Product; preview fixtures cannot be imported by production callers. The compiler-backed layout policy
+Application; preview fixtures cannot be imported by production callers. The compiler-backed layout policy
 checks these resolved origins through aliases and re-exports, while permitting ordinary node reads
 and errors. Keeping those handles out of task
-code prevents a new producer from bypassing the Product-supplied interface. This deepens the
+code prevents a new producer from bypassing the Application-supplied interface. This deepens the
 Questions module at its existing seam: callers gain leverage from two actions, and validation,
 construction, ownership and tests retain locality within Questions.
 
@@ -115,12 +187,12 @@ selection and write checks no longer depend on which workflows are installed.
 `Vault` exposes current files, staged paths, staging, checked commit/revert, history and patch queries.
 `liveVault()` binds once and reads the latest writer for each call; asynchronous tools do not depend on
 another view rendering. Workflows receive no backend handle or raw secrets. Bootstrap selects a
-storage adapter; Product supplies NodeStore, configured identities, model capabilities and selected tools to Chat.
+storage adapter; Application supplies TransactionStore, configured identities, model capabilities and selected tools to Chat.
 
 Use `vault.update(files => changes)` for a change calculated from vault contents. The vault acquires
 exclusive ownership, reloads the cached head and persisted overlay, calculates against that preview,
-then persists and publishes the complete change set. Rename uses this operation; it cannot calculate
-from files that an earlier queued edit is about to replace. `stage()` and `stageMany()` remain useful
+then persists and publishes the complete change set. This prevents calculating changes from files
+that an earlier queued edit is about to replace. `stage()` and `stageMany()` remain useful
 for prepared text; they do not make an earlier, separate read atomic.
 
 Use `vault.write(async owned => ..., { staged, signal })` for a sequence that reads and writes across
@@ -149,7 +221,7 @@ retains its existing check semantics.
 
 ## Conversation lifetime
 
-Product creates one node-backed Chat interaction above route selection, scoped to its owning Vault
+Application creates one node-backed Chat interaction above route selection, scoped to its owning Vault
 session. Chat owns draft revisions, submission/review intent, selected conversation and pending
 selection, prompt consumption, record interpretation, recovery presentation and unread acknowledgement.
 The page, pane, chooser and application commands request these tasks through the same interface.
@@ -163,14 +235,14 @@ before clearing only the source draft revision; local ownership does not claim d
 Review confirmation rechecks permission and staged evidence, requiring reconfirmation if evidence
 changed. New/Open share selection permission across commands, routes and chooser. The latest eligible
 selection wins; blocked intents preserve valid work, Open preserves draft, and New creates an unsaved
-identity. Product uses selection outcomes for navigation and reconciles failed/blocked routes.
+identity. Application uses selection outcomes for navigation and reconciles failed/blocked routes.
 
 Chat claims each application prompt once. Eligible Ask uses the same preparation path. Editable
 fallback fills the draft without queued execution; capture/review conflicts retain text with explicit
 Use/Dismiss actions. Reopening or simultaneous views cannot reclaim a prompt. An unseen completed
 reply remains unread through failed reads/save recovery until an open view acknowledges it.
 
-Product supplies capabilities, navigation and a stable session scope. Same-session updates apply to
+Application supplies capabilities, navigation and a stable session scope. Same-session updates apply to
 subsequent explicit work while active execution retains its original backend and recording its admitted
 provider. Session replacement and React effect replay create fresh owners. Destruction is terminal,
 releases local execution/subscriptions and recording admitted by Chat, and invalidates late task/route
@@ -186,12 +258,12 @@ result without replay. Stop expires tools, drains entered effects and retains ac
 pending save obligations. Initial save recovery reconciles records without automatically executing.
 Missing local ownership leaves remote liveness unknown; reopening never replays unfinished tools.
 
-Product supplies node availability, stable configured actor/Agent identities and model
+Application supplies node availability, stable configured actor/Agent identities and model
 configuration; Chat enforces conversational admission. Bootstrap preserves migrated configuration
 and rejects deleted/incompatible identities.
 Live progress and categorized saving failures use the public kit; pending saving stays recoverable
 after Stop. Accepted conversation selection is scoped by API/repository, separately from the demo.
-Product assembles Settings from the module definitions and subscribes to their current preferences.
+Application assembles Settings from the module definitions and subscribes to their current preferences.
 Each new request retains the configured model, instructions and Agent invocation settings. OpenAI
 capabilities use the provider's model, voice and embedding options. The composer
 contains only message entry and dictation/send controls, with Enter to send and Shift+Enter for a
@@ -202,7 +274,7 @@ Native IME confirmation and Safari key code 229 remain editing events. Chat requ
 text, current capabilities, idle recording/execution and resolved recovery before admitting submission.
 Displayed action availability is advisory. Sync status appears with the app name in the sidebar header.
 
-Product supplies the shared Transcription in `app/transcription.ts` to Chat and Questions above
+Application supplies the shared Transcription in `app/transcription.ts` to Chat and Questions above
 route selection. Transcription owns recording
 admission, connection lifecycle, correction ordering and resource release; Chat associates valid session
 revisions with the draft/conversation they began against. Corrected final text replaces that recording's
@@ -245,8 +317,8 @@ dismissal while application UI resolves links to supplied preview text.
 
 Wiki owns `WikiPageView`: typed `WikiPage`/`WikiBlock`/`WikiReference` projections, title and
 classification actions, connections and reference selection. Questions supplies its own embedded
-record renderer through Product. Wiki's reading lifetime owns subscriptions, loading/error state
-and stale-read rejection. Product supplies the store and source
+record renderer through Application. Wiki's reading lifetime owns subscriptions, loading/error state
+and stale-read rejection. Application supplies the store and source
 readers; rendering does not load a store or execute an Agent.
 The view composes shared reading/page/section presentation and `SupportingPane`; a selection key
 resets the pane's scroll owner without querying its DOM. Source context remains mounted across
@@ -262,8 +334,8 @@ wording expectations, preparation and atomic publication. Its session-scoped act
 independent of the route-scoped reader, so admitted saves survive navigation. Uncertain retries
 retain the complete original transaction and remain available through the owner's recovery view.
 Session termination prevents work from entering publication; an entered commit remains accountable.
-Questions also owns collection and embedded rendering, while source owners supply exact grounding
-text, descriptions and identity interpretation.
+Questions also owns collection and embedded rendering. Application supplies owner-read source
+descriptions and exact text to those views; Agent owns grounding choices before creation.
 
 History now owns its transaction title/kind interpretation, sequence and historical attribution,
 difference summaries, and compensation copy/actions. Its `TransactionItem` accepts `NodeHistoryEntry`
@@ -300,7 +372,7 @@ Search preview exercise the same browser presentation without private records or
 
 Screens compose `ui/kit/index.ts`. Public components take no `className` or `style`; Tailwind scans only
 the kit. CI rejects custom HTML, styling props, intrinsic element factories and direct presentation
-library imports throughout Product, shared UI and workflows. Semantic forms use the kit's `Form`.
+library imports throughout Application, shared UI and workflows. Semantic forms use the kit's `Form`.
 Add missing generic presentation and its paired example to the kit; keep task logic in its workflow.
 `tools/composition.ts` checks the configured kit composition sources and their reachable private
 presentation helpers and state-only React context providers. Compiler resolution follows imports,
@@ -351,7 +423,7 @@ for that session; preview credentials belong to its server. API endpoints and re
 read-only build configuration.
 
 `app/preview/` is an alternate bootstrap for design review. It supplies a memory backend and scripted
-model to the same Product views, with sample Markdown and an initial sample history entry. Product
+model to the same Application views, with sample Markdown and an initial sample history entry. Application
 receives the model and preview label explicitly; workflows do not import the preview. The preview
 supplies real node content tools and retains only fictional accepted requests in a
 versioned tab journal. Reload replays them through the memory adapter and reopens without execution;
@@ -361,7 +433,7 @@ collection or microphone request runs in published previews. Local development c
 and audio transcription. Browser MediaRecorder captures the microphone and the file transcription
 adapter returns text on Finish; this supports proxies without Realtime endpoints. Audio is not
 retained in the NodeStore or tab journal.
-The server owns its credential; Product receives the model adapter, provider attribution and
+The server owns its credential; Application receives the model adapter, provider attribution and
 configured default model. Tools still publish only into the sample NodeStore. Published previews
 always use the scripted model.
 Fictional Wiki evidence is accepted as append-only node history and read by `readWiki` before the
@@ -400,14 +472,16 @@ History reads accepted node transactions and Search consumes Wiki entries with a
 fallback during startup. [Consumer contracts](docs/node-consumers.md)
 live with their owning workflows: `workflows/chat/records/` holds Chat payloads, lossless schemas,
 acceptance requests, saved-message projections and its transcript-preservation policy;
-`workflows/history/nodes.ts` holds attributed History differences and compensation. Product supplies
+`vault/transactions/history/nodes.ts` holds attributed History differences and compensation. Application supplies
 feature-owned undo policies to History, so workflows never import one another. Storage exposes only
 generic node/transaction reads and atomic append writes; it knows no feature payloads or undo policy.
-An update appends a new version of the same identity. `productChatOptions` and
-`createProductConversation` expose the same explicit composition used by the views.
-`productNodeHistory` supplies Agent/Chat/content preservation to generic History compensation;
+An update appends a new version of the same identity. `applicationChatOptions` and
+`createApplicationConversation` expose the same explicit composition used by the views.
+`applicationNodeHistory` supplies Agent/Chat/content preservation to generic History compensation;
 History never imports execution/transcript producers. New Chat metadata is observations, attachments
-and Interpretations. Historical Agent metadata still decodes through Agent-owned schemas, preserving
+and Interpretations. Historical Agent metadata still decodes through Agent-owned schemas. Chat reads run activity through
+`agent/reading.ts`, which owns run/context/tool traversal without executing it or consulting live
+execution ownership. Chat retains transcript ordering and message projection, preserving
 unknown JSON and older containment without rewriting records. Sensor collection and Vault migration
 remain separate work.
 
@@ -421,7 +495,7 @@ Content records remain independent source material and appear through historical
 Wiki owns UTF-16 selections, source eligibility, current-claim applicability, provenance and
 evidence validation, and reference construction. Chat, Agent, Content and retained record readers
 interpret their own historical text and descriptions through the shared `vault/sources.ts` contract.
-Product and the private Vault's translation tooling explicitly compose those readers. Wiki owns its
+Application and the private Vault's translation tooling explicitly compose those readers. Wiki owns its
 block/inline text grammar even beneath foreign sources; historical page ancestry determines source exclusion.
 
 The Vault owns Git reading, source extraction and enrichment policy, review packets and ranking,
@@ -448,7 +522,7 @@ addresses and selection semantics. Published history stays immutable without fre
 Chat owns `ChatSurface`, `ChatMessage` and `ConversationItem`: message placement, role interpretation,
 model/token metadata, unfinished activity and node selection. Agent owns recorded tool lifecycle and
 generic execution rendering. Content and Questions own their action identities, readable labels and
-receipt renderers; Product supplies those static adapters to Chat. Raw input/output, tool versions,
+receipt renderers; Application supplies those static adapters to Chat. Raw input/output, tool versions,
 errors and cancelled states remain evidence rather than becoming Chat-formatted foreign semantics.
 Unknown or retired actions retain a readable raw fallback. Rendering never creates executable tools
 or publishes records, and pending or uncertain effects never appear as accepted success. Message views
@@ -458,7 +532,7 @@ presents the retained Chat interaction's draft, capture, review, selection, prom
 Its mounted supporting view calls
 `viewing()` only while open, so a reply finishing after close remains unread until reopened.
 
-Product supplies `ChatPanel` visibility and dismissal to the optional generic Frame aside; Product
+Application supplies `ChatPanel` visibility and dismissal to the optional generic Frame aside; Application
 routes an external prompt to the Chat page or supporting task. Chat's page composes shared
 `ReadingColumn`, `Toolbar`, `AutoScrollArea` and `Dock`; the panel supplies direct message children
 and composer content to `SupportingPane`. Chat and its chooser use that single supporting policy.

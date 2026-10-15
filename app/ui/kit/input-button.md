@@ -1,6 +1,6 @@
 # Unified input button
 
-The composer uses one action across Product, the design preview and catalogue.
+The composer uses one action across Application, the design preview and catalogue.
 Microphone and Enter are primary actions and use the same shared `filled` style,
 standard 44px icon-only layout and 8px corners. Colors follow the selected appearance,
 matching New chat, Open vault and confirmation actions.

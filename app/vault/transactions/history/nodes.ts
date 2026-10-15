@@ -44,7 +44,7 @@ export async function prepareContentUndo(
     readonly transaction: string;
     readonly recordedBy: string;
     readonly id: string;
-    /** Product supplies feature policies; History does not import or interpret another workflow. */
+    /** Application supplies feature policies; History does not import or interpret another workflow. */
     readonly canUndo: (difference: NodeDifference) => boolean;
   },
 ): Promise<NodeCommit> {
@@ -69,7 +69,7 @@ export async function prepareContentUndo(
   });
 }
 
-/** Core owns retained compensation; Product supplies permission for its content owners. */
+/** Core owns retained compensation; Application supplies permission for its content owners. */
 export function transactionHistory(
   nodes: TransactionStore,
   options: {

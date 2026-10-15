@@ -1,8 +1,8 @@
 # UI previews
 
-The default preview renders the current `OpenProduct` with fictional records and a scripted Agent.
+The default preview renders the current `OpenApplication` with fictional records and a scripted Agent.
 Keep that entry neutral: current product behavior, the existing movable preview pill, and no active
-design comparison. `app/main.tsx` opens the same Product with production storage and credentials;
+design comparison. `app/main.tsx` opens the same Application with production storage and credentials;
 `app/preview/main.tsx` supplies sample adapters and the preview frame.
 
 ## Review a UI change
@@ -42,13 +42,13 @@ Keep experiments in an explicit comparison entry or prototype branch. Reuse publ
 Keep fixtures equivalent across alternatives. The picker owns selection; changing devices retains
 the active content, while changing variants mounts the chosen content afresh. See the
 [kit preview interface](../../app/ui/kit/README.md#live-comparisons) for the controls. Preserve the
-comparison and verdict separately after selection, and return the default preview to current Product
+comparison and verdict separately after selection, and return the default preview to current Application
 behavior without variation labels or an inactive picker.
 
 ## Promote and verify
 
 1. Implement the selected behavior in its owning production workflow and shared kit presentation.
-   Product composes the same record UI wherever that record appears. Sample-only records and
+   Application composes the same record UI wherever that record appears. Sample-only records and
    scripted model behavior belong in `app/preview/`; they supply examples, not the feature itself.
 2. Run a focused production browser check through `app/main.tsx`, login and the production storage
    adapter with fictional transport fixtures. Verify the selected UI, explicit writes and reload;

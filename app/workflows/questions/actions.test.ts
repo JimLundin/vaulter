@@ -13,22 +13,12 @@ import type {
 } from '../../vault/nodes/store.ts';
 import { fakeGitHub } from '../../vault/storage/github-client/fake-github.ts';
 import { githubNodeBackend } from '../../vault/storage/nodes/github.ts';
-import {
-  createQuestionOwnership,
-  type AskQuestionInput,
-  type QuestionContextReading,
-  type QuestionWriter,
-} from './actions.ts';
+import { createQuestionOwnership, type AskQuestionInput, type QuestionWriter } from './actions.ts';
 import { prepareAskQuestion, type QuestionCommit } from './operations.ts';
 import { readQuestions } from './reading.ts';
 
 const agent: Omit<QuestionWriter, 'id'> = { kind: 'agent', recordedBy: 'agent', origin: 'context' };
 const person: Omit<QuestionWriter, 'id'> = { kind: 'person', recordedBy: 'user', origin: null };
-const reading: QuestionContextReading = {
-  text: (node) => (typeof node.data?.text === 'string' ? node.data.text : undefined),
-  isKnowledge: (node) => node.data?.kind === 'run',
-  title: () => 'Retained source',
-};
 const input: AskQuestionInput = {
   text: '  Which wall?  ',
   subject: 'page',
@@ -60,7 +50,7 @@ function initialRecords() {
 async function fixture() {
   const raw = memoryNodeBackend();
   await raw.commit(initialRecords());
-  const actions = createQuestionOwnership({ nodes: raw, reading });
+  const actions = createQuestionOwnership({ nodes: raw });
   const nodes: NodeStore = {
     ...raw,
     commit: (value) => raw.commit(value, actions.publication),
@@ -68,7 +58,7 @@ async function fixture() {
   return { raw, nodes, actions };
 }
 
-test('Questions actions construct and authorize complete grounded Questions and direct Answers', async () => {
+test('Questions actions construct and authorize complete Questions with Agent-selected references and direct Answers', async () => {
   const { raw, nodes, actions } = await fixture();
   const asked = actions.ask(await nodes.snapshot(), input, { ...agent, id: crypto.randomUUID() });
   expect(asked.changes).toHaveLength(3);
@@ -97,7 +87,7 @@ test('Questions actions construct and authorize complete grounded Questions and 
   raw.close();
 });
 
-test('Questions actions admit only grounded Agent creation and a person recording the Answer', async () => {
+test('Questions actions admit only valid Agent creation and a person recording the Answer', async () => {
   const { raw, nodes, actions } = await fixture();
   const view = await nodes.snapshot();
   expect(() => actions.ask(view, input, { ...person, id: crypto.randomUUID() })).toThrow(
@@ -107,9 +97,7 @@ test('Questions actions admit only grounded Agent creation and a person recordin
     { ...input, suggestions: [] },
     { ...input, source: undefined },
     { ...input, knowledge: undefined },
-    { ...input, source: input.knowledge[0] },
-    { ...input, knowledge: [input.source] },
-    { ...input, subject: 'source' },
+    { ...input, subject: 'missing' },
   ];
   for (const value of invalid)
     expect(() =>
@@ -132,37 +120,27 @@ test('Questions actions admit only grounded Agent creation and a person recordin
   raw.close();
 });
 
-test('the creation action retains foreign ancestry used to admit knowledge with an ordinary Snapshot', async () => {
-  const { raw, nodes } = await fixture();
-  await raw.commit(
-    request('placed-knowledge', [
-      {
-        ...(await revise(raw, 'knowledge', { kind: 'run', text: 'Light matters for fine work.' })),
-        placement: { parent: 'page', order: 'a' },
-      },
-    ]),
-  );
-  const actions = createQuestionOwnership({
-    nodes: raw,
-    reading: {
-      ...reading,
-      isKnowledge: (node, view) =>
-        Boolean(node.placement && view.get(node.placement.parent)?.data?.kind === 'page'),
-    },
-  });
+test('Questions accepts Agent-selected Node references without interpreting their foreign records', async () => {
+  const { raw, nodes, actions } = await fixture();
   const asked = actions.ask(
     await nodes.snapshot(),
     {
       ...input,
-      subject: undefined,
-      knowledge: [{ node: 'knowledge', transaction: 'placed-knowledge' }],
+      subject: 'foreign',
+      source: input.knowledge[0]!,
+      knowledge: [input.source],
     },
     { ...agent, id: crypto.randomUUID() },
   );
-  expect(asked.expectedReads).toMatchObject({ page: 'setup', knowledge: 'placed-knowledge' });
-  await raw.commit(request('removed-knowledge-parent', [await revise(raw, 'page', null)]));
-  await expect(raw.commit(attributed(asked), actions.publication)).rejects.toThrow('Conflict');
-  expect((await nodes.snapshot()).get(asked.changes[0].node)).toBeUndefined();
+  expect(asked.expectedReads).toMatchObject({
+    foreign: 'setup',
+    source: 'setup',
+    knowledge: 'setup',
+  });
+  await nodes.commit(attributed(asked));
+  const [question] = await readQuestions(nodes);
+  expect(question.subject?.address).toEqual({ node: 'foreign' });
+  expect(question.sources?.[0]?.address).toEqual(input.knowledge[0]);
   raw.close();
 });
 
@@ -290,7 +268,7 @@ test('other owners may add their changes and reads before admission, and exact a
   const accepted = await nodes.commit(structuredClone(combined));
   expect(await nodes.commit(structuredClone(combined))).toEqual(accepted);
   // Accepted retry identity remains authoritative when the application owner is reassembled.
-  const replacement = createQuestionOwnership({ nodes: raw, reading });
+  const replacement = createQuestionOwnership({ nodes: raw });
   expect(await raw.commit(structuredClone(combined), replacement.publication)).toEqual(accepted);
   expect(await readQuestions(nodes)).toHaveLength(1);
   raw.close();
@@ -329,7 +307,7 @@ describe('Questions action publication through GitHub', () => {
     };
     const raw = open();
     await raw.commit(initialRecords());
-    const actions = createQuestionOwnership({ nodes: raw, reading });
+    const actions = createQuestionOwnership({ nodes: raw });
     const nodes: NodeStore = {
       ...raw,
       commit: (value) => raw.commit(value, actions.publication),
@@ -423,7 +401,7 @@ describe('Questions action publication through GitHub', () => {
     }) as typeof fetch;
     const failing = open(flaky);
     await failing.refresh();
-    const actions = createQuestionOwnership({ nodes: failing, reading });
+    const actions = createQuestionOwnership({ nodes: failing });
     const asked = attributed(
       actions.ask(await failing.snapshot(), input, { ...agent, id: crypto.randomUUID() }),
     );
@@ -440,7 +418,7 @@ describe('Questions action publication through GitHub', () => {
     );
     await raw.refresh();
     expect(await readQuestions(raw)).toHaveLength(1);
-    const replacement = createQuestionOwnership({ nodes: raw, reading });
+    const replacement = createQuestionOwnership({ nodes: raw });
     expect(await raw.commit(structuredClone(asked), replacement.publication)).toEqual(accepted);
     expect(state.main).toBe(acceptedHead);
   });

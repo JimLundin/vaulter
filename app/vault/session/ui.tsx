@@ -23,7 +23,7 @@ import {
   Stack,
   Text,
 } from '../../ui/kit/index.ts';
-import type { SettingDefinition } from '../../settings.ts';
+import type { SettingDefinition } from '../../settings/store.ts';
 import type { Credential } from './credentials.ts';
 import type { Session, Status } from './session.ts';
 import { REMEMBER_DAYS } from './unlock.ts';
@@ -261,7 +261,7 @@ export function RefreshNodes({
   );
 }
 
-/** Product may supply its cross-module teardown; Session owns the sign-out task presentation. */
+/** Application may supply its cross-module teardown; Session owns the sign-out task presentation. */
 export function SignOut({ onSignOut }: { onSignOut: NonNullable<Session['signOut']> }) {
   const [pending, setPending] = useState(false);
   const signingOut = useRef<boolean>(false);

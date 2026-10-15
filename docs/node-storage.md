@@ -6,7 +6,7 @@ recorded data. Valid submitted content is preserved; edits and undo append new v
 transactions without modifying earlier records.
 
 [Chat](chat-nodes.md) and [independent Agent](agent-records.md) produce accepted nodes through this
-contract, and Product supplies models, identities and module-owned tools explicitly. Core
+contract, and Application supplies models, identities and module-owned tools explicitly. Core
 [History operations](node-consumers.md) and the History screen read transactions and prepare guarded
 compensation. Search retains its legacy file workflow; sensor collection is not part of this
 producer integration. Migration is separate work inside the Vault.
@@ -16,10 +16,15 @@ its standalone shell, scratch keys, reset actions, and full replay reads are not
 ## Application interface
 
 `session.nodes` is a `TransactionStore`, or null before the node adapter is available. `session.nodeStatus`
-tracks its synchronization separately from the legacy file session. Bootstrap supplies `OpenNodes`;
+tracks its synchronization separately from the legacy file session. Bootstrap supplies `OpenNodes` from `app/vault/session/adapters.ts`;
 the design preview supplies the memory adapter. Workflows receive no key, token, Git client, or
 adapter lifecycle methods. Read-only consumers use `NodeReading`; application writers receive the
 same reads plus `writer(context).lifetime()`. The facade has no raw `commit` member, even at runtime.
+
+File adapters live in `app/vault/storage/files/`; Node persistence lives in
+`app/vault/storage/nodes/`. Both may use `storage/github-client/` and browser coordination, but
+neither persistence format imports the other. Session owns credential-bearing adapter constructors;
+`vault/nodes/` depends only on the Node model and generic Runtime helpers.
 
 ```ts
 const snapshot = await nodes.snapshot();
@@ -71,7 +76,7 @@ Replacement invalidates unfinished calculation immediately, preserves finalized 
 identity, and supplies a fresh reading facade. Previously borrowed facades direct new reads and writes
 to the current adapter. Sign-out closes admission, drains entered writes, then clears and closes storage.
 
-Application ownership is composed by Product on top of that generic interface. Its supplied
+Application ownership is composed by Application on top of that generic interface. Its supplied
 TransactionStore always forwards the Questions publication rule; application callers cannot replace it.
 The rule runs synchronously inside actual acceptance after authoritative refresh in both adapters,
 before publishing any new Transaction. Questions interprets the previous and proposed records and
@@ -80,7 +85,7 @@ Persistence imports no Questions definitions and serializes no publication permi
 Historical validation and an identical already-accepted retry do not invoke new-action admission.
 Raw adapter construction and acceptance/loading functions stay with bootstrap, persistence and
 historical fixtures. Raw `NodeStore.commit` stays inside core Transactions and persistence. Session
-hooks remain with Vault assembly and Product, and
+hooks remain with Vault assembly and Application, and
 preview fixtures remain outside production callers. Compiler-resolved ownership checks in
 `tools/layout.test.ts` enforce these paths through aliases and re-exports.
 
@@ -172,6 +177,6 @@ independent error status, synchronous replacement invalidation, delayed adapter 
 sign-out draining and cleanup using fictional records. Core tests cover scope closure, immutable
 retries, admission, independent writes, composition, original-result retention and disposal.
 
-Product integration tests exercise Chat→Agent→content→durable receipts→response→reopened records,
+Application integration tests exercise Chat→Agent→content→durable receipts→response→reopened records,
 independent Agent execution and producer-owned compensation. Text/voice execution and recovery use
 the same TransactionStore. No test accesses the private Vault or performs the separate migration.

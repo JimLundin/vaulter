@@ -3,7 +3,7 @@
 Core Transactions provides the shared reading and scoped writing interface to the Vault.
 [Chat](chat-nodes.md) owns conversation/exchange/message
 production and its provenance; [Agent](agent-records.md) independently owns runs, effective context
-and tool executions. Product explicitly composes their initial records, models and module-owned tools.
+and tool executions. Application explicitly composes their initial records, models and module-owned tools.
 Storage retains generic JSON, versions, attribution, placement and connections without knowledge of
 producer payloads. Core owns the History screen, reading and guarded compensation; Search retains
 its legacy file workflow. Sensor collection
@@ -14,6 +14,7 @@ TransactionStore: Vault reads and scoped Transaction requests
   ├─ Chat: conversation → exchange → user/Agent messages
   ├─ Agent: independent run → effective context and durable tool executions
   ├─ Content tools: accepted content nodes and versions
+  ├─ Questions: atomic Question/Answer records and generic subject/evidence references
   └─ History: attributed cutoffs, differences and composed guarded compensation
 ```
 
@@ -46,7 +47,9 @@ transactions so response completion or Stop cannot undo accepted content.
 
 `savedChats()` pages submitted transactions at one viewing cutoff and lists each available
 conversation once, newest submission first. `savedMessages()` reads ordered exchanges/messages
-at the requested snapshot cutoff and returns their immutable recorded statuses. A historical
+at the requested snapshot cutoff and returns their immutable recorded statuses. Agent owns
+run/tool traversal through `agentRunsIn`; Chat owns matching submissions and projecting returned
+activity into ordered message parts. A historical
 running response stays running in this projection. Runtime reads can expose available local ownership;
 missing local ownership leaves remote liveness unknown and does not prove abandonment. Reading records never executes tools.
 
@@ -71,7 +74,7 @@ interpretation creates a correction linked to original evidence, rather than ove
 Browser sensors and collection orchestration are outside this integration. The new Chat producer
 accepts only its metadata payloads. Historical `parseMetadata` delegates old run/context/tool
 discriminators to Agent schemas, retaining unknown fields and legacy exchange-sibling containment.
-`readAgentRun` follows current run children, without inventing legacy relationships or outcomes.
+`readAgentRunAt` follows run children in the selected Snapshot, without inventing legacy relationships or outcomes.
 References verify recorded version existence, not the factual support of a claim
 or the semantic validity of a selected text range in a particular projection.
 
@@ -90,19 +93,19 @@ repeating an uncertain operation retries the exact finalized request. `prepareCo
 pure calculation helper, using the core-allocated ID, author and `undoOf`. It restores previous data,
 placement and connection or appends a tombstone for new content. Expected versions reject any
 intervening affected-node change atomically. Its required
-`canUndo` callback is supplied by Product from feature-owned policies. Chat exports
+`canUndo` callback is supplied by Application from feature-owned policies. Chat exports
 `preservesChatRecords()` to reject changes to its transcript/provenance payloads, checking both
 before and after versions, including deletions and retagging. Mixed transactions are refused if
-any change fails the composed policy. Product combines `preservesAgentRecords`,
+any change fails the composed policy. Application combines `preservesAgentRecords`,
 `preservesChatRecords` and content-owned `canUndoContent`. Agent conservatively preserves all
 metadata reference nodes. History never imports either producer or hardcodes its record kinds.
-Product retains this History owner across reading-facade replacement. Other consumers supply their
+Application retains this History owner across reading-facade replacement. Other consumers supply their
 own `canUndo` policy to `transactionHistory`; actor authorization and allowed content operations
 belong to trusted writer context. History UI and operations live under `app/vault/transactions/history/`.
 
 ## Integrated producer behavior
 
-The Product accepts Chat submission and initial Agent records together before effects. Chat's local
+The Application accepts Chat submission and initial Agent records together before effects. Chat's local
 append queue spans preparation/acceptance only; Agent has no whole-Vault execution lock. Module
 tools declare reads and own stronger coordination; child reads do not protect absent future children.
 Complete retained requests survive uncertain acceptance. Tool invocation acceptance precedes effects,
@@ -110,12 +113,12 @@ and outcome acceptance precedes dependent provider continuation. Persistence fai
 from execution failures, with saving-only retries. Stop preserves accepted content and drains entered
 work. Reopening reconstructs records without replay; absent local ownership leaves liveness unknown.
 
-`productNodeHistory` exposes generic History and composed compensation. Removing a workflow removes
+`applicationNodeHistory` exposes generic History and composed compensation. Removing a workflow removes
 its execution/decoding code, while core History, differences and snapshots still retain every
 accepted generic record. Separate producer/content transactions let content undo preserve transcript
 and audit evidence. Migration inside the Vault and remote history growth remain separate work.
 
-Verification uses production memory/GitHub adapters with fictional data: composed Product Chat to
+Verification uses production memory/GitHub adapters with fictional data: composed Application Chat to
 Agent/content/receipts/response/reopen, independent and voice Agent behavior, exact context evidence,
 persistence recovery, historical attribution and guarded content undo. Existing adapter suites cover
 remote acceptance, cache rebuild/reopen, lost responses and competing devices. No test accesses the

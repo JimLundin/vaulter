@@ -87,7 +87,3 @@ export interface NodeBackend extends NodeStore {
   /** Release subscriptions and reject further operations. */
   readonly close: () => void;
 }
-
-export type OpenNodes = (options: {
-  readonly secrets: import('../session/sealed.ts').Secrets;
-}) => NodeBackend;

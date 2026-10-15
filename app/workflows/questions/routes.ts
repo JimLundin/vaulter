@@ -1,4 +1,4 @@
-import { pattern } from '../../ui/routing.ts';
+import { pattern } from '../../navigation/routing.ts';
 
 const collection = pattern('/questions/');
 const formerDetail = pattern('/questions/:node/');

@@ -32,7 +32,7 @@ test('safe credential tasks bind owner keys, preserve absence provenance and kee
   expect(updateSecret).toHaveBeenCalledTimes(3);
 });
 
-test('owner pending state and Product restrictions reject tasks before credential execution', async () => {
+test('owner pending state and Application restrictions reject tasks before credential execution', async () => {
   const updateSecret = vi.fn();
   const source = {
     secrets: { github: 'login-token' },

@@ -20,7 +20,7 @@ or change which panes can be open together. Consolidating that application behav
 migration's scope.
 
 Shared presentation is extracted based on real reuse. Domain interpretation stays with its owner;
-another module does not acquire that interpretation by copying it or moving it into the kit. Product
+another module does not acquire that interpretation by copying it or moving it into the kit. Application
 continues to compose workflow interfaces explicitly. Existing Base UI mechanics, the generic node
 model and historical citation semantics remain as decided in ADR 0001, 0002 and 0005.
 

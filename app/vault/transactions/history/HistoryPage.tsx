@@ -1,4 +1,4 @@
-// Core History presents transactions; Product supplies content-owner compensation policy.
+// Core History presents transactions; Application supplies content-owner compensation policy.
 import { FeaturePage, Stack, Text } from '../../../ui/kit/index.ts';
 import { NodeHistory, type NodeHistorySource } from './NodeHistory.tsx';
 

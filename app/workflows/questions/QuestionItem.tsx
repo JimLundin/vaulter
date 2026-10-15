@@ -1,3 +1,4 @@
+import type { QuestionAnswerHandler } from './answers.ts';
 import { useId, useLayoutEffect, useRef, useState } from 'react';
 import {
   Badge,
@@ -33,8 +34,6 @@ export interface QuestionTargetDescription {
   readonly href?: string;
   readonly navigationLabel?: string;
 }
-
-export type QuestionAnswerHandler = (question: Question, text: string) => Promise<void>;
 
 export interface QuestionItemProps {
   readonly question: Question;

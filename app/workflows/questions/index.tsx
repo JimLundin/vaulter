@@ -1,6 +1,6 @@
+export type { QuestionAnswerHandler } from './answers.ts';
 export {
   QuestionItem,
-  type QuestionAnswerHandler,
   type QuestionItemProps,
   type QuestionTargetDescription,
 } from './QuestionItem.tsx';

@@ -2,7 +2,7 @@
 // for 30 days. Device credential overrides use that same key; vault contents remain plaintext.
 import { deriveKey, unseal, type Sealed, type Secrets } from './sealed.ts';
 import { database, done } from './idb.ts';
-import { serial } from '../storage/coordination.ts';
+import { serial } from '../../runtime/async.ts';
 
 // Keep the existing key format: adding encrypted overrides does not discard remembered logins.
 const db = database('vault', 5, { keys: 'id' });

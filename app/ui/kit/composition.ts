@@ -159,6 +159,7 @@ export const implementations = [
   { source: 'index.ts', mechanics: [] },
   { source: 'lib/unstyled.tsx', mechanics: ['unstyled'] },
   { source: 'lib/utils.ts', mechanics: [] },
+  { source: 'list-navigation.ts', mechanics: ['rows', 'move', 'navigateList'] },
   { source: 'main.tsx', mechanics: [] },
   {
     source: 'map-impl.tsx',

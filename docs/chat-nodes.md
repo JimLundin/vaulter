@@ -37,7 +37,7 @@ actual write retries use a fresh `using` lifetime and the retained finalized cor
 
 ## Retained Chat interaction
 
-`createNodeConversation()` is the primary interaction consumed by Product, Chat page/pane and the
+`createNodeConversation()` is the primary interaction consumed by Application, Chat page/pane and the
 conversation chooser. Its snapshot includes shared draft, turns, submission/review, prompts,
 selection/records, action availability with reasons, capture and recovery. Availability informs the
 presentation; every action rechecks admission. There is no raw Chat Send/handoff API that bypasses
@@ -59,7 +59,7 @@ share capture, busy-run and recovery restrictions across chooser, commands and r
 intent leaves the current task intact. The latest eligible explicit selection wins overlapping reads;
 New, submission and destruction invalidate old reads. Startup restoration has lower priority.
 Open preserves the draft; New clears it after admission and creates no empty persisted conversation.
-Selection pending/errors are shared task state. Product reconciles failed/blocked routes with the
+Selection pending/errors are shared task state. Application reconciles failed/blocked routes with the
 actual selected identity; the chooser dismisses after a selected outcome. `watchRecords()` retains
 shared subscribed list reading while a chooser is visible; snapshots expose loading/error/results.
 Saved reading requires no configured model and never replays unfinished Agent/tool work.
@@ -88,7 +88,7 @@ cannot mark the same reply unread again.
 
 Draft, review, prompts, selection and accepted run survive ordinary view closure within the owning
 application session. Focus and chooser disclosure remain presentation state. Unsubmitted task state
-is not newly persisted across reload. Product supplies a stable Vault session scope, TransactionStore,
+is not newly persisted across reload. Application supplies a stable Vault session scope, TransactionStore,
 identities and capabilities. Same-session readiness/configuration changes apply to later work while
 an active request keeps its admitted backend/context and a recording keeps its original provider.
 Adapter replacement invalidates unfinished write calculations and stale selection reads while
@@ -104,7 +104,7 @@ acceptance and domain effects retain their independent ownership; shutdown start
 response/terminal/recovery work. Sign-out/session hooks release both owners. View/list release is
 idempotent and does not destroy retained Chat work.
 
-## Product composition and caller configuration
+## Application composition and caller configuration
 
 The product supplies the session TransactionStore, selected OpenAI capabilities and the content module's
 `createNode`, `readNode` and `updateNode` tools to node-backed Chat. The tools publish content directly
@@ -115,7 +115,7 @@ create/update operations; Agent supplies the stable Agent author and run origin.
 schemas validate titles and text; tools cannot edit producer records. This is one producer layout,
 not an importer or a translation of the Vault. The separate migration can populate these records.
 
-Caller configuration supplies user and Agent identities through `OpenProduct.identities`. Defaults
+Caller configuration supplies user and Agent identities through `OpenApplication.identities`. Defaults
 are `vaulter:owner` and `vaulter:agent`, configured for this personal application and unrelated to
 GitHub token identity or device identity. Missing records are bootstrapped atomically as actor/Agent
 nodes; existing migrated records and Agent configuration remain intact. Deleted or incompatible

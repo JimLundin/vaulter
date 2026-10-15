@@ -30,14 +30,6 @@ export function QuestionToolReceipt({ evidence }: { evidence: RecordedToolEviden
       {typeof output?.status === 'string' && (
         <Text size="sm">Question status when read: {output.status}</Text>
       )}
-      {evidence.name === questionToolActions.context &&
-        Array.isArray(output?.sources) &&
-        Array.isArray(output.knowledge) && (
-          <Text size="sm">
-            Retained context: {output.sources.length} sources · {output.knowledge.length} knowledge
-            passages
-          </Text>
-        )}
     </Stack>
   );
 }
@@ -47,23 +39,11 @@ export const questionToolPresentation: ToolPresentationAdapter = (evidence) => {
   const action =
     evidence.name === questionToolActions.ask
       ? { title: 'Ask a Question', live: 'Retaining a Question', done: 'retained Questions' }
-      : evidence.name === questionToolActions.context
-        ? {
-            title: 'Read Question context',
-            live: 'Reading Question context',
-            done: 'read Question context',
-          }
-        : evidence.name === questionToolActions.subjects
-          ? {
-              title: 'List Question subjects',
-              live: 'Listing Question subjects',
-              done: 'listed Question subjects',
-            }
-          : evidence.name === questionToolActions.read
-            ? { title: 'Read a Question', live: 'Reading a Question', done: 'read Questions' }
-            : evidence.name === questionToolActions.list
-              ? { title: 'List Questions', live: 'Listing Questions', done: 'listed Questions' }
-              : undefined;
+      : evidence.name === questionToolActions.read
+        ? { title: 'Read a Question', live: 'Reading a Question', done: 'read Questions' }
+        : evidence.name === questionToolActions.list
+          ? { title: 'List Questions', live: 'Listing Questions', done: 'listed Questions' }
+          : undefined;
   if (!action) return;
   const output = object(evidence.output);
   const accepted =
@@ -73,9 +53,7 @@ export const questionToolPresentation: ToolPresentationAdapter = (evidence) => {
         typeof output.transaction === 'string'
       : evidence.name === questionToolActions.read
         ? typeof output?.question === 'string' && typeof output.text === 'string'
-        : evidence.name === questionToolActions.context
-          ? Array.isArray(output?.sources) && Array.isArray(output.knowledge)
-          : Array.isArray(evidence.output);
+        : Array.isArray(evidence.output);
   return {
     title: action.title,
     live: action.live,

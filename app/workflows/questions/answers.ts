@@ -1,8 +1,10 @@
 import { frozen } from '../../vault/nodes/json.ts';
 import type { TransactionRequest, TransactionStore } from '../../vault/transactions/store.ts';
-import type { QuestionAnswerHandler } from './QuestionItem.tsx';
+
 import { createQuestionOwnership } from './actions.ts';
 import type { Question } from './reading.ts';
+
+export type QuestionAnswerHandler = (question: Question, text: string) => Promise<void>;
 
 export interface QuestionAnswersOptions {
   /** Navigation and capability replacement retain this application session's task owner. */

@@ -361,3 +361,5 @@ export { SupportingPane } from './supporting-pane.tsx';
 export { PassageCard } from './passage-card.tsx';
 
 export { TextBox } from './text-box.tsx';
+
+export { navigateList } from './list-navigation.ts';

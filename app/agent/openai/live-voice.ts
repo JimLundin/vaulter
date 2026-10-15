@@ -4,7 +4,7 @@ import type { LiveVoiceProvider } from '../voice.ts';
 import type { VoiceHistory, VoicePart } from '../voice.ts';
 import type { JsonValue } from '../../vault/nodes/model.ts';
 import { canonical } from '../../vault/nodes/json.ts';
-import { serial } from '../../vault/storage/coordination.ts';
+import { serial } from '../../runtime/async.ts';
 import { openAIWebRTC } from './webrtc.ts';
 import { DEFAULT_MODELS, DEFAULT_VOICE } from './defaults.ts';
 import type { OpenAIConnectionOptions } from './http.ts';

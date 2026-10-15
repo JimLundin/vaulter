@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
-import { memoryBackend } from '../storage/memory.ts';
-import { CheckFailed, Conflict, type Head } from '../storage/backend.ts';
+import { memoryBackend } from '../storage/files/memory.ts';
+import { CheckFailed, Conflict, type Head } from '../storage/files/backend.ts';
 import { writerCore, type Overlay } from './writer.ts';
 import { StagedChanges, type OwnedVault } from './operations.ts';
 import { vaultRules as RULES } from '../validation/rules.ts';

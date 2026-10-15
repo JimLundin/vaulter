@@ -21,7 +21,7 @@ as evidence, including when linked from another page. Eligibility follows histor
 | [Source reading](../app/vault/sources.ts) | `SourceReader` lets callers compose the historical text and descriptions supplied by record owners |
 | [NodeStore](../app/vault/nodes/store.ts) | Read snapshots and atomically append structurally valid transactions |
 
-Chat, Agent, Content and retained record owners interpret their own payloads. Product composes those
+Chat, Agent, Content and retained record owners interpret their own payloads. Application composes those
 readers for the application; Vault tooling composes them for ingestion. Source-specific parsing,
 retrieval, ranking, identity allocation and authorship stay with the translator. A richer extraction
 strategy can retain more source material and propose new records; the target module validates those

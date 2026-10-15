@@ -125,7 +125,7 @@ const recordKinds: ReadonlySet<string> = new Set([
   'metadataReference',
 ]);
 
-/** Product can supply this policy to History without a History-to-Chat dependency. */
+/** Application can supply this policy to History without a History-to-Chat dependency. */
 export function preservesChatRecords({ before, after }: NodeDifference): boolean {
   return [before, after].every(
     (version) =>

@@ -397,7 +397,7 @@ export function createTransactionSession(initial: NodeStore | null = null) {
   };
 }
 
-/** Product adds owner publication rules without exposing the persistence adapter. */
+/** Application adds owner publication rules without exposing the persistence adapter. */
 export function withPublication(
   nodes: TransactionStore,
   publication: NodePublicationRule,

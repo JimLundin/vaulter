@@ -22,8 +22,6 @@ test('Questions renders retained request evidence and owner labels without readi
   expect(toolSummary(evidence, 1, [questionToolPresentation])).toBe('retained 1 Question');
   expect(questionEnabledTools.map(({ name }) => name)).toEqual([
     'askQuestion',
-    'listQuestionContext',
-    'listQuestionSubjects',
     'readQuestion',
     'listQuestions',
   ]);

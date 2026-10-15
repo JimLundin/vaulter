@@ -1,7 +1,7 @@
 # The kit
 
 The app's component kit, imported from branch `ui-kit` at `2c30183`. Its reference design is in
-`design/`. Product, shared UI and workflow screens compose `index.ts`; no public component takes
+`design/`. Application, shared UI and workflow screens compose `index.ts`; no public component takes
 `className` or `style`. Tailwind scans only this folder.
 
 The implemented [ADR 0006](../../../docs/adr/0006-module-ui-and-shared-presentation.md) keeps
@@ -49,7 +49,7 @@ on narrow screens, each comparison scrolls horizontally. Reference screens remai
 its registrations and rendered JSX against all public component exports, so adding a component
 without a live example fails CI. `tools/layout.test.ts` rejects intrinsic JSX, styling props (including
 object spreads), intrinsic element factories, private kit imports and direct presentation dependency
-imports throughout Product, shared UI and workflows. Semantic forms use the public `Form` component.
+imports throughout Application, shared UI and workflows. Semantic forms use the public `Form` component.
 Only exact Wiki block semantic markup and Chat code/error content retain narrow rendering permissions;
 new renderer helpers cannot implement layout, styling, controls or scrolling. The exact vault-link
 annotation transform may annotate semantic data, with no UI presentation permission.
@@ -67,6 +67,7 @@ annotation transform may annotate semantic data, with no UI presentation permiss
 | `app.tsx` | spacing, typography, pages, expanded sidebar and shared workspace frame |
 | `overlay.tsx` | one dialog tree, centered or bottom-aligned; full-screen search in compact space |
 | `drawer.tsx` | the public `Drawer`, centered in expanded space and rising from the bottom in compact space |
+| `list-navigation.ts` | generic visible-row focus and scrolling, invoked before application commands |
 | `navigation.tsx` | `NavigationSuite`: one navigation as a sidebar or a freestanding edge rail |
 | `page-controls.tsx` | module-owned actions, search and filters with shared responsive placement |
 | `mobile-edge-rail.tsx` | private lower-right rail, inward menus and input clearance |
@@ -88,7 +89,7 @@ views compose public exports and avoid ad hoc styling. Markdown content renderin
 exception. Maps require `https://tiles.openfreemap.org` in the consuming page's CSP; the current
 product does not use maps.
 
-The composer uses one primary action across Product, the preview and catalogue: microphone when
+The composer uses one primary action across Application, the preview and catalogue: microphone when
 unfocused, Enter when focused, and a supporting Stop action while responding. Microphone and Enter
 use the shared Filled style. The design preview pill contains a Mobile toggle, variant choices, the kit link and reset;
 the completed A/B/C input-style comparison has been removed. See [input-button.md](input-button.md).
@@ -104,7 +105,7 @@ Controls originate from **shadcn/ui**, with **Base UI** for interactions and **T
 They are owned source in `parts/`, not a separately themed
 component library. Vaulter defines the layout, type, colors and responsive roles on top of them.
 Search uses inline Base UI Autocomplete behind the existing Command interface. Command retains
-automatic filtering, empty-state announcements and keyboard selection; Product supplies ranked
+automatic filtering, empty-state announcements and keyboard selection; Application supplies ranked
 results with `shouldFilter={false}`. The [Search decision](../../../docs/adr/0001-base-ui-search.md)
 records why cmdk was removed and the clarified scope: default Command uses Base UI text matching
 in caller order; legacy cmdk options are not a compatibility target. Composition uses Base UI's
@@ -211,7 +212,7 @@ adds one.
 | Titled expandable rows with labelled actions | The same rows with accessible icon actions | `ExpandableRow`, `RowAction` |
 | Single horizontally scrolling prompt row | The same row, with a fade at clipped edges | `PromptSuggestions`, `OptionStrip` |
 
-**Navigation is declared once.** Product lists destinations and application actions in
+**Navigation is declared once.** Application lists destinations and application actions in
 `ui/command.ts`. `Frame` passes them to `NavigationSuite`, which chooses the sidebar or the compact
 rail. Modules always occupies the bottom anchor; page controls extend above it. Destinations and
 Tools stay in its inward menu as the application grows. Settings sits beside the Vaulter mark in
@@ -237,7 +238,7 @@ The selected design and archived comparison are recorded in
 [the edge rail delivery](../../../docs/design/mobile-edge-rail.md).
 
 **Feature preferences are assembled once.** `SettingsMenu` takes `{ name, content }` entries from
-Product, using each name as its section heading. Fields and persistence remain in the feature's
+Application, using each name as its section heading. Fields and persistence remain in the feature's
 settings view; the kit owns grouping and arrangement. Appearance stays an application section.
 Settings opens over the current destination without changing its route or discarding its draft.
 `FeaturePage` centers History and other screens on the same `--reading-width` as Agent. Page text
@@ -349,7 +350,7 @@ center. Position belongs to the mounted preview and resets on reload.
 `DesignComparison` supplies named alternatives and owns the selected variant. Its optional
 `preview` render callback receives the picker and selected content; pass the picker through
 `DesignPreview.variantControls` to put it beside the device choices in the floating pill.
-The default sample app renders the current Product directly with no variation picker.
+The default sample app renders the current Application directly with no variation picker.
 Explicit design experiments supply alternatives through this interface. The catalogue registers
 Note summary and Question summary to demonstrate independent variant selection. Device changes
 preserve the selected variant and its mounted fields; switching variants starts that variant's
@@ -396,7 +397,7 @@ that works:
 3. **Structure (`useLayout`, the size class).** Only when the arrangement itself differs, which is
    every row of the table above. Both shapes take the same props, use the same roles and show the
    same copy; only the kit branches, never a workflow. `useLayout` reads the breakpoint tokens
-   emitted by Tailwind, so CSS and React share the thresholds; the gallery supplies its local presentation class. Product may
+   emitted by Tailwind, so CSS and React share the thresholds; the gallery supplies its local presentation class. Application may
    use the size class to choose a route or restore a panel; no other file outside the kit reads it
    or queries the viewport, which `tools/layout.test.ts` enforces. There is no phone/desktop boolean.
 
@@ -599,7 +600,7 @@ Fictional Wiki record examples live in `app/preview/`, outside the production ca
 interface. Both the full preview and independent bounded pairs install real retained nodes, call
 `readWiki` and render module-owned `Wiki` UI. Selected evidence and newer/deleted source context
 use `PassageCard` and the shared supporting pane. The duplicated provenance prototype and its
-Product route are retired; old design links redirect only in the preview bootstrap.
+Application route are retired; old design links redirect only in the preview bootstrap.
 
 `PresentationPreview` supplies a bounded desktop/mobile canvas for catalogue and module examples.
 It owns shared portal, pointer and layout policy, accepts content plus device and height, and does

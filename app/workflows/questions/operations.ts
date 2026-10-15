@@ -1,3 +1,4 @@
+import { liveAncestry } from '../../vault/nodes/reading.ts';
 import { frozen } from '../../vault/nodes/json.ts';
 import type { NodeAddress, NodeVersion, Placement } from '../../vault/nodes/model.ts';
 import type { NodeCommit, NodeSnapshot } from '../../vault/nodes/store.ts';
@@ -46,29 +47,6 @@ function appendOrder(view: NodeSnapshot, parent: string, reads: Record<string, s
   return `${children.at(-1)?.placement?.order ?? ''}z`;
 }
 
-/** Supported subjects must remain reachable; a section must belong to a live Wiki page. */
-export function questionSubject(view: NodeSnapshot, node: string) {
-  const subject = view.get(node);
-  if (!(subject?.data && ['page', 'section'].includes(String(subject.data.kind))))
-    throw new Error('Question subject must be a live Wiki page or section.');
-  const expectedReads: Record<string, string | null> = {};
-  const seen = new Set<string>();
-  let current: NodeVersion | undefined = subject;
-  let page = false;
-  while (current) {
-    if (!current.data || seen.has(current.key.node))
-      throw new Error('Question subject is unavailable.');
-    seen.add(current.key.node);
-    expectedReads[current.key.node] = current.key.transaction;
-    if (current.data.kind === 'page') page = true;
-    if (!current.placement) break;
-    current = view.get(current.placement.parent);
-    if (!current) throw new Error('Question subject is unavailable.');
-  }
-  if (!page) throw new Error('Question section must belong to a live Wiki page.');
-  return { subject, expectedReads };
-}
-
 /** Prepare one Question without publishing or choosing the trusted author's identity. */
 export function prepareAskQuestion(
   view: NodeSnapshot,
@@ -97,7 +75,9 @@ export function prepareAskQuestion(
   }
   let placement: Placement | null = null;
   if (options.subject) {
-    Object.assign(expectedReads, questionSubject(view, options.subject).expectedReads);
+    const ancestry = liveAncestry(view, options.subject);
+    if (!ancestry) throw new Error('Question subject is unavailable.');
+    for (const version of ancestry) expectedReads[version.key.node] = version.key.transaction;
     placement = {
       parent: options.subject,
       order: appendOrder(view, options.subject, expectedReads),

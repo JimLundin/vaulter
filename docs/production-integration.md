@@ -11,7 +11,7 @@ unselected prose stays uncited and ordinary links retain navigation. Reference c
 context without leaving the page. Classifications resolve from stored terms and subject tags filter
 the real page collection. Connections and lifecycle records remain visible.
 
-Product uses this renderer directly in the production entry. Built production acceptance covers
+Application uses this renderer directly in the production entry. Built production acceptance covers
 Wiki navigation, UTF-16 claim/passage ranges, reference expansion, page-source reset, tag filtering,
 source navigation into persistent Chat and phone focus return. Deploy CI runs unit, layout, kit and
 built production checks on main before publishing to GitHub Pages. `version.json` records the
