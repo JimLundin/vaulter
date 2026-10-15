@@ -6,10 +6,10 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "vitest run",
-    "test:fast": "vitest run --project=behavior",
-    "test:watch": "vitest --project=behavior",
-    "test:architecture": "vitest run --project=architecture",
+    "test": "node tools/testing/run.ts vitest run",
+    "test:fast": "node tools/testing/run.ts vitest run --project=behavior",
+    "test:watch": "node tools/testing/run.ts vitest --project=behavior",
+    "test:architecture": "node tools/testing/run.ts vitest run --project=architecture",
     "test:all": "node tools/testing/ci-only.ts && npm run lint && npm run typecheck && npm test && npm run test:ui && npm run test:production",
     "typecheck": "tsc",
     "lint": "biome ci .",
@@ -18,9 +18,10 @@
     "design": "vite --mode design --open /preview/",
     "design:agent": "vite --mode design --open '/preview/?agent=live'",
     "build:design": "vite build --mode design && node tools/preview/prepare-design.ts && vite build app/ui/kit --outDir ../../../dist-preview/kit --emptyOutDir",
-    "test:ui": "playwright test",
-    "test:ui:matrix": "VAULTER_UI_MATRIX=full playwright test",
-    "test:production": "playwright test --config tools/testing/production.config.ts"
+    "test:ui": "node tools/testing/run.ts playwright test",
+    "test:ui:matrix": "node tools/testing/run.ts playwright-matrix test",
+    "test:production": "node tools/testing/run.ts playwright test --config tools/testing/production.config.ts",
+    "test:mutation": "stryker run tools/testing/stryker.config.json"
   },
   "dependencies": {
     "@ai-sdk/openai": "^4.0.83",
@@ -57,6 +58,8 @@
   "devDependencies": {
     "@biomejs/biome": "2.5.15",
     "@playwright/test": "^1.64.0",
+    "@stryker-mutator/core": "10.0.0",
+    "@stryker-mutator/vitest-runner": "10.0.0",
     "@types/estree": "^1.0.9",
     "@types/node": "^24.19.1",
     "@types/react": "^19.3.0",

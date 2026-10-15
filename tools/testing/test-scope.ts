@@ -98,10 +98,3 @@ export function requireTestScope(
     `Full test suites run only in GitHub Actions. Select a module, file or test name locally, for example:\n${example}\nCommit and push your feature branch for full verification; inspect CI for that commit. See docs/agents/testing.md.`,
   );
 }
-
-export function requirePlaywrightTestScope(): void {
-  // Playwright reloads config in IPC workers without the parent's CLI arguments.
-  // The parent has already checked the selection before it can start these children.
-  if (process.send) return;
-  requireTestScope('playwright', process.argv.slice(3));
-}

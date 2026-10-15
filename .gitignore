@@ -14,3 +14,5 @@ test-results/
 test-results-production/
 playwright-report/
 blob-report/
+.stryker-tmp/
+reports/mutation/

@@ -1,8 +1,5 @@
 import { defineConfig } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
-import { requirePlaywrightTestScope } from './test-scope.ts';
-
-requirePlaywrightTestScope();
 
 const port = process.env.VAULTER_PRODUCTION_PORT ?? '4180';
 
