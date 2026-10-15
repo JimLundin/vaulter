@@ -1,5 +1,4 @@
-// Hash routes: "#/janne/#heading". The path is a site href (paths.ts hrefForId: "/", "/janne/",
-// "/daily/2026-06-06/", "/topic/work/", "/map/"); an optional second "#" names a heading on the page.
+// Hash routes carry an application path and an optional second "#" for a heading anchor.
 import { useEffect, useState } from 'react';
 
 export interface Route {

@@ -75,7 +75,7 @@ export default defineConfig(({ command, mode }) => {
     worker: { plugins: () => [noEval()] },
     oxc: { target: ['chrome111', 'edge111', 'firefox114', 'safari16.4', 'ios16.4'] },
     server: { proxy: agent?.proxy },
-    // shadcn/ui's imports: @/components/ui/…, @/lib/utils.
+    // The source alias is also used by the kit's component-generator configuration.
     resolve: { alias: { '@': fileURLToPath(new URL('app', import.meta.url)) } },
     build: {
       outDir: mode === 'design' ? '../dist-preview' : '../dist',

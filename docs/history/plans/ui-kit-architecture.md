@@ -8,23 +8,23 @@ This document records scope and completion checks. Private composition verificat
 on `spec/5-private-composition-verification`, Composer interaction on `spec/6-composer-interaction`,
 and field association on `spec/7-accessible-field-association-complete`. Base UI migration is implemented
 on `spec/18-base-ui-and-presentation-policy`. Presentation policy completion is on
-`spec/8-presentation-policy-complete`, with acceptance tracked in the individual specs. The [four individual specs](docs/specs/ui-kit/README.md) define ownership, interface behavior and
+`spec/8-presentation-policy-complete`, with acceptance tracked in the individual specs. The [four individual specs](../ui-kit/README.md) define ownership, interface behavior and
 acceptance tests; they supersede this roadmap's earlier unresolved design questions.
-Current architecture is documented in [ARCHITECTURE.md](ARCHITECTURE.md); the kit's presentation
-rules and verification commands are in [its README](app/ui/kit/README.md).
+Current architecture is documented in [ARCHITECTURE.md](../../../ARCHITECTURE.md); the kit's presentation
+rules and verification commands are in [its README](../../../app/ui/kit/README.md).
 The [Base UI migration (#18)](https://github.com/JimLundin/vaulter/issues/18) is now a prerequisite
 to [presentation policy (#8)](https://github.com/JimLundin/vaulter/issues/8). Its first child
 [#17](https://github.com/JimLundin/vaulter/issues/17) replaces Vaul with the single public `Drawer`
 and removes side sheets; compact supporting panels use the same full-height bottom drawer.
 All kit primitives now use Base UI; Search uses its Autocomplete and no Radix dependency remains.
-The [Search library decision](docs/adr/0001-base-ui-search.md) records the removal of cmdk.
+The [Search library decision](../../adr/0001-base-ui-search.md) records the removal of cmdk.
 
 Completion validation on 9 October 2026: typecheck, lint, all 193 Vitest tests and product/design
 builds passed. The complete browser suite passed all 246 cases across phone, desktop and touch
 desktop. The final review cleanup additionally passed all 39 public presentation cases.
 Standards review found two minor ownership/duplication concerns, both resolved; Spec review found
 no substantive gaps under the Base UI scope and Search ADR. See the
-[presentation acceptance record](docs/specs/ui-kit/04-presentation-policy-acceptance.md).
+[presentation acceptance record](../ui-kit/04-presentation-policy-acceptance.md).
 
 ## Execution order
 
@@ -110,7 +110,7 @@ private implementation changes stay private; the leverage is one policy across c
 
 ### Implementation specification
 
-[Private composition verification](docs/specs/ui-kit/01-composition-verification.md) defines
+[Private composition verification](../ui-kit/01-composition-verification.md) defines
 compiler-resolved traversal, approved stopping points, diagnostics and checked metadata.
 
 ## 2. Deepen Composer interaction
@@ -170,7 +170,7 @@ Composer caller and locality to fixes for entry behavior.
 
 ### Implementation specification
 
-[Composer interaction](docs/specs/ui-kit/02-composer-interaction.md) defines controlled entry,
+[Composer interaction](../ui-kit/02-composer-interaction.md) defines controlled entry,
 one submission path, keyboard rules, state ownership and focus observation.
 
 ## 3. Own accessible field association
@@ -226,7 +226,7 @@ to association fixes and leverage to every settings field.
 
 ### Implementation specification
 
-[Accessible field association](docs/specs/ui-kit/03-accessible-field-association.md) defines one
+[Accessible field association](../ui-kit/03-accessible-field-association.md) defines one
 semantic control per field, private association context, text/group semantics and standalone use.
 
 ## 4. Concentrate presentation policy
@@ -285,7 +285,7 @@ policy; the leverage is consistent behavior across several overlay families.
 
 ### Implementation specification
 
-[Presentation policy](docs/specs/ui-kit/04-presentation-policy.md) defines scope ownership,
+[Presentation policy](../ui-kit/04-presentation-policy.md) defines scope ownership,
 library coordination, dismissal, restoration and effect cleanup across real environments.
 
 ## Verification and delivery

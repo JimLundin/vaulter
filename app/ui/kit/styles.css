@@ -1,7 +1,7 @@
 @import "./prose.css";
 @import "./loading.css";
-/* The kit's one stylesheet: Tailwind over the kit (kit/) only, never over extensions, which compose
- * the kit and can't style anything themselves. The values are the design's (design/README.md). */
+/* Tailwind scans only the kit. Application modules compose its public presentation.
+ * Historical screen references live in docs/design/reference, outside this scan. */
 @import "tailwindcss" source(none);
 @import "./passage-card.css";
 @source "./";

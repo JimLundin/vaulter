@@ -6,8 +6,7 @@ them in plaintext on the device, and works offline. Chat and Agent now produce n
 that targets the current Vaulter modules. Its source readers, extraction policy and private review
 data evolve in the Vault; Vaulter modules own their current record validation and historical reads.
 See [Wiki ingestion](docs/wiki-migration.md) for the boundary and current interfaces.
-The design and its history: `PLAN-browser-app.md`
-(written while the app still lived in the vault, as `site/`, and the repos were `my-vault` and `vault-pages`).
+See [Documentation](docs/README.md) for current contracts, decisions and historical delivery records.
 
 ## Commands
 
@@ -16,7 +15,7 @@ The design and its history: `PLAN-browser-app.md`
 | `npm ci` | install |
 | `npm run check` | the permanent note, schema and graph integrity checks over `../vault`, or `node tools/check.ts --vault <dir>`; the vault's CI uses the same check |
 | `npm run dev` | the app on the vault through GitHub, as built, in any browser, but with no password: it loads right in with the secrets from `.env.local` (gitignored): `VAULT_GITHUB_TOKEN`, and optionally `VAULT_OPENAI_KEY` and `VAULT_JINA_KEY`, the names CI seals. Only dev gets them; a build has none. Its commits go to the vault's `main`, as the app's do |
-| `npm run kit` | the component kit gallery and reference design |
+| `npm run kit` | the live component kit gallery |
 | `npm run design` | the current branch UI at `http://localhost:5173/preview/`, with fictional notes and scripted chat; no password, keys or vault connection |
 | `npm run design:agent` | local preview with the real agent at `/preview/?agent=live`; uses the configured API and token through the Vite server, with fictional data and local tool writes |
 | `npm run build:design` | the sample preview and component gallery into `dist-preview/` |
@@ -123,9 +122,6 @@ The [preview workflow for agents](docs/agents/preview.md) covers comparisons and
 Every branch push runs the checks. Non-main branches publish their sample preview at
 `/preview/<branch-name>/`, with the component gallery at `/preview/<branch-name>/kit/`.
 For example, `feature/input` publishes at `/preview/feature/input/`. `main` publishes production.
-`design-variants` is retained as historical design work; its remaining mobile polish and installation
-support have been integrated into `structure`. The historical branch still has its older workflow
-and should receive no further pushes.
 The banner identifies the preview commit; `version.json` records its branch.
 Use **Mobile** in the movable preview pill to review phone width from your desktop. Switch it off
 to follow the window. Switching retains your current page, draft and open settings/search fields.

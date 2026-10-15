@@ -1,7 +1,7 @@
 # UI kit implementation specs
 
 These are four individual implementation specs for the accepted UI kit architecture work. The
-[architecture plan](../../../PLAN-ui-kit-architecture.md) remains the roadmap. Each spec is
+[architecture plan](../plans/ui-kit-architecture.md) remains the roadmap. Each spec is
 self-contained and uses the same problem, solution, stories, decisions and testing format.
 
 | Order | Spec | GitHub issue | Primary test seam |

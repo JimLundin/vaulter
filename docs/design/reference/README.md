@@ -1,12 +1,12 @@
-# Design
+# Historical screen references
 
-The reference design for Pip's UI. It's a reference to build from, not code the app ships.
+These standalone screens preserve the original visual direction, including the earlier extension
+architecture. They are historical references; the live [kit gallery](../../../app/ui/kit/README.md)
+and Application preview represent current behavior.
 
-The canvas has two pages, each exported as is: `personal-agent-ui.html` (the app) and
-`personal-agent-ui-extensions.html` (the UI for extensions). Each is a self-unpacking bundle: open it in a
-browser to see its screens on one board. `screens/` holds all thirteen screens unpacked into plain,
-standalone HTML (inline styles, no scripts) so they can be read and diffed. The only changes from the bundle are that the export's runtime is removed and the fonts load
-from Google Fonts instead of being embedded.
+`screens/` holds all thirteen screens as plain, standalone HTML with inline styles and no scripts.
+Fonts load from Google Fonts. The two duplicate self-unpacking canvas bundles were removed from
+the working tree and remain available in Git history.
 
 | Screen | Size | What |
 |---|---|---|

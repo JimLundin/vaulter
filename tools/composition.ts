@@ -159,7 +159,7 @@ export function checkCompositions(
       source.forEachChild(declaration);
       for (const name of role.mechanics)
         if (!names.has(name)) report(source, `unknown mechanics declaration ${name}`);
-      owned.set(filename, boundaries);
+      owned.set(path(filename), boundaries);
       implementationRoots.push({ source: path(filename), primitives: [] });
     }
   }
@@ -236,7 +236,7 @@ export function checkCompositions(
     const visit = (node: ts.Node) => {
       const file = node.getSourceFile();
       const identity = `${file.fileName}:${node.kind}:${node.pos}:${node.end}`;
-      if (visited.has(identity) || owned.get(file.fileName)?.has(`${node.kind}:${node.pos}`))
+      if (visited.has(identity) || owned.get(path(file.fileName))?.has(`${node.kind}:${node.pos}`))
         return;
       visited.add(identity);
       if (

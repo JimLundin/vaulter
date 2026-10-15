@@ -176,14 +176,7 @@ export const implementations = [
   },
   {
     source: 'parts/avatar.tsx',
-    mechanics: [
-      'Avatar',
-      'AvatarImage',
-      'AvatarFallback',
-      'AvatarBadge',
-      'AvatarGroup',
-      'AvatarGroupCount',
-    ],
+    mechanics: ['Avatar', 'AvatarFallback'],
   },
   { source: 'parts/badge.tsx', mechanics: ['badgeVariants', 'Badge'] },
   { source: 'parts/button.tsx', mechanics: ['buttonVariants', 'Button'] },
@@ -236,7 +229,6 @@ export const implementations = [
     source: 'parts/dropdown-menu.tsx',
     mechanics: [
       'DropdownMenu',
-      'DropdownMenuPortal',
       'DropdownMenuTrigger',
       'DropdownMenuContent',
       'DropdownMenuGroup',
@@ -310,7 +302,7 @@ export const implementations = [
       'ItemFooter',
     ],
   },
-  { source: 'parts/kbd.tsx', mechanics: ['Kbd', 'KbdGroup'] },
+  { source: 'parts/kbd.tsx', mechanics: ['Kbd'] },
   { source: 'parts/label.tsx', mechanics: ['Label'] },
   {
     source: 'parts/layout.tsx',
@@ -329,7 +321,6 @@ export const implementations = [
       'SidebarProvider',
       'Sidebar',
       'SidebarInset',
-      'SidebarInput',
       'SidebarHeader',
       'SidebarFooter',
       'SidebarSeparator',

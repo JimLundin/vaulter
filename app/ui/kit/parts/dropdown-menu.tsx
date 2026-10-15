@@ -40,17 +40,6 @@ function DropdownMenu({
   );
 }
 
-function DropdownMenuPortal({ ...props }: DropdownMenuPrimitive.Portal.Props) {
-  const policy = usePresentationPolicy();
-  return (
-    <DropdownMenuPrimitive.Portal
-      data-slot="dropdown-menu-portal"
-      {...props}
-      container={policy.portal ?? props.container}
-    />
-  );
-}
-
 function DropdownMenuTrigger({ ...props }: DropdownMenuPrimitive.Trigger.Props) {
   return <DropdownMenuPrimitive.Trigger data-slot="dropdown-menu-trigger" {...props} />;
 }
@@ -262,7 +251,6 @@ function DropdownMenuSubContent({
 
 export {
   DropdownMenu,
-  DropdownMenuPortal,
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuGroup,

@@ -25,5 +25,5 @@ continues to compose workflow interfaces explicitly. Existing Base UI mechanics,
 model and historical citation semantics remain as decided in ADR 0001, 0002 and 0005.
 
 This decision is implemented. The deliveries and enforcement checks are recorded in
-[the UI module ownership plan](../plans/ui-module-ownership.md), with current public consumers and
+[the UI module ownership plan](../history/plans/ui-module-ownership.md), with current public consumers and
 retired ownership paths in the [presentation inventory](../ui-presentation-inventory.md).

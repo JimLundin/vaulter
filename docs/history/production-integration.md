@@ -23,7 +23,7 @@ Translation and enrichment now live in the private Vault's
 Private reviewed packets, publication status and handoffs belong to its
 [operational runbook](https://github.com/JimLundin/vault/blob/main/.vaulter/tooling/wiki-migration.md).
 Prepared enrichment requires its exact recorded baseline or regeneration if vault history advances;
-[Wiki ingestion](wiki-migration.md) describes Vaulter's current validation and reading contract.
+[Wiki ingestion](../wiki-migration.md) describes Vaulter's current validation and reading contract.
 
 ## Consolidation
 

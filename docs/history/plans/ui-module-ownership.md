@@ -1,13 +1,13 @@
 # Module-owned UI with shared kit presentation
 
 Status: complete; implementation, integration validation and two-axis review passed. Decision:
-[ADR 0006](../adr/0006-module-ui-and-shared-presentation.md).
+[ADR 0006](../../adr/0006-module-ui-and-shared-presentation.md).
 
 ## Delivered ownership
 
 Chat, Wiki, History and Search now interpret their own typed records and tasks. Shared pane,
 message entry, expandable rows, command overlays and passage disclosure stay in the kit.
-The [public presentation inventory](../ui-presentation-inventory.md) records every current public
+The [public presentation inventory](../../ui-presentation-inventory.md) records every current public
 value/type, actual consumers and the replacement of retired exports. The baseline table below is
 historical migration context, not a list of remaining kit responsibilities.
 

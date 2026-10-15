@@ -6,7 +6,6 @@ import { mergeProps } from '@base-ui/react/merge-props';
 import { useRender } from '@base-ui/react/use-render';
 
 import { buttonVariants } from './button.tsx';
-import { Input } from './input.tsx';
 import { Separator } from './separator.tsx';
 import { Skeleton } from './skeleton.tsx';
 
@@ -57,17 +56,6 @@ function SidebarInset({ className, ...props }: React.ComponentProps<'main'>) {
     <main
       data-slot="sidebar-inset"
       className={cn('relative flex w-full flex-1 flex-col bg-background', className)}
-      {...props}
-    />
-  );
-}
-
-function SidebarInput({ className, ...props }: React.ComponentProps<typeof Input>) {
-  return (
-    <Input
-      data-slot="sidebar-input"
-      data-sidebar="input"
-      className={cn('h-8 w-full bg-background shadow-none', className)}
       {...props}
     />
   );
@@ -361,7 +349,6 @@ export {
   SidebarGroupContent,
   SidebarGroupLabel,
   SidebarHeader,
-  SidebarInput,
   SidebarInset,
   SidebarMenu,
   SidebarMenuAction,

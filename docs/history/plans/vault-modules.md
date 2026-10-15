@@ -8,7 +8,7 @@ Based on `feat/node-history` at `19418ca` plus its working changes captured in `
 ## Working thesis
 
 Module-owned record UI is now an accepted direction in
-[ADR 0006](../adr/0006-module-ui-and-shared-presentation.md). Lists compose record UI that accepts
+[ADR 0006](../../adr/0006-module-ui-and-shared-presentation.md). Lists compose record UI that accepts
 stored payload types or resolved projections; queries, synchronization and lifetime implementations
 support rendering and interaction. Chat owns conversation interpretation, and History owns
 transaction interpretation. Shared presentation belongs in the kit. The
@@ -25,7 +25,7 @@ The first delivery is a visible conversation list and a History feed containing 
 transaction in the vault, across all devices. Then complete imported-exchange presentation and
 historical inspection. These lists read shared vault records, independently of device-local
 conversation selection or which module authored a transaction. This phase does not establish
-full migration readiness for all the shapes in [vault-records](../specs/vault-records.md).
+full migration readiness for all the shapes in [vault-records](../../specs/vault-records.md).
 
 ## What exists and what is missing
 

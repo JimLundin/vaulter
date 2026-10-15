@@ -1,9 +1,9 @@
 # Chat effect ownership
 
 Delivered interfaces for [spec #52](https://github.com/JimLundin/vaulter/issues/52), through
-tickets #53–#60. Current contracts live in [Chat production](../chat-nodes.md),
-[Architecture](../../ARCHITECTURE.md) and the [kit guide](../../app/ui/kit/README.md).
-They follow [ADR 0006](../adr/0006-module-ui-and-shared-presentation.md) without changing
+tickets #53–#60. Current contracts live in [Chat production](../../chat-nodes.md),
+[Architecture](../../../ARCHITECTURE.md) and the [kit guide](../../../app/ui/kit/README.md).
+They follow [ADR 0006](../../adr/0006-module-ui-and-shared-presentation.md) without changing
 Vault schemas, storage authority or shared pane presentation.
 
 ```mermaid
@@ -56,7 +56,7 @@ output, selection versus review/prompts, changed capabilities/session shutdown, 
 Stop/reload and no replay. Ticket #60 adds failed-read/response-save unread acknowledgement and actual
 Search New permission during recording/recovery. Compiler checks continue to cover declarations and
 helper paths without new exemptions. Final verification follows
-[the testing policy](../agents/testing.md): focused local behavior/browser/compiler checks, lint and
+[the testing policy](../../agents/testing.md): focused local behavior/browser/compiler checks, lint and
 type checking, then complete verification in CI for the pushed feature commit. Integration review,
 selected local results and the exact commit's CI status are recorded with the implementation
 workflow's evidence. A focused local pass establishes its selected scope; full CI verification

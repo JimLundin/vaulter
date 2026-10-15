@@ -1,13 +1,13 @@
 # The kit
 
-The app's component kit, imported from branch `ui-kit` at `2c30183`. Its reference design is in
-`design/`. Application, shared UI and workflow screens compose `index.ts`; no public component takes
+The app's component kit. Historical [screen references](../../../docs/design/reference/README.md)
+live outside the kit. Application and workflow screens compose `index.ts`; no public component takes
 `className` or `style`. Tailwind scans only this folder.
 
 The implemented [ADR 0006](../../../docs/adr/0006-module-ui-and-shared-presentation.md) keeps
 record-specific UI in Chat, Wiki, History and Search while the kit owns shared presentation.
 One supporting-pane policy owns geometry and interaction across those clients. The
-[ownership plan](../../../docs/plans/ui-module-ownership.md) records delivered acceptance and the
+[ownership plan](../../../docs/history/plans/ui-module-ownership.md) records delivered acceptance and the
 [public inventory](../../../docs/ui-presentation-inventory.md) lists every export, actual consumers
 and retired destination.
 
@@ -30,15 +30,11 @@ Expandable rows catalogue example uses plain fictional items rather than a Git-s
 record. The live fictional preview exercises History's actual NodeStore → `NodeHistoryEntry` →
 `TransactionItem` pipeline, including confirmation and guarded compensation.
 
-The [UI kit architecture plan](../../../PLAN-ui-kit-architecture.md) tracks four
-deepening changes: private composition verification, Composer interaction, accessible field
-association and shared presentation policy. The
-[individual specs](../../../docs/specs/ui-kit/README.md) define their implementation and tests.
-The [Base UI migration](https://github.com/JimLundin/vaulter/issues/18) establishes the foundation for
-[presentation policy](https://github.com/JimLundin/vaulter/issues/8): it replaces every Radix/Vaul
-primitive with Base UI and supplies the single public `Drawer` used by compact side panels,
-navigation and settings. Search uses
-Base UI Autocomplete; cmdk is removed.
+Base UI owns control and overlay interactions. The single public `Drawer` serves compact side
+panels, navigation and settings; Search uses Base UI Autocomplete. Private composition verification,
+text entry, field association and presentation policy are implemented and documented below.
+The [historical specs](../../../docs/history/ui-kit/README.md) retain their original requirements
+and acceptance evidence.
 
 `npm run kit` opens the live catalogue, using the same local fonts and theme as the app. Every
 public presentation component appears in a component family with an 800px desktop sample beside a
@@ -80,7 +76,6 @@ annotation transform may annotate semantic data, with no UI presentation permiss
 | `surfaces.tsx` | gates, preview notice, tool results, panels and unified diffs |
 | `chart.tsx`, `diff.tsx`, `map.tsx` | accessible charts, code diffs, lazy map presentation |
 | `styles.css`, `theme.tsx` | zinc color tokens, light/dark/system theme |
-| `design/` | original canvases and standalone screen references |
 | `tests/`, `tools/browser/` | markup/theme checks and browser interaction coverage |
 
 Fonts are Geist, Geist Mono and Newsreader, loaded locally from `@fontsource-variable`. Add generic
