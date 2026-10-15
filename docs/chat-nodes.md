@@ -38,21 +38,16 @@ actual write retries use a fresh `using` lifetime and the retained finalized cor
 ## Retained Chat interaction
 
 `createNodeConversation()` is the primary interaction consumed by Application, Chat page/pane and the
-conversation chooser. Its snapshot includes shared draft, turns, submission/review, prompts,
+conversation chooser. Its snapshot includes shared draft, turns, submission, prompts,
 selection/records, action availability with reasons, capture and recovery. Availability informs the
 presentation; every action rechecks admission. There is no raw Chat Send/handoff API that bypasses
 preparation. Independent `NodeChatBackend.send(NodeChatRequest)` remains the durable writer seam.
 
 `prepareSubmission()` captures the current draft source revision by default, or accepts supplied
-text/source intent. It returns `blocked`, `review`, or `owned` with a stable request and completion.
+text/source intent. It returns `blocked` or `owned` with a stable request and completion.
 Chat retains submitted text/identity before clearing its source; local ownership precedes durable
 initial acceptance. Preparation failure/blocking preserves input, and older work cannot clear a
-newer draft revision. Keyboard Send, button Send, Ask and review confirmation follow this policy.
-
-Review retains text and immutable staged-file evidence across view changes. Cancel preserves the
-current draft. `confirmReview()` rechecks permission and current staging: changed evidence refreshes
-review and requires another confirmation. It sends the retained text, preserving later draft edits,
-and leaves legacy file staging intact.
+newer draft revision. Keyboard Send, button Send and Ask follow this policy.
 
 `open()`, `restore()` and `newChat()` return selected/blocked/failed/superseded outcomes. New/Open
 share capture, busy-run and recovery restrictions across chooser, commands and routes. Ineligible
@@ -66,7 +61,7 @@ Saved reading requires no configured model and never replays unfinished Agent/to
 
 `receivePrompt()` claims each application prompt once across simultaneous/reopened views. Eligible
 Ask uses preparation; busy/unavailable submission may fill an editable draft without scheduling a
-later send. Capture/review conflicts retain supplied text and reason without replacing input.
+later send. Capture conflicts retain supplied text and reason without replacing input.
 `applyPrompt()` and `dismissPrompt()` are explicit user actions; use rechecks current admission and
 changed-conversation association rather than executing a stale prompt automatically. Suggestions
 are optional non-executing text, consumed through the same draft-use policy.
@@ -86,7 +81,7 @@ another. A reply completed while all views are hidden remains unread through fai
 response-save retry. An open view's `viewing()` acknowledgement clears it once; later refresh/retry
 cannot mark the same reply unread again.
 
-Draft, review, prompts, selection and accepted run survive ordinary view closure within the owning
+Draft, prompts, selection and accepted run survive ordinary view closure within the owning
 application session. Focus and chooser disclosure remain presentation state. Unsubmitted task state
 is not newly persisted across reload. Application supplies a stable Vault session scope, TransactionStore,
 identities and capabilities. Same-session readiness/configuration changes apply to later work while
@@ -138,8 +133,7 @@ Content acceptance failures retain the original attributed request separately fr
 “Retry content save” resubmits that request only and acknowledges accepted content separately; the
 failed tool receipt is never rewritten as success. “Refresh records” reads current nodes without
 executing effects or reviving expired tool access. Unresolved diagnostics remain visible and block
-another Send. Legacy staged files remain intact and require an explicit choice
-to send a message while leaving them staged.
+another Send. Application persistence uses node transactions exclusively.
 
 The design preview uses these production interfaces with a scripted model and fictional content.
 Its versioned sessionStorage journal contains complete accepted NodeCommit requests, replayed in

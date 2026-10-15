@@ -148,28 +148,6 @@ test('Search Ask during recording survives reopening, never auto-sends, and expl
   await expect(main.getByRole('button', { name: 'Use', exact: true })).toHaveCount(0);
 });
 
-test('Search Ask uses retained staged-change review without replacing the existing draft', async ({
-  page,
-}) => {
-  await page.goto('/preview/?legacy-staging');
-  await movePreviewBelowToolbar(page.locator('[data-preview-drag-handle]'));
-  const main = page.getByRole('main');
-  const input = main.getByRole('textbox', { name: 'Message', exact: true });
-  await input.fill('Keep my editable draft');
-  await openAppAction(page, 'Search');
-  const search = page.getByRole('dialog', { name: 'Search or ask' });
-  await search.getByRole('combobox').fill('Review this Search Ask');
-  await search.getByRole('option', { name: 'Ask the agent: Review this Search Ask' }).click();
-  const review = page.getByRole('dialog', { name: 'Review pending changes', exact: true });
-  await expect(review).toBeVisible();
-  await expect(review.getByText('Review this Search Ask', { exact: true })).toBeVisible();
-  await expect(input).toHaveValue('Keep my editable draft');
-  await expect(main.locator('[data-message="user"]')).toHaveCount(0);
-  await review.getByRole('button', { name: 'Send and keep staged edits' }).click();
-  await expect(main.locator('[data-message="user"]')).toHaveCount(1);
-  await expect(input).toHaveValue('Keep my editable draft');
-});
-
 test('node-backed Send retains content receipts and accepted conversation across reload without replay', {
   tag: '@phone',
 }, async ({ page }) => {

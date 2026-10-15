@@ -52,7 +52,7 @@ export function githubNodeBackend(options: {
     return cache;
   };
   const adoptCache = async () => {
-    if (head) return;
+    if (head) return true;
     const device = await deviceCache();
     const saved = await device
       .read()
@@ -76,6 +76,7 @@ export function githubNodeBackend(options: {
       ({ head, records } = saved);
       events.notify();
     }
+    return !!saved;
   };
   const cacheAccepted = async (remote: RemoteHead, values: readonly NodeRecord[]) => {
     // Once GitHub accepted, failure of the device cache must not report the operation as rejected.

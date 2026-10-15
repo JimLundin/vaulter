@@ -1,6 +1,4 @@
-// The vault's check, every feature's together: the notes' (each file as a note) and the graph's (links and
-// fields resolve). What CI runs (tools/check.ts) and what the tests hold the whole vault to; in the app
-// each feature gates a write with its own (`files.problems`).
+// Standalone source-note and graph checks used by the private Vault’s CI.
 import type { VaultFile } from '../files.ts';
 import { checkNotes } from './notes.ts';
 import { checkGraph } from './graph.ts';

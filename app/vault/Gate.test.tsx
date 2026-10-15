@@ -3,62 +3,34 @@ import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { expect, test, vi } from 'vitest';
 import { VaultGate } from './Gate.tsx';
+import type { Session } from './session/session.ts';
 
-test('Vault readiness renders opening and schema/session failures before admitting its content', async () => {
+test('startup waits for node data, displays cold-load failures and keeps accepted data readable offline', async () => {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
   const root = createRoot(document.body);
-  try {
-    await act(async () =>
-      root.render(
-        <VaultGate
-          state={{ files: null, blocked: null, locked: null, status: { kind: 'loading' } }}
-        >
-          Open product
-        </VaultGate>,
-      ),
+  const show = (ready: boolean, nodeStatus: Session['nodeStatus']) =>
+    act(async () =>
+      root.render(<VaultGate state={{ ready, nodeStatus, locked: null }}>Open product</VaultGate>),
     );
+  try {
+    await show(false, { kind: 'loading' });
     expect(document.body.textContent).toContain('Opening your vault');
     expect(document.body.textContent).not.toContain('Open product');
-    await act(async () =>
-      root.render(
-        <VaultGate
-          state={{
-            files: [],
-            blocked: 'Invalid schema.',
-            locked: null,
-            status: { kind: 'synced', at: 0 },
-          }}
-        >
-          Open product
-        </VaultGate>,
-      ),
-    );
-    expect(document.body.textContent).toContain('Invalid schema.');
-    await act(async () =>
-      root.render(
-        <VaultGate
-          state={{
-            files: null,
-            blocked: null,
-            locked: null,
-            status: { kind: 'error', message: 'Storage failed.' },
-          }}
-        >
-          Open product
-        </VaultGate>,
-      ),
-    );
-    expect(document.body.textContent).toContain('Storage failed.');
-    await act(async () =>
-      root.render(
-        <VaultGate
-          state={{ files: [], blocked: null, locked: null, status: { kind: 'synced', at: 0 } }}
-        >
-          Open product
-        </VaultGate>,
-      ),
-    );
-    expect(document.body.textContent).toBe('Open product');
+    await show(false, { kind: 'error', message: 'Node storage failed.' });
+    expect(document.body.textContent).toContain('Node storage failed.');
+    expect(document.body.textContent).not.toContain('Open product');
+    await show(false, { kind: 'offline' });
+    expect(document.body.textContent).toContain('Connect to load your vault');
+    expect(document.body.textContent).not.toContain('Open product');
+    for (const status of [
+      { kind: 'synced', at: 0 },
+      { kind: 'syncing' },
+      { kind: 'offline' },
+      { kind: 'error', message: 'Refresh failed.' },
+    ] as const) {
+      await show(true, status);
+      expect(document.body.textContent).toBe('Open product');
+    }
   } finally {
     await act(async () => root.unmount());
     document.body.replaceChildren();

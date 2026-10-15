@@ -1,5 +1,4 @@
 import { expect, test } from '@playwright/test';
-import { sampleFiles } from '../../app/preview/data.ts';
 import { seal } from '../../app/vault/session/sealed.ts';
 import { fakeGitHub } from '../../app/vault/storage/github-client/fake-github.ts';
 
@@ -53,10 +52,13 @@ test('startup stays visible before JavaScript loads and hands over to the React 
   }
 });
 
-test('vault loading stays visible through credentials and data fetches, then opens the app', async ({
+test('node startup ignores legacy files and stays visible through credentials and data fetches', async ({
   page,
 }) => {
-  const fake = await fakeGitHub(sampleFiles);
+  const fake = await fakeGitHub({
+    'meta/schema.yaml': 'invalid: [',
+    'Legacy.md': '# Not application data',
+  });
   const password = 'fictional-loading-password';
   const sealed = await seal({ github: 'fictional-token' }, password, undefined, 1000);
   let releaseCredentials!: () => void;
@@ -109,6 +111,15 @@ test('vault loading stays visible through credentials and data fetches, then ope
     await expect(title).toHaveCount(0);
     await expect(status).toHaveCount(0);
     await expect(page.getByRole('heading', { name: 'Chat', exact: true })).toBeVisible();
+    expect(fake.state.calls.some((call) => call.startsWith('GET /git/blobs/'))).toBe(false);
+    await page.reload();
+    await expect(page.getByRole('textbox', { name: 'Message', exact: true })).toBeVisible();
+    await page.route('https://api.github.com/**', (route) => route.abort('internetdisconnected'));
+    await page.addInitScript(() =>
+      Object.defineProperty(navigator, 'onLine', { get: () => false }),
+    );
+    await page.reload();
+    await expect(page.getByRole('textbox', { name: 'Message', exact: true })).toBeVisible();
   } finally {
     releaseCredentials();
     releaseData();

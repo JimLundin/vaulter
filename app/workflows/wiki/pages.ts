@@ -1,6 +1,6 @@
 import type { JsonObject, NodeVersion, Transaction } from '../../vault/nodes/model.ts';
 import type { NodeSnapshot, NodeReading } from '../../vault/nodes/store.ts';
-import type { Entry } from '../../vault/documents/search.ts';
+import type { Entry } from '../../search/entries.ts';
 import { recordText, UnsupportedSourceRecordError } from './text.ts';
 import { citation as citationSchema } from './records.ts';
 import { isWikiContent, readCitation, validatePageReference } from './citations.ts';

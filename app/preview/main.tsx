@@ -2,18 +2,10 @@ import '@fontsource-variable/geist';
 import '@fontsource-variable/geist-mono';
 import '@fontsource-variable/newsreader';
 import '../ui/kit/styles.css';
-import { useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { OpenApplication } from '../application/index.tsx';
 import { applicationNodes } from '../application/composition.ts';
-import { later } from '../runtime/later.ts';
 import { startTheme, Text, DesignPreview } from '../ui/kit/index.ts';
-import { useWriter, applyOverlay } from '../vault/changes/writer.ts';
-import { liveVault } from '../vault/index.ts';
-import { memoryBackend } from '../vault/storage/files/memory.ts';
-import { vaultRules } from '../vault/validation/rules.ts';
-import type { Head } from '../vault/storage/files/backend.ts';
-import { sampleFiles, note } from './data.ts';
 import { previewModel } from './model.ts';
 import { createOpenAICapabilities } from '../agent/openai/index.ts';
 import { recordedTranscription } from '../agent/recorded-transcription.ts';
@@ -30,7 +22,6 @@ if (location.hash === '#/prototype/provenance/')
     '',
     `${location.pathname}${location.search}#/wiki/preview:page:0/`,
   );
-const memory = memoryBackend(sampleFiles);
 const query = new URLSearchParams(location.search);
 declare const __PREVIEW_AGENT__: {
   baseURL: string;
@@ -146,42 +137,11 @@ const openingNodes = previewNodes(sessionStorage, query.get('scenario') ?? undef
     return nodes;
   },
 );
-const initial = memory.backend.write!(
-  [
-    {
-      path: 'Garden studio.md',
-      text: note(
-        'Garden studio',
-        'A quiet place for making things. Leave the afternoons free for focused work.',
-      ),
-    },
-  ],
-  'Refine the garden studio note',
-  async (base, after) => {
-    const problems = await vaultRules.problems(base, after);
-    if (problems.length) throw new Error(problems.join('\n'));
-  },
-);
-
-function Preview({ initialHead, nodes }: { initialHead: Head; nodes: NodeStore }) {
-  const [head, setHead] = useState(initialHead);
-  const writer = useWriter(memory.backend, vaultRules, head, setHead);
-  const current = useRef(writer);
-  current.current = writer;
-  const vault = useMemo(() => liveVault(() => current.current), []);
-  useEffect(() => {
-    if (query.has('legacy-staging'))
-      later(
-        vault.stage('Legacy draft.md', note('Legacy draft', 'An intentional pending file edit.')),
-      );
-  }, [vault]);
-  const files = applyOverlay(head.files, writer.overlay);
+function Preview({ nodes }: { nodes: NodeStore }) {
   const product = (
     <OpenApplication
       session={{
-        vault,
-        files,
-        status: { kind: 'synced', at: Date.now() },
+        ready: true,
         locked: null,
         signOut: null,
         secrets: null,
@@ -190,7 +150,6 @@ function Preview({ initialHead, nodes }: { initialHead: Head; nodes: NodeStore }
         updateSecret: async () => {
           throw new Error('Credentials are supplied by the preview server.');
         },
-        blocked: null,
         nodes: applicationNodes(nodes),
         nodeStatus: { kind: 'synced', at: Date.now() },
         refreshNodes: async () => undefined,
@@ -226,8 +185,8 @@ function Preview({ initialHead, nodes }: { initialHead: Head; nodes: NodeStore }
 
 startTheme();
 const root = createRoot(document.getElementById('app')!);
-Promise.all([initial, openingNodes])
-  .then(([{ head }, nodes]) =>
+openingNodes
+  .then((nodes) =>
     root.render(
       liveAgent && !agent ? (
         <Text tone="danger">
@@ -235,7 +194,7 @@ Promise.all([initial, openingNodes])
           development server. Set VAULT_OPENAI_API for a custom endpoint, then restart Vite.
         </Text>
       ) : (
-        <Preview initialHead={head} nodes={nodes} />
+        <Preview nodes={nodes} />
       ),
     ),
   )

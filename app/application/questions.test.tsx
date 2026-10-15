@@ -5,9 +5,6 @@ import { createRoot } from 'react-dom/client';
 import { expect, test, vi } from 'vitest';
 import { OpenApplication } from './index.tsx';
 import { applicationNodes } from './composition.ts';
-import { liveVault } from '../vault/index.ts';
-import { useWriter } from '../vault/changes/writer.ts';
-import { memoryBackend } from '../vault/storage/files/memory.ts';
 import { memoryNodeBackend } from '../vault/nodes/memory.ts';
 import { create, request, revise } from '../vault/nodes/fixtures.test-support.ts';
 import type { NodeCommit, NodeStore } from '../vault/nodes/store.ts';
@@ -17,9 +14,7 @@ test('Application composes the shared Questions owner for nested Wiki questions 
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
   localStorage.clear();
   history.replaceState(null, '', '#/wiki/studio/');
-  const files = memoryBackend({});
-  const head = await files.backend.cached();
-  const rules = { problems: async () => [], keeps: () => true, what: 'Fictional files' };
+
   const nodes = memoryNodeBackend();
   await nodes.commit(
     request('original', [
@@ -47,20 +42,18 @@ test('Application composes the shared Questions owner for nested Wiki questions 
   );
   const root = createRoot(document.body);
   function Surface() {
-    const writer = useWriter(files.backend, rules, head, () => undefined);
     return (
       <OpenApplication
         session={{
-          vault: liveVault(() => writer),
-          files: head!.files,
-          status: { kind: 'synced', at: 0 },
+          ready: true,
+
           locked: null,
           signOut: null,
           secrets: null,
           preloadedSecrets: null,
           secretOverrides: {},
           updateSecret: async () => undefined,
-          blocked: null,
+
           nodes: transactionFixture(nodes),
           nodeStatus: { kind: 'synced', at: 0 },
           refreshNodes: async () => undefined,
@@ -121,9 +114,7 @@ test('Application saves answers from Wiki and Questions and filters the retained
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
   localStorage.clear();
   history.replaceState(null, '', '#/wiki/studio/');
-  const files = memoryBackend({});
-  const head = await files.backend.cached();
-  const rules = { problems: async () => [], keeps: () => true, what: 'Fictional files' };
+
   const nodes = memoryNodeBackend();
   await nodes.commit(
     request('questions', [
@@ -155,20 +146,18 @@ test('Application saves answers from Wiki and Questions and filters the retained
   );
   const root = createRoot(document.body);
   function Surface() {
-    const writer = useWriter(files.backend, rules, head, () => undefined);
     return (
       <OpenApplication
         session={{
-          vault: liveVault(() => writer),
-          files: head!.files,
-          status: { kind: 'synced', at: 0 },
+          ready: true,
+
           locked: null,
           signOut: null,
           secrets: null,
           preloadedSecrets: null,
           secretOverrides: {},
           updateSecret: async () => undefined,
-          blocked: null,
+
           nodes: transactionFixture(nodes),
           nodeStatus: { kind: 'synced', at: 0 },
           refreshNodes: async () => undefined,
@@ -298,9 +287,7 @@ async function answerLifetimeFixture(
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
   localStorage.clear();
   history.replaceState(null, '', '#/wiki/studio/');
-  const files = memoryBackend({});
-  const head = await files.backend.cached();
-  const rules = { problems: async () => [], keeps: () => true, what: 'Fictional files' };
+
   const nodes = memoryNodeBackend();
   await nodes.commit(
     request('question-origin', [
@@ -317,21 +304,19 @@ async function answerLifetimeFixture(
   let suppliedNodes = initialNodes?.(nodes) ?? nodes;
   const root = createRoot(document.body);
   function Surface() {
-    const writer = useWriter(files.backend, rules, head, () => undefined);
     return (
       <OpenApplication
         session={{
+          ready: true,
           identity: nodes,
-          vault: liveVault(() => writer),
-          files: head!.files,
-          status: { kind: 'synced', at: 0 },
+
           locked: null,
           signOut,
           secrets: { github: 'fictional-token' },
           preloadedSecrets: { github: 'fictional-token' },
           secretOverrides: {},
           updateSecret: async () => undefined,
-          blocked: null,
+
           nodes: transactionFixture(suppliedNodes),
           nodeStatus: { kind: 'synced', at: 0 },
           refreshNodes: async () => undefined,

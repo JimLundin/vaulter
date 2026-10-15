@@ -5,8 +5,7 @@ Core Transactions provides the shared reading and scoped writing interface to th
 production and its provenance; [Agent](agent-records.md) independently owns runs, effective context
 and tool executions. Application explicitly composes their initial records, models and module-owned tools.
 Storage retains generic JSON, versions, attribution, placement and connections without knowledge of
-producer payloads. Core owns the History screen, reading and guarded compensation; Search retains
-its legacy file workflow. Sensor collection
+producer payloads. Core owns the History screen, reading and guarded compensation; Search reads Wiki node entries. Sensor collection
 and migration are separate work.
 
 ```text

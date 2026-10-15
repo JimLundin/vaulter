@@ -30,7 +30,7 @@ export function memoryNodeBackend(): NodeBackend {
         }
         return record;
       }),
-    cached: async () => undefined,
+    cached: async () => true,
     refresh: async () => undefined,
     clear: () =>
       run(() => {

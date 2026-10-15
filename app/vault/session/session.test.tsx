@@ -3,7 +3,6 @@ import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, expect, test, vi } from 'vitest';
 import { useSession, type Session } from './session.ts';
-import { memoryBackend } from '../storage/files/memory.ts';
 import { memoryNodeBackend } from '../nodes/memory.ts';
 import type { NodeBackend } from '../nodes/store.ts';
 import {
@@ -14,7 +13,6 @@ import {
   type Credentials,
 } from './unlock.ts';
 import type { Secrets } from './sealed.ts';
-import type { VaultBackend } from '../storage/files/backend.ts';
 import { create, seed } from '../nodes/fixtures.test-support.ts';
 import { nodeOperations } from '../nodes/operations.ts';
 import { PreparationReplaced, WriteClosed } from '../transactions/lifetime.ts';
@@ -41,7 +39,6 @@ async function open(
   nodes: NodeBackend,
   options: {
     secrets?: Secrets;
-    openBackend?: (secrets: Secrets) => VaultBackend;
     openNodes?: (secrets: Secrets) => NodeBackend;
     credentials?: Credentials | null;
     response?: Response;
@@ -59,12 +56,9 @@ async function open(
   const factory = vi.fn(({ secrets: credentials }: { secrets: Secrets }) =>
     options.openNodes ? options.openNodes(credentials) : nodes,
   );
-  const fileFactory = vi.fn(({ secrets: credentials }: { secrets: Secrets }) =>
-    options.openBackend ? options.openBackend(credentials) : memoryBackend({}).backend,
-  );
   let session!: Session;
   function Probe() {
-    session = useSession(fileFactory, () => true, factory);
+    session = useSession(factory);
     return null;
   }
   const root = createRoot(document.body);
@@ -73,7 +67,7 @@ async function open(
     root.render(<Probe />);
     await Promise.resolve();
   });
-  return { session: () => session, factory, fileFactory, root };
+  return { session: () => session, factory, root };
 }
 
 test('unlocked session injects credentials, loads cache before remote refresh, and closes on unmount', async () => {
@@ -81,7 +75,7 @@ test('unlocked session injects credentials, loads cache before remote refresh, a
   const order: string[] = [];
   vi.spyOn(nodes, 'cached').mockImplementation(() => {
     order.push('cached');
-    return Promise.resolve();
+    return Promise.resolve(true);
   });
   vi.spyOn(nodes, 'refresh').mockImplementation(() => {
     order.push('refresh');
@@ -101,13 +95,12 @@ test('unlocked session injects credentials, loads cache before remote refresh, a
   expect(close).toHaveBeenCalled();
 });
 
-test('node persistence failure stays separate from the legacy file session', async () => {
+test('node persistence failure exposes an error while cached data remains available', async () => {
   const nodes = memoryNodeBackend();
   vi.spyOn(nodes, 'refresh').mockRejectedValue(new Error('GitHub unavailable'));
   const { session } = await open(nodes);
-  expect(session().status.kind).toBe('synced');
   expect(session().nodeStatus.kind).toBe('error');
-  expect(session().head).not.toBeNull();
+  expect(session().ready).toBe(true);
 });
 
 test('sign out forgets credentials and clears the node cache before closing it', async () => {
@@ -132,7 +125,6 @@ test('sign out forgets credentials and clears the node cache before closing it',
   expect(order).toEqual(['clear', 'forget', 'close']);
   expect(session().secrets).toBeNull();
   expect(session().nodes).toBeNull();
-  expect(session().head).toBeNull();
 });
 
 test('visible sessions periodically refresh shared nodes and expose manual refresh', async () => {
@@ -156,7 +148,7 @@ test('visible sessions periodically refresh shared nodes and expose manual refre
 
 test('credential changes persist before use, retain storage, and restore preloaded defaults', async () => {
   const nodes = memoryNodeBackend();
-  const { session, factory, fileFactory } = await open(nodes, {
+  const { session, factory } = await open(nodes, {
     secrets: { github: 'fictional-token', openai: 'preloaded-key', jina: 'preloaded-jina' },
   });
   expect(session().credentialPending).toBe(false);
@@ -188,7 +180,7 @@ test('credential changes persist before use, retain storage, and restore preload
   expect(session().secretOverrides).toEqual({ openai: 'device-key' });
   expect(session().credentials.openai.overridden).toBe(true);
   expect(factory).toHaveBeenCalledTimes(1);
-  expect(fileFactory).toHaveBeenCalledTimes(1);
+
   await act(async () => session().credentials.jina.clear!());
   expect(session().secrets?.jina).toBeUndefined();
   expect(session().credentials.jina.configured).toBe(false);
@@ -277,23 +269,18 @@ test('retained safe credential handles reject pending updates and closed Session
 test('GitHub replacement preserves the open vault while preparing and ignores old refresh results', async () => {
   const nodes = memoryNodeBackend();
   const replacementNodes = memoryNodeBackend();
-  const files = memoryBackend({}).backend;
-  const replacementFiles = memoryBackend({}).backend;
-  const closed = vi.fn();
-  files.close = closed;
+
   const closedNodes = vi.spyOn(nodes, 'close');
   const { session } = await open(nodes, {
-    openBackend: (secrets) => (secrets.github === 'replacement-token' ? replacementFiles : files),
     openNodes: (secrets) => (secrets.github === 'replacement-token' ? replacementNodes : nodes),
   });
   const { identity } = session();
   const originalNodes = session().nodes;
-  const originalHead = session().head;
-  const oldSetHead = session().setHead;
-  let releaseOld!: (head: NonNullable<Session['head']>) => void;
-  vi.spyOn(files, 'refresh').mockImplementationOnce(
+
+  let releaseOld!: () => void;
+  vi.spyOn(nodes, 'refresh').mockImplementationOnce(
     () =>
-      new Promise((resolve) => {
+      new Promise<void>((resolve) => {
         releaseOld = resolve;
       }),
   );
@@ -317,7 +304,7 @@ test('GitHub replacement preserves the open vault while preparing and ignores ol
   expect(session().nodes).toBe(originalNodes);
   expect(session().credentialPending).toBe(true);
   expect(session().identity).toBe(identity);
-  expect(session().head).toBe(originalHead);
+
   expect(session().secrets?.github).toBe('fictional-token');
   await act(async () => {
     releaseReplacement();
@@ -330,18 +317,16 @@ test('GitHub replacement preserves the open vault while preparing and ignores ol
   expect(snapshot).toHaveBeenCalledOnce();
   expect(session().credentialPending).toBe(false);
   expect(session().identity).toBe(identity);
-  expect(session().backend).toBe(replacementFiles);
-  expect(session().head).not.toBeNull();
-  expect(closed).toHaveBeenCalledTimes(1);
+
   expect(closedNodes).toHaveBeenCalledTimes(1);
-  const replacementHead = session().head;
+
   await act(async () => {
-    releaseOld({ files: [], version: 'stale-refresh' });
-    oldSetHead({ files: [], version: 'stale-write' });
+    releaseOld();
+
     await Promise.resolve();
   });
-  expect(session().head).toBe(replacementHead);
-  expect(session().status.kind).toBe('synced');
+
+  expect(session().nodeStatus.kind).toBe('synced');
 });
 
 test('replacement invalidates preparation before React updates and retires the old adapter after entered writes settle', async () => {
@@ -491,24 +476,22 @@ test('sign-out closes new writes and retry immediately, then drains persistence 
 test('failed GitHub replacement retains the previous adapters and never saves rejected credentials', async () => {
   const nodes = memoryNodeBackend();
   const replacementNodes = memoryNodeBackend();
-  const files = memoryBackend({}).backend;
-  const replacementFiles = memoryBackend({}).backend;
+
   vi.spyOn(replacementNodes, 'refresh').mockRejectedValue(new Error('Replacement rejected'));
   const closedCandidate = vi.spyOn(replacementNodes, 'close');
   const { session } = await open(nodes, {
-    openBackend: (secrets) => (secrets.github === 'replacement-token' ? replacementFiles : files),
     openNodes: (secrets) => (secrets.github === 'replacement-token' ? replacementNodes : nodes),
   });
-  const originalHead = session().head;
+
   const originalNodes = session().nodes;
   await act(async () => {
     await expect(session().updateSecret('github', 'replacement-token')).rejects.toThrow(
       'Replacement rejected',
     );
   });
-  expect(session().backend).toBe(files);
+
   expect(session().nodes).toBe(originalNodes);
-  expect(session().head).toBe(originalHead);
+
   expect(session().secrets?.github).toBe('fictional-token');
   expect(session().secretOverrides).toEqual({});
   expect(closedCandidate).toHaveBeenCalled();
@@ -518,13 +501,9 @@ test('failed GitHub replacement retains the previous adapters and never saves re
 test('failed persistence after preparing GitHub replacement closes candidates and preserves the session', async () => {
   const nodes = memoryNodeBackend();
   const candidate = memoryNodeBackend();
-  const files = memoryBackend({}).backend;
-  const replacement = memoryBackend({}).backend;
-  const closeFiles = vi.fn();
-  replacement.close = closeFiles;
+
   const closeNodes = vi.spyOn(candidate, 'close');
   const { session } = await open(nodes, {
-    openBackend: (secrets) => (secrets.github === 'replacement-token' ? replacement : files),
     openNodes: (secrets) => (secrets.github === 'replacement-token' ? candidate : nodes),
   });
   const originalNodes = session().nodes;
@@ -534,40 +513,29 @@ test('failed persistence after preparing GitHub replacement closes candidates an
       'Device storage full',
     );
   });
-  expect(session().backend).toBe(files);
+
   expect(session().nodes).toBe(originalNodes);
   expect(session().secrets?.github).toBe('fictional-token');
-  expect(closeFiles).toHaveBeenCalledOnce();
+
   expect(closeNodes).toHaveBeenCalledOnce();
 });
 
 test('sign out is terminal while a replacement waits for its cache and rejects queued edits', async () => {
   const nodes = memoryNodeBackend();
   const candidate = memoryNodeBackend();
-  const files = memoryBackend({}).backend;
-  const replacement = memoryBackend({}).backend;
-  const closeFiles = vi.fn();
-  replacement.close = closeFiles;
+
   const closeNodes = vi.spyOn(candidate, 'close');
-  const refreshFiles = vi.spyOn(replacement, 'refresh');
+
   const refreshNodes = vi.spyOn(candidate, 'refresh');
-  let releaseFiles!: () => void;
   let releaseNodes!: () => void;
-  vi.spyOn(replacement, 'cached').mockImplementationOnce(
-    () =>
-      new Promise<null>((resolve) => {
-        releaseFiles = () => resolve(null);
-      }),
-  );
   vi.spyOn(candidate, 'cached').mockImplementationOnce(
     () =>
-      new Promise<void>((resolve) => {
-        releaseNodes = resolve;
+      new Promise<boolean>((resolve) => {
+        releaseNodes = () => resolve(true);
       }),
   );
   vi.spyOn(location, 'reload').mockImplementation(() => undefined);
   const { session } = await open(nodes, {
-    openBackend: (secrets) => (secrets.github === 'replacement-token' ? replacement : files),
     openNodes: (secrets) => (secrets.github === 'replacement-token' ? candidate : nodes),
   });
   const previous = session();
@@ -583,20 +551,17 @@ test('sign out is terminal while a replacement waits for its cache and rejects q
   await act(async () => {
     await previous.signOut!();
     await Promise.all([updateRejected, queuedRejected]);
-    previous.setHead({ files: [], version: 'late-write' });
   });
   expect(session().secrets).toBeNull();
-  expect(session().head).toBeNull();
-  expect(closeFiles).toHaveBeenCalledOnce();
+
   expect(closeNodes).toHaveBeenCalledOnce();
   expect(forget).toHaveBeenCalledOnce();
   await expect(previous.updateSecret('jina', 'later-key')).rejects.toThrow('session has closed');
   await act(async () => {
-    releaseFiles();
     releaseNodes();
     await Promise.resolve();
   });
-  expect(refreshFiles).not.toHaveBeenCalled();
+
   expect(refreshNodes).not.toHaveBeenCalled();
   expect(saveSecretOverrides).not.toHaveBeenCalled();
 });
@@ -604,21 +569,18 @@ test('sign out is terminal while a replacement waits for its cache and rejects q
 test('unmount closes pending replacement adapters before they finish loading cache', async () => {
   const nodes = memoryNodeBackend();
   const candidate = memoryNodeBackend();
-  const replacement = memoryBackend({}).backend;
-  const closeFiles = vi.fn();
-  replacement.close = closeFiles;
+
   const closeNodes = vi.spyOn(candidate, 'close');
-  const refreshFiles = vi.spyOn(replacement, 'refresh');
+
+  const refreshNodes = vi.spyOn(candidate, 'refresh');
   let release!: () => void;
-  vi.spyOn(replacement, 'cached').mockImplementationOnce(
+  vi.spyOn(candidate, 'cached').mockImplementationOnce(
     () =>
-      new Promise<null>((resolve) => {
-        release = () => resolve(null);
+      new Promise<boolean>((resolve) => {
+        release = () => resolve(true);
       }),
   );
   const { session, root } = await open(nodes, {
-    openBackend: (secrets) =>
-      secrets.github === 'replacement-token' ? replacement : memoryBackend({}).backend,
     openNodes: (secrets) => (secrets.github === 'replacement-token' ? candidate : nodes),
   });
   let updating!: Promise<void>;
@@ -630,11 +592,12 @@ test('unmount closes pending replacement adapters before they finish loading cac
   await act(async () => root.unmount());
   roots.splice(roots.indexOf(root), 1);
   await rejected;
-  expect(closeFiles).toHaveBeenCalledOnce();
+
   expect(closeNodes).toHaveBeenCalledOnce();
   release();
   await Promise.resolve();
-  expect(refreshFiles).not.toHaveBeenCalled();
+
+  expect(refreshNodes).not.toHaveBeenCalled();
   expect(saveSecretOverrides).not.toHaveBeenCalled();
 });
 
@@ -647,13 +610,12 @@ test('unmount during secrets JSON parsing never reads remembered credentials', a
         release = () => resolve({});
       }),
   );
-  const { root, fileFactory } = await open(memoryNodeBackend(), { response });
+  const { root } = await open(memoryNodeBackend(), { response });
   await act(async () => root.unmount());
   roots.splice(roots.indexOf(root), 1);
   release();
   await Promise.resolve();
   expect(rememberedCredentials).not.toHaveBeenCalled();
-  expect(fileFactory).not.toHaveBeenCalled();
 });
 
 test('an unlock completing after unmount cannot open adapters', async () => {
@@ -669,7 +631,7 @@ test('an unlock completing after unmount cannot open adapters', async () => {
           });
       }),
   );
-  const { session, root, fileFactory, factory } = await open(memoryNodeBackend(), {
+  const { session, root, factory } = await open(memoryNodeBackend(), {
     credentials: null,
   });
   const unlocking = session().locked!.unlock('password');
@@ -678,7 +640,7 @@ test('an unlock completing after unmount cannot open adapters', async () => {
   roots.splice(roots.indexOf(root), 1);
   release();
   await rejected;
-  expect(fileFactory).not.toHaveBeenCalled();
+
   expect(factory).not.toHaveBeenCalled();
 });
 
@@ -694,9 +656,43 @@ test('cache clearing failure still forgets credentials and closes the signed-out
   expect(forget).toHaveBeenCalledOnce();
   expect(closeNodes).toHaveBeenCalledOnce();
   expect(session().secrets).toBeNull();
-  expect(session().status).toEqual({
+  expect(session().nodeStatus).toEqual({
     kind: 'error',
     message: 'Sign-out could not finish: Error: Cache unavailable',
   });
   await expect(previous.updateSecret('openai', 'later-key')).rejects.toThrow('session has closed');
+});
+
+test('a cold node session waits for remote acceptance and admits an empty vault', async () => {
+  const nodes = memoryNodeBackend();
+  vi.spyOn(nodes, 'cached').mockResolvedValue(false);
+  let release!: () => void;
+  vi.spyOn(nodes, 'refresh').mockImplementationOnce(
+    () =>
+      new Promise<void>((resolve) => {
+        release = resolve;
+      }),
+  );
+  const { session } = await open(nodes);
+  expect(session().ready).toBe(false);
+  expect(session().nodeStatus.kind).toBe('syncing');
+  await act(async () => {
+    release();
+    await Promise.resolve();
+  });
+  expect(session().ready).toBe(true);
+  expect(session().nodeStatus.kind).toBe('synced');
+  expect((await session().nodes!.snapshot()).sequence).toBe(0);
+});
+
+test('a cold node failure cannot present an empty vault as accepted data', async () => {
+  const nodes = memoryNodeBackend();
+  vi.spyOn(nodes, 'cached').mockResolvedValue(false);
+  vi.spyOn(nodes, 'refresh').mockRejectedValue(new Error('Node history unavailable'));
+  const { session } = await open(nodes);
+  expect(session().ready).toBe(false);
+  expect(session().nodeStatus).toMatchObject({
+    kind: 'error',
+    message: expect.stringContaining('Node history unavailable'),
+  });
 });

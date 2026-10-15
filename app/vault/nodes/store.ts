@@ -78,8 +78,8 @@ export interface NodeStore extends NodeReading {
 
 /** Session-owned adapter lifecycle; workflows receive only managed reading and writing. */
 export interface NodeBackend extends NodeStore {
-  /** Load the device cache without contacting the remote. */
-  readonly cached: () => Promise<void>;
+  /** Load the device cache without contacting the remote; return whether a saved snapshot exists. */
+  readonly cached: () => Promise<boolean>;
   /** Synchronize authoritative history; commit always refreshes before acceptance. */
   readonly refresh: () => Promise<void>;
   /** Delete this adapter's device cache, retaining remote history. */

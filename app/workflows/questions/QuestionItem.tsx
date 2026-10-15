@@ -17,7 +17,7 @@ import {
   VoiceStatus,
 } from '../../ui/kit/index.ts';
 import type { Transcription } from '../../transcription.ts';
-import { isSafeUrl } from '../../vault/documents/notes/safe-url.ts';
+import { isSafeUrl } from '../../navigation/urls.ts';
 import type { Question, QuestionTarget } from './reading.ts';
 import { parseAnswer } from './records.ts';
 import type { QuestionAnswers } from './answers.ts';

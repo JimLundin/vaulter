@@ -4,7 +4,6 @@ import { create, request } from '../../app/vault/nodes/fixtures.test-support.ts'
 import { accept } from '../../app/vault/nodes/history.ts';
 import { digest } from '../../app/vault/nodes/json.ts';
 import { seal } from '../../app/vault/session/sealed.ts';
-import { sampleFiles } from '../../app/preview/data.ts';
 // biome-ignore lint/correctness/noUnresolvedImports: Playwright re-exports these browser types.
 import type { Page } from '@playwright/test';
 
@@ -61,7 +60,6 @@ test('production opens a fresh chat, pages saved conversations and retains only 
   ]);
   const record = accept([], initial, await digest(initial), at);
   const fake = await fakeGitHub({
-    ...sampleFiles,
     '.vaulter/nodes/v1/transactions/chat-fixture.json': JSON.stringify(record),
   });
   const password = 'fictional-chat-password';
@@ -163,7 +161,7 @@ test.describe('production recorded dictation', () => {
   test('a configured key and missing Realtime route still allow dictation into an unsent draft', async ({
     page,
   }) => {
-    const fake = await fakeGitHub(sampleFiles);
+    const fake = await fakeGitHub({});
     const password = 'fictional-dictation-password';
     const key = 'fictional-openai-key';
     const sealed = await seal(

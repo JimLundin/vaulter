@@ -6,16 +6,8 @@ import './ui/kit/styles.css';
 import { createRoot } from 'react-dom/client';
 import { Application } from './application/index.tsx';
 import { startTheme } from './ui/kit/index.ts';
-import type { OpenBackend, OpenNodes } from './vault/session/adapters.ts';
-import { githubBackend } from './vault/storage/files/github/index.ts';
+import type { OpenNodes } from './vault/session/adapters.ts';
 import { githubNodeBackend } from './vault/storage/nodes/github.ts';
-
-const openBackend: OpenBackend = ({ secrets, keeps }) =>
-  githubBackend({
-    token: secrets.github,
-    api: import.meta.env.VITE_GITHUB_API || undefined,
-    keeps,
-  });
 
 startTheme();
 const openNodes: OpenNodes = ({ secrets }) =>
@@ -23,9 +15,7 @@ const openNodes: OpenNodes = ({ secrets }) =>
     token: secrets.github,
     api: import.meta.env.VITE_GITHUB_API || undefined,
   });
-createRoot(document.getElementById('app')!).render(
-  <Application openBackend={openBackend} openNodes={openNodes} />,
-);
+createRoot(document.getElementById('app')!).render(<Application openNodes={openNodes} />);
 
 if (!import.meta.env.DEV && 'serviceWorker' in navigator)
   navigator.serviceWorker.register('./sw.js');

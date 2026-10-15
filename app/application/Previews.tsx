@@ -2,7 +2,7 @@
 import { useCallback } from 'react';
 import { HoverPreview } from '../ui/kit/index.ts';
 import { parseRoute } from '../navigation/routing.ts';
-import type { Entry } from '../vault/documents/search.ts';
+import type { Entry } from '../search/entries.ts';
 
 export function Previews({ index }: { index: Map<string, Entry> }) {
   const resolve = useCallback(

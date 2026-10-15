@@ -90,7 +90,7 @@ test('Chat owns a request before clearing its source and preserves newer typing 
       capture: busyState.capture,
     });
     expect(chat.snapshot().submission).toBe(busyState.submission);
-    expect(chat.snapshot().review).toBe(busyState.review);
+
     expect(model.doStreamCalls).toHaveLength(0);
     chat.setDraft('A newer unfinished draft');
     accept();
@@ -113,7 +113,7 @@ test('Chat owns a request before clearing its source and preserves newer typing 
       capture: recoveryState.capture,
     });
     expect(chat.snapshot().submission).toBe(recoveryState.submission);
-    expect(chat.snapshot().review).toBe(recoveryState.review);
+
     failing = false;
     await chat.retrySave();
     await owned.done;
@@ -123,29 +123,6 @@ test('Chat owns a request before clearing its source and preserves newer typing 
     expect(model.doStreamCalls).toHaveLength(0);
   } finally {
     accept();
-    chat.dispose();
-    nodes.close();
-  }
-});
-
-test('pre-handoff staged-context failure preserves the source and remains a meaningful blocked intent', async () => {
-  const { nodes, model, options } = await fixture({
-    stagedChanges: () => {
-      throw new Error('Staged context unavailable');
-    },
-  });
-  const chat = createNodeConversation(options);
-  try {
-    chat.setDraft('Keep my source draft');
-    const before = chat.snapshot();
-    expect(chat.prepareSubmission()).toEqual({
-      status: 'blocked',
-      reason: 'Staged context unavailable',
-    });
-    expect(chat.snapshot()).toMatchObject(before);
-    expect(chat.snapshot().actionReason).toBe('Staged context unavailable');
-    expect(model.doStreamCalls).toHaveLength(0);
-  } finally {
     chat.dispose();
     nodes.close();
   }
@@ -168,34 +145,6 @@ test('request ownership is observable atomically with busy admission, including 
     if (first.status !== 'owned') throw new Error('Expected owned request');
     await first.done;
     expect(chat.snapshot().turns.filter(({ role }) => role === 'user')).toHaveLength(1);
-  } finally {
-    unsubscribe();
-    chat.dispose();
-    nodes.close();
-  }
-});
-
-test('review confirmation never publishes an idle handoff that admits a subscriber request', async () => {
-  const files = [{ path: 'Pending.md', before: 'before', text: 'after' }];
-  const { nodes, options } = await fixture({ stagedChanges: () => files });
-  const chat = createNodeConversation(options);
-  chat.setDraft('The reviewed request');
-  const review = chat.prepareSubmission();
-  if (review.status !== 'review') throw new Error('Expected review');
-  let attempted = false;
-  let second: ReturnType<typeof chat.prepareSubmission> | undefined;
-  const unsubscribe = chat.subscribe(() => {
-    if (chat.snapshot().review || attempted) return;
-    attempted = true;
-    second = chat.prepareSubmission({ text: 'A subscriber must not overlap confirmation' });
-  });
-  try {
-    const first = chat.confirmReview(review.id);
-    expect(second).toEqual({ status: 'blocked', reason: 'Wait for the Agent to finish.' });
-    if (first.status !== 'owned') throw new Error('Expected owned reviewed request');
-    await first.done;
-    expect(chat.snapshot().turns.filter(({ role }) => role === 'user')).toHaveLength(1);
-    expect(chat.snapshot().submission?.id).toBe(first.request.id);
   } finally {
     unsubscribe();
     chat.dispose();
@@ -234,7 +183,7 @@ test.each([
         capture: before.capture,
       });
       expect(chat.snapshot().submission).toBe(before.submission);
-      expect(chat.snapshot().review).toBe(before.review);
+
       expect(chat.conversation()).toBe(identity);
       expect(model.doStreamCalls).toHaveLength(0);
     } finally {
@@ -264,7 +213,7 @@ test('synchronous handoff failure keeps the source and its revision for a later 
       capture: original.capture,
     });
     expect(chat.snapshot().submission).toBe(original.submission);
-    expect(chat.snapshot().review).toBe(original.review);
+
     expect(chat.draftIntent()).toEqual(intent);
     expect(model.doStreamCalls).toHaveLength(0);
     const owned = chat.prepareSubmission();
@@ -309,161 +258,6 @@ test('asynchronous preparation failure preserves locally owned request text with
     const close = chat.watchRecords();
     await vi.waitFor(() => expect(chat.snapshot().records.chats).toEqual([]));
     close();
-  } finally {
-    chat.dispose();
-    nodes.close();
-  }
-});
-
-test('retained reviewed text submits without clearing a later draft revision with identical text', async () => {
-  const files = [{ path: 'Pending.md', before: 'before', text: 'after' }];
-  const { nodes, options } = await fixture({ stagedChanges: () => files });
-  const chat = createNodeConversation(options);
-  try {
-    chat.setDraft('Text for review');
-    const review = chat.prepareSubmission();
-    expect(review.status).toBe('review');
-    if (review.status !== 'review') throw new Error('Expected review');
-    chat.setDraft('Text for review');
-    const outcome = chat.confirmReview();
-    if (outcome.status !== 'owned') throw new Error('Expected retained reviewed request');
-    await outcome.done;
-    expect(chat.snapshot().draft).toBe('Text for review');
-    expect(chat.snapshot().turns[0]?.parts).toEqual([{ kind: 'text', text: 'Text for review' }]);
-    expect(options.stagedChanges?.()).toEqual(files);
-  } finally {
-    chat.dispose();
-    nodes.close();
-  }
-});
-
-test('confirmation refreshes changed staged evidence and requires another explicit confirmation', async () => {
-  const files = [{ path: 'Pending.md', before: 'original', text: 'first edit' }];
-  const { nodes, model, options } = await fixture({ stagedChanges: () => files });
-  const chat = createNodeConversation(options);
-  try {
-    chat.setDraft('The retained reviewed message');
-    chat.prepareSubmission();
-    files[0]!.text = 'changed edit';
-    chat.setDraft('Newer text after review began');
-    const refreshed = chat.confirmReview();
-    expect(refreshed.status).toBe('review');
-    expect(chat.snapshot().review?.files[0]?.text).toBe('changed edit');
-    expect(chat.snapshot().review?.reason).toContain('changed');
-    expect(chat.snapshot().turns).toEqual([]);
-    expect(model.doStreamCalls).toHaveLength(0);
-    const sent = chat.confirmReview();
-    if (sent.status !== 'owned') throw new Error('Expected explicit re-confirmation');
-    await sent.done;
-    expect(chat.snapshot().review).toBeUndefined();
-    expect(chat.snapshot().draft).toBe('Newer text after review began');
-    expect(chat.snapshot().turns[0]?.parts).toEqual([
-      { kind: 'text', text: 'The retained reviewed message' },
-    ]);
-    expect(options.stagedChanges?.()).toEqual(files);
-  } finally {
-    chat.dispose();
-    nodes.close();
-  }
-});
-
-test('review belongs to Chat across view closure and cancellation preserves the current draft', async () => {
-  const files = [{ path: 'Pending.md', before: 'before', text: 'after' }];
-  const { nodes, model, options } = await fixture({ stagedChanges: () => files });
-  const chat = createNodeConversation(options);
-  try {
-    chat.setDraft('The message being reviewed');
-    const close = chat.viewing();
-    const outcome = chat.prepareSubmission();
-    close();
-    expect(chat.snapshot().review).toMatchObject({
-      intent: { text: 'The message being reviewed' },
-      files,
-    });
-    expect(outcome).toBe(chat.snapshot().review);
-    chat.setDraft('A later editable draft');
-    expect(chat.cancelReview()).toEqual({ status: 'cancelled' });
-    expect(chat.snapshot().review).toBeUndefined();
-    expect(chat.snapshot().draft).toBe('A later editable draft');
-    expect(model.doStreamCalls).toHaveLength(0);
-    expect(options.stagedChanges?.()).toEqual(files);
-  } finally {
-    chat.dispose();
-    nodes.close();
-  }
-});
-
-test('blocked confirmation keeps reviewed text and exposes the current permission without sending', async () => {
-  const files = [{ path: 'Pending.md', before: 'before', text: 'after' }];
-  const { nodes, model, options } = await fixture({ stagedChanges: () => files });
-  const chat = createNodeConversation(options);
-  try {
-    chat.setDraft('Reviewed text');
-    chat.prepareSubmission();
-    chat.updateOptions({ ...options, availability: 'Saving is unavailable' });
-    expect(chat.confirmReview()).toEqual({ status: 'blocked', reason: 'Saving is unavailable' });
-    expect(chat.snapshot().review).toMatchObject({
-      intent: { text: 'Reviewed text' },
-      files,
-      reason: 'Saving is unavailable',
-    });
-    chat.updateOptions({
-      ...options,
-      stagedChanges: () => {
-        throw new Error('Cannot read current edits');
-      },
-    });
-    expect(chat.confirmReview()).toEqual({
-      status: 'blocked',
-      reason: 'Cannot read current edits',
-    });
-    expect(chat.snapshot().review?.reason).toBe('Cannot read current edits');
-    expect(chat.snapshot().draft).toBe('Reviewed text');
-    expect(model.doStreamCalls).toHaveLength(0);
-  } finally {
-    chat.dispose();
-    nodes.close();
-  }
-});
-
-test('another submission cannot replace or bypass a retained review', async () => {
-  const { nodes, model, options } = await fixture({
-    stagedChanges: () => [{ path: 'Pending.md', before: 'before', text: 'after' }],
-  });
-  const chat = createNodeConversation(options);
-  try {
-    chat.setDraft('Original reviewed message');
-    chat.prepareSubmission();
-    const review = chat.snapshot().review;
-    chat.setDraft('Newer source draft');
-    expect(chat.prepareSubmission().status).toBe('blocked');
-    expect(chat.snapshot().review).toBe(review);
-    expect(chat.snapshot().draft).toBe('Newer source draft');
-    expect(model.doStreamCalls).toHaveLength(0);
-  } finally {
-    chat.dispose();
-    nodes.close();
-  }
-});
-
-test('a review superseded during staged-evidence reading cannot submit or restore its old task', async () => {
-  const files = [{ path: 'Pending.md', before: 'before', text: 'after' }];
-  const { nodes, model, options } = await fixture({ stagedChanges: () => files });
-  const chat = createNodeConversation(options);
-  try {
-    chat.setDraft('Original review');
-    chat.prepareSubmission();
-    chat.updateOptions({
-      ...options,
-      stagedChanges: () => {
-        chat.cancelReview();
-        return files;
-      },
-    });
-    expect(chat.confirmReview().status).toBe('blocked');
-    expect(chat.snapshot().review).toBeUndefined();
-    expect(chat.snapshot().draft).toBe('Original review');
-    expect(model.doStreamCalls).toHaveLength(0);
   } finally {
     chat.dispose();
     nodes.close();
@@ -533,7 +327,7 @@ test.each(['connecting', 'listening', 'finishing'] as const)(
         capture: before.capture,
       });
       expect(chat.snapshot().submission).toBe(before.submission);
-      expect(chat.snapshot().review).toBe(before.review);
+
       expect(model.doStreamCalls).toHaveLength(0);
       if (phase === 'connecting') {
         await chat.captureAction();

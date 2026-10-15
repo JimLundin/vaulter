@@ -4,7 +4,6 @@ import { fakeGitHub } from '../../app/vault/storage/github-client/fake-github.ts
 import { memoryNodeBackend } from '../../app/vault/nodes/memory.ts';
 import { create, request } from '../../app/vault/nodes/fixtures.test-support.ts';
 import { seal } from '../../app/vault/session/sealed.ts';
-import { sampleFiles } from '../../app/preview/data.ts';
 import { accept } from '../../app/vault/nodes/history.ts';
 import { canonical, digest } from '../../app/vault/nodes/json.ts';
 
@@ -101,7 +100,6 @@ test('production opens real Wiki pages and exact evidence alongside persistent C
   const transaction = await nodes.commit(input);
   const record = accept([], input, await digest(canonical(input)), transaction.recordedAt);
   const fake = await fakeGitHub({
-    ...sampleFiles,
     '.vaulter/nodes/v1/transactions/wiki-fixture.json': JSON.stringify(record),
   });
   const password = 'fictional-production-password';

@@ -7,8 +7,6 @@ import { dirname, relative, resolve } from 'node:path';
 import { compilerValues } from './compiler-values.ts';
 
 const slash = (path: string) => path.replaceAll('\\', '/');
-const contentRenderer = (path: string) =>
-  path === 'app/vault/documents/notes/remark-vault-links.ts';
 const semanticRenderer = (path: string) => path === 'app/workflows/wiki/rendering/blocks.tsx';
 const semanticTags = new Set([
   'section',
@@ -73,7 +71,9 @@ const sessionNodeCaller = (from: string, owner: string) =>
   (owner === 'app/vault/transactions/lifetime.ts'
     ? from === 'app/application/composition.ts' || from === 'app/vault/session/session.ts'
     : owner === 'app/vault/session/session.ts'
-      ? from === 'app/vault/index.ts' || from.startsWith('app/vault/session/')
+      ? from === 'app/application/index.tsx' ||
+        from === 'app/vault/index.ts' ||
+        from.startsWith('app/vault/session/')
       : from === 'app/application/index.tsx');
 // These owner UI declarations compose presentation; storage/model implementations remain separate.
 const vaultUi = new Set([
@@ -85,6 +85,8 @@ const vaultUi = new Set([
   'app/vault/transactions/history/HistoryPage.tsx',
 ]);
 export function importProblem(from: string, to: string): string | null {
+  if (from.startsWith('app/') && to.startsWith('tools/vault-check/'))
+    return `${from} imports standalone vault checking; browser data uses Nodes`;
   if (to.startsWith('app/preview/') && !fixture(from))
     return `${from} imports preview-only ${to}; fixtures cannot publish application data`;
   if (testSource(to) && !fixture(from))
@@ -125,11 +127,6 @@ export function importProblem(from: string, to: string): string | null {
     return `${from} imports Application composition; dependencies point from Application to module owners`;
   if (kit(from) && to.startsWith('app/') && !kit(to) && !to.startsWith('app/runtime/'))
     return `${from} imports application behavior ${to}; the kit owns generic presentation only`;
-  if (
-    (from.startsWith('app/vault/storage/files/') && to.startsWith('app/vault/storage/nodes/')) ||
-    (from.startsWith('app/vault/storage/nodes/') && to.startsWith('app/vault/storage/files/'))
-  )
-    return `${from} imports another persistence format; share transport through storage/github-client`;
 
   if (
     to.startsWith('app/ui/kit/') &&
@@ -267,11 +264,10 @@ export function checkLayout(root: string): string[] {
         )
           problems.push(`${from}: presentation dependencies belong behind app/ui/kit/index.ts`);
         if (
-          !(kit(from) || contentRenderer(from)) &&
+          !kit(from) &&
           /\.css$/.test(value.text) &&
           target &&
-          slash(relative(root, target)) !== 'app/ui/kit/styles.css' &&
-          !(from === 'app/application/index.tsx' && contentRenderer(slash(relative(root, target))))
+          slash(relative(root, target)) !== 'app/ui/kit/styles.css'
         )
           problems.push(`${from}: app styles belong in the kit or content renderer`);
         if (!target) return;
@@ -474,7 +470,6 @@ export function checkLayout(root: string): string[] {
               `${from}: app views must compose the public kit instead of styling elements`,
             );
           if (
-            !contentRenderer(from) &&
             ts.isObjectLiteralExpression(node) &&
             node.properties.some(
               (property) =>

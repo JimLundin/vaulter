@@ -895,29 +895,6 @@ test('new module helpers cannot hide viewport queries in values or own scroll me
   }
 });
 
-test('the vault-link annotation exception permits data annotation without native UI', () => {
-  const root = mkdtempSync(join(tmpdir(), 'vaulter-annotation-policy-'));
-  try {
-    mkdirSync(join(root, 'app/vault/documents/notes'), { recursive: true });
-    writeFileSync(
-      join(root, 'tsconfig.json'),
-      JSON.stringify({
-        compilerOptions: { module: 'ESNext', moduleResolution: 'Bundler' },
-        include: ['app'],
-      }),
-    );
-    writeFileSync(
-      join(root, 'app/vault/documents/notes/remark-vault-links.ts'),
-      `function createElement(tag:string){return tag};const props={className:['vault-link']};createElement('div',props);`,
-    );
-    expect(checkLayout(root)).toContain(
-      'app/vault/documents/notes/remark-vault-links.ts: intrinsic element factories belong in the kit or content renderer',
-    );
-  } finally {
-    rmSync(root, { recursive: true, force: true });
-  }
-});
-
 test('computed style props and bracket measurement cannot escape through helper values', () => {
   const root = mkdtempSync(join(tmpdir(), 'vaulter-computed-presentation-'));
   try {
@@ -1069,8 +1046,11 @@ test('installed presentation-library targets cannot hide behind path aliases or 
   }
 });
 
-test('module owners cannot depend on their consumers or another persistence format', () => {
+test('module owners cannot depend on their consumers or standalone vault checking', () => {
   for (const owner of ['runtime', 'navigation', 'settings', 'vault/nodes']) {
+    expect(
+      importProblem(`app/${owner}/core.ts`, 'tools/vault-check/validation/check.ts'),
+    ).toContain('standalone vault checking');
     expect(importProblem(`app/${owner}/core.ts`, 'app/application/composition.ts')).toContain(
       'imports Application composition',
     );
@@ -1080,13 +1060,6 @@ test('module owners cannot depend on their consumers or another persistence form
     expect(importProblem('app/ui/kit/control.tsx', `app/${target}`)).toContain(
       'kit owns generic presentation only',
     );
-  for (const [from, to] of [
-    ['files', 'nodes'],
-    ['nodes', 'files'],
-  ])
-    expect(
-      importProblem(`app/vault/storage/${from}/adapter.ts`, `app/vault/storage/${to}/adapter.ts`),
-    ).toContain('another persistence format');
   expect(
     importProblem('app/application/composition.ts', 'app/workflows/questions/actions.ts'),
   ).toBeNull();

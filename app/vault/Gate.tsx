@@ -11,27 +11,28 @@ import {
   Heading,
   Loader,
 } from '../ui/kit/index.ts';
-import type { VaultFile } from './files.ts';
 import type { Session } from './session/session.ts';
 import { Unlock } from './session/ui.tsx';
 
-/** Vault-owned readiness includes file/schema blocking as well as Session unlock state. */
+/** Vault readiness follows accepted node data and Session unlock state. */
 export function VaultGate({
   state,
   children,
 }: {
-  state: Pick<Session, 'locked' | 'status'> & { files: VaultFile[] | null; blocked: string | null };
+  state: Pick<Session, 'locked' | 'nodeStatus' | 'ready'>;
   children: ReactNode;
 }) {
   if (state.locked) return <Unlock unlock={state.locked.unlock} />;
-  if (state.files && !state.blocked) return children;
+  if (state.ready) return children;
   return (
     <Gate>
       <Brand />
-      {state.blocked || state.status.kind === 'error' ? (
+      {state.nodeStatus.kind === 'error' || state.nodeStatus.kind === 'offline' ? (
         <Alert variant="destructive">
           <AlertDescription>
-            {state.blocked ?? (state.status.kind === 'error' ? state.status.message : '')}
+            {state.nodeStatus.kind === 'error'
+              ? state.nodeStatus.message
+              : 'Connect to load your vault on this device.'}
           </AlertDescription>
         </Alert>
       ) : (

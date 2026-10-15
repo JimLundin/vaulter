@@ -8,7 +8,7 @@ import { sameOperation } from './operations.ts';
 export function nodeInterface(options: {
   read: () => readonly NodeRecord[];
   append: (request: NodeCommit, publication?: NodePublicationRule) => Promise<NodeRecord>;
-  cached: () => Promise<void>;
+  cached: () => Promise<boolean>;
   refresh: () => Promise<void>;
   clear: () => Promise<void>;
   close: () => void;

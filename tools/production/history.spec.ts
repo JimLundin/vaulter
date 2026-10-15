@@ -4,7 +4,6 @@ import { create, request } from '../../app/vault/nodes/fixtures.test-support.ts'
 import { accept } from '../../app/vault/nodes/history.ts';
 import { canonical, digest } from '../../app/vault/nodes/json.ts';
 import { seal } from '../../app/vault/session/sealed.ts';
-import { sampleFiles } from '../../app/preview/data.ts';
 
 test('production History displays historical attribution and records confirmed content compensation', async ({
   page,
@@ -48,7 +47,6 @@ test('production History displays historical attribution and records confirmed c
     '2026-10-11T09:10:00Z',
   );
   const fake = await fakeGitHub({
-    ...sampleFiles,
     '.vaulter/nodes/v1/transactions/history-fixture.json': JSON.stringify(initialRecord),
     '.vaulter/nodes/v1/transactions/content-edit.json': JSON.stringify(editRecord),
     '.vaulter/nodes/v1/transactions/rename-author.json': JSON.stringify(renameRecord),

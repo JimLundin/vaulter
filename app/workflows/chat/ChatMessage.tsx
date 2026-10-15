@@ -5,7 +5,7 @@ import {
   type ToolPresentationAdapter,
 } from '../../agent/tool-presentation.tsx';
 import { liveLabel, running, segments, summarize, type ToolPart } from './activity.ts';
-import { renderBody } from './rendering/markdown.ts';
+import { renderMarkdown } from './rendering/markdown.ts';
 import type { Turn } from './view.ts';
 
 /** A recorded turn needs no store or execution controller to display accepted evidence. */
@@ -39,7 +39,7 @@ export function ChatMessage({
   );
 }
 function Said({ text }: { text: string }) {
-  const body = useMemo(() => renderBody({ id: 'agent', path: 'agent.md', body: text }), [text]);
+  const body = useMemo(() => renderMarkdown(text), [text]);
   return <Markdown>{body}</Markdown>;
 }
 /** One call as its own row; two or more folded into a single summary line. */

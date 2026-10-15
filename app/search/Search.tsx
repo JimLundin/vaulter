@@ -1,9 +1,9 @@
 // ⌘K: find and do. Empty, it offers the notes opened lately, the pages and the commands; typed, the
 // notes ranked by the vault's search and already bound commands.
 import { useMemo, useState } from 'react';
-import { search } from '../vault/documents/search.ts';
+import { search } from './entries.ts';
 import type { Command } from '../navigation/commands.ts';
-import type { Entry, Hit } from '../vault/documents/search.ts';
+import type { Entry, Hit } from './entries.ts';
 import { showKeys } from '../navigation/keys.ts';
 import { useRecent } from './recent.ts';
 import { go, useRoute } from '../navigation/routing.ts';

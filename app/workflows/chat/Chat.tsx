@@ -2,11 +2,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Button,
-  CodeDiff,
   TextBox,
   PromptSuggestions,
   VoiceStatus,
-  Overlay,
   Row,
   Stack,
   Text,
@@ -46,8 +44,6 @@ export function Chat({
     capture,
     submissionAvailability,
     selection,
-    review,
-    reviewAvailability,
     actionReason,
     prompts,
   } = useNodeChat(conversation);
@@ -246,46 +242,6 @@ export function Chat({
           toolPresentations={toolPresentations}
         />
       ))}
-
-      <Overlay
-        open={visible && !!review}
-        share={conversation}
-        onClose={() => conversation.cancelReview(review?.id)}
-        title="Review pending changes"
-        description="These legacy file edits remain staged. Sending this message creates nodes and leaves these edits unchanged."
-      >
-        <Stack>
-          <Text>{review?.intent.text}</Text>
-          {(review?.reason || !reviewAvailability.allowed) && (
-            <Text role="alert" tone="danger">
-              {review?.reason ?? reviewAvailability.reason}
-            </Text>
-          )}
-          {review?.files.map((file) => (
-            <CodeDiff
-              key={file.path}
-              path={file.path}
-              before={file.before}
-              after={file.text ?? ''}
-            />
-          ))}
-          <Row justify="end">
-            <Button variant="outline" onClick={() => conversation.cancelReview(review?.id)}>
-              Cancel
-            </Button>
-            <Button
-              disabled={!reviewAvailability.allowed}
-              onClick={() => {
-                if (!review) return;
-                const outcome = conversation.confirmReview(review.id);
-                if (outcome.status === 'owned') later(outcome.done);
-              }}
-            >
-              Send and keep staged edits
-            </Button>
-          </Row>
-        </Stack>
-      </Overlay>
     </ChatSurface>
   );
 }

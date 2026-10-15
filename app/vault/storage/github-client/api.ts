@@ -1,8 +1,5 @@
-// The GitHub REST client, a library with no app state: the GitHub backend uses it for the vault, the code
-// feature for the app's own repo. Reading: the ref of main (conditional on its ETag), the recursive
-// tree, and blobs, each checked against git's own hash before it is trusted. Writing (Git Data API): blobs,
-// a tree on a base, a commit, and moving main, never by force. History: recent commits and their files; the commit
-// main was at on a day, and what changed since.
+// GitHub transport for node persistence: read the branch tree and verified blobs, then
+// publish complete transaction envelopes with a non-forced Git ref update.
 
 import { blobSha } from '../blob-sha.ts';
 
@@ -17,11 +14,6 @@ const parseRepo = (s: string): Repo => {
   return { owner, name, branch };
 };
 export const REPO = parseRepo(import.meta.env?.VITE_VAULT_REPO || 'JimLundin/vault@main');
-/** The app's own source, which the agent can change: VITE_APP_REPO at build time. */
-export const APP_REPO = parseRepo(import.meta.env?.VITE_APP_REPO || 'JimLundin/vaulter@main');
-/** A file of the vault on GitHub, for "view source". */
-export const sourceUrl = (path: string, r = REPO) =>
-  `https://github.com/${r.owner}/${r.name}/blob/${r.branch}/${encodeURI(path)}`;
 export const API = import.meta.env?.VITE_GITHUB_API || 'https://api.github.com';
 
 export interface TreeEntry {
@@ -34,20 +26,6 @@ export interface TreeEntry {
 export interface TreeChange {
   path: string;
   sha: string | null;
-}
-
-export interface CommitInfo {
-  sha: string;
-  message: string;
-  date: string;
-  parent: string;
-  files: {
-    filename: string;
-    status: string;
-    sha: string;
-    previous_filename?: string;
-    patch?: string;
-  }[];
 }
 
 /** main moved since the commit's parent: the update would not be a fast-forward. */
@@ -157,37 +135,5 @@ export function github(
         { method: 'PATCH', body: { sha: commit, force: false } },
       );
     },
-    async commits(perPage = 30): Promise<{ sha: string; message: string; date: string }[]> {
-      const list = await (await call(`/commits?sha=${repo.branch}&per_page=${perPage}`)).json();
-      return list.map((c: any) => ({
-        sha: c.sha,
-        message: c.commit.message,
-        date: c.commit.committer?.date ?? '',
-      }));
-    },
-    /** The newest commit on main at or before `date` (ISO 8601), or null when main is younger. */
-    async commitAt(date: string): Promise<string | null> {
-      const list = await (
-        await call(`/commits?sha=${repo.branch}&until=${encodeURIComponent(date)}&per_page=1`)
-      ).json();
-      return list[0]?.sha ?? null;
-    },
-    /** The paths that differ between two commits (GitHub lists at most 300). */
-    async compare(from: string, to: string): Promise<string[]> {
-      return ((await (await call(`/compare/${from}...${to}`)).json()).files ?? []).map(
-        (f: any) => f.filename,
-      );
-    },
-    async commit(sha: string): Promise<CommitInfo> {
-      const c = await (await call(`/commits/${sha}`)).json();
-      return {
-        sha: c.sha,
-        message: c.commit.message,
-        date: c.commit.committer?.date ?? '',
-        parent: c.parents[0]?.sha ?? '',
-        files: c.files ?? [],
-      };
-    },
   };
 }
-export type GitHub = ReturnType<typeof github>;
