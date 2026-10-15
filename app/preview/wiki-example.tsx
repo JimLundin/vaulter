@@ -1,3 +1,4 @@
+import { applicationWikiGraph } from '../application/composition.ts';
 // Explicit preview adapter: fictional NodeStore -> production Wiki reader -> production record UI.
 import { useEffect, useState } from 'react';
 import { Button, Stack, Text } from '../ui/kit/index.ts';
@@ -18,7 +19,7 @@ const sources: SourceReader = {
 export function WikiExample({ controls = false }: { controls?: boolean }) {
   const [nodes, setNodes] = useState<NodeBackend | null>(null);
   const [seedError, setSeedError] = useState('');
-  const reading = useWikiReading(nodes, sources);
+  const reading = useWikiReading(nodes, sources, applicationWikiGraph);
   const { pages, error: readError } = useWiki(reading);
   const error = seedError || readError;
   const [state, setState] = useState('page');

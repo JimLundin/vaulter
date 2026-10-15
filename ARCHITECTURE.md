@@ -110,6 +110,9 @@ flowchart LR
 ```
 
 Wiki and Questions do not call one another or consume one another's reading interfaces.
+Wiki also has no direct dependency on Graph. Application supplies a snapshot-scoped related-content
+reading that delegates classification, Relationship labels and Query evaluation to Graph. Wiki
+supplies page candidates and renders the results; Graph is the sole interpreter for those records.
 Questions accepts a generic live Node as its optional subject and exact Node addresses for source
 and knowledge evidence. It validates availability, schema, attribution and atomic publication.
 Agent discovers Wiki subjects and classifies evidence through owner-supplied readers composed by

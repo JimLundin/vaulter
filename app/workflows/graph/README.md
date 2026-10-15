@@ -73,9 +73,13 @@ keyboard-accessible buttons. Graph owns the subscribed reading lifetime in `expl
 the previous result on a failed refresh and rejecting late responses after replacement or disposal.
 Application supplies descriptions from record owners; Graph never imports Wiki.
 
-Publication actions, Agent tools and migrating Wiki's existing presentation projections to an
-Application-supplied Graph reading remain subsequent slices. Wiki's current presentation stays
-compatible with stored Graph records. Workflow isolation prohibits Wiki importing Graph directly.
+`graphRelatedContent(snapshot)` supplies classifications, embedded relationship labels and query
+results to Wiki through Application's `applicationWikiGraph`. Graph's query evaluator and Wiki's
+metadata use the same `classifications` implementation. Wiki supplies page candidates and keeps
+page rendering, containment and citation policy. The required reading input is constructed from
+Wiki's selected Snapshot, preventing stale Graph data from mixing with newer page versions.
+Workflow isolation prohibits Wiki importing Graph directly. Publication actions and Agent tools
+remain subsequent slices.
 
 ```mermaid
 flowchart TD

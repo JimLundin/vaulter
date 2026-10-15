@@ -12,6 +12,7 @@ import {
   applicationChatOptions,
   applicationSources,
   applicationGraphDescription,
+  applicationWikiGraph,
   agentContextReading,
   toolPresentations,
 } from './composition.ts';
@@ -217,7 +218,7 @@ export function OpenApplication({
   }, [prepareIdentities, nodeStatus.kind]);
   const route = useRoute();
   const wikiSources = applicationSources;
-  const wiki = useWikiReading(nodes, wikiSources);
+  const wiki = useWikiReading(nodes, wikiSources, applicationWikiGraph);
   const { pages, error: wikiError } = useWiki(wiki);
   const wikiPage = pageRoute.match(route.path)?.node;
   const onWiki = !!wikiRoute.match(route.path) || !!wikiPage;

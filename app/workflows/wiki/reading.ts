@@ -1,6 +1,7 @@
 import type { NodeReading } from '../../vault/nodes/store.ts';
 import type { SourceReader } from '../../vault/sources.ts';
 import { readWiki, type WikiPage } from './pages.ts';
+import type { WikiRelatedContentReading } from './related-content.ts';
 
 export interface WikiReadingState {
   readonly pages: WikiPage[] | null;
@@ -18,7 +19,11 @@ export interface WikiReading {
 }
 
 /** Own the subscribed collection without owning the supplied store or source readers. */
-export function createWikiReading(nodes: NodeReading | null, sources: SourceReader): WikiReading {
+export function createWikiReading(
+  nodes: NodeReading | null,
+  sources: SourceReader,
+  relatedContent: WikiRelatedContentReading,
+): WikiReading {
   let state: WikiReadingState = { pages: null, loading: !!nodes };
   let generation = 0;
   let disposed = false;
@@ -34,7 +39,7 @@ export function createWikiReading(nodes: NodeReading | null, sources: SourceRead
     const request = ++generation;
     publish({ ...state, loading: true });
     try {
-      const pages = await readWiki(nodes, sources);
+      const pages = await readWiki(nodes, sources, relatedContent);
       if (!disposed && request === generation) publish({ pages, loading: false });
     } catch (error) {
       if (!disposed && request === generation)

@@ -30,6 +30,15 @@ export interface GraphTraversal {
   readonly nodes: readonly NodeVersion[];
   readonly relationships: readonly GraphRelationship[];
 }
+export interface GraphClassification {
+  readonly id: string;
+  readonly relationship: string;
+  readonly predicate: string;
+  readonly scheme: string;
+  readonly key: string;
+  readonly label: string;
+  readonly state: 'resolved' | 'unresolved' | 'deleted';
+}
 /** Owners supply presentation and collection membership; Graph does not interpret foreign payloads. */
 export interface QueryCandidate {
   readonly node: string;
@@ -39,6 +48,7 @@ export interface QueryCandidate {
 export interface Graph {
   readonly sequence: number;
   readonly vocabulary: (scheme?: string) => readonly GraphTerm[];
+  readonly classifications: (address: NodeAddress) => readonly GraphClassification[];
   readonly relationships: (
     address: NodeAddress,
     selection?: RelationshipSelection,
@@ -176,15 +186,30 @@ export function readGraph(view: NodeSnapshot): Graph {
     }
     return { nodes, relationships: [...found.values()] };
   };
+  const classifications: Graph['classifications'] = (address) =>
+    relationships(address, { direction: 'outgoing' })
+      .filter((edge) => edge.data.predicate === 'type' || edge.data.predicate === 'tag')
+      .map((edge) => {
+        const term =
+          edge.target.state === 'available' && edge.target.version?.data?.kind === 'term'
+            ? graphSchemas.term.parse(edge.target.version.data)
+            : undefined;
+        return {
+          id: edge.target.address?.node ?? edge.node.key.node,
+          relationship: edge.node.key.node,
+          predicate: edge.data.predicate,
+          scheme: term?.scheme ?? 'unresolved',
+          key: term?.key ?? (edge.target.state === 'unresolved' ? (edge.data.label ?? '') : ''),
+          label: term?.label ?? term?.key ?? edge.data.label ?? 'Unavailable term',
+          state: edge.target.state === 'unresolved' ? 'unresolved' : term ? 'resolved' : 'deleted',
+        };
+      });
   const query: Graph['query'] = (input, candidates) => {
     const data = graphSchemas.query.parse(input);
     const classified = (node: string, predicate: string, key: string) =>
-      relationships(view.get(node)!.key, { direction: 'outgoing', predicate }).some((edge) => {
-        if (edge.target.state === 'unresolved') return edge.data.label === key;
-        if (edge.target.state !== 'available' || edge.target.version?.data?.kind !== 'term')
-          return false;
-        return graphSchemas.term.parse(edge.target.version.data).key === key;
-      });
+      classifications(view.get(node)!.key).some(
+        (term) => term.predicate === predicate && term.state !== 'deleted' && term.key === key,
+      );
     const included = new Set<string>();
     return candidates
       .filter((candidate) => {
@@ -211,6 +236,7 @@ export function readGraph(view: NodeSnapshot): Graph {
     vocabulary: (scheme) =>
       terms.filter((term) => scheme === undefined || term.data.scheme === scheme),
     relationships,
+    classifications,
     traverse,
     query,
   };

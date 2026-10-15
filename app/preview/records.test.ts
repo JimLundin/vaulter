@@ -1,3 +1,4 @@
+import { applicationWikiGraph } from '../application/composition.ts';
 import { expect, test } from 'vitest';
 import { memoryNodeBackend } from '../vault/nodes/memory.ts';
 import { retainedRecordSources } from '../vault/records/sources.ts';
@@ -13,7 +14,7 @@ const sources: SourceReader = {
 test('fictional retained nodes resolve exact selected passages with newer and removed source context', async () => {
   const nodes = memoryNodeBackend();
   await seedPreviewRecords(nodes);
-  const pages = await readWiki(nodes, sources);
+  const pages = await readWiki(nodes, sources, applicationWikiGraph);
   const page = pages.find((entry) => entry.id === 'preview:page:0')!;
   expect(page.blocks[0].evidence[0]).toMatchObject({
     title: 'Studio plans',
@@ -57,7 +58,9 @@ test('fictional exact selections use the accepted sequence after pre-existing jo
     ],
   });
   await seedPreviewRecords(nodes);
-  const page = (await readWiki(nodes, sources)).find((entry) => entry.id === 'preview:page:0')!;
+  const page = (await readWiki(nodes, sources, applicationWikiGraph)).find(
+    (entry) => entry.id === 'preview:page:0',
+  )!;
   expect(page.blocks[0].evidence[0]).toMatchObject({
     text: 'Keep mornings free.',
     range: { start: 600, end: 619 },
