@@ -32,6 +32,8 @@ Keep tests beside the source or within the module they exercise. Put scenarios s
 modules in `app/application/`. Name Vitest tests `*.test.ts` or `*.test.tsx`, preview Playwright
 tests `*.browser.test.ts`, and production Playwright tests `*.production.browser.test.ts`.
 Vitest excludes browser tests; the two Playwright configurations select their respective suffixes.
+Compile-only API contracts use `*.type-test.ts`; `typecheck` verifies them without scheduling
+runtime tests. Keep these beside the public API they constrain.
 Shared browser drivers use `*.browser.test-support.ts` beside their kit components. Keep runner
 utilities in `tools/testing/` and architecture checks in `tools/architecture/`.
 
@@ -39,6 +41,18 @@ Test state transitions, persistence, recovery and replay prevention through the 
 interface, using its memory backend or fake transport. Keep browser checks for user-visible wiring,
 layout, native input, focus, scrolling, portals and pointer behavior. Test shared presentation
 thoroughly in the kit; workflow checks establish that its callers use it correctly.
+
+Before adding or retaining a test, identify the user-visible failure it catches and the assertion
+that distinguishes correct behavior. Put shared contracts at their owner and keep one browser
+integration check per caller seam; exercise recovery matrices through the backend interface.
+Remove checks for retired designs and assertions that merely repeat implementation details.
+For an uncertain assertion, introduce a deliberate source fault temporarily, verify that the
+test fails for that fault, restore the source, and verify the original behavior passes.
+
+Preview tests use scripted models and memory persistence. Production browser tests use the built
+app with fake remote transports. These establish application behavior under controlled responses;
+provider availability and real service compatibility need separate evidence. Chromium phone
+emulation and synthetic composition events establish only those simulated conditions.
 
 Every browser scenario runs on desktop. Add Playwright details `{ tag: '@phone' }` for behavior
 depending on mobile emulation, compact startup, or phone focus and dismissal. Add `@touch` for

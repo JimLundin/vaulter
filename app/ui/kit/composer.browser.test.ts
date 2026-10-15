@@ -1,5 +1,40 @@
 import { expect, test } from '@playwright/test';
 
+test('composer submission and voice actions have readable contrast in both themes', async ({
+  page,
+}) => {
+  await page.goto('/ui/kit/tests/browser.html?composer');
+  const field = page.getByRole('textbox', { name: 'Fixture message' });
+  for (const colorScheme of ['light', 'dark'] as const) {
+    await page.emulateMedia({ colorScheme });
+    for (const action of ['Start voice interaction', 'Send']) {
+      if (action === 'Send') await field.fill('A readable action');
+      else await field.blur();
+      const button = page.getByRole('button', { name: action, exact: true });
+      await expect(button).toBeVisible();
+      const contrast = await button.evaluate((node) => {
+        const context = document.createElement('canvas').getContext('2d')!;
+        const luminance = (color: string) => {
+          context.fillStyle = color;
+          context.fillRect(0, 0, 1, 1);
+          const channels = [...context.getImageData(0, 0, 1, 1).data].slice(0, 3).map((value) => {
+            const channel = value / 255;
+            return channel <= 0.040_45 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+          });
+          return channels[0]! * 0.2126 + channels[1]! * 0.7152 + channels[2]! * 0.0722;
+        };
+        const style = getComputedStyle(node);
+        const foreground = luminance(style.color);
+        const background = luminance(style.backgroundColor);
+        return (
+          (Math.max(foreground, background) + 0.05) / (Math.min(foreground, background) + 0.05)
+        );
+      });
+      expect(contrast).toBeGreaterThanOrEqual(4.5);
+    }
+  }
+});
+
 test('longform entry reserves floating-control space before focus, after blur and while saving through viewport changes', {
   tag: ['@phone', '@touch'],
 }, async ({ page }) => {
@@ -85,9 +120,9 @@ test('text-box descriptions and validation errors name both the field and its su
   }
 });
 
-test('Save actions submit on Enter in compact and longform entry without clearing the controlled draft', {
-  tag: ['@phone', '@touch'],
-}, async ({ page }) => {
+test('Save actions submit on Enter in compact and longform entry without clearing the controlled draft', async ({
+  page,
+}) => {
   for (const layout of ['longform', 'compact']) {
     await page.goto(
       `/ui/kit/tests/browser.html?composer&${layout === 'longform' ? 'longform' : 'explicit'}`,
@@ -131,9 +166,9 @@ test('Save actions submit on Enter in compact and longform entry without clearin
   }
 });
 
-test('the controlled TextBox reports edits and each Enter or Send once without clearing its owner’s draft', {
-  tag: '@phone',
-}, async ({ page }) => {
+test('the controlled TextBox reports edits and each Enter or Send once without clearing its owner’s draft', async ({
+  page,
+}) => {
   await page.goto('/ui/kit/tests/browser.html?composer');
   const field = page.getByRole('textbox', { name: 'Fixture message' });
   await expect(field).toHaveAttribute('placeholder', 'Write a controlled draft');
@@ -151,9 +186,9 @@ test('the controlled TextBox reports edits and each Enter or Send once without c
   await expect(field).toHaveValue('An edited thought');
 });
 
-test('Shift+Enter and native or Safari composition keep editing in the controlled one-row field', {
-  tag: '@phone',
-}, async ({ page }) => {
+test('Shift+Enter and synthetic composition confirmation keep editing in the controlled one-row field', async ({
+  page,
+}) => {
   await page.goto('/ui/kit/tests/browser.html?composer');
   const field = page.getByRole('textbox', { name: 'Fixture message' });
   await field.fill('First line');
@@ -170,9 +205,9 @@ test('Shift+Enter and native or Safari composition keep editing in the controlle
   await expect(page.getByText('Submitted drafts: []', { exact: true })).toBeVisible();
 });
 
-test('empty, whitespace and caller-denied drafts stay unchanged when Enter cannot submit', {
-  tag: '@phone',
-}, async ({ page }) => {
+test('empty, whitespace and caller-denied drafts stay unchanged when Enter cannot submit', async ({
+  page,
+}) => {
   await page.goto('/ui/kit/tests/browser.html?composer');
   const field = page.getByRole('textbox', { name: 'Fixture message' });
   const send = page.getByRole('button', { name: 'Send', exact: true });
@@ -198,9 +233,9 @@ test('empty, whitespace and caller-denied drafts stay unchanged when Enter canno
   await expect(page.getByText('Submitted drafts: []', { exact: true })).toBeVisible();
 });
 
-test('capture blocks submission and a busy response exposes only its explicit Stop action', {
-  tag: '@phone',
-}, async ({ page }) => {
+test('capture blocks submission and a busy response exposes only its explicit Stop action', async ({
+  page,
+}) => {
   await page.goto('/ui/kit/tests/browser.html?composer');
   const field = page.getByRole('textbox', { name: 'Fixture message' });
   await field.fill('Words to preserve');

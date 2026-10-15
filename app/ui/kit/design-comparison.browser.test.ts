@@ -138,24 +138,3 @@ test('paired module evidence stays bounded and independent through device change
   await expect(desktop.getByRole('heading', { name: 'Slow mornings', exact: true })).toBeVisible();
   await expect(mobile.getByRole('heading', { name: 'Garden studio', exact: true })).toBeVisible();
 });
-
-for (const retired of ['B', 'C', 'unknown']) {
-  test(`retired evidence URL ${retired} opens the actual selected Wiki record`, async ({
-    page,
-  }) => {
-    await page.goto(`/preview/?variant=${retired}#/prototype/provenance/`);
-    await expect(page.getByRole('heading', { name: 'Garden studio', exact: true })).toBeVisible();
-    await expect(page).toHaveURL(/#\/wiki\/preview:page:0\//);
-    await page
-      .getByRole('button', { name: 'Evidence for Keep mornings free.', exact: true })
-      .click();
-    await expect(page.getByLabel('Source context').locator('mark')).toHaveText(
-      'Keep mornings free.',
-    );
-    await expect(
-      page.getByText('Source has a newer version. This excerpt stays tied to the original.', {
-        exact: true,
-      }),
-    ).toBeVisible();
-  });
-}

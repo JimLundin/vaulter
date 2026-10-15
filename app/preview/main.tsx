@@ -15,13 +15,6 @@ import type { NodeChange } from '../vault/nodes/store.ts';
 import type { NodeStore } from '../vault/nodes/store.ts';
 import { seedPreviewRecords } from './records.ts';
 
-// Old evidence design links remain preview-only redirects to the supported Wiki record.
-if (location.hash === '#/prototype/provenance/')
-  history.replaceState(
-    history.state,
-    '',
-    `${location.pathname}${location.search}#/wiki/preview:page:0/`,
-  );
 const query = new URLSearchParams(location.search);
 declare const __PREVIEW_AGENT__: {
   baseURL: string;

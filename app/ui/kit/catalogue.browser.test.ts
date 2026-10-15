@@ -209,25 +209,6 @@ test('paired agent samples keep independent drafts and send through the shared o
   );
 });
 
-test('paired catalogue composers keep native and Safari IME confirmation as editing', async ({
-  page,
-}) => {
-  await page.goto('/ui/kit/');
-  await page.getByRole('searchbox', { name: 'Find a component' }).fill('Feed & composer');
-  const family = page.locator('[data-kit-comparison="agent"]');
-  for (const device of ['desktop', 'mobile'] as const) {
-    const sample = specimen(family, device);
-    const field = sample.getByRole('textbox', { name: 'Message', exact: true });
-    await field.fill('Composing a thought');
-    await field.dispatchEvent('keydown', { key: 'Enter', isComposing: true, bubbles: true });
-    await field.dispatchEvent('keydown', { key: 'Enter', keyCode: 229, bubbles: true });
-    await expect(field).toHaveValue('Composing a thought');
-    await expect(sample.locator('[data-message="user"]')).toHaveCount(0);
-    await field.press('Enter');
-    await expect(sample.locator('[data-message="user"]')).toHaveCount(1);
-  }
-});
-
 test('sidebar labels, badges and actions have separate slots at mouse and touch density', {
   tag: '@touch',
 }, async ({ page }) => {
@@ -494,9 +475,9 @@ test('paired Agent panels remain independently editable and Escape closes the ac
   expect(await page.locator('body').evaluate((node) => node.style.overflow)).toBe('');
 });
 
-test('paired panel composers submit once with the shared keyboard path and retain drafts when reopened', {
-  tag: '@touch',
-}, async ({ page }) => {
+test('paired panel composers submit once with the shared keyboard path and retain drafts when reopened', async ({
+  page,
+}) => {
   await page.goto('/ui/kit/');
   await page.getByRole('searchbox', { name: 'Find a component' }).fill('Supporting feed');
   const family = page.locator('[data-kit-comparison="agent-panel"]');
@@ -505,8 +486,6 @@ test('paired panel composers submit once with the shared keyboard path and retai
     await sample.getByRole('button', { name: 'Open agent panel' }).click();
     const field = sample.getByRole('textbox', { name: 'Panel message' });
     await field.fill(`${device} composed thought`);
-    await field.dispatchEvent('keydown', { key: 'Enter', isComposing: true, bubbles: true });
-    await field.dispatchEvent('keydown', { key: 'Enter', keyCode: 229, bubbles: true });
     await expect(field).toHaveValue(`${device} composed thought`);
     await expect(sample.locator('[data-message="user"]')).toHaveCount(0);
     await field.press('Enter');

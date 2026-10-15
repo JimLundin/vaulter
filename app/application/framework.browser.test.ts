@@ -491,7 +491,7 @@ test('a growing navigation keeps destinations and tools in a minimal rail menu',
   await expect(page.getByRole('menu', { name: 'App navigation', exact: true })).toBeHidden();
 });
 
-test('Enter sends, Shift+Enter and IME keep editing, and suggestions live outside the composer', {
+test('suggestions focus the shared composer and Enter submits through Chat', {
   tag: '@phone',
 }, async ({ page }) => {
   await page.goto('/preview/');
@@ -512,20 +512,6 @@ test('Enter sends, Shift+Enter and IME keep editing, and suggestions live outsid
   const composer = page.getByRole('group', { name: 'Message text box' });
   expect((await composer.boundingBox())!.height).toBeLessThanOrEqual(56);
   expect((await input.boundingBox())!.height).toBe(44);
-  await input.fill('   ');
-  await input.press('Enter');
-  await expect(input).toHaveValue('   ');
-  await expect(page.locator('[data-message="user"]')).toHaveCount(0);
-  await input.fill('First line');
-  await input.press('End');
-  await input.press('Shift+Enter');
-  await expect(input).toHaveValue('First line\n');
-  expect((await composer.boundingBox())!.height).toBeLessThanOrEqual(56);
-  await input.fill('Composing');
-  await input.dispatchEvent('keydown', { key: 'Enter', isComposing: true, bubbles: true });
-  await expect(input).toHaveValue('Composing');
-  await input.dispatchEvent('keydown', { key: 'Enter', keyCode: 229, bubbles: true });
-  await expect(input).toHaveValue('Composing');
   await input.fill('Tell me about slow mornings');
   await input.press('Enter');
   await expect(page.locator('[data-message="user"]')).toContainText('Tell me about slow mornings');
@@ -669,24 +655,6 @@ test('dictation keeps the composer anchored and only submission stops an agent r
   await expect(input).toHaveValue(/^Leave/);
   expect((await composer.boundingBox())!.y).toBe(empty.y);
   await page.getByRole('button', { name: 'Finish recording' }).click();
-});
-
-test('the send icon reflects text field focus without a keyboard hint below the composer', {
-  tag: '@phone',
-}, async ({ page }) => {
-  await page.goto('/preview/');
-  const input = page.getByRole('textbox', { name: 'Message', exact: true });
-  const send = page.getByRole('button', { name: 'Send', exact: true });
-  await expect(page.getByRole('button', { name: 'Start voice interaction' })).toBeVisible();
-  await expect(send).toBeHidden();
-  await input.fill('A typed thought');
-  await expect(send.locator('svg')).toHaveClass(/lucide-corner-down-left/);
-  await page.getByRole('button', { name: 'New conversation', exact: true }).focus();
-  await expect(page.getByRole('button', { name: 'Start voice interaction' })).toBeVisible();
-  await expect(send).toBeHidden();
-  await expect(
-    page.getByText('Enter to send · Shift + Enter for a new line', { exact: true }),
-  ).toHaveCount(0);
 });
 
 test('live transcription updates the shared message field and uses the normal send path', {
