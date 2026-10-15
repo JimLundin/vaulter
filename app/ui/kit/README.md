@@ -5,9 +5,9 @@ The app's component kit. Application and workflow screens compose `index.ts`; no
 
 The implemented [ADR 0006](../../../docs/adr/0006-module-ui-and-shared-presentation.md) keeps
 record-specific UI in Chat, Wiki, History and Search while the kit owns shared presentation.
-One supporting-pane policy owns geometry and interaction across those clients. The
-[public inventory](../../../docs/ui-presentation-inventory.md) lists every export, actual consumers
-and retired destination.
+One supporting-pane policy owns geometry and interaction across those clients.
+The [public interface](index.ts) defines the kit's exports; catalogue and composition checks
+verify their examples and implementation ownership.
 
 `composition.ts` explicitly inventories every implementation source and exact named declarations
 that own DOM/library mechanics. All other declarations are checked compositions of approved
@@ -37,9 +37,9 @@ public presentation component appears in a component family with an 800px deskto
 390px touch sample. Both run the same sample implementation. Search by component or family name;
 on narrow screens, each comparison scrolls horizontally.
 
-`catalogue.tsx` contains the sample data and component coverage. `tools/catalogue.test.ts` compares
+`catalogue.tsx` contains the sample data and component coverage. `tools/architecture/catalogue.test.ts` compares
 its registrations and rendered JSX against all public component exports, so adding a component
-without a live example fails CI. `tools/layout.test.ts` rejects intrinsic JSX, styling props (including
+without a live example fails CI. `tools/architecture/layout.test.ts` rejects intrinsic JSX, styling props (including
 object spreads), intrinsic element factories, private kit imports and direct presentation dependency
 imports throughout Application, shared UI and workflows. Semantic forms use the public `Form` component.
 Only exact Wiki block semantic markup and Chat code/error content retain narrow rendering permissions;
@@ -75,7 +75,7 @@ annotation transform may annotate semantic data, with no UI presentation permiss
 | `tests/`, `tools/browser/` | markup/theme checks and browser interaction coverage |
 
 Fonts are Geist, Geist Mono and Newsreader, loaded locally from `@fontsource-variable`. Add generic
-presentation here and keep domain behavior in its workflow. `tools/layout.test.ts` checks that all app
+presentation here and keep domain behavior in its workflow. `tools/architecture/layout.test.ts` checks that all app
 views compose public exports and avoid ad hoc styling. Markdown content rendering is a scoped
 exception. Maps require `https://tiles.openfreemap.org` in the consuming page's CSP; the current
 product does not use maps.
@@ -83,7 +83,7 @@ product does not use maps.
 The composer uses one primary action across Application, the preview and catalogue: microphone when
 unfocused, Enter when focused, and a supporting Stop action while responding. Microphone and Enter
 use the shared Filled style. The design preview pill contains a Mobile toggle, variant choices, the kit link and reset;
-the completed A/B/C input-style comparison has been removed. See [input-button.md](input-button.md).
+the default Application preview uses the current production design.
 
 The preview fills its available window by default and adapts as that window changes. Turn on Mobile
 to constrain the app to 390px (or the available width on narrower screens); turning it off restores
@@ -225,9 +225,6 @@ scroll clearance from the full rail and open Search field. Search stays nonmodal
 closed, and returns focus to its icon on Escape. Filters uses the shared radio-choice menu and
 returns focus to its trigger. Bounded kit samples retain independent controls and geometry.
 
-The selected design and archived comparison are recorded in
-[the edge rail delivery](../../../docs/design/mobile-edge-rail.md).
-
 **Feature preferences are assembled once.** `SettingsMenu` takes `{ name, content }` entries from
 Application, using each name as its section heading. Fields and persistence remain in the feature's
 settings view; the kit owns grouping and arrangement. Appearance stays an application section.
@@ -297,7 +294,7 @@ task modal until it closes. Bounded Escape follows usable focus
 or the latest interaction when an action disables its focused control, and catalogue controls can
 take keyboard ownership back. The adaptive-panel example includes nested review and details actions.
 The gallery shows **Built from** links on these compositions. `composition.ts` lists their
-building blocks, including usage through private helpers. `tools/composition.ts` checks the configured
+building blocks, including usage through private helpers. `tools/architecture/composition.ts` checks the configured
 roots in `conversation.tsx`, `settings.tsx` and `theme.tsx` as whole sources, then follows
 reachable private presentation helpers and state-only React context providers. Named imports, aliases
 and re-exports resolve through the compiler; extracted helpers need no public export or catalogue
@@ -390,7 +387,7 @@ that works:
    same copy; only the kit branches, never a workflow. `useLayout` reads the breakpoint tokens
    emitted by Tailwind, so CSS and React share the thresholds; the gallery supplies its local presentation class. Application may
    use the size class to choose a route or restore a panel; no other file outside the kit reads it
-   or queries the viewport, which `tools/layout.test.ts` enforces. There is no phone/desktop boolean.
+   or queries the viewport, which `tools/architecture/layout.test.ts` enforces. There is no phone/desktop boolean.
 
 Responsive presentation is owned by the kit. Conversation state stays in the chat workflow; the
 workspace, feed, composer, settings fields, history rows and open search/review/panel contents

@@ -5,15 +5,15 @@
 //   VAULT_GITHUB_TOKEN  fine-grained, vault and vaulter only, Contents read/write and Metadata read
 //   VAULT_OPENAI_KEY    optional
 //   VAULT_JINA_KEY      optional: the agent's web search (reading pages works without it)
-// Usage: node tools/seal-secrets.ts dist/secrets.json
+// Usage: node tools/build/seal-secrets.ts dist/secrets.json
 import { writeFileSync } from 'node:fs';
-import { seal } from '../app/vault/session/sealed.ts';
+import { seal } from '../../app/vault/session/sealed.ts';
 
 const fail = (m: string) => {
   console.error(m);
   process.exit(1);
 };
-const out = process.argv[2] ?? fail('usage: node tools/seal-secrets.ts <out.json>');
+const out = process.argv[2] ?? fail('usage: node tools/build/seal-secrets.ts <out.json>');
 const {
   VAULT_PASSWORD: password = '',
   VAULT_SALT: salt = '',

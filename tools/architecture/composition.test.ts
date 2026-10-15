@@ -4,13 +4,13 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { API } from 'typescript/unstable/sync';
 import { expect, test } from 'vitest';
-import { compositions, implementations } from '../app/ui/kit/composition.ts';
+import { compositions, implementations } from '../../app/ui/kit/composition.ts';
 import { checkCompositions, type CompositionRoot } from './composition.ts';
 
 // CI and source-project fixtures use the same composition-policy interface.
 // Exhaustive implementation and private-helper checks load the whole compiler source project.
 test('Agent, Settings and their shared menu use only documented public building blocks', () => {
-  const root = fileURLToPath(new URL('..', import.meta.url));
+  const root = fileURLToPath(new URL('../../', import.meta.url));
   const api = new API({ cwd: root });
   const snapshot = api.updateSnapshot({ openProjects: [resolve(root, 'tsconfig.json')] });
   try {

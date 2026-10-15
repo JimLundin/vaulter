@@ -1,6 +1,6 @@
 // The graph's check: every link resolves to a note (and its #heading), every relation is one of the
 // vocabulary's predicates, and every note a field names exists. What a note is, and what it may say, is
-// the notes' check. Pure, so it runs in Node (tools/check.ts) and in the browser.
+// the notes' check. Consumed by the standalone tools/check.ts entry.
 import type { VaultFile } from '../files.ts';
 import { loadNotes } from '../documents/notes/note.ts';
 import { schemaOf } from '../documents/notes/schema.ts';

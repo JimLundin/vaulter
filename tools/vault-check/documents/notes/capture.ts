@@ -2,8 +2,8 @@
 // conversation Jim has with the vault wherever he is. Each exchange is a heading and its verbatim turns in the
 // body, appended at the end and never edited; everything known about it is in the frontmatter, under
 // `exchanges`, in the same order: what the agent judged (procedure, summary, topics, where) and what the
-// surface collected on its own (device, context, location, weather, session, host, …). Pure: the app, the
-// check and tools/capture.ts share it.
+// surface collected on its own (device, context, location, weather, session, host, …).
+// This historical Markdown format is interpreted only by standalone Vault source checking.
 import { dump, load } from 'js-yaml';
 import { FRONT_RE, type Frontmatter } from './note.ts';
 

@@ -1,7 +1,7 @@
-// The vault's check (tools/vault-check/validation/check.ts: the notes' and the graph's) over a vault on disk: `node tools/check.ts --vault <dir>` (default the
-// working directory). Runs in the vault's CI on every push (its .github/workflows/check.yml).
+// Public entry consumed by the private Vault's CI: node tools/check.ts --vault <dir>.
+// The Markdown note/schema/graph implementation stays under vault-check, outside the app.
 import { checkVault } from './vault-check/validation/check.ts';
-import { readVaultFiles, vaultArg } from './fs.ts';
+import { readVaultFiles, vaultArg } from './vault-check/fs.ts';
 
 const { problems, ok, files } = checkVault(readVaultFiles(vaultArg()));
 if (problems.length) {

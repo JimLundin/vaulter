@@ -1,5 +1,5 @@
 // Schemas for vault records whose modules are not implemented yet, by kind. A module claims its kinds
-// and owns future writes; schema evolution retains historical decoding (docs/specs/vault-records.md).
+// and owns future writes; schema evolution retains historical decoding.
 import type { z } from 'zod';
 import type { JsonObject } from '../nodes/model.ts';
 import { canonical, frozen } from '../nodes/json.ts';

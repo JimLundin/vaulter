@@ -79,9 +79,13 @@ app/
       github-client/         shared GitHub transport
   ui/kit/                    public generic presentation and its private implementation
   preview/                   fictional adapters and examples
- tools/
-  layout.ts                  compiler-resolved dependencies, cycles and presentation ownership
-  composition.ts             kit implementation and building-block policy
+tools/
+  architecture/              compiler-resolved dependencies, cycles and kit composition checks
+  build/                     build-time dynamic-code guard and credential sealing
+  preview/                   live Agent proxy and sample preview packaging/publishing
+  testing/                   focused-test and CI-only runner guards
+  browser/                   browser integration specs and fixtures
+  production/                built production browser specs and runner configuration
   check.ts                   standalone source-file integrity checks
   vault-check/               private Vault source-note/schema/graph checking
 ```
@@ -141,7 +145,7 @@ settings and execution share one preference instance. Appearance uses the same d
 kit's theme control. Application passes `{ name, content }` entries to `SettingsMenu`. Removing a module also removes
 its entry. Modules without preferences need no empty settings section.
 
-`tools/layout.test.ts` checks compiler-resolved imports, re-exports, dynamic imports and import-type
+`tools/architecture/layout.test.ts` checks compiler-resolved imports, re-exports, dynamic imports and import-type
 expressions. Workflow isolation and production/fixture separation include type-only references.
 Value and dynamic import cycles are rejected separately; type cycles do not imply runtime cycles.
 Raw persistence and session construction remain restricted even through aliases. The checker also
@@ -277,9 +281,9 @@ The implemented ownership decision is [ADR 0006](docs/adr/0006-module-ui-and-sha
 modules own record-specific UI and typed reading projections; the kit owns base presentation and
 shared compositions. Supporting panes use one presentation policy across modules. Consistency and
 a smaller presentation interface take precedence over feature-specific UI tailoring.
-Chat, Wiki, History and Search own their typed record and task composition. The
-[public inventory](docs/ui-presentation-inventory.md) identifies every retained kit export and actual
-consumers. Exact declaration roles in `app/ui/kit/composition.ts` separate DOM/library mechanics from
+Chat, Wiki, History and Search own their typed record and task composition.
+`app/ui/kit/index.ts` defines the public presentation interface; catalogue checks require live examples.
+Exact declaration roles in `app/ui/kit/composition.ts` separate DOM/library mechanics from
 checked compositions, including private helpers. New sources require explicit ownership. Semantic
 renderers have exact content-only permissions; alias, style, private-library and viewport escapes
 are checked by the same compiler-backed policies. The kit owns delegated hover delay, anchors and
@@ -318,7 +322,7 @@ module-isolation, private-kit and presentation-composition checks.
 `app/ui/kit/` comes from branch `ui-kit` at `2c30183`. Its design references, Geist / Geist Mono /
 Newsreader fonts, zinc colors, desktop sidebar, mobile controls and overlays are used by the app.
 `npm run kit` opens a searchable catalogue: every public component has a live desktop and mobile
-example side by side, using the same sample implementation. `tools/catalogue.test.ts` checks public
+example side by side, using the same sample implementation. `tools/architecture/catalogue.test.ts` checks public
 export coverage and actual rendered JSX. The private presentation scope bounds responsive CSS,
 React size classes and portals to each example without an iframe. The exported design screens remain
 reference artifacts; they do not install workflows or restore previously deleted features.
@@ -344,7 +348,7 @@ Screens compose `ui/kit/index.ts`. Public components take no `className` or `sty
 the kit. CI rejects custom HTML, styling props, intrinsic element factories and direct presentation
 library imports throughout Application, shared UI and workflows. Semantic forms use the kit's `Form`.
 Add missing generic presentation and its paired example to the kit; keep task logic in its workflow.
-`tools/composition.ts` checks the configured kit composition sources and their reachable private
+`tools/architecture/composition.ts` checks the configured kit composition sources and their reachable private
 presentation helpers and state-only React context providers. Compiler resolution follows imports,
 aliases and re-exports without requiring new public exports or catalogue entries. Approved public
 building blocks, including wrapped `unstyled()` parts, stop traversal and retain ownership of DOM,
@@ -436,9 +440,9 @@ remote acceptance, and cache clearing stay in the session, outside workflows.
 GitHub node persistence writes a versioned transaction namespace alongside existing repository
 files. A non-forced ref update is definitive acceptance; stale expectations reject or unrelated
 remote races retry. Dexie is a plaintext rebuildable cache, not a separate source of authority.
-The [storage guide](docs/node-storage.md) and [persistence decision](docs/adr/0003-github-node-persistence.md)
+The [storage guide](./app/vault/README.md) and [persistence decision](docs/adr/0003-github-node-persistence.md)
 describe retry, ordering, offline, device storage, and history-size semantics. Chat/Agent produce nodes;
-History reads accepted node transactions and Search consumes Wiki entries. [Consumer contracts](docs/node-consumers.md)
+History reads accepted node transactions and Search consumes Wiki entries. Consumer contracts
 live with their owning workflows: `workflows/chat/records/` holds Chat payloads, lossless schemas,
 acceptance requests, saved-message projections and its transcript-preservation policy;
 `vault/transactions/history/nodes.ts` holds attributed History differences and compensation. Application supplies
@@ -484,7 +488,7 @@ are starting definitions, not a commitment to keep payloads unchanged. New requi
 meanings need module-owned historical decoding and appended upgrades while retaining existing exact
 addresses and selection semantics. Published history stays immutable without freezing future writes.
 [ADR 0007](docs/adr/0007-vault-owned-translation.md) records that separation;
-[Wiki ingestion](docs/wiki-migration.md) describes the current interface and links to Vault operations.
+[Wiki ingestion](./app/workflows/wiki/README.md) describes the current interface and links to Vault operations.
 
 ## Chat record UI and shared presentation
 

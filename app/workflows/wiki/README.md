@@ -1,4 +1,4 @@
-# Wiki ingestion and evidence
+# Wiki
 
 The private Vault owns [translation and enrichment tooling](https://github.com/JimLundin/vault/tree/main/.vaulter/tooling/migration).
 It interprets old files and Git history, chooses extraction and review policy, and targets the current
@@ -14,12 +14,12 @@ as evidence, including when linked from another page. Eligibility follows histor
 
 | Owner entry | Responsibility |
 | --- | --- |
-| [Wiki records](../app/workflows/wiki/records.ts) | Validate page, block, inline and Citation payloads with `parseWikiRecord` |
-| [Wiki preparation](../app/workflows/wiki/preparation.ts) | `prepareWikiReferences` prepares references and reviewed citations without publishing |
-| [Wiki evidence](../app/workflows/wiki/evidence.ts) and [citations](../app/workflows/wiki/citations.ts) | Validate source eligibility, historical selections and current claim applicability |
-| [Wiki pages](../app/workflows/wiki/pages.ts) | `readWiki` projects accepted history into pages and resolved references |
-| [Source reading](../app/vault/sources.ts) | `SourceReader` lets callers compose the historical text and descriptions supplied by record owners |
-| [NodeStore](../app/vault/nodes/store.ts) | Read snapshots and atomically append structurally valid transactions |
+| [Wiki records](./records.ts) | Validate page, block, inline and Citation payloads with `parseWikiRecord` |
+| [Wiki preparation](./preparation.ts) | `prepareWikiReferences` prepares references and reviewed citations without publishing |
+| [Wiki evidence](./evidence.ts) and [citations](./citations.ts) | Validate source eligibility, historical selections and current claim applicability |
+| [Wiki pages](./pages.ts) | `readWiki` projects accepted history into pages and resolved references |
+| [Source reading](../../vault/sources.ts) | `SourceReader` lets callers compose the historical text and descriptions supplied by record owners |
+| [NodeStore](../../vault/nodes/store.ts) | Read snapshots and atomically append structurally valid transactions |
 
 Chat, Agent, Content and retained record owners interpret their own payloads. Application composes those
 readers for the application; Vault tooling composes them for ingestion. Source-specific parsing,
@@ -33,7 +33,7 @@ current source interfaces; they do not promise a separately versioned migration 
 
 ## Historical selections and preparation
 
-[ADR 0005](adr/0005-wiki-citation-selections.md) defines citation history. Each exact claim and passage
+[ADR 0005](../../../docs/adr/0005-wiki-citation-selections.md) defines citation history. Each exact claim and passage
 address has a snapshot sequence and a nonempty half-open UTF-16 range. Exact container versions do
 not freeze their children; the snapshot selects their historical descendants. Quotations are derived
 from history. Inline fragments concatenate verbatim, blocks use newlines and table cells use tabs.
@@ -54,12 +54,4 @@ validates evidence before output. It does not publish or choose import identitie
 The published import is immutable. Enrichment and upgrades append transactions, preserving existing
 addresses and historical selections. Future modules may change payloads and structure while supplying
 explicit historical decoders; the original import does not freeze their design.
-See [ADR 0007](adr/0007-vault-owned-translation.md).
-
-## Private migration handoffs
-
-The Vault retains operational packages outside the live transaction namespace. Its
-[runbook](https://github.com/JimLundin/vault/blob/main/.vaulter/tooling/wiki-migration.md#private-migration-handoffs)
-records baselines, review artifacts, publication status and verification. Saving a package does not
-apply its proposed transactions. Original import replay is a scratch verification facility;
-published history is enriched through appended transactions prepared against the intended baseline.
+See [ADR 0007](../../../docs/adr/0007-vault-owned-translation.md).

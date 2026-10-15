@@ -1,4 +1,4 @@
-// Shared value shapes for vault records (docs/specs/vault-records.md).
+// Shared value shapes for retained records whose modules are not implemented yet.
 import { z } from 'zod';
 
 export const text = z.string().min(1);

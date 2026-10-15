@@ -1,5 +1,4 @@
-// Reference records: web resources linked or cited. Unclaimed until the References module exists
-// (docs/specs/vault-records.md).
+// Reference records: web resources linked or cited. Unclaimed until the References module exists.
 import { z } from 'zod';
 import { text } from './common.ts';
 

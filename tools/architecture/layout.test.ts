@@ -6,7 +6,7 @@ import { expect, test } from 'vitest';
 import { checkLayout, importProblem } from './layout.ts';
 
 test('optional workflows are composed only by Application and use the public kit', () => {
-  expect(checkLayout(fileURLToPath(new URL('..', import.meta.url)))).toEqual([]);
+  expect(checkLayout(fileURLToPath(new URL('../../', import.meta.url)))).toEqual([]);
 }, 30_000);
 test('the dependency policy rejects cross-workflow imports and private kit access', () => {
   expect(
@@ -1014,7 +1014,7 @@ test('installed presentation-library targets cannot hide behind path aliases or 
     mkdirSync(join(root, 'app/workflows/example'), { recursive: true });
     mkdirSync(join(root, 'app/ui/kit'), { recursive: true });
     const library = fileURLToPath(
-      new URL('../node_modules/@base-ui/react/button/index.d.ts', import.meta.url),
+      new URL('../../node_modules/@base-ui/react/button/index.d.ts', import.meta.url),
     );
     writeFileSync(
       join(root, 'tsconfig.json'),

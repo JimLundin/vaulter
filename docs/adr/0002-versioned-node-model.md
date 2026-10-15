@@ -164,7 +164,7 @@ Deleting shared content has a broad visible effect with a local stored change. A
 key verifies identity existence; snapshot availability and presentation remain application rules.
 
 The node model and storage are available alongside the current file workflows.
-[Node storage](../node-storage.md) describes the application interface and next integration slice.
+[Node storage](../../app/vault/README.md) describes the application interface and next integration slice.
 
 ## Citations and append-only records
 

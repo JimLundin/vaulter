@@ -1,17 +1,14 @@
 # Node storage
 
-Vaulter's central node storage contract, production adapters,
-and unlocked-session wiring are integrated into `structure` from PR #21. All features will produce data into this one store or represent its
-recorded data. Valid submitted content is preserved; edits and undo append new versions and
-transactions without modifying earlier records.
+Vault owns the generic node model, production storage adapters and unlocked-session wiring.
+Modules write into this store and interpret its recorded data. Edits and undo append versions
+and transactions without modifying earlier records.
 
-[Chat](chat-nodes.md) and [independent Agent](agent-records.md) produce accepted nodes through this
+[Chat](../workflows/chat/README.md) and [independent Agent](../agent/README.md) produce accepted nodes through this
 contract, and Application supplies models, identities and module-owned tools explicitly. Core
-[History operations](node-consumers.md) and the History screen read transactions and prepare guarded
+History operations and the History screen read transactions and prepare guarded
 compensation. Search reads Wiki node entries; sensor collection is not part of this
 producer integration. Migration is separate work inside the Vault.
-The [captured spike](https://github.com/JimLundin/vaulter/tree/33a77c4) is the design experiment;
-its standalone shell, scratch keys, reset actions, and full replay reads are not shipped here.
 
 ## Application interface
 
@@ -41,7 +38,7 @@ interpret the transaction as a cutoff. Identity addresses inherit the viewing sn
 Placement's parent is an identity; connections describe source/target independently of placement.
 
 Every application write uses `using` or `await using`, as decided in
-[ADR 0009](adr/0009-scoped-transaction-writes.md):
+[ADR 0009](../../docs/adr/0009-scoped-transaction-writes.md):
 
 ```ts
 using writes = nodes.writer({ recordedBy: userId, origin: null }).lifetime();
@@ -86,7 +83,7 @@ Raw adapter construction and acceptance/loading functions stay with bootstrap, p
 historical fixtures. Raw `NodeStore.commit` stays inside core Transactions and persistence. Session
 hooks remain with Vault assembly and Application, and
 preview fixtures remain outside production callers. Compiler-resolved ownership checks in
-`tools/layout.test.ts` enforce these paths through aliases and re-exports.
+`tools/architecture/layout.test.ts` enforce these paths through aliases and re-exports.
 
 `history` paginates by `beforeSequence` and `limit`, with optional structured operation filters.
 `changes` returns complete before/after versions. `snapshot` captures immutable state at a cutoff;
@@ -167,6 +164,16 @@ produces an explicit failure. Checkpoints/paged remote indexes and bounded cold 
 measurements as usage grows. No garbage collection discards referenced historical evidence.
 
 ## Verification and current integration
+
+History's `nodeHistory()` reader supplies transactions, author and origin at the transaction's
+cutoff, and complete before/after versions. Historical actor names and source addresses resolve
+from that snapshot. Reading history never executes producers.
+
+`transactionHistory()` prepares guarded compensation through a fresh write lifetime. Uncertain
+acceptance retains the exact finalized request for retry; expected versions reject intervening
+changes atomically. Application supplies the combined producer preservation and content undo
+policies. A mixed transaction is refused if any change fails that policy. History keeps this
+owner across reading-facade replacement and never imports a workflow to interpret its records.
 
 Adapter tests exercise atomic acceptance, exact citation retention, localized versions, historical
 composition, compensation, conflicts/read dependencies, immutable metadata, retry identity, lost

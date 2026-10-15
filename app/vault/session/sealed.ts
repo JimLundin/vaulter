@@ -1,5 +1,5 @@
 // The app's secrets (GitHub token, OpenAI key), sealed with a password: PBKDF2-SHA256 → AES-GCM-256.
-// WebCrypto only, so the same code seals in Node (tools/seal-secrets.ts, in CI) and opens in the browser.
+// WebCrypto only, so the same code seals in Node (tools/build/seal-secrets.ts, in CI) and opens in the browser.
 // The sealed file is public; its safety is the password's strength and the iteration count. The salt is
 // fixed across publishes, so a device's remembered key keeps opening new seals; a new salt (or password)
 // signs every device out.

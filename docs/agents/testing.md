@@ -14,9 +14,9 @@ the change.
 - For browser behavior, select the relevant spec and project, for example
   `npm run test:ui -- tools/browser/composer.spec.ts --project=desktop`.
   `--grep 'part of the test name'` narrows a spec further.
-- For imports and module ownership, run `npm run test:architecture -- tools/layout.test.ts`.
-  For shared compositions or public kit components, select `tools/composition.test.ts` or
-  `tools/catalogue.test.ts`. Keep compiler fixture tests in that suite.
+- For imports and module ownership, run `npm run test:architecture -- tools/architecture/layout.test.ts`.
+  For shared compositions or public kit components, select `tools/architecture/composition.test.ts` or
+  `tools/architecture/catalogue.test.ts`. Keep compiler fixture tests in that suite.
 
 Test commands require a module path, spec, test-name filter, or changed-file selection locally.
 Selecting only a project, device or shard does not focus the behavior under test. Unscoped

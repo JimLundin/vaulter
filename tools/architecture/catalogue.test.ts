@@ -6,7 +6,7 @@ import * as ts from 'typescript/unstable/ast';
 import { expect, test } from 'vitest';
 
 test('every public kit component is catalogued and actually rendered by a sample', () => {
-  const root = fileURLToPath(new URL('..', import.meta.url));
+  const root = fileURLToPath(new URL('../../', import.meta.url));
   const api = new API({ cwd: root });
   const snapshot = api.updateSnapshot({ openProjects: [resolve(root, 'tsconfig.json')] });
   try {

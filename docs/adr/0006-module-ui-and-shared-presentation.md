@@ -25,5 +25,5 @@ continues to compose workflow interfaces explicitly. Existing Base UI mechanics,
 model and historical citation semantics remain as decided in ADR 0001, 0002 and 0005.
 
 This decision is implemented. Current ownership and enforcement are documented in
-[Architecture](../../ARCHITECTURE.md), with public consumers and retired ownership paths in the
-[presentation inventory](../ui-presentation-inventory.md).
+[Architecture](../../ARCHITECTURE.md). The [public kit interface](../../app/ui/kit/index.ts) and
+its catalogue and composition checks enforce presentation ownership.

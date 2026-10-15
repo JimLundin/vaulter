@@ -1,4 +1,4 @@
-// Resolved import rules for removable workflows. Used by CI through tools/layout.test.ts.
+// Resolved import rules for removable workflows. Used by CI through tools/architecture/layout.test.ts.
 import { API, SymbolFlags, type Symbol as CompilerSymbol } from 'typescript/unstable/sync';
 // biome-ignore lint/performance/noNamespaceImport: Node-only compiler inspection.
 import * as ts from 'typescript/unstable/ast';

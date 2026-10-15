@@ -1,7 +1,7 @@
 import { defineConfig } from '@playwright/test';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
-import { requirePlaywrightTestScope } from './tools/test-scope.ts';
+import { requirePlaywrightTestScope } from './tools/testing/test-scope.ts';
 
 requirePlaywrightTestScope();
 

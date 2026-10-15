@@ -1,9 +1,9 @@
-// The vault from disk, for the CLIs. The browser has its own backends.
+// Read the private Vault's Markdown source files for its standalone integrity check.
 
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { isVaultPath } from './vault-check/documents/notes/note.ts';
-import type { VaultFile } from './vault-check/files.ts';
+import { isVaultPath } from './documents/notes/note.ts';
+import type { VaultFile } from './files.ts';
 
 const paths = (root: string) =>
   ['', 'daily', 'captures', 'meta']

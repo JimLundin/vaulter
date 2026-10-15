@@ -1,7 +1,7 @@
 // The notes' check: each file as a note, on its own: its frontmatter against the vocabulary
 // (meta/schema.yaml; the rules in schema.ts and structured.ts), its structure, and that its links are
 // links the app may follow. Whether links and fields name notes that exist is the graph's
-// check. Pure, over `{ path, text }[]`, so it runs in Node (tools/check.ts) and in the browser.
+// check. Pure, over `{ path, text }[]`, and consumed by the standalone tools/check.ts entry.
 import type { VaultFile } from '../files.ts';
 import { checkFields } from '../documents/notes/structured.ts';
 import {

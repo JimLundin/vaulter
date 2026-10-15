@@ -5,8 +5,8 @@ behind a password it reads them at runtime from the vault, the private repo `Jim
 them in plaintext on the device, and works offline. Chat and Agent now produce nodes in the shared NodeStore. Search reads Wiki nodes; History reads accepted Node Transactions. The Vault owns [translation and enrichment tooling](https://github.com/JimLundin/vault/tree/main/.vaulter/tooling/migration)
 that targets the current Vaulter modules. Its source readers, extraction policy and private review
 data evolve in the Vault; Vaulter modules own their current record validation and historical reads.
-See [Wiki ingestion](docs/wiki-migration.md) for the boundary and current interfaces.
-See [Documentation](docs/README.md) for current contracts, decisions and historical delivery records.
+See [Wiki ingestion](./app/workflows/wiki/README.md) for the boundary and current interfaces.
+See [Architecture](ARCHITECTURE.md) for module boundaries and [ADRs](docs/adr/) for accepted decisions.
 
 ## Commands
 
@@ -28,7 +28,7 @@ See [Documentation](docs/README.md) for current contracts, decisions and histori
 | `npm run test:production` | built application acceptance on desktop and phone; select a spec or test name locally |
 | `npm run test:all` | complete routine verification, CI only |
 | `npm run typecheck` | TypeScript over the app, tools and Vite/Vitest/Playwright configurations |
-| `node tools/seal-secrets.ts <out>` | seal the token and key with the password from the environment (what CI runs; see Publishing) |
+| `node tools/build/seal-secrets.ts <out>` | seal the token and key with the password from the environment (what CI runs; see Publishing) |
 
 Application composes node-backed Chat, independent Agent and module-owned content tools. Content
 publication records immutable node history and attributed tool receipts; failed saves are recoverable
@@ -94,7 +94,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for the module map, ownership and depende
 The app uses the component kit and reference design from branch `ui-kit`, in `app/ui/kit/`. Run
 `npm run kit` to open its searchable catalogue, with live desktop and mobile examples side by side.
 Every public component must have an example; CI checks coverage and app-wide kit composition.
-Workflow views compose its public components; styles stay in the kit, with a scoped exception for Markdown rendering. `tools/layout.test.ts` enforces the import rules
+Workflow views compose its public components; styles stay in the kit, with a scoped exception for Markdown rendering. `tools/architecture/layout.test.ts` enforces the import rules
 in CI, including dynamic imports and aliases.
 
 The private Vault's standalone source checker remains available through `tools/check.ts`, with
@@ -111,9 +111,9 @@ a plaintext Dexie device cache. Node-backed Chat accepts its message
 and initial Agent run together, while Agent can also execute independently of conversations. Modules
 choose their tools and publication rules. Generic History reads expose records, cutoffs and differences
 without running producers; Application composes Agent/Chat/content preservation for compensation. The
-History screen reads node transactions and Search uses Wiki page entries. See [Agent records](docs/agent-records.md),
-[Chat nodes](docs/chat-nodes.md), [consumer contracts](docs/node-consumers.md) and
-[node storage](docs/node-storage.md) for target layouts, recovery, acceptance and current limits.
+History screen reads node transactions and Search uses Wiki page entries. See [Agent records](./app/agent/README.md),
+[Chat nodes](./app/workflows/chat/README.md) and [Vault](./app/vault/README.md)
+for target layouts, recovery, acceptance and current limits.
 
 ## Publishing
 
@@ -166,7 +166,7 @@ restores other branches' latest available successful preview artifacts before ad
 branch, so publishing one preview preserves the others.
 Production artifacts are retained for 90 days; refresh production before publishing a preview if
 the deployed artifact has expired.
-`tools/publish-design.ts` refuses to publish if that exact production artifact is unavailable or if
+`tools/preview/publish-design.ts` refuses to publish if that exact production artifact is unavailable or if
 the preview contains `secrets.json` or `sw.js`. The `github-pages` environment permits branch
 deployments for these previews. Preview publishing does not merge the application branch or migrate vault data.
 Main deployments publish production together with the retained branch previews.

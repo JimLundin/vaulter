@@ -2,15 +2,15 @@ import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import { availableParallelism } from 'node:os';
 import { fileURLToPath } from 'node:url';
-import { requireTestScope } from './tools/test-scope.ts';
+import { requireTestScope } from './tools/testing/test-scope.ts';
 
 requireTestScope('vitest', process.argv.slice(2));
 
 const root = fileURLToPath(new URL('.', import.meta.url));
 const architecture = [
-  'tools/layout.test.ts',
-  'tools/composition.test.ts',
-  'tools/catalogue.test.ts',
+  'tools/architecture/layout.test.ts',
+  'tools/architecture/composition.test.ts',
+  'tools/architecture/catalogue.test.ts',
 ];
 
 export default defineConfig({

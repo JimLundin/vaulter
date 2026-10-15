@@ -3,8 +3,8 @@ import { defineConfig, loadEnv, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { fileURLToPath } from 'node:url';
-import { previewAgent } from './tools/preview-agent.ts';
-import { noEval } from './tools/no-eval.ts';
+import { previewAgent } from './tools/preview/preview-agent.ts';
+import { noEval } from './tools/build/no-eval.ts';
 
 const SITE = fileURLToPath(new URL('.', import.meta.url));
 

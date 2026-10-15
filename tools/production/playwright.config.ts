@@ -1,6 +1,6 @@
 import { defineConfig } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
-import { requirePlaywrightTestScope } from '../test-scope.ts';
+import { requirePlaywrightTestScope } from '../testing/test-scope.ts';
 
 requirePlaywrightTestScope();
 

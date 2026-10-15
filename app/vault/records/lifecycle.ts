@@ -1,6 +1,5 @@
 // Task and decision records: never deleted; their lifecycle is their state and their
-// relationships. Unclaimed until the Tasks and Decisions modules exist
-// (docs/specs/vault-records.md).
+// relationships. Unclaimed until the Tasks and Decisions modules exist.
 import { z } from 'zod';
 import { localDate, text } from './common.ts';
 

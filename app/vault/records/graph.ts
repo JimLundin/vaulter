@@ -1,5 +1,5 @@
 // Graph records: facts between nodes, the vocabulary, and live page lists. Unclaimed until the Graph
-// module exists (docs/specs/vault-records.md).
+// module exists.
 import { z } from 'zod';
 import { text } from './common.ts';
 

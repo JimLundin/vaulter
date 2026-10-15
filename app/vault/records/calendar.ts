@@ -1,5 +1,5 @@
 // Calendar records: a date attached to what it is placed under, and dated sequences on pages.
-// Unclaimed until the Calendar module exists (docs/specs/vault-records.md).
+// Unclaimed until the Calendar module exists.
 import { z } from 'zod';
 import { localDate, text } from './common.ts';
 
