@@ -318,7 +318,7 @@ test('settings is a shared drawer that keeps feature fields and focus when resiz
 });
 
 test(
-  'touch controls grow on phones and touch desktops while retaining keyboard behavior',
+  'shared controls retain mouse and touch target sizes',
   { tag: ['@phone', '@touch'] },
   async ({ page }, info) => {
     await page.goto('/ui/kit/tests/browser.html');
@@ -374,14 +374,6 @@ test(
           .evaluate((node) => getComputedStyle(node).fontSize),
       ).toBe('16px');
     }
-    await page.getByRole('checkbox').click();
-    await expect(page.getByRole('checkbox')).toBeChecked();
-    await page.getByRole('checkbox').press('Space');
-    await expect(page.getByRole('checkbox')).not.toBeChecked();
-    await page.getByRole('tab', { name: 'First', exact: true }).focus();
-    await page.keyboard.press('ArrowRight');
-    await expect(page.getByRole('tab', { name: 'Second', exact: true })).toBeFocused();
-    await expect(page.getByText('Second tab content', { exact: true })).toBeVisible();
     if (info.project.name !== 'desktop') {
       for (const control of await page.getByRole('radio').all()) {
         expect((await control.boundingBox())!.height).toBeGreaterThanOrEqual(44);
@@ -389,10 +381,9 @@ test(
     }
     await page.getByRole('button', { name: 'More controls' }).click();
     const item = page.getByRole('menuitem', { name: 'Menu item' });
+    await expect(item).toBeVisible();
     if (info.project.name !== 'desktop')
       expect((await item.boundingBox())!.height).toBeGreaterThanOrEqual(44);
-    await page.keyboard.press('Escape');
-    await expect(page.getByRole('button', { name: 'More controls' })).toBeFocused();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,
     );

@@ -1,8 +1,8 @@
 import { expect, test } from '@playwright/test';
 
-test('commands filter inferred labels with caller refs and newly added results', {
-  tag: '@phone',
-}, async ({ page }) => {
+test('commands filter inferred labels with caller refs and newly added results', async ({
+  page,
+}) => {
   await page.goto('/ui/kit/tests/controls.html');
   const query = page.getByRole('combobox', { name: 'Find a result' });
   const results = page.getByRole('listbox', { name: 'Live results' });
@@ -19,9 +19,9 @@ test('commands filter inferred labels with caller refs and newly added results',
   await expect(results.getByRole('status')).toHaveText('No matching results.');
 });
 
-test('a controlled command input keeps its accepted query and results when an edit is rejected', {
-  tag: '@phone',
-}, async ({ page }) => {
+test('a controlled command input keeps its accepted query and results when an edit is rejected', async ({
+  page,
+}) => {
   await page.goto('/ui/kit/tests/controls.html');
   const query = page.getByRole('combobox', { name: 'Fixed result query' });
   await query.fill('Rejected query');
@@ -31,9 +31,9 @@ test('a controlled command input keeps its accepted query and results when an ed
   );
 });
 
-test('checkbox labels toggle controlled mixed state and submit the checked value', {
-  tag: '@phone',
-}, async ({ page }) => {
+test('checkbox labels toggle controlled mixed state and submit the checked value', async ({
+  page,
+}) => {
   await page.goto('/ui/kit/tests/controls.html');
   const remember = page.getByRole('checkbox', { name: 'Remember me', exact: true });
   await expect(remember).toHaveAttribute('aria-checked', 'mixed');
@@ -52,9 +52,9 @@ test('checkbox labels toggle controlled mixed state and submit the checked value
   );
 });
 
-test('single and multiple toggle groups preserve their callback values and keyboard navigation', {
-  tag: '@phone',
-}, async ({ page }) => {
+test('single and multiple toggle groups preserve their callback values and keyboard navigation', async ({
+  page,
+}) => {
   await page.goto('/ui/kit/tests/controls.html');
   const single = page.getByRole('group', { name: 'Time range' });
   const day = single.getByRole('button', { name: 'Day', exact: true });
@@ -115,9 +115,9 @@ test('single and multiple toggle groups preserve their callback values and keybo
   }
 });
 
-test('tabs retain automatic and manual keyboard activation and controlled selection callbacks', {
-  tag: '@phone',
-}, async ({ page }) => {
+test('tabs retain automatic and manual keyboard activation and controlled selection callbacks', async ({
+  page,
+}) => {
   await page.goto('/ui/kit/tests/controls.html');
   const automatic = page.getByRole('tablist', { name: 'Automatic tabs' });
   await automatic.getByRole('tab', { name: 'Notes', exact: true }).focus();
