@@ -54,11 +54,31 @@ export function GraphPrototype({
   const [query, setQuery] = useState('');
   const [chosen, setChosen] = useState<string>();
   const [filter, setFilter] = useState('all');
+  const [browse, setBrowse] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(6);
   const topic =
     topics.find((entry) => entry.id === node) ??
     topics.find((entry) => entry.id === 'preview:graph-topic') ??
     topics[0];
   const all = flatten(topic?.blocks ?? []);
+  const vaultBlocks = topics.flatMap((entry) => flatten(entry.blocks));
+  const vaultStatements = vaultBlocks.filter(
+    (block) => block.data.kind === 'paragraph' && words(block).trim(),
+  );
+  const vaultSources = new Set(
+    vaultStatements.flatMap((block) => block.evidence.map((reference) => reference.source.node)),
+  );
+  const vaultQuestions = vaultBlocks.filter((block) => block.data.kind === 'question');
+  const related = topics.filter(
+    (entry) =>
+      entry.id !== topic?.id &&
+      state.graph
+        ?.relationships({ node: topic?.id ?? '' })
+        .some(
+          (edge) =>
+            edge.source.address?.node === entry.id || edge.target.address?.node === entry.id,
+        ),
+  );
   const statements = all.filter((block) => block.data.kind === 'paragraph' && words(block).trim());
   const questions = all.filter((block) => block.data.kind === 'question');
   const selected = statements.find((block) => block.id === chosen) ?? statements[0];
@@ -79,6 +99,9 @@ export function GraphPrototype({
   const selectTopic = (id: string) => {
     setChosen(undefined);
     setFilter('all');
+    setVisibleCount(6);
+    setBrowse(false);
+    setQuery('');
     onSelectSubject(id);
   };
   const source = (reference: Reference) => (
@@ -105,6 +128,39 @@ export function GraphPrototype({
             ? 'The source was removed. Its cited passage is still retained in history.'
             : 'This is the passage selected when the statement was cited.'}
       </Text>
+      {topics.some(
+        (entry) =>
+          entry.id !== topic?.id &&
+          flatten(entry.blocks).some((block) =>
+            block.evidence.some((ref) => ref.source.node === reference.source.node),
+          ),
+      ) && (
+        <Stack gap="xs">
+          <Text size="sm" tone="muted">
+            This source also appears in
+          </Text>
+          <Row wrap={true}>
+            {topics
+              .filter(
+                (entry) =>
+                  entry.id !== topic?.id &&
+                  flatten(entry.blocks).some((block) =>
+                    block.evidence.some((ref) => ref.source.node === reference.source.node),
+                  ),
+              )
+              .map((entry) => (
+                <Button
+                  key={entry.id}
+                  variant="ghost"
+                  size="compact"
+                  onClick={() => selectTopic(entry.id)}
+                >
+                  {entry.title}
+                </Button>
+              ))}
+          </Row>
+        </Stack>
+      )}
       {!!reference.href && (
         <Link href={reference.href}>
           Open source <Icon name="arrow-up-right" size="sm" />
@@ -127,7 +183,7 @@ export function GraphPrototype({
       )}
     </Stack>
   );
-  const statement = (block: Block, index: number) => (
+  const statement = (block: Block) => (
     <SelectionRow
       key={block.id}
       selected={block.id === selected?.id}
@@ -136,7 +192,7 @@ export function GraphPrototype({
     >
       <Stack gap="sm">
         <Text size="sm" tone="muted">
-          STATEMENT {index + 1}
+          STATEMENT {statements.indexOf(block) + 1}
         </Text>
         <Text weight="medium">{words(block)}</Text>
         <Text size="sm" tone="muted">
@@ -150,7 +206,7 @@ export function GraphPrototype({
   );
   const openQuestions = (
     <Stack gap="sm">
-      <Heading level={2}>What remains open</Heading>
+      <Heading level={2}>What remains open · {questions.length}</Heading>
       {questions.length ? (
         questions.map((question) => (
           <Surface key={question.id} variant="subtle">
@@ -158,6 +214,16 @@ export function GraphPrototype({
               <Icon name="help" />
               <Text weight="medium">{String(question.data.text ?? 'Open question')}</Text>
             </Row>
+            {state.graph?.relationships({ node: question.id }).map((edge) => {
+              const endpoint = edge.direction === 'outgoing' ? edge.target : edge.source;
+              const claim = vaultStatements.find((block) => block.id === endpoint.address?.node);
+              const subject = state.subjects.find((entry) => entry.id === endpoint.address?.node);
+              return (
+                <Text key={edge.node.key.node} size="sm" tone="muted">
+                  {edge.label}: {claim ? words(claim) : (subject?.title ?? 'Retained source')}
+                </Text>
+              );
+            })}
             <Link href="#/questions/">
               Explore in Questions <Icon name="arrow-up-right" size="sm" />
             </Link>
@@ -175,27 +241,56 @@ export function GraphPrototype({
     >
       <Stack gap="lg" inset="page" block="sm">
         {!!state.loading && <Loader>Opening the topic…</Loader>}
-        <PageControls
-          search={{
-            label: 'Find a topic',
-            placeholder: 'Find a topic…',
-            value: query,
-            onValueChange: setQuery,
-          }}
-        />
-        <Row wrap={true}>
-          {topics
-            .filter((entry) => entry.title.toLocaleLowerCase().includes(query.toLocaleLowerCase()))
-            .map((entry) => (
-              <Button
-                key={entry.id}
-                variant={entry.id === topic?.id ? 'filled' : 'outline'}
-                onClick={() => selectTopic(entry.id)}
-              >
-                {entry.title}
-              </Button>
-            ))}
+        <Text size="sm" tone="muted">
+          SAMPLE VAULT · {topics.length} topics · {vaultStatements.length} statements ·{' '}
+          {vaultSources.size} cited sources · {vaultQuestions.length} questions
+        </Text>
+        <Row wrap={true} justify="between">
+          <Text weight="medium">{topic?.title ?? 'Choose a topic'}</Text>
+          <Button variant="outline" onClick={() => setBrowse(!browse)}>
+            {browse ? 'Close topic browser' : `Browse ${topics.length} topics`}
+          </Button>
         </Row>
+        {!!browse && (
+          <Stack gap="sm">
+            <PageControls
+              search={{
+                label: 'Find a topic',
+                placeholder: 'Find a topic…',
+                value: query,
+                onValueChange: setQuery,
+              }}
+            />
+            <Stack gap="xs">
+              {topics
+                .filter((entry) =>
+                  entry.title.toLocaleLowerCase().includes(query.toLocaleLowerCase()),
+                )
+                .map((entry) => (
+                  <SelectionRow
+                    key={entry.id}
+                    selected={entry.id === topic?.id}
+                    onSelect={() => selectTopic(entry.id)}
+                  >
+                    <Stack gap="xs">
+                      <Text weight="medium">{entry.title}</Text>
+                      <Text size="sm" tone="muted">
+                        {
+                          flatten(entry.blocks).filter((block) => block.data.kind === 'paragraph')
+                            .length
+                        }{' '}
+                        statements ·{' '}
+                        {entry.metadata.map((term) => term.label).join(', ') || 'Topic'}
+                      </Text>
+                    </Stack>
+                  </SelectionRow>
+                ))}
+            </Stack>
+            {!topics.some((entry) =>
+              entry.title.toLocaleLowerCase().includes(query.toLocaleLowerCase()),
+            ) && <Text>No topics match this search.</Text>}
+          </Stack>
+        )}
         {topic ? (
           <>
             <Stack gap="sm">
@@ -233,7 +328,7 @@ export function GraphPrototype({
                   <Text tone="muted">
                     Read the recorded statements alongside the passages used to support them.
                   </Text>
-                  {statements.map((block, index) => (
+                  {statements.slice(0, visibleCount).map((block, index) => (
                     <Card key={block.id}>
                       <CardContent>
                         <Stack gap="lg">
@@ -257,7 +352,7 @@ export function GraphPrototype({
                   Choose a statement to see its path from topic to retained source passage.
                 </Text>
                 <Columns>
-                  <Stack gap="sm">{statements.map(statement)}</Stack>
+                  <Stack gap="sm">{statements.slice(0, visibleCount).map(statement)}</Stack>
                   {selected ? (
                     <Surface variant="subtle">
                       <Timeline>
@@ -290,7 +385,10 @@ export function GraphPrototype({
                     label: 'Evidence coverage',
                     value: filter,
                     active: filter !== 'all',
-                    onValueChange: setFilter,
+                    onValueChange: (value) => {
+                      setFilter(value);
+                      setVisibleCount(6);
+                    },
                     options: [
                       { value: 'all', label: 'All statements' },
                       { value: 'uncited', label: 'Without citations' },
@@ -298,7 +396,7 @@ export function GraphPrototype({
                     ],
                   }}
                 />
-                {matching.map((block, index) => (
+                {matching.slice(0, visibleCount).map((block, index) => (
                   <Card key={block.id}>
                     <CardContent>
                       <Stack gap="lg">
@@ -313,6 +411,29 @@ export function GraphPrototype({
                 ))}
                 {!matching.length && <Text>No statements match this filter.</Text>}
                 {openQuestions}
+              </Stack>
+            )}
+            {(design === 'review' ? matching.length : statements.length) > visibleCount && (
+              <Button variant="outline" onClick={() => setVisibleCount(visibleCount + 6)}>
+                Show more statements (
+                {(design === 'review' ? matching.length : statements.length) - visibleCount}{' '}
+                remaining)
+              </Button>
+            )}
+            {related.length > 0 && (
+              <Stack gap="sm">
+                <Heading level={2}>Connected topics · {related.length}</Heading>
+                <Text size="sm" tone="muted">
+                  Recorded topic relationships. Shared citations are shown with their source
+                  passages.
+                </Text>
+                <Row wrap={true}>
+                  {related.map((entry) => (
+                    <Button key={entry.id} variant="outline" onClick={() => selectTopic(entry.id)}>
+                      {entry.title}
+                    </Button>
+                  ))}
+                </Row>
               </Stack>
             )}
             <Separator />

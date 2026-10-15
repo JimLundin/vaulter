@@ -8,6 +8,7 @@ import { applicationNodes } from '../application/composition.ts';
 import { startTheme, Text, DesignPreview, DesignComparison } from '../ui/kit/index.ts';
 import { GraphPrototype, graphDesigns } from './prototype-graph.tsx';
 import { seedGraphEvidence } from './graph-evidence.ts';
+import { seedGraphDensity } from './graph-density.ts';
 import { previewModel } from './model.ts';
 import { createOpenAICapabilities } from '../agent/openai/index.ts';
 import { recordedTranscription } from '../agent/recorded-transcription.ts';
@@ -44,7 +45,10 @@ const transcription = agent ? recordedTranscription(agent.transcribe) : previewT
 const openingNodes = previewNodes(sessionStorage, query.get('scenario') ?? undefined).then(
   async (nodes) => {
     await seedPreviewRecords(nodes);
-    if (query.get('compare') === 'graph') await seedGraphEvidence(nodes);
+    if (query.get('compare') === 'graph') {
+      await seedGraphEvidence(nodes);
+      await seedGraphDensity(nodes);
+    }
     if (query.has('conversations') && !(await nodes.snapshot()).get('preview:list-owner')) {
       await nodes.commit({
         id: 'preview:conversation-list',
