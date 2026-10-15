@@ -1,7 +1,6 @@
 @import "./prose.css";
 @import "./loading.css";
-/* Tailwind scans only the kit. Application modules compose its public presentation.
- * Historical screen references live in docs/design/reference, outside this scan. */
+/* Tailwind scans only the kit. Application modules compose its public presentation. */
 @import "tailwindcss" source(none);
 @import "./passage-card.css";
 @source "./";

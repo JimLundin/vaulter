@@ -1,13 +1,11 @@
 # The kit
 
-The app's component kit. Historical [screen references](../../../docs/design/reference/README.md)
-live outside the kit. Application and workflow screens compose `index.ts`; no public component takes
+The app's component kit. Application and workflow screens compose `index.ts`; no public component takes
 `className` or `style`. Tailwind scans only this folder.
 
 The implemented [ADR 0006](../../../docs/adr/0006-module-ui-and-shared-presentation.md) keeps
 record-specific UI in Chat, Wiki, History and Search while the kit owns shared presentation.
 One supporting-pane policy owns geometry and interaction across those clients. The
-[ownership plan](../../../docs/history/plans/ui-module-ownership.md) records delivered acceptance and the
 [public inventory](../../../docs/ui-presentation-inventory.md) lists every export, actual consumers
 and retired destination.
 
@@ -33,13 +31,11 @@ record. The live fictional preview exercises History's actual NodeStore → `Nod
 Base UI owns control and overlay interactions. The single public `Drawer` serves compact side
 panels, navigation and settings; Search uses Base UI Autocomplete. Private composition verification,
 text entry, field association and presentation policy are implemented and documented below.
-The [historical specs](../../../docs/history/ui-kit/README.md) retain their original requirements
-and acceptance evidence.
 
 `npm run kit` opens the live catalogue, using the same local fonts and theme as the app. Every
 public presentation component appears in a component family with an 800px desktop sample beside a
 390px touch sample. Both run the same sample implementation. Search by component or family name;
-on narrow screens, each comparison scrolls horizontally. Reference screens remain design artifacts.
+on narrow screens, each comparison scrolls horizontally.
 
 `catalogue.tsx` contains the sample data and component coverage. `tools/catalogue.test.ts` compares
 its registrations and rendered JSX against all public component exports, so adding a component

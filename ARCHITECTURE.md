@@ -276,8 +276,7 @@ this policy; obsolete pane wrappers and Drawer reading/supporting placements are
 The implemented ownership decision is [ADR 0006](docs/adr/0006-module-ui-and-shared-presentation.md):
 modules own record-specific UI and typed reading projections; the kit owns base presentation and
 shared compositions. Supporting panes use one presentation policy across modules. Consistency and
-a smaller presentation interface take precedence over feature-specific UI tailoring. The
-[migration plan](docs/history/plans/ui-module-ownership.md) records the sequence and enforcement checks;
+a smaller presentation interface take precedence over feature-specific UI tailoring.
 Chat, Wiki, History and Search own their typed record and task composition. The
 [public inventory](docs/ui-presentation-inventory.md) identifies every retained kit export and actual
 consumers. Exact declaration roles in `app/ui/kit/composition.ts` separate DOM/library mechanics from
