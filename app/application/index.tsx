@@ -20,8 +20,6 @@ import { useTranscription, type TranscriptionProvider } from '../transcription.t
 import type { LanguageModel } from 'ai';
 import {
   useVaultSession,
-  noteSearchIndex,
-  type OpenBackend,
   type OpenNodes,
   VaultGate,
   RefreshNodes,
@@ -118,15 +116,13 @@ type SuppliedSession = Omit<VaultSession, 'identity' | 'credentialPending' | 'cr
   Partial<Pick<VaultSession, 'identity' | 'credentialPending' | 'credentials'>>;
 
 export function Application({
-  openBackend,
   openNodes,
   identities,
 }: {
-  openBackend: OpenBackend;
-  openNodes?: OpenNodes;
+  openNodes: OpenNodes;
   identities?: ApplicationIdentities;
 }) {
-  const session = useVaultSession(openBackend, openNodes);
+  const session = useVaultSession(openNodes);
   return (
     <VaultGate state={session}>
       <OpenApplication session={session} identities={identities} />
@@ -151,7 +147,7 @@ export function OpenApplication({
     transcription: TranscriptionProvider;
   };
 }) {
-  const { vault, files, status, nodeStatus } = session;
+  const { nodeStatus } = session;
   const nodes = session.nodes ? applicationNodes(session.nodes, session.identity) : null;
   const providerDefinition = useMemo(
     () =>
@@ -370,13 +366,6 @@ export function OpenApplication({
       onNewChat: () => {
         if (conversationRoute.match(parseRoute(location.hash).path)) go(chatRoute.href());
       },
-      stagedChanges: () => {
-        const before = new Map(vault.base().map((file) => [file.path, file.text]));
-        const after = new Map(vault.files().map((file) => [file.path, file.text]));
-        return vault
-          .staged()
-          .map((path) => ({ path, before: before.get(path) ?? '', text: after.get(path) ?? null }));
-      },
     }),
   );
   const [suppliedPrompt, setSuppliedPrompt] = useState<{
@@ -435,11 +424,8 @@ export function OpenApplication({
     },
   ];
   const index = useMemo(
-    () =>
-      pages === null
-        ? noteSearchIndex(files!)
-        : new Map(pages.map((page) => [page.entry.href, page.entry])),
-    [files, pages],
+    () => new Map((pages ?? []).map((page) => [page.entry.href, page.entry])),
+    [pages],
   );
   const ask = (text?: string) => {
     if (text)
@@ -584,7 +570,7 @@ export function OpenApplication({
     <>
       <Frame
         navigation={navigation}
-        status={<SessionStatus status={status} />}
+        status={<SessionStatus status={nodeStatus} />}
         signOut={signOut && <SignOut onSignOut={signOut} />}
         onSearch={() => {
           if (mobile) dismissSupportingTasks();

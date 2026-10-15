@@ -6,9 +6,6 @@ import { createRoot } from 'react-dom/client';
 import { expect, test, vi } from 'vitest';
 import { MockLanguageModelV4, convertArrayToReadableStream } from 'ai/test';
 import { OpenApplication } from './index.tsx';
-import { liveVault } from '../vault/index.ts';
-import { useWriter } from '../vault/changes/writer.ts';
-import { memoryBackend } from '../vault/storage/files/memory.ts';
 import { memoryNodeBackend } from '../vault/nodes/memory.ts';
 
 test.each([false, true])(
@@ -17,10 +14,7 @@ test.each([false, true])(
     vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
     localStorage.clear();
     history.replaceState(null, '', '#/chat/');
-    const files = memoryBackend({});
-    const head = await files.backend.cached();
-    const rules = { problems: async () => [], keeps: () => true, what: 'Fictional files' };
-    const onWritten = () => undefined;
+
     const first = memoryNodeBackend();
     const next = memoryNodeBackend();
     const model = new MockLanguageModelV4({
@@ -43,21 +37,18 @@ test.each([false, true])(
     });
     const root = createRoot(document.body);
     function Surface({ nodes }: { nodes: typeof first }) {
-      const writer = useWriter(files.backend, rules, head, onWritten);
-      const vault = liveVault(() => writer);
       return (
         <OpenApplication
           session={{
-            vault,
-            files: head!.files,
-            status: { kind: 'synced', at: 0 },
+            ready: true,
+
             locked: null,
             signOut: null,
             secrets: null,
             preloadedSecrets: null,
             secretOverrides: {},
             updateSecret: async () => undefined,
-            blocked: null,
+
             nodes: transactionFixture(nodes),
             nodeStatus: { kind: 'synced', at: 0 },
             refreshNodes: async () => undefined,

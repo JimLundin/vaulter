@@ -410,3 +410,25 @@ test('closing while waiting for another tab releases the pending write without p
   await rejected;
   expect(state.main).toBe(before);
 });
+
+test('cache readiness distinguishes a cold device from an accepted empty snapshot', async () => {
+  const fake = await fakeGitHub({});
+  const options = {
+    token: 'fictional-token',
+    repo: { owner: 'fictional', name: 'empty', branch: 'main' },
+    api: 'https://gh.test',
+    fetch: fake.fetchFn,
+  };
+  const first = githubNodeBackend(options);
+  stores.push(first);
+  expect(await first.cached()).toBe(false);
+  await first.refresh();
+  expect(await first.cached()).toBe(true);
+  const offline = githubNodeBackend({
+    ...options,
+    fetch: () => Promise.reject(new Error('Offline')),
+  });
+  stores.push(offline);
+  expect(await offline.cached()).toBe(true);
+  expect((await offline.snapshot()).sequence).toBe(0);
+});

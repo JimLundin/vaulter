@@ -8,7 +8,7 @@ transactions without modifying earlier records.
 [Chat](chat-nodes.md) and [independent Agent](agent-records.md) produce accepted nodes through this
 contract, and Application supplies models, identities and module-owned tools explicitly. Core
 [History operations](node-consumers.md) and the History screen read transactions and prepare guarded
-compensation. Search retains its legacy file workflow; sensor collection is not part of this
+compensation. Search reads Wiki node entries; sensor collection is not part of this
 producer integration. Migration is separate work inside the Vault.
 The [captured spike](https://github.com/JimLundin/vaulter/tree/33a77c4) is the design experiment;
 its standalone shell, scratch keys, reset actions, and full replay reads are not shipped here.
@@ -16,14 +16,13 @@ its standalone shell, scratch keys, reset actions, and full replay reads are not
 ## Application interface
 
 `session.nodes` is a `TransactionStore`, or null before the node adapter is available. `session.nodeStatus`
-tracks its synchronization separately from the legacy file session. Bootstrap supplies `OpenNodes` from `app/vault/session/adapters.ts`;
+tracks node synchronization; `session.ready` records whether accepted cached or remote data is available. Bootstrap supplies `OpenNodes` from `app/vault/session/adapters.ts`;
 the design preview supplies the memory adapter. Workflows receive no key, token, Git client, or
 adapter lifecycle methods. Read-only consumers use `NodeReading`; application writers receive the
 same reads plus `writer(context).lifetime()`. The facade has no raw `commit` member, even at runtime.
 
-File adapters live in `app/vault/storage/files/`; Node persistence lives in
-`app/vault/storage/nodes/`. Both may use `storage/github-client/` and browser coordination, but
-neither persistence format imports the other. Session owns credential-bearing adapter constructors;
+Node persistence lives in `app/vault/storage/nodes/` and uses `storage/github-client/`
+with node-scoped browser locks. The application has no file persistence adapter. Session owns credential-bearing adapter constructors;
 `vault/nodes/` depends only on the Node model and generic Runtime helpers.
 
 ```ts

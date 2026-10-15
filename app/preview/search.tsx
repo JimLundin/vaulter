@@ -5,7 +5,7 @@ import '../ui/kit/styles.css';
 import { Search } from '../search/Search.tsx';
 import { opened } from '../search/recent.ts';
 import { useRoute } from '../navigation/routing.ts';
-import { searchIndex } from '../vault/documents/search.ts';
+import { searchIndex } from '../search/entries.ts';
 import { Button, Input, Overlay, Stack, Text } from '../ui/kit/index.ts';
 
 const index = searchIndex([

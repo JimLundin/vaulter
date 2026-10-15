@@ -761,30 +761,3 @@ test('Chat retains the shared draft when its view closes and reopens', { tag: '@
     'An unfinished workflow thought',
   );
 });
-
-test('Enter and Send both open staged-change review and cancellation keeps the workflow draft', {
-  tag: '@phone',
-}, async ({ page }) => {
-  test.setTimeout(60_000);
-  await page.goto('/preview/?legacy-staging');
-  const field = page.getByRole('textbox', { name: 'Message', exact: true });
-  await expect(field).toBeEditable();
-  const submitted = await page.locator('[data-message="user"]').count();
-  const review = page.getByRole('dialog', { name: 'Review pending changes', exact: true });
-  for (const method of ['Enter', 'Send']) {
-    await field.fill(`Keep this ${method} draft pending review`);
-    if (method === 'Enter') await field.press('Enter');
-    else await page.getByRole('button', { name: 'Send', exact: true }).click();
-    await expect(review).toBeVisible();
-    await expect(review.getByText('Legacy draft.md', { exact: false })).toBeVisible();
-    await expect(field).toHaveValue(`Keep this ${method} draft pending review`);
-    await expect(page.locator('[data-message="user"]')).toHaveCount(submitted);
-    await review.getByRole('button', { name: 'Cancel', exact: true }).click();
-    await expect(review).toBeHidden();
-    await expect(field).toHaveValue(`Keep this ${method} draft pending review`);
-  }
-  await field.press('Enter');
-  await review.getByRole('button', { name: 'Send and keep staged edits' }).click();
-  await expect(page.locator('[data-message="user"]')).toHaveCount(submitted + 1);
-  await expect(field).toHaveValue('');
-});

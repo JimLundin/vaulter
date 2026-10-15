@@ -133,64 +133,27 @@ test('capture retains each supplied prompt without replacing spoken words and ex
   }
 });
 
-test('review blocks Ask, edit prompts and suggestions until explicit Use without changing the review or newer draft', async () => {
-  const { nodes, model, options } = await fixture({
-    stagedChanges: () => [{ path: 'Thought.md', before: 'Old', text: 'New' }],
-  });
-  const chat = createNodeConversation(options);
-  try {
-    chat.setDraft('Reviewed message');
-    const review = chat.prepareSubmission();
-    expect(review.status).toBe('review');
-    chat.setDraft('Newer draft');
-    chat.receivePrompt({ n: 1, send: true, text: 'Ask after review' });
-    chat.receivePrompt({ n: 2, send: false, text: 'Edit after review' });
-    expect(chat.editDraft('Suggested text')).toMatchObject({ status: 'blocked' });
-    expect(chat.snapshot().review).toBe(review);
-    expect(chat.snapshot().draft).toBe('Newer draft');
-    expect(chat.snapshot().prompts.map(({ text }) => text)).toEqual([
-      'Ask after review',
-      'Edit after review',
-      'Suggested text',
-    ]);
-    chat.cancelReview();
-    await Promise.resolve();
-    expect(model.doStreamCalls).toHaveLength(0);
-    expect(chat.snapshot().draft).toBe('Newer draft');
-    const used = chat.applyPrompt(1);
-    expect(used.status).toBe('review');
-    expect(chat.snapshot().review?.intent.text).toBe('Ask after review');
-    expect(chat.snapshot().draft).toBe('Newer draft');
-    expect(chat.snapshot().prompts.map(({ text }) => text)).toEqual([
-      'Edit after review',
-      'Suggested text',
-    ]);
-    expect(model.doStreamCalls).toHaveLength(0);
-  } finally {
-    chat.dispose();
-    nodes.close();
-  }
-});
-
 test('a claimed prompt survives selection and requires another explicit Use after acknowledging the changed conversation', async () => {
-  const { nodes, model, options } = await fixture({
-    stagedChanges: () => [{ path: 'Thought.md', before: 'Old', text: 'New' }],
-  });
+  const transcription = createTranscription(async () => ({ finish: async () => '', close() {} }));
+  const { nodes, model, options } = await fixture({ transcription });
   const chat = createNodeConversation(options);
   try {
-    chat.setDraft('Reviewed text');
-    chat.prepareSubmission();
+    await chat.captureAction();
     chat.receivePrompt({ n: 1, send: true, text: 'Keep across selection' });
+    await chat.captureAction();
     chat.newChat();
     expect(chat.snapshot().prompts[0]?.reason).toMatch(/Conversation changed/);
     expect(chat.applyPrompt(1)).toMatchObject({
       status: 'blocked',
       reason: expect.stringMatching(/use again/),
     });
-    expect(chat.snapshot().review).toBeUndefined();
+
     expect(model.doStreamCalls).toHaveLength(0);
-    expect(chat.applyPrompt(1).status).toBe('review');
-    expect(chat.snapshot().review?.intent.text).toBe('Keep across selection');
+    const sent = chat.applyPrompt(1);
+    if (sent.status !== 'owned') throw new Error('Expected retained prompt submission');
+    await sent.done;
+    expect(chat.snapshot().submission?.text).toBe('Keep across selection');
+    transcription.dispose();
   } finally {
     chat.dispose();
     nodes.close();
@@ -293,52 +256,6 @@ test('busy Ask safely becomes an editable draft and never executes when the earl
     expect(chat.snapshot().prompts).toEqual([]);
     expect(chat.snapshot().turns.filter(({ role }) => role === 'user')).toHaveLength(1);
     expect(model.doStreamCalls).toHaveLength(1);
-  } finally {
-    chat.dispose();
-    nodes.close();
-  }
-});
-
-test('a prompt claimed during a pending Open detects its later selected identity change', async () => {
-  const { nodes, model, options } = await fixture({
-    stagedChanges: () => [{ path: 'Review.md', before: 'Old', text: 'New' }],
-  });
-  await nodes.commit(
-    request('saved', [
-      create('saved-chat', {
-        kind: 'conversation',
-        title: 'Saved',
-        createdAt: '2026-10-10T12:00:00Z',
-      }),
-    ]),
-  );
-  let releaseRead!: () => void;
-  const reader: NodeStore = {
-    ...nodes,
-    snapshot: async (sequence) => {
-      await new Promise<void>((resolve) => {
-        releaseRead = resolve;
-      });
-      return nodes.snapshot(sequence);
-    },
-  };
-  const chat = createNodeConversation({ ...options, nodes: transactionFixture(reader) });
-  try {
-    const opening = chat.open('saved-chat');
-    chat.setDraft('Reviewed while opening');
-    chat.prepareSubmission();
-    chat.receivePrompt({ n: 1, send: true, text: 'Keep this pending text' });
-    releaseRead();
-    expect(await opening).toMatchObject({ status: 'selected', conversation: 'saved-chat' });
-    expect(chat.applyPrompt(1)).toMatchObject({
-      status: 'blocked',
-      reason: expect.stringMatching(/use again/),
-    });
-    expect(chat.snapshot().prompts[0]?.text).toBe('Keep this pending text');
-    expect(chat.applyPrompt(1).status).toBe('review');
-    expect(chat.snapshot().review?.conversation).toBe('saved-chat');
-    expect(chat.snapshot().review?.intent.text).toBe('Keep this pending text');
-    expect(model.doStreamCalls).toHaveLength(0);
   } finally {
     chat.dispose();
     nodes.close();

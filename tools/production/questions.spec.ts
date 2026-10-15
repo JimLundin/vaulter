@@ -6,7 +6,6 @@ import { accept } from '../../app/vault/nodes/history.ts';
 import { canonical, digest } from '../../app/vault/nodes/json.ts';
 import { parseRecord } from '../../app/vault/nodes/validation.ts';
 import { seal } from '../../app/vault/session/sealed.ts';
-import { sampleFiles } from '../../app/preview/data.ts';
 
 test('production shares suggestion lists and inline context in Questions and Wiki and persists an explicit answer', async ({
   page,
@@ -63,7 +62,6 @@ test('production shares suggestion lists and inline context in Questions and Wik
     '2026-10-13T09:00:00Z',
   );
   const fake = await fakeGitHub({
-    ...sampleFiles,
     '.vaulter/nodes/v1/transactions/questions-fixture.json': JSON.stringify(initialRecord),
   });
   const password = 'fictional-questions-password';

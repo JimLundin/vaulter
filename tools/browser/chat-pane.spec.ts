@@ -88,37 +88,3 @@ test('Chat supporting pane keeps one following feed, draft and accepted activity
     journal,
   );
 });
-
-test('pending Chat review survives pane closure and moves to the page with one shared dialog', async ({
-  page,
-}) => {
-  test.setTimeout(60_000);
-  await page.goto('/preview/?legacy-staging#/history/');
-  const handle = page.locator('[data-preview-drag-handle]');
-  for (let i = 0; i < 10; i++) await handle.press('Shift+ArrowDown');
-  await page.keyboard.press('Control+j');
-  const field = page.getByRole('textbox', { name: 'Message', exact: true });
-  await field.fill('Review this retained message');
-  await field.press('Enter');
-  const review = page.getByRole('dialog', { name: 'Review pending changes', exact: true });
-  await expect(review).toBeVisible();
-  await expect(review.getByText('Review this retained message', { exact: true })).toBeVisible();
-  await page.keyboard.press('Control+j');
-  await expect(review).toBeHidden();
-  await page.keyboard.press('Control+j');
-  await expect(review).toBeVisible();
-  await expect(review.getByText('Review this retained message', { exact: true })).toBeVisible();
-  await page.evaluate(() => {
-    location.hash = '/chat/';
-  });
-  await expect(review).toHaveCount(1);
-  await expect(review).toBeVisible();
-  await page.keyboard.press('Escape');
-  await expect(review).toBeHidden();
-  await page.keyboard.press('Control+j');
-  await expect(
-    page
-      .getByRole('region', { name: 'Conversation', exact: true })
-      .getByRole('textbox', { name: 'Message', exact: true }),
-  ).toHaveValue('Review this retained message');
-});

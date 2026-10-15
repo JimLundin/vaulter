@@ -24,7 +24,7 @@ flowchart TD
   Session --> Transactions
   Session --> Storage[Storage adapters]
   Storage --> Nodes
-  Search --> Documents[Document search]
+  Search --> Entries[Search entries and ranking]
 ```
 
 The graph shows the principal code dependencies. All UI owners may compose the public kit; record
@@ -42,7 +42,7 @@ workflows. There is no extension registry, common workflow manifest or runtime f
 | Questions | Question/Answer records, action admission, atomic references, collection and embedded UI | Wiki classification or deciding which evidence to use |
 | Transactions / History | Write lifetimes, acceptance/recovery state, history and guarded compensation | Producer-specific admission or undo policy |
 | Session | Credentials, unlocking, adapter creation/replacement and cache lifetime | Record meaning |
-| Storage | File and Node persistence adapters, caches and shared GitHub transport | Features, credentials UI or record meaning |
+| Storage | Node persistence, caches and GitHub transport | Features, credentials UI or record meaning |
 | UI kit | Generic presentation, controls, focus, scrolling, responsive layout and styling | Routes, preference storage or record interpretation |
 | Settings / Navigation / Search / Runtime | Preferences and settings binding / routes and commands / search interaction / scheduling and service worker | Workflow composition |
 
@@ -73,21 +73,17 @@ app/
     content/                 content operations, tools and recorded action receipts
     records/                 retained kinds awaiting modules and their source reading
     sources.ts               generic historical source-reading contract
-    documents/               legacy note/schema/link interpretation and search
-    validation/              permanent note and graph integrity rules
-    changes/                 persisted file staging and checked writes
     session/                 credentials, encryption and file/Node adapter lifetime
     storage/
-      files/                 legacy file contract, memory and GitHub adapters
       nodes/                 GitHub transaction persistence
       github-client/         shared GitHub transport
-      coordination.ts        browser ownership locks
   ui/kit/                    public generic presentation and its private implementation
   preview/                   fictional adapters and examples
  tools/
   layout.ts                  compiler-resolved dependencies, cycles and presentation ownership
   composition.ts             kit implementation and building-block policy
-  check.ts                   permanent file integrity checks
+  check.ts                   standalone source-file integrity checks
+  vault-check/               private Vault source-note/schema/graph checking
 ```
 
 `app/ui/` contains only the kit. Shared application behavior has named owners: for example,
@@ -130,9 +126,8 @@ Module integration tests live in `app/application/`.
 
 Remove a workflow by deleting its folder and Application wiring. Persisted Nodes remain in the
 Vault; remaining readers retain their generic unknown-record behavior. History is core Transaction
-infrastructure under `vault/transactions/history/`, as decided in ADR 0009. The unused legacy
-`rename-note` workflow has been removed; the active legacy file infrastructure remains independently
-owned under Vault. Renaming a Node means appending changed content to the same stable identity;
+infrastructure under `vault/transactions/history/`, as decided in ADR 0009. The browser stores
+application data only as Nodes. Renaming a Node means appending changed content to the same stable identity;
 it does not require a separate module or rewriting identity references.
 
 Modules define their configuration through `SettingsDefinition` in `app/settings/store.ts`: field keys,
@@ -150,7 +145,7 @@ its entry. Modules without preferences need no empty settings section.
 expressions. Workflow isolation and production/fixture separation include type-only references.
 Value and dynamic import cycles are rejected separately; type cycles do not imply runtime cycles.
 Raw persistence and session construction remain restricted even through aliases. The checker also
-keeps file and Node persistence formats independent, prohibits imports back into Application, and
+keeps standalone source checking out of the browser, prohibits imports back into Application, and
 keeps UI callers on public kit exports. The kit owns presentation; lower-level record and persistence
 implementations cannot import views.
 
@@ -178,67 +173,43 @@ code prevents a new producer from bypassing the Application-supplied interface. 
 Questions module at its existing seam: callers gain leverage from two actions, and validation,
 construction, ownership and tests retain locality within Questions.
 
-## Legacy file infrastructure owns file integrity
+## Node-only application data
 
-The legacy file infrastructure owns note parsing, `meta/schema.yaml`, link and reference
-validation, graph derivation, synchronization, and the shared staged preview. File
-selection and write checks no longer depend on which workflows are installed.
+Session opens one Node adapter and exposes managed Transaction reading/writing. It admits the
+application after a cached snapshot or successful remote refresh, including an empty vault.
+Cold-load errors stay on the opening screen; cached data stays readable through refresh failures
+or offline use. GitHub credential replacement prepares and validates only the Node adapter before
+activating it. Search receives Wiki entries and starts empty while that reading is loading.
 
-`Vault` exposes current files, staged paths, staging, checked commit/revert, history and patch queries.
-`liveVault()` binds once and reads the latest writer for each call; asynchronous tools do not depend on
-another view rendering. Workflows receive no backend handle or raw secrets. Bootstrap selects a
-storage adapter; Application supplies TransactionStore, configured identities, model capabilities and selected tools to Chat.
+The browser has no file backend, file staging, Markdown fallback or schema startup gate. Chat
+submits node messages directly after admission; pending node persistence still uses its existing
+recovery actions. Shared search entries/ranking live in Search, safe URLs in Navigation, and
+Markdown rendering in Chat.
 
-Use `vault.update(files => changes)` for a change calculated from vault contents. The vault acquires
-exclusive ownership, reloads the cached head and persisted overlay, calculates against that preview,
-then persists and publishes the complete change set. This prevents calculating changes from files
-that an earlier queued edit is about to replace. `stage()` and `stageMany()` remain useful
-for prepared text; they do not make an earlier, separate read atomic.
-
-Use `vault.write(async owned => ..., { staged, signal })` for a sequence that reads and writes across
-multiple steps. Use the supplied `OwnedVault` throughout, including optional tool factories. It has
-the same operations without `write()`, so nested operations reuse ownership. Reads stay on the
-sequence's head and staged preview. Another writer waits until the callback completes or fails.
-Choose `staged: 'reject'`, explicitly include all existing staging, or supply the exact reviewed
-`Change[]`. A reviewed set must still match persisted staging after ownership is acquired. Node Chat
-shows existing file edits accurately and offers “Send and keep staged edits”; it cannot publish or
-discard those edits. Legacy file revert refuses to run with pending staging.
-
-Ownership belongs to the backend's persisted state, shared across writer instances. Memory uses one
-queue; GitHub uses the origin's Web Locks. Cache replacement by sync and commit has its own Web Lock,
-and adopts the latest cached snapshot before proceeding. BroadcastChannel tells other tabs to reload
-staging; notifications are hints, and every mutation reloads under ownership. GitHub refuses writes
-when Web Locks are unavailable. These locks cover one browser origin; remote writers still rely on
-source identity checks and GitHub's fast-forward requirement.
-
-Cancellation expires the owned handle, rejects queued tools and drops late calculations. Ownership
-waits for any persistence or remote write already in progress to settle before admitting another
-writer. A completed remote write cannot be undone by cancellation. Failed and stopped sequences keep
-their staged edits for review. A failed staging validation or persistence operation publishes none of
-a partial rename. Commits check source identities against the backend's actual write base, including
-when sync advances during a sequence, and reject newly introduced integrity problems. Full-vault CI
-retains its existing check semantics.
+The private Vault's existing source CI can still call `tools/check.ts`. Its note/schema/graph
+implementation lives in `tools/vault-check/`, outside the browser dependency graph. Translation
+and enrichment remain owned by the private Vault under ADR 0007. Removing application file
+support does not delete or rewrite files in the private repository.
 
 ## Conversation lifetime
 
 Application creates one node-backed Chat interaction above route selection, scoped to its owning Vault
-session. Chat owns draft revisions, submission/review intent, selected conversation and pending
+session. Chat owns draft revisions, submission intent, selected conversation and pending
 selection, prompt consumption, record interpretation, recovery presentation and unread acknowledgement.
 The page, pane, chooser and application commands request these tasks through the same interface.
 Closing a view keeps task state and accepted execution; focus and chooser disclosure stay mounted
-presentation state. Unsubmitted drafts/reviews survive navigation within the session, without new
+presentation state. Unsubmitted drafts survive navigation within the session, without new
 reload persistence. Accepted history is reconstructed through NodeStore without executing Agent.
 
-`prepareSubmission()` returns a blocked reason, retained review, or locally owned request with its
-completion. It rechecks current admission and staging before handoff. Chat retains stable text/identity
+`prepareSubmission()` returns a blocked reason or locally owned request with its
+completion. It rechecks current admission before handoff. Chat retains stable text/identity
 before clearing only the source draft revision; local ownership does not claim durable acceptance.
-Review confirmation rechecks permission and staged evidence, requiring reconfirmation if evidence
-changed. New/Open share selection permission across commands, routes and chooser. The latest eligible
+New/Open share selection permission across commands, routes and chooser. The latest eligible
 selection wins; blocked intents preserve valid work, Open preserves draft, and New creates an unsaved
 identity. Application uses selection outcomes for navigation and reconciles failed/blocked routes.
 
 Chat claims each application prompt once. Eligible Ask uses the same preparation path. Editable
-fallback fills the draft without queued execution; capture/review conflicts retain text with explicit
+fallback fills the draft without queued execution; capture conflicts retain text with explicit
 Use/Dismiss actions. Reopening or simultaneous views cannot reclaim a prompt. An unseen completed
 reply remains unread through failed reads/save recovery until an open view acknowledges it.
 
@@ -406,16 +377,16 @@ scroll inside the field. Other features retain the floating voice action above t
 
 ## Browser and deployment
 
-The browser uses GitHub through a plaintext IndexedDB cache, including offline snapshots and staged
-edits. Memory is the test adapter. No browser source depends on Node. The toolchain and `tools/` use
+The browser uses GitHub through a plaintext IndexedDB cache of accepted node snapshots.
+Memory is the test adapter. No browser source depends on Node.js. The toolchain and `tools/` use
 Node 24. Deployment seals `dist/secrets.json`, which the app loads relative to its published root.
 Notes remain in the private vault; this repository ships application code only.
 
 The session merges login-preloaded credentials with encrypted device overrides. Settings renders
 configuration status and accepts replacement values without exposing the existing keys. Saving an
 override precedes activation; restoring removes it, and clearing an optional key records an explicit
-absence. A replacement GitHub token opens and refreshes candidate file/node adapters before swapping
-them into the session. Failure keeps the active adapters and credentials. Pending credential
+absence. A replacement GitHub token opens and refreshes a candidate node adapter before swapping
+it into the session. Failure keeps the active adapter and credentials. Pending credential
 replacement blocks new Agent activity. A stable session identity preserves the open
 conversation and draft across a successful adapter replacement. Sign-out invalidates pending
 work, closes adapters and clears cached credentials and vault data. Development overrides last only
@@ -452,14 +423,14 @@ and kit gallery links alongside the exact deployed production artifact. The prev
 the publishing branch and commit. Design iteration precedes merging the application and migrating
 private vault content.
 
-## Node storage alongside file workflows
+## Node storage
 
 `NodeStore` is the central storage interface for all application data. Features produce node records
 and represent stored data through this contract. Node versions group
 an exact key, optional placement, optional source/target connection, and JSON content. Each domain
 transaction appends complete versions atomically with required authorship. Identity addresses
 resolve within the viewing snapshot; transaction-qualified addresses select exact immutable rows.
-`useVaultSession()` exposes `nodes` and independent `nodeStatus`. Bootstrap selects `OpenNodes`
+`useVaultSession()` exposes managed `nodes`, `nodeStatus` and accepted-data `ready` state. Bootstrap selects `OpenNodes`
 with GitHub credentials; the design preview uses memory. Adapter lifecycle,
 remote acceptance, and cache clearing stay in the session, outside workflows.
 
@@ -468,8 +439,7 @@ files. A non-forced ref update is definitive acceptance; stale expectations reje
 remote races retry. Dexie is a plaintext rebuildable cache, not a separate source of authority.
 The [storage guide](docs/node-storage.md) and [persistence decision](docs/adr/0003-github-node-persistence.md)
 describe retry, ordering, offline, device storage, and history-size semantics. Chat/Agent produce nodes;
-History reads accepted node transactions and Search consumes Wiki entries with a legacy-document
-fallback during startup. [Consumer contracts](docs/node-consumers.md)
+History reads accepted node transactions and Search consumes Wiki entries. [Consumer contracts](docs/node-consumers.md)
 live with their owning workflows: `workflows/chat/records/` holds Chat payloads, lossless schemas,
 acceptance requests, saved-message projections and its transcript-preservation policy;
 `vault/transactions/history/nodes.ts` holds attributed History differences and compensation. Application supplies
@@ -528,7 +498,7 @@ Unknown or retired actions retain a readable raw fallback. Rendering never creat
 or publishes records, and pending or uncertain effects never appear as accepted success. Message views
 accept existing typed `Turn` data; conversation rows accept `SavedChat` with explicit node actions.
 Neither record view needs a live store or execution controller. The subscribed Chat container
-presents the retained Chat interaction's draft, capture, review, selection, prompts and recovery actions.
+presents the retained Chat interaction's draft, capture, selection, prompts and recovery actions.
 Its mounted supporting view calls
 `viewing()` only while open, so a reply finishing after close remains unread until reopened.
 

@@ -1,5 +1,5 @@
 import { Icon, Link, PassageCard, Row, Text } from '../../../ui/kit/index.ts';
-import { isSafeUrl } from '../../../vault/documents/notes/safe-url.ts';
+import { isSafeUrl } from '../../../navigation/urls.ts';
 import type { WikiReference } from '../pages.ts';
 
 /** Citation attribution, exact selection and version meaning stay with Wiki. */

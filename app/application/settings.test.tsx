@@ -7,9 +7,6 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { MockLanguageModelV4, convertArrayToReadableStream } from 'ai/test';
 import { OpenApplication } from './index.tsx';
 import { Surface } from '../ui/kit/index.ts';
-import { liveVault } from '../vault/index.ts';
-import { useWriter } from '../vault/changes/writer.ts';
-import { memoryBackend } from '../vault/storage/files/memory.ts';
 import { memoryNodeBackend } from '../vault/nodes/memory.ts';
 import type { NodeBackend } from '../vault/nodes/store.ts';
 import type { Secrets } from '../vault/session/sealed.ts';
@@ -142,9 +139,6 @@ async function fixture({
   credentialPending?: boolean;
   saveSecret?: (key: keyof Secrets, value: string | null | undefined) => Promise<void>;
 } = {}) {
-  const files = memoryBackend({});
-  const head = await files.backend.cached();
-  const rules = { problems: async () => [], keeps: () => true, what: 'Fictional files' };
   const adapters = new Set([initialNodes]);
   const model = new MockLanguageModelV4({ doStream: stream });
   const suppliedModel = vi.fn(async (_name: string) => model);
@@ -157,7 +151,6 @@ async function fixture({
     credentialPending?: boolean;
   }) => void;
   function Fixture() {
-    const writer = useWriter(files.backend, rules, head, () => undefined);
     const [secrets, setSecrets] = useState<Secrets>({
       ...preloadedSecrets,
       openai: 'custom-openai',
@@ -180,11 +173,10 @@ async function fixture({
       <Surface>
         <OpenApplication
           session={{
+            ready: true,
             identity: configuration.identity,
             credentialPending: configuration.credentialPending,
-            vault: liveVault(() => writer),
-            files: head!.files,
-            status: { kind: 'synced', at: 0 },
+
             locked: null,
             signOut: null,
             secrets,
@@ -210,7 +202,7 @@ async function fixture({
                 configure({ credentialPending: false });
               }
             },
-            blocked: null,
+
             nodes: transactionFixture(configuration.nodes, configuration.identity),
             nodeStatus: { kind: 'synced', at: 0 },
             refreshNodes: async () => undefined,

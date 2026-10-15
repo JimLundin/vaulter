@@ -1,12 +1,12 @@
-// The renderer refuses code on its own, for a note that never went through the check.
+// The renderer refuses code on its own, for arbitrary model-provided Markdown.
 // biome-ignore-all lint/security/noSecrets: the strings are hostile markup to render, not secrets
 import { expect, test } from 'vitest';
 import { renderToStaticMarkup as render } from 'react-dom/server';
-import { renderBody } from './markdown.ts';
+import { renderMarkdown } from './markdown.ts';
 
 const html = (body: string) =>
-  // biome-ignore lint/complexity/noUselessFragments: render() needs a node; renderBody may return a string
-  render(<>{renderBody({ id: 'X', path: 'X.md', body })}</>);
+  // biome-ignore lint/complexity/noUselessFragments: render() needs a node; renderMarkdown may return a string
+  render(<>{renderMarkdown(body, '/chat/example/')}</>);
 
 test('raw HTML in Markdown is dropped', () => {
   const out = html(
@@ -35,9 +35,9 @@ test.each([
 });
 
 test('ordinary links stay', () => {
-  const out = html('[a](https://x.se) [b](</Ada.md#h>) [c](mailto:a@b.se) [d](#top)');
+  const out = html('[a](https://x.se) [b](</wiki/ada/#h>) [c](mailto:a@b.se) [d](#top)');
   expect(out).toContain('href="https://x.se"');
-  expect(out).toContain('href="#/ada/#h"');
+  expect(out).toContain('href="#/wiki/ada/#h"');
   expect(out).toContain('href="mailto:a@b.se"');
-  expect(out).toContain('href="#/x/#top"');
+  expect(out).toContain('href="#/chat/example/#top"');
 });

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import type { WikiBlock, WikiReference } from '../pages.ts';
-import { isSafeUrl } from '../../../vault/documents/notes/safe-url.ts';
+import { isSafeUrl } from '../../../navigation/urls.ts';
 import { Bars, Button, Sparkline, Text } from '../../../ui/kit/index.ts';
 import { wikiSchemas } from '../records.ts';
 

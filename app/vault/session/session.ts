@@ -1,11 +1,10 @@
-import type { OpenBackend, OpenNodes } from './adapters.ts';
+import type { OpenNodes } from './adapters.ts';
 // Which vault the app is on, and its state: GitHub through the device cache, in every browser. Built, the
 // secrets are unlocked with the password (unlock.ts); in dev they come from the environment (vite.config.ts)
 // and it loads right in. Opens from what the device kept, then refreshes: at once, when the tab comes back (at most every
 // 30 s), and when the backend says something changed.
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Sealed, Secrets } from './sealed.ts';
-import { Offline, type Head, type VaultBackend } from '../storage/files/backend.ts';
 import {
   applySecretOverrides,
   forget,
@@ -33,10 +32,8 @@ export interface Session {
   identity: object;
   credentialPending: boolean;
   credentials: SessionCredentials;
-  backend: VaultBackend | null;
-  head: Head | null;
-  setHead: (h: Head) => void;
-  status: Status;
+  /** An accepted snapshot is available locally, including an empty vault. */
+  ready: boolean;
   secrets: Secrets | null;
   preloadedSecrets: Secrets | null;
   secretOverrides: SecretOverrides;
@@ -54,18 +51,12 @@ const EVERY = 30_000;
 declare const __DEV_SECRETS__: Secrets | null;
 const DEV_SECRETS = typeof __DEV_SECRETS__ === 'undefined' ? null : __DEV_SECRETS__;
 
-/** `openBackend`: the app's backend (main.tsx); `keeps`: the permanent file selection rules. */
-export function useSession(
-  openBackend: OpenBackend,
-  keeps: (path: string) => boolean,
-  openNodes?: OpenNodes,
-): Session {
+/** Own unlocked node storage, credentials and write lifetimes. */
+export function useSession(openNodes: OpenNodes): Session {
   const identity = useRef({}).current;
   const [credentialPending, setCredentialPending] = useState(false);
   const credentialUpdates = useRef(0);
-  const [backend, setBackend] = useState<VaultBackend | null>(null);
-  const [head, setHead] = useState<Head | null>(null);
-  const [status, setStatus] = useState<Status>({ kind: 'loading' });
+  const [ready, setReady] = useState(false);
   const [sealed, setSealed] = useState<Sealed | null>(null);
   const [secrets, setSecrets] = useState<Secrets | null>(null);
   const [preloadedSecrets, setPreloadedSecrets] = useState<Secrets | null>(null);
@@ -74,22 +65,16 @@ export function useSession(
   const [nodeStatus, setNodeStatus] = useState<Status>({ kind: 'loading' });
   const activeNodes = useRef<NodeBackend | null>(null);
   const transactions = useRef(createTransactionSession());
-  const activeBackend = useRef<VaultBackend | null>(null);
   const currentCredentials = useRef<Credentials | null>(null);
   const deployment = useRef<Sealed | null>(null);
   const updates = useRef(serial());
-  const replacements = useRef(new Set<VaultBackend>());
   const replacementNodes = useRef(new Set<NodeBackend>());
   const nodeBusy = useRef(new Set<NodeBackend>());
   const mounted = useRef<boolean>(true);
   const signingOut = useRef<Promise<void> | null>(null);
   const lifetime = useRef(new AbortController());
   const generation = useRef(0);
-  const last = useRef(0);
-  const busy = useRef(new Set<VaultBackend>());
 
-  const active = (candidate: VaultBackend) =>
-    mounted.current && signingOut.current === null && activeBackend.current === candidate;
   const activeNode = (candidate: NodeBackend) =>
     mounted.current && signingOut.current === null && activeNodes.current === candidate;
   const checkSession = (runGeneration: number) => {
@@ -97,9 +82,7 @@ export function useSession(
       throw new Error('The vault session has closed.');
   };
   const closeReplacements = () => {
-    for (const candidate of replacements.current) candidate.close?.();
     for (const candidate of replacementNodes.current) candidate.close();
-    replacements.current.clear();
     replacementNodes.current.clear();
   };
   const publishCredentials = (credentials: Credentials) => {
@@ -109,42 +92,16 @@ export function useSession(
     setSecretOverrides(credentials.secretOverrides);
   };
 
-  const refresh = async (b: VaultBackend, force = false) => {
-    if (!active(b) || busy.current.has(b) || (!force && Date.now() - last.current < EVERY)) return;
-    busy.current.add(b);
-    last.current = Date.now();
-    setStatus({ kind: 'syncing' });
-    try {
-      const h = await b.refresh();
-      if (active(b)) {
-        if (h) setHead(h);
-        setStatus({ kind: 'synced', at: Date.now() });
-      }
-    } catch (e) {
-      if (active(b))
-        setStatus(
-          e instanceof Offline
-            ? { kind: 'offline' }
-            : { kind: 'error', message: (e as Error).message },
-        );
-    } finally {
-      busy.current.delete(b);
-    }
-  };
-
-  const open = async (b: VaultBackend) => {
-    setBackend(b);
-    const h = await b.cached();
-    if (active(b) && h) setHead(h);
-    await refresh(b, true);
-  };
   const refreshNodes = async (store: NodeBackend) => {
     if (!activeNode(store) || nodeBusy.current.has(store)) return;
     nodeBusy.current.add(store);
     setNodeStatus({ kind: 'syncing' });
     try {
       await store.refresh();
-      if (activeNode(store)) setNodeStatus({ kind: 'synced', at: Date.now() });
+      if (activeNode(store)) {
+        setReady(true);
+        setNodeStatus({ kind: 'synced', at: Date.now() });
+      }
     } catch (error) {
       if (activeNode(store))
         setNodeStatus(
@@ -158,32 +115,22 @@ export function useSession(
   };
   const begin = (credentials: Credentials, runGeneration: number) => {
     checkSession(runGeneration);
-    const fileBackend = openBackend({ secrets: credentials.secrets, keeps });
-    let store: NodeBackend | undefined;
-    try {
-      store = openNodes?.({ secrets: credentials.secrets });
-    } catch (error) {
-      fileBackend.close?.();
-      throw error;
-    }
-    activeBackend.current?.close?.();
-    void transactions.current.replace(store ?? null, (previous) =>
-      (previous as NodeBackend).close(),
-    );
-    activeBackend.current = fileBackend;
-    activeNodes.current = store ?? null;
+    const store = openNodes({ secrets: credentials.secrets });
+    void transactions.current.replace(store, (previous) => (previous as NodeBackend).close());
+    activeNodes.current = store;
+    setNodes(store);
+    setReady(false);
+    setNodeStatus({ kind: 'loading' });
     publishCredentials(credentials);
-    const nodeOpen = async () => {
-      if (!store) return;
-      setNodes(store);
+    return (async () => {
       try {
-        await store.cached();
+        const cached = await store.cached();
+        if (activeNode(store) && cached) setReady(true);
       } catch (error) {
         if (activeNode(store)) setNodeStatus({ kind: 'error', message: String(error) });
       }
       await refreshNodes(store);
-    };
-    return Promise.all([open(fileBackend), nodeOpen()]);
+    })();
   };
 
   const updateSecret = (key: keyof Secrets, value: string | null | undefined) => {
@@ -210,34 +157,15 @@ export function useSession(
         secrets: applySecretOverrides(previous.preloadedSecrets, overrides),
       };
       const reconnect = previous.secrets.github !== next.secrets.github;
-      let replacement: VaultBackend | undefined;
       let nodeReplacement: NodeBackend | undefined;
-      let replacementHead: Head | null = null;
       try {
         if (reconnect) {
-          replacement = openBackend({ secrets: next.secrets, keeps });
-          replacements.current.add(replacement);
-          nodeReplacement = openNodes?.({ secrets: next.secrets });
-          if (nodeReplacement) replacementNodes.current.add(nodeReplacement);
-          const fileCandidate = replacement;
-          const nodeCandidate = nodeReplacement;
-          const prepared = await Promise.allSettled([
-            (async () => {
-              const cached = await fileCandidate.cached();
-              checkSession(runGeneration);
-              replacementHead = (await fileCandidate.refresh()) ?? cached;
-              checkSession(runGeneration);
-            })(),
-            (async () => {
-              if (!nodeCandidate) return;
-              await nodeCandidate.cached();
-              checkSession(runGeneration);
-              await nodeCandidate.refresh();
-              checkSession(runGeneration);
-            })(),
-          ]);
-          const failed = prepared.find((result) => result.status === 'rejected');
-          if (failed?.status === 'rejected') throw failed.reason;
+          nodeReplacement = openNodes({ secrets: next.secrets });
+          replacementNodes.current.add(nodeReplacement);
+          await nodeReplacement.cached();
+          checkSession(runGeneration);
+          await nodeReplacement.refresh();
+          checkSession(runGeneration);
         }
         checkSession(runGeneration);
         if (deployment.current)
@@ -248,29 +176,22 @@ export function useSession(
             previous.secretOverrides,
           );
         checkSession(runGeneration);
-        if (replacement) {
-          const previousBackend = activeBackend.current;
-          activeBackend.current = replacement;
-          activeNodes.current = nodeReplacement ?? null;
-          // Advance generation before React can schedule another application calculation.
-          void transactions.current.replace(nodeReplacement ?? null, (previous) =>
+        if (nodeReplacement) {
+          activeNodes.current = nodeReplacement;
+          // Invalidate preparation before React schedules another application calculation.
+          void transactions.current.replace(nodeReplacement, (previous) =>
             (previous as NodeBackend).close(),
           );
-          setBackend(replacement);
-          if (replacementHead) setHead(replacementHead);
-          setNodes(nodeReplacement ?? null);
-          setStatus({ kind: 'synced', at: Date.now() });
-          if (nodeReplacement) setNodeStatus({ kind: 'synced', at: Date.now() });
-          previousBackend?.close?.();
+          setNodes(nodeReplacement);
+          setReady(true);
+          setNodeStatus({ kind: 'synced', at: Date.now() });
         }
         publishCredentials(next);
       } catch (error) {
-        if (replacement && replacements.current.has(replacement)) replacement.close?.();
         if (nodeReplacement && replacementNodes.current.has(nodeReplacement))
           nodeReplacement.close();
         throw error;
       } finally {
-        if (replacement) replacements.current.delete(replacement);
         if (nodeReplacement) replacementNodes.current.delete(nodeReplacement);
       }
     }, lifetime.current.signal);
@@ -293,7 +214,7 @@ export function useSession(
       const res = await fetch('./secrets.json').catch(() => null);
       if (!mounted.current || generation.current !== runGeneration) return;
       if (!res?.ok)
-        return setStatus({
+        return setNodeStatus({
           kind: 'error',
           message: import.meta.env.DEV
             ? 'No secrets in dev: set VAULT_GITHUB_TOKEN in .env.local (README, Commands).'
@@ -312,7 +233,7 @@ export function useSession(
     transactions.current = createTransactionSession();
     start().catch((e) => {
       if (mounted.current && generation.current === runGeneration)
-        setStatus({ kind: 'error', message: String(e) });
+        setNodeStatus({ kind: 'error', message: String(e) });
     });
     return () => {
       mounted.current = false;
@@ -321,36 +242,13 @@ export function useSession(
       currentCredentials.current = null;
       deployment.current = null;
       closeReplacements();
-      activeBackend.current?.close?.();
       const writes = transactions.current;
       const store = activeNodes.current;
       writes.close();
       void writes.drain().then(() => store?.close());
-      activeBackend.current = null;
       activeNodes.current = null;
     };
   }, []);
-
-  // biome-ignore lint/correctness/useExhaustiveDependencies: refresh reads only refs and state setters, so any render's will do
-  useEffect(() => {
-    if (!backend) return;
-    // Changed elsewhere: another tab wrote the cache (read it), or the files changed on disk (refetch).
-    const off = backend.watch((h) => {
-      if (!active(backend)) return;
-      if (h) setHead(h);
-      else refresh(backend, true).catch(() => undefined);
-    });
-    const back = () => {
-      if (document.visibilityState === 'visible') refresh(backend).catch(() => undefined);
-    };
-    document.addEventListener('visibilitychange', back);
-    addEventListener('online', back);
-    return () => {
-      off();
-      document.removeEventListener('visibilitychange', back);
-      removeEventListener('online', back);
-    };
-  }, [backend]);
 
   // Node cache lifetime follows the unlocked session, with credentials kept out of workflows.
   // biome-ignore lint/correctness/useExhaustiveDependencies: refreshNodes only uses refs and setters.
@@ -368,19 +266,6 @@ export function useSession(
       removeEventListener('online', back);
     };
   }, [nodes]);
-
-  const setActiveHead = useCallback(
-    (next: Head) => {
-      if (
-        backend &&
-        mounted.current &&
-        signingOut.current === null &&
-        activeBackend.current === backend
-      )
-        setHead(next);
-    },
-    [backend],
-  );
 
   const credentialGeneration = generation.current;
   return {
@@ -401,10 +286,7 @@ export function useSession(
         },
       },
     ),
-    backend,
-    head,
-    setHead: setActiveHead,
-    status,
+    ready,
     secrets,
     preloadedSecrets,
     secretOverrides,
@@ -413,7 +295,7 @@ export function useSession(
     nodeStatus,
     refreshNodes: () => (nodes ? refreshNodes(nodes) : Promise.resolve()),
     locked:
-      sealed && !backend
+      sealed && !nodes
         ? {
             async unlock(password) {
               const runGeneration = generation.current;
@@ -434,15 +316,11 @@ export function useSession(
           writes.close();
           currentCredentials.current = null;
           deployment.current = null;
-          const files = activeBackend.current;
           const store = activeNodes.current;
-          activeBackend.current = null;
           activeNodes.current = null;
-          files?.close?.();
           closeReplacements();
-          setBackend(null);
           setNodes(null);
-          setHead(null);
+          setReady(false);
           setSecrets(null);
           setPreloadedSecrets(null);
           setSecretOverrides({});
@@ -452,7 +330,6 @@ export function useSession(
             try {
               await writes.drain();
               const cleared = await Promise.allSettled([
-                Promise.resolve().then(() => files?.clear?.()),
                 Promise.resolve().then(() => store?.clear()),
                 Promise.resolve().then(() => forget()),
               ]);
@@ -461,13 +338,12 @@ export function useSession(
               location.reload();
             } catch (error) {
               if (mounted.current)
-                setStatus({
+                setNodeStatus({
                   kind: 'error',
                   message: `Sign-out could not finish: ${String(error)}`,
                 });
               throw error;
             } finally {
-              files?.close?.();
               store?.close();
             }
           })();

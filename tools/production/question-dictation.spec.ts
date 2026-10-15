@@ -4,7 +4,6 @@ import { create, request } from '../../app/vault/nodes/fixtures.test-support.ts'
 import { accept } from '../../app/vault/nodes/history.ts';
 import { canonical, digest } from '../../app/vault/nodes/json.ts';
 import { seal } from '../../app/vault/session/sealed.ts';
-import { sampleFiles } from '../../app/preview/data.ts';
 
 test.use({
   permissions: ['microphone'],
@@ -23,7 +22,6 @@ test('production dictates into a Question draft and persists only its explicit a
   ]);
   const record = accept([], initial, await digest(canonical(initial)), '2026-10-14T09:00:00Z');
   const fake = await fakeGitHub({
-    ...sampleFiles,
     '.vaulter/nodes/v1/transactions/spoken-question-fixture.json': JSON.stringify(record),
   });
   const password = 'fictional-question-dictation-password';

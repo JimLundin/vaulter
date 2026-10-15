@@ -107,25 +107,25 @@ test('replacing borrowed Transcription releases only the recording Chat started 
   }
 });
 
-test('a replaced Vault session destroys pending review and prompts without disposing borrowed storage', async () => {
+test('a replaced Vault session destroys pending prompts without disposing borrowed storage', async () => {
   const { nodes, options } = await fixture();
   const next = await fixture();
+  const voice = createTranscription(async () => ({ finish: async () => '', close() {} }));
   const chat = createNodeConversation(
     transactionOptionsFixture({
       ...options,
-      stagedChanges: () => [{ path: 'Pending', before: 'a', text: 'b' }],
+      transcription: voice,
     }),
   );
   try {
-    chat.setDraft('Reviewed words');
-    const review = chat.prepareSubmission();
-    expect(review.status).toBe('review');
+    chat.setDraft('Retained words');
+    await chat.captureAction();
     chat.receivePrompt({ n: 1, text: 'Retained Ask', send: true });
     expect(chat.snapshot().prompts).toHaveLength(1);
     chat.updateOptions(transactionOptionsFixture(next.options));
     const closed = chat.snapshot();
     expect(chat.closed()).toBe(true);
-    expect(chat.confirmReview().status).toBe('blocked');
+    expect(chat.prepareSubmission().status).toBe('blocked');
     expect(chat.applyPrompt(1).status).toBe('blocked');
     chat.updateOptions(transactionOptionsFixture(options));
     chat.setDraft('Cannot revive');
@@ -135,6 +135,7 @@ test('a replaced Vault session destroys pending review and prompts without dispo
     expect(fresh.snapshot()).toMatchObject({ draft: '', prompts: [], turns: [] });
     expect(fresh.conversation()).not.toBe(chat.conversation());
     fresh.dispose();
+    voice.dispose();
   } finally {
     chat.dispose();
     nodes.close();

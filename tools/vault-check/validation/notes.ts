@@ -12,7 +12,7 @@ import {
   type Schema,
 } from '../documents/notes/schema.ts';
 import { loadNotes } from '../documents/notes/note.ts';
-import { isSafeUrl } from '../documents/notes/safe-url.ts';
+import { isSafeUrl } from '../../../app/navigation/urls.ts';
 import { treeOf, urlsOf, walk } from '../documents/notes/links.ts';
 
 /** -> problems; `files`, the number of pages. */

@@ -31,7 +31,6 @@ export interface NodeConversationOptions extends NodeChatOptions {
   /** Application admission for starting recording; finishing an owned recording stays available. */
   readonly captureAvailability?: string;
   readonly suggestions?: SuggestionProvider;
-  readonly stagedChanges?: () => { path: string; before: string; text: string | null }[];
   readonly onConversation?: (id: string) => void;
   readonly onNewChat?: () => void;
   /** Supplied recording owner. Chat owns its draft association, not this borrowed module. */
@@ -56,27 +55,12 @@ export interface ChatSubmissionIntent {
 export type ChatSubmissionOutcome =
   | { readonly status: 'blocked'; readonly reason: string }
   | { readonly status: 'owned'; readonly request: NodeChatRequest; readonly done: Promise<void> };
-export interface ChatSubmissionReview {
-  readonly status: 'review';
-  readonly id: string;
-  readonly conversation: string;
-  readonly intent: ChatSubmissionIntent;
-  readonly files: readonly {
-    readonly path: string;
-    readonly before: string;
-    readonly text: string | null;
-  }[];
-  readonly reason?: string;
-}
 export interface ChatRetainedPrompt extends Readonly<Prompt> {
   readonly conversation: string;
   readonly task: number;
   readonly reason: string;
 }
-export type ChatPromptOutcome =
-  | ChatSubmissionOutcome
-  | ChatSubmissionReview
-  | { readonly status: 'ignored' | 'edited' };
+export type ChatPromptOutcome = ChatSubmissionOutcome | { readonly status: 'ignored' | 'edited' };
 export type ChatSelectionOutcome =
   | { readonly status: 'selected'; readonly conversation: string }
   | { readonly status: 'blocked'; readonly reason: string }
@@ -102,8 +86,6 @@ export interface NodeConversationState extends ChatState {
   readonly selectionAvailability: ChatActionAvailability;
   readonly records: ChatRecords;
   readonly submission?: NodeChatRequest;
-  readonly review?: ChatSubmissionReview;
-  readonly reviewAvailability: ChatActionAvailability;
   readonly actionReason?: string;
   readonly submissionAvailability: ChatActionAvailability;
   readonly capture: ChatCapture;
@@ -169,7 +151,6 @@ export function createNodeConversation(initial: NodeConversationOptions) {
     busy: false,
     unread: false,
     submissionAvailability: { allowed: false, reason: 'Enter a message.' },
-    reviewAvailability: { allowed: false, reason: 'There is no pending review.' },
     capture: { phase: 'idle', error: '', action: 'start', allowed: !!transcription },
     recovery: {},
   };
@@ -240,7 +221,6 @@ export function createNodeConversation(initial: NodeConversationOptions) {
     const conversation = id;
     const generation = selectionGeneration;
     const context = {
-      files: [],
       turns: state.turns.map(({ role, record, parts }) => ({
         role,
         ...(record ? { record } : {}),
@@ -294,9 +274,6 @@ export function createNodeConversation(initial: NodeConversationOptions) {
       capture: captureState(),
       submissionAvailability: submissionAvailability(),
       selectionAvailability: selectionAvailability(),
-      reviewAvailability: state.review
-        ? submissionPermission(state.review.intent.text)
-        : { allowed: false, reason: 'There is no pending review.' },
     };
     for (const listener of listeners) listener();
   };
@@ -393,7 +370,7 @@ export function createNodeConversation(initial: NodeConversationOptions) {
         selection: {},
         turns: messages.map(({ data }) => turn(data)),
         submission: undefined,
-        review: undefined,
+
         actionReason: undefined,
         suggestions: [],
         unread: false,
@@ -440,12 +417,7 @@ export function createNodeConversation(initial: NodeConversationOptions) {
     }
   }
   const submissionAvailability = (text = state.draft): ChatActionAvailability =>
-    state.review
-      ? {
-          allowed: false,
-          reason: 'Confirm or cancel the pending review before sending another message.',
-        }
-      : submissionPermission(text);
+    submissionPermission(text);
   const reflectCapture = () => {
     if (disposed) return;
     const next = transcription?.snapshot();
@@ -517,16 +489,8 @@ export function createNodeConversation(initial: NodeConversationOptions) {
     });
     if (active === retained) acknowledgeCompletion(retained);
   };
-  function submit(
-    intent: ChatSubmissionIntent,
-    reviewed?: ChatSubmissionReview,
-  ): ChatSubmissionOutcome {
-    if (reviewed && (reviewed !== state.review || reviewed.conversation !== id))
-      return { status: 'blocked', reason: 'This review is no longer pending.' };
-    const permission =
-      reviewed && reviewed === state.review
-        ? submissionPermission(intent.text)
-        : submissionAvailability(intent.text);
+  function submit(intent: ChatSubmissionIntent): ChatSubmissionOutcome {
+    const permission = submissionAvailability(intent.text);
     if (!permission.allowed) return { status: 'blocked', reason: permission.reason! };
     let request: NodeChatRequest;
     let sent: NodeChatRun;
@@ -565,7 +529,7 @@ export function createNodeConversation(initial: NodeConversationOptions) {
       suggestions: [],
       selection: {},
       submission: request,
-      review: undefined,
+
       actionReason: undefined,
       busy: true,
       phase: 'queued',
@@ -638,9 +602,7 @@ export function createNodeConversation(initial: NodeConversationOptions) {
       ? 'This Chat session is closed.'
       : recording()
         ? 'Finish or cancel the current recording before using this text.'
-        : state.review
-          ? 'Confirm or cancel the pending review before using this text.'
-          : undefined;
+        : undefined;
     return { allowed: !reason, ...(reason ? { reason } : {}) };
   };
   const interpretPrompt = (prompt: Readonly<Prompt>): ChatPromptOutcome => {
@@ -774,83 +736,11 @@ export function createNodeConversation(initial: NodeConversationOptions) {
       if (previousCapture) previousTranscription?.interrupt(previousCapture);
     },
     submissionAvailability,
-    /** Capture the source revision before a review or another delayed submission decision. */
+    /** Capture the source revision before a delayed submission decision. */
     draftIntent,
-    /** Prepare and retain a review task before requesting submission. */
-    prepareSubmission: (intent = draftIntent()): ChatSubmissionOutcome | ChatSubmissionReview => {
-      const permission = submissionAvailability(intent.text);
-      if (!permission.allowed) {
-        set({ actionReason: permission.reason });
-        return { status: 'blocked', reason: permission.reason! };
-      }
-      try {
-        const files = options.stagedChanges?.() ?? [];
-        if (files.length) {
-          const review: ChatSubmissionReview = {
-            status: 'review',
-            id: crypto.randomUUID(),
-            conversation: id,
-            intent: Object.freeze({ ...intent }),
-            files: Object.freeze(files.map((file) => Object.freeze({ ...file }))),
-          };
-          set({ review, actionReason: undefined });
-          return review;
-        }
-      } catch (error) {
-        const reason = error instanceof Error ? error.message : String(error);
-        set({ actionReason: reason });
-        return { status: 'blocked', reason };
-      }
+    prepareSubmission: (intent = draftIntent()): ChatSubmissionOutcome => {
       const outcome = submit(intent);
       if (outcome.status === 'blocked') set({ actionReason: outcome.reason });
-      return outcome;
-    },
-    cancelReview: (expectedId?: string) => {
-      if (expectedId && state.review?.id !== expectedId)
-        return { status: 'blocked' as const, reason: 'This review is no longer pending.' };
-      set({ review: undefined, actionReason: undefined });
-      return { status: 'cancelled' as const };
-    },
-    confirmReview: (expectedId?: string): ChatSubmissionOutcome | ChatSubmissionReview => {
-      const review = state.review;
-      if (!review || review.conversation !== id || (expectedId && review.id !== expectedId))
-        return { status: 'blocked', reason: 'There is no pending review for this conversation.' };
-      const permission = submissionPermission(review.intent.text);
-      if (!permission.allowed) {
-        set({ review: { ...review, reason: permission.reason } });
-        return { status: 'blocked', reason: permission.reason! };
-      }
-      try {
-        const files = options.stagedChanges?.() ?? [];
-        if (state.review !== review || disposed || review.conversation !== id)
-          return { status: 'blocked', reason: 'This review is no longer pending.' };
-        const unchanged =
-          files.length === review.files.length &&
-          files.every((file, i) => {
-            const previous = review.files[i]!;
-            return (
-              file.path === previous.path &&
-              file.before === previous.before &&
-              file.text === previous.text
-            );
-          });
-        if (!unchanged) {
-          const refreshed = {
-            ...review,
-            files: Object.freeze(files.map((file) => Object.freeze({ ...file }))),
-            reason: 'Pending changes changed. Review the updated evidence and confirm again.',
-          };
-          set({ review: refreshed });
-          return refreshed;
-        }
-      } catch (error) {
-        const reason = error instanceof Error ? error.message : String(error);
-        if (state.review === review) set({ review: { ...review, reason } });
-        return { status: 'blocked', reason };
-      }
-      const outcome = submit(review.intent, review);
-      if (outcome.status === 'blocked' && state.review === review)
-        set({ review: { ...review, reason: outcome.reason } });
       return outcome;
     },
     stop: () => {
@@ -996,7 +886,7 @@ export function createNodeConversation(initial: NodeConversationOptions) {
       set({
         selection: { pending: { conversation, source: 'explicit' } },
         suggestions: [],
-        review: undefined,
+
         actionReason: undefined,
       });
       return readSelection(conversation, generation, backend);
@@ -1063,7 +953,7 @@ export function createNodeConversation(initial: NodeConversationOptions) {
         selection: {},
         turns: [],
         submission: undefined,
-        review: undefined,
+
         actionReason: undefined,
         draft: '',
         suggestions: [],

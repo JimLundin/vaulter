@@ -1,6 +1,4 @@
-// A note's body -> React elements: GFM, smart quotes, vault links, heading ids. Raw HTML and unsafe URLs
-// are dropped. Links become app routes (link() in route.ts), and in-page anchors stay on the note's route.
-// A body that doesn't render shows as an error.
+// Render Chat Markdown with safe links and heading IDs.
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import remarkGfm from 'remark-gfm';
@@ -13,9 +11,7 @@ import { toJsxRuntime } from 'hast-util-to-jsx-runtime';
 // biome-ignore lint/correctness/noUnresolvedImports: Fragment is in @types/react's namespace, which Biome doesn't follow
 import { Fragment, jsx, jsxs } from 'react/jsx-runtime';
 import type { ReactNode } from 'react';
-import { remarkVaultLinks } from '../../../vault/documents/notes/remark-vault-links.ts';
-import { isSafeUrl } from '../../../vault/documents/notes/safe-url.ts';
-import { hrefOf, type Note } from '../../../vault/documents/notes/fields.ts';
+import { isSafeUrl } from '../../../navigation/urls.ts';
 import { link } from '../../../navigation/routing.ts';
 import { Pre } from './highlight.tsx';
 
@@ -39,7 +35,6 @@ const processor = unified()
   .use(remarkParse)
   .use(remarkGfm)
   .use(remarkSmartypants)
-  .use(remarkVaultLinks)
   .use(remarkRehype)
   .use(rehypeHeadingIds)
   .use(rehypeSafeUrls)
@@ -55,10 +50,10 @@ const appLinks = (tree: any, route: string) =>
   });
 
 /** The rendered body. */
-export function renderBody(note: Pick<Note, 'id' | 'path' | 'body'>): ReactNode {
+export function renderMarkdown(body: string, route = '/chat/'): ReactNode {
   try {
-    const hast = processor.runSync(processor.parse(note.body));
-    appLinks(hast, hrefOf(note));
+    const hast = processor.runSync(processor.parse(body));
+    appLinks(hast, route);
     return toJsxRuntime(hast as any, {
       Fragment,
       jsx: jsx as any,
@@ -69,7 +64,7 @@ export function renderBody(note: Pick<Note, 'id' | 'path' | 'body'>): ReactNode 
     });
   } catch (e) {
     return jsx('p', {
-      children: `${note.path} doesn't render: ${(e as Error).message}`,
+      children: `Message does not render: ${(e as Error).message}`,
     });
   }
 }
