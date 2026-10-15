@@ -7,6 +7,7 @@ import { OpenApplication } from '../application/index.tsx';
 import { applicationNodes } from '../application/composition.ts';
 import { startTheme, Text, DesignPreview, DesignComparison } from '../ui/kit/index.ts';
 import { GraphPrototype, graphDesigns } from './prototype-graph.tsx';
+import { seedGraphEvidence } from './graph-evidence.ts';
 import { previewModel } from './model.ts';
 import { createOpenAICapabilities } from '../agent/openai/index.ts';
 import { recordedTranscription } from '../agent/recorded-transcription.ts';
@@ -43,6 +44,7 @@ const transcription = agent ? recordedTranscription(agent.transcribe) : previewT
 const openingNodes = previewNodes(sessionStorage, query.get('scenario') ?? undefined).then(
   async (nodes) => {
     await seedPreviewRecords(nodes);
+    if (query.get('compare') === 'graph') await seedGraphEvidence(nodes);
     if (query.has('conversations') && !(await nodes.snapshot()).get('preview:list-owner')) {
       await nodes.commit({
         id: 'preview:conversation-list',
@@ -172,7 +174,7 @@ function Preview({ nodes }: { nodes: NodeStore }) {
   if (query.get('compare') === 'graph')
     return (
       <DesignComparison
-        defaultValue={query.get('variant') ?? 'canvas'}
+        defaultValue={query.get('variant') ?? 'briefing'}
         onValueChange={(variant) => {
           const url = new URL(location.href);
           url.searchParams.set('variant', variant);

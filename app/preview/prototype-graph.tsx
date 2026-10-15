@@ -1,6 +1,5 @@
-// Throwaway comparison: canvas, workbench and atlas on the real Graph route. No design selected yet.
-import { useState } from 'react';
-import type { ComponentProps } from 'react';
+// Throwaway evidence-first comparison. Wiki supplies resolved statements and retained passages.
+import { useState, type ComponentProps } from 'react';
 import type { OpenApplication } from '../application/index.tsx';
 import {
   Badge,
@@ -13,337 +12,333 @@ import {
   Icon,
   Link,
   Loader,
-  NetworkDiagram,
   PageControls,
   Row,
   SelectionRow,
   Separator,
   Stack,
   Surface,
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
   Text,
+  Timeline,
+  TimelineItem,
 } from '../ui/kit/index.ts';
 
 export const graphDesigns = [
-  { id: 'canvas', label: 'A · Canvas' },
-  { id: 'workbench', label: 'B · Workbench' },
-  { id: 'atlas', label: 'C · Atlas' },
+  { id: 'briefing', label: 'A · Topic briefing' },
+  { id: 'trail', label: 'B · Evidence trail' },
+  { id: 'review', label: 'C · Source review' },
 ] as const;
 
+type Props = Parameters<NonNullable<ComponentProps<typeof OpenApplication>['renderGraph']>>[0];
+type Block = Props['topics'][number]['blocks'][number];
+type Reference = Block['evidence'][number];
+const words = (block: Block): string =>
+  typeof block.data.text === 'string' ? block.data.text : block.children.map(words).join('');
+const flatten = (blocks: Block[]): Block[] =>
+  blocks.flatMap((block) => [block, ...flatten(block.children)]);
+const sourceState = (reference: Reference) =>
+  reference.state === 'newer'
+    ? 'Source changed'
+    : reference.state === 'deleted'
+      ? 'Source removed'
+      : 'Recorded source';
+
 export function GraphPrototype({
-  state,
+  topics,
   node,
+  state,
   onSelectSubject,
+  currentSourceText,
   design,
-}: Parameters<NonNullable<ComponentProps<typeof OpenApplication>['renderGraph']>>[0] & {
-  design: string;
-}) {
+}: Props & { design: string }) {
   const [query, setQuery] = useState('');
-  const [direction, setDirection] = useState('both');
-  const [tab, setTab] = useState('explore');
-  const { graph, subjects } = state;
-  const current =
-    subjects.find((subject) => subject.id === node) ??
-    subjects
-      .filter((subject) => subject.state === 'available')
-      .toSorted((a, b) => b.connections - a.connections)[0];
-  const select = (id: string) => {
-    setTab('explore');
+  const [chosen, setChosen] = useState<string>();
+  const [filter, setFilter] = useState('all');
+  const topic =
+    topics.find((entry) => entry.id === node) ??
+    topics.find((entry) => entry.id === 'preview:graph-topic') ??
+    topics[0];
+  const all = flatten(topic?.blocks ?? []);
+  const statements = all.filter((block) => block.data.kind === 'paragraph' && words(block).trim());
+  const questions = all.filter((block) => block.data.kind === 'question');
+  const selected = statements.find((block) => block.id === chosen) ?? statements[0];
+  const cited = statements.filter((block) => block.evidence.length > 0);
+  const references = [
+    ...new Map(
+      [...statements.flatMap((block) => block.evidence), ...(topic?.sources ?? [])].map(
+        (reference) => [JSON.stringify(reference.source), reference],
+      ),
+    ).values(),
+  ];
+  const changed = references.filter((reference) => reference.state !== 'original');
+  const matching = statements.filter(
+    (block) =>
+      filter === 'all' ||
+      (filter === 'cited' ? block.evidence.length > 0 : block.evidence.length === 0),
+  );
+  const selectTopic = (id: string) => {
+    setChosen(undefined);
+    setFilter('all');
     onSelectSubject(id);
   };
-  const matching = subjects.filter((subject) =>
-    subject.title.toLocaleLowerCase().includes(query.toLocaleLowerCase()),
-  );
-  const edges =
-    current && graph
-      ? graph.relationships(
-          { node: current.id },
-          {
-            direction:
-              direction === 'incoming'
-                ? 'incoming'
-                : direction === 'outgoing'
-                  ? 'outgoing'
-                  : 'both',
-          },
-        )
-      : [];
-  const neighbors = subjects.filter(
-    (subject) =>
-      subject.id !== current?.id &&
-      edges.some(
-        (edge) =>
-          edge.source.address?.node === subject.id || edge.target.address?.node === subject.id,
-      ),
-  );
-  const diagramNodes = current ? [current, ...neighbors].slice(0, 7) : [];
-  const diagram = current ? (
-    <NetworkDiagram
-      label={`Connections around ${current.title}`}
-      nodes={diagramNodes.map((subject) => ({
-        id: subject.id,
-        label: subject.title,
-        selected: subject.id === current.id,
-      }))}
-      edges={edges
-        .filter((edge) => edge.source.address && edge.target.address)
-        .map((edge) => ({
-          id: edge.node.key.node,
-          source: edge.source.address!.node,
-          target: edge.target.address!.node,
-          label: edge.label,
-        }))}
-      onSelect={select}
-    />
-  ) : null;
-  const groups = [...new Set(edges.map((edge) => edge.label))];
-  const relationships = (
-    <Stack gap="lg">
-      {groups.map((label) => (
-        <Stack key={label} gap="sm">
-          <Row>
-            <Heading level={3}>{label}</Heading>
-            <Badge>{edges.filter((edge) => edge.label === label).length}</Badge>
-          </Row>
-          {edges
-            .filter((edge) => edge.label === label)
-            .map((edge) => {
-              const endpoint = edge.direction === 'outgoing' ? edge.target : edge.source;
-              const subject = subjects.find((entry) => entry.id === endpoint.address?.node);
-              return (
-                <Row key={edge.node.key.node}>
-                  <Icon
-                    name={edge.direction === 'outgoing' ? 'arrow-up-right' : 'arrow-left'}
-                    size="sm"
-                  />
-                  <Stack gap="xs">
-                    {subject ? (
-                      <Button variant="ghost" onClick={() => select(subject.id)}>
-                        {subject.title}
-                      </Button>
-                    ) : (
-                      <Text>{edge.data.label ?? 'Unresolved subject'}</Text>
-                    )}
-                    <Text size="sm" tone="muted">
-                      {edge.direction === 'outgoing' ? 'Outgoing' : 'Incoming'}
-                      {endpoint.state !== 'available' ? ` · ${endpoint.state}` : ''}
-                      {endpoint.address?.transaction ? ' · recorded version' : ''}
-                    </Text>
-                  </Stack>
-                </Row>
-              );
-            })}
-          <Separator />
-        </Stack>
-      ))}
-      {!edges.length && <Text tone="muted">No connections in this direction.</Text>}
-    </Stack>
-  );
-  const subjectList = (
-    <Stack gap="xs">
-      {matching.map((subject) => (
-        <SelectionRow
-          key={subject.id}
-          selected={subject.id === current?.id}
-          onSelect={() => select(subject.id)}
-        >
-          <Row justify="between" grow={true}>
-            <Text>{subject.title}</Text>
-            <Badge>{subject.connections}</Badge>
-          </Row>
-        </SelectionRow>
-      ))}
-      {!matching.length && <Text>No subjects found.</Text>}
-    </Stack>
-  );
-  const heading = (
-    <Stack gap="sm">
-      <Text size="sm" tone="muted">
-        YOUR VAULT · {subjects.length} SUBJECTS
-      </Text>
-      <Heading level={1}>{current?.title ?? 'Graph'}</Heading>
-      <Row>
-        <Badge>{edges.length} connections</Badge>
-        {!!current?.href && (
-          <Link href={current.href}>
-            Open source <Icon name="arrow-up-right" size="sm" />
-          </Link>
-        )}
+  const source = (reference: Reference) => (
+    <Stack gap="sm" key={reference.id}>
+      <Row justify="between" wrap={true}>
+        <Heading level={3}>{reference.title}</Heading>
+        <Badge variant="secondary">{sourceState(reference)}</Badge>
       </Row>
+      <Text>“{reference.text}”</Text>
+      {reference.state === 'newer' && (
+        <Surface variant="subtle">
+          <Text size="sm" weight="medium">
+            SOURCE NOW SAYS
+          </Text>
+          <Text>
+            {currentSourceText(reference.source.node) ?? 'The current source text is unavailable.'}
+          </Text>
+        </Surface>
+      )}
+      <Text size="sm" tone="muted">
+        {reference.state === 'newer'
+          ? 'The source has changed since this passage was cited. This quotation preserves the original evidence.'
+          : reference.state === 'deleted'
+            ? 'The source was removed. Its cited passage is still retained in history.'
+            : 'This is the passage selected when the statement was cited.'}
+      </Text>
+      {!!reference.href && (
+        <Link href={reference.href}>
+          Open source <Icon name="arrow-up-right" size="sm" />
+        </Link>
+      )}
     </Stack>
   );
-  const controls = (
-    <PageControls
-      search={{
-        type: 'search',
-        label: 'Find graph subjects',
-        placeholder: 'Find a person, place or idea…',
-        value: query,
-        onValueChange: setQuery,
-      }}
-      filters={{
-        label: 'Connection direction',
-        value: direction,
-        active: direction !== 'both',
-        onValueChange: setDirection,
-        options: [
-          { value: 'both', label: 'All connections' },
-          { value: 'outgoing', label: 'Outgoing' },
-          { value: 'incoming', label: 'Incoming' },
-        ],
-      }}
-    />
+  const evidence = (block: Block) => (
+    <Stack gap="lg">
+      {block.evidence.length ? (
+        block.evidence.map(source)
+      ) : (
+        <Surface variant="subtle">
+          <Heading level={3}>No statement citation</Heading>
+          <Text>
+            This statement has no selected supporting passage. References attached to the topic do
+            not establish support for this statement.
+          </Text>
+        </Surface>
+      )}
+    </Stack>
+  );
+  const statement = (block: Block, index: number) => (
+    <SelectionRow
+      key={block.id}
+      selected={block.id === selected?.id}
+      onSelect={() => setChosen(block.id)}
+      appearance="card"
+    >
+      <Stack gap="sm">
+        <Text size="sm" tone="muted">
+          STATEMENT {index + 1}
+        </Text>
+        <Text weight="medium">{words(block)}</Text>
+        <Text size="sm" tone="muted">
+          {block.evidence.length
+            ? `${block.evidence.length} selected supporting passage${block.evidence.length === 1 ? '' : 's'}`
+            : 'No statement citation'}
+          {block.evidence.some((ref) => ref.state !== 'original') ? ' · Source needs review' : ''}
+        </Text>
+      </Stack>
+    </SelectionRow>
+  );
+  const openQuestions = (
+    <Stack gap="sm">
+      <Heading level={2}>What remains open</Heading>
+      {questions.length ? (
+        questions.map((question) => (
+          <Surface key={question.id} variant="subtle">
+            <Row>
+              <Icon name="help" />
+              <Text weight="medium">{String(question.data.text ?? 'Open question')}</Text>
+            </Row>
+            <Link href="#/questions/">
+              Explore in Questions <Icon name="arrow-up-right" size="sm" />
+            </Link>
+          </Surface>
+        ))
+      ) : (
+        <Text tone="muted">No open questions are recorded on this topic.</Text>
+      )}
+    </Stack>
   );
   return (
     <FeaturePage
       title="Graph"
-      description={
-        design === 'canvas'
-          ? 'Follow a thread. See what it connects.'
-          : design === 'workbench'
-            ? 'Find a subject. Inspect its connections.'
-            : 'Browse the connections that give your notes meaning.'
-      }
+      description="Understand a topic. Follow each statement back to its source."
     >
-      <Stack gap="xl" inset="page" block="lg">
-        {!!state.loading && <Loader>Opening connections…</Loader>}
-        <Tabs value={tab} onValueChange={setTab}>
-          <TabsList aria-label="Graph views">
-            <TabsTrigger value="explore">Explore</TabsTrigger>
-            <TabsTrigger value="vocabulary">Vocabulary</TabsTrigger>
-          </TabsList>
-          <TabsContent value="explore">
-            <Stack gap="lg">
-              {controls}
-              {design === 'canvas' ? (
-                <>
-                  {heading}
-                  <Surface variant="subtle">{diagram}</Surface>
-                  <Row>
-                    <Icon name="network" />
-                    <Text size="sm" tone="muted">
-                      Choose a connected subject to recenter the map.
-                    </Text>
-                  </Row>
-                  <Columns>
-                    <Stack gap="lg">
-                      <Heading level={2}>Jump to a subject</Heading>
-                      {subjectList}
-                    </Stack>
-                    <Stack gap="lg">
-                      <Heading level={2}>Connections</Heading>
-                      {relationships}
-                    </Stack>
-                  </Columns>
-                </>
-              ) : design === 'workbench' ? (
-                <Columns>
-                  <Stack gap="lg">
-                    <Row>
-                      <Icon name="search" />
-                      <Heading level={2}>Subjects</Heading>
-                    </Row>
-                    {subjectList}
-                  </Stack>
-                  <Surface variant="subtle">
-                    {heading}
-                    <Separator />
-                    {diagram}
-                    <Heading level={2}>Connection details</Heading>
-                    {relationships}
-                  </Surface>
-                </Columns>
-              ) : (
-                <>
-                  {heading}
-                  <Separator />
-                  <Columns>
-                    <Stack gap="xl">
-                      <Heading level={2}>Connected subjects</Heading>
-                      {groups.map((label) => (
-                        <Stack key={label} gap="sm">
-                          <Text size="sm" weight="medium" tone="muted">
-                            {label.toLocaleUpperCase()}
+      <Stack gap="lg" inset="page" block="sm">
+        {!!state.loading && <Loader>Opening the topic…</Loader>}
+        <PageControls
+          search={{
+            label: 'Find a topic',
+            placeholder: 'Find a topic…',
+            value: query,
+            onValueChange: setQuery,
+          }}
+        />
+        <Row wrap={true}>
+          {topics
+            .filter((entry) => entry.title.toLocaleLowerCase().includes(query.toLocaleLowerCase()))
+            .map((entry) => (
+              <Button
+                key={entry.id}
+                variant={entry.id === topic?.id ? 'filled' : 'outline'}
+                onClick={() => selectTopic(entry.id)}
+              >
+                {entry.title}
+              </Button>
+            ))}
+        </Row>
+        {topic ? (
+          <>
+            <Stack gap="sm">
+              <Text size="sm" tone="muted">
+                TOPIC /{' '}
+                {design === 'briefing'
+                  ? 'BRIEFING'
+                  : design === 'trail'
+                    ? 'EVIDENCE TRAIL'
+                    : 'SOURCE REVIEW'}
+              </Text>
+              <Heading level={2} size="title">
+                {topic.title}
+              </Heading>
+              <Text>{topic.summary}</Text>
+              <Link href={`#/wiki/${encodeURIComponent(topic.id)}/`}>
+                Read the Wiki page <Icon name="arrow-up-right" size="sm" />
+              </Link>
+            </Stack>
+            <Surface variant="subtle">
+              <Text weight="medium">
+                {cited.length} of {statements.length} statements have selected supporting passages.
+              </Text>
+              <Text size="sm" tone="muted">
+                {changed.length
+                  ? `${changed.length} cited or referenced source${changed.length === 1 ? ' has' : 's have'} changed or been removed. `
+                  : ''}
+                {statements.length - cited.length} statements have no statement citation.
+              </Text>
+            </Surface>
+            {design === 'briefing' ? (
+              <Stack gap="xl">
+                <Stack gap="lg">
+                  <Heading level={2}>What you know, and why</Heading>
+                  <Text tone="muted">
+                    Read the recorded statements alongside the passages used to support them.
+                  </Text>
+                  {statements.map((block, index) => (
+                    <Card key={block.id}>
+                      <CardContent>
+                        <Stack gap="lg">
+                          <Text size="sm" tone="muted">
+                            STATEMENT {index + 1}
                           </Text>
-                          {edges
-                            .filter((edge) => edge.label === label)
-                            .map((edge) => {
-                              const endpoint =
-                                edge.direction === 'outgoing' ? edge.target : edge.source;
-                              const subject = subjects.find(
-                                (entry) => entry.id === endpoint.address?.node,
-                              );
-                              return (
-                                <Card key={edge.node.key.node}>
-                                  <CardContent>
-                                    <Stack gap="sm">
-                                      <Row justify="between">
-                                        <Icon name="file" />
-                                        <Badge>
-                                          {edge.direction === 'outgoing' ? 'From here' : 'To here'}
-                                        </Badge>
-                                      </Row>
-                                      <Heading level={3}>
-                                        {subject?.title ?? edge.data.label ?? 'Unresolved subject'}
-                                      </Heading>
-                                      <Text size="sm" tone="muted">
-                                        {subject?.connections ?? 0} further connections
-                                      </Text>
-                                      {subject && (
-                                        <Button
-                                          variant="outline"
-                                          onClick={() => select(subject.id)}
-                                        >
-                                          Follow connection <Icon name="arrow-up-right" size="sm" />
-                                        </Button>
-                                      )}
-                                    </Stack>
-                                  </CardContent>
-                                </Card>
-                              );
-                            })}
+                          <Heading level={3}>{words(block)}</Heading>
+                          <Separator />
+                          {evidence(block)}
                         </Stack>
-                      ))}
-                      {!edges.length && <Text>No connections in this direction.</Text>}
-                    </Stack>
-                    <Stack gap="lg">
-                      <Heading level={2}>Browse the vault</Heading>
-                      {subjectList}
-                      <Surface variant="subtle">
+                      </CardContent>
+                    </Card>
+                  ))}
+                </Stack>
+                {openQuestions}
+              </Stack>
+            ) : design === 'trail' ? (
+              <Stack gap="xl">
+                <Heading level={2}>Follow the evidence</Heading>
+                <Text tone="muted">
+                  Choose a statement to see its path from topic to retained source passage.
+                </Text>
+                <Columns>
+                  <Stack gap="sm">{statements.map(statement)}</Stack>
+                  {selected ? (
+                    <Surface variant="subtle">
+                      <Timeline>
+                        <TimelineItem time="Topic">
+                          <Heading level={3}>{topic.title}</Heading>
+                        </TimelineItem>
+                        <TimelineItem time="Says">
+                          <Text weight="medium">{words(selected)}</Text>
+                        </TimelineItem>
+                        <TimelineItem time="Cites" last={true}>
+                          {evidence(selected)}
+                        </TimelineItem>
+                      </Timeline>
+                    </Surface>
+                  ) : (
+                    <Text>No statements recorded.</Text>
+                  )}
+                </Columns>
+                {openQuestions}
+              </Stack>
+            ) : (
+              <Stack gap="xl">
+                <Heading level={2}>Where the evidence needs attention</Heading>
+                <Text tone="muted">
+                  Review source changes and statements without citations before relying on this
+                  topic.
+                </Text>
+                <PageControls
+                  filters={{
+                    label: 'Evidence coverage',
+                    value: filter,
+                    active: filter !== 'all',
+                    onValueChange: setFilter,
+                    options: [
+                      { value: 'all', label: 'All statements' },
+                      { value: 'uncited', label: 'Without citations' },
+                      { value: 'cited', label: 'With citations' },
+                    ],
+                  }}
+                />
+                {matching.map((block, index) => (
+                  <Card key={block.id}>
+                    <CardContent>
+                      <Stack gap="lg">
                         <Text size="sm" tone="muted">
-                          A relationship is recorded once. You can follow it from either subject.
+                          {block.evidence.length ? 'CITED STATEMENT' : 'EVIDENCE GAP'} {index + 1}
                         </Text>
-                      </Surface>
-                    </Stack>
-                  </Columns>
-                </>
+                        <Heading level={3}>{words(block)}</Heading>
+                        {evidence(block)}
+                      </Stack>
+                    </CardContent>
+                  </Card>
+                ))}
+                {!matching.length && <Text>No statements match this filter.</Text>}
+                {openQuestions}
+              </Stack>
+            )}
+            <Separator />
+            <Stack gap="lg">
+              <Heading level={2}>Topic references</Heading>
+              <Text tone="muted">
+                {topic.sources.length} sources are attached to the topic as a whole. These are
+                background references; the selected passages above establish which statements have
+                citations.
+              </Text>
+              {topic.sources.map((reference) => (
+                <Row key={reference.id} justify="between">
+                  <Text>{reference.title}</Text>
+                  <Badge variant="secondary">{sourceState(reference)}</Badge>
+                </Row>
+              ))}
+              {!topic.sources.length && (
+                <Text size="sm" tone="muted">
+                  No topic references recorded.
+                </Text>
               )}
             </Stack>
-          </TabsContent>
-          <TabsContent value="vocabulary">
-            <Stack gap="lg">
-              {graph?.vocabulary().map((term) => (
-                <Card key={term.node.key.node}>
-                  <CardContent>
-                    <Stack gap="sm">
-                      <Row>
-                        <Heading level={3}>{term.data.label ?? term.data.key}</Heading>
-                        <Badge>{term.data.scheme}</Badge>
-                      </Row>
-                      {!!term.data.use && <Text>{term.data.use}</Text>}
-                      <Button variant="ghost" onClick={() => select(term.node.key.node)}>
-                        Explore {term.data.label ?? term.data.key}
-                      </Button>
-                    </Stack>
-                  </CardContent>
-                </Card>
-              ))}
-            </Stack>
-          </TabsContent>
-        </Tabs>
+          </>
+        ) : (
+          <Text>No topics are available.</Text>
+        )}
       </Stack>
     </FeaturePage>
   );

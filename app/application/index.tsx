@@ -88,6 +88,7 @@ import { Wiki, type ForeignRecordRenderer } from '../workflows/wiki/index.tsx';
 import { wikiRoute, pageRoute } from '../workflows/wiki/routes.ts';
 import { useWikiReading, useWiki } from '../workflows/wiki/use-wiki.ts';
 import { describeWikiTarget } from '../workflows/wiki/sources.ts';
+import { recordText } from '../workflows/wiki/text.ts';
 import { GraphPage } from '../workflows/graph/GraphPage.tsx';
 import type { ComponentProps, ReactNode } from 'react';
 import { graphRoute, graphSubjectRoute } from '../workflows/graph/routes.ts';
@@ -148,7 +149,11 @@ export function OpenApplication({
   model?: (name: string) => Promise<LanguageModel>;
   identities?: ApplicationIdentities;
   renderGraph?: (
-    props: ComponentProps<typeof GraphPage> & { onSelectSubject: (node: string) => void },
+    props: ComponentProps<typeof GraphPage> & {
+      onSelectSubject: (node: string) => void;
+      topics: NonNullable<ReturnType<typeof useWiki>['pages']>;
+      currentSourceText: (node: string) => string | undefined;
+    },
   ) => ReactNode;
   preview?: {
     provider?: string;
@@ -659,6 +664,14 @@ export function OpenApplication({
             renderGraph({
               state: graphState,
               node: graphSubject,
+              topics: pages ?? [],
+              currentSourceText: (node) => {
+                const view = graphState.view;
+                const source = view?.get(node);
+                return view && source?.data
+                  ? recordText(source, view, applicationSources)
+                  : undefined;
+              },
               onSelectSubject: (node) => go(graphSubjectRoute.href({ node })),
               onRetry: () => later(graph.reload()),
             })
