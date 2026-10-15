@@ -450,7 +450,7 @@ test('credential replacement retains entered Answer permission and moves prewrap
         create('later-question', { kind: 'question', text: 'Which tools should stay?' }),
       ]),
     );
-    await navigate('#/questions/later-question/');
+    await navigate('#/questions/');
     await vi.waitFor(() => expect(document.querySelector('textarea')?.disabled).toBe(false));
     await draft('Keep the plane.');
     await act(async () => button('Save answer').click());

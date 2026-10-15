@@ -12,7 +12,7 @@ export const compositions = [
   },
   {
     source: 'conversation.tsx',
-    families: ['agent', 'agent-panel', 'voice'],
+    families: ['agent', 'agent-panel', 'voice', 'text-box'],
     primitives: ['Button', 'Icon', 'OptionStrip', 'Prose', 'Stack', 'Surface', 'Text'],
   },
   {

@@ -228,13 +228,16 @@ pages and exchanges require snapshot selections and are not accepted by this gen
 An empty knowledge list is valid when no relevant knowledge exists. Older Questions remain readable
 with no suggestions; they are not regenerated on viewing or reload.
 
-Questions and Wiki use the same Balanced drafts card. Every open card has an empty visible editor,
-editable suggestions when recorded, and an explicit **Write my own answer** choice. Choice changes
-retain each draft locally. Only **Save answer** records an Answer; failed saves preserve the draft,
-and changed Question wording requires review before saving. **Source & context** presents the retained
-text with newer, removed or unavailable notices and navigation to its context.
+Questions provides a searchable, filterable list with inline answers. There is no separate page for
+an individual Question; older question links open the same list. Questions and Wiki use the same
+compact card, with the question wording, Subject, suggestion buttons and an empty visible editor.
+The suggestion row and text entry are shared with Chat. When suggestions are available, **Write my
+own** restores the free-text draft; choice changes retain each draft locally. Only **Save answer**
+records an Answer; failed saves preserve the draft, and changed Question wording requires review
+before saving. **Source & context** holds attribution, suggestion explanations and retained text,
+including newer, removed or unavailable notices and navigation to its context.
 
-The selected design and all comparisons are retained on
+The earlier design and its comparisons are retained on
 [`prototype/questions-ui` at `fc3523e`](https://github.com/JimLundin/vaulter/tree/fc3523e), including
 the [design verdict](https://github.com/JimLundin/vaulter/blob/fc3523e/docs/prototypes/questions-ui.md).
 

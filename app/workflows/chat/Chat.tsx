@@ -208,7 +208,12 @@ export function Chat({
         </Stack>
       }
       suggestions={
-        showSuggestions ? <PromptSuggestions suggestions={suggestions} onSelect={edit} /> : null
+        showSuggestions ? (
+          <PromptSuggestions
+            suggestions={suggestions.map((text) => ({ value: text, label: text }))}
+            onSelect={edit}
+          />
+        ) : null
       }
       composer={
         <TextBox

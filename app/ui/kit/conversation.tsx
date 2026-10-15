@@ -164,22 +164,31 @@ export function VoiceStatus({ phase, error }: { phase: VoicePhase; error: string
 export function PromptSuggestions({
   suggestions,
   onSelect,
+  label = 'Suggested prompts',
+  selected,
+  disabled = false,
 }: {
-  suggestions: string[];
-  onSelect: (text: string) => void;
+  suggestions: readonly { value: string; label: string }[];
+  onSelect: (value: string) => void;
+  label?: string;
+  selected?: string;
+  disabled?: boolean;
 }) {
   if (!suggestions.length) return null;
   return (
-    <Stack as="section" aria-label="Suggested prompts" gap="sm">
+    <Stack as="section" aria-label={label} gap="sm">
       <OptionStrip>
         {suggestions.map((suggestion) => (
           <Button
-            key={suggestion}
+            key={suggestion.value}
             type="button"
-            variant="outline"
-            onClick={() => onSelect(suggestion)}
+            variant={selected === suggestion.value ? 'filled' : 'outline'}
+            size="compact"
+            aria-pressed={selected === undefined ? undefined : selected === suggestion.value}
+            disabled={disabled}
+            onClick={() => onSelect(suggestion.value)}
           >
-            {suggestion}
+            {suggestion.label}
           </Button>
         ))}
       </OptionStrip>

@@ -593,3 +593,29 @@ test('catalogue suggestions fill and focus their own public TextBox field', asyn
     await expect(sample.locator('[data-message="user"]')).toHaveCount(0);
   }
 });
+
+test('labelled suggestions select an editable draft by keyboard in both kit layouts', async ({
+  page,
+}) => {
+  await page.goto('/ui/kit/');
+  await page.getByRole('searchbox', { name: 'Find a component' }).fill('Text box');
+  const family = page.locator('[data-kit-comparison="text-box"]');
+  for (const device of ['desktop', 'mobile'] as const) {
+    const sample = specimen(family, device);
+    const suggestions = sample.getByRole('region', { name: 'Suggested starting points' });
+    const choice = suggestions.getByRole('button', { name: 'Make time for a walk', exact: true });
+    await choice.focus();
+    await choice.press('Enter');
+    const field = sample.getByRole('textbox', { name: 'Quick note', exact: true });
+    await expect(field).toBeFocused();
+    await expect(field).toHaveValue('Leave space for a walk before work.');
+    await expect(choice).toHaveAttribute('aria-pressed', 'true');
+    await expect(sample.getByRole('status')).toHaveText('Nothing saved yet.');
+    const first = (await choice.boundingBox())!;
+    for (const option of await suggestions.getByRole('button').all()) {
+      const bounds = (await option.boundingBox())!;
+      expect(bounds.y).toBe(first.y);
+      if (device === 'mobile') expect(bounds.height).toBeGreaterThanOrEqual(44);
+    }
+  }
+});
