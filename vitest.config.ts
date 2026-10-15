@@ -24,7 +24,7 @@ export default defineConfig({
         test: {
           name: 'behavior',
           include: ['app/**/*.test.{ts,tsx}', 'tools/**/*.test.ts'],
-          exclude: architecture,
+          exclude: [...architecture, '**/*.browser.test.ts'],
           maxWorkers: Math.min(4, availableParallelism()),
           sequence: { groupOrder: 0 },
         },

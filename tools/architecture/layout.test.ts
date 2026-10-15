@@ -76,6 +76,16 @@ test('application tasks cannot construct raw node adapters', () => {
   expect(importProblem('app/agent/new-tool.test.ts', 'app/preview/nodes.ts')).toBeNull();
 });
 
+test('browser drivers are shared across test owners without exposing private kit code', () => {
+  const driver = 'app/ui/kit/navigation.browser.test-support.ts';
+  expect(importProblem('app/workflows/chat/node-chat.browser.test.ts', driver)).toBeNull();
+  expect(importProblem('app/application/navigation.browser.test.ts', driver)).toBeNull();
+  expect(importProblem('app/workflows/chat/Chat.tsx', driver)).toContain('test-only');
+  expect(
+    importProblem('app/workflows/chat/node-chat.browser.test.ts', 'app/ui/kit/navigation.tsx'),
+  ).toContain('private kit');
+});
+
 test('raw session hooks remain with Vault assembly and Application through every import form', () => {
   const root = mkdtempSync(join(tmpdir(), 'vaulter-node-session-policy-'));
   try {

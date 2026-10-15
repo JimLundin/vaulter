@@ -74,7 +74,7 @@ explicit `.ts` imports and `import type` (enforced by `tsconfig.json`).
 
 For the edit loop, test the owning module, for example `npm run test:watch -- app/workflows/chat`.
 For browser work, start with a spec and device:
-`npm run test:ui -- tools/browser/composer.spec.ts --project=desktop`.
+`npm run test:ui -- app/ui/kit/composer.browser.test.ts --project=desktop`.
 The [testing guide](docs/agents/testing.md) explains test placement, device tags and delivery checks.
 Full suites run only in CI: test the change locally, commit and push your feature branch, then
 inspect CI for that commit. Unscoped local suite commands exit with a focused-command example.

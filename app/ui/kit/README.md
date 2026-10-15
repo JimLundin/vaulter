@@ -72,7 +72,8 @@ annotation transform may annotate semantic data, with no UI presentation permiss
 | `surfaces.tsx` | gates, preview notice, tool results, panels and unified diffs |
 | `chart.tsx`, `diff.tsx`, `map.tsx` | accessible charts, code diffs, lazy map presentation |
 | `styles.css`, `theme.tsx` | zinc color tokens, light/dark/system theme |
-| `tests/`, `tools/browser/` | markup/theme checks and browser interaction coverage |
+| `*.test.ts(x)`, `*.browser.test.ts` | colocated markup/theme checks and browser interaction coverage |
+| `tests/` | browser specimen pages |
 
 Fonts are Geist, Geist Mono and Newsreader, loaded locally from `@fontsource-variable`. Add generic
 presentation here and keep domain behavior in its workflow. `tools/architecture/layout.test.ts` checks that all app
@@ -568,7 +569,7 @@ name is retired; ordinary callers use TextBox directly.
 
 Run `npm run typecheck`, `npm run lint` and focused tests under
 [the testing policy](../../../docs/agents/testing.md). Full-suite verification runs in CI for the
-exact pushed commit. For text entry, use `npm run test:ui -- tools/browser/composer.spec.ts` and the
+exact pushed commit. For text entry, use `npm run test:ui -- app/ui/kit/composer.browser.test.ts` and the
 relevant Questions, catalogue and edge-rail scenarios. Install Chromium once with
 `npx playwright install chromium` (`--with-deps` on Linux CI). The browser suite starts its own sample
 server on port 4179 and leaves the design-review server on 4178 running. It uses the public kit fixture
@@ -612,7 +613,7 @@ MapView uses MapLibre, its bundled worker and OpenFreeMap dark/light styles; Lea
 The paired Map example loads external tiles only after Load map, then demonstrates selectable
 category markers, solid/dashed routes and compact/section/fill sizes. Changing the map container's
 size refits supplied places/routes; selection and theme changes preserve the current camera.
-Run real-tile browser acceptance with `VAULTER_MAP_TILES=1 npm run test:ui -- tools/browser/maps.spec.ts`.
+Run real-tile browser acceptance with `VAULTER_MAP_TILES=1 npm run test:ui -- app/ui/kit/maps.browser.test.ts`.
 
 Chat owns page and panel task composition, welcome copy and typed record interpretation. The kit
 accepts neutral attribution/content in `Message` and supplies the shared feed, dock, toolbar and

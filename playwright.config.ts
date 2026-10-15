@@ -9,7 +9,9 @@ const port = process.env.VAULTER_UI_PORT ?? '4179';
 const fullMatrix = process.env.VAULTER_UI_MATRIX === 'full';
 
 export default defineConfig({
-  testDir: './tools/browser',
+  testDir: './app',
+  testMatch: '**/*.browser.test.ts',
+  testIgnore: '**/*.production.browser.test.ts',
   timeout: 30_000,
   fullyParallel: true,
   workers: 2,

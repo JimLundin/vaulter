@@ -20,7 +20,7 @@
     "build:design": "vite build --mode design && node tools/preview/prepare-design.ts && vite build app/ui/kit --outDir ../../../dist-preview/kit --emptyOutDir",
     "test:ui": "playwright test",
     "test:ui:matrix": "VAULTER_UI_MATRIX=full playwright test",
-    "test:production": "playwright test --config tools/production/playwright.config.ts"
+    "test:production": "playwright test --config tools/testing/production.config.ts"
   },
   "dependencies": {
     "@ai-sdk/openai": "^4.0.83",

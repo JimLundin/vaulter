@@ -130,7 +130,9 @@ export function importProblem(from: string, to: string): string | null {
     to.startsWith('app/ui/kit/') &&
     !from.startsWith('app/ui/kit/') &&
     to !== 'app/ui/kit/index.ts' &&
-    to !== 'app/ui/kit/styles.css'
+    to !== 'app/ui/kit/styles.css' &&
+    // Colocated browser drivers are shared by tests, never production callers.
+    !(testSource(from) && /\.browser\.test-support\.ts$/.test(to))
   )
     return `${from} imports a private kit file; use app/ui/kit/index.ts`;
   if (

@@ -11,14 +11,14 @@ the change.
 - To select behavior tests through imports, use
   `npm exec vitest -- related app/workflows/chat/node-conversation.ts --run --project=behavior`.
   Source-inspection checks read files directly and need explicit selection.
-- For browser behavior, select the relevant spec and project, for example
-  `npm run test:ui -- tools/browser/composer.spec.ts --project=desktop`.
-  `--grep 'part of the test name'` narrows a spec further.
+- For browser behavior, select the relevant test file and project, for example
+  `npm run test:ui -- app/ui/kit/composer.browser.test.ts --project=desktop`.
+  `--grep 'part of the test name'` narrows a file further.
 - For imports and module ownership, run `npm run test:architecture -- tools/architecture/layout.test.ts`.
   For shared compositions or public kit components, select `tools/architecture/composition.test.ts` or
   `tools/architecture/catalogue.test.ts`. Keep compiler fixture tests in that suite.
 
-Test commands require a module path, spec, test-name filter, or changed-file selection locally.
+Test commands require a module path, file, test-name filter, or changed-file selection locally.
 Selecting only a project, device or shard does not focus the behavior under test. Unscoped
 `npm test`, `test:fast`, `test:watch`, `test:architecture`, `test:ui`, `test:ui:matrix` and
 `test:production` exit before tests or servers start. `test:all` exits before any checks start.
@@ -27,6 +27,13 @@ Listing tests and command help remain available. Let GitHub Actions supply its C
 use focused selection locally rather than setting CI variables to bypass the guard.
 
 ## Test placement and device coverage
+
+Keep tests beside the source or within the module they exercise. Put scenarios spanning multiple
+modules in `app/application/`. Name Vitest tests `*.test.ts` or `*.test.tsx`, preview Playwright
+tests `*.browser.test.ts`, and production Playwright tests `*.production.browser.test.ts`.
+Vitest excludes browser tests; the two Playwright configurations select their respective suffixes.
+Shared browser drivers use `*.browser.test-support.ts` beside their kit components. Keep runner
+utilities in `tools/testing/` and architecture checks in `tools/architecture/`.
 
 Test state transitions, persistence, recovery and replay prevention through the owning module's
 interface, using its memory backend or fake transport. Keep browser checks for user-visible wiring,
@@ -40,7 +47,7 @@ supplied as an array. A paired specimen or explicit viewport loop already covers
 choose additional device tags only when emulation or pointer behavior adds a distinct assertion.
 Viewport resizing does not emulate mobile or change pointer capabilities.
 
-Use `npm run test:ui:matrix -- tools/browser/composer.spec.ts --project=phone` to debug an untagged
+Use `npm run test:ui:matrix -- app/ui/kit/composer.browser.test.ts --project=phone` to debug an untagged
 scenario on a particular device. Full device audits run in CI through the workflow's
 `full_ui_matrix` input; use them when changing shared responsive and input mechanics.
 
