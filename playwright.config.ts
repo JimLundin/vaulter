@@ -21,7 +21,7 @@ export default defineConfig({
   use: {
     baseURL: `http://127.0.0.1:${port}`,
     screenshot: 'only-on-failure',
-    trace: 'retain-on-failure',
+    trace: process.env.CI ? 'on-first-retry' : 'retain-on-failure',
     launchOptions: process.env.VAULTER_BROWSER
       ? { executablePath: process.env.VAULTER_BROWSER }
       : {},

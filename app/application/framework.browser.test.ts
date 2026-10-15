@@ -148,10 +148,11 @@ test('Appearance group retains keyboard selection and device preference after re
 });
 
 test('every feature page centers the same reading column', async ({ page }) => {
-  for (const width of [390, 768, 1440, 1920]) {
-    await page.setViewportSize({ width, height: 1000 });
-    for (const path of ['/preview/', '/preview/#/history/', '/ui/kit/tests/browser.html']) {
-      await page.goto(path);
+  for (const path of ['/preview/', '/preview/#/history/', '/ui/kit/tests/browser.html']) {
+    await page.setViewportSize({ width: 390, height: 1000 });
+    await page.goto(path);
+    for (const width of [390, 768, 1440, 1920]) {
+      await page.setViewportSize({ width, height: 1000 });
       const main = page.locator('main[data-region]');
       const column = main.locator('[data-reading-column]');
       await expect(column).toBeVisible();

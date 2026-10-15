@@ -69,7 +69,12 @@ jobs:
         with: { node-version: 24, cache: npm }
       - run: npm ci
       - name: Install browser for UI checks
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install --with-deps --only-shell chromium
+      - name: Restore Vite dependency cache
+        uses: actions/cache@v4
+        with:
+          path: node_modules/.vite
+          key: vite-browser-${{ runner.os }}-${{ hashFiles('package-lock.json', 'vite.config.ts') }}
       - run: npm run test:ui -- --shard=${{ matrix.shard }}/4
       - uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
@@ -89,7 +94,7 @@ jobs:
         with: { node-version: 24, cache: npm }
       - run: npm ci
       - name: Install browser for production checks
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install --with-deps --only-shell chromium
       - run: npm run test:production
       - uses: actions/upload-artifact@v4
         if: failure()

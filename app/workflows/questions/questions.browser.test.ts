@@ -79,6 +79,7 @@ test('Questions keeps its compact multiline draft through responsive changes and
 test('Questions dictates into the compact draft and saves only when explicitly requested', {
   tag: ['@phone', '@touch'],
 }, async ({ page }) => {
+  await page.clock.install();
   await page.goto('/preview/#/questions/');
   await expect(page.getByText('Loading conversation…', { exact: true })).toBeHidden();
   const entry = page.getByRole('group', { name: 'Your answer text box', exact: true });
@@ -88,6 +89,8 @@ test('Questions dictates into the compact draft and saves only when explicitly r
   const initial = await journal(page);
   await entry.getByRole('button', { name: 'Start voice interaction', exact: true }).click();
   await expect(answer).toHaveAttribute('readonly');
+  // Deliver every scripted word through the actual interval without waiting for demo pacing.
+  await page.clock.runFor(5_040);
   const dictated =
     'Keep the workbench clear. Leave space for a walk before work, and keep an afternoon free for the garden studio.';
   await expect(answer).toHaveValue(dictated, { timeout: 15_000 });
