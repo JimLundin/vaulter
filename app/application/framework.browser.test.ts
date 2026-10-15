@@ -158,7 +158,10 @@ test('every feature page centers the same reading column', async ({ page }) => {
       await expect(column).toBeVisible();
       await expect
         .poll(async () => {
-          const parent = (await (path === '/preview/' ? column.locator('..') : main).boundingBox())!;
+          const parent = (await (path === '/preview/'
+            ? column.locator('..')
+            : main
+          ).boundingBox())!;
           const child = (await column.boundingBox())!;
           return Math.abs(child.x + child.width / 2 - (parent.x + parent.width / 2));
         })

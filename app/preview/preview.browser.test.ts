@@ -103,9 +103,14 @@ test('phone preview controls expand from a centered pill and follow the visible 
   for (const width of [320, 390, 430]) {
     await page.setViewportSize({ width, height: 844 });
     await expect.poll(async () => (await banner.boundingBox())!.height).toBeLessThanOrEqual(56);
+    await expect
+      .poll(async () => {
+        const pill = (await banner.boundingBox())!;
+        return Math.abs(pill.x + pill.width / 2 - width / 2);
+      })
+      .toBeLessThanOrEqual(1);
     const pill = (await banner.boundingBox())!;
     expect(pill.x).toBeGreaterThan(8);
-    expect(Math.abs(pill.x + pill.width / 2 - width / 2)).toBeLessThanOrEqual(1);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,
     );
