@@ -13,8 +13,18 @@ The run selected 11 related node behavior tests and generated 21 mutations in
 and no uncovered mutations. Stryker reported 90.48%; this is evidence for that
 file and selected tests, not a project-wide score.
 
-The survivors remove the visited-set check or insertion. Review cases with repeated
-paths and recursive references before deciding how to strengthen the traversal tests.
+The initial survivors removed the visited-set check or insertion. A follow-up run
+on 2026-10-16 with Node 24.22.0 selected 14 tests and detected all 21 mutations:
+20 killed, one timeout, zero survivors, and no uncovered mutations (100% for this
+file). The added behavior tests cover repeated appearances of shared content,
+recursive connection targets, and exact and current versions of the same identity.
+Repeated appearances kill both original survivors with an assertion that shared
+content occurs once. The recursive fixture bounds snapshot resolution so removing
+deduplication fails without hanging a worker. A deliberate identity-only visited
+key also failed the exact/current version assertion; the source was restored.
+
+The remaining timeout empties the traversal loop body, leaving its pending root
+in place indefinitely. Stryker detects it through its instrumented hit limit.
 Timeouts count as detected mutations in Stryker's score; report them separately
 because they do not establish a specific behavior assertion.
 
