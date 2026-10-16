@@ -1,12 +1,78 @@
-# Pi Durable and Vaulter
+# Ideas to borrow from Pi Durable for Vaulter's Agent
 
 Research snapshot: **2026-10-16**. Package: **`@earendil-works/pi-durable` 1.3.0**, not Pi's CLI or a generic durable-workflow library. Investigated published npm files and the release's source and normative specification; no dependencies or runtime code changed.
 
-## Recommendation
+## Direction
 
-**Assessment: keep Vaulter's current Agent runtime. Pi Durable is worth a narrow experiment if we decide to build agents or jobs that continue while the browser is closed.** Its strongest additions are restartable task graphs, persistent subagents, queued follow-ups and context compaction. It overlaps substantially with our existing durable run/tool records, while introducing another persistence model and different failure behavior.
+**Use Pi Durable as a reference implementation for improving our own Agent.** Package adoption is secondary. The question is which implementation ideas improve Vaulter's current browser agent, without replacing its Node model, publication rules or provider interfaces.
 
-For browser-only improvements, compare extending Agent with an explicit execution-resume or compaction feature before replacing it. For work continuing after the browser closes, an active external host is required regardless of library choice. Pi Durable supplies a harness and storage adapters; it does not host that work for us. [P1, P3]
+The strongest opportunities are bounded model-facing tool results, context budgeting and compaction, and observable model-step outcomes. Explicit execution phases can support those features as they become necessary. Queued input, safe resumption and subagents are later candidates tied to concrete product needs. The following proposals come from source review; they are not implemented or experimentally validated.
+
+## Transferable implementation ideas
+
+### 1. Bound what the model receives from tools
+
+**Borrow first.** Pi separates model-facing `output`, program-facing `structuredOutput`, and UI `details`. Its tool pipeline applies byte/line limits, supports retaining the head or tail, and adds explicit truncation diagnostics. See `boundContent()`, result finalization and `structuredOutputError()` in [tool.ts](https://github.com/earendil-works/pi/blob/71023aec1546d6d677a65669c5665c0927ce0dd0/packages/durable/src/harness/tool.ts) and [truncate.ts](https://github.com/earendil-works/pi/blob/71023aec1546d6d677a65669c5665c0927ce0dd0/packages/durable/src/truncate.ts). We should borrow the separation and honest truncation, rather than copy their default limits.
+
+Vaulter's [durableTools](../../app/agent/tool-execution.ts) records and returns the same full JSON result, and [historyModelMessages](../../app/agent/history.ts) supplies that full JSON on later runs. [Discovery](../../app/agent/discovery.ts) caps results at 20 sources and 20 knowledge items, but each item includes its complete text. [Content reads](../../app/vault/content/tools.ts) also return full content. A large passage can therefore consume disproportionate context during the current run and every later run.
+
+**Adaptation:** retain the truthful tool receipt in the Vault, but supply a bounded, valid provider projection. Keep node/transaction identities intact; never truncate serialized JSON into invalid JSON. Owning tools should offer paging or exact-version passage reads when omitted content matters. Central Agent projection should supply a size ceiling and truncation metadata, with tool-specific shaping supplied explicitly by Application. Record what the model actually saw; retain exact evidence and text selections when a shortened passage is used for grounding. Apply the same projection to live continuation and historical context, and account for the voice tool path.
+
+**Benefit:** large search/read results stop crowding out the user's request and recent reasoning. **Acceptance:** a fake tool returning a large Unicode passage produces a bounded model input with intact identities and an explicit omission marker, while its recorded outcome retains the complete result. A later run sees the same bounded representation and a follow-up passage read retrieves the omitted evidence. Content publication receipts remain truthful.
+
+### 2. Budget context and compact at complete interaction boundaries
+
+**Borrow next.** Pi's [compaction.ts](https://github.com/earendil-works/pi/blob/71023aec1546d6d677a65669c5665c0927ce0dd0/packages/durable/src/harness/compaction.ts) contains several useful details: `estimateContext()` uses recent measured usage plus estimates of newly appended messages; `selectCut()` and `isCandidate()` avoid splitting a tool call from its result; `summaryText()` rejects empty, incomplete, or tool-calling summaries. [generation.ts](https://github.com/earendil-works/pi/blob/71023aec1546d6d677a65669c5665c0927ce0dd0/packages/durable/src/harness/generation.ts) has proactive thresholds and a separate overflow-compaction path instead of retrying the unchanged oversized request.
+
+Vaulter's [prepareNodeChatSubmission](../../app/workflows/chat/node-backend.ts) projects all saved conversation messages into each new run. Its context records already support `summary`, `selection` and `truncation`, but this path has no general context budget or compaction policy. Existing retained summaries are source material; they are not a compaction of the agent's working context. [V1, V4]
+
+**Adaptation:** introduce a model-context preparation seam that returns effective inputs, transformations, source references and budget diagnostics before the run's initial acceptance. Include instructions, tool schemas and reserved output capacity in the request budget, not just conversation text. Chat supplies conversation history; Agent owns execution-context policy. Start with a configurable budget and a foreground compaction of an older prefix, retaining recent complete exchanges. A compaction is an attributed Interpretation with exact source references, not a rewritten conversation or a Wiki page. The next run records the actual summary and recent inputs supplied. Later, background summarization can capture a snapshot and first-kept boundary, then reject stale placement rather than overwrite a newer summary. Provider context-window metadata and token estimates require explicit configuration/verification; previous usage is useful only when it describes the context being estimated.
+
+**Benefit:** long conversations remain usable, with a readable explanation of what was summarized. **Acceptance:** a constrained fake provider receives summary plus recent complete interactions under the configured budget; original messages and exact links remain available after reload. A summary ending at a token limit is rejected, tool pairs remain complete, and a summary of an old snapshot cannot replace a newer compaction. No unchanged overflow request loops indefinitely.
+
+### 3. Expose model steps, limits and retry diagnostics
+
+**Borrow alongside context work.** Pi's generation checkpoint distinguishes `prepare`, `request`, `retry`, `poll` and `tools`. It retains retry attempt, error and next retry time, and [usage.ts](https://github.com/earendil-works/pi/blob/71023aec1546d6d677a65669c5665c0927ce0dd0/packages/durable/src/harness/usage.ts) counts reported usage when recording responses, including failed or aborted attempts. Overflow is classified separately from transient model errors. [generation.ts](https://github.com/earendil-works/pi/blob/71023aec1546d6d677a65669c5665c0927ce0dd0/packages/durable/src/harness/generation.ts)
+
+Vaulter already has a step limit, retry settings and final aggregate token usage. However, [runtime.ts](../../app/agent/runtime.ts) records only the latest response identity at `finish-step`, final totals at `finish`, and maps execution errors to the broad `executionFailed` code. The external provider interface exposes progress and a terminal result, with less usage detail. SDK retries already exist; adding another independent retry loop would risk duplicate retries.
+
+**Adaptation:** first retain model-step response metadata, finish reason, reported usage and whether execution reached its configured step/output limit. Extend live state with structured diagnostics for model versus persistence failure. Expose provider retry information where supported; do not invent visibility into SDK-internal attempts. Add retry classification or scheduling only if the existing provider seam cannot supply the required behavior. Failed attempts count only when usage is actually available; missing usage remains unknown. Cost estimates must retain pricing provenance as the existing record schema requires.
+
+**Benefit:** users can distinguish a completed answer from a run that exhausted its steps, and understand delays and spend. **Acceptance:** a fake two-step run that ends at its limit retains both available response identities and usage, reports the limit, and invokes each tool once. A failed attempt with reported usage is counted once; missing usage is not reported as zero spend. Stop prevents a pending retry from issuing another request.
+
+### 4. Make execution phases explicit when adding behavior
+
+Pi's typed phase checkpoints and separate `GenerationTask`/`ToolTask` handlers make permitted transitions visible. Tool admission validates effective arguments, commits intent, executes, then finalizes the result. [generation.ts](https://github.com/earendil-works/pi/blob/71023aec1546d6d677a65669c5665c0927ce0dd0/packages/durable/src/harness/generation.ts), [tool.ts](https://github.com/earendil-works/pi/blob/71023aec1546d6d677a65669c5665c0927ce0dd0/packages/durable/src/harness/tool.ts)
+
+Vaulter already has the important intent/effect/outcome gates. Its runtime coordinates execution, content saves, terminal saves and live state using several closure variables and optional handles. **Adaptation:** as context preparation or retry diagnostics add transitions, group the state and operations for each phase behind a small internal interface. Keep execution control separate from finalized persistence obligations; multiple pending obligations can coexist. No generic task engine, scheduler or persisted checkpoint format is needed just to improve this seam.
+
+**Benefit:** future changes become easier to assess without weakening recovery. **Acceptance:** existing tests for Stop, concurrent independent runs and recovery remain the behavioral contract; add only transition tests protecting new behavior. In particular, retrying an outcome still releases the same live tool promise, and retrying an invocation that never executed still does not start the tool. [V1, V2, V3]
+
+### 5. Distinguish queued follow-ups from steering an active run
+
+Pi's [inbox.ts](https://github.com/earendil-works/pi/blob/71023aec1546d6d677a65669c5665c0927ce0dd0/packages/durable/src/harness/inbox.ts) applies steering at post-tool boundaries and follow-ups at final boundaries. Queued items are admitted separately from their eventual placement and have stable submission identities.
+
+Vaulter's Chat backend already serializes submissions per conversation, but [NodeConversation](../../app/workflows/chat/node-conversation.ts) currently blocks ordinary Send while busy. **Adaptation if wanted:** begin with an explicit queued follow-up that the user can inspect or withdraw. Persist its admission before acknowledging it; prepare the next run's context only when it starts. Steering needs a separate execution boundary and retained effective context, because editing an already-finalized initial request would break our guarantees. Do not reinterpret today's Send automatically as steering.
+
+**Benefit:** users can leave the next instruction while a run finishes. **Acceptance:** a queued follow-up survives reload without starting a second concurrent run; withdrawal prevents execution; duplicate admission finds the same item. A later steering feature changes only the next model step and never interrupts an entered publication or mutates accepted context. Priority is below output/context work unless this interaction becomes a product requirement.
+
+### 6. Gate future resumption by capability, not missing liveness
+
+Pi commits replay policy with tool intent and requires both stored and current policy to be safe before rerunning an interrupted tool. Nested tasks use stable keys to reattach to prior work. This is a useful design constraint if Vaulter later adds explicit resume or delegated runs. [P6, P7]
+
+Vaulter already reports missing outcomes as uncertain and supplies an uncertainty warning in provider history; missing local ownership never proves abandonment. **Adaptation:** preserve that behavior. A future explicit resume capability needs a recorded model-step boundary, tool-specific read/reconciliation/idempotency policy, and execution ownership. Neither a historical read nor a persistence retry should trigger it. Safe replay metadata alone cannot make a content tool generating fresh identities replay-safe. Persistent subagent ownership and cancellation are worth studying only when a concrete delegated workflow needs them. [V1, V2, V3]
+
+**Acceptance:** an unfinished publishing tool is never rerun on read; explicit resumption reconciles its accepted Transaction before continuing. A changed capability cannot broaden a previously accepted invocation's replay rights. No runtime replay is proposed as part of this investigation.
+
+### 7. Coalesce streamed presentation if measurements justify it
+
+Pi's `streamResponse()` in [generation.ts](https://github.com/earendil-works/pi/blob/71023aec1546d6d677a65669c5665c0927ce0dd0/packages/durable/src/harness/generation.ts) throttles partial publication and drains it before classifying the final response. Vaulter currently notifies listeners on every text delta. **Adaptation:** if a rapid stream produces excessive rendering, coalesce in-memory presentation updates and flush the exact final text before terminal state. This does not require persisting every partial to GitHub. **Acceptance:** thousands of tiny deltas produce bounded listener updates and identical final text; Finish and Stop leave no delayed partial that can overwrite terminal state. Treat this as a measured optimization rather than a demonstrated performance defect.
+
+## Suggested order
+
+Start with bounded tool projections and context-budget diagnostics, then add compaction and clearer model-step outcomes. Use explicit phase structure where those changes need it. Investigate queued input, resume or subagents when their user-facing need is established. Borrow algorithms and boundary rules into the existing Agent/Chat modules; retain the source links for implementation review.
+
+The remainder records upstream semantics and package-integration constraints as background evidence. It does not recommend adopting the package or creating an external worker.
 
 ## Release and evidence
 
@@ -74,22 +140,9 @@ Our browser build rejects emitted dynamic-code constructs. Pi uses TypeBox `Comp
 
 Vaulter already has live WebRTC voice, transcription and an Agent-owned durable tool wrapper. The reviewed Pi Durable public API and specification provide the model-turn harness, not a corresponding live voice/WebRTC session adapter. **Assessment:** it would not replace our voice implementation out of the box; a replacement must preserve voice interruption, transcript save and retained-content recovery semantics separately. [V1, P3, P6]
 
-## A useful experiment, if always-on work is wanted
+## Scope of verification
 
-Use an isolated external worker with one fictional Node-producing job, persistent SQLite or a Durable Object, fake models, and one process owning its Pi store. Keep Vaulter's Vault and Agent interfaces as the user-facing domain owners. Compare this with a small explicit job/checkpoint addition to Agent. Do not start by migrating chat history or voice.
-
-The crucial proof is the **two-store crash gap**: a worker's tool publishes a Node Transaction successfully, then dies before Pi records its outcome. It must persist enough finalized request identity/content before publishing to discover the same accepted Transaction after restart, reconcile its result, and avoid recalculating or republishing different changes. Merely marking the tool `safe` is insufficient. Stale-write conflicts must be reported or explicitly resolved, not silently converted into a revised retry request. [V2, V4, P6]
-
-An experiment earns further investment only if it demonstrates:
-
-- Reopen completes a multi-step job without duplicate Node changes after crashes at admission, effect publication and outcome checkpoints.
-- Stop prevents newly admitted publications; already entered writes settle with their truthful outcome.
-- Competing workers cannot execute the same job simultaneously: host-level ownership/lease enforcement is explicit.
-- Agent run, tool execution, supplied context and exact evidence links remain inspectable through ordinary Vault history.
-- Browser reconnect reconstructs state; work continues while the browser is closed because the external host remains active.
-- Remote acceptance failures preserve recoverable publication identity, with clear user-visible uncertainty.
-
-These are proposed acceptance gates, **not results established by this investigation**. No paid provider calls, integration tests, deployment, browser bundle, storage adapter or performance measurements were run. The evidence establishes release semantics and architectural fit; it does not establish production compatibility.
+This investigation reviewed pinned upstream source and Vaulter's implementation. No runtime changes, dependencies, paid provider calls, integration tests, browser bundle or performance measurements were introduced. The proposed acceptance checks describe how to validate a future implementation; they are not test results.
 
 ## Sources
 
@@ -100,7 +153,7 @@ Primary upstream sources, pinned unless the source is the registry's dated relea
 - **P3:** [Pi Durable README](https://github.com/earendil-works/pi/blob/71023aec1546d6d677a65669c5665c0927ce0dd0/packages/durable/README.md): concepts, resume, tools, subagents, tasks, compaction, watches, storage and errors.
 - **P4:** [Pi Durable changelog](https://github.com/earendil-works/pi/blob/71023aec1546d6d677a65669c5665c0927ce0dd0/packages/durable/CHANGELOG.md).
 - **P5:** [Pi Durable package manifest](https://github.com/earendil-works/pi/blob/71023aec1546d6d677a65669c5665c0927ce0dd0/packages/durable/package.json).
-- **P6:** [Normative specification](https://github.com/earendil-works/pi/blob/71023aec1546d6d677a65669c5665c0927ce0dd0/packages/durable/docs/spec.md): §§5 task lifecycle, 7.3 tools, 8.3 generation, 8.4 tool recovery, 8.7 compaction, 10 storage and 11 limitations.
+- **P6:** [Normative specification](https://github.com/earendil-works/pi/blob/71023aec1546d6d677a65669c5665c0927ce0dd0/packages/durable/docs/spec.md): sections 5 task lifecycle, 7.3 tools, 8.3 generation, 8.4 tool recovery, 8.7 compaction, 10 storage, and the backend/limitation sections.
 - **P7:** [Tool implementation](https://github.com/earendil-works/pi/blob/71023aec1546d6d677a65669c5665c0927ce0dd0/packages/durable/src/harness/tool.ts).
 - **P8:** [Storage types](https://github.com/earendil-works/pi/blob/71023aec1546d6d677a65669c5665c0927ce0dd0/packages/durable/src/types.ts), [storage conformance suite](https://github.com/earendil-works/pi/tree/71023aec1546d6d677a65669c5665c0927ce0dd0/packages/durable/src/testing).
 - **P9:** [pi-ai browser documentation](https://github.com/earendil-works/pi/blob/71023aec1546d6d677a65669c5665c0927ce0dd0/packages/ai/README.md#browser-usage), [tool argument validation](https://github.com/earendil-works/pi/blob/71023aec1546d6d677a65669c5665c0927ce0dd0/packages/ai/src/utils/validation.ts).
