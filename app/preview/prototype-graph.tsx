@@ -1,4 +1,4 @@
-// Throwaway question: which grouping, density and canvas margins make the global map easiest to explore?
+// Throwaway question: which refinements of the preferred Obsidian and connection-community layouts work best?
 import { useState, type ComponentProps } from 'react';
 import type { OpenApplication } from '../application/index.tsx';
 import {
@@ -30,28 +30,51 @@ import {
 } from '../ui/kit/index.ts';
 export const graphDesigns = [
   { id: 'obsidian', label: 'A · Obsidian baseline' },
-  { id: 'open', label: 'B · Open relationships' },
+  { id: 'obsidian-dense', label: 'B · Obsidian compact' },
   { id: 'communities', label: 'C · Connection communities' },
-  { id: 'soft', label: 'D · Soft topic groups' },
-  { id: 'islands', label: 'E · Topic islands' },
+  { id: 'communities-soft', label: 'D · Communities blended' },
+  { id: 'communities-broad', label: 'E · Communities broad' },
 ] as const;
 type Grouping = 'none' | 'communities' | 'areas';
 type Spacing = 'compact' | 'balanced' | 'relaxed';
 type EdgeSpacing = 'tight' | 'balanced' | 'roomy';
+type CommunityScale = 'fine' | 'standard' | 'broad';
 const presets: Record<
   string,
-  { grouping: Grouping; cohesion: string; spacing: Spacing; edgeSpacing: EdgeSpacing }
+  {
+    grouping: Grouping;
+    cohesion: string;
+    spacing: Spacing;
+    edgeSpacing: EdgeSpacing;
+    communityScale?: CommunityScale;
+  }
 > = {
   obsidian: { grouping: 'none', cohesion: 'soft', spacing: 'balanced', edgeSpacing: 'balanced' },
-  open: { grouping: 'none', cohesion: 'soft', spacing: 'relaxed', edgeSpacing: 'roomy' },
+  'obsidian-dense': {
+    grouping: 'none',
+    cohesion: 'soft',
+    spacing: 'compact',
+    edgeSpacing: 'tight',
+  },
   communities: {
     grouping: 'communities',
     cohesion: 'medium',
     spacing: 'balanced',
     edgeSpacing: 'tight',
   },
-  soft: { grouping: 'areas', cohesion: 'soft', spacing: 'relaxed', edgeSpacing: 'tight' },
-  islands: { grouping: 'areas', cohesion: 'strong', spacing: 'compact', edgeSpacing: 'roomy' },
+  'communities-soft': {
+    grouping: 'communities',
+    cohesion: 'soft',
+    spacing: 'balanced',
+    edgeSpacing: 'tight',
+  },
+  'communities-broad': {
+    grouping: 'communities',
+    cohesion: 'soft',
+    spacing: 'relaxed',
+    edgeSpacing: 'balanced',
+    communityScale: 'broad',
+  },
 };
 type Props = Parameters<NonNullable<ComponentProps<typeof OpenApplication>['renderGraph']>>[0];
 type Block = Props['topics'][number]['blocks'][number];
@@ -87,7 +110,8 @@ const names = {
 
 // Deterministic local modularity optimization on the full fixture. Color and filtering do not
 // change membership. These are connection communities, not topic-area categories.
-function connectionCommunities(records: GraphRecord[], edges: Edge[]) {
+function connectionCommunities(records: GraphRecord[], edges: Edge[], scale: CommunityScale) {
+  const resolution = scale === 'broad' ? 0.4 : scale === 'fine' ? 1.6 : 1;
   const neighbors = new Map(records.map((record) => [record.id, new Map<string, number>()]));
   for (const edge of edges) {
     if (edge.source === edge.target) continue;
@@ -118,7 +142,7 @@ function connectionCommunities(records: GraphRecord[], edges: Edge[]) {
         linked.set(group, (linked.get(group) ?? 0) + weight);
       }
       const gain = (group: string) =>
-        (linked.get(group) ?? 0) - (degree * (weights.get(group) ?? 0)) / total;
+        (linked.get(group) ?? 0) - (resolution * degree * (weights.get(group) ?? 0)) / total;
       let best = current;
       for (const group of linked.keys()) if (gain(group) > gain(best) + 0.000_01) best = group;
       membership.set(record.id, best);
@@ -126,6 +150,35 @@ function connectionCommunities(records: GraphRecord[], edges: Edge[]) {
       changed ||= best !== current;
     }
     if (!changed) break;
+  }
+  // At broad scale, also join whole communities. Moving one node at a time can otherwise
+  // remain stuck in the same small hub neighborhoods despite a lower resolution.
+  if (scale === 'broad') {
+    for (let pass = 0; pass < records.length; pass++) {
+      const totals = new Map<string, number>();
+      for (const [id, group] of membership)
+        totals.set(group, (totals.get(group) ?? 0) + degrees.get(id)!);
+      const bridges = new Map<string, number>();
+      for (const edge of edges) {
+        const source = membership.get(edge.source);
+        const target = membership.get(edge.target);
+        if (!(source && target) || source === target) continue;
+        const pair = JSON.stringify([source, target].sort());
+        bridges.set(pair, (bridges.get(pair) ?? 0) + 1);
+      }
+      let best: [string, string] | undefined;
+      let bestGain = 0.000_01;
+      for (const [pair, weight] of bridges) {
+        const [a, b] = JSON.parse(pair) as [string, string];
+        const gain = weight - (resolution * totals.get(a)! * totals.get(b)!) / total;
+        if (gain > bestGain) {
+          best = [a, b];
+          bestGain = gain;
+        }
+      }
+      if (!best) break;
+      for (const [id, group] of membership) if (group === best[1]) membership.set(id, best[0]);
+    }
   }
   return membership;
 }
@@ -149,6 +202,9 @@ export function GraphPrototype({
   const [cohesion, setCohesion] = useState(preset.cohesion);
   const [spacing, setSpacing] = useState<Spacing>(preset.spacing);
   const [edgeSpacing, setEdgeSpacing] = useState<EdgeSpacing>(preset.edgeSpacing);
+  const [communityScale, setCommunityScale] = useState<CommunityScale>(
+    preset.communityScale ?? 'standard',
+  );
   const [history, setHistory] = useState<Array<{ focus?: string; depth: number }>>([]);
   const records: GraphRecord[] = [];
   const edges: Edge[] = [];
@@ -211,7 +267,7 @@ export function GraphPrototype({
     record.connections = edges.filter(
       (edge) => edge.source === record.id || edge.target === record.id,
     ).length;
-  const communities = connectionCommunities(records, edges);
+  const communities = connectionCommunities(records, edges, communityScale);
   const communityCount = new Set(communities.values()).size;
   const groupingDescription =
     grouping === 'none'
@@ -462,7 +518,7 @@ export function GraphPrototype({
                 {grouping === 'none'
                   ? 'Relationships'
                   : grouping === 'communities'
-                    ? 'Communities'
+                    ? `${communityScale} communities`
                     : 'Topic groups'}{' '}
                 · {spacing} · {edgeSpacing} edges
               </Text>
@@ -673,6 +729,25 @@ export function GraphPrototype({
                           ]}
                         />
                       </SettingField>
+                      {grouping === 'communities' && (
+                        <SettingField
+                          label="Community scale"
+                          description="Broad combines nearby connection groups; fine favors smaller groups. Colors keep their selected meaning."
+                        >
+                          <Select
+                            aria-label="Community scale"
+                            value={communityScale}
+                            onChange={(event) =>
+                              setCommunityScale(event.currentTarget.value as CommunityScale)
+                            }
+                            options={[
+                              { value: 'fine', label: 'Fine · smaller groups' },
+                              { value: 'standard', label: 'Standard' },
+                              { value: 'broad', label: 'Broad · larger groups' },
+                            ]}
+                          />
+                        </SettingField>
+                      )}
                       {grouping !== 'none' && (
                         <SettingField
                           label="Group cohesion"

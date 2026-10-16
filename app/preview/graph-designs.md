@@ -1,20 +1,24 @@
-﻿# Graph layout comparison
+# Graph layout comparison
 
-Question: how should clustering, node spacing and canvas-edge clearance change the preferred
-Obsidian baseline on desktop and phone?
+Question: which refinements of the preferred Obsidian baseline and connection communities
+work best on desktop and phone?
 
 Throwaway branch: `prototype/graph-ui-variants`. The preferred baseline with the refined settings
 pane and adaptive canvas is preserved at `7c09fc0`. The earlier local spotlight and persistent
 index comparison is available at that commit; this round replaces the picker with layout options.
 The rejected strict area layouts are preserved at `6fd6425`.
 
+The user selected Obsidian baseline and Connection communities as the strongest directions in the
+first layout round (`75901e9`). Both are retained unchanged here. The other three presets refine
+those directions; the previous topic-group and open-layout alternatives remain in that commit.
+
 | Variant | Grouping and behavior | Spacing | Canvas edges |
 | --- | --- | --- | --- |
-| `obsidian` | A: Links and repulsion only; the accepted baseline. | Balanced | Adaptive 28–48px |
-| `open` | B: Links only, with longer springs and more repulsion; open relationship branches. | Relaxed | 14% of each axis |
-| `communities` | C: Dense connection communities detected from the full graph; medium attraction toward group regions, with bridges retained. | Balanced | 24px |
-| `soft` | D: Topic areas exert a weak attraction; relationships can stretch across the regions. | Relaxed | 24px |
-| `islands` | E: Strong topic-area attraction and short springs create more distinct islands; all inter-area links remain visible. | Compact | 14% of each axis |
+| `obsidian` | A: Original preferred relationship-only baseline. | Balanced | Adaptive 28–48px |
+| `obsidian-dense` | B: Relationship-only baseline with shorter springs; compare denser branches and closer edges. | Compact | 24px |
+| `communities` | C: Original preferred connection communities; standard scale and medium attraction. | Balanced | 24px |
+| `communities-soft` | D: Same communities with soft attraction; groups blend while relationships pull bridges together. | Balanced | 24px |
+| `communities-broad` | E: Broader connection groups, soft attraction and longer springs; emphasize larger neighborhoods. | Relaxed | Adaptive 28–48px |
 
 All five use the same 172 records and 281 connections: 14 topics, 105 statements, 29 sources and
 24 questions. Connections include derived containment, citations and recorded topic/question
@@ -23,7 +27,7 @@ passage in its inspector. The morning-work statement still exposes the recorded 
 current source text separately.
 
 The Settings tab provides independent Group by, Group cohesion, Node spacing and Canvas edges
-controls, so reviewers can mix parts of the presets. The workspace shows the current grouping,
+controls, plus Community scale for connection grouping, so reviewers can mix parts of the presets. The workspace shows the current grouping,
 spacing and edge setting. Group cohesion appears only when grouping is enabled. These choices
 remain in memory; variant switching mounts a fresh preset. Colors are independent: Topic area
 (default), Record type or Connection count. Node diameter always reflects the square root of full
@@ -31,9 +35,11 @@ incident connection count, capped visually. Neither color nor selection changes 
 
 Connection communities use deterministic local modularity optimization over the full undirected
 connection graph, counting parallel relationships as weight. Thirty passes is the bound; the
-algorithm stops when membership stabilizes. This is a prototype community heuristic, not a claim
+algorithm stops when membership stabilizes. Community scale changes modularity resolution: fine 1.6, standard 1.0 and broad 0.4. Broad encourages larger groups; cohesion separately controls their attraction in the layout. This is a prototype community heuristic, not a claim
 that the groups are semantic topics. Color, population filters and local focus do not recalculate
-membership. Topic-area grouping uses the fictional page metadata; shared sources form Shared.
+membership. Broad scale also greedily merges whole connected communities when the modularity gain
+is positive, overcoming local node-move plateaus. Standard keeps the previously preferred grouping
+unchanged. In this fixture, standard detects 28 groups and broad merges them to six. Topic-area grouping uses the fictional page metadata; shared sources form Shared.
 
 The shared map solver accepts the owner's group assignments. Optional attraction pulls toward
 regions arranged for the current canvas aspect ratio. Repulsion, collision clearance and edge
@@ -77,5 +83,5 @@ The existing preview pill switches all five variants and Mobile. Without `compar
 preview remains current Application behavior. Local: `npm run design`, then the same query and
 hash under `/preview/`.
 
-Verdict pending for this round. The earlier Obsidian preference remains the baseline. No production
+Verdict: Obsidian baseline and Connection communities were the favorites from the previous round. Verdict pending for these refinements. No production
 promotion or merge is implied by this preview comparison.
