@@ -539,6 +539,23 @@ function Charts() {
       />
       <K.Sparkline label="Notes over time" values={[3, 5, 2, 7, 4, 6, 8]} />
       <K.NetworkDiagram
+        label="Population map"
+        layout="map"
+        nodes={[
+          { id: 'studio', label: 'Studio', tone: 'topic', group: 'Making' },
+          { id: 'tools', label: 'Keep tools within reach', tone: 'statement', group: 'Making' },
+          { id: 'source', label: 'Workshop notes', tone: 'source', group: 'Making' },
+          { id: 'garden', label: 'Garden', tone: 'topic', group: 'Outside' },
+          { id: 'question', label: 'What should grow here?', tone: 'question', group: 'Outside' },
+        ]}
+        edges={[
+          { id: 'one', source: 'studio', target: 'tools', label: 'contains' },
+          { id: 'two', source: 'tools', target: 'source', label: 'cites' },
+          { id: 'three', source: 'garden', target: 'question', label: 'contains' },
+        ]}
+        onSelect={noop}
+      />
+      <K.NetworkDiagram
         label="Related ideas"
         nodes={[
           { id: 'studio', label: 'Garden studio', selected: true },

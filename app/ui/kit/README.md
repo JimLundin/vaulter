@@ -10,6 +10,10 @@ The [public interface](index.ts) defines the kit's exports; catalogue and compos
 verify their examples and implementation ownership.
 
 `NetworkDiagram` presents caller-supplied node labels and directed edges in a bounded neighborhood.
+Its optional `map` layout supplies grouped overview geometry, population colors, selectable records,
+zoom controls and a scrollable detailed canvas. Each `viewKey` retains its viewport state while the
+caller switches between global and local records. Record meaning and neighborhood selection stay
+with the caller. The Charts catalogue includes this map mode.
 Its optional `lanes` layout groups records by a caller-supplied column number, draws readable edge
 labels, and scrolls within a bounded canvas. Selection marks the incident paths; detail text can
 describe each record without the kit interpreting it. `FeaturePage.width="wide"` provides more

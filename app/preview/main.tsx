@@ -198,7 +198,7 @@ function Preview({ nodes }: { nodes: NodeStore }) {
   if (query.get('compare') === 'graph')
     return (
       <DesignComparison
-        defaultValue={query.get('variant') ?? 'inquiry'}
+        defaultValue={query.get('variant') ?? 'map'}
         onValueChange={(variant) => {
           const url = new URL(location.href);
           url.searchParams.set('variant', variant);

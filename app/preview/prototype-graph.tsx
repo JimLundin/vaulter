@@ -1,38 +1,41 @@
-﻿// Throwaway comparison of investigation mechanics, using resolved Wiki evidence.
+// Throwaway question: how should a global Vault map narrow into local neighborhoods on phone and desktop?
 import { useState, type ComponentProps } from 'react';
 import type { OpenApplication } from '../application/index.tsx';
 import {
   Badge,
   Button,
+  Card,
+  CardContent,
   Columns,
+  Drawer,
   FeaturePage,
   Heading,
   Link,
-  Loader,
   NetworkDiagram,
   PageControls,
   Row,
   SelectionRow,
   Separator,
   Stack,
-  Surface,
   Text,
 } from '../ui/kit/index.ts';
 export const graphDesigns = [
-  { id: 'inquiry', label: 'A · Inquiry canvas' },
-  { id: 'local', label: 'B · Local explorer' },
-  { id: 'linked', label: 'C · Linked reading' },
+  { id: 'map', label: 'A · Spatial map' },
+  { id: 'atlas', label: 'B · Cluster atlas' },
+  { id: 'navigator', label: 'C · Map + index' },
 ] as const;
 type Props = Parameters<NonNullable<ComponentProps<typeof OpenApplication>['renderGraph']>>[0];
 type Block = Props['topics'][number]['blocks'][number];
 type Reference = Block['evidence'][number];
-interface Record {
+type Population = 'topic' | 'statement' | 'source' | 'question';
+interface GraphRecord {
   id: string;
   label: string;
-  detail: string;
-  column: number;
+  tone: Population;
+  group: string;
   block?: Block;
   reference?: Reference;
+  topic?: string;
 }
 interface Edge {
   id: string;
@@ -40,520 +43,466 @@ interface Edge {
   target: string;
   label: string;
 }
-const words = (block: Block): string =>
-  typeof block.data.text === 'string' ? block.data.text : block.children.map(words).join('');
 const flatten = (blocks: Block[]): Block[] =>
   blocks.flatMap((block) => [block, ...flatten(block.children)]);
-const sourceState = (reference: Reference) =>
-  reference.state === 'newer'
-    ? 'Source changed'
-    : reference.state === 'deleted'
-      ? 'Source removed'
-      : 'Recorded source';
+const words = (block: Block): string =>
+  typeof block.data.text === 'string' ? block.data.text : block.children.map(words).join('');
+const populations: Population[] = ['topic', 'statement', 'source', 'question'];
+const names = {
+  topic: 'Topics',
+  statement: 'Statements',
+  source: 'Sources',
+  question: 'Questions',
+};
 
 export function GraphPrototype({
   topics,
-  node,
   state,
-  onSelectSubject,
   currentSourceText,
   design,
 }: Props & { design: string }) {
+  const [enabled, setEnabled] = useState<Population[]>(populations);
   const [query, setQuery] = useState('');
-  const [browse, setBrowse] = useState(false);
   const [chosen, setChosen] = useState<string>();
-  const [root, setRoot] = useState<string>();
-  const [count, setCount] = useState(3);
-  const [hidden, setHidden] = useState<string[]>([]);
-  const [pinned, setPinned] = useState<string[]>([]);
-  const [history, setHistory] = useState<string[]>([]);
-  const [lens, setLens] = useState('all');
-  const topic =
-    topics.find((entry) => entry.id === node) ??
-    topics.find((entry) => entry.id === 'preview:graph-topic') ??
-    topics[0];
-  const all = flatten(topic?.blocks ?? []);
-  const statements = all.filter((block) => block.data.kind === 'paragraph' && words(block).trim());
-  const questions = all.filter((block) => block.data.kind === 'question');
-  const vault = topics.flatMap((entry) => flatten(entry.blocks));
-  const records: Record[] = [];
+  const [focus, setFocus] = useState<string>();
+  const [area, setArea] = useState<string>();
+  const [depth, setDepth] = useState(1);
+  const [inspecting, setInspecting] = useState(false);
+  const [history, setHistory] = useState<Array<{ focus?: string; area?: string; depth: number }>>(
+    [],
+  );
+  const records: GraphRecord[] = [];
   const edges: Edge[] = [];
-  if (topic) records.push({ id: topic.id, label: topic.title, detail: 'TOPIC', column: 0 });
-  for (const block of statements) {
-    records.push({
-      id: block.id,
-      label: words(block),
-      detail: block.evidence.length ? 'STATEMENT' : 'STATEMENT · UNCITED',
-      column: 1,
-      block,
-    });
-    edges.push({
-      id: `contains:${block.id}`,
-      source: topic!.id,
-      target: block.id,
-      label: 'contains',
-    });
-    for (const reference of block.evidence) {
-      const id = JSON.stringify(reference.source);
-      if (!records.some((record) => record.id === id))
-        records.push({
-          id,
-          label: reference.title,
-          detail: `SOURCE · ${sourceState(reference)}`,
-          column: 2,
-          reference,
-        });
-      edges.push({ id: reference.id, source: block.id, target: id, label: 'cites passage' });
-    }
-  }
-  for (const question of questions) {
-    records.push({
-      id: question.id,
-      label: words(question),
-      detail: 'OPEN QUESTION',
-      column: 0,
-      block: question,
-    });
-    for (const edge of state.graph?.relationships({ node: question.id }) ?? []) {
-      const endpoint = edge.direction === 'outgoing' ? edge.target : edge.source;
-      const target = records.find(
-        (record) =>
-          record.id === endpoint.address?.node ||
-          record.reference?.source.node === endpoint.address?.node,
-      );
-      if (target)
-        edges.push({
-          id: edge.node.key.node,
-          source: edge.direction === 'outgoing' ? question.id : target.id,
-          target: edge.direction === 'outgoing' ? target.id : question.id,
-          label: edge.label,
-        });
-    }
-  }
-  const selected =
-    records.find((record) => record.id === chosen) ??
-    records.find((record) => record.block?.data.kind === 'paragraph') ??
-    records[0];
-  const focus =
-    records.find((record) => record.id === root) ??
-    records.find(
-      (record) =>
-        record.block?.data.kind === 'question' &&
-        edges.some((edge) => edge.source === record.id || edge.target === record.id),
-    ) ??
-    records[0];
-  const matching = statements.filter(
-    (block) =>
-      lens === 'all' ||
-      (lens === 'uncited'
-        ? !block.evidence.length
-        : block.evidence.some((ref) => ref.state !== 'original')),
-  );
-  const branches = matching.filter(
-    (block, index) => (index < count || pinned.includes(block.id)) && !hidden.includes(block.id),
-  );
-  const branchIds = new Set(branches.map((block) => block.id));
-  const branchEdges = edges.filter(
-    (edge) => branchIds.has(edge.source) || branchIds.has(edge.target),
-  );
-  const visibleIds = new Set(branchEdges.flatMap((edge) => [edge.source, edge.target]));
-  const localEdges = edges
-    .filter((edge) => edge.source === focus?.id || edge.target === focus?.id)
-    .slice(0, count + 3);
-  const localIds = new Set([
-    focus?.id,
-    ...localEdges.flatMap((edge) => [edge.source, edge.target]),
-  ]);
-  const shownEdges = design === 'local' ? localEdges : branchEdges;
-  const shown = records.filter((record) =>
-    design === 'local' ? localIds.has(record.id) : visibleIds.has(record.id),
-  );
-  const navigateTopic = (id: string) => {
-    setChosen(undefined);
-    setRoot(undefined);
-    setCount(3);
-    setHidden([]);
-    setPinned([]);
-    setHistory([]);
-    setBrowse(false);
-    setQuery('');
-    setLens('all');
-    onSelectSubject(id);
-  };
-  const select = (id: string) => setChosen(id);
-  const center = (id: string) => {
-    if (focus) setHistory([...history, focus.id]);
-    setRoot(id);
-    setChosen(id);
-  };
-  const reset = () => {
-    setCount(3);
-    setHidden([]);
-    setPinned([]);
-    setChosen(undefined);
-    setRoot(undefined);
-    setHistory([]);
-    setLens('all');
-  };
-  const sourceText = (reference: Reference) => (
-    <Stack gap="sm" key={reference.id}>
-      <Row wrap={true} justify="between">
-        <Heading level={3}>{reference.title}</Heading>
-        <Badge variant="secondary">{sourceState(reference)}</Badge>
-      </Row>
-      <Text size="sm" tone="muted">
-        REVIEWED PASSAGE
-      </Text>
-      <Text>“{reference.text}”</Text>
-      {reference.state === 'newer' && (
-        <Surface variant="subtle">
-          <Text size="sm" weight="medium">
-            SOURCE NOW SAYS
-          </Text>
-          <Text>{currentSourceText(reference.source.node) ?? 'Current text is unavailable.'}</Text>
-        </Surface>
-      )}
-      <Text size="sm" tone="muted">
-        {reference.state === 'deleted'
-          ? 'The source was removed; its reviewed passage remains in history.'
-          : reference.state === 'newer'
-            ? 'A later source version exists. The citation retains the reviewed passage.'
-            : 'This is the passage selected when the statement was cited.'}
-      </Text>
-      {!!reference.href && <Link href={reference.href}>Open source</Link>}
-      <Text size="sm" tone="muted">
-        Other topics citing this source
-      </Text>
-      {topics
-        .filter(
-          (entry) =>
-            entry.id !== topic?.id &&
-            flatten(entry.blocks).some((block) =>
-              block.evidence.some((ref) => ref.source.node === reference.source.node),
-            ),
-        )
-        .map((entry) => (
-          <Button key={entry.id} variant="ghost" onClick={() => navigateTopic(entry.id)}>
-            {entry.title}
-          </Button>
-        ))}
-    </Stack>
-  );
-  const inspector = (
-    <Surface variant="subtle">
-      <Stack gap="lg">
-        <Heading level={2}>Record inspector</Heading>
-        {!!selected && (
-          <>
-            <Badge variant="secondary">{selected.detail}</Badge>
-            <Text weight="medium">{selected.label}</Text>
-            {selected.block?.data.kind === 'paragraph' && (
-              <>
-                {design !== 'local' && (
-                  <Row wrap={true}>
-                    <Button
-                      variant="outline"
-                      onClick={() =>
-                        setPinned(
-                          pinned.includes(selected.id)
-                            ? pinned.filter((id) => id !== selected.id)
-                            : [...pinned, selected.id],
-                        )
-                      }
-                    >
-                      {pinned.includes(selected.id) ? 'Unpin branch' : 'Pin branch'}
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      onClick={() => {
-                        setHidden([...hidden, selected.id]);
-                        setChosen(undefined);
-                      }}
-                    >
-                      Hide branch
-                    </Button>
-                  </Row>
-                )}
-                {selected.block.evidence.length ? (
-                  selected.block.evidence.map(sourceText)
-                ) : (
-                  <Text>
-                    No statement citation. Topic references do not establish support for this
-                    statement.
-                  </Text>
-                )}
-              </>
-            )}
-            {selected.block?.data.kind === 'question' && (
-              <>
-                <Text>
-                  This question is open. Its recorded context does not count as an Answer.
-                </Text>
-                <Link href="#/questions/">Explore in Questions</Link>
-              </>
-            )}
-            {!!selected.reference &&
-              shownEdges
-                .filter((edge) => edge.target === selected.id)
-                .map((edge) => {
-                  const block = records.find((record) => record.id === edge.source)?.block;
-                  return (
-                    block && (
-                      <Stack gap="sm" key={edge.id}>
-                        <SelectionRow selected={false} onSelect={() => select(block.id)}>
-                          <Text>{words(block)}</Text>
-                        </SelectionRow>
-                        {block.evidence
-                          .filter((ref) => JSON.stringify(ref.source) === selected.id)
-                          .map(sourceText)}
-                      </Stack>
-                    )
-                  );
-                })}
-            {design === 'local' && (
-              <Button variant="outline" onClick={() => center(selected.id)}>
-                Center this record
-              </Button>
-            )}
-            <Separator />
-            <Heading level={3}>Recorded connections</Heading>
-            {edges
-              .filter((edge) => edge.source === selected.id || edge.target === selected.id)
-              .map((edge) => {
-                const other = edge.source === selected.id ? edge.target : edge.source;
-                return (
-                  <SelectionRow key={edge.id} selected={false} onSelect={() => select(other)}>
-                    <Stack gap="xs">
-                      <Text size="sm" tone="muted">
-                        {edge.source === selected.id ? 'Outgoing' : 'Incoming'} · {edge.label}
-                      </Text>
-                      <Text>{records.find((record) => record.id === other)?.label}</Text>
-                    </Stack>
-                  </SelectionRow>
-                );
-              })}
-          </>
-        )}
-      </Stack>
-    </Surface>
-  );
-  const diagram = (
-    <NetworkDiagram
-      label={
-        design === 'local'
-          ? 'Focused record neighborhood'
-          : 'Question, statement and source investigation'
+  for (const topic of topics) {
+    const group =
+      topic.metadata.find((term) =>
+        ['Studio', 'Garden', 'Learning', 'Routine'].includes(term.label),
+      )?.label ??
+      (topic.title.includes('studio') || topic.title.includes('Studio')
+        ? 'Studio'
+        : topic.title.includes('morning')
+          ? 'Routine'
+          : topic.title.toLowerCase().includes('reading')
+            ? 'Learning'
+            : 'Garden');
+    records.push({ id: topic.id, label: topic.title, tone: 'topic', group, topic: topic.id });
+    for (const block of flatten(topic.blocks)) {
+      if (block.data.kind !== 'paragraph' && block.data.kind !== 'question') continue;
+      records.push({
+        id: block.id,
+        label: words(block),
+        tone: block.data.kind === 'question' ? 'question' : 'statement',
+        group,
+        block,
+        topic: topic.id,
+      });
+      edges.push({
+        id: `contains:${block.id}`,
+        source: topic.id,
+        target: block.id,
+        label: 'contains',
+      });
+      for (const reference of block.evidence) {
+        const id = reference.source.node;
+        if (!records.some((record) => record.id === id))
+          records.push({ id, label: reference.title, tone: 'source', group, reference });
+        edges.push({ id: reference.id, source: block.id, target: id, label: 'cites passage' });
       }
-      nodes={shown.map((record) => ({
-        ...record,
-        selected: design === 'local' ? record.id === focus?.id : record.id === selected?.id,
-      }))}
-      edges={shownEdges}
-      layout={design === 'local' ? 'radial' : 'lanes'}
-      onSelect={select}
+    }
+  }
+  for (const record of records.filter(
+    (record) => record.tone === 'question' || record.tone === 'topic',
+  )) {
+    for (const edge of state.graph?.relationships({ node: record.id }) ?? []) {
+      const source = edge.source.address?.node;
+      const target = edge.target.address?.node;
+      if (
+        source &&
+        target &&
+        records.some((record) => record.id === source) &&
+        records.some((record) => record.id === target) &&
+        !edges.some((existing) => existing.id === edge.node.key.node)
+      )
+        edges.push({ id: edge.node.key.node, source, target, label: edge.label });
+    }
+  }
+  const groups = [...new Set(records.map((record) => record.group))].sort();
+  const selected = records.find((record) => record.id === chosen);
+  const focused = records.find((record) => record.id === focus);
+  const adjacent = new Set(focus ? [focus] : []);
+  if (focus)
+    for (let level = 0; level < depth; level++) {
+      const previous = new Set(adjacent);
+      for (const edge of edges) {
+        if (previous.has(edge.source)) adjacent.add(edge.target);
+        if (previous.has(edge.target)) adjacent.add(edge.source);
+      }
+    }
+  const matching = records.filter(
+    (record) =>
+      (enabled.includes(record.tone) || record.id === focus) &&
+      (!area || record.group === area) &&
+      (!focus || adjacent.has(record.id)),
+  );
+  const visible = focus
+    ? [
+        ...matching.filter((record) => record.id === focus),
+        ...matching.filter((record) => record.id !== focus),
+      ].slice(0, 36)
+    : matching;
+  const ids = new Set(visible.map((record) => record.id));
+  const visibleEdges = edges.filter((edge) => ids.has(edge.source) && ids.has(edge.target));
+  const index = records.filter(
+    (record) =>
+      enabled.includes(record.tone) && record.label.toLowerCase().includes(query.toLowerCase()),
+  );
+  const inspect = (id: string) => {
+    setChosen(id);
+    setInspecting(true);
+  };
+  const pushView = () => setHistory([...history, { focus, area, depth }]);
+  const focusRecord = (id: string) => {
+    pushView();
+    setFocus(id);
+    setArea(undefined);
+    setDepth(1);
+    setChosen(id);
+    setInspecting(false);
+  };
+  const openArea = (group: string) => {
+    pushView();
+    setArea(group);
+    setFocus(undefined);
+    setInspecting(false);
+  };
+  const global = () => {
+    setFocus(undefined);
+    setArea(undefined);
+    setDepth(1);
+    setInspecting(false);
+    setHistory([]);
+  };
+  const back = () => {
+    const previous = history.at(-1);
+    if (previous) {
+      setFocus(previous.focus);
+      setArea(previous.area);
+      setDepth(previous.depth);
+      setHistory(history.slice(0, -1));
+      setInspecting(false);
+    }
+  };
+  const groupRecords = groups.map((group) => ({
+    id: group,
+    label: `${group} · ${records.filter((record) => record.group === group && enabled.includes(record.tone)).length} records`,
+    tone: 'topic' as const,
+    group,
+  }));
+  const groupEdges = groups.flatMap((source, index) =>
+    groups.slice(index + 1).flatMap((target) => {
+      const count = edges.filter((edge) => {
+        const a = records.find((record) => record.id === edge.source)?.group;
+        const b = records.find((record) => record.id === edge.target)?.group;
+        return (a === source && b === target) || (a === target && b === source);
+      }).length;
+      return count
+        ? [{ id: `${source}:${target}`, source, target, label: `${count} cross-area connections` }]
+        : [];
+    }),
+  );
+  const graph = (
+    <NetworkDiagram
+      label={focus ? 'Local Vault graph' : area ? `${area} population graph` : 'Global Vault graph'}
+      layout="map"
+      viewKey={focus ?? (area ? `atlas:${area}` : 'global')}
+      nodes={visible.map((record) => ({ ...record, selected: record.id === (focus ?? chosen) }))}
+      edges={visibleEdges}
+      onSelect={inspect}
     />
   );
-  const statementList = (
-    <Stack gap="sm">
-      {branches.map((block) => (
-        <SelectionRow
-          key={block.id}
-          selected={
-            block.id === selected?.id ||
-            (selected?.reference !== undefined &&
-              block.evidence.some((ref) => JSON.stringify(ref.source) === selected.id))
+  const overview = (
+    <NetworkDiagram
+      label="Vault areas overview"
+      layout="map"
+      viewKey="global"
+      nodes={groupRecords}
+      edges={groupEdges}
+      onSelect={openArea}
+    />
+  );
+  const filters = (
+    <Row wrap={true}>
+      {populations.map((population) => (
+        <Button
+          key={population}
+          variant={enabled.includes(population) ? 'filled' : 'outline'}
+          aria-pressed={enabled.includes(population)}
+          onClick={() =>
+            setEnabled(
+              enabled.includes(population)
+                ? enabled.filter((value) => value !== population)
+                : [...enabled, population],
+            )
           }
-          onSelect={() => select(block.id)}
-          appearance="card"
+        >
+          {names[population]} · {records.filter((record) => record.tone === population).length}
+        </Button>
+      ))}
+    </Row>
+  );
+  const recordIndex = (
+    <Stack gap="sm">
+      <PageControls
+        search={{
+          label: 'Find a graph record',
+          placeholder: 'Find a topic, question or source…',
+          value: query,
+          onValueChange: setQuery,
+        }}
+      />
+      <Text size="sm" tone="muted">
+        {index.length} matching records{index.length > 12 ? ' · first 12 shown' : ''}
+      </Text>
+      {index.slice(0, 12).map((record) => (
+        <SelectionRow
+          key={record.id}
+          selected={record.id === chosen}
+          onSelect={() => inspect(record.id)}
         >
           <Stack gap="xs">
             <Text size="sm" tone="muted">
-              STATEMENT {statements.indexOf(block) + 1}
-              {pinned.includes(block.id) ? ' · PINNED' : ''}
+              {names[record.tone]} · {record.group}
             </Text>
-            <Text>{words(block)}</Text>
-            <Text size="sm" tone="muted">
-              {block.evidence.length} supporting passages
-            </Text>
+            <Text>{record.label}</Text>
           </Stack>
         </SelectionRow>
       ))}
     </Stack>
   );
+  const source = (reference: Reference) => (
+    <Stack gap="sm" key={reference.id}>
+      <Heading level={3}>{reference.title}</Heading>
+      <Badge variant="secondary">
+        {reference.state === 'newer'
+          ? 'Source changed'
+          : reference.state === 'deleted'
+            ? 'Source removed'
+            : 'Recorded passage'}
+      </Badge>
+      <Text>“{reference.text}”</Text>
+      {reference.state === 'newer' && (
+        <>
+          <Text size="sm" weight="medium">
+            SOURCE NOW SAYS
+          </Text>
+          <Text>
+            {currentSourceText(reference.source.node) ?? 'Current source text is unavailable.'}
+          </Text>
+        </>
+      )}
+      {reference.state === 'deleted' && (
+        <Text size="sm" tone="muted">
+          The reviewed passage is retained after removal of its source.
+        </Text>
+      )}
+      {!!reference.href && <Link href={reference.href}>Open source</Link>}
+    </Stack>
+  );
+  const relations = selected
+    ? edges.filter((edge) => edge.source === selected.id || edge.target === selected.id)
+    : [];
   return (
     <FeaturePage
       title="Graph"
       width="wide"
-      description="Build an investigation. Keep the evidence in view."
+      description="See your Vault. Find an area. Follow its connections."
     >
       <Stack gap="lg" inset="page" block="sm">
-        {!!state.loading && <Loader>Opening the sample Vault…</Loader>}
-        <Text size="sm" tone="muted">
-          SAMPLE VAULT · {topics.length} topics ·{' '}
-          {vault.filter((block) => block.data.kind === 'paragraph').length} statements ·{' '}
-          {new Set(vault.flatMap((block) => block.evidence.map((ref) => ref.source.node))).size}{' '}
-          cited sources · {vault.filter((block) => block.data.kind === 'question').length} questions
-        </Text>
         <Row wrap={true} justify="between">
-          <Heading level={2}>{topic?.title ?? 'Choose a topic'}</Heading>
-          <Button variant="outline" onClick={() => setBrowse(!browse)}>
-            {browse ? 'Close topic browser' : `Browse ${topics.length} topics`}
-          </Button>
-        </Row>
-        {!!browse && (
-          <Stack gap="sm">
-            <PageControls
-              search={{
-                label: 'Find a topic',
-                value: query,
-                onValueChange: setQuery,
-                placeholder: 'Search the sample Vault…',
-              }}
-            />
-            {topics
-              .filter((entry) => entry.title.toLowerCase().includes(query.toLowerCase()))
-              .map((entry) => (
-                <SelectionRow
-                  key={entry.id}
-                  selected={entry.id === topic?.id}
-                  onSelect={() => navigateTopic(entry.id)}
-                >
-                  <Text>{entry.title}</Text>
-                </SelectionRow>
-              ))}
-          </Stack>
-        )}
-        <Text tone="muted">
-          {design === 'inquiry'
-            ? 'Inspired by Discourse Graphs and Bloom: keep several evidence paths on a working canvas.'
-            : design === 'local'
-              ? 'Inspired by Obsidian and TheBrain: inspect one neighborhood, then choose where to go next.'
-              : 'Inspired by Graphologue: the diagram and readable statements share a selection.'}
-        </Text>
-        <Row wrap={true}>
-          <Button variant="outline" onClick={() => setCount(count + 3)}>
-            Show more statements ({Math.max(0, matching.length - count)} remaining)
-          </Button>
-          <Button variant="ghost" onClick={reset}>
-            Reset investigation
-          </Button>
-          {hidden.length > 0 && (
-            <Button variant="ghost" onClick={() => setHidden(hidden.slice(0, -1))}>
-              Undo hide
+          <Row wrap={true}>
+            <Button variant="ghost" onClick={global}>
+              Whole Vault
             </Button>
-          )}
-          {design === 'local' && history.length > 0 && (
-            <Button
-              variant="outline"
-              onClick={() => {
-                const previous = history.at(-1)!;
-                setRoot(previous);
-                setChosen(previous);
-                setHistory(history.slice(0, -1));
-              }}
-            >
-              Back to previous focus
+            {!!area && <Badge variant="secondary">{area}</Badge>}
+            {!!focused && <Text weight="medium">Local · {focused.label}</Text>}
+          </Row>
+          {history.length > 0 && (
+            <Button variant="outline" onClick={back}>
+              Back one level
             </Button>
           )}
         </Row>
-        {design !== 'local' && (
-          <PageControls
-            filters={{
-              label: 'Investigation lens',
-              value: lens,
-              active: lens !== 'all',
-              onValueChange: (value) => {
-                setLens(value);
-                setCount(3);
-              },
-              options: [
-                { value: 'all', label: 'All statements' },
-                { value: 'changed', label: 'Changed or removed sources' },
-                { value: 'uncited', label: 'Without citations' },
-              ],
-            }}
-          />
-        )}
+        {filters}
         <Text size="sm" tone="muted">
-          {shown.length} visible records · {shownEdges.length} visible connections ·{' '}
-          {design === 'local'
-            ? `${Math.max(0, edges.filter((edge) => edge.source === focus?.id || edge.target === focus?.id).length - localEdges.length)} more immediate connections`
-            : `${statements.length - branches.length} statements outside the canvas`}{' '}
-          · {pinned.length} pinned branches
+          {records.length} sample records · {visible.length}{' '}
+          {design === 'atlas' && !focus && !area
+            ? `represented in ${groups.length} areas`
+            : 'visible'}{' '}
+          · {visibleEdges.length} connections
+          {focus ? ` · ${matching.length - visible.length} beyond the local view limit` : ''}
         </Text>
-        {design === 'inquiry' ? (
+        {!!focus && (
+          <Row wrap={true}>
+            <Button variant={depth === 1 ? 'filled' : 'outline'} onClick={() => setDepth(1)}>
+              Immediate neighbors
+            </Button>
+            <Button variant={depth === 2 ? 'filled' : 'outline'} onClick={() => setDepth(2)}>
+              Two steps out
+            </Button>
+            <Button variant="outline" onClick={global}>
+              Return to global map
+            </Button>
+          </Row>
+        )}
+        {design === 'map' ? (
           <Stack gap="lg">
-            {diagram}
-            <Columns>
-              <Stack gap="lg">
-                <Heading level={2}>Add a branch</Heading>
-                {matching
-                  .filter((block) => !branchIds.has(block.id))
-                  .map((block) => (
-                    <SelectionRow
-                      key={block.id}
-                      selected={false}
-                      onSelect={() => {
-                        setPinned([...pinned, block.id]);
-                        setHidden(hidden.filter((id) => id !== block.id));
-                        setChosen(block.id);
-                      }}
-                    >
-                      <Text>{words(block)}</Text>
-                    </SelectionRow>
-                  ))}
-              </Stack>
-              {inspector}
-            </Columns>
+            {graph}
+            <Text tone="muted">
+              Blue topics · grey statements · green sources · amber questions. Select a topic, then
+              choose Focus neighborhood.
+            </Text>
+            {recordIndex}
           </Stack>
-        ) : design === 'local' ? (
+        ) : design === 'atlas' ? (
+          !(focus || area) ? (
+            <Stack gap="lg">
+              <Heading level={2}>Choose an area of your Vault</Heading>
+              {overview}
+              <Columns>
+                {groups.map((group) => (
+                  <Card key={group}>
+                    <CardContent>
+                      <Stack gap="sm">
+                        <Heading level={3}>{group}</Heading>
+                        <Text>
+                          {records.filter((record) => record.group === group).length} records ·{' '}
+                          {
+                            records.filter(
+                              (record) => record.group === group && record.tone === 'topic',
+                            ).length
+                          }{' '}
+                          topics
+                        </Text>
+                        <Row wrap={true}>
+                          {populations.map((population) => (
+                            <Text key={population} size="sm" tone="muted">
+                              {
+                                records.filter(
+                                  (record) => record.group === group && record.tone === population,
+                                ).length
+                              }{' '}
+                              {names[population].toLowerCase()}
+                            </Text>
+                          ))}
+                        </Row>
+                        <Button variant="outline" onClick={() => openArea(group)}>
+                          Explore {group}
+                        </Button>
+                      </Stack>
+                    </CardContent>
+                  </Card>
+                ))}
+              </Columns>
+            </Stack>
+          ) : (
+            <Stack gap="lg">
+              {graph}
+              {recordIndex}
+            </Stack>
+          )
+        ) : (
           <Columns>
             <Stack gap="lg">
-              <Heading level={2}>{focus?.label}</Heading>
-              {diagram}
-              <Heading level={3}>Start from a question</Heading>
-              {questions.map((question) => (
-                <Button key={question.id} variant="outline" onClick={() => center(question.id)}>
-                  {words(question)}
-                </Button>
-              ))}
-              <Heading level={3}>Jump to a statement</Heading>
-              {statementList}
+              <Heading level={2}>{focus ? 'Local connections' : 'Whole Vault map'}</Heading>
+              {graph}
             </Stack>
-            {inspector}
+            <Stack gap="lg">
+              <Heading level={2}>Record index</Heading>
+              {recordIndex}
+              {!!(focus || area) && (
+                <>
+                  <Heading level={3}>Your place in the Vault</Heading>
+                  {overview}
+                </>
+              )}
+            </Stack>
           </Columns>
-        ) : (
-          <Stack gap="lg">
-            <Columns>
-              <Stack gap="lg">
-                <Heading level={2}>Read and select</Heading>
-                {statementList}
-              </Stack>
-              {diagram}
-            </Columns>
-            {inspector}
-          </Stack>
         )}
-        {!branches.length && design !== 'local' && (
-          <Text>
-            No visible statements match this lens. Reset the investigation or choose another lens.
-          </Text>
-        )}
-        <Separator />
-        <Row wrap={true}>
-          <Link href={`#/wiki/${encodeURIComponent(topic?.id ?? '')}/`}>Read the Wiki page</Link>
-          <Link href="https://discoursegraphs.com/docs/obsidian/core-features/canvas">
-            Discourse Graphs
-          </Link>
-          <Link href="https://neo4j.com/docs/bloom-user-guide/current/bloom-visual-tour/bloom-scene-interactions/">
-            Bloom
-          </Link>
-          <Link href="https://arxiv.org/html/2305.11473v2">Graphologue</Link>
-        </Row>
         <Text size="sm" tone="muted">
-          Pinning, hiding and expanding change this working view only. Topic references are
-          background provenance, separate from statement citations.
+          Areas use the sample’s recorded topic categories. Their placement is illustrative;
+          cross-area lines come from recorded connections and citations.
         </Text>
+        <Drawer
+          open={inspecting}
+          onClose={() => setInspecting(false)}
+          title="Graph record"
+          placement="right"
+        >
+          {!!selected && (
+            <Stack gap="lg">
+              <Badge variant="secondary">
+                {names[selected.tone]} · {selected.group}
+              </Badge>
+              <Heading level={2}>{selected.label}</Heading>
+              <Button onClick={() => focusRecord(selected.id)}>Focus neighborhood</Button>
+              <Text size="sm" tone="muted">
+                {relations.length} direct connections · population filters remain active
+              </Text>
+              {selected.tone === 'question' && (
+                <Text>
+                  This question is open. Context connections do not count as a recorded Answer.
+                </Text>
+              )}
+              {selected.tone === 'topic' && (
+                <Link href={`#/wiki/${encodeURIComponent(selected.id)}/`}>Read Wiki page</Link>
+              )}
+              {selected.tone === 'statement' &&
+                (selected.block?.evidence.length ? (
+                  selected.block.evidence.map(source)
+                ) : (
+                  <Text>
+                    No statement citation. Topic references do not establish support for this
+                    statement.
+                  </Text>
+                ))}
+              {selected.tone === 'source' &&
+                records
+                  .filter((record) =>
+                    record.block?.evidence.some(
+                      (reference) => reference.source.node === selected.id,
+                    ),
+                  )
+                  .map((record) => (
+                    <Stack key={record.id} gap="sm">
+                      <SelectionRow selected={false} onSelect={() => setChosen(record.id)}>
+                        <Text>{record.label}</Text>
+                      </SelectionRow>
+                      {record.block?.evidence
+                        .filter((reference) => reference.source.node === selected.id)
+                        .map(source)}
+                    </Stack>
+                  ))}
+              <Separator />
+              <Heading level={3}>Direct connections</Heading>
+              {relations.map((edge) => {
+                const other = records.find(
+                  (record) =>
+                    record.id === (edge.source === selected.id ? edge.target : edge.source),
+                );
+                return other ? (
+                  <SelectionRow key={edge.id} selected={false} onSelect={() => setChosen(other.id)}>
+                    <Stack gap="xs">
+                      <Text size="sm" tone="muted">
+                        {edge.source === selected.id ? 'Outgoing' : 'Incoming'} · {edge.label}
+                      </Text>
+                      <Text>{other.label}</Text>
+                    </Stack>
+                  </SelectionRow>
+                ) : null;
+              })}
+            </Stack>
+          )}
+        </Drawer>
       </Stack>
     </FeaturePage>
   );
