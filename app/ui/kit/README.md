@@ -572,7 +572,8 @@ Run `npm run typecheck`, `npm run lint` and focused tests under
 exact pushed commit. For text entry, use `npm run test:ui -- app/ui/kit/composer.browser.test.ts` and the
 relevant Questions, catalogue and edge-rail scenarios. Install Chromium once with
 `npx playwright install chromium` (`--with-deps` on Linux CI). The browser suite starts its own sample
-server on port 4179 and leaves the design-review server on 4178 running. It uses the public kit fixture
+server on port 4179 by default. Use the URL reported by Vite for the design-review server and
+separate ports for simultaneous worktrees, as described in the testing policy. It uses the public kit fixture
 at `tests/browser.html` and the sample preview, with no private vault or paid API.
 
 The suite runs at phone, desktop and touch-desktop sizes. Catalogue coverage checks paired samples,

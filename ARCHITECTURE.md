@@ -73,7 +73,7 @@ app/
     content/                 content operations, tools and recorded action receipts
     records/                 retained kinds awaiting modules and their source reading
     sources.ts               generic historical source-reading contract
-    session/                 credentials, encryption and file/Node adapter lifetime
+    session/                 credentials, encryption and Node adapter lifetime
     storage/
       nodes/                 GitHub transaction persistence
       github-client/         shared GitHub transport
@@ -83,9 +83,7 @@ tools/
   architecture/              compiler-resolved dependencies, cycles and kit composition checks
   build/                     build-time dynamic-code guard and credential sealing
   preview/                   live Agent proxy and sample preview packaging/publishing
-  testing/                   focused-test and CI-only runner guards
-  browser/                   browser integration specs and fixtures
-  production/                built production browser specs and runner configuration
+  testing/                   focused-test guards, browser runners and mutation configuration
 ```
 
 `app/ui/` contains only the kit. Shared application behavior has named owners: for example,
@@ -415,11 +413,10 @@ Chat receives supported presentation choices explicitly and imports no design va
 Compiler-resolved source reachability from the production main/service-worker entries rejects
 preview-only records and catalogue/tooling dependencies, including type-only and dynamic imports.
 Secondary module preview pages are built and retained in the deployed design artifact.
-The preview builds separately, contains no sealed secrets and registers no service worker. Its
-GitHub Pages job runs on `structure` and `design-variants`, refreshing the shared `/preview/structure/`
-and kit gallery links alongside the exact deployed production artifact. The preview version records
-the publishing branch and commit. Design iteration precedes merging the application and migrating
-private vault content.
+The preview builds separately, contains no sealed secrets and registers no service worker.
+Browser integration specs live beside their owning modules under `app/`; runner configuration
+lives in `tools/testing/`. See the [preview workflow](docs/agents/preview.md) for branch publishing
+and the [testing policy](docs/agents/testing.md) for verification.
 
 ## Node storage
 

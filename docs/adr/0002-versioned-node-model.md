@@ -163,8 +163,8 @@ with multiple placements use appearances; nodes with multiple references use ref
 Deleting shared content has a broad visible effect with a local stored change. A database foreign
 key verifies identity existence; snapshot availability and presentation remain application rules.
 
-The node model and storage are available alongside the current file workflows.
-[Node storage](../../app/vault/README.md) describes the application interface and next integration slice.
+Node-only application integration completed on 2026-10-15; the file workflows were removed.
+[Node storage](../../app/vault/README.md) describes the current application interface.
 
 ## Citations and append-only records
 
