@@ -130,8 +130,6 @@ test('OpenAI model choices match each capability and retain the installation mod
   expect(choices('liveTranscriptionModel')).not.toContain(DEFAULT_MODELS.fileTranscription);
   expect(choices('fileTranscriptionModel')).toContain('gpt-4o-mini-transcribe');
   expect(choices('fileTranscriptionModel')).not.toContain(DEFAULT_MODELS.liveTranscription);
-  expect(choices('embeddingsModel')).toContain('text-embedding-3-large');
-  expect(choices('embeddingsModel')).not.toContain(DEFAULT_MODELS.llm);
   expect(choices('voice')).toContain('cedar');
   expect(choices('voice')).not.toContain(DEFAULT_MODELS.voice);
   const defaultChoices = providerSettings.fields.find((field) => field.key === 'model')?.choices;
@@ -164,7 +162,6 @@ test('dropdown suggestions preserve saved custom model and voice IDs across reop
     voiceModel: 'custom-realtime',
     liveTranscriptionModel: 'custom-live-transcription',
     fileTranscriptionModel: 'custom-file-transcription',
-    embeddingsModel: 'custom-embeddings',
     voice: 'custom-voice',
   };
   for (const [key, value] of Object.entries(custom)) {
@@ -178,7 +175,6 @@ test('dropdown suggestions preserve saved custom model and voice IDs across reop
       voice: custom.voiceModel,
       liveTranscription: custom.liveTranscriptionModel,
       fileTranscription: custom.fileTranscriptionModel,
-      embeddings: custom.embeddingsModel,
     },
     voice: custom.voice,
   });
@@ -189,31 +185,13 @@ test('dropdown suggestions preserve saved custom model and voice IDs across reop
   });
 });
 
-test.each(['0', '-1', '1.5', 'Infinity', '9007199254740992'])(
-  'rejects invalid embedding dimensions %s',
-  (value) => {
-    const preferences = createSettings(providerSettings);
-    expect(() => preferences.set('embeddingDimensions', value)).toThrow('positive integer');
-  },
-);
-
-test('saved models and dimensions configure actual text, audio and embedding requests', async () => {
+test('saved models configure actual text and audio requests', async () => {
   const preferences = createSettings(providerSettings);
   preferences.set('model', 'configured-text');
   preferences.set('fileTranscriptionModel', 'configured-file');
-  preferences.set('embeddingsModel', 'configured-embedding');
-  preferences.set('embeddingDimensions', '2');
   const fetch = vi.fn<typeof globalThis.fetch>().mockImplementation((url) => {
     if (String(url).endsWith('/audio/transcriptions'))
       return Promise.resolve(Response.json({ text: 'Transcript' }));
-    if (String(url).endsWith('/embeddings'))
-      return Promise.resolve(
-        Response.json({
-          model: 'configured-embedding',
-          data: [{ index: 0, embedding: [1, 2] }],
-          usage: { prompt_tokens: 1, total_tokens: 1 },
-        }),
-      );
     return Promise.resolve(
       Response.json({
         id: 'response',
@@ -246,18 +224,11 @@ test('saved models and dimensions configure actual text, audio and embedding req
   expect((await capabilities.transcribe(new File(['audio'], 'recording.webm'))).model).toBe(
     'configured-file',
   );
-  expect((await capabilities.embed(['Hello'])).dimensions).toBe(2);
   expect(JSON.parse(fetch.mock.calls[0]![1]!.body as string)).toMatchObject({
     model: 'configured-text',
     store: false,
   });
   expect((fetch.mock.calls[1]![1]!.body as FormData).get('model')).toBe('configured-file');
-  expect(JSON.parse(fetch.mock.calls[2]![1]!.body as string)).toMatchObject({
-    model: 'configured-embedding',
-    dimensions: 2,
-  });
-  reopened.set('embeddingDimensions', '');
-  expect(openAIOptions(reopened.values())).not.toHaveProperty('embeddingDimensions');
 });
 
 test('voice and live transcription settings reach their separate realtime sessions', async () => {

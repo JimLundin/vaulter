@@ -218,9 +218,9 @@ unfinished invocations. Local protocol ordering is scoped to its session; unrela
 text runs share no whole-Vault lifetime queue.
 
 `createOpenAICapabilities` in `app/agent/openai/index.ts` retains the existing configured Responses,
-live voice, live transcription, file transcription and embedding capabilities. Responses request
-`store: false`; session credentials stay in provider transport closures. Chat's established model
-and transcription imports remain compatibility delegates. Media and protocol tests use fictional
+live voice, live transcription and file transcription capabilities. Responses request
+`store: false`; session credentials stay in provider transport closures. Chat uses the Agent-owned
+provider interfaces. Media and protocol tests use fictional
 channels, tracks, HTTP responses and the production memory NodeStore, with no microphone access or
 paid model calls.
 

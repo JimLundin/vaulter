@@ -31,13 +31,3 @@ export type FileTranscriptionProvider = (
   audio: File,
   signal?: AbortSignal,
 ) => Promise<FileTranscriptionResult>;
-export interface EmbeddingResult {
-  readonly model: string;
-  readonly dimensions: number;
-  readonly vectors: readonly (readonly number[])[];
-  readonly tokens: number;
-}
-export type EmbeddingProvider = (
-  texts: readonly string[],
-  signal?: AbortSignal,
-) => Promise<EmbeddingResult>;

@@ -19,7 +19,6 @@ const MODEL_CHOICES = {
   voice: ['gpt-realtime-2.1', 'gpt-realtime-2.1-mini'],
   liveTranscription: ['gpt-live-transcribe', 'gpt-realtime-whisper'],
   fileTranscription: ['gpt-transcribe', 'gpt-4o-transcribe', 'gpt-4o-mini-transcribe'],
-  embeddings: ['text-embedding-3-small', 'text-embedding-3-large'],
 };
 
 // https://developers.openai.com/api/docs/guides/realtime-conversations#voice-options
@@ -97,32 +96,12 @@ export function createOpenAISettings(
         MODEL_CHOICES.fileTranscription,
       ),
       modelSetting(
-        'embeddingsModel',
-        'Embedding model',
-        'Used when producing text embeddings.',
-        DEFAULT_MODELS.embeddings,
-        MODEL_CHOICES.embeddings,
-      ),
-      modelSetting(
         'voice',
         'Voice',
         'The voice used for spoken Agent responses.',
         DEFAULT_VOICE,
         VOICE_CHOICES,
       ),
-      {
-        key: 'embeddingDimensions',
-        label: 'Embedding dimensions',
-        description: 'A positive integer. Leave blank for the embedding model default.',
-        kind: 'number',
-        parse: (value) => {
-          if (!value.trim()) return;
-          const dimensions = Number(value);
-          if (!Number.isSafeInteger(dimensions) || dimensions < 1)
-            throw new Error('Embedding dimensions must be a positive integer.');
-          return dimensions;
-        },
-      },
       {
         key: 'api',
         label: 'OpenAI API endpoint',
@@ -172,22 +151,13 @@ export function selectedOpenAIModel(defaultModel: string = DEFAULT_MODELS.llm) {
 export function openAIOptions(values: Readonly<Record<string, unknown>>) {
   const text = (key: string, fallback: string) =>
     typeof values[key] === 'string' && values[key].trim() ? values[key].trim() : fallback;
-  const dimensions = values.embeddingDimensions;
-  if (
-    dimensions !== undefined &&
-    dimensions !== '' &&
-    (typeof dimensions !== 'number' || !Number.isSafeInteger(dimensions) || dimensions < 1)
-  )
-    throw new Error('Embedding dimensions must be a positive integer.');
   return {
     models: {
       llm: text('model', DEFAULT_MODELS.llm),
       voice: text('voiceModel', DEFAULT_MODELS.voice),
       liveTranscription: text('liveTranscriptionModel', DEFAULT_MODELS.liveTranscription),
       fileTranscription: text('fileTranscriptionModel', DEFAULT_MODELS.fileTranscription),
-      embeddings: text('embeddingsModel', DEFAULT_MODELS.embeddings),
     },
     voice: text('voice', DEFAULT_VOICE),
-    ...(typeof dimensions === 'number' ? { embeddingDimensions: dimensions } : {}),
   };
 }

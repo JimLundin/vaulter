@@ -5,7 +5,6 @@ import { createVoiceAgent, type VoiceAgentOptions } from '../voice-runtime.ts';
 import { createAgentBackend } from '../runtime.ts';
 import { openAITranscription } from './live-transcription.ts';
 import { openAIDictation } from './dictation.ts';
-import { openAIEmbeddings } from './embeddings.ts';
 import { openAIFileTranscription } from './file-transcription.ts';
 import { openAILiveVoice } from './live-voice.ts';
 import { openAIHttp, type OpenAIConnectionOptions } from './http.ts';
@@ -19,9 +18,7 @@ export function createOpenAICapabilities(
       readonly voice?: string;
       readonly liveTranscription?: string;
       readonly fileTranscription?: string;
-      readonly embeddings?: string;
     };
-    readonly embeddingDimensions?: number;
     readonly voice?: string;
   },
 ) {
@@ -32,7 +29,6 @@ export function createOpenAICapabilities(
     voice: options.models?.voice ?? DEFAULT_MODELS.voice,
     liveTranscription: options.models?.liveTranscription ?? DEFAULT_MODELS.liveTranscription,
     fileTranscription: options.models?.fileTranscription ?? defaultFileTranscriptionModel(http.api),
-    embeddings: options.models?.embeddings ?? DEFAULT_MODELS.embeddings,
   });
   const model = async (name = models.llm) =>
     wrapLanguageModel({
@@ -83,10 +79,5 @@ export function createOpenAICapabilities(
     liveTranscription,
     dictation: openAIDictation(liveTranscription, transcribe),
     transcribe,
-    embed: openAIEmbeddings({
-      ...options,
-      model: models.embeddings,
-      dimensions: options.embeddingDimensions,
-    }),
   };
 }

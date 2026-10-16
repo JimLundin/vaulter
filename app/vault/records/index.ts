@@ -1,5 +1,6 @@
 // Schemas for vault records whose modules are not implemented yet, by kind. A module claims its kinds
 // and owns future writes; schema evolution retains historical decoding.
+// The private Vault translator calls parseVaultRecord; production source reading uses sources.ts.
 import type { z } from 'zod';
 import type { JsonObject } from '../nodes/model.ts';
 import { canonical, frozen } from '../nodes/json.ts';

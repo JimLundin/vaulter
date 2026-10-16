@@ -163,6 +163,18 @@ recursive tree. This is suitable for the current storage slice, not unlimited hi
 produces an explicit failure. Checkpoints/paged remote indexes and bounded cold reconstruction need
 measurements as usage grows. No garbage collection discards referenced historical evidence.
 
+## Retained record validation and reading
+
+`records/index.ts` validates kinds awaiting their own modules through `parseVaultRecord`.
+The private Vault translator composes this parser with the implemented record owners; validation
+stays with Vaulter, while extraction and enrichment policy stay with that consumer under
+[ADR 0007](../../docs/adr/0007-vault-owned-translation.md). Advancing the consumer's Vaulter pin
+requires verifying its current imports before removing these schemas.
+
+Production reads retained source text through `records/sources.ts` and resolves actor names through
+`identityName`. Those historical readers serve a separate purpose from translation validation;
+their availability does not replace the registry or permit dropping historical interpretation.
+
 ## Verification and current integration
 
 History's `nodeHistory()` reader supplies transactions, author and origin at the transaction's

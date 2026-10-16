@@ -20,7 +20,7 @@ Module views use typed payloads/projections plus actions; reading/subscription/e
 the module. Compose SupportingPane with content, requested visibility and optional anchored dock;
 its width/header/focus/scroll/compact transition are kit policy rather than caller choices.
 
-History-specific presentation has moved to History. `ExpandableRow` owns shared disclosure,
+History owns transaction-specific presentation. `ExpandableRow` owns shared disclosure,
 metadata placement and details geometry; `RowAction` owns compact accessible action presentation.
 Callers supply title, metadata content, explicit expansion state, actions and details. The kit does
 not interpret transaction sequence, authors, origin, differences or compensation policy. Its paired
@@ -86,11 +86,6 @@ unfocused, Enter when focused, and a supporting Stop action while responding. Mi
 use the shared Filled style. The design preview pill contains a Mobile toggle, variant choices, the kit link and reset;
 the default Application preview uses the current production design.
 
-The preview fills its available window by default and adapts as that window changes. Turn on Mobile
-to constrain the app to 390px (or the available width on narrower screens); turning it off restores
-adaptive sizing. The grip icon at the bar's edge supports dragging, arrow-key movement and Home to
-reset its position. On compact screens a separate chevron expands the controls.
-
 ## Foundation and spacing
 
 Controls originate from **shadcn/ui**, with **Base UI** for interactions and **Tailwind** for styling.
@@ -99,15 +94,14 @@ component library. Vaulter defines the layout, type, colors and responsive roles
 Search uses inline Base UI Autocomplete behind the existing Command interface. Command retains
 automatic filtering, empty-state announcements and keyboard selection; Application supplies ranked
 results with `shouldFilter={false}`. The [Search decision](../../../docs/adr/0001-base-ui-search.md)
-records why cmdk was removed and the clarified scope: default Command uses Base UI text matching
-in caller order; legacy cmdk options are not a compatibility target. Composition uses Base UI's
+records the choice: default Command uses Base UI text matching in caller order. Composition uses Base UI's
 `render` prop, `useRender` and `mergeProps`.
 
 Adapters preserve kit behavior where library defaults differ: dropdown labels can stand alone,
 checkbox selections close their menu, and dialogs respect each surface's initial-focus choice.
 
 Short modal tasks use adaptive `Overlay`; Search uses shared `CommandOverlay` and preferences use
-`SettingsMenu`. Generic public Dialog assembly, CommandDialog and SettingsPage are retired.
+`SettingsMenu`.
 Private Base UI dialog adapters still support Overlay and Search focus, dismissal and accessible
 titles. `DialogFooter` remains a standalone optional layout for caller-supplied actions: right-aligned
 on desktop and stacked on phones. Its optional close action remains available; overlays need not
@@ -118,7 +112,7 @@ dismissal mechanics. Its callers supply the title, close label and presentation 
 owns query state, ranked entries, recent entries, task groups and navigation/command/ask actions;
 its typed `SearchView` renders resolved `Hit`/`Entry` values and explicit actions without a vault
 adapter or Agent controller. The catalogue demonstrates generic item selection through the same
-overlay, with paired bounded presentation. Search-specific `SearchSurface` is removed.
+overlay, with paired bounded presentation.
 
 Spacing uses a 4px scale: 4px between inset actions, 8px between related controls, 16px within
 content and 24px between sections. `--space-control`, `--space-row`, `--space-content` and
@@ -154,13 +148,11 @@ quick-note and vault-access examples use the same primitives.
 
 General fields retain standard semantic legends and vertical or horizontal arrangements; Settings
 keeps its adaptive label/control grid. Grouped input context sits inline before or after the field,
-with measured inset actions at the end. Smaller legends, generic responsive Field rows and
-above/below grouped-input add-ons are retired.
+with measured inset actions at the end.
 
 Voice/activity presentation keeps meaningful status labels and visible LiveStatus text. Question
 answers support list and inline layouts with supplied recommendation emphasis. Ordinary keycaps
-and labelled shortcut sequences remain; elapsed Recording, decorative StatusMark, numeric answer
-hints and enlarged/strong keyboard-hint variations are retired.
+and labelled shortcut sequences communicate available actions.
 
 ## Desktop and mobile variants
 
@@ -240,10 +232,9 @@ do not wrap those children in another scrolling feed. `persistent` requests desk
 The kit owns the 340px width, header, inset, `md` transition, dismissal, gestures, focus return and
 bounded portals. Expanded/wide content stays beside the page; compact content uses the full-height
 bottom Drawer. Chat supporting content, saved-conversation selection, Wiki references and paired
-generic examples consume this seam. `ConversationPanel`, `AdaptivePanel` and reading-support
-wrappers are retired; generic examples use the same supporting presentation seam.
+generic examples consume this seam.
 Wiki composes its typed page view from shared reading/page/section presentation and `SupportingPane`;
-`WikiPageSurface` and shell styling are removed. Shared `PassageCard` owns source-card presentation; Wiki retains citation interpretation.
+Shared `PassageCard` owns source-card presentation; Wiki retains citation interpretation.
 
 `PassageCard` receives title content, presentation text and optional half-open selection offsets,
 attribution/notice/empty content and disclosure/context labels. It owns clipping, fade feedback,
@@ -251,8 +242,8 @@ keyboard/touch disclosure, a bounded expanded text scroll owner and selected-tex
 The module decides what the retained selection and notices mean and supplies safe navigation.
 The kit does not inspect source records, determine support or rewrite text. Paired neutral examples
 show independent disclosure, a long marked passage and absent text. Source context expansion and
-user scrolling stay mounted across pane/device changes. Wiki source-card CSS and its renderer
-exception are removed; shared mechanics live in `passage-card.tsx`/`passage-card.css`.
+user scrolling stay mounted across pane/device changes. Shared mechanics live in
+`passage-card.tsx`/`passage-card.css`.
 
 ### Primitive composition
 
@@ -283,9 +274,8 @@ The private presentation owner chooses portal scope, modal policy, dismissal own
 focus return; the Base UI adapter owns focus trapping, background effects and swipe mechanics.
 Closing nested or overlapping drawers preserves any remaining modal task. Bounded Settings
 examples stay independently editable and release their scope when catalogue filtering unmounts them.
-`WorkspaceFrame` supplies the shared workspace through `NavigationSuite`. DesktopMain and
-MobileFrame alternatives have been retired, including the latter's reserved notice row. Existing
-Notice attention cards and Toaster notifications remain; notification integration and placement
+`WorkspaceFrame` supplies the shared workspace through `NavigationSuite`.
+Notice attention cards and Toaster notifications are available; notification integration and placement
 are tracked separately in #22.
 Chat supporting content uses `SupportingPane`, sharing expanded inline and compact Drawer
 geometry with conversation selection. Supporting panes keep one mounted draft field as they
@@ -323,18 +313,9 @@ in the app. Sample dialogs remain local and do not lock or hide the catalogue; p
 focus, scroll locking and focus return still use the normal browser behavior. These previews show
 layout and control behavior; they do not simulate a phone browser keyboard or microphone.
 
-The sample app uses public `DesignPreview` to center a floating dark pill over the workspace.
-Desktop shows Mobile, the kit link and reset in one row; on phones, expand Preview controls,
-then tap outside or press Escape to collapse it. **Mobile** centers a 390px touch viewport,
-constrained to the browser width; switching it off follows the window. Switching modes
-rearranges the same mounted product and retains routes, drafts and open settings/search fields.
-Portals stay inside the selected viewport while the pill remains available. The frame follows
-the full visual viewport height, with the pill overlaying the app without reserving any layout
-space. The pill respects the top safe area.
-Drag the grip to move the pill with a mouse or touch. Its controls stay clickable,
-and its position is constrained when the panel expands or the visible viewport changes.
-With the grip focused, arrow keys move it (Shift moves faster) and Home returns it to the top
-center. Position belongs to the mounted preview and resets on reload.
+Public `DesignPreview` supplies the floating pill, adaptive viewport and Mobile width constraint.
+Device changes retain the mounted content, routes, drafts and open fields; portals stay within the
+selected viewport. See the [preview guide](../../../docs/agents/preview.md) for review controls.
 
 `DesignComparison` supplies named alternatives and owns the selected variant. Its optional
 `preview` render callback receives the picker and selected content; pass the picker through
@@ -562,19 +543,19 @@ The rail remains freestanding and app-owned.
 
 Responsive and preview-device changes retain the mounted field, focus and controlled draft. The
 paired Text box, Feed & composer and Agent panel samples own independent drafts and scoped geometry.
-`SendButton` remains available for standalone action-state examples. The former public `Composer`
-name is retired; ordinary callers use TextBox directly.
+`SendButton` is available for standalone action-state examples; ordinary callers use TextBox directly.
 
 ## Verifying a kit change
 
-Run `npm run typecheck`, `npm run lint` and focused tests under
-[the testing policy](../../../docs/agents/testing.md). Full-suite verification runs in CI for the
-exact pushed commit. For text entry, use `npm run test:ui -- app/ui/kit/composer.browser.test.ts` and the
-relevant Questions, catalogue and edge-rail scenarios. Install Chromium once with
-`npx playwright install chromium` (`--with-deps` on Linux CI). The browser suite starts its own sample
-server on port 4179 by default. Use the URL reported by Vite for the design-review server and
-separate ports for simultaneous worktrees, as described in the testing policy. It uses the public kit fixture
-at `tests/browser.html` and the sample preview, with no private vault or paid API.
+Use the [testing guide](../../../docs/agents/testing.md) for the edit loop, device selection,
+worktree ports and commit verification, and the [preview guide](../../../docs/agents/preview.md)
+for review and promotion. Kit-specific focused checks include:
+
+- Text entry: `npm run test:ui -- app/ui/kit/composer.browser.test.ts --project=desktop`.
+- Public examples: `npm run test:architecture -- tools/architecture/catalogue.test.ts`.
+- Composition ownership: `npm run test:architecture -- tools/architecture/composition.test.ts`.
+
+Browser fixtures use `tests/browser.html` and the fictional sample preview.
 
 The suite runs at phone, desktop and touch-desktop sizes. Catalogue coverage checks paired samples,
 independent drafts, scoped settings/search/menu portals, component search, CSS and touch density
@@ -583,14 +564,14 @@ touch targets, navigation/current state, centered feature columns, feature-named
 tab/checkbox behavior, Escape and focus return, search selection
 and drafts through size changes, the mobile field/microphone row before and after focus,
 Enter/Shift+Enter/IME, and a simulated visual
-viewport resize. The user accepted the physical Safari keyboard/scrolling retest at `1037d86`.
+viewport resize.
 Live microphone capture still needs device validation; the sample preview uses scripted audio.
 
 Fictional Wiki record examples live in `app/preview/`, outside the production catalogue and kit
 interface. Both the full preview and independent bounded pairs install real retained nodes, call
 `readWiki` and render module-owned `Wiki` UI. Selected evidence and newer/deleted source context
-use `PassageCard` and the shared supporting pane. The duplicated provenance prototype and its
-Application route are retired; old design links redirect only in the preview bootstrap.
+use `PassageCard` and the shared supporting pane. Historical design links redirect only in the
+preview bootstrap.
 
 `PresentationPreview` supplies a bounded desktop/mobile canvas for catalogue and module examples.
 It owns shared portal, pointer and layout policy, accepts content plus device and height, and does
@@ -610,7 +591,7 @@ Badge keeps default, secondary and destructive status labels. Named category Chi
 uses private secondary badge styling and remains passive or an accessible button when given an
 action; decorative dots require a supplied visible label, and callers own counts and state.
 
-MapView uses MapLibre, its bundled worker and OpenFreeMap dark/light styles; Leaflet is retired.
+MapView uses MapLibre, its bundled worker and OpenFreeMap dark/light styles.
 The paired Map example loads external tiles only after Load map, then demonstrates selectable
 category markers, solid/dashed routes and compact/section/fill sizes. Changing the map container's
 size refits supplied places/routes; selection and theme changes preserve the current camera.
@@ -620,11 +601,11 @@ Chat owns page and panel task composition, welcome copy and typed record interpr
 accepts neutral attribution/content in `Message` and supplies the shared feed, dock, toolbar and
 supporting pane. All supporting tasks use one 340px expanded pane and full-height compact Drawer;
 page toolbars and pane headers share the 48px header token. Touch controls keep their 44px targets.
-Chat's direct feed children gain no second scroll owner. The retired `Conversation*` aliases have no
-production or catalogue callers. Feed and Supporting feed examples demonstrate neutral values;
+Chat's direct feed children gain no second scroll owner. Feed and Supporting feed examples
+demonstrate neutral values;
 actual Chat fictional records remain in the application preview.
 
-Shared prose typography now lives in `prose.css` and is imported by the kit stylesheet. Chat owns
+Shared prose typography lives in `prose.css` and is imported by the kit stylesheet. Chat owns
 safe text/HAST interpretation and highlighting; its narrow semantic renderer allowance cannot
 be used to implement pane layout, custom controls, viewport branches or private kit imports.
 

@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, expect, test, vi } from 'vitest';
-import { openAITranscription, TRANSCRIPTION_MODEL } from './openai-transcription.ts';
+import { openAITranscription, TRANSCRIPTION_MODEL } from './live-transcription.ts';
 
 class FakeChannel {
   readyState = 'open';

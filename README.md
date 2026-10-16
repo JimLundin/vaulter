@@ -72,14 +72,8 @@ explicit `.ts` imports and `import type` (enforced by `tsconfig.json`).
 
 ## Project layout
 
-For the edit loop, test the owning module, for example `npm run test:watch -- app/workflows/chat`.
-For browser work, start with a spec and device:
-`npm run test:ui -- app/ui/kit/composer.browser.test.ts --project=desktop`.
-The [testing guide](docs/agents/testing.md) explains test placement, device tags and delivery checks.
-Full suites run only in CI: test the change locally, commit and push your feature branch, then
-inspect CI for that commit. Unscoped local suite commands exit with a focused-command example.
-CI runs behavior, architecture, static and production checks independently alongside four browser
-shards; every check must pass before production deployment.
+Use the [testing guide](docs/agents/testing.md) for focused local checks, test placement,
+device coverage and verification of the pushed commit in CI.
 
 `app/application/` composes the optional workflows in `app/workflows/`. Its `index.tsx` owns the shell
 and views; `composition.ts` connects record readers, tools and publication rules. Each task owns its behavior,
@@ -90,7 +84,7 @@ connections, and Application supplies embedded record rendering. Generic control
 `app/ui/kit/`; Settings, Navigation, Search and Runtime own their respective application behavior.
 See [ARCHITECTURE.md](ARCHITECTURE.md) for the module map, ownership and dependency rules.
 
-The app uses the component kit and reference design from branch `ui-kit`, in `app/ui/kit/`. Run
+The app uses the [component kit](app/ui/kit/README.md) in `app/ui/kit/`. Run
 `npm run kit` to open its searchable catalogue, with live desktop and mobile examples side by side.
 Every public component must have an example; CI checks coverage and app-wide kit composition.
 Workflow views compose its public components; styles stay in the kit, with a scoped exception for Markdown rendering. `tools/architecture/layout.test.ts` enforces the import rules
@@ -113,18 +107,11 @@ for target layouts, recovery, acceptance and current limits.
 
 ## Publishing
 
-Review the branch's current Application UI in its hosted sample preview before merging.
-The [preview workflow for agents](docs/agents/preview.md) covers comparisons and production promotion.
-Every branch push runs the checks. Non-main branches publish their sample preview at
-`/preview/<branch-name>/`, with the component gallery at `/preview/<branch-name>/kit/`.
-For example, `feature/input` publishes at `/preview/feature/input/`. `main` publishes production.
-The banner identifies the preview commit; `version.json` records its branch.
-Use **Mobile** in the movable preview pill to review phone width from your desktop. Switch it off
-to follow the window. Switching retains your current page, draft and open settings/search fields.
-The pill overlays the app; drag its grip to move it, or use arrow keys and Home on the focused grip.
-The app, preview and gallery share one primary microphone/Enter action according to field focus.
-Both use the same Filled style as New chat and confirmation actions; an empty focused draft keeps
-Enter disabled. The default preview has no active comparison or variation picker.
+Every branch push runs CI. Non-main branches publish a sample preview at
+`/preview/<branch-name>/`, with the gallery at `/preview/<branch-name>/kit/`; `main` publishes
+production. Review and promotion follow the [preview guide](docs/agents/preview.md), including
+checking the preview and production `version.json` commits.
+
 It uses the actual current Application views, fictional notes, an in-memory backend,
 and a scripted local model. Try “vault it: leave space for a walk before work” to create, read and
 update a fictional content node through the actual Agent. Reload reopens accepted Chat history without
@@ -133,11 +120,6 @@ question about Garden studio, then answer it from Questions or the Wiki page.
 Query scenarios `initial-save`, `lost-response`,
 `outcome-save` and `terminal-save` demonstrate persistence recovery. It ships no credentials, reads
 no private vault contents, and registers no service worker. Search opens the current Wiki page routes.
-
-For local iteration, run `npm ci` then `npm run design` on the branch being reviewed. Edit the kit or
-workflow views and Vite updates the browser. Use `npm run kit` separately for the kit's full gallery. The development
-preview lives at `/preview/`; the built preview moves its entry to the deploy root and includes the
-gallery under `kit/`.
 
 To test the real agent locally, run `npm run design:agent`. Set `VAULT_OPENAI_API` and
 `VAULT_OPENAI_MODEL` in the root `.env.local` (gitignored), and supply `VAULT_OPENAI_KEY`,
