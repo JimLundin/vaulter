@@ -13,6 +13,8 @@ const ownedKinds = new Set([...proseContainers, ...relationships, 'message']);
 
 function messageText(node: NodeVersion): string | undefined {
   const { data } = node;
+  if (data?.kind === 'externalRecord' && data.system === 'eav' && data.type === 'chat.message')
+    return typeof data.text === 'string' ? data.text : undefined;
   if (data?.kind !== 'message') return;
   if (typeof data.text === 'string') return data.text;
   if (Array.isArray(data.parts))
@@ -35,6 +37,8 @@ export function chatSources(conversationHref?: (node: string) => string): Source
     exactText: messageText,
     text(node, { view, textOf }) {
       const { data } = node;
+      const external = messageText(node);
+      if (data?.kind === 'externalRecord' && external !== undefined) return external;
       if (!data || typeof data.kind !== 'string' || !ownedKinds.has(data.kind)) return;
       if (relationships.has(data.kind)) return '';
       const message = messageText(node);
@@ -45,6 +49,19 @@ export function chatSources(conversationHref?: (node: string) => string): Source
       return fragments.filter(Boolean).join('\n');
     },
     describe(node, view) {
+      if (node.data?.kind === 'externalRecord' && messageText(node) !== undefined) {
+        const data = node.data;
+        return {
+          title: typeof data.text === 'string' ? data.text.slice(0, 100) : '',
+          href:
+            typeof data.conversation === 'string'
+              ? conversationHref?.(data.conversation)
+              : undefined,
+          date: typeof data.at === 'string' ? data.at : undefined,
+          speaker: data.role === 'user' || data.role === 'agent' ? data.role : undefined,
+          capture: true,
+        };
+      }
       if (!node.data || typeof node.data.kind !== 'string' || !ownedKinds.has(node.data.kind))
         return;
       let ancestor: NodeVersion | undefined = node;

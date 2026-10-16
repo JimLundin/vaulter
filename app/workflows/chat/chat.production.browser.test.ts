@@ -289,3 +289,107 @@ test.describe('production recorded dictation', () => {
     expect(modelRequests).toBe(0);
   });
 });
+
+test('production saves a new chat to EAV and restores it without reexecuting the Agent', async ({
+  page,
+}) => {
+  const fake = await fakeGitHub({ 'Retained.md': 'Untouched' });
+  const sealed = await seal(
+    { github: 'fictional-token', openai: 'fictional-key' },
+    'eav-password',
+    undefined,
+    1000,
+  );
+  await page.route('**/secrets.json', (route) => route.fulfill({ json: sealed }));
+  await page.route('https://api.github.com/**', async (route) => {
+    const request = route.request();
+    const response = await fake.fetchFn(
+      request.url().replace('https://api.github.com', 'https://gh.test'),
+      {
+        method: request.method(),
+        headers: request.headers(),
+        body: request.postData(),
+      },
+    );
+    await route.fulfill({
+      status: response.status,
+      body: await response.text(),
+      headers: Object.fromEntries(response.headers),
+    });
+  });
+  let calls = 0;
+  await page.route('https://api.openai.com/v1/responses', async (route) => {
+    if (!route.request().postDataJSON().stream) {
+      await route.fulfill({
+        status: 503,
+        json: { error: { message: 'Suggestions unavailable in this fixture' } },
+      });
+      return;
+    }
+    calls++;
+    const item = {
+      type: 'message',
+      id: 'msg',
+      status: 'completed',
+      role: 'assistant',
+      content: [{ type: 'output_text', text: 'Retained EAV reply', annotations: [] }],
+    };
+    const response = {
+      id: 'response',
+      object: 'response',
+      created_at: 1,
+      model: 'fixture-model',
+      status: 'completed',
+      output: [item],
+      usage: { input_tokens: 3, output_tokens: 2, total_tokens: 5 },
+    };
+    const events = [
+      { type: 'response.created', response },
+      { type: 'response.output_item.added', output_index: 0, item },
+      {
+        type: 'response.output_text.delta',
+        item_id: item.id,
+        output_index: 0,
+        content_index: 0,
+        delta: 'Retained EAV reply',
+      },
+      { type: 'response.output_item.done', output_index: 0, item },
+      { type: 'response.completed', response },
+    ];
+    await route.fulfill({
+      contentType: 'text/event-stream',
+      body: events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join(''),
+    });
+  });
+  await page.goto('/#/chat/');
+  await page.getByLabel('Password', { exact: true }).fill('eav-password');
+  await page.getByRole('button', { name: 'Open vault', exact: true }).click();
+  const input = page.getByRole('textbox', { name: 'Message', exact: true });
+  await input.fill('Remember this in EAV');
+  await expect(page.getByRole('button', { name: 'Send', exact: true })).toBeEnabled();
+  await input.press('Enter');
+  await expect(page.getByText('Retained EAV reply', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Stop', exact: true })).toBeHidden();
+  await expect(page).toHaveURL(/#\/chat\/[^/]+\/$/);
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  await expect
+    .poll(
+      () =>
+        Object.keys(fake.filesAt()).filter((path) => path.startsWith('.vaulter/eav/transactions/'))
+          .length,
+    )
+    .toBeGreaterThanOrEqual(4);
+  const journal = Object.entries(fake.filesAt())
+    .filter(([path]) => path.startsWith('.vaulter/eav/'))
+    .map(([, value]) => value)
+    .join('\n');
+  expect(journal).toContain('chat.message');
+  expect(journal).toContain('agent.run');
+  expect(journal).not.toContain('fictional-key');
+  expect(fake.filesAt()['Retained.md']).toBe('Untouched');
+  expect(calls).toBe(1);
+  await page.reload();
+  await expect(page.getByText('Retained EAV reply', { exact: true })).toBeVisible();
+  await expect(page.locator('[data-message="user"]')).toContainText('Remember this in EAV');
+  expect(calls).toBe(1);
+});

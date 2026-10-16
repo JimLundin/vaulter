@@ -1,3 +1,4 @@
+import { encodeJson, decodeJson } from './json.ts';
 import type { EntityDefinition, FieldDefinition } from './schema.ts';
 import { attributeKey } from './schema.ts';
 import { identify, materialize, type Issuance } from './identity.ts';
@@ -47,6 +48,8 @@ export function limit(value: unknown): number {
 }
 export function scalar(definition: FieldDefinition, value: unknown): Atom {
   switch (definition.kind) {
+    case 'json':
+      return { json: encodeJson(value) };
     case 'string':
       if (typeof value === 'string') return value;
       break;
@@ -122,7 +125,9 @@ export function valuesFor(
     if (
       isLive(candidate) &&
       recordType(candidate) === source.name &&
-      candidate.get(key)?.some((value) => typeof value === 'object' && value.ref === id)
+      candidate
+        .get(key)
+        ?.some((value) => typeof value === 'object' && 'ref' in value && value.ref === id)
     )
       values.push({ ref: candidateId, type: source.name });
   return values.sort((a, b) => atomKey(a).localeCompare(atomKey(b)));
@@ -135,11 +140,15 @@ function projectValue(
   selection: unknown,
 ): unknown {
   if (definition.kind === 'ref' || definition.kind === 'inverse') {
-    if (typeof atom !== 'object') throw new Error('Corrupt reference');
+    if (typeof atom !== 'object' || !('ref' in atom)) throw new Error('Corrupt reference');
     const resolved = context.snapshot.get(atom.ref);
     if (!isLive(resolved)) throw new Error('Reference target is unavailable in this snapshot');
     const entity = context.definitions.get(atom.type) ?? target(context, definition);
     return project(context, entity, atom.ref, resolved, selection === true ? {} : selection);
+  }
+  if (definition.kind === 'json') {
+    if (typeof atom !== 'object' || !('json' in atom)) throw new Error('Corrupt JSON');
+    return decodeJson(atom.json);
   }
   return definition.kind === 'datetime' ? new Date(atom as number) : atom;
 }
@@ -264,7 +273,7 @@ function matchesValue(
     return (
       !('some' in predicate) ||
       values.some((atom) => {
-        if (typeof atom !== 'object') return false;
+        if (typeof atom !== 'object' || !('ref' in atom)) return false;
         const record = context.snapshot.get(atom.ref);
         return (
           isLive(record) &&
@@ -281,7 +290,7 @@ function matchesValue(
   if (value === undefined) return false;
   for (const [operation, expected] of Object.entries(predicate)) {
     if (definition.kind === 'ref') {
-      if (typeof value !== 'object') return false;
+      if (typeof value !== 'object' || !('ref' in value)) return false;
       if (
         operation === 'eq' &&
         atomKey(reference(context, definition, expected)) !== atomKey(value)
@@ -359,7 +368,7 @@ export function selectRecords(
     for (const part of input.orderBy) {
       for (const [name, direction] of Object.entries(object(part, 'Order'))) {
         const definition = entity.fields[name]?.definition;
-        if (!definition || ['ref', 'set', 'inverse'].includes(definition.kind))
+        if (!definition || ['ref', 'set', 'inverse', 'json'].includes(definition.kind))
           throw new Error(`Cannot order by ${name}`);
         if (direction !== 'asc' && direction !== 'desc')
           throw new Error('Order must be asc or desc');

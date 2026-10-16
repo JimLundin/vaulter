@@ -2,9 +2,10 @@
 
 The standalone engine exposes typed entity objects over entity–attribute–value facts. Its public
 interface is `index.ts`. It has no dependency on the existing Node model or application workflows.
-The first backend is in memory: reuse a `createMemoryStorage()` result to reopen the same database
-with another handle. This retains data within that backend's lifetime, not across browser reloads.
-Application migration and a durable persistence adapter are subsequent work.
+`createMemoryStorage()` retains a database across handles within one process. For durable storage,
+`createPersistentStorage(adapter)` supplies an atomic journal adapter. Production Chat uses the
+GitHub adapter in `app/vault/storage/eav`, with a plaintext IndexedDB cache for offline reads.
+The application is adopting EAV one producer at a time; see ADR 0011.
 
 ```ts
 import { e, openDatabase, createMemoryStorage } from './index.ts';
@@ -41,6 +42,8 @@ if (latest) {
 
 ## Queries and identity
 
+`get(entity, { select })` loads a specific entity object from the selected snapshot, returning
+`undefined` if it is absent. It preserves hidden identity and validates foreign/wrong-type handles.
 `query(options)` returns a collection; `first(options)` returns its first member or `undefined`.
 Both apply filters and ordering before projecting the result. `first` owns its one-result limit;
 passing `limit` to it is rejected. It does not assert uniqueness. Without ordering, the first result
@@ -144,7 +147,7 @@ Creation has `before: null`, deletion has `after: null`. Cross-type changes form
 union on the registry key. History exposes net changes; intermediate writes, read-only transactions,
 and changes that cancel out do not create a committed data transaction.
 
-Schemas use strings, finite numbers, booleans, valid Dates, string enums, references, and sets,
+Schemas use strings, finite numbers, booleans, valid Dates, string enums, JSON values, references, and sets,
 with optional attributes. They produce serializable definitions, retained as numbered revisions.
 Type names and attribute identities beginning with `@` are reserved for the engine; attribute names
 `and`, `or`, and `not` are reserved by the predicate interface. Reference declarations must agree
@@ -162,13 +165,38 @@ An older open handle becomes invalid when the schema revision changes. Historica
 through compatible current definitions; incompatible migrations and version-specific decoding
 are deliberately not guessed or implemented by this first backend.
 
+`e.json()` retains a detached, deeply frozen JSON value. It rejects cycles, sparse arrays, undefined,
+non-finite numbers, class instances, getters and symbols (including entity identity). Object key order
+does not affect equality; array order and duplicates are preserved. JSON supports whole-value equality
+and membership, not nested projections or ordering. Relationships remain typed references.
+
 Facts store individual asserted/retracted values, with internal type, existence and empty-set
 presence attributes. Historical views reconstruct them from accepted transactions. First open and
-history reads are not bounded for large datasets. Checkpoints, indexed reads, durable storage,
-migrations, synchronization and application adoption need subsequent work.
+history reads are not bounded for large datasets. Checkpoints, indexed reads,
+incompatible schema migrations and broader application adoption need subsequent work.
 
 ## Verification
 
 `npm run test:fast -- app/vault/eav` exercises the public interface. `contract.type-test.ts` is checked
 by `npm run typecheck` and includes valid and rejected call sites, including `first` absence handling.
 Full routine verification runs in CI under the repository testing policy.
+
+## Durable acceptance
+
+A storage adapter loads an immutable journal and atomically appends a request against its recorded
+base. The GitHub adapter retains full schema revisions with each transaction, validates replay,
+verifies blob hashes and uses non-forced ref updates. It reconciles repeated requests and lost
+acceptance responses before reporting success. Existing files and accepted journal paths are preserved.
+`refresh()` synchronizes the handle; transactions refresh before capturing their snapshot.
+
+The callback runs once. On uncertain publication, `SaveError.retry()` resubmits that exact request
+and resolves only after acceptance; it does not rerun the callback or return its original result.
+Objects allocated by that pending publication retain identity, but remain absent from readers until
+accepted. A rejected/conflicting callback still invalidates its newly allocated objects. Retain any
+application result needed for recovery and query accepted state after retry. A conflicting request
+requires a new calculation against current state, never automatic replay of effects.
+
+The owner closes persistent storage with `closeStorage(storage)` when its session ends and calls
+`clearStorage(storage)` to remove its rebuildable device cache on sign-out. Closing an individual
+`await using db` handle does not discard shared storage. The production credential getter supplies the
+current token without changing storage identity or retaining credentials in records.

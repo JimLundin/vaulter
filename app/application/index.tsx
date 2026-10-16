@@ -115,12 +115,14 @@ type SuppliedSession = Omit<VaultSession, 'identity' | 'credentialPending' | 'cr
 
 export function Application({
   openNodes,
+  openEav,
   identities,
 }: {
   openNodes: OpenNodes;
+  openEav?: import('../vault/session/adapters.ts').OpenEav;
   identities?: ApplicationIdentities;
 }) {
-  const session = useVaultSession(openNodes);
+  const session = useVaultSession(openNodes, openEav);
   return (
     <VaultGate state={session}>
       <OpenApplication session={session} identities={identities} />
@@ -333,6 +335,7 @@ export function OpenApplication({
           : undefined));
   const conversation = useConversation(
     applicationChatOptions({
+      eav: session.eav,
       nodes: nodes ?? unavailableNodes,
       session: chatSession,
       identities,

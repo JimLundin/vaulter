@@ -1,6 +1,11 @@
 import type { Schema } from './schema.ts';
 
-export type Atom = string | number | boolean | { readonly ref: string; readonly type: string };
+export type Atom =
+  | string
+  | number
+  | boolean
+  | { readonly ref: string; readonly type: string }
+  | { readonly json: string };
 export type RecordState = ReadonlyMap<string, readonly Atom[]>;
 export type Snapshot = ReadonlyMap<string, RecordState>;
 export interface Fact {
@@ -42,7 +47,8 @@ export function isLive(record: RecordState | undefined): record is RecordState {
   return record?.get(liveAttribute)?.[0] === true;
 }
 export function atomKey(atom: Atom): string {
-  if (typeof atom === 'object') return `r:${atom.type.length}:${atom.type}:${atom.ref}`;
+  if (typeof atom === 'object')
+    return 'json' in atom ? `j:${atom.json}` : `r:${atom.type.length}:${atom.type}:${atom.ref}`;
   return `${typeof atom}:${String(atom)}`;
 }
 export function sameValues(left: readonly Atom[] = [], right: readonly Atom[] = []): boolean {

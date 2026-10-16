@@ -1,5 +1,9 @@
 # Agent-owned records
 
+The [EAV data model](../workflows/chat/data/README.md) defines independent Agent configuration, runs,
+inputs and tool executions in `data/`. Production Chat executes those runs through `eav/runtime.ts`.
+The existing Agent/voice entry points below retain their Node integration for remaining callers.
+
 The Vault is the collection of nodes exposed through TransactionStore. Agent execution produces records in that
 collection independently of Chat. The separate Vault migration can populate these same payloads
 and relationships; the application does not translate or import the existing Vault.

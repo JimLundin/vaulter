@@ -1,3 +1,4 @@
+import { refreshStorage, persist, SaveError, storageClosed } from './persistence.ts';
 import {
   e,
   describe,
@@ -78,6 +79,7 @@ export async function openDatabase<const R extends Registry>(
   options: OpenOptions<R>,
 ): Promise<Database<R>> {
   const storage = options.storage ?? createMemoryStorage();
+  await refreshStorage(storage);
   const registry = Object.freeze({ ...options.schema });
   const schema = describe(registry);
   const initial = readStorage(storage);
@@ -98,7 +100,7 @@ export async function openDatabase<const R extends Registry>(
   const scopes = new Set<Scope>();
   const subscriptions = new Set<() => void>();
   const ensure = () => {
-    if (!open) throw new Error('Database handle is closed');
+    if (!open || storageClosed(storage)) throw new Error('Database handle is closed');
     if (readStorage(storage).schemas.length !== schemaRevision)
       throw new Error('Database schema changed; reopen the handle');
   };
@@ -128,6 +130,18 @@ export async function openDatabase<const R extends Registry>(
         return [
           name,
           Object.freeze({
+            // biome-ignore lint/suspicious/useAwait: Validation errors are promise rejections.
+            get: async (value: unknown, options: { readonly select: unknown }) => {
+              ensure();
+              const view = read();
+              keys(object(options, 'Get options'), ['select'], 'get option');
+              validateSelection(view, entity, options.select);
+              const identity = identify(storage, value, entity.name);
+              const record = view.snapshot.get(identity.id);
+              return isLive(record)
+                ? project(view, entity, identity.id, record, options.select)
+                : undefined;
+            },
             query,
             first: async (input: QueryInput) => (await query(input, true))[0],
           }),
@@ -143,6 +157,8 @@ export async function openDatabase<const R extends Registry>(
     input: TransactionContext | ((tx: unknown) => Promise<unknown>),
     callback?: (tx: unknown) => Promise<unknown>,
   ) => {
+    ensure();
+    await refreshStorage(storage);
     ensure();
     const work = typeof input === 'function' ? input : callback;
     if (typeof work !== 'function') throw new Error('Transaction requires a callback');
@@ -292,7 +308,7 @@ export async function openDatabase<const R extends Registry>(
         if (!isLive(record)) continue;
         for (const values of record.values())
           for (const value of values) {
-            if (typeof value !== 'object') continue;
+            if (typeof value !== 'object' || !('ref' in value)) continue;
             const target = scope.snapshot.get(value.ref);
             if (!isLive(target) || recordType(target) !== value.type)
               throw new Error('Transaction would leave an unavailable reference');
@@ -311,11 +327,19 @@ export async function openDatabase<const R extends Registry>(
           facts,
         };
         issuance.sequence = commit.sequence;
-        publish(storage, base.generation, {
-          schemas: base.schemas,
-          commits: [...base.commits, commit],
-          current: scope.snapshot,
-        });
+        try {
+          await persist(storage, base.generation, commit, () => {
+            issuance.valid = true;
+            publish(storage, base.generation, {
+              schemas: base.schemas,
+              commits: [...base.commits, commit],
+              current: scope.snapshot,
+            });
+          });
+        } catch (error) {
+          if (error instanceof SaveError) completed = true;
+          throw error;
+        }
       }
       completed = true;
       return result;
@@ -503,9 +527,26 @@ export async function openDatabase<const R extends Registry>(
   // Dynamic registry keys are validated at runtime; this is the single generic facade boundary.
   return Object.freeze({
     entities: Object.freeze(entities),
+    refresh: async () => {
+      ensure();
+      await refreshStorage(storage);
+      ensure();
+    },
     transaction,
     history: Object.freeze({
       transactions: Object.freeze({
+        // biome-ignore lint/suspicious/useAwait: Validation errors are promise rejections.
+        get: async (value: unknown, options: { readonly select: unknown }) => {
+          ensure();
+          keys(object(options, 'Get options'), ['select'], 'get option');
+          const commit = commitFor(value);
+          validateSelection(
+            context(snapshotAt(storage, commit.sequence), commit.sequence),
+            transactionEntity,
+            options.select,
+          );
+          return transactionObject(commit, options.select);
+        },
         query: historyTransactions,
         first: async (input: QueryInput) => (await historyTransactions(input, true))[0],
       }),

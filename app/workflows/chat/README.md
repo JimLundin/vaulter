@@ -1,4 +1,9 @@
-# Chat production through nodes
+# Chat
+
+New production conversations and exchanges use the [Chat/Agent EAV model](data/README.md) through
+`eav-backend.ts`. Existing Node conversations remain readable during migration. The sections below
+describe the retained interaction and legacy backend, which is still used by unmigrated callers and
+fixtures. See [ADR 0011](../../../docs/adr/0011-chat-agent-eav-adoption.md) for the production transition.
 
 Chat owns conversations, exchanges, user and Agent messages, their projections and append ordering.
 Agent owns runs, supplied context and tool activity. Both produce into the same Vault collection;

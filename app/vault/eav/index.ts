@@ -20,3 +20,12 @@ export type {
   Where,
   QueryOptions,
 } from './types.ts';
+export type { JsonValue } from './json.ts';
+export {
+  createPersistentStorage,
+  SaveError,
+  parseJournal,
+  closeStorage,
+  clearStorage,
+} from './persistence.ts';
+export type { StorageAdapter, Journal, AppendRequest } from './persistence.ts';

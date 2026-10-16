@@ -1,4 +1,5 @@
-import type { OpenNodes } from './adapters.ts';
+import { closeStorage, clearStorage, type MemoryStorage } from '../eav/index.ts';
+import type { OpenNodes, OpenEav } from './adapters.ts';
 // Which vault the app is on, and its state: GitHub through the device cache, in every browser. Built, the
 // secrets are unlocked with the password (unlock.ts); in dev they come from the environment (vite.config.ts)
 // and it loads right in. Opens from what the device kept, then refreshes: at once, when the tab comes back (at most every
@@ -42,6 +43,7 @@ export interface Session {
   /** Set while the secrets wait for the password. */
   locked: { unlock: (password: string) => Promise<void> } | null;
   signOut: (() => Promise<void>) | null;
+  eav?: MemoryStorage | null;
   nodes: TransactionStore | null;
   nodeStatus: Status;
   refreshNodes: () => Promise<void>;
@@ -52,7 +54,7 @@ declare const __DEV_SECRETS__: Secrets | null;
 const DEV_SECRETS = typeof __DEV_SECRETS__ === 'undefined' ? null : __DEV_SECRETS__;
 
 /** Own unlocked node storage, credentials and write lifetimes. */
-export function useSession(openNodes: OpenNodes): Session {
+export function useSession(openNodes: OpenNodes, openEav?: OpenEav): Session {
   const identity = useRef({}).current;
   const [credentialPending, setCredentialPending] = useState(false);
   const credentialUpdates = useRef(0);
@@ -64,6 +66,7 @@ export function useSession(openNodes: OpenNodes): Session {
   const [nodes, setNodes] = useState<NodeBackend | null>(null);
   const [nodeStatus, setNodeStatus] = useState<Status>({ kind: 'loading' });
   const activeNodes = useRef<NodeBackend | null>(null);
+  const eav = useRef<MemoryStorage | null>(null);
   const transactions = useRef(createTransactionSession());
   const currentCredentials = useRef<Credentials | null>(null);
   const deployment = useRef<Sealed | null>(null);
@@ -116,6 +119,7 @@ export function useSession(openNodes: OpenNodes): Session {
   const begin = (credentials: Credentials, runGeneration: number) => {
     checkSession(runGeneration);
     const store = openNodes({ secrets: credentials.secrets });
+    eav.current = openEav?.({ secrets: () => currentCredentials.current?.secrets ?? null }) ?? null;
     void transactions.current.replace(store, (previous) => (previous as NodeBackend).close());
     activeNodes.current = store;
     setNodes(store);
@@ -247,6 +251,8 @@ export function useSession(openNodes: OpenNodes): Session {
       writes.close();
       void writes.drain().then(() => store?.close());
       activeNodes.current = null;
+      if (eav.current) closeStorage(eav.current);
+      eav.current = null;
     };
   }, []);
 
@@ -291,6 +297,7 @@ export function useSession(openNodes: OpenNodes): Session {
     preloadedSecrets,
     secretOverrides,
     updateSecret,
+    eav: eav.current,
     nodes: nodes ? transactions.current.nodes : null,
     nodeStatus,
     refreshNodes: () => (nodes ? refreshNodes(nodes) : Promise.resolve()),
@@ -317,6 +324,8 @@ export function useSession(openNodes: OpenNodes): Session {
           currentCredentials.current = null;
           deployment.current = null;
           const store = activeNodes.current;
+          const eavStore = eav.current;
+          eav.current = null;
           activeNodes.current = null;
           closeReplacements();
           setNodes(null);
@@ -331,6 +340,7 @@ export function useSession(openNodes: OpenNodes): Session {
               await writes.drain();
               const cleared = await Promise.allSettled([
                 Promise.resolve().then(() => store?.clear()),
+                Promise.resolve().then(() => eavStore && clearStorage(eavStore)),
                 Promise.resolve().then(() => forget()),
               ]);
               const failed = cleared.find((result) => result.status === 'rejected');
@@ -345,6 +355,7 @@ export function useSession(openNodes: OpenNodes): Session {
               throw error;
             } finally {
               store?.close();
+              if (eavStore) closeStorage(eavStore);
             }
           })();
           return signingOut.current;

@@ -6,6 +6,8 @@ application interface, independently of the existing Node representation. Its in
 implementation is [Vault EAV](../../app/vault/eav/README.md); application migration and durable
 persistence integration remain subsequent work.
 
+[ADR 0011](0011-chat-agent-eav-adoption.md) records the subsequent durable adapter and live Chat adoption.
+
 Register definitions once at database open. Entity handles infer creation data, partial updates,
 references and selected result shapes. Objects carry a hidden identity through projections and
 spreads; callers do not pass IDs or compare content to identify an entity. Object query specifications

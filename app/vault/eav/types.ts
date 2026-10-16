@@ -10,7 +10,7 @@ export type InputValue<F extends AnyField> =
     ? EntityRef<E>
     : F extends Field<'set', infer Item extends AnyField, boolean>
       ? readonly InputValue<Item>[]
-      : F extends Field<'scalar', infer V, boolean>
+      : F extends Field<'scalar' | 'json', infer V, boolean>
         ? V
         : never;
 type StoredValue<F extends AnyField> =
@@ -94,9 +94,11 @@ type FieldPredicate<F extends AnyField> =
       ? { readonly eq?: EntityRef<E>; readonly matches?: Where<E> }
       : F extends Field<'set', infer Item extends AnyField, boolean>
         ? { readonly some?: FieldPredicate<Item> }
-        : F extends Field<'scalar', infer V, boolean>
-          ? ScalarPredicate<V>
-          : never;
+        : F extends Field<'json', infer V, boolean>
+          ? { readonly eq?: V; readonly in?: readonly V[] }
+          : F extends Field<'scalar', infer V, boolean>
+            ? ScalarPredicate<V>
+            : never;
 export type Where<E extends EntityDefinition> = {
   readonly and?: readonly Where<E>[];
   readonly or?: readonly Where<E>[];
@@ -106,17 +108,18 @@ export type Where<E extends EntityDefinition> = {
 export interface QueryOptions<E extends EntityDefinition, S extends Selection<E>> {
   readonly select: S & ExactSelection<E, S>;
   readonly where?: Where<E>;
-  readonly orderBy?: readonly Partial<
-    Record<
-      {
-        [K in keyof E['fields']]: E['fields'][K]['kind'] extends 'scalar' ? K : never;
-      }[keyof E['fields']],
-      'asc' | 'desc'
-    >
-  >[];
+  readonly orderBy?: readonly {
+    readonly [K in keyof E['fields']]?: E['fields'][K]['kind'] extends 'scalar'
+      ? 'asc' | 'desc'
+      : never;
+  }[];
   readonly after?: EntityRef<E>;
 }
 export interface Reader<E extends EntityDefinition> {
+  get: <const S extends Selection<E>>(
+    entity: EntityRef<E>,
+    options: { readonly select: S & ExactSelection<E, S> },
+  ) => Promise<Selected<E, S> | undefined>;
   query: <const S extends Selection<E>>(
     options: QueryOptions<E, S> & { readonly limit?: number },
   ) => Promise<Selected<E, S>[]>;
@@ -209,6 +212,7 @@ export interface History<R extends Registry> {
 }
 export interface Database<R extends Registry> extends ReadView<R>, AsyncDisposable {
   readonly history: History<R>;
+  readonly refresh: () => Promise<void>;
   readonly schema: {
     revisions: () => Promise<readonly { readonly revision: number; readonly schema: Schema }[]>;
   };

@@ -674,6 +674,7 @@ export function createNodeChatBackend(options: NodeChatOptions) {
   }
   return {
     send,
+    subscribe: options.nodes.subscribe,
     chats: (query?: { readonly limit?: number }) => savedChats(options.nodes, query),
     messages: (conversation: string, sequence?: number) =>
       savedMessages(options.nodes, conversation, sequence),

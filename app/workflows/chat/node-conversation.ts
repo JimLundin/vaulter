@@ -1,10 +1,10 @@
+import type { ChatBackendFactory, ChatRun as NodeChatRun } from './backend.ts';
 // Node-backed Chat lifetime, independent of any mounted view.
 import type { ChatState, Turn, Part } from './view.ts';
 import { createNodeChatBackend } from './node-backend.ts';
 import type {
   NodeChatOptions,
   NodeChatRequest,
-  NodeChatRun,
   NodeChatRunState,
   ChatRecovery,
 } from './node-backend.ts';
@@ -20,6 +20,7 @@ export interface Prompt {
   n: number;
 }
 export interface NodeConversationOptions extends NodeChatOptions {
+  readonly backend?: ChatBackendFactory;
   /** Stable owning Vault session. Capability readiness may change within it. */
   readonly session?: object;
   readonly selectedModel: string;
@@ -133,7 +134,7 @@ function turn(data: MessageData, live = false, pendingToolCall?: string): Turn {
   };
 }
 export function createNodeConversation(initial: NodeConversationOptions) {
-  let backend = createNodeChatBackend(initial);
+  let backend = (initial.backend ?? createNodeChatBackend)(initial);
   const backends = new Set([backend]);
   let activeBackend = backend;
   let unsubscribeActive: (() => void) | undefined;
@@ -667,8 +668,9 @@ export function createNodeConversation(initial: NodeConversationOptions) {
         api.dispose();
         return;
       }
-      const storeChanged = options.nodes !== next.nodes;
+      const storeChanged = options.nodes !== next.nodes || options.backend !== next.backend;
       const changed = [
+        'backend',
         'nodes',
         'model',
         'tools',
@@ -697,7 +699,7 @@ export function createNodeConversation(initial: NodeConversationOptions) {
       const readingBecameReady = options.recordsReady === false && next.recordsReady !== false;
       if (changed) {
         const previous = backend;
-        backend = createNodeChatBackend(next);
+        backend = (next.backend ?? createNodeChatBackend)(next);
         if (previous !== activeBackend || !active) {
           previous.dispose();
           backends.delete(previous);
@@ -725,7 +727,7 @@ export function createNodeConversation(initial: NodeConversationOptions) {
         unsubscribeRecords = undefined;
         set({ selection: {}, records: { chats: null, loading: false, hasMore: false } });
         if (recordViews) {
-          unsubscribeRecords = options.nodes.subscribe(() => void reloadRecords());
+          unsubscribeRecords = backend.subscribe(() => void reloadRecords());
           void reloadRecords();
         }
       } else {
@@ -897,7 +899,7 @@ export function createNodeConversation(initial: NodeConversationOptions) {
       recordViews++;
       if (recordViews === 1) {
         void reloadRecords();
-        unsubscribeRecords = options.nodes.subscribe(() => void reloadRecords());
+        unsubscribeRecords = backend.subscribe(() => void reloadRecords());
       }
       let released = false;
       return () => {

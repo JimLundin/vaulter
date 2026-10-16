@@ -1,3 +1,5 @@
+import type { JsonValue } from './json.ts';
+
 /** Declarative definitions carry both inference and a serializable schema. */
 declare const valueType: unique symbol;
 
@@ -11,7 +13,16 @@ export interface Field<K extends string, V, O extends boolean = false> {
 }
 
 export interface FieldDefinition {
-  readonly kind: 'string' | 'number' | 'boolean' | 'datetime' | 'enum' | 'ref' | 'set' | 'inverse';
+  readonly kind:
+    | 'string'
+    | 'number'
+    | 'boolean'
+    | 'datetime'
+    | 'json'
+    | 'enum'
+    | 'ref'
+    | 'set'
+    | 'inverse';
   readonly optional: boolean;
   readonly key?: string;
   readonly values?: readonly string[];
@@ -22,6 +33,7 @@ export interface FieldDefinition {
 
 export type AnyField =
   | Field<'scalar', unknown, boolean>
+  | Field<'json', JsonValue, boolean>
   | Field<'ref', EntityDefinition, boolean>
   | Field<'set', AnyField, boolean>
   | Field<'inverse', EntityDefinition, boolean>;
@@ -86,6 +98,7 @@ type ReferenceKeys<E extends EntityDefinition> = {
 }[keyof E['fields']];
 
 export const e = {
+  json: () => field<'json', JsonValue, false>('json', { kind: 'json', optional: false }),
   string: () => field<'scalar', string, false>('scalar', { kind: 'string', optional: false }),
   number: () => field<'scalar', number, false>('scalar', { kind: 'number', optional: false }),
   boolean: () => field<'scalar', boolean, false>('scalar', { kind: 'boolean', optional: false }),

@@ -1,3 +1,7 @@
+import { openDatabase, type MemoryStorage } from '../vault/eav/index.ts';
+import { chatSchema } from '../workflows/chat/data/schema.ts';
+import { createEavChatBackend } from '../workflows/chat/eav-backend.ts';
+import type { ChatBackendFactory } from '../workflows/chat/backend.ts';
 import {
   agentDiscoveryTools,
   discoveryEnabledTools,
@@ -196,9 +200,37 @@ export function applicationNodeHistory(
 type ApplicationChatOptions = Omit<
   NodeConversationOptions,
   'user' | 'agent' | 'tools' | 'writableKinds' | 'enabledTools' | 'nodes'
-> & { readonly nodes: NodeStore | TransactionStore; readonly identities?: ApplicationIdentities };
+> & {
+  readonly nodes: NodeStore | TransactionStore;
+  readonly identities?: ApplicationIdentities;
+  readonly eav?: MemoryStorage | null;
+};
 /** The same explicit composition used by the Application views and independent application callers. */
+const eavChatFactories = new WeakMap<MemoryStorage, ChatBackendFactory>();
+function eavChatFactory(storage: MemoryStorage): ChatBackendFactory {
+  let factory = eavChatFactories.get(storage);
+  if (!factory) {
+    let database: ReturnType<typeof openDatabase<typeof chatSchema>> | undefined;
+    const open = () => {
+      database ??= openDatabase({ schema: chatSchema, storage }).catch((error) => {
+        database = undefined;
+        throw error;
+      });
+      return database;
+    };
+    factory = (options) =>
+      createEavChatBackend({
+        ...options,
+        get database() {
+          return open();
+        },
+      });
+    eavChatFactories.set(storage, factory);
+  }
+  return factory;
+}
 export function applicationChatOptions({
+  eav,
   identities = defaultIdentities,
   ...options
 }: ApplicationChatOptions): NodeConversationOptions {
@@ -206,6 +238,7 @@ export function applicationChatOptions({
   return {
     ...options,
     nodes,
+    ...(eav && { backend: eavChatFactory(eav) }),
     user: identities.user,
     agent: identities.agent,
     tools: applicationTools(nodes),

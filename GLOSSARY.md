@@ -1,11 +1,11 @@
 # Vaulter
 
-Vaulter represents its application data as interconnected nodes.
+Vaulter retains connected knowledge, source material, conversations and agent activity, with recorded history.
 
 ## Language
 
 **Vault**:
-The collection of interconnected nodes and their recorded history that holds the application's
+The collection of connected records and their history that holds the application's
 data. Conversations and agent-produced content are part of this same collection.
 
 **Node**:
@@ -46,7 +46,7 @@ A proposed group of changes with its intended author and originating context. Re
 seeks acceptance of those same changes; revising them creates a different request.
 
 **Transaction author**:
-The user, agent, or system responsible for producing a transaction's changes, represented by a node.
+The user, agent, or system responsible for producing a transaction's changes.
 
 **Transaction origin**:
 The context from which a transaction arose, such as a chat exchange or import. It is distinct from
@@ -68,6 +68,17 @@ when it describes the world and where it came from.
 One execution of an agent, with its supplied information and resulting activity retained. A run
 can originate from a chat exchange or another context without requiring a conversation.
 
+**Actor**:
+A user, agent, or system to which recorded activity can be attributed.
+
+**Agent**:
+A configured assistant with instructions, a model and available tools. Its configuration can change
+without changing what an earlier run used.
+
+**Context input**:
+One ordered piece of information actually supplied to an Agent run, after selection or transformation.
+It retains the supplied content independently of later changes to its source.
+
 **Tool execution**:
 One invocation of a tool during an agent run, retaining its supplied arguments, recorded outcome
 and resulting activity.
@@ -85,6 +96,10 @@ A retained context of exchanges, named for its subject. Its dates describe when 
 
 **Exchange**:
 A recorded part of a conversation containing dialogue or other retained source material.
+
+**Message**:
+An ordered contribution within an exchange, containing a user's words, an Agent response, or retained
+source material whose speaker is unknown. Its content may interleave text and tool activity.
 
 **Recorded summary**:
 A retained account of activity or discussion whose original dialogue or speakers may be unavailable.

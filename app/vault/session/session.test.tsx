@@ -16,6 +16,8 @@ import type { Secrets } from './sealed.ts';
 import { create, seed } from '../nodes/fixtures.test-support.ts';
 import { nodeOperations } from '../nodes/operations.ts';
 import { PreparationReplaced, WriteClosed } from '../transactions/lifetime.ts';
+import { createPersistentStorage, e, openDatabase } from '../eav/index.ts';
+import type { OpenEav } from './adapters.ts';
 
 vi.mock('./unlock.ts', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./unlock.ts')>()),
@@ -40,6 +42,7 @@ async function open(
   options: {
     secrets?: Secrets;
     openNodes?: (secrets: Secrets) => NodeBackend;
+    openEav?: OpenEav;
     credentials?: Credentials | null;
     response?: Response;
   } = {},
@@ -58,7 +61,7 @@ async function open(
   );
   let session!: Session;
   function Probe() {
-    session = useSession(factory);
+    session = useSession(factory, options.openEav);
     return null;
   }
   const root = createRoot(document.body);
@@ -693,4 +696,46 @@ test('a cold node failure cannot present an empty vault as accepted data', async
     kind: 'error',
     message: expect.stringContaining('Node history unavailable'),
   });
+});
+
+test('EAV storage retains identity across credentials and clears then closes on sign-out', async () => {
+  const order: string[] = [];
+  let credentials!: () => Secrets | null;
+  const storage = createPersistentStorage({
+    scope: 'session-test',
+    load: async () => ({ commits: [], schemas: [] }),
+    append: async () => undefined,
+    clear: async () => {
+      order.push('clear');
+    },
+    close: () => {
+      order.push('close');
+    },
+  });
+  const factory = vi.fn<OpenEav>((options) => {
+    credentials = options.secrets;
+    return storage;
+  });
+  const { session } = await open(memoryNodeBackend(), {
+    openEav: factory,
+    openNodes: () => memoryNodeBackend(),
+  });
+  await using db = await openDatabase({
+    schema: e.registry({ records: e.entity('record', { text: e.string() }) }),
+    storage,
+  });
+  expect(session().eav).toBe(storage);
+  await act(async () => {
+    await session().updateSecret('github', 'replacement');
+  });
+  expect(session().eav).toBe(storage);
+  expect(credentials()?.github).toBe('replacement');
+  expect(factory).toHaveBeenCalledOnce();
+  vi.spyOn(location, 'reload').mockImplementation(() => undefined);
+  await act(async () => {
+    await session().signOut!();
+  });
+  expect(credentials()).toBeNull();
+  expect(order).toEqual(['clear', 'close']);
+  await expect(db.entities.records.first({ select: {} })).rejects.toThrow('closed');
 });
