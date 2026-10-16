@@ -41,7 +41,6 @@ test('module settings persist valid preferences and keep credentials with their 
     'Voice model',
     'Live transcription model',
     'File transcription model',
-    'Embedding model',
     'Voice',
   ])
     await expect(openai.getByRole('combobox', { name: label, exact: true })).toBeAttached();

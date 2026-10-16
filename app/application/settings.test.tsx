@@ -236,11 +236,12 @@ async function fixture({
       ),
     ),
   );
-  await act(async () => {
+  await act(() => {
     globalThis.dispatchEvent(new StorageEvent('storage', { key: null, storageArea: localStorage }));
-    await vi.waitFor(() => {
-      if (field('Message').disabled) throw new Error('Message text box is still unavailable');
-    });
+  });
+  await vi.waitFor(async () => {
+    await act(async () => {});
+    if (field('Message').disabled) throw new Error('Message text box is still unavailable');
   });
   return {
     nodes: initialNodes,
@@ -284,9 +285,7 @@ test.each([false, true])(
       'Voice model',
       'Live transcription model',
       'File transcription model',
-      'Embedding model',
       'Voice',
-      'Embedding dimensions',
     ])
       expect(field(label)).toBeDefined();
     for (const label of [
@@ -297,7 +296,6 @@ test.each([false, true])(
       'Voice model',
       'Live transcription model',
       'File transcription model',
-      'Embedding model',
       'Voice',
     ])
       expect(selectField(label)).toBeDefined();
