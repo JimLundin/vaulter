@@ -29,11 +29,9 @@ import {
   Text,
 } from '../ui/kit/index.ts';
 export const graphDesigns = [
-  { id: 'topic-tight', label: 'A · Topics tight · default' },
+  { id: 'topic-middle', label: 'A · Topics compact blend · default' },
   { id: 'topic-balanced', label: 'B · Topics gentle' },
-  { id: 'topic-separated', label: 'C · Topics separated' },
-  { id: 'obsidian', label: 'D · Obsidian baseline' },
-  { id: 'obsidian-dense', label: 'E · Obsidian compact' },
+  { id: 'obsidian-dense', label: 'C · Obsidian compact' },
 ] as const;
 type Grouping = 'none' | 'topics';
 type Spacing = 'compact' | 'balanced' | 'relaxed';
@@ -49,6 +47,13 @@ const presets: Record<
     separation?: TopicSeparation;
   }
 > = {
+  'topic-middle': {
+    grouping: 'topics',
+    cohesion: 'light',
+    spacing: 'compact',
+    edgeSpacing: 'tight',
+    separation: 'close',
+  },
   'topic-tight': {
     grouping: 'topics',
     cohesion: 'medium',
@@ -125,7 +130,7 @@ export function GraphPrototype({
   const [inspecting, setInspecting] = useState(false);
   const [paneOpen, setPaneOpen] = useState(false);
   const [colorMode, setColorMode] = useState('topic');
-  const preset = presets[design] ?? presets['topic-tight']!;
+  const preset = presets[design] ?? presets['topic-middle']!;
   const [grouping, setGrouping] = useState<Grouping>(preset.grouping);
   const [cohesion, setCohesion] = useState(preset.cohesion);
   const [spacing, setSpacing] = useState<Spacing>(preset.spacing);
@@ -327,11 +332,13 @@ export function GraphPrototype({
         groupAttraction:
           grouping === 'none'
             ? 0
-            : cohesion === 'soft'
-              ? 0.018
-              : cohesion === 'medium'
-                ? 0.065
-                : 0.22,
+            : cohesion === 'light'
+              ? 0.009
+              : cohesion === 'soft'
+                ? 0.018
+                : cohesion === 'medium'
+                  ? 0.065
+                  : 0.22,
         spacing,
         edgeSpacing,
         groupLayout: 'relationships',
@@ -682,6 +689,7 @@ export function GraphPrototype({
                             value={cohesion}
                             onChange={(event) => setCohesion(event.currentTarget.value)}
                             options={[
+                              { value: 'light', label: 'Subtle' },
                               { value: 'soft', label: 'Gentle' },
                               { value: 'medium', label: 'Tight' },
                               { value: 'strong', label: 'Very tight' },
@@ -735,7 +743,7 @@ export function GraphPrototype({
                         variant="outline"
                         onClick={() => {
                           setGrouping('topics');
-                          setCohesion('medium');
+                          setCohesion('light');
                           setSpacing('compact');
                           setSeparation('close');
                           setEdgeSpacing('tight');

@@ -8,20 +8,23 @@ baseline and compact layouts, and then requested tighter grouping by the topic e
 under, with UI configuration. Earlier spacing comparisons are preserved at `bff3210`, community
 experiments at `6046196`, and strict broad-area layouts at `6fd6425`.
 
-Starting default: **Parent topic / Tight cohesion / Compact within-topic spacing / Close topic
-separation / Tight canvas edges**. Parent-topic color is the appearance default. This is a proposed
-preview default for review, not production promotion.
+The user preferred Topics gentle and Obsidian compact in the parent-topic round (`98c80ca`).
+This comparison keeps those two anchors and adds a middle setting.
+
+Starting default: **Parent topic / Subtle cohesion / Compact within-topic spacing / Close topic
+separation / Tight canvas edges**. Parent-topic color remains the appearance default.
 
 | Variant | Configuration |
 | --- | --- |
-| `topic-tight` | A: Starting default. Tight topic cohesion, compact interiors and close centers. |
-| `topic-balanced` | B: Gentle topic attraction and balanced interiors, with the same close centers. |
-| `topic-separated` | C: Same tight interiors as A, with more space between topic centers. |
-| `obsidian` | D: Preferred relationship-only baseline, retained for comparison. |
-| `obsidian-dense` | E: Preferred relationship-only compact layout, retained for comparison. |
+| `topic-middle` | A: Compact blend. Obsidian compact spacing with subtle parent-topic attraction (0.009). |
+| `topic-balanced` | B: Preferred Topics gentle, unchanged: gentle attraction (0.018), balanced spacing. |
+| `obsidian-dense` | C: Preferred Obsidian compact, unchanged: zero attraction, compact spacing. |
 
-All five use the same 172 records and 281 connections: 14 topics, 105 statements, 29 sources and
-24 questions. Fixture records and citations are unchanged.
+The middle setting uses half the gentle attraction and the compact spacing from Obsidian. It
+nudges records toward their actual parent topics without imposing the tighter clusters from the
+previous round. Subtle is now available in Group cohesion, and Use default layout restores it.
+All three retain the same 172 records and 281 connections. Earlier configurations remain in their
+commits and can also be recreated through Settings.
 
 Grouping is based on individual topic identity, rather than broad fictional metadata areas or
 inferred connection communities. Each statement/question belongs to its projected parent topic;
@@ -40,7 +43,7 @@ or fixed geographic topic slots.
 
 Settings starts with Layout, followed by Appearance and visible-record filters. Group by selects
 Parent topic or Relationships only. Topic separation selects Close (0.65), Balanced (0.85) or Open
-(1.15); cohesion selects Gentle (0.018), Tight (0.065) or Very tight (0.22). Within-topic spacing
+(1.15); cohesion selects Subtle (0.009), Gentle (0.018), Tight (0.065) or Very tight (0.22). Within-topic spacing
 selects Compact (0.6), Balanced (1) or Relaxed (1.65) spring/repulsion factors. Canvas edges selects
 24px, adaptive 28–48px or generous 14% margins, always reserving mobile rail clearance. Use default
 layout restores the starting settings. Dragged nodes remain pinned until Reset positions clears
@@ -62,18 +65,17 @@ preserves viewport state and filters.
 
 Review tasks:
 
-1. Compare A with D/E to judge whether parent-topic clustering improves the Obsidian layout.
-2. Find a shared-source node near the boundary of different topic colors; inspect its citing topics.
-3. Compare A/B for tighter versus gentle interiors and A/C for topic-center separation.
-4. Mix Settings; use the default-layout button to return to the starting configuration.
-5. Repeat on phone, zoom/drag, focus a topic, inspect citation evidence and return to global.
+1. Compare the compact blend with Topics gentle and Obsidian compact on desktop and phone.
+2. Inspect a shared source between topics and confirm its citing topics.
+3. Adjust cohesion and spacing independently, then restore the default layout.
 
 Hosted entry:
-<https://jimlundin.github.io/vaulter/preview/prototype/graph-ui-variants/?compare=graph&variant=topic-tight#/graph/>
+<https://jimlundin.github.io/vaulter/preview/prototype/graph-ui-variants/?compare=graph&variant=topic-middle#/graph/>
 
 The existing preview pill switches variants and Mobile. Without `compare=graph`, the preview
 continues to show current Application behavior. Local: `npm run design`, with the same query and
 hash under `/preview/`.
 
 Verdict: the Obsidian style is preferred; grouping should follow actual parent topics and remain
-configurable. The tighter starting configuration above is available for review.
+configurable. Topics gentle and Obsidian compact are the latest favorites; the subtle compact
+blend above is the proposed middle setting for review.
