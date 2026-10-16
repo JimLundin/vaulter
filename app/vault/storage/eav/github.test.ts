@@ -143,10 +143,9 @@ test('concurrent handles reject stale writes and can explicitly retry against ac
   await rejected;
   await first.transaction((tx) => tx.entities.messages.insert({ text: 'Second', details: null }));
   await using reopened = await open();
-  expect(await reopened.entities.messages.query({ select: { text: true } })).toMatchObject([
-    { text: 'First' },
-    { text: 'Second' },
-  ]);
+  expect(
+    await reopened.entities.messages.query({ select: { text: true }, orderBy: [{ text: 'asc' }] }),
+  ).toMatchObject([{ text: 'First' }, { text: 'Second' }]);
 });
 
 test('rewritten remote history is rejected without falling back to a cached view', async () => {
