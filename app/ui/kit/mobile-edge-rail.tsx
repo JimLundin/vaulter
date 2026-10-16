@@ -15,6 +15,7 @@ import { usePresentationPolicy } from './presentation-policy.tsx';
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuCheckboxItem,
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
@@ -281,7 +282,16 @@ export function MobileEdgeRail({
             >
               <DropdownMenuTrigger
                 aria-label="Filters"
-                aria-description={`${pageFilters.label}: ${pageFilters.options.find((option) => option.value === pageFilters.value)?.label ?? ''}`}
+                aria-description={`${pageFilters.label}: ${
+                  pageFilters.options
+                    .filter((option) =>
+                      pageFilters.type === 'multiple'
+                        ? pageFilters.value.includes(option.value)
+                        : pageFilters.value === option.value,
+                    )
+                    .map((option) => option.label)
+                    .join(', ') || 'None'
+                }`}
                 className="kit-edge-rail-control"
                 data-filtered={pageFilters.active || undefined}
               >
@@ -300,20 +310,41 @@ export function MobileEdgeRail({
                 style={menuStyle}
               >
                 <DropdownMenuLabel>{pageFilters.label}</DropdownMenuLabel>
-                <DropdownMenuRadioGroup
-                  aria-label={pageFilters.label}
-                  value={pageFilters.value}
-                  onValueChange={(value) => {
-                    pageFilters.onValueChange(value);
-                    setMenu(null);
-                  }}
-                >
-                  {pageFilters.options.map((option) => (
-                    <DropdownMenuRadioItem key={option.value} value={option.value}>
-                      <span className="kit-edge-item-label">{option.label}</span>
-                    </DropdownMenuRadioItem>
-                  ))}
-                </DropdownMenuRadioGroup>
+                {pageFilters.type === 'multiple' ? (
+                  <DropdownMenuGroup aria-label={pageFilters.label}>
+                    {pageFilters.options.map((option) => (
+                      <DropdownMenuCheckboxItem
+                        key={option.value}
+                        checked={pageFilters.value.includes(option.value)}
+                        closeOnClick={false}
+                        onCheckedChange={(checked) =>
+                          pageFilters.onValueChange(
+                            checked
+                              ? [...pageFilters.value, option.value]
+                              : pageFilters.value.filter((value) => value !== option.value),
+                          )
+                        }
+                      >
+                        <span className="kit-edge-item-label">{option.label}</span>
+                      </DropdownMenuCheckboxItem>
+                    ))}
+                  </DropdownMenuGroup>
+                ) : (
+                  <DropdownMenuRadioGroup
+                    aria-label={pageFilters.label}
+                    value={pageFilters.value}
+                    onValueChange={(value) => {
+                      pageFilters.onValueChange(value);
+                      setMenu(null);
+                    }}
+                  >
+                    {pageFilters.options.map((option) => (
+                      <DropdownMenuRadioItem key={option.value} value={option.value}>
+                        <span className="kit-edge-item-label">{option.label}</span>
+                      </DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuRadioGroup>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           )}

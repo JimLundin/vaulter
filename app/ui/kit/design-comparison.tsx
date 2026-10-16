@@ -7,10 +7,12 @@ type DesignAlternative = { id: string; label: string; content: ReactNode };
 export function DesignComparison({
   alternatives,
   defaultValue,
+  onValueChange,
   preview,
 }: {
   alternatives: readonly [DesignAlternative, ...DesignAlternative[]];
   defaultValue?: string;
+  onValueChange?: (value: string) => void;
   /** Place the picker and selected content inside a shared preview frame. */
   preview?: (controls: ReactNode, content: ReactNode) => ReactNode;
 }) {
@@ -24,7 +26,10 @@ export function DesignComparison({
         value: alternative.id,
         label: alternative.label,
       }))}
-      onChange={setValue}
+      onChange={(next) => {
+        setValue(next);
+        onValueChange?.(next);
+      }}
     />
   );
   const content = (

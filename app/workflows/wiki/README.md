@@ -18,6 +18,7 @@ as evidence, including when linked from another page. Eligibility follows histor
 | [Wiki preparation](./preparation.ts) | `prepareWikiReferences` prepares references and reviewed citations without publishing |
 | [Wiki evidence](./evidence.ts) and [citations](./citations.ts) | Validate source eligibility, historical selections and current claim applicability |
 | [Wiki pages](./pages.ts) | `readWiki` projects accepted history into pages and resolved references |
+| [Related content](./related-content.ts) | Required snapshot-scoped reading supplied by Application for classifications, relationship labels and query results |
 | [Source reading](../../vault/sources.ts) | `SourceReader` lets callers compose the historical text and descriptions supplied by record owners |
 | [NodeStore](../../vault/nodes/store.ts) | Read snapshots and atomically append structurally valid transactions |
 
@@ -26,6 +27,18 @@ readers for the application; Vault tooling composes them for ingestion. Source-s
 retrieval, ranking, identity allocation and authorship stay with the translator. A richer extraction
 strategy can retain more source material and propose new records; the target module validates those
 records using its current definitions.
+
+Graph owns Relationship, Term and Query interpretation. Application supplies `applicationWikiGraph`
+to `readWiki`, `createWikiReading` and `useWikiReading`; the reader constructs that interpretation
+from the same Snapshot as the pages. Wiki supplies live page candidates and renders the returned
+classifications, labels and query links. It never imports Graph or repeats predicate/term decoding
+and query filtering. Connection source determines classification independently of placement; an
+exact source applies only to its addressed page version. Deleted identity Terms remain visible as
+unavailable metadata but do not classify query candidates; exact live Term references remain usable.
+
+Wiki still decides whether a `source` relationship is eligible page provenance, just as it decides
+source eligibility for ordinary links. That is Wiki's evidence policy, rather than general Graph
+classification or query behavior. Citations and page containment remain Wiki-owned.
 
 The tooling pins Vaulter at `.vaulter/tooling/vaulter/` and maps `#vaulter/*` to existing source entries
 in that revision. Advancing the pin requires adapting and verifying the consumer. These entries are

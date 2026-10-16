@@ -2,18 +2,7 @@ import type { NodeVersion } from '../nodes/model.ts';
 import type { SourceReader } from '../sources.ts';
 
 // Historical source kinds whose text remains available to application citation reading.
-const ownedKinds = new Set([
-  'relationship',
-  'term',
-  'query',
-  'task',
-  'decision',
-  'date',
-  'timeline',
-  'resource',
-  'actor',
-  'agent',
-]);
+const ownedKinds = new Set(['task', 'decision', 'date', 'timeline', 'resource', 'actor', 'agent']);
 
 export const retainedRecordSources: SourceReader = {
   text(node, { view, textOf }) {

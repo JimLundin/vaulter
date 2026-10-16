@@ -368,6 +368,7 @@ export const implementations = [
     mechanics: ['Surface', 'Toolbar', 'ReadingColumn', 'Dock', 'AutoScrollArea', 'OptionStrip'],
   },
   { source: 'selection.tsx', mechanics: ['SelectionRow', 'SplitView', 'SelectionGroupHeading'] },
+  { source: 'network.tsx', mechanics: ['NetworkDiagram', 'NetworkMap'] },
   { source: 'settings.tsx', mechanics: [] },
   { source: 'supporting-pane.tsx', mechanics: [] },
   {

@@ -6,6 +6,7 @@ import { citation as citationSchema } from './records.ts';
 import { isWikiContent, readCitation, validatePageReference } from './citations.ts';
 import { pageReferenceLinks } from './references.ts';
 import type { SourceReader } from '../../vault/sources.ts';
+import type { WikiRelatedContentReading } from './related-content.ts';
 
 export interface WikiReference {
   id: string;
@@ -51,8 +52,13 @@ export interface WikiPage {
 }
 
 /** Read the live collection; exact citation targets retain their original text after later edits. */
-export async function readWiki(nodes: NodeReading, sources: SourceReader): Promise<WikiPage[]> {
+export async function readWiki(
+  nodes: NodeReading,
+  sources: SourceReader,
+  relatedContent: WikiRelatedContentReading,
+): Promise<WikiPage[]> {
   const snapshot = await nodes.snapshot();
+  const related = relatedContent(snapshot);
   const transactions = new Map<string, Transaction>();
   let beforeSequence: number | undefined;
   for (;;) {
@@ -183,27 +189,20 @@ export async function readWiki(nodes: NodeReading, sources: SourceReader): Promi
       href: description?.href,
     };
   };
-  const kindOf = (node: NodeVersion) => {
-    const relation = snapshot
-      .children(node.key.node)
-      .find((child) => child.data?.kind === 'relationship' && child.data.predicate === 'type');
-    return String(
-      (relation?.connection
-        ? snapshot.resolve(relation.connection.target)?.data?.key
-        : undefined) ?? 'page',
-    );
-  };
+  const metadataOf = (node: NodeVersion) => related.classifications(node.key);
+  const kindOf = (node: NodeVersion) =>
+    metadataOf(node).find((term) => term.predicate === 'type' && term.state !== 'deleted')?.key ||
+    'page';
   const tagsOf = (node: NodeVersion) =>
-    snapshot
-      .children(node.key.node)
-      .filter((child) => child.data?.kind === 'relationship' && child.data.predicate === 'tag')
-      .map((child) =>
-        String(
-          (child.connection ? snapshot.resolve(child.connection.target)?.data?.key : undefined) ??
-            child.data?.label ??
-            '',
-        ),
-      );
+    metadataOf(node)
+      .filter((term) => term.predicate === 'tag' && term.state !== 'deleted')
+      .map((term) => term.key);
+  const candidates = pageNodes.map((page) => ({
+    node: page.key.node,
+    title: String(page.data?.title ?? 'Untitled page'),
+    created: typeof page.data?.created === 'string' ? page.data.created : undefined,
+    page,
+  }));
   const blockOf = (node: NodeVersion, seen = new Set<string>()): WikiBlock => {
     const next = new Set(seen).add(node.key.node);
     const children = snapshot.children(node.key.node).filter((child) => !next.has(child.key.node));
@@ -233,43 +232,16 @@ export async function readWiki(nodes: NodeReading, sources: SourceReader): Promi
       });
     return {
       id: node.key.node,
-      data:
-        node.data?.kind === 'relationship' && node.connection
-          ? {
-              ...node.data,
-              label: String(
-                snapshot.resolve(node.connection.target)?.data?.label ??
-                  snapshot.resolve(node.connection.target)?.data?.title ??
-                  snapshot.resolve(node.connection.target)?.data?.key ??
-                  node.data.label ??
-                  'Unavailable target',
-              ),
-            }
-          : node.data!,
+      data: node.data?.kind === 'relationship' ? related.relationship(node) : node.data!,
       children:
         node.data?.kind === 'query'
-          ? pageNodes
-              .filter(
-                (page) =>
-                  (!node.data?.type || kindOf(page) === node.data.type) &&
-                  (!node.data?.tag || tagsOf(page).includes(String(node.data.tag))),
-              )
-              .sort((a, b) =>
-                String(
-                  node.data?.sort === 'created' ? (a.data?.created ?? '') : (a.data?.title ?? ''),
-                ).localeCompare(
-                  String(
-                    node.data?.sort === 'created' ? (b.data?.created ?? '') : (b.data?.title ?? ''),
-                  ),
-                ),
-              )
-              .map((page) => ({
-                id: `${node.key.node}:${page.key.node}`,
-                data: { kind: 'link', text: String(page.data?.title ?? 'Untitled page') },
-                children: [],
-                href: hrefOf(page),
-                evidence: [],
-              }))
+          ? related.query(node, candidates).map((candidate) => ({
+              id: `${node.key.node}:${candidate.node}`,
+              data: { kind: 'link', text: candidate.title },
+              children: [],
+              href: hrefOf(candidate.page),
+              evidence: [],
+            }))
           : children.map((child) => blockOf(child, next)),
       href: hrefOf(node.connection ? snapshot.resolve(node.connection.target) : undefined),
       evidence,
@@ -279,29 +251,10 @@ export async function readWiki(nodes: NodeReading, sources: SourceReader): Promi
     .map((node) => {
       const data = node.data!;
       const children = snapshot.children(node.key.node);
-      const classifications = children.filter(
-        (child) =>
-          child.data?.kind === 'relationship' &&
-          ['type', 'tag'].includes(String(child.data.predicate)),
-      );
-      const metadata: WikiClassification[] = classifications.map((relationship) => {
-        const target = relationship.connection && snapshot.resolve(relationship.connection.target);
-        return {
-          id: target?.key.node ?? relationship.key.node,
-          relationship: relationship.key.node,
-          scheme: String(target?.data?.scheme ?? 'unresolved'),
-          key: String(target?.data?.key ?? relationship.data?.label ?? ''),
-          label: String(
-            target?.data?.label ??
-              target?.data?.key ??
-              relationship.data?.label ??
-              'Unavailable term',
-          ),
-          state: !relationship.connection ? 'unresolved' : target?.data ? 'resolved' : 'deleted',
-        };
-      });
+      const metadata: WikiClassification[] = [...metadataOf(node)];
+      const classificationNodes = new Set(metadata.map((term) => term.relationship));
       const blocks = children
-        .filter((child) => !classifications.includes(child) && child.data?.kind !== 'cite')
+        .filter((child) => !classificationNodes.has(child.key.node) && child.data?.kind !== 'cite')
         .map((child) => blockOf(child));
       const explicit = children.filter(
         (child) => child.data?.kind === 'cite' && child.data.scope === 'page',

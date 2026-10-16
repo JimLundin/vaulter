@@ -9,6 +9,41 @@ One supporting-pane policy owns geometry and interaction across those clients.
 The [public interface](index.ts) defines the kit's exports; catalogue and composition checks
 verify their examples and implementation ownership.
 
+`NetworkDiagram` presents caller-supplied node labels and directed edges in a bounded neighborhood.
+Its optional `map` layout computes spring-and-repulsion geometry from supplied edges, scales node
+diameters by supplied connection counts, and supports population colors, selection and node dragging,
+zoom controls and a scrollable detailed canvas. Each `viewKey` retains its viewport state while the
+caller switches between global and local records. Record meaning and neighborhood selection stay
+with the caller. Optional node `color` values and a matching `legend` let the caller switch color
+configurations without changing memberships or layout forces. The canvas still adapts when a
+different legend changes its available height. `fill` expands the map within a flex workspace instead
+of using its default bounded height. The Charts catalogue includes this map mode.
+Map controls register through `PageControls`: compact navigation offers Fit map directly and
+an inward Graph view menu for zoom and resetting positions. The optional `actions` slot adds
+caller-owned controls to the same desktop row and compact rail. The solver responds to measured
+canvas dimensions and fits its result to both available axes, with room beside the compact rail.
+Zoom magnifies the fitted canvas; manual positions use normalized coordinates across resizing.
+Optional `mapOptions` selects compact/balanced/relaxed force spacing and tight/balanced/roomy
+canvas margins. `groupAttraction` adds a soft attraction toward aspect-aware group regions using
+node `group` values supplied by the caller. Zero retains the relationship-only layout. The kit
+does not infer communities or topic meaning; the owner supplies group membership independently
+of color. Manual positions remain pinned when these options change; Reset positions clears them.
+Node `groups` supports multiple memberships, with `group` as the single-membership fallback.
+`mapOptions.groupLayout="relationships"` places group centers with a coarse spring layout using
+cross-group edges, then settles individual nodes around those centers. `groupSeparation` controls
+their relative distance. A shared node feels the average attraction of all its groups, while its
+incident springs still pull toward its actual neighbors. The default `regions` mode retains the
+aspect-aware region layout. Compact legends with more than six colors show their count and direct
+the reader to record details, preserving the main canvas height.
+Its optional `lanes` layout groups records by a caller-supplied column number, draws readable edge
+labels, and scrolls within a bounded canvas. Selection marks the incident paths; detail text can
+describe each record without the kit interpreting it. `FeaturePage.width="wide"` provides more
+room for investigation surfaces while its default retains the reading column.
+The selected node sits at the center; surrounding nodes use native buttons with 44px minimum
+targets and keyboard selection. Callers limit the neighborhood and supply a complete relationship
+list alongside it. The kit owns geometry and accessible diagram text, without interpreting Vault
+records. Its live example is in the Charts catalogue specimen.
+
 `composition.ts` explicitly inventories every implementation source and exact named declarations
 that own DOM/library mechanics. All other declarations are checked compositions of approved
 presentation, including private helpers and public wrappers such as Overlay, ItemGroup and
@@ -188,7 +223,7 @@ adds one.
 | Side panel (wide) or centered dialog | Full-height bottom drawer | `SupportingPane` → `Drawer` |
 | Page toolbar actions | Icons extending above the Modules anchor | `Toolbar` → `PageControls` |
 | Inline collection search and filters | Search icon opens a bottom field to the rail’s left; Filters opens choices inward | `PageControls` |
-| Form rows: label left, control right | The same fields stacked vertically | `SettingsMenu`, `SettingField` |
+| Form rows: label left, control right in spacious containers | Fields stack in narrow panes and compact space | `SettingsMenu`, `SettingField` |
 | One-row composer with inset microphone and send | The same always-visible field and inset controls | Chat-owned composition over `Toolbar`, `AutoScrollArea` and `Dock`, `TextBox` |
 | Titled expandable rows with labelled actions | The same rows with accessible icon actions | `ExpandableRow`, `RowAction` |
 | Single horizontally scrolling prompt row | The same row, with a fade at clipped edges | `PromptSuggestions`, `OptionStrip` |
@@ -208,11 +243,23 @@ Filters. Detail pages without these controls keep the Modules anchor alone. Outs
 `PageControls` falls back to inline controls. Its optional children preserve an existing inline
 filter presentation while the compact menu uses the supplied choices.
 
+**Page interaction belongs in the compact edge rail.** Put page actions, view controls, search
+and filters there so the page gives its space to content. Group secondary actions in inward
+menus or open the shared supporting pane from a rail action. Direct content interactions, such
+as selecting or dragging a graph node, remain on the content. Avoid separate mobile toolbars
+for controls already owned by the rail.
+
+Controls declared by several components contribute their actions to the same rail. `placement="rail"`
+registers controls whose desktop presentation lives elsewhere, such as in a supporting pane;
+`placement="expanded"` supplies that inline presentation without registering it a second time.
+Filters default to single selection; `type="multiple"` uses independent checked choices and keeps
+the inward menu open while they change. Navigation owns the geometry for both modes.
+
 The rail anchors to the lower right of the visible viewport, including keyboard resizing, panning
 and safe-area insets. Shared input primitives register their grouped field, form or trailing Dock
 within their presentation scope. Navigation reserves the lane to its left and measures trailing
 scroll clearance from the full rail and open Search field. Search stays nonmodal, can be cleared or
-closed, and returns focus to its icon on Escape. Filters uses the shared radio-choice menu and
+closed, and returns focus to its icon on Escape. Filters uses the shared choice menu and
 returns focus to its trigger. Bounded kit samples retain independent controls and geometry.
 
 **Feature preferences are assembled once.** `SettingsMenu` takes `{ name, content }` entries from

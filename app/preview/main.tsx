@@ -6,6 +6,8 @@ import { createRoot } from 'react-dom/client';
 import { OpenApplication } from '../application/index.tsx';
 import { applicationNodes } from '../application/composition.ts';
 import { startTheme, Text, DesignPreview } from '../ui/kit/index.ts';
+import { seedGraphEvidence } from './graph-evidence.ts';
+import { seedGraphDensity } from './graph-density.ts';
 import { previewModel } from './model.ts';
 import { createOpenAICapabilities } from '../agent/openai/index.ts';
 import { recordedTranscription } from '../agent/recorded-transcription.ts';
@@ -36,6 +38,30 @@ const transcription = agent ? recordedTranscription(agent.transcribe) : previewT
 const openingNodes = previewNodes(sessionStorage, query.get('scenario') ?? undefined).then(
   async (nodes) => {
     await seedPreviewRecords(nodes);
+    if (query.get('compare') === 'graph') {
+      await seedGraphEvidence(nodes);
+      await seedGraphDensity(nodes);
+      if (!(await nodes.snapshot()).get('preview:inquiry:studio-context:0')) {
+        await nodes.commit({
+          id: 'preview:inquiry:studio-context',
+          recordedBy: 'preview:wiki-owner',
+          origin: null,
+          undoOf: null,
+          kind: { scope: 'node', action: 'create' },
+          message: 'Fictional context for open Studio questions',
+          changes: [0, 1].map((index) => ({
+            node: `preview:inquiry:studio-context:${index}`,
+            expected: null,
+            data: { kind: 'relationship', predicate: 'informed-by' },
+            placement: { parent: `preview:density:studio-question:${index}`, order: 'a' },
+            connection: {
+              source: { node: `preview:density:studio-question:${index}` },
+              target: { node: `preview:graph-claim:${index}` },
+            },
+          })),
+        });
+      }
+    }
     if (query.has('conversations') && !(await nodes.snapshot()).get('preview:list-owner')) {
       await nodes.commit({
         id: 'preview:conversation-list',
@@ -132,7 +158,7 @@ const openingNodes = previewNodes(sessionStorage, query.get('scenario') ?? undef
   },
 );
 function Preview({ nodes }: { nodes: NodeStore }) {
-  const product = (
+  const product = () => (
     <OpenApplication
       session={{
         ready: true,
@@ -172,7 +198,7 @@ function Preview({ nodes }: { nodes: NodeStore }) {
       }}
       kitHref={import.meta.env.DEV ? '/ui/kit/' : './kit/'}
     >
-      {product}
+      {product()}
     </DesignPreview>
   );
 }

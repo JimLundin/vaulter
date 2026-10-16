@@ -1,3 +1,4 @@
+import { unrelatedContent } from './related-content.test-support.ts';
 import { expect, test, vi } from 'vitest';
 import { memoryNodeBackend } from '../../vault/nodes/memory.ts';
 import { create, request, revise } from '../../vault/nodes/fixtures.test-support.ts';
@@ -39,7 +40,7 @@ test('Wiki owns initial failures, accepted updates and recovery while retaining 
       };
     },
   };
-  const reading = createWikiReading(nodes, sources);
+  const reading = createWikiReading(nodes, sources, unrelatedContent);
   expect(reading.snapshot()).toEqual({ pages: null, loading: true });
   reading.start();
   try {
@@ -87,7 +88,7 @@ test('an older Wiki read cannot replace a newer result or publish its late failu
     snapshot: (sequence) =>
       sequence === undefined ? pending.shift()!.promise : backend.snapshot(sequence),
   };
-  const reading = createWikiReading(nodes, sources);
+  const reading = createWikiReading(nodes, sources, unrelatedContent);
   try {
     const older = reading.reload();
     const newer = reading.reload();
@@ -123,7 +124,7 @@ test('Wiki disposal cancels publication, releases its subscription and cannot be
   const snapshot = vi.fn(() => pending.promise);
   const release = vi.fn();
   const subscribe = vi.fn(() => release);
-  const reading = createWikiReading({ ...backend, snapshot, subscribe }, sources);
+  const reading = createWikiReading({ ...backend, snapshot, subscribe }, sources, unrelatedContent);
   const listener = vi.fn();
   reading.subscribe(listener);
   reading.start();

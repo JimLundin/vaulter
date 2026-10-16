@@ -1,3 +1,4 @@
+import { unrelatedContent } from './related-content.test-support.ts';
 // @vitest-environment happy-dom
 // biome-ignore lint/correctness/noUnresolvedImports: React 19 exposes StrictMode; TypeScript and runtime tests verify it.
 import { act, StrictMode } from 'react';
@@ -56,7 +57,7 @@ test('Wiki effect replay owns a fresh reader and source/store replacement releas
   const owners = new Set<WikiReading>();
   let selected!: WikiReading;
   function Surface({ nodes, sources }: { nodes: NodeStore; sources: SourceReader }) {
-    selected = useWikiReading(nodes, sources);
+    selected = useWikiReading(nodes, sources, unrelatedContent);
     owners.add(selected);
     const state = useWiki(selected);
     return (
@@ -128,7 +129,7 @@ test('replacing a pending Wiki store never exposes that store’s late collectio
   };
   const sources = source('Source');
   function Surface({ nodes }: { nodes: NodeStore | null }) {
-    const state = useWiki(useWikiReading(nodes, sources));
+    const state = useWiki(useWikiReading(nodes, sources, unrelatedContent));
     return <Text>{state.pages?.[0]?.title ?? 'Loading'}</Text>;
   }
   const root = createRoot(document.body);

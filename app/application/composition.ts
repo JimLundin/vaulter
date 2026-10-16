@@ -36,6 +36,11 @@ import { defaultIdentities, type ApplicationIdentities } from './identities.ts';
 import { conversationRoute } from './routes.ts';
 import { discoveryPresentation } from '../agent/discovery-presentation.tsx';
 import { listWikiSubjects } from '../workflows/wiki/subjects.ts';
+import { readGraph } from '../workflows/graph/reading.ts';
+import { graphSources } from '../workflows/graph/sources.ts';
+import type { GraphDescription } from '../workflows/graph/explorer.ts';
+import { graphRelatedContent } from '../workflows/graph/related-content.ts';
+import type { WikiRelatedContentReading } from '../workflows/wiki/related-content.ts';
 
 const contentKinds = ['content', 'question', 'relationship'];
 const enabledContentTools = [
@@ -54,6 +59,7 @@ const sourceOwners = [
   contentSources,
   questionSources,
   retainedRecordSources,
+  graphSources,
   agentSources,
 ];
 export const applicationSources: SourceReader = {
@@ -83,6 +89,19 @@ export const agentContextReading: AgentContextReading = {
     describeWikiTarget(node, view)?.title ||
     'Retained source',
 };
+
+export const applicationGraphDescription: GraphDescription = (node, view) =>
+  describeWikiTarget(node, view) ?? applicationSources.describe(node, view);
+
+export const applicationWikiGraph: WikiRelatedContentReading = graphRelatedContent;
+
+/** Graph reads the same selected Vault snapshot as its caller's collection projections. */
+export async function applicationGraph(
+  nodes: Pick<TransactionStore, 'snapshot'>,
+  sequence?: number,
+) {
+  return readGraph(await nodes.snapshot(sequence));
+}
 interface ApplicationNodeOwner {
   nodes: TransactionStore;
   readonly questions: ReturnType<typeof createQuestionOwnership>;

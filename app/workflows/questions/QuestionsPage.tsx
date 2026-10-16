@@ -71,6 +71,7 @@ export function QuestionsPage({
             onValueChange: setQuery,
           }}
           filters={{
+            type: 'single',
             label: 'Question status',
             value: filter,
             options: filters,

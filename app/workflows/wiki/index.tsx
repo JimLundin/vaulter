@@ -100,6 +100,7 @@ export function Wiki({
             onValueChange: setQuery,
           }}
           filters={{
+            type: 'single',
             label: 'Pages',
             value: filter?.id ?? '',
             options: [

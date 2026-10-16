@@ -39,6 +39,7 @@ workflows. There is no extension registry, common workflow manifest or runtime f
 | Agent | Execution, context discovery, grounding choices, durable tool activity, recovery, historical decoding | Wiki or Question payload interpretation |
 | Chat | Conversations, messages, drafts, capture, projecting typed Agent activity into a transcript | Decoding Agent records |
 | Wiki | Pages, blocks, citations, subject discovery and page presentation | Creating or answering Questions |
+| Graph | Relationships, vocabulary Terms, snapshot traversal, live Query evaluation and exploration UI | Wiki page membership or presentation, persistence |
 | Questions | Question/Answer records, action admission, atomic references, collection and embedded UI | Wiki classification or deciding which evidence to use |
 | Transactions / History | Write lifetimes, acceptance/recovery state, history and guarded compensation | Producer-specific admission or undo policy |
 | Session | Credentials, unlocking, adapter creation/replacement and cache lifetime | Record meaning |
@@ -61,6 +62,7 @@ app/
   workflows/
     chat/                    conversations, messages, capture and Chat UI
     wiki/                    pages, blocks, citations, subjects and Wiki UI
+    graph/                   relationships, vocabulary, snapshot traversal and live queries
     questions/               Question/Answer actions, reading, tools and record UI
   navigation/                generic hash routes, command contracts and keyboard dispatch
   search/                    search interaction and device-local recent destinations
@@ -104,6 +106,9 @@ flowchart LR
 ```
 
 Wiki and Questions do not call one another or consume one another's reading interfaces.
+Wiki also has no direct dependency on Graph. Application supplies a snapshot-scoped related-content
+reading that delegates classification, Relationship labels and Query evaluation to Graph. Wiki
+supplies page candidates and renders the results; Graph is the sole interpreter for those records.
 Questions accepts a generic live Node as its optional subject and exact Node addresses for source
 and knowledge evidence. It validates availability, schema, attribution and atomic publication.
 Agent discovers Wiki subjects and classifies evidence through owner-supplied readers composed by

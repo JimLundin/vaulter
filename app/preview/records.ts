@@ -245,4 +245,34 @@ export async function seedPreviewRecords(nodes: NodeStore): Promise<void> {
       ]),
     );
   }
+  if (!(await nodes.snapshot()).get('preview:graph-predicate')) {
+    await nodes.commit(
+      request('preview:graph-foundation', [
+        create('preview:graph-predicate', {
+          kind: 'term',
+          scheme: 'predicate',
+          key: 'related-to',
+          label: 'Related to',
+          symmetric: true,
+          use: 'People, places and ideas that belong together.',
+        }),
+        create('preview:graph-place', {
+          kind: 'term',
+          scheme: 'type',
+          key: 'place',
+          label: 'Place',
+        }),
+        ...[
+          ['preview:graph-mornings', 'preview:page:0', 'preview:page:1', 'related-to'],
+          ['preview:graph-reading', 'preview:page:1', 'preview:page:2', 'related-to'],
+          ['preview:graph-type', 'preview:page:0', 'preview:graph-place', 'type'],
+        ].map(
+          ([id, source, target, predicate]): NodeChange => ({
+            ...create(id, { kind: 'relationship', predicate }, source, 'graph'),
+            connection: { source: { node: source }, target: { node: target } },
+          }),
+        ),
+      ]),
+    );
+  }
 }

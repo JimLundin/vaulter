@@ -1,8 +1,9 @@
+import { applicationWikiGraph } from './composition.ts';
 import { expect, test } from 'vitest';
-import { memoryNodeBackend } from '../../vault/nodes/memory.ts';
-import { create, request, revise } from '../../vault/nodes/fixtures.test-support.ts';
-import { readWiki } from './pages.ts';
-import type { SourceReader } from '../../vault/sources.ts';
+import { memoryNodeBackend } from '../vault/nodes/memory.ts';
+import { create, request, revise } from '../vault/nodes/fixtures.test-support.ts';
+import { readWiki } from '../workflows/wiki/pages.ts';
+import type { SourceReader } from '../vault/sources.ts';
 
 // Supplied source adapter: Wiki verifies historical selection, not foreign payload decoding.
 const sources: SourceReader = {
@@ -57,7 +58,7 @@ test('exact composite citations retain source children and author at the origina
     ]),
   );
   await nodes.commit(request('removed', [await revise(nodes, 'message', null)]));
-  const pages = await readWiki(nodes, sources);
+  const pages = await readWiki(nodes, sources, applicationWikiGraph);
   expect(pages[0]?.blocks[0]?.evidence[0]).toMatchObject({
     text: 'Original quiet mornings.',
     author: 'Original author',
@@ -89,7 +90,7 @@ test('Wiki resolves ordered blocks, internal links and migrated live page querie
       },
     ]),
   );
-  const pages = await readWiki(nodes, sources);
+  const pages = await readWiki(nodes, sources, applicationWikiGraph);
   const index = pages.find((page) => page.id === 'page')!;
   expect(index.blocks.map((block) => block.id)).toEqual(['query', 'paragraph']);
   expect(index.blocks[1]?.children[0]?.href).toBe('#/wiki/place/');
@@ -159,7 +160,7 @@ test('Wiki separates classifications and page provenance from statement support'
       },
     ]),
   );
-  const wiki = await readWiki(nodes, sources);
+  const wiki = await readWiki(nodes, sources, applicationWikiGraph);
   const page = wiki.find((entry) => entry.id === 'page')!;
   expect(page.metadata).toMatchObject([
     { scheme: 'area', key: 'work', label: 'Work', state: 'resolved' },
@@ -185,13 +186,17 @@ test('Wiki separates classifications and page provenance from statement support'
       await revise(nodes, 'source-words', { kind: 'run', text: 'Different schedule.' }),
     ]),
   );
-  const changed = (await readWiki(nodes, sources)).find((entry) => entry.id === 'page')!;
+  const changed = (await readWiki(nodes, sources, applicationWikiGraph)).find(
+    (entry) => entry.id === 'page',
+  )!;
   expect(changed.blocks[0].evidence[0]).toMatchObject({
     text: 'Keep mornings free.',
     state: 'newer',
   });
   await nodes.commit(request('remove-source', [await revise(nodes, 'passage', null)]));
-  const deleted = (await readWiki(nodes, sources)).find((entry) => entry.id === 'page')!;
+  const deleted = (await readWiki(nodes, sources, applicationWikiGraph)).find(
+    (entry) => entry.id === 'page',
+  )!;
   expect(deleted.blocks[0].evidence[0]).toMatchObject({
     context: 'Plan: Keep mornings free. End.',
     state: 'deleted',
@@ -200,7 +205,8 @@ test('Wiki separates classifications and page provenance from statement support'
     request('edit-claim', [await revise(nodes, 'b', { kind: 'run', text: 'afternoons free.' })]),
   );
   expect(
-    (await readWiki(nodes, sources)).find((entry) => entry.id === 'page')!.blocks[0].evidence,
+    (await readWiki(nodes, sources, applicationWikiGraph)).find((entry) => entry.id === 'page')!
+      .blocks[0].evidence,
   ).toEqual([]);
   nodes.close();
 });
@@ -232,7 +238,7 @@ test('historical sources remain exact beyond a full page of transaction history'
       ]),
     );
   }
-  const [page] = await readWiki(nodes, sources);
+  const [page] = await readWiki(nodes, sources, applicationWikiGraph);
   expect(page.blocks[0].evidence[0]).toMatchObject({
     text: 'Original passage.',
     author: 'Original author',
@@ -273,7 +279,7 @@ test('Wiki lists only its pages while foreign content stays available as histori
       }),
     ]),
   );
-  const pages = await readWiki(nodes, sources);
+  const pages = await readWiki(nodes, sources, applicationWikiGraph);
   expect(pages.map((page) => page.id)).toEqual(['page']);
   expect(
     pages[0].blocks.find((block) => block.id === 'query')?.children.map((block) => block.id),
@@ -285,7 +291,7 @@ test('Wiki lists only its pages while foreign content stays available as histori
   });
   expect(pages[0].blocks.find((block) => block.id === 'claim')?.evidence[0]?.href).toBeUndefined();
   await nodes.commit(request('remove', [await revise(nodes, 'report', null)]));
-  const deleted = await readWiki(nodes, sources);
+  const deleted = await readWiki(nodes, sources, applicationWikiGraph);
   expect(deleted[0].blocks.find((block) => block.id === 'claim')?.evidence[0]).toMatchObject({
     title: 'Source report',
     context: 'Original quiet mornings.',
@@ -316,7 +322,7 @@ test('a newer unsupported source descendant preserves its supported historical q
   await nodes.commit(
     request('new-format', [create('future', { kind: 'future-record' }, 'source')]),
   );
-  const [page] = await readWiki(nodes, sources);
+  const [page] = await readWiki(nodes, sources, applicationWikiGraph);
   expect(page.blocks[0].evidence[0]).toMatchObject({
     title: 'Planning',
     text: 'Original quiet mornings.',

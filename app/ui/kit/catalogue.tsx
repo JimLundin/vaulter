@@ -507,6 +507,83 @@ function Charts() {
         ]}
       />
       <K.Sparkline label="Notes over time" values={[3, 5, 2, 7, 4, 6, 8]} />
+      <K.NetworkDiagram
+        label="Population map"
+        actions={
+          <K.Button iconOnly={true} aria-label="Map options" onClick={noop}>
+            <K.Icon name="settings" />
+          </K.Button>
+        }
+        legend={[
+          { label: 'Making', color: '#8b83ec' },
+          { label: 'Outside', color: '#39ad93' },
+        ]}
+        layout="map"
+        nodes={[
+          { id: 'studio', label: 'Studio', tone: 'topic', group: 'Making', color: '#8b83ec' },
+          {
+            id: 'tools',
+            label: 'Keep tools within reach',
+            tone: 'statement',
+            group: 'Making',
+            color: '#8b83ec',
+          },
+          {
+            id: 'source',
+            label: 'Workshop notes',
+            tone: 'source',
+            group: 'Making',
+            color: '#8b83ec',
+          },
+          { id: 'garden', label: 'Garden', tone: 'topic', group: 'Outside', color: '#39ad93' },
+          {
+            id: 'question',
+            label: 'What should grow here?',
+            tone: 'question',
+            group: 'Outside',
+            color: '#39ad93',
+          },
+        ]}
+        edges={[
+          { id: 'one', source: 'studio', target: 'tools', label: 'contains' },
+          { id: 'two', source: 'tools', target: 'source', label: 'cites' },
+          { id: 'three', source: 'garden', target: 'question', label: 'contains' },
+        ]}
+        onSelect={noop}
+      />
+      <K.NetworkDiagram
+        label="Related ideas"
+        nodes={[
+          { id: 'studio', label: 'Garden studio', selected: true },
+          { id: 'making', label: 'Making things' },
+          { id: 'mornings', label: 'Slow mornings' },
+        ]}
+        edges={[
+          { id: 'one', source: 'studio', target: 'making', label: 'Supports' },
+          { id: 'two', source: 'mornings', target: 'studio', label: 'Happens in' },
+        ]}
+        onSelect={noop}
+      />
+      <K.NetworkDiagram
+        label="Directed reading paths"
+        layout="lanes"
+        nodes={[
+          { id: 'question', label: 'What helps me begin?', detail: 'QUESTION', column: 0 },
+          {
+            id: 'statement',
+            label: 'Prepare a clear surface before starting.',
+            detail: 'STATEMENT',
+            column: 1,
+            selected: true,
+          },
+          { id: 'source', label: 'Workshop notes', detail: 'SOURCE', column: 2 },
+        ]}
+        edges={[
+          { id: 'context', source: 'question', target: 'statement', label: 'informed by' },
+          { id: 'citation', source: 'statement', target: 'source', label: 'cites passage' },
+        ]}
+        onSelect={noop}
+      />
     </K.Stack>
   );
 }
@@ -1085,6 +1162,9 @@ function Navigation() {
   const [settings, setSettings] = useState(false);
   const [search, setSearch] = useState(false);
   const [current, setCurrent] = useState('Agent');
+  const [multiple, setMultiple] = useState(false);
+  const [selectedKinds, setSelectedKinds] = useState(['notes', 'sources']);
+  const [actionCount, setActionCount] = useState(0);
   return (
     <K.NavigationSuite
       status={
@@ -1105,23 +1185,67 @@ function Navigation() {
         <K.Stack>
           <K.Text>The sidebar becomes a freestanding edge rail with an inward Modules menu.</K.Text>
           <K.PageControls
+            actions={
+              <K.Row>
+                <K.Button
+                  iconOnly={true}
+                  aria-label="Add sample item"
+                  onClick={() => setActionCount((count) => count + 1)}
+                >
+                  <K.Icon name="plus" />
+                </K.Button>
+              </K.Row>
+            }
             search={{
               label: 'Find sample items',
               placeholder: 'Find an item…',
               value: query,
               onValueChange: setQuery,
             }}
-            filters={{
-              label: 'Sample status',
-              value: filter,
-              options: [
-                { value: 'all', label: 'All' },
-                { value: 'open', label: 'Open' },
-              ],
-              onValueChange: setFilter,
-              active: filter !== 'all',
-            }}
+            filters={
+              multiple
+                ? {
+                    type: 'multiple',
+                    label: 'Sample kinds',
+                    value: selectedKinds,
+                    options: [
+                      { value: 'notes', label: 'Notes' },
+                      { value: 'sources', label: 'Sources' },
+                    ],
+                    active: selectedKinds.length !== 2,
+                    onValueChange: setSelectedKinds,
+                  }
+                : {
+                    type: 'single',
+                    label: 'Sample status',
+                    value: filter,
+                    options: [
+                      { value: 'all', label: 'All' },
+                      { value: 'open', label: 'Open' },
+                    ],
+                    onValueChange: setFilter,
+                    active: filter !== 'all',
+                  }
+            }
           />
+          <K.PageControls
+            actions={
+              <K.Row>
+                <K.Button
+                  iconOnly={true}
+                  aria-label="Reset sample count"
+                  onClick={() => setActionCount(0)}
+                >
+                  <K.Icon name="undo" />
+                </K.Button>
+              </K.Row>
+            }
+          />
+          <K.Text>Sample actions: {actionCount}</K.Text>
+          <K.Text>Selected kinds: {selectedKinds.join(', ') || 'none'}</K.Text>
+          <K.Button onClick={() => setMultiple(!multiple)}>
+            {multiple ? 'Use single filter' : 'Use multiple filters'}
+          </K.Button>
           <K.Button
             variant="outline"
             onClick={() => setCurrent(current === 'Agent' ? 'History' : 'Agent')}
@@ -1899,7 +2023,7 @@ export const catalogue: Specimen[] = [
     id: 'charts',
     title: 'Charts',
     description: 'Accessible bars and sparklines with shared data.',
-    components: ['Bars', 'Sparkline'],
+    components: ['Bars', 'Sparkline', 'NetworkDiagram'],
     Sample: Charts,
   },
   {

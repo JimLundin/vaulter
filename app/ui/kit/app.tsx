@@ -290,11 +290,13 @@ export function FeaturePage({
   description,
   actions,
   children,
+  width = 'reading',
 }: {
   title: string;
   description?: string;
   actions?: ReactNode;
   children: ReactNode;
+  width?: 'reading' | 'wide';
 }) {
   return (
     <article
@@ -303,7 +305,10 @@ export function FeaturePage({
     >
       <div
         data-reading-column=""
-        className="mx-auto flex w-full max-w-[var(--reading-width)] flex-col md:gap-6"
+        className={cn(
+          'mx-auto flex w-full flex-col md:gap-6',
+          width === 'wide' ? 'max-w-[1200px]' : 'max-w-[var(--reading-width)]',
+        )}
       >
         <PageHeader title={title} description={description} actions={actions} />
         {children}
