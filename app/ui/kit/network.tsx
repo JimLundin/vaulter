@@ -43,6 +43,7 @@ export function NetworkDiagram({
   fill = false,
   legend,
   actions,
+  mapOptions,
 }: {
   label: string;
   nodes: readonly NetworkNode[];
@@ -55,6 +56,12 @@ export function NetworkDiagram({
   legend?: readonly { label: string; color: string }[];
   /** Additional map controls share its inline row and compact edge rail. */
   actions?: ReactNode;
+  /** Force-map spacing and optional attraction between caller-supplied groups. */
+  mapOptions?: {
+    groupAttraction?: number;
+    spacing?: 'compact' | 'balanced' | 'relaxed';
+    edgeSpacing?: 'tight' | 'balanced' | 'roomy';
+  };
 }) {
   const marker = useId().replaceAll(':', '');
   if (layout === 'map')
@@ -68,6 +75,7 @@ export function NetworkDiagram({
         fill={fill}
         legend={legend}
         actions={actions}
+        mapOptions={mapOptions}
       />
     );
   if (layout === 'lanes') {
@@ -274,13 +282,14 @@ export function NetworkDiagram({
   );
 }
 
-// Springs follow caller-supplied edges; repulsion and collision separate records. No category centers.
+// Springs follow edges; optional group attraction uses only caller-supplied presentation groups.
 function forcePositions(
   nodes: readonly NetworkNode[],
   edges: readonly NetworkEdge[],
   width: number,
   height: number,
   insetRight: number,
+  options: NonNullable<Parameters<typeof NetworkDiagram>[0]['mapOptions']>,
 ) {
   if (!nodes.length) return new Map<string, { x: number; y: number }>();
   const density = Math.max(0.45, Math.min(1.5, Math.sqrt((width * height) / 700_000)));
@@ -299,6 +308,20 @@ function forcePositions(
     fy: 0,
   }));
   const byId = new Map(points.map((point) => [point.id, point]));
+  const spacing = options.spacing === 'compact' ? 0.6 : options.spacing === 'relaxed' ? 1.65 : 1;
+  const groups = [...new Set(nodes.map((node) => node.group).filter(Boolean))];
+  const groupById = new Map(nodes.map((node) => [node.id, node.group]));
+  const columns = Math.max(1, Math.ceil(Math.sqrt((groups.length * width) / height)));
+  const rows = Math.max(1, Math.ceil(groups.length / columns));
+  const anchors = new Map(
+    groups.map((group, index) => [
+      group,
+      {
+        x: (((index % columns) + 0.5) / columns) * width,
+        y: ((Math.floor(index / columns) + 0.5) / rows) * height,
+      },
+    ]),
+  );
   const degree = new Map(
     nodes.map((node) => [
       node.id,
@@ -310,6 +333,11 @@ function forcePositions(
     for (const point of points) {
       point.fx = ((width / 2 - point.x) * 0.006 * height) / width;
       point.fy = ((height / 2 - point.y) * 0.006 * width) / height;
+      const anchor = anchors.get(groupById.get(point.id));
+      if (anchor) {
+        point.fx += (anchor.x - point.x) * (options.groupAttraction ?? 0);
+        point.fy += (anchor.y - point.y) * (options.groupAttraction ?? 0);
+      }
     }
     for (let i = 0; i < points.length; i++)
       for (let j = i + 1; j < points.length; j++) {
@@ -320,7 +348,8 @@ function forcePositions(
         const distance = Math.max(1, Math.hypot(dx, dy));
         const gap = 18 + Math.sqrt(degree.get(a.id)!) * 3 + Math.sqrt(degree.get(b.id)!) * 3;
         const force =
-          (1500 * density * density) / (distance * distance) + Math.max(0, gap - distance) * 0.14;
+          (1500 * density * density * spacing) / (distance * distance) +
+          Math.max(0, gap - distance) * 0.14;
         const fx = (dx / distance) * force;
         const fy = (dy / distance) * force;
         a.fx -= fx;
@@ -336,7 +365,7 @@ function forcePositions(
       const dy = b.y - a.y;
       const distance = Math.max(1, Math.hypot(dx, dy));
       const desired =
-        (65 + Math.sqrt((degree.get(a.id) ?? 0) + (degree.get(b.id) ?? 0)) * 7) * density;
+        (65 + Math.sqrt((degree.get(a.id) ?? 0) + (degree.get(b.id) ?? 0)) * 7) * density * spacing;
       const force = (distance - desired) * 0.032;
       const fx = (dx / distance) * force;
       const fy = (dy / distance) * force;
@@ -357,14 +386,20 @@ function forcePositions(
   const ys = points.map((point) => point.y);
   const centerX = (Math.min(...xs) + Math.max(...xs)) / 2;
   const centerY = (Math.min(...ys) + Math.max(...ys)) / 2;
-  const padding = Math.min(48, Math.max(28, Math.min(width, height) * 0.09));
+  const paddingX =
+    options.edgeSpacing === 'roomy'
+      ? Math.max(28, width * 0.14)
+      : options.edgeSpacing === 'tight'
+        ? 24
+        : Math.min(48, Math.max(28, Math.min(width, height) * 0.09));
+  const paddingY = options.edgeSpacing === 'roomy' ? Math.max(28, height * 0.14) : paddingX;
   const scaleX = Math.min(
     nodes.length < 8 ? 1.5 : Number.POSITIVE_INFINITY,
-    Math.max(1, width - padding * 2 - insetRight) / Math.max(1, Math.max(...xs) - Math.min(...xs)),
+    Math.max(1, width - paddingX * 2 - insetRight) / Math.max(1, Math.max(...xs) - Math.min(...xs)),
   );
   const scaleY = Math.min(
     nodes.length < 8 ? 1.5 : Number.POSITIVE_INFINITY,
-    Math.max(1, height - padding * 2) / Math.max(1, Math.max(...ys) - Math.min(...ys)),
+    Math.max(1, height - paddingY * 2) / Math.max(1, Math.max(...ys) - Math.min(...ys)),
   );
   return new Map(
     points.map((point) => [
@@ -387,6 +422,7 @@ function NetworkMap({
   fill,
   legend,
   actions,
+  mapOptions,
 }: {
   label: string;
   nodes: readonly NetworkNode[];
@@ -396,6 +432,7 @@ function NetworkMap({
   fill: boolean;
   legend?: readonly { label: string; color: string }[];
   actions?: ReactNode;
+  mapOptions?: Parameters<typeof NetworkDiagram>[0]['mapOptions'];
 }) {
   const compact = useLayout() === 'compact';
   const insetRight = useContext(PageControlsContext)?.enabled ? 36 : 0;
@@ -452,22 +489,24 @@ function NetworkMap({
   } | null>(null);
   const skipClick = useRef(false);
   const topology = JSON.stringify([
-    nodes.map((node) => [node.id, node.connections]),
+    nodes.map((node) => [node.id, node.connections, node.group]),
     edges.map((edge) => [edge.source, edge.target]),
   ]);
+  const { groupAttraction = 0, spacing = 'balanced', edgeSpacing = 'balanced' } = mapOptions ?? {};
   const computed = useMemo(() => {
     const [nodeRows, edgeRows] = JSON.parse(topology) as [
-      Array<[string, number?]>,
+      Array<[string, number?, string?]>,
       Array<[string, string]>,
     ];
     return forcePositions(
-      nodeRows.map(([id, connections]) => ({ id, label: id, connections })),
+      nodeRows.map(([id, connections, group]) => ({ id, label: id, connections, group })),
       edgeRows.map(([source, target], index) => ({ id: String(index), source, target, label: '' })),
       frame.width,
       frame.height,
       insetRight,
+      { groupAttraction, spacing, edgeSpacing },
     );
-  }, [topology, frame.width, frame.height, insetRight]);
+  }, [topology, frame.width, frame.height, insetRight, groupAttraction, spacing, edgeSpacing]);
   const positions = new Map(computed);
   for (const [id, position] of Object.entries(moved[viewKey] ?? {}))
     if (positions.has(id)) positions.set(id, position);

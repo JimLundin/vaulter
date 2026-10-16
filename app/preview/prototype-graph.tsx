@@ -1,4 +1,4 @@
-// Throwaway question: how should a global Vault map narrow into local neighborhoods on phone and desktop?
+// Throwaway question: which grouping, density and canvas margins make the global map easiest to explore?
 import { useState, type ComponentProps } from 'react';
 import type { OpenApplication } from '../application/index.tsx';
 import {
@@ -30,9 +30,29 @@ import {
 } from '../ui/kit/index.ts';
 export const graphDesigns = [
   { id: 'obsidian', label: 'A · Obsidian baseline' },
-  { id: 'spotlight', label: 'B · Local spotlight' },
-  { id: 'navigator', label: 'C · Map + index' },
+  { id: 'open', label: 'B · Open relationships' },
+  { id: 'communities', label: 'C · Connection communities' },
+  { id: 'soft', label: 'D · Soft topic groups' },
+  { id: 'islands', label: 'E · Topic islands' },
 ] as const;
+type Grouping = 'none' | 'communities' | 'areas';
+type Spacing = 'compact' | 'balanced' | 'relaxed';
+type EdgeSpacing = 'tight' | 'balanced' | 'roomy';
+const presets: Record<
+  string,
+  { grouping: Grouping; cohesion: string; spacing: Spacing; edgeSpacing: EdgeSpacing }
+> = {
+  obsidian: { grouping: 'none', cohesion: 'soft', spacing: 'balanced', edgeSpacing: 'balanced' },
+  open: { grouping: 'none', cohesion: 'soft', spacing: 'relaxed', edgeSpacing: 'roomy' },
+  communities: {
+    grouping: 'communities',
+    cohesion: 'medium',
+    spacing: 'balanced',
+    edgeSpacing: 'tight',
+  },
+  soft: { grouping: 'areas', cohesion: 'soft', spacing: 'relaxed', edgeSpacing: 'tight' },
+  islands: { grouping: 'areas', cohesion: 'strong', spacing: 'compact', edgeSpacing: 'roomy' },
+};
 type Props = Parameters<NonNullable<ComponentProps<typeof OpenApplication>['renderGraph']>>[0];
 type Block = Props['topics'][number]['blocks'][number];
 type Reference = Block['evidence'][number];
@@ -65,6 +85,51 @@ const names = {
   question: 'Questions',
 };
 
+// Deterministic local modularity optimization on the full fixture. Color and filtering do not
+// change membership. These are connection communities, not topic-area categories.
+function connectionCommunities(records: GraphRecord[], edges: Edge[]) {
+  const neighbors = new Map(records.map((record) => [record.id, new Map<string, number>()]));
+  for (const edge of edges) {
+    if (edge.source === edge.target) continue;
+    for (const [a, b] of [
+      [edge.source, edge.target],
+      [edge.target, edge.source],
+    ]) {
+      const row = neighbors.get(a!);
+      if (row && neighbors.has(b!)) row.set(b!, (row.get(b!) ?? 0) + 1);
+    }
+  }
+  const degrees = new Map(
+    [...neighbors].map(([id, row]) => [id, [...row.values()].reduce((a, b) => a + b, 0)]),
+  );
+  const total = [...degrees.values()].reduce((a, b) => a + b, 0);
+  const membership = new Map(records.map((record) => [record.id, record.id]));
+  const weights = new Map(degrees);
+  if (!total) return membership;
+  for (let pass = 0; pass < 30; pass++) {
+    let changed = false;
+    for (const record of records) {
+      const current = membership.get(record.id)!;
+      const degree = degrees.get(record.id)!;
+      weights.set(current, weights.get(current)! - degree);
+      const linked = new Map<string, number>();
+      for (const [neighbor, weight] of neighbors.get(record.id)!) {
+        const group = membership.get(neighbor)!;
+        linked.set(group, (linked.get(group) ?? 0) + weight);
+      }
+      const gain = (group: string) =>
+        (linked.get(group) ?? 0) - (degree * (weights.get(group) ?? 0)) / total;
+      let best = current;
+      for (const group of linked.keys()) if (gain(group) > gain(best) + 0.000_01) best = group;
+      membership.set(record.id, best);
+      weights.set(best, (weights.get(best) ?? 0) + degree);
+      changed ||= best !== current;
+    }
+    if (!changed) break;
+  }
+  return membership;
+}
+
 export function GraphPrototype({
   topics,
   state,
@@ -79,6 +144,11 @@ export function GraphPrototype({
   const [inspecting, setInspecting] = useState(false);
   const [paneOpen, setPaneOpen] = useState(false);
   const [colorMode, setColorMode] = useState('area');
+  const preset = presets[design] ?? presets.obsidian!;
+  const [grouping, setGrouping] = useState<Grouping>(preset.grouping);
+  const [cohesion, setCohesion] = useState(preset.cohesion);
+  const [spacing, setSpacing] = useState<Spacing>(preset.spacing);
+  const [edgeSpacing, setEdgeSpacing] = useState<EdgeSpacing>(preset.edgeSpacing);
   const [history, setHistory] = useState<Array<{ focus?: string; depth: number }>>([]);
   const records: GraphRecord[] = [];
   const edges: Edge[] = [];
@@ -141,6 +211,14 @@ export function GraphPrototype({
     record.connections = edges.filter(
       (edge) => edge.source === record.id || edge.target === record.id,
     ).length;
+  const communities = connectionCommunities(records, edges);
+  const communityCount = new Set(communities.values()).size;
+  const groupingDescription =
+    grouping === 'none'
+      ? 'Only links and repulsion shape the map. Colors do not pull nodes together.'
+      : grouping === 'communities'
+        ? `${communityCount} groups detected from densely connected records. Cross-group links stay visible; colors still show your selected meaning.`
+        : 'Topic areas gently pull related records toward shared regions. Shared sources occupy their own group; all links remain visible.';
   const selected = records.find((record) => record.id === chosen);
   const focused = records.find((record) => record.id === focus);
   const adjacent = new Set(focus ? [focus] : []);
@@ -242,6 +320,18 @@ export function GraphPrototype({
       label={focus ? 'Local Vault graph' : 'Global Vault graph'}
       layout="map"
       fill={true}
+      mapOptions={{
+        groupAttraction:
+          grouping === 'none'
+            ? 0
+            : cohesion === 'soft'
+              ? 0.018
+              : cohesion === 'medium'
+                ? 0.065
+                : 0.22,
+        spacing,
+        edgeSpacing,
+      }}
       legend={legend}
       actions={
         <Button
@@ -260,6 +350,7 @@ export function GraphPrototype({
       viewKey={design === 'spotlight' ? 'global' : (focus ?? 'global')}
       nodes={mapRecords.map((record) => ({
         ...record,
+        group: grouping === 'communities' ? communities.get(record.id) : record.group,
         color:
           colorMode === 'area'
             ? areaColors[record.group]
@@ -367,6 +458,14 @@ export function GraphPrototype({
           <Toolbar label="Graph">
             <Row>
               <Heading level={1}>Graph</Heading>
+              <Text size="sm" tone="muted">
+                {grouping === 'none'
+                  ? 'Relationships'
+                  : grouping === 'communities'
+                    ? 'Communities'
+                    : 'Topic groups'}{' '}
+                · {spacing} · {edgeSpacing} edges
+              </Text>
             </Row>
           </Toolbar>
           {!!focus && <Text size="sm">Local · {focused?.label}</Text>}
@@ -560,10 +659,80 @@ export function GraphPrototype({
                     </Stack>
                   </PageControls>
                   <Surface variant="subtle" as="section" aria-label="Layout">
-                    <Heading level={3}>Relationship layout</Heading>
-                    <Text size="sm" tone="muted">
-                      The map adapts to the canvas. Larger nodes have more connections.
-                    </Text>
+                    <Stack gap="lg">
+                      <Heading level={2}>Layout</Heading>
+                      <SettingField label="Group by" description={groupingDescription}>
+                        <Select
+                          aria-label="Group by"
+                          value={grouping}
+                          onChange={(event) => setGrouping(event.currentTarget.value as Grouping)}
+                          options={[
+                            { value: 'none', label: 'Relationships only' },
+                            { value: 'communities', label: 'Connection communities' },
+                            { value: 'areas', label: 'Topic area' },
+                          ]}
+                        />
+                      </SettingField>
+                      {grouping !== 'none' && (
+                        <SettingField
+                          label="Group cohesion"
+                          description="Stronger attraction separates groups more clearly, while links still shape each group."
+                        >
+                          <Select
+                            aria-label="Group cohesion"
+                            value={cohesion}
+                            onChange={(event) => setCohesion(event.currentTarget.value)}
+                            options={[
+                              { value: 'soft', label: 'Soft' },
+                              { value: 'medium', label: 'Medium' },
+                              { value: 'strong', label: 'Strong' },
+                            ]}
+                          />
+                        </SettingField>
+                      )}
+                      <SettingField
+                        label="Node spacing"
+                        description="Balances link length and repulsion. Fit still adapts the settled layout to the canvas."
+                      >
+                        <Select
+                          aria-label="Node spacing"
+                          value={spacing}
+                          onChange={(event) => setSpacing(event.currentTarget.value as Spacing)}
+                          options={[
+                            { value: 'compact', label: 'Compact' },
+                            { value: 'balanced', label: 'Balanced' },
+                            { value: 'relaxed', label: 'Relaxed' },
+                          ]}
+                        />
+                      </SettingField>
+                      <SettingField
+                        label="Canvas edges"
+                        description={
+                          edgeSpacing === 'tight'
+                            ? '24px clearance, plus space for the mobile rail.'
+                            : edgeSpacing === 'roomy'
+                              ? '14% breathing room on each axis, plus mobile rail clearance.'
+                              : 'Adaptive 28–48px clearance, plus space for the mobile rail.'
+                        }
+                      >
+                        <Select
+                          aria-label="Canvas edges"
+                          value={edgeSpacing}
+                          onChange={(event) =>
+                            setEdgeSpacing(event.currentTarget.value as EdgeSpacing)
+                          }
+                          options={[
+                            { value: 'tight', label: 'Close to the edge' },
+                            { value: 'balanced', label: 'Balanced margin' },
+                            { value: 'roomy', label: 'Generous margin' },
+                          ]}
+                        />
+                      </SettingField>
+                      <Text size="sm" tone="muted">
+                        Layout changes keep dragged nodes pinned. Reset positions to compare the
+                        full automatic layout.
+                      </Text>
+                    </Stack>
                   </Surface>
                   <Row justify="between">
                     <Text size="sm" tone="muted">

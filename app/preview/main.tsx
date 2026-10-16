@@ -208,6 +208,8 @@ function Preview({ nodes }: { nodes: NodeStore }) {
           { ...graphDesigns[0], content: product(graphDesigns[0].id) },
           { ...graphDesigns[1], content: product(graphDesigns[1].id) },
           { ...graphDesigns[2], content: product(graphDesigns[2].id) },
+          { ...graphDesigns[3], content: product(graphDesigns[3].id) },
+          { ...graphDesigns[4], content: product(graphDesigns[4].id) },
         ]}
         preview={(controls, content) => (
           <DesignPreview

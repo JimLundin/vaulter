@@ -1,55 +1,81 @@
-# Relationship-shaped Graph comparison
+﻿# Graph layout comparison
 
-Question: can an Obsidian-style graph provide a useful starting point for Vaulter, with layout shaped by relationships, selectable color meaning, size by connection count, and the graph occupying the main workspace?
+Question: how should clustering, node spacing and canvas-edge clearance change the preferred
+Obsidian baseline on desktop and phone?
 
-Throwaway branch: `prototype/graph-ui-variants`. The named-area layouts are preserved at `6fd6425`; earlier investigation designs are at `839aeac`. The user prefers the Obsidian baseline as the direction for implementation. Alternatives remain available for comparison while the preview is refined.
+Throwaway branch: `prototype/graph-ui-variants`. The preferred baseline with the refined settings
+pane and adaptive canvas is preserved at `7c09fc0`. The earlier local spotlight and persistent
+index comparison is available at that commit; this round replaces the picker with layout options.
+The rejected strict area layouts are preserved at `6fd6425`.
 
-| Variant | Structure | Interaction |
-| --- | --- | --- |
-| `obsidian` | A large relationship-shaped global graph | Hover or select to trace links, drag nodes, filter populations, zoom, inspect and focus locally. |
-| `spotlight` | The same global graph with a local lens | Focus a record to highlight its neighborhood while retaining the remaining graph as faint context. |
-| `navigator` | Graph with a persistent shared supporting pane | Find a record by text or type, inspect it, and focus its local graph. Map comes first on mobile. |
+| Variant | Grouping and behavior | Spacing | Canvas edges |
+| --- | --- | --- | --- |
+| `obsidian` | A: Links and repulsion only; the accepted baseline. | Balanced | Adaptive 28–48px |
+| `open` | B: Links only, with longer springs and more repulsion; open relationship branches. | Relaxed | 14% of each axis |
+| `communities` | C: Dense connection communities detected from the full graph; medium attraction toward group regions, with bridges retained. | Balanced | 24px |
+| `soft` | D: Topic areas exert a weak attraction; relationships can stretch across the regions. | Relaxed | 24px |
+| `islands` | E: Strong topic-area attraction and short springs create more distinct islands; all inter-area links remain visible. | Compact | 14% of each axis |
 
-All alternatives share 172 records: 14 topics, 105 statements, 29 sources and 24 questions. The 281 connections include derived containment, citations, and recorded topic/question relationships. A shared source remains one visible identity; its inspector presents each citation's reviewed passage separately.
+All five use the same 172 records and 281 connections: 14 topics, 105 statements, 29 sources and
+24 questions. Connections include derived containment, citations and recorded topic/question
+relationships. A shared source has one visible identity and retains each citation's reviewed
+passage in its inspector. The morning-work statement still exposes the recorded passage and
+current source text separately.
 
-The map uses a deterministic spring-and-repulsion simulation with collision spacing and a weak central attraction. It reads node identities, connection counts and edges, without category centers or geographic regions. Link patterns therefore shape the initial layout. The simulation settles before presentation; manual dragging moves a node and its lines without continuously resimulating its neighbors. Reset positions restores the computed layout.
+The Settings tab provides independent Group by, Group cohesion, Node spacing and Canvas edges
+controls, so reviewers can mix parts of the presets. The workspace shows the current grouping,
+spacing and edge setting. Group cohesion appears only when grouping is enabled. These choices
+remain in memory; variant switching mounts a fresh preset. Colors are independent: Topic area
+(default), Record type or Connection count. Node diameter always reflects the square root of full
+incident connection count, capped visually. Neither color nor selection changes automatic geometry.
 
-Color defaults to topic area, derived from the fictional pages’ metadata. Sources cited across areas are Shared. Graph options switches between Topic area, Record type and Connection count (0–2, 3–7, 8+). Colors do not affect the solver, manual positions, zoom or local focus. Node diameter grows with the square root of its full incident relationship count, with a visual maximum; incoming and outgoing connections contribute, including parallel relationships. A larger node indicates more connections, not stronger support or importance. Counts and sizes retain their whole-sample meaning when filters or local views hide connections. Compact fit views reduce all diameters proportionally; zoom reveals full-size controls and more selectable records.
+Connection communities use deterministic local modularity optimization over the full undirected
+connection graph, counting parallel relationships as weight. Thirty passes is the bound; the
+algorithm stops when membership stabilizes. This is a prototype community heuristic, not a claim
+that the groups are semantic topics. Color, population filters and local focus do not recalculate
+membership. Topic-area grouping uses the fictional page metadata; shared sources form Shared.
 
-The type filters remove populations. The baseline and index variants focus to a local subgraph; Local spotlight retains the global layout and dims records outside the chosen neighborhood. Local views use one or two steps and a disclosed 36-record limit. Return to global preserves its zoom and pan position and the population filters. Node positions and navigation state remain in memory; changing variant or reloading resets them.
+The shared map solver accepts the owner's group assignments. Optional attraction pulls toward
+regions arranged for the current canvas aspect ratio. Repulsion, collision clearance and edge
+springs remain active in every preset. Groups are soft forces rather than containment boxes;
+records can cross regions and links never disappear because of grouping. Strong islands emphasize
+separation at the expense of longer cross-group bridges. The relationship-only presets apply zero
+group attraction.
 
-On mobile, page interaction follows the shared edge-rail guideline. Fit map has a direct rail control;
-Graph view opens zoom and reset actions inward. Filters opens independent checked population choices,
-and Search opens the rail’s field and narrows the graph by record text. Graph options opens color
-configuration and local navigation in the shared supporting pane. Focus clears the text search to
-reveal the neighborhood. Node selection and dragging remain direct canvas interactions. Desktop
-retains inline map controls and supporting-pane filters and search.
+The solver adapts to the measured canvas and fits both axes. Tight margins reserve 24px; balanced
+reserves 28–48px; generous reserves 14% per axis with a 28px minimum. Every configuration adds
+36px of clearance beside the mobile rail. These are node-center margins, not label bounding boxes.
+Sparse local graphs have a capped fit expansion. Zoom magnifies the fitted canvas and keeps the
+viewport center. Manually dragged nodes retain normalized positions across resizing and option
+changes; Reset positions restores the full computed layout. The settled simulation does not run
+continuously during dragging. Pinch zoom remains outside this preview.
 
-Graph options separates Settings from Records with tabs. Settings groups Appearance, visible populations and layout information; record search and inspection retain their own space. Narrow setting fields stack their label, full-width control and description according to their container width. Desktop population filters use aligned checkbox rows with counts.
+The graph fills the main workspace. Settings, Records and inspection use the existing SupportingPane
+from conversations and references, with its full-height phone sheet. Fit, Graph view (zoom/reset),
+filters, search and options use the mobile edge rail. Node selection and dragging stay on the
+canvas. Desktop options joins Fit/zoom/reset in the same row. Narrow fields stack their label,
+full-width control and description. Population filters retain aligned checkbox rows with counts.
 
-Graph options sits beside Fit map, zoom and reset in the desktop map-control row. On mobile,
-these controls share the edge rail, with settings opening the same supporting pane.
-
-The graph fills the available workspace below a compact toolbar. Filters, search and inspection use the same right-hand SupportingPane as Wiki references and conversations, with a full-height bottom sheet on phones. The navigator variant keeps this pane visible on desktop; the baseline and spotlight open it on demand.
-
-On desktop, hover highlights incident links and reveals labels. Nodes support dragging; the detailed canvas supports drag or scroll. On phones, tap opens the shared bottom inspector, explicit zoom reveals smaller records, and blank canvas areas support native swiping. Node drag also works through pointer input. Graph pinch zoom is not implemented. The solver adapts to measured canvas dimensions, including opening or closing the supporting pane. Gravity and link spacing respond to its proportions; the settled graph fits both axes with padding and compact rail clearance. Nodes stay circular, with incoming and outgoing connections still determining size. Zoom and manual node positions are retained across resizing. SVG links and node controls share normalized coordinates.
+Baseline-style local browsing is shared across all five: select a record, inspect, then Focus
+neighborhood. One or two connection steps are available, with a disclosed 36-record local limit.
+Focus clears text search to reveal the neighborhood. Population filters remain active; returning
+to global retains its viewport. Records search and native color controls still work.
 
 Review tasks:
 
-1. Find a large topic or shared-source hub and inspect its connection count.
-2. Hover or select it and follow its highlighted links.
-3. Drag a record, then restore its computed position.
-4. Focus a topic and compare isolated local browsing with the spotlight retaining global context.
-5. Inspect the morning-work statement's retained passage and current source text.
-6. Repeat on mobile and return to the global map with filters retained.
+1. Switch through all five on desktop and phone with the same records visible.
+2. Compare hub readability, long bridges and the blank space around the graph.
+3. Compare connection communities with topic colors: different meanings can overlap.
+4. Mix Group by, cohesion, node spacing and edge margins in Settings.
+5. Drag a node, change options, then Reset positions to judge the full automatic layout.
+6. Focus a hub locally, inspect citation evidence and return to global.
 
 Hosted entry:
 <https://jimlundin.github.io/vaulter/preview/prototype/graph-ui-variants/?compare=graph&variant=obsidian#/graph/>
 
-Use the existing preview pill to switch variants or constrain the same mounted app to Mobile. Without `compare=graph`, the preview renders current Application behavior. Local command: `npm run design`, then use the same query and hash under `/preview/`.
+The existing preview pill switches all five variants and Mobile. Without `compare=graph`, the
+preview remains current Application behavior. Local: `npm run design`, then the same query and
+hash under `/preview/`.
 
-Verdict: the Obsidian baseline is the user's preferred direction. Relationships shape the map;
-selectable colors and connection counts reveal its populations and node sizes. The graph fills the
-workspace, supporting content uses the shared pane, and mobile page controls use the edge rail.
-Graph options joins the desktop map-control row. This remains a preview; retain the branch as the
-comparison source when implementing the selected production design.
+Verdict pending for this round. The earlier Obsidian preference remains the baseline. No production
+promotion or merge is implied by this preview comparison.

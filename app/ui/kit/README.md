@@ -22,6 +22,11 @@ an inward Graph view menu for zoom and resetting positions. The optional `action
 caller-owned controls to the same desktop row and compact rail. The solver responds to measured
 canvas dimensions and fits its result to both available axes, with room beside the compact rail.
 Zoom magnifies the fitted canvas; manual positions use normalized coordinates across resizing.
+Optional `mapOptions` selects compact/balanced/relaxed force spacing and tight/balanced/roomy
+canvas margins. `groupAttraction` adds a soft attraction toward aspect-aware group regions using
+node `group` values supplied by the caller. Zero retains the relationship-only layout. The kit
+does not infer communities or topic meaning; the owner supplies group membership independently
+of color. Manual positions remain pinned when these options change; Reset positions clears them.
 Its optional `lanes` layout groups records by a caller-supplied column number, draws readable edge
 labels, and scrolls within a bounded canvas. Selection marks the incident paths; detail text can
 describe each record without the kit interpreting it. `FeaturePage.width="wide"` provides more
