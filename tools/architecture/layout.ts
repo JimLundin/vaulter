@@ -85,6 +85,12 @@ const vaultUi = new Set([
   'app/vault/transactions/history/HistoryPage.tsx',
 ]);
 export function importProblem(from: string, to: string): string | null {
+  if (
+    to.startsWith('app/vault/eav/') &&
+    !from.startsWith('app/vault/eav/') &&
+    to !== 'app/vault/eav/index.ts'
+  )
+    return `${from} imports private EAV implementation; use app/vault/eav/index.ts`;
   if (to.startsWith('app/preview/') && !fixture(from))
     return `${from} imports preview-only ${to}; fixtures cannot publish application data`;
   if (testSource(to) && !fixture(from))
@@ -146,6 +152,7 @@ export function importProblem(from: string, to: string): string | null {
     ['app/navigation/', ['app/navigation/', 'app/runtime/', 'app/ui/kit/']],
     ['app/settings/', ['app/settings/', 'app/runtime/', 'app/ui/kit/']],
     ['app/vault/nodes/', ['app/vault/nodes/', 'app/runtime/']],
+    ['app/vault/eav/', ['app/vault/eav/', 'app/runtime/']],
   ] as const) {
     if (
       from.startsWith(owner) &&

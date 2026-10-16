@@ -1,5 +1,8 @@
 # Node storage
 
+The standalone [EAV engine](eav/README.md) implements the agreed next database interface. Its first
+backend is in memory; this document describes the application's currently integrated Node storage.
+
 Vault owns the generic node model, production storage adapters and unlocked-session wiring.
 Modules write into this store and interpret its recorded data. Edits and undo append versions
 and transactions without modifying earlier records.

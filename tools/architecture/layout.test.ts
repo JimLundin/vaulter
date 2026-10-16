@@ -1063,7 +1063,9 @@ test('installed presentation-library targets cannot hide behind path aliases or 
 });
 
 test('module owners cannot depend on their consumers', () => {
-  for (const owner of ['runtime', 'navigation', 'settings', 'vault/nodes']) {
+  expect(importProblem('app/agent/store.ts', 'app/vault/eav/identity.ts')).toContain('private EAV');
+  expect(importProblem('app/agent/store.ts', 'app/vault/eav/index.ts')).toBeNull();
+  for (const owner of ['runtime', 'navigation', 'settings', 'vault/nodes', 'vault/eav']) {
     expect(importProblem(`app/${owner}/core.ts`, 'app/application/composition.ts')).toContain(
       'imports Application composition',
     );
