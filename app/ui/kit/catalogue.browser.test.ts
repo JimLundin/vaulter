@@ -78,7 +78,7 @@ test('the entire catalogue renders paired live components without requests to ex
   });
   await page.goto('/ui/kit/');
   const families = page.locator('[data-kit-comparison]');
-  await expect(families).toHaveCount(39);
+  await expect(families).toHaveCount(37);
   const pairs = await families.evaluateAll((elements) =>
     elements.map((family) =>
       (['desktop', 'mobile'] as const).map((device) => {

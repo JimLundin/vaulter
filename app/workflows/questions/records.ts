@@ -34,7 +34,6 @@ export const answer = z.strictObject({
   kind: z.literal('answer'),
   text,
 });
-export const questionSchemas = { question, answer } as const;
 export type QuestionData = z.infer<typeof question>;
 export type AnswerData = z.infer<typeof answer>;
 export type AnswerSuggestion = z.infer<typeof answerSuggestion>;

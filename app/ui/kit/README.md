@@ -70,7 +70,7 @@ annotation transform may annotate semantic data, with no UI presentation permiss
 | `settings.tsx` | feature-named settings menu and shared form rows |
 | `field-association.ts` | private association state consumed by text controls, selects and radio groups through nested layouts |
 | `surfaces.tsx` | gates, preview notice, tool results, panels and unified diffs |
-| `chart.tsx`, `diff.tsx`, `map.tsx` | accessible charts, code diffs, lazy map presentation |
+| `chart.tsx`, `diff.tsx` | accessible charts and code diffs |
 | `styles.css`, `theme.tsx` | zinc color tokens, light/dark/system theme |
 | `*.test.ts(x)`, `*.browser.test.ts` | colocated markup/theme checks and browser interaction coverage |
 | `tests/` | browser specimen pages |
@@ -78,8 +78,7 @@ annotation transform may annotate semantic data, with no UI presentation permiss
 Fonts are Geist, Geist Mono and Newsreader, loaded locally from `@fontsource-variable`. Add generic
 presentation here and keep domain behavior in its workflow. `tools/architecture/layout.test.ts` checks that all app
 views compose public exports and avoid ad hoc styling. Markdown content rendering is a scoped
-exception. Maps require `https://tiles.openfreemap.org` in the consuming page's CSP; the current
-product does not use maps.
+exception.
 
 The composer uses one primary action across Application, the preview and catalogue: microphone when
 unfocused, Enter when focused, and a supporting Stop action while responding. Microphone and Enter
@@ -165,9 +164,7 @@ The size classes are **compact** (under 48rem), **expanded** (48rem and up), and
 up, enough for a side panel). Width and input method are independent: a wide screen may use touch.
 `Columns` keeps two or three equal desktop content columns and always stacks them on phones.
 Tabs use rounded horizontal choices, preserving automatic/manual activation and optional mounted
-inactive content. Timeline illustrates planned Today/activity events; ListDetail supplies question
-inbox or record-browser panes. Their examples do not implement event collection, selection or Back
-navigation.
+inactive content.
 The model is Material 3's adaptive navigation
 (`NavigationSuiteScaffold`: one item list shown as a bar, rail or drawer) and SwiftUI's
 `sidebarAdaptable` tab view (one definition, a tab bar on iPhone and a sidebar on iPad).
@@ -359,9 +356,9 @@ that works:
    `rounded-xl` cards and rows, `rounded-2xl` docked surfaces such as the composer.
 2. **Pointer, not width.** `styles.css` applies a 44px minimum target whenever **any pointer** is
    coarse, including touch desktops. It covers all button sizes, checkboxes, inputs, grouped inputs,
-   tabs, ToggleGroup choices, command/menu rows, sidebar controls, retained close actions and map controls.
+   tabs, ToggleGroup choices, command/menu rows, sidebar controls, and retained close actions.
    Checkboxes keep a 16px mark inside the target. Chart marks scroll horizontally when there are
-   too many touch targets to fit, and map markers keep their small visual inside a larger target.
+   too many touch targets to fit.
    Custom standalone controls opt in with
    `data-touch-target`; inline prose links and citations retain their line boxes.
 3. **Structure (`useLayout`, the size class).** Only when the arrangement itself differs, which is
@@ -591,11 +588,10 @@ Badge keeps default, secondary and destructive status labels. Named category Chi
 uses private secondary badge styling and remains passive or an accessible button when given an
 action; decorative dots require a supplied visible label, and callers own counts and state.
 
-MapView uses MapLibre, its bundled worker and OpenFreeMap dark/light styles.
-The paired Map example loads external tiles only after Load map, then demonstrates selectable
-category markers, solid/dashed routes and compact/section/fill sizes. Changing the map container's
-size refits supplied places/routes; selection and theme changes preserve the current camera.
-Run real-tile browser acceptance with `VAULTER_MAP_TILES=1 npm run test:ui -- app/ui/kit/maps.browser.test.ts`.
+MapView is planned for reintroduction when an application feature needs geographic presentation.
+Revisit selectable places, routes, theme and resize behavior, touch targets, tile-provider/CSP
+requirements and worker packaging then. The earlier implementation is available in Git history
+at `a2f5f8b`; it adds no current exports or dependencies.
 
 Chat owns page and panel task composition, welcome copy and typed record interpretation. The kit
 accepts neutral attribution/content in `Message` and supplies the shared feed, dock, toolbar and

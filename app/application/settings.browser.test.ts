@@ -7,7 +7,7 @@ test('module settings persist valid preferences and keep credentials with their 
   await page.goto('/preview/');
   await openAppAction(page, 'Settings');
   const settings = page.getByRole('dialog', { name: 'Settings', exact: true });
-  for (const name of ['Appearance', 'Chat', 'Agent', 'OpenAI', 'GitHub storage', 'Jina']) {
+  for (const name of ['Appearance', 'Chat', 'Agent', 'OpenAI', 'GitHub storage']) {
     await expect(settings.getByRole('region', { name, exact: true })).toBeAttached();
   }
   const agent = settings.getByRole('region', { name: 'Agent', exact: true });
@@ -50,7 +50,7 @@ test('module settings persist valid preferences and keep credentials with their 
   const customModel = openai.getByRole('textbox', { name: 'Custom model', exact: true });
   await customModel.fill('review-model');
   await openai.getByRole('combobox', { name: 'Voice', exact: true }).selectOption('cedar');
-  for (const label of ['OpenAI API key', 'GitHub token', 'Jina API key']) {
+  for (const label of ['OpenAI API key', 'GitHub token']) {
     const key = settings.getByLabel(label, { exact: true });
     await expect(key).toHaveAttribute('type', 'password');
     await expect(key).toHaveValue('');

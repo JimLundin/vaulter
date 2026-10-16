@@ -66,7 +66,6 @@ export function createSessionCredentials(
   return Object.freeze({
     github: credential('github'),
     openai: credential('openai'),
-    jina: credential('jina'),
   });
 }
 
@@ -100,6 +99,5 @@ export function restrictSessionCredentials(
   return Object.freeze({
     github: restrict(credentials.github),
     openai: restrict(credentials.openai),
-    jina: restrict(credentials.jina),
   });
 }

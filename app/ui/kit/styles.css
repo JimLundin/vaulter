@@ -693,10 +693,6 @@ body:has(.kit-design-window) {
       align-items: center;
       justify-content: center;
     }
-    .maplibregl-ctrl-group button:not([data-kit-preview] *) {
-      width: var(--target-touch);
-      height: var(--target-touch);
-    }
   }
   .kit-presentation[data-kit-pointer="coarse"] {
     [data-chart-columns] {
@@ -737,10 +733,6 @@ body:has(.kit-design-window) {
       align-items: center;
       justify-content: center;
     }
-    .maplibregl-ctrl-group button {
-      width: var(--target-touch);
-      height: var(--target-touch);
-    }
   }
 }
 
@@ -757,28 +749,6 @@ body:has(.kit-design-window) {
     position: relative;
     @apply m-0 bg-background font-sans text-copy text-foreground antialiased;
   }
-}
-
-/* The map's controls in the kit's colours (MapLibre's own are always light). */
-:root .maplibregl-ctrl-group {
-  border: 1px solid var(--border);
-  border-radius: calc(var(--radius) - 4px);
-  background: var(--popover);
-  box-shadow: none;
-}
-:root .maplibregl-ctrl-group button + button {
-  border-top-color: var(--border);
-}
-:root .maplibregl-ctrl.maplibregl-ctrl-attrib {
-  background: color-mix(in oklab, var(--background) 80%, transparent);
-  color: var(--muted-foreground);
-}
-:root .maplibregl-ctrl-attrib a {
-  color: var(--muted-foreground);
-}
-:root.dark .maplibregl-ctrl-icon,
-:root.dark .maplibregl-ctrl-attrib-button {
-  filter: invert(1);
 }
 
 /* Catalogue chrome is private to the kit. Samples always render public components. */

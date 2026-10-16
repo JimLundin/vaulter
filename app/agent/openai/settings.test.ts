@@ -9,7 +9,6 @@ import {
   createOpenAIPreferences,
   providerSettings,
   openAIOptions,
-  LEGACY_MODEL_KEY,
   selectedOpenAIModel,
 } from './settings.ts';
 import { DEFAULT_MODELS, DEFAULT_VOICE } from './defaults.ts';
@@ -19,63 +18,6 @@ afterEach(() => {
   localStorage.clear();
   sessionStorage.clear();
   vi.unstubAllGlobals();
-});
-
-test('legacy model preferences migrate once to provider storage and reset to the installation default', () => {
-  localStorage.setItem(LEGACY_MODEL_KEY, ' legacy-model ');
-  const definition = createOpenAISettings({ defaultModel: 'installed-model' });
-  const preferences = createOpenAIPreferences(definition);
-  expect(openAIOptions(preferences.values()).models.llm).toBe('legacy-model');
-  expect(JSON.parse(localStorage.getItem('vaulter.settings.openai')!)).toEqual({
-    model: 'legacy-model',
-  });
-  expect(localStorage.getItem(LEGACY_MODEL_KEY)).toBeNull();
-  preferences.reset();
-  expect(selectedOpenAIModel('installed-model')).toBe('installed-model');
-});
-
-test('existing provider preferences take precedence over a legacy model choice', () => {
-  localStorage.setItem(LEGACY_MODEL_KEY, 'legacy-model');
-  localStorage.setItem(
-    'vaulter.settings.openai',
-    JSON.stringify({ model: 'provider-model', voice: 'cedar' }),
-  );
-  const preferences = createOpenAIPreferences();
-  expect(openAIOptions(preferences.values())).toMatchObject({
-    models: { llm: 'provider-model' },
-    voice: 'cedar',
-  });
-  expect(localStorage.getItem(LEGACY_MODEL_KEY)).toBeNull();
-  expect(JSON.parse(localStorage.getItem('vaulter.settings.openai')!)).toEqual({
-    model: 'provider-model',
-    voice: 'cedar',
-  });
-});
-
-test('provider migration respects an explicitly supplied storage area', () => {
-  localStorage.setItem(LEGACY_MODEL_KEY, 'browser-model');
-  sessionStorage.setItem(LEGACY_MODEL_KEY, 'session-model');
-  const preferences = createOpenAIPreferences(providerSettings, { storage: sessionStorage });
-  expect(openAIOptions(preferences.values()).models.llm).toBe('session-model');
-  expect(sessionStorage.getItem(LEGACY_MODEL_KEY)).toBeNull();
-  expect(localStorage.getItem(LEGACY_MODEL_KEY)).toBe('browser-model');
-  expect(localStorage.getItem('vaulter.settings.openai')).toBeNull();
-});
-
-test('failed legacy migration retains the old choice until provider preferences can be saved', () => {
-  localStorage.setItem(LEGACY_MODEL_KEY, 'legacy-model');
-  const write = vi.spyOn(localStorage, 'setItem').mockImplementation(() => {
-    throw new Error('Storage full');
-  });
-  const preferences = createOpenAIPreferences();
-  const unsubscribe = preferences.subscribe(vi.fn());
-  expect(openAIOptions(preferences.values()).models.llm).toBe('legacy-model');
-  expect(localStorage.getItem(LEGACY_MODEL_KEY)).toBe('legacy-model');
-  expect(localStorage.getItem('vaulter.settings.openai')).toBeNull();
-  unsubscribe();
-  write.mockRestore();
-  expect(openAIOptions(createOpenAIPreferences().values()).models.llm).toBe('legacy-model');
-  expect(localStorage.getItem(LEGACY_MODEL_KEY)).toBeNull();
 });
 
 test('OpenAI preference initialization tolerates blocked browser storage', () => {

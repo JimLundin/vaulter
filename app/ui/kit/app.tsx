@@ -195,52 +195,6 @@ export function Details({ items }: { items: [label: string, value: ReactNode][] 
   );
 }
 
-/** Things in time order: the day, a page's history. */
-export function Timeline({ children }: { children?: ReactNode }) {
-  return (
-    <ol className="m-0 grid list-none grid-cols-[44px_16px_minmax(0,1fr)] gap-x-2.5 p-0">
-      {children}
-    </ol>
-  );
-}
-
-export function TimelineItem({
-  time,
-  now,
-  last,
-  children,
-}: {
-  time: string;
-  /** The present moment: an open ring, no line after it. */
-  now?: boolean;
-  last?: boolean;
-  children?: ReactNode;
-}) {
-  return (
-    <li className="contents">
-      <span
-        className={cn(
-          'pt-0.5 text-xs text-muted-foreground',
-          now && 'font-semibold text-foreground',
-        )}
-      >
-        {time}
-      </span>
-      <span className="flex flex-col items-center">
-        {now ? (
-          <span className="mt-[5px] size-3 rounded-full border-[3px] border-primary" />
-        ) : (
-          <span className="mt-1.5 size-2.5 rounded-full bg-places" />
-        )}
-        {!(now || last) && <span className="w-0.5 flex-1 bg-border" />}
-      </span>
-      <div className={cn('flex min-w-0 flex-col gap-2', !(now || last) && 'pb-[18px]')}>
-        {children}
-      </div>
-    </li>
-  );
-}
-
 /** Icon-only mobile actions. Only the primary AI action uses a circle; current or open controls have a tint.
  * With `href` it is a link (an action that is also a screen), otherwise a button. */
 export function MobileActionButton({
@@ -558,37 +512,6 @@ export function Columns({
   children?: ReactNode;
 }) {
   return <div className={cn('grid min-w-0', stacked[count], gap[g])}>{children}</div>;
-}
-
-/** A list and the one chosen from it, side by side (an inbox). On mobile only one of them shows:
- * the detail when there is one, else the list. */
-export function ListDetail({
-  list,
-  detail,
-}: {
-  list: ReactNode;
-  /** Nothing chosen: the list alone on mobile, an empty detail on desktop. */
-  detail?: ReactNode;
-}) {
-  return (
-    <div className="flex h-full min-h-0">
-      <div
-        data-region=""
-        className={cn(
-          'flex min-h-0 w-full flex-col overflow-y-auto md:w-[380px] md:shrink-0 md:border-r',
-          detail ? 'max-md:hidden' : '',
-        )}
-      >
-        {list}
-      </div>
-      <div
-        data-region=""
-        className={cn('min-h-0 min-w-0 flex-1 overflow-y-auto', detail ? '' : 'max-md:hidden')}
-      >
-        {detail}
-      </div>
-    </div>
-  );
 }
 
 const mark = {

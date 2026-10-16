@@ -78,7 +78,7 @@ test('a short settings drawer scrolls its body while the close control stays rea
     node.scrollTop = node.scrollHeight;
   });
   expect(await viewport.evaluate((node) => node.scrollTop)).toBeGreaterThan(0);
-  await expect(dialog.getByLabel('Jina API key', { exact: true })).toBeInViewport();
+  await expect(dialog.getByLabel('GitHub API endpoint', { exact: true })).toBeInViewport();
   await expect(dialog.getByRole('button', { name: 'Close settings' })).toBeInViewport();
   await dialog.getByRole('button', { name: 'Close settings' }).click();
   await expectAppActionFocus(page, 'Settings');

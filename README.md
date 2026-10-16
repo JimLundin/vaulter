@@ -13,7 +13,7 @@ See [Architecture](ARCHITECTURE.md) for module boundaries and [ADRs](docs/adr/) 
 | Command | Does |
 |---|---|
 | `npm ci` | install |
-| `npm run dev` | the app on the vault through GitHub, as built, in any browser, but with no password: it loads right in with the secrets from `.env.local` (gitignored): `VAULT_GITHUB_TOKEN`, and optionally `VAULT_OPENAI_KEY` and `VAULT_JINA_KEY`, the names CI seals. Only dev gets them; a build has none. Its commits go to the vault's `main`, as the app's do |
+| `npm run dev` | the app on the vault through GitHub, as built, in any browser, but with no password: it loads right in with the secrets from `.env.local` (gitignored): `VAULT_GITHUB_TOKEN`, and optionally `VAULT_OPENAI_KEY`, the names CI seals. Only dev gets them; a build has none. Its commits go to the vault's `main`, as the app's do |
 | `npm run kit` | the live component kit gallery |
 | `npm run design` | the current branch UI at `http://localhost:5173/preview/`, with fictional notes and scripted chat; no password, keys or vault connection |
 | `npm run design:agent` | local preview with the real agent at `/preview/?agent=live`; uses the configured API and token through the Vite server, with fictional data and local tool writes |
@@ -39,13 +39,12 @@ and All filters. The agent can ask a question about a Wiki page or section, wher
 also appears. Answer from either view; the response and its evidence link are saved together and
 remain readable after reload. The agent can consult retained questions and answers on later turns.
 Settings groups Appearance, Chat instructions, Agent execution options, OpenAI models and voice,
-GitHub storage, and Jina credentials. Preferences apply to new runs and are saved on this device.
+and GitHub storage. Preferences apply to new runs and are saved on this device.
 Models, voice, step limits, output limits and retry counts offer dropdown choices with custom values.
 Login-preloaded keys show their configured status. Replace them, restore their login values, or clear
 optional keys with explicit actions; production credential overrides are encrypted on the device and
 removed by sign-out. Replacing the GitHub token reconnects storage before activating it. The API
-endpoints and vault repository show the installation's build configuration. Jina is retained for future
-web search. Enter sends an agent
+endpoints and vault repository show the installation's build configuration. Enter sends an agent
 message; Shift+Enter adds a new line. Both devices use the same always-visible one-row message
 field with inset microphone and Send controls. Tap the microphone to dictate into that field,
 tap again to finish, then edit or submit with Send or Enter. Speech appends to any existing draft;
@@ -162,7 +161,6 @@ What the seal needs, in this repo's settings:
 | `VAULT_PASSWORD` | secret | the app's password (12+ characters; long and random is best: the sealed file is public) |
 | `VAULT_GITHUB_TOKEN` | secret | a fine-grained PAT for `vault` and `vaulter` only (Contents read/write, Metadata read), with an expiry; only the vault is needed by the current workflows |
 | `VAULT_OPENAI_KEY` | secret | optional: the agent's key, from a project with a spend limit |
-| `VAULT_JINA_KEY` | secret | optional: retained sealed field for deployments that supply it |
 | `VAULT_SALT` | variable | 16 random bytes, base64 (`openssl rand -base64 16`); set once |
 | `VAULT_OPENAI_API` | variable | optional: the agent's OpenAI-compatible endpoint (an API proxy); empty means api.openai.com |
 | `VAULT_REPO` | variable | optional: the vault the app reads, `owner/name@branch`; default `JimLundin/vault@main` |

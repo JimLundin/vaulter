@@ -13,7 +13,9 @@ test('live preview streams through the Responses adapter and records real provid
     };
     globalThis.Function = new Proxy(globalThis.Function, { apply: deny, construct: deny });
   });
-  await page.addInitScript(() => localStorage.setItem('vault.agent.model', 'fixture-llm'));
+  await page.addInitScript(() =>
+    localStorage.setItem('vaulter.settings.openai', JSON.stringify({ model: 'fixture-llm' })),
+  );
   await page.route('**/__preview-agent/v1/responses', async (route) => {
     calls.push(route.request().postDataJSON());
     expect(route.request().headers().authorization).toBe('Bearer local-preview');

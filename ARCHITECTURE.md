@@ -133,7 +133,7 @@ it does not require a separate module or rewriting identity references.
 Modules define their configuration through `SettingsDefinition` in `app/settings/store.ts`: field keys,
 labels, defaults, kinds, suggested choices, custom-value support and parsing. Agent owns invocation
 settings, Chat owns instructions, and
-OpenAI, GitHub storage and Jina own implementation-specific options and settings views. Session owns
+OpenAI and GitHub storage own implementation-specific options and settings views. Session owns
 safe credential state, replacement/restore/clear actions and their React controls; provider views
 supply field meaning and consume those handles. The shared preference store validates device
 preferences; `ModuleSettings` renders ordinary definitions through public kit controls. OpenAI's

@@ -114,33 +114,15 @@ export function createOpenAISettings(
 }
 
 export const providerSettings = createOpenAISettings();
-export const LEGACY_MODEL_KEY = 'vault.agent.model';
 
-/** Preserve the previous device model choice without making browser storage a startup requirement. */
+/** Browser storage is optional; the installed defaults remain available when it is blocked. */
 export function createOpenAIPreferences(
   definition = providerSettings,
   options: { storage?: Storage } = {},
 ) {
-  const storage = options.storage ?? deviceSettingsStorage();
-  let legacyModel: string | null = null;
-  try {
-    legacyModel = storage?.getItem(LEGACY_MODEL_KEY) ?? null;
-  } catch {
-    // The installed defaults remain available when preferences cannot be read.
-  }
-  const preferences = createSettings(definition, {
-    storage,
-    initial: legacyModel?.trim() ? { model: legacyModel.trim() } : undefined,
+  return createSettings(definition, {
+    storage: options.storage ?? deviceSettingsStorage(),
   });
-  if (legacyModel !== null && storage) {
-    try {
-      preferences.set('model', preferences.snapshot().model);
-      storage.removeItem(LEGACY_MODEL_KEY);
-    } catch {
-      // Retain the old choice until its replacement has been saved successfully.
-    }
-  }
-  return preferences;
 }
 
 export function selectedOpenAIModel(defaultModel: string = DEFAULT_MODELS.llm) {

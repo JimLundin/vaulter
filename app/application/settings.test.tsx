@@ -143,7 +143,7 @@ async function fixture({
   const model = new MockLanguageModelV4({ doStream: stream });
   const suppliedModel = vi.fn(async (_name: string) => model);
   const updateSecret = vi.fn(saveSecret);
-  const preloadedSecrets = { github: 'login-github', openai: 'login-openai', jina: 'login-jina' };
+  const preloadedSecrets = { github: 'login-github', openai: 'login-openai' };
   const root = createRoot(document.body);
   let configure!: (changes: {
     nodes?: NodeBackend;
@@ -265,9 +265,9 @@ async function runs(nodes: ReturnType<typeof memoryNodeBackend>) {
 test.each([false, true])(
   'settings update future runs and retain drafts (StrictMode=%s)',
   async (strict) => {
-    localStorage.setItem('vault.agent.model', 'legacy-model');
+    localStorage.setItem('vaulter.settings.openai', JSON.stringify({ model: 'saved-model' }));
     const { model, suppliedModel, nodes } = await fixture({ strict, preview: true });
-    for (const name of ['Appearance', 'Chat', 'Agent', 'OpenAI', 'GitHub storage', 'Jina'])
+    for (const name of ['Appearance', 'Chat', 'Agent', 'OpenAI', 'GitHub storage'])
       expect(document.querySelector(`section[aria-label="${name}"]`)).not.toBeNull();
     for (const label of [
       'Instructions',
@@ -300,8 +300,7 @@ test.each([false, true])(
     ])
       expect(selectField(label)).toBeDefined();
     expect(selectField('Model').selectedOptions[0]?.textContent).toBe('Custom…');
-    expect(textField('Custom model').value).toBe('legacy-model');
-    expect(localStorage.getItem('vault.agent.model')).toBeNull();
+    expect(textField('Custom model').value).toBe('saved-model');
     expect(textField('OpenAI API endpoint').readOnly).toBe(true);
     expect(textField('Vault repository').readOnly).toBe(true);
     expect(textField('GitHub API endpoint').readOnly).toBe(true);
@@ -376,7 +375,6 @@ test('credential settings mask login values and wire save, restore and clear wit
   expect(field('OpenAI API key').value).toBe('');
   expect(textField('OpenAI API key').type).toBe('password');
   expect(textField('GitHub token').placeholder).toBe('Configured');
-  expect(textField('Jina API key').placeholder).toBe('Configured');
   expect(field('OpenAI API key').disabled).toBe(false);
   expect(document.body.innerHTML).not.toContain('login-github');
   expect(document.body.innerHTML).not.toContain('login-openai');
@@ -391,9 +389,9 @@ test('credential settings mask login values and wire save, restore and clear wit
   expect(field('Message').value).toBe('Retain the draft through credential updates.');
   await act(async () => button('Restore login value for OpenAI API key').click());
   expect(updateSecret).toHaveBeenLastCalledWith('openai', undefined);
-  await act(async () => button('Clear Jina API key').click());
-  expect(updateSecret).toHaveBeenLastCalledWith('jina', null);
-  expect(textField('Jina API key').placeholder).toBe('Not configured');
+  await act(async () => button('Clear OpenAI API key').click());
+  expect(updateSecret).toHaveBeenLastCalledWith('openai', null);
+  expect(textField('OpenAI API key').placeholder).toBe('Not configured');
   expect(field('Message').value).toBe('Retain the draft through credential updates.');
 });
 
@@ -479,8 +477,8 @@ test('pending GitHub replacement blocks new activity and retains the draft and c
   expect(updateSecret).toHaveBeenCalledExactlyOnceWith('github', 'replacement-token');
   expect(field('OpenAI API key').disabled).toBe(true);
   expect(button('Restore login value for OpenAI API key').disabled).toBe(true);
-  expect(button('Clear Jina API key').disabled).toBe(true);
-  await act(() => button('Clear Jina API key').click());
+  expect(button('Clear OpenAI API key').disabled).toBe(true);
+  await act(() => button('Clear OpenAI API key').click());
   expect(updateSecret).toHaveBeenCalledTimes(1);
   await act(() => button('Close settings').click());
   await act(() => field('Message').focus());
@@ -535,7 +533,7 @@ test('active Agent work disables credential changes until the recorded run finis
   await openSettings();
   expect(field('OpenAI API key').disabled).toBe(true);
   expect(button('Restore login value for OpenAI API key').disabled).toBe(true);
-  expect(button('Clear Jina API key').disabled).toBe(true);
+  expect(button('Clear OpenAI API key').disabled).toBe(true);
   expect(document.body.textContent).toContain('Finish or stop the current agent activity');
   expect(updateSecret).not.toHaveBeenCalled();
   await act(async () => {

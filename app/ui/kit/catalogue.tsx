@@ -477,26 +477,6 @@ function Layout() {
     </K.Page>
   );
 }
-function ListAndDetail() {
-  return (
-    <K.ListDetail
-      list={
-        <K.Stack>
-          <K.Text>How should I spend the morning?</K.Text>
-          <K.Text>What would make the weekend quieter?</K.Text>
-        </K.Stack>
-      }
-      detail={
-        <K.Page>
-          <K.Heading level={1} serif={true}>
-            How should I spend the morning?
-          </K.Heading>
-          <K.Text>A supplied question detail from an inbox or record browser.</K.Text>
-        </K.Page>
-      }
-    />
-  );
-}
 function TabsSample() {
   return (
     <K.Tabs defaultValue="notes">
@@ -508,18 +488,7 @@ function TabsSample() {
         <K.Text>Your recent thoughts.</K.Text>
       </K.TabsContent>
       <K.TabsContent value="activity">
-        <K.Text>Chronological events for a planned Today or activity view.</K.Text>
-        <K.Timeline>
-          <K.TimelineItem time="09:41" now={true}>
-            <K.Text>Saved a note</K.Text>
-          </K.TimelineItem>
-          <K.TimelineItem time="09:00">
-            <K.Text>Added a morning thought</K.Text>
-          </K.TimelineItem>
-          <K.TimelineItem time="08:30" last={true}>
-            <K.Text>Took a walk</K.Text>
-          </K.TimelineItem>
-        </K.Timeline>
+        <K.Text>Recent activity appears here.</K.Text>
       </K.TabsContent>
     </K.Tabs>
   );
@@ -538,79 +507,6 @@ function Charts() {
         ]}
       />
       <K.Sparkline label="Notes over time" values={[3, 5, 2, 7, 4, 6, 8]} />
-    </K.Stack>
-  );
-}
-function Maps() {
-  const [load, setLoad] = useState(false);
-  const [size, setSize] = useState<'sm' | 'md' | 'fill'>('md');
-  const [selected, setSelected] = useState('coffee');
-  const points: K.MapPoint[] = [
-    {
-      id: 'coffee',
-      label: 'Coffee with Anna',
-      n: 1,
-      tone: 'people',
-      at: { lat: 59.337, lon: 18.06 },
-    },
-    {
-      id: 'walk',
-      label: 'Walk by the water',
-      n: 2,
-      tone: 'places',
-      at: { lat: 59.333, lon: 18.064 },
-    },
-    {
-      id: 'dinner',
-      label: 'Dinner with friends',
-      n: 3,
-      tone: 'events',
-      at: { lat: 59.338, lon: 18.067 },
-    },
-  ];
-  return (
-    <K.Stack fill={true}>
-      <K.Text size="sm" tone="muted">
-        Loading the map connects to OpenFreeMap for public tiles.
-      </K.Text>
-      {load ? (
-        <>
-          <K.Row wrap={true}>
-            <K.Button variant="outline" onClick={() => setSize('sm')}>
-              Compact map
-            </K.Button>
-            <K.Button variant="outline" onClick={() => setSize('md')}>
-              Section map
-            </K.Button>
-            <K.Button variant="outline" onClick={() => setSize('fill')}>
-              Fill map
-            </K.Button>
-          </K.Row>
-          <K.Text size="xs">
-            Selected place: {points.find((point) => point.id === selected)?.label}
-          </K.Text>
-          <K.Stack grow={true}>
-            <K.MapView
-              label="Places in your notes"
-              size={size}
-              points={points}
-              selected={selected}
-              onSelect={setSelected}
-              routes={[
-                {
-                  id: 'walk',
-                  points: [points[0]!.at, points[1]!.at, { lat: 59.329, lon: 18.065 }],
-                },
-                { id: 'travel', points: [points[1]!.at, points[2]!.at], dashed: true },
-              ]}
-            />
-          </K.Stack>
-        </>
-      ) : (
-        <K.Button variant="outline" onClick={() => setLoad(true)}>
-          Load map
-        </K.Button>
-      )}
     </K.Stack>
   );
 }
@@ -1993,20 +1889,10 @@ export const catalogue: Specimen[] = [
     fullBleed: true,
   },
   {
-    id: 'list-detail',
-    title: 'List & detail',
-    description:
-      'Question inbox or record-browsing presentation: supplied list and detail, without selection or Back navigation.',
-    components: ['ListDetail'],
-    Sample: ListAndDetail,
-    fullBleed: true,
-  },
-  {
     id: 'tabs',
-    title: 'Tabs & timeline',
-    description:
-      'Rounded horizontal tabs and a timeline for planned Today/activity views; events are supplied.',
-    components: ['Tabs', 'TabsList', 'TabsTrigger', 'TabsContent', 'Timeline', 'TimelineItem'],
+    title: 'Tabs',
+    description: 'Rounded horizontal tabs with supplied content.',
+    components: ['Tabs', 'TabsList', 'TabsTrigger', 'TabsContent'],
     Sample: TabsSample,
   },
   {
@@ -2015,14 +1901,6 @@ export const catalogue: Specimen[] = [
     description: 'Accessible bars and sparklines with shared data.',
     components: ['Bars', 'Sparkline'],
     Sample: Charts,
-  },
-  {
-    id: 'maps',
-    title: 'Map',
-    description:
-      'Opt-in MapLibre maps with selectable places, solid/dashed routes and compact/section/fill sizes.',
-    components: ['MapView'],
-    Sample: Maps,
   },
   {
     id: 'changes',

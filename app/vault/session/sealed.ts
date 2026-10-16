@@ -7,8 +7,6 @@
 export interface Secrets {
   github: string;
   openai?: string;
-  /** Jina (jina.ai), for the agent's web search. */
-  jina?: string;
 }
 
 export interface Sealed {
@@ -71,5 +69,6 @@ export async function unseal(sealed: Sealed, key: CryptoKey): Promise<Secrets> {
     key,
     unb64(sealed.data),
   );
-  return JSON.parse(new TextDecoder().decode(plain));
+  const { github, openai } = JSON.parse(new TextDecoder().decode(plain)) as Secrets;
+  return { github, ...(openai !== undefined ? { openai } : {}) };
 }

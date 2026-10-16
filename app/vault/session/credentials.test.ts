@@ -9,7 +9,7 @@ test('safe credential tasks bind owner keys, preserve absence provenance and kee
   const credentials = createSessionCredentials(
     {
       secrets: { github: 'login-token', openai: 'custom-key' },
-      secretOverrides: { openai: 'custom-key', jina: null },
+      secretOverrides: { openai: 'custom-key' },
       updateSecret,
     },
     { persistent: true },
@@ -18,16 +18,14 @@ test('safe credential tasks bind owner keys, preserve absence provenance and kee
   expect(credentials.github.overridden).toBe(false);
   expect(credentials.github.clear).toBeUndefined();
   expect(credentials.openai.overridden).toBe(true);
-  expect(credentials.jina.configured).toBe(false);
-  expect(credentials.jina.overridden).toBe(true);
   expect(JSON.stringify(credentials)).not.toContain('login-token');
   expect(JSON.stringify(credentials)).not.toContain('custom-key');
   await credentials.openai.save(' replacement-key ');
   expect(updateSecret).toHaveBeenLastCalledWith('openai', 'replacement-key');
   await credentials.openai.restore();
   expect(updateSecret).toHaveBeenLastCalledWith('openai', undefined);
-  await credentials.jina.clear!();
-  expect(updateSecret).toHaveBeenLastCalledWith('jina', null);
+  await credentials.openai.clear!();
+  expect(updateSecret).toHaveBeenLastCalledWith('openai', null);
   await expect(credentials.openai.save(' ')).rejects.toThrow('Enter a credential value.');
   expect(updateSecret).toHaveBeenCalledTimes(3);
 });
@@ -49,7 +47,7 @@ test('owner pending state and Application restrictions reject tasks before crede
   const restricted = restrictSessionCredentials(active, 'Finish the current Agent run.');
   await expect(restricted.openai.save('replacement-key')).rejects.toThrow('Finish the current');
   await expect(restricted.openai.restore()).rejects.toThrow('Finish the current');
-  await expect(restricted.jina.clear!()).rejects.toThrow('Finish the current');
+  await expect(restricted.openai.clear!()).rejects.toThrow('Finish the current');
   expect(restricted.github.clear).toBeUndefined();
   expect(restricted.openai.persistent).toBe(false);
   expect(restrictSessionCredentials(active)).toBe(active);
