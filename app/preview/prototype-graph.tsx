@@ -31,9 +31,9 @@ import {
 export const graphDesigns = [
   { id: 'obsidian', label: 'A · Obsidian baseline' },
   { id: 'obsidian-dense', label: 'B · Obsidian compact' },
-  { id: 'communities', label: 'C · Connection communities' },
+  { id: 'obsidian-snug', label: 'C · Obsidian close edges' },
   { id: 'communities-soft', label: 'D · Communities blended' },
-  { id: 'communities-broad', label: 'E · Communities broad' },
+  { id: 'communities-airy', label: 'E · Blended spacious' },
 ] as const;
 type Grouping = 'none' | 'communities' | 'areas';
 type Spacing = 'compact' | 'balanced' | 'relaxed';
@@ -56,9 +56,9 @@ const presets: Record<
     spacing: 'compact',
     edgeSpacing: 'tight',
   },
-  communities: {
-    grouping: 'communities',
-    cohesion: 'medium',
+  'obsidian-snug': {
+    grouping: 'none',
+    cohesion: 'soft',
     spacing: 'balanced',
     edgeSpacing: 'tight',
   },
@@ -68,12 +68,11 @@ const presets: Record<
     spacing: 'balanced',
     edgeSpacing: 'tight',
   },
-  'communities-broad': {
+  'communities-airy': {
     grouping: 'communities',
     cohesion: 'soft',
     spacing: 'relaxed',
     edgeSpacing: 'balanced',
-    communityScale: 'broad',
   },
 };
 type Props = Parameters<NonNullable<ComponentProps<typeof OpenApplication>['renderGraph']>>[0];
