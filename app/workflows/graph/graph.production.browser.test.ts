@@ -51,20 +51,16 @@ test('production Graph reads persisted relationships, navigates subjects and sur
   await page.getByLabel('Password', { exact: true }).fill(password);
   await page.getByRole('button', { name: 'Open vault', exact: true }).click();
   await navigateToModule(page, 'Graph');
-  const diagram = page.getByRole('figure', { name: 'Connections around Garden studio' });
+  const diagram = page.getByRole('figure', { name: 'Global Vault graph' });
   await expect(diagram).toBeVisible();
   await diagram.getByRole('button', { name: 'Explore Slow mornings', exact: true }).click();
-  await expect(
-    page.getByRole('figure', { name: 'Connections around Slow mornings' }),
-  ).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Slow mornings', exact: true })).toBeVisible();
   await page.reload();
   if (await page.getByLabel('Password', { exact: true }).isVisible()) {
     await page.getByLabel('Password', { exact: true }).fill(password);
     await page.getByRole('button', { name: 'Open vault', exact: true }).click();
   }
-  await expect(
-    page.getByRole('figure', { name: 'Connections around Slow mornings' }),
-  ).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Slow mornings', exact: true })).toBeVisible();
   await page.getByRole('link', { name: 'Open source', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Slow mornings', exact: true })).toBeVisible();
   nodes.close();

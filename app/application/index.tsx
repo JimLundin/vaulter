@@ -82,7 +82,6 @@ import { useWikiReading, useWiki } from '../workflows/wiki/use-wiki.ts';
 import { describeWikiTarget } from '../workflows/wiki/sources.ts';
 import { recordText } from '../workflows/wiki/text.ts';
 import { GraphPage } from '../workflows/graph/GraphPage.tsx';
-import type { ComponentProps, ReactNode } from 'react';
 import { graphRoute, graphSubjectRoute } from '../workflows/graph/routes.ts';
 import { useGraph, useGraphExplorer } from '../workflows/graph/use-graph.ts';
 import {
@@ -134,19 +133,11 @@ export function OpenApplication({
   session,
   model: suppliedModel,
   preview,
-  renderGraph,
   identities = defaultIdentities,
 }: {
   session: SuppliedSession;
   model?: (name: string) => Promise<LanguageModel>;
   identities?: ApplicationIdentities;
-  renderGraph?: (
-    props: ComponentProps<typeof GraphPage> & {
-      onSelectSubject: (node: string) => void;
-      topics: NonNullable<ReturnType<typeof useWiki>['pages']>;
-      currentSourceText: (node: string) => string | undefined;
-    },
-  ) => ReactNode;
   preview?: {
     provider?: string;
     defaultModel?: string;
@@ -648,28 +639,19 @@ export function OpenApplication({
             transcription={voice}
           />
         ) : onGraph ? (
-          renderGraph ? (
-            renderGraph({
-              state: graphState,
-              node: graphSubject,
-              topics: pages ?? [],
-              currentSourceText: (node) => {
-                const view = graphState.view;
-                const source = view?.get(node);
-                return view && source?.data
-                  ? recordText(source, view, applicationSources)
-                  : undefined;
-              },
-              onSelectSubject: (node) => go(graphSubjectRoute.href({ node })),
-              onRetry: () => later(graph.reload()),
-            })
-          ) : (
-            <GraphPage
-              state={graphState}
-              node={graphSubject}
-              onRetry={() => later(graph.reload())}
-            />
-          )
+          <GraphPage
+            state={graphState}
+            node={graphSubject}
+            topics={pages ?? []}
+            currentSourceText={(node) => {
+              const view = graphState.view;
+              const source = view?.get(node);
+              return view && source?.data
+                ? recordText(source, view, applicationSources)
+                : undefined;
+            }}
+            onRetry={() => later(graph.reload())}
+          />
         ) : onWiki ? (
           <Wiki
             key={wikiPage ?? 'wiki'}

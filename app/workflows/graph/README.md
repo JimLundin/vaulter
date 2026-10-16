@@ -65,13 +65,24 @@ this module. Consumers of the old `vault/records/graph.ts` entry must use `graph
 advancing their Vaulter pin. The payload shapes remain unchanged.
 
 The Graph screen is available from the sidebar, the compact Modules menu and the `g g` command.
-`/graph/` opens the subject with the most connections; `/graph/:node/` retains a selected subject
-through reload. Connections supports subject search, incoming/outgoing filtering, a diagram of up
-to six nearby subjects, a complete relationship list and source links. Vocabulary exposes scheme,
-usage, inverse and symmetric labels. The diagram uses the public kit's `NetworkDiagram` with native
-keyboard-accessible buttons. Graph owns the subscribed reading lifetime in `explorer.ts`, retaining
-the previous result on a failed refresh and rejecting late responses after replacement or disposal.
-Application supplies descriptions from record owners; Graph never imports Wiki.
+`/graph/` opens the global topic map; `/graph/:node/` retains an inspected subject through reload.
+Application supplies structural topic/block/citation projections to `map.ts`. Shared sources keep
+one identity and every parent-topic membership. Connections determine topic placement, while
+node sizes reflect total incident connection counts before filtering.
+
+The default is Topics gentle: parent-topic grouping and coloring, gentle attraction (0.018),
+balanced internal spacing, close topic separation (0.65) and tight canvas margins (24px).
+Layout, coloring and population filters remain configurable. The adaptive `NetworkDiagram`
+occupies the main workspace and exposes keyboard-accessible node buttons. On phones, search,
+filters, fit and options use the shared edge rail. SupportingPane contains settings, searchable
+records, vocabulary and selected-record inspection. Local focus supports one or two steps with a
+disclosed 36-record limit. Configuration and dragged positions reset on reload.
+
+Inspection retains source links, reviewed citation passages and current source text, vocabulary
+usage/inverse/symmetric labels, and recorded relationship endpoint availability and exact-version
+context. Graph owns the subscribed reading lifetime in `explorer.ts`, retaining previous results
+on failed refresh and rejecting late responses after replacement or disposal. Application supplies
+descriptions from record owners; Graph never imports Wiki.
 
 `graphRelatedContent(snapshot)` supplies classifications, embedded relationship labels and query
 results to Wiki through Application's `applicationWikiGraph`. Graph's query evaluator and Wiki's
