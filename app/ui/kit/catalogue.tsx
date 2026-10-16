@@ -551,6 +551,26 @@ function Charts() {
         ]}
         onSelect={noop}
       />
+      <K.NetworkDiagram
+        label="Directed reading paths"
+        layout="lanes"
+        nodes={[
+          { id: 'question', label: 'What helps me begin?', detail: 'QUESTION', column: 0 },
+          {
+            id: 'statement',
+            label: 'Prepare a clear surface before starting.',
+            detail: 'STATEMENT',
+            column: 1,
+            selected: true,
+          },
+          { id: 'source', label: 'Workshop notes', detail: 'SOURCE', column: 2 },
+        ]}
+        edges={[
+          { id: 'context', source: 'question', target: 'statement', label: 'informed by' },
+          { id: 'citation', source: 'statement', target: 'source', label: 'cites passage' },
+        ]}
+        onSelect={noop}
+      />
     </K.Stack>
   );
 }

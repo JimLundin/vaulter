@@ -6,6 +6,8 @@ export interface NetworkNode {
   readonly id: string;
   readonly label: string;
   readonly selected?: boolean;
+  readonly column?: number;
+  readonly detail?: string;
 }
 export interface NetworkEdge {
   readonly id: string;
@@ -20,13 +22,133 @@ export function NetworkDiagram({
   nodes,
   edges,
   onSelect,
+  layout = 'radial',
 }: {
   label: string;
   nodes: readonly NetworkNode[];
   edges: readonly NetworkEdge[];
   onSelect: (id: string) => void;
+  layout?: 'radial' | 'lanes';
 }) {
   const marker = useId().replaceAll(':', '');
+  if (layout === 'lanes') {
+    const columns = [...new Set(nodes.map((node) => node.column ?? 0))].sort((a, b) => a - b);
+    const width = Math.max(760, columns.length * 290);
+    const height = Math.max(
+      340,
+      ...columns.map(
+        (column) => nodes.filter((node) => (node.column ?? 0) === column).length * 160 + 40,
+      ),
+    );
+    const places = new Map(
+      nodes.map((node) => {
+        const peers = nodes.filter((peer) => (peer.column ?? 0) === (node.column ?? 0));
+        return [
+          node.id,
+          { x: columns.indexOf(node.column ?? 0) * 290 + 30, y: peers.indexOf(node) * 160 + 30 },
+        ];
+      }),
+    );
+    return (
+      <figure aria-label={label} className="m-0 min-w-0">
+        <section
+          aria-label="Scrollable investigation canvas"
+          className="max-h-[560px] max-w-full overflow-auto rounded-xl border border-border bg-muted/20 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <div className="relative" style={{ width, height }}>
+            <svg
+              aria-hidden="true"
+              width={width}
+              height={height}
+              className="absolute inset-0 text-muted-foreground"
+            >
+              <defs>
+                <marker
+                  id={marker}
+                  viewBox="0 0 10 10"
+                  refX="9"
+                  refY="5"
+                  markerWidth="6"
+                  markerHeight="6"
+                  orient="auto"
+                >
+                  <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" />
+                </marker>
+              </defs>
+              {edges.map((edge) => {
+                const source = places.get(edge.source);
+                const target = places.get(edge.target);
+                if (!(source && target) || source.x === target.x) return null;
+                const forward = target.x > source.x;
+                const x1 = source.x + (forward ? 220 : 0);
+                const x2 = target.x + (forward ? 0 : 220);
+                const y1 = source.y + 60;
+                const y2 = target.y + 60;
+                return (
+                  <g key={edge.id}>
+                    <path
+                      d={`M ${x1} ${y1} C ${(x1 + x2) / 2} ${y1}, ${(x1 + x2) / 2} ${y2}, ${x2} ${y2}`}
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth={
+                        nodes.some(
+                          (node) =>
+                            node.selected && (node.id === edge.source || node.id === edge.target),
+                        )
+                          ? '3'
+                          : '1.5'
+                      }
+                      markerEnd={`url(#${marker})`}
+                    />
+                    <text
+                      x={(x1 + x2) / 2}
+                      y={(y1 + y2) / 2 - 8}
+                      textAnchor="middle"
+                      fontSize="11"
+                      fill="currentColor"
+                      stroke="var(--background)"
+                      strokeWidth="4"
+                      paintOrder="stroke"
+                    >
+                      {edge.label}
+                    </text>
+                  </g>
+                );
+              })}
+            </svg>
+            {nodes.map((node) => (
+              <button
+                key={node.id}
+                type="button"
+                aria-label={`Explore ${node.label}`}
+                aria-pressed={!!node.selected}
+                onClick={() => onSelect(node.id)}
+                style={{ left: places.get(node.id)!.x, top: places.get(node.id)!.y }}
+                className={cn(
+                  'absolute flex h-[120px] w-[220px] flex-col gap-2 overflow-hidden rounded-xl border border-border bg-background p-3 text-left text-sm shadow-sm outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring',
+                  node.selected && 'border-primary ring-2 ring-primary/25',
+                )}
+              >
+                <span className="text-xs font-medium text-muted-foreground">{node.detail}</span>
+                <span className="line-clamp-4">{node.label}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+        <figcaption className="mt-2 text-sm text-muted-foreground">
+          Select a record to read its text. Scroll to follow the visible branches.
+        </figcaption>
+        <ul className="sr-only" aria-label="Diagram connections">
+          {edges.map((edge) => (
+            <li key={edge.id}>
+              {nodes.find((node) => node.id === edge.source)?.label} — {edge.label} →{' '}
+              {nodes.find((node) => node.id === edge.target)?.label}
+            </li>
+          ))}
+        </ul>
+      </figure>
+    );
+  }
   const center = nodes.find((node) => node.selected) ?? nodes[0];
   const surrounding = nodes.filter((node) => node !== center);
   const positions = new Map<string, { x: number; y: number }>();

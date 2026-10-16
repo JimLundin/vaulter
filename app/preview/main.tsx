@@ -48,6 +48,26 @@ const openingNodes = previewNodes(sessionStorage, query.get('scenario') ?? undef
     if (query.get('compare') === 'graph') {
       await seedGraphEvidence(nodes);
       await seedGraphDensity(nodes);
+      if (!(await nodes.snapshot()).get('preview:inquiry:studio-context:0')) {
+        await nodes.commit({
+          id: 'preview:inquiry:studio-context',
+          recordedBy: 'preview:wiki-owner',
+          origin: null,
+          undoOf: null,
+          kind: { scope: 'node', action: 'create' },
+          message: 'Fictional context for open Studio questions',
+          changes: [0, 1].map((index) => ({
+            node: `preview:inquiry:studio-context:${index}`,
+            expected: null,
+            data: { kind: 'relationship', predicate: 'informed-by' },
+            placement: { parent: `preview:density:studio-question:${index}`, order: 'a' },
+            connection: {
+              source: { node: `preview:density:studio-question:${index}` },
+              target: { node: `preview:graph-claim:${index}` },
+            },
+          })),
+        });
+      }
     }
     if (query.has('conversations') && !(await nodes.snapshot()).get('preview:list-owner')) {
       await nodes.commit({
@@ -178,7 +198,7 @@ function Preview({ nodes }: { nodes: NodeStore }) {
   if (query.get('compare') === 'graph')
     return (
       <DesignComparison
-        defaultValue={query.get('variant') ?? 'briefing'}
+        defaultValue={query.get('variant') ?? 'inquiry'}
         onValueChange={(variant) => {
           const url = new URL(location.href);
           url.searchParams.set('variant', variant);

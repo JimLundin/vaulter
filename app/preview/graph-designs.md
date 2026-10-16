@@ -1,46 +1,32 @@
-# Graph UI comparison
+﻿# Graph investigation comparisons
 
-Question: how can Graph help someone understand a topic and trace its supporting sources?
-These are throwaway alternatives on `prototype/graph-ui-variants`; no design has been selected.
+Question: which interaction helps a reader compare connected statements, questions and reviewed source passages without scanning the whole Vault?
 
-All three use the real application shell and the same fictional Vault records. Application supplies
-Wiki's resolved statements, citations and retained source passages. Wiki continues to own the citation
-meaning and historical selections; the Graph screen presents an investigation across those records.
-No Wiki data or citation parsing moves into Graph.
+Throwaway branch: `prototype/graph-ui-variants`. No design has been selected. The earlier topic briefing, evidence trail and source review alternatives are preserved at `3a6c3d0`; the original generic Graph layouts are at `506068d`.
 
-| Variant | Primary interaction | Layout |
+The crashed session's final request was: “please give me variants based on this existing material”. This comparison continues that request using [the recovered research](../../docs/research/graph-ui-patterns.md).
+
+| Variant | Material | Main interaction |
 | --- | --- | --- |
-| `briefing` | Understand the topic | Statements paired with selected supporting passages and current source changes |
-| `trail` | Trace a statement | Select a statement beside a visible Topic → Statement → Source passage trail |
-| `review` | Assess the evidence | Citation coverage filters, retained quotations and current source text |
+| `inquiry` | Discourse Graphs + Neo4j Bloom | A bounded question/statement/source canvas; add individual branches, pin, hide, undo hide and inspect retained passages. |
+| `local` | Obsidian local graph + TheBrain | Center one record, select neighbors, inspect recorded relationships, recenter and go back through focus history. |
+| `linked` | Graphologue | Select a readable statement or source in the diagram; the diagram, reading list and evidence inspector share that selection. |
 
-Hosted comparison:
-<https://jimlundin.github.io/vaulter/preview/prototype/graph-ui-variants/?compare=graph&variant=briefing#/graph/preview%3Agraph-topic/>
+All use the same 14 topics, 105 statements, 29 cited sources and 24 questions. The Studio topic has twenty statements. Two additional fictional `informed-by` relationships give its open questions recorded context; they do not answer the questions. Application still supplies Wiki's resolved statements and historical citation selections. Source nodes aggregate an exact source address, while the inspector retains each statement's selected passage separately. No opposition or confidence score is inferred.
 
-The comparison sample now has 14 topics, 105 statements, 29 cited sources and 24 questions. Studio
-routine is deliberately busy: 20 statements, with 15 having citations. Ten additional topics form
-Studio, Garden, Learning and Routine groups. Sources recur across topics, some statements cite two
-sources, four additional sources change and two are removed. Questions have recorded `informed-by`
-and `generated-from` connections to statements and sources.
+Use **Show more statements** to expand the view. In Inquiry, **Add a branch** keeps that statement visible; selecting a statement reveals pin and hide actions. **Changed or removed sources** and **Without citations** are lenses on recorded data. Local exploration starts from a question with recorded context and provides **Center this record** and **Back to previous focus**. Source passages link to other topics that cite the source. Changing topic starts a fresh investigation; pins and focus history are local to the current topic. Mobile uses a horizontally scrollable canvas and stacks the inspector. There is no free dragging, automatic layout optimization or saved investigation in this prototype.
 
-The morning-work quotation remains intact while the source now describes a
-different schedule. The proposed wall rack has no statement citation. Topic references are shown
-separately from supporting passages; their count never becomes a confidence score.
+Review tasks:
 
-Use the arrows in the existing preview pill to switch designs. The URL retains the variant for
-sharing and reload. Mobile in the same pill compares the compact layout. Reset demo restores the
-fictional records. Without `compare=graph`, the preview shows the current application unchanged.
+- Select the morning-work statement and compare its reviewed quotation with current source text.
+- Add two statements citing the same source and inspect their individual selected passages.
+- Follow an open question's context and explain why it is still open.
+- Hide a branch, restore it, then expand the twenty-statement Studio topic.
+- Compare diagram selection and reading-list selection in Linked reading.
 
-Local command: `npm run design`, then open the same query and hash under `/preview/`.
-No persistent server is needed for the hosted comparison.
+Hosted entry:
+<https://jimlundin.github.io/vaulter/preview/prototype/graph-ui-variants/?compare=graph&variant=inquiry#/graph/preview%3Agraph-topic/>
 
-Density review: use Browse topics and search for workshop, garden or reading; follow a shared-source
-link to another topic; inspect question context and removed source quotations. Show more statements
-adds six at a time. All variants use the same records. Counts describe this sample, not the app's
-tested performance limits. Reload and Reset demo install the same sample without duplicates.
+The existing preview pill cycles variants and retains the selected variant in the URL. Mobile constrains the same mounted app; Reset demo restores fictional records. Without `compare=graph`, the preview renders the current Application. Local command: `npm run design`, then use the same query and hash under `/preview/`.
 
-Verdict: the original Canvas, Workbench and Atlas designs were rejected because inspecting adjacent
-nodes did not reveal useful insight. Their source is retained at commit `506068d`. The revised
-direction answers the user's selected task: understand a topic and trace its supporting sources.
-The new variants await review. Promote the chosen behavior through the owning Graph workflow and kit;
-retain this branch as the source for the alternatives.
+Verdict: awaiting user review. These are design hypotheses adapted from documented interaction patterns, not claims of demonstrated usability. Promote a selected behavior through Graph and shared kit presentation, with the production verification required by the repository; retain this comparison separately.

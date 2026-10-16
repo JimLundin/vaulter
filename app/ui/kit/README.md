@@ -10,6 +10,10 @@ The [public interface](index.ts) defines the kit's exports; catalogue and compos
 verify their examples and implementation ownership.
 
 `NetworkDiagram` presents caller-supplied node labels and directed edges in a bounded neighborhood.
+Its optional `lanes` layout groups records by a caller-supplied column number, draws readable edge
+labels, and scrolls within a bounded canvas. Selection marks the incident paths; detail text can
+describe each record without the kit interpreting it. `FeaturePage.width="wide"` provides more
+room for investigation surfaces while its default retains the reading column.
 The selected node sits at the center; surrounding nodes use native buttons with 44px minimum
 targets and keyboard selection. Callers limit the neighborhood and supply a complete relationship
 list alongside it. The kit owns geometry and accessible diagram text, without interpreting Vault
