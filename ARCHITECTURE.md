@@ -71,7 +71,7 @@ app/
     nodes/                   immutable model, acceptance, snapshots and memory adapter
     transactions/            scoped write lifetime, recovery and History UI/compensation
     content/                 content operations, tools and recorded action receipts
-    records/                 retained kinds awaiting modules and their source reading
+    records/                 historical source reading and shared validation values
     sources.ts               generic historical source-reading contract
     session/                 credentials, encryption and Node adapter lifetime
     storage/
@@ -286,9 +286,9 @@ pin requires adapting the consumer rather than preserving a separate migration S
 [ADR 0007](docs/adr/0007-vault-owned-translation.md). Published exact evidence remains readable as
 future payloads evolve through owner historical decoders and appended upgrades.
 
-The registry in vault/records/index.ts validates retained kinds awaiting modules. The private
-translator currently calls parseVaultRecord; production historical reading independently uses
-retainedRecordSources and identityName. Both are current interfaces with distinct responsibilities.
+Production reads historical source text through retainedRecordSources. Shared validation values
+support current Wiki, Questions and historical Chat records. Validation used solely to translate
+unimplemented record kinds belongs with the private Vault tooling.
 See [Wiki ingestion](app/workflows/wiki/README.md) for preparation, exact-baseline validation and
 links to private Vault operations.
 

@@ -1,7 +1,7 @@
 import type { NodeVersion } from '../nodes/model.ts';
 import type { SourceReader } from '../sources.ts';
 
-// These definitions remain unclaimed until their owning modules are implemented.
+// Historical source kinds whose text remains available to application citation reading.
 const ownedKinds = new Set([
   'relationship',
   'term',

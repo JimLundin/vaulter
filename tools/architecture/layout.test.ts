@@ -333,7 +333,7 @@ test('Wiki owns its records while migration and source readers stay outside its 
   expect(importProblem('app/workflows/wiki/pages.ts', 'app/vault/records/sources.ts')).toContain(
     'source interpretation',
   );
-  expect(importProblem('app/vault/records/index.ts', 'app/workflows/wiki/records.ts')).toContain(
+  expect(importProblem('app/vault/records/sources.ts', 'app/workflows/wiki/records.ts')).toContain(
     'optional workflow',
   );
   expect(importProblem('app/application/index.tsx', 'app/workflows/wiki/records.ts')).toBeNull();
