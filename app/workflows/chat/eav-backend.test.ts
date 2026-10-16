@@ -210,3 +210,40 @@ test('concurrent submission recovery restores the winner without creating or exe
   backend.dispose();
   second.dispose();
 });
+
+test('terminal recovery after another accepted write retains the result without repeating the provider', async () => {
+  let journal: Journal = { commits: [], schemas: [] };
+  let fail = true;
+  const storage = createPersistentStorage({
+    scope: 'terminal-conflict',
+    load: async () => journal,
+    append: async (value) => {
+      if (
+        fail &&
+        value.commit.facts.some(
+          (fact) =>
+            fact.attribute === 'agent.run/status' && !fact.added && fact.value === 'running',
+        )
+      )
+        throw new Error('Terminal save failed');
+      journal = { schemas: value.schemas, commits: [...journal.commits, value.commit] };
+    },
+  });
+  const { db, execution, backend } = await setup(storage);
+  await using _db = db;
+  const handle = backend.send(send);
+  expect(await handle.done).toMatchObject({ phase: 'unsaved', persistenceStage: 'terminal' });
+  fail = false;
+  await db.transaction((tx) =>
+    tx.entities.actors.insert({ name: 'Another actor', kind: 'system' }),
+  );
+  await handle.retrySave();
+  expect(handle.snapshot()).toMatchObject({ phase: 'complete', response: { status: 'complete' } });
+  expect(handle.snapshot().persistenceError).toBeUndefined();
+  expect(execution).toHaveBeenCalledOnce();
+  expect(await backend.messages('chat')).toMatchObject([
+    { data: { role: 'user', text: 'Hello' } },
+    { data: { role: 'agent', parts: [{ kind: 'text', text: 'Hello back' }] } },
+  ]);
+  backend.dispose();
+});

@@ -1,6 +1,7 @@
 import { streamText, isStepCount, modelMessageSchema, type SystemModelMessage } from 'ai';
 import {
   SaveError,
+  ConflictError,
   type Database,
   type EntityRef,
   type EntityDefinition,
@@ -324,7 +325,12 @@ export function executeEavRun(
         if (tools?.pending()) return state;
         try {
           if (pending) {
-            await pending.retry();
+            try {
+              await pending.retry();
+            } catch (error) {
+              // A definitive conflict permits recording the retained result on a fresh snapshot.
+              if (!(error instanceof ConflictError)) throw error;
+            }
             pending = undefined;
           }
           await finish();
