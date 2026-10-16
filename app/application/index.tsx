@@ -1,10 +1,4 @@
-import {
-  chatRoute,
-  conversationRoute,
-  legacyChatRoute,
-  historyRoute,
-  settingsRoute,
-} from './routes.ts';
+import { chatRoute, conversationRoute, historyRoute, settingsRoute } from './routes.ts';
 import {
   applicationNodes,
   applicationQuestions,
@@ -41,7 +35,6 @@ import { AppearanceSettings, appearanceSettings } from './AppearanceSettings.tsx
 import { agentSettings, agentOptions, agentPreferences } from '../agent/settings.ts';
 import { AgentSettings } from '../agent/Settings.tsx';
 import { OpenAISettings } from '../agent/openai/Settings.tsx';
-import { JinaSettings } from '../agent/jina/Settings.tsx';
 import { GitHubSettings } from '../vault/storage/Settings.tsx';
 import {
   createOpenAISettings,
@@ -49,7 +42,6 @@ import {
   openAIOptions,
 } from '../agent/openai/settings.ts';
 import { githubSettings } from '../vault/storage/settings.ts';
-import { jinaSettings } from '../agent/jina/settings.ts';
 import { chatPreferences, chatSettings } from '../workflows/chat/preferences.ts';
 import { nodeWriteAvailability, nodeRecordsReady } from '../vault/session/availability.ts';
 import {
@@ -304,7 +296,6 @@ export function OpenApplication({
     route.path === '/' ||
     !!chatRoute.match(route.path) ||
     !!conversationRoute.match(route.path) ||
-    !!legacyChatRoute.match(route.path) ||
     onSettings;
   const onHistory = !!historyRoute.match(route.path);
   const settingsOpen = settings || onSettings;
@@ -378,10 +369,7 @@ export function OpenApplication({
       onConversation: (id) => {
         const path = parseRoute(location.hash).path;
         const selected = conversationRoute.match(path)?.node;
-        if (
-          selected !== id &&
-          (selected || path === '/' || chatRoute.match(path) || legacyChatRoute.match(path))
-        )
+        if (selected !== id && (selected || path === '/' || chatRoute.match(path)))
           go(conversationRoute.href({ node: id }));
       },
       onNewChat: () => {
@@ -726,10 +714,6 @@ export function OpenApplication({
           {
             name: githubSettings.name,
             content: <GitHubSettings credential={credentials.github} />,
-          },
-          {
-            name: jinaSettings.name,
-            content: <JinaSettings credential={credentials.jina} />,
           },
         ]}
       />

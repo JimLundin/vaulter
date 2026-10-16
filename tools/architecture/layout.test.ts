@@ -74,6 +74,22 @@ test('application tasks cannot construct raw node adapters', () => {
     'fixtures cannot publish application data',
   );
   expect(importProblem('app/agent/new-tool.test.ts', 'app/preview/nodes.ts')).toBeNull();
+  expect(importProblem('app/agent/new-tool.ts', 'app/agent/contracts.type-test.ts')).toContain(
+    'fixtures cannot publish application data',
+  );
+  expect(
+    importProblem('app/agent/new-tool.type-test.ts', 'app/vault/nodes/fixtures.test-support.ts'),
+  ).toBeNull();
+});
+
+test('browser drivers are shared across test owners without exposing private kit code', () => {
+  const driver = 'app/ui/kit/navigation.browser.test-support.ts';
+  expect(importProblem('app/workflows/chat/node-chat.browser.test.ts', driver)).toBeNull();
+  expect(importProblem('app/application/navigation.browser.test.ts', driver)).toBeNull();
+  expect(importProblem('app/workflows/chat/Chat.tsx', driver)).toContain('test-only');
+  expect(
+    importProblem('app/workflows/chat/node-chat.browser.test.ts', 'app/ui/kit/navigation.tsx'),
+  ).toContain('private kit');
 });
 
 test('raw session hooks remain with Vault assembly and Application through every import form', () => {
@@ -317,7 +333,7 @@ test('Wiki owns its records while migration and source readers stay outside its 
   expect(importProblem('app/workflows/wiki/pages.ts', 'app/vault/records/sources.ts')).toContain(
     'source interpretation',
   );
-  expect(importProblem('app/vault/records/index.ts', 'app/workflows/wiki/records.ts')).toContain(
+  expect(importProblem('app/vault/records/sources.ts', 'app/workflows/wiki/records.ts')).toContain(
     'optional workflow',
   );
   expect(importProblem('app/application/index.tsx', 'app/workflows/wiki/records.ts')).toBeNull();
@@ -1046,11 +1062,8 @@ test('installed presentation-library targets cannot hide behind path aliases or 
   }
 });
 
-test('module owners cannot depend on their consumers or standalone vault checking', () => {
+test('module owners cannot depend on their consumers', () => {
   for (const owner of ['runtime', 'navigation', 'settings', 'vault/nodes']) {
-    expect(
-      importProblem(`app/${owner}/core.ts`, 'tools/vault-check/validation/check.ts'),
-    ).toContain('standalone vault checking');
     expect(importProblem(`app/${owner}/core.ts`, 'app/application/composition.ts')).toContain(
       'imports Application composition',
     );

@@ -2,7 +2,6 @@ import { transactionFixture } from '../../vault/transactions/fixtures.test-suppo
 import { expect, test, vi } from 'vitest';
 import { generateText } from 'ai';
 import { createOpenAICapabilities } from './index.ts';
-import { openAIEmbeddings } from './embeddings.ts';
 import { openAIFileTranscription } from './file-transcription.ts';
 import { memoryNodeBackend } from '../../vault/nodes/memory.ts';
 import { create, request } from '../../vault/nodes/fixtures.test-support.ts';
@@ -122,94 +121,6 @@ test('streams OpenAI into an independent accepted Agent run and records served m
     'fixture-secret',
   );
   backend.dispose();
-});
-
-function embedding(data: { index: number; embedding: number[] }[], model = 'embedding-fixture') {
-  return Response.json({ model, data, usage: { prompt_tokens: 2, total_tokens: 2 } });
-}
-
-test('embedding batches preserve input ordering, configured dimensions, and usage', async () => {
-  const fetch = vi.fn<typeof globalThis.fetch>().mockImplementation((_url, init) => {
-    const body = JSON.parse(init!.body as string);
-    expect(body).toMatchObject({
-      model: 'embedding-fixture',
-      dimensions: 2,
-      encoding_format: 'float',
-    });
-    const values = body.input as string[];
-    return Promise.resolve(
-      embedding(values.map((text, index) => ({ index, embedding: [Number(text), 1] })).reverse()),
-    );
-  });
-  const embed = openAIEmbeddings({
-    apiKey: 'fixture',
-    model: 'embedding-fixture',
-    dimensions: 2,
-    fetch,
-  });
-  const result = await embed(Array.from({ length: 130 }, (_, index) => String(index)));
-  expect(fetch).toHaveBeenCalledTimes(2);
-  expect(result.vectors.map((vector) => vector[0])).toEqual(
-    Array.from({ length: 130 }, (_, index) => index),
-  );
-  expect(result).toMatchObject({ dimensions: 2, tokens: 4, model: 'embedding-fixture' });
-  expect(Object.isFrozen(result.vectors[0])).toBe(true);
-});
-
-test.each([
-  {
-    data: [
-      { index: 0, embedding: [1, 2] },
-      { index: 0, embedding: [3, 4] },
-    ],
-  },
-  {
-    data: [
-      { index: 0, embedding: [1] },
-      { index: 1, embedding: [3, 4] },
-    ],
-  },
-  {
-    data: [
-      { index: 0, embedding: [1, 2] },
-      { index: 2, embedding: [3, 4] },
-    ],
-  },
-  { data: [{ index: 0, embedding: [1, 2] }] },
-])('rejects invalid embedding indices, counts, or dimensions ($data)', async ({ data }) => {
-  const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValue(embedding(data));
-  await expect(
-    openAIEmbeddings({ apiKey: 'fixture', dimensions: 2, fetch })(['one', 'two']),
-  ).rejects.toThrow();
-});
-
-test('rejects nonfinite embeddings, blank input, and cancellation before a later batch', async () => {
-  const fetch = vi
-    .fn<typeof globalThis.fetch>()
-    .mockResolvedValue(
-      new Response(
-        '{"model":"fixture","data":[{"index":0,"embedding":[1e999]}],"usage":{"prompt_tokens":1,"total_tokens":1}}',
-      ),
-    );
-  const embed = openAIEmbeddings({ apiKey: 'fixture', model: 'custom', fetch });
-  await expect(embed(['text'])).rejects.toThrow();
-  await expect(embed([' '])).rejects.toThrow('nonempty');
-  const abort = new AbortController();
-  fetch.mockImplementation((_url, init) => {
-    const body = JSON.parse(init!.body as string);
-    abort.abort();
-    return Promise.resolve(
-      embedding((body.input as string[]).map((_text, index) => ({ index, embedding: [1] }))),
-    );
-  });
-  fetch.mockClear();
-  await expect(
-    embed(
-      Array.from({ length: 129 }, () => 'text'),
-      abort.signal,
-    ),
-  ).rejects.toThrow();
-  expect(fetch).toHaveBeenCalledOnce();
 });
 
 test('file transcription sends multipart audio and validates size, cancellation, and redacted upstream failures', async () => {

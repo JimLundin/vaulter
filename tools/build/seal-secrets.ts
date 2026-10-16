@@ -4,7 +4,6 @@
 //   VAULT_SALT          base64, fixed: keeps remembered devices signed in across publishes; change it to sign them out
 //   VAULT_GITHUB_TOKEN  fine-grained, vault and vaulter only, Contents read/write and Metadata read
 //   VAULT_OPENAI_KEY    optional
-//   VAULT_JINA_KEY      optional: the agent's web search (reading pages works without it)
 // Usage: node tools/build/seal-secrets.ts dist/secrets.json
 import { writeFileSync } from 'node:fs';
 import { seal } from '../../app/vault/session/sealed.ts';
@@ -19,7 +18,6 @@ const {
   VAULT_SALT: salt = '',
   VAULT_GITHUB_TOKEN: github = '',
   VAULT_OPENAI_KEY: openai = '',
-  VAULT_JINA_KEY: jina = '',
 } = process.env;
 
 if (password.length < 12)
@@ -38,16 +36,11 @@ writeFileSync(
       {
         github: github.trim(),
         ...(openai.trim() ? { openai: openai.trim() } : {}),
-        ...(jina.trim() ? { jina: jina.trim() } : {}),
       },
       password,
       salt,
     ),
   )}\n`,
 );
-const sealed = [
-  'the GitHub token',
-  openai.trim() && 'the OpenAI key',
-  jina.trim() && 'the Jina key',
-];
+const sealed = ['the GitHub token', openai.trim() && 'the OpenAI key'];
 console.log(`sealed ${sealed.filter(Boolean).join(', ')} into ${out}`);

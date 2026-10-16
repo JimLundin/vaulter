@@ -18,20 +18,14 @@ import type { NodeChange } from '../vault/nodes/store.ts';
 import type { NodeStore } from '../vault/nodes/store.ts';
 import { seedPreviewRecords } from './records.ts';
 
-// Old evidence design links remain preview-only redirects to the supported Wiki record.
-if (location.hash === '#/prototype/provenance/')
-  history.replaceState(
-    history.state,
-    '',
-    `${location.pathname}${location.search}#/wiki/preview:page:0/`,
-  );
 const query = new URLSearchParams(location.search);
 declare const __PREVIEW_AGENT__: {
   baseURL: string;
   defaultModel?: string;
   transcriptionModel: string;
 } | null;
-const liveAgent = import.meta.env.DEV && query.get('agent') === 'live';
+const liveAgent =
+  (import.meta.env.DEV || import.meta.env.MODE === 'browser-test') && query.get('agent') === 'live';
 const agentConnection = __PREVIEW_AGENT__;
 const agent =
   liveAgent && agentConnection

@@ -134,7 +134,7 @@ export function checkCompositions(
       });
     for (const filename of scan(dirname(publicKit.fileName))) {
       const source = project.program.getSourceFile(filename);
-      if (!source || /\.test\.[cm]?tsx?$/.test(filename)) continue;
+      if (!source || /\.(?:test|type-test|test-support)\.[cm]?tsx?$/.test(filename)) continue;
       const role = roles.get(path(filename));
       if (!role) {
         report(source, `unclassified implementation ${path(filename)}`);

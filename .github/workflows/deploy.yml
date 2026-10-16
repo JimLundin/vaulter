@@ -69,7 +69,7 @@ jobs:
         with: { node-version: 24, cache: npm }
       - run: npm ci
       - name: Install browser for UI checks
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install --with-deps --only-shell chromium
       - run: npm run test:ui -- --shard=${{ matrix.shard }}/4
       - uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
@@ -89,7 +89,7 @@ jobs:
         with: { node-version: 24, cache: npm }
       - run: npm ci
       - name: Install browser for production checks
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install --with-deps --only-shell chromium
       - run: npm run test:production
       - uses: actions/upload-artifact@v4
         if: failure()
@@ -141,7 +141,6 @@ jobs:
           VAULT_PASSWORD: ${{ secrets.VAULT_PASSWORD }}
           VAULT_GITHUB_TOKEN: ${{ secrets.VAULT_GITHUB_TOKEN }}
           VAULT_OPENAI_KEY: ${{ secrets.VAULT_OPENAI_KEY }}
-          VAULT_JINA_KEY: ${{ secrets.VAULT_JINA_KEY }}
           VAULT_SALT: ${{ vars.VAULT_SALT }}
         run: |
           node tools/build/seal-secrets.ts dist/secrets.json

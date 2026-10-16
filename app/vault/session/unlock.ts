@@ -40,14 +40,17 @@ interface Device {
 const b64 = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes));
 const unb64 = (value: string) =>
   Uint8Array.from(atob(value), (character) => character.charCodeAt(0));
-const keys: readonly (keyof Secrets)[] = ['github', 'openai', 'jina'];
+const keys: readonly (keyof Secrets)[] = ['github', 'openai'];
 
-function parseOverrides(value: unknown): SecretOverrides {
+function parseOverrides(value: unknown, reading = false): SecretOverrides {
   if (!value || typeof value !== 'object' || Array.isArray(value))
     throw new Error('Invalid device credentials');
   const overrides: SecretOverrides = {};
   for (const [key, credential] of Object.entries(value)) {
-    if (!keys.includes(key as keyof Secrets)) throw new Error('Unknown credential');
+    if (!keys.includes(key as keyof Secrets)) {
+      if (reading) continue;
+      throw new Error('Unknown credential');
+    }
     if (credential === null && key !== 'github') overrides[key as keyof Secrets] = null;
     else if (typeof credential === 'string' && credential.trim())
       overrides[key as keyof Secrets] = credential.trim();
@@ -74,7 +77,7 @@ async function readOverrides(device: Device): Promise<SecretOverrides> {
     device.key,
     unb64(device.overrides.data),
   );
-  return parseOverrides(JSON.parse(new TextDecoder().decode(plain)));
+  return parseOverrides(JSON.parse(new TextDecoder().decode(plain)), true);
 }
 
 async function writeOverrides(device: Device, overrides: SecretOverrides): Promise<Device> {

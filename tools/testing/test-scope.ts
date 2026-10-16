@@ -2,18 +2,7 @@ import { parseCLI } from 'vitest/node';
 
 type TestRunner = 'vitest' | 'playwright' | 'all';
 
-const broadFilters = new Set([
-  '.',
-  '*',
-  '**',
-  '.*',
-  '^',
-  '^.*$',
-  'app',
-  'tools',
-  'tools/browser',
-  'tools/production',
-]);
+const broadFilters = new Set(['.', '*', '**', '.*', '^', '^.*$', 'app', 'tools']);
 
 function hasFilter(value: string): boolean {
   const normalized = value.trim().replace(/^\.\//, '').replace(/\/$/, '');
@@ -103,16 +92,9 @@ export function requireTestScope(
 
   const example =
     runner === 'playwright'
-      ? 'npm run test:ui -- tools/browser/composer.spec.ts --project=desktop'
+      ? 'npm run test:ui -- app/ui/kit/composer.browser.test.ts --project=desktop'
       : 'npm run test:fast -- app/workflows/chat';
   throw new Error(
-    `Full test suites run only in GitHub Actions. Select a module, spec or test name locally, for example:\n${example}\nCommit and push your feature branch for full verification; inspect CI for that commit. See docs/agents/testing.md.`,
+    `Full test suites run only in GitHub Actions. Select a module, file or test name locally, for example:\n${example}\nCommit and push your feature branch for full verification; inspect CI for that commit. See docs/agents/testing.md.`,
   );
-}
-
-export function requirePlaywrightTestScope(): void {
-  // Playwright reloads config in IPC workers without the parent's CLI arguments.
-  // The parent has already checked the selection before it can start these children.
-  if (process.send) return;
-  requireTestScope('playwright', process.argv.slice(3));
 }

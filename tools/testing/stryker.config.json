@@ -1,0 +1,19 @@
+{
+  "$schema": "../../node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "testRunner": "vitest",
+  "mutate": [
+    "app/vault/nodes/operations-runtime.ts",
+    "app/vault/nodes/validation.ts",
+    "app/vault/nodes/json-schema.ts",
+    "app/vault/nodes/history.ts"
+  ],
+  "vitest": {
+    "configFile": "tools/testing/mutation.config.ts",
+    "related": true
+  },
+  "coverageAnalysis": "perTest",
+  "tsconfigFile": "",
+  "concurrency": 2,
+  "reporters": ["progress", "clear-text", "html", "json"],
+  "thresholds": { "break": 0 }
+}

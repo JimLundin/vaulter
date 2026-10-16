@@ -149,7 +149,7 @@ test('visible sessions periodically refresh shared nodes and expose manual refre
 test('credential changes persist before use, retain storage, and restore preloaded defaults', async () => {
   const nodes = memoryNodeBackend();
   const { session, factory } = await open(nodes, {
-    secrets: { github: 'fictional-token', openai: 'preloaded-key', jina: 'preloaded-jina' },
+    secrets: { github: 'fictional-token', openai: 'preloaded-key' },
   });
   expect(session().credentialPending).toBe(false);
   expect(session().credentials.openai.persistent).toBe(true);
@@ -181,14 +181,13 @@ test('credential changes persist before use, retain storage, and restore preload
   expect(session().credentials.openai.overridden).toBe(true);
   expect(factory).toHaveBeenCalledTimes(1);
 
-  await act(async () => session().credentials.jina.clear!());
-  expect(session().secrets?.jina).toBeUndefined();
-  expect(session().credentials.jina.configured).toBe(false);
-  expect(session().credentials.jina.overridden).toBe(true);
+  await act(async () => session().credentials.openai.clear!());
+  expect(session().credentials.openai.configured).toBe(false);
+  expect(session().credentials.openai.overridden).toBe(true);
   await act(async () => session().credentials.openai.restore());
   expect(session().secrets?.openai).toBe('preloaded-key');
   expect(session().credentials.openai.overridden).toBe(false);
-  expect(session().secretOverrides).toEqual({ jina: null });
+  expect(session().secretOverrides).toEqual({});
 });
 
 test('failed credential persistence and invalid GitHub changes leave the active session unchanged', async () => {
@@ -219,7 +218,7 @@ test('queued credential changes keep the session pending until every edit finish
   let second!: Promise<void>;
   await act(async () => {
     first = session().updateSecret('openai', 'first-key');
-    second = session().updateSecret('jina', 'second-key');
+    second = session().updateSecret('openai', 'second-key');
     await Promise.resolve();
   });
   expect(session().credentialPending).toBe(true);
@@ -229,13 +228,12 @@ test('queued credential changes keep the session pending until every edit finish
   });
   expect(session().credentialPending).toBe(true);
   expect(session().secrets?.openai).toBe('first-key');
-  expect(session().secrets?.jina).toBeUndefined();
   await act(async () => {
     releases[1]!();
     await second;
   });
   expect(session().credentialPending).toBe(false);
-  expect(session().secrets?.jina).toBe('second-key');
+  expect(session().secrets?.openai).toBe('second-key');
 });
 
 test('retained safe credential handles reject pending updates and closed Session generations', async () => {
@@ -556,7 +554,7 @@ test('sign out is terminal while a replacement waits for its cache and rejects q
 
   expect(closeNodes).toHaveBeenCalledOnce();
   expect(forget).toHaveBeenCalledOnce();
-  await expect(previous.updateSecret('jina', 'later-key')).rejects.toThrow('session has closed');
+  await expect(previous.updateSecret('openai', 'later-key')).rejects.toThrow('session has closed');
   await act(async () => {
     releaseNodes();
     await Promise.resolve();

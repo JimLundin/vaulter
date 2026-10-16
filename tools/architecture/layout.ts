@@ -44,8 +44,8 @@ const compositionEntry = (path: string) =>
 const applicationTest = (path: string) => path.startsWith('app/application/') && testSource(path);
 const workflow = (path: string) => /^app\/workflows\/([^/]+)\//.exec(path)?.[1];
 const fixture = (path: string) =>
-  /\.(?:test|test-support)\.[cm]?tsx?$/.test(path) || path.startsWith('app/preview/');
-const testSource = (path: string) => /\.(?:test|test-support)\.[cm]?tsx?$/.test(path);
+  /\.(?:test|type-test|test-support)\.[cm]?tsx?$/.test(path) || path.startsWith('app/preview/');
+const testSource = (path: string) => /\.(?:test|type-test|test-support)\.[cm]?tsx?$/.test(path);
 const nodeImplementation = (path: string) =>
   path.startsWith('app/vault/nodes/') || path.startsWith('app/vault/storage/nodes/');
 const rawNodeCaller = (path: string) =>
@@ -85,8 +85,6 @@ const vaultUi = new Set([
   'app/vault/transactions/history/HistoryPage.tsx',
 ]);
 export function importProblem(from: string, to: string): string | null {
-  if (from.startsWith('app/') && to.startsWith('tools/vault-check/'))
-    return `${from} imports standalone vault checking; browser data uses Nodes`;
   if (to.startsWith('app/preview/') && !fixture(from))
     return `${from} imports preview-only ${to}; fixtures cannot publish application data`;
   if (testSource(to) && !fixture(from))
@@ -132,7 +130,9 @@ export function importProblem(from: string, to: string): string | null {
     to.startsWith('app/ui/kit/') &&
     !from.startsWith('app/ui/kit/') &&
     to !== 'app/ui/kit/index.ts' &&
-    to !== 'app/ui/kit/styles.css'
+    to !== 'app/ui/kit/styles.css' &&
+    // Colocated browser drivers are shared by tests, never production callers.
+    !(testSource(from) && /\.browser\.test-support\.ts$/.test(to))
   )
     return `${from} imports a private kit file; use app/ui/kit/index.ts`;
   if (

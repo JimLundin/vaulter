@@ -36,18 +36,6 @@ export function noEval(): Plugin {
     },
     transform(source, id) {
       const [path] = id.replaceAll('\\', '/').split('?');
-      if (
-        path?.includes('/node_modules/maplibre-gl/dist/maplibre-gl-worker') &&
-        !id.includes('?')
-      ) {
-        const fallback = /globalThis\.eval\((\w+)\)/;
-        if (!fallback.test(source))
-          throw new Error('MapLibre worker changed; review the no-eval adapter.');
-        return source.replace(
-          fallback,
-          '{ const blobUrl = URL.createObjectURL(new Blob([$1], { type: "text/javascript" })); try { await import(/* @vite-ignore */ blobUrl); } finally { URL.revokeObjectURL(blobUrl); } }',
-        );
-      }
       if (!path?.includes('/node_modules/zod/v4/core/')) return;
       if (path.endsWith('/doc.js')) {
         const compiler = /compile\(\) \{[\s\S]*?\n {4}\}/;

@@ -1,8 +1,7 @@
-// Shared value shapes for retained records whose modules are not implemented yet.
+// Shared validation values used by current Wiki, Questions and historical Chat records.
 import { z } from 'zod';
 
 export const text = z.string().min(1);
-export const instant = z.iso.datetime({ offset: true });
 /** A calendar date as precise as known: a day, a month or a year. */
 export const localDate = z
   .string()

@@ -111,10 +111,6 @@ export const containment: Record<string, (kind: string, index: number) => boolea
   row: (kind) => kind === 'cell',
 };
 
-export type WikiData = z.infer<(typeof wikiSchemas)[keyof typeof wikiSchemas]>;
-export type PageData = z.infer<typeof page>;
-export type CitationData = z.infer<typeof citation>;
-
 /** Validate Wiki-owned records without changing their accepted JSON shape. */
 export function parseWikiRecord(value: unknown): JsonObject {
   canonical(value);

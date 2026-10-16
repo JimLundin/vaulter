@@ -13,8 +13,7 @@ See [Architecture](ARCHITECTURE.md) for module boundaries and [ADRs](docs/adr/) 
 | Command | Does |
 |---|---|
 | `npm ci` | install |
-| `npm run check` | the permanent note, schema and graph integrity checks over `../vault`, or `node tools/check.ts --vault <dir>`; the vault's CI uses the same check |
-| `npm run dev` | the app on the vault through GitHub, as built, in any browser, but with no password: it loads right in with the secrets from `.env.local` (gitignored): `VAULT_GITHUB_TOKEN`, and optionally `VAULT_OPENAI_KEY` and `VAULT_JINA_KEY`, the names CI seals. Only dev gets them; a build has none. Its commits go to the vault's `main`, as the app's do |
+| `npm run dev` | the app on the vault through GitHub, as built, in any browser, but with no password: it loads right in with the secrets from `.env.local` (gitignored): `VAULT_GITHUB_TOKEN`, and optionally `VAULT_OPENAI_KEY`, the names CI seals. Only dev gets them; a build has none. Its commits go to the vault's `main`, as the app's do |
 | `npm run kit` | the live component kit gallery |
 | `npm run design` | the current branch UI at `http://localhost:5173/preview/`, with fictional notes and scripted chat; no password, keys or vault connection |
 | `npm run design:agent` | local preview with the real agent at `/preview/?agent=live`; uses the configured API and token through the Vite server, with fictional data and local tool writes |
@@ -40,13 +39,12 @@ and All filters. The agent can ask a question about a Wiki page or section, wher
 also appears. Answer from either view; the response and its evidence link are saved together and
 remain readable after reload. The agent can consult retained questions and answers on later turns.
 Settings groups Appearance, Chat instructions, Agent execution options, OpenAI models and voice,
-GitHub storage, and Jina credentials. Preferences apply to new runs and are saved on this device.
+and GitHub storage. Preferences apply to new runs and are saved on this device.
 Models, voice, step limits, output limits and retry counts offer dropdown choices with custom values.
 Login-preloaded keys show their configured status. Replace them, restore their login values, or clear
 optional keys with explicit actions; production credential overrides are encrypted on the device and
 removed by sign-out. Replacing the GitHub token reconnects storage before activating it. The API
-endpoints and vault repository show the installation's build configuration. Jina is retained for future
-web search. Enter sends an agent
+endpoints and vault repository show the installation's build configuration. Enter sends an agent
 message; Shift+Enter adds a new line. Both devices use the same always-visible one-row message
 field with inset microphone and Send controls. Tap the microphone to dictate into that field,
 tap again to finish, then edit or submit with Send or Enter. Speech appends to any existing draft;
@@ -73,14 +71,8 @@ explicit `.ts` imports and `import type` (enforced by `tsconfig.json`).
 
 ## Project layout
 
-For the edit loop, test the owning module, for example `npm run test:watch -- app/workflows/chat`.
-For browser work, start with a spec and device:
-`npm run test:ui -- tools/browser/composer.spec.ts --project=desktop`.
-The [testing guide](docs/agents/testing.md) explains test placement, device tags and delivery checks.
-Full suites run only in CI: test the change locally, commit and push your feature branch, then
-inspect CI for that commit. Unscoped local suite commands exit with a focused-command example.
-CI runs behavior, architecture, static and production checks independently alongside four browser
-shards; every check must pass before production deployment.
+Use the [testing guide](docs/agents/testing.md) for focused local checks, test placement,
+device coverage and verification of the pushed commit in CI.
 
 `app/application/` composes the optional workflows in `app/workflows/`. Its `index.tsx` owns the shell
 and views; `composition.ts` connects record readers, tools and publication rules. Each task owns its behavior,
@@ -91,16 +83,13 @@ connections, and Application supplies embedded record rendering. Generic control
 `app/ui/kit/`; Settings, Navigation, Search and Runtime own their respective application behavior.
 See [ARCHITECTURE.md](ARCHITECTURE.md) for the module map, ownership and dependency rules.
 
-The app uses the component kit and reference design from branch `ui-kit`, in `app/ui/kit/`. Run
+The app uses the [component kit](app/ui/kit/README.md) in `app/ui/kit/`. Run
 `npm run kit` to open its searchable catalogue, with live desktop and mobile examples side by side.
 Every public component must have an example; CI checks coverage and app-wide kit composition.
 Workflow views compose its public components; styles stay in the kit, with a scoped exception for Markdown rendering. `tools/architecture/layout.test.ts` enforces the import rules
 in CI, including dynamic imports and aliases.
 
-The private Vault's standalone source checker remains available through `tools/check.ts`, with
-its implementation in `tools/vault-check/`. The browser does not load Markdown files or
-`meta/schema.yaml`. Node transactions enforce structural integrity and each supplying module
-validates its own content.
+Node transactions enforce structural integrity and each supplying module validates its own content.
 
 ## Central node storage
 
@@ -117,18 +106,11 @@ for target layouts, recovery, acceptance and current limits.
 
 ## Publishing
 
-Review the branch's current Application UI in its hosted sample preview before merging.
-The [preview workflow for agents](docs/agents/preview.md) covers comparisons and production promotion.
-Every branch push runs the checks. Non-main branches publish their sample preview at
-`/preview/<branch-name>/`, with the component gallery at `/preview/<branch-name>/kit/`.
-For example, `feature/input` publishes at `/preview/feature/input/`. `main` publishes production.
-The banner identifies the preview commit; `version.json` records its branch.
-Use **Mobile** in the movable preview pill to review phone width from your desktop. Switch it off
-to follow the window. Switching retains your current page, draft and open settings/search fields.
-The pill overlays the app; drag its grip to move it, or use arrow keys and Home on the focused grip.
-The app, preview and gallery share one primary microphone/Enter action according to field focus.
-Both use the same Filled style as New chat and confirmation actions; an empty focused draft keeps
-Enter disabled. The default preview has no active comparison or variation picker.
+Every branch push runs CI. Non-main branches publish a sample preview at
+`/preview/<branch-name>/`, with the gallery at `/preview/<branch-name>/kit/`; `main` publishes
+production. Review and promotion follow the [preview guide](docs/agents/preview.md), including
+checking the preview and production `version.json` commits.
+
 It uses the actual current Application views, fictional notes, an in-memory backend,
 and a scripted local model. Try “vault it: leave space for a walk before work” to create, read and
 update a fictional content node through the actual Agent. Reload reopens accepted Chat history without
@@ -137,11 +119,6 @@ question about Garden studio, then answer it from Questions or the Wiki page.
 Query scenarios `initial-save`, `lost-response`,
 `outcome-save` and `terminal-save` demonstrate persistence recovery. It ships no credentials, reads
 no private vault contents, and registers no service worker. Search opens the current Wiki page routes.
-
-For local iteration, run `npm ci` then `npm run design` on the branch being reviewed. Edit the kit or
-workflow views and Vite updates the browser. Use `npm run kit` separately for the kit's full gallery. The development
-preview lives at `/preview/`; the built preview moves its entry to the deploy root and includes the
-gallery under `kit/`.
 
 To test the real agent locally, run `npm run design:agent`. Set `VAULT_OPENAI_API` and
 `VAULT_OPENAI_MODEL` in the root `.env.local` (gitignored), and supply `VAULT_OPENAI_KEY`,
@@ -177,9 +154,6 @@ Notes don't publish: the app reads the vault's `main` itself. Every push here ru
 Source: GitHub Actions). This repo is public: never commit a `secrets.json`, notes, or anything personal
 (test fixtures and examples are fictional).
 
-The vault's own CI (`vault/.github/workflows/check.yml`) checks out this repo's `main` and runs its
-check over the notes, so a change to the rules here applies to the vault's next push.
-
 What the seal needs, in this repo's settings:
 
 | | Kind | What |
@@ -187,7 +161,6 @@ What the seal needs, in this repo's settings:
 | `VAULT_PASSWORD` | secret | the app's password (12+ characters; long and random is best: the sealed file is public) |
 | `VAULT_GITHUB_TOKEN` | secret | a fine-grained PAT for `vault` and `vaulter` only (Contents read/write, Metadata read), with an expiry; only the vault is needed by the current workflows |
 | `VAULT_OPENAI_KEY` | secret | optional: the agent's key, from a project with a spend limit |
-| `VAULT_JINA_KEY` | secret | optional: retained sealed field for deployments that supply it |
 | `VAULT_SALT` | variable | 16 random bytes, base64 (`openssl rand -base64 16`); set once |
 | `VAULT_OPENAI_API` | variable | optional: the agent's OpenAI-compatible endpoint (an API proxy); empty means api.openai.com |
 | `VAULT_REPO` | variable | optional: the vault the app reads, `owner/name@branch`; default `JimLundin/vault@main` |

@@ -38,16 +38,3 @@ export function pageReferenceLinks(
   visit(page, false);
   return result;
 }
-
-/** Wiki identifies reviewable statements; callers may rank and bound the resulting text. */
-export function wikiClaims(page: NodeVersion, view: NodeSnapshot, sources: SourceReader) {
-  const claims: { node: NodeVersion; text: string }[] = [];
-  const visit = (node: NodeVersion, within: boolean) => {
-    const source = within || isSourceSection(node, view, sources);
-    if (!source && ['paragraph', 'item', 'cell'].includes(String(node.data?.kind)))
-      claims.push({ node, text: recordText(node, view, sources) });
-    for (const child of view.children(node.key.node)) visit(child, source);
-  };
-  visit(page, false);
-  return claims;
-}

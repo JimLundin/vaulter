@@ -1,7 +1,15 @@
 {
   "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
   "files": {
-    "includes": ["app/**", "tools/**", "*.ts", "*.json", "!**/dist", "!package-lock.json"]
+    "includes": [
+      "app/**",
+      "tools/**",
+      "*.ts",
+      "*.json",
+      "!**/dist",
+      "!package-lock.json",
+      "!!.stryker-tmp"
+    ]
   },
   "formatter": {
     "indentStyle": "space",
@@ -97,7 +105,14 @@
   },
   "overrides": [
     {
-      "includes": ["tools/**", "**/vite.config.ts", "vitest.config.ts", "playwright.config.ts"],
+      "includes": [
+        "tools/**",
+        "**/*.browser.test.ts",
+        "**/*.browser.test-support.ts",
+        "**/vite.config.ts",
+        "vitest.config.ts",
+        "playwright.config.ts"
+      ],
       "linter": {
         "rules": {
           "correctness": {
@@ -115,7 +130,7 @@
       }
     },
     {
-      "includes": ["tools/browser/**"],
+      "includes": ["**/*.browser.test.ts"],
       "linter": {
         "rules": {
           "performance": { "noAwaitInLoops": "off" }

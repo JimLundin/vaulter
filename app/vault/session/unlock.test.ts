@@ -70,16 +70,15 @@ test('device credential choices are encrypted and merge onto freshly published p
   const preload = {
     github: 'preloaded-github',
     openai: 'preloaded-openai',
-    jina: 'preloaded-jina',
   };
   const s = await seal(preload, 'a long password', undefined, 1000);
   await unlock(s, 'a long password');
-  await saveSecretOverrides(s, { openai: 'device-openai', jina: null });
+  await saveSecretOverrides(s, { github: 'device-github', openai: null });
   await closeKeys();
   const device = database('vault', 5, { keys: 'id' });
   const record = await device.get<Record<string, unknown>>('keys', 'device');
   expect(Object.keys(record!)).toEqual(['id', 'key', 'salt', 'expires', 'overrides']);
-  expect(JSON.stringify(record)).not.toContain('device-openai');
+  expect(JSON.stringify(record)).not.toContain('device-github');
   expect(record?.overrides).toEqual({ iv: expect.any(String), data: expect.any(String) });
   await device.close();
   const updated = await seal(
@@ -90,12 +89,43 @@ test('device credential choices are encrypted and merge onto freshly published p
   );
   expect(await rememberedCredentials(updated)).toEqual({
     preloadedSecrets: { ...preload, github: 'rotated-github', openai: 'rotated-openai' },
-    secretOverrides: { openai: 'device-openai', jina: null },
-    secrets: { github: 'rotated-github', openai: 'device-openai' },
+    secretOverrides: { github: 'device-github', openai: null },
+    secrets: { github: 'device-github' },
   });
   expect(await unlock(updated, 'a long password')).toEqual({
-    github: 'rotated-github',
-    openai: 'device-openai',
+    github: 'device-github',
+  });
+});
+
+test('remembered login keeps supported credentials when persisted providers have been retired', async () => {
+  const preloaded = {
+    github: 'preloaded-github',
+    openai: 'preloaded-openai',
+    retiredProvider: 'retired-key',
+  };
+  const sealed = await seal(preloaded, 'a long password', undefined, 1000);
+  await unlock(sealed, 'a long password');
+  await closeKeys();
+  const device = database('vault', 5, { keys: 'id' });
+  const record = await device.get<{ id: string; key: CryptoKey }>('keys', 'device');
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const data = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv },
+    record!.key,
+    new TextEncoder().encode(JSON.stringify({ openai: 'device-openai', retiredProvider: null })),
+  );
+  await device.put('keys', {
+    ...record,
+    overrides: {
+      iv: btoa(String.fromCharCode(...iv)),
+      data: btoa(String.fromCharCode(...new Uint8Array(data))),
+    },
+  });
+  await device.close();
+  expect(await rememberedCredentials(sealed)).toEqual({
+    preloadedSecrets: { github: 'preloaded-github', openai: 'preloaded-openai' },
+    secretOverrides: { openai: 'device-openai' },
+    secrets: { github: 'preloaded-github', openai: 'device-openai' },
   });
 });
 
@@ -164,7 +194,7 @@ test('a stale tab cannot overwrite credential choices saved by another tab', asy
   const s = await sealed();
   await unlock(s, 'a long password');
   await saveSecretOverrides(s, { openai: 'other-tab-key' });
-  await expect(saveSecretOverrides(s, { jina: 'stale-tab-key' }, Date.now(), {})).rejects.toThrow(
+  await expect(saveSecretOverrides(s, { openai: 'stale-tab-key' }, Date.now(), {})).rejects.toThrow(
     'another tab',
   );
   expect(await remembered(s)).toEqual({ github: 'github_pat_x', openai: 'other-tab-key' });
@@ -234,7 +264,9 @@ test('a concurrent tab update during encryption cannot be overwritten without We
     await waiting;
     return original(...arguments_);
   });
-  const saving = saveSecretOverrides(s, { jina: 'stale-key' }, Date.now(), { openai: 'first-key' });
+  const saving = saveSecretOverrides(s, { openai: 'stale-key' }, Date.now(), {
+    openai: 'first-key',
+  });
   await entered;
   await otherTab.put('keys', updated);
   await otherTab.close();

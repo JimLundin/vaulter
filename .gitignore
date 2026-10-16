@@ -1,6 +1,7 @@
 node_modules/
 dist/
 dist-preview/
+dist-browser/
 dist-pages/
 # Sealed in CI, never committed.
 app/public/secrets.json
@@ -13,3 +14,5 @@ test-results/
 test-results-production/
 playwright-report/
 blob-report/
+.stryker-tmp/
+reports/mutation/

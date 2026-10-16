@@ -19,7 +19,6 @@ const MODEL_CHOICES = {
   voice: ['gpt-realtime-2.1', 'gpt-realtime-2.1-mini'],
   liveTranscription: ['gpt-live-transcribe', 'gpt-realtime-whisper'],
   fileTranscription: ['gpt-transcribe', 'gpt-4o-transcribe', 'gpt-4o-mini-transcribe'],
-  embeddings: ['text-embedding-3-small', 'text-embedding-3-large'],
 };
 
 // https://developers.openai.com/api/docs/guides/realtime-conversations#voice-options
@@ -97,32 +96,12 @@ export function createOpenAISettings(
         MODEL_CHOICES.fileTranscription,
       ),
       modelSetting(
-        'embeddingsModel',
-        'Embedding model',
-        'Used when producing text embeddings.',
-        DEFAULT_MODELS.embeddings,
-        MODEL_CHOICES.embeddings,
-      ),
-      modelSetting(
         'voice',
         'Voice',
         'The voice used for spoken Agent responses.',
         DEFAULT_VOICE,
         VOICE_CHOICES,
       ),
-      {
-        key: 'embeddingDimensions',
-        label: 'Embedding dimensions',
-        description: 'A positive integer. Leave blank for the embedding model default.',
-        kind: 'number',
-        parse: (value) => {
-          if (!value.trim()) return;
-          const dimensions = Number(value);
-          if (!Number.isSafeInteger(dimensions) || dimensions < 1)
-            throw new Error('Embedding dimensions must be a positive integer.');
-          return dimensions;
-        },
-      },
       {
         key: 'api',
         label: 'OpenAI API endpoint',
@@ -135,33 +114,15 @@ export function createOpenAISettings(
 }
 
 export const providerSettings = createOpenAISettings();
-export const LEGACY_MODEL_KEY = 'vault.agent.model';
 
-/** Preserve the previous device model choice without making browser storage a startup requirement. */
+/** Browser storage is optional; the installed defaults remain available when it is blocked. */
 export function createOpenAIPreferences(
   definition = providerSettings,
   options: { storage?: Storage } = {},
 ) {
-  const storage = options.storage ?? deviceSettingsStorage();
-  let legacyModel: string | null = null;
-  try {
-    legacyModel = storage?.getItem(LEGACY_MODEL_KEY) ?? null;
-  } catch {
-    // The installed defaults remain available when preferences cannot be read.
-  }
-  const preferences = createSettings(definition, {
-    storage,
-    initial: legacyModel?.trim() ? { model: legacyModel.trim() } : undefined,
+  return createSettings(definition, {
+    storage: options.storage ?? deviceSettingsStorage(),
   });
-  if (legacyModel !== null && storage) {
-    try {
-      preferences.set('model', preferences.snapshot().model);
-      storage.removeItem(LEGACY_MODEL_KEY);
-    } catch {
-      // Retain the old choice until its replacement has been saved successfully.
-    }
-  }
-  return preferences;
 }
 
 export function selectedOpenAIModel(defaultModel: string = DEFAULT_MODELS.llm) {
@@ -172,22 +133,13 @@ export function selectedOpenAIModel(defaultModel: string = DEFAULT_MODELS.llm) {
 export function openAIOptions(values: Readonly<Record<string, unknown>>) {
   const text = (key: string, fallback: string) =>
     typeof values[key] === 'string' && values[key].trim() ? values[key].trim() : fallback;
-  const dimensions = values.embeddingDimensions;
-  if (
-    dimensions !== undefined &&
-    dimensions !== '' &&
-    (typeof dimensions !== 'number' || !Number.isSafeInteger(dimensions) || dimensions < 1)
-  )
-    throw new Error('Embedding dimensions must be a positive integer.');
   return {
     models: {
       llm: text('model', DEFAULT_MODELS.llm),
       voice: text('voiceModel', DEFAULT_MODELS.voice),
       liveTranscription: text('liveTranscriptionModel', DEFAULT_MODELS.liveTranscription),
       fileTranscription: text('fileTranscriptionModel', DEFAULT_MODELS.fileTranscription),
-      embeddings: text('embeddingsModel', DEFAULT_MODELS.embeddings),
     },
     voice: text('voice', DEFAULT_VOICE),
-    ...(typeof dimensions === 'number' ? { embeddingDimensions: dimensions } : {}),
   };
 }

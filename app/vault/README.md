@@ -163,6 +163,14 @@ recursive tree. This is suitable for the current storage slice, not unlimited hi
 produces an explicit failure. Checkpoints/paged remote indexes and bounded cold reconstruction need
 measurements as usage grows. No garbage collection discards referenced historical evidence.
 
+## Historical source reading
+
+`records/sources.ts` supplies historical source text and descriptions to application citations.
+`records/common.ts` supplies validation values used by Wiki, Questions and historical Chat records.
+Implemented modules validate their own records; schemas used solely for private translation of
+unimplemented kinds belong in the Vault tooling under
+[ADR 0007](../../docs/adr/0007-vault-owned-translation.md).
+
 ## Verification and current integration
 
 History's `nodeHistory()` reader supplies transactions, author and origin at the transaction's

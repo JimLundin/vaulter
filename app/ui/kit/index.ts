@@ -248,7 +248,6 @@ export {
   Kbd,
   KeyHint,
   List,
-  ListDetail,
   ListItem,
   Mark,
   MobileBar,
@@ -266,8 +265,6 @@ export {
   SidebarMenu,
   SourceLabel,
   Sources,
-  Timeline,
-  TimelineItem,
   type Tone,
 } from './app.tsx';
 export { Bars, type BarsProps, Sparkline, type SparklineProps } from './chart.tsx';
@@ -276,7 +273,6 @@ export { CodeDiff, type CodeDiffProps } from './diff.tsx';
 export { useLayout, type SizeClass } from './hooks/use-layout.ts';
 export { Icon, type IconName, type IconProps, iconNames } from './icons.tsx';
 export type { Unstyled } from './lib/unstyled.tsx';
-export { type LatLon, type MapPoint, type MapRoute, MapView, type MapViewProps } from './map.tsx';
 export { startTheme, setTheme, type Theme, ThemeSwitch, useTheme } from './theme.tsx';
 export {
   Activity,
