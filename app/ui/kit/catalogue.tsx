@@ -1261,6 +1261,9 @@ function Navigation() {
   const [settings, setSettings] = useState(false);
   const [search, setSearch] = useState(false);
   const [current, setCurrent] = useState('Agent');
+  const [multiple, setMultiple] = useState(false);
+  const [selectedKinds, setSelectedKinds] = useState(['notes', 'sources']);
+  const [actionCount, setActionCount] = useState(0);
   return (
     <K.NavigationSuite
       status={
@@ -1281,23 +1284,67 @@ function Navigation() {
         <K.Stack>
           <K.Text>The sidebar becomes a freestanding edge rail with an inward Modules menu.</K.Text>
           <K.PageControls
+            actions={
+              <K.Row>
+                <K.Button
+                  iconOnly={true}
+                  aria-label="Add sample item"
+                  onClick={() => setActionCount((count) => count + 1)}
+                >
+                  <K.Icon name="plus" />
+                </K.Button>
+              </K.Row>
+            }
             search={{
               label: 'Find sample items',
               placeholder: 'Find an item…',
               value: query,
               onValueChange: setQuery,
             }}
-            filters={{
-              label: 'Sample status',
-              value: filter,
-              options: [
-                { value: 'all', label: 'All' },
-                { value: 'open', label: 'Open' },
-              ],
-              onValueChange: setFilter,
-              active: filter !== 'all',
-            }}
+            filters={
+              multiple
+                ? {
+                    type: 'multiple',
+                    label: 'Sample kinds',
+                    value: selectedKinds,
+                    options: [
+                      { value: 'notes', label: 'Notes' },
+                      { value: 'sources', label: 'Sources' },
+                    ],
+                    active: selectedKinds.length !== 2,
+                    onValueChange: setSelectedKinds,
+                  }
+                : {
+                    type: 'single',
+                    label: 'Sample status',
+                    value: filter,
+                    options: [
+                      { value: 'all', label: 'All' },
+                      { value: 'open', label: 'Open' },
+                    ],
+                    onValueChange: setFilter,
+                    active: filter !== 'all',
+                  }
+            }
           />
+          <K.PageControls
+            actions={
+              <K.Row>
+                <K.Button
+                  iconOnly={true}
+                  aria-label="Reset sample count"
+                  onClick={() => setActionCount(0)}
+                >
+                  <K.Icon name="undo" />
+                </K.Button>
+              </K.Row>
+            }
+          />
+          <K.Text>Sample actions: {actionCount}</K.Text>
+          <K.Text>Selected kinds: {selectedKinds.join(', ') || 'none'}</K.Text>
+          <K.Button onClick={() => setMultiple(!multiple)}>
+            {multiple ? 'Use single filter' : 'Use multiple filters'}
+          </K.Button>
           <K.Button
             variant="outline"
             onClick={() => setCurrent(current === 'Agent' ? 'History' : 'Agent')}

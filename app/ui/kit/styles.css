@@ -211,6 +211,11 @@ body,
 [data-edge-page-actions]:empty {
   display: none;
 }
+[data-edge-page-actions] {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
 [data-edge-page-actions] > div {
   flex-direction: column-reverse;
   gap: 4px;

@@ -1,5 +1,5 @@
 // Modules own page control values and actions. Shared navigation owns their responsive placement.
-import {
+import React, {
   createContext,
   type ReactNode,
   useCallback,
@@ -20,24 +20,29 @@ export interface PageSearchControl {
   type?: 'text' | 'search';
 }
 
-export interface PageFilterControl {
+interface PageFilterChoices {
   label: string;
-  value: string;
   options: readonly { value: string; label: string }[];
-  onValueChange: (value: string) => void;
   /** The owning module decides whether its selected filter limits the collection. */
   active: boolean;
 }
+export type PageFilterControl = PageFilterChoices &
+  (
+    | { type?: 'single'; value: string; onValueChange: (value: string) => void }
+    | { type: 'multiple'; value: string[]; onValueChange: (value: string[]) => void }
+  );
 
 export interface PageControlsProps {
   actions?: ReactNode;
   search?: PageSearchControl;
   filters?: PageFilterControl;
+  /** Split declarations from a richer expanded form, without duplicating compact controls. */
+  placement?: 'responsive' | 'rail' | 'expanded';
   /** Optional existing inline filter content; the rail uses the supplied filter choices. */
   children?: ReactNode;
 }
 
-type PageControl = Omit<PageControlsProps, 'children'>;
+type PageControl = Omit<PageControlsProps, 'children' | 'placement'>;
 
 export const PageControlsContext = createContext<{
   enabled: boolean;
@@ -47,35 +52,49 @@ export const PageControlsContext = createContext<{
 export function usePageControls(enabled: boolean) {
   const [entries, setEntries] = useState<(PageControl & { id: string })[]>([]);
   const register = useCallback((id: string, control: PageControl | null) => {
-    setEntries((current) => [
-      ...current.filter((entry) => entry.id !== id),
-      ...(control ? [{ id, ...control }] : []),
-    ]);
+    setEntries((current) => {
+      if (!control) return current.filter((entry) => entry.id !== id);
+      const next = { id, ...control };
+      return current.some((entry) => entry.id === id)
+        ? current.map((entry) => (entry.id === id ? next : entry))
+        : [...current, next];
+    });
   }, []);
   const context = useMemo(() => ({ enabled, register }), [enabled, register]);
   return {
     context,
-    actions: entries.find((entry) => entry.actions)?.actions,
+    actions: entries.some((entry) => entry.actions)
+      ? entries.map((entry) => <React.Fragment key={entry.id}>{entry.actions}</React.Fragment>)
+      : undefined,
     search: entries.find((entry) => entry.search),
     filters: entries.find((entry) => entry.filters)?.filters,
   };
 }
 
-function usePageControl({ actions, search, filters }: PageControl) {
+function usePageControl({ actions, search, filters }: PageControl, register = true) {
   const context = useContext(PageControlsContext);
   const id = useId();
   useLayoutEffect(() => {
-    if (!(context?.enabled && (actions || search || filters))) return;
-    context.register(id, { actions, search, filters });
-    return () => context.register(id, null);
-  }, [context, id, actions, search, filters]);
+    if (!context?.enabled) return;
+    context.register(
+      id,
+      register && (actions || search || filters) ? { actions, search, filters } : null,
+    );
+  }, [context, id, actions, search, filters, register]);
+  useLayoutEffect(() => () => context?.register(id, null), [context, id]);
   return !!context?.enabled;
 }
 
 /** Page controls render inline on desktop and in the app-owned rail on compact layouts. */
-export function PageControls({ actions, search, filters, children }: PageControlsProps) {
-  const inRail = usePageControl({ actions, search, filters });
-  if (inRail) return null;
+export function PageControls({
+  actions,
+  search,
+  filters,
+  children,
+  placement = 'responsive',
+}: PageControlsProps) {
+  const inRail = usePageControl({ actions, search, filters }, placement !== 'expanded');
+  if (inRail || placement === 'rail') return null;
   return (
     <>
       {actions}
@@ -92,10 +111,18 @@ export function PageControls({ actions, search, filters, children }: PageControl
         ? children
         : filters && (
             <ToggleGroup
-              type="single"
+              {...(filters.type === 'multiple'
+                ? {
+                    type: 'multiple' as const,
+                    value: filters.value,
+                    onValueChange: filters.onValueChange,
+                  }
+                : {
+                    type: 'single' as const,
+                    value: filters.value,
+                    onValueChange: filters.onValueChange,
+                  })}
               aria-label={filters.label}
-              value={filters.value}
-              onValueChange={filters.onValueChange}
             >
               {filters.options.map((option) => (
                 <ToggleGroupItem key={option.value} value={option.value}>

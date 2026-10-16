@@ -1,6 +1,17 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { cn } from './lib/utils.ts';
+import { useLayout } from './hooks/use-layout.ts';
+import { PageControls } from './page-controls.tsx';
+import { Button } from './parts/button.tsx';
+import { Row } from './parts/layout.tsx';
+import { Icon } from './icons.tsx';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from './parts/dropdown-menu.tsx';
 
 export interface NetworkNode {
   readonly id: string;
@@ -357,6 +368,7 @@ function NetworkMap({
   fill: boolean;
   legend?: readonly { label: string; color: string }[];
 }) {
+  const compact = useLayout() === 'compact';
   const [views, setViews] = useState<Record<string, { zoom: number; left: number; top: number }>>(
     {},
   );
@@ -448,44 +460,90 @@ function NetworkMap({
       )}
     >
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-        <span>{view.zoom === 1 ? 'Fit · relationship layout' : `Detail · ${view.zoom}×`}</span>
-        <div className="flex gap-1">
-          <button
-            type="button"
-            aria-label="Zoom out graph"
-            disabled={view.zoom === 1}
-            onClick={() => changeZoom(Math.max(1, view.zoom - 1))}
-            className="min-h-11 min-w-11 rounded-lg border border-border bg-background px-3 disabled:opacity-40"
-          >
-            −
-          </button>
-          <button
-            type="button"
-            aria-label="Zoom in graph"
-            disabled={view.zoom === 4}
-            onClick={() => changeZoom(Math.min(4, view.zoom + 1))}
-            className="min-h-11 min-w-11 rounded-lg border border-border bg-background px-3 disabled:opacity-40"
-          >
-            +
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              changeZoom(1);
-              viewport.current?.scrollTo(0, 0);
-            }}
-            className="min-h-11 rounded-lg border border-border bg-background px-3"
-          >
-            Fit map
-          </button>
-          <button
-            type="button"
-            onClick={() => setMoved({ ...moved, [viewKey]: {} })}
-            className="min-h-11 rounded-lg border border-border bg-background px-3"
-          >
-            Reset positions
-          </button>
-        </div>
+        <span>
+          {nodes.length} records ·{' '}
+          {view.zoom === 1 ? 'Fit · relationship layout' : `Detail · ${view.zoom}×`}
+        </span>
+        <PageControls
+          actions={
+            <Row gap="xs">
+              <Button
+                aria-label="Fit map"
+                title="Fit map"
+                iconOnly={compact}
+                variant="outline"
+                onClick={() => changeZoom(1)}
+              >
+                {compact ? <Icon name="fit" /> : 'Fit map'}
+              </Button>
+              {compact ? (
+                <DropdownMenu modal={false}>
+                  <DropdownMenuTrigger
+                    render={
+                      <Button
+                        iconOnly={true}
+                        variant="ghost"
+                        aria-label="Graph view"
+                        title="Graph view"
+                      />
+                    }
+                  >
+                    <Icon name="map" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    side="left"
+                    align="end"
+                    sideOffset={12}
+                    aria-label="Graph view"
+                  >
+                    <DropdownMenuItem
+                      disabled={view.zoom === 4}
+                      onClick={() => changeZoom(Math.min(4, view.zoom + 1))}
+                    >
+                      <Icon name="zoom-in" />
+                      Zoom in graph
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      disabled={view.zoom === 1}
+                      onClick={() => changeZoom(Math.max(1, view.zoom - 1))}
+                    >
+                      <Icon name="zoom-out" />
+                      Zoom out graph
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setMoved({ ...moved, [viewKey]: {} })}>
+                      <Icon name="undo" />
+                      Reset positions
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : (
+                <>
+                  <Button
+                    aria-label="Zoom out graph"
+                    iconOnly={true}
+                    variant="outline"
+                    disabled={view.zoom === 1}
+                    onClick={() => changeZoom(Math.max(1, view.zoom - 1))}
+                  >
+                    <Icon name="zoom-out" />
+                  </Button>
+                  <Button
+                    aria-label="Zoom in graph"
+                    iconOnly={true}
+                    variant="outline"
+                    disabled={view.zoom === 4}
+                    onClick={() => changeZoom(Math.min(4, view.zoom + 1))}
+                  >
+                    <Icon name="zoom-in" />
+                  </Button>
+                  <Button variant="outline" onClick={() => setMoved({ ...moved, [viewKey]: {} })}>
+                    Reset positions
+                  </Button>
+                </>
+              )}
+            </Row>
+          }
+        />
       </div>
       <div
         ref={(element) => {

@@ -264,3 +264,45 @@ test('paired navigation scopes keep page controls and Settings independent of th
   await expect(mobile.getByRole('button', { name: 'Modules', exact: true })).toBeFocused();
   await expect(field).toHaveValue('Mobile query');
 });
+
+test('the rail combines page actions and keeps independent filters open while choices change', {
+  tag: '@phone',
+}, async ({ page }) => {
+  await page.goto('/ui/kit/');
+  await page.getByRole('searchbox', { name: 'Find a component' }).fill('Navigation & workspace');
+  const mobile = page.locator('[data-kit-comparison="navigation"] [data-kit-preview="mobile"]');
+  const desktop = page.locator('[data-kit-comparison="navigation"] [data-kit-preview="desktop"]');
+  const rail = mobile.locator('[data-edge-rail]');
+  await rail.getByRole('button', { name: 'Add sample item', exact: true }).click();
+  await expect(mobile.getByText('Sample actions: 1', { exact: true })).toBeVisible();
+  await rail.getByRole('button', { name: 'Reset sample count', exact: true }).click();
+  await expect(mobile.getByText('Sample actions: 0', { exact: true })).toBeVisible();
+  await expect(rail.getByRole('button', { name: 'Add sample item', exact: true })).toHaveCount(1);
+  await mobile.getByRole('button', { name: 'Use multiple filters', exact: true }).click();
+  const trigger = rail.getByRole('button', { name: 'Filters', exact: true });
+  await trigger.click();
+  const menu = mobile.getByRole('menu', { name: 'Page filters', exact: true });
+  const notes = menu.getByRole('menuitemcheckbox', { name: 'Notes', exact: true });
+  const sources = menu.getByRole('menuitemcheckbox', { name: 'Sources', exact: true });
+  await expect(notes).toHaveAttribute('aria-checked', 'true');
+  await expect(sources).toHaveAttribute('aria-checked', 'true');
+  await notes.click();
+  await expect(menu).toBeVisible();
+  await expect(notes).toHaveAttribute('aria-checked', 'false');
+  await expect(sources).toHaveAttribute('aria-checked', 'true');
+  await expect(trigger).toHaveAttribute('data-filtered', 'true');
+  await sources.click();
+  await expect(mobile.getByText('Selected kinds: none', { exact: true })).toBeVisible();
+  await notes.click();
+  await sources.click();
+  await expect(trigger).not.toHaveAttribute('data-filtered', 'true');
+  const bounds = (await menu.boundingBox())!;
+  const anchor = (await rail.boundingBox())!;
+  expect(bounds.x + bounds.width).toBeLessThanOrEqual(anchor.x - 11);
+  await page.keyboard.press('Escape');
+  await expect(menu).not.toBeVisible();
+  await expect(trigger).toBeFocused();
+  await expect(
+    desktop.getByRole('button', { name: 'Use multiple filters', exact: true }),
+  ).toBeVisible();
+});

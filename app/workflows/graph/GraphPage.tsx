@@ -122,6 +122,7 @@ export function GraphPage({
                     onValueChange: setSearch,
                   }}
                   filters={{
+                    type: 'single',
                     label: 'Relationship direction',
                     value: direction,
                     options: [

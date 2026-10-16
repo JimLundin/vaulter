@@ -17,6 +17,8 @@ caller switches between global and local records. Record meaning and neighborhoo
 with the caller. Optional node `color` values and a matching `legend` let the caller switch color
 configurations without changing geometry. `fill` expands the map within a flex workspace instead
 of using its default bounded height. The Charts catalogue includes this map mode.
+Map controls register through `PageControls`: compact navigation offers Fit map directly and
+an inward Graph view menu for zoom and resetting positions.
 Its optional `lanes` layout groups records by a caller-supplied column number, draws readable edge
 labels, and scrolls within a bounded canvas. Selection marks the incident paths; detail text can
 describe each record without the kit interpreting it. `FeaturePage.width="wide"` provides more
@@ -235,11 +237,23 @@ Filters. Detail pages without these controls keep the Modules anchor alone. Outs
 `PageControls` falls back to inline controls. Its optional children preserve an existing inline
 filter presentation while the compact menu uses the supplied choices.
 
+**Page interaction belongs in the compact edge rail.** Put page actions, view controls, search
+and filters there so the page gives its space to content. Group secondary actions in inward
+menus or open the shared supporting pane from a rail action. Direct content interactions, such
+as selecting or dragging a graph node, remain on the content. Avoid separate mobile toolbars
+for controls already owned by the rail.
+
+Controls declared by several components contribute their actions to the same rail. `placement="rail"`
+registers controls whose desktop presentation lives elsewhere, such as in a supporting pane;
+`placement="expanded"` supplies that inline presentation without registering it a second time.
+Filters default to single selection; `type="multiple"` uses independent checked choices and keeps
+the inward menu open while they change. Navigation owns the geometry for both modes.
+
 The rail anchors to the lower right of the visible viewport, including keyboard resizing, panning
 and safe-area insets. Shared input primitives register their grouped field, form or trailing Dock
 within their presentation scope. Navigation reserves the lane to its left and measures trailing
 scroll clearance from the full rail and open Search field. Search stays nonmodal, can be cleared or
-closed, and returns focus to its icon on Escape. Filters uses the shared radio-choice menu and
+closed, and returns focus to its icon on Escape. Filters uses the shared choice menu and
 returns focus to its trigger. Bounded kit samples retain independent controls and geometry.
 
 **Feature preferences are assembled once.** `SettingsMenu` takes `{ name, content }` entries from

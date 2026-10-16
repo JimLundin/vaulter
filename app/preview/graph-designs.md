@@ -18,6 +18,13 @@ Color defaults to topic area, derived from the fictional pages’ metadata. Sour
 
 The type filters remove populations. The baseline and index variants focus to a local subgraph; Local spotlight retains the global layout and dims records outside the chosen neighborhood. Local views use one or two steps and a disclosed 36-record limit. Return to global preserves its zoom and pan position and the population filters. Node positions and navigation state remain in memory; changing variant or reloading resets them.
 
+On mobile, page interaction follows the shared edge-rail guideline. Fit map has a direct rail control;
+Graph view opens zoom and reset actions inward. Filters opens independent checked population choices,
+and Search opens the rail’s field and narrows the graph by record text. Graph options opens color
+configuration and local navigation in the shared supporting pane. Focus clears the text search to
+reveal the neighborhood. Node selection and dragging remain direct canvas interactions. Desktop
+retains inline map controls and supporting-pane filters and search.
+
 The graph fills the available workspace below a compact toolbar. Filters, search and inspection use the same right-hand SupportingPane as Wiki references and conversations, with a full-height bottom sheet on phones. The navigator variant keeps this pane visible on desktop; the baseline and spotlight open it on demand.
 
 On desktop, hover highlights incident links and reveals labels. Nodes support dragging; the detailed canvas supports drag or scroll. On phones, tap opens the shared bottom inspector, explicit zoom reveals smaller records, and blank canvas areas support native swiping. Node drag also works through pointer input. Graph pinch zoom is not implemented. The renderer preserves layout proportions across viewport sizes.

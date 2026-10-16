@@ -13,7 +13,8 @@ import {
   Heading,
   Link,
   NetworkDiagram,
-  Input,
+  Icon,
+  PageControls,
   Row,
   SelectionRow,
   Separator,
@@ -146,7 +147,9 @@ export function GraphPrototype({
     }
   const matching = records.filter(
     (record) =>
-      (enabled.includes(record.tone) || record.id === focus) && (!focus || adjacent.has(record.id)),
+      (enabled.includes(record.tone) || record.id === focus) &&
+      (!focus || adjacent.has(record.id)) &&
+      (record.id === focus || record.label.toLowerCase().includes(query.toLowerCase())),
   );
   const visible = focus
     ? [
@@ -171,6 +174,7 @@ export function GraphPrototype({
     setFocus(id);
     setDepth(1);
     setChosen(id);
+    setQuery('');
     setInspecting(false);
     setPaneOpen(false);
   };
@@ -270,11 +274,14 @@ export function GraphPrototype({
   );
   const recordIndex = (
     <Stack gap="sm">
-      <Input
-        aria-label="Find a graph record"
-        placeholder="Find a topic, question or source…"
-        value={query}
-        onChange={(event) => setQuery(event.currentTarget.value)}
+      <PageControls
+        placement="expanded"
+        search={{
+          label: 'Find a graph record',
+          placeholder: 'Find a topic, question or source…',
+          value: query,
+          onValueChange: setQuery,
+        }}
       />
       <Text size="sm" tone="muted">
         {index.length} matching records{index.length > 12 ? ' · first 12 shown' : ''}
@@ -331,48 +338,50 @@ export function GraphPrototype({
     <SplitView
       main={
         <ReadingColumn label="Graph workspace">
-          <Toolbar label="Graph">
+          <Toolbar
+            label="Graph"
+            actions={
+              <Row gap="xs">
+                <Button
+                  variant="outline"
+                  iconOnly={true}
+                  aria-label="Graph options"
+                  title="Graph options"
+                  onClick={() => {
+                    setInspecting(false);
+                    setPaneOpen(true);
+                  }}
+                >
+                  <Icon name="settings" />
+                </Button>
+              </Row>
+            }
+          >
             <Row>
               <Heading level={1}>Graph</Heading>
             </Row>
-            <Button
-              variant="outline"
-              size="compact"
-              onClick={() => {
-                setInspecting(false);
-                setPaneOpen(true);
-              }}
-            >
-              Graph options
-            </Button>
           </Toolbar>
-          {!!focus && (
-            <Row wrap={true}>
-              <Text size="sm">Local · {focused?.label}</Text>
-              <Button
-                variant={depth === 1 ? 'filled' : 'outline'}
-                size="compact"
-                onClick={() => setDepth(1)}
-              >
-                Immediate neighbors
-              </Button>
-              <Button
-                variant={depth === 2 ? 'filled' : 'outline'}
-                size="compact"
-                onClick={() => setDepth(2)}
-              >
-                Two steps out
-              </Button>
-              {history.length > 0 && (
-                <Button variant="outline" size="compact" onClick={back}>
-                  Back one level
-                </Button>
-              )}
-              <Button variant="outline" size="compact" onClick={global}>
-                Return to global map
-              </Button>
-            </Row>
-          )}
+          {!!focus && <Text size="sm">Local · {focused?.label}</Text>}
+          <PageControls
+            placement="rail"
+            search={{
+              label: 'Find a graph record',
+              placeholder: 'Find a topic, question or source…',
+              value: query,
+              onValueChange: setQuery,
+            }}
+            filters={{
+              type: 'multiple',
+              label: 'Visible records',
+              value: enabled,
+              options: populations.map((population) => ({
+                value: population,
+                label: names[population],
+              })),
+              active: enabled.length !== populations.length,
+              onValueChange: (values) => setEnabled(values as Population[]),
+            }}
+          />
           {graph}
         </ReadingColumn>
       }
@@ -464,6 +473,39 @@ export function GraphPrototype({
             </>
           ) : (
             <Stack gap="lg">
+              {!!focus && (
+                <Row wrap={true}>
+                  <Text size="sm">Local · {focused?.label}</Text>
+                  <Button
+                    variant={depth === 1 ? 'filled' : 'outline'}
+                    size="compact"
+                    onClick={() => {
+                      setDepth(1);
+                      setPaneOpen(false);
+                    }}
+                  >
+                    Immediate neighbors
+                  </Button>
+                  <Button
+                    variant={depth === 2 ? 'filled' : 'outline'}
+                    size="compact"
+                    onClick={() => {
+                      setDepth(2);
+                      setPaneOpen(false);
+                    }}
+                  >
+                    Two steps out
+                  </Button>
+                  {history.length > 0 && (
+                    <Button variant="outline" size="compact" onClick={back}>
+                      Back one level
+                    </Button>
+                  )}
+                  <Button variant="outline" size="compact" onClick={global}>
+                    Return to global map
+                  </Button>
+                </Row>
+              )}
               <SettingField
                 label="Color by"
                 description="Change what the colors reveal, keeping the same layout."
@@ -484,7 +526,7 @@ export function GraphPrototype({
                 Shared.
               </Text>
               <Heading level={2}>Visible records</Heading>
-              {filters}
+              <PageControls placement="expanded">{filters}</PageControls>
               <Text size="sm" tone="muted">
                 {records.length} sample records · {visible.length}{' '}
                 {spotlight ? 'highlighted' : 'visible'} · {visibleEdges.length} connections
