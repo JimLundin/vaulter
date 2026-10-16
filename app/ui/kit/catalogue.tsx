@@ -540,13 +540,35 @@ function Charts() {
       <K.Sparkline label="Notes over time" values={[3, 5, 2, 7, 4, 6, 8]} />
       <K.NetworkDiagram
         label="Population map"
+        legend={[
+          { label: 'Making', color: '#8b83ec' },
+          { label: 'Outside', color: '#39ad93' },
+        ]}
         layout="map"
         nodes={[
-          { id: 'studio', label: 'Studio', tone: 'topic', group: 'Making' },
-          { id: 'tools', label: 'Keep tools within reach', tone: 'statement', group: 'Making' },
-          { id: 'source', label: 'Workshop notes', tone: 'source', group: 'Making' },
-          { id: 'garden', label: 'Garden', tone: 'topic', group: 'Outside' },
-          { id: 'question', label: 'What should grow here?', tone: 'question', group: 'Outside' },
+          { id: 'studio', label: 'Studio', tone: 'topic', group: 'Making', color: '#8b83ec' },
+          {
+            id: 'tools',
+            label: 'Keep tools within reach',
+            tone: 'statement',
+            group: 'Making',
+            color: '#8b83ec',
+          },
+          {
+            id: 'source',
+            label: 'Workshop notes',
+            tone: 'source',
+            group: 'Making',
+            color: '#8b83ec',
+          },
+          { id: 'garden', label: 'Garden', tone: 'topic', group: 'Outside', color: '#39ad93' },
+          {
+            id: 'question',
+            label: 'What should grow here?',
+            tone: 'question',
+            group: 'Outside',
+            color: '#39ad93',
+          },
         ]}
         edges={[
           { id: 'one', source: 'studio', target: 'tools', label: 'contains' },

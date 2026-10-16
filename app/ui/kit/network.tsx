@@ -11,6 +11,7 @@ export interface NetworkNode {
   readonly group?: string;
   readonly connections?: number;
   readonly muted?: boolean;
+  readonly color?: string;
   readonly tone?: 'topic' | 'statement' | 'source' | 'question';
 }
 export interface NetworkEdge {
@@ -28,6 +29,8 @@ export function NetworkDiagram({
   onSelect,
   layout = 'radial',
   viewKey = 'global',
+  fill = false,
+  legend,
 }: {
   label: string;
   nodes: readonly NetworkNode[];
@@ -35,11 +38,22 @@ export function NetworkDiagram({
   onSelect: (id: string) => void;
   layout?: 'radial' | 'lanes' | 'map';
   viewKey?: string;
+  /** Fill the available height in a flex workspace. */
+  fill?: boolean;
+  legend?: readonly { label: string; color: string }[];
 }) {
   const marker = useId().replaceAll(':', '');
   if (layout === 'map')
     return (
-      <NetworkMap label={label} nodes={nodes} edges={edges} onSelect={onSelect} viewKey={viewKey} />
+      <NetworkMap
+        label={label}
+        nodes={nodes}
+        edges={edges}
+        onSelect={onSelect}
+        viewKey={viewKey}
+        fill={fill}
+        legend={legend}
+      />
     );
   if (layout === 'lanes') {
     const columns = [...new Set(nodes.map((node) => node.column ?? 0))].sort((a, b) => a - b);
@@ -332,12 +346,16 @@ function NetworkMap({
   edges,
   onSelect,
   viewKey,
+  fill,
+  legend,
 }: {
   label: string;
   nodes: readonly NetworkNode[];
   edges: readonly NetworkEdge[];
   onSelect: (id: string) => void;
   viewKey: string;
+  fill: boolean;
+  legend?: readonly { label: string; color: string }[];
 }) {
   const [views, setViews] = useState<Record<string, { zoom: number; left: number; top: number }>>(
     {},
@@ -405,9 +423,30 @@ function NetworkMap({
       .filter((edge) => edge.source === active || edge.target === active)
       .flatMap((edge) => [edge.source, edge.target]),
   );
-  const changeZoom = (zoom: number) => setViews({ ...views, [viewKey]: { ...view, zoom } });
+  const changeZoom = (zoom: number) => {
+    const frame = viewport.current;
+    const content = canvas.current;
+    const centerX =
+      frame && content ? (view.left + frame.clientWidth / 2) / content.clientWidth : 0.5;
+    const centerY =
+      frame && content ? (view.top + frame.clientHeight / 2) / content.clientHeight : 0.5;
+    setViews({
+      ...views,
+      [viewKey]: {
+        zoom,
+        left: zoom === 1 ? 0 : Math.max(0, centerX * zoom * 700 - (frame?.clientWidth ?? 0) / 2),
+        top: zoom === 1 ? 0 : Math.max(0, centerY * zoom * 500 - (frame?.clientHeight ?? 0) / 2),
+      },
+    });
+  };
   return (
-    <figure aria-label={label} className="m-0 flex min-w-0 flex-col gap-2">
+    <figure
+      aria-label={label}
+      className={cn(
+        'm-0 flex min-w-0 flex-col gap-2',
+        fill && 'min-h-0 flex-1 px-[var(--page-inset)] pb-3',
+      )}
+    >
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
         <span>{view.zoom === 1 ? 'Fit · relationship layout' : `Detail · ${view.zoom}×`}</span>
         <div className="flex gap-1">
@@ -483,7 +522,10 @@ function NetworkMap({
           const { scrollLeft: left, scrollTop: top } = event.currentTarget;
           setViews((previous) => ({ ...previous, [viewKey]: { ...view, left, top } }));
         }}
-        className="h-[460px] max-w-full overflow-auto rounded-xl border border-border bg-muted/10 md:h-[580px]"
+        className={cn(
+          'max-w-full overflow-auto rounded-xl border border-border bg-muted/10',
+          fill ? 'min-h-0 flex-1' : 'h-[460px] md:h-[580px]',
+        )}
       >
         <div
           ref={canvas}
@@ -532,7 +574,7 @@ function NetworkMap({
                 key={node.id}
                 style={{
                   ...project(position),
-                  backgroundColor: colors[node.tone ?? 'statement'],
+                  backgroundColor: node.color ?? colors[node.tone ?? 'statement'],
                   width: size(node),
                   height: size(node),
                 }}
@@ -616,7 +658,7 @@ function NetworkMap({
                 >
                   <span
                     style={{
-                      backgroundColor: colors[node.tone ?? 'statement'],
+                      backgroundColor: node.color ?? colors[node.tone ?? 'statement'],
                       width: size(node),
                       height: size(node),
                     }}
@@ -638,12 +680,14 @@ function NetworkMap({
         </div>
       </div>
       <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-        {Object.entries(colors).map(([tone, color]) => (
-          <span key={tone} className="flex items-center gap-1">
-            <span style={{ backgroundColor: color }} className="size-2 rounded-full" />
-            {tone}
-          </span>
-        ))}
+        {(legend ?? Object.entries(colors).map(([label, color]) => ({ label, color }))).map(
+          ({ label, color }) => (
+            <span key={label} className="flex items-center gap-1">
+              <span style={{ backgroundColor: color }} className="size-2 rounded-full" />
+              {label}
+            </span>
+          ),
+        )}
         <span>Size = total connections · hover or select to trace links</span>
       </div>
       <figcaption className="text-xs text-muted-foreground">

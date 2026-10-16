@@ -4,9 +4,12 @@ import type { OpenApplication } from '../application/index.tsx';
 import {
   Badge,
   Button,
-  Columns,
-  Drawer,
-  FeaturePage,
+  ReadingColumn,
+  SupportingPane,
+  SplitView,
+  Toolbar,
+  Select,
+  SettingField,
   Heading,
   Link,
   NetworkDiagram,
@@ -66,6 +69,8 @@ export function GraphPrototype({
   const [focus, setFocus] = useState<string>();
   const [depth, setDepth] = useState(1);
   const [inspecting, setInspecting] = useState(false);
+  const [paneOpen, setPaneOpen] = useState(false);
+  const [colorMode, setColorMode] = useState('area');
   const [history, setHistory] = useState<Array<{ focus?: string; depth: number }>>([]);
   const records: GraphRecord[] = [];
   const edges: Edge[] = [];
@@ -102,6 +107,8 @@ export function GraphPrototype({
         const id = reference.source.node;
         if (!records.some((record) => record.id === id))
           records.push({ id, label: reference.title, tone: 'source', group, reference });
+        const shared = records.find((record) => record.id === id)!;
+        if (shared.group !== group) shared.group = 'Shared';
         edges.push({ id: reference.id, source: block.id, target: id, label: 'cites passage' });
       }
     }
@@ -156,6 +163,7 @@ export function GraphPrototype({
   const inspect = (id: string) => {
     setChosen(id);
     setInspecting(true);
+    setPaneOpen(true);
   };
   const pushView = () => setHistory([...history, { focus, depth }]);
   const focusRecord = (id: string) => {
@@ -164,11 +172,13 @@ export function GraphPrototype({
     setDepth(1);
     setChosen(id);
     setInspecting(false);
+    setPaneOpen(false);
   };
   const global = () => {
     setFocus(undefined);
     setDepth(1);
     setInspecting(false);
+    setPaneOpen(false);
     setHistory([]);
   };
   const back = () => {
@@ -178,6 +188,7 @@ export function GraphPrototype({
       setDepth(previous.depth);
       setHistory(history.slice(0, -1));
       setInspecting(false);
+      setPaneOpen(false);
     }
   };
   const spotlight = design === 'spotlight' && !!focus;
@@ -188,13 +199,48 @@ export function GraphPrototype({
   const mapEdges = spotlight
     ? edges.filter((edge) => mapIds.has(edge.source) && mapIds.has(edge.target))
     : visibleEdges;
+  const areaColors: Record<string, string> = {
+    Studio: '#8b83ec',
+    Garden: '#39ad93',
+    Learning: '#58a7e2',
+    Routine: '#de9b44',
+    Shared: '#da79ab',
+  };
+  const typeColors = {
+    topic: '#7c83e8',
+    statement: '#8a8f9b',
+    source: '#39ad93',
+    question: '#de9b44',
+  };
+  const connectionColors = {
+    '0–2 connections': '#8a8f9b',
+    '3–7 connections': '#58a7e2',
+    '8+ connections': '#de9b44',
+  };
+  const connectionBand = (record: GraphRecord) =>
+    (record.connections ?? 0) < 3
+      ? '0–2 connections'
+      : (record.connections ?? 0) < 8
+        ? '3–7 connections'
+        : '8+ connections';
+  const legend = Object.entries(
+    colorMode === 'area' ? areaColors : colorMode === 'type' ? typeColors : connectionColors,
+  ).map(([label, color]) => ({ label, color }));
   const graph = (
     <NetworkDiagram
       label={focus ? 'Local Vault graph' : 'Global Vault graph'}
       layout="map"
+      fill={true}
+      legend={legend}
       viewKey={design === 'spotlight' ? 'global' : (focus ?? 'global')}
       nodes={mapRecords.map((record) => ({
         ...record,
+        color:
+          colorMode === 'area'
+            ? areaColors[record.group]
+            : colorMode === 'type'
+              ? typeColors[record.tone]
+              : connectionColors[connectionBand(record)],
         selected: record.id === (focus ?? chosen),
         muted: spotlight && !ids.has(record.id),
       }))}
@@ -284,136 +330,180 @@ export function GraphPrototype({
     ? edges.filter((edge) => edge.source === selected.id || edge.target === selected.id)
     : [];
   return (
-    <FeaturePage title="Graph" width="wide" description="Follow the connections across your Vault.">
-      <Stack gap="lg" inset="page" block="sm">
-        <Row wrap={true} justify="between">
-          <Row wrap={true}>
-            <Button variant="ghost" onClick={global}>
-              Whole Vault
+    <SplitView
+      main={
+        <ReadingColumn label="Graph workspace">
+          <Toolbar label="Graph">
+            <Row>
+              <Heading level={1}>Graph</Heading>
+            </Row>
+            <Button
+              variant="outline"
+              size="compact"
+              onClick={() => {
+                setInspecting(false);
+                setPaneOpen(true);
+              }}
+            >
+              Graph options
             </Button>
-            {!!focused && <Text weight="medium">Local · {focused.label}</Text>}
-          </Row>
-          {history.length > 0 && (
-            <Button variant="outline" onClick={back}>
-              Back one level
-            </Button>
+          </Toolbar>
+          {!!focus && (
+            <Row wrap={true}>
+              <Text size="sm">Local · {focused?.label}</Text>
+              <Button
+                variant={depth === 1 ? 'filled' : 'outline'}
+                size="compact"
+                onClick={() => setDepth(1)}
+              >
+                Immediate neighbors
+              </Button>
+              <Button
+                variant={depth === 2 ? 'filled' : 'outline'}
+                size="compact"
+                onClick={() => setDepth(2)}
+              >
+                Two steps out
+              </Button>
+              {history.length > 0 && (
+                <Button variant="outline" size="compact" onClick={back}>
+                  Back one level
+                </Button>
+              )}
+              <Button variant="outline" size="compact" onClick={global}>
+                Return to global map
+              </Button>
+            </Row>
           )}
-        </Row>
-        {filters}
-        <Text size="sm" tone="muted">
-          {records.length} sample records · {visible.length} {spotlight ? 'highlighted' : 'visible'}{' '}
-          · {visibleEdges.length} connections
-          {focus ? ` · ${matching.length - visible.length} beyond the local view limit` : ''}
-        </Text>
-        {!!focus && (
-          <Row wrap={true}>
-            <Button variant={depth === 1 ? 'filled' : 'outline'} onClick={() => setDepth(1)}>
-              Immediate neighbors
-            </Button>
-            <Button variant={depth === 2 ? 'filled' : 'outline'} onClick={() => setDepth(2)}>
-              Two steps out
-            </Button>
-            <Button variant="outline" onClick={global}>
-              Return to global map
-            </Button>
-          </Row>
-        )}
-        {design === 'navigator' ? (
-          <Columns>
-            <Stack gap="lg">{graph}</Stack>
-            <Stack gap="lg">
-              <Heading level={2}>Record index</Heading>
-              {recordIndex}
-            </Stack>
-          </Columns>
-        ) : (
-          <Stack gap="lg">
-            {graph}
-            {design === 'spotlight' && (
-              <Text tone="muted">
-                Focus a record to highlight its neighborhood while the rest of the Vault stays in
-                the background.
-              </Text>
-            )}
-            {recordIndex}
-          </Stack>
-        )}
-        <Text size="sm" tone="muted">
-          Connections pull records together; repulsion keeps them apart. Colors show record types.
-          Larger nodes have more incoming and outgoing connections.
-        </Text>
-        <Drawer
-          open={inspecting}
-          onClose={() => setInspecting(false)}
-          title="Graph record"
-          placement="right"
+          {graph}
+        </ReadingColumn>
+      }
+      supporting={
+        <SupportingPane
+          title={inspecting ? 'Graph record' : 'Graph options'}
+          open={paneOpen}
+          persistent={design === 'navigator'}
+          selection={inspecting ? chosen : 'options'}
+          onClose={() => setPaneOpen(false)}
+          actions={
+            inspecting ? (
+              <Button variant="ghost" size="compact" onClick={() => setInspecting(false)}>
+                Options
+              </Button>
+            ) : undefined
+          }
         >
-          {!!selected && (
-            <Stack gap="lg">
-              <Badge variant="secondary">
-                {names[selected.tone]} · {selected.group}
-              </Badge>
-              <Heading level={2}>{selected.label}</Heading>
-              <Button onClick={() => focusRecord(selected.id)}>Focus neighborhood</Button>
-              <Text size="sm" tone="muted">
-                {relations.length} direct connections · population filters remain active
-              </Text>
-              {selected.tone === 'question' && (
-                <Text>
-                  This question is open. Context connections do not count as a recorded Answer.
-                </Text>
-              )}
-              {selected.tone === 'topic' && (
-                <Link href={`#/wiki/${encodeURIComponent(selected.id)}/`}>Read Wiki page</Link>
-              )}
-              {selected.tone === 'statement' &&
-                (selected.block?.evidence.length ? (
-                  selected.block.evidence.map(source)
-                ) : (
-                  <Text>
-                    No statement citation. Topic references do not establish support for this
-                    statement.
+          {inspecting ? (
+            <>
+              {!!selected && (
+                <Stack gap="lg">
+                  <Badge variant="secondary">
+                    {names[selected.tone]} · {selected.group}
+                  </Badge>
+                  <Heading level={2}>{selected.label}</Heading>
+                  <Button onClick={() => focusRecord(selected.id)}>Focus neighborhood</Button>
+                  <Text size="sm" tone="muted">
+                    {relations.length} direct connections · population filters remain active
                   </Text>
-                ))}
-              {selected.tone === 'source' &&
-                records
-                  .filter((record) =>
-                    record.block?.evidence.some(
-                      (reference) => reference.source.node === selected.id,
-                    ),
-                  )
-                  .map((record) => (
-                    <Stack key={record.id} gap="sm">
-                      <SelectionRow selected={false} onSelect={() => setChosen(record.id)}>
-                        <Text>{record.label}</Text>
-                      </SelectionRow>
-                      {record.block?.evidence
-                        .filter((reference) => reference.source.node === selected.id)
-                        .map(source)}
-                    </Stack>
-                  ))}
-              <Separator />
-              <Heading level={3}>Direct connections</Heading>
-              {relations.map((edge) => {
-                const other = records.find(
-                  (record) =>
-                    record.id === (edge.source === selected.id ? edge.target : edge.source),
-                );
-                return other ? (
-                  <SelectionRow key={edge.id} selected={false} onSelect={() => setChosen(other.id)}>
-                    <Stack gap="xs">
-                      <Text size="sm" tone="muted">
-                        {edge.source === selected.id ? 'Outgoing' : 'Incoming'} · {edge.label}
+                  {selected.tone === 'question' && (
+                    <Text>
+                      This question is open. Context connections do not count as a recorded Answer.
+                    </Text>
+                  )}
+                  {selected.tone === 'topic' && (
+                    <Link href={`#/wiki/${encodeURIComponent(selected.id)}/`}>Read Wiki page</Link>
+                  )}
+                  {selected.tone === 'statement' &&
+                    (selected.block?.evidence.length ? (
+                      selected.block.evidence.map(source)
+                    ) : (
+                      <Text>
+                        No statement citation. Topic references do not establish support for this
+                        statement.
                       </Text>
-                      <Text>{other.label}</Text>
-                    </Stack>
-                  </SelectionRow>
-                ) : null;
-              })}
+                    ))}
+                  {selected.tone === 'source' &&
+                    records
+                      .filter((record) =>
+                        record.block?.evidence.some(
+                          (reference) => reference.source.node === selected.id,
+                        ),
+                      )
+                      .map((record) => (
+                        <Stack key={record.id} gap="sm">
+                          <SelectionRow selected={false} onSelect={() => setChosen(record.id)}>
+                            <Text>{record.label}</Text>
+                          </SelectionRow>
+                          {record.block?.evidence
+                            .filter((reference) => reference.source.node === selected.id)
+                            .map(source)}
+                        </Stack>
+                      ))}
+                  <Separator />
+                  <Heading level={3}>Direct connections</Heading>
+                  {relations.map((edge) => {
+                    const other = records.find(
+                      (record) =>
+                        record.id === (edge.source === selected.id ? edge.target : edge.source),
+                    );
+                    return other ? (
+                      <SelectionRow
+                        key={edge.id}
+                        selected={false}
+                        onSelect={() => setChosen(other.id)}
+                      >
+                        <Stack gap="xs">
+                          <Text size="sm" tone="muted">
+                            {edge.source === selected.id ? 'Outgoing' : 'Incoming'} · {edge.label}
+                          </Text>
+                          <Text>{other.label}</Text>
+                        </Stack>
+                      </SelectionRow>
+                    ) : null;
+                  })}
+                </Stack>
+              )}
+            </>
+          ) : (
+            <Stack gap="lg">
+              <SettingField
+                label="Color by"
+                description="Change what the colors reveal, keeping the same layout."
+              >
+                <Select
+                  aria-label="Color by"
+                  value={colorMode}
+                  onChange={(event) => setColorMode(event.currentTarget.value)}
+                  options={[
+                    { value: 'area', label: 'Topic area' },
+                    { value: 'type', label: 'Record type' },
+                    { value: 'connections', label: 'Connection count' },
+                  ]}
+                />
+              </SettingField>
+              <Text size="sm" tone="muted">
+                Topic areas follow the sample pages’ metadata. Sources cited across areas are
+                Shared.
+              </Text>
+              <Heading level={2}>Visible records</Heading>
+              {filters}
+              <Text size="sm" tone="muted">
+                {records.length} sample records · {visible.length}{' '}
+                {spotlight ? 'highlighted' : 'visible'} · {visibleEdges.length} connections
+                {focus
+                  ? ' · ' + (matching.length - visible.length) + ' beyond the local view limit'
+                  : ''}
+              </Text>
+              <Separator />
+              <Heading level={2}>Find a record</Heading>
+              {recordIndex}
+              <Text size="sm" tone="muted">
+                Connections shape the map. Larger nodes have more incoming and outgoing connections.
+              </Text>
             </Stack>
           )}
-        </Drawer>
-      </Stack>
-    </FeaturePage>
+        </SupportingPane>
+      }
+    />
   );
 }

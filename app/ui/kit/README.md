@@ -14,7 +14,9 @@ Its optional `map` layout computes spring-and-repulsion geometry from supplied e
 diameters by supplied connection counts, and supports population colors, selection and node dragging,
 zoom controls and a scrollable detailed canvas. Each `viewKey` retains its viewport state while the
 caller switches between global and local records. Record meaning and neighborhood selection stay
-with the caller. The Charts catalogue includes this map mode.
+with the caller. Optional node `color` values and a matching `legend` let the caller switch color
+configurations without changing geometry. `fill` expands the map within a flex workspace instead
+of using its default bounded height. The Charts catalogue includes this map mode.
 Its optional `lanes` layout groups records by a caller-supplied column number, draws readable edge
 labels, and scrolls within a bounded canvas. Selection marks the incident paths; detail text can
 describe each record without the kit interpreting it. `FeaturePage.width="wide"` provides more
