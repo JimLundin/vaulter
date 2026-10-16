@@ -236,6 +236,20 @@ export function GraphPrototype({
       layout="map"
       fill={true}
       legend={legend}
+      actions={
+        <Button
+          variant="outline"
+          iconOnly={true}
+          aria-label="Graph options"
+          title="Graph options"
+          onClick={() => {
+            setInspecting(false);
+            setPaneOpen(true);
+          }}
+        >
+          <Icon name="settings" />
+        </Button>
+      }
       viewKey={design === 'spotlight' ? 'global' : (focus ?? 'global')}
       nodes={mapRecords.map((record) => ({
         ...record,
@@ -338,25 +352,7 @@ export function GraphPrototype({
     <SplitView
       main={
         <ReadingColumn label="Graph workspace">
-          <Toolbar
-            label="Graph"
-            actions={
-              <Row gap="xs">
-                <Button
-                  variant="outline"
-                  iconOnly={true}
-                  aria-label="Graph options"
-                  title="Graph options"
-                  onClick={() => {
-                    setInspecting(false);
-                    setPaneOpen(true);
-                  }}
-                >
-                  <Icon name="settings" />
-                </Button>
-              </Row>
-            }
-          >
+          <Toolbar label="Graph">
             <Row>
               <Heading level={1}>Graph</Heading>
             </Row>

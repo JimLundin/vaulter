@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
-import type { CSSProperties } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import { cn } from './lib/utils.ts';
 import { useLayout } from './hooks/use-layout.ts';
 import { PageControls } from './page-controls.tsx';
@@ -42,6 +42,7 @@ export function NetworkDiagram({
   viewKey = 'global',
   fill = false,
   legend,
+  actions,
 }: {
   label: string;
   nodes: readonly NetworkNode[];
@@ -52,6 +53,8 @@ export function NetworkDiagram({
   /** Fill the available height in a flex workspace. */
   fill?: boolean;
   legend?: readonly { label: string; color: string }[];
+  /** Additional map controls share its inline row and compact edge rail. */
+  actions?: ReactNode;
 }) {
   const marker = useId().replaceAll(':', '');
   if (layout === 'map')
@@ -64,6 +67,7 @@ export function NetworkDiagram({
         viewKey={viewKey}
         fill={fill}
         legend={legend}
+        actions={actions}
       />
     );
   if (layout === 'lanes') {
@@ -359,6 +363,7 @@ function NetworkMap({
   viewKey,
   fill,
   legend,
+  actions,
 }: {
   label: string;
   nodes: readonly NetworkNode[];
@@ -367,6 +372,7 @@ function NetworkMap({
   viewKey: string;
   fill: boolean;
   legend?: readonly { label: string; color: string }[];
+  actions?: ReactNode;
 }) {
   const compact = useLayout() === 'compact';
   const [views, setViews] = useState<Record<string, { zoom: number; left: number; top: number }>>(
@@ -541,6 +547,7 @@ function NetworkMap({
                   </Button>
                 </>
               )}
+              {actions}
             </Row>
           }
         />

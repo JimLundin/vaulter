@@ -540,6 +540,11 @@ function Charts() {
       <K.Sparkline label="Notes over time" values={[3, 5, 2, 7, 4, 6, 8]} />
       <K.NetworkDiagram
         label="Population map"
+        actions={
+          <K.Button iconOnly={true} aria-label="Map options" onClick={noop}>
+            <K.Icon name="settings" />
+          </K.Button>
+        }
         legend={[
           { label: 'Making', color: '#8b83ec' },
           { label: 'Outside', color: '#39ad93' },

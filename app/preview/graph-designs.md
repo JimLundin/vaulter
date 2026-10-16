@@ -2,7 +2,7 @@
 
 Question: can an Obsidian-style graph provide a useful starting point for Vaulter, with layout shaped by relationships, selectable color meaning, size by connection count, and the graph occupying the main workspace?
 
-Throwaway branch: `prototype/graph-ui-variants`. The named-area layouts are preserved at `6fd6425`; earlier investigation designs are at `839aeac`. No production design has been selected.
+Throwaway branch: `prototype/graph-ui-variants`. The named-area layouts are preserved at `6fd6425`; earlier investigation designs are at `839aeac`. The user prefers the Obsidian baseline as the direction for implementation. Alternatives remain available for comparison while the preview is refined.
 
 | Variant | Structure | Interaction |
 | --- | --- | --- |
@@ -25,6 +25,9 @@ configuration and local navigation in the shared supporting pane. Focus clears t
 reveal the neighborhood. Node selection and dragging remain direct canvas interactions. Desktop
 retains inline map controls and supporting-pane filters and search.
 
+Graph options sits beside Fit map, zoom and reset in the desktop map-control row. On mobile,
+these controls share the edge rail, with settings opening the same supporting pane.
+
 The graph fills the available workspace below a compact toolbar. Filters, search and inspection use the same right-hand SupportingPane as Wiki references and conversations, with a full-height bottom sheet on phones. The navigator variant keeps this pane visible on desktop; the baseline and spotlight open it on demand.
 
 On desktop, hover highlights incident links and reveals labels. Nodes support dragging; the detailed canvas supports drag or scroll. On phones, tap opens the shared bottom inspector, explicit zoom reveals smaller records, and blank canvas areas support native swiping. Node drag also works through pointer input. Graph pinch zoom is not implemented. The renderer preserves layout proportions across viewport sizes.
@@ -43,4 +46,8 @@ Hosted entry:
 
 Use the existing preview pill to switch variants or constrain the same mounted app to Mobile. Without `compare=graph`, the preview renders current Application behavior. Local command: `npm run design`, then use the same query and hash under `/preview/`.
 
-Verdict: the user prefers the relationship-shaped global map and requested meaningful selectable colors and graph-first layout using the shared supporting pane. The revised preview awaits review. The accepted correction is to let relationships shape the map and use color and connection counts for populations and node sizes. This adapts an Obsidian-style interaction pattern; it is not a complete clone or a performance benchmark. Retain the branch as the comparison source when implementing a selected production design.
+Verdict: the Obsidian baseline is the user's preferred direction. Relationships shape the map;
+selectable colors and connection counts reveal its populations and node sizes. The graph fills the
+workspace, supporting content uses the shared pane, and mobile page controls use the edge rail.
+Graph options joins the desktop map-control row. This remains a preview; retain the branch as the
+comparison source when implementing the selected production design.

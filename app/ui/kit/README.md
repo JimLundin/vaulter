@@ -18,7 +18,8 @@ with the caller. Optional node `color` values and a matching `legend` let the ca
 configurations without changing geometry. `fill` expands the map within a flex workspace instead
 of using its default bounded height. The Charts catalogue includes this map mode.
 Map controls register through `PageControls`: compact navigation offers Fit map directly and
-an inward Graph view menu for zoom and resetting positions.
+an inward Graph view menu for zoom and resetting positions. The optional `actions` slot adds
+caller-owned controls to the same desktop row and compact rail.
 Its optional `lanes` layout groups records by a caller-supplied column number, draws readable edge
 labels, and scrolls within a bounded canvas. Selection marks the incident paths; detail text can
 describe each record without the kit interpreting it. `FeaturePage.width="wide"` provides more
