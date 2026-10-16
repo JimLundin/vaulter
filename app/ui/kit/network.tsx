@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { cn } from './lib/utils.ts';
 
@@ -9,6 +9,8 @@ export interface NetworkNode {
   readonly column?: number;
   readonly detail?: string;
   readonly group?: string;
+  readonly connections?: number;
+  readonly muted?: boolean;
   readonly tone?: 'topic' | 'statement' | 'source' | 'question';
 }
 export interface NetworkEdge {
@@ -243,7 +245,87 @@ export function NetworkDiagram({
   );
 }
 
-// Generic map geometry and viewport state. Record meaning remains with the caller.
+// Springs follow caller-supplied edges; repulsion and collision separate records. No category centers.
+function forcePositions(nodes: readonly NetworkNode[], edges: readonly NetworkEdge[]) {
+  const points = nodes.map((node, index) => ({
+    id: node.id,
+    x: 500 + Math.cos(index * 2.399) * Math.sqrt(index + 1) * 20,
+    y: 350 + Math.sin(index * 2.399) * Math.sqrt(index + 1) * 20,
+    vx: 0,
+    vy: 0,
+    fx: 0,
+    fy: 0,
+  }));
+  const byId = new Map(points.map((point) => [point.id, point]));
+  const degree = new Map(
+    nodes.map((node) => [
+      node.id,
+      node.connections ??
+        edges.filter((edge) => edge.source === node.id || edge.target === node.id).length,
+    ]),
+  );
+  for (let step = 0; step < 360; step++) {
+    for (const point of points) {
+      point.fx = (500 - point.x) * 0.004;
+      point.fy = (350 - point.y) * 0.004;
+    }
+    for (let i = 0; i < points.length; i++)
+      for (let j = i + 1; j < points.length; j++) {
+        const a = points[i]!;
+        const b = points[j]!;
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const distance = Math.max(1, Math.hypot(dx, dy));
+        const gap = 18 + Math.sqrt(degree.get(a.id)!) * 3 + Math.sqrt(degree.get(b.id)!) * 3;
+        const force = 1500 / (distance * distance) + Math.max(0, gap - distance) * 0.14;
+        const fx = (dx / distance) * force;
+        const fy = (dy / distance) * force;
+        a.fx -= fx;
+        a.fy -= fy;
+        b.fx += fx;
+        b.fy += fy;
+      }
+    for (const edge of edges) {
+      const a = byId.get(edge.source);
+      const b = byId.get(edge.target);
+      if (!(a && b) || a === b) continue;
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const distance = Math.max(1, Math.hypot(dx, dy));
+      const desired = 65 + Math.sqrt((degree.get(a.id) ?? 0) + (degree.get(b.id) ?? 0)) * 7;
+      const force = (distance - desired) * 0.032;
+      const fx = (dx / distance) * force;
+      const fy = (dy / distance) * force;
+      a.fx += fx;
+      a.fy += fy;
+      b.fx -= fx;
+      b.fy -= fy;
+    }
+    const cooling = 1 - step / 420;
+    for (const point of points) {
+      point.vx = (point.vx + point.fx * cooling) * 0.72;
+      point.vy = (point.vy + point.fy * cooling) * 0.72;
+      point.x += Math.max(-10, Math.min(10, point.vx));
+      point.y += Math.max(-10, Math.min(10, point.vy));
+    }
+  }
+  const xs = points.map((point) => point.x);
+  const ys = points.map((point) => point.y);
+  const centerX = (Math.min(...xs) + Math.max(...xs)) / 2;
+  const centerY = (Math.min(...ys) + Math.max(...ys)) / 2;
+  const scale = Math.min(
+    850 / Math.max(1, Math.max(...xs) - Math.min(...xs)),
+    560 / Math.max(1, Math.max(...ys) - Math.min(...ys)),
+  );
+  return new Map(
+    points.map((point) => [
+      point.id,
+      { x: 500 + (point.x - centerX) * scale, y: 350 + (point.y - centerY) * scale },
+    ]),
+  );
+}
+
+// Generic force map and viewport state. Record meaning remains with the caller.
 function NetworkMap({
   label,
   nodes,
@@ -260,54 +342,74 @@ function NetworkMap({
   const [views, setViews] = useState<Record<string, { zoom: number; left: number; top: number }>>(
     {},
   );
+  const [moved, setMoved] = useState<Record<string, Record<string, { x: number; y: number }>>>({});
+  const [hovered, setHovered] = useState<string>();
   const view = views[viewKey] ?? { zoom: 1, left: 0, top: 0 };
   const viewport = useRef<HTMLDivElement>(null);
-  const cachedPositions = useRef(new Map<string, Map<string, { x: number; y: number }>>());
+  const canvas = useRef<HTMLDivElement>(null);
+  const [extent, setExtent] = useState({ width: 1000, height: 700 });
+  useEffect(() => {
+    const element = canvas.current;
+    if (!element) return;
+    const observer = new ResizeObserver(() =>
+      setExtent({ width: element.clientWidth, height: element.clientHeight }),
+    );
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+  const screenScale = Math.min(extent.width / 1000, extent.height / 700);
+  const project = (point: { x: number; y: number }) => ({
+    left: (extent.width - 1000 * screenScale) / 2 + point.x * screenScale,
+    top: (extent.height - 700 * screenScale) / 2 + point.y * screenScale,
+  });
   const drag = useRef<{ x: number; y: number; left: number; top: number } | null>(null);
-  const groups = [...new Set(nodes.map((node) => node.group ?? 'Records'))].sort();
-  const selected = nodes.find((node) => node.selected);
-  const local = viewKey !== 'global' && !viewKey.startsWith('atlas');
-  const positions =
-    cachedPositions.current.get(viewKey) ?? new Map<string, { x: number; y: number }>();
-  cachedPositions.current.set(viewKey, positions);
-  const centers = groups.map((group, index) => ({
-    group,
-    x: groups.length === 1 ? 500 : 230 + (index % 2) * 530,
-    y: groups.length <= 2 ? 350 : 180 + Math.floor(index / 2) * 340,
-  }));
-  for (const node of nodes) {
-    if (positions.has(node.id)) continue;
-    if (local && selected) {
-      const index = nodes.indexOf(node);
-      const ring = Math.ceil(index / 10);
-      const angle = index * 2.399;
-      positions.set(
-        node.id,
-        node.id === selected.id
-          ? { x: 500, y: 350 }
-          : {
-              x: 500 + Math.cos(angle) * (120 + ring * 65),
-              y: 350 + Math.sin(angle) * (100 + ring * 40),
-            },
-      );
-    } else {
-      const center = centers.find((entry) => entry.group === (node.group ?? 'Records'))!;
-      const peers = nodes.filter((peer) => (peer.group ?? 'Records') === (node.group ?? 'Records'));
-      const index = peers.indexOf(node);
-      const radius = 30 + Math.sqrt(index) * 22;
-      const angle = index * 2.399;
-      positions.set(node.id, {
-        x: center.x + Math.cos(angle) * radius,
-        y: center.y + Math.sin(angle) * radius * 0.72,
-      });
-    }
-  }
-  const colors = { topic: '#536dce', statement: '#8a8f9b', source: '#299b88', question: '#cc8736' };
+  const nodeDrag = useRef<{
+    id: string;
+    x: number;
+    y: number;
+    position: { x: number; y: number };
+    moved: boolean;
+  } | null>(null);
+  const skipClick = useRef(false);
+  const topology = JSON.stringify([
+    nodes.map((node) => [node.id, node.connections]),
+    edges.map((edge) => [edge.source, edge.target]),
+  ]);
+  const computed = useMemo(() => {
+    const [nodeRows, edgeRows] = JSON.parse(topology) as [
+      Array<[string, number?]>,
+      Array<[string, string]>,
+    ];
+    return forcePositions(
+      nodeRows.map(([id, connections]) => ({ id, label: id, connections })),
+      edgeRows.map(([source, target], index) => ({ id: String(index), source, target, label: '' })),
+    );
+  }, [topology]);
+  const positions = new Map(computed);
+  for (const [id, position] of Object.entries(moved[viewKey] ?? {}))
+    if (positions.has(id)) positions.set(id, position);
+  const degree = new Map(
+    nodes.map((node) => [
+      node.id,
+      node.connections ??
+        edges.filter((edge) => edge.source === node.id || edge.target === node.id).length,
+    ]),
+  );
+  const size = (node: NetworkNode) =>
+    (6 + Math.min(28, Math.sqrt(degree.get(node.id) ?? 0) * 4)) *
+    (view.zoom === 1 && extent.width < 600 ? 0.65 : 1);
+  const colors = { topic: '#7c83e8', statement: '#8a8f9b', source: '#39ad93', question: '#de9b44' };
+  const active = hovered ?? nodes.find((node) => node.selected)?.id;
+  const neighbors = new Set(
+    edges
+      .filter((edge) => edge.source === active || edge.target === active)
+      .flatMap((edge) => [edge.source, edge.target]),
+  );
   const changeZoom = (zoom: number) => setViews({ ...views, [viewKey]: { ...view, zoom } });
   return (
     <figure aria-label={label} className="m-0 flex min-w-0 flex-col gap-2">
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-        <span>{view.zoom === 1 ? 'Overview · areas' : `Detail · ${view.zoom}×`}</span>
+        <span>{view.zoom === 1 ? 'Fit · relationship layout' : `Detail · ${view.zoom}×`}</span>
         <div className="flex gap-1">
           <button
             type="button"
@@ -337,10 +439,23 @@ function NetworkMap({
           >
             Fit map
           </button>
+          <button
+            type="button"
+            onClick={() => setMoved({ ...moved, [viewKey]: {} })}
+            className="min-h-11 rounded-lg border border-border bg-background px-3"
+          >
+            Reset positions
+          </button>
         </div>
       </div>
       <div
-        key={viewKey}
+        ref={(element) => {
+          viewport.current = element;
+          if (element) {
+            element.scrollLeft = view.left;
+            element.scrollTop = view.top;
+          }
+        }}
         onPointerDown={(event) => {
           if (event.pointerType === 'mouse' && !(event.target as Element).closest('button')) {
             drag.current = {
@@ -364,22 +479,14 @@ function NetworkMap({
         onPointerCancel={() => {
           drag.current = null;
         }}
-        ref={(element) => {
-          viewport.current = element;
-          if (element) {
-            element.scrollLeft = view.left;
-            element.scrollTop = view.top;
-          }
-        }}
         onScroll={(event) => {
-          const element = event.currentTarget;
-          const left = element.scrollLeft;
-          const top = element.scrollTop;
+          const { scrollLeft: left, scrollTop: top } = event.currentTarget;
           setViews((previous) => ({ ...previous, [viewKey]: { ...view, left, top } }));
         }}
-        className="h-[460px] max-w-full overflow-auto rounded-xl border border-border bg-muted/20 md:h-[540px]"
+        className="h-[460px] max-w-full overflow-auto rounded-xl border border-border bg-muted/10 md:h-[580px]"
       >
         <div
+          ref={canvas}
           className="relative"
           style={{
             width: view.zoom === 1 ? '100%' : `${view.zoom * 700}px`,
@@ -388,72 +495,68 @@ function NetworkMap({
         >
           <svg
             viewBox="0 0 1000 700"
-            preserveAspectRatio="none"
-            className="absolute inset-0 h-full w-full"
+            preserveAspectRatio="xMidYMid meet"
+            className="pointer-events-none absolute inset-0 h-full w-full"
             aria-hidden="true"
           >
-            {!local &&
-              centers.map((center) => (
-                <g key={center.group}>
-                  <ellipse
-                    cx={center.x}
-                    cy={center.y}
-                    rx="220"
-                    ry="150"
-                    fill="currentColor"
-                    className="text-muted-foreground/5"
-                  />
-                </g>
-              ))}
             {edges.map((edge) => {
-              const source = positions.get(edge.source);
-              const target = positions.get(edge.target);
-              return source && target ? (
+              const a = positions.get(edge.source);
+              const b = positions.get(edge.target);
+              const muted =
+                nodes.find((node) => node.id === edge.source)?.muted ||
+                nodes.find((node) => node.id === edge.target)?.muted;
+              return a && b ? (
                 <line
                   key={edge.id}
-                  x1={source.x}
-                  y1={source.y}
-                  x2={target.x}
-                  y2={target.y}
+                  x1={a.x}
+                  y1={a.y}
+                  x2={b.x}
+                  y2={b.y}
                   stroke="currentColor"
+                  strokeWidth={edge.source === active || edge.target === active ? 2 : 1}
                   className={
-                    selected && (edge.source === selected.id || edge.target === selected.id)
-                      ? 'text-foreground/70'
-                      : 'text-muted-foreground/20'
-                  }
-                  strokeWidth={
-                    selected && (edge.source === selected.id || edge.target === selected.id) ? 2 : 1
+                    muted
+                      ? 'text-muted-foreground/5'
+                      : edge.source === active || edge.target === active
+                        ? 'text-foreground/70'
+                        : 'text-muted-foreground/25'
                   }
                 />
               ) : null;
             })}
           </svg>
-          {!local &&
-            centers.map((center) => (
-              <span
-                key={center.group}
-                style={{ left: `${center.x / 10}%`, top: `${(center.y - 158) / 7}%` }}
-                className="pointer-events-none absolute -translate-x-1/2 text-sm text-muted-foreground"
-              >
-                {center.group}
-              </span>
-            ))}
           {nodes.map((node) => {
             const position = positions.get(node.id)!;
             return (
               <span
                 key={node.id}
                 style={{
-                  left: `${position.x / 10}%`,
-                  top: `${position.y / 7}%`,
+                  ...project(position),
                   backgroundColor: colors[node.tone ?? 'statement'],
+                  width: size(node),
+                  height: size(node),
                 }}
-                className="pointer-events-none absolute size-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full"
+                className={cn(
+                  'pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 rounded-full',
+                  node.muted
+                    ? 'opacity-15'
+                    : active && node.id !== active && !neighbors.has(node.id)
+                      ? 'opacity-40'
+                      : '',
+                )}
               />
             );
           })}
           {nodes
-            .filter((node) => view.zoom > 1 || node.tone === 'topic' || node.selected || local)
+            .filter(
+              (node) =>
+                !node.muted &&
+                (view.zoom > 1 ||
+                  node.tone === 'topic' ||
+                  node.selected ||
+                  nodes.length < 40 ||
+                  size(node) > 18),
+            )
             .map((node) => {
               const position = positions.get(node.id)!;
               return (
@@ -462,23 +565,71 @@ function NetworkMap({
                   type="button"
                   aria-label={`Explore ${node.label}`}
                   aria-pressed={!!node.selected}
-                  title={node.label}
-                  onClick={() => onSelect(node.id)}
-                  style={{ left: `${position.x / 10}%`, top: `${position.y / 7}%` }}
-                  className="absolute flex min-h-11 min-w-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-transparent outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  title={`${node.label} · ${degree.get(node.id)} connections`}
+                  onPointerEnter={() => setHovered(node.id)}
+                  onPointerLeave={() => setHovered(undefined)}
+                  onPointerDown={(event) => {
+                    skipClick.current = false;
+                    nodeDrag.current = {
+                      id: node.id,
+                      x: event.clientX,
+                      y: event.clientY,
+                      position,
+                      moved: false,
+                    };
+                    event.currentTarget.setPointerCapture(event.pointerId);
+                  }}
+                  onPointerMove={(event) => {
+                    const dragging = nodeDrag.current;
+                    if (!dragging || dragging.id !== node.id) return;
+                    const dx = event.clientX - dragging.x;
+                    const dy = event.clientY - dragging.y;
+                    if (Math.hypot(dx, dy) < 6 && !dragging.moved) return;
+                    dragging.moved = true;
+                    setMoved((previous) => ({
+                      ...previous,
+                      [viewKey]: {
+                        ...previous[viewKey],
+                        [node.id]: {
+                          x: Math.max(30, Math.min(970, dragging.position.x + dx / screenScale)),
+                          y: Math.max(30, Math.min(670, dragging.position.y + dy / screenScale)),
+                        },
+                      },
+                    }));
+                  }}
+                  onPointerUp={() => {
+                    skipClick.current = nodeDrag.current?.moved ?? false;
+                    nodeDrag.current = null;
+                  }}
+                  onPointerCancel={() => {
+                    nodeDrag.current = null;
+                  }}
+                  onClick={() => {
+                    if (skipClick.current) {
+                      skipClick.current = false;
+                      return;
+                    }
+                    onSelect(node.id);
+                  }}
+                  style={project(position)}
+                  className="absolute flex min-h-11 min-w-11 -translate-x-1/2 -translate-y-1/2 touch-none items-center justify-center rounded-full bg-transparent outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <span
-                    style={{ backgroundColor: colors[node.tone ?? 'statement'] }}
+                    style={{
+                      backgroundColor: colors[node.tone ?? 'statement'],
+                      width: size(node),
+                      height: size(node),
+                    }}
                     className={cn(
-                      'size-2.5 rounded-full ring-2 ring-background',
+                      'rounded-full ring-2 ring-background',
                       node.selected && 'ring-4 ring-ring/40',
                     )}
                   />
-                  {((node.tone === 'topic' && (view.zoom > 1 || nodes.length < 8)) ||
-                    node.selected ||
-                    (local && nodes.length < 12)) && (
-                    <span className="absolute top-full max-w-28 rounded bg-background/90 px-1 text-center text-xs leading-tight text-foreground">
-                      {node.label.length > 45 ? `${node.label.slice(0, 45)}…` : node.label}
+                  {(node.id === active ||
+                    (view.zoom > 1 && node.tone === 'topic') ||
+                    nodes.length < 12) && (
+                    <span className="pointer-events-none absolute top-full max-w-40 rounded bg-background/95 px-1 text-center text-xs leading-tight text-foreground">
+                      {node.label.length > 52 ? `${node.label.slice(0, 52)}…` : node.label}
                     </span>
                   )}
                 </button>
@@ -486,9 +637,18 @@ function NetworkMap({
             })}
         </div>
       </div>
+      <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+        {Object.entries(colors).map(([tone, color]) => (
+          <span key={tone} className="flex items-center gap-1">
+            <span style={{ backgroundColor: color }} className="size-2 rounded-full" />
+            {tone}
+          </span>
+        ))}
+        <span>Size = total connections · hover or select to trace links</span>
+      </div>
       <figcaption className="text-xs text-muted-foreground">
-        Tap a topic to inspect or focus. Zoom in to select individual records; swipe or scroll to
-        move the detailed map.
+        Drag a node to reposition it. Zoom in for smaller records; swipe or scroll the detailed map.
+        Tap to inspect.
       </figcaption>
       <ul className="sr-only" aria-label="Map connections">
         {edges.map((edge) => (

@@ -4,8 +4,6 @@ import type { OpenApplication } from '../application/index.tsx';
 import {
   Badge,
   Button,
-  Card,
-  CardContent,
   Columns,
   Drawer,
   FeaturePage,
@@ -20,8 +18,8 @@ import {
   Text,
 } from '../ui/kit/index.ts';
 export const graphDesigns = [
-  { id: 'map', label: 'A · Spatial map' },
-  { id: 'atlas', label: 'B · Cluster atlas' },
+  { id: 'obsidian', label: 'A · Obsidian baseline' },
+  { id: 'spotlight', label: 'B · Local spotlight' },
   { id: 'navigator', label: 'C · Map + index' },
 ] as const;
 type Props = Parameters<NonNullable<ComponentProps<typeof OpenApplication>['renderGraph']>>[0];
@@ -33,6 +31,7 @@ interface GraphRecord {
   label: string;
   tone: Population;
   group: string;
+  connections?: number;
   block?: Block;
   reference?: Reference;
   topic?: string;
@@ -65,12 +64,9 @@ export function GraphPrototype({
   const [query, setQuery] = useState('');
   const [chosen, setChosen] = useState<string>();
   const [focus, setFocus] = useState<string>();
-  const [area, setArea] = useState<string>();
   const [depth, setDepth] = useState(1);
   const [inspecting, setInspecting] = useState(false);
-  const [history, setHistory] = useState<Array<{ focus?: string; area?: string; depth: number }>>(
-    [],
-  );
+  const [history, setHistory] = useState<Array<{ focus?: string; depth: number }>>([]);
   const records: GraphRecord[] = [];
   const edges: Edge[] = [];
   for (const topic of topics) {
@@ -126,7 +122,10 @@ export function GraphPrototype({
         edges.push({ id: edge.node.key.node, source, target, label: edge.label });
     }
   }
-  const groups = [...new Set(records.map((record) => record.group))].sort();
+  for (const record of records)
+    record.connections = edges.filter(
+      (edge) => edge.source === record.id || edge.target === record.id,
+    ).length;
   const selected = records.find((record) => record.id === chosen);
   const focused = records.find((record) => record.id === focus);
   const adjacent = new Set(focus ? [focus] : []);
@@ -140,9 +139,7 @@ export function GraphPrototype({
     }
   const matching = records.filter(
     (record) =>
-      (enabled.includes(record.tone) || record.id === focus) &&
-      (!area || record.group === area) &&
-      (!focus || adjacent.has(record.id)),
+      (enabled.includes(record.tone) || record.id === focus) && (!focus || adjacent.has(record.id)),
   );
   const visible = focus
     ? [
@@ -160,24 +157,16 @@ export function GraphPrototype({
     setChosen(id);
     setInspecting(true);
   };
-  const pushView = () => setHistory([...history, { focus, area, depth }]);
+  const pushView = () => setHistory([...history, { focus, depth }]);
   const focusRecord = (id: string) => {
     pushView();
     setFocus(id);
-    setArea(undefined);
     setDepth(1);
     setChosen(id);
     setInspecting(false);
   };
-  const openArea = (group: string) => {
-    pushView();
-    setArea(group);
-    setFocus(undefined);
-    setInspecting(false);
-  };
   const global = () => {
     setFocus(undefined);
-    setArea(undefined);
     setDepth(1);
     setInspecting(false);
     setHistory([]);
@@ -186,48 +175,31 @@ export function GraphPrototype({
     const previous = history.at(-1);
     if (previous) {
       setFocus(previous.focus);
-      setArea(previous.area);
       setDepth(previous.depth);
       setHistory(history.slice(0, -1));
       setInspecting(false);
     }
   };
-  const groupRecords = groups.map((group) => ({
-    id: group,
-    label: `${group} · ${records.filter((record) => record.group === group && enabled.includes(record.tone)).length} records`,
-    tone: 'topic' as const,
-    group,
-  }));
-  const groupEdges = groups.flatMap((source, index) =>
-    groups.slice(index + 1).flatMap((target) => {
-      const count = edges.filter((edge) => {
-        const a = records.find((record) => record.id === edge.source)?.group;
-        const b = records.find((record) => record.id === edge.target)?.group;
-        return (a === source && b === target) || (a === target && b === source);
-      }).length;
-      return count
-        ? [{ id: `${source}:${target}`, source, target, label: `${count} cross-area connections` }]
-        : [];
-    }),
-  );
+  const spotlight = design === 'spotlight' && !!focus;
+  const mapRecords = spotlight
+    ? records.filter((record) => enabled.includes(record.tone) || record.id === focus)
+    : visible;
+  const mapIds = new Set(mapRecords.map((record) => record.id));
+  const mapEdges = spotlight
+    ? edges.filter((edge) => mapIds.has(edge.source) && mapIds.has(edge.target))
+    : visibleEdges;
   const graph = (
     <NetworkDiagram
-      label={focus ? 'Local Vault graph' : area ? `${area} population graph` : 'Global Vault graph'}
+      label={focus ? 'Local Vault graph' : 'Global Vault graph'}
       layout="map"
-      viewKey={focus ?? (area ? `atlas:${area}` : 'global')}
-      nodes={visible.map((record) => ({ ...record, selected: record.id === (focus ?? chosen) }))}
-      edges={visibleEdges}
+      viewKey={design === 'spotlight' ? 'global' : (focus ?? 'global')}
+      nodes={mapRecords.map((record) => ({
+        ...record,
+        selected: record.id === (focus ?? chosen),
+        muted: spotlight && !ids.has(record.id),
+      }))}
+      edges={mapEdges}
       onSelect={inspect}
-    />
-  );
-  const overview = (
-    <NetworkDiagram
-      label="Vault areas overview"
-      layout="map"
-      viewKey="global"
-      nodes={groupRecords}
-      edges={groupEdges}
-      onSelect={openArea}
     />
   );
   const filters = (
@@ -312,18 +284,13 @@ export function GraphPrototype({
     ? edges.filter((edge) => edge.source === selected.id || edge.target === selected.id)
     : [];
   return (
-    <FeaturePage
-      title="Graph"
-      width="wide"
-      description="See your Vault. Find an area. Follow its connections."
-    >
+    <FeaturePage title="Graph" width="wide" description="Follow the connections across your Vault.">
       <Stack gap="lg" inset="page" block="sm">
         <Row wrap={true} justify="between">
           <Row wrap={true}>
             <Button variant="ghost" onClick={global}>
               Whole Vault
             </Button>
-            {!!area && <Badge variant="secondary">{area}</Badge>}
             {!!focused && <Text weight="medium">Local · {focused.label}</Text>}
           </Row>
           {history.length > 0 && (
@@ -334,10 +301,7 @@ export function GraphPrototype({
         </Row>
         {filters}
         <Text size="sm" tone="muted">
-          {records.length} sample records · {visible.length}{' '}
-          {design === 'atlas' && !focus && !area
-            ? `represented in ${groups.length} areas`
-            : 'visible'}{' '}
+          {records.length} sample records · {visible.length} {spotlight ? 'highlighted' : 'visible'}{' '}
           · {visibleEdges.length} connections
           {focus ? ` · ${matching.length - visible.length} beyond the local view limit` : ''}
         </Text>
@@ -354,83 +318,29 @@ export function GraphPrototype({
             </Button>
           </Row>
         )}
-        {design === 'map' ? (
-          <Stack gap="lg">
-            {graph}
-            <Text tone="muted">
-              Blue topics · grey statements · green sources · amber questions. Select a topic, then
-              choose Focus neighborhood.
-            </Text>
-            {recordIndex}
-          </Stack>
-        ) : design === 'atlas' ? (
-          !(focus || area) ? (
-            <Stack gap="lg">
-              <Heading level={2}>Choose an area of your Vault</Heading>
-              {overview}
-              <Columns>
-                {groups.map((group) => (
-                  <Card key={group}>
-                    <CardContent>
-                      <Stack gap="sm">
-                        <Heading level={3}>{group}</Heading>
-                        <Text>
-                          {records.filter((record) => record.group === group).length} records ·{' '}
-                          {
-                            records.filter(
-                              (record) => record.group === group && record.tone === 'topic',
-                            ).length
-                          }{' '}
-                          topics
-                        </Text>
-                        <Row wrap={true}>
-                          {populations.map((population) => (
-                            <Text key={population} size="sm" tone="muted">
-                              {
-                                records.filter(
-                                  (record) => record.group === group && record.tone === population,
-                                ).length
-                              }{' '}
-                              {names[population].toLowerCase()}
-                            </Text>
-                          ))}
-                        </Row>
-                        <Button variant="outline" onClick={() => openArea(group)}>
-                          Explore {group}
-                        </Button>
-                      </Stack>
-                    </CardContent>
-                  </Card>
-                ))}
-              </Columns>
-            </Stack>
-          ) : (
-            <Stack gap="lg">
-              {graph}
-              {recordIndex}
-            </Stack>
-          )
-        ) : (
+        {design === 'navigator' ? (
           <Columns>
-            <Stack gap="lg">
-              <Heading level={2}>{focus ? 'Local connections' : 'Whole Vault map'}</Heading>
-              {graph}
-            </Stack>
+            <Stack gap="lg">{graph}</Stack>
             <Stack gap="lg">
               <Heading level={2}>Record index</Heading>
               {recordIndex}
-              {!!(focus || area) && (
-                <>
-                  <Heading level={3}>Your place in the Vault</Heading>
-                  {overview}
-                </>
-              )}
             </Stack>
           </Columns>
+        ) : (
+          <Stack gap="lg">
+            {graph}
+            {design === 'spotlight' && (
+              <Text tone="muted">
+                Focus a record to highlight its neighborhood while the rest of the Vault stays in
+                the background.
+              </Text>
+            )}
+            {recordIndex}
+          </Stack>
         )}
         <Text size="sm" tone="muted">
-          Areas use the sample’s recorded topic categories. Their placement is illustrative;
-          cross-area lines come from recorded connections and citations.
+          Connections pull records together; repulsion keeps them apart. Colors show record types.
+          Larger nodes have more incoming and outgoing connections.
         </Text>
         <Drawer
           open={inspecting}

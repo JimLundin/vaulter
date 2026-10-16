@@ -10,7 +10,8 @@ The [public interface](index.ts) defines the kit's exports; catalogue and compos
 verify their examples and implementation ownership.
 
 `NetworkDiagram` presents caller-supplied node labels and directed edges in a bounded neighborhood.
-Its optional `map` layout supplies grouped overview geometry, population colors, selectable records,
+Its optional `map` layout computes spring-and-repulsion geometry from supplied edges, scales node
+diameters by supplied connection counts, and supports population colors, selection and node dragging,
 zoom controls and a scrollable detailed canvas. Each `viewKey` retains its viewport state while the
 caller switches between global and local records. Record meaning and neighborhood selection stay
 with the caller. The Charts catalogue includes this map mode.
