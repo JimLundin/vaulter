@@ -13,7 +13,7 @@ import {
   Heading,
   Link,
   NetworkDiagram,
-  PageControls,
+  Input,
   Row,
   SelectionRow,
   Separator,
@@ -270,13 +270,11 @@ export function GraphPrototype({
   );
   const recordIndex = (
     <Stack gap="sm">
-      <PageControls
-        search={{
-          label: 'Find a graph record',
-          placeholder: 'Find a topic, question or source…',
-          value: query,
-          onValueChange: setQuery,
-        }}
+      <Input
+        aria-label="Find a graph record"
+        placeholder="Find a topic, question or source…"
+        value={query}
+        onChange={(event) => setQuery(event.currentTarget.value)}
       />
       <Text size="sm" tone="muted">
         {index.length} matching records{index.length > 12 ? ' · first 12 shown' : ''}
