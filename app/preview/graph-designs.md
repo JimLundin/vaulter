@@ -1,71 +1,79 @@
-# Graph layout comparison
+# Parent-topic graph configuration
 
-Question: which spacing refinements improve the preferred Obsidian baseline, Obsidian compact
-and Communities blended layouts on desktop and phone?
+Question: can tighter clusters based on actual parent topics preserve the preferred Obsidian map
+while making overlaps between topics easier to see? Which settings should be the starting default?
 
-Throwaway branch: `prototype/graph-ui-variants`. The previous round is preserved at `6046196`.
-The user preferred both Obsidian alternatives and Communities blended. Those three anchors keep
-their geometry and defaults here; two new variants isolate the remaining spacing decisions.
-The first clustering round is preserved at `75901e9`, the refined baseline at `7c09fc0`, and the
-rejected strict topic-area layouts at `6fd6425`.
+Throwaway branch: `prototype/graph-ui-variants`. The user selected the relationship-only Obsidian
+baseline and compact layouts, and then requested tighter grouping by the topic each record belongs
+under, with UI configuration. Earlier spacing comparisons are preserved at `bff3210`, community
+experiments at `6046196`, and strict broad-area layouts at `6fd6425`.
 
-| Variant | Relationship/grouping behavior | Node spacing | Canvas edges |
-| --- | --- | --- | --- |
-| `obsidian` | A: Preferred relationship-only baseline, unchanged. | Balanced | Adaptive 28–48px |
-| `obsidian-dense` | B: Preferred compact Obsidian, unchanged. | Compact | 24px |
-| `obsidian-snug` | C: Baseline forces with compact's edge clearance; isolates the margin choice. | Balanced | 24px |
-| `communities-soft` | D: Preferred softly blended connection groups, unchanged. | Balanced | 24px |
-| `communities-airy` | E: Same softly blended groups with longer springs and more breathing room. | Relaxed | Adaptive 28–48px |
+Starting default: **Parent topic / Tight cohesion / Compact within-topic spacing / Close topic
+separation / Tight canvas edges**. Parent-topic color is the appearance default. This is a proposed
+preview default for review, not production promotion.
 
-A versus C isolates canvas margins. B versus C isolates compact versus balanced forces at the
-same margin. C versus D isolates soft community attraction with the same spacing and margins.
-D versus E explores opening the community layout while retaining its membership and cohesion.
-The graph settings expose these choices independently so reviewers can mix them.
+| Variant | Configuration |
+| --- | --- |
+| `topic-tight` | A: Starting default. Tight topic cohesion, compact interiors and close centers. |
+| `topic-balanced` | B: Gentle topic attraction and balanced interiors, with the same close centers. |
+| `topic-separated` | C: Same tight interiors as A, with more space between topic centers. |
+| `obsidian` | D: Preferred relationship-only baseline, retained for comparison. |
+| `obsidian-dense` | E: Preferred relationship-only compact layout, retained for comparison. |
 
-All five retain the same 172 records and 281 connections: 14 topics, 105 statements, 29 sources
-and 24 questions. A shared source has one visible identity; its inspector retains each citation's
-reviewed passage and separately exposes changed current source text. Fixture records are unchanged.
+All five use the same 172 records and 281 connections: 14 topics, 105 statements, 29 sources and
+24 questions. Fixture records and citations are unchanged.
 
-Connection communities use deterministic local modularity optimization on the full undirected
-graph. Standard scale detects 28 groups in this sample. Both blended variants use exactly this
-membership and soft group attraction (0.018); color, filtering and local focus do not recalculate
-membership. Community scale remains independently selectable: fine favors smaller groups; broad
-also merges whole connected groups when modularity improves, yielding six groups here. The broad
-preset from the previous round is retained in its commit rather than this round's picker.
+Grouping is based on individual topic identity, rather than broad fictional metadata areas or
+inferred connection communities. Each statement/question belongs to its projected parent topic;
+the topic node is part of its own cluster. Sources belong to every topic whose statements cite
+them. Their membership is collected from all citations before filtering, so the first encountered
+citation does not assign a source to an arbitrary topic. Each source remains one node with its
+full connection count. The inspector explicitly lists its citing topics and preserves the reviewed
+passage/current source text distinction.
 
-The shared map solver uses link springs, repulsion and collision spacing. Balanced forces use
-factor 1, compact 0.6 and relaxed 1.65 for spring length and repulsion. Optional community attraction
-pulls toward aspect-aware group regions. These remain soft forces, with every connection visible.
-Relationship-only variants use zero group attraction. Node diameter continues to reflect total
-incident connections; colors remain independent (Topic area, Record type or Connection count).
+The caller supplies these memberships to the shared kit. Its coarse spring layout uses connections
+between groups to place related topic centers near each other. Individual records settle with
+repulsion, collisions and edge springs plus attraction to their topic centers. A multi-topic source
+feels the average attraction of its memberships; its actual citation springs pull toward the cited
+neighbors, letting it sit near the shared border. There are no hard boxes, duplicate source nodes
+or fixed geographic topic slots.
 
-Canvas geometry adapts to measured width and height, fitting both axes. Tight edges reserve 24px;
-balanced reserves an adaptive 28–48px. Generous 14% margins remain available in Settings. Every
-choice adds mobile edge-rail clearance. Margins describe node centers. Sparse local views have
-capped fit expansion. Zoom, normalized manual positions and viewport state survive resizing;
-Reset positions restores the computed layout. Dragging does not continuously resimulate neighbors.
+Settings starts with Layout, followed by Appearance and visible-record filters. Group by selects
+Parent topic or Relationships only. Topic separation selects Close (0.65), Balanced (0.85) or Open
+(1.15); cohesion selects Gentle (0.018), Tight (0.065) or Very tight (0.22). Within-topic spacing
+selects Compact (0.6), Balanced (1) or Relaxed (1.65) spring/repulsion factors. Canvas edges selects
+24px, adaptive 28–48px or generous 14% margins, always reserving mobile rail clearance. Use default
+layout restores the starting settings. Dragged nodes remain pinned until Reset positions clears
+them. Configuration and manual positions remain in memory, resetting on variant switch/reload.
 
-The main canvas, supporting-pane styling, native setting fields and mobile interaction guideline
-are retained. Options, Fit, Graph view, filters and search share the phone edge rail. Settings and
-Records occupy the same SupportingPane used by conversations/references, with a phone sheet.
-Selection and dragging stay on the canvas. Focus reveals one or two steps with a disclosed
-36-record limit; return to global preserves viewport state and population filters.
+Color defaults to individual parent topics, with a distinct shared-source color for sources cited
+from several topics. Other choices remain Topic area, Record type and Connection count. Color does
+not change memberships or layout forces; the canvas adapts if the legend changes its available
+height. Node sizes retain total incident connection counts. On desktop the legend
+shows each topic title; compact legends with more than six colors show the count and direct the
+reader to record details to preserve the canvas height.
+
+The graph remains the main workspace, and supporting content uses the same SupportingPane as
+conversations and references. The mobile edge rail retains Fit, Graph view, filters, search and
+options. Options opens the same phone supporting sheet; selection and dragging stay on the canvas.
+Zoom and normalized manual positions survive resizing; SVG links and node controls share coordinates.
+Local focus retains its one/two-step exploration and disclosed 36-record limit. Return to global
+preserves viewport state and filters.
 
 Review tasks:
 
-1. Compare A and C for the amount of breathing room at the canvas edges.
-2. Compare B and C for compact versus balanced branches with the same margins.
-3. Compare C and D to judge whether subtle community attraction improves readability.
-4. Compare D and E for more open community interiors and bridges.
-5. Repeat on phone, focus a hub, inspect evidence and return to global.
-6. Mix settings; Reset positions after manual dragging to compare automatic geometry.
+1. Compare A with D/E to judge whether parent-topic clustering improves the Obsidian layout.
+2. Find a shared-source node near the boundary of different topic colors; inspect its citing topics.
+3. Compare A/B for tighter versus gentle interiors and A/C for topic-center separation.
+4. Mix Settings; use the default-layout button to return to the starting configuration.
+5. Repeat on phone, zoom/drag, focus a topic, inspect citation evidence and return to global.
 
 Hosted entry:
-<https://jimlundin.github.io/vaulter/preview/prototype/graph-ui-variants/?compare=graph&variant=obsidian#/graph/>
+<https://jimlundin.github.io/vaulter/preview/prototype/graph-ui-variants/?compare=graph&variant=topic-tight#/graph/>
 
-Use the existing preview pill to switch all five variants and Mobile. Without `compare=graph`,
-the preview remains current Application behavior. Local: `npm run design`, with the same query
-and hash under `/preview/`.
+The existing preview pill switches variants and Mobile. Without `compare=graph`, the preview
+continues to show current Application behavior. Local: `npm run design`, with the same query and
+hash under `/preview/`.
 
-Verdict: Obsidian baseline, Obsidian compact and Communities blended are the preferred anchors.
-This round's spacing verdict is pending. This remains a prototype comparison on its feature branch.
+Verdict: the Obsidian style is preferred; grouping should follow actual parent topics and remain
+configurable. The tighter starting configuration above is available for review.

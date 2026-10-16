@@ -15,7 +15,8 @@ diameters by supplied connection counts, and supports population colors, selecti
 zoom controls and a scrollable detailed canvas. Each `viewKey` retains its viewport state while the
 caller switches between global and local records. Record meaning and neighborhood selection stay
 with the caller. Optional node `color` values and a matching `legend` let the caller switch color
-configurations without changing geometry. `fill` expands the map within a flex workspace instead
+configurations without changing memberships or layout forces. The canvas still adapts when a
+different legend changes its available height. `fill` expands the map within a flex workspace instead
 of using its default bounded height. The Charts catalogue includes this map mode.
 Map controls register through `PageControls`: compact navigation offers Fit map directly and
 an inward Graph view menu for zoom and resetting positions. The optional `actions` slot adds
@@ -27,6 +28,13 @@ canvas margins. `groupAttraction` adds a soft attraction toward aspect-aware gro
 node `group` values supplied by the caller. Zero retains the relationship-only layout. The kit
 does not infer communities or topic meaning; the owner supplies group membership independently
 of color. Manual positions remain pinned when these options change; Reset positions clears them.
+Node `groups` supports multiple memberships, with `group` as the single-membership fallback.
+`mapOptions.groupLayout="relationships"` places group centers with a coarse spring layout using
+cross-group edges, then settles individual nodes around those centers. `groupSeparation` controls
+their relative distance. A shared node feels the average attraction of all its groups, while its
+incident springs still pull toward its actual neighbors. The default `regions` mode retains the
+aspect-aware region layout. Compact legends with more than six colors show their count and direct
+the reader to record details, preserving the main canvas height.
 Its optional `lanes` layout groups records by a caller-supplied column number, draws readable edge
 labels, and scrolls within a bounded canvas. Selection marks the incident paths; detail text can
 describe each record without the kit interpreting it. `FeaturePage.width="wide"` provides more

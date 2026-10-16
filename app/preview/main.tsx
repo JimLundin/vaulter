@@ -198,7 +198,7 @@ function Preview({ nodes }: { nodes: NodeStore }) {
   if (query.get('compare') === 'graph')
     return (
       <DesignComparison
-        defaultValue={query.get('variant') ?? 'obsidian'}
+        defaultValue={query.get('variant') ?? 'topic-tight'}
         onValueChange={(variant) => {
           const url = new URL(location.href);
           url.searchParams.set('variant', variant);

@@ -20,6 +20,8 @@ export interface NetworkNode {
   readonly column?: number;
   readonly detail?: string;
   readonly group?: string;
+  /** Multiple memberships pull a shared node toward the groups' common boundary. */
+  readonly groups?: readonly string[];
   readonly connections?: number;
   readonly muted?: boolean;
   readonly color?: string;
@@ -59,6 +61,8 @@ export function NetworkDiagram({
   /** Force-map spacing and optional attraction between caller-supplied groups. */
   mapOptions?: {
     groupAttraction?: number;
+    groupLayout?: 'regions' | 'relationships';
+    groupSeparation?: number;
     spacing?: 'compact' | 'balanced' | 'relaxed';
     edgeSpacing?: 'tight' | 'balanced' | 'roomy';
   };
@@ -309,8 +313,10 @@ function forcePositions(
   }));
   const byId = new Map(points.map((point) => [point.id, point]));
   const spacing = options.spacing === 'compact' ? 0.6 : options.spacing === 'relaxed' ? 1.65 : 1;
-  const groups = [...new Set(nodes.map((node) => node.group).filter(Boolean))];
-  const groupById = new Map(nodes.map((node) => [node.id, node.group]));
+  const memberships = new Map(
+    nodes.map((node) => [node.id, node.groups ?? (node.group ? [node.group] : [])]),
+  );
+  const groups = [...new Set([...memberships.values()].flat())];
   const columns = Math.max(1, Math.ceil(Math.sqrt((groups.length * width) / height)));
   const rows = Math.max(1, Math.ceil(groups.length / columns));
   const anchors = new Map(
@@ -322,6 +328,38 @@ function forcePositions(
       },
     ]),
   );
+  if (
+    options.groupLayout === 'relationships' &&
+    (options.groupAttraction ?? 0) > 0 &&
+    groups.length
+  ) {
+    const groupEdges: NetworkEdge[] = [];
+    for (const edge of edges)
+      for (const source of memberships.get(edge.source) ?? [])
+        for (const target of memberships.get(edge.target) ?? [])
+          if (source !== target) groupEdges.push({ ...edge, source, target });
+    // Coarse springs place connected groups near one another before individual records settle.
+    // The recursive call has no grouping force, so it stops at one additional level.
+    const centers = forcePositions(
+      groups.map((id) => ({ id, label: id })),
+      groupEdges,
+      width,
+      height,
+      insetRight,
+      {
+        spacing: 'balanced',
+        edgeSpacing: 'balanced',
+        groupAttraction: 0,
+      },
+    );
+    for (const [group, center] of centers)
+      anchors.set(group, {
+        x: width / 2 + ((center.x / 1000) * width - width / 2) * (options.groupSeparation ?? 0.85),
+        y:
+          height / 2 +
+          ((center.y / 1000) * height - height / 2) * (options.groupSeparation ?? 0.85),
+      });
+  }
   const degree = new Map(
     nodes.map((node) => [
       node.id,
@@ -333,10 +371,11 @@ function forcePositions(
     for (const point of points) {
       point.fx = ((width / 2 - point.x) * 0.006 * height) / width;
       point.fy = ((height / 2 - point.y) * 0.006 * width) / height;
-      const anchor = anchors.get(groupById.get(point.id));
-      if (anchor) {
-        point.fx += (anchor.x - point.x) * (options.groupAttraction ?? 0);
-        point.fy += (anchor.y - point.y) * (options.groupAttraction ?? 0);
+      const memberOf = memberships.get(point.id)!;
+      for (const group of memberOf) {
+        const anchor = anchors.get(group)!;
+        point.fx += ((anchor.x - point.x) * (options.groupAttraction ?? 0)) / memberOf.length;
+        point.fy += ((anchor.y - point.y) * (options.groupAttraction ?? 0)) / memberOf.length;
       }
     }
     for (let i = 0; i < points.length; i++)
@@ -489,24 +528,46 @@ function NetworkMap({
   } | null>(null);
   const skipClick = useRef(false);
   const topology = JSON.stringify([
-    nodes.map((node) => [node.id, node.connections, node.group]),
+    nodes.map((node) => [node.id, node.connections, node.group, node.groups]),
     edges.map((edge) => [edge.source, edge.target]),
   ]);
-  const { groupAttraction = 0, spacing = 'balanced', edgeSpacing = 'balanced' } = mapOptions ?? {};
+  const {
+    groupAttraction = 0,
+    groupLayout = 'regions',
+    groupSeparation = 0.85,
+    spacing = 'balanced',
+    edgeSpacing = 'balanced',
+  } = mapOptions ?? {};
   const computed = useMemo(() => {
     const [nodeRows, edgeRows] = JSON.parse(topology) as [
-      Array<[string, number?, string?]>,
+      Array<[string, number?, string?, string[]?]>,
       Array<[string, string]>,
     ];
     return forcePositions(
-      nodeRows.map(([id, connections, group]) => ({ id, label: id, connections, group })),
+      nodeRows.map(([id, connections, group, groups]) => ({
+        id,
+        label: id,
+        connections,
+        group,
+        groups,
+      })),
       edgeRows.map(([source, target], index) => ({ id: String(index), source, target, label: '' })),
       frame.width,
       frame.height,
       insetRight,
-      { groupAttraction, spacing, edgeSpacing },
+      { groupAttraction, groupLayout, groupSeparation, spacing, edgeSpacing },
     );
-  }, [topology, frame.width, frame.height, insetRight, groupAttraction, spacing, edgeSpacing]);
+  }, [
+    topology,
+    frame.width,
+    frame.height,
+    insetRight,
+    groupAttraction,
+    groupLayout,
+    groupSeparation,
+    spacing,
+    edgeSpacing,
+  ]);
   const positions = new Map(computed);
   for (const [id, position] of Object.entries(moved[viewKey] ?? {}))
     if (positions.has(id)) positions.set(id, position);
@@ -849,13 +910,17 @@ function NetworkMap({
         </div>
       </div>
       <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-        {(legend ?? Object.entries(colors).map(([label, color]) => ({ label, color }))).map(
-          ({ label, color }) => (
-            <span key={label} className="flex items-center gap-1">
-              <span style={{ backgroundColor: color }} className="size-2 rounded-full" />
-              {label}
-            </span>
-          ),
+        {compact && legend && legend.length > 6 ? (
+          <span>{legend.length} color groups · select a record for details</span>
+        ) : (
+          (legend ?? Object.entries(colors).map(([label, color]) => ({ label, color }))).map(
+            ({ label, color }) => (
+              <span key={label} className="flex items-center gap-1">
+                <span style={{ backgroundColor: color }} className="size-2 rounded-full" />
+                {label}
+              </span>
+            ),
+          )
         )}
         <span>Size = total connections · hover or select to trace links</span>
       </div>

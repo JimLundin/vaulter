@@ -1,4 +1,4 @@
-// Throwaway question: which refinements of the preferred Obsidian and connection-community layouts work best?
+// Throwaway question: which configurable parent-topic clustering best preserves the preferred Obsidian map?
 import { useState, type ComponentProps } from 'react';
 import type { OpenApplication } from '../application/index.tsx';
 import {
@@ -29,16 +29,16 @@ import {
   Text,
 } from '../ui/kit/index.ts';
 export const graphDesigns = [
-  { id: 'obsidian', label: 'A · Obsidian baseline' },
-  { id: 'obsidian-dense', label: 'B · Obsidian compact' },
-  { id: 'obsidian-snug', label: 'C · Obsidian close edges' },
-  { id: 'communities-soft', label: 'D · Communities blended' },
-  { id: 'communities-airy', label: 'E · Blended spacious' },
+  { id: 'topic-tight', label: 'A · Topics tight · default' },
+  { id: 'topic-balanced', label: 'B · Topics gentle' },
+  { id: 'topic-separated', label: 'C · Topics separated' },
+  { id: 'obsidian', label: 'D · Obsidian baseline' },
+  { id: 'obsidian-dense', label: 'E · Obsidian compact' },
 ] as const;
-type Grouping = 'none' | 'communities' | 'areas';
+type Grouping = 'none' | 'topics';
 type Spacing = 'compact' | 'balanced' | 'relaxed';
 type EdgeSpacing = 'tight' | 'balanced' | 'roomy';
-type CommunityScale = 'fine' | 'standard' | 'broad';
+type TopicSeparation = 'close' | 'balanced' | 'open';
 const presets: Record<
   string,
   {
@@ -46,33 +46,36 @@ const presets: Record<
     cohesion: string;
     spacing: Spacing;
     edgeSpacing: EdgeSpacing;
-    communityScale?: CommunityScale;
+    separation?: TopicSeparation;
   }
 > = {
+  'topic-tight': {
+    grouping: 'topics',
+    cohesion: 'medium',
+    spacing: 'compact',
+    edgeSpacing: 'tight',
+    separation: 'close',
+  },
+  'topic-balanced': {
+    grouping: 'topics',
+    cohesion: 'soft',
+    spacing: 'balanced',
+    edgeSpacing: 'tight',
+    separation: 'close',
+  },
+  'topic-separated': {
+    grouping: 'topics',
+    cohesion: 'medium',
+    spacing: 'compact',
+    edgeSpacing: 'tight',
+    separation: 'open',
+  },
   obsidian: { grouping: 'none', cohesion: 'soft', spacing: 'balanced', edgeSpacing: 'balanced' },
   'obsidian-dense': {
     grouping: 'none',
     cohesion: 'soft',
     spacing: 'compact',
     edgeSpacing: 'tight',
-  },
-  'obsidian-snug': {
-    grouping: 'none',
-    cohesion: 'soft',
-    spacing: 'balanced',
-    edgeSpacing: 'tight',
-  },
-  'communities-soft': {
-    grouping: 'communities',
-    cohesion: 'soft',
-    spacing: 'balanced',
-    edgeSpacing: 'tight',
-  },
-  'communities-airy': {
-    grouping: 'communities',
-    cohesion: 'soft',
-    spacing: 'relaxed',
-    edgeSpacing: 'balanced',
   },
 };
 type Props = Parameters<NonNullable<ComponentProps<typeof OpenApplication>['renderGraph']>>[0];
@@ -88,6 +91,7 @@ interface GraphRecord {
   block?: Block;
   reference?: Reference;
   topic?: string;
+  parentTopics: string[];
 }
 interface Edge {
   id: string;
@@ -107,81 +111,6 @@ const names = {
   question: 'Questions',
 };
 
-// Deterministic local modularity optimization on the full fixture. Color and filtering do not
-// change membership. These are connection communities, not topic-area categories.
-function connectionCommunities(records: GraphRecord[], edges: Edge[], scale: CommunityScale) {
-  const resolution = scale === 'broad' ? 0.4 : scale === 'fine' ? 1.6 : 1;
-  const neighbors = new Map(records.map((record) => [record.id, new Map<string, number>()]));
-  for (const edge of edges) {
-    if (edge.source === edge.target) continue;
-    for (const [a, b] of [
-      [edge.source, edge.target],
-      [edge.target, edge.source],
-    ]) {
-      const row = neighbors.get(a!);
-      if (row && neighbors.has(b!)) row.set(b!, (row.get(b!) ?? 0) + 1);
-    }
-  }
-  const degrees = new Map(
-    [...neighbors].map(([id, row]) => [id, [...row.values()].reduce((a, b) => a + b, 0)]),
-  );
-  const total = [...degrees.values()].reduce((a, b) => a + b, 0);
-  const membership = new Map(records.map((record) => [record.id, record.id]));
-  const weights = new Map(degrees);
-  if (!total) return membership;
-  for (let pass = 0; pass < 30; pass++) {
-    let changed = false;
-    for (const record of records) {
-      const current = membership.get(record.id)!;
-      const degree = degrees.get(record.id)!;
-      weights.set(current, weights.get(current)! - degree);
-      const linked = new Map<string, number>();
-      for (const [neighbor, weight] of neighbors.get(record.id)!) {
-        const group = membership.get(neighbor)!;
-        linked.set(group, (linked.get(group) ?? 0) + weight);
-      }
-      const gain = (group: string) =>
-        (linked.get(group) ?? 0) - (resolution * degree * (weights.get(group) ?? 0)) / total;
-      let best = current;
-      for (const group of linked.keys()) if (gain(group) > gain(best) + 0.000_01) best = group;
-      membership.set(record.id, best);
-      weights.set(best, (weights.get(best) ?? 0) + degree);
-      changed ||= best !== current;
-    }
-    if (!changed) break;
-  }
-  // At broad scale, also join whole communities. Moving one node at a time can otherwise
-  // remain stuck in the same small hub neighborhoods despite a lower resolution.
-  if (scale === 'broad') {
-    for (let pass = 0; pass < records.length; pass++) {
-      const totals = new Map<string, number>();
-      for (const [id, group] of membership)
-        totals.set(group, (totals.get(group) ?? 0) + degrees.get(id)!);
-      const bridges = new Map<string, number>();
-      for (const edge of edges) {
-        const source = membership.get(edge.source);
-        const target = membership.get(edge.target);
-        if (!(source && target) || source === target) continue;
-        const pair = JSON.stringify([source, target].sort());
-        bridges.set(pair, (bridges.get(pair) ?? 0) + 1);
-      }
-      let best: [string, string] | undefined;
-      let bestGain = 0.000_01;
-      for (const [pair, weight] of bridges) {
-        const [a, b] = JSON.parse(pair) as [string, string];
-        const gain = weight - (resolution * totals.get(a)! * totals.get(b)!) / total;
-        if (gain > bestGain) {
-          best = [a, b];
-          bestGain = gain;
-        }
-      }
-      if (!best) break;
-      for (const [id, group] of membership) if (group === best[1]) membership.set(id, best[0]);
-    }
-  }
-  return membership;
-}
-
 export function GraphPrototype({
   topics,
   state,
@@ -195,15 +124,13 @@ export function GraphPrototype({
   const [depth, setDepth] = useState(1);
   const [inspecting, setInspecting] = useState(false);
   const [paneOpen, setPaneOpen] = useState(false);
-  const [colorMode, setColorMode] = useState('area');
-  const preset = presets[design] ?? presets.obsidian!;
+  const [colorMode, setColorMode] = useState('topic');
+  const preset = presets[design] ?? presets['topic-tight']!;
   const [grouping, setGrouping] = useState<Grouping>(preset.grouping);
   const [cohesion, setCohesion] = useState(preset.cohesion);
   const [spacing, setSpacing] = useState<Spacing>(preset.spacing);
   const [edgeSpacing, setEdgeSpacing] = useState<EdgeSpacing>(preset.edgeSpacing);
-  const [communityScale, setCommunityScale] = useState<CommunityScale>(
-    preset.communityScale ?? 'standard',
-  );
+  const [separation, setSeparation] = useState<TopicSeparation>(preset.separation ?? 'balanced');
   const [history, setHistory] = useState<Array<{ focus?: string; depth: number }>>([]);
   const records: GraphRecord[] = [];
   const edges: Edge[] = [];
@@ -219,7 +146,14 @@ export function GraphPrototype({
           : topic.title.toLowerCase().includes('reading')
             ? 'Learning'
             : 'Garden');
-    records.push({ id: topic.id, label: topic.title, tone: 'topic', group, topic: topic.id });
+    records.push({
+      id: topic.id,
+      label: topic.title,
+      tone: 'topic',
+      group,
+      topic: topic.id,
+      parentTopics: [topic.id],
+    });
     for (const block of flatten(topic.blocks)) {
       if (block.data.kind !== 'paragraph' && block.data.kind !== 'question') continue;
       records.push({
@@ -229,6 +163,7 @@ export function GraphPrototype({
         group,
         block,
         topic: topic.id,
+        parentTopics: [topic.id],
       });
       edges.push({
         id: `contains:${block.id}`,
@@ -239,8 +174,16 @@ export function GraphPrototype({
       for (const reference of block.evidence) {
         const id = reference.source.node;
         if (!records.some((record) => record.id === id))
-          records.push({ id, label: reference.title, tone: 'source', group, reference });
+          records.push({
+            id,
+            label: reference.title,
+            tone: 'source',
+            group,
+            reference,
+            parentTopics: [],
+          });
         const shared = records.find((record) => record.id === id)!;
+        if (!shared.parentTopics.includes(topic.id)) shared.parentTopics.push(topic.id);
         if (shared.group !== group) shared.group = 'Shared';
         edges.push({ id: reference.id, source: block.id, target: id, label: 'cites passage' });
       }
@@ -266,14 +209,10 @@ export function GraphPrototype({
     record.connections = edges.filter(
       (edge) => edge.source === record.id || edge.target === record.id,
     ).length;
-  const communities = connectionCommunities(records, edges, communityScale);
-  const communityCount = new Set(communities.values()).size;
   const groupingDescription =
     grouping === 'none'
       ? 'Only links and repulsion shape the map. Colors do not pull nodes together.'
-      : grouping === 'communities'
-        ? `${communityCount} groups detected from densely connected records. Cross-group links stay visible; colors still show your selected meaning.`
-        : 'Topic areas gently pull related records toward shared regions. Shared sources occupy their own group; all links remain visible.';
+      : `${topics.length} parent topics. Statements and questions stay with their topic; shared sources are pulled toward every topic that cites them, making overlaps visible near the borders.`;
   const selected = records.find((record) => record.id === chosen);
   const focused = records.find((record) => record.id === focus);
   const adjacent = new Set(focus ? [focus] : []);
@@ -350,6 +289,9 @@ export function GraphPrototype({
     Routine: '#de9b44',
     Shared: '#da79ab',
   };
+  const topicColors = new Map(
+    topics.map((topic, index) => [topic.id, `hsl(${(index * 137.508) % 360} 55% 55%)`]),
+  );
   const typeColors = {
     topic: '#7c83e8',
     statement: '#8a8f9b',
@@ -367,9 +309,15 @@ export function GraphPrototype({
       : (record.connections ?? 0) < 8
         ? '3–7 connections'
         : '8+ connections';
-  const legend = Object.entries(
-    colorMode === 'area' ? areaColors : colorMode === 'type' ? typeColors : connectionColors,
-  ).map(([label, color]) => ({ label, color }));
+  const legend =
+    colorMode === 'topic'
+      ? [
+          ...topics.map((topic) => ({ label: topic.title, color: topicColors.get(topic.id)! })),
+          { label: 'Shared sources', color: '#da79ab' },
+        ]
+      : Object.entries(
+          colorMode === 'area' ? areaColors : colorMode === 'type' ? typeColors : connectionColors,
+        ).map(([label, color]) => ({ label, color }));
   const graph = (
     <NetworkDiagram
       label={focus ? 'Local Vault graph' : 'Global Vault graph'}
@@ -386,6 +334,8 @@ export function GraphPrototype({
                 : 0.22,
         spacing,
         edgeSpacing,
+        groupLayout: 'relationships',
+        groupSeparation: separation === 'close' ? 0.65 : separation === 'open' ? 1.15 : 0.85,
       }}
       legend={legend}
       actions={
@@ -405,13 +355,18 @@ export function GraphPrototype({
       viewKey={design === 'spotlight' ? 'global' : (focus ?? 'global')}
       nodes={mapRecords.map((record) => ({
         ...record,
-        group: grouping === 'communities' ? communities.get(record.id) : record.group,
+        group: record.topic,
+        groups: record.parentTopics,
         color:
-          colorMode === 'area'
-            ? areaColors[record.group]
-            : colorMode === 'type'
-              ? typeColors[record.tone]
-              : connectionColors[connectionBand(record)],
+          colorMode === 'topic'
+            ? record.parentTopics.length > 1
+              ? '#da79ab'
+              : topicColors.get(record.parentTopics[0]!)
+            : colorMode === 'area'
+              ? areaColors[record.group]
+              : colorMode === 'type'
+                ? typeColors[record.tone]
+                : connectionColors[connectionBand(record)],
         selected: record.id === (focus ?? chosen),
         muted: spotlight && !ids.has(record.id),
       }))}
@@ -514,12 +469,8 @@ export function GraphPrototype({
             <Row>
               <Heading level={1}>Graph</Heading>
               <Text size="sm" tone="muted">
-                {grouping === 'none'
-                  ? 'Relationships'
-                  : grouping === 'communities'
-                    ? `${communityScale} communities`
-                    : 'Topic groups'}{' '}
-                · {spacing} · {edgeSpacing} edges
+                {grouping === 'none' ? 'Relationships' : 'Parent topics'} · {spacing} ·{' '}
+                {edgeSpacing} edges
               </Text>
             </Row>
           </Toolbar>
@@ -570,6 +521,12 @@ export function GraphPrototype({
                     {names[selected.tone]} · {selected.group}
                   </Badge>
                   <Heading level={2}>{selected.label}</Heading>
+                  <Text size="sm" tone="muted">
+                    {selected.tone === 'source' ? 'Cited from' : 'Grouped under'}{' '}
+                    {selected.parentTopics
+                      .map((id) => topics.find((topic) => topic.id === id)?.title ?? id)
+                      .join(' · ')}
+                  </Text>
                   <Button onClick={() => focusRecord(selected.id)}>Focus neighborhood</Button>
                   <Text size="sm" tone="muted">
                     {relations.length} direct connections · population filters remain active
@@ -682,37 +639,6 @@ export function GraphPrototype({
                       <Separator />
                     </Stack>
                   )}
-                  <Stack gap="sm" as="section" aria-label="Appearance">
-                    <Heading level={2}>Appearance</Heading>
-                    <SettingField
-                      label="Color by"
-                      description={
-                        colorMode === 'area'
-                          ? 'Topic areas, with Shared for sources cited across areas.'
-                          : colorMode === 'type'
-                            ? 'Topics, statements, sources and questions.'
-                            : 'Total connections: 0–2, 3–7, or 8 and above.'
-                      }
-                    >
-                      <Select
-                        aria-label="Color by"
-                        value={colorMode}
-                        onChange={(event) => setColorMode(event.currentTarget.value)}
-                        options={[
-                          { value: 'area', label: 'Topic area' },
-                          { value: 'type', label: 'Record type' },
-                          { value: 'connections', label: 'Connection count' },
-                        ]}
-                      />
-                    </SettingField>
-                  </Stack>
-                  <PageControls placement="expanded">
-                    <Stack gap="sm" as="section" aria-label="Visible records">
-                      <Separator />
-                      <Heading level={2}>Visible records</Heading>
-                      {filters}
-                    </Stack>
-                  </PageControls>
                   <Surface variant="subtle" as="section" aria-label="Layout">
                     <Stack gap="lg">
                       <Heading level={2}>Layout</Heading>
@@ -722,27 +648,26 @@ export function GraphPrototype({
                           value={grouping}
                           onChange={(event) => setGrouping(event.currentTarget.value as Grouping)}
                           options={[
+                            { value: 'topics', label: 'Parent topic' },
                             { value: 'none', label: 'Relationships only' },
-                            { value: 'communities', label: 'Connection communities' },
-                            { value: 'areas', label: 'Topic area' },
                           ]}
                         />
                       </SettingField>
-                      {grouping === 'communities' && (
+                      {grouping === 'topics' && (
                         <SettingField
-                          label="Community scale"
-                          description="Broad combines nearby connection groups; fine favors smaller groups. Colors keep their selected meaning."
+                          label="Topic separation"
+                          description="Keep topics close to reveal their overlaps, or spread their centers for clearer separation. Relationships still decide which topics sit near each other."
                         >
                           <Select
-                            aria-label="Community scale"
-                            value={communityScale}
+                            aria-label="Topic separation"
+                            value={separation}
                             onChange={(event) =>
-                              setCommunityScale(event.currentTarget.value as CommunityScale)
+                              setSeparation(event.currentTarget.value as TopicSeparation)
                             }
                             options={[
-                              { value: 'fine', label: 'Fine · smaller groups' },
-                              { value: 'standard', label: 'Standard' },
-                              { value: 'broad', label: 'Broad · larger groups' },
+                              { value: 'close', label: 'Close · shared borders' },
+                              { value: 'balanced', label: 'Balanced' },
+                              { value: 'open', label: 'Open · distinct groups' },
                             ]}
                           />
                         </SettingField>
@@ -750,26 +675,26 @@ export function GraphPrototype({
                       {grouping !== 'none' && (
                         <SettingField
                           label="Group cohesion"
-                          description="Stronger attraction separates groups more clearly, while links still shape each group."
+                          description="Tighten records around their parent topic. Sources cited across topics stay pulled toward all of them."
                         >
                           <Select
                             aria-label="Group cohesion"
                             value={cohesion}
                             onChange={(event) => setCohesion(event.currentTarget.value)}
                             options={[
-                              { value: 'soft', label: 'Soft' },
-                              { value: 'medium', label: 'Medium' },
-                              { value: 'strong', label: 'Strong' },
+                              { value: 'soft', label: 'Gentle' },
+                              { value: 'medium', label: 'Tight' },
+                              { value: 'strong', label: 'Very tight' },
                             ]}
                           />
                         </SettingField>
                       )}
                       <SettingField
-                        label="Node spacing"
+                        label="Within-topic spacing"
                         description="Balances link length and repulsion. Fit still adapts the settled layout to the canvas."
                       >
                         <Select
-                          aria-label="Node spacing"
+                          aria-label="Within-topic spacing"
                           value={spacing}
                           onChange={(event) => setSpacing(event.currentTarget.value as Spacing)}
                           options={[
@@ -806,8 +731,55 @@ export function GraphPrototype({
                         Layout changes keep dragged nodes pinned. Reset positions to compare the
                         full automatic layout.
                       </Text>
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setGrouping('topics');
+                          setCohesion('medium');
+                          setSpacing('compact');
+                          setSeparation('close');
+                          setEdgeSpacing('tight');
+                        }}
+                      >
+                        Use default layout
+                      </Button>
                     </Stack>
                   </Surface>
+                  <Stack gap="sm" as="section" aria-label="Appearance">
+                    <Heading level={2}>Appearance</Heading>
+                    <SettingField
+                      label="Color by"
+                      description={
+                        colorMode === 'topic'
+                          ? 'Each parent topic has its own color. Sources cited by several topics use the shared color.'
+                          : colorMode === 'area'
+                            ? 'Topic areas, with Shared for sources cited across areas.'
+                            : colorMode === 'type'
+                              ? 'Topics, statements, sources and questions.'
+                              : 'Total connections: 0–2, 3–7, or 8 and above.'
+                      }
+                    >
+                      <Select
+                        aria-label="Color by"
+                        value={colorMode}
+                        onChange={(event) => setColorMode(event.currentTarget.value)}
+                        options={[
+                          { value: 'topic', label: 'Parent topic' },
+                          { value: 'area', label: 'Topic area' },
+                          { value: 'type', label: 'Record type' },
+                          { value: 'connections', label: 'Connection count' },
+                        ]}
+                      />
+                    </SettingField>
+                  </Stack>
+                  <PageControls placement="expanded">
+                    <Stack gap="sm" as="section" aria-label="Visible records">
+                      <Separator />
+                      <Heading level={2}>Visible records</Heading>
+                      {filters}
+                    </Stack>
+                  </PageControls>
+
                   <Row justify="between">
                     <Text size="sm" tone="muted">
                       {visible.length} {spotlight ? 'highlighted' : 'visible'} records
