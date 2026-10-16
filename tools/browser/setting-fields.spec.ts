@@ -13,6 +13,35 @@ test.beforeEach(async ({ page }) => {
   await expect(page.getByRole('dialog', { name: 'Settings', exact: true })).toBeVisible();
 });
 
+test('setting fields stack in a narrow container on a wide screen and retain their native control', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  const select = page.getByRole('combobox', { name: 'Selected model', exact: true });
+  await select.selectOption('fast');
+  const identity = await select.getAttribute('id');
+  for (const width of [280, 760, 320]) {
+    await select.evaluate((element, pixels) => {
+      const field = element.closest<HTMLElement>('[data-orientation="setting"]')!;
+      field.parentElement!.style.width = `${pixels}px`;
+    }, width);
+    await select.scrollIntoViewIfNeeded();
+    const label = page.getByText('Selected model', { exact: true });
+    const control = (await select.boundingBox())!;
+    const title = (await label.boundingBox())!;
+    if (width < 560) {
+      expect(control.y).toBeGreaterThanOrEqual(title.y + title.height);
+      expect(control.width).toBeCloseTo(width, 0);
+    } else {
+      expect(control.x).toBeGreaterThan(title.x + title.width);
+    }
+    await label.click();
+    await expect(select).toBeFocused();
+    await expect(select).toHaveValue('fast');
+    await expect(select).toHaveAttribute('id', identity!);
+  }
+});
+
 test(
   'open native dropdown options stay readable when device and app themes disagree',
   {

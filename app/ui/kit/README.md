@@ -19,7 +19,9 @@ configurations without changing geometry. `fill` expands the map within a flex w
 of using its default bounded height. The Charts catalogue includes this map mode.
 Map controls register through `PageControls`: compact navigation offers Fit map directly and
 an inward Graph view menu for zoom and resetting positions. The optional `actions` slot adds
-caller-owned controls to the same desktop row and compact rail.
+caller-owned controls to the same desktop row and compact rail. The solver responds to measured
+canvas dimensions and fits its result to both available axes, with room beside the compact rail.
+Zoom magnifies the fitted canvas; manual positions use normalized coordinates across resizing.
 Its optional `lanes` layout groups records by a caller-supplied column number, draws readable edge
 labels, and scrolls within a bounded canvas. Selection marks the incident paths; detail text can
 describe each record without the kit interpreting it. `FeaturePage.width="wide"` provides more
@@ -218,7 +220,7 @@ adds one.
 | Side panel (wide) or centered dialog | Full-height bottom drawer | `SupportingPane` → `Drawer` |
 | Page toolbar actions | Icons extending above the Modules anchor | `Toolbar` → `PageControls` |
 | Inline collection search and filters | Search icon opens a bottom field to the rail’s left; Filters opens choices inward | `PageControls` |
-| Form rows: label left, control right | The same fields stacked vertically | `SettingsMenu`, `SettingField` |
+| Form rows: label left, control right in spacious containers | Fields stack in narrow panes and compact space | `SettingsMenu`, `SettingField` |
 | One-row composer with inset microphone and send | The same always-visible field and inset controls | Chat-owned composition over `Toolbar`, `AutoScrollArea` and `Dock`, `TextBox` |
 | Titled expandable rows with labelled actions | The same rows with accessible icon actions | `ExpandableRow`, `RowAction` |
 | Single horizontally scrolling prompt row | The same row, with a fade at clipped edges | `PromptSuggestions`, `OptionStrip` |

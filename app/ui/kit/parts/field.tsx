@@ -52,7 +52,7 @@ const fieldVariants = cva('group/field flex w-full gap-3 data-[invalid=true]:tex
         'has-[>[data-slot=field-content]]:items-start has-[>[data-slot=field-content]]:[&>[role=checkbox],[role=radio]]:mt-px',
       ],
       setting:
-        'grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(240px,320px)] md:items-start md:gap-x-8 md:gap-y-2 [&>[data-slot=field-content]]:min-w-0 md:[&>[data-slot=field-content]]:col-start-2 md:[&>[data-slot=field-content]]:row-span-2 md:[&>[data-slot=field-content]]:row-start-1 [&>[data-slot=field-description]]:m-0 [&>[data-slot=field-description]]:text-label md:[&>[data-slot=field-description]]:col-start-1',
+        'grid grid-cols-1 @min-[560px]/setting:grid-cols-[minmax(0,1fr)_minmax(240px,320px)] @min-[560px]/setting:items-start @min-[560px]/setting:gap-x-8 @min-[560px]/setting:gap-y-2 [&>[data-slot=field-content]]:min-w-0 @min-[560px]/setting:[&>[data-slot=field-content]]:col-start-2 @min-[560px]/setting:[&>[data-slot=field-content]]:row-span-2 @min-[560px]/setting:[&>[data-slot=field-content]]:row-start-1 [&>[data-slot=field-description]]:m-0 [&>[data-slot=field-description]]:text-label @min-[560px]/setting:[&>[data-slot=field-description]]:col-start-1',
     },
   },
   defaultVariants: {
@@ -65,7 +65,7 @@ function Field({
   orientation = 'vertical',
   ...props
 }: React.ComponentProps<'div'> & VariantProps<typeof fieldVariants>) {
-  return (
+  const field = (
     <div
       role="group"
       data-slot="field"
@@ -73,6 +73,11 @@ function Field({
       className={cn(fieldVariants({ orientation }), className)}
       {...props}
     />
+  );
+  return orientation === 'setting' ? (
+    <div className="@container/setting w-full min-w-0">{field}</div>
+  ) : (
+    field
   );
 }
 

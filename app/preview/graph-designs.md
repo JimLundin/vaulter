@@ -25,12 +25,14 @@ configuration and local navigation in the shared supporting pane. Focus clears t
 reveal the neighborhood. Node selection and dragging remain direct canvas interactions. Desktop
 retains inline map controls and supporting-pane filters and search.
 
+Graph options separates Settings from Records with tabs. Settings groups Appearance, visible populations and layout information; record search and inspection retain their own space. Narrow setting fields stack their label, full-width control and description according to their container width. Desktop population filters use aligned checkbox rows with counts.
+
 Graph options sits beside Fit map, zoom and reset in the desktop map-control row. On mobile,
 these controls share the edge rail, with settings opening the same supporting pane.
 
 The graph fills the available workspace below a compact toolbar. Filters, search and inspection use the same right-hand SupportingPane as Wiki references and conversations, with a full-height bottom sheet on phones. The navigator variant keeps this pane visible on desktop; the baseline and spotlight open it on demand.
 
-On desktop, hover highlights incident links and reveals labels. Nodes support dragging; the detailed canvas supports drag or scroll. On phones, tap opens the shared bottom inspector, explicit zoom reveals smaller records, and blank canvas areas support native swiping. Node drag also works through pointer input. Graph pinch zoom is not implemented. The renderer preserves layout proportions across viewport sizes.
+On desktop, hover highlights incident links and reveals labels. Nodes support dragging; the detailed canvas supports drag or scroll. On phones, tap opens the shared bottom inspector, explicit zoom reveals smaller records, and blank canvas areas support native swiping. Node drag also works through pointer input. Graph pinch zoom is not implemented. The solver adapts to measured canvas dimensions, including opening or closing the supporting pane. Gravity and link spacing respond to its proportions; the settled graph fits both axes with padding and compact rail clearance. Nodes stay circular, with incoming and outgoing connections still determining size. Zoom and manual node positions are retained across resizing. SVG links and node controls share normalized coordinates.
 
 Review tasks:
 

@@ -1,8 +1,8 @@
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useContext, useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
 import { cn } from './lib/utils.ts';
 import { useLayout } from './hooks/use-layout.ts';
-import { PageControls } from './page-controls.tsx';
+import { PageControls, PageControlsContext } from './page-controls.tsx';
 import { Button } from './parts/button.tsx';
 import { Row } from './parts/layout.tsx';
 import { Icon } from './icons.tsx';
@@ -275,11 +275,24 @@ export function NetworkDiagram({
 }
 
 // Springs follow caller-supplied edges; repulsion and collision separate records. No category centers.
-function forcePositions(nodes: readonly NetworkNode[], edges: readonly NetworkEdge[]) {
+function forcePositions(
+  nodes: readonly NetworkNode[],
+  edges: readonly NetworkEdge[],
+  width: number,
+  height: number,
+  insetRight: number,
+) {
+  if (!nodes.length) return new Map<string, { x: number; y: number }>();
+  const density = Math.max(0.45, Math.min(1.5, Math.sqrt((width * height) / 700_000)));
+  const radius = Math.sqrt((width * height) / nodes.length) * 0.38;
   const points = nodes.map((node, index) => ({
     id: node.id,
-    x: 500 + Math.cos(index * 2.399) * Math.sqrt(index + 1) * 20,
-    y: 350 + Math.sin(index * 2.399) * Math.sqrt(index + 1) * 20,
+    x:
+      width / 2 +
+      Math.cos(index * 2.399) * Math.sqrt(index + 1) * radius * Math.sqrt(width / height),
+    y:
+      height / 2 +
+      Math.sin(index * 2.399) * Math.sqrt(index + 1) * radius * Math.sqrt(height / width),
     vx: 0,
     vy: 0,
     fx: 0,
@@ -295,8 +308,8 @@ function forcePositions(nodes: readonly NetworkNode[], edges: readonly NetworkEd
   );
   for (let step = 0; step < 360; step++) {
     for (const point of points) {
-      point.fx = (500 - point.x) * 0.004;
-      point.fy = (350 - point.y) * 0.004;
+      point.fx = ((width / 2 - point.x) * 0.006 * height) / width;
+      point.fy = ((height / 2 - point.y) * 0.006 * width) / height;
     }
     for (let i = 0; i < points.length; i++)
       for (let j = i + 1; j < points.length; j++) {
@@ -306,7 +319,8 @@ function forcePositions(nodes: readonly NetworkNode[], edges: readonly NetworkEd
         const dy = b.y - a.y;
         const distance = Math.max(1, Math.hypot(dx, dy));
         const gap = 18 + Math.sqrt(degree.get(a.id)!) * 3 + Math.sqrt(degree.get(b.id)!) * 3;
-        const force = 1500 / (distance * distance) + Math.max(0, gap - distance) * 0.14;
+        const force =
+          (1500 * density * density) / (distance * distance) + Math.max(0, gap - distance) * 0.14;
         const fx = (dx / distance) * force;
         const fy = (dy / distance) * force;
         a.fx -= fx;
@@ -321,7 +335,8 @@ function forcePositions(nodes: readonly NetworkNode[], edges: readonly NetworkEd
       const dx = b.x - a.x;
       const dy = b.y - a.y;
       const distance = Math.max(1, Math.hypot(dx, dy));
-      const desired = 65 + Math.sqrt((degree.get(a.id) ?? 0) + (degree.get(b.id) ?? 0)) * 7;
+      const desired =
+        (65 + Math.sqrt((degree.get(a.id) ?? 0) + (degree.get(b.id) ?? 0)) * 7) * density;
       const force = (distance - desired) * 0.032;
       const fx = (dx / distance) * force;
       const fy = (dy / distance) * force;
@@ -342,14 +357,22 @@ function forcePositions(nodes: readonly NetworkNode[], edges: readonly NetworkEd
   const ys = points.map((point) => point.y);
   const centerX = (Math.min(...xs) + Math.max(...xs)) / 2;
   const centerY = (Math.min(...ys) + Math.max(...ys)) / 2;
-  const scale = Math.min(
-    850 / Math.max(1, Math.max(...xs) - Math.min(...xs)),
-    560 / Math.max(1, Math.max(...ys) - Math.min(...ys)),
+  const padding = Math.min(48, Math.max(28, Math.min(width, height) * 0.09));
+  const scaleX = Math.min(
+    nodes.length < 8 ? 1.5 : Number.POSITIVE_INFINITY,
+    Math.max(1, width - padding * 2 - insetRight) / Math.max(1, Math.max(...xs) - Math.min(...xs)),
+  );
+  const scaleY = Math.min(
+    nodes.length < 8 ? 1.5 : Number.POSITIVE_INFINITY,
+    Math.max(1, height - padding * 2) / Math.max(1, Math.max(...ys) - Math.min(...ys)),
   );
   return new Map(
     points.map((point) => [
       point.id,
-      { x: 500 + (point.x - centerX) * scale, y: 350 + (point.y - centerY) * scale },
+      {
+        x: (((width - insetRight) / 2 + (point.x - centerX) * scaleX) / width) * 1000,
+        y: ((height / 2 + (point.y - centerY) * scaleY) / height) * 1000,
+      },
     ]),
   );
 }
@@ -375,6 +398,7 @@ function NetworkMap({
   actions?: ReactNode;
 }) {
   const compact = useLayout() === 'compact';
+  const insetRight = useContext(PageControlsContext)?.enabled ? 36 : 0;
   const [views, setViews] = useState<Record<string, { zoom: number; left: number; top: number }>>(
     {},
   );
@@ -383,20 +407,40 @@ function NetworkMap({
   const view = views[viewKey] ?? { zoom: 1, left: 0, top: 0 };
   const viewport = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLDivElement>(null);
-  const [extent, setExtent] = useState({ width: 1000, height: 700 });
+  const [frame, setFrame] = useState({ width: 1000, height: 700 });
+  const measuredFrame = useRef(frame);
   useEffect(() => {
-    const element = canvas.current;
+    const element = viewport.current;
     if (!element) return;
-    const observer = new ResizeObserver(() =>
-      setExtent({ width: element.clientWidth, height: element.clientHeight }),
-    );
+    const measure = () => {
+      const width = Math.max(1, element.offsetWidth - element.clientLeft * 2);
+      const height = Math.max(1, element.offsetHeight - element.clientTop * 2);
+      const previous = measuredFrame.current;
+      if (previous.width === width && previous.height === height) return;
+      measuredFrame.current = { width, height };
+      setFrame({ width, height });
+      setViews((current) =>
+        Object.fromEntries(
+          Object.entries(current).map(([key, saved]) => [
+            key,
+            {
+              ...saved,
+              left: (saved.left * width) / previous.width,
+              top: (saved.top * height) / previous.height,
+            },
+          ]),
+        ),
+      );
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
     observer.observe(element);
     return () => observer.disconnect();
   }, []);
-  const screenScale = Math.min(extent.width / 1000, extent.height / 700);
+  const extent = { width: frame.width * view.zoom, height: frame.height * view.zoom };
   const project = (point: { x: number; y: number }) => ({
-    left: (extent.width - 1000 * screenScale) / 2 + point.x * screenScale,
-    top: (extent.height - 700 * screenScale) / 2 + point.y * screenScale,
+    left: (point.x / 1000) * extent.width,
+    top: (point.y / 1000) * extent.height,
   });
   const drag = useRef<{ x: number; y: number; left: number; top: number } | null>(null);
   const nodeDrag = useRef<{
@@ -419,8 +463,11 @@ function NetworkMap({
     return forcePositions(
       nodeRows.map(([id, connections]) => ({ id, label: id, connections })),
       edgeRows.map(([source, target], index) => ({ id: String(index), source, target, label: '' })),
+      frame.width,
+      frame.height,
+      insetRight,
     );
-  }, [topology]);
+  }, [topology, frame.width, frame.height, insetRight]);
   const positions = new Map(computed);
   for (const [id, position] of Object.entries(moved[viewKey] ?? {}))
     if (positions.has(id)) positions.set(id, position);
@@ -452,8 +499,20 @@ function NetworkMap({
       ...views,
       [viewKey]: {
         zoom,
-        left: zoom === 1 ? 0 : Math.max(0, centerX * zoom * 700 - (frame?.clientWidth ?? 0) / 2),
-        top: zoom === 1 ? 0 : Math.max(0, centerY * zoom * 500 - (frame?.clientHeight ?? 0) / 2),
+        left:
+          zoom === 1
+            ? 0
+            : Math.max(
+                0,
+                centerX * zoom * (frame?.clientWidth ?? 0) - (frame?.clientWidth ?? 0) / 2,
+              ),
+        top:
+          zoom === 1
+            ? 0
+            : Math.max(
+                0,
+                centerY * zoom * (frame?.clientHeight ?? 0) - (frame?.clientHeight ?? 0) / 2,
+              ),
       },
     });
   };
@@ -596,13 +655,13 @@ function NetworkMap({
           ref={canvas}
           className="relative"
           style={{
-            width: view.zoom === 1 ? '100%' : `${view.zoom * 700}px`,
-            height: view.zoom === 1 ? '100%' : `${view.zoom * 500}px`,
+            width: extent.width,
+            height: extent.height,
           }}
         >
           <svg
-            viewBox="0 0 1000 700"
-            preserveAspectRatio="xMidYMid meet"
+            viewBox="0 0 1000 1000"
+            preserveAspectRatio="none"
             className="pointer-events-none absolute inset-0 h-full w-full"
             aria-hidden="true"
           >
@@ -698,8 +757,14 @@ function NetworkMap({
                       [viewKey]: {
                         ...previous[viewKey],
                         [node.id]: {
-                          x: Math.max(30, Math.min(970, dragging.position.x + dx / screenScale)),
-                          y: Math.max(30, Math.min(670, dragging.position.y + dy / screenScale)),
+                          x: Math.max(
+                            30,
+                            Math.min(970, dragging.position.x + (dx / extent.width) * 1000),
+                          ),
+                          y: Math.max(
+                            30,
+                            Math.min(970, dragging.position.y + (dy / extent.height) * 1000),
+                          ),
                         },
                       },
                     }));
@@ -735,7 +800,7 @@ function NetworkMap({
                   {(node.id === active ||
                     (view.zoom > 1 && node.tone === 'topic') ||
                     nodes.length < 12) && (
-                    <span className="pointer-events-none absolute top-full max-w-40 rounded bg-background/95 px-1 text-center text-xs leading-tight text-foreground">
+                    <span className="pointer-events-none absolute top-full w-40 rounded bg-background/95 px-2 text-center text-xs leading-tight text-foreground">
                       {node.label.length > 52 ? `${node.label.slice(0, 52)}…` : node.label}
                     </span>
                   )}

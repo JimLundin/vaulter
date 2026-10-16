@@ -10,6 +10,13 @@ import {
   Toolbar,
   Select,
   SettingField,
+  Checkbox,
+  Label,
+  Surface,
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
   Heading,
   Link,
   NetworkDiagram,
@@ -267,24 +274,29 @@ export function GraphPrototype({
     />
   );
   const filters = (
-    <Row wrap={true}>
+    <Stack gap="xs">
       {populations.map((population) => (
-        <Button
-          key={population}
-          variant={enabled.includes(population) ? 'filled' : 'outline'}
-          aria-pressed={enabled.includes(population)}
-          onClick={() =>
-            setEnabled(
-              enabled.includes(population)
-                ? enabled.filter((value) => value !== population)
-                : [...enabled, population],
-            )
-          }
-        >
-          {names[population]} · {records.filter((record) => record.tone === population).length}
-        </Button>
+        <Row key={population} justify="between" block="sm">
+          <Label>
+            <Checkbox
+              aria-label={names[population]}
+              checked={enabled.includes(population)}
+              onCheckedChange={(checked) =>
+                setEnabled(
+                  checked === true
+                    ? [...enabled, population]
+                    : enabled.filter((value) => value !== population),
+                )
+              }
+            />
+            <Text size="sm">{names[population]}</Text>
+          </Label>
+          <Text size="sm" tone="muted">
+            {records.filter((record) => record.tone === population).length}
+          </Text>
+        </Row>
       ))}
-    </Row>
+    </Stack>
   );
   const recordIndex = (
     <Stack gap="sm">
@@ -468,75 +480,113 @@ export function GraphPrototype({
               )}
             </>
           ) : (
-            <Stack gap="lg">
-              {!!focus && (
-                <Row wrap={true}>
-                  <Text size="sm">Local · {focused?.label}</Text>
-                  <Button
-                    variant={depth === 1 ? 'filled' : 'outline'}
-                    size="compact"
-                    onClick={() => {
-                      setDepth(1);
-                      setPaneOpen(false);
-                    }}
-                  >
-                    Immediate neighbors
-                  </Button>
-                  <Button
-                    variant={depth === 2 ? 'filled' : 'outline'}
-                    size="compact"
-                    onClick={() => {
-                      setDepth(2);
-                      setPaneOpen(false);
-                    }}
-                  >
-                    Two steps out
-                  </Button>
-                  {history.length > 0 && (
-                    <Button variant="outline" size="compact" onClick={back}>
-                      Back one level
-                    </Button>
+            <Tabs defaultValue="settings">
+              <TabsList aria-label="Graph options">
+                <TabsTrigger value="settings">Settings</TabsTrigger>
+                <TabsTrigger value="records">Records</TabsTrigger>
+              </TabsList>
+              <TabsContent value="settings">
+                <Stack gap="xl" block="sm">
+                  {!!focus && (
+                    <Stack gap="sm" as="section" aria-label="Local view">
+                      <Heading level={2}>Local view</Heading>
+                      <Text size="sm" tone="muted">
+                        {focused?.label}
+                      </Text>
+                      <Row wrap={true}>
+                        <Button
+                          size="compact"
+                          variant={depth === 1 ? 'filled' : 'outline'}
+                          onClick={() => {
+                            setDepth(1);
+                            setPaneOpen(false);
+                          }}
+                        >
+                          Immediate neighbors
+                        </Button>
+                        <Button
+                          size="compact"
+                          variant={depth === 2 ? 'filled' : 'outline'}
+                          onClick={() => {
+                            setDepth(2);
+                            setPaneOpen(false);
+                          }}
+                        >
+                          Two steps out
+                        </Button>
+                      </Row>
+                      <Row wrap={true}>
+                        {history.length > 0 && (
+                          <Button size="compact" variant="ghost" onClick={back}>
+                            Back one level
+                          </Button>
+                        )}
+                        <Button size="compact" variant="ghost" onClick={global}>
+                          Return to global map
+                        </Button>
+                      </Row>
+                      <Separator />
+                    </Stack>
                   )}
-                  <Button variant="outline" size="compact" onClick={global}>
-                    Return to global map
-                  </Button>
-                </Row>
-              )}
-              <SettingField
-                label="Color by"
-                description="Change what the colors reveal, keeping the same layout."
-              >
-                <Select
-                  aria-label="Color by"
-                  value={colorMode}
-                  onChange={(event) => setColorMode(event.currentTarget.value)}
-                  options={[
-                    { value: 'area', label: 'Topic area' },
-                    { value: 'type', label: 'Record type' },
-                    { value: 'connections', label: 'Connection count' },
-                  ]}
-                />
-              </SettingField>
-              <Text size="sm" tone="muted">
-                Topic areas follow the sample pages’ metadata. Sources cited across areas are
-                Shared.
-              </Text>
-              <Heading level={2}>Visible records</Heading>
-              <PageControls placement="expanded">{filters}</PageControls>
-              <Text size="sm" tone="muted">
-                {records.length} sample records · {visible.length}{' '}
-                {spotlight ? 'highlighted' : 'visible'} · {visibleEdges.length} connections
-                {focus
-                  ? ' · ' + (matching.length - visible.length) + ' beyond the local view limit'
-                  : ''}
-              </Text>
-              <Separator />
-              <Heading level={2}>Find a record</Heading>
-              {recordIndex}
-              <Text size="sm" tone="muted">
-                Connections shape the map. Larger nodes have more incoming and outgoing connections.
-              </Text>
-            </Stack>
+                  <Stack gap="sm" as="section" aria-label="Appearance">
+                    <Heading level={2}>Appearance</Heading>
+                    <SettingField
+                      label="Color by"
+                      description={
+                        colorMode === 'area'
+                          ? 'Topic areas, with Shared for sources cited across areas.'
+                          : colorMode === 'type'
+                            ? 'Topics, statements, sources and questions.'
+                            : 'Total connections: 0–2, 3–7, or 8 and above.'
+                      }
+                    >
+                      <Select
+                        aria-label="Color by"
+                        value={colorMode}
+                        onChange={(event) => setColorMode(event.currentTarget.value)}
+                        options={[
+                          { value: 'area', label: 'Topic area' },
+                          { value: 'type', label: 'Record type' },
+                          { value: 'connections', label: 'Connection count' },
+                        ]}
+                      />
+                    </SettingField>
+                  </Stack>
+                  <PageControls placement="expanded">
+                    <Stack gap="sm" as="section" aria-label="Visible records">
+                      <Separator />
+                      <Heading level={2}>Visible records</Heading>
+                      {filters}
+                    </Stack>
+                  </PageControls>
+                  <Surface variant="subtle" as="section" aria-label="Layout">
+                    <Heading level={3}>Relationship layout</Heading>
+                    <Text size="sm" tone="muted">
+                      The map adapts to the canvas. Larger nodes have more connections.
+                    </Text>
+                  </Surface>
+                  <Row justify="between">
+                    <Text size="sm" tone="muted">
+                      {visible.length} {spotlight ? 'highlighted' : 'visible'} records
+                    </Text>
+                    <Text size="sm" tone="muted">
+                      {visibleEdges.length} links
+                    </Text>
+                  </Row>
+                  {!!focus && matching.length > visible.length && (
+                    <Text size="sm" tone="muted">
+                      {matching.length - visible.length} records beyond the local view limit
+                    </Text>
+                  )}
+                </Stack>
+              </TabsContent>
+              <TabsContent value="records">
+                <Stack gap="sm" block="sm">
+                  <Heading level={2}>Find a record</Heading>
+                  {recordIndex}
+                </Stack>
+              </TabsContent>
+            </Tabs>
           )}
         </SupportingPane>
       }
