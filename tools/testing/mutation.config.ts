@@ -1,7 +1,7 @@
 import { defineConfig } from 'vitest/config';
 import base from '../../vitest.config.ts';
 
-// Reuse application transforms and aliases; keep the pilot's test scope explicit.
+// Reuse application transforms and aliases; select traversal and ingress tests at their owner.
 export default defineConfig({
   ...base,
   test: {

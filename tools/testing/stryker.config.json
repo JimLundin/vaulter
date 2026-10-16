@@ -1,7 +1,11 @@
 {
   "$schema": "../../node_modules/@stryker-mutator/core/schema/stryker-schema.json",
   "testRunner": "vitest",
-  "mutate": ["app/vault/nodes/operations-runtime.ts"],
+  "mutate": [
+    "app/vault/nodes/operations-runtime.ts",
+    "app/vault/nodes/validation.ts",
+    "app/vault/nodes/json-schema.ts"
+  ],
   "vitest": {
     "configFile": "tools/testing/mutation.config.ts",
     "related": true

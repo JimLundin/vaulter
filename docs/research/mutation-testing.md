@@ -1,6 +1,6 @@
 # Mutation testing in Vaulter
 
-The StrykerJS pilot is implemented. Run `npm run test:mutation` for node traversal;
+The StrykerJS pilot is implemented. Run `npm run test:mutation` for node traversal and ingress validation;
 open `reports/mutation/mutation.html` to inspect results. The separate Mutation
 testing workflow runs on demand and uploads HTML and JSON reports.
 
@@ -28,6 +28,39 @@ in place indefinitely. Stryker detects it through its instrumented hit limit.
 Timeouts count as detected mutations in Stryker's score; report them separately
 because they do not establish a specific behavior assertion.
 
+## Ingress validation expansion
+
+On 2026-10-16, the target expanded to `validation.ts` and `json-schema.ts` alongside
+traversal. The initial run generated 86 mutations: 51 killed, one timeout,
+29 survivors and five uncovered mutations (60.47%). Direct tests at the node
+module now exercise imported envelopes, complete version groups, offset timestamps,
+future operation kinds, sequence bounds, request digest boundaries, identities,
+non-JSON prototypes, payloads and every own entry in read expectations.
+
+The final run selected 42 related tests and completed in 16 seconds on Windows
+with Node 24.22.0: 81 killed, one timeout, four survivors and no uncovered
+mutations (95.35%). The focused node-module check also passed all 47 tests.
+
+| Target | Killed | Timeout | Survived |
+| --- | ---: | ---: | ---: |
+| Traversal | 20 | 1 | 0 |
+| Ingress validation | 34 | 0 | 1 |
+| JSON schemas | 27 | 0 | 3 |
+
+Three survivors remove validation diagnostic text; the tests assert acceptance,
+rejection and retained values without fixing that wording as a contract. The
+fourth empties `jsonObject`'s catch block: returning `undefined` instead of `false`
+still causes Zod's custom validator to reject. These remain unsuppressed in the
+report; no score gate was added.
+
+Stryker's Vitest runner 10.0.0 initially reported an empty transaction schema as
+survived when Zod's `omit` threw during collection and no tests were collected.
+A deliberate source fault confirmed that ordinary Vitest fails the suite.
+The ingress tests now import validation inside their test bodies, so construction
+errors fail a collected test and Stryker detects that mutation. A separate deliberate
+fault removing ingress canonical validation also failed the prototype-rejection
+assertion. All temporary source faults were restored.
+
 ## Configuration choices
 
 - Shared Vitest and Playwright configurations load without inspecting CLI arguments.
@@ -41,8 +74,8 @@ because they do not establish a specific behavior assertion.
   sandbox, so rewriting is unnecessary here. Ordinary type checking remains separate.
 - Reports and sandboxes are ignored by Git, and Biome excludes the sandbox tree.
 - No mutation score gate is enabled. Expand targets and test scope together after
-  measuring runtime and reviewing survivors. Next candidates are node validation,
-  snapshot history, transaction lifetimes and agent recovery.
+  measuring runtime and reviewing survivors. Next candidates are snapshot history,
+  transaction lifetimes and agent recovery.
 
 ## Sources
 
