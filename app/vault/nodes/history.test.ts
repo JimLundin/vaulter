@@ -88,6 +88,7 @@ test('historical snapshots and differences reuse indexes while preserving exact 
 
 test('failed imported suffixes leave accepted snapshots and histories intact', async () => {
   const previous = validateRecords(history(2));
+  expect(validateRecords(structuredClone(previous), previous)).toEqual(previous);
   const view = snapshotOf(previous);
   const records = history(4);
   records[3] = {
@@ -129,4 +130,12 @@ test('incremental import rejects malformed history and altered accepted prefixes
   const missing = history(2);
   missing[1] = { ...missing[1], transaction: { ...missing[1].transaction, recordedBy: 'missing' } };
   expect(() => validateRecords(missing)).toThrow('Unknown transaction author');
+  const mismatched = history(2);
+  mismatched[1] = {
+    ...mismatched[1],
+    versions: [
+      { ...mismatched[1].versions[0], key: { node: 'user', transaction: 'transaction-0' } },
+    ],
+  };
+  expect(() => validateRecords(mismatched)).toThrow();
 });

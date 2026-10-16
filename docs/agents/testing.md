@@ -30,8 +30,9 @@ use focused selection locally rather than setting CI variables to bypass the gua
 
 ## Mutation testing
 
-`npm run test:mutation` runs focused node traversal and ingress validation with Stryker and the node module's
-Vitest behavior tests. Its configuration reuses the application's transforms and aliases.
+`npm run test:mutation` runs focused node history, traversal and ingress validation with Stryker,
+using node behavior tests and the existing transaction recovery tests. Its configuration reuses
+the application's transforms and aliases.
 HTML and JSON reports are written to `reports/mutation/`. Review survivors for observable failures
 before adding assertions or suppressing equivalent mutations; the pilot reports without a score gate.
 The separate Mutation testing workflow runs this pilot on demand and retains reports for seven days.

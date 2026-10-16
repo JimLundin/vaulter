@@ -1,6 +1,6 @@
 # Mutation testing in Vaulter
 
-The StrykerJS pilot is implemented. Run `npm run test:mutation` for node traversal and ingress validation;
+The StrykerJS pilot is implemented. Run `npm run test:mutation` for node history, traversal and ingress validation;
 open `reports/mutation/mutation.html` to inspect results. The separate Mutation
 testing workflow runs on demand and uploads HTML and JSON reports.
 
@@ -61,12 +61,37 @@ errors fail a collected test and Stryker detects that mutation. A separate delib
 fault removing ingress canonical validation also failed the prototype-rejection
 assertion. All temporary source faults were restored.
 
+## History expansion and test restraint
+
+On 2026-10-16, adding `history.ts` generated 468 mutations. The baseline selected
+the existing 47 node tests: 382 killed, eight timeouts, 65 survivors and 13 uncovered
+mutations (83.33%). The final run also selects the existing transaction lifetime
+tests to exercise the recovery consumer. It ran 63 tests in 69 seconds:
+412 killed, eight timeouts, 46 survivors and two uncovered mutations (89.74%).
+History itself contributed 331 killed, seven timeouts, 42 survivors and two uncovered.
+
+Only one test was added: a snapshot scenario covering sibling order, placement,
+deleted containers and retained historical views. Three existing tests gained cases
+for complete proposed publication state, atomic rejection of invalid references,
+and unchanged or mismatched imported history. These assert results through the
+existing interfaces, without requiring a cache, index representation, root sorting
+policy, object identity or operation count. The focused node and lifetime checks
+passed all 63 tests; lint and type checking passed.
+
+Survivors were reviewed for observable failures before adding cases. Remaining
+mutations include cache bypasses, equivalent defensive filtering, error wording
+and causes, and unusual publication callback returns. The two uncovered mutations
+alter an unused private default argument and an unknown-transaction error message.
+These remain visible and unsuppressed; this run does not claim complete coverage
+of defensive or performance behavior. Add further tests when a consumer contract
+or measured regression makes the resulting failure worth protecting.
+
 ## Configuration choices
 
 - Shared Vitest and Playwright configurations load without inspecting CLI arguments.
   The npm command wrapper enforces focused local selection.
 - The mutation Vitest configuration reuses root React transforms and aliases and
-  selects only node-module behavior tests. Stryker keeps related selection enabled
+  selects node-module behavior and transaction lifetime tests. Stryker keeps related selection enabled
   and collects per-test mutation coverage without a coverage-v8 dependency.
 - The pilot disables Stryker's tsconfig rewrite using `tsconfigFile: ""`. Its rewriter
   invokes `typescript.parseConfigFileTextToJson`, which TypeScript 7 no longer exports
@@ -74,8 +99,8 @@ assertion. All temporary source faults were restored.
   sandbox, so rewriting is unnecessary here. Ordinary type checking remains separate.
 - Reports and sandboxes are ignored by Git, and Biome excludes the sandbox tree.
 - No mutation score gate is enabled. Expand targets and test scope together after
-  measuring runtime and reviewing survivors. Next candidates are snapshot history,
-  transaction lifetimes and agent recovery.
+  measuring runtime and reviewing survivors. Next candidates are transaction lifetimes
+  and agent recovery.
 
 ## Sources
 

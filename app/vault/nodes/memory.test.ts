@@ -20,6 +20,7 @@ test('live publication policy sees complete immutable state and can veto every p
       },
     },
     { ...(await revise(store, 'appearance', { kind: 'appearance' })), placement: null },
+    create('orphan', { text: 'New unplaced content' }),
   ]);
   const notify = vi.fn();
   store.subscribe(notify);
@@ -32,6 +33,7 @@ test('live publication policy sees complete immutable state and can veto every p
       expect(after.sequence).toBe(4);
       expect(before.get('page')?.data?.title).toBe('Studio');
       expect(after.get('page')?.data?.title).toBe('Must not publish');
+      expect(after.resolve({ node: 'page' })?.data?.title).toBe('Must not publish');
       expect(before.resolve({ node: 'linked', transaction: 'vetoed' })).toBeUndefined();
       expect(after.resolve({ node: 'linked', transaction: 'vetoed' })?.data?.text).toBe('Proposed');
       expect(after.resolve({ node: 'user', transaction: 'vetoed' })).toBeUndefined();
@@ -40,7 +42,14 @@ test('live publication policy sees complete immutable state and can veto every p
       );
       expect(before.children('page').map((version) => version.key.node)).toEqual(['appearance']);
       expect(after.children('page').map((version) => version.key.node)).toEqual(['linked']);
-      expect(after.roots().map((version) => version.key.node)).toContain('appearance');
+      expect(before.children('evidence')).toEqual([]);
+      expect(after.children('evidence')).toEqual([]);
+      expect(
+        after
+          .roots()
+          .map((version) => version.key.node)
+          .sort(),
+      ).toEqual(['appearance', 'evidence', 'orphan', 'page', 'user']);
       expect(versions('evidence').map((version) => version.data)).toEqual([
         { kind: 'paragraph', text: 'Keep mornings free.' },
         null,
@@ -56,6 +65,7 @@ test('live publication policy sees complete immutable state and can veto every p
   expect(current.sequence).toBe(3);
   expect(current.get('page')?.data?.title).toBe('Studio');
   expect(current.get('linked')).toBeUndefined();
+  expect(current.get('orphan')).toBeUndefined();
   expect(current.children('page').map((version) => version.key.node)).toEqual(['appearance']);
   expect(notify).not.toHaveBeenCalled();
   store.close();
@@ -276,11 +286,114 @@ test('stale multi-node writes, declared reads, invalid references, and cycles re
     request('cycle', [
       { ...(await revise(store, 'page', {})), placement: { parent: 'appearance', order: 'a' } },
     ]),
+    request('duplicate', [create('duplicate', { value: 1 }), create('duplicate', { value: 2 })]),
+    request('new-tombstone', [create('never-created', null)]),
+    {
+      ...request('bad-origin', [create('invalid', {})]),
+      origin: 'missing',
+    },
+    {
+      ...request('bad-undo', [create('invalid', {})]),
+      undoOf: 'missing',
+    },
+    request('unknown-endpoint', [
+      {
+        ...create('invalid', {}),
+        connection: { source: { node: 'missing' }, target: { node: 'page' } },
+      },
+    ]),
+    request('unrecorded-version', [
+      {
+        ...create('invalid', {}),
+        connection: {
+          source: { node: 'page' },
+          target: { node: 'evidence', transaction: 'unrecorded-version' },
+        },
+      },
+    ]),
+    request('wrong-version', [
+      {
+        ...(await revise(store, 'page', { title: 'Must not publish' })),
+        connection: {
+          source: { node: 'page' },
+          target: { node: 'page', transaction: 'missing' },
+        },
+      },
+    ]),
   ];
   await Promise.all(invalid.map((bad) => expect(store.commit(bad)).rejects.toThrow()));
   expect((await store.snapshot()).sequence).toBe(2);
   expect((await store.snapshot()).get('page')?.data?.title).toBe('Studio');
+  expect((await store.snapshot()).get('duplicate')).toBeUndefined();
+  expect((await store.snapshot()).get('never-created')).toBeUndefined();
+  expect((await store.snapshot()).get('invalid')).toBeUndefined();
   store.close();
+});
+
+test('snapshots retain historical placement while current roots and children follow moves and deletion', async () => {
+  const store = memoryNodeBackend();
+  try {
+    const empty = await store.snapshot();
+    expect(empty.sequence).toBe(0);
+    expect(empty.get('page')).toBeUndefined();
+    expect(empty.roots()).toEqual([]);
+    await seed(store);
+    const initial = await store.snapshot();
+    expect(
+      initial
+        .roots()
+        .map((version) => version.key.node)
+        .sort(),
+    ).toEqual(['evidence', 'page', 'user']);
+    expect(
+      (await store.snapshot(0)).resolve({ node: 'page', transaction: 'seed' }),
+    ).toBeUndefined();
+    for (const cutoff of [-1, 0.5, 2, Number.NaN]) {
+      expect(() => store.snapshot(cutoff)).toThrow();
+    }
+    await store.commit(
+      request('place', [
+        { ...create('alpha', { text: 'Last' }, 'page'), placement: { parent: 'page', order: 'c' } },
+        {
+          ...create('zulu', { text: 'Middle' }, 'page'),
+          placement: { parent: 'page', order: 'b' },
+        },
+        {
+          ...(await revise(store, 'evidence', { text: 'Moved' })),
+          placement: { parent: 'page', order: 'd' },
+        },
+      ]),
+    );
+    const placed = await store.snapshot();
+    expect(placed.children('page').map((version) => version.key.node)).toEqual([
+      'appearance',
+      'zulu',
+      'alpha',
+      'evidence',
+    ]);
+    expect(placed.children('user')).toEqual([]);
+    expect(
+      placed
+        .roots()
+        .map((version) => version.key.node)
+        .sort(),
+    ).toEqual(['page', 'user']);
+    await store.commit(request('remove-page', [await revise(store, 'page', null)]));
+    const removed = await store.snapshot();
+    expect(removed.roots().map((version) => version.key.node)).toEqual(['user']);
+    expect(removed.children('page')).toEqual([]);
+    expect(removed.get('alpha')?.data).toEqual({ text: 'Last' });
+    expect(initial.children('page').map((version) => version.key.node)).toEqual(['appearance']);
+    expect((await store.snapshot(initial.sequence)).get('evidence')?.placement).toBeNull();
+    expect(placed.children('page').map((version) => version.key.node)).toEqual([
+      'appearance',
+      'zulu',
+      'alpha',
+      'evidence',
+    ]);
+  } finally {
+    store.close();
+  }
 });
 
 test('identical retry is idempotent; content and metadata are frozen and changed retry is refused', async () => {
