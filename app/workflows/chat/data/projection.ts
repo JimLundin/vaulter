@@ -43,7 +43,7 @@ export async function projectedExchange(
       kind: 'tool' as const,
       callId: execution.call,
       name: execution.tool.name,
-      // Unversioned module tools use an explicit storage marker; legacy presenters omit it.
+      // Unversioned tools retain a storage marker; presentation represents them without a version.
       version: execution.tool.version === 'unversioned' ? undefined : execution.tool.version,
       input: execution.input,
       status: execution.status,
