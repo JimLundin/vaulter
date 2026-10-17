@@ -84,6 +84,11 @@ body,
   display: flex;
   width: 52px;
   flex-direction: column;
+  gap: 12px;
+}
+.kit-edge-rail-bar {
+  display: flex;
+  flex-direction: column;
   gap: 4px;
   padding: 3px;
   border: 1px solid var(--border);

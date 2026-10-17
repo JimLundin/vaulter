@@ -47,6 +47,13 @@ async function expectAnchor(page: Page, count: number) {
   const modules = (await rail.getByRole('button', { name: 'Modules', exact: true }).boundingBox())!;
   const viewport = (await page.locator('[data-design-viewport]').boundingBox())!;
   expect(modules.y + modules.height).toBeCloseTo(viewport.y + viewport.height - 16, 0);
+  const controls = rail.getByRole('toolbar', { name: 'Module controls', exact: true });
+  if (count > 1) {
+    await expect(controls.getByRole('button')).toHaveCount(count - 1);
+    const bar = (await controls.boundingBox())!;
+    expect(modules.y - 4 - (bar.y + bar.height)).toBeCloseTo(12, 0);
+    expect(bar.x + bar.width).toBeCloseTo(modules.x + modules.width + 4, 0);
+  } else await expect(controls).toHaveCount(0);
   for (const button of await rail.getByRole('button').all()) {
     const target = (await button.boundingBox())!;
     expect(target.width).toBe(44);
@@ -260,7 +267,7 @@ test('paired navigation scopes keep page controls and Settings independent of th
   await expect(field).toHaveValue('Mobile query');
 });
 
-test('the rail combines page actions and keeps independent filters open while choices change', {
+test('the module bar groups page actions and keeps independent filters open while choices change', {
   tag: '@phone',
 }, async ({ page }) => {
   await page.goto('/ui/kit/');
@@ -268,7 +275,10 @@ test('the rail combines page actions and keeps independent filters open while ch
   const mobile = page.locator('[data-kit-comparison="navigation"] [data-kit-preview="mobile"]');
   const desktop = page.locator('[data-kit-comparison="navigation"] [data-kit-preview="desktop"]');
   const rail = mobile.locator('[data-edge-rail]');
-  await rail.getByRole('button', { name: 'Add sample item', exact: true }).click();
+  const controls = rail.getByRole('toolbar', { name: 'Module controls', exact: true });
+  await expect(controls.getByRole('button')).toHaveCount(4);
+  await expect(controls.getByRole('button', { name: 'Modules', exact: true })).toHaveCount(0);
+  await controls.getByRole('button', { name: 'Add sample item', exact: true }).click();
   await expect(mobile.getByText('Sample actions: 1', { exact: true })).toBeVisible();
   await rail.getByRole('button', { name: 'Reset sample count', exact: true }).click();
   await expect(mobile.getByText('Sample actions: 0', { exact: true })).toBeVisible();

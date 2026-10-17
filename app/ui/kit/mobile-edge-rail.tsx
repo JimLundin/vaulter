@@ -254,198 +254,206 @@ export function MobileEdgeRail({
           className="kit-edge-rail"
           style={{ right: geometry.insetRight, bottom: geometry.insetBottom }}
         >
-          <div data-edge-page-actions="">{pageActions}</div>
-          {!!pageSearch && (
-            <button
-              ref={searchTrigger}
-              type="button"
-              aria-label={pageSearch.label}
-              aria-expanded={searchVisible}
-              className="kit-edge-rail-control"
-              onClick={() => {
-                setMenu(null);
-                if (searchVisible) searchField.current?.focus({ preventScroll: true });
-                else {
-                  focusSearch.current = true;
-                  onSearchOpen();
-                }
-              }}
-            >
-              <Icon name="search" />
-            </button>
+          {(!!pageActions || !!pageSearch || !!pageFilters) && (
+            <div role="toolbar" aria-label="Module controls" className="kit-edge-rail-bar">
+              <div data-edge-page-actions="">{pageActions}</div>
+              {!!pageSearch && (
+                <button
+                  ref={searchTrigger}
+                  type="button"
+                  aria-label={pageSearch.label}
+                  aria-expanded={searchVisible}
+                  className="kit-edge-rail-control"
+                  onClick={() => {
+                    setMenu(null);
+                    if (searchVisible) searchField.current?.focus({ preventScroll: true });
+                    else {
+                      focusSearch.current = true;
+                      onSearchOpen();
+                    }
+                  }}
+                >
+                  <Icon name="search" />
+                </button>
+              )}
+              {!!pageFilters && (
+                <DropdownMenu
+                  open={menu === 'filters'}
+                  onOpenChange={(open) =>
+                    setMenu((current) =>
+                      open ? 'filters' : current === 'filters' ? null : current,
+                    )
+                  }
+                  modal={false}
+                >
+                  <DropdownMenuTrigger
+                    aria-label="Filters"
+                    aria-description={`${pageFilters.label}: ${
+                      pageFilters.options
+                        .filter((option) =>
+                          pageFilters.type === 'multiple'
+                            ? pageFilters.value.includes(option.value)
+                            : pageFilters.value === option.value,
+                        )
+                        .map((option) => option.label)
+                        .join(', ') || 'None'
+                    }`}
+                    className="kit-edge-rail-control"
+                    data-filtered={pageFilters.active || undefined}
+                  >
+                    <Icon name="filter" />
+                    {!!pageFilters.active && (
+                      <span aria-hidden={true} className="kit-edge-filter-indicator" />
+                    )}
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    anchor={rail}
+                    side="left"
+                    align="end"
+                    sideOffset={12}
+                    aria-label="Page filters"
+                    className="kit-edge-rail-menu"
+                    style={menuStyle}
+                  >
+                    <DropdownMenuLabel>{pageFilters.label}</DropdownMenuLabel>
+                    {pageFilters.type === 'multiple' ? (
+                      <DropdownMenuGroup aria-label={pageFilters.label}>
+                        {pageFilters.options.map((option) => (
+                          <DropdownMenuCheckboxItem
+                            key={option.value}
+                            checked={pageFilters.value.includes(option.value)}
+                            closeOnClick={false}
+                            onCheckedChange={(checked) =>
+                              pageFilters.onValueChange(
+                                checked
+                                  ? [...pageFilters.value, option.value]
+                                  : pageFilters.value.filter((value) => value !== option.value),
+                              )
+                            }
+                          >
+                            <span className="kit-edge-item-label">{option.label}</span>
+                          </DropdownMenuCheckboxItem>
+                        ))}
+                      </DropdownMenuGroup>
+                    ) : (
+                      <DropdownMenuRadioGroup
+                        aria-label={pageFilters.label}
+                        value={pageFilters.value}
+                        onValueChange={(value) => {
+                          pageFilters.onValueChange(value);
+                          setMenu(null);
+                        }}
+                      >
+                        {pageFilters.options.map((option) => (
+                          <DropdownMenuRadioItem key={option.value} value={option.value}>
+                            <span className="kit-edge-item-label">{option.label}</span>
+                          </DropdownMenuRadioItem>
+                        ))}
+                      </DropdownMenuRadioGroup>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+            </div>
           )}
-          {!!pageFilters && (
+          <div className="kit-edge-rail-bar">
             <DropdownMenu
-              open={menu === 'filters'}
+              open={menu === 'modules'}
               onOpenChange={(open) =>
-                setMenu((current) => (open ? 'filters' : current === 'filters' ? null : current))
+                setMenu((current) => (open ? 'modules' : current === 'modules' ? null : current))
               }
               modal={false}
             >
               <DropdownMenuTrigger
-                aria-label="Filters"
-                aria-description={`${pageFilters.label}: ${
-                  pageFilters.options
-                    .filter((option) =>
-                      pageFilters.type === 'multiple'
-                        ? pageFilters.value.includes(option.value)
-                        : pageFilters.value === option.value,
-                    )
-                    .map((option) => option.label)
-                    .join(', ') || 'None'
-                }`}
-                className="kit-edge-rail-control"
-                data-filtered={pageFilters.active || undefined}
+                aria-label="Modules"
+                data-app-modules=""
+                className="kit-edge-rail-control kit-edge-modules-anchor"
               >
-                <Icon name="filter" />
-                {!!pageFilters.active && (
-                  <span aria-hidden={true} className="kit-edge-filter-indicator" />
-                )}
+                <Icon name="grid" />
               </DropdownMenuTrigger>
               <DropdownMenuContent
                 anchor={rail}
                 side="left"
                 align="end"
                 sideOffset={12}
-                aria-label="Page filters"
+                aria-label="App navigation"
+                data-app-navigation=""
                 className="kit-edge-rail-menu"
                 style={menuStyle}
               >
-                <DropdownMenuLabel>{pageFilters.label}</DropdownMenuLabel>
-                {pageFilters.type === 'multiple' ? (
-                  <DropdownMenuGroup aria-label={pageFilters.label}>
-                    {pageFilters.options.map((option) => (
-                      <DropdownMenuCheckboxItem
-                        key={option.value}
-                        checked={pageFilters.value.includes(option.value)}
-                        closeOnClick={false}
-                        onCheckedChange={(checked) =>
-                          pageFilters.onValueChange(
-                            checked
-                              ? [...pageFilters.value, option.value]
-                              : pageFilters.value.filter((value) => value !== option.value),
-                          )
-                        }
-                      >
-                        <span className="kit-edge-item-label">{option.label}</span>
-                      </DropdownMenuCheckboxItem>
-                    ))}
-                  </DropdownMenuGroup>
-                ) : (
-                  <DropdownMenuRadioGroup
-                    aria-label={pageFilters.label}
-                    value={pageFilters.value}
-                    onValueChange={(value) => {
-                      pageFilters.onValueChange(value);
-                      setMenu(null);
-                    }}
-                  >
-                    {pageFilters.options.map((option) => (
-                      <DropdownMenuRadioItem key={option.value} value={option.value}>
-                        <span className="kit-edge-item-label">{option.label}</span>
-                      </DropdownMenuRadioItem>
-                    ))}
-                  </DropdownMenuRadioGroup>
-                )}
+                <div className="kit-edge-menu-brand">
+                  <Brand
+                    status={status}
+                    statusAction={statusAction}
+                    menu={true}
+                    onAction={() => setMenu(null)}
+                    actions={
+                      settings && (
+                        <DropdownMenuItem
+                          className="kit-edge-brand-action"
+                          aria-label={settings.label}
+                          aria-expanded={settings.expanded}
+                          title={settings.label}
+                          disabled={settings.disabled}
+                          render={
+                            settings.href ? <a href={settings.href}>{settings.label}</a> : undefined
+                          }
+                          onClick={() => {
+                            setMenu(null);
+                            if (!settings.href) settings.onSelect?.();
+                          }}
+                        >
+                          <Icon name={settings.icon} />
+                        </DropdownMenuItem>
+                      )
+                    }
+                  />
+                </div>
+                <DropdownMenuGroup aria-label="Modules">
+                  <DropdownMenuLabel>Modules</DropdownMenuLabel>
+                  {destinations.map((entry) => (
+                    <DropdownMenuItem
+                      key={entry.href}
+                      render={
+                        <a href={entry.href} aria-current={entry.current ? 'page' : undefined} />
+                      }
+                      onClick={onNavigate}
+                    >
+                      <Icon name={entry.icon} />
+                      <span className="kit-edge-item-label">{entry.label}</span>
+                      {!!entry.current && <Icon name="check" />}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuGroup>
+                <DropdownMenuSeparator />
+                <DropdownMenuGroup aria-label="Tools">
+                  <DropdownMenuLabel>Tools</DropdownMenuLabel>
+                  <DropdownMenuItem aria-label="Search" onClick={onSearch}>
+                    <Icon name="search" />
+                    Search
+                  </DropdownMenuItem>
+                  {!!primary && (
+                    <DropdownMenuItem onClick={primary.onSelect} disabled={primary.disabled}>
+                      <Icon name={primary.icon} />
+                      {primary.label}
+                    </DropdownMenuItem>
+                  )}
+                  {actions.map((action) => (
+                    <DropdownMenuItem
+                      key={action.label}
+                      render={action.href ? <a href={action.href}>{action.label}</a> : undefined}
+                      onClick={action.onSelect}
+                      disabled={action.disabled}
+                    >
+                      <Icon name={action.icon} />
+                      {action.label}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuGroup>
+                {!!footer && <div className="kit-edge-menu-brand">{footer}</div>}
               </DropdownMenuContent>
             </DropdownMenu>
-          )}
-          <DropdownMenu
-            open={menu === 'modules'}
-            onOpenChange={(open) =>
-              setMenu((current) => (open ? 'modules' : current === 'modules' ? null : current))
-            }
-            modal={false}
-          >
-            <DropdownMenuTrigger
-              aria-label="Modules"
-              data-app-modules=""
-              className="kit-edge-rail-control kit-edge-modules-anchor"
-            >
-              <Icon name="grid" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              anchor={rail}
-              side="left"
-              align="end"
-              sideOffset={12}
-              aria-label="App navigation"
-              data-app-navigation=""
-              className="kit-edge-rail-menu"
-              style={menuStyle}
-            >
-              <div className="kit-edge-menu-brand">
-                <Brand
-                  status={status}
-                  statusAction={statusAction}
-                  menu={true}
-                  onAction={() => setMenu(null)}
-                  actions={
-                    settings && (
-                      <DropdownMenuItem
-                        className="kit-edge-brand-action"
-                        aria-label={settings.label}
-                        aria-expanded={settings.expanded}
-                        title={settings.label}
-                        disabled={settings.disabled}
-                        render={
-                          settings.href ? <a href={settings.href}>{settings.label}</a> : undefined
-                        }
-                        onClick={() => {
-                          setMenu(null);
-                          if (!settings.href) settings.onSelect?.();
-                        }}
-                      >
-                        <Icon name={settings.icon} />
-                      </DropdownMenuItem>
-                    )
-                  }
-                />
-              </div>
-              <DropdownMenuGroup aria-label="Modules">
-                <DropdownMenuLabel>Modules</DropdownMenuLabel>
-                {destinations.map((entry) => (
-                  <DropdownMenuItem
-                    key={entry.href}
-                    render={
-                      <a href={entry.href} aria-current={entry.current ? 'page' : undefined} />
-                    }
-                    onClick={onNavigate}
-                  >
-                    <Icon name={entry.icon} />
-                    <span className="kit-edge-item-label">{entry.label}</span>
-                    {!!entry.current && <Icon name="check" />}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuGroup>
-              <DropdownMenuSeparator />
-              <DropdownMenuGroup aria-label="Tools">
-                <DropdownMenuLabel>Tools</DropdownMenuLabel>
-                <DropdownMenuItem aria-label="Search" onClick={onSearch}>
-                  <Icon name="search" />
-                  Search
-                </DropdownMenuItem>
-                {!!primary && (
-                  <DropdownMenuItem onClick={primary.onSelect} disabled={primary.disabled}>
-                    <Icon name={primary.icon} />
-                    {primary.label}
-                  </DropdownMenuItem>
-                )}
-                {actions.map((action) => (
-                  <DropdownMenuItem
-                    key={action.label}
-                    render={action.href ? <a href={action.href}>{action.label}</a> : undefined}
-                    onClick={action.onSelect}
-                    disabled={action.disabled}
-                  >
-                    <Icon name={action.icon} />
-                    {action.label}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuGroup>
-              {!!footer && <div className="kit-edge-menu-brand">{footer}</div>}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          </div>
         </nav>
       </div>
     </>,

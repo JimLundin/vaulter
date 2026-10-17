@@ -91,7 +91,13 @@ test('production shares suggestion lists and inline context in Questions and Wik
   await expect(page.getByRole('heading', { name: 'Questions', exact: true })).toBeVisible();
   const compact = test.info().project.name === 'phone';
   if (compact) {
-    await expect(page.locator('[data-edge-rail]').getByRole('button')).toHaveCount(3);
+    const controls = page.getByRole('toolbar', { name: 'Module controls', exact: true });
+    await expect(controls.getByRole('button')).toHaveCount(2);
+    const bar = (await controls.boundingBox())!;
+    const modules = (await page
+      .getByRole('button', { name: 'Modules', exact: true })
+      .boundingBox())!;
+    expect(modules.y - 4 - (bar.y + bar.height)).toBeCloseTo(12, 0);
     await page.getByRole('button', { name: 'Find questions', exact: true }).click();
   }
   const search = page.getByRole('searchbox', { name: 'Find questions', exact: true });
