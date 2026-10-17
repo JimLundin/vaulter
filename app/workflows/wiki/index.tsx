@@ -8,6 +8,7 @@ import {
   Loader,
   ReadingColumn,
   PageHeader,
+  PageControls,
   Row,
   SelectionRow,
   Select,
@@ -187,7 +188,10 @@ export function Wiki({
   );
   const frontPage = (
     <ReadingColumn label="Wiki home">
-      <PageHeader title="Wiki" actions={openDirectory} />
+      <PageHeader title="Wiki" />
+      <Row visible="compact">
+        <PageControls actions={openDirectory} />
+      </Row>
       <ReadingColumn page={true}>
         <Stack grow={true} inset="page" block="md" gap="lg">
           <Stack gap="sm">
@@ -283,9 +287,6 @@ export function Wiki({
                 {matching.length} {matching.length === 1 ? 'page' : 'pages'}
                 {search || filter ? ' found' : ' in your wiki'}
               </Text>
-              <Button variant="ghost" onClick={() => setDirectoryOpen(true)}>
-                {search || filter ? 'Browse matches' : 'Browse all pages'}
-              </Button>
             </Row>
           )}
         </Stack>
