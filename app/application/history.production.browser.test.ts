@@ -116,6 +116,29 @@ test('production History displays historical attribution and records confirmed c
   await page.getByLabel('Password', { exact: true }).fill(password);
   await page.getByRole('button', { name: 'Open vault', exact: true }).click();
   const input = page.getByRole('textbox', { name: 'Message', exact: true });
+  const compact = test.info().project.name === 'phone';
+  if (compact) await page.getByRole('button', { name: 'Modules', exact: true }).click();
+  const core = compact
+    ? page.locator('.kit-edge-menu-brand').first()
+    : page.locator('[data-slot="sidebar-header"]');
+  const signOut = core.getByRole(compact ? 'menuitem' : 'button', {
+    name: 'Sign out',
+    exact: true,
+  });
+  await expect(signOut).toBeVisible();
+  const signOutBox = (await signOut.boundingBox())!;
+  const settingsBox = (await core
+    .getByRole(compact ? 'menuitem' : 'button', {
+      name: 'Settings',
+      exact: true,
+    })
+    .boundingBox())!;
+  expect(signOutBox.y + signOutBox.height / 2).toBeCloseTo(
+    settingsBox.y + settingsBox.height / 2,
+    0,
+  );
+  expect(signOutBox.x).toBeGreaterThan(settingsBox.x);
+  if (compact) await page.keyboard.press('Escape');
   await input.fill('A draft stays here');
   const original = page.url();
   await openAppAction(page, 'History');
@@ -157,4 +180,10 @@ test('production History displays historical attribution and records confirmed c
     'Original speaker',
   );
   await expect(page.getByRole('button', { name: 'Undo content-edit', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Close history', exact: true }).click();
+  if (compact) await page.getByRole('button', { name: 'Modules', exact: true }).click();
+  await signOut.click();
+  await expect(page.getByLabel('Password', { exact: true })).toBeVisible();
+  await page.reload();
+  await expect(page.getByLabel('Password', { exact: true })).toBeVisible();
 });

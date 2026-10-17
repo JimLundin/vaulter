@@ -9,6 +9,7 @@ import {
   CardDescription,
   CardHeader,
   FieldError,
+  DropdownMenuItem,
   Form,
   Gate,
   Icon,
@@ -262,7 +263,13 @@ export function RefreshNodes({
 }
 
 /** Application may supply its cross-module teardown; Session owns the sign-out task presentation. */
-export function SignOut({ onSignOut }: { onSignOut: NonNullable<Session['signOut']> }) {
+export function SignOut({
+  onSignOut,
+  menu = false,
+}: {
+  onSignOut: NonNullable<Session['signOut']>;
+  menu?: boolean;
+}) {
   const [pending, setPending] = useState(false);
   const signingOut = useRef<boolean>(false);
   const [error, setError] = useState('');
@@ -279,11 +286,33 @@ export function SignOut({ onSignOut }: { onSignOut: NonNullable<Session['signOut
       signingOut.current = false;
     }
   };
+  const control = menu ? (
+    <DropdownMenuItem
+      aria-label="Sign out"
+      title="Sign out"
+      closeOnClick={false}
+      onClick={run}
+      disabled={pending}
+      render={<Button variant="ghost" size="standard" iconOnly={true} />}
+    >
+      <Icon name="logout" />
+    </DropdownMenuItem>
+  ) : (
+    <Button
+      variant="ghost"
+      size="standard"
+      iconOnly={true}
+      aria-label="Sign out"
+      title="Sign out"
+      onClick={run}
+      disabled={pending}
+    >
+      <Icon name="logout" />
+    </Button>
+  );
   return (
     <Stack>
-      <Button variant="ghost" size="compact" onClick={run} disabled={pending}>
-        Sign out
-      </Button>
+      {control}
       {!!error && <FieldError>{error}</FieldError>}
     </Stack>
   );

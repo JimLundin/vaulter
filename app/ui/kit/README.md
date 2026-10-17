@@ -232,7 +232,9 @@ adds one.
 `ui/command.ts`. `Frame` passes them to `NavigationSuite`, which chooses the sidebar or the compact
 rail. Modules always occupies the bottom anchor; page controls extend above it. Destinations and
 Tools stay in its inward menu as the application grows. Settings sits beside the Vaulter mark in
-both arrangements with a 16px icon and 44px target. Rail controls use 20px icons and 44px targets in a
+both arrangements with a 16px icon and 44px target. Core task controls such as Sign out use
+`NavigationSuite.brandActions(menu)` beside Settings, retaining their task state and error
+presentation. The menu flag lets task controls participate in menu keyboard navigation. Rail controls use 20px icons and 44px targets in a
 52px surface. Desktop navigation stays expanded on the left.
 
 **Modules declare their page controls.** `PageControls` accepts optional `actions`, `search` and

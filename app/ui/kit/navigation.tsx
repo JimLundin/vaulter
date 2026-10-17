@@ -43,6 +43,7 @@ export function NavigationSuite({
   destinations,
   actions,
   primary,
+  brandActions,
   footer,
   aside,
   children,
@@ -54,6 +55,8 @@ export function NavigationSuite({
   destinations: NavigationDestination[];
   actions: NavigationAction[];
   primary?: { expanded?: ReactNode; menu?: NavigationAction };
+  /** Core task controls beside the brand and status, in both arrangements. */
+  brandActions?: (menu: boolean) => ReactNode;
   footer?: ReactNode;
   aside?: ReactNode;
   children: ReactNode;
@@ -85,22 +88,27 @@ export function NavigationSuite({
               <Brand
                 status={status}
                 statusAction={statusAction}
-                actions={headerActions.map((action) => (
-                  <Button
-                    key={action.label}
-                    variant="ghost"
-                    size="standard"
-                    iconOnly={true}
-                    aria-label={action.label}
-                    aria-expanded={action.expanded}
-                    title={action.label}
-                    disabled={action.disabled}
-                    render={action.href ? <a href={action.href}>{action.label}</a> : undefined}
-                    onClick={action.href ? undefined : action.onSelect}
-                  >
-                    <Icon name={action.icon} />
-                  </Button>
-                ))}
+                actions={
+                  <>
+                    {headerActions.map((action) => (
+                      <Button
+                        key={action.label}
+                        variant="ghost"
+                        size="standard"
+                        iconOnly={true}
+                        aria-label={action.label}
+                        aria-expanded={action.expanded}
+                        title={action.label}
+                        disabled={action.disabled}
+                        render={action.href ? <a href={action.href}>{action.label}</a> : undefined}
+                        onClick={action.href ? undefined : action.onSelect}
+                      >
+                        <Icon name={action.icon} />
+                      </Button>
+                    ))}
+                    {brandActions?.(false)}
+                  </>
+                }
               />
               <SearchButton
                 label={search.label}
@@ -175,6 +183,7 @@ export function NavigationSuite({
           actions={actions.filter((action) => action !== settings && action !== statusAction)}
           statusAction={statusAction}
           settings={settings}
+          brandActions={brandActions}
           pageActions={pageControls.actions}
           pageSearch={pageSearch}
           pageFilters={pageControls.filters}

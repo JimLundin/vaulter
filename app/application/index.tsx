@@ -600,7 +600,7 @@ export function OpenApplication({
       <Frame
         navigation={navigation}
         status={<SessionStatus status={nodeStatus} />}
-        signOut={signOut && <SignOut onSignOut={signOut} />}
+        signOut={signOut && ((menu) => <SignOut menu={menu} onSignOut={signOut} />)}
         onSearch={() => {
           if (mobile) dismissSupportingTasks();
           setSearch(true);

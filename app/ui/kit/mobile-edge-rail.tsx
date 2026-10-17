@@ -31,6 +31,7 @@ export function MobileEdgeRail({
   destinations,
   actions,
   settings,
+  brandActions,
   statusAction,
   pageActions,
   pageSearch,
@@ -49,6 +50,7 @@ export function MobileEdgeRail({
   destinations: NavigationDestination[];
   actions: NavigationAction[];
   settings?: NavigationAction;
+  brandActions?: (menu: boolean) => ReactNode;
   statusAction?: NavigationAction;
   pageActions?: ReactNode;
   pageSearch?: PageSearchControl & { id: string };
@@ -388,24 +390,29 @@ export function MobileEdgeRail({
                     menu={true}
                     onAction={() => setMenu(null)}
                     actions={
-                      settings && (
-                        <DropdownMenuItem
-                          className="kit-edge-brand-action"
-                          aria-label={settings.label}
-                          aria-expanded={settings.expanded}
-                          title={settings.label}
-                          disabled={settings.disabled}
-                          render={
-                            settings.href ? <a href={settings.href}>{settings.label}</a> : undefined
-                          }
-                          onClick={() => {
-                            setMenu(null);
-                            if (!settings.href) settings.onSelect?.();
-                          }}
-                        >
-                          <Icon name={settings.icon} />
-                        </DropdownMenuItem>
-                      )
+                      <>
+                        {settings && (
+                          <DropdownMenuItem
+                            className="kit-edge-brand-action"
+                            aria-label={settings.label}
+                            aria-expanded={settings.expanded}
+                            title={settings.label}
+                            disabled={settings.disabled}
+                            render={
+                              settings.href ? (
+                                <a href={settings.href}>{settings.label}</a>
+                              ) : undefined
+                            }
+                            onClick={() => {
+                              setMenu(null);
+                              if (!settings.href) settings.onSelect?.();
+                            }}
+                          >
+                            <Icon name={settings.icon} />
+                          </DropdownMenuItem>
+                        )}
+                        {brandActions?.(true)}
+                      </>
                     }
                   />
                 </div>

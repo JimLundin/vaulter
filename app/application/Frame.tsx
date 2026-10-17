@@ -18,7 +18,7 @@ export function Frame({
 }: {
   navigation: Navigation[];
   status: ReactNode;
-  signOut: ReactNode;
+  signOut: ((menu: boolean) => ReactNode) | null;
   onSearch: () => void;
   onNavigate?: () => void;
   /** Optional primary task: sidebar content and/or a compact Tools action. */
@@ -53,7 +53,7 @@ export function Frame({
             placement: entry.placement,
           }))}
         primary={primary}
-        footer={signOut}
+        brandActions={signOut ?? undefined}
         aside={panel}
       >
         {children}
