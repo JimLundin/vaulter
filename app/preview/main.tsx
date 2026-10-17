@@ -6,22 +6,7 @@ import { createRoot } from 'react-dom/client';
 import { useState } from 'react';
 import { OpenApplication } from '@/application/index.tsx';
 import { applicationNodes, applicationWiki } from '@/application/composition.ts';
-import {
-  startTheme,
-  Text,
-  DesignPreview,
-  DesignComparison,
-  Gate,
-  Brand,
-  Button,
-  Stack,
-} from '@/ui/kit/index.ts';
-import {
-  CalendarToolbarPrototype,
-  CalendarPanePrototype,
-  CalendarMinimalPrototype,
-} from './calendar-layout.prototype.tsx';
-import type { CalendarPage } from '@/calendar/index.ts';
+import { startTheme, Text, DesignPreview, Gate, Brand, Button, Stack } from '@/ui/kit/index.ts';
 import { seedGraphEvidence } from './graph-evidence.ts';
 import { seedGraphDensity } from './graph-density.ts';
 import { previewModel } from './model.ts';
@@ -181,9 +166,7 @@ const openingNodes = previewNodes(sessionStorage, query.get('scenario') ?? undef
 );
 function Preview({ nodes }: { nodes: NodeStore }) {
   const [signedOut, setSignedOut] = useState(false);
-  const product = (
-    renderCalendar?: (props: Parameters<typeof CalendarPage>[0]) => React.ReactNode,
-  ) => (
+  const product = () => (
     <OpenApplication
       session={{
         ready: true,
@@ -202,7 +185,6 @@ function Preview({ nodes }: { nodes: NodeStore }) {
       }}
       model={agent?.model ?? (async () => previewModel)}
       preview={{
-        renderCalendar,
         provider: agent ? 'openai' : 'preview',
         defaultModel: agent ? agentConnection?.defaultModel : undefined,
         transcription,
@@ -240,36 +222,6 @@ function Preview({ nodes }: { nodes: NodeStore }) {
       )}
     </DesignPreview>
   );
-  if (query.get('compare') === 'calendar') {
-    return (
-      <DesignComparison
-        defaultValue={query.get('variant') ?? 'toolbar'}
-        alternatives={[
-          {
-            id: 'toolbar',
-            label: 'A · Month toolbar',
-            content: product((props) => <CalendarToolbarPrototype {...props} />),
-          },
-          {
-            id: 'pane',
-            label: 'B · Timeline actions',
-            content: product((props) => <CalendarPanePrototype {...props} />),
-          },
-          {
-            id: 'minimal',
-            label: 'C · Minimal + menu',
-            content: product((props) => <CalendarMinimalPrototype {...props} />),
-          },
-        ]}
-        onValueChange={(value) => {
-          const url = new URL(location.href);
-          url.searchParams.set('variant', value);
-          history.replaceState(null, '', url);
-        }}
-        preview={(controls, content) => frame(content, controls)}
-      />
-    );
-  }
   return frame(product());
 }
 

@@ -1,7 +1,10 @@
 import { useState, useRef, useId } from 'react';
 import {
   Button,
-  FeaturePage,
+  PageHeader,
+  ReadingColumn,
+  SplitView,
+  SupportingPane,
   PageControls,
   Icon,
   SettingField,
@@ -178,7 +181,7 @@ export function CalendarPage({
   initialMonth?: string;
 }) {
   const [month, setMonth] = useState(initialMonth ?? new Date().toISOString().slice(0, 7));
-  const [view, setView] = useState('month');
+  const [timelineOpen, setTimelineOpen] = useState(false);
   const [selected, setSelected] = useState<string>();
   const [editor, setEditor] = useState<{ entry?: CalendarEntry }>();
   const [actionError, setActionError] = useState<string>();
@@ -207,94 +210,138 @@ export function CalendarPage({
     setMonth(next.toISOString().slice(0, 7));
     setSelected(undefined);
   };
-  return (
-    <FeaturePage
-      title="Calendar"
-      description="Plans, occurrences and dates worth remembering."
-      width="wide"
+  const add = actions ? (
+    <Button
+      aria-label="Add event"
+      title="Add event"
+      compactIcon="plus"
+      size="compact"
+      disabled={!!disabledReason}
+      onClick={() => setEditor({})}
     >
-      <Stack inset="page" gap="xl" block="md">
-        <Heading level={2}>{label}</Heading>
-        <PageControls
-          actions={
-            <Row wrap={true}>
-              <Button
-                variant="ghost"
-                iconOnly={true}
-                aria-label="Previous month"
-                title="Previous month"
-                onClick={() => move(-1)}
-              >
-                <Icon name="chevron-left" />
-              </Button>
-              <Button
-                variant="ghost"
-                iconOnly={true}
-                aria-label="Next month"
-                title="Next month"
-                onClick={() => move(1)}
-              >
-                <Icon name="chevron-right" />
-              </Button>
-              {!!actions && (
-                <>
-                  <Button
-                    aria-label="Add event"
-                    title="Add event"
-                    compactIcon="plus"
-                    disabled={!!disabledReason}
-                    onClick={() => setEditor({})}
-                  >
-                    Add event
-                  </Button>
-                  <Button
-                    aria-label="Manage events"
-                    title="Manage events"
-                    compactIcon="list"
-                    variant="outline"
-                    disabled={!!disabledReason}
-                    onClick={() => setManaging(true)}
-                  >
-                    Manage events
-                  </Button>
-                </>
-              )}
-            </Row>
-          }
-          filters={{
-            type: 'single',
-            label: 'Calendar view',
-            value: view,
-            options: [
-              { value: 'month', label: 'Month' },
-              { value: 'timeline', label: 'Timeline' },
-            ],
-            active: view !== 'month',
-            onValueChange: (value) => {
-              if (value) setView(value);
-            },
-          }}
-        />
-        {!!disabledReason && (
-          <Text size="sm" tone="muted">
-            {disabledReason}
-          </Text>
-        )}
-        {error ? (
-          <Text role="alert" tone="danger">
-            {error}
-          </Text>
-        ) : !data ? (
-          <Loader>Opening calendar…</Loader>
-        ) : (
+      Add event
+    </Button>
+  ) : null;
+  const manage = actions ? (
+    <Button
+      aria-label="Manage events"
+      title="Manage events"
+      compactIcon="edit"
+      size="compact"
+      variant="ghost"
+      disabled={!!disabledReason}
+      onClick={() => setManaging(true)}
+    >
+      Manage events
+    </Button>
+  ) : null;
+  const previous = (
+    <Button
+      variant="ghost"
+      iconOnly={true}
+      aria-label="Previous month"
+      title="Previous month"
+      onClick={() => move(-1)}
+    >
+      <Icon name="chevron-left" />
+    </Button>
+  );
+  const next = (
+    <Button
+      variant="ghost"
+      iconOnly={true}
+      aria-label="Next month"
+      title="Next month"
+      onClick={() => move(1)}
+    >
+      <Icon name="chevron-right" />
+    </Button>
+  );
+  const chronology = (
+    <Stack gap="xl">
+      {!!selected && (
+        <Button variant="ghost" size="compact" onClick={() => setSelected(undefined)}>
+          Show whole month
+        </Button>
+      )}
+      <CalendarTimeline
+        title={selected ? `On ${selected}` : 'This month'}
+        entries={selected ? precise.filter((entry) => entry.day === selected) : precise}
+      />
+      {!!uncertain.length && (
+        <CalendarTimeline title="Timeframes & approximate dates" entries={uncertain} />
+      )}
+      {!!unknown.length && <CalendarTimeline title="Date unknown" entries={unknown} />}
+      <Text size="sm" tone="muted">
+        Times shown in {timezone}. Planned events stay planned until an occurrence is recorded.
+      </Text>
+    </Stack>
+  );
+  return (
+    <>
+      <PageControls
+        placement="rail"
+        bottomActions={
           <>
-            {view === 'month' ? (
-              <>
+            {previous}
+            <Text size="sm">{label}</Text>
+            {next}
+          </>
+        }
+        actions={
+          <Row>
+            {add}
+            {manage}
+            <Button
+              variant="ghost"
+              iconOnly={true}
+              aria-label="Open timeline"
+              title="Open timeline"
+              onClick={() => setTimelineOpen(true)}
+            >
+              <Icon name="list" />
+            </Button>
+          </Row>
+        }
+      />
+      <SplitView
+        main={
+          <ReadingColumn label="Calendar workspace">
+            <PageHeader title="Calendar" />
+            <Stack grow={true} inset="page" block="md" gap="md">
+              <Row justify="between">
+                <Heading level={2}>{label}</Heading>
+                <PageControls
+                  placement="expanded"
+                  actions={
+                    <Row gap="xs">
+                      {previous}
+                      {next}
+                    </Row>
+                  }
+                />
+              </Row>
+              {!!disabledReason && (
+                <Text size="sm" tone="muted">
+                  {disabledReason}
+                </Text>
+              )}
+              {error ? (
+                <Text role="alert" tone="danger">
+                  {error}
+                </Text>
+              ) : !data ? (
+                <Loader>Opening calendar…</Loader>
+              ) : (
                 <MonthCalendar
+                  fit={true}
                   label={label}
                   offset={(new Date(`${window.start}T12:00:00Z`).getUTCDay() + 6) % 7}
                   selected={selected}
-                  onSelect={setSelected}
+                  onSelect={(day) => {
+                    setSelected(day);
+                    setTimelineOpen(true);
+                  }}
                   days={Array.from(
                     { length: daysInMonth(window.year, window.month) },
                     (_, index) => {
@@ -308,29 +355,38 @@ export function CalendarPage({
                     },
                   )}
                 />
-                <CalendarTimeline
-                  title={selected ? `On ${selected}` : 'This month'}
-                  entries={selected ? precise.filter((entry) => entry.day === selected) : precise}
-                />
-                {!!uncertain.length && (
-                  <CalendarTimeline title="Timeframes & approximate dates" entries={uncertain} />
-                )}
-              </>
-            ) : (
-              <CalendarTimeline title={label} entries={inMonth} />
-            )}
-            {!!unknown.length && <CalendarTimeline title="Date unknown" entries={unknown} />}
-            {!!actionError && (
-              <Text role="alert" tone="danger">
-                {actionError}
-              </Text>
-            )}
-          </>
-        )}
-        <Text size="sm" tone="muted">
-          Times shown in {timezone}. Planned events stay planned until an occurrence is recorded.
-        </Text>
-      </Stack>
+              )}
+            </Stack>
+          </ReadingColumn>
+        }
+        supporting={
+          <SupportingPane
+            title="Timeline"
+            open={timelineOpen}
+            persistent={true}
+            onClose={() => setTimelineOpen(false)}
+            selection={selected ?? month}
+          >
+            <Stack gap="xl">
+              <PageControls
+                placement="expanded"
+                actions={
+                  <Stack gap="sm">
+                    {add}
+                    {manage}
+                  </Stack>
+                }
+              />
+              {!!actionError && (
+                <Text role="alert" tone="danger">
+                  {actionError}
+                </Text>
+              )}
+              {data ? chronology : <Loader>Opening timeline…</Loader>}
+            </Stack>
+          </SupportingPane>
+        }
+      />
       <Overlay
         open={managing}
         onClose={() => setManaging(false)}
@@ -430,6 +486,6 @@ export function CalendarPage({
           )}
         </Overlay>
       )}
-    </FeaturePage>
+    </>
   );
 }

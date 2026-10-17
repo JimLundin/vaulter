@@ -13,7 +13,7 @@ test('Calendar selects days, keeps uncertain dates out of day cells, and saves e
   await expect(header.getByText('Plans, occurrences and dates worth remembering.')).toHaveCount(0);
   const rail = page.getByRole('toolbar', { name: 'Module controls', exact: true });
   if (await rail.isVisible()) {
-    for (const name of ['Add event', 'Manage events', 'Previous month', 'Next month']) {
+    for (const name of ['Add event', 'Manage events', 'Open timeline']) {
       await expect(rail.getByRole('button', { name, exact: true })).toBeVisible();
     }
   } else {
@@ -32,43 +32,55 @@ test('Calendar selects days, keeps uncertain dates out of day cells, and saves e
       .getByRole('region', { name: 'Timeframes & approximate dates' })
       .getByRole('heading', { name: 'Autumn planting', exact: true }),
   ).toBeVisible();
+  if (await page.getByRole('button', { name: 'Close timeline', exact: true }).isVisible())
+    await page.getByRole('button', { name: 'Close timeline', exact: true }).click();
   await page.getByRole('button', { name: 'Add event', exact: true }).click();
   await page.getByLabel('Event title', { exact: true }).fill('Walk with neighbours');
   await page.getByLabel('Date precision', { exact: true }).selectOption('day');
   await page.getByLabel('Event date', { exact: true }).fill('2026-10-24');
   await page.getByRole('button', { name: 'Save event', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
+  if (await page.getByRole('button', { name: 'Open timeline', exact: true }).isVisible())
+    await page.getByRole('button', { name: 'Open timeline', exact: true }).click();
   await expect(day.getByRole('heading', { name: 'Walk with neighbours' })).toBeVisible();
-  const filters = page.getByRole('button', { name: 'Filters', exact: true });
-  if (await filters.isVisible()) {
-    await filters.click();
-    await page.getByRole('menuitemradio', { name: 'Timeline', exact: true }).click();
-  } else await page.getByRole('button', { name: 'Timeline', exact: true }).click();
+  await page.getByRole('button', { name: 'Show whole month', exact: true }).click();
   await expect(
     page
-      .getByRole('region', { name: 'October 2026' })
-      .getByRole('heading', { name: 'Autumn planting', exact: true }),
+      .getByRole('region', { name: 'This month', exact: true })
+      .getByRole('heading', { name: 'Walk with neighbours', exact: true }),
   ).toBeVisible();
+  if (await page.getByRole('button', { name: 'Close timeline', exact: true }).isVisible())
+    await page.getByRole('button', { name: 'Close timeline', exact: true }).click();
   await page.getByRole('button', { name: 'Manage events', exact: true }).click();
   await page.getByRole('button', { name: 'Edit Walk with neighbours', exact: true }).click();
   await page.getByLabel('Status', { exact: true }).selectOption('occurred');
   await page.getByRole('button', { name: 'Save event', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
+  if (await page.getByRole('button', { name: 'Close timeline', exact: true }).isVisible())
+    await page.getByRole('button', { name: 'Close timeline', exact: true }).click();
   await page.getByRole('button', { name: 'Manage events', exact: true }).click();
   await page.getByRole('button', { name: 'Remove Walk with neighbours', exact: true }).click();
   await page.getByRole('button', { name: 'Keep event', exact: true }).click();
+  if (await page.getByRole('button', { name: 'Open timeline', exact: true }).isVisible())
+    await page.getByRole('button', { name: 'Open timeline', exact: true }).click();
   await expect(
     page
-      .getByRole('region', { name: 'October 2026' })
+      .getByRole('region', { name: 'This month' })
       .getByRole('heading', { name: 'Walk with neighbours', exact: true }),
   ).toBeVisible();
+  if (await page.getByRole('button', { name: 'Close timeline', exact: true }).isVisible())
+    await page.getByRole('button', { name: 'Close timeline', exact: true }).click();
   await page.getByRole('button', { name: 'Manage events', exact: true }).click();
   await page.getByRole('button', { name: 'Remove Walk with neighbours', exact: true }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Remove event', exact: true }).click();
+  await page
+    .getByRole('button', { name: 'Open timeline', exact: true })
+    .isVisible()
+    .then(async (visible) => {
+      if (visible) await page.getByRole('button', { name: 'Open timeline', exact: true }).click();
+    });
   await expect(
-    page
-      .getByRole('region', { name: 'October 2026' })
-      .getByRole('heading', { name: 'Walk with neighbours', exact: true }),
+    page.getByRole('heading', { name: 'Walk with neighbours', exact: true }),
   ).toHaveCount(0);
 });
 

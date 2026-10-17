@@ -3,7 +3,7 @@
 Calendar owns the shared `TimeValue` convention, particular Events and recurring annual dates.
 Its public interface is `index.ts`; Application registers `calendarEntities` in the shared EAV
 database. Other owners can use the time contract for source/reporting or effective time without
-creating an Event. `CalendarPage` provides month and timeline views with explicit event creation,
+creating an Event. `CalendarPage` provides a month grid and supporting timeline with explicit event creation,
 revision and removal. Calendar is available at `/calendar/` in Application navigation.
 
 `TimeValue` distinguishes points, inclusive ranges and unknown time. Points retain year, month,
@@ -56,8 +56,12 @@ Failed saves retain the draft and error for explicit retry; successful acceptanc
 subscribed view. Calendar actions bind the configured user Actor and attribute each write.
 
 The regular Application preview opens Calendar at `/preview/index.html#/calendar/`, with its
-sidebar and mobile edge rail. `PageControls` supplies month navigation, event creation and
-event management to the rail on compact layouts; its filters switch Month/Timeline views.
-Event management opens a shared overlay with explicit edit and remove actions.
+sidebar and mobile edge rail. `PageControls` supplies month navigation in a horizontal bottom rail on mobile, with event
+creation, management and timeline access on the side rail. The full month grid fits the remaining
+page height; the right timeline scrolls independently and becomes a drawer on mobile. Desktop
+keeps Add/Manage above the timeline. Event management opens a shared overlay for edit and removal.
 The retained `/preview/calendar.html` link redirects into this full preview; adding `?embedded`
 opens the Garden studio Wiki page with its subject timeline. Both use fictional Calendar records.
+
+The reviewed alternatives are retained on `prototype/calendar-layouts` at `16b417b`. The chosen
+layout is B (Timeline actions), with the bottom month rail and a calendar that fits the viewport.

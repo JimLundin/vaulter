@@ -34,6 +34,8 @@ test('production Calendar accepts a user event through EAV and retains it after 
   await page.getByLabel('Event title', { exact: true }).fill('A future studio visit');
   await page.getByRole('button', { name: 'Save event', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
+  if (await page.getByRole('button', { name: 'Open timeline', exact: true }).isVisible())
+    await page.getByRole('button', { name: 'Open timeline', exact: true }).click();
   await expect(
     page
       .getByRole('region', { name: 'Date unknown', exact: true })
@@ -44,6 +46,8 @@ test('production Calendar accepts a user event through EAV and retains it after 
     await page.getByLabel('Password', { exact: true }).fill(password);
     await page.getByRole('button', { name: 'Open vault', exact: true }).click();
   }
+  if (await page.getByRole('button', { name: 'Open timeline', exact: true }).isVisible())
+    await page.getByRole('button', { name: 'Open timeline', exact: true }).click();
   await expect(
     page
       .getByRole('region', { name: 'Date unknown', exact: true })

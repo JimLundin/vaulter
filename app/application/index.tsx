@@ -155,7 +155,6 @@ export function OpenApplication({
     defaultModel?: string;
     suggestions: () => Promise<string[]>;
     transcription: TranscriptionProvider;
-    renderCalendar?: (props: Parameters<typeof CalendarPage>[0]) => React.ReactNode;
   };
 }) {
   const { nodeStatus } = session;
@@ -713,17 +712,20 @@ export function OpenApplication({
             toolPresentations={toolPresentations}
           />
         ) : onCalendar ? (
-          (preview?.renderCalendar ?? ((props) => <CalendarPage {...props} />))({
-            data: calendar.data,
-            error:
-              calendar.error ?? (!calendarInput ? 'Calendar storage is unavailable.' : undefined),
-            actions: calendarInput?.actions,
-            disabledReason: session.credentialPending
-              ? 'Wait for credentials to finish updating.'
-              : nodeStatus.kind === 'synced'
-                ? undefined
-                : 'Reconnect before saving Calendar changes.',
-          })
+          <CalendarPage
+            data={calendar.data}
+            error={
+              calendar.error ?? (!calendarInput ? 'Calendar storage is unavailable.' : undefined)
+            }
+            actions={calendarInput?.actions}
+            disabledReason={
+              session.credentialPending
+                ? 'Wait for credentials to finish updating.'
+                : nodeStatus.kind === 'synced'
+                  ? undefined
+                  : 'Reconnect before saving Calendar changes.'
+            }
+          />
         ) : onQuestions ? (
           <QuestionsPage
             state={questionState}
