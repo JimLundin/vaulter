@@ -480,7 +480,9 @@ export async function openDatabase<const R extends Registry>(
           throw new Error('History ordering supports one sequence direction');
         const take = first ? 1 : limit(input.limit);
         const found: object[] = [];
-        const commits = [...readStorage(storage).commits];
+        const commits = transactionId
+          ? readStorage(storage).commits.filter((commit) => commit.id === transactionId)
+          : [...readStorage(storage).commits];
         if (direction === 'desc') commits.reverse();
         for (const [index, commit] of commits.entries()) {
           if (index && index % 32 === 0) {
@@ -496,11 +498,14 @@ export async function openDatabase<const R extends Registry>(
             ('in' in sequence && !(sequence.in as number[]).includes(commit.sequence))
           )
             continue;
+          const ids = [...new Set(commit.facts.map((fact) => fact.entity))].filter((id) => {
+            const record = view.snapshot.get(id);
+            return record && recordType(record) === entity.name && (!entityId || id === entityId);
+          });
+          if (!ids.length) continue;
           const before = snapshotAt(storage, commit.sequence - 1);
           const after = snapshotAt(storage, commit.sequence);
-          for (const [index, id] of [
-            ...new Set(commit.facts.map((fact) => fact.entity)),
-          ].entries()) {
+          for (const [index, id] of ids.entries()) {
             if (index && index % 100 === 0) {
               await queryYield();
               ensure();
