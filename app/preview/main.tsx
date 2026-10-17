@@ -17,6 +17,7 @@ import { previewTranscription } from './transcription.ts';
 import { previewEav, previewEavKey } from './eav.ts';
 import { seedEavWiki } from './wiki-records.ts';
 import { seedCalendar } from './calendar-records.ts';
+import { seedConversation } from './conversation-records.ts';
 
 const query = new URLSearchParams(location.search);
 const eav = previewEav(sessionStorage, query.get('scenario') ?? undefined);
@@ -44,6 +45,7 @@ const opening = (async () => {
   await seedEavQuestions(db);
   await seedGraphEvidence(db, query.get('compare') === 'graph');
   if (query.get('compare') === 'graph') await seedGraphDensity(db);
+  if (query.has('conversations')) await seedConversation(db);
 })();
 function Preview() {
   const [signedOut, setSignedOut] = useState(false);

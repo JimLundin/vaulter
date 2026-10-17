@@ -23,6 +23,7 @@ test('one dialogue retains its draft across page and supporting layouts without 
 test('Chat supporting pane keeps one following feed, draft and accepted activity across close and resize', {
   tag: '@phone',
 }, async ({ page }) => {
+  await page.clock.install();
   await page.goto('/preview/#/wiki/');
   const handle = page.locator('[data-preview-drag-handle]');
   for (let i = 0; i < 10; i++) await handle.press('Shift+ArrowDown');
@@ -35,6 +36,7 @@ test('Chat supporting pane keeps one following feed, draft and accepted activity
   const field = page.getByRole('textbox', { name: 'Message', exact: true });
   await field.fill('vault it: room for walks');
   await field.press('Enter');
+  await page.clock.runFor(10_000);
   await expect(pane.getByText('Filed in', { exact: false })).toBeVisible();
   await expect(pane.getByRole('button', { name: 'Stop', exact: true })).toBeHidden();
   await field.fill('Keep this unfinished thought');
@@ -53,13 +55,15 @@ test('Chat supporting pane keeps one following feed, draft and accepted activity
     const composer = (await pane.getByRole('group', { name: 'Message text box' }).boundingBox())!;
     expect(feed.y + feed.height).toBeLessThanOrEqual(composer.y);
   }
-  const journal = await page.evaluate(() => sessionStorage.getItem('vaulter:preview:accepted:v1'));
+  const journal = await page.evaluate(() =>
+    sessionStorage.getItem('vaulter:preview:eav:dialogue:v1'),
+  );
   await pane.getByRole('button', { name: 'Close chat', exact: true }).click();
   await expect(pane).toBeHidden();
   await page.keyboard.press('Control+j');
   await expect(field).toHaveValue('Keep this unfinished thought');
   await expect(pane.getByText('Filed in', { exact: false })).toBeVisible();
-  expect(await page.evaluate(() => sessionStorage.getItem('vaulter:preview:accepted:v1'))).toBe(
+  expect(await page.evaluate(() => sessionStorage.getItem('vaulter:preview:eav:dialogue:v1'))).toBe(
     journal,
   );
 });

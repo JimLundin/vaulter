@@ -332,7 +332,11 @@ export function executeEavRun(
         output: { ...output, text },
         ...(interrupted ? { finishReason: interruptedReason } : {}),
       };
-      notify({ text, data: terminal });
+      notify({
+        text,
+        data: terminal,
+        ...(tools?.contentPending() ? { phase: terminal.status } : {}),
+      });
       await finish();
     } catch (error) {
       notify({ phase: 'failed', persistenceError: errorText(error) });
