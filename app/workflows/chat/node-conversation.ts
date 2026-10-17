@@ -1,4 +1,5 @@
-import type { ChatBackendFactory, ChatRun as NodeChatRun } from './backend.ts';
+import type { CheckpointTask, CheckpointState } from './checkpoint-task.ts';
+import type { ChatBackend, ChatBackendFactory, ChatRun as NodeChatRun } from './backend.ts';
 // Node-backed Chat lifetime, independent of any mounted view.
 import type { ChatState, Turn, Part } from './view.ts';
 import { createNodeChatBackend } from './node-backend.ts';
@@ -82,6 +83,7 @@ export interface ChatRecords {
   readonly error?: string;
 }
 export interface NodeConversationState extends ChatState {
+  readonly checkpoint?: CheckpointState;
   readonly prompts: readonly ChatRetainedPrompt[];
   readonly selection: ChatSelection;
   readonly selectionAvailability: ChatActionAvailability;
@@ -134,7 +136,7 @@ function turn(data: MessageData, live = false, pendingToolCall?: string): Turn {
   };
 }
 export function createNodeConversation(initial: NodeConversationOptions) {
-  let backend = (initial.backend ?? createNodeChatBackend)(initial);
+  let backend: ChatBackend = (initial.backend ?? createNodeChatBackend)(initial);
   const backends = new Set([backend]);
   let activeBackend = backend;
   let unsubscribeActive: (() => void) | undefined;
@@ -157,6 +159,8 @@ export function createNodeConversation(initial: NodeConversationOptions) {
     recovery: {},
   };
   const listeners = new Set<() => void>();
+  let checkpointTask: CheckpointTask | undefined;
+  let checkpointUnsubscribe: (() => void) | undefined;
   let active: NodeChatRun | undefined;
   let activeBase: Turn[] = [];
   let views = 0;
@@ -634,6 +638,31 @@ export function createNodeConversation(initial: NodeConversationOptions) {
       return () => listeners.delete(listener);
     },
     continuous,
+    timeline: () => backend.timeline?.() ?? Promise.resolve([]),
+    watchTimeline: (listener: () => void) => backend.subscribe(listener),
+    createCheckpoint: async () => {
+      if (
+        !(ready() && backend.checkpoint) ||
+        ['running', 'stopping'].includes(state.checkpoint?.phase ?? '') ||
+        state.checkpoint?.retryable
+      )
+        return;
+      checkpointUnsubscribe?.();
+      checkpointTask?.dispose();
+      checkpointTask = backend.checkpoint(options.selectedModel);
+      const task = checkpointTask;
+      const reflect = () => {
+        if (!disposed && checkpointTask === task) set({ checkpoint: task.snapshot() });
+      };
+      checkpointUnsubscribe = task.subscribe(reflect);
+      reflect();
+      await task.done;
+      reflect();
+    },
+    retryCheckpoint: async () => {
+      await checkpointTask?.retry();
+    },
+    stopCheckpoint: () => checkpointTask?.stop(),
     conversation: () => id,
     setDraft: (draft: string) => {
       if (disposed) return;
@@ -992,6 +1021,8 @@ export function createNodeConversation(initial: NodeConversationOptions) {
       releaseCapture(true);
       suggestionAbort?.abort();
       unsubscribeActive?.();
+      checkpointUnsubscribe?.();
+      checkpointTask?.dispose();
       for (const owned of backends) owned.dispose();
       listeners.clear();
     },

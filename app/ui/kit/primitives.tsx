@@ -109,8 +109,32 @@ export function Dock({ children, status }: { children: ReactNode; status?: React
 }
 
 /** One scroll owner with optional follow-to-end; user scrolling releases the follow lock. */
-export function AutoScrollArea({ empty, children }: { empty?: boolean; children: ReactNode }) {
+export function AutoScrollArea({
+  empty,
+  children,
+  scrollTarget,
+}: {
+  empty?: boolean;
+  children: ReactNode;
+  /** Navigate to a descendant data-scroll-anchor without changing feed contents. */
+  scrollTarget?: { index: number; request: number };
+}) {
   const follow = useStickToBottom({ initial: 'smooth', resize: 'smooth' });
+  const { scrollRef, stopScroll, scrollToBottom } = follow;
+  useLayoutEffect(() => {
+    if (!scrollTarget) return;
+    if (scrollTarget.index < 0) {
+      void scrollToBottom();
+      return;
+    }
+    const viewport = scrollRef.current;
+    const target = viewport?.querySelector<HTMLElement>(
+      `[data-scroll-anchor="${scrollTarget.index}"]`,
+    );
+    if (!(viewport && target)) return;
+    stopScroll();
+    viewport.scrollTop += target.getBoundingClientRect().top - viewport.getBoundingClientRect().top;
+  }, [scrollTarget, scrollRef, stopScroll, scrollToBottom]);
   return (
     <div className="relative flex min-h-0 flex-1 flex-col">
       <ScrollArea

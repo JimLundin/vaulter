@@ -67,7 +67,16 @@ export const previewModel: PreviewModel = {
         ? String(createdData.node)
         : '';
     let parts: StreamPart[];
-    if (asking && !grounding) {
+    if (
+      prompt.some(
+        (message) =>
+          message.role === 'system' && message.content.includes('Create a context checkpoint'),
+      )
+    ) {
+      parts = text(
+        'Conversation context\nThe fictional conversation explores the user’s notes and priorities. Retain completed activity, decisions and open questions; consult the original conversation for exact wording.',
+      );
+    } else if (asking && !grounding) {
       parts = [call('listQuestionContext', {})];
     } else if (asking && !asked) {
       const source = passages?.sources.find((item) => item.text === said) ?? passages?.sources[0];

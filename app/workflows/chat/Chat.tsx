@@ -1,3 +1,4 @@
+import { Timeline } from './Timeline.tsx';
 // Chat behaviour composes the public kit; presentation and styling stay in the kit.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -32,6 +33,7 @@ export function Chat({
 }) {
   const { newChat, stop, viewing } = conversation;
   const [choosing, setChoosing] = useState(false);
+  const [scrollTarget, setScrollTarget] = useState<{ index: number; request: number }>();
   const showChats = () => setChoosing(true);
   const {
     draft: input,
@@ -98,7 +100,23 @@ export function Chat({
   };
   return (
     <ChatSurface
-      supporting={conversation.continuous ? undefined : chooser}
+      supporting={
+        conversation.continuous ? (
+          <Timeline
+            conversation={conversation}
+            open={visible && choosing}
+            persistent={visible && !!presentation.page}
+            onClose={() => setChoosing(false)}
+            onJump={(index) =>
+              setScrollTarget((prior) => ({ index, request: (prior?.request ?? 0) + 1 }))
+            }
+          />
+        ) : (
+          chooser
+        )
+      }
+      onTimeline={conversation.continuous ? showChats : undefined}
+      scrollTarget={scrollTarget}
       presentation={presentation}
       onNewChat={conversation.continuous ? undefined : newChat}
       onConversations={conversation.continuous ? undefined : showChats}
@@ -234,13 +252,14 @@ export function Chat({
     >
       {!turns.length && <ChatWelcome />}
       {turns.map((turn, i) => (
-        <ChatMessage
-          // biome-ignore lint/suspicious/noArrayIndexKey: turns only append
-          key={i}
-          turn={turn}
-          live={busy && i === turns.length - 1}
-          toolPresentations={toolPresentations}
-        />
+        // biome-ignore lint/suspicious/noArrayIndexKey: accepted turns append in dialogue order
+        <Stack key={i} data-scroll-anchor={i}>
+          <ChatMessage
+            turn={turn}
+            live={busy && i === turns.length - 1}
+            toolPresentations={toolPresentations}
+          />
+        </Stack>
       ))}
     </ChatSurface>
   );

@@ -24,6 +24,8 @@ export function ChatSurface({
   supporting,
   onNewChat,
   onConversations,
+  onTimeline,
+  scrollTarget,
   busy,
   composer,
   suggestions,
@@ -35,6 +37,8 @@ export function ChatSurface({
   supporting?: ReactNode;
   onNewChat?: () => void;
   onConversations?: () => void;
+  onTimeline?: () => void;
+  scrollTarget?: { index: number; request: number };
   busy: boolean;
   composer: ReactNode;
   suggestions?: ReactNode;
@@ -42,32 +46,43 @@ export function ChatSurface({
   empty?: boolean;
   children: ReactNode;
 }) {
-  const actions =
-    onNewChat && onConversations ? (
-      <Row gap="xs">
-        <Row visible="compact">
-          <Button
-            variant="ghost"
-            size="compact"
-            iconOnly={true}
-            aria-label="Conversations"
-            onClick={onConversations}
-          >
-            <Icon name="list" />
-          </Button>
-        </Row>
+  const actions = onTimeline ? (
+    <Row visible={presentation.page ? 'compact' : undefined}>
+      <Button
+        variant="ghost"
+        size="compact"
+        iconOnly={true}
+        aria-label="Timeline"
+        onClick={onTimeline}
+      >
+        <Icon name="list" />
+      </Button>
+    </Row>
+  ) : onNewChat && onConversations ? (
+    <Row gap="xs">
+      <Row visible="compact">
         <Button
-          variant="filled"
-          size="standard"
+          variant="ghost"
+          size="compact"
           iconOnly={true}
-          aria-label="New conversation"
-          disabled={busy}
-          onClick={onNewChat}
+          aria-label="Conversations"
+          onClick={onConversations}
         >
-          <Icon name="plus" />
+          <Icon name="list" />
         </Button>
       </Row>
-    ) : undefined;
+      <Button
+        variant="filled"
+        size="standard"
+        iconOnly={true}
+        aria-label="New conversation"
+        disabled={busy}
+        onClick={onNewChat}
+      >
+        <Icon name="plus" />
+      </Button>
+    </Row>
+  ) : undefined;
   const header = <Heading level={2}>Chat</Heading>;
   const dock = (
     <Stack gap="sm">
@@ -84,7 +99,9 @@ export function ChatSurface({
       <Toolbar label="Chat actions" actions={actions}>
         {header}
       </Toolbar>
-      <AutoScrollArea empty={empty}>{children}</AutoScrollArea>
+      <AutoScrollArea empty={empty} scrollTarget={scrollTarget}>
+        {children}
+      </AutoScrollArea>
       <Dock status={status}>{dock}</Dock>
     </ReadingColumn>
   );
@@ -105,6 +122,7 @@ export function ChatSurface({
         dock={dock}
         status={status}
         empty={empty}
+        scrollTarget={scrollTarget}
       >
         {children}
       </SupportingPane>

@@ -10,6 +10,8 @@ or a subject title. `conversation(tx)` returns that identity and creates it atom
 | Chat | Exchange | An ordered contribution; submission key deduplicates admission |
 | Chat | Message | Canonical user words, author and occurrence time |
 | Chat | RetainedSource | Historical content and exact source provenance; no manufactured execution |
+| Chat | ContextCheckpoint | Attributed summary and exact coverage of a dialogue prefix |
+| Chat | RunContext | Checkpoint and subsequent Exchanges supplied to a run |
 | Chat | InputSource | Message identity associated with captured effective input |
 | Agent | Agent / Actor | Editable configuration and attribution |
 | Agent | AgentRun | Accepted configuration, initial inputs and terminal execution outcome |
@@ -45,10 +47,14 @@ Normal Chat reads then use only EAV. Existing exact Node evidence remains resolv
 Immutable compatibility excerpts still let unmigrated content tools cite new contributions.
 
 Use a transaction or `db.at(commit)` for consistent multi-query reads. Retained history and effective
-model context are separate records. Context budgeting, bounded tool projections and compaction are
-subsequent Agent work; this change does not implement a durable execution scheduler or automatic resume.
+model context are separate records. Explicit context checkpoints summarize a recorded prefix and supply future runs with summary plus
+subsequent activity. Changed source evidence invalidates their use. Automatic context budgeting and
+bounded tool projections remain subsequent work; this change does not implement a durable execution scheduler or automatic resume.
 
 The product and default preview reopen the same dialogue and expose no New/Open conversation chooser.
 The old Node backend remains as a compatibility test seam for unmigrated independent callers.
 
 Checks: `npm run test:fast -- app/workflows/chat/data app/workflows/chat/eav-backend.test.ts`.
+
+The Timeline sidebar navigates Exchanges and saved context checkpoints. Creating a checkpoint runs
+a separate tool-free Agent; browsing and jumping do not alter drafts, execution or context selection.

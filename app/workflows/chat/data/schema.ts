@@ -42,7 +42,25 @@ export const Migration = e.entity('chat.migration', {
   key: e.string(),
   sourceSequence: e.number(),
 });
+/** An attributed summary of a fixed, recorded prefix of the dialogue. */
+export const ContextCheckpoint = e.entity('chat.contextCheckpoint', {
+  through: e.ref(Exchange),
+  covered: e.set(e.ref(Exchange)),
+  fingerprint: e.string(),
+  run: e.ref(AgentRun),
+  createdAt: e.datetime(),
+  title: e.string(),
+  summary: e.string(),
+});
+/** The source selection actually supplied when a Chat run was accepted. */
+export const RunContext = e.entity('chat.runContext', {
+  run: e.ref(AgentRun),
+  checkpoint: e.ref(ContextCheckpoint).optional(),
+  exchanges: e.set(e.ref(Exchange)),
+});
 export const chatEntities = {
+  contextCheckpoints: ContextCheckpoint,
+  runContexts: RunContext,
   conversations: Conversation.extend({ exchanges: e.inverse(Exchange, 'conversation') }),
   exchanges: Exchange.extend({ messages: e.inverse(Message, 'exchange') }),
   messages: Message,
@@ -54,3 +72,5 @@ export const chatSchema = e.registry({ ...agentEntities, ...chatEntities });
 export type ConversationRef = EntityRef<typeof Conversation>;
 export type ExchangeRef = EntityRef<typeof Exchange>;
 export type MessageRef = EntityRef<typeof Message>;
+
+export type CheckpointRef = EntityRef<typeof ContextCheckpoint>;

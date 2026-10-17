@@ -407,3 +407,169 @@ test.each(['request', 'response'])(
     backend.dispose();
   },
 );
+
+test('timeline checkpoints retain history while new runs receive summary plus subsequent activity', async () => {
+  const observed: string[] = [];
+  const { db, backend, execution } = await setup(createMemoryStorage(), async (input) => {
+    if (input.instructions.some((item) => item.content.includes('Create a context checkpoint')))
+      return {
+        status: 'complete',
+        text: 'Garden plans\nWe decided to put the bench beside the garden wall. Still need dimensions.',
+      };
+    observed.push(JSON.stringify(input.messages));
+    return { status: 'complete', text: 'Recorded reply' };
+  });
+  await using _db = db;
+  await backend.send({ ...send, text: 'Put the bench beside the garden wall' }).done;
+  const checkpoint = backend.checkpoint!('test');
+  await checkpoint.done;
+  expect(checkpoint.snapshot()).toEqual({ phase: 'complete' });
+  const timeline = await backend.timeline!();
+  expect(timeline).toMatchObject([{ anchor: 0, checkpoints: [{ title: 'Garden plans' }] }]);
+  const calls = execution.mock.calls.length;
+  expect(await backend.timeline!()).toHaveLength(1);
+  expect(await backend.messages('dialogue')).toHaveLength(2);
+  expect(execution.mock.calls).toHaveLength(calls);
+  await backend.send({ ...send, id: 'dimensions', text: 'It should be two metres wide' }).done;
+  await backend.send({ ...send, id: 'continue', text: 'What next?' }).done;
+  expect(observed[1]).toContain('Still need dimensions');
+  expect(observed[1]).not.toContain('Put the bench beside');
+  expect(observed[2]).toContain('Still need dimensions');
+  expect(observed[2]).toContain('It should be two metres wide');
+  const contexts = await db.entities.runContexts.query({
+    select: { checkpoint: true, exchanges: true },
+  });
+  expect(contexts.map((context) => context.exchanges.length).sort()).toEqual([0, 0, 1]);
+  expect(contexts.filter((context) => context.checkpoint)).toHaveLength(2);
+  expect(await backend.messages('dialogue')).toHaveLength(6);
+  expect((await backend.timeline!()).map((entry) => entry.anchor)).toEqual([0, 2, 4]);
+  checkpoint.dispose();
+  backend.dispose();
+});
+
+test('changed source evidence invalidates a checkpoint without removing it from the timeline', async () => {
+  const { db, backend, execution } = await setup(createMemoryStorage(), async (input) => ({
+    status: 'complete',
+    text: input.instructions.some((item) => item.content.includes('Create a context checkpoint'))
+      ? 'Old summary\nThe old evidence.'
+      : 'Original evidence',
+  }));
+  await using _db = db;
+  await backend.send(send).done;
+  const checkpoint = backend.checkpoint!('test');
+  await checkpoint.done;
+  const exchange = await db.entities.exchanges.first({ select: { run: true } });
+  await db.transaction(async (tx) => {
+    await tx.entities.agentRuns.update({
+      ...exchange!.run!,
+      output: { text: 'Corrected evidence' },
+    });
+  });
+  await backend.send({ ...send, id: 'next' }).done;
+  const input = JSON.stringify(execution.mock.calls.at(-1)![0]!.messages);
+  expect(input).toContain('Corrected evidence');
+  expect(input).not.toContain('The old evidence.');
+  expect((await backend.timeline!())[0].checkpoints).toHaveLength(1);
+  checkpoint.dispose();
+  backend.dispose();
+});
+
+test('checkpoint publication retry saves the retained summary without another provider request', async () => {
+  let journal: Journal = { schemas: [], commits: [] };
+  let fail = true;
+  const storage = createPersistentStorage({
+    scope: 'checkpoint-retry',
+    load: async () => journal,
+    append: async (request) => {
+      if (
+        fail &&
+        request.commit.facts.some((fact) => fact.attribute === 'chat.contextCheckpoint/summary')
+      )
+        throw new Error('Checkpoint publication unavailable');
+      journal = { schemas: request.schemas, commits: [...journal.commits, request.commit] };
+    },
+  });
+  const { db, backend, execution } = await setup(storage);
+  await using _db = db;
+  await backend.send(send).done;
+  const checkpoint = backend.checkpoint!('test');
+  await checkpoint.done;
+  expect(checkpoint.snapshot()).toMatchObject({ phase: 'unsaved', retryable: true });
+  expect((await backend.timeline!())[0].checkpoints).toHaveLength(0);
+  fail = false;
+  await checkpoint.retry();
+  expect(checkpoint.snapshot()).toEqual({ phase: 'complete' });
+  expect(execution).toHaveBeenCalledTimes(2);
+  expect((await backend.timeline!())[0].checkpoints).toHaveLength(1);
+  checkpoint.dispose();
+  backend.dispose();
+});
+
+test('the history tool retrieves original passages omitted from a checkpoint and records the read', async () => {
+  let calls = 0;
+  let retrieved: unknown;
+  const { db, backend } = await setup(
+    createMemoryStorage(),
+    async ({ tools, signal, instructions }) => {
+      if (instructions.some((item) => item.content.includes('Create a context checkpoint')))
+        return { status: 'complete', text: 'Short context\nA plan was discussed.' };
+      if (calls++ > 0)
+        retrieved = await Reflect.apply(tools.readConversationHistory!.execute!, undefined, [
+          { from: 0, limit: 1 },
+          { toolCallId: 'retrieve', messages: [], abortSignal: signal },
+        ]);
+      return { status: 'complete', text: 'Done' };
+    },
+  );
+  await using _db = db;
+  await backend.send({ ...send, text: 'The precise measurement is 187 centimetres' }).done;
+  const checkpoint = backend.checkpoint!('test');
+  await checkpoint.done;
+  await backend.send({ ...send, id: 'retrieve', text: 'What was the precise measurement?' }).done;
+  expect(retrieved).toMatchObject({
+    activity: [
+      {
+        position: 0,
+        messages: [{ text: 'The precise measurement is 187 centimetres' }, { role: 'agent' }],
+      },
+    ],
+    next: 1,
+  });
+  expect(
+    await db.entities.toolExecutions.first({ select: { status: true, tool: { name: true } } }),
+  ).toMatchObject({ status: 'complete', tool: { name: 'readConversationHistory' } });
+  expect(calls).toBe(2);
+  checkpoint.dispose();
+  backend.dispose();
+});
+
+test('stopping checkpoint generation retains a stopped run without publishing a partial summary', async () => {
+  let generating = false;
+  const { db, backend } = await setup(createMemoryStorage(), async ({ instructions, signal }) => {
+    if (!instructions.some((item) => item.content.includes('Create a context checkpoint')))
+      return { status: 'complete', text: 'Retained reply' };
+    generating = true;
+    return new Promise((resolve) =>
+      signal.addEventListener(
+        'abort',
+        () => resolve({ status: 'stopped', text: 'Partial summary' }),
+        { once: true },
+      ),
+    );
+  });
+  await using _db = db;
+  await backend.send(send).done;
+  const checkpoint = backend.checkpoint!('test');
+  await vi.waitFor(() => expect(generating).toBe(true));
+  checkpoint.stop();
+  await checkpoint.done;
+  expect(checkpoint.snapshot()).toMatchObject({ phase: 'stopped' });
+  expect((await backend.timeline!())[0].checkpoints).toHaveLength(0);
+  expect(
+    (await db.entities.agentRuns.query({ select: { status: true } }))
+      .map((run) => run.status)
+      .sort(),
+  ).toEqual(['complete', 'stopped']);
+  checkpoint.dispose();
+  backend.dispose();
+});

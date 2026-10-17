@@ -79,6 +79,11 @@ without changing what an earlier run used.
 One ordered piece of information actually supplied to an Agent run, after selection or transformation.
 It retains the supplied content independently of later changes to its source.
 
+**Context checkpoint**:
+An attributed summary of the Conversation through a recorded moment, retaining the knowledge,
+decisions, goals and unresolved work needed to continue. Its source coverage remains identifiable;
+later contributions continue the same Conversation.
+
 **Model step**:
 One observable model request and its response or failure within an Agent run. Its supplied context
 and available response metadata describe that request independently of subsequent activity.

@@ -8,7 +8,7 @@ import { seal } from '../../vault/session/sealed.ts';
 import type { Page } from '@playwright/test';
 
 async function expectChatRail(page: Page) {
-  await expect(page.locator('[data-edge-rail]').getByRole('button')).toHaveCount(1);
+  await expect(page.locator('[data-edge-rail]').getByRole('button')).toHaveCount(2);
   await expect
     .poll(() =>
       page.evaluate(() => {
@@ -311,12 +311,14 @@ test('production saves a new chat to EAV and restores it without reexecuting the
       return;
     }
     calls++;
+    const reply =
+      calls === 2 ? 'Saved context\nThe user asked to remember this in EAV.' : 'Retained EAV reply';
     const item = {
       type: 'message',
       id: 'msg',
       status: 'completed',
       role: 'assistant',
-      content: [{ type: 'output_text', text: 'Retained EAV reply', annotations: [] }],
+      content: [{ type: 'output_text', text: reply, annotations: [] }],
     };
     const response = {
       id: 'response',
@@ -335,7 +337,7 @@ test('production saves a new chat to EAV and restores it without reexecuting the
         item_id: item.id,
         output_index: 0,
         content_index: 0,
-        delta: 'Retained EAV reply',
+        delta: reply,
       },
       { type: 'response.output_item.done', output_index: 0, item },
       { type: 'response.completed', response },
@@ -372,8 +374,22 @@ test('production saves a new chat to EAV and restores it without reexecuting the
   expect(journal).not.toContain('fictional-key');
   expect(fake.filesAt()['Retained.md']).toBe('Untouched');
   expect(calls).toBe(1);
+  const timelineButton = page.getByRole('button', { name: 'Timeline', exact: true });
+  if (await timelineButton.isVisible()) await timelineButton.click();
+  const timeline = page
+    .getByRole('complementary', { name: 'Timeline', exact: true })
+    .or(page.getByRole('dialog', { name: 'Timeline', exact: true }));
+  await timeline.getByRole('button', { name: 'Create checkpoint', exact: true }).click();
+  await expect(timeline.getByRole('status')).toHaveText(
+    'Checkpoint saved for future Agent context.',
+  );
+  await timeline.getByRole('button', { name: 'Saved context', exact: true }).click();
+  await expect(timeline).toContainText('The user asked to remember this in EAV.');
+  expect(calls).toBe(2);
   await page.reload();
   await expect(page.getByText('Retained EAV reply', { exact: true })).toBeVisible();
   await expect(page.locator('[data-message="user"]')).toContainText('Remember this in EAV');
-  expect(calls).toBe(1);
+  if (await timelineButton.isVisible()) await timelineButton.click();
+  await expect(timeline.getByRole('button', { name: 'Saved context', exact: true })).toBeVisible();
+  expect(calls).toBe(2);
 });

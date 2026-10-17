@@ -34,7 +34,7 @@ unknown dates or ties retain that uncertainty. Normal chat readers subsequently 
 Node history remains for exact evidence and other modules' gradual migration.
 
 The production UI and default preview reopen the same dialogue and retire New/Open conversation
-selection. Existing draft, capture, submission and recovery ownership remains in the retained Chat
+selection. A conversation timeline retains navigation within that single dialogue. Existing draft, capture, submission and recovery ownership remains in the retained Chat
 interaction. The legacy Node backend is a compatibility seam for independent callers/tests, not an
 alternative production chat mode. Independent voice entry points remain a subsequent producer migration.
 
@@ -44,6 +44,19 @@ not own dialogue or execution. These writes have separate recovery; there is no 
 across Node and EAV stores. Generic History UI remains a subsequent migration; EAV history is queryable
 through the database interface now.
 
-Context budgeting, bounded tool projections and compaction are explicitly outside this implementation
-step. Future compaction produces attributed Interpretation with retained source coverage, rather than
-rewriting the dialogue or equating all retained history with a provider request.
+Context checkpoints are created explicitly from the recorded prefix of the dialogue by a separate,
+tool-free Agent run. Its accepted inputs retain the exact source projection. A checkpoint records
+its covered Exchanges, source fingerprint, title and summary, and references the generating run.
+The timeline displays both Exchanges and checkpoints; navigation only changes the viewport.
+
+New Chat runs select the furthest applicable checkpoint, append subsequent activity and use current
+instructions. RunContext records the selected checkpoint and tail Exchanges, while ContextInputs
+retain exactly what was supplied. Changed source evidence invalidates checkpoint use, without
+removing the summary or original conversation from history. Failed saves retain a persistence-only
+retry; reading and reloading never resume generation. Checkpoint summaries are background evidence,
+not a replacement for current instructions or proof of successful execution. Incomplete activity
+retains its observed status; any later outcome changes invalidate the older summary's coverage.
+A recorded readConversationHistory tool can retrieve original activity by position without replay.
+
+Automatic checkpoint scheduling, context budgets and bounded tool projections remain subsequent
+work. This implementation exposes explicit checkpoint generation, without a background scheduler.

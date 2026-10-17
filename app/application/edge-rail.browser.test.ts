@@ -92,7 +92,7 @@ test('the freestanding rail follows the keyboard viewport and leaves Chat contro
     ]) {
       await message.focus();
       await setKeyboardViewport(page, height, top);
-      const rail = await expectAnchor(page, 1);
+      const rail = await expectAnchor(page, 2);
       const bounds = (await rail.boundingBox())!;
       const input = (await page.getByRole('group', { name: 'Message text box' }).boundingBox())!;
       expect(input.x + input.width).toBeLessThanOrEqual(bounds.x - 11);
@@ -122,7 +122,7 @@ test('the freestanding rail follows the keyboard viewport and leaves Chat contro
   await navigateToModule(page, 'History');
   await expectAnchor(page, 1);
   await navigateToModule(page, 'Chat');
-  await expectAnchor(page, 1);
+  await expectAnchor(page, 2);
   await expect(message).toHaveValue('Keep this draft beside the rail');
   await page.setViewportSize({ width: 1440, height: 1000 });
   await expect(page.locator('[data-edge-rail]')).toHaveCount(0);

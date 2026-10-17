@@ -16,6 +16,7 @@ export function SupportingPane({
   persistent = false,
   onVisible,
   selection,
+  scrollTarget,
   dock,
   status,
   empty,
@@ -32,6 +33,7 @@ export function SupportingPane({
   onVisible?: (visible: boolean) => void;
   /** A changed selection resets the shared scrolling body. */
   selection?: string | number;
+  scrollTarget?: { index: number; request: number };
   dock?: ReactNode;
   status?: ReactNode;
   empty?: boolean;
@@ -59,7 +61,9 @@ export function SupportingPane({
         children
       ) : (
         <>
-          <AutoScrollArea empty={empty}>{children}</AutoScrollArea>
+          <AutoScrollArea empty={empty} scrollTarget={scrollTarget}>
+            {children}
+          </AutoScrollArea>
           <Dock status={status}>{dock}</Dock>
         </>
       )}
