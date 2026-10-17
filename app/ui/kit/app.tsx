@@ -2,13 +2,15 @@
 // tones (people, places, events), panels with their source, the timeline, the mobile action buttons, and
 // the frames the shell lays screens out in. Like the rest of the kit, none takes a className or style
 // (lib/unstyled.tsx).
-import type { ComponentProps, ReactNode } from 'react';
+import { type ComponentProps, type ReactNode, useId } from 'react';
 import { Icon, type IconName } from './icons.tsx';
 import { type Unstyled, unstyled } from './lib/unstyled.tsx';
 import { cn } from './lib/utils.ts';
 import { AvatarFallback, Avatar as AvatarPart } from './parts/avatar.tsx';
 import { Badge } from './parts/badge.tsx';
-import { buttonVariants } from './parts/button.tsx';
+import { Button, buttonVariants } from './parts/button.tsx';
+import { DropdownMenuItem } from './parts/dropdown-menu.tsx';
+import type { NavigationAction } from './navigation.tsx';
 import { useLayout } from './hooks/use-layout.ts';
 import { useViewport } from './hooks/use-viewport.ts';
 import { Drawer } from './drawer.tsx';
@@ -254,19 +256,61 @@ export function MobileActionButton({
   );
 }
 
-/** The app's mark and name, at the top of the sidebar. */
-export const Brand = ({ status, actions }: { status?: ReactNode; actions?: ReactNode }) => (
-  <div className="flex items-center gap-2.5 px-1.5">
-    <div className="flex size-[30px] items-center justify-center rounded-[9px] bg-primary text-sm font-semibold text-primary-foreground">
-      V
+/** The app's mark and name, with an optional action combining its name and live status. */
+export function Brand({
+  status,
+  statusAction,
+  menu = false,
+  onAction,
+  actions,
+}: {
+  status?: ReactNode;
+  statusAction?: NavigationAction;
+  menu?: boolean;
+  onAction?: () => void;
+  actions?: ReactNode;
+}) {
+  const statusId = useId();
+  const identity = (
+    <span className="flex min-w-0 flex-1 flex-col gap-0.5 text-left">
+      <span className="text-base font-semibold">Vaulter</span>
+      <span id={statusId} className="flex min-w-0 items-center gap-1 text-subtle-foreground">
+        {!!statusAction && <Icon name={statusAction.icon} size="sm" />}
+        <span className="min-w-0 truncate text-xs font-normal [&>*]:truncate">{status}</span>
+      </span>
+    </span>
+  );
+  const Action = menu ? DropdownMenuItem : Button;
+  return (
+    <div className="flex items-center gap-2.5 px-1.5">
+      <div className="flex size-[30px] shrink-0 items-center justify-center rounded-[9px] bg-primary text-sm font-semibold text-primary-foreground">
+        V
+      </div>
+      {statusAction ? (
+        <Action
+          className="kit-brand-status-action"
+          aria-label={statusAction.label}
+          aria-describedby={statusId}
+          aria-expanded={statusAction.expanded}
+          title={statusAction.label}
+          disabled={statusAction.disabled}
+          render={
+            statusAction.href ? <a href={statusAction.href}>{statusAction.label}</a> : undefined
+          }
+          onClick={() => {
+            onAction?.();
+            if (!statusAction.href) statusAction.onSelect?.();
+          }}
+        >
+          {identity}
+        </Action>
+      ) : (
+        identity
+      )}
+      {actions}
     </div>
-    <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-      <div className="text-base font-semibold">Vaulter</div>
-      {status}
-    </div>
-    {actions}
-  </div>
-);
+  );
+}
 
 /** A screen's content, with the design's margins; `aside` is a column beside it on desktop and under it
  * on mobile (a page's fields, its links). */

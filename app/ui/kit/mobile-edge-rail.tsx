@@ -31,6 +31,7 @@ export function MobileEdgeRail({
   destinations,
   actions,
   settings,
+  statusAction,
   pageActions,
   pageSearch,
   pageFilters,
@@ -48,6 +49,7 @@ export function MobileEdgeRail({
   destinations: NavigationDestination[];
   actions: NavigationAction[];
   settings?: NavigationAction;
+  statusAction?: NavigationAction;
   pageActions?: ReactNode;
   pageSearch?: PageSearchControl & { id: string };
   pageFilters?: PageFilterControl;
@@ -375,6 +377,9 @@ export function MobileEdgeRail({
               <div className="kit-edge-menu-brand">
                 <Brand
                   status={status}
+                  statusAction={statusAction}
+                  menu={true}
+                  onAction={() => setMenu(null)}
                   actions={
                     settings && (
                       <DropdownMenuItem

@@ -427,7 +427,7 @@ export function OpenApplication({
             href: historyRoute.href(),
             icon: 'history' as const,
             kind: 'action' as const,
-            placement: 'header' as const,
+            placement: 'status' as const,
             onSelect: () => setCoreAction('history'),
             current: historyOpen,
             expanded: historyOpen,

@@ -33,7 +33,7 @@ export interface NavigationAction {
   current?: boolean;
   expanded?: boolean;
   disabled?: boolean;
-  placement?: 'header' | 'footer';
+  placement?: 'status' | 'header' | 'footer';
 }
 
 export function NavigationSuite({
@@ -67,11 +67,14 @@ export function NavigationSuite({
     ? { id: registeredSearch.id, ...registeredSearch.search }
     : undefined;
   const searchVisible = !!(compact && pageSearch && openSearch === pageSearch.id);
+  const statusAction = actions.find((action) => action.placement === 'status');
   const settings = actions.find((action) => action.icon === 'settings');
   const headerActions = actions.filter(
     (action) => action.placement === 'header' || action === settings,
   );
-  const otherActions = actions.filter((action) => !headerActions.includes(action));
+  const otherActions = actions.filter(
+    (action) => action !== statusAction && !headerActions.includes(action),
+  );
 
   return (
     <PageControlsContext.Provider value={pageControls.context}>
@@ -81,6 +84,7 @@ export function NavigationSuite({
             <SidebarHeader>
               <Brand
                 status={status}
+                statusAction={statusAction}
                 actions={headerActions.map((action) => (
                   <Button
                     key={action.label}
@@ -168,7 +172,8 @@ export function NavigationSuite({
           compact={compact}
           status={status}
           destinations={destinations}
-          actions={actions.filter((action) => action !== settings)}
+          actions={actions.filter((action) => action !== settings && action !== statusAction)}
+          statusAction={statusAction}
           settings={settings}
           pageActions={pageControls.actions}
           pageSearch={pageSearch}

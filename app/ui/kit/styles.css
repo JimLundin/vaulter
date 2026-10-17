@@ -163,7 +163,23 @@ body,
   flex: 1;
   overflow-wrap: anywhere;
 }
+.kit-brand-status-action[data-slot] {
+  min-width: 0;
+  min-height: 44px;
+  height: auto;
+  flex: 1;
+  padding: 2px 4px;
+  margin-inline: -4px;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+}
+.kit-brand-status-action:hover,
+.kit-brand-status-action[data-highlighted] {
+  background: var(--accent);
+}
 .kit-edge-brand-action {
+  flex-shrink: 0;
   width: 44px;
   justify-content: center;
   padding: 0;

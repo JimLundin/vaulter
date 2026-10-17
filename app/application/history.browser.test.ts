@@ -92,11 +92,42 @@ test('History expands a transaction and confirms guarded compensation without re
 
 test('History opens from core actions, search, shortcut and its retained direct URL', {
   tag: '@phone',
-}, async ({ page }) => {
+}, async ({ page, isMobile }) => {
   await page.goto('/preview/');
   const history = page.getByRole('dialog', { name: 'History', exact: true });
   const original = page.url();
-  await openAppAction(page, 'History');
+  if (isMobile) await page.getByRole('button', { name: 'Modules', exact: true }).click();
+  const navigation = page.locator('[data-app-navigation]');
+  const historyAction = navigation.getByRole(isMobile ? 'menuitem' : 'button', {
+    name: 'History',
+    exact: true,
+  });
+  await expect(historyAction).toHaveCount(1);
+  const syncStatus = historyAction.getByRole('status');
+  await expect(syncStatus).toHaveText(/^Synced \d{2}:\d{2}$/);
+  await expect(historyAction).toHaveAccessibleDescription(/^Synced \d{2}:\d{2}$/);
+  // The complete timestamp fits on one line beside the icon, without clipping.
+  expect(
+    await syncStatus.evaluate((element) => {
+      const range = document.createRange();
+      range.selectNodeContents(element);
+      return (
+        range.getBoundingClientRect().height <=
+          Number.parseFloat(getComputedStyle(element).lineHeight) &&
+        element.scrollWidth <= element.clientWidth
+      );
+    }),
+  ).toBe(true);
+  const actionBox = (await historyAction.boundingBox())!;
+  const settingsBox = (await navigation
+    .getByRole(isMobile ? 'menuitem' : 'button', {
+      name: 'Settings',
+      exact: true,
+    })
+    .boundingBox())!;
+  expect(actionBox.height).toBeGreaterThanOrEqual(44);
+  expect(actionBox.x + actionBox.width).toBeLessThanOrEqual(settingsBox.x);
+  await syncStatus.click();
   await expect(history).toBeVisible();
   await expect(page.getByRole('button', { name: 'Close history', exact: true })).toBeFocused();
   await page.keyboard.press('Escape');

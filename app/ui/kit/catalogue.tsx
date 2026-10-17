@@ -1184,7 +1184,7 @@ function Navigation() {
         {
           label: 'History',
           icon: 'history',
-          placement: 'header',
+          placement: 'status',
           expanded: history,
           onSelect: () => setHistory(true),
         },

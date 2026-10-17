@@ -659,6 +659,12 @@ measurement, leave/scroll/hash dismissal and bounded popup position. The resolve
 and supplies retained title/excerpt without exposing a store or workflow to the kit. Independent
 bounded specimens obey their own pointer policy and ignore neighboring links.
 
+`NavigationAction.placement="status"` combines one core action with the brand's live status.
+The name and status form a single control, with the action's icon beside the status and its label
+as the accessible name. The status remains available as the control's description. History uses
+this placement on both the sidebar and compact menu; the timestamp still means last sync.
+The shared sidebar is 18rem wide, and the brand mark and Settings keep their full size.
+
 `NavigationAction.placement="header"` places a prominent core utility beside the brand on desktop;
 it remains an action in the compact Tools menu. Settings retains its existing brand placement.
 The Navigation catalogue demonstrates History as a drawer action alongside workflow destinations.

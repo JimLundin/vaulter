@@ -9,7 +9,7 @@ import { buttonVariants } from './button.tsx';
 import { Separator } from './separator.tsx';
 import { Skeleton } from './skeleton.tsx';
 
-const SIDEBAR_WIDTH = '16rem';
+const SIDEBAR_WIDTH = '18rem';
 
 /** Shared workspace wrapper and width token; compact menu state belongs to NavigationSuite. */
 function SidebarProvider({ className, style, children, ...props }: React.ComponentProps<'div'>) {

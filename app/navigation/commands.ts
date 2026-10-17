@@ -19,7 +19,7 @@ export interface Navigation {
   icon?: IconName;
   kind?: 'destination' | 'action';
   /** Prominent utilities share the brand's action area. */
-  placement?: 'header' | 'footer';
+  placement?: 'status' | 'header' | 'footer';
   /** An action can open a menu over the current destination instead of following its href. */
   onSelect?: () => void;
   current?: boolean;
