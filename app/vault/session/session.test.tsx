@@ -3,8 +3,8 @@ import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, expect, test, vi } from 'vitest';
 import { useSession, type Session } from './session.ts';
-import { memoryNodeBackend } from '../nodes/memory.ts';
-import type { NodeBackend } from '../nodes/store.ts';
+import { memoryNodeBackend } from '@/vault/nodes/memory.ts';
+import type { NodeBackend } from '@/vault/nodes/store.ts';
 import {
   rememberedCredentials,
   saveSecretOverrides,
@@ -13,10 +13,10 @@ import {
   type Credentials,
 } from './unlock.ts';
 import type { Secrets } from './sealed.ts';
-import { create, seed } from '../nodes/fixtures.test-support.ts';
-import { nodeOperations } from '../nodes/operations.ts';
-import { PreparationReplaced, WriteClosed } from '../transactions/lifetime.ts';
-import { createPersistentStorage, e, openDatabase } from '../eav/index.ts';
+import { create, seed } from '@/vault/nodes/fixtures.test-support.ts';
+import { nodeOperations } from '@/vault/nodes/operations.ts';
+import { PreparationReplaced, WriteClosed } from '@/vault/transactions/lifetime.ts';
+import { createPersistentStorage, e, openDatabase } from '@/vault/eav/index.ts';
 import type { OpenEav } from './adapters.ts';
 
 vi.mock('./unlock.ts', async (importOriginal) => ({

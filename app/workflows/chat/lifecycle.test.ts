@@ -1,13 +1,13 @@
 import {
   transactionOptionsFixture,
   transactionFixture,
-} from '../../vault/transactions/fixtures.test-support.ts';
+} from '@/vault/transactions/fixtures.test-support.ts';
 import { expect, test, vi } from 'vitest';
-import { memoryNodeBackend } from '../../vault/nodes/memory.ts';
-import { seed } from '../../vault/nodes/fixtures.test-support.ts';
+import { memoryNodeBackend } from '@/vault/nodes/memory.ts';
+import { seed } from '@/vault/nodes/fixtures.test-support.ts';
 import { createNodeConversation } from './node-conversation.ts';
-import { createTranscription } from '../../transcription.ts';
-import type { TranscriptionEvents } from '../../transcription.ts';
+import { createTranscription } from '@/transcription.ts';
+import type { TranscriptionEvents } from '@/transcription.ts';
 
 async function fixture() {
   const nodes = memoryNodeBackend();
@@ -375,7 +375,7 @@ test('manual replacement publishes its newer draft before recording cancellation
 
 test('store readiness in one session rebinds saved records and invalidates old selection reads', async () => {
   const { nodes, options } = await fixture();
-  const { create, request } = await import('../../vault/nodes/fixtures.test-support.ts');
+  const { create, request } = await import('@/vault/nodes/fixtures.test-support.ts');
   const session = {};
   let read!: () => void;
   let release!: () => void;

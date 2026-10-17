@@ -1,7 +1,7 @@
 // Caller-owned identities. These defaults are configuration for this personal Vault, not authentication.
-import type { TransactionStore, TransactionRequest } from '../vault/transactions/store.ts';
-import type { NodeSnapshot } from '../vault/nodes/store.ts';
-import { nodeOperations } from '../vault/nodes/operations.ts';
+import type { TransactionStore, TransactionRequest } from '@/vault/transactions/store.ts';
+import type { NodeSnapshot } from '@/vault/nodes/store.ts';
+import { nodeOperations } from '@/vault/nodes/operations.ts';
 
 export interface ApplicationIdentities {
   readonly user: string;

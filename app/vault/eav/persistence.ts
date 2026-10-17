@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { serial } from '../../runtime/async.ts';
+import { serial } from '@/runtime/async.ts';
 import { encodeJson } from './json.ts';
 import { checkCompatibility, type Schema, type AttributeSchema } from './schema.ts';
 import {
@@ -60,6 +60,15 @@ const atom = z.union([
       }
     }),
   }),
+  z.strictObject({
+    history: z.string().refine((value) => {
+      try {
+        return encodeJson(JSON.parse(value)) === value;
+      } catch {
+        return false;
+      }
+    }),
+  }),
 ]);
 const attribution = z.strictObject({ id: z.string().min(1), type: z.string().min(1) }).nullable();
 const commitSchema = z.strictObject({
@@ -91,6 +100,7 @@ const attribute = z.strictObject({
     'ref',
     'set',
     'inverse',
+    'historical',
   ]),
   optional: z.boolean(),
   values: z.array(z.string()).optional(),
@@ -143,6 +153,28 @@ export function parseJournal(value: unknown): Journal {
       if (recordType(record) !== recordType(next.get(entity)!))
         throw new Error('Entity type changed');
     }
+    for (const fact of commit.facts) {
+      if (fact.added && typeof fact.value === 'object' && 'history' in fact.value) {
+        const address = JSON.parse(fact.value.history);
+        const recorded = journal.commits
+          .slice(0, index)
+          .find((item) => item.id === address.transaction);
+        if (
+          address.format !== 'vaulter-eav-snapshot-v1' ||
+          typeof address.scope !== 'string' ||
+          !address.scope ||
+          address.journal !== journal.commits[0]?.id ||
+          !recorded
+        )
+          throw new Error('Invalid historical evidence reference');
+        let historical: Snapshot = new Map();
+        for (const item of journal.commits.slice(0, recorded.sequence))
+          historical = applyFacts(historical, item.facts);
+        const target = historical.get(address.entity);
+        if (!isLive(target) || recordType(target) !== address.type)
+          throw new Error('Unavailable historical evidence reference');
+      }
+    }
     validateSnapshot(next, journal.schemas[commit.schemaRevision - 1]!.schema);
     for (const actor of [commit.author, commit.origin])
       if (actor && (!isLive(next.get(actor.id)) || recordType(next.get(actor.id)!) !== actor.type))
@@ -173,9 +205,17 @@ function validateSchema(schema: Schema) {
       if (
         !(
           member &&
-          ['string', 'number', 'boolean', 'datetime', 'json', 'enum', 'ref', 'inverse'].includes(
-            member.kind,
-          )
+          [
+            'string',
+            'number',
+            'boolean',
+            'datetime',
+            'json',
+            'enum',
+            'ref',
+            'inverse',
+            'historical',
+          ].includes(member.kind)
         )
       )
         throw new Error('Invalid EAV attribute kind');
@@ -199,6 +239,7 @@ function validateSchema(schema: Schema) {
 }
 
 function validAtom(value: Atom, field: Omit<AttributeSchema, 'key' | 'name'>): boolean {
+  if (field.kind === 'historical') return typeof value === 'object' && 'history' in value;
   if (field.kind === 'json') return typeof value === 'object' && 'json' in value;
   if (field.kind === 'ref')
     return typeof value === 'object' && 'ref' in value && value.type === field.target;

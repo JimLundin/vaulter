@@ -1,12 +1,12 @@
 import { tool } from 'ai';
 import { z } from 'zod';
-import type { Database } from '../../vault/eav/index.ts';
+import type { DomainDatabase } from '@/vault/eav/index.ts';
 import type { chatSchema } from './data/schema.ts';
 import { projectedExchange } from './data/projection.ts';
 
 export const historyCapability = { name: 'readConversationHistory', version: '1' } as const;
 /** Original dialogue is retrievable even when the effective input starts from a checkpoint. */
-export function historyTool(db: Database<typeof chatSchema>) {
+export function historyTool(db: DomainDatabase<typeof chatSchema>) {
   return tool({
     description:
       'Read original conversation activity by position. Use this to verify a context checkpoint or recover omitted details. Start at position 0 and follow next to page forward. Reading never resumes recorded work.',

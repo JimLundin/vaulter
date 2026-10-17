@@ -1,8 +1,8 @@
 import { expect, test } from 'vitest';
-import { create, request } from '../../vault/nodes/fixtures.test-support.ts';
-import { accept, snapshotOf } from '../../vault/nodes/history.ts';
-import { digest } from '../../vault/nodes/json.ts';
-import type { NodeRecord } from '../../vault/nodes/validation.ts';
+import { create, request } from '@/vault/nodes/fixtures.test-support.ts';
+import { accept, snapshotOf } from '@/vault/nodes/history.ts';
+import { digest } from '@/vault/nodes/json.ts';
+import type { NodeRecord } from '@/vault/nodes/validation.ts';
 import {
   auditEvidence as audit,
   validateEvidence as validate,

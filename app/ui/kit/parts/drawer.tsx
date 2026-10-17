@@ -7,8 +7,8 @@ import {
   PresentationSurface,
   usePresentationPolicy,
   usePresentationSurface,
-} from '../presentation-policy.tsx';
-import { cn } from '../lib/utils.ts';
+} from '@/ui/kit/presentation-policy.tsx';
+import { cn } from '@/ui/kit/lib/utils.ts';
 
 function DrawerRoot({ modal = true, onOpenChange, ...props }: DrawerPrimitive.Root.Props) {
   const surface = usePresentationSurface(props.open ?? false);

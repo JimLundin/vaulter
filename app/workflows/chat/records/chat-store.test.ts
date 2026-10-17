@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
-import { memoryNodeBackend } from '../../../vault/nodes/memory.ts';
-import { create, request, seed, revise } from '../../../vault/nodes/fixtures.test-support.ts';
+import { memoryNodeBackend } from '@/vault/nodes/memory.ts';
+import { create, request, seed, revise } from '@/vault/nodes/fixtures.test-support.ts';
 import {
   parseConversation,
   parseExchange,

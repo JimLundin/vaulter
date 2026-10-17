@@ -293,3 +293,23 @@ test('selected inline evidence contributes only its span to paragraph coverage a
     needsReview: true,
   });
 });
+
+test('navigation-only reviews do not certify prose support', async () => {
+  const { db, actions, assertion, source } = await fixture();
+  await using owned = db;
+  void owned;
+  await actions.review({
+    key: 'navigation',
+    assertion: { target: assertion, format: 'wiki-text-utf16-v1', start: 0, end: 19 },
+    passages: [{ target: source, format: 'source-text-utf16-v1', start: 0, end: 19 }],
+    result: 'navigation',
+    rationale: 'Related material for exploration only.',
+  });
+  const block = (await readEavWiki(db))[0]!.blocks[0]!;
+  expect(block.support).toMatchObject({
+    supported: false,
+    partlySupported: false,
+    needsReference: true,
+  });
+  expect(block.evidence).toHaveLength(1);
+});

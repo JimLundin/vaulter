@@ -104,7 +104,7 @@ export async function readEavWiki(
         needsReview = true;
         continue;
       }
-      if (review.result === 'supported' || review.result === 'navigation')
+      if (review.result === 'supported')
         spans.push({ start: start + fragment.offset, end: end + fragment.offset });
       if (review.result === 'contradicted') disputed = true;
       if (review.result === 'deferred') needsReview = true;

@@ -1,6 +1,6 @@
-import { transactionFixture } from '../vault/transactions/fixtures.test-support.ts';
+import { transactionFixture } from '@/vault/transactions/fixtures.test-support.ts';
 import { expect, test } from 'vitest';
-import { memoryNodeBackend } from '../vault/nodes/memory.ts';
+import { memoryNodeBackend } from '@/vault/nodes/memory.ts';
 import { createApplicationIdentities } from './identities.ts';
 
 test('application identity setup is stable across callers and preserves migrated Agent configuration', async () => {

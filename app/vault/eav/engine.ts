@@ -1,4 +1,5 @@
 import { refreshStorage, persist, SaveError, storageClosed } from './persistence.ts';
+import { encodeJson } from './json.ts';
 import { captureReference, resolveReference } from './references.ts';
 import {
   e,
@@ -233,7 +234,11 @@ export async function openDatabase<const R extends Registry>(
           throw new Error(`Expected set array: ${name}`);
         const incoming: unknown[] = field.kind === 'set' ? (value as unknown[]) : [value];
         const atoms = incoming.map((item) =>
-          member.kind === 'ref' ? reference(view(), member, item) : scalar(member, item),
+          member.kind === 'historical'
+            ? (resolveReference(storage, item), { history: encodeJson(item) })
+            : member.kind === 'ref'
+              ? reference(view(), member, item)
+              : scalar(member, item),
         );
         const distinct = [...new Map(atoms.map((atom) => [atomKey(atom), atom])).values()];
         record.set(

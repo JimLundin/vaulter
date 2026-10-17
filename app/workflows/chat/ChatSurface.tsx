@@ -12,7 +12,7 @@ import {
   SplitView,
   Text,
   PageHeader,
-} from '../../ui/kit/index.ts';
+} from '@/ui/kit/index.ts';
 
 export type ChatPresentation =
   | { page: true }

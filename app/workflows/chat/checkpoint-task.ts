@@ -1,7 +1,7 @@
-import { SaveError, ConflictError, type Database } from '../../vault/eav/index.ts';
-import { canonical } from '../../vault/nodes/json.ts';
-import { startAgentRun } from '../../agent/data/operations.ts';
-import { executeEavRun } from '../../agent/eav/runtime.ts';
+import { SaveError, ConflictError, type DomainDatabase } from '@/vault/eav/index.ts';
+import { canonical } from '@/vault/nodes/json.ts';
+import { startAgentRun } from '@/agent/data/operations.ts';
+import { executeEavRun } from '@/agent/eav/runtime.ts';
 import type { chatSchema } from './data/schema.ts';
 import { dialogue, coverageFingerprint } from './data/timeline.ts';
 import type { NodeChatOptions } from './node-backend.ts';
@@ -30,7 +30,7 @@ const errorMessage = (error: unknown) => (error instanceof Error ? error.message
 /** A separate, tool-free Agent run. Save retries never repeat its provider request. */
 export function createCheckpointTask(
   options: NodeChatOptions & {
-    database: Promise<Database<typeof chatSchema>>;
+    database: Promise<DomainDatabase<typeof chatSchema>>;
     modelName: string;
   },
 ): CheckpointTask {

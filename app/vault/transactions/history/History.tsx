@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 // Core transaction utility; Application supplies the current session and compensation policy.
-import { Drawer, Surface, Text } from '../../../ui/kit/index.ts';
+import { Drawer, Surface, Text } from '@/ui/kit/index.ts';
 import { HistoryList } from './NodeHistory.tsx';
 import type { HistorySource } from './entries.ts';
 

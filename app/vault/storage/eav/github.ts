@@ -1,14 +1,14 @@
 import { Dexie } from 'dexie';
-import { serial } from '../../../runtime/async.ts';
+import { serial } from '@/runtime/async.ts';
 import {
   ConflictError,
   parseJournal,
   type StorageAdapter,
   type Journal,
   type AppendRequest,
-} from '../../eav/index.ts';
-import { github, API, REPO, NotFastForward, type Repo } from '../github-client/api.ts';
-import { blobSha } from '../blob-sha.ts';
+} from '@/vault/eav/index.ts';
+import { github, API, REPO, NotFastForward, type Repo } from '@/vault/storage/github-client/api.ts';
+import { blobSha } from '@/vault/storage/blob-sha.ts';
 
 const namespace = '.vaulter/eav/transactions/';
 const pathOf = (id: string) => `${namespace}${encodeURIComponent(id)}.json`;

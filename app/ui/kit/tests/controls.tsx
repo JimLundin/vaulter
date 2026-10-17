@@ -1,7 +1,7 @@
 // Browser fixture exercises public control props and native form behavior.
 import { useId, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import '../styles.css';
+import '@/ui/kit/styles.css';
 import {
   Button,
   Checkbox,
@@ -21,7 +21,7 @@ import {
   Text,
   ToggleGroup,
   ToggleGroupItem,
-} from '../index.ts';
+} from '@/ui/kit/index.ts';
 
 function ControlsFixture() {
   const rememberId = useId();

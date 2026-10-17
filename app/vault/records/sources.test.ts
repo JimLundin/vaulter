@@ -1,7 +1,7 @@
 import { expect, test } from 'vitest';
-import { memoryNodeBackend } from '../nodes/memory.ts';
-import { create, request, revise } from '../nodes/fixtures.test-support.ts';
-import { describeSource } from '../sources.ts';
+import { memoryNodeBackend } from '@/vault/nodes/memory.ts';
+import { create, request, revise } from '@/vault/nodes/fixtures.test-support.ts';
+import { describeSource } from '@/vault/sources.ts';
 import { retainedRecordSources } from './sources.ts';
 
 test('retained Resource reading preserves child blocks and historical attribution for its passages', async () => {
@@ -38,7 +38,7 @@ test('retained Resource reading preserves child blocks and historical attributio
     ]),
   );
   const current = await nodes.snapshot();
-  const textOf = (node: import('../nodes/model.ts').NodeVersion) => {
+  const textOf = (node: import('@/vault/nodes/model.ts').NodeVersion) => {
     if (node.key.node === 'first') return 'First retained block.';
     if (node.key.node === 'second') return 'Second retained block.';
     return retainedRecordSources.text(node, { view: original, textOf }) ?? '';

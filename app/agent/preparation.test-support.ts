@@ -1,9 +1,9 @@
-import type { NodeStore } from '../vault/nodes/store.ts';
-import type { TransactionStore } from '../vault/transactions/store.ts';
+import type { NodeStore } from '@/vault/nodes/store.ts';
+import type { TransactionStore } from '@/vault/transactions/store.ts';
 import {
   currentTransactionsFixture,
   writeLifetimeFixture,
-} from '../vault/transactions/fixtures.test-support.ts';
+} from '@/vault/transactions/fixtures.test-support.ts';
 import {
   calculateAgentRun,
   prepareAgentRun,

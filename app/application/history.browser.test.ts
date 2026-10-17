@@ -1,4 +1,4 @@
-import { openAppAction, expectAppActionFocus } from '../ui/kit/navigation.browser.test-support.ts';
+import { openAppAction, expectAppActionFocus } from '@/ui/kit/navigation.browser.test-support.ts';
 import { expect, test } from '@playwright/test';
 
 test('shared expandable rows retain independent disclosure and action behavior in bounded samples', async ({

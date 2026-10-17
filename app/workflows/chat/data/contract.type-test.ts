@@ -1,4 +1,4 @@
-import type { Database, EntityRef } from '../../../vault/eav/index.ts';
+import type { Database, EntityRef } from '@/vault/eav/index.ts';
 import type { chatSchema, Conversation, Message } from './schema.ts';
 
 /** Compile-only contract: domain references are objects and projections keep their identity. */

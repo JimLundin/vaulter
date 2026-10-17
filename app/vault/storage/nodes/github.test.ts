@@ -2,12 +2,12 @@ import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { Dexie } from 'dexie';
 import { githubNodeBackend, NODE_NAMESPACE } from './github.ts';
-import { fakeGitHub } from '../github-client/fake-github.ts';
-import { serial } from '../../../runtime/async.ts';
-import { seed, request, create, revise } from '../../nodes/fixtures.test-support.ts';
-import type { NodeBackend } from '../../nodes/store.ts';
-import { transactionHistory } from '../../transactions/history/nodes.ts';
-import { transactionFixture } from '../../transactions/fixtures.test-support.ts';
+import { fakeGitHub } from '@/vault/storage/github-client/fake-github.ts';
+import { serial } from '@/runtime/async.ts';
+import { seed, request, create, revise } from '@/vault/nodes/fixtures.test-support.ts';
+import type { NodeBackend } from '@/vault/nodes/store.ts';
+import { transactionHistory } from '@/vault/transactions/history/nodes.ts';
+import { transactionFixture } from '@/vault/transactions/fixtures.test-support.ts';
 
 let stores: NodeBackend[] = [];
 beforeEach(() => {

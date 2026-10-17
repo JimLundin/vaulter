@@ -1,10 +1,10 @@
 // biome-ignore lint/correctness/noUnresolvedImports: React 19 exposes Suspense; TypeScript and the build verify it
 import { lazy, Suspense } from 'react';
-import { Activity, Text } from '../../ui/kit/index.ts';
+import { Activity, Text } from '@/ui/kit/index.ts';
 import type { NodeConversation as Conversation } from './node-conversation.ts';
 import { useNodeChat as useChat } from './use-node-conversation.ts';
 import type { Prompt } from './Chat.tsx';
-import type { ToolPresentationAdapter } from '../../agent/tool-presentation.tsx';
+import type { ToolPresentationAdapter } from '@/agent/tool-presentation.tsx';
 export {
   useNodeConversation as useConversation,
   useNodeChat as useChat,

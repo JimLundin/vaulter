@@ -6,13 +6,13 @@ import {
   createPersistentStorage,
   type Journal,
   type AppendRequest,
-} from '../../vault/eav/index.ts';
-import { memoryNodeBackend } from '../../vault/nodes/memory.ts';
-import { seed, create, request } from '../../vault/nodes/fixtures.test-support.ts';
-import { transactionFixture } from '../../vault/transactions/fixtures.test-support.ts';
+} from '@/vault/eav/index.ts';
+import { memoryNodeBackend } from '@/vault/nodes/memory.ts';
+import { seed, create, request } from '@/vault/nodes/fixtures.test-support.ts';
+import { transactionFixture } from '@/vault/transactions/fixtures.test-support.ts';
 import { createEavChatBackend } from './eav-backend.ts';
 import { chatSchema } from './data/schema.ts';
-import type { AgentExecutionProvider } from '../../agent/providers.ts';
+import type { AgentExecutionProvider } from '@/agent/providers.ts';
 
 async function setup(storage = createMemoryStorage(), execute?: AgentExecutionProvider) {
   const raw = memoryNodeBackend();

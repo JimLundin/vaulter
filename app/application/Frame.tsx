@@ -1,10 +1,10 @@
 // The product's frame: its navigation, given to the kit's NavigationSuite, which shows it as a sidebar on
 // desktop and as a freestanding edge rail on a phone.
 import type { ReactNode } from 'react';
-import { NavigationSuite, Toaster, TooltipProvider } from '../ui/kit/index.ts';
-import type { NavigationAction } from '../ui/kit/index.ts';
-import type { Navigation } from '../navigation/commands.ts';
-import { link, useRoute } from '../navigation/routing.ts';
+import { NavigationSuite, Toaster, TooltipProvider } from '@/ui/kit/index.ts';
+import type { NavigationAction } from '@/ui/kit/index.ts';
+import type { Navigation } from '@/navigation/commands.ts';
+import { link, useRoute } from '@/navigation/routing.ts';
 
 export function Frame({
   navigation,

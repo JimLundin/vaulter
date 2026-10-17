@@ -1,7 +1,9 @@
 import * as React from 'react';
 import { cva, type VariantProps } from 'class-variance-authority';
-import { cn } from '../lib/utils.ts';
+import { cn } from '@/ui/kit/lib/utils.ts';
 import { Button as ButtonPrimitive } from '@base-ui/react/button';
+import { useLayout } from '../hooks/use-layout.ts';
+import { Icon, type IconName } from '../icons.tsx';
 
 // Responsive sizes change hit targets immediately; only visual feedback should animate.
 const buttonVariants = cva(
@@ -39,25 +41,34 @@ function Button({
   size = 'standard',
   iconOnly = false,
   pending = false,
+  compactIcon,
+  children,
   ...props
 }: React.ComponentProps<typeof ButtonPrimitive> &
   VariantProps<typeof buttonVariants> & {
     pending?: boolean;
+    /** Replace the label with this icon on compact layouts; supply an accessible label. */
+    compactIcon?: IconName;
   }) {
+  const compact = useLayout() === 'compact';
+  const showCompactIcon = compact && !!compactIcon;
+  const square = iconOnly || showCompactIcon;
   return (
     <ButtonPrimitive
       data-slot="button"
       data-variant={variant}
       data-size={variant === 'inline' ? undefined : size}
-      data-icon-only={iconOnly || undefined}
+      data-icon-only={square || undefined}
       className={cn(
         variant === 'inline'
           ? cn('kit-inline-action', className)
-          : buttonVariants({ variant, size, iconOnly, className }),
+          : buttonVariants({ variant, size, iconOnly: square, className }),
         pending && 'animate-pulse',
       )}
       {...props}
-    />
+    >
+      {showCompactIcon ? <Icon name={compactIcon!} /> : children}
+    </ButtonPrimitive>
   );
 }
 

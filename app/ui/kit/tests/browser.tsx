@@ -1,7 +1,7 @@
 // Browser fixture exercising the public kit, without a vault or workflow dependency.
 import { useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import '../styles.css';
+import '@/ui/kit/styles.css';
 import {
   Button,
   Bars,
@@ -44,7 +44,7 @@ import {
   SplitView,
   ToggleGroup,
   ToggleGroupItem,
-} from '../index.ts';
+} from '@/ui/kit/index.ts';
 
 function TallPassageFixture() {
   const prefix = 'Context before the marked selection. '.repeat(40);

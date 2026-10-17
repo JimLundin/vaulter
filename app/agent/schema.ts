@@ -1,13 +1,13 @@
 import { z } from 'zod';
-import { canonical, frozen } from '../vault/nodes/json.ts';
-import { jsonObject } from '../vault/nodes/json-schema.ts';
+import { canonical, frozen } from '@/vault/nodes/json.ts';
+import { jsonObject } from '@/vault/nodes/json-schema.ts';
 import type { AgentRunData, ContextInputData, ToolExecutionData } from './records.ts';
 const text = z.string().min(1);
 const instant = z.iso.datetime({ offset: true });
 const nonnegative = z.number().finite().nonnegative();
 const count = nonnegative.int();
 const json = jsonObject;
-const jsonValue = z.custom<import('../vault/nodes/model.ts').JsonValue>((value) => {
+const jsonValue = z.custom<import('@/vault/nodes/model.ts').JsonValue>((value) => {
   try {
     canonical(value);
     return true;
@@ -101,8 +101,8 @@ export const agentSettingsSchema = z.strictObject({
   seed: z.number().int().optional(),
   maxRetries: z.number().int().nonnegative().optional(),
 });
-export function parseAgentSettings(value: unknown): import('../vault/nodes/model.ts').JsonObject {
+export function parseAgentSettings(value: unknown): import('@/vault/nodes/model.ts').JsonObject {
   canonical(value);
   agentSettingsSchema.parse(value);
-  return frozen(structuredClone(value)) as import('../vault/nodes/model.ts').JsonObject;
+  return frozen(structuredClone(value)) as import('@/vault/nodes/model.ts').JsonObject;
 }

@@ -34,6 +34,8 @@ export type PageFilterControl = PageFilterChoices &
 
 export interface PageControlsProps {
   actions?: ReactNode;
+  /** Horizontal navigation shown in a compact bottom rail, separate from side actions. */
+  bottomActions?: ReactNode;
   search?: PageSearchControl;
   filters?: PageFilterControl;
   /** Split declarations from a richer expanded form, without duplicating compact controls. */
@@ -66,21 +68,28 @@ export function usePageControls(enabled: boolean) {
     actions: entries.some((entry) => entry.actions)
       ? entries.map((entry) => <React.Fragment key={entry.id}>{entry.actions}</React.Fragment>)
       : undefined,
+    bottomActions: entries.some((entry) => entry.bottomActions)
+      ? entries.map((entry) => (
+          <React.Fragment key={entry.id}>{entry.bottomActions}</React.Fragment>
+        ))
+      : undefined,
     search: entries.find((entry) => entry.search),
     filters: entries.find((entry) => entry.filters)?.filters,
   };
 }
 
-function usePageControl({ actions, search, filters }: PageControl, register = true) {
+function usePageControl({ actions, bottomActions, search, filters }: PageControl, register = true) {
   const context = useContext(PageControlsContext);
   const id = useId();
   useLayoutEffect(() => {
     if (!context?.enabled) return;
     context.register(
       id,
-      register && (actions || search || filters) ? { actions, search, filters } : null,
+      register && (actions || bottomActions || search || filters)
+        ? { actions, bottomActions, search, filters }
+        : null,
     );
-  }, [context, id, actions, search, filters, register]);
+  }, [context, id, actions, bottomActions, search, filters, register]);
   useLayoutEffect(() => () => context?.register(id, null), [context, id]);
   return !!context?.enabled;
 }
@@ -88,12 +97,16 @@ function usePageControl({ actions, search, filters }: PageControl, register = tr
 /** Page controls render inline on desktop and in the app-owned rail on compact layouts. */
 export function PageControls({
   actions,
+  bottomActions,
   search,
   filters,
   children,
   placement = 'responsive',
 }: PageControlsProps) {
-  const inRail = usePageControl({ actions, search, filters }, placement !== 'expanded');
+  const inRail = usePageControl(
+    { actions, bottomActions, search, filters },
+    placement !== 'expanded',
+  );
   if (inRail || placement === 'rail') return null;
   return (
     <>

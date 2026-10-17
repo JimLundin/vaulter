@@ -1,16 +1,16 @@
 // @vitest-environment happy-dom
-import { transactionFixture } from '../vault/transactions/fixtures.test-support.ts';
+import { transactionFixture } from '@/vault/transactions/fixtures.test-support.ts';
 // biome-ignore lint/correctness/noUnresolvedImports: React 19 exposes StrictMode; TypeScript and runtime tests verify it.
 import { act, StrictMode, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { MockLanguageModelV4, convertArrayToReadableStream } from 'ai/test';
 import { OpenApplication } from './index.tsx';
-import { Surface } from '../ui/kit/index.ts';
-import { memoryNodeBackend } from '../vault/nodes/memory.ts';
-import type { NodeBackend } from '../vault/nodes/store.ts';
-import type { Secrets } from '../vault/session/sealed.ts';
-import { media } from '../agent/openai/media.test-support.ts';
+import { Surface } from '@/ui/kit/index.ts';
+import { memoryNodeBackend } from '@/vault/nodes/memory.ts';
+import type { NodeBackend } from '@/vault/nodes/store.ts';
+import type { Secrets } from '@/vault/session/sealed.ts';
+import { media } from '@/agent/openai/media.test-support.ts';
 
 type StreamResult = Awaited<ReturnType<MockLanguageModelV4['doStream']>>;
 const cleanups: (() => Promise<void>)[] = [];

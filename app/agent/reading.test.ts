@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
-import { memoryNodeBackend } from '../vault/nodes/memory.ts';
-import { create, request, revise } from '../vault/nodes/fixtures.test-support.ts';
+import { memoryNodeBackend } from '@/vault/nodes/memory.ts';
+import { create, request, revise } from '@/vault/nodes/fixtures.test-support.ts';
 import { agentRunsIn, readAgentRunAt } from './reading.ts';
 
 test('historical activity does not decode unrelated effective context or rewrite recorded run status', async () => {

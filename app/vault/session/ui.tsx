@@ -23,8 +23,8 @@ import {
   SettingField,
   Stack,
   Text,
-} from '../../ui/kit/index.ts';
-import type { SettingDefinition } from '../../settings/store.ts';
+} from '@/ui/kit/index.ts';
+import type { SettingDefinition } from '@/settings/store.ts';
 import type { Credential } from './credentials.ts';
 import type { Session, Status } from './session.ts';
 import { REMEMBER_DAYS } from './unlock.ts';

@@ -1,7 +1,7 @@
-import { transactionFixture } from '../vault/transactions/fixtures.test-support.ts';
+import { transactionFixture } from '@/vault/transactions/fixtures.test-support.ts';
 import { expect, test, vi } from 'vitest';
-import { memoryNodeBackend } from '../vault/nodes/memory.ts';
-import { create, request } from '../vault/nodes/fixtures.test-support.ts';
+import { memoryNodeBackend } from '@/vault/nodes/memory.ts';
+import { create, request } from '@/vault/nodes/fixtures.test-support.ts';
 import { paragraphTools } from './tool-fixture.test-support.ts';
 import { calculateAgentRun, readAgentRun } from './store.ts';
 import { prepareAgentRunFixture as prepareAgentRun } from './preparation.test-support.ts';
@@ -11,7 +11,7 @@ import { createVoiceAgent } from './voice-runtime.ts';
 import type { LiveVoiceOptions, VoiceHistory, VoicePart } from './voice.ts';
 import { tool } from 'ai';
 import { z } from 'zod';
-import type { NodeStore, NodeCommit } from '../vault/nodes/store.ts';
+import type { NodeStore, NodeCommit } from '@/vault/nodes/store.ts';
 import type { VoiceAgentOptions } from './voice-runtime.ts';
 
 async function fixture(transform: (nodes: NodeStore) => NodeStore = (nodes) => nodes) {

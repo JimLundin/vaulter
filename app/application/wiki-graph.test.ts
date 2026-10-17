@@ -1,7 +1,7 @@
 import { expect, test } from 'vitest';
-import { memoryNodeBackend } from '../vault/nodes/memory.ts';
-import { create, request, revise } from '../vault/nodes/fixtures.test-support.ts';
-import { readWiki } from '../workflows/wiki/pages.ts';
+import { memoryNodeBackend } from '@/vault/nodes/memory.ts';
+import { create, request, revise } from '@/vault/nodes/fixtures.test-support.ts';
+import { readWiki } from '@/workflows/wiki/pages.ts';
 import { applicationGraph, applicationSources, applicationWikiGraph } from './composition.ts';
 
 test('Wiki metadata and embedded queries share Graph interpretation independently of placement', async () => {

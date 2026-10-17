@@ -1,10 +1,10 @@
 import { expect, test, vi } from 'vitest';
-import { memoryNodeBackend } from '../../nodes/memory.ts';
-import { create, request, revise, seed } from '../../nodes/fixtures.test-support.ts';
+import { memoryNodeBackend } from '@/vault/nodes/memory.ts';
+import { create, request, revise, seed } from '@/vault/nodes/fixtures.test-support.ts';
 import { nodeHistory, prepareContentUndo, transactionHistory } from './nodes.ts';
-import { createTransactionSession } from '../lifetime.ts';
-import { nodeOperations } from '../../nodes/operations.ts';
-import type { NodeCommit, NodeDifference } from '../../nodes/store.ts';
+import { createTransactionSession } from '@/vault/transactions/lifetime.ts';
+import { nodeOperations } from '@/vault/nodes/operations.ts';
+import type { NodeCommit, NodeDifference } from '@/vault/nodes/store.ts';
 
 const canUndo = ({ before, after }: NodeDifference) =>
   [before, after].every((version) => version?.data == null || version.data.kind === 'paragraph');

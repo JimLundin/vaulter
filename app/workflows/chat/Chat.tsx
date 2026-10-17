@@ -9,16 +9,16 @@ import {
   Row,
   Stack,
   Text,
-} from '../../ui/kit/index.ts';
+} from '@/ui/kit/index.ts';
 import { ConversationList } from './ConversationList.tsx';
 import { ChatSurface, ChatWelcome, type ChatPresentation } from './ChatSurface.tsx';
 import { ChatMessage } from './ChatMessage.tsx';
-import { later } from '../../runtime/later.ts';
+import { later } from '@/runtime/later.ts';
 import type { NodeConversation, Prompt, ChatSubmissionIntent } from './node-conversation.ts';
 export type { Prompt } from './node-conversation.ts';
 import { useNodeChat } from './use-node-conversation.ts';
 import { model } from './model.ts';
-import type { ToolPresentationAdapter } from '../../agent/tool-presentation.tsx';
+import type { ToolPresentationAdapter } from '@/agent/tool-presentation.tsx';
 
 export function Chat({
   conversation,

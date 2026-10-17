@@ -1,10 +1,10 @@
 import { asSchema } from 'ai';
 import { z } from 'zod';
-import type { LiveVoiceProvider } from '../voice.ts';
-import type { VoiceHistory, VoicePart } from '../voice.ts';
-import type { JsonValue } from '../../vault/nodes/model.ts';
-import { canonical } from '../../vault/nodes/json.ts';
-import { serial } from '../../runtime/async.ts';
+import type { LiveVoiceProvider } from '@/agent/voice.ts';
+import type { VoiceHistory, VoicePart } from '@/agent/voice.ts';
+import type { JsonValue } from '@/vault/nodes/model.ts';
+import { canonical } from '@/vault/nodes/json.ts';
+import { serial } from '@/runtime/async.ts';
 import { openAIWebRTC } from './webrtc.ts';
 import { DEFAULT_MODELS, DEFAULT_VOICE } from './defaults.ts';
 import type { OpenAIConnectionOptions } from './http.ts';

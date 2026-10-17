@@ -1,6 +1,6 @@
 import type { LanguageModel } from 'ai';
 import type { ModelMessage, SystemModelMessage, ToolSet } from 'ai';
-import type { JsonObject } from '../vault/nodes/model.ts';
+import type { JsonObject } from '@/vault/nodes/model.ts';
 
 /** A live protocol drives the same guarded tools and lifetime as a streamed text provider. */
 export interface AgentExecutionInput {

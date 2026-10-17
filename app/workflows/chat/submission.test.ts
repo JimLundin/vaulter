@@ -1,9 +1,9 @@
-import { transactionFixture } from '../../vault/transactions/fixtures.test-support.ts';
+import { transactionFixture } from '@/vault/transactions/fixtures.test-support.ts';
 import { expect, test, vi } from 'vitest';
 import { MockLanguageModelV4, convertArrayToReadableStream } from 'ai/test';
-import { memoryNodeBackend } from '../../vault/nodes/memory.ts';
-import { create, request, seed } from '../../vault/nodes/fixtures.test-support.ts';
-import { createTranscription } from '../../transcription.ts';
+import { memoryNodeBackend } from '@/vault/nodes/memory.ts';
+import { create, request, seed } from '@/vault/nodes/fixtures.test-support.ts';
+import { createTranscription } from '@/transcription.ts';
 import { createNodeConversation, type NodeConversationOptions } from './node-conversation.ts';
 
 async function fixture(overrides: Partial<NodeConversationOptions> = {}) {

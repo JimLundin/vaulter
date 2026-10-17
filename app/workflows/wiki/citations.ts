@@ -1,9 +1,9 @@
 import type { z } from 'zod';
-import type { NodeAddress, NodeVersion } from '../../vault/nodes/model.ts';
-import type { NodeSnapshot } from '../../vault/nodes/store.ts';
+import type { NodeAddress, NodeVersion } from '@/vault/nodes/model.ts';
+import type { NodeSnapshot } from '@/vault/nodes/store.ts';
 import { citation, textSelection } from './records.ts';
 import { recordText } from './text.ts';
-import type { SourceReader } from '../../vault/sources.ts';
+import type { SourceReader } from '@/vault/sources.ts';
 
 export type TextSelection = z.infer<typeof textSelection>;
 export interface SelectedText {

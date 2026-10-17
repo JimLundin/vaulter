@@ -1,42 +1,33 @@
-import { applicationWikiGraph } from '../application/composition.ts';
-// Explicit preview adapter: fictional NodeStore -> production Wiki reader -> production record UI.
 import { useEffect, useState } from 'react';
-import { Button, Stack, Text } from '../ui/kit/index.ts';
-import { memoryNodeBackend } from '../vault/nodes/memory.ts';
-import type { NodeBackend } from '../vault/nodes/store.ts';
-import { retainedRecordSources } from '../vault/records/sources.ts';
-import { describeSource, type SourceReader } from '../vault/sources.ts';
-import { Wiki } from '../workflows/wiki/index.tsx';
-import { pageRoute } from '../workflows/wiki/routes.ts';
-import { useWikiReading, useWiki } from '../workflows/wiki/use-wiki.ts';
-import { seedPreviewRecords } from './records.ts';
-
-const sources: SourceReader = {
-  text: retainedRecordSources.text,
-  describe: (node, view) => describeSource(node, view, [retainedRecordSources]),
-};
+import { Button, Stack, Text } from '@/ui/kit/index.ts';
+import { openDatabase } from '@/vault/eav/index.ts';
+import { wikiSchema } from '@/workflows/wiki/data/schema.ts';
+import { useEavWikiReading, type EavWikiInput } from '@/workflows/wiki/data/reading.ts';
+import { Wiki } from '@/workflows/wiki/index.tsx';
+import { pageRoute } from '@/workflows/wiki/routes.ts';
+import { seedEavWiki } from './wiki-records.ts';
 
 export function WikiExample({ controls = false }: { controls?: boolean }) {
-  const [nodes, setNodes] = useState<NodeBackend | null>(null);
+  const [input, setInput] = useState<EavWikiInput | null>(null);
   const [seedError, setSeedError] = useState('');
-  const reading = useWikiReading(nodes, sources, applicationWikiGraph);
-  const { pages, error: readError } = useWiki(reading);
+  const { pages, error: readError } = useEavWikiReading(input);
   const error = seedError || readError;
   const [state, setState] = useState('page');
   const [selected, setSelected] = useState<string | undefined>('preview:page:0');
   useEffect(() => {
-    const store = memoryNodeBackend();
     let active = true;
-    void seedPreviewRecords(store)
-      .then(() => {
-        if (active) setNodes(store);
+    const opening = openDatabase({ schema: wikiSchema });
+    void opening
+      .then(async (db) => {
+        await seedEavWiki(db);
+        if (active) setInput({ database: () => Promise.resolve(db) });
       })
       .catch((problem: unknown) => {
         if (active) setSeedError(String(problem));
       });
     return () => {
       active = false;
-      store.close();
+      void opening.then((db) => db[Symbol.asyncDispose]());
     };
   }, []);
   return (

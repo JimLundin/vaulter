@@ -4,7 +4,7 @@ import { parseCommit } from './validation.ts';
 import { accept } from './history.ts';
 import { digest } from './json.ts';
 import { nodeInterface, notifications } from './backend.ts';
-import { serial } from '../../runtime/async.ts';
+import { serial } from '@/runtime/async.ts';
 
 /** Volatile adapter for previews and the same acceptance rules used by GitHub. */
 export function memoryNodeBackend(): NodeBackend {

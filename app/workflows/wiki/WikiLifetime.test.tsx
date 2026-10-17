@@ -4,11 +4,11 @@ import { unrelatedContent } from './related-content.test-support.ts';
 import { act, StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { expect, test, vi } from 'vitest';
-import { Text } from '../../ui/kit/index.ts';
-import { memoryNodeBackend } from '../../vault/nodes/memory.ts';
-import { create, request } from '../../vault/nodes/fixtures.test-support.ts';
-import type { NodeStore } from '../../vault/nodes/store.ts';
-import type { SourceReader } from '../../vault/sources.ts';
+import { Text } from '@/ui/kit/index.ts';
+import { memoryNodeBackend } from '@/vault/nodes/memory.ts';
+import { create, request } from '@/vault/nodes/fixtures.test-support.ts';
+import type { NodeStore } from '@/vault/nodes/store.ts';
+import type { SourceReader } from '@/vault/sources.ts';
 import type { WikiReading } from './reading.ts';
 import { useWikiReading, useWiki } from './use-wiki.ts';
 

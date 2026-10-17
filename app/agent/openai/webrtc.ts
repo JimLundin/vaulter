@@ -1,5 +1,5 @@
 // Shared browser media transport for OpenAI realtime voice and transcription.
-import type { JsonObject } from '../../vault/nodes/model.ts';
+import type { JsonObject } from '@/vault/nodes/model.ts';
 import { openAIHttp, clientSecretSchema, type OpenAIConnectionOptions } from './http.ts';
 
 export async function openAIWebRTC(

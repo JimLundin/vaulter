@@ -1,13 +1,13 @@
 import {
   transactionFixture,
   transactionOptionsFixture,
-} from '../../vault/transactions/fixtures.test-support.ts';
+} from '@/vault/transactions/fixtures.test-support.ts';
 import { expect, test } from 'vitest';
 import { tool } from 'ai';
 import { z } from 'zod';
 import { MockLanguageModelV4, convertArrayToReadableStream } from 'ai/test';
-import { memoryNodeBackend } from '../../vault/nodes/memory.ts';
-import { create, request, seed } from '../../vault/nodes/fixtures.test-support.ts';
+import { memoryNodeBackend } from '@/vault/nodes/memory.ts';
+import { create, request, seed } from '@/vault/nodes/fixtures.test-support.ts';
 import { createNodeConversation } from './node-conversation.ts';
 
 test('opening a retained summary displays the record without executing an Agent or inventing dialogue', async () => {
@@ -278,7 +278,7 @@ test('Chat publishes content with the module-owned node tools and retains exact 
   const nodes = memoryNodeBackend();
   await seed(nodes);
   await nodes.commit(request('agent', [create('agent', { kind: 'agent', name: 'Fictional' })]));
-  const { nodeContentTools } = await import('../../vault/content/tools.ts');
+  const { nodeContentTools } = await import('@/vault/content/tools.ts');
   let step = 0;
   const scripted = new MockLanguageModelV4({
     doStream: async () => ({
@@ -441,7 +441,7 @@ test('node Chat Stop expires a held module tool factory and failed factories all
   const held = new Promise<void>((resolve) => {
     release = resolve;
   });
-  let context!: import('../../agent/tools.ts').AgentToolContext;
+  let context!: import('@/agent/tools.ts').AgentToolContext;
   const options = {
     nodes,
     user: 'user',

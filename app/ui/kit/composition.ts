@@ -53,6 +53,7 @@ export const compositions = [
 // All remaining declarations and reachable helpers compose approved presentation.
 // Catalogue/browser adapters are explicitly enumerated; tests are not implementations.
 export const implementations = [
+  { source: 'timeline.tsx', mechanics: ['Timeline', 'MonthCalendar'] },
   {
     source: 'app.tsx',
     mechanics: [
@@ -91,6 +92,7 @@ export const implementations = [
     source: 'catalogue.tsx',
     mechanics: [
       'Typography',
+      'Chronology',
       'Buttons',
       'Status',
       'Fields',

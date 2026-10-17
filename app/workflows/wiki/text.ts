@@ -1,7 +1,7 @@
 // Wiki owns the retained UTF-16 block grammar; other record owners supply their prose.
-import type { NodeVersion } from '../../vault/nodes/model.ts';
-import type { NodeSnapshot } from '../../vault/nodes/store.ts';
-import type { SourceReader } from '../../vault/sources.ts';
+import type { NodeVersion } from '@/vault/nodes/model.ts';
+import type { NodeSnapshot } from '@/vault/nodes/store.ts';
+import type { SourceReader } from '@/vault/sources.ts';
 import { wikiSchemas } from './records.ts';
 
 export class UnsupportedSourceRecordError extends Error {

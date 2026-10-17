@@ -3,7 +3,7 @@ import {
   deviceSettingsStorage,
   type SettingDefinition,
   type SettingsDefinition,
-} from '../../settings/store.ts';
+} from '@/settings/store.ts';
 import {
   DEFAULT_MODELS,
   DEFAULT_VOICE,

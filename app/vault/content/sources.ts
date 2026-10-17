@@ -1,4 +1,4 @@
-import type { SourceReader } from '../sources.ts';
+import type { SourceReader } from '@/vault/sources.ts';
 
 /** Content records remain independently owned source material, with no Wiki destination. */
 export const contentSources: SourceReader = {

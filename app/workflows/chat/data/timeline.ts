@@ -1,8 +1,8 @@
-import type { ReadView } from '../../../vault/eav/index.ts';
-import { sameEntity } from '../../../vault/eav/index.ts';
-import { canonical, digest } from '../../../vault/nodes/json.ts';
-import { historyModelMessages } from '../../../agent/history.ts';
-import type { RunInput } from '../../../agent/data/operations.ts';
+import type { ReadView } from '@/vault/eav/index.ts';
+import { sameEntity } from '@/vault/eav/index.ts';
+import { canonical, digest } from '@/vault/nodes/json.ts';
+import { historyModelMessages } from '@/agent/history.ts';
+import type { RunInput } from '@/agent/data/operations.ts';
 import type { chatSchema } from './schema.ts';
 import { projectedExchange } from './projection.ts';
 

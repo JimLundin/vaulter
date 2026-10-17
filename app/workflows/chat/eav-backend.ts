@@ -3,12 +3,12 @@ import { dialogueContext, timeline } from './data/timeline.ts';
 import { createCheckpointTask } from './checkpoint-task.ts';
 import { projectedExchange } from './data/projection.ts';
 import { publishChatEvidence } from './eav-bridge.ts';
-import { SaveError, sameEntity, type Database, type Transaction } from '../../vault/eav/index.ts';
-import { canonical } from '../../vault/nodes/json.ts';
-import { nodeOperations } from '../../vault/nodes/operations.ts';
-import type { TransactionRequest } from '../../vault/transactions/store.ts';
-import { executeEavRun } from '../../agent/eav/runtime.ts';
-import type { AgentRunState } from '../../agent/runtime.ts';
+import { SaveError, sameEntity, type DomainDatabase, type Transaction } from '@/vault/eav/index.ts';
+import { canonical } from '@/vault/nodes/json.ts';
+import { nodeOperations } from '@/vault/nodes/operations.ts';
+import type { TransactionRequest } from '@/vault/transactions/store.ts';
+import { executeEavRun } from '@/agent/eav/runtime.ts';
+import type { AgentRunState } from '@/agent/runtime.ts';
 import type { chatSchema } from './data/schema.ts';
 import { submitChat } from './data/operations.ts';
 import { migrateDialogue } from './data/migration.ts';
@@ -16,7 +16,7 @@ import type { MessagePart } from './records/chat.ts';
 import type { NodeChatOptions, NodeChatRequest, NodeChatRunState } from './node-backend.ts';
 import type { ChatBackend, ChatRun } from './backend.ts';
 
-type DB = Database<typeof chatSchema>;
+type DB = DomainDatabase<typeof chatSchema>;
 const migrations = new WeakMap<DB, Promise<void>>();
 async function boundActor(tx: Transaction<typeof chatSchema>, key: string, kind: 'user' | 'agent') {
   const binding = await tx.entities.actorBindings.first({
@@ -34,7 +34,16 @@ async function boundActor(tx: Transaction<typeof chatSchema>, key: string, kind:
 const message = (error: unknown) => (error instanceof Error ? error.message : String(error));
 /** One continuous dialogue. Retained history and model-context projection are separate reads. */
 export function createEavChatBackend(
-  options: NodeChatOptions & { readonly database: Promise<DB> },
+  options: NodeChatOptions & {
+    readonly database: Promise<DB>;
+    readonly nativeTools?: (context: {
+      author: import('@/vault/eav/index.ts').EntityRef<
+        typeof import('@/vault/records/actor.ts').Actor
+      >;
+      run: import('@/agent/data/schema.ts').AgentRunRef;
+      signal: AbortSignal;
+    }) => Promise<import('ai').ToolSet>;
+  },
 ): ChatBackend {
   let disposed = false;
   const runs = new Map<string, { request: string; handle: ChatRun; dispose: () => void }>();
@@ -439,6 +448,13 @@ export function createEavChatBackend(
           origin,
           tools: async (context) => ({
             ...(await options.tools?.(context)),
+            ...(await options.nativeTools?.({
+              author: (await db.entities.agentRuns.get(submitted!.run, {
+                select: { author: true },
+              }))!.author,
+              run: submitted!.run,
+              signal: context.signal,
+            })),
             [historyCapability.name]: historyTool(db),
           }),
         });

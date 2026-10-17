@@ -5,7 +5,8 @@ export type Atom =
   | number
   | boolean
   | { readonly ref: string; readonly type: string }
-  | { readonly json: string };
+  | { readonly json: string }
+  | { readonly history: string };
 export type RecordState = ReadonlyMap<string, readonly Atom[]>;
 export type Snapshot = ReadonlyMap<string, RecordState>;
 export interface Fact {
@@ -48,7 +49,11 @@ export function isLive(record: RecordState | undefined): record is RecordState {
 }
 export function atomKey(atom: Atom): string {
   if (typeof atom === 'object')
-    return 'json' in atom ? `j:${atom.json}` : `r:${atom.type.length}:${atom.type}:${atom.ref}`;
+    return 'history' in atom
+      ? `h:${atom.history}`
+      : 'json' in atom
+        ? `j:${atom.json}`
+        : `r:${atom.type.length}:${atom.type}:${atom.ref}`;
   return `${typeof atom}:${String(atom)}`;
 }
 export function sameValues(left: readonly Atom[] = [], right: readonly Atom[] = []): boolean {

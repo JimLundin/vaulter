@@ -218,15 +218,6 @@ test('Questions search and filters share the rail while trailing Save stays reac
   await navigateToModule(page, 'Wiki');
   await expect(page.getByRole('heading', { name: 'Wiki', exact: true })).toBeVisible();
   await expectAnchor(page, 3);
-  await filters.click();
-  await menu.getByRole('menuitemradio', { name: 'Creative work', exact: true }).click();
-  await expect(
-    page.getByRole('heading', { name: 'Pages tagged Creative work', exact: true }),
-  ).toBeVisible();
-  await expect(filters).toHaveAttribute('data-filtered', 'true');
-  await filters.click();
-  await menu.getByRole('menuitemradio', { name: 'All pages', exact: true }).click();
-  await expect(filters).not.toHaveAttribute('data-filtered', 'true');
   await page.getByRole('button', { name: 'Find pages', exact: true }).click();
   const pageSearch = page.getByRole('textbox', { name: 'Find pages', exact: true });
   await pageSearch.fill('No matching fictional page');

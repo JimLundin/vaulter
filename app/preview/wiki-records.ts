@@ -96,6 +96,41 @@ export async function seedEavWiki(db: WikiDatabase) {
       });
     }
   }
+  const challengeSource = await db.transaction({ author }, (tx) =>
+    tx.entities.sourceDocuments.insert({
+      key: 'preview:flexible-source',
+      title: 'Afternoon plans',
+      text: 'Afternoons are flexible.',
+      attribution: 'Fictional owner',
+      origin: '',
+      capturedAt: new Date(),
+      available: true,
+    }),
+  );
+  const afternoonSnapshot = (await db.history.transactions.first({
+    select: {},
+    orderBy: [{ sequence: 'desc' }],
+  }))!;
+  await actions.review({
+    key: 'preview:review:afternoon',
+    assertion: {
+      target: await db.history.reference(afternoonSnapshot, flexible),
+      format: 'wiki-text-utf16-v1',
+      start: 0,
+      end: 24,
+    },
+    passages: [
+      {
+        target: await db.history.reference(afternoonSnapshot, challengeSource),
+        format: 'source-text-utf16-v1',
+        start: 0,
+        end: 24,
+      },
+    ],
+    result: 'supported',
+    rationale: 'The retained plan supports this statement.',
+  });
+  await db.transaction({ author }, (tx) => tx.entities.sourceDocuments.delete(challengeSource));
   await db.transaction({ author }, async (tx) => {
     const current = (await tx.entities.sourceDocuments.query({ select: { text: true } })).find(
       (item) => sameEntity(item, documents[0]),

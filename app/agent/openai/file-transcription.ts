@@ -1,4 +1,4 @@
-import type { FileTranscriptionProvider } from '../providers.ts';
+import type { FileTranscriptionProvider } from '@/agent/providers.ts';
 import { z } from 'zod';
 import { openAIHttp, type OpenAIConnectionOptions } from './http.ts';
 import { defaultFileTranscriptionModel } from './defaults.ts';

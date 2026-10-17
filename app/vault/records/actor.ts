@@ -1,4 +1,4 @@
-import { e } from '../eav/index.ts';
+import { e } from '@/vault/eav/index.ts';
 
 /** Attribution shared by producers; provider credentials never belong to an actor. */
 export const Actor = e.entity('actor', {

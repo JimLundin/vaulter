@@ -11,8 +11,8 @@ import { toJsxRuntime } from 'hast-util-to-jsx-runtime';
 // biome-ignore lint/correctness/noUnresolvedImports: Fragment is in @types/react's namespace, which Biome doesn't follow
 import { Fragment, jsx, jsxs } from 'react/jsx-runtime';
 import type { ReactNode } from 'react';
-import { isSafeUrl } from '../../../navigation/urls.ts';
-import { link } from '../../../navigation/routing.ts';
+import { isSafeUrl } from '@/navigation/urls.ts';
+import { link } from '@/navigation/routing.ts';
 import { Pre } from './highlight.tsx';
 
 /** Every heading gets the GitHub-style id that vault links (#heading) point at. */

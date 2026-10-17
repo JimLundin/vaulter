@@ -1,9 +1,9 @@
 import { expect, test } from 'vitest';
-import { memoryNodeBackend } from '../../../vault/nodes/memory.ts';
-import { create, request, revise } from '../../../vault/nodes/fixtures.test-support.ts';
-import type { NodeVersion } from '../../../vault/nodes/model.ts';
-import type { NodeSnapshot } from '../../../vault/nodes/store.ts';
-import { describeSource } from '../../../vault/sources.ts';
+import { memoryNodeBackend } from '@/vault/nodes/memory.ts';
+import { create, request, revise } from '@/vault/nodes/fixtures.test-support.ts';
+import type { NodeVersion } from '@/vault/nodes/model.ts';
+import type { NodeSnapshot } from '@/vault/nodes/store.ts';
+import { describeSource } from '@/vault/sources.ts';
 import { chatSources } from './sources.ts';
 
 test('retained summaries expose exact text as source evidence without a speaker', async () => {

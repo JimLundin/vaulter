@@ -1,5 +1,5 @@
 // Feature payloads for permanent observations and agent provenance; references stay structural.
-import type { JsonObject } from '../../../vault/nodes/model.ts';
+import type { JsonObject } from '@/vault/nodes/model.ts';
 
 /** Browser wall clock describes instants; monotonic durations are milliseconds. */
 // biome-ignore lint/style/useConsistentTypeDefinitions: type aliases satisfy JsonObject structurally
@@ -239,7 +239,7 @@ import type {
   ContextInputData,
   AgentRunData,
   ToolExecutionData,
-} from '../../../agent/records.ts';
+} from '@/agent/records.ts';
 // biome-ignore lint/style/useConsistentTypeDefinitions: type aliases satisfy JsonObject structurally
 export type InterpretationData = {
   readonly kind: 'interpretation';

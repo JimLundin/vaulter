@@ -1,6 +1,6 @@
-import { liveAncestry } from '../../vault/nodes/reading.ts';
-import type { NodeVersion } from '../../vault/nodes/model.ts';
-import type { NodeSnapshot } from '../../vault/nodes/store.ts';
+import { liveAncestry } from '@/vault/nodes/reading.ts';
+import type { NodeVersion } from '@/vault/nodes/model.ts';
+import type { NodeSnapshot } from '@/vault/nodes/store.ts';
 
 /** Wiki owns which live records can be addressed as subjects and how they are named. */
 export function readWikiSubject(view: NodeSnapshot, node: string) {

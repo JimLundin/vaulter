@@ -1,4 +1,5 @@
 import type { JsonValue } from './json.ts';
+import type { HistoricalReference } from './types.ts';
 
 /** Declarative definitions carry both inference and a serializable schema. */
 declare const valueType: unique symbol;
@@ -22,7 +23,8 @@ export interface FieldDefinition {
     | 'enum'
     | 'ref'
     | 'set'
-    | 'inverse';
+    | 'inverse'
+    | 'historical';
   readonly optional: boolean;
   readonly key?: string;
   readonly values?: readonly string[];
@@ -34,6 +36,7 @@ export interface FieldDefinition {
 export type AnyField =
   | Field<'scalar', unknown, boolean>
   | Field<'json', JsonValue, boolean>
+  | Field<'historical', HistoricalReference, boolean>
   | Field<'ref', EntityDefinition, boolean>
   | Field<'set', AnyField, boolean>
   | Field<'inverse', EntityDefinition, boolean>;
@@ -98,6 +101,11 @@ type ReferenceKeys<E extends EntityDefinition> = {
 }[keyof E['fields']];
 
 export const e = {
+  historicalRef: () =>
+    field<'historical', HistoricalReference, false>('historical', {
+      kind: 'historical',
+      optional: false,
+    }),
   json: () => field<'json', JsonValue, false>('json', { kind: 'json', optional: false }),
   string: () => field<'scalar', string, false>('scalar', { kind: 'string', optional: false }),
   number: () => field<'scalar', number, false>('scalar', { kind: 'number', optional: false }),

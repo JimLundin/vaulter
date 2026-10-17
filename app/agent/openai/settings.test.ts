@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { afterEach, expect, test, vi } from 'vitest';
 import { generateText } from 'ai';
-import { createSettings } from '../../settings/store.ts';
+import { createSettings } from '@/settings/store.ts';
 import { createOpenAICapabilities } from './index.ts';
 import { media } from './media.test-support.ts';
 import {

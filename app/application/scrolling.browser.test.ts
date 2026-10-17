@@ -1,4 +1,4 @@
-import { openAppAction, expectAppActionFocus } from '../ui/kit/navigation.browser.test-support.ts';
+import { openAppAction, expectAppActionFocus } from '@/ui/kit/navigation.browser.test-support.ts';
 import { expect, test } from '@playwright/test';
 
 test('long kit samples have a visible scrollbar without hovering', { tag: '@phone' }, async ({
