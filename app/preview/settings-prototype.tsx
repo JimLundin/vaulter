@@ -1,6 +1,6 @@
 // Throwaway comparison: can containers and navigation make settings easier to scan?
 // Three layouts share the same fictional, memory-only preferences.
-import { useState, type ReactNode } from 'react';
+import { useState, useSyncExternalStore, type ReactNode } from 'react';
 import { ModuleSettings } from '@/settings/ModuleSettings.tsx';
 import { type SettingsDefinition, createSettings } from '@/settings/store.ts';
 import { agentSettings } from '@/agent/settings.ts';
@@ -13,6 +13,10 @@ import {
   Input,
   Row,
   Select,
+  RadioGroup,
+  RadioGroupItem,
+  RadioGroupIndicator,
+  TextBox,
   SettingField,
   SettingsDisclosure,
   SettingsInfo,
@@ -289,7 +293,9 @@ export function SettingsPrototype({
       description="Preferences for this device"
     >
       <Stack inset="page" block="md" gap="xl">
-        {variant === 'cards' ? categories.map((item) => section(item.id)) : null}
+        {variant === 'cards' ? (
+          <RefinedCards stores={stores} chatDefinition={chatDefinition} />
+        ) : null}
         {variant === 'categories' ? (
           <Stack gap="xl">
             <Surface variant="subtle">
@@ -352,5 +358,382 @@ export function SettingsPrototype({
         ) : null}
       </Stack>
     </Drawer>
+  );
+}
+
+// Selected direction: a single card per subject, with direct choices and paired connection fields.
+function RefinedCards({
+  stores,
+  chatDefinition,
+}: {
+  stores: {
+    provider: SettingsDefinition;
+    openai: ReturnType<typeof createSettings>;
+    agent: ReturnType<typeof createSettings>;
+    chat: ReturnType<typeof createSettings>;
+  };
+  chatDefinition: SettingsDefinition;
+}) {
+  const openai = useSyncExternalStore(stores.openai.subscribe, stores.openai.snapshot);
+  const agent = useSyncExternalStore(stores.agent.subscribe, stores.agent.snapshot);
+  const chat = useSyncExternalStore(stores.chat.subscribe, stores.chat.snapshot);
+  const [theme, setTheme] = useState('system');
+  const [customModel, setCustomModel] = useState(false);
+  const [editInstructions, setEditInstructions] = useState(false);
+  const [limits, setLimits] = useState(false);
+  const [voiceModels, setVoiceModels] = useState(false);
+  const [editingKey, setEditingKey] = useState<string | null>(null);
+  const [keys, setKeys] = useState<Record<string, string>>({});
+  const [saved, setSaved] = useState<Record<string, boolean>>({});
+  const modelField = stores.provider.fields.find((field) => field.key === 'model')!;
+  const models = modelField.choices ?? [];
+  const modelNames = ['Thorough', 'Balanced', 'Quick'];
+  const voices = stores.provider.fields.find((field) => field.key === 'voice')?.choices ?? [];
+  const instructions = chat.instructions ?? '';
+  const defaultInstructions = chatDefinition.fields.find(
+    (field) => field.key === 'instructions',
+  )?.defaultValue;
+  const choose = (
+    label: string,
+    value: string,
+    options: { value: string; label: string }[],
+    onChange: (value: string) => void,
+  ) => (
+    <RadioGroup
+      aria-label={label}
+      variant="choices"
+      value={value}
+      onValueChange={(next) => {
+        if (next !== null) onChange(next);
+      }}
+    >
+      {options.map((option) => (
+        <RadioGroupItem key={option.value} value={option.value}>
+          <Text as="span" size="sm">
+            {option.label}
+          </Text>
+          <RadioGroupIndicator>✓</RadioGroupIndicator>
+        </RadioGroupItem>
+      ))}
+    </RadioGroup>
+  );
+  return (
+    <Stack gap="xl">
+      <Container title="Appearance">
+        {choose(
+          'Theme',
+          theme,
+          [
+            { value: 'system', label: 'System' },
+            { value: 'light', label: 'Light' },
+            { value: 'dark', label: 'Dark' },
+          ],
+          setTheme,
+        )}
+      </Container>
+      <Stack gap="lg">
+        <Heading level={2}>Agent</Heading>
+        <Container
+          title="Chat model"
+          action={
+            <Button
+              variant="ghost"
+              size="compact"
+              aria-expanded={customModel}
+              onClick={() => setCustomModel(!customModel)}
+            >
+              Custom model
+            </Button>
+          }
+        >
+          {choose(
+            'Chat model',
+            openai.model ?? '',
+            models.map((model, index) => ({
+              value: model.value,
+              label: `${modelNames[index] ?? model.label} · ${model.label}`,
+            })),
+            (value) => {
+              stores.openai.set('model', value);
+              setCustomModel(false);
+            },
+          )}
+          {customModel || !models.some((model) => model.value === openai.model) ? (
+            <SettingField
+              label="Model ID"
+              description="Use a model available through your connection."
+            >
+              <Input
+                value={openai.model ?? ''}
+                onChange={(event) => stores.openai.set('model', event.currentTarget.value)}
+              />
+            </SettingField>
+          ) : null}
+        </Container>
+        <Container
+          title="Instructions"
+          action={
+            <Button
+              variant="ghost"
+              size="compact"
+              aria-expanded={editInstructions}
+              onClick={() => setEditInstructions(!editInstructions)}
+            >
+              {editInstructions ? 'Done' : 'Edit'}
+            </Button>
+          }
+        >
+          {editInstructions ? (
+            <Stack gap="sm">
+              <TextBox
+                label="Agent instructions"
+                layout="longform"
+                description="Applies to new messages."
+                draft={instructions}
+                onDraftChange={(value) => stores.chat.set('instructions', value)}
+              />
+              <Row>
+                <Button
+                  variant="ghost"
+                  size="compact"
+                  onClick={() => stores.chat.reset(['instructions'])}
+                >
+                  Restore default instructions
+                </Button>
+              </Row>
+            </Stack>
+          ) : (
+            <Text size="sm" tone="muted" preserve={true}>
+              {instructions === defaultInstructions
+                ? 'Default instructions'
+                : instructions || 'No custom instructions'}
+            </Text>
+          )}
+        </Container>
+        <Container
+          title="Run limits"
+          action={
+            <Button
+              variant="ghost"
+              size="compact"
+              aria-expanded={limits}
+              onClick={() => setLimits(!limits)}
+            >
+              {limits ? 'Done' : 'Adjust'}
+            </Button>
+          }
+        >
+          {limits ? (
+            <Stack gap="lg">
+              <Row justify="between" wrap={true}>
+                <Text size="sm">Maximum steps</Text>
+                <Row>
+                  <Button
+                    variant="outline"
+                    size="compact"
+                    aria-label="Decrease maximum steps"
+                    disabled={Number(agent.maxSteps) <= 1}
+                    onClick={() =>
+                      stores.agent.set('maxSteps', String(Math.max(1, Number(agent.maxSteps) - 1)))
+                    }
+                  >
+                    −
+                  </Button>
+                  <Text size="sm" role="status" aria-label="Maximum steps">
+                    {agent.maxSteps}
+                  </Text>
+                  <Button
+                    variant="outline"
+                    size="compact"
+                    aria-label="Increase maximum steps"
+                    onClick={() => stores.agent.set('maxSteps', String(Number(agent.maxSteps) + 1))}
+                  >
+                    +
+                  </Button>
+                </Row>
+              </Row>
+              <SettingField
+                label="Output token limit"
+                description="Leave blank for the model default."
+              >
+                <Input
+                  inputMode="numeric"
+                  value={agent.maxOutputTokens ?? ''}
+                  placeholder="Model default"
+                  onChange={(event) => {
+                    const value = event.currentTarget.value;
+                    if (!value || (/^\d+$/.test(value) && Number(value) > 0))
+                      stores.agent.set('maxOutputTokens', value);
+                  }}
+                />
+              </SettingField>
+              <Row>
+                <Button
+                  variant="ghost"
+                  size="compact"
+                  onClick={() => stores.agent.reset(['maxSteps', 'maxOutputTokens'])}
+                >
+                  Restore default limits
+                </Button>
+              </Row>
+            </Stack>
+          ) : (
+            <Text size="sm" tone="muted">
+              {agent.maxSteps} steps ·{' '}
+              {agent.maxOutputTokens
+                ? `${agent.maxOutputTokens} output tokens`
+                : 'Model default output'}
+            </Text>
+          )}
+        </Container>
+      </Stack>
+      <Stack gap="lg">
+        <Heading level={2}>Voice & dictation</Heading>
+        <Container title="Voice">
+          <Row wrap={true}>
+            {voices.map((voice) => (
+              <Button
+                key={voice.value}
+                variant={openai.voice === voice.value ? 'filled' : 'outline'}
+                size="compact"
+                aria-pressed={openai.voice === voice.value}
+                onClick={() => stores.openai.set('voice', voice.value)}
+              >
+                {voice.label}
+              </Button>
+            ))}
+          </Row>
+        </Container>
+        <Container
+          title="Voice models"
+          action={
+            <Button
+              variant="ghost"
+              size="compact"
+              aria-expanded={voiceModels}
+              onClick={() => setVoiceModels(!voiceModels)}
+            >
+              {voiceModels ? 'Done' : 'Change'}
+            </Button>
+          }
+        >
+          {voiceModels ? (
+            <Stack gap="lg">
+              {['voiceModel', 'liveTranscriptionModel', 'fileTranscriptionModel'].map((key) => {
+                const field = stores.provider.fields.find((candidate) => candidate.key === key)!;
+                return (
+                  <SettingField key={key} label={field.label} description={field.description}>
+                    <Input
+                      value={openai[key] ?? ''}
+                      onChange={(event) => stores.openai.set(key, event.currentTarget.value)}
+                    />
+                  </SettingField>
+                );
+              })}
+              <Row>
+                <Button
+                  variant="ghost"
+                  size="compact"
+                  onClick={() =>
+                    stores.openai.reset([
+                      'voiceModel',
+                      'liveTranscriptionModel',
+                      'fileTranscriptionModel',
+                    ])
+                  }
+                >
+                  Restore default models
+                </Button>
+              </Row>
+            </Stack>
+          ) : (
+            <Text size="sm" tone="muted" preserve={true}>
+              {openai.voiceModel} · {openai.liveTranscriptionModel} ·{' '}
+              {openai.fileTranscriptionModel}
+            </Text>
+          )}
+        </Container>
+      </Stack>
+      <Stack gap="lg">
+        <Heading level={2}>Connections</Heading>
+        {['OpenAI', 'GitHub'].map((name) => (
+          <Container key={name} title={name}>
+            <SettingsInfo
+              label="API endpoint"
+              value={
+                name === 'OpenAI'
+                  ? 'https://api.openai.com/v1'
+                  : (githubSettings.fields.find((field) => field.key === 'api')?.defaultValue ?? '')
+              }
+            />
+            <Stack gap="sm">
+              <Row justify="between" wrap={true}>
+                <Stack gap="xs">
+                  <Text size="sm" weight="medium">
+                    {name === 'OpenAI' ? 'API key' : 'Access token'}
+                  </Text>
+                  <Text size="sm" tone="muted" role="status">
+                    {saved[name]
+                      ? 'Custom value saved for preview'
+                      : 'Configured · Using login value'}
+                  </Text>
+                </Stack>
+                <Button
+                  variant="outline"
+                  size="compact"
+                  aria-label={`Change ${name} credential`}
+                  aria-expanded={editingKey === name}
+                  onClick={() => setEditingKey(editingKey === name ? null : name)}
+                >
+                  {editingKey === name ? 'Cancel' : 'Change'}
+                </Button>
+              </Row>
+              {editingKey === name ? (
+                <Stack gap="sm">
+                  <SettingField
+                    label={`Replacement ${name} key`}
+                    description="Credentials stay on this device."
+                  >
+                    <Input
+                      type="password"
+                      autoComplete="new-password"
+                      placeholder="Paste a replacement key"
+                      value={keys[name] ?? ''}
+                      onChange={(event) => setKeys({ ...keys, [name]: event.currentTarget.value })}
+                    />
+                  </SettingField>
+                  <Row>
+                    <Button
+                      variant="outline"
+                      size="compact"
+                      disabled={!keys[name]?.trim()}
+                      onClick={() => {
+                        setSaved({ ...saved, [name]: true });
+                        setKeys({ ...keys, [name]: '' });
+                        setEditingKey(null);
+                      }}
+                    >
+                      Save key
+                    </Button>
+                  </Row>
+                </Stack>
+              ) : null}
+            </Stack>
+            {name === 'GitHub' ? (
+              <SettingsInfo
+                label="Vault repository"
+                value={
+                  githubSettings.fields.find((field) => field.key === 'repository')?.defaultValue ??
+                  ''
+                }
+              />
+            ) : null}
+          </Container>
+        ))}
+        <SettingsDisclosure title="Troubleshooting">
+          <ModuleSettings definition={agentSettings} store={stores.agent} keys={['maxRetries']} />
+        </SettingsDisclosure>
+      </Stack>
+    </Stack>
   );
 }
