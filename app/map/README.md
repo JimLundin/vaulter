@@ -9,13 +9,13 @@ structured degrees/minutes/seconds with a hemisphere and retains optional source
 `parseCoordinates` rejects invalid angular values, missing axes and other coordinate systems.
 Arbitrary projected grids, geocentric coordinates and coordinate conversions are outside Map.
 
-`MapPage` is available at `/map/` in Application navigation. It shows an OpenStreetMap base map,
+`MapPage` is available at `/map/` in Application navigation. It shows the retained OpenFreeMap Positron/light and Dark base maps,
 keyboard-selectable markers and a supporting list that becomes a drawer on phones. Add coordinates
 chooses an existing Wiki, Calendar, Question or Source document record and decimal latitude/longitude.
 Edit preserves a stored DMS representation when its numeric position is unchanged. Failed saves
 retain the draft for explicit retry; removing a location retains its history. Offline reading
-retains coordinates even when map tiles cannot load. Tile loading uses OpenStreetMap's public
-raster endpoint and displays contributor attribution. No geocoding or device location is requested.
+retains coordinates even when map tiles cannot load. MapLibre loads OpenFreeMap vector tiles and displays contributor attribution. Appearance follows
+the application theme, including system changes, and switching theme retains camera and selection. No geocoding or device location is requested.
 
 The kit's `MapView` owns pan/zoom, marker mechanics, resizing and base-map presentation. Map owns
 coordinate interpretation and record UI; Application supplies foreign-record choices and user

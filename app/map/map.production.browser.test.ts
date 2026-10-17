@@ -1,4 +1,9 @@
 import { expect, test } from '@playwright/test';
+test.use({
+  launchOptions: {
+    args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'],
+  },
+});
 import { navigateToModule } from '@/ui/kit/navigation.browser.test-support.ts';
 import { fakeGitHub } from '@/vault/storage/github-client/fake-github.ts';
 import { seal } from '@/vault/session/sealed.ts';
@@ -6,7 +11,7 @@ import { seal } from '@/vault/session/sealed.ts';
 test('production Map attaches coordinates to a record, reloads and removes them', async ({
   page,
 }) => {
-  await page.route('https://tile.openstreetmap.org/**', (route) => route.abort());
+  await page.route('https://tiles.openfreemap.org/**', (route) => route.abort());
   const fake = await fakeGitHub({});
   const password = 'fictional-calendar-password';
   const sealed = await seal({ github: 'fictional-token' }, password, undefined, 1000);
@@ -40,19 +45,19 @@ test('production Map attaches coordinates to a record, reloads and removes them'
   await page.getByLabel('Longitude', { exact: true }).fill('18.0686');
   await page.getByRole('button', { name: 'Save coordinates', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(page.locator('.leaflet-marker-icon')).toHaveCount(1);
+  await expect(page.locator('.kit-map-marker')).toHaveCount(1);
   await page.reload();
   if (await page.getByLabel('Password', { exact: true }).isVisible()) {
     await page.getByLabel('Password', { exact: true }).fill(password);
     await page.getByRole('button', { name: 'Open vault', exact: true }).click();
   }
-  await expect(page.locator('.leaflet-marker-icon')).toHaveCount(1);
-  await page.locator('.leaflet-marker-icon').click();
+  await expect(page.locator('.kit-map-marker')).toHaveCount(1);
+  await page.locator('.kit-map-marker').click();
   await expect(page.getByRole('heading', { name: 'Meeting place', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Remove coordinates', exact: true }).click();
   await page
     .getByRole('dialog')
     .getByRole('button', { name: 'Remove coordinates', exact: true })
     .click();
-  await expect(page.locator('.leaflet-marker-icon')).toHaveCount(0);
+  await expect(page.locator('.kit-map-marker')).toHaveCount(0);
 });

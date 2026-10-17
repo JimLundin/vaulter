@@ -372,6 +372,7 @@ export const implementations = [
   { source: 'selection.tsx', mechanics: ['SelectionRow', 'SplitView', 'SelectionGroupHeading'] },
   { source: 'network.tsx', mechanics: ['NetworkDiagram', 'NetworkMap'] },
   { source: 'map.tsx', mechanics: ['MapView'] },
+  { source: 'map-impl.tsx', mechanics: ['MapImpl'] },
   { source: 'settings.tsx', mechanics: [] },
   { source: 'supporting-pane.tsx', mechanics: [] },
   {

@@ -651,12 +651,13 @@ Badge keeps default, secondary and destructive status labels. Named category Chi
 uses private secondary badge styling and remains passive or an accessible button when given an
 action; decorative dots require a supplied visible label, and callers own counts and state.
 
-`MapView` presents supplied latitude/longitude markers on OpenStreetMap tiles with pan/zoom,
+`MapView` presents supplied latitude/longitude markers on OpenFreeMap vector tiles with pan/zoom,
 keyboard selection, ResizeObserver sizing and contributor attribution. Its caller owns records
 and selection. Tile failures preserve the coordinate list. The production CSP permits only the
-OpenStreetMap tile image host for this view. Revisit routes, theme and additional tile-provider/CSP
-requirements and worker packaging then. The earlier implementation is available in Git history
-at `a2f5f8b`; it adds no current exports or dependencies.
+OpenFreeMap tile/style/font host for this view. The retained Positron/light and Dark styles
+follow `useDark`; theme-aware circular markers and camera/selection survive style changes.
+The renderer worker is bundled as a same-origin asset. This restores the presentation retained
+before `c88b4f5` while using the current Map record interface.
 
 Chat owns page and panel task composition, welcome copy and typed record interpretation. The kit
 accepts neutral attribution/content in `Message` and supplies the shared feed, dock, toolbar and
