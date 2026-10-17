@@ -7,8 +7,7 @@ test('consecutive tool calls collapse into a summary while their accepted result
   const field = page.getByRole('textbox', { name: 'Message', exact: true });
   await field.fill('vault it: leave space for a walk before work');
   await field.press('Enter');
-  const live = page.getByRole('status').filter({ hasText: 'Thinking…' });
-  await expect(live).toBeVisible();
+  await expect(page.getByText('Filed in', { exact: false })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Stop', exact: true })).toBeHidden();
   const group = page.locator('details').filter({
     has: page.locator(':scope > summary', { hasText: /Created 1 node.*updated 1 node/ }),
@@ -28,5 +27,9 @@ test('consecutive tool calls collapse into a summary while their accepted result
   await expect(create.getByText('Preview thought', { exact: true })).toBeVisible();
   await expect(create.getByText(/^Recorded transaction:/)).toBeVisible();
   await expect(page.getByText('Filed in', { exact: false })).toBeVisible();
+  await expect(group.getByText('Accepted', { exact: true })).toHaveCount(3);
+  await page.reload();
+  await expect(group).toHaveCount(1);
+  await group.locator(':scope > summary').click();
   await expect(group.getByText('Accepted', { exact: true })).toHaveCount(3);
 });

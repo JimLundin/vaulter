@@ -89,6 +89,15 @@ test('production dictates into a Question draft and persists only its explicit a
   await answer.fill('Leave room for shelves.');
   await answer.blur();
   const writes = () => fake.state.calls.filter((call) => call.startsWith('PATCH ')).length;
+  // Dialogue import runs at startup independently of the visible Questions module.
+  await expect
+    .poll(() =>
+      Object.entries(fake.filesAt()).some(
+        ([path, text]) =>
+          path.startsWith('.vaulter/eav/transactions/') && text.includes('node-chat-v1'),
+      ),
+    )
+    .toBe(true);
   const before = writes();
   await entry.getByRole('button', { name: 'Start voice interaction', exact: true }).click();
   await expect(entry.getByRole('button', { name: 'Finish recording', exact: true })).toBeVisible();

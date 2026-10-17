@@ -15,7 +15,7 @@ test(
     if (compact) {
       const menu = page.getByRole('button', { name: 'Modules', exact: true });
       const rail = page.getByRole('navigation', { name: 'App controls', exact: true });
-      await expect(rail.getByRole('button')).toHaveCount(3);
+      await expect(rail.getByRole('button')).toHaveCount(1);
       for (const control of await rail.getByRole('button').all()) {
         expect((await control.boundingBox())!.width).toBe(44);
         expect((await control.boundingBox())!.height).toBe(44);

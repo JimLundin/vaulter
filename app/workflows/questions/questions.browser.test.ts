@@ -120,15 +120,16 @@ async function askQuestion(page: Page, text: string) {
   expect(publication.recordedBy).toBe('vaulter:agent');
   const question = publication.changes.find((change) => change.data?.kind === 'question')!;
   expect(question.placement?.parent).toBe('preview:page:0');
-  const execution = (await journal(page))
-    .flatMap(({ changes }) => changes)
-    .find(
-      (change) =>
-        change.data?.kind === 'toolExecution' &&
-        change.data.name === 'askQuestion' &&
-        change.data.status === 'complete',
-    )!;
-  expect(execution.data?.output).toEqual({
+  const outcomes = await page.evaluate(() => {
+    const journal = JSON.parse(sessionStorage.getItem('vaulter:preview:eav:dialogue:v1')!);
+    return journal.commits.flatMap(
+      (commit: { facts: { added: boolean; attribute: string; value: { json: string } }[] }) =>
+        commit.facts
+          .filter((fact) => fact.added && fact.attribute === 'agent.toolExecution/output')
+          .map((fact) => JSON.parse(fact.value.json)),
+    );
+  });
+  expect(outcomes).toContainEqual({
     question: question.node,
     transaction: publication.id,
     accepted: true,

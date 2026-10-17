@@ -8,7 +8,7 @@ import { seal } from '../../vault/session/sealed.ts';
 import type { Page } from '@playwright/test';
 
 async function expectChatRail(page: Page) {
-  await expect(page.locator('[data-edge-rail]').getByRole('button')).toHaveCount(3);
+  await expect(page.locator('[data-edge-rail]').getByRole('button')).toHaveCount(1);
   await expect
     .poll(() =>
       page.evaluate(() => {

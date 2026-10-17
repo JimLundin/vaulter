@@ -75,7 +75,8 @@ async function projectedExchange(
       kind: 'tool' as const,
       callId: execution.call,
       name: execution.tool.name,
-      version: execution.tool.version,
+      // Unversioned module tools use an explicit storage marker; legacy presenters omit it.
+      version: execution.tool.version === 'unversioned' ? undefined : execution.tool.version,
       input: execution.input,
       status: execution.status,
       ...(execution.output !== undefined && { output: execution.output }),
@@ -262,7 +263,7 @@ export function createEavChatBackend(
         kind: 'tool',
         callId: data.call,
         name: data.name,
-        version: data.version,
+        version: data.version === 'unversioned' ? undefined : data.version,
         input: data.input,
         status: data.status,
         ...(data.output !== undefined && { output: data.output }),
