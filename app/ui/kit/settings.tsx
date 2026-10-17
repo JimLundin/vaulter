@@ -16,6 +16,8 @@ import {
   hasFieldControlSemantics,
 } from './field-association.ts';
 import { Field, FieldContent, FieldDescription, FieldLabel, FieldTitle } from './parts/field.tsx';
+import { Button } from './parts/button.tsx';
+import { Stack, Text } from './parts/layout.tsx';
 import { Heading } from './parts/layout.tsx';
 import { Surface } from './primitives.tsx';
 import { Drawer } from './drawer.tsx';
@@ -148,5 +150,65 @@ export function SettingField({
         <FieldDescription id={effectiveDescriptionId}>{description}</FieldDescription>
       </Field>
     </FieldAssociation.Provider>
+  );
+}
+
+/** Native disclosure keeps drafts mounted and supports keyboard activation. */
+export function SettingsDisclosure({
+  title,
+  summary,
+  defaultOpen = false,
+  children,
+}: {
+  title: string;
+  summary?: string;
+  defaultOpen?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <details open={defaultOpen || undefined} className="min-w-0 border-t pt-3">
+      <summary className="min-h-11 cursor-pointer rounded-sm py-3 text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring">
+        {title}
+        {summary ? <span className="ml-2 font-normal text-muted-foreground">{summary}</span> : null}
+      </summary>
+      <div className="pt-4">
+        <Stack gap="lg">{children}</Stack>
+      </div>
+    </details>
+  );
+}
+
+/** Installation information is copyable without looking like an editable preference. */
+export function SettingsInfo({ label, value }: { label: string; value: string }) {
+  const [message, setMessage] = useState('');
+  return (
+    <Stack gap="sm">
+      <Text size="sm" weight="medium">
+        {label}
+      </Text>
+      <Text size="sm" tone="muted" preserve={true}>
+        {value}
+      </Text>
+      <Button
+        variant="ghost"
+        size="compact"
+        aria-label={`Copy ${label}`}
+        onClick={async () => {
+          try {
+            await navigator.clipboard.writeText(value);
+            setMessage('Copied');
+          } catch {
+            setMessage('Select the value to copy it.');
+          }
+        }}
+      >
+        Copy
+      </Button>
+      {message ? (
+        <Text size="sm" role="status">
+          {message}
+        </Text>
+      ) : null}
+    </Stack>
   );
 }

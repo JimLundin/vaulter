@@ -69,7 +69,7 @@ export function createOpenAISettings(
       },
       modelSetting(
         'model',
-        'Model',
+        'Chat model',
         'Used for new messages. Saved on this device.',
         options.defaultModel ?? DEFAULT_MODELS.llm,
         MODEL_CHOICES.llm,
@@ -142,4 +142,10 @@ export function openAIOptions(values: Readonly<Record<string, unknown>>) {
     },
     voice: text('voice', DEFAULT_VOICE),
   };
+}
+
+/** The Responses adapter drops sampling controls for these reasoning families. Custom
+ * compatible model IDs remain tunable; their server determines parameter support. */
+export function supportsOpenAISampling(model: string): boolean {
+  return !(/^o\d+(?:-|$)/.test(model) || /^gpt-(?:[5-9]|[1-9]\d)(?:\.|-|$)/.test(model));
 }

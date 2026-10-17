@@ -118,7 +118,7 @@ async function openSettings() {
     history.replaceState(null, '', '#/settings/');
     globalThis.dispatchEvent(new HashChangeEvent('hashchange'));
   });
-  await act(async () => vi.waitFor(() => field('Model')));
+  await act(async () => vi.waitFor(() => field('Chat model')));
 }
 
 async function fixture({
@@ -262,7 +262,7 @@ test.each([false, true])(
   async (strict) => {
     localStorage.setItem('vaulter.settings.openai', JSON.stringify({ model: 'saved-model' }));
     const { model, suppliedModel, storage } = await fixture({ strict, preview: true });
-    for (const name of ['Appearance', 'Chat', 'Agent', 'OpenAI', 'GitHub storage'])
+    for (const name of ['Appearance', 'Agent', 'Connections'])
       expect(document.querySelector(`section[aria-label="${name}"]`)).not.toBeNull();
     for (const label of [
       'Instructions',
@@ -270,13 +270,8 @@ test.each([false, true])(
       'Maximum output tokens',
       'Temperature',
       'Top P',
-      'Top K',
-      'Presence penalty',
-      'Frequency penalty',
-      'Stop sequences',
-      'Seed',
       'Maximum retries',
-      'Model',
+      'Chat model',
       'Voice model',
       'Live transcription model',
       'File transcription model',
@@ -287,22 +282,21 @@ test.each([false, true])(
       'Maximum steps',
       'Maximum output tokens',
       'Maximum retries',
-      'Model',
+      'Chat model',
       'Voice model',
       'Live transcription model',
       'File transcription model',
       'Voice',
     ])
       expect(selectField(label)).toBeDefined();
-    expect(selectField('Model').selectedOptions[0]?.textContent).toBe('Custom…');
-    expect(textField('Custom model').value).toBe('saved-model');
-    expect(textField('OpenAI API endpoint').readOnly).toBe(true);
-    expect(textField('Vault repository').readOnly).toBe(true);
-    expect(textField('GitHub API endpoint').readOnly).toBe(true);
+    expect(selectField('Chat model').selectedOptions[0]?.textContent).toBe('Custom…');
+    expect(textField('Custom chat model').value).toBe('saved-model');
+    for (const label of ['OpenAI API endpoint', 'Vault repository', 'GitHub API endpoint'])
+      expect(document.body.textContent).toContain(label);
     expect(field('OpenAI API key').disabled).toBe(true);
     expect(document.body.textContent).toContain('Credentials are supplied by the preview server.');
     await fill('Message', 'Keep this draft while changing preferences.');
-    await fill('Custom model', 'configured-model');
+    await fill('Custom chat model', 'configured-model');
     await fill('Instructions', 'Use the supplied evidence.\nKeep answers concise.');
     await fill('Temperature', '0.4');
     await select('Maximum steps', '20');
@@ -337,17 +331,17 @@ test.each([false, true])(
     expect(selectField('Maximum steps').value).toBe('20');
     expect(selectField('Maximum output tokens').value).toBe('256');
     expect(selectField('Maximum retries').value).toBe('3');
-    await select('Model', 'gpt-6-astra');
-    expect(document.body.textContent).not.toContain('Custom model');
+    await select('Chat model', 'gpt-6-astra');
+    expect(document.body.textContent).not.toContain('Custom chat model');
     await fill('Instructions', 'Prefer direct answers.');
-    await fill('Temperature', '0');
+    expect(document.body.textContent).not.toContain('Temperature');
     await act(() => button('Close settings').click());
     expect(field('Message').value).toBe('Continue the same conversation.');
     await submit();
     await act(async () => vi.waitFor(() => expect(model.doStreamCalls).toHaveLength(2)));
     await act(async () => vi.waitFor(() => expect(field('Message').disabled).toBe(false)));
     expect(suppliedModel).toHaveBeenLastCalledWith('gpt-6-astra');
-    expect(model.doStreamCalls[1]).toMatchObject({ temperature: 0, maxOutputTokens: 256 });
+    expect(model.doStreamCalls[1]).toMatchObject({ temperature: 0.4, maxOutputTokens: 256 });
     expect(model.doStreamCalls[1]?.prompt).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ role: 'system', content: 'Prefer direct answers.' }),

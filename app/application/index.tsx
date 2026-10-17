@@ -41,16 +41,16 @@ import { go, link, parseRoute, useRoute } from '@/navigation/routing.ts';
 import { later } from '@/runtime/later.ts';
 import { AppearanceSettings, appearanceSettings } from './AppearanceSettings.tsx';
 import { agentSettings, agentOptions, agentPreferences } from '@/agent/settings.ts';
-import { AgentSettings } from '@/agent/Settings.tsx';
+import { AgentSettings, AgentTroubleshooting } from '@/agent/Settings.tsx';
 import { OpenAISettings } from '@/agent/openai/Settings.tsx';
 import { GitHubSettings } from '@/vault/storage/Settings.tsx';
 import {
   createOpenAISettings,
+  supportsOpenAISampling,
   createOpenAIPreferences,
   openAIOptions,
 } from '@/agent/openai/settings.ts';
-import { githubSettings } from '@/vault/storage/settings.ts';
-import { chatPreferences, chatSettings } from '@/workflows/chat/preferences.ts';
+import { chatPreferences } from '@/workflows/chat/preferences.ts';
 import { writeAvailability, recordsReady } from '@/vault/session/availability.ts';
 import {
   Button,
@@ -776,24 +776,34 @@ export function OpenApplication({
         onClose={closeCoreAction}
         features={[
           { name: appearanceSettings.name, content: <AppearanceSettings /> },
-          { name: chatSettings.name, content: <ChatSettings /> },
           {
             name: agentSettings.name,
-            content: <AgentSettings />,
-          },
-          {
-            name: providerDefinition.name,
             content: (
-              <OpenAISettings
-                definition={providerDefinition}
-                preferences={providerPreferences}
-                credential={credentials.openai}
-              />
+              <Stack gap="lg">
+                <OpenAISettings
+                  definition={providerDefinition}
+                  preferences={providerPreferences}
+                  credential={credentials.openai}
+                />
+                <ChatSettings />
+                <AgentSettings sampling={supportsOpenAISampling(providerOptions.models.llm)} />
+              </Stack>
             ),
           },
           {
-            name: githubSettings.name,
-            content: <GitHubSettings credential={credentials.github} />,
+            name: 'Connections',
+            content: (
+              <Stack gap="lg">
+                <OpenAISettings
+                  definition={providerDefinition}
+                  preferences={providerPreferences}
+                  credential={credentials.openai}
+                  connection={true}
+                />
+                <GitHubSettings credential={credentials.github} />
+                <AgentTroubleshooting />
+              </Stack>
+            ),
           },
         ]}
       />

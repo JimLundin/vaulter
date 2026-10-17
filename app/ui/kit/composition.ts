@@ -43,6 +43,9 @@ export const compositions = [
       'FieldLabel',
       'FieldTitle',
       'Heading',
+      'Stack',
+      'Text',
+      'Button',
       'Drawer',
       'Surface',
     ],
@@ -371,7 +374,7 @@ export const implementations = [
   },
   { source: 'selection.tsx', mechanics: ['SelectionRow', 'SplitView', 'SelectionGroupHeading'] },
   { source: 'network.tsx', mechanics: ['NetworkDiagram', 'NetworkMap'] },
-  { source: 'settings.tsx', mechanics: [] },
+  { source: 'settings.tsx', mechanics: ['SettingsDisclosure'] },
   { source: 'supporting-pane.tsx', mechanics: [] },
   {
     source: 'surfaces.tsx',

@@ -692,3 +692,7 @@ small semibold sans-serif heading on every device. `FeaturePage` composes this a
 column; full-height Chat, Graph and Wiki reading screens use it directly. Descriptions, filters and
 record titles belong below the module header. `onBack` makes the module name a back control when
 reading a record; task actions retain `PageControls` responsive placement.
+
+Settings uses `SettingsDisclosure` for named, keyboard-accessible expandable groups; children
+stay mounted to retain drafts. `SettingsInfo` presents copyable installation details. Modules
+choose grouping and availability; Application composes Appearance, Agent and Connections.

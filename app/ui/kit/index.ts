@@ -298,7 +298,13 @@ export {
   Message,
 } from './conversation.tsx';
 export { ExpandableRow, RowAction } from './expandable-row.tsx';
-export { SettingsMenu, SettingsSection, SettingField } from './settings.tsx';
+export {
+  SettingsMenu,
+  SettingsSection,
+  SettingField,
+  SettingsDisclosure,
+  SettingsInfo,
+} from './settings.tsx';
 export {
   NavigationSuite,
   type NavigationAction,

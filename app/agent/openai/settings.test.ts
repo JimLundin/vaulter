@@ -12,6 +12,7 @@ import {
   openAIOptions,
   providerSettings,
   selectedOpenAIModel,
+  supportsOpenAISampling,
 } from './settings.ts';
 
 afterEach(() => {
@@ -219,4 +220,11 @@ test('voice and live transcription settings reach their separate realtime sessio
     audio: { input: { transcription: { model: 'configured-transcription' } } },
   });
   capture.close();
+});
+
+test('sampling controls are available for nonreasoning and compatible model IDs', () => {
+  for (const model of ['gpt-6-astra', 'gpt-6.1-sol', 'gpt-6-luna', 'gpt-5.1', 'o3', 'o4-mini'])
+    expect(supportsOpenAISampling(model)).toBe(false);
+  for (const model of ['gpt-4.1', 'gpt-4o', 'compatible-model'])
+    expect(supportsOpenAISampling(model)).toBe(true);
 });

@@ -785,7 +785,17 @@ function Settings() {
       <K.SettingsMenu
         open={open}
         onClose={() => setOpen(false)}
-        features={[{ name: 'Agent', content: <Preferences model={model} onChange={setModel} /> }]}
+        features={[
+          {
+            name: 'Agent',
+            content: (
+              <K.SettingsDisclosure title="Model preferences" summary="Default">
+                <Preferences model={model} onChange={setModel} />
+                <K.SettingsInfo label="API endpoint" value="https://example.test/v1" />
+              </K.SettingsDisclosure>
+            ),
+          },
+        ]}
       >
         <K.SettingsSection title="Appearance">
           <K.SettingField label="Theme" description="Choose how Vaulter looks.">
@@ -1829,6 +1839,8 @@ export const catalogue: Specimen[] = [
     components: [
       'SettingsMenu',
       'SettingsSection',
+      'SettingsDisclosure',
+      'SettingsInfo',
       'SettingField',
       'ThemeSwitch',
       'RadioGroup',
