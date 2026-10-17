@@ -79,6 +79,10 @@ without changing what an earlier run used.
 One ordered piece of information actually supplied to an Agent run, after selection or transformation.
 It retains the supplied content independently of later changes to its source.
 
+**Model step**:
+One observable model request and its response or failure within an Agent run. Its supplied context
+and available response metadata describe that request independently of subsequent activity.
+
 **Tool execution**:
 One invocation of a tool during an agent run, retaining its supplied arguments, recorded outcome
 and resulting activity.
@@ -92,14 +96,16 @@ The collection of distilled knowledge drawn from retained sources. Wiki pages co
 knowledge and cite the underlying source material.
 
 **Conversation**:
-A retained context of exchanges, named for its subject. Its dates describe when it occurred.
+The single ongoing user-agent dialogue in a Vault. Changes of subject or date continue the same
+Conversation. Conversations obtained elsewhere remain retained source material with their own provenance.
 
 **Exchange**:
-A recorded part of a conversation containing dialogue or other retained source material.
+An ordered contribution to the Conversation and its associated activity. It does not define a
+provider request or begin a separate dialogue.
 
 **Message**:
-An ordered contribution within an exchange, containing a user's words, an Agent response, or retained
-source material whose speaker is unknown. Its content may interleave text and tool activity.
+A person's recorded contribution, with their words and attribution retained. Native user Messages
+belong to Exchanges; Agent responses are recorded as execution activity.
 
 **Recorded summary**:
 A retained account of activity or discussion whose original dialogue or speakers may be unavailable.

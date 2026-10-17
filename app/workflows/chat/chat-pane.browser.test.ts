@@ -1,46 +1,22 @@
 import { expect, test } from '@playwright/test';
 import { setPreviewMobile } from '../../ui/kit/preview.browser.test-support.ts';
 
-test('Chat actions keep desktop conversations in the pane and compact access in an icon', {
+test('one dialogue retains its draft across page and supporting layouts without a chooser', {
   tag: ['@phone', '@touch'],
 }, async ({ page }) => {
-  await page.setViewportSize({ width: 1440, height: 1000 });
   for (const presentation of ['page', 'supporting']) {
-    await page.goto(
-      `/preview/?conversations=numbered${presentation === 'supporting' ? '#/history/' : ''}`,
-    );
+    await page.goto(`/preview/?conversations${presentation === 'supporting' ? '#/history/' : ''}`);
     if (presentation === 'supporting') await page.keyboard.press('Control+j');
     const field = page.getByRole('textbox', { name: 'Message', exact: true });
-    await field.fill('Keep this draft while choosing a conversation');
-    const trigger = page.getByRole('button', { name: 'Conversations', exact: true });
-    await expect(trigger).toBeHidden();
-    await expect(
-      page
-        .getByRole('complementary', { name: 'Conversations', exact: true })
-        .getByRole('button', { name: /Garden studio plans/ }),
-    ).toBeVisible();
-    await expect(page.getByRole('button', { name: 'New conversation', exact: true })).toHaveCount(
-      1,
-    );
-    await expect(page.getByRole('button', { name: 'History', exact: true })).toBeHidden();
-
-    await setPreviewMobile(page.locator('body'), true);
-    const handle = page.locator('[data-preview-drag-handle]');
-    for (let i = 0; i < 10; i++) await handle.press('Shift+ArrowDown');
-    await expect(trigger).toBeVisible();
-    await expect(trigger).toHaveText('');
-    await trigger.click();
-    const chooser = page.getByRole('dialog', { name: 'Conversations', exact: true });
-    await expect(chooser.getByRole('button', { name: /Garden studio plans/ })).toBeVisible();
-    await chooser.getByRole('button', { name: 'Close conversations', exact: true }).click();
-    await expect(trigger).toBeFocused();
-    await expect(field).toHaveValue('Keep this draft while choosing a conversation');
-    await setPreviewMobile(page.locator('body'), false);
-    await expect(trigger).toBeHidden();
-    await expect(
-      page.getByRole('complementary', { name: 'Conversations', exact: true }),
-    ).toBeVisible();
-    await expect(field).toHaveValue('Keep this draft while choosing a conversation');
+    await field.fill('Keep this continuous dialogue draft');
+    for (const mobile of [true, false]) {
+      await setPreviewMobile(page.locator('body'), mobile);
+      await expect(field).toHaveValue('Keep this continuous dialogue draft');
+      await expect(page.getByRole('button', { name: 'New conversation', exact: true })).toHaveCount(
+        0,
+      );
+      await expect(page.getByRole('button', { name: 'Conversations', exact: true })).toHaveCount(0);
+    }
   }
 });
 
@@ -68,8 +44,7 @@ test('Chat supporting pane keeps one following feed, draft and accepted activity
     pane = page.getByRole(width < 768 ? 'dialog' : 'complementary', { name: 'Chat', exact: true });
     await expect(pane).toBeVisible();
     const conversations = pane.getByRole('button', { name: 'Conversations', exact: true });
-    if (width < 768) await expect(conversations).toBeVisible();
-    else await expect(conversations).toBeHidden();
+    await expect(conversations).toHaveCount(0);
     expect((await pane.boundingBox())!.height).toBe(844);
     await expect(field).toHaveValue('Keep this unfinished thought');
     expect(await original!.evaluate((node) => node.isConnected)).toBe(true);

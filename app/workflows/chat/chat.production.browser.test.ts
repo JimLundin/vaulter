@@ -38,7 +38,7 @@ test.use({
   },
 });
 
-test('production opens a fresh chat, pages saved conversations and retains only explicitly selected history on reload', async ({
+test('production opens one continuous dialogue and imports earlier conversations once', async ({
   page,
 }) => {
   const at = '2026-10-13T09:00:00Z';
@@ -91,7 +91,7 @@ test('production opens a fresh chat, pages saved conversations and retains only 
   await page.getByLabel('Password', { exact: true }).fill(password);
   await page.getByRole('button', { name: 'Open vault', exact: true }).click();
   await expect(page.getByRole('textbox', { name: 'Message', exact: true })).toBeVisible();
-  await expect(page.locator('[data-message]')).toHaveCount(0);
+  await expect(page.locator('[data-message]')).toHaveCount(45);
   await expect(page.getByRole('alert')).toHaveCount(0);
   const compact = test.info().project.name === 'phone';
   if (compact) {
@@ -129,32 +129,16 @@ test('production opens a fresh chat, pages saved conversations and retains only 
     });
     await expectChatRail(page);
   }
-  if (compact) await page.getByRole('button', { name: 'Conversations', exact: true }).click();
-  const picker = page.getByRole(compact ? 'dialog' : 'complementary', {
-    name: 'Conversations',
-    exact: true,
-  });
-  const rows = picker.getByRole('button', { name: /chat-\d+/ });
-  await expect(rows).toHaveCount(20);
-  await expect(rows.first()).toContainText('chat-44');
-  await picker.getByRole('button', { name: 'Load older conversations', exact: true }).click();
-  await expect(rows).toHaveCount(40);
-  await picker.getByRole('button', { name: 'Load older conversations', exact: true }).click();
-  await expect(rows).toHaveCount(45);
-  await expect(picker.getByRole('button', { name: 'Load older conversations' })).toHaveCount(0);
-  await rows.filter({ hasText: 'chat-00' }).click();
-  await expect(page).toHaveURL(/#\/chat\/chat-00\/$/);
-  await expect(page.locator('[data-message="user"]')).toContainText('Recorded message 0');
-  if (compact) await expectChatRail(page);
+  await expect(page.getByRole('button', { name: 'Conversations', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'New conversation', exact: true })).toHaveCount(0);
+  await expect(page.locator('[data-message="user"]').first()).toContainText('Recorded message 0');
+  await expect(page.locator('[data-message="user"]').last()).toContainText('Recorded message 44');
   await page.reload();
-  await expect(page.locator('[data-message="user"]')).toContainText('Recorded message 0');
-  await page.getByRole('button', { name: 'New conversation', exact: true }).click();
-  await expect(page).toHaveURL(/#\/chat\/$/);
-  await expect(page.locator('[data-message]')).toHaveCount(0);
-  await page.reload();
-  await expect(page.getByRole('textbox', { name: 'Message', exact: true })).toBeVisible();
-  await expect(page.locator('[data-message]')).toHaveCount(0);
+  await expect(page.locator('[data-message]')).toHaveCount(45);
   await expect(page.getByRole('alert')).toHaveCount(0);
+  await page.goto('/#/chat/chat-00/');
+  await expect(page.locator('[data-message]')).toHaveCount(45);
+  await expect(page.getByRole('button', { name: 'New conversation', exact: true })).toHaveCount(0);
 });
 
 test.describe('production recorded dictation', () => {
@@ -370,7 +354,7 @@ test('production saves a new chat to EAV and restores it without reexecuting the
   await input.press('Enter');
   await expect(page.getByText('Retained EAV reply', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Stop', exact: true })).toBeHidden();
-  await expect(page).toHaveURL(/#\/chat\/[^/]+\/$/);
+  await expect(page).toHaveURL(/#\/chat\/$/);
   await expect(page.getByRole('alert')).toHaveCount(0);
   await expect
     .poll(

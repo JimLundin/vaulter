@@ -9,17 +9,17 @@ export async function chatDataContract(
 ) {
   const first = await db.entities.messages.first({
     where: { exchange: { matches: { conversation: { eq: conversation } } } },
-    select: { role: true, run: { requestedModel: true } },
-    orderBy: [{ position: 'asc' }],
+    select: { text: true, exchange: { run: { requestedModel: true } } },
+    orderBy: [{ at: 'asc' }],
   });
   if (first) {
-    const role: 'user' | 'agent' | 'record' = first.role;
-    const model: string | undefined = first.run?.requestedModel;
-    await db.transaction((tx) => tx.entities.messages.update({ ...first, role }));
+    const text: string = first.text;
+    const model: string | undefined = first.exchange.run?.requestedModel;
+    await db.transaction((tx) => tx.entities.messages.update({ ...first, text }));
     void model;
   }
   await db.entities.messages.get(message, {
-    select: { exchange: { conversation: { title: true } } },
+    select: { exchange: { conversation: { createdAt: true } } },
   });
   // @ts-expect-error An address string cannot identify a Message in the object interface.
   await db.entities.messages.get('message-id', { select: {} });
@@ -32,9 +32,9 @@ export async function chatDataContract(
   await db.transaction(async (tx) => {
     // @ts-expect-error Insert takes the required data without an entity identity.
     await tx.entities.messages.insert(message);
-    // @ts-expect-error A tool part references a ToolExecution, never a Message.
-    await tx.entities.toolParts.insert({ message, position: 0, execution: message });
+    // @ts-expect-error A contribution references an Agent run, never a Message.
+    await tx.entities.exchanges.insert({ conversation, position: 0, run: message });
     // @ts-expect-error Plain data does not carry update identity.
-    await tx.entities.messages.update({ status: 'complete' });
+    await tx.entities.messages.update({ text: 'Changed' });
   });
 }

@@ -98,10 +98,10 @@ export function Chat({
   };
   return (
     <ChatSurface
-      supporting={chooser}
+      supporting={conversation.continuous ? undefined : chooser}
       presentation={presentation}
-      onNewChat={newChat}
-      onConversations={showChats}
+      onNewChat={conversation.continuous ? undefined : newChat}
+      onConversations={conversation.continuous ? undefined : showChats}
       empty={!turns.length}
       busy={!conversation.snapshot().selectionAvailability.allowed}
       status={

@@ -9,7 +9,13 @@ import {
 import { cancellable } from '../../runtime/async.ts';
 import { canonical } from '../../vault/nodes/json.ts';
 import { startToolExecution, finishToolExecution, type ToolOutcome } from '../data/operations.ts';
-import type { agentSchema, AgentRunRef, RunToolRef, ToolExecutionRef } from '../data/schema.ts';
+import type {
+  agentSchema,
+  AgentRunRef,
+  RunToolRef,
+  ToolExecutionRef,
+  ModelStepRef,
+} from '../data/schema.ts';
 import type { ToolExecutionData } from '../records.ts';
 import type { PendingToolSave } from '../tool-execution.ts';
 
@@ -21,6 +27,7 @@ export function eavTools(options: {
   readonly tools: ToolSet;
   readonly enabled: readonly (RunToolRef & { readonly name: string; readonly version: string })[];
   readonly signal: AbortSignal;
+  readonly step?: () => ModelStepRef | undefined;
   readonly check: () => void;
   readonly execution: (active: boolean) => void;
   readonly changed: (key: string, value: ToolExecutionData, entity: ToolExecutionRef) => void;
@@ -106,6 +113,7 @@ export function eavTools(options: {
                   async (tx) => {
                     entity = await startToolExecution(tx, enabled, {
                       call: key,
+                      step: options.step?.(),
                       startedAt: new Date(data.started),
                       input: JSON.parse(canonical(input)),
                     });

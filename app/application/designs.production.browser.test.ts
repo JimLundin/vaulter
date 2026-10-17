@@ -209,13 +209,7 @@ test('production opens real Wiki pages and exact evidence alongside persistent C
     'I want quiet mornings in the studio.',
   );
   await navigateToModule(page, 'Chat');
-  const conversations = page.getByRole('button', { name: 'Conversations', exact: true });
-  if (test.info().project.name === 'phone') {
-    await expect(conversations).toBeVisible();
-    await expect(conversations).toHaveText('');
-    await conversations.click();
-  } else await expect(conversations).toBeHidden();
-  await page.getByRole('button', { name: /studio plans/i }).click();
+  await expect(page.getByRole('button', { name: 'Conversations', exact: true })).toHaveCount(0);
   await expect(page.locator('[data-message="user"]')).toContainText(
     'I want quiet mornings in the studio.',
   );

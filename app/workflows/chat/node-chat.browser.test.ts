@@ -1,7 +1,7 @@
 import { openAppAction } from '../../ui/kit/navigation.browser.test-support.ts';
 import { expect, test } from '@playwright/test';
 
-test('opening a second preview tab keeps conversation selection with each tabs records', {
+test('each preview tab retains its own single dialogue across reload', {
   tag: '@phone',
 }, async ({ page }) => {
   await page.goto('/preview/');
@@ -12,9 +12,7 @@ test('opening a second preview tab keeps conversation selection with each tabs r
   const other = await page.context().newPage();
   await other.goto('/preview/');
   await expect(other.getByRole('textbox', { name: 'Message', exact: true })).toBeVisible();
-  const conversations = other.getByRole('button', { name: 'Conversations', exact: true });
-  if (await conversations.isVisible()) await conversations.click();
-  await expect(other.getByText('No saved conversations yet.', { exact: true })).toBeVisible();
+  await expect(other.locator('[data-message]')).toHaveCount(0);
   await expect(other.getByText('Expected finite, acyclic JSON', { exact: false })).toHaveCount(0);
   await page.reload();
   await expect(page.locator('[data-message="user"]')).toContainText('Remember this tab');
@@ -28,9 +26,7 @@ async function movePreviewBelowToolbar(handle: { press: (key: string) => Promise
 }
 
 for (const restriction of ['recording', 'save recovery']) {
-  test(`Search New chat follows shared selection permission during ${restriction}`, async ({
-    page,
-  }) => {
+  test(`Search never creates another dialogue during or after ${restriction}`, async ({ page }) => {
     await page.goto(restriction === 'recording' ? '/preview/' : '/preview/?scenario=initial-save');
     await movePreviewBelowToolbar(page.locator('[data-preview-drag-handle]'));
     const main = page.getByRole('main');
@@ -58,9 +54,10 @@ for (const restriction of ['recording', 'save recovery']) {
     else await main.getByRole('button', { name: 'Retry save', exact: true }).click();
     await openAppAction(page, 'Search');
     await search.getByRole('combobox').fill('New chat');
-    await search.getByRole('option', { name: 'New chat', exact: true }).click();
-    await expect(main.locator('[data-message="user"]')).toHaveCount(0);
-    await expect(input).toHaveValue('');
+    await expect(search.getByRole('option', { name: 'New chat', exact: true })).toHaveCount(0);
+    await search.getByRole('combobox').press('Escape');
+    await expect(main.locator('[data-message="user"]')).toHaveCount(1);
+    await expect(input).not.toHaveValue('');
   });
 }
 
@@ -148,7 +145,7 @@ test('Search Ask during recording survives reopening, never auto-sends, and expl
   await expect(main.getByRole('button', { name: 'Use', exact: true })).toHaveCount(0);
 });
 
-test('node-backed Send retains content receipts and accepted conversation across reload without replay', {
+test('Send retains EAV dialogue and content receipts across reload without replay', {
   tag: '@phone',
 }, async ({ page }) => {
   await page.goto('/preview/');
@@ -205,9 +202,9 @@ test('Retry content save reconciles the original publication without repeating a
   await input.fill('Another message');
   await expect(page.getByRole('button', { name: 'Send', exact: true })).toBeDisabled();
   const receipts = await page.evaluate(() =>
-    JSON.parse(sessionStorage.getItem('vaulter:preview:accepted:v1') ?? '[]').filter(
-      (request: { kind: { action: string } }) =>
-        ['recordTool', 'completeTool'].includes(request.kind.action),
+    JSON.parse(sessionStorage.getItem('vaulter:preview:eav:dialogue:v1')!).commits.filter(
+      (commit: { facts: { attribute: string }[] }) =>
+        commit.facts.some((fact) => fact.attribute === 'agent.toolExecution/status'),
     ),
   );
   await page.getByRole('button', { name: 'Retry content save', exact: true }).click();
@@ -227,8 +224,9 @@ test('Retry content save reconciles the original publication without repeating a
           request.kind.action === 'create' &&
           request.changes.some((change) => change.data?.kind === 'content'),
       ).length,
-      tools: requests.filter((request: { kind: { action: string } }) =>
-        ['recordTool', 'completeTool'].includes(request.kind.action),
+      tools: JSON.parse(sessionStorage.getItem('vaulter:preview:eav:dialogue:v1')!).commits.filter(
+        (commit: { facts: { attribute: string }[] }) =>
+          commit.facts.some((fact) => fact.attribute === 'agent.toolExecution/status'),
       ),
     };
   });
@@ -237,154 +235,25 @@ test('Retry content save reconciles the original publication without repeating a
   expect(counts.tools).toEqual(receipts);
 });
 
-test('conversation picker opens saved node conversations and History lists every accepted transaction', {
+test('different topics remain in one dialogue after navigation and reload', {
   tag: '@phone',
 }, async ({ page }) => {
   await page.goto('/preview/');
-  if (test.info().project.name === 'phone')
-    await movePreviewBelowToolbar(page.locator('[data-preview-drag-handle]'));
   const input = page.getByRole('textbox', { name: 'Message', exact: true });
-  await input.fill('vault it: first conversation');
-  await input.press('Enter');
-  await expect(page.getByText('Filed in', { exact: false })).toBeVisible();
-  if (test.info().project.name === 'phone')
-    await page.getByRole('button', { name: 'Conversations', exact: true }).click();
-  const picker = page.getByRole(test.info().project.name === 'phone' ? 'dialog' : 'complementary', {
-    name: 'Conversations',
-    exact: true,
-  });
-  await expect(picker.getByRole('button', { name: /first conversation/ })).toBeVisible();
-  if (test.info().project.name === 'phone')
-    await picker.getByRole('button', { name: 'Close conversations', exact: true }).click();
-  await page.getByRole('button', { name: 'New conversation', exact: true }).click();
-  await input.fill('vault it: second conversation');
-  await input.press('Enter');
-  await expect(page.getByText('Filed in', { exact: false })).toBeVisible();
-  if (test.info().project.name === 'phone')
-    await page.getByRole('button', { name: 'Conversations', exact: true }).click();
-  await picker.getByRole('button', { name: /first conversation/ }).click();
-  await expect(page.locator('[data-message="user"]')).toContainText('first conversation');
+  for (const text of ['A morning routine', 'A different subject']) {
+    await input.fill(text);
+    await input.press('Enter');
+    await expect(page.getByRole('button', { name: 'Stop', exact: true })).toBeHidden();
+  }
+  await expect(page.locator('[data-message="user"]')).toContainText([
+    'A morning routine',
+    'A different subject',
+  ]);
+  await expect(page.getByRole('button', { name: 'New conversation', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Conversations', exact: true })).toHaveCount(0);
   await page.reload();
-  await expect(page.locator('[data-message="user"]')).toContainText('first conversation');
-  const count = await page.evaluate(
-    () => JSON.parse(sessionStorage.getItem('vaulter:preview:accepted:v1') ?? '[]').length,
-  );
-  await page.goto('/preview/#/history/');
-  await expect(page.getByText(`#${count}`, { exact: true })).toBeVisible();
-  while (await page.getByRole('button', { name: 'Load earlier', exact: true }).isVisible())
-    await page.getByRole('button', { name: 'Load earlier', exact: true }).click();
-  await expect(page.getByText('#1', { exact: true })).toBeVisible();
-});
-
-test('saved conversations use a right sidebar or mobile drawer', {
-  tag: '@phone',
-}, async ({ page }) => {
-  await page.goto('/preview/?conversations');
-  if (test.info().project.name === 'phone') {
-    await movePreviewBelowToolbar(page.locator('[data-preview-drag-handle]'));
-    await page.getByRole('button', { name: 'Conversations', exact: true }).click();
-  }
-  const panel = page.getByRole(test.info().project.name === 'phone' ? 'dialog' : 'complementary', {
-    name: 'Conversations',
-    exact: true,
-  });
-  await expect(panel.getByRole('button', { name: /Garden studio plans/ })).toBeVisible();
-  const bounds = await panel.boundingBox();
-  if (test.info().project.name !== 'phone') {
-    expect(bounds!.x).toBeGreaterThan(page.viewportSize()!.width / 2);
-    await expect(page.getByRole('button', { name: 'Conversations', exact: true })).toBeHidden();
-    await expect(
-      panel.getByRole('button', { name: 'Close conversations', exact: true }),
-    ).toBeHidden();
-  } else {
-    await panel.getByRole('button', { name: 'Close conversations', exact: true }).click();
-    await expect(panel).toBeHidden();
-  }
-});
-
-test('Chat is named separately from Agent execution and has no History action', {
-  tag: '@phone',
-}, async ({ page }) => {
-  await page.goto('/preview/');
-  await expect(page.getByRole('heading', { name: 'Chat', exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'History', exact: true })).toBeHidden();
-  await expect(page.getByRole('button', { name: 'New chat', exact: true })).toBeHidden();
-  await expect(page.getByRole('button', { name: 'New conversation', exact: true })).toHaveCount(1);
-  await expect(page.getByRole('button', { name: 'New conversation', exact: true })).toBeVisible();
-  if (test.info().project.name === 'phone') {
-    await movePreviewBelowToolbar(page.locator('[data-preview-drag-handle]'));
-    await page.getByRole('button', { name: 'Conversations', exact: true }).click();
-    await expect(
-      page
-        .getByRole('dialog', { name: 'Conversations', exact: true })
-        .getByRole('button', { name: 'New conversation', exact: true }),
-    ).toHaveCount(0);
-  }
-});
-
-test('timeline conversation rows stay uniform and truncate titles beside right-aligned times', {
-  tag: '@phone',
-}, async ({ page }) => {
-  await page.goto('/preview/?conversations');
-  if (test.info().project.name === 'phone') {
-    await movePreviewBelowToolbar(page.locator('[data-preview-drag-handle]'));
-    await page.getByRole('button', { name: 'Conversations', exact: true }).click();
-  }
-  const list = page.getByRole(test.info().project.name === 'phone' ? 'dialog' : 'complementary', {
-    name: 'Conversations',
-    exact: true,
-  });
-  const short = list.getByRole('button', { name: /Garden studio plans/ });
-  const long = list.getByRole('button', { name: /A longer conversation title/ });
-  const first = await short.boundingBox();
-  const last = await long.boundingBox();
-  expect(first!.height).toBeCloseTo(last!.height, 2);
-  const title = long.locator('[title]');
-  expect(await title.evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(true);
-  await expect(title).toHaveCSS('text-overflow', 'ellipsis');
-  const rowText = await long.textContent();
-  expect(rowText).toMatch(/\d{2}:30/);
-  expect(rowText).not.toContain('Oct');
-});
-
-test('recording blocks direct conversation routes and failed reads reconcile navigation without losing the draft', async ({
-  page,
-}) => {
-  await page.goto('/preview/?conversations=numbered');
-  await movePreviewBelowToolbar(page.locator('[data-preview-drag-handle]'));
-  const picker = page.getByRole(test.info().project.name === 'phone' ? 'dialog' : 'complementary', {
-    name: 'Conversations',
-    exact: true,
-  });
-  if (test.info().project.name === 'phone')
-    await page.getByRole('button', { name: 'Conversations', exact: true }).click();
-  await picker.getByRole('button', { name: /Garden studio plans/ }).click();
-  const input = page.getByRole('textbox', { name: 'Message', exact: true });
-  await input.fill('Retained typed prefix');
-  await input.blur();
-  await page.getByRole('button', { name: 'Start voice interaction', exact: true }).click();
-  await expect(input).toHaveValue(/^Retained typed prefix/);
-  await page.evaluate(() => {
-    location.hash = '#/chat/missing-record/';
-  });
-  await expect(page).toHaveURL(/#\/chat\/$/);
-  await expect(
-    page.getByRole('status').filter({ hasText: 'before switching conversations' }).first(),
-  ).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Finish recording', exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'New conversation', exact: true })).toBeDisabled();
-  await page.getByRole('button', { name: 'Finish recording', exact: true }).click();
-  const retained = await input.inputValue();
-  await page.evaluate(() => {
-    location.hash = '#/chat/missing-record/';
-  });
-  await expect(page).toHaveURL(/#\/chat\/$/);
-  await expect(page.getByRole('alert').first()).toBeVisible();
-  await expect(input).toHaveValue(retained);
-  if (test.info().project.name === 'phone')
-    await page.getByRole('button', { name: 'Conversations', exact: true }).click();
-  await expect(picker.getByRole('button', { name: /Garden studio plans/ })).toHaveAttribute(
-    'aria-current',
-    'true',
-  );
+  await expect(page.locator('[data-message="user"]')).toContainText([
+    'A morning routine',
+    'A different subject',
+  ]);
 });

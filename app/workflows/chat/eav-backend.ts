@@ -1,3 +1,4 @@
+import { modelMessageSchema } from 'ai';
 import { publishChatEvidence } from './eav-bridge.ts';
 import {
   SaveError,
@@ -10,17 +11,18 @@ import { canonical } from '../../vault/nodes/json.ts';
 import { nodeOperations } from '../../vault/nodes/operations.ts';
 import type { TransactionRequest } from '../../vault/transactions/store.ts';
 import { executeEavRun } from '../../agent/eav/runtime.ts';
-import { readAgentRun } from '../../agent/data/operations.ts';
 import type { AgentRunState } from '../../agent/runtime.ts';
-import type { chatSchema, MessageRef } from './data/schema.ts';
-import { createConversation, submitChat, recordResponse, readMessage } from './data/operations.ts';
-import { savedChats, savedMessages, type SavedChat } from './records/chat-store.ts';
+import type { chatSchema, ExchangeRef } from './data/schema.ts';
+import { submitChat, readExchange } from './data/operations.ts';
+import { migrateDialogue } from './data/migration.ts';
+import { parseMessage } from './records/chat-schema.ts';
 import { historyModelMessages } from '../../agent/history.ts';
 import type { MessageData, MessagePart } from './records/chat.ts';
 import type { NodeChatOptions, NodeChatRequest, NodeChatRunState } from './node-backend.ts';
 import type { ChatBackend, ChatRun } from './backend.ts';
 
 type DB = Database<typeof chatSchema>;
+const migrations = new WeakMap<DB, Promise<void>>();
 async function boundActor(tx: Transaction<typeof chatSchema>, key: string, kind: 'user' | 'agent') {
   const binding = await tx.entities.actorBindings.first({
     where: { key: { eq: key } },
@@ -38,112 +40,147 @@ const message = (error: unknown) => (error instanceof Error ? error.message : St
 const jsonError = (value: unknown) =>
   value && typeof value === 'object' && 'message' in value ? String(value.message) : undefined;
 
-async function projectedMessage(
+async function projectedExchange(
   tx: ReadView<typeof chatSchema>,
-  identity: MessageRef,
-): Promise<MessageData> {
-  const value = await readMessage(tx, identity);
-  if (!value) throw new Error('Chat message is unavailable');
-  const at = value.at.toISOString();
-  const text = value.parts.flatMap((part) => (part.kind === 'text' ? [part.text] : [])).join('');
-  if (value.role === 'user') return { kind: 'message', role: 'user', at, text };
-  if (value.role === 'record')
-    return {
+  identity: ExchangeRef,
+): Promise<MessageData[]> {
+  const exchange = await readExchange(tx, identity);
+  if (!exchange) throw new Error('Dialogue contribution is unavailable');
+  const result: MessageData[] = exchange.sources.map((source) =>
+    parseMessage({
       kind: 'message',
-      role: 'record',
-      at,
-      text,
-      record: { kind: 'summary', ...(value.label && { label: value.label }) },
-    };
-  const parts: MessagePart[] = value.parts.map((part) =>
-    part.kind === 'text'
-      ? { kind: 'text', text: part.text }
-      : {
-          kind: 'tool',
-          callId: part.execution.call,
-          name: part.execution.tool.name,
-          version: part.execution.tool.version,
-          input: part.execution.input,
-          status: part.execution.status,
-          ...(part.execution.output !== undefined && { output: part.execution.output }),
-          ...(part.execution.error !== undefined && { error: jsonError(part.execution.error) }),
-        },
+      at: source.occurredAt,
+      ...(source.speaker === 'agent'
+        ? { role: 'agent', status: source.status ?? 'running', parts: source.activity ?? [] }
+        : source.speaker === 'user'
+          ? { role: 'user', text: source.text ?? '' }
+          : {
+              role: 'record',
+              text: source.text ?? '',
+              record: { kind: 'summary', ...(source.label && { label: source.label }) },
+            }),
+    }),
   );
-  const run = value.run ? await readAgentRun(tx, value.run) : undefined;
-  if (!parts.length && run) {
-    for (const execution of run.executions)
-      parts.push({
-        kind: 'tool',
-        callId: execution.call,
-        name: execution.tool.name,
-        version: execution.tool.version,
-        input: execution.input,
-        status: execution.status,
-        ...(execution.output !== undefined && { output: execution.output }),
-        ...(execution.error !== undefined && { error: jsonError(execution.error) }),
-      });
+  result.push(
+    ...exchange.messages.map((message) => ({
+      kind: 'message' as const,
+      role: 'user' as const,
+      at: message.at.toISOString(),
+      text: message.text,
+    })),
+  );
+  const run = exchange.execution;
+  if (run) {
+    const receipts = run.executions.map((execution) => ({
+      kind: 'tool' as const,
+      callId: execution.call,
+      name: execution.tool.name,
+      version: execution.tool.version,
+      input: execution.input,
+      status: execution.status,
+      ...(execution.output !== undefined && { output: execution.output }),
+      ...(execution.error !== undefined && { error: jsonError(execution.error) }),
+    }));
+    const parts: MessagePart[] = [];
+    for (const step of run.steps) {
+      const response = step.response;
+      if (
+        !(
+          response &&
+          typeof response === 'object' &&
+          'messages' in response &&
+          Array.isArray(response.messages)
+        )
+      )
+        continue;
+      for (const raw of response.messages) {
+        const message = modelMessageSchema.parse(raw);
+        if (message.role !== 'assistant') continue;
+        if (typeof message.content === 'string')
+          parts.push({ kind: 'text', text: message.content });
+        else
+          for (const block of message.content) {
+            if (block.type === 'text') parts.push({ kind: 'text', text: block.text });
+            if (block.type === 'tool-call') {
+              const receipt = receipts.find((item) => item.callId === block.toolCallId);
+              if (
+                receipt &&
+                !parts.some((item) => item.kind === 'tool' && item.callId === receipt.callId)
+              )
+                parts.push(receipt);
+            }
+          }
+      }
+    }
+    // Partial or opaque external execution can expose receipts without an observable model response.
+    for (const receipt of receipts)
+      if (!parts.some((part) => part.kind === 'tool' && part.callId === receipt.callId))
+        parts.push(receipt);
     if (
       run.output &&
       typeof run.output === 'object' &&
       'text' in run.output &&
       typeof run.output.text === 'string'
-    )
-      parts.push({ kind: 'text', text: run.output.text });
+    ) {
+      const recordedText = parts
+        .flatMap((part) => (part.kind === 'text' ? [part.text] : []))
+        .join('');
+      const remaining = run.output.text.startsWith(recordedText)
+        ? run.output.text.slice(recordedText.length)
+        : '';
+      if (remaining) parts.push({ kind: 'text', text: remaining });
+    }
+    result.push({
+      kind: 'message',
+      role: 'agent',
+      at: run.startedAt.toISOString(),
+      status: run.status,
+      parts,
+      model: run.servedModel ?? run.requestedModel,
+      ...(run.inputTokens !== undefined &&
+        run.outputTokens !== undefined && {
+          tokens: { in: run.inputTokens, out: run.outputTokens },
+        }),
+      ...(run.error !== undefined && { error: jsonError(run.error) }),
+    });
   }
-  return {
-    kind: 'message',
-    role: 'agent',
-    at,
-    status: value.status,
-    parts,
-    ...(run && { model: run.servedModel ?? run.requestedModel }),
-    ...(run?.inputTokens !== undefined &&
-      run.outputTokens !== undefined && {
-        tokens: { in: run.inputTokens, out: run.outputTokens },
-      }),
-    ...(value.error !== undefined && { error: jsonError(value.error) }),
-  };
+  return result;
 }
 
-/** Live Chat writes EAV; old conversations remain readable while other modules migrate. */
+/** One continuous dialogue. Retained history and model-context projection are separate reads. */
 export function createEavChatBackend(
   options: NodeChatOptions & { readonly database: Promise<DB> },
 ): ChatBackend {
   let disposed = false;
   const runs = new Map<string, { request: string; handle: ChatRun; dispose: () => void }>();
-  const messages = async (conversation: string, allowNew = false) => {
+  const database = async () => {
     const db = await options.database;
-    const legacy = await options.nodes.snapshot();
-    const exists = legacy.get(conversation)?.data?.kind === 'conversation';
-    const old = exists ? await savedMessages(options.nodes, conversation, legacy.sequence) : [];
+    let migration = migrations.get(db);
+    if (!migration) {
+      migration = migrateDialogue(db, options.nodes).catch((error) => {
+        migrations.delete(db);
+        throw error;
+      });
+      migrations.set(db, migration);
+    }
+    await migration;
+    return db;
+  };
+  const messages = async () => {
+    const db = await database();
     return db.transaction(async (tx) => {
-      const route = await tx.entities.conversationRoutes.first({
-        where: { value: { eq: conversation } },
-        select: { conversation: true },
+      const exchanges = await tx.entities.exchanges.query({
+        select: {},
+        orderBy: [{ position: 'asc' }],
       });
-      if (!route) {
-        if (!(exists || allowNew))
-          throw new Error(
-            'Conversation is unavailable. Start a new chat or choose another conversation.',
-          );
-        return old;
-      }
-      const entities = await tx.entities.messages.query({
-        where: { exchange: { matches: { conversation: { eq: route.conversation } } } },
-        select: { exchange: { position: true }, position: true },
-      });
-      entities.sort((a, b) => a.exchange.position - b.exchange.position || a.position - b.position);
-      return [
-        ...old,
-        ...(await Promise.all(
-          entities.map(async (entity) => ({ data: await projectedMessage(tx, entity) })),
-        )),
-      ];
+      return (await Promise.all(exchanges.map((exchange) => projectedExchange(tx, exchange))))
+        .flat()
+        .map((data) => ({ data }));
     });
   };
   const send = (input: NodeChatRequest): ChatRun => {
     if (disposed) throw new Error('Chat backend is disposed');
-    const request = { ...input, text: input.text.trim() };
+    const request = { ...input, conversation: 'dialogue', text: input.text.trim() };
     if (!(request.id && request.conversation && request.text && request.model))
       throw new Error('Chat submission is incomplete');
     const requestKey = canonical(request);
@@ -252,19 +289,14 @@ export function createEavChatBackend(
       });
     };
     const restore = async (db: DB) => {
-      const accepted = await db.entities.submissions.first({
-        where: { key: { eq: request.id } },
-        select: {
-          route: { value: true },
-          userMessage: { author: { name: true } },
-          response: true,
-          run: { requestedModel: true },
-        },
+      const accepted = await db.entities.exchanges.first({
+        where: { submission: { eq: request.id } },
+        select: { run: { requestedModel: true } },
       });
       if (!accepted) return false;
-      const text = await db.entities.textParts.first({
-        where: { message: { eq: accepted.userMessage } },
-        select: { text: true },
+      const userMessage = await db.entities.messages.first({
+        where: { exchange: { eq: accepted } },
+        select: { author: true, text: true },
       });
       const authorBinding = await db.entities.actorBindings.first({
         where: { key: { eq: options.user } },
@@ -273,16 +305,17 @@ export function createEavChatBackend(
       if (
         !(
           authorBinding &&
-          accepted.userMessage.author &&
-          sameEntity(authorBinding.actor, accepted.userMessage.author)
+          userMessage?.author &&
+          sameEntity(authorBinding.actor, userMessage?.author)
         ) ||
-        accepted.route.value !== request.conversation ||
-        text?.text !== request.text ||
-        accepted.run.requestedModel !== request.model
+        userMessage?.text !== request.text ||
+        accepted.run?.requestedModel !== request.model
       )
         throw new Error('Request identity was reused');
-      const response = await db.transaction((tx) => projectedMessage(tx, accepted.response));
-      if (response.role !== 'agent') throw new Error('Saved response is unavailable');
+      const response = (await db.transaction((tx) => projectedExchange(tx, accepted))).find(
+        (message) => message.role === 'agent',
+      );
+      if (response?.role !== 'agent') throw new Error('Saved response is unavailable');
       prepared = true;
       const data: AgentRunState = {
         phase: 'recorded',
@@ -348,41 +381,6 @@ export function createEavChatBackend(
         current.phase === 'paused'
       )
         return;
-      const db = await options.database;
-      const parts = [
-        ...execution.receipts().map((entity) => ({ kind: 'tool' as const, execution: entity })),
-        ...(current.text ? [{ kind: 'text' as const, text: current.text }] : []),
-      ];
-      try {
-        await db.transaction({ author: submitted.run.author, origin: submitted.exchange }, (tx) =>
-          recordResponse(tx, submitted!.response, parts),
-        );
-      } catch (error) {
-        let failure = error;
-        pending = {
-          stage: 'response',
-          retry: async () => {
-            try {
-              if (failure instanceof SaveError) await failure.retry();
-              else
-                await db.transaction(
-                  { author: submitted!.run.author, origin: submitted!.exchange },
-                  (tx) => recordResponse(tx, submitted!.response, parts),
-                );
-            } catch (next) {
-              failure = next;
-              throw next;
-            }
-            await saveEvidence('agent', current.text);
-          },
-        };
-        notify({
-          phase: 'unsaved',
-          persistenceStage: 'response',
-          persistenceError: message(error),
-        });
-        return;
-      }
       try {
         await saveEvidence('agent', current.text);
       } catch (error) {
@@ -395,20 +393,15 @@ export function createEavChatBackend(
     };
     const done = (async () => {
       try {
-        const db = await options.database;
+        const db = await database();
         if (await restore(db)) return state;
         if (disposed || stopped) return state;
-        const history = await messages(request.conversation, true);
+        const history = await messages();
         const context = history.flatMap(({ data }) =>
           data.role === 'record'
             ? [{ role: 'user' as const, content: `Retained summary source material: ${data.text}` }]
             : historyModelMessages([data]),
         );
-        const legacyConversation = (await options.nodes.snapshot()).get(request.conversation);
-        const legacyTitle =
-          legacyConversation?.data?.kind === 'conversation'
-            ? legacyConversation.data.title
-            : undefined;
         const startedAt = new Date();
         const prepare = async () => {
           await db.refresh();
@@ -442,25 +435,8 @@ export function createEavChatBackend(
             };
             if (agent) await tx.entities.agents.update({ ...agent, ...config });
             else agent = await tx.entities.agents.insert(config);
-            let route = await tx.entities.conversationRoutes.first({
-              where: { value: { eq: request.conversation } },
-              select: { conversation: true },
-            });
-            if (!route) {
-              const conversation = await createConversation(tx, {
-                title:
-                  typeof legacyTitle === 'string' && legacyTitle
-                    ? legacyTitle
-                    : request.text.slice(0, 100),
-                createdAt: startedAt,
-              });
-              route = await tx.entities.conversationRoutes.insert({
-                value: request.conversation,
-                conversation,
-              });
-            }
             submitted = await submitChat(tx, {
-              conversation: route.conversation,
+              submission: request.id,
               author: user,
               agent,
               text: request.text,
@@ -470,13 +446,6 @@ export function createEavChatBackend(
                 transformation: 'generated',
                 content: JSON.parse(canonical({ message: effective })),
               })),
-            });
-            await tx.entities.submissions.insert({
-              key: request.id,
-              route,
-              userMessage: submitted.userMessage,
-              response: submitted.response,
-              run: submitted.run,
             });
             prepared = true;
           });
@@ -657,34 +626,8 @@ export function createEavChatBackend(
   return {
     send,
     messages,
-    chats: async (query = {}) => {
-      const db = await options.database;
-      const old = await savedChats(options.nodes, { limit: Number.MAX_SAFE_INTEGER });
-      const routes = await db.entities.conversationRoutes.query({
-        select: { value: true, conversation: { title: true, createdAt: true } },
-      });
-      const chats = new Map(old.map((chat) => [chat.node, chat]));
-      for (const route of routes) {
-        const latest = await db.entities.exchanges.first({
-          where: { conversation: { eq: route.conversation } },
-          select: { startedAt: true },
-          orderBy: [{ startedAt: 'desc' }],
-        });
-        const value: SavedChat = {
-          node: route.value,
-          data: {
-            kind: 'conversation',
-            title: route.conversation.title,
-            createdAt: route.conversation.createdAt.toISOString(),
-          },
-          activeAt: (latest?.startedAt ?? route.conversation.createdAt).toISOString(),
-        };
-        chats.set(route.value, value);
-      }
-      return [...chats.values()]
-        .sort((a, b) => b.activeAt.localeCompare(a.activeAt))
-        .slice(0, query.limit ?? 20);
-    },
+    continuous: true,
+    chats: async () => [],
     subscribe: (listener) => {
       let close: (() => void) | undefined;
       let active = true;

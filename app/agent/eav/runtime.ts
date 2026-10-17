@@ -16,6 +16,7 @@ import { parseAgentSettings } from '../schema.ts';
 import type { agentSchema, AgentRunRef, ToolExecutionRef } from '../data/schema.ts';
 import { finishAgentRun, readAgentRun } from '../data/operations.ts';
 import { eavTools } from './tools.ts';
+import { modelSteps } from './model-steps.ts';
 
 const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error));
 /** Execute an already accepted EAV run. Reading/recovery never re-enters this function. */
@@ -34,6 +35,7 @@ export function executeEavRun(
   let executing = false;
   let interrupted = false;
   let tools: ReturnType<typeof eavTools> | undefined;
+  let steps: ReturnType<typeof modelSteps> | undefined;
   let guard: ReturnType<typeof agentContentContext> | undefined;
   let pending: SaveError | undefined;
   let content: TransactionRequest<void> | undefined;
@@ -70,7 +72,7 @@ export function executeEavRun(
       throw new DOMException('Agent stopped', 'AbortError');
   };
   const finish = async () => {
-    if (disposed || !terminal || tools?.pending()) return;
+    if (disposed || !terminal || tools?.pending() || steps?.pending()) return;
     try {
       await options.db.transaction({ author, origin: options.run }, async (tx) => {
         const run = await tx.entities.agentRuns.get(options.run, { select: { status: true } });
@@ -111,6 +113,27 @@ export function executeEavRun(
       if (!run || run.status !== 'running')
         throw new Error('Agent run is not available for execution');
       author = run.author;
+      steps = modelSteps({
+        db: options.db,
+        run: options.run,
+        author,
+        configuration: {
+          provider: run.provider,
+          model: run.requestedModel,
+          settings: run.settings,
+          tools: run.tools.map(({ name, version }) => ({ name, version })),
+        },
+        failed: (error) => {
+          interrupted = true;
+          live = false;
+          abort.abort();
+          notify({
+            phase: 'unsaved',
+            persistenceStage: 'terminal',
+            persistenceError: errorText(error),
+          });
+        },
+      });
       const settings = parseAgentSettings(run.settings);
       const initial: AgentRunData = {
         kind: 'agentRun',
@@ -153,6 +176,7 @@ export function executeEavRun(
           tools: supplied,
           enabled: run.tools,
           signal: abort.signal,
+          step: () => steps?.current(),
           check,
           execution: (value) => {
             executing = value;
@@ -242,6 +266,28 @@ export function executeEavRun(
             messages,
             stopWhen: isStepCount(typeof settings.maxSteps === 'number' ? settings.maxSteps : 1),
             abortSignal: abort.signal,
+            prepareStep: async ({ messages: effectiveMessages }) => {
+              check();
+              await steps!.before(
+                JSON.parse(JSON.stringify([...instructions, ...effectiveMessages])),
+              );
+              check();
+            },
+            onStepFinish: async (response) => {
+              await steps!.after(
+                JSON.parse(
+                  JSON.stringify({
+                    messages: response.response.messages.filter(
+                      (message) => message.role === 'assistant',
+                    ),
+                    model: response.response.modelId,
+                    request: response.response.id,
+                    finishReason: response.finishReason,
+                    usage: response.usage,
+                  }),
+                ),
+              );
+            },
           });
           const iterator = stream.fullStream[Symbol.asyncIterator]();
           for (;;) {
@@ -284,6 +330,11 @@ export function executeEavRun(
       live = false;
       await tools?.settle();
       await guard?.settle();
+      try {
+        await steps?.stopOpen(data.error);
+      } catch {
+        /* The exact save is retained by the step owner. */
+      }
       terminal = {
         ...data,
         status: interrupted ? 'interrupted' : abort.signal.aborted ? 'stopped' : data.status,
@@ -317,6 +368,15 @@ export function executeEavRun(
     retrySave: () => {
       retry ??= (async () => {
         if (disposed) return state;
+        if (steps?.pending()) {
+          try {
+            await steps.retry();
+            await steps.stopOpen();
+          } catch (error) {
+            notify({ persistenceError: errorText(error) });
+            return state;
+          }
+        }
         if (tools?.pending()) {
           await tools.retrySave();
           if (!abort.signal.aborted) return state;

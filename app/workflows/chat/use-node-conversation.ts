@@ -42,7 +42,7 @@ export function useNodeConversation(options: NodeConversationOptions) {
     if (options.recordsReady === false) return;
     const restoring = restoration.current.startup;
     restoration.current.startup = false;
-    const requested = options.conversation;
+    const requested = conversation.continuous ? 'dialogue' : options.conversation;
     if (requested) {
       const previous = restoration.current.requested;
       if (
@@ -52,7 +52,11 @@ export function useNodeConversation(options: NodeConversationOptions) {
         return;
       restoration.current.requested = { node: requested, availability: options.availability };
       // Selection already published by the owner has just been reflected in Application navigation.
-      if (conversation.conversation() === requested && !conversation.snapshot().selection.pending)
+      if (
+        !(restoring && conversation.continuous) &&
+        conversation.conversation() === requested &&
+        !conversation.snapshot().selection.pending
+      )
         return;
       later(
         (restoring ? conversation.restore(requested) : conversation.open(requested)).then(

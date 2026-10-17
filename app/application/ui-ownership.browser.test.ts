@@ -1,9 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { setPreviewMobile } from '../ui/kit/preview.browser.test-support.ts';
 
-test('one kit pane width token changes Chat, conversation selection and Wiki references', async ({
-  page,
-}) => {
+test('one kit pane width token changes Chat and Wiki references', async ({ page }) => {
   await page.setViewportSize({ width: 900, height: 844 });
   const changeKitWidth = async () =>
     page.addStyleTag({ content: ':root, .kit-presentation { --drawer-width: 300px; }' });
@@ -19,19 +17,6 @@ test('one kit pane width token changes Chat, conversation selection and Wiki ref
   expect((await page.getByRole('dialog', { name: 'Chat', exact: true }).boundingBox())!.width).toBe(
     390,
   );
-  await page.goto('/preview/');
-  await page.setViewportSize({ width: 900, height: 844 });
-  await changeKitWidth();
-  const chooser = page.getByRole('complementary', { name: 'Conversations', exact: true });
-  await expect(chooser).toBeVisible();
-  expect((await chooser.boundingBox())!.width).toBe(300);
-  await page.setViewportSize({ width: 390, height: 844 });
-  for (let step = 0; step < 10; step++)
-    await page.locator('[data-preview-drag-handle]').press('Shift+ArrowDown');
-  await page.getByRole('button', { name: 'Conversations', exact: true }).click();
-  expect(
-    (await page.getByRole('dialog', { name: 'Conversations', exact: true }).boundingBox())!.width,
-  ).toBe(390);
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto('/preview/wiki.html');
   await changeKitWidth();

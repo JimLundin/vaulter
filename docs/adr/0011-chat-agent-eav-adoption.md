@@ -1,39 +1,49 @@
-# Record live Chat and Agent execution in EAV while other producers migrate
+# Use EAV for one continuous dialogue and independent Agent execution records
 
-Chat owns Conversation, Exchange, Message and ordered text/tool parts. Agent owns Agent configuration,
-Agent run, accepted tool capabilities, Context input and Tool execution. References express those
-relationships directly. Runs do not require a Conversation or Exchange. Actor is shared attribution.
-Each run copies its effective configuration and ordered provider inputs; editing an Agent does not
-rewrite the meaning of earlier runs. Tool parts reference Agent receipts rather than copying outcomes.
+The product has one ongoing native user-agent Conversation per Vault. Topic and date changes append
+to it. The earlier branch implementation preserved titled, selectable chats and copied Agent output
+into Chat messages; that interpretation was wrong and is replaced by this decision.
 
-The schemas and domain operations are in `app/workflows/chat/data` and `app/agent/data`. Application
-registers their combined schema once. Generic EAV writes validate structure; producer operations
-enforce lifecycle rules, ordering, accepted tool membership and response/run ownership. Ordinary
-callers use opaque entity objects. Chat's route and submission records isolate the existing shell's
-navigation keys and transport retry keys from domain identity.
+The reference is the [Pi Durable schema investigation](https://github.com/JimLundin/vaulter/blob/23d183c/docs/research/pi-durable-schema.md).
+Its useful separation is retained dialogue, effective model context and execution state. One dialogue
+per Vault is Vaulter's product decision, not a Pi storage limitation. ADR 0010 supplies the typed EAV
+engine; the research note's Node-specific physical layout is superseded by that decision.
 
-The production entry supplies an independent GitHub EAV adapter. Immutable transaction envelopes
-under `.vaulter/eav/transactions/` retain schemas and fact assertions/retractions. Atomic Git ref
-updates coordinate with existing Node writes without replacing unrelated paths. A plaintext device
-cache supports offline reads; writes require remote acceptance. An uncertain save retains its exact
-publication for explicit retry, without rerunning a callback, provider or tool. Session disposal and
-credential replacement also cover EAV storage. The cache is cleared on sign-out.
+Chat owns the single Conversation identity, ordered Exchanges, canonical submitted Messages and
+RetainedSource records. A stable submission key lives on its Exchange for admission deduplication;
+there is no separate queued Submission lifecycle or persisted conversation routing entity. Concurrent
+admission uses EAV's atomic conflict check. Subject titles and device preferences cannot create scopes.
 
-New production chat submissions and their Agent execution use EAV. Previously accepted Node
-conversations remain readable and can receive new EAV exchanges without rewriting historical data.
-The retained Chat interaction now consumes a storage-independent backend interface. The old backend
-remains available to callers and fixtures while they migrate. Independent legacy Agent/voice callers
-also retain their current entry points; the EAV execution path is available separately.
+Agent owns configuration, runs, ModelSteps, effective inputs and canonical ToolExecutions. Chat
+projects the run's responses and tool references; it does not save a second agent message or tool
+outcome. Each observable text request retains accepted inputs/configuration before execution and a
+response before the next step. The adapter explicitly versions its application-message input format
+as `ai-sdk-model-messages-v7`. This is not a raw HTTP request. Opaque external providers retain known
+run-level records, without invented per-request receipts. Provider-internal attempts remain unknown.
 
-Unmigrated content tools still require Node authors, origins and exact citation endpoints. A small
-immutable `externalRecord` backlink identifies an EAV run, and message text excerpts supply exact
-evidence for those readers. These compatibility records do not own the conversation or execution
-lifecycle. Provider execution waits for initial compatibility publication as well as EAV acceptance.
-Response evidence has its own retained save obligation. There is no atomic transaction spanning both
-stores; stage-specific recovery makes that limitation explicit without replaying effects.
+The independent GitHub EAV adapter publishes immutable transaction envelopes with schema revisions
+under `.vaulter/eav/transactions/`, preserving unrelated Node/content paths through Git ref CAS.
+The device cache supports offline reads; writes require remote acceptance. Uncertain saves retain
+exact publications. Stop, retry and historical reads do not replay models or tools. Session disposal,
+credential changes and sign-out cover EAV storage. No automatic execution scheduler is introduced.
 
-This advances ADR 0010 and narrows the scope of ADRs 0002, 0003 and 0009 for production Chat. Their
-rules continue to apply to producers using Nodes. Existing exact citations in ADR 0005 remain
-readable; ADR 0007's historical formats are not rewritten. EAV history is available through its
-database interface; migrating the generic History screen and importing old physical history are
-separate producer migrations.
+A one-time importer captures earlier chats into the target retained-source contract, preserving known
+speaker/status/content, old grouping and exact immutable Node versions as provenance. It does not
+manufacture model steps, authors or outcomes. Its deterministic source ordering is presentation order;
+unknown dates or ties retain that uncertainty. Normal chat readers subsequently use only EAV. Original
+Node history remains for exact evidence and other modules' gradual migration.
+
+The production UI and default preview reopen the same dialogue and retire New/Open conversation
+selection. Existing draft, capture, submission and recovery ownership remains in the retained Chat
+interaction. The legacy Node backend is a compatibility seam for independent callers/tests, not an
+alternative production chat mode. Independent voice entry points remain a subsequent producer migration.
+
+Unmigrated content tools still need Node authors, origins and exact citation endpoints. Immutable
+`externalRecord` run backlinks and message excerpts provide those compatibility references. They do
+not own dialogue or execution. These writes have separate recovery; there is no atomic transaction
+across Node and EAV stores. Generic History UI remains a subsequent migration; EAV history is queryable
+through the database interface now.
+
+Context budgeting, bounded tool projections and compaction are explicitly outside this implementation
+step. Future compaction produces attributed Interpretation with retained source coverage, rather than
+rewriting the dialogue or equating all retained history with a provider request.

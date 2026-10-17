@@ -139,7 +139,8 @@ export function createNodeConversation(initial: NodeConversationOptions) {
   let activeBackend = backend;
   let unsubscribeActive: (() => void) | undefined;
   let options = initial;
-  let id: string = crypto.randomUUID();
+  const continuous = 'continuous' in backend && backend.continuous === true;
+  let id: string = continuous ? 'dialogue' : crypto.randomUUID();
   let transcription = initial.transcription;
   let state: NodeConversationState = {
     draft: '',
@@ -382,7 +383,7 @@ export function createNodeConversation(initial: NodeConversationOptions) {
         contentAccepted: undefined,
         contextError: undefined,
       });
-      options.onConversation?.(conversation);
+      if (!continuous) options.onConversation?.(conversation);
       return { status: 'selected', conversation };
     } catch (error) {
       if (disposed || generation !== selectionGeneration) return { status: 'superseded' };
@@ -466,7 +467,8 @@ export function createNodeConversation(initial: NodeConversationOptions) {
       active.prepared() &&
       current.execution &&
       current.phase !== 'accepting' &&
-      current.persistenceStage !== 'initial'
+      current.persistenceStage !== 'initial' &&
+      !continuous
     )
       options.onConversation?.(id);
     set({
@@ -546,7 +548,8 @@ export function createNodeConversation(initial: NodeConversationOptions) {
     if (
       active.prepared() &&
       active.snapshot().execution &&
-      active.snapshot().persistenceStage !== 'initial'
+      active.snapshot().persistenceStage !== 'initial' &&
+      !continuous
     )
       options.onConversation?.(id);
     if (
@@ -630,6 +633,7 @@ export function createNodeConversation(initial: NodeConversationOptions) {
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
+    continuous,
     conversation: () => id,
     setDraft: (draft: string) => {
       if (disposed) return;
@@ -761,7 +765,11 @@ export function createNodeConversation(initial: NodeConversationOptions) {
           await retained.retrySave();
           if (disposed || active !== retained || id !== conversation) return;
           reflect();
-          if (retained.prepared() && retained.snapshot().persistenceStage !== 'initial')
+          if (
+            retained.prepared() &&
+            retained.snapshot().persistenceStage !== 'initial' &&
+            !continuous
+          )
             options.onConversation?.(conversation);
           if (!(state.persistenceError || state.busy)) {
             acknowledgeCompletion(retained);
@@ -876,6 +884,7 @@ export function createNodeConversation(initial: NodeConversationOptions) {
     },
     selectionAvailability,
     open: async (conversation: string): Promise<ChatSelectionOutcome> => {
+      if (continuous) conversation = 'dialogue';
       const permission = selectionAvailability();
       if (!permission.allowed) {
         set({ selection: { ...state.selection, reason: permission.reason } });
@@ -919,6 +928,7 @@ export function createNodeConversation(initial: NodeConversationOptions) {
     },
     /** Startup restoration has lower priority than any admitted explicit conversational intent. */
     restore: async (conversation?: string): Promise<ChatSelectionOutcome> => {
+      if (continuous) conversation = 'dialogue';
       if (disposed || explicitSelection || state.turns.length) return { status: 'superseded' };
       if (!conversation) return { status: 'selected', conversation: id };
       const permission = selectionAvailability();
@@ -929,6 +939,7 @@ export function createNodeConversation(initial: NodeConversationOptions) {
       return readSelection(conversation, generation, reader);
     },
     newChat: (): ChatSelectionOutcome => {
+      if (continuous) return { status: 'blocked', reason: 'Chat is one continuous dialogue.' };
       const permission = selectionAvailability();
       if (!permission.allowed) {
         set({ selection: { ...state.selection, reason: permission.reason } });

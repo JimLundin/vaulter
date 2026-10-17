@@ -509,7 +509,7 @@ export function OpenApplication({
       keys: 'mod+j',
       run: () => showPanel(!panel),
     },
-    ...(turns.length && selectionAvailability.allowed
+    ...(!conversation.continuous && turns.length && selectionAvailability.allowed
       ? [
           {
             id: 'agent.new',

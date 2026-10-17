@@ -6,7 +6,14 @@ import {
   type ReadView,
   type JsonValue,
 } from '../../vault/eav/index.ts';
-import type { agentSchema, AgentRef, AgentRunRef, RunToolRef, ToolExecutionRef } from './schema.ts';
+import type {
+  agentSchema,
+  AgentRef,
+  AgentRunRef,
+  RunToolRef,
+  ToolExecutionRef,
+  ModelStepRef,
+} from './schema.ts';
 
 type Writing = Transaction<typeof agentSchema>;
 type Reading = ReadView<typeof agentSchema>;
@@ -125,6 +132,13 @@ export async function finishAgentRun(tx: Writing, identity: AgentRunRef, outcome
     select: {},
   });
   if (pending) throw new Error('Record pending tool outcomes before finishing the run');
+  if (
+    await tx.entities.modelSteps.first({
+      where: { run: { eq: run }, status: { eq: 'running' } },
+      select: {},
+    })
+  )
+    throw new Error('Record pending model outcomes before finishing the run');
   // Optional omitted fields stay absent; undefined is not an EAV value.
   const { status: _status, startedAt: _startedAt, ...reference } = run;
   await tx.entities.agentRuns.update({ ...reference, ...defined(parsed), elapsedMs });
@@ -142,19 +156,28 @@ const invocationSchema = z.strictObject({
 });
 export type ToolInvocation = Omit<z.input<typeof invocationSchema>, 'input'> & {
   readonly input: JsonValue;
+  readonly step?: ModelStepRef;
 };
 export async function startToolExecution(
   tx: Writing,
   identity: RunToolRef,
   invocation: ToolInvocation,
 ) {
-  const value = invocationSchema.parse(invocation);
+  const { step, ...supplied } = invocation;
+  const value = invocationSchema.parse(supplied);
   const tool = await tx.entities.runTools.get(identity, {
     select: { run: { status: true, startedAt: true } },
   });
   if (!tool || tool.run.status !== 'running')
     throw new Error('Tool execution requires a running run');
   if (value.startedAt < tool.run.startedAt) throw new Error('Tool starts before its run');
+  if (step) {
+    const accepted = await tx.entities.modelSteps.get(step, {
+      select: { run: true, status: true },
+    });
+    if (!(accepted && sameEntity(accepted.run, tool.run)))
+      throw new Error('Tool step belongs to another run');
+  }
   const executions = await tx.entities.toolExecutions.query({
     where: { tool: { matches: { run: { eq: tool.run } } } },
     select: { position: true, call: true, attempt: true, status: true, tool: true },
@@ -173,6 +196,7 @@ export async function startToolExecution(
     throw new Error('Invalid tool call attempt');
   return tx.entities.toolExecutions.insert({
     tool,
+    ...(step && { step }),
     position: (executions[0]?.position ?? -1) + 1,
     ...value,
     status: 'running',
@@ -260,5 +284,18 @@ export async function readAgentRun(view: Reading, identity: AgentRunRef) {
     },
     orderBy: [{ position: 'asc' }],
   });
-  return { ...run, inputs, tools, executions };
+  const steps = await view.entities.modelSteps.query({
+    where: { run: { eq: run } },
+    select: {
+      position: true,
+      status: true,
+      inputFormat: true,
+      input: true,
+      configuration: true,
+      response: true,
+      error: true,
+    },
+    orderBy: [{ position: 'asc' }],
+  });
+  return { ...run, inputs, tools, executions, steps };
 }

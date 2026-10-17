@@ -118,12 +118,7 @@ test('the freestanding rail follows the keyboard viewport and leaves Chat contro
   await finish.click();
   await setKeyboardViewport(page, 844, 0);
   await message.fill('Keep this draft beside the rail');
-  const conversations = page.getByRole('button', { name: 'Conversations', exact: true });
-  await conversations.click();
-  const chooser = page.getByRole('dialog', { name: 'Conversations', exact: true });
-  await expect(chooser.getByRole('button', { name: /Garden studio plans/ })).toBeVisible();
-  await chooser.getByRole('button', { name: 'Close conversations', exact: true }).click();
-  await expect(conversations).toBeFocused();
+  await expect(page.getByRole('button', { name: 'Conversations', exact: true })).toHaveCount(0);
   await navigateToModule(page, 'History');
   await expectAnchor(page, 1);
   await navigateToModule(page, 'Chat');

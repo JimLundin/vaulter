@@ -32,9 +32,9 @@ export function ChatSurface({
   children,
 }: {
   presentation: ChatPresentation;
-  supporting: ReactNode;
-  onNewChat: () => void;
-  onConversations: () => void;
+  supporting?: ReactNode;
+  onNewChat?: () => void;
+  onConversations?: () => void;
   busy: boolean;
   composer: ReactNode;
   suggestions?: ReactNode;
@@ -42,31 +42,32 @@ export function ChatSurface({
   empty?: boolean;
   children: ReactNode;
 }) {
-  const actions = (
-    <Row gap="xs">
-      <Row visible="compact">
+  const actions =
+    onNewChat && onConversations ? (
+      <Row gap="xs">
+        <Row visible="compact">
+          <Button
+            variant="ghost"
+            size="compact"
+            iconOnly={true}
+            aria-label="Conversations"
+            onClick={onConversations}
+          >
+            <Icon name="list" />
+          </Button>
+        </Row>
         <Button
-          variant="ghost"
-          size="compact"
+          variant="filled"
+          size="standard"
           iconOnly={true}
-          aria-label="Conversations"
-          onClick={onConversations}
+          aria-label="New conversation"
+          disabled={busy}
+          onClick={onNewChat}
         >
-          <Icon name="list" />
+          <Icon name="plus" />
         </Button>
       </Row>
-      <Button
-        variant="filled"
-        size="standard"
-        iconOnly={true}
-        aria-label="New conversation"
-        disabled={busy}
-        onClick={onNewChat}
-      >
-        <Icon name="plus" />
-      </Button>
-    </Row>
-  );
+    ) : undefined;
   const header = <Heading level={2}>Chat</Heading>;
   const dock = (
     <Stack gap="sm">
@@ -88,7 +89,11 @@ export function ChatSurface({
     </ReadingColumn>
   );
   return presentation.page ? (
-    <SplitView main={page} supporting={supporting} />
+    supporting ? (
+      <SplitView main={page} supporting={supporting} />
+    ) : (
+      page
+    )
   ) : (
     <>
       <SupportingPane

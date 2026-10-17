@@ -1,12 +1,12 @@
 import { expect, test } from '@playwright/test';
 
-test('a persistent pane closing on resize preserves outside focus and leaves the next control clickable', {
+test('continuous Chat preserves outside focus on resize and leaves the next control clickable', {
   tag: ['@phone', '@touch'],
 }, async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 844 });
   await page.goto('/preview/');
   const picker = page.getByRole('complementary', { name: 'Conversations', exact: true });
-  await expect(picker).toBeVisible();
+  await expect(picker).toHaveCount(0);
   const field = page.getByRole('textbox', { name: 'Message', exact: true });
   await field.fill('Keep editing after resize');
   await page.setViewportSize({ width: 390, height: 844 });
@@ -141,19 +141,6 @@ test('supporting feed scrolls above one anchored composer without losing its dra
   await page.keyboard.press('Escape');
   await sample.getByRole('button', { name: 'Open supporting pane', exact: true }).click();
   await expect(field).toHaveValue('Retain the next draft');
-});
-
-test('recording blocks saved conversation selection through the production chooser', {
-  tag: '@phone',
-}, async ({ page }) => {
-  await page.setViewportSize({ width: 900, height: 844 });
-  await page.goto('/preview/?conversations=numbered');
-  const pane = page.getByRole('complementary', { name: 'Conversations', exact: true });
-  const row = pane.getByRole('button', { name: /Garden studio plans/ });
-  await expect(row).toBeEnabled();
-  await page.getByRole('button', { name: 'Start voice interaction', exact: true }).click();
-  await expect(row).toBeDisabled();
-  await expect(pane.getByRole('status')).toContainText(/Finish.*recording/);
 });
 
 test('a new selection resets the supporting body without caller access to its scroll owner', {

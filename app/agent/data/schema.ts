@@ -41,6 +41,20 @@ export const AgentRun = e.entity('agent.run', {
   error: e.json().optional(),
 });
 
+/** One observable provider request. External transports may not expose this boundary. */
+export const ModelStep = e.entity('agent.modelStep', {
+  run: e.ref(AgentRun),
+  position: e.number(),
+  startedAt: e.datetime(),
+  status: e.enum('running', 'complete', 'failed', 'stopped'),
+  inputFormat: e.enum('ai-sdk-model-messages-v7'),
+  input: e.json(),
+  configuration: e.json(),
+  endedAt: e.datetime().optional(),
+  response: e.json().optional(),
+  error: e.json().optional(),
+});
+
 /** Accepted tool name/version, independent of later configuration edits. */
 export const RunTool = e.entity('agent.runTool', {
   run: e.ref(AgentRun),
@@ -58,6 +72,7 @@ export const ContextInput = e.entity('agent.contextInput', {
 
 export const ToolExecution = e.entity('agent.toolExecution', {
   tool: e.ref(RunTool),
+  step: e.ref(ModelStep).optional(),
   position: e.number(),
   call: e.string(),
   attempt: e.number(),
@@ -81,6 +96,7 @@ export const agentEntities = {
   }),
   runTools: RunTool.extend({ executions: e.inverse(ToolExecution, 'tool') }),
   contextInputs: ContextInput,
+  modelSteps: ModelStep,
   toolExecutions: ToolExecution,
 } as const;
 
@@ -89,3 +105,5 @@ export type AgentRef = EntityRef<typeof Agent>;
 export type AgentRunRef = EntityRef<typeof AgentRun>;
 export type RunToolRef = EntityRef<typeof RunTool>;
 export type ToolExecutionRef = EntityRef<typeof ToolExecution>;
+
+export type ModelStepRef = EntityRef<typeof ModelStep>;

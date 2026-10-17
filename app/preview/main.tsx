@@ -13,11 +13,13 @@ import { createOpenAICapabilities } from '../agent/openai/index.ts';
 import { recordedTranscription } from '../agent/recorded-transcription.ts';
 import { previewTranscription } from './transcription.ts';
 import { previewNodes, previewJournalKey } from './nodes.ts';
+import { previewEav, previewEavKey } from './eav.ts';
 import type { NodeChange } from '../vault/nodes/store.ts';
 import type { NodeStore } from '../vault/nodes/store.ts';
 import { seedPreviewRecords } from './records.ts';
 
 const query = new URLSearchParams(location.search);
+const eav = previewEav(sessionStorage, query.get('scenario') ?? undefined);
 declare const __PREVIEW_AGENT__: {
   baseURL: string;
   defaultModel?: string;
@@ -162,6 +164,7 @@ function Preview({ nodes }: { nodes: NodeStore }) {
     <OpenApplication
       session={{
         ready: true,
+        eav,
         locked: null,
         signOut: null,
         secrets: null,
@@ -193,6 +196,7 @@ function Preview({ nodes }: { nodes: NodeStore }) {
       chat={agent ? 'Live agent' : 'Scripted chat'}
       onReset={() => {
         sessionStorage.removeItem(previewJournalKey);
+        sessionStorage.removeItem(previewEavKey);
         location.hash = '#/chat/';
         location.reload();
       }}

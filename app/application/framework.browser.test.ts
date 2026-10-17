@@ -213,33 +213,8 @@ test('the preview field keeps one inset action and its draft through focus and r
       true,
     );
   }
-  await page.getByRole('button', { name: 'New conversation', exact: true }).click();
-  await expect(input).toBeVisible();
-  await expect(input).toHaveValue('');
-});
-
-test('the new chat icon keeps the composer button size through viewport changes', {
-  tag: ['@phone', '@touch'],
-}, async ({ page }) => {
-  await page.setViewportSize({ width: 1440, height: 844 });
-  await page.goto('/preview/');
-  const add = page.getByRole('button', { name: 'New conversation', exact: true });
-  await expect(add).toHaveAttribute('data-size', 'standard');
-  // Slow feedback transitions so a layout transition cannot finish before the measurement.
-  await add.evaluate((node) => {
-    node.style.transitionDuration = '1s';
-  });
-  await page.setViewportSize({ width: 390, height: 844 });
-  await expect(add).toHaveAttribute('data-size', 'standard');
-  await expect(add).toHaveAttribute('aria-label', 'New conversation');
-  const bounds = (await add.boundingBox())!;
-  expect(bounds.width).toBe(44);
-  expect(bounds.height).toBe(44);
-  expect(
-    await add.evaluate((node) =>
-      node.getAnimations().map((animation) => (animation as CSSTransition).transitionProperty),
-    ),
-  ).toEqual([]);
+  await expect(page.getByRole('button', { name: 'New conversation', exact: true })).toHaveCount(0);
+  await expect(input).toHaveValue('A message I can type directly');
 });
 
 test('agent controls have even insets and every suggested prompt is visible without sideways scrolling', {
@@ -258,14 +233,6 @@ test('agent controls have even insets and every suggested prompt is visible with
     await expect(mic).toHaveAttribute('data-variant', 'filled');
     await expect(mic).toHaveCSS('border-width', '0px');
     expect((await mic.boundingBox())!.height).toBe(send.height);
-    if (width < 768) {
-      const add = page.getByRole('button', { name: 'New conversation', exact: true });
-      expect((await add.boundingBox())!.height).toBe(send.height);
-      const bar = (await page.locator('[data-edge-rail]').boundingBox())!;
-      const action = (await add.boundingBox())!;
-      expect(action.y - bar.y).toBeGreaterThanOrEqual(2);
-      expect(bar.y + bar.height - action.y - action.height).toBeGreaterThanOrEqual(2);
-    }
     await expect(page.getByText('Ideas to explore', { exact: true })).toHaveCount(0);
     const suggestions = page.getByRole('region', { name: 'Suggested prompts' });
     const buttons = suggestions.getByRole('button');
@@ -645,8 +612,8 @@ test('dictation keeps the composer anchored and only submission stops an agent r
   await expect(input).toBeEditable();
   await expect(microphone).toBeEnabled();
   expect((await composer.boundingBox())!.y).toBe(before.y);
-  await page.getByRole('button', { name: 'New conversation', exact: true }).click();
-  await expect(page.getByRole('region', { name: 'Suggested prompts' })).toBeVisible();
+  await input.fill('');
+  await input.blur();
   const empty = (await composer.boundingBox())!;
   await microphone.click();
   await expect(input).toHaveValue(/^Leave/);
