@@ -1,22 +1,21 @@
-import { transactionFixture } from '@/vault/transactions/fixtures.test-support.ts';
+import { controlledChatStorage } from './controller-storage.test-support.ts';
+import { chatFixture } from './fixtures.test-support.ts';
 import { expect, test, vi } from 'vitest';
-import { memoryNodeBackend } from '@/vault/nodes/memory.ts';
-import { create, request, seed } from '@/vault/nodes/fixtures.test-support.ts';
-import { createNodeConversation } from './node-conversation.ts';
+import { createConversation } from './conversation.ts';
 import { createTranscription, type TranscriptionEvents } from '@/transcription.ts';
 
-const controller = (transcription: ReturnType<typeof createTranscription>) =>
-  createNodeConversation({
-    nodes: transactionFixture(memoryNodeBackend()),
-    user: 'user',
-    agent: 'agent',
-    provider: 'fictional',
-    selectedModel: 'fictional',
-    instructions: '',
-    availability: 'Offline',
-    transcription,
-    model: () => Promise.reject(new Error('Must not execute')),
-  });
+const controller = async (transcription: ReturnType<typeof createTranscription>) => {
+  const { db, options } = await chatFixture();
+  const chat = createConversation({ ...options, availability: 'Offline', transcription });
+  const { dispose } = chat;
+  return {
+    ...chat,
+    dispose: async () => {
+      dispose();
+      await db[Symbol.asyncDispose]();
+    },
+  };
+};
 
 test('Chat capture replaces partials with corrected finals and preserves the starting draft prefix without a mounted view', async () => {
   let events!: TranscriptionEvents;
@@ -24,7 +23,7 @@ test('Chat capture replaces partials with corrected finals and preserves the sta
     events = callbacks;
     return Promise.resolve({ close: () => {}, finish: async () => 'Corrected sentence.' });
   });
-  const chat = controller(voice);
+  const chat = await controller(voice);
   chat.setDraft('Typed introduction.');
   await chat.captureAction();
   events.text('Partial');
@@ -37,7 +36,7 @@ test('Chat capture replaces partials with corrected finals and preserves the sta
   await chat.captureAction();
   events.text('More words');
   expect(chat.snapshot().draft).toBe('Manually edited.\nMore words');
-  chat.dispose();
+  await chat.dispose();
   voice.dispose();
 });
 
@@ -47,7 +46,7 @@ test('New and Send cannot replace the recording association or clear its draft w
     events = callbacks;
     return Promise.resolve({ close: () => {}, finish: async () => 'Final words' });
   });
-  const chat = controller(voice);
+  const chat = await controller(voice);
   chat.setDraft('Keep prefix');
   const original = chat.conversation();
   await chat.captureAction();
@@ -62,7 +61,7 @@ test('New and Send cannot replace the recording association or clear its draft w
   expect(chat.snapshot().capture.phase).toBe('listening');
   await chat.captureAction();
   expect(chat.snapshot().draft).toBe('Keep prefix Final words');
-  chat.dispose();
+  await chat.dispose();
   voice.dispose();
 });
 
@@ -82,7 +81,7 @@ test('manual replacement cancels capture and rejects a final correction whose re
         }),
     });
   });
-  const chat = controller(voice);
+  const chat = await controller(voice);
   await chat.captureAction();
   events.text('Words so far');
   const finishing = chat.captureAction();
@@ -95,7 +94,7 @@ test('manual replacement cancels capture and rejects a final correction whose re
   await finishing;
   expect(chat.snapshot().draft).toBe('My manual correction');
   expect(chat.snapshot().capture.phase).toBe('idle');
-  chat.dispose();
+  await chat.dispose();
   voice.dispose();
 });
 
@@ -109,7 +108,7 @@ test('cancel during microphone opening keeps the draft and releases a late conne
       opened = resolve;
     });
   });
-  const chat = controller(voice);
+  const chat = await controller(voice);
   chat.setDraft('Typed first');
   const starting = chat.captureAction();
   expect(chat.snapshot().capture).toMatchObject({ action: 'cancel', allowed: true });
@@ -126,7 +125,7 @@ test('cancel during microphone opening keeps the draft and releases a late conne
   expect(released).toBe(true);
   expect(chat.snapshot().draft).toBe('Typed first');
   expect(chat.snapshot().capture).toMatchObject({ phase: 'idle', error: '' });
-  chat.dispose();
+  await chat.dispose();
   voice.dispose();
 });
 
@@ -136,7 +135,7 @@ test('recording errors and interruption preserve applied text and leave draft ed
     events = callbacks;
     return Promise.resolve({ close: () => {}, finish: async () => '' });
   });
-  const chat = controller(voice);
+  const chat = await controller(voice);
   await chat.captureAction();
   events.text('Keep these words');
   events.error(new Error('Connection lost'));
@@ -152,18 +151,18 @@ test('recording errors and interruption preserve applied text and leave draft ed
   chat.setDraft('Corrected after interruption.');
   events.text('Late correction');
   expect(chat.snapshot().draft).toBe('Corrected after interruption.');
-  chat.dispose();
+  await chat.dispose();
   voice.dispose();
 });
 
 test('capture reports missing transcription while the retained draft remains editable', async () => {
   const voice = createTranscription(null);
-  const chat = controller(voice);
+  const chat = await controller(voice);
   chat.setDraft('Type without a microphone');
   expect(chat.snapshot().capture).toMatchObject({ action: 'start', allowed: false });
   expect(await chat.captureAction()).toMatchObject({ status: 'blocked' });
   expect(chat.snapshot().draft).toBe('Type without a microphone');
-  chat.dispose();
+  await chat.dispose();
   voice.dispose();
 });
 
@@ -173,19 +172,12 @@ test('Chat rejects starting capture during execution or unresolved save recovery
     opened = true;
     return Promise.resolve({ close: () => undefined, finish: async () => '' });
   });
-  const nodes = memoryNodeBackend();
-  await seed(nodes);
-  await nodes.commit(request('agent', [create('agent', { kind: 'agent', name: 'Fictional' })]));
-  const chat = createNodeConversation({
-    nodes: transactionFixture({ ...nodes, commit: () => Promise.reject(new Error('Offline')) }),
-    user: 'user',
-    agent: 'agent',
-    provider: 'fictional',
-    selectedModel: 'fictional',
-    instructions: '',
-    transcription: voice,
-    model: () => Promise.reject(new Error('Must not execute before acceptance')),
-  });
+  const { db, options } = await chatFixture(
+    controlledChatStorage(async () => {
+      throw new Error('Offline');
+    }),
+  );
+  const chat = createConversation({ ...options, transcription: voice });
   chat.setDraft('Keep this draft');
   const sending = chat.prepareSubmission({ text: 'A separate request' });
   if (sending.status !== 'owned') throw new Error('Expected retained request');
@@ -201,7 +193,8 @@ test('Chat rejects starting capture during execution or unresolved save recovery
   });
   expect(opened).toBe(false);
   expect(chat.snapshot().draft).toBe('Keep this draft');
-  chat.dispose();
+  await chat.dispose();
   voice.dispose();
   await sending.done;
+  await db[Symbol.asyncDispose]();
 });

@@ -1,13 +1,13 @@
-import { agentSettingsSchema } from '@/agent/schema.ts';
 import { z } from 'zod';
-import { sameEntity, type Transaction, type ReadView, type JsonValue } from '@/vault/eav/index.ts';
+import { agentSettingsSchema } from '@/agent/schema.ts';
+import { type JsonValue, type ReadView, sameEntity, type Transaction } from '@/vault/eav/index.ts';
 import type {
-  agentSchema,
   AgentRef,
   AgentRunRef,
+  agentSchema,
+  ModelStepRef,
   RunToolRef,
   ToolExecutionRef,
-  ModelStepRef,
 } from './schema.ts';
 
 type Writing = Transaction<typeof agentSchema>;
@@ -29,6 +29,8 @@ export async function startAgentRun(
   options: {
     readonly agent: AgentRef;
     readonly startedAt: Date;
+    /** Effective transport instructions, retained independently of editable configuration. */
+    readonly instructions?: string;
     /** Effective inputs after context selection; configuration instructions are prepended. */
     readonly inputs: readonly RunInput[];
   },
@@ -56,6 +58,10 @@ export async function startAgentRun(
     if (names.has(tool.name)) throw new Error('Enabled tool names must be unique');
     names.add(tool.name);
   }
+  const instructions =
+    options.instructions === undefined
+      ? agent.instructions
+      : z.string().parse(options.instructions);
   const run = await tx.entities.agentRuns.insert({
     agent,
     author: agent.actor,
@@ -63,14 +69,14 @@ export async function startAgentRun(
     status: 'running',
     provider: agent.provider,
     requestedModel: agent.model,
-    instructions: agent.instructions,
+    instructions,
     settings: agent.settings,
   });
   const tools = [];
   for (const tool of agent.tools)
     tools.push(await tx.entities.runTools.insert({ run, name: tool.name, version: tool.version }));
-  const effective: RunInput[] = agent.instructions
-    ? [{ role: 'system', transformation: 'generated', content: agent.instructions }, ...inputs]
+  const effective: RunInput[] = instructions
+    ? [{ role: 'system', transformation: 'generated', content: instructions }, ...inputs]
     : inputs;
   const recordedInputs = [];
   for (const [position, input] of effective.entries())

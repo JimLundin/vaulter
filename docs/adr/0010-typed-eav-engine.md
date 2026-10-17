@@ -1,10 +1,9 @@
 # Use a typed entity interface over an EAV engine
 
-Vaulter will move to an EAV engine with declarative, persisted schema definitions, opaque entity
+Vaulter uses an EAV engine with declarative, persisted schema definitions, opaque entity
 identity, atomic callback transactions and queryable history. Design the engine around the desired
-application interface, independently of the existing Node representation. Its initial standalone
-implementation is [Vault EAV](../../app/vault/eav/README.md); application migration and durable
-persistence integration remain subsequent work.
+application interface. [Vault EAV](../../app/vault/eav/README.md) owns the engine and
+[ADR 0014](0014-eav-only-vault.md) records adoption across all application owners.
 
 [ADR 0011](0011-chat-agent-eav-adoption.md) records the subsequent durable adapter and live Chat adoption.
 
@@ -23,6 +22,5 @@ insert, update and delete.
 Accepted transactions retain schema revisions and net changes. History can browse transactions,
 entity changes and snapshots through the same typed reading concepts. Stable schema keys separate
 property renames from meaning changes; incompatible definitions require explicit migration. This
-interface takes precedence for the new engine. ADRs 0002, 0003, 0005, 0007 and 0009 still describe
-the active application's Node storage and preservation obligations until a separately implemented
-migration replaces that integration.
+interface governs the application. ADR 0003 defines durable publication, ADR 0005 defines historical
+citation selections and ADR 0007 keeps private source translation outside application owners.

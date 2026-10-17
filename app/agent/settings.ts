@@ -3,7 +3,7 @@ import {
   type SettingDefinition,
   type SettingsDefinition,
 } from '@/settings/store.ts';
-import type { JsonObject } from '@/vault/nodes/model.ts';
+import type { JsonObject } from '@/vault/eav/index.ts';
 import { agentSettingsSchema, parseAgentSettings } from './schema.ts';
 
 type AgentSettingKey = keyof typeof agentSettingsSchema.shape;

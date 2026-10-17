@@ -39,12 +39,10 @@ SDK-internal retries are not separately observable. Opaque external execution ad
 known run-level inputs/output and do not manufacture ModelSteps. Failed/stopped work remains recorded.
 Save retry is persistence-only, including request/response saves; it never resumes a model or tool.
 
-`migration.ts` converts the prior Node chat layout once into RetainedSource records within the
-single dialogue. Original grouping, text, known speaker/status, occurrence metadata and exact Node
-versions remain provenance. Unrecoverable per-step details stay absent. Source ordering is a
-deterministic presentation order, not a claim of precise chronology for ties or unknown dates.
-Normal Chat reads then use only EAV. Existing exact Node evidence remains resolvable for other modules.
-Immutable compatibility excerpts still let unmigrated content tools cite new contributions.
+RetainedSource records preserve source text, known attribution and honest occurrence precision.
+Unavailable per-step details remain absent. Deterministic source ordering is presentation order rather
+than a claim of precise chronology. The persisted Migration schema remains readable for accepted history;
+application startup performs no conversion. All producers and readers use the native EAV contract.
 
 Use a transaction or `db.at(commit)` for consistent multi-query reads. Retained history and effective
 model context are separate records. Explicit context checkpoints summarize a recorded prefix and supply future runs with summary plus
@@ -52,7 +50,6 @@ subsequent activity. Changed source evidence invalidates their use. Automatic co
 bounded tool projections remain subsequent work; this change does not implement a durable execution scheduler or automatic resume.
 
 The product and default preview reopen the same dialogue and expose no New/Open conversation chooser.
-The old Node backend remains as a compatibility test seam for unmigrated independent callers.
 
 Checks: `npm run test:fast -- app/workflows/chat/data app/workflows/chat/eav-backend.test.ts`.
 

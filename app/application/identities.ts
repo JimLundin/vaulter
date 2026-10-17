@@ -1,8 +1,7 @@
-// Caller-owned identities. These defaults are configuration for this personal Vault, not authentication.
-import type { TransactionStore, TransactionRequest } from '@/vault/transactions/store.ts';
-import type { NodeSnapshot } from '@/vault/nodes/store.ts';
-import { nodeOperations } from '@/vault/nodes/operations.ts';
+import { ConflictError, SaveError, type DomainDatabase } from '@/vault/eav/index.ts';
+import type { Actor, ActorBinding } from '@/vault/records/actor.ts';
 
+/** Caller account keys bind to opaque actors; display names do not confer authority. */
 export interface ApplicationIdentities {
   readonly user: string;
   readonly agent: string;
@@ -11,71 +10,62 @@ export const defaultIdentities: ApplicationIdentities = {
   user: 'vaulter:owner',
   agent: 'vaulter:agent',
 };
+type IdentityDatabase = DomainDatabase<{
+  actors: typeof Actor;
+  actorBindings: typeof ActorBinding;
+}>;
+
 export function createApplicationIdentities(
-  nodes: TransactionStore,
+  database: () => Promise<IdentityDatabase>,
   identities: ApplicationIdentities = defaultIdentities,
 ) {
-  let pending: TransactionRequest<void> | undefined;
+  let pending: SaveError | undefined;
   let ensuring: Promise<void> | undefined;
-  const missing = (snapshot: NodeSnapshot) =>
-    (
-      [
-        ['user', 'actor', 'Vault owner'],
-        ['agent', 'agent', 'Vault agent'],
-      ] as const
-    ).filter(([role, kind]) => {
-      const id = identities[role];
-      const existing = snapshot.get(id);
-      if (existing && existing.data?.kind !== kind)
-        throw new Error(
-          `The configured ${role} identity is deleted or has an incompatible kind: ${id}`,
-        );
-      return !existing;
-    });
-  const ensure = () => {
-    ensuring ??= (async () => {
-      if (!(identities.user && identities.agent) || identities.user === identities.agent)
-        throw new Error('Configure distinct nonempty owner and Agent node identities.');
-      if (!missing(await nodes.snapshot()).length) {
-        pending = undefined;
-        return;
-      }
-      using writes = nodes.writer({ recordedBy: identities.user, origin: null }).lifetime();
-      try {
-        if (pending) await writes.retry(pending);
-        else {
-          pending = writes.write(async ({ nodes: reading }) => {
-            const snapshot = await reading.snapshot();
-            const changes = missing(snapshot).map(([role, kind, name]) => ({
-              node: identities[role],
-              expected: null,
-              placement: null,
-              connection: null,
-              data: { kind, name },
-            }));
-            return {
-              value: undefined,
-              transaction: {
-                undoOf: null,
-                kind: nodeOperations.create,
-                message: 'Establish application identities',
-                changes,
-              },
-            };
+  async function establish() {
+    if (!(identities.user && identities.agent) || identities.user === identities.agent)
+      throw new Error('Configure distinct nonempty owner and Agent account keys.');
+    const db = await database();
+    if (pending) {
+      await pending.retry();
+      pending = undefined;
+    }
+    try {
+      await db.transaction(async (tx) => {
+        for (const [role, kind, name] of [
+          ['user', 'user', 'Vault owner'],
+          ['agent', 'agent', 'Vault agent'],
+        ] as const) {
+          const existing = await tx.entities.actorBindings.first({
+            where: { key: { eq: identities[role] } },
+            select: { actor: { kind: true } },
           });
-          await pending.result;
+          if (existing) {
+            if (existing.actor.kind !== kind)
+              throw new Error(`Configured ${role} account has an incompatible actor kind.`);
+            continue;
+          }
+          const actor = await tx.entities.actors.insert({ name, kind });
+          await tx.entities.actorBindings.insert({ key: identities[role], actor });
         }
-        pending = undefined;
-      } catch (error) {
-        // Another caller, or an accepted request with a lost response, can establish the same pair.
-        if (!missing(await nodes.snapshot()).length) {
-          pending = undefined;
+      });
+    } catch (error) {
+      if (error instanceof SaveError) pending = error;
+      if (error instanceof ConflictError) {
+        const bindings = await db.entities.actorBindings.query({
+          where: { key: { in: [identities.user, identities.agent] } },
+          select: { key: true, actor: { kind: true } },
+        });
+        if (
+          bindings.some((item) => item.key === identities.user && item.actor.kind === 'user') &&
+          bindings.some((item) => item.key === identities.agent && item.actor.kind === 'agent')
+        )
           return;
-        }
-        if (pending?.snapshot().phase === 'rejected') pending = undefined;
-        throw error;
       }
-    })().finally(() => {
+      throw error;
+    }
+  }
+  const ensure = () => {
+    ensuring ??= establish().finally(() => {
       ensuring = undefined;
     });
     return ensuring;

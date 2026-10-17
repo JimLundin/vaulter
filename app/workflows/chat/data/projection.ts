@@ -2,8 +2,8 @@ import { modelMessageSchema } from 'ai';
 import type { ReadView } from '@/vault/eav/index.ts';
 import type { chatSchema, ExchangeRef } from './schema.ts';
 import { readExchange } from './operations.ts';
-import { parseMessage } from '@/workflows/chat/records/chat-schema.ts';
-import type { MessageData, MessagePart } from '@/workflows/chat/records/chat.ts';
+import { parseMessage } from '@/workflows/chat/message-schema.ts';
+import type { MessageData, MessagePart } from '@/workflows/chat/message.ts';
 const jsonError = (value: unknown) =>
   value && typeof value === 'object' && 'message' in value ? String(value.message) : undefined;
 

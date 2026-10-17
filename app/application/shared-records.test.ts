@@ -1,72 +1,76 @@
-import { transactionFixture } from '@/vault/transactions/fixtures.test-support.ts';
 import 'fake-indexeddb/auto';
 import { expect, test, vi } from 'vitest';
-import { githubNodeBackend } from '@/vault/storage/nodes/github.ts';
+import {
+  createPersistentStorage,
+  refreshStorage,
+  closeStorage,
+  type MemoryStorage,
+} from '@/vault/eav/index.ts';
+import { githubEavAdapter } from '@/vault/storage/eav/github.ts';
 import { fakeGitHub } from '@/vault/storage/github-client/fake-github.ts';
-import { create, request, seed } from '@/vault/nodes/fixtures.test-support.ts';
-import type { NodeBackend } from '@/vault/nodes/store.ts';
-import { createApplicationConversation, applicationNodeHistory } from './composition.ts';
+import { serial } from '@/runtime/async.ts';
+import { wikiActions } from '@/workflows/wiki/data/operations.ts';
+import { readEavWiki } from '@/workflows/wiki/data/pages.ts';
+import { applicationDatabase, applicationHistory } from './composition.ts';
 
-test('conversation and transaction projections include writes accepted on independent devices', async () => {
-  const fake = await fakeGitHub({});
-  const stores: NodeBackend[] = [];
-  const open = () => {
-    const store = githubNodeBackend({
-      token: 'test',
-      repo: { owner: 'fictional', name: 'vault', branch: 'main' },
-      api: 'https://gh.test',
-      fetch: fake.fetchFn,
-    });
-    stores.push(store);
-    return store;
-  };
-  const first = open();
-  await first.refresh();
-  await seed(first);
-  const second = open();
-  await second.refresh();
-  const at = '2026-01-01T12:00:00Z';
-  await first.commit(
-    request('device-a', [
-      create('chat-a', { kind: 'conversation', title: 'Device A', createdAt: at }),
-    ]),
-  );
-  await second.commit(
-    request('device-b', [
-      create('chat-b', { kind: 'conversation', title: 'Device B', createdAt: at }),
-    ]),
-  );
-  await first.refresh();
-  await second.refresh();
-
-  const readChats = (nodes: NodeBackend) =>
-    createApplicationConversation({
-      nodes: transactionFixture(nodes),
-      provider: 'fictional',
-      model: () => Promise.reject(new Error('Read only')),
-      selectedModel: 'fictional',
-      instructions: '',
-    });
-  const chatA = readChats(first);
-  const chatB = readChats(second);
-  const closeA = chatA.watchRecords();
-  const closeB = chatB.watchRecords();
-  await vi.waitFor(() => {
-    expect(chatA.snapshot().records.chats?.map((chat) => chat.node)).toEqual(['chat-a', 'chat-b']);
-    expect(chatB.snapshot().records.chats).toEqual(chatA.snapshot().records.chats);
+test('Wiki and History projections include writes accepted on independent devices', async () => {
+  const queue = serial();
+  vi.stubGlobal('navigator', {
+    locks: { request: (_name: string, work: () => Promise<unknown>) => queue(work) },
   });
-  closeA();
-  closeB();
-  expect(
-    (await applicationNodeHistory(transactionFixture(first)).entries()).map(
-      (entry) => entry.transaction.id,
-    ),
-  ).toEqual(['device-b', 'device-a', 'seed']);
-  expect(await applicationNodeHistory(transactionFixture(second)).entries()).toEqual(
-    await applicationNodeHistory(transactionFixture(first)).entries(),
-  );
-  chatA.dispose();
-  chatB.dispose();
-  await Promise.all(stores.map((store) => store.clear()));
-  for (const store of stores) store.close();
+  const fake = await fakeGitHub({});
+  const stores: MemoryStorage[] = [];
+  const open = () => {
+    const storage = createPersistentStorage(
+      githubEavAdapter({
+        token: 'test',
+        repo: { owner: 'fictional', name: 'shared-records', branch: 'main' },
+        api: 'https://gh.test',
+        fetch: fake.fetchFn,
+      }),
+    );
+    stores.push(storage);
+    return storage;
+  };
+  try {
+    const first = open();
+    const firstDb = await applicationDatabase(first);
+    const author = await firstDb.transaction((tx) =>
+      tx.entities.actors.insert({ name: 'Editor', kind: 'user' }),
+    );
+    const second = open();
+    const secondDb = await applicationDatabase(second);
+    await wikiActions(firstDb, author).createPage({
+      key: 'device-a',
+      title: 'Device A',
+      summary: '',
+    });
+    await refreshStorage(second);
+    const secondAuthor = (await secondDb.entities.actors.first({ select: {} }))!;
+    await wikiActions(secondDb, secondAuthor).createPage({
+      key: 'device-b',
+      title: 'Device B',
+      summary: '',
+    });
+    await refreshStorage(first);
+    expect((await readEavWiki(firstDb)).map((page) => page.title).sort()).toEqual([
+      'Device A',
+      'Device B',
+    ]);
+    expect((await readEavWiki(secondDb)).map((page) => page.title).sort()).toEqual([
+      'Device A',
+      'Device B',
+    ]);
+    expect(await applicationHistory(second).entries()).toEqual(
+      await applicationHistory(first).entries(),
+    );
+    expect((await applicationHistory(first).entries()).map((entry) => entry.author)).toEqual([
+      'Editor',
+      'Editor',
+      undefined,
+    ]);
+  } finally {
+    for (const storage of stores) closeStorage(storage);
+    vi.unstubAllGlobals();
+  }
 });

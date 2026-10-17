@@ -1,513 +1,133 @@
-import { transactionFixture } from '@/vault/transactions/fixtures.test-support.ts';
-import { expect, test } from 'vitest';
-import { MockLanguageModelV4, convertArrayToReadableStream } from 'ai/test';
-import { memoryNodeBackend } from '@/vault/nodes/memory.ts';
-import { create, request, revise, seed } from '@/vault/nodes/fixtures.test-support.ts';
-import { readAgentRun } from './store.ts';
-import { prepareAgentRunFixture as prepareAgentRun } from './preparation.test-support.ts';
-import { createAgentBackend } from './runtime.ts';
+import { tool } from 'ai';
+import { expect, test, vi } from 'vitest';
+import { z } from 'zod';
+import { createMemoryStorage, openDatabase, sameEntity } from '@/vault/eav/index.ts';
+import { readAgentRun, startAgentRun } from './data/operations.ts';
+import { agentSchema } from './data/schema.ts';
+import { executeEavRun } from './eav/runtime.ts';
 
-const at = '2026-10-10T12:00:00Z';
-async function fixture(
-  compose?: Parameters<typeof prepareAgentRun>[2],
-  origin: string | null = null,
-) {
-  const nodes = memoryNodeBackend();
-  await seed(nodes);
-  await nodes.commit(
-    request('actors', [create('agent', { kind: 'agent', name: 'Fictional Agent' })]),
-  );
-  const prepared = await prepareAgentRun(
-    nodes,
-    {
-      id: 'start',
-      origin,
-      run: 'run',
-      agent: 'agent',
-      recordedBy: 'user',
-      at,
-      provider: 'fictional',
-      model: 'fictional-model',
-      settings: { temperature: 0 },
-      context: [
-        {
-          data: {
-            kind: 'contextInput',
-            role: 'user',
-            position: 0,
-            transformation: 'verbatim',
-            content: 'Keep mornings free.',
-          },
-          target: { node: 'evidence', transaction: 'seed' },
-        },
-      ],
-    },
-    compose,
-  );
-  return { nodes, prepared };
-}
-function model(text = 'Recorded.') {
-  return new MockLanguageModelV4({
-    doStream: async () => ({
-      stream: convertArrayToReadableStream([
-        { type: 'stream-start', warnings: [] },
-        { type: 'text-start', id: 't' },
-        { type: 'text-delta', id: 't', delta: text },
-        { type: 'text-end', id: 't' },
-        {
-          type: 'finish',
-          finishReason: { unified: 'stop', raw: undefined },
-          usage: {
-            inputTokens: { total: 3, noCache: 3, cacheRead: 0, cacheWrite: 0 },
-            outputTokens: { total: 2, text: 2, reasoning: 0 },
-          },
-        },
-      ]),
-    }),
+async function setup(tools: readonly { name: string; version: string }[] = []) {
+  const db = await openDatabase({ schema: agentSchema, storage: createMemoryStorage() });
+  const prepared = await db.transaction(async (tx) => {
+    const actor = await tx.entities.actors.insert({ kind: 'agent', name: 'Assistant' });
+    const enabled = await Promise.all(
+      tools.map((definition) => tx.entities.toolDefinitions.insert(definition)),
+    );
+    const agent = await tx.entities.agents.insert({
+      actor,
+      provider: 'fixture',
+      model: 'fixture-model',
+      instructions: 'Be helpful.',
+      settings: {},
+      tools: enabled,
+    });
+    return { agent, actor };
   });
+  const start = () =>
+    db.transaction((tx) =>
+      startAgentRun(tx, {
+        agent: prepared.agent,
+        startedAt: new Date(),
+        inputs: [{ role: 'user', transformation: 'verbatim', content: 'Hello' }],
+      }),
+    );
+  return { db, start, actor: prepared.actor };
 }
 
-test('a caller runs Agent without Chat and reads exact supplied context and durable outcome', async () => {
-  const { nodes, prepared } = await fixture();
-  const languageModel = model();
-  const backend = createAgentBackend({
-    nodes: transactionFixture(nodes),
-    model: async () => {
-      expect((await readAgentRun(nodes, 'run'))?.data.status).toBe('running');
-      return languageModel;
-    },
+test('independent EAV runs execute concurrently and historical reads never replay providers', async () => {
+  const { db, start } = await setup();
+  await using _db = db;
+  const { run: first } = await start();
+  const { run: second } = await start();
+  let release!: () => void;
+  const waiting = new Promise<void>((resolve) => {
+    release = resolve;
   });
-  const handle = backend.start(prepared);
-  const phases: string[] = [];
-  handle.subscribe(() => phases.push(handle.snapshot().phase));
-  expect((await handle.done).phase).toBe('complete');
-  expect(phases).toContain('running');
-  const recorded = await readAgentRun(nodes, 'run');
-  expect(recorded?.data).toMatchObject({
+  const execution = vi.fn(async () => {
+    await waiting;
+    return { status: 'complete' as const, text: 'Done' };
+  });
+  const a = executeEavRun({ db, run: first, execution });
+  const b = executeEavRun({ db, run: second, execution });
+  await vi.waitFor(() => expect(execution).toHaveBeenCalledTimes(2));
+  expect(await readAgentRun(db, first)).toMatchObject({
+    status: 'running',
+    instructions: 'Be helpful.',
+  });
+  release();
+  expect((await a.done).phase).toBe('complete');
+  expect((await b.done).phase).toBe('unsaved');
+  expect((await b.retrySave()).phase).toBe('complete');
+  const history = await db.history.transactions.query({
+    select: {},
+    orderBy: [{ sequence: 'asc' }],
+  });
+  const at = db.at(history.at(-1)!);
+  expect(await readAgentRun(at, first)).toMatchObject({
     status: 'complete',
-    output: { text: 'Recorded.' },
-    usage: { input: 3, output: 2 },
-    settings: { temperature: 0 },
+    output: { text: 'Done' },
+    steps: [],
   });
-  expect(recorded?.context[0].data.content).toBe('Keep mornings free.');
-  expect(recorded?.context[0].references[0].connection?.target).toEqual({
-    node: 'evidence',
-    transaction: 'seed',
-  });
-  const history = await nodes.history();
-  expect(history[0]).toMatchObject({
-    recordedBy: 'agent',
-    origin: 'run',
-    kind: { scope: 'agent', action: 'completeRun' },
-  });
-  expect(await nodes.changes(history[0]!.id)).toHaveLength(1);
-  expect(
-    (await nodes.changes(prepared.commit.id)).some(({ after }) =>
-      ['conversation', 'exchange', 'message'].includes(String(after.data?.kind)),
-    ),
-  ).toBe(false);
-  expect((await readAgentRun(nodes, 'run', history[1]!.sequence))?.data.status).toBe('running');
-  const reopened = createAgentBackend({
-    nodes: transactionFixture(nodes),
-    model: () => Promise.reject(new Error('Must not execute')),
-  });
-  expect((await reopened.start(prepared).done).phase).toBe('complete');
-  expect(languageModel.doStreamCalls).toHaveLength(1);
+  expect(execution).toHaveBeenCalledTimes(2);
+  a.dispose();
+  b.dispose();
 });
 
-test('a rejected or delayed initial acceptance invokes no model and a lost response retries persistence only', async () => {
-  const { nodes, prepared } = await fixture();
-  const languageModel = model();
-  let release!: () => void;
-  let entered!: () => void;
-  const writing = new Promise<void>((resolve) => {
-    entered = resolve;
+test('module effects start after a canonical invocation and completion is retained once for repeated provider calls', async () => {
+  const { db, start, actor } = await setup([{ name: 'inspect', version: 'v1' }]);
+  await using _db = db;
+  const { run } = await start();
+  const effect = vi.fn(async () => {
+    const recorded = await readAgentRun(db, run);
+    expect(recorded?.executions).toMatchObject([{ status: 'running', input: { query: 'hello' } }]);
+    return { answer: 'retained' };
   });
-  const held = new Promise<void>((resolve) => {
-    release = resolve;
-  });
-  const commits: unknown[] = [];
-  const backend = createAgentBackend({
-    nodes: transactionFixture({
-      ...nodes,
-      commit: async (value) => {
-        commits.push(value);
-        entered();
-        await held;
-        await nodes.commit(value);
-        if (commits.length === 1) throw new Error('Lost acceptance response');
-        return await nodes.commit(value);
-      },
-    }),
-    model: async () => languageModel,
-  });
-  const handle = backend.start(prepared);
-  await writing;
-  expect(languageModel.doStreamCalls).toHaveLength(0);
-  release();
-  expect((await handle.done).phase).toBe('unsaved');
-  expect(handle.snapshot().persistenceError).toBe('Lost acceptance response');
-  expect((await handle.retrySave()).phase).toBe('recorded');
-  expect(commits[1]).toEqual(commits[0]);
-  expect(languageModel.doStreamCalls).toHaveLength(0);
-  expect((await readAgentRun(nodes, 'run'))?.data.status).toBe('running');
-});
-
-test('Stop during initial acceptance records a stopped run without invoking a model', async () => {
-  const { nodes, prepared } = await fixture();
-  let release!: () => void;
-  let entered!: () => void;
-  const writing = new Promise<void>((resolve) => {
-    entered = resolve;
-  });
-  const held = new Promise<void>((resolve) => {
-    release = resolve;
-  });
-  let models = 0;
-  const backend = createAgentBackend({
-    nodes: transactionFixture({
-      ...nodes,
-      commit: async (value) => {
-        if (value.id === prepared.commit.id) {
-          entered();
-          await held;
-        }
-        return await nodes.commit(value);
-      },
-    }),
-    model: () => {
-      models++;
-      return Promise.resolve(model());
+  const handle = executeEavRun({
+    db,
+    run,
+    tools: (context) => {
+      expect(sameEntity(context.author, actor)).toBe(true);
+      expect(sameEntity(context.run, run)).toBe(true);
+      return { inspect: tool({ inputSchema: z.object({ query: z.string() }), execute: effect }) };
+    },
+    execution: async (input) => {
+      const inspect = input.tools.inspect!;
+      if (!inspect.execute || inspect.type === 'provider') throw new Error('Missing tool');
+      const call = {
+        toolCallId: 'call',
+        messages: [...input.messages],
+        abortSignal: input.signal,
+        context: {},
+      };
+      expect(await inspect.execute({ query: 'hello' }, call)).toEqual({ answer: 'retained' });
+      expect(await inspect.execute({ query: 'hello' }, call)).toEqual({ answer: 'retained' });
+      return { status: 'complete', text: 'Inspected' };
     },
   });
-  const handle = backend.start(prepared);
-  await writing;
-  handle.stop();
-  release();
-  expect((await handle.done).phase).toBe('stopped');
-  expect(models).toBe(0);
-  expect((await readAgentRun(nodes, 'run'))?.data).toMatchObject({
-    status: 'stopped',
-    output: { text: '' },
-  });
-});
-
-test('a completed outcome remains visible when saving fails and retry never repeats the model', async () => {
-  const { nodes, prepared } = await fixture();
-  const languageModel = model();
-  let rejectOutcome = true;
-  const saves: unknown[] = [];
-  const backend = createAgentBackend({
-    nodes: transactionFixture({
-      ...nodes,
-      commit: async (value) => {
-        if (value.kind.action === 'completeRun') {
-          saves.push(value);
-          // biome-ignore lint/suspicious/noUnnecessaryConditions: the caller toggles this transport failure after run.done.
-          if (rejectOutcome) throw new Error('Offline');
-        }
-        return await nodes.commit(value);
-      },
-    }),
-    model: async () => languageModel,
-  });
-  const handle = backend.start(prepared);
-  expect(await handle.done).toMatchObject({
-    phase: 'unsaved',
-    persistenceError: 'Offline',
-    data: { status: 'complete', output: { text: 'Recorded.' } },
-    text: 'Recorded.',
-  });
-  expect((await readAgentRun(nodes, 'run'))?.data.status).toBe('running');
-  rejectOutcome = false;
-  expect((await handle.retrySave()).phase).toBe('complete');
-  expect(saves[1]).toEqual(saves[0]);
-  expect(languageModel.doStreamCalls).toHaveLength(1);
-  expect((await readAgentRun(nodes, 'run'))?.data.status).toBe('complete');
-});
-
-test('changed contents under a retained identity are rejected even after reopening', async () => {
-  const { nodes, prepared } = await fixture();
-  const backend = createAgentBackend({
-    nodes: transactionFixture(nodes),
-    model: async () => model(),
-  });
-  const handle = backend.start(prepared);
-  await handle.done;
-  expect(backend.start(prepared)).toBe(handle);
-  const changed = { ...prepared, commit: { ...prepared.commit, message: 'Different request' } };
-  expect(() => backend.start(changed)).toThrow('different contents');
-  const reopened = createAgentBackend({
-    nodes: transactionFixture(nodes),
-    model: async () => model(),
-  });
-  expect(await reopened.start(changed).done).toMatchObject({ phase: 'failed' });
-  expect((await readAgentRun(nodes, 'run'))?.data.status).toBe('complete');
-});
-
-test('execution failure is recorded separately from persistence failure', async () => {
-  const { nodes, prepared } = await fixture();
-  const backend = createAgentBackend({
-    nodes: transactionFixture(nodes),
-    model: () => Promise.reject(new Error('Provider unavailable')),
-  });
-  const result = await backend.start(prepared).done;
-  expect(result).toMatchObject({
-    phase: 'failed',
-    data: { status: 'failed', error: { code: 'executionFailed', message: 'Provider unavailable' } },
-  });
-  expect(result.persistenceError).toBeUndefined();
-  expect((await readAgentRun(nodes, 'run'))?.data).toMatchObject({
-    status: 'failed',
-    error: { message: 'Provider unavailable' },
-  });
-});
-
-test('Stop while model loading settles without relying on provider cancellation', async () => {
-  const { nodes, prepared } = await fixture();
-  let entered!: () => void;
-  const loading = new Promise<void>((resolve) => {
-    entered = resolve;
-  });
-  const backend = createAgentBackend({
-    nodes: transactionFixture(nodes),
-    model: () => {
-      entered();
-      return new Promise(() => {
-        /* Fictional stuck provider. */
-      });
-    },
-  });
-  const handle = backend.start(prepared);
-  await loading;
-  handle.stop();
-  expect((await handle.done).phase).toBe('stopped');
-  expect((await readAgentRun(nodes, 'run'))?.data.status).toBe('stopped');
-});
-
-test('generated structured context and supplied settings describe the effective provider inputs', async () => {
-  const { nodes } = await fixture();
-  const prepared = await prepareAgentRun(nodes, {
-    id: 'structured-start',
-    run: 'structured-run',
-    agent: 'agent',
-    recordedBy: 'user',
-    at,
-    provider: 'fictional',
-    model: 'fictional-model',
-    settings: { temperature: 0 },
-    context: [
-      {
-        data: {
-          kind: 'contextInput',
-          role: 'system',
-          position: 0,
-          transformation: 'verbatim',
-          content: 'Answer briefly.',
-        },
-      },
-      {
-        data: {
-          kind: 'contextInput',
-          role: 'user',
-          position: 1,
-          transformation: 'generated',
-          content: { message: { role: 'user', content: [{ type: 'text', text: 'A question' }] } },
-        },
-      },
-    ],
-  });
-  const languageModel = model();
-  const handle = createAgentBackend({
-    nodes: transactionFixture(nodes),
-    model: async () => languageModel,
-  }).start(prepared);
   expect((await handle.done).phase).toBe('complete');
-  expect(languageModel.doStreamCalls[0]?.prompt).toEqual([
-    { role: 'system', content: 'Answer briefly.' },
-    { role: 'user', content: [{ type: 'text', text: 'A question' }] },
+  expect(effect).toHaveBeenCalledOnce();
+  expect((await readAgentRun(db, run))?.executions).toMatchObject([
+    { status: 'complete', output: { answer: 'retained' } },
   ]);
-  expect(languageModel.doStreamCalls[0]?.temperature).toBe(0);
+  handle.dispose();
 });
 
-test('caller-owned records compose atomically with Agent start and execution requires that acceptance', async () => {
-  const { nodes, prepared } = await fixture(
-    (prepared) => ({
-      ...prepared,
-      commit: {
-        ...prepared.commit,
-        origin: 'caller',
-        changes: [
-          create('caller', { kind: 'fictionalTask', title: 'Organize a morning' }),
-          ...prepared.commit.changes,
-        ],
-      },
-    }),
-    'caller',
+test('Stop interrupts a pending external provider and retains stopped output without replay', async () => {
+  const { db, start } = await setup();
+  await using _db = db;
+  const { run } = await start();
+  const execution = vi.fn(
+    async () =>
+      await new Promise<never>(() => {
+        /* Provider remains pending until Stop. */
+      }),
   );
-  const composed = prepared;
-  const backend = createAgentBackend({
-    nodes: transactionFixture(nodes),
-    model: async () => {
-      expect((await nodes.snapshot()).get('caller')?.data?.title).toBe('Organize a morning');
-      return model();
-    },
-  });
-  expect((await backend.start(composed).done).phase).toBe('complete');
-  expect((await nodes.changes(prepared.commit.id)).map(({ node }) => node)).toContain('caller');
-  const changed = {
-    ...composed,
-    commit: {
-      ...composed.commit,
-      changes: composed.commit.changes.map((change) =>
-        change.node === 'caller'
-          ? { ...change, data: { kind: 'fictionalTask', title: 'Changed' } }
-          : change,
-      ),
-    },
-  };
-  expect(
-    (
-      await createAgentBackend({
-        nodes: transactionFixture(nodes),
-        model: async () => model(),
-      }).start(changed).done
-    ).phase,
-  ).toBe('failed');
-});
-
-test('Agent-owned decoders retain future JSON fields while rejecting invalid known payloads', async () => {
-  const { parseAgentRun, parseContextInput, parseToolExecution } = await import('./schema.ts');
-  const { nodes, prepared } = await fixture();
-  const original = prepared.commit.changes[0]!.data!;
-  const extended = JSON.parse(JSON.stringify({ ...original, future: { retained: ['yes'] } }));
-  expect(parseAgentRun(extended)).toEqual(extended);
-  expect(Object.isFrozen(parseAgentRun(extended))).toBe(true);
-  expect(
-    parseContextInput({
-      kind: 'contextInput',
-      role: 'user',
-      position: 0,
-      transformation: 'verbatim',
-      content: 'Hello',
-      future: { retained: true },
-    }),
-  ).toMatchObject({ future: { retained: true } });
-  expect(
-    parseToolExecution({
-      kind: 'toolExecution',
-      call: 'call',
-      name: 'sample',
-      attempt: 1,
-      started: at,
-      status: 'running',
-      input: null,
-      future: { retained: true },
-    }),
-  ).toMatchObject({ future: { retained: true } });
-  expect(() => parseAgentRun({ ...original, usage: { input: -1, output: 0 } })).toThrow();
-  expect(() => parseAgentRun({ ...original, future: undefined })).toThrow();
-  expect(() =>
-    parseContextInput({
-      kind: 'contextInput',
-      role: 'user',
-      position: -1,
-      transformation: 'verbatim',
-      content: 'Hello',
-    }),
-  ).toThrow();
-  expect((await nodes.snapshot()).get('run')).toBeUndefined();
-});
-
-test('recorded author configuration and provider identity stay exact across later Agent edits', async () => {
-  const { nodes, prepared } = await fixture();
-  const languageModel = new MockLanguageModelV4({
-    doStream: async () => ({
-      stream: convertArrayToReadableStream([
-        { type: 'stream-start', warnings: [] },
-        {
-          type: 'response-metadata',
-          id: 'fictional-request',
-          modelId: 'served-model',
-          timestamp: new Date(at),
-        },
-        { type: 'text-start', id: 't' },
-        { type: 'text-delta', id: 't', delta: 'Recorded.' },
-        { type: 'text-end', id: 't' },
-        {
-          type: 'finish',
-          finishReason: { unified: 'stop', raw: undefined },
-          usage: {
-            inputTokens: { total: 3, noCache: 3, cacheRead: 0, cacheWrite: 0 },
-            outputTokens: { total: 2, text: 2, reasoning: 0 },
-          },
-        },
-      ]),
-    }),
-  });
-  await createAgentBackend({
-    nodes: transactionFixture(nodes),
-    model: async () => languageModel,
-  }).start(prepared).done;
-  await nodes.commit(
-    request('changed-agent', [
-      await revise(nodes, 'agent', { kind: 'agent', name: 'Changed Agent' }),
-    ]),
-  );
-  const recorded = await readAgentRun(nodes, 'run');
-  expect(recorded?.data).toMatchObject({
-    model: { requested: 'fictional-model', served: 'served-model' },
-    request: 'fictional-request',
-  });
-  expect(recorded?.version.connection?.target).toEqual({ node: 'agent', transaction: 'actors' });
-});
-
-test('composed context for another run cannot replace this run\u0027s supplied model inputs', async () => {
-  const { nodes, prepared } = await fixture((prepared) => ({
-    ...prepared,
-    commit: {
-      ...prepared.commit,
-      changes: [
-        ...prepared.commit.changes,
-        create('other-run', { kind: 'fictionalTask' }),
-        {
-          ...create('other-input', {
-            kind: 'contextInput',
-            role: 'user',
-            position: 1,
-            transformation: 'verbatim',
-            content: 'Another question',
-          }),
-          placement: { parent: 'other-run', order: 'a' },
-        },
-      ],
-    },
-  }));
-  const composed = prepared;
-  const languageModel = model();
-  await createAgentBackend({
-    nodes: transactionFixture(nodes),
-    model: async () => languageModel,
-  }).start(composed).done;
-  expect(languageModel.doStreamCalls[0]?.prompt).toEqual([
-    { role: 'user', content: [{ type: 'text', text: 'Keep mornings free.' }] },
-  ]);
-});
-
-test('invalid model settings reject before acceptance instead of recording ineffective values', async () => {
-  const { nodes } = await fixture();
-  await expect(
-    prepareAgentRun(nodes, {
-      id: 'invalid',
-      run: 'invalid-run',
-      agent: 'agent',
-      recordedBy: 'user',
-      at,
-      provider: 'fictional',
-      model: 'fictional-model',
-      settings: { temperature: 'hot', tools: {} },
-      context: [],
-    }),
-  ).rejects.toThrow();
-  expect((await nodes.snapshot()).get('invalid-run')).toBeUndefined();
+  const handle = executeEavRun({ db, run, execution });
+  await vi.waitFor(() => expect(execution).toHaveBeenCalledOnce());
+  handle.stop();
+  expect((await handle.done).phase).toBe('stopped');
+  await handle.retrySave();
+  expect(await readAgentRun(db, run)).toMatchObject({ status: 'stopped', output: { text: '' } });
+  expect(execution).toHaveBeenCalledOnce();
+  handle.dispose();
 });

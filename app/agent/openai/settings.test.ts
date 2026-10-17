@@ -1,17 +1,18 @@
 // @vitest-environment happy-dom
-import { afterEach, expect, test, vi } from 'vitest';
+
 import { generateText } from 'ai';
+import { afterEach, expect, test, vi } from 'vitest';
 import { createSettings } from '@/settings/store.ts';
+import { DEFAULT_MODELS, DEFAULT_VOICE } from './defaults.ts';
 import { createOpenAICapabilities } from './index.ts';
 import { media } from './media.test-support.ts';
 import {
-  createOpenAISettings,
   createOpenAIPreferences,
-  providerSettings,
+  createOpenAISettings,
   openAIOptions,
+  providerSettings,
   selectedOpenAIModel,
 } from './settings.ts';
-import { DEFAULT_MODELS, DEFAULT_VOICE } from './defaults.ts';
 
 afterEach(() => {
   vi.restoreAllMocks();

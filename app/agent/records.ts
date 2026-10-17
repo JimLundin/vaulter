@@ -1,22 +1,6 @@
-// Agent owns execution payloads. Existing JSON meanings remain compatible.
-import type { JsonObject, JsonValue } from '@/vault/nodes/model.ts';
-// biome-ignore lint/style/useConsistentTypeDefinitions: type aliases satisfy JsonObject structurally
-export type TextSelection = {
-  readonly format: 'text';
-  readonly start: number;
-  readonly end: number;
-  readonly unit: 'utf16';
-};
-// biome-ignore lint/style/useConsistentTypeDefinitions: type aliases satisfy JsonObject structurally
-export type ContextInputData = {
-  readonly kind: 'contextInput';
-  readonly role: 'system' | 'user' | 'assistant' | 'tool';
-  readonly position: number;
-  readonly transformation: 'verbatim' | 'selection' | 'summary' | 'truncation' | 'generated';
-  /** Effective content supplied to the provider, including generated instructions/projections. */
-  readonly content: string | JsonObject;
-  readonly selection?: TextSelection;
-};
+// Ephemeral execution projections for live progress and receipt presentation.
+// Canonical persisted records are defined in data/schema.ts.
+import type { JsonObject, JsonValue } from '@/vault/eav/index.ts';
 // biome-ignore lint/style/useConsistentTypeDefinitions: type aliases satisfy JsonObject structurally
 export type AgentRunData = {
   readonly kind: 'agentRun';

@@ -1,16 +1,11 @@
-import { transactionFixture } from '@/vault/transactions/fixtures.test-support.ts';
+import { chatFixture } from './fixtures.test-support.ts';
 import { expect, test } from 'vitest';
 import { MockLanguageModelV4, convertArrayToReadableStream } from 'ai/test';
-import { memoryNodeBackend } from '@/vault/nodes/memory.ts';
-import { create, request, seed } from '@/vault/nodes/fixtures.test-support.ts';
-import type { NodeStore } from '@/vault/nodes/store.ts';
-import { createNodeConversation, type NodeConversationOptions } from './node-conversation.ts';
+import { createConversation, type ConversationOptions } from './conversation.ts';
 import { createTranscription, type TranscriptionEvents } from '@/transcription.ts';
 
-async function fixture(overrides: Partial<NodeConversationOptions> = {}) {
-  const nodes = memoryNodeBackend();
-  await seed(nodes);
-  await nodes.commit(request('agent', [create('agent', { kind: 'agent', name: 'Fictional' })]));
+async function fixture(overrides: Partial<ConversationOptions> = {}) {
+  const { db, options: base } = await chatFixture();
   const model = new MockLanguageModelV4({
     doStream: async () => ({
       stream: convertArrayToReadableStream([
@@ -29,8 +24,8 @@ async function fixture(overrides: Partial<NodeConversationOptions> = {}) {
       ]),
     }),
   });
-  const options: NodeConversationOptions = {
-    nodes: transactionFixture(nodes),
+  const options: ConversationOptions = {
+    ...base,
     user: 'user',
     agent: 'agent',
     provider: 'fictional',
@@ -40,12 +35,12 @@ async function fixture(overrides: Partial<NodeConversationOptions> = {}) {
     suggestions: async () => [],
     ...overrides,
   };
-  return { nodes, model, options };
+  return { db, model, options };
 }
 
 test('Chat interprets Ask once and preserves later typing when the same prompt is presented again', async () => {
-  const { nodes, model, options } = await fixture();
-  const chat = createNodeConversation(options);
+  const { db, model, options } = await fixture();
+  const chat = createConversation(options);
   try {
     chat.setDraft('Unrelated draft');
     const prompt = { n: 1, send: true, text: 'Ask once' };
@@ -61,13 +56,13 @@ test('Chat interprets Ask once and preserves later typing when the same prompt i
     expect(chat.snapshot().prompts).toEqual([]);
   } finally {
     chat.dispose();
-    nodes.close();
+    await db[Symbol.asyncDispose]();
   }
 });
 
 test('unavailable Ask and edit prompts safely replace the editable draft without delayed execution', async () => {
-  const { nodes, model, options } = await fixture({ availability: 'Model unavailable' });
-  const chat = createNodeConversation(options);
+  const { db, model, options } = await fixture({ availability: 'Model unavailable' });
+  const chat = createConversation(options);
   try {
     chat.setDraft('Original');
     expect(chat.receivePrompt({ n: 1, send: true, text: 'Ask when ready' })).toEqual({
@@ -84,7 +79,7 @@ test('unavailable Ask and edit prompts safely replace the editable draft without
     expect(model.doStreamCalls).toHaveLength(0);
   } finally {
     chat.dispose();
-    nodes.close();
+    await db[Symbol.asyncDispose]();
   }
 });
 
@@ -94,8 +89,8 @@ test('capture retains each supplied prompt without replacing spoken words and ex
     callbacks = next;
     return { finish: async () => 'spoken words', close: () => {} };
   });
-  const { nodes, model, options } = await fixture({ transcription });
-  const chat = createNodeConversation(options);
+  const { db, model, options } = await fixture({ transcription });
+  const chat = createConversation(options);
   try {
     chat.setDraft('Existing');
     await chat.captureAction();
@@ -129,41 +124,35 @@ test('capture retains each supplied prompt without replacing spoken words and ex
   } finally {
     chat.dispose();
     transcription.dispose();
-    nodes.close();
+    await db[Symbol.asyncDispose]();
   }
 });
 
-test('a claimed prompt survives selection and requires another explicit Use after acknowledging the changed conversation', async () => {
+test('a retained prompt stays associated with the single dialogue after a rejected New action', async () => {
   const transcription = createTranscription(async () => ({ finish: async () => '', close() {} }));
-  const { nodes, model, options } = await fixture({ transcription });
-  const chat = createNodeConversation(options);
+  const { db, model, options } = await fixture({ transcription });
+  const chat = createConversation(options);
   try {
     await chat.captureAction();
-    chat.receivePrompt({ n: 1, send: true, text: 'Keep across selection' });
+    chat.receivePrompt({ n: 1, send: true, text: 'Keep in this dialogue' });
     await chat.captureAction();
-    chat.newChat();
-    expect(chat.snapshot().prompts[0]?.reason).toMatch(/Conversation changed/);
-    expect(chat.applyPrompt(1)).toMatchObject({
-      status: 'blocked',
-      reason: expect.stringMatching(/use again/),
-    });
-
-    expect(model.doStreamCalls).toHaveLength(0);
+    expect(chat.newChat()).toMatchObject({ status: 'blocked' });
     const sent = chat.applyPrompt(1);
     if (sent.status !== 'owned') throw new Error('Expected retained prompt submission');
     await sent.done;
-    expect(chat.snapshot().submission?.text).toBe('Keep across selection');
-    transcription.dispose();
+    expect(chat.snapshot().submission?.text).toBe('Keep in this dialogue');
+    expect(model.doStreamCalls).toHaveLength(1);
   } finally {
     chat.dispose();
-    nodes.close();
+    transcription.dispose();
+    await db[Symbol.asyncDispose]();
   }
 });
 
 test('explicit Use submits a retained Ask once and removes the retained text after handoff', async () => {
   const transcription = createTranscription(async () => ({ finish: async () => '', close() {} }));
-  const { nodes, model, options } = await fixture({ transcription });
-  const chat = createNodeConversation(options);
+  const { db, model, options } = await fixture({ transcription });
+  const chat = createConversation(options);
   try {
     await chat.captureAction();
     chat.receivePrompt({ n: 1, send: true, text: 'Use this Ask' });
@@ -179,29 +168,32 @@ test('explicit Use submits a retained Ask once and removes the retained text aft
   } finally {
     chat.dispose();
     transcription.dispose();
-    nodes.close();
+    await db[Symbol.asyncDispose]();
   }
 });
 
 test('suggestions arriving after an admitted Open cannot publish into the changing conversation', async () => {
   let releaseSuggestions!: (suggestions: string[]) => void;
-  const { nodes, options } = await fixture({
+  const { db, options } = await fixture({
     suggestions: () =>
       new Promise((resolve) => {
         releaseSuggestions = resolve;
       }),
   });
   let releaseRead!: () => void;
-  const reader: NodeStore = {
-    ...nodes,
-    snapshot: async (sequence) => {
-      await new Promise<void>((resolve) => {
-        releaseRead = resolve;
-      });
-      return nodes.snapshot(sequence);
-    },
+  const reader: ConversationOptions['backend'] = (value) => {
+    const backend = options.backend(value);
+    return {
+      ...backend,
+      messages: async (conversation) => {
+        await new Promise<void>((resolve) => {
+          releaseRead = resolve;
+        });
+        return backend.messages(conversation);
+      },
+    };
   };
-  const chat = createNodeConversation({ ...options, nodes: transactionFixture(reader) });
+  const chat = createConversation({ ...options, backend: reader });
   try {
     const suggesting = chat.suggest();
     const opening = chat.open('missing');
@@ -212,23 +204,26 @@ test('suggestions arriving after an admitted Open cannot publish into the changi
     await opening;
   } finally {
     chat.dispose();
-    nodes.close();
+    await db[Symbol.asyncDispose]();
   }
 });
 
 test('an admitted Open removes displayed suggestions before the selected conversation read completes', async () => {
-  const { nodes, options } = await fixture({ suggestions: async () => ['Old suggestion'] });
+  const { db, options } = await fixture({ suggestions: async () => ['Old suggestion'] });
   let releaseRead!: () => void;
-  const reader: NodeStore = {
-    ...nodes,
-    snapshot: async (sequence) => {
-      await new Promise<void>((resolve) => {
-        releaseRead = resolve;
-      });
-      return nodes.snapshot(sequence);
-    },
+  const reader: ConversationOptions['backend'] = (value) => {
+    const backend = options.backend(value);
+    return {
+      ...backend,
+      messages: async (conversation) => {
+        await new Promise<void>((resolve) => {
+          releaseRead = resolve;
+        });
+        return backend.messages(conversation);
+      },
+    };
   };
-  const chat = createNodeConversation({ ...options, nodes: transactionFixture(reader) });
+  const chat = createConversation({ ...options, backend: reader });
   try {
     await chat.suggest();
     expect(chat.snapshot().suggestions).toEqual(['Old suggestion']);
@@ -238,13 +233,13 @@ test('an admitted Open removes displayed suggestions before the selected convers
     await opening;
   } finally {
     chat.dispose();
-    nodes.close();
+    await db[Symbol.asyncDispose]();
   }
 });
 
 test('busy Ask safely becomes an editable draft and never executes when the earlier request finishes', async () => {
-  const { nodes, model, options } = await fixture();
-  const chat = createNodeConversation(options);
+  const { db, model, options } = await fixture();
+  const chat = createConversation(options);
   try {
     const first = chat.prepareSubmission({ text: 'Already running' });
     if (first.status !== 'owned') throw new Error('Expected owned request');
@@ -258,6 +253,6 @@ test('busy Ask safely becomes an editable draft and never executes when the earl
     expect(model.doStreamCalls).toHaveLength(1);
   } finally {
     chat.dispose();
-    nodes.close();
+    await db[Symbol.asyncDispose]();
   }
 });

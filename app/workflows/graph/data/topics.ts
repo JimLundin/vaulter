@@ -7,7 +7,8 @@ import {
 import type { topicEntities } from './schema.ts';
 
 type TopicDatabase = DomainDatabase<typeof topicEntities>;
-export function topicActions(db: TopicDatabase, context: TransactionContext) {
+export function topicActions(db: TopicDatabase, context: TransactionContext, signal?: AbortSignal) {
+  signal?.throwIfAborted();
   if (!context.author) throw new Error('Topic organization requires trusted attribution');
   return {
     promote: async (input: {
@@ -16,10 +17,12 @@ export function topicActions(db: TopicDatabase, context: TransactionContext) {
       title: string;
       rationale: string;
     }) => {
+      signal?.throwIfAborted();
       if (![input.key, input.title, input.rationale].every((value) => value.trim()))
         throw new Error('Topic promotion requires a key, title and rationale');
       await db.history.resolve(input.subject);
       return db.transaction(context, async (tx) => {
+        signal?.throwIfAborted();
         const topics = await tx.entities.topics.query({ select: { subject: true, key: true } });
         if (
           topics.some(
@@ -27,6 +30,7 @@ export function topicActions(db: TopicDatabase, context: TransactionContext) {
           )
         )
           throw new Error('Subject is already promoted or topic key is in use');
+        signal?.throwIfAborted();
         return tx.entities.topics.insert({ ...input, available: true });
       });
     },
@@ -36,9 +40,11 @@ export function topicActions(db: TopicDatabase, context: TransactionContext) {
       primary: boolean,
       rationale: string,
     ) => {
+      signal?.throwIfAborted();
       await db.history.resolve(member);
       if (!rationale.trim()) throw new Error('Topic membership requires a rationale');
       return db.transaction(context, async (tx) => {
+        signal?.throwIfAborted();
         const topic = await tx.entities.topics.first({
           where: { key: { eq: key } },
           select: { available: true },
@@ -55,6 +61,7 @@ export function topicActions(db: TopicDatabase, context: TransactionContext) {
           )
         )
           throw new Error('Membership already exists or primary topic is already selected');
+        signal?.throwIfAborted();
         return tx.entities.topicMemberships.insert({ topic, member, primary, rationale });
       });
     },
@@ -65,10 +72,16 @@ export async function readTopics(db: TopicDatabase) {
   return (
     await db.entities.topics.query({
       where: { available: { eq: true } },
-      select: { key: true, title: true },
+      select: { key: true, title: true, subject: true },
       orderBy: [{ title: 'asc' }],
     })
-  ).map((topic) => ({ id: topic.key, title: topic.title, blocks: [], metadata: [] }));
+  ).map((topic) => ({
+    id: topic.key,
+    title: topic.title,
+    subject: topic.subject,
+    blocks: [],
+    metadata: [],
+  }));
 }
 /** Retrieve a bounded neighborhood before constructing the graph. */
 export async function topicMembers(db: TopicDatabase, key: string, limit = 20) {

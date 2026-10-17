@@ -40,51 +40,75 @@ const semanticTags = new Set([
 const chatCodeRenderer = (path: string) => path === 'app/workflows/chat/rendering/highlight.tsx';
 const kit = (path: string) => path.startsWith('app/ui/kit/');
 const compositionEntry = (path: string) =>
-  ['app/application/index.tsx', 'app/application/composition.ts'].includes(path);
+  [
+    'app/application/index.tsx',
+    'app/application/composition.ts',
+    'app/application/wiki-graph.ts',
+  ].includes(path);
 const applicationTest = (path: string) => path.startsWith('app/application/') && testSource(path);
 const workflow = (path: string) => /^app\/workflows\/([^/]+)\//.exec(path)?.[1];
 const fixture = (path: string) =>
   /\.(?:test|type-test|test-support)\.[cm]?tsx?$/.test(path) || path.startsWith('app/preview/');
 const testSource = (path: string) => /\.(?:test|type-test|test-support)\.[cm]?tsx?$/.test(path);
-const nodeImplementation = (path: string) =>
-  path.startsWith('app/vault/nodes/') || path.startsWith('app/vault/storage/nodes/');
-const rawNodeCaller = (path: string) =>
-  path === 'app/main.tsx' || nodeImplementation(path) || fixture(path);
-const rawNodeEntries = new Set([
-  'app/vault/nodes/memory.ts',
-  'app/vault/nodes/backend.ts',
-  'app/vault/storage/nodes/github.ts',
+const removedStorePath = (path: string) =>
+  /^app\/vault\/(?:nodes|storage\/nodes)(?:\/|$)/.test(path) ||
+  /^app\/vault\/transactions\/(?:store|lifetime|request|request-state|undo)\.[cm]?tsx?$/.test(path);
+const removedStoreTypes = new Set([
+  'NodeId',
+  'NodeChange',
+  'NodeCommit',
+  'NodeSnapshot',
+  'NodePublicationContext',
+  'NodePublicationRule',
+  'NodeReading',
+  'TransactionDraft',
+  'TransactionRequest',
+  'PreparedRequest',
+  'WriteLifetime',
+  'ScopedTransactionWriter',
+  'TransactionStore',
+  'NodeStore',
+  'NodeBackend',
+  'NodeDifference',
+  'NodeVersion',
+  'NodeAddress',
+  'NodeConflict',
+  'NodePublicationRejected',
 ]);
-const rawNodeSymbols = new Map([
-  ['app/vault/nodes/memory.ts', new Set(['memoryNodeBackend'])],
-  ['app/vault/nodes/backend.ts', new Set(['nodeInterface'])],
-  ['app/vault/storage/nodes/github.ts', new Set(['githubNodeBackend'])],
-  ['app/vault/nodes/history.ts', new Set(['accept', 'validateRecords', 'validateRecordsAsync'])],
+const eavImplementation = (path: string) => path.startsWith('app/vault/eav/');
+const storageAssembly = (path: string) =>
+  path === 'app/main.tsx' ||
+  path.startsWith('app/vault/session/') ||
+  path.startsWith('app/vault/storage/') ||
+  eavImplementation(path) ||
+  fixture(path);
+const databaseAssembly = (path: string) =>
+  path === 'app/application/composition.ts' || eavImplementation(path) || fixture(path);
+const rawEavSymbols = new Map([
+  ['app/vault/eav/memory.ts', new Set(['createMemoryStorage'])],
+  ['app/vault/eav/persistence.ts', new Set(['createPersistentStorage'])],
 ]);
-const sessionNodeSymbols = new Map([
+const sessionSymbols = new Map([
   ['app/vault/session/session.ts', new Set(['useSession'])],
   ['app/vault/index.ts', new Set(['useVaultSession'])],
-  ['app/vault/transactions/lifetime.ts', new Set(['createTransactionSession'])],
 ]);
-const sessionNodeCaller = (from: string, owner: string) =>
+const sessionCaller = (from: string, owner: string) =>
   fixture(from) ||
-  (owner === 'app/vault/transactions/lifetime.ts'
-    ? from === 'app/application/composition.ts' || from === 'app/vault/session/session.ts'
-    : owner === 'app/vault/session/session.ts'
-      ? from === 'app/application/index.tsx' ||
-        from === 'app/vault/index.ts' ||
-        from.startsWith('app/vault/session/')
-      : from === 'app/application/index.tsx');
+  (owner === 'app/vault/session/session.ts'
+    ? from === 'app/application/index.tsx' ||
+      from === 'app/vault/index.ts' ||
+      from.startsWith('app/vault/session/')
+    : from === 'app/application/index.tsx');
 // These owner UI declarations compose presentation; storage/model implementations remain separate.
 const vaultUi = new Set([
   'app/vault/Gate.tsx',
   'app/vault/session/ui.tsx',
   'app/vault/storage/Settings.tsx',
-  'app/vault/content/tool-presentation.tsx',
-  'app/vault/transactions/history/NodeHistory.tsx',
   'app/vault/transactions/history/History.tsx',
+  'app/vault/transactions/history/HistoryList.tsx',
 ]);
 export function importProblem(from: string, to: string): string | null {
+  if (removedStorePath(to)) return `${from} imports the removed store; use the typed EAV interface`;
   if (
     to.startsWith('app/vault/eav/') &&
     !from.startsWith('app/vault/eav/') &&
@@ -95,8 +119,6 @@ export function importProblem(from: string, to: string): string | null {
     return `${from} imports preview-only ${to}; fixtures cannot publish application data`;
   if (testSource(to) && !fixture(from))
     return `${from} imports test-only ${to}; fixtures cannot publish application data`;
-  if (rawNodeEntries.has(to) && !rawNodeCaller(from))
-    return `${from} imports raw node persistence; use the Application-supplied TransactionStore`;
   if (workflow(from) === 'wiki' && to.startsWith('tools/'))
     return `${from} imports tooling; migration depends on Wiki, never Wiki on migration`;
   if (
@@ -115,6 +137,10 @@ export function importProblem(from: string, to: string): string | null {
     !compositionEntry(from) &&
     !applicationTest(from) &&
     !(target === 'questions' && from === 'app/preview/question-records.ts') &&
+    !(
+      ['app/preview/graph-density.ts', 'app/preview/graph-evidence.ts'].includes(from) &&
+      ['wiki', 'graph', 'questions'].includes(target)
+    ) &&
     // Explicit preview-owned adapters consume public module reading and record UI interfaces.
     !(
       target === 'wiki' &&
@@ -157,7 +183,6 @@ export function importProblem(from: string, to: string): string | null {
     ['app/runtime/', ['app/runtime/']],
     ['app/navigation/', ['app/navigation/', 'app/runtime/', 'app/ui/kit/']],
     ['app/settings/', ['app/settings/', 'app/runtime/', 'app/ui/kit/']],
-    ['app/vault/nodes/', ['app/vault/nodes/', 'app/runtime/']],
     ['app/vault/eav/', ['app/vault/eav/', 'app/runtime/']],
   ] as const) {
     if (
@@ -191,6 +216,8 @@ export function checkLayout(root: string): string[] {
     const runtimeGraph = new Map<string, Set<string>>();
     for (const filename of sources(resolve(root, 'app'))) {
       const from = slash(relative(root, filename));
+      if (removedStorePath(from))
+        problems.push(`${from}: the removed store cannot be reintroduced; use EAV`);
       if (from.startsWith('app/ui/') && !kit(from) && !fixture(from))
         problems.push(
           `${from}: app/ui contains only the kit; place application behavior with its owner`,
@@ -221,13 +248,26 @@ export function checkLayout(root: string): string[] {
           if (ts.isVariableDeclaration(resolvedDeclaration) && resolvedDeclaration.initializer)
             checkOwnedSymbol(valueTarget(aliasValue(resolvedDeclaration.initializer)), seen);
           const owner = slash(relative(root, source.fileName));
-          if (!rawNodeCaller(from) && rawNodeSymbols.get(owner)?.has(owned.name))
+          if (
+            !storageAssembly(from) &&
+            rawEavSymbols.get(owner)?.has(owned.name) &&
+            !ts.isInterfaceDeclaration(resolvedDeclaration) &&
+            !ts.isTypeAliasDeclaration(resolvedDeclaration)
+          )
             problems.push(
-              `${from} accesses raw node persistence; use the Application-supplied TransactionStore`,
+              `${from} constructs raw EAV storage; use the Application-supplied database`,
             );
-          if (sessionNodeSymbols.get(owner)?.has(owned.name) && !sessionNodeCaller(from, owner))
+          if (
+            owner === 'app/vault/eav/engine.ts' &&
+            owned.name === 'openDatabase' &&
+            !databaseAssembly(from)
+          )
             problems.push(
-              `${from} accesses a raw node session; use the Application-supplied TransactionStore`,
+              `${from} opens an EAV database; compose database ownership in Application`,
+            );
+          if (sessionSymbols.get(owner)?.has(owned.name) && !sessionCaller(from, owner))
+            problems.push(
+              `${from} accesses a raw vault session; use the Application-supplied database`,
             );
           if (
             owner === 'app/workflows/questions/data/operations.ts' &&
@@ -256,7 +296,11 @@ export function checkLayout(root: string): string[] {
               ? resolve(root, 'app', value.text.slice(2))
               : resolve(dirname(filename), value.text)
             : resolved) ??
-          (value.text.startsWith('.') ? resolve(dirname(filename), value.text) : null);
+          (value.text.startsWith('@/')
+            ? resolve(root, 'app', value.text.slice(2))
+            : value.text.startsWith('.')
+              ? resolve(dirname(filename), value.text)
+              : null);
         if (allExports) {
           const moduleFile = target && project.program.getSourceFile(target);
           const moduleSymbol =
@@ -416,30 +460,26 @@ export function checkLayout(root: string): string[] {
           checkOwnedSymbol(project.checker.getSymbolAtLocation(node.name));
         if (ts.isImportClause(node) && node.name)
           checkOwnedSymbol(project.checker.getSymbolAtLocation(node.name));
+        if (ts.isIdentifier(node) && removedStoreTypes.has(node.text))
+          problems.push(`${from}: removed store type ${node.text} cannot be reintroduced; use EAV`);
         if (
-          accessedMember?.name === 'commit' &&
+          accessedMember?.name === 'append' &&
           accessedMember.object &&
-          !(
-            nodeImplementation(from) ||
-            fixture(from) ||
-            from === 'app/vault/transactions/lifetime.ts'
-          )
+          !(eavImplementation(from) || from.startsWith('app/vault/storage/') || fixture(from))
         ) {
           const type = project.checker.getTypeAtLocation(accessedMember.object);
-          const commit =
+          const append =
             type &&
             project.checker
               .getPropertiesOfType(type)
-              .find((property) => property.name === 'commit');
+              .find((property) => property.name === 'append');
           if (
-            commit?.declarations.some((declaration) => {
+            append?.declarations.some((declaration) => {
               const owner = declaration.resolve()?.getSourceFile().fileName;
-              return owner && slash(relative(root, owner)) === 'app/vault/nodes/store.ts';
+              return owner && slash(relative(root, owner)) === 'app/vault/eav/persistence.ts';
             })
           )
-            problems.push(
-              `${from} accesses raw Node commit; use a TransactionStore write lifetime`,
-            );
+            problems.push(`${from} accesses raw EAV append; write through database.transaction`);
         }
         if (
           ts.isCallExpression(node) &&

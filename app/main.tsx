@@ -8,18 +8,13 @@ import './ui/kit/styles.css';
 import { createRoot } from 'react-dom/client';
 import { Application } from './application/index.tsx';
 import { startTheme } from './ui/kit/index.ts';
-import type { OpenNodes, OpenEav } from './vault/session/adapters.ts';
-import { githubNodeBackend } from './vault/storage/nodes/github.ts';
+import type { OpenEav } from './vault/session/adapters.ts';
 
 startTheme();
-const openNodes: OpenNodes = ({ secrets }) =>
-  githubNodeBackend({
-    token: secrets.github,
-    api: import.meta.env.VITE_GITHUB_API || undefined,
-  });
 const openEav: OpenEav = ({ secrets }) =>
   createPersistentStorage(
     githubEavAdapter({
+      api: import.meta.env.VITE_GITHUB_API || undefined,
       token: () => {
         const token = secrets()?.github;
         if (!token) throw new Error('The vault session has closed.');
@@ -27,9 +22,7 @@ const openEav: OpenEav = ({ secrets }) =>
       },
     }),
   );
-createRoot(document.getElementById('app')!).render(
-  <Application openNodes={openNodes} openEav={openEav} />,
-);
+createRoot(document.getElementById('app')!).render(<Application openEav={openEav} />);
 
 if (!import.meta.env.DEV && 'serviceWorker' in navigator)
   navigator.serviceWorker.register('./sw.js');

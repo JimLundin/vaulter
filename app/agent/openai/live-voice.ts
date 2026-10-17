@@ -1,13 +1,12 @@
 import { asSchema } from 'ai';
 import { z } from 'zod';
-import type { LiveVoiceProvider } from '@/agent/voice.ts';
-import type { VoiceHistory, VoicePart } from '@/agent/voice.ts';
-import type { JsonValue } from '@/vault/nodes/model.ts';
-import { canonical } from '@/vault/nodes/json.ts';
+import type { LiveVoiceProvider, VoiceHistory, VoicePart } from '@/agent/voice.ts';
 import { serial } from '@/runtime/async.ts';
-import { openAIWebRTC } from './webrtc.ts';
+import type { JsonValue } from '@/vault/eav/index.ts';
+import { canonical } from '@/vault/eav/index.ts';
 import { DEFAULT_MODELS, DEFAULT_VOICE } from './defaults.ts';
 import type { OpenAIConnectionOptions } from './http.ts';
+import { openAIWebRTC } from './webrtc.ts';
 
 const functionCall = z.object({
   type: z.literal('function_call'),
@@ -133,7 +132,7 @@ export function openAILiveVoice(
           description: typeof tool.description === 'string' ? tool.description : name,
           // OpenAI omits propertyNames; local validation still checks the complete schema.
           parameters: JSON.parse(
-            canonical(await asSchema(tool.inputSchema).jsonSchema),
+            JSON.stringify(await asSchema(tool.inputSchema).jsonSchema),
             (key, value: unknown) => (key === 'propertyNames' ? undefined : value),
           ),
         };

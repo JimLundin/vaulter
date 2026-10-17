@@ -7,8 +7,8 @@ import {
 import {
   DEFAULT_MODELS,
   DEFAULT_VOICE,
-  openAIEndpoint,
   defaultFileTranscriptionModel,
+  openAIEndpoint,
 } from './defaults.ts';
 
 // Keep the suggested models specific to the API each capability uses. Compatible endpoints may

@@ -1,7 +1,7 @@
 // Recorded Tool execution owns lifecycle presentation; task owners interpret their own receipts.
 import type { ReactNode } from 'react';
 import { Json, Stack, Text, ToolResult } from '@/ui/kit/index.ts';
-import type { JsonValue } from '@/vault/nodes/model.ts';
+import type { JsonValue } from '@/vault/eav/index.ts';
 import type { ToolExecutionData } from './records.ts';
 
 export interface RecordedToolEvidence {
@@ -13,7 +13,7 @@ export interface RecordedToolEvidence {
   readonly error?: string;
 }
 
-/** Static reading adapters never require executable tools, credentials or a NodeReading. */
+/** Static reading adapters never require executable tools, credentials or storage access. */
 export interface ToolPresentation {
   readonly title: string;
   readonly live: string;

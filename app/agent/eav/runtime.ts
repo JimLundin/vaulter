@@ -1,22 +1,21 @@
-import { streamText, isStepCount, modelMessageSchema, type SystemModelMessage } from 'ai';
-import {
-  SaveError,
-  ConflictError,
-  type Database,
-  type EntityRef,
-  type EntityDefinition,
-} from '@/vault/eav/index.ts';
-import { cancellable } from '@/runtime/async.ts';
-import { canonical, frozen } from '@/vault/nodes/json.ts';
-import type { TransactionRequest } from '@/vault/transactions/store.ts';
-import { agentContentContext } from '@/agent/tool-context.ts';
-import type { AgentBackendOptions, AgentRun, AgentRunState } from '@/agent/runtime.ts';
-import type { AgentRunData } from '@/agent/records.ts';
-import { parseAgentSettings } from '@/agent/schema.ts';
-import type { agentSchema, AgentRunRef, ToolExecutionRef } from '@/agent/data/schema.ts';
+import { isStepCount, modelMessageSchema, type SystemModelMessage, streamText } from 'ai';
 import { finishAgentRun, readAgentRun } from '@/agent/data/operations.ts';
-import { eavTools } from './tools.ts';
+import type { AgentRunRef, agentSchema, ToolExecutionRef } from '@/agent/data/schema.ts';
+import type { AgentRunData } from '@/agent/records.ts';
+import type { AgentBackendOptions, AgentRun, AgentRunState } from '@/agent/runtime.ts';
+import { parseAgentSettings } from '@/agent/schema.ts';
+import { cancellable } from '@/runtime/async.ts';
+import {
+  ConflictError,
+  canonical,
+  type Database,
+  type EntityDefinition,
+  type EntityRef,
+  frozen,
+  SaveError,
+} from '@/vault/eav/index.ts';
 import { modelSteps } from './model-steps.ts';
+import { eavTools } from './tools.ts';
 
 const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error));
 /** Execute an already accepted EAV run. Reading/recovery never re-enters this function. */
@@ -24,21 +23,16 @@ export function executeEavRun(
   options: AgentBackendOptions & {
     readonly db: Pick<Database<typeof agentSchema>, 'entities' | 'transaction' | 'refresh'>;
     readonly run: AgentRunRef;
-    /** Temporary attribution addresses for tools whose owning modules still use Node storage. */
-    readonly agent: string;
-    readonly origin: string;
   },
 ) {
   const abort = new AbortController();
   let disposed = false;
   let live = true;
-  let executing = false;
   let interrupted = false;
+  let interruptedReason = 'invocationNotExecuted';
   let tools: ReturnType<typeof eavTools> | undefined;
   let steps: ReturnType<typeof modelSteps> | undefined;
-  let guard: ReturnType<typeof agentContentContext> | undefined;
   let pending: SaveError | undefined;
-  let content: TransactionRequest<void> | undefined;
   let terminal: AgentRunData | undefined;
   let author: EntityRef<EntityDefinition> | undefined;
   let state: AgentRunState = {
@@ -72,7 +66,8 @@ export function executeEavRun(
       throw new DOMException('Agent stopped', 'AbortError');
   };
   const finish = async () => {
-    if (disposed || !terminal || tools?.pending() || steps?.pending()) return;
+    if (disposed || !terminal || tools?.pending() || tools?.contentPending() || steps?.pending())
+      return;
     try {
       await options.db.transaction({ author, origin: options.run }, async (tx) => {
         const run = await tx.entities.agentRuns.get(options.run, { select: { status: true } });
@@ -150,24 +145,17 @@ export function executeEavRun(
       let output: AgentRunData['output'];
       try {
         check();
-        guard = agentContentContext({
-          nodes: options.nodes,
-          agent: options.agent,
-          run: options.origin,
-          signal: abort.signal,
-          live: () => live && !disposed,
-          executing: () => executing,
-          writableKinds: options.writableKinds ?? [],
-          contentPolicy: options.contentPolicy,
-          snapshot: await options.nodes.snapshot(),
-          publicationFailed: (request, error) => {
-            content = request;
-            notify({ contentPersistence: { id: request.id, error: errorText(error) } });
-          },
-          refreshFailed: (error) => notify({ contextError: errorText(error) }),
-        });
         const supplied = options.tools
-          ? await cancellable(Promise.resolve(options.tools(guard.context)), abort.signal)
+          ? await cancellable(
+              Promise.resolve(
+                options.tools({
+                  signal: abort.signal,
+                  author: run.author,
+                  run: options.run,
+                }),
+              ),
+              abort.signal,
+            )
           : {};
         tools = eavTools({
           db: options.db,
@@ -178,9 +166,6 @@ export function executeEavRun(
           signal: abort.signal,
           step: () => steps?.current(),
           check,
-          execution: (value) => {
-            executing = value;
-          },
           changed: (key, value, entity) => {
             receipts.set(key, entity);
             notify({
@@ -203,6 +188,12 @@ export function executeEavRun(
               persistenceStage: undefined,
               persistenceError: undefined,
             }),
+          contentFailed: (id, error) =>
+            notify({ contentPersistence: { id, error: errorText(error) } }),
+          contentRecovered: (id) => {
+            interruptedReason = 'contentSaveUncertain';
+            notify({ contentPersistence: undefined, contentAccepted: id });
+          },
           halt: () => {
             interrupted = true;
             live = false;
@@ -329,9 +320,8 @@ export function executeEavRun(
       }
       live = false;
       await tools?.settle();
-      await guard?.settle();
       try {
-        await steps?.stopOpen(data.error);
+        if (!tools?.contentPending()) await steps?.stopOpen(data.error);
       } catch {
         /* The exact save is retained by the step owner. */
       }
@@ -340,7 +330,7 @@ export function executeEavRun(
         status: interrupted ? 'interrupted' : abort.signal.aborted ? 'stopped' : data.status,
         ended: new Date().toISOString(),
         output: { ...output, text },
-        ...(interrupted ? { finishReason: 'invocationNotExecuted' } : {}),
+        ...(interrupted ? { finishReason: interruptedReason } : {}),
       };
       notify({ text, data: terminal });
       await finish();
@@ -404,24 +394,21 @@ export function executeEavRun(
       return retry;
     },
     retryContentSave: async () => {
-      if (disposed || !content) return state;
-      const request = content;
+      await tools?.retryContentSave();
+      if (tools?.contentPending()) return state;
+      await done;
       try {
-        using writes = options.nodes
-          .writer({ recordedBy: options.agent, origin: options.origin })
-          .lifetime();
-        await writes.retry(request);
-        content = undefined;
-        notify({ contentPersistence: undefined, contentAccepted: request.id });
-        await handle.refreshContext();
+        await steps?.stopOpen(terminal?.error);
       } catch (error) {
-        notify({ contentPersistence: { id: request.id, error: errorText(error) } });
+        notify({ persistenceError: errorText(error), persistenceStage: 'terminal' });
+        return state;
       }
+      await finish();
       return state;
     },
     refreshContext: async () => {
       try {
-        await guard?.refresh();
+        await options.db.refresh();
         notify({ contextError: undefined });
       } catch (error) {
         notify({ contextError: errorText(error) });

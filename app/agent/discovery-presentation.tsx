@@ -1,7 +1,7 @@
-import type { JsonObject, JsonValue } from '@/vault/nodes/model.ts';
-import type { ToolPresentationAdapter } from './tool-presentation.tsx';
-import { discoveryActions } from './discovery.ts';
 import { Stack, Text } from '@/ui/kit/index.ts';
+import type { JsonObject, JsonValue } from '@/vault/eav/index.ts';
+import { discoveryActions } from './discovery.ts';
+import type { ToolPresentationAdapter } from './tool-presentation.tsx';
 
 const isObject = (value: JsonValue | undefined): value is JsonObject =>
   !!value && typeof value === 'object' && !Array.isArray(value);

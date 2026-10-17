@@ -1,4 +1,4 @@
-import type { JsonObject } from '@/vault/nodes/model.ts';
+import type { JsonValue, HistoricalReference } from '@/vault/eav/index.ts';
 import type { GraphExplorerState } from './explorer.ts';
 
 /** Application supplies record-owner projections; Graph interprets only map membership. */
@@ -6,18 +6,21 @@ export interface GraphMapReference {
   id: string;
   title: string;
   text: string;
+  currentText?: string;
   href?: string;
   state: 'original' | 'newer' | 'deleted';
-  source: { node: string; transaction: string };
+  address: HistoricalReference;
 }
 export interface GraphMapBlock {
   id: string;
-  data: JsonObject;
+  data: Readonly<Record<string, JsonValue>>;
   children: GraphMapBlock[];
   evidence: GraphMapReference[];
 }
 export interface GraphMapTopic {
   id: string;
+  href?: string;
+  available?: boolean;
   title: string;
   blocks: GraphMapBlock[];
   metadata: readonly { label: string }[];
@@ -26,7 +29,7 @@ export interface GraphPageProps {
   state: GraphExplorerState;
   topics: readonly GraphMapTopic[];
   node?: string;
-  currentSourceText: (node: string) => string | undefined;
+  currentSourceText?: (entity: string) => string | undefined;
   onNavigate?: (href: string) => void;
   onRetry?: () => void;
 }
@@ -75,7 +78,9 @@ export function projectGraphMap(topics: readonly GraphMapTopic[], state: GraphEx
   const words = (block: GraphMapBlock): string =>
     typeof block.data.text === 'string' ? block.data.text : block.children.map(words).join('');
   for (const topic of topics) {
-    add(topic.id, topic.title, 'topic', topic);
+    const topicRecord = add(topic.id, topic.title, 'topic', topic);
+    topicRecord.href = topic.href;
+    topicRecord.unavailable = topic.available === false;
     const pending = [...topic.blocks];
     while (pending.length) {
       const block = pending.shift()!;
@@ -95,7 +100,7 @@ export function projectGraphMap(topics: readonly GraphMapTopic[], state: GraphEx
         label: 'contains',
       });
       for (const reference of block.evidence) {
-        const source = add(reference.source.node, reference.title, 'source', topic);
+        const source = add(reference.address.entity, reference.title, 'source', topic);
         source.reference ??= reference;
         source.href ??= reference.href;
         edges.set(reference.id, {
@@ -113,14 +118,14 @@ export function projectGraphMap(topics: readonly GraphMapTopic[], state: GraphEx
     record.unavailable = subject.state === 'deleted';
   }
   for (const id of records.keys()) {
-    for (const relationship of state.graph?.relationships({ node: id }) ?? []) {
-      const source = relationship.source.address?.node;
-      const target = relationship.target.address?.node;
+    for (const relationship of state.graph?.relationships({ entity: id }) ?? []) {
+      const source = relationship.source.address?.entity;
+      const target = relationship.target.address?.entity;
       if (!(source && target && records.has(source) && records.has(target))) continue;
       // Citation/containment projections keep their reviewed meaning rather than adding a second copy.
-      if (!edges.has(relationship.node.key.node))
-        edges.set(relationship.node.key.node, {
-          id: relationship.node.key.node,
+      if (!edges.has(relationship.id))
+        edges.set(relationship.id, {
+          id: relationship.id,
           source,
           target,
           label: relationship.label,

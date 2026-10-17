@@ -9,11 +9,10 @@ import {
   type CalendarData,
 } from '@/calendar/index.ts';
 import {
-  applicationNodes,
   applicationHistory,
   applicationChatOptions,
-  applicationSources,
-  applicationGraphDescription,
+  applicationGraphInput,
+  applicationDatabase,
   applicationWiki,
   applicationCalendar,
   applicationSubjectCalendar,
@@ -25,9 +24,9 @@ import { useTranscription, type TranscriptionProvider } from '@/transcription.ts
 import type { LanguageModel } from 'ai';
 import {
   useVaultSession,
-  type OpenNodes,
+  type OpenEav,
   VaultGate,
-  RefreshNodes,
+  RefreshVault,
   SessionStatus,
   SignOut,
   createSessionCredentials,
@@ -52,7 +51,7 @@ import {
 } from '@/agent/openai/settings.ts';
 import { githubSettings } from '@/vault/storage/settings.ts';
 import { chatPreferences, chatSettings } from '@/workflows/chat/preferences.ts';
-import { nodeWriteAvailability, nodeRecordsReady } from '@/vault/session/availability.ts';
+import { writeAvailability, recordsReady } from '@/vault/session/availability.ts';
 import {
   Button,
   Alert,
@@ -82,13 +81,11 @@ import {
   defaultIdentities,
   type ApplicationIdentities,
 } from './identities.ts';
-import type { TransactionStore } from '@/vault/transactions/store.ts';
 import { createOpenAICapabilities } from '@/agent/openai/index.ts';
 import { HistoryDrawer } from '@/vault/transactions/history/index.tsx';
 import { Wiki, type ForeignRecordRenderer } from '@/workflows/wiki/index.tsx';
 import { wikiRoute, pageRoute } from '@/workflows/wiki/routes.ts';
 import { useEavWikiReading } from '@/workflows/wiki/data/reading.ts';
-import { recordText } from '@/workflows/wiki/text.ts';
 import { GraphPage } from '@/workflows/graph/GraphPage.tsx';
 import { graphRoute, graphSubjectRoute } from '@/workflows/graph/routes.ts';
 import { useGraph, useGraphExplorer } from '@/workflows/graph/use-graph.ts';
@@ -103,18 +100,6 @@ import {
   renderQuestionRecord,
 } from '@/workflows/questions/index.tsx';
 
-const unavailableNodes: TransactionStore = {
-  identity: {},
-  writer: () => ({
-    lifetime: () => {
-      throw new Error('Node store is unavailable.');
-    },
-  }),
-  snapshot: () => Promise.reject(new Error('Node store is unavailable.')),
-  history: async () => [],
-  changes: async () => [],
-  subscribe: () => () => undefined,
-};
 const unavailableModel = () =>
   Promise.reject(new Error('Configure an OpenAI key to send messages.'));
 type VaultSession = ReturnType<typeof useVaultSession>;
@@ -122,15 +107,13 @@ type SuppliedSession = Omit<VaultSession, 'identity' | 'credentialPending' | 'cr
   Partial<Pick<VaultSession, 'identity' | 'credentialPending' | 'credentials'>>;
 
 export function Application({
-  openNodes,
   openEav,
   identities,
 }: {
-  openNodes: OpenNodes;
-  openEav?: import('@/vault/session/adapters.ts').OpenEav;
+  openEav: OpenEav;
   identities?: ApplicationIdentities;
 }) {
-  const session = useVaultSession(openNodes, openEav);
+  const session = useVaultSession(openEav);
   return (
     <VaultGate state={session}>
       <OpenApplication session={session} identities={identities} />
@@ -155,8 +138,7 @@ export function OpenApplication({
     transcription: TranscriptionProvider;
   };
 }) {
-  const { nodeStatus } = session;
-  const nodes = session.nodes ? applicationNodes(session.nodes, session.identity) : null;
+  const { status, eav } = session;
   const providerDefinition = useMemo(
     () =>
       createOpenAISettings({
@@ -190,12 +172,13 @@ export function OpenApplication({
   );
   // biome-ignore lint/correctness/useExhaustiveDependencies: borrowed facades follow adapter replacement; identity owns bootstrap recovery.
   const setup = useMemo(
-    () => (nodes ? createApplicationIdentities(nodes, identities) : null),
-    [nodes?.identity, identities.user, identities.agent],
+    () => (eav ? createApplicationIdentities(() => applicationDatabase(eav), identities) : null),
+    [eav, identities.user, identities.agent],
   );
+  const historyAdmission = useRef<() => string | undefined>(() => 'Opening the vault…');
   const historyView = useMemo(
-    () => (nodes ? applicationHistory(nodes, identities, session.eav) : undefined),
-    [nodes, identities, session.eav],
+    () => (eav ? applicationHistory(eav, identities, () => historyAdmission.current()) : undefined),
+    [eav, identities],
   );
   const [identityState, setIdentityState] = useState<{
     owner: typeof setup;
@@ -217,8 +200,8 @@ export function OpenApplication({
     }
   }, [setup]);
   useEffect(() => {
-    if (nodeStatus.kind === 'synced') later(prepareIdentities());
-  }, [prepareIdentities, nodeStatus.kind]);
+    if (status.kind === 'synced') later(prepareIdentities());
+  }, [prepareIdentities, status.kind]);
   const route = useRoute();
   const wikiInput = useMemo(
     () => (session.eav ? applicationWiki(session.eav) : null),
@@ -270,7 +253,8 @@ export function OpenApplication({
   const onQuestions = !!questionsRoute.match(route.path);
   const graphSubject = graphSubjectRoute.match(route.path)?.node;
   const onGraph = !!graphRoute.match(route.path) || !!graphSubject;
-  const graph = useGraphExplorer(onGraph ? nodes : null, applicationGraphDescription);
+  const graphInput = useMemo(() => (eav ? applicationGraphInput(eav) : null), [eav]);
+  const graph = useGraphExplorer(onGraph ? graphInput : null);
   const graphState = useGraph(graph);
   const nativeQuestions = useMemo(
     () => (session.eav ? applicationQuestionCollection(session.eav) : null),
@@ -279,25 +263,17 @@ export function OpenApplication({
   const questions = useQuestionsReading(onWiki || onQuestions ? nativeQuestions : null);
   const questionState = useQuestions(questions);
   // Session identity survives credential reconnects; independent supplied stores get a new owner.
-  const chatScope = useRef<{ nodes: TransactionStore | null; key: object }>({
-    nodes: null,
-    key: {},
-  });
-  if (chatScope.current.nodes?.identity !== nodes?.identity) {
-    chatScope.current = {
-      nodes,
-      key: chatScope.current.nodes === null && nodes ? chatScope.current.key : {},
-    };
-  }
-  const chatSession = session.identity ?? chatScope.current.key;
+  const fallbackSession = useRef({}).current;
+  const chatSession = session.identity ?? eav ?? fallbackSession;
   const writeAdmission = session.credentialPending
     ? 'Wait for the credential update to finish before saving changes.'
-    : (nodeWriteAvailability(nodeStatus, !!nodes) ??
+    : (writeAvailability(status, !!eav) ??
       (identityState.owner !== setup || !identityState.ready
         ? 'Preparing Vault identities…'
         : undefined));
   const admission = useRef(writeAdmission);
   admission.current = writeAdmission;
+  historyAdmission.current = () => writeAdmission;
   const answers = useQuestionAnswers({
     session: chatSession,
     actions: session.eav
@@ -382,7 +358,7 @@ export function OpenApplication({
   const voice = useTranscription(preview?.transcription ?? speechProvider, chatSession);
   const availability = session.credentialPending
     ? 'Wait for the credential update to finish before starting agent activity.'
-    : (nodeWriteAvailability(nodeStatus, !!nodes) ??
+    : (writeAvailability(status, !!eav) ??
       (identityState.owner !== setup || !identityState.ready
         ? identityState.error
           ? `Identity setup failed: ${identityState.error}`
@@ -393,7 +369,6 @@ export function OpenApplication({
   const conversation = useConversation(
     applicationChatOptions({
       eav: session.eav,
-      nodes: nodes ?? unavailableNodes,
       session: chatSession,
       identities,
       provider: preview?.provider ?? (suppliedModel ? 'preview' : 'openai'),
@@ -409,7 +384,7 @@ export function OpenApplication({
         : undefined,
       transcription: voice,
       conversation: conversationRoute.match(route.path)?.node,
-      recordsReady: !!nodes && nodeRecordsReady(nodeStatus),
+      recordsReady: !!eav && recordsReady(status),
       onSelectionOutcome: (outcome) => {
         if (
           (outcome.status === 'blocked' || outcome.status === 'failed') &&
@@ -475,7 +450,7 @@ export function OpenApplication({
     { label: 'Graph', href: graphRoute.href(), icon: 'network', current: onGraph },
     { label: 'Calendar', href: calendarRoute.href(), icon: 'calendar', current: onCalendar },
     { label: 'Questions', href: questionsRoute.href(), icon: 'help', current: onQuestions },
-    ...(nodes
+    ...(eav
       ? [
           {
             label: 'History',
@@ -561,7 +536,7 @@ export function OpenApplication({
       keys: 'g q',
       run: () => go(questionsRoute.href()),
     },
-    ...(nodes
+    ...(eav
       ? [
           {
             id: 'go.history',
@@ -662,7 +637,7 @@ export function OpenApplication({
     <>
       <Frame
         navigation={navigation}
-        status={<SessionStatus status={nodeStatus} />}
+        status={<SessionStatus status={status} />}
         signOut={signOut && ((menu) => <SignOut menu={menu} onSignOut={signOut} />)}
         onSearch={() => {
           if (mobile) dismissSupportingTasks();
@@ -721,7 +696,7 @@ export function OpenApplication({
             disabledReason={
               session.credentialPending
                 ? 'Wait for credentials to finish updating.'
-                : nodeStatus.kind === 'synced'
+                : status.kind === 'synced'
                   ? undefined
                   : 'Reconnect before saving Calendar changes.'
             }
@@ -740,13 +715,6 @@ export function OpenApplication({
             state={graphState}
             node={graphSubject}
             topics={wikiTopics}
-            currentSourceText={(node) => {
-              const view = graphState.view;
-              const source = view?.get(node);
-              return view && source?.data
-                ? recordText(source, view, applicationSources)
-                : undefined;
-            }}
             onRetry={() => later(graph.reload())}
           />
         ) : onWiki ? (
@@ -801,7 +769,7 @@ export function OpenApplication({
         )}
       </Frame>
       <HistoryDrawer open={historyOpen} onClose={closeCoreAction} history={historyView}>
-        <RefreshNodes status={nodeStatus} refresh={session.refreshNodes} />
+        <RefreshVault status={status} refresh={session.refresh} />
       </HistoryDrawer>
       <SettingsMenu
         open={settingsOpen}

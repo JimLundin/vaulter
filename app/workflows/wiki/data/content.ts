@@ -89,6 +89,14 @@ export async function contentText(
     select: { content: true, parent: true, order: true, key: true, available: true },
     orderBy: [{ order: 'asc' }, { key: 'asc' }],
   });
+  return projectContentText(contents, placements)(root);
+}
+
+/** Reuse one accepted snapshot when projecting several content roots. */
+export function projectContentText(
+  contents: readonly ContentValue[],
+  placements: readonly { content: ContentRef; parent?: ContentRef; available: boolean }[],
+) {
   const visit = (ref: ContentRef, path: readonly ContentRef[]): string => {
     if (path.some((item) => sameEntity(item, ref))) throw new Error('Recursive Wiki content');
     const value = contents.find((item) => sameEntity(item, ref));
@@ -119,7 +127,7 @@ export async function contentText(
         : '\n';
     return (value.kind === 'row' ? texts : texts.filter(Boolean)).join(separator);
   };
-  return visit(root, []);
+  return (root: ContentRef) => visit(root, []);
 }
 
 export function selectedText(text: string, start: number, end: number): string {

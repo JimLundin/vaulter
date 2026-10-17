@@ -6,7 +6,7 @@ import '@/ui/kit/styles.css';
 import { createRoot } from 'react-dom/client';
 import { useState } from 'react';
 import { OpenApplication } from '@/application/index.tsx';
-import { applicationNodes, applicationWiki } from '@/application/composition.ts';
+import { applicationWiki } from '@/application/composition.ts';
 import { startTheme, Text, DesignPreview, Gate, Brand, Button, Stack } from '@/ui/kit/index.ts';
 import { seedGraphEvidence } from './graph-evidence.ts';
 import { seedGraphDensity } from './graph-density.ts';
@@ -14,13 +14,9 @@ import { previewModel } from './model.ts';
 import { createOpenAICapabilities } from '@/agent/openai/index.ts';
 import { recordedTranscription } from '@/agent/recorded-transcription.ts';
 import { previewTranscription } from './transcription.ts';
-import { previewNodes, previewJournalKey } from './nodes.ts';
 import { previewEav, previewEavKey } from './eav.ts';
-import type { NodeChange } from '@/vault/nodes/store.ts';
-import type { NodeStore } from '@/vault/nodes/store.ts';
 import { seedEavWiki } from './wiki-records.ts';
 import { seedCalendar } from './calendar-records.ts';
-import { seedPreviewRecords } from './records.ts';
 
 const query = new URLSearchParams(location.search);
 const eav = previewEav(sessionStorage, query.get('scenario') ?? undefined);
@@ -41,112 +37,15 @@ const agent =
       })
     : null;
 const transcription = agent ? recordedTranscription(agent.transcribe) : previewTranscription;
-const openingNodes = previewNodes(sessionStorage, query.get('scenario') ?? undefined).then(
-  async (nodes) => {
-    await seedPreviewRecords(nodes);
-    await seedEavWiki(await applicationWiki(eav).database());
-    await seedCalendar(eav);
-    await seedEavQuestions(await applicationWiki(eav).database());
-    if (query.get('compare') === 'graph') {
-      await seedGraphEvidence(nodes);
-      await seedGraphDensity(nodes);
-    }
-    if (query.has('conversations') && !(await nodes.snapshot()).get('preview:list-owner')) {
-      await nodes.commit({
-        id: 'preview:conversation-list',
-        recordedBy: 'preview:list-owner',
-        origin: null,
-        undoOf: null,
-        kind: { scope: 'node', action: 'create' },
-        message: 'Sample conversations',
-        changes: [
-          {
-            node: 'preview:list-owner',
-            expected: null,
-            placement: null,
-            connection: null,
-            data: { kind: 'actor', name: 'Preview owner' },
-          },
-          ...[
-            'Garden studio plans',
-            'A quiet week by the coast',
-            'Keeping mornings free for focused work',
-            'Books and ideas to return to',
-            'Dinner with the neighbours',
-            'A longer conversation title about making space for the things that matter',
-          ].flatMap((title, index): NodeChange[] => {
-            const node = `preview:chat:${index}`;
-            const at = new Date(Date.UTC(2026, 9, 11 - index * 2, 9, 30)).toISOString();
-            return [
-              {
-                node,
-                expected: null,
-                placement: null,
-                connection: null,
-                data: { kind: 'conversation', title, createdAt: at },
-              },
-              {
-                node: `${node}:exchange`,
-                expected: null,
-                placement: { parent: node, order: 'a' },
-                connection: null,
-                data: { kind: 'exchange', startedAt: at },
-              },
-              {
-                node: `${node}:message`,
-                expected: null,
-                placement: { parent: `${node}:exchange`, order: 'a' },
-                connection: null,
-                data: { kind: 'message', role: 'user', at, text: title },
-              },
-            ];
-          }),
-        ],
-      });
-    }
-    // Update retained fictional samples too, so existing local previews get same-day groups.
-    if (
-      query.has('conversations') &&
-      !(await nodes.history()).some((transaction) => transaction.id === 'preview:same-day-groups')
-    ) {
-      const snapshot = await nodes.snapshot();
-      const changes: NodeChange[] = [];
-      for (let index = 0; index < 6; index++) {
-        const node = `preview:chat:${index}`;
-        const at = new Date(
-          Date.UTC(2026, 9, index < 3 ? 11 : index < 5 ? 10 : 8, 16 - (index % 3) * 3, 30),
-        ).toISOString();
-        for (const [id, fields] of [
-          [node, { createdAt: at }],
-          [`${node}:exchange`, { startedAt: at }],
-          [`${node}:message`, { at }],
-        ] as const) {
-          const before = snapshot.get(id);
-          if (before?.data)
-            changes.push({
-              node: id,
-              expected: before.key.transaction,
-              placement: before.placement,
-              connection: before.connection,
-              data: { ...before.data, ...fields },
-            });
-        }
-      }
-      if (changes.length)
-        await nodes.commit({
-          id: 'preview:same-day-groups',
-          recordedBy: 'preview:list-owner',
-          origin: null,
-          undoOf: null,
-          kind: { scope: 'node', action: 'update' },
-          message: 'Group fictional conversations on the same day',
-          changes,
-        });
-    }
-    return nodes;
-  },
-);
-function Preview({ nodes }: { nodes: NodeStore }) {
+const opening = (async () => {
+  const db = await applicationWiki(eav).database();
+  await seedEavWiki(db);
+  await seedCalendar(eav);
+  await seedEavQuestions(db);
+  await seedGraphEvidence(db, query.get('compare') === 'graph');
+  if (query.get('compare') === 'graph') await seedGraphDensity(db);
+})();
+function Preview() {
   const [signedOut, setSignedOut] = useState(false);
   const product = () => (
     <OpenApplication
@@ -158,12 +57,10 @@ function Preview({ nodes }: { nodes: NodeStore }) {
         secrets: null,
         preloadedSecrets: null,
         secretOverrides: {},
-        updateSecret: async () => {
-          throw new Error('Credentials are supplied by the preview server.');
-        },
-        nodes: applicationNodes(nodes),
-        nodeStatus: { kind: 'synced', at: Date.now() },
-        refreshNodes: async () => undefined,
+        updateSecret: () =>
+          Promise.reject(new Error('Credentials are supplied by the preview server.')),
+        status: { kind: 'synced', at: Date.now() },
+        refresh: async () => undefined,
       }}
       model={agent?.model ?? (async () => previewModel)}
       preview={{
@@ -184,7 +81,6 @@ function Preview({ nodes }: { nodes: NodeStore }) {
       label={`${agent ? 'Live agent preview' : 'Design preview'} · ${(import.meta.env.VITE_PREVIEW_COMMIT || 'local').slice(0, 7)}`}
       chat={agent ? 'Live agent' : 'Scripted chat'}
       onReset={() => {
-        sessionStorage.removeItem(previewJournalKey);
         sessionStorage.removeItem(previewEavKey);
         location.hash = '#/chat/';
         location.reload();
@@ -209,8 +105,8 @@ function Preview({ nodes }: { nodes: NodeStore }) {
 
 startTheme();
 const root = createRoot(document.getElementById('app')!);
-openingNodes
-  .then((nodes) =>
+opening
+  .then(() =>
     root.render(
       liveAgent && !agent ? (
         <Text tone="danger">
@@ -218,7 +114,7 @@ openingNodes
           development server. Set VAULT_OPENAI_API for a custom endpoint, then restart Vite.
         </Text>
       ) : (
-        <Preview nodes={nodes} />
+        <Preview />
       ),
     ),
   )

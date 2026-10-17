@@ -1,16 +1,15 @@
 import { createOpenAI } from '@ai-sdk/openai';
 import { wrapLanguageModel } from 'ai';
-import type { AgentBackendOptions } from '@/agent/runtime.ts';
+import { executeEavRun } from '@/agent/eav/runtime.ts';
 import { createVoiceAgent, type VoiceAgentOptions } from '@/agent/voice-runtime.ts';
-import { createAgentBackend } from '@/agent/runtime.ts';
-import { openAITranscription } from './live-transcription.ts';
+import { DEFAULT_MODELS, defaultFileTranscriptionModel } from './defaults.ts';
 import { openAIDictation } from './dictation.ts';
 import { openAIFileTranscription } from './file-transcription.ts';
+import { type OpenAIConnectionOptions, openAIHttp } from './http.ts';
+import { openAITranscription } from './live-transcription.ts';
 import { openAILiveVoice } from './live-voice.ts';
-import { openAIHttp, type OpenAIConnectionOptions } from './http.ts';
-import { DEFAULT_MODELS, defaultFileTranscriptionModel } from './defaults.ts';
 
-/** One session-scoped provider module. Secrets are captured here and never enter node records. */
+/** One session-scoped provider module. Secrets are captured here and never enter execution records. */
 export function createOpenAICapabilities(
   options: OpenAIConnectionOptions & {
     readonly models?: {
@@ -60,8 +59,8 @@ export function createOpenAICapabilities(
     provider: 'openai' as const,
     models,
     model,
-    agent: (configuration: Omit<AgentBackendOptions, 'execution' | 'model'>) =>
-      createAgentBackend({ ...configuration, model }),
+    agent: (configuration: Omit<Parameters<typeof executeEavRun>[0], 'execution' | 'model'>) =>
+      executeEavRun({ ...configuration, model }),
     liveVoice,
     voiceAgent: (
       configuration: Omit<

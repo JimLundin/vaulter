@@ -1,15 +1,16 @@
-import { transactionFixture } from '@/vault/transactions/fixtures.test-support.ts';
+import { eavChatFactory } from './eav-backend.ts';
+import { controlledChatStorage } from './controller-storage.test-support.ts';
+import { chatFixture } from './fixtures.test-support.ts';
 import { expect, test, vi } from 'vitest';
 import { MockLanguageModelV4, convertArrayToReadableStream } from 'ai/test';
-import { memoryNodeBackend } from '@/vault/nodes/memory.ts';
-import { create, request, seed } from '@/vault/nodes/fixtures.test-support.ts';
 import { createTranscription } from '@/transcription.ts';
-import { createNodeConversation, type NodeConversationOptions } from './node-conversation.ts';
+import { createConversation, type ConversationOptions } from './conversation.ts';
 
-async function fixture(overrides: Partial<NodeConversationOptions> = {}) {
-  const nodes = memoryNodeBackend();
-  await seed(nodes);
-  await nodes.commit(request('agent', [create('agent', { kind: 'agent', name: 'Fictional' })]));
+async function fixture(
+  overrides: Partial<ConversationOptions> = {},
+  storage?: Parameters<typeof chatFixture>[0],
+) {
+  const { db, options: base } = await chatFixture(storage);
   const model = new MockLanguageModelV4({
     doStream: async () => ({
       stream: convertArrayToReadableStream([
@@ -28,8 +29,8 @@ async function fixture(overrides: Partial<NodeConversationOptions> = {}) {
       ]),
     }),
   });
-  const options: NodeConversationOptions = {
-    nodes: transactionFixture(nodes),
+  const options: ConversationOptions = {
+    ...base,
     user: 'user',
     agent: 'agent',
     provider: 'fictional',
@@ -39,11 +40,10 @@ async function fixture(overrides: Partial<NodeConversationOptions> = {}) {
     suggestions: async () => [],
     ...overrides,
   };
-  return { nodes, model, options };
+  return { db, model, options };
 }
 
 test('Chat owns a request before clearing its source and preserves newer typing through held initial acceptance and no-replay recovery', async () => {
-  const { nodes, model, options } = await fixture();
   let accept!: () => void;
   let attempted!: () => void;
   const entered = new Promise<void>((resolve) => {
@@ -53,20 +53,15 @@ test('Chat owns a request before clearing its source and preserves newer typing 
     accept = resolve;
   });
   let failing = true;
-  const chat = createNodeConversation({
-    ...options,
-    nodes: transactionFixture({
-      ...nodes,
-      commit: async (value) => {
-        if (value.kind.scope === 'chat' && value.kind.action === 'submit' && failing) {
-          attempted();
-          await held;
-          throw new Error('Initial acceptance unavailable');
-        }
-        return nodes.commit(value);
-      },
-    }),
+  const storage = controlledChatStorage(async (request) => {
+    if (failing && request.commit.facts.some((fact) => fact.value === 'chat.exchange')) {
+      attempted();
+      await held;
+      throw new Error('Initial acceptance unavailable');
+    }
   });
+  const { db, model, options } = await fixture({}, storage);
+  const chat = createConversation(options);
   try {
     chat.setDraft('  First request  ');
     const owned = chat.prepareSubmission();
@@ -124,13 +119,13 @@ test('Chat owns a request before clearing its source and preserves newer typing 
   } finally {
     accept();
     chat.dispose();
-    nodes.close();
+    await db[Symbol.asyncDispose]();
   }
 });
 
 test('request ownership is observable atomically with busy admission, including synchronous subscribers', async () => {
-  const { nodes, options } = await fixture();
-  const chat = createNodeConversation(options);
+  const { db, options } = await fixture();
+  const chat = createConversation(options);
   let second: ReturnType<typeof chat.prepareSubmission> | undefined;
   let attempted = false;
   chat.setDraft('The first request');
@@ -148,7 +143,7 @@ test('request ownership is observable atomically with busy admission, including 
   } finally {
     unsubscribe();
     chat.dispose();
-    nodes.close();
+    await db[Symbol.asyncDispose]();
   }
 });
 
@@ -157,8 +152,8 @@ test.each([
   [
     'unavailable saving',
     'Keep this text',
-    { availability: 'Node storage is offline' },
-    'Node storage is offline',
+    { availability: 'Vault storage is offline' },
+    'Vault storage is offline',
   ],
   [
     'unavailable execution',
@@ -169,8 +164,8 @@ test.each([
 ] as const)(
   '%s is denied without changing draft, conversation, or request state',
   async (_name, text, overrides, reason) => {
-    const { nodes, model, options } = await fixture(overrides);
-    const chat = createNodeConversation(options);
+    const { db, model, options } = await fixture(overrides);
+    const chat = createConversation(options);
     try {
       chat.setDraft(text);
       const before = chat.snapshot();
@@ -188,14 +183,14 @@ test.each([
       expect(model.doStreamCalls).toHaveLength(0);
     } finally {
       chat.dispose();
-      nodes.close();
+      await db[Symbol.asyncDispose]();
     }
   },
 );
 
 test('synchronous handoff failure keeps the source and its revision for a later explicit retry', async () => {
-  const { nodes, model, options } = await fixture();
-  const chat = createNodeConversation(options);
+  const { db, model, options } = await fixture();
+  const chat = createConversation(options);
   chat.setDraft('Preserve this source');
   const original = chat.snapshot();
   const intent = chat.draftIntent();
@@ -223,19 +218,15 @@ test('synchronous handoff failure keeps the source and its revision for a later 
   } finally {
     identity.mockRestore();
     chat.dispose();
-    nodes.close();
+    await db[Symbol.asyncDispose]();
   }
 });
 
 test('asynchronous preparation failure preserves locally owned request text without clearing a newer draft', async () => {
-  const { nodes, model, options } = await fixture();
-  let fail = true;
-  const chat = createNodeConversation({
+  const { db, model, options } = await fixture();
+  const chat = createConversation({
     ...options,
-    nodes: transactionFixture({
-      ...nodes,
-      snapshot: () => (fail ? Promise.reject(new Error('Snapshot unavailable')) : nodes.snapshot()),
-    }),
+    backend: eavChatFactory(Promise.reject(new Error('Database unavailable'))),
   });
   try {
     chat.setDraft('Owned before the read');
@@ -251,16 +242,13 @@ test('asynchronous preparation failure preserves locally owned request text with
     expect(chat.snapshot().turns[0]?.parts).toEqual([
       { kind: 'text', text: 'Owned before the read' },
     ]);
-    expect(chat.snapshot().turns[1]?.error).toBe('Snapshot unavailable');
+    expect(chat.snapshot().turns[1]?.error).toBe('Database unavailable');
     expect(model.doStreamCalls).toHaveLength(0);
     // The failed request was locally retained, never represented as durable acceptance.
-    fail = false;
-    const close = chat.watchRecords();
-    await vi.waitFor(() => expect(chat.snapshot().records.chats).toEqual([]));
-    close();
+    expect(await db.transaction((tx) => tx.entities.exchanges.query({ select: {} }))).toEqual([]);
   } finally {
     chat.dispose();
-    nodes.close();
+    await db[Symbol.asyncDispose]();
   }
 });
 
@@ -269,8 +257,8 @@ test('a completed transcription is a newer source revision than an earlier retai
     close: () => undefined,
     finish: async () => 'New spoken words',
   }));
-  const { nodes, options } = await fixture({ transcription: voice });
-  const chat = createNodeConversation(options);
+  const { db, options } = await fixture({ transcription: voice });
+  const chat = createConversation(options);
   try {
     chat.setDraft('The earlier typed text');
     const earlier = chat.draftIntent();
@@ -283,7 +271,7 @@ test('a completed transcription is a newer source revision than an earlier retai
   } finally {
     chat.dispose();
     voice.dispose();
-    nodes.close();
+    await db[Symbol.asyncDispose]();
   }
 });
 
@@ -298,8 +286,8 @@ test.each(['connecting', 'listening', 'finishing'] as const)(
           connected = resolve;
         }),
     );
-    const { nodes, model, options } = await fixture({ transcription: voice });
-    const chat = createNodeConversation(options);
+    const { db, model, options } = await fixture({ transcription: voice });
+    const chat = createConversation(options);
     let finishing: Promise<unknown> | undefined;
     try {
       chat.setDraft('Keep typed and spoken input');
@@ -340,7 +328,7 @@ test.each(['connecting', 'listening', 'finishing'] as const)(
     } finally {
       chat.dispose();
       voice.dispose();
-      nodes.close();
+      await db[Symbol.asyncDispose]();
     }
   },
 );

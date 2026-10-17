@@ -6,7 +6,7 @@ in the kit so a design change has one implementation to change. We accept some l
 UI/UX in exchange for consistency, a smaller presentation interface, and less coupling between
 modules. A kit made only of tiny controls would still force each module to rebuild the same layouts.
 
-The rendering pipeline is NodeStore → module-owned typed projection → module-owned record UI →
+The rendering pipeline is EAV store → module-owned typed projection → module-owned record UI →
 kit presentation. Record UI accepts stored payload types or projections that retain their meaning,
 with resolved relationships, version/snapshot context, availability and explicit actions as needed.
 Queries, subscriptions, execution and persistence belong to the owning module's reading or lifetime
@@ -21,8 +21,8 @@ migration's scope.
 
 Shared presentation is extracted based on real reuse. Domain interpretation stays with its owner;
 another module does not acquire that interpretation by copying it or moving it into the kit. Application
-continues to compose workflow interfaces explicitly. Existing Base UI mechanics, the generic node
-model and historical citation semantics remain as decided in ADR 0001, 0002 and 0005.
+continues to compose workflow interfaces explicitly. Existing Base UI mechanics, the typed entity
+model and historical citation semantics remain as decided in ADR 0001, 0010 and 0005.
 
 This decision is implemented. Current ownership and enforcement are documented in
 [Architecture](../../ARCHITECTURE.md). The [public kit interface](../../app/ui/kit/index.ts) and

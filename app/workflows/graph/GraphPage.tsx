@@ -315,7 +315,9 @@ export function GraphPage({
             SOURCE NOW SAYS
           </Text>
           <Text>
-            {currentSourceText(reference.source.node) ?? 'Current source text is unavailable.'}
+            {reference.currentText ??
+              currentSourceText?.(reference.address.entity) ??
+              'Current source text is unavailable.'}
           </Text>
         </>
       )}
@@ -331,7 +333,7 @@ export function GraphPage({
     ? edges.filter((edge) => edge.source === selected.id || edge.target === selected.id)
     : [];
   const recordedRelations = selected
-    ? (state.graph?.relationships({ node: selected.id }) ?? [])
+    ? (state.graph?.relationships({ entity: selected.id }) ?? [])
     : [];
   return (
     <SplitView
@@ -453,7 +455,7 @@ export function GraphPage({
                     records
                       .filter((record) =>
                         record.block?.evidence.some(
-                          (reference) => reference.source.node === selected.id,
+                          (reference) => reference.address.entity === selected.id,
                         ),
                       )
                       .map((record) => (
@@ -462,7 +464,7 @@ export function GraphPage({
                             <Text>{record.label}</Text>
                           </SelectionRow>
                           {record.block?.evidence
-                            .filter((reference) => reference.source.node === selected.id)
+                            .filter((reference) => reference.address.entity === selected.id)
                             .map(source)}
                         </Stack>
                       ))}
@@ -492,7 +494,7 @@ export function GraphPage({
                     <Heading level={3}>Recorded relationships</Heading>
                   )}
                   {recordedRelations.map((relationship) => (
-                    <Stack key={relationship.node.key.node} gap="xs">
+                    <Stack key={relationship.id} gap="xs">
                       <Text weight="medium">
                         {relationship.direction} · {relationship.label}
                       </Text>
@@ -506,23 +508,19 @@ export function GraphPage({
                           <Text size="sm">
                             {String(label)}:{' '}
                             {endpoint.address
-                              ? (records.find((record) => record.id === endpoint.address?.node)
-                                  ?.label ?? endpoint.address.node)
+                              ? (records.find((record) => record.id === endpoint.address?.entity)
+                                  ?.label ?? endpoint.address.entity)
                               : (relationship.data.label ?? 'Unresolved')}{' '}
                             · {endpoint.state}
                           </Text>
                           {!!endpoint.address?.transaction && (
                             <Text size="sm" tone="muted">
                               Recorded version: {endpoint.address.transaction}. Current identity:{' '}
-                              {endpoint.current?.data
+                              {endpoint.current && endpoint.current.available !== false
                                 ? 'available'
                                 : endpoint.current
                                   ? 'deleted'
                                   : 'missing'}
-                              {endpoint.current?.data &&
-                              endpoint.current.key.transaction !== endpoint.version?.key.transaction
-                                ? ' · a newer version exists'
-                                : ''}
                               .
                             </Text>
                           )}
@@ -749,7 +747,7 @@ export function GraphPage({
               <TabsContent value="vocabulary">
                 <Stack gap="lg" block="sm">
                   {(state.graph?.vocabulary() ?? []).map((term) => (
-                    <Stack key={term.node.key.node} gap="sm">
+                    <Stack key={term.id} gap="sm">
                       <Heading level={3}>{term.data.label ?? term.data.key}</Heading>
                       <Badge>{term.data.scheme}</Badge>
                       {!!term.data.use && <Text>{term.data.use}</Text>}
@@ -757,7 +755,7 @@ export function GraphPage({
                       {!!term.data.symmetric && (
                         <Text size="sm">Same relationship in both directions</Text>
                       )}
-                      <Button variant="ghost" onClick={() => inspect(term.node.key.node)}>
+                      <Button variant="ghost" onClick={() => inspect(term.id)}>
                         Explore {term.data.label ?? term.data.key}
                       </Button>
                     </Stack>

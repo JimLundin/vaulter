@@ -62,11 +62,11 @@ export const previewModel: PreviewModel = {
       askedData && typeof askedData === 'object' && 'question' in askedData
         ? String(askedData.question)
         : '';
-    const created = results.find((result) => result.toolName === 'createNode');
+    const created = results.find((result) => result.toolName === 'createWikiPage');
     const createdData = created?.output.type === 'json' ? created.output.value : null;
-    const node =
-      createdData && typeof createdData === 'object' && 'node' in createdData
-        ? String(createdData.node)
+    const key =
+      createdData && typeof createdData === 'object' && 'key' in createdData
+        ? String(createdData.key)
         : '';
     let parts: StreamPart[];
     if (
@@ -116,24 +116,28 @@ export const previewModel: PreviewModel = {
       );
     } else if (writing && !created) {
       parts = [
-        ...text('I’ll publish this as a content node in the fictional Vault.'),
-        call('createNode', { title: 'Preview thought', text: said }),
-      ];
-    } else if (writing && !results.some((result) => result.toolName === 'readNode')) {
-      parts = [call('readNode', { node })];
-    } else if (writing && !results.some((result) => result.toolName === 'updateNode')) {
-      parts = [
-        call('updateNode', {
-          node,
+        ...text('I’ll publish this as a Wiki page in the fictional Vault.'),
+        call('createWikiPage', {
+          key: `preview:thought:${crypto.randomUUID()}`,
           title: 'Preview thought',
-          text: `${said}\nLeave room to revisit this thought.`,
+          summary: said,
+        }),
+      ];
+    } else if (writing && !results.some((result) => result.toolName === 'readWikiPage')) {
+      parts = [call('readWikiPage', { key })];
+    } else if (writing && !results.some((result) => result.toolName === 'updateWikiPage')) {
+      parts = [
+        call('updateWikiPage', {
+          key,
+          title: 'Preview thought',
+          summary: `${said}\nLeave room to revisit this thought.`,
         }),
       ];
     } else {
       parts = text(
         writing
-          ? 'Filed in **Preview thought**, a content node with its original and updated versions retained. The tool receipts identify the accepted transactions.\n\nReload to reopen this accepted conversation, or use **Reset demo** to clear the fictional history.'
-          : 'Your sample vault has notes about **Slow mornings**, **Garden studio**, and a **Reading list**.\n\nThis is a scripted design preview. Try **“vault it: leave space for a walk before work”** to create, read and update a fictional content node, or **“ask me: which tools should stay?”** to retain a question you can answer in the Wiki or Questions.',
+          ? 'Filed in **Preview thought**, a Wiki page with its original and updated versions retained. The tool receipts identify the accepted transactions.\n\nReload to reopen this accepted conversation, or use **Reset demo** to clear the fictional history.'
+          : 'Your sample vault has notes about **Slow mornings**, **Garden studio**, and a **Reading list**.\n\nThis is a scripted design preview. Try **“vault it: leave space for a walk before work”** to create, read and update a fictional Wiki page, or **“ask me: which tools should stay?”** to retain a question you can answer in the Wiki or Questions.',
       );
     }
     const toolCalls = parts.some((part) => part.type === 'tool-call');

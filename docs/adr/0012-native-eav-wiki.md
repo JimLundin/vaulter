@@ -6,13 +6,9 @@ documents, and attributed reviews of exact selected assertions. A page can serve
 without a duplicate Subject entity. Graph owns explicit broad Topic promotion and editorial
 membership; page creation does not promote a Topic.
 
-This supersedes ADR 0002's physical representation and ADR 0003's persistence integration for
-the new Wiki owner. Wiki production reading and writing use the EAV journal. The new model has
-no Node store dependency. Existing published history remains retained outside this owner;
-source-vault conversion and identity correspondence remain translator work under ADR 0007.
-Opening Wiki does not execute a conversion or reset published data. Private source records
-must be transferred through a separately verified publication procedure before their pages
-appear in the native EAV collection.
+Wiki production reading and writing use the one EAV journal under ADR 0014. Source-vault
+translation remains private tooling work under ADR 0007. Opening Wiki reads accepted entities;
+it does not run a conversion or reset published data.
 
 Content availability is explicit. Removing content leaves its appearances and descendants;
 restoration reveals current descendant state. Removing an appearance affects only that placement.

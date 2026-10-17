@@ -14,7 +14,7 @@ const namespace = '.vaulter/eav/transactions/';
 const pathOf = (id: string) => `${namespace}${encodeURIComponent(id)}.json`;
 const empty: Journal = { schemas: [], commits: [] };
 
-/** Independent EAV journal; unrelated Node/content paths remain in the Git tree. */
+/** Durable EAV journal; unrelated files remain in the Git tree. */
 export function githubEavAdapter(options: {
   readonly token: string | (() => string);
   readonly repo?: Repo;
@@ -123,26 +123,39 @@ export function githubEavAdapter(options: {
       throw new Error('EAV request identity was reused');
     return true;
   };
+  let hasCache = false;
+  const cached = async () => {
+    if (hasCache || head || journal.commits.length) return structuredClone(journal);
+    try {
+      const saved = await cache.get('main');
+      if (!saved) return null;
+      journal = parseJournal(saved.journal);
+      files = saved.files;
+      hasCache = true;
+      return structuredClone(journal);
+    } catch {
+      await cache.clear().catch(() => undefined);
+      return null;
+    }
+  };
   return {
     scope,
+    cached: () => locked(cached),
+    refresh: () =>
+      locked(async () => {
+        await synchronize();
+        hasCache = true;
+        return structuredClone(journal);
+      }),
     load: () =>
       locked(async () => {
-        if (!(head || journal.commits.length)) {
-          try {
-            const saved = await cache.get('main');
-            if (saved) {
-              journal = parseJournal(saved.journal);
-              files = saved.files;
-            }
-          } catch {
-            await cache.clear().catch(() => undefined);
-          }
-        }
+        const saved = await cached();
         try {
           await synchronize();
+          hasCache = true;
         } catch (error) {
           // Cached reads are useful offline; integrity errors must remain visible.
-          if (!(journal.commits.length && error instanceof TypeError)) throw error;
+          if (!(saved && error instanceof TypeError)) throw error;
         }
         return structuredClone(journal);
       }),

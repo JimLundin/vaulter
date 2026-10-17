@@ -2,7 +2,7 @@
 
 The browser app Jim reads the vault in, at **https://jimlundin.github.io/vaulter/**. It holds no notes:
 behind a password it reads them at runtime from the vault, the private repo `JimLundin/vault`, keeps
-them in plaintext on the device, and works offline. Chat and Agent use durable typed EAV records. Search still reads Wiki nodes; History reads accepted EAV and Node transactions. The Vault owns [translation and enrichment tooling](https://github.com/JimLundin/vault/tree/main/.vaulter/tooling/migration)
+them in plaintext on the device, and works offline. Chat and Agent use durable typed EAV records. Wiki, Graph and Questions use the same store; History reads its accepted transactions. The Vault owns [translation and enrichment tooling](https://github.com/JimLundin/vault/tree/main/.vaulter/tooling/migration)
 that targets the current Vaulter modules. Its source readers, extraction policy and private review
 data evolve in the Vault; Vaulter modules own their current record validation and historical reads.
 See [Wiki ingestion](./app/workflows/wiki/README.md) for the boundary and current interfaces.
@@ -31,8 +31,8 @@ See [Architecture](ARCHITECTURE.md) for module boundaries and [ADRs](docs/adr/) 
 | `node tools/build/seal-secrets.ts <out>` | seal the token and key with the password from the environment (what CI runs; see Publishing) |
 
 Application composes EAV-backed Chat and Agent with module-owned content tools. Content still
-records immutable Node history; Agent retains attributed tool receipts in EAV. Failed saves are
-recoverable without repeating effects. The target model documents the remaining producer migrations.
+records immutable EAV history; Agent retains attributed tool receipts. Failed saves are
+recoverable without repeating effects. The data model documents the typed owner contracts.
 Consecutive tool calls fold into an expandable summary, with a live status showing the current action.
 The app includes a manifest and icons for installing it to the Home Screen.
 Questions collects retained requests for information, with search and Open, Answered, Abandoned
@@ -62,10 +62,9 @@ OpenAI only after starting the microphone; it is not stored in the vault. Errors
 editing. The sample preview uses a
 scripted transcript and makes no microphone or model requests.
 
-Opening `/chat/` starts with an empty conversation. Saved conversations load 20 at a time, most
-recently active first; Load older conversations brings in the next 20. Selecting a conversation
-or saving a message updates its URL so reload reopens that history. New returns to `/chat/`, and
-reload keeps it empty. Merely opening Chat does not create a saved conversation.
+Opening `/chat/` reopens the Vault's single continuous Conversation. The Timeline navigates accepted
+Exchanges and context checkpoints. Topic and date changes continue the dialogue; opening or reloading
+never executes a model or tool.
 
 All code is TypeScript. Node 24 runs the scripts directly (type stripping), so only erasable syntax,
 explicit `.ts` imports and `import type` (enforced by `tsconfig.json`).
@@ -78,8 +77,8 @@ device coverage and verification of the pushed commit in CI.
 `app/application/` composes the optional workflows in `app/workflows/`. Its `index.tsx` owns the shell
 and views; `composition.ts` connects record readers, tools and publication rules. Each task owns its behavior,
 views and tests. Removing a feature means deleting its folder and its wiring in Application. The
-permanent `app/vault/` module owns node history, transaction validation, credential encryption and scoped writes.
-Wiki and Questions share Node references without importing one another. Agent selects their
+permanent `app/vault/` module owns the typed EAV engine, transaction history, credential encryption and journal lifetime.
+Wiki and Questions share validated historical EAV references without importing one another. Agent selects their
 connections, and Application supplies embedded record rendering. Generic controls live in
 `app/ui/kit/`; Settings, Navigation, Search and Runtime own their respective application behavior.
 See [ARCHITECTURE.md](ARCHITECTURE.md) for the module map, ownership and dependency rules.
@@ -90,21 +89,19 @@ Every public component must have an example; CI checks coverage and app-wide kit
 Workflow views compose its public components; styles stay in the kit, with a scoped exception for Markdown rendering. `tools/architecture/layout.test.ts` enforces the import rules
 in CI, including dynamic imports and aliases.
 
-Node transactions enforce structural integrity and each supplying module validates its own content.
+EAV transactions enforce typed integrity and each owner validates its domain behavior.
 
-## Central node storage
+## Vault storage
 
-The central NodeStore contract supports immutable versions, atomic transactions, grouped placement
-and connection values, and identity or exact-version references. GitHub persistence writes one
-transaction envelope into the private vault's `.vaulter/nodes/v1/transactions/` namespace and uses
-a plaintext Dexie device cache. Node-backed Chat accepts its message
-and initial Agent run together, while Agent can also execute independently of conversations. Modules
-choose their tools and publication rules. Generic History reads expose records, cutoffs and differences
-without running producers; Application composes Agent/Chat/content preservation for compensation. The
-History is a core action alongside Settings: its drawer reviews EAV and Node transactions over the
-current page. Search uses Wiki page entries. See [Agent records](./app/agent/README.md),
-[Chat nodes](./app/workflows/chat/README.md) and [Vault](./app/vault/README.md)
-for target layouts, recovery, acceptance and current limits.
+The Vault uses one typed entity–attribute–value journal with immutable transactions and accepted
+historical snapshots. GitHub persistence publishes envelopes under `.vaulter/eav/transactions/`
+with a plaintext IndexedDB device cache. Chat owns the continuous dialogue; Agent owns canonical
+execution receipts for text and independent voice. Wiki, Graph and Questions use their typed owners
+and validated historical evidence references. History reviews the same journal over the current page.
+
+See [the data model](docs/data-model.md), [Agent](app/agent/README.md), [Chat](app/workflows/chat/README.md)
+and [Vault](app/vault/README.md) for acceptance, recovery and current limits. Private source translation
+is a separate Vault procedure; application opening does not import or reset published records.
 
 ## Publishing
 
@@ -115,7 +112,7 @@ checking the preview and production `version.json` commits.
 
 It uses the actual current Application views, fictional notes, an in-memory backend,
 and a scripted local model. Try “vault it: leave space for a walk before work” to create, read and
-update a fictional content node through the actual Agent. Reload reopens accepted Chat history without
+update fictional Wiki content through the actual Agent. Reload reopens accepted Chat history without
 replaying tools; Reset demo clears its tab journal. Try “ask me: Which tools should stay?” to save a
 question about Garden studio, then answer it from Questions or the Wiki page.
 Query scenarios `initial-save`, `lost-response`,
@@ -129,7 +126,7 @@ also accepted. A Foundry token requires an explicit API endpoint. The selected m
 overrides the configured default. Restart Vite after changing configuration.
 
 The local live preview streams through a same-origin Vite proxy; the API token stays on the server.
-Agent tool calls use the sample NodeStore and its tab journal. Reset demo clears that history.
+Agent tool calls use the sample EAV store and its tab journal. Reset demo clears that history.
 In live preview, the microphone records in the browser and sends audio for transcription when you
 tap Finish. The resulting text appends to your draft for review before Send. This uses
 `gpt-4o-transcribe`, supported by the configured Foundry proxy; set

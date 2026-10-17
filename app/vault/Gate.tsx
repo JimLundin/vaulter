@@ -14,12 +14,12 @@ import {
 import type { Session } from './session/session.ts';
 import { Unlock } from './session/ui.tsx';
 
-/** Vault readiness follows accepted node data and Session unlock state. */
+/** Vault readiness follows accepted accepted EAV data and Session unlock state. */
 export function VaultGate({
   state,
   children,
 }: {
-  state: Pick<Session, 'locked' | 'nodeStatus' | 'ready'>;
+  state: Pick<Session, 'locked' | 'status' | 'ready'>;
   children: ReactNode;
 }) {
   if (state.locked) return <Unlock unlock={state.locked.unlock} />;
@@ -27,11 +27,11 @@ export function VaultGate({
   return (
     <Gate>
       <Brand />
-      {state.nodeStatus.kind === 'error' || state.nodeStatus.kind === 'offline' ? (
+      {state.status.kind === 'error' || state.status.kind === 'offline' ? (
         <Alert variant="destructive">
           <AlertDescription>
-            {state.nodeStatus.kind === 'error'
-              ? state.nodeStatus.message
+            {state.status.kind === 'error'
+              ? state.status.message
               : 'Connect to load your vault on this device.'}
           </AlertDescription>
         </Alert>

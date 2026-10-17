@@ -1,5 +1,13 @@
-import { closeStorage, clearStorage, type MemoryStorage } from '@/vault/eav/index.ts';
-import type { OpenNodes, OpenEav } from './adapters.ts';
+import {
+  closeStorage,
+  clearStorage,
+  cachedStorage,
+  refreshStorage,
+  suspendStorage,
+  drainStorage,
+  type MemoryStorage,
+} from '@/vault/eav/index.ts';
+import type { OpenEav } from './adapters.ts';
 // Which vault the app is on, and its state: GitHub through the device cache, in every browser. Built, the
 // secrets are unlocked with the password (unlock.ts); in dev they come from the environment (vite.config.ts)
 // and it loads right in. Opens from what the device kept, then refreshes: at once, when the tab comes back (at most every
@@ -15,9 +23,6 @@ import {
   type Credentials,
   type SecretOverrides,
 } from './unlock.ts';
-import type { NodeBackend } from '@/vault/nodes/store.ts';
-import type { TransactionStore } from '@/vault/transactions/store.ts';
-import { createTransactionSession } from '@/vault/transactions/lifetime.ts';
 import { serial } from '@/runtime/async.ts';
 import { createSessionCredentials, type SessionCredentials } from './credentials.ts';
 
@@ -43,18 +48,17 @@ export interface Session {
   /** Set while the secrets wait for the password. */
   locked: { unlock: (password: string) => Promise<void> } | null;
   signOut: (() => Promise<void>) | null;
-  eav?: MemoryStorage | null;
-  nodes: TransactionStore | null;
-  nodeStatus: Status;
-  refreshNodes: () => Promise<void>;
+  eav: MemoryStorage | null;
+  status: Status;
+  refresh: () => Promise<void>;
 }
 
 const EVERY = 30_000;
 declare const __DEV_SECRETS__: Secrets | null;
 const DEV_SECRETS = typeof __DEV_SECRETS__ === 'undefined' ? null : __DEV_SECRETS__;
 
-/** Own unlocked node storage, credentials and write lifetimes. */
-export function useSession(openNodes: OpenNodes, openEav?: OpenEav): Session {
+/** Own unlocked EAV storage, credentials and write lifetimes. */
+export function useSession(openEav: OpenEav): Session {
   const identity = useRef({}).current;
   const [credentialPending, setCredentialPending] = useState(false);
   const credentialUpdates = useRef(0);
@@ -63,30 +67,28 @@ export function useSession(openNodes: OpenNodes, openEav?: OpenEav): Session {
   const [secrets, setSecrets] = useState<Secrets | null>(null);
   const [preloadedSecrets, setPreloadedSecrets] = useState<Secrets | null>(null);
   const [secretOverrides, setSecretOverrides] = useState<SecretOverrides>({});
-  const [nodes, setNodes] = useState<NodeBackend | null>(null);
-  const [nodeStatus, setNodeStatus] = useState<Status>({ kind: 'loading' });
-  const activeNodes = useRef<NodeBackend | null>(null);
-  const eav = useRef<MemoryStorage | null>(null);
-  const transactions = useRef(createTransactionSession());
+  const [eav, setEav] = useState<MemoryStorage | null>(null);
+  const [status, setStatus] = useState<Status>({ kind: 'loading' });
+  const activeStorage = useRef<MemoryStorage | null>(null);
   const currentCredentials = useRef<Credentials | null>(null);
   const deployment = useRef<Sealed | null>(null);
   const updates = useRef(serial());
-  const replacementNodes = useRef(new Set<NodeBackend>());
-  const nodeBusy = useRef(new Set<NodeBackend>());
+  const candidates = useRef(new Set<MemoryStorage>());
+  const busy = useRef(new Set<MemoryStorage>());
   const mounted = useRef<boolean>(true);
   const signingOut = useRef<Promise<void> | null>(null);
   const lifetime = useRef(new AbortController());
   const generation = useRef(0);
 
-  const activeNode = (candidate: NodeBackend) =>
-    mounted.current && signingOut.current === null && activeNodes.current === candidate;
+  const activeStore = (candidate: MemoryStorage) =>
+    mounted.current && signingOut.current === null && activeStorage.current === candidate;
   const checkSession = (runGeneration: number) => {
     if (!mounted.current || signingOut.current !== null || generation.current !== runGeneration)
       throw new Error('The vault session has closed.');
   };
   const closeReplacements = () => {
-    for (const candidate of replacementNodes.current) candidate.close();
-    replacementNodes.current.clear();
+    for (const candidate of candidates.current) closeStorage(candidate);
+    candidates.current.clear();
   };
   const publishCredentials = (credentials: Credentials) => {
     currentCredentials.current = credentials;
@@ -95,45 +97,48 @@ export function useSession(openNodes: OpenNodes, openEav?: OpenEav): Session {
     setSecretOverrides(credentials.secretOverrides);
   };
 
-  const refreshNodes = async (store: NodeBackend) => {
-    if (!activeNode(store) || nodeBusy.current.has(store)) return;
-    nodeBusy.current.add(store);
-    setNodeStatus({ kind: 'syncing' });
+  const refresh = async (store: MemoryStorage) => {
+    if (!activeStore(store) || busy.current.has(store)) return;
+    busy.current.add(store);
+    const token = currentCredentials.current?.secrets.github;
+    const currentRefresh = () =>
+      activeStore(store) && token === currentCredentials.current?.secrets.github;
+    setStatus({ kind: 'syncing' });
     try {
-      await store.refresh();
-      if (activeNode(store)) {
+      await refreshStorage(store, { remote: true });
+      if (currentRefresh()) {
         setReady(true);
-        setNodeStatus({ kind: 'synced', at: Date.now() });
+        setStatus({ kind: 'synced', at: Date.now() });
       }
     } catch (error) {
-      if (activeNode(store))
-        setNodeStatus(
+      if (currentRefresh())
+        setStatus(
           typeof navigator !== 'undefined' && !navigator.onLine
             ? { kind: 'offline' }
             : { kind: 'error', message: String(error) },
         );
     } finally {
-      nodeBusy.current.delete(store);
+      busy.current.delete(store);
+      if (activeStore(store) && token !== currentCredentials.current?.secrets.github)
+        refresh(store).catch(() => undefined);
     }
   };
   const begin = (credentials: Credentials, runGeneration: number) => {
     checkSession(runGeneration);
-    const store = openNodes({ secrets: credentials.secrets });
-    eav.current = openEav?.({ secrets: () => currentCredentials.current?.secrets ?? null }) ?? null;
-    void transactions.current.replace(store, (previous) => (previous as NodeBackend).close());
-    activeNodes.current = store;
-    setNodes(store);
-    setReady(false);
-    setNodeStatus({ kind: 'loading' });
     publishCredentials(credentials);
+    const store = openEav({ secrets: () => currentCredentials.current?.secrets ?? null });
+    activeStorage.current = store;
+    setEav(store);
+    setReady(false);
+    setStatus({ kind: 'loading' });
     return (async () => {
       try {
-        const cached = await store.cached();
-        if (activeNode(store) && cached) setReady(true);
+        const cached = await cachedStorage(store);
+        if (activeStore(store) && cached) setReady(true);
       } catch (error) {
-        if (activeNode(store)) setNodeStatus({ kind: 'error', message: String(error) });
+        if (activeStore(store)) setStatus({ kind: 'error', message: String(error) });
       }
-      await refreshNodes(store);
+      await refresh(store);
     })();
   };
 
@@ -161,17 +166,16 @@ export function useSession(openNodes: OpenNodes, openEav?: OpenEav): Session {
         secrets: applySecretOverrides(previous.preloadedSecrets, overrides),
       };
       const reconnect = previous.secrets.github !== next.secrets.github;
-      let nodeReplacement: NodeBackend | undefined;
+      let candidate: MemoryStorage | undefined;
       try {
         if (reconnect) {
-          nodeReplacement = openNodes({ secrets: next.secrets });
-          replacementNodes.current.add(nodeReplacement);
-          await nodeReplacement.cached();
+          candidate = openEav({ secrets: () => next.secrets });
+          candidates.current.add(candidate);
+          await cachedStorage(candidate);
           checkSession(runGeneration);
-          await nodeReplacement.refresh();
+          await refreshStorage(candidate, { remote: true });
           checkSession(runGeneration);
         }
-        checkSession(runGeneration);
         if (deployment.current)
           await saveSecretOverrides(
             deployment.current,
@@ -180,23 +184,12 @@ export function useSession(openNodes: OpenNodes, openEav?: OpenEav): Session {
             previous.secretOverrides,
           );
         checkSession(runGeneration);
-        if (nodeReplacement) {
-          activeNodes.current = nodeReplacement;
-          // Invalidate preparation before React schedules another application calculation.
-          void transactions.current.replace(nodeReplacement, (previous) =>
-            (previous as NodeBackend).close(),
-          );
-          setNodes(nodeReplacement);
-          setReady(true);
-          setNodeStatus({ kind: 'synced', at: Date.now() });
-        }
+        // The live adapter reads credentials at request time; retained saves keep their identity.
         publishCredentials(next);
-      } catch (error) {
-        if (nodeReplacement && replacementNodes.current.has(nodeReplacement))
-          nodeReplacement.close();
-        throw error;
+        if (reconnect && activeStorage.current)
+          refresh(activeStorage.current).catch(() => undefined);
       } finally {
-        if (nodeReplacement) replacementNodes.current.delete(nodeReplacement);
+        if (candidate && candidates.current.delete(candidate)) closeStorage(candidate);
       }
     }, lifetime.current.signal);
     return update.finally(() => {
@@ -218,7 +211,7 @@ export function useSession(openNodes: OpenNodes, openEav?: OpenEav): Session {
       const res = await fetch('./secrets.json').catch(() => null);
       if (!mounted.current || generation.current !== runGeneration) return;
       if (!res?.ok)
-        return setNodeStatus({
+        return setStatus({
           kind: 'error',
           message: import.meta.env.DEV
             ? 'No secrets in dev: set VAULT_GITHUB_TOKEN in .env.local (README, Commands).'
@@ -234,34 +227,34 @@ export function useSession(openNodes: OpenNodes, openEav?: OpenEav): Session {
     };
     mounted.current = true;
     lifetime.current = new AbortController();
-    transactions.current = createTransactionSession();
     start().catch((e) => {
       if (mounted.current && generation.current === runGeneration)
-        setNodeStatus({ kind: 'error', message: String(e) });
+        setStatus({ kind: 'error', message: String(e) });
     });
     return () => {
       mounted.current = false;
       generation.current++;
       lifetime.current.abort(new Error('The vault session has closed.'));
-      currentCredentials.current = null;
       deployment.current = null;
       closeReplacements();
-      const writes = transactions.current;
-      const store = activeNodes.current;
-      writes.close();
-      void writes.drain().then(() => store?.close());
-      activeNodes.current = null;
-      if (eav.current) closeStorage(eav.current);
-      eav.current = null;
+      const store = activeStorage.current;
+      activeStorage.current = null;
+      if (store) {
+        suspendStorage(store);
+        void drainStorage(store).then(() => {
+          if (!mounted.current) currentCredentials.current = null;
+          closeStorage(store);
+        });
+      }
     };
   }, []);
 
-  // Node cache lifetime follows the unlocked session, with credentials kept out of workflows.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: refreshNodes only uses refs and setters.
+  // EAV cache lifetime follows the unlocked session, with credentials kept out of workflows.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: refresh only uses refs and setters.
   useEffect(() => {
-    if (!nodes) return;
+    if (!eav) return;
     const back = () => {
-      if (document.visibilityState === 'visible') refreshNodes(nodes).catch(() => undefined);
+      if (document.visibilityState === 'visible') refresh(eav).catch(() => undefined);
     };
     document.addEventListener('visibilitychange', back);
     addEventListener('online', back);
@@ -271,7 +264,7 @@ export function useSession(openNodes: OpenNodes, openEav?: OpenEav): Session {
       document.removeEventListener('visibilitychange', back);
       removeEventListener('online', back);
     };
-  }, [nodes]);
+  }, [eav]);
 
   const credentialGeneration = generation.current;
   return {
@@ -297,12 +290,11 @@ export function useSession(openNodes: OpenNodes, openEav?: OpenEav): Session {
     preloadedSecrets,
     secretOverrides,
     updateSecret,
-    eav: eav.current,
-    nodes: nodes ? transactions.current.nodes : null,
-    nodeStatus,
-    refreshNodes: () => (nodes ? refreshNodes(nodes) : Promise.resolve()),
+    eav,
+    status,
+    refresh: () => (eav ? refresh(eav) : Promise.resolve()),
     locked:
-      sealed && !nodes
+      sealed && !eav
         ? {
             async unlock(password) {
               const runGeneration = generation.current;
@@ -319,16 +311,12 @@ export function useSession(openNodes: OpenNodes, openEav?: OpenEav): Session {
           if (signingOut.current !== null) return signingOut.current;
           generation.current++;
           lifetime.current.abort(new Error('The vault session has closed.'));
-          const writes = transactions.current;
-          writes.close();
-          currentCredentials.current = null;
+          const store = activeStorage.current;
+          if (store) suspendStorage(store);
+          activeStorage.current = null;
           deployment.current = null;
-          const store = activeNodes.current;
-          const eavStore = eav.current;
-          eav.current = null;
-          activeNodes.current = null;
           closeReplacements();
-          setNodes(null);
+          setEav(null);
           setReady(false);
           setSecrets(null);
           setPreloadedSecrets(null);
@@ -337,10 +325,10 @@ export function useSession(openNodes: OpenNodes, openEav?: OpenEav): Session {
           setSealed(null);
           signingOut.current = (async () => {
             try {
-              await writes.drain();
+              if (store) await drainStorage(store);
+              currentCredentials.current = null;
               const cleared = await Promise.allSettled([
-                Promise.resolve().then(() => store?.clear()),
-                Promise.resolve().then(() => eavStore && clearStorage(eavStore)),
+                Promise.resolve().then(() => store && clearStorage(store)),
                 Promise.resolve().then(() => forget()),
               ]);
               const failed = cleared.find((result) => result.status === 'rejected');
@@ -348,14 +336,14 @@ export function useSession(openNodes: OpenNodes, openEav?: OpenEav): Session {
               location.reload();
             } catch (error) {
               if (mounted.current)
-                setNodeStatus({
+                setStatus({
                   kind: 'error',
                   message: `Sign-out could not finish: ${String(error)}`,
                 });
               throw error;
             } finally {
-              store?.close();
-              if (eavStore) closeStorage(eavStore);
+              currentCredentials.current = null;
+              if (store) closeStorage(store);
             }
           })();
           return signingOut.current;

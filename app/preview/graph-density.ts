@@ -1,6 +1,9 @@
-// Comparison-only sample Vault: connected topics, shared sources and a deliberately busy topic.
-import type { JsonObject } from '@/vault/nodes/model.ts';
-import type { NodeChange, NodeCommit, NodeStore } from '@/vault/nodes/store.ts';
+// Comparison-only native sample Vault with shared retained evidence and open questions.
+import type { Database } from '@/vault/eav/index.ts';
+import type { applicationSchema } from '@/application/composition.ts';
+import { wikiActions } from '@/workflows/wiki/data/operations.ts';
+import { topicActions } from '@/workflows/graph/data/topics.ts';
+import { questionActions } from '@/workflows/questions/data/operations.ts';
 
 const topicSamples = [
   [
@@ -186,268 +189,203 @@ const busyClaims = [
   'A shared tool inventory might prevent duplicate purchases.',
 ];
 
-export async function seedGraphDensity(nodes: NodeStore) {
-  if ((await nodes.snapshot()).get('preview:density:topic:0')) return;
-  const create = (node: string, data: JsonObject, parent?: string, order = 'a'): NodeChange => ({
-    node,
-    data,
-    expected: null,
-    placement: parent ? { parent, order } : null,
-    connection: null,
-  });
-  const request = (id: string, changes: NodeChange[]): NodeCommit => ({
-    id,
-    changes,
-    recordedBy: 'preview:wiki-owner',
-    origin: null,
-    undoOf: null,
-    kind: { scope: 'node', action: 'create' },
-    message: 'Fictional Graph density scenario',
-  });
-  const groups = [...new Set(topicSamples.map(([, group]) => group))];
-  const originalChanges: NodeChange[] = [];
-  const plans: { claim: string; text: string; source: string; passage: string; start: number }[] =
-    [];
-  const sharedText = new Map<string, string>();
-  for (const group of groups) {
+export async function seedGraphDensity(db: Database<typeof applicationSchema>) {
+  if (
+    await db.entities.wikiPages.first({
+      where: { key: { eq: 'preview:density:topic:0' } },
+      select: {},
+    })
+  )
+    return;
+  const author = (await db.entities.actors.first({
+    where: { name: { eq: 'Fictional owner' } },
+    select: {},
+  }))!;
+  const wiki = wikiActions(db, author);
+  const topics = topicActions(db, { author });
+  const agent = await db.transaction((tx) =>
+    tx.entities.actors.insert({ name: 'Fictional comparison Agent', kind: 'agent' }),
+  );
+  const questionWriter = questionActions(db, { author: agent });
+  const shared = new Map<
+    string,
+    import('@/vault/eav/index.ts').EntityRef<
+      typeof import('@/vault/sources/schema.ts').SourceDocument
+    >
+  >();
+  for (const group of [...new Set(topicSamples.map(([, category]) => category))]) {
     const text = topicSamples
       .filter(([, entry]) => entry === group)
       .map(([title, , claims]) => `${title}: ${claims[0]} ${claims[1]}`)
       .join('\n');
-    sharedText.set(group, text);
-    originalChanges.push(
-      create(`preview:density:theme:${group}`, {
-        kind: 'term',
-        scheme: 'tag',
-        key: group.toLowerCase(),
-        label: group,
-      }),
-      create(`preview:density:shared:${group}`, {
-        kind: 'resource',
-        title: `${group} planning conversation`,
-        url: `https://example.invalid/density/${group}`,
-      }),
-      create(
-        `preview:density:shared-words:${group}`,
-        { kind: 'run', text },
-        `preview:density:shared:${group}`,
+    shared.set(
+      group,
+      await db.transaction({ author }, (tx) =>
+        tx.entities.sourceDocuments.insert({
+          key: `preview:density:shared:${group}`,
+          title: `${group} planning conversation`,
+          text,
+          origin: `https://example.invalid/density/${group}`,
+          attribution: 'Fictional owner',
+          capturedAt: new Date(),
+          available: true,
+        }),
       ),
     );
   }
-  for (const [index, [title, group, claims, questions]] of topicSamples.entries()) {
-    const topic = `preview:density:topic:${index}`;
-    originalChanges.push(
-      create(topic, {
-        kind: 'page',
-        title,
-        summary: `Notes, practical decisions and unresolved proposals about ${title.toLowerCase()}.`,
+  const specimens = [
+    ...topicSamples.map(([title, group, claims, questions], index) => ({
+      key: `preview:density:topic:${index}`,
+      title,
+      group,
+      claims: [...claims],
+      questions: [...questions],
+    })),
+    {
+      key: 'preview:graph-topic',
+      title: 'Studio routine',
+      group: 'Studio',
+      claims: busyClaims,
+      questions: [
+        'Which changes to the studio routine are worth trying first?',
+        'Can the room support two people working without sharing the same bench?',
+      ],
+    },
+  ];
+  for (const [index, specimen] of specimens.entries()) {
+    const page =
+      specimen.key === 'preview:graph-topic'
+        ? (await db.entities.wikiPages.first({ where: { key: { eq: specimen.key } }, select: {} }))!
+        : await wiki.createPage({
+            key: specimen.key,
+            title: specimen.title,
+            summary: `Notes, practical decisions and unresolved proposals about ${specimen.title.toLowerCase()}.`,
+          });
+    const sourceText = specimen.claims
+      .slice(0, specimen.key === 'preview:graph-topic' ? 13 : 6)
+      .join('\n');
+    const source = await db.transaction({ author }, (tx) =>
+      tx.entities.sourceDocuments.insert({
+        key: `preview:density:source:${index}`,
+        title: `${specimen.title} — first observations`,
+        text: sourceText,
+        origin: `https://example.invalid/density/${index}`,
+        attribution: 'Fictional owner',
+        capturedAt: new Date(),
+        available: true,
       }),
     );
-    for (let sourceIndex = 0; sourceIndex < 2; sourceIndex++) {
-      const text = claims.slice(sourceIndex * 3, sourceIndex * 3 + 3).join('\n');
-      const source = `preview:density:source:${index}:${sourceIndex}`;
-      originalChanges.push(
-        create(source, {
-          kind: 'resource',
-          title: `${title} — ${sourceIndex === 1 ? 'follow-up notes' : 'first observations'}`,
-          url: `https://example.invalid/density/${index}/${sourceIndex}`,
-        }),
-        create(`${source}:words`, { kind: 'run', text }, source),
-      );
-    }
-    for (const [claimIndex, text] of claims.entries()) {
-      const claim = `preview:density:claim:${index}:${claimIndex}`;
-      originalChanges.push(
-        create(claim, { kind: 'paragraph' }, topic, `c${claimIndex}`),
-        create(`${claim}:words`, { kind: 'run', text }, claim),
-      );
-      if (claimIndex < 6) {
-        const sourceIndex = Math.floor(claimIndex / 3);
-        const context = claims.slice(sourceIndex * 3, sourceIndex * 3 + 3).join('\n');
-        plans.push({
-          claim,
+    const paragraphs = await db.transaction({ author }, async (tx) => {
+      const content: import('@/vault/eav/index.ts').EntityRef<
+        typeof import('@/workflows/wiki/data/schema.ts').Content
+      >[] = [];
+      for (const [claimIndex, text] of specimen.claims.entries()) {
+        const key = `preview:density:claim:${index}:${claimIndex}`;
+        const paragraph = await tx.entities.wikiContent.insert({
+          key,
+          kind: 'paragraph',
+          available: true,
+        });
+        content.push(paragraph);
+        await tx.entities.wikiAppearances.insert({
+          key: `${key}:appearance`,
+          content: paragraph,
+          page,
+          order: `d${String(claimIndex).padStart(2, '0')}`,
+          available: true,
+        });
+        const words = await tx.entities.wikiContent.insert({
+          key: `${key}:words`,
+          kind: 'text',
           text,
-          source: `preview:density:source:${index}:${sourceIndex}`,
-          passage: text,
-          start: context.indexOf(text),
+          marks: [],
+          available: true,
+        });
+        await tx.entities.wikiAppearances.insert({
+          key: `${key}:words:appearance`,
+          content: words,
+          parent: paragraph,
+          order: 'a',
+          available: true,
         });
       }
-      if (claimIndex < 2)
-        plans.push({
-          claim,
-          text,
-          source: `preview:density:shared:${group}`,
-          passage: text,
-          start: sharedText.get(group)!.indexOf(text),
-        });
-    }
-    for (const [questionIndex, text] of questions.entries())
-      originalChanges.push(
-        create(
-          `preview:density:question:${index}:${questionIndex}`,
-          { kind: 'question', text },
-          topic,
-          `q${questionIndex}`,
-        ),
-      );
-  }
-  originalChanges.push(
-    create('preview:density:studio-source', {
-      kind: 'resource',
-      title: 'Studio practice journal',
-      url: 'https://example.invalid/studio-journal',
-    }),
-    create(
-      'preview:density:studio-source:words',
-      { kind: 'run', text: busyClaims.slice(0, 13).join('\n') },
-      'preview:density:studio-source',
-    ),
-    create(
-      'preview:density:studio-question:0',
-      { kind: 'question', text: 'Which changes to the studio routine are worth trying first?' },
-      'preview:graph-topic',
-      'r',
-    ),
-    create(
-      'preview:density:studio-question:1',
-      {
-        kind: 'question',
-        text: 'Can the room support two people working without sharing the same bench?',
-      },
-      'preview:graph-topic',
-      's',
-    ),
-  );
-  for (const [index, text] of busyClaims.entries()) {
-    const claim = `preview:density:studio-claim:${index}`;
-    originalChanges.push(
-      create(
-        claim,
-        { kind: 'paragraph' },
-        'preview:graph-topic',
-        `d${String(index).padStart(2, '0')}`,
-      ),
-      create(`${claim}:words`, { kind: 'run', text }, claim),
-    );
-    if (index < 13)
-      plans.push({
-        claim,
-        text,
-        source: 'preview:density:studio-source',
-        passage: text,
-        start: busyClaims.slice(0, 13).join('\n').indexOf(text),
+      return content;
+    });
+    const snapshot = (await db.history.transactions.first({
+      select: {},
+      orderBy: [{ sequence: 'desc' }],
+    }))!;
+    const subject = await db.history.reference(snapshot, page);
+    const address = await db.history.reference(snapshot, source);
+    if (specimen.key !== 'preview:graph-topic')
+      await topics.promote({
+        key: specimen.key,
+        subject,
+        title: specimen.title,
+        rationale: 'A recurring area of inquiry.',
       });
-  }
-  const studio = (await nodes.snapshot()).get('preview:graph-topic')!;
-  originalChanges.push({
-    node: studio.key.node,
-    expected: studio.key.transaction,
-    placement: studio.placement,
-    connection: studio.connection,
-    data: {
-      ...studio.data,
-      summary:
-        'A routine for focused work in a small studio, with twenty statements, shared evidence and several open proposals.',
-    },
-  });
-  const original = await nodes.commit(request('preview:graph-density-original', originalChanges));
-  const edge = (id: string, source: string, target: string, predicate: string): NodeChange => ({
-    ...create(id, { kind: 'relationship', predicate }, source, id),
-    connection: { source: { node: source }, target: { node: target } },
-  });
-  const citations: NodeChange[] = plans.map((plan, index) => ({
-    ...create(
-      `preview:density:citation:${index}`,
-      {
-        kind: 'cite',
-        unit: 'utf16',
-        claim: { sequence: original.sequence, start: 0, end: plan.text.length },
-        passage: {
-          sequence: original.sequence,
-          start: plan.start,
-          end: plan.start + plan.passage.length,
-        },
-      },
-      plan.claim,
-      `z${index}`,
-    ),
-    connection: {
-      source: { node: plan.claim, transaction: original.id },
-      target: { node: plan.source, transaction: original.id },
-    },
-  }));
-  for (const [index, [, group]] of topicSamples.entries()) {
-    const topic = `preview:density:topic:${index}`;
-    citations.push(
-      edge(`preview:density:tag:${index}`, topic, `preview:density:theme:${group}`, 'tag'),
+    await wiki.referencePage(`preview:density:reference:${index}`, page, address);
+    const sharedAddress = await db.history.reference(snapshot, shared.get(specimen.group)!);
+    await wiki.referencePage(`preview:density:shared-reference:${index}`, page, sharedAddress);
+    await topics.addMember(
+      specimen.key,
+      sharedAddress,
+      false,
+      'Shared planning material informs this topic.',
     );
-    const peers = topicSamples.flatMap(([, peerGroup], peer) =>
-      peerGroup === group && peer !== index ? [peer] : [],
+    const assertions = await Promise.all(
+      paragraphs.map((paragraph) => db.history.reference(snapshot, paragraph)),
     );
-    for (const peer of peers.filter((candidate) => candidate > index))
-      citations.push(
-        edge(
-          `preview:density:related:${index}:${peer}`,
-          topic,
-          `preview:density:topic:${peer}`,
-          'related-to',
-        ),
+    await db.transaction({ author }, async (tx) => {
+      for (const [claimIndex, text] of specimen.claims.entries()) {
+        const start = sourceText.indexOf(text);
+        if (start < 0) continue;
+        const assertion = await tx.entities.textSelectors.insert({
+          target: assertions[claimIndex]!,
+          format: 'wiki-text-utf16-v1',
+          start: 0,
+          end: text.length,
+        });
+        const passage = await tx.entities.textSelectors.insert({
+          target: address,
+          format: 'source-text-utf16-v1',
+          start,
+          end: start + text.length,
+        });
+        const review = await tx.entities.reviews.insert({
+          key: `preview:density:review:${index}:${claimIndex}`,
+          assertion,
+          reviewer: author,
+          reviewedAt: new Date(),
+          result: 'supported',
+          rationale: 'The retained observation supports this statement.',
+        });
+        await tx.entities.reviewPassages.insert({ review, passage });
+      }
+    });
+    for (const [questionIndex, text] of specimen.questions.entries())
+      await questionWriter.ask({
+        key: `preview:density:question:${index}:${questionIndex}`,
+        text,
+        source: address,
+        subject,
+        knowledge: [],
+        suggestions: [
+          {
+            title: 'Try a small change',
+            text: 'Try one reversible change and review the result.',
+            reason: 'The retained planning source leaves this decision open.',
+          },
+        ],
+      });
+    if ([0, 3, 6, 8].includes(index))
+      await db.transaction({ author }, (tx) =>
+        tx.entities.sourceDocuments.update({
+          ...source,
+          text: `Later review of ${specimen.title.toLowerCase()}: the first recommendation is still being tried; the second needs revisiting after the season changed.`,
+        }),
       );
-    if (group === 'Studio')
-      citations.push(
-        edge(`preview:density:studio-related:${index}`, 'preview:graph-topic', topic, 'related-to'),
-      );
-    for (let questionIndex = 0; questionIndex < 2; questionIndex++) {
-      const question = `preview:density:question:${index}:${questionIndex}`;
-      citations.push(
-        edge(
-          `preview:density:question-informed:${index}:${questionIndex}`,
-          question,
-          `preview:density:claim:${index}:${questionIndex}`,
-          'informed-by',
-        ),
-      );
-      citations.push(
-        edge(
-          `preview:density:question-source:${index}:${questionIndex}`,
-          question,
-          `preview:density:source:${index}:${questionIndex}`,
-          'generated-from',
-        ),
-      );
-    }
+    if ([2, 5].includes(index))
+      await db.transaction({ author }, (tx) => tx.entities.sourceDocuments.delete(source));
   }
-  await nodes.commit(request('preview:graph-density-links', citations));
-  const view = await nodes.snapshot();
-  await nodes.commit(
-    request(
-      'preview:graph-density-later',
-      [0, 3, 6, 8]
-        .map((index): NodeChange => {
-          const before = view.get(`preview:density:source:${index}:0:words`)!;
-          return {
-            node: before.key.node,
-            expected: before.key.transaction,
-            placement: before.placement,
-            connection: before.connection,
-            data: {
-              kind: 'run',
-              text: `Later review of ${topicSamples[index][0].toLowerCase()}: the first recommendation is still being tried; the second needs revisiting after the season changed.`,
-            },
-          };
-        })
-        .concat(
-          [2, 5].map((index): NodeChange => {
-            const before = view.get(`preview:density:source:${index}:1`)!;
-            return {
-              node: before.key.node,
-              expected: before.key.transaction,
-              placement: before.placement,
-              connection: before.connection,
-              data: null,
-            };
-          }),
-        ),
-    ),
-  );
 }

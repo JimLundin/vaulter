@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { afterEach, expect, test, vi } from 'vitest';
-import { recordedTranscription } from './recorded-transcription.ts';
 import type { FileTranscriptionProvider } from './providers.ts';
+import { recordedTranscription } from './recorded-transcription.ts';
 
 class Recorder {
   static isTypeSupported = (type: string) => type.startsWith('audio/webm');

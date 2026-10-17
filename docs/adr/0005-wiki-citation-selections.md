@@ -1,29 +1,17 @@
 # Retain citation selections in historical snapshots
 
-Wiki citations retain exact claim and source addresses plus the snapshot and half-open UTF-16
-range used to select each passage. ADR-0002 deliberately keeps child placement independent of a
-container's version: recording the snapshot prevents a later child edit from changing a citation,
-without rewriting the paragraph or storing a second copy of its quotation.
+Wiki citations retain validated historical references and nonempty half-open UTF-16 ranges for
+both assertion and source passage. Independently edited children resolve in the selected snapshot;
+recording only a container identity would allow later edits to change reviewed evidence.
 
-The text projection concatenates inline fragments, separates blocks with newlines and table cells
-with tabs, and excludes structural references. New projection semantics require a new selection
-format; existing `unit: 'utf16'` selections retain these semantics. The owning feature validates
-both selections against their historical snapshots. Composite foreign keys establish existence,
-not support: support requires an explicit evidence review.
+Projection formats are explicit: `wiki-text-utf16-v1`, `wiki-summary-utf16-v1` and
+`source-text-utf16-v1`. Inline fragments concatenate verbatim, blocks use newlines and table cells
+use tabs. Structural references contribute no text and ranges cannot split surrogate pairs.
+Changed projection semantics require a new format. Integrity establishes existence; support requires
+an explicit attributed review of the selected assertion. Changed selected text requires review again.
 
-Page references use the same `cite` kind with `scope: 'page'`, an exact source address and a source
-snapshot, without a claim selection. They describe provenance. A capture link or explicit source
-section establishes that association; an arbitrary hyperlink does not support its surrounding
-statement. Existing whole-source `{ kind: 'cite' }` records remain readable.
-
-The old vault has already been published as node history. Enrichment appends reference nodes and
-preserves that prefix, including all existing identities and lifecycle records. Regeneration and
-replacement would invalidate exact addresses; the original importer remains a scratch verification
-facility, not the procedure for enriching a published vault.
-
-Wiki is the collection of distilled sources. Citation targets and page provenance point to retained
-conversations, reports or independently captured material; Wiki pages and every block within them
-remain navigation targets. Source eligibility is checked in the passage's historical snapshot,
-so an inline or section address cannot bypass the boundary. Linked Wiki pages may help retrieve
-their underlying sources, but their prose cannot serve as evidence. This supersedes the early
-scratch review's acceptance of secondary Wiki passages; none of that output was published.
+Page references describe page-wide provenance without supporting any particular statement.
+Citations and provenance point to retained conversations, reports or independently captured source
+material. Wiki pages and their content remain navigation and retrieval targets; their prose cannot
+corroborate itself. Eligibility is evaluated in the source's historical snapshot. Later edits or
+removal preserve the original reviewed passage and disagreement may coexist with support.

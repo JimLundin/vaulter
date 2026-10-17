@@ -1,8 +1,7 @@
 import { expect, test } from 'vitest';
 import { historyModelMessages } from '@/agent/history.ts';
-import { chatModelMessages } from './node-backend.ts';
 
-test('provider history preserves successful, failed, cancelled and uncertain tool outcomes consistently for text and voice', () => {
+test('provider history preserves successful, failed, cancelled and uncertain tool outcomes in recorded provider history', () => {
   const parts = [
     {
       kind: 'tool' as const,
@@ -37,24 +36,6 @@ test('provider history preserves successful, failed, cancelled and uncertain too
     },
   ];
   const voice = historyModelMessages([{ role: 'agent', parts }]);
-  const text = chatModelMessages([
-    {
-      version: {
-        key: { node: 'response', transaction: 'accepted' },
-        data: null,
-        placement: null,
-        connection: null,
-      },
-      data: {
-        kind: 'message',
-        role: 'agent',
-        status: 'running',
-        at: '2026-10-10T12:00:00Z',
-        parts,
-      },
-    },
-  ]);
-  expect(text).toEqual(voice);
   expect(
     voice.filter((message) => message.role === 'tool').map((message) => message.content),
   ).toEqual([

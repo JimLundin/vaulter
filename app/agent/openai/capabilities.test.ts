@@ -1,12 +1,10 @@
-import { transactionFixture } from '@/vault/transactions/fixtures.test-support.ts';
-import { expect, test, vi } from 'vitest';
 import { generateText } from 'ai';
-import { createOpenAICapabilities } from './index.ts';
+import { expect, test, vi } from 'vitest';
+import { readAgentRun, startAgentRun } from '@/agent/data/operations.ts';
+import { agentSchema } from '@/agent/data/schema.ts';
+import { createMemoryStorage, openDatabase } from '@/vault/eav/index.ts';
 import { openAIFileTranscription } from './file-transcription.ts';
-import { memoryNodeBackend } from '@/vault/nodes/memory.ts';
-import { create, request } from '@/vault/nodes/fixtures.test-support.ts';
-import { readAgentRun } from '@/agent/store.ts';
-import { prepareAgentRunFixture as prepareAgentRun } from '@/agent/preparation.test-support.ts';
+import { createOpenAICapabilities } from './index.ts';
 
 function completion(text: string) {
   return {
@@ -79,47 +77,45 @@ test('uses the actual Responses SDK with configured model and disables response 
 });
 
 test('streams OpenAI into an independent accepted Agent run and records served model and usage', async () => {
-  const nodes = memoryNodeBackend();
-  await nodes.commit(
-    request('seed', [create('user', { kind: 'actor' }), create('agent', { kind: 'agent' })]),
-  );
-  const prepared = await prepareAgentRun(nodes, {
-    id: 'send',
-    run: 'run',
-    agent: 'agent',
-    recordedBy: 'user',
-    at: '2026-10-10T12:00:00Z',
-    provider: 'openai',
-    model: 'fixture-llm',
-    settings: {},
-    context: [
-      {
-        data: {
-          kind: 'contextInput',
-          role: 'user',
-          position: 0,
-          transformation: 'verbatim',
-          content: 'Hello',
-        },
-      },
-    ],
+  await using db = await openDatabase({ schema: agentSchema, storage: createMemoryStorage() });
+  const { run } = await db.transaction(async (tx) => {
+    const actor = await tx.entities.actors.insert({ kind: 'agent', name: 'Assistant' });
+    const agent = await tx.entities.agents.insert({
+      actor,
+      provider: 'openai',
+      model: 'fixture-llm',
+      instructions: '',
+      settings: {},
+      tools: [],
+    });
+    return await startAgentRun(tx, {
+      agent,
+      startedAt: new Date(),
+      inputs: [{ role: 'user', transformation: 'verbatim', content: 'Hello' }],
+    });
   });
   const fetch = vi.fn<typeof globalThis.fetch>().mockImplementation(async () => {
-    expect((await readAgentRun(nodes, 'run'))?.data.status).toBe('running');
+    expect((await readAgentRun(db, run))?.status).toBe('running');
     return streamed('A streamed answer');
   });
   const capabilities = createOpenAICapabilities({ apiKey: 'fixture-secret', fetch });
-  const backend = capabilities.agent({ nodes: transactionFixture(nodes) });
-  expect((await backend.start(prepared).done).phase).toBe('complete');
-  expect((await readAgentRun(nodes, 'run'))?.data).toMatchObject({
-    model: { requested: 'fixture-llm', served: 'fixture-llm' },
-    usage: { input: 3, output: 2 },
+  const backend = capabilities.agent({ db, run });
+  expect((await backend.done).phase).toBe('complete');
+  expect(await readAgentRun(db, run)).toMatchObject({
+    requestedModel: 'fixture-llm',
+    servedModel: 'fixture-llm',
+    inputTokens: 3,
+    outputTokens: 2,
     output: { text: 'A streamed answer' },
   });
   expect(JSON.parse(fetch.mock.calls[0]![1]!.body as string).store).toBe(false);
-  expect(JSON.stringify(await nodes.changes(prepared.publication.id))).not.toContain(
-    'fixture-secret',
-  );
+  expect(
+    JSON.stringify(
+      await db.entities.modelSteps.query({
+        select: { input: true, configuration: true, response: true },
+      }),
+    ),
+  ).not.toContain('fixture-secret');
   backend.dispose();
 });
 

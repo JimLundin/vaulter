@@ -1,28 +1,13 @@
-import {
-  transactionOptionsFixture,
-  transactionFixture,
-} from '@/vault/transactions/fixtures.test-support.ts';
+import { controlledChatStorage } from './controller-storage.test-support.ts';
+import { chatFixture } from './fixtures.test-support.ts';
 import { expect, test, vi } from 'vitest';
-import { memoryNodeBackend } from '@/vault/nodes/memory.ts';
-import { seed } from '@/vault/nodes/fixtures.test-support.ts';
-import { createNodeConversation } from './node-conversation.ts';
+import { createConversation } from './conversation.ts';
 import { createTranscription } from '@/transcription.ts';
 import type { TranscriptionEvents } from '@/transcription.ts';
 
 async function fixture() {
-  const nodes = memoryNodeBackend();
-  await seed(nodes);
-  const options = {
-    nodes,
-    user: 'user',
-    agent: 'user',
-    provider: 'fictional',
-    selectedModel: 'fictional',
-    instructions: '',
-    model: () => Promise.reject(new Error('No execution expected')),
-    suggestions: async () => [],
-  };
-  return { nodes, options };
+  const { db, options } = await chatFixture();
+  return { db, options: { ...options, suggestions: async () => [] } };
 }
 
 test('Chat borrows Transcription without cancelling an independently started recording', async () => {
@@ -37,10 +22,8 @@ test('Chat borrows Transcription without cancelling an independently started rec
       finish: async () => 'Independent words',
     };
   });
-  const { nodes, options } = await fixture();
-  const chat = createNodeConversation(
-    transactionOptionsFixture({ ...options, transcription: voice }),
-  );
+  const { db, options } = await fixture();
+  const chat = createConversation({ ...options, transcription: voice });
   try {
     await voice.start();
     chat.setDraft('Editable Chat text');
@@ -56,7 +39,7 @@ test('Chat borrows Transcription without cancelling an independently started rec
   } finally {
     chat.dispose();
     voice.dispose();
-    nodes.close();
+    await db[Symbol.asyncDispose]();
   }
 });
 
@@ -74,15 +57,13 @@ test('replacing borrowed Transcription releases only the recording Chat started 
     close: () => undefined,
     finish: async () => 'New words',
   }));
-  const { nodes, options } = await fixture();
-  const chat = createNodeConversation(
-    transactionOptionsFixture({ ...options, transcription: first }),
-  );
+  const { db, options } = await fixture();
+  const chat = createConversation({ ...options, transcription: first });
   try {
     chat.setDraft('Prefix');
     const opening = chat.captureAction();
     events.text('available words');
-    chat.updateOptions(transactionOptionsFixture({ ...options, transcription: second }));
+    chat.updateOptions({ ...options, transcription: second });
     events.text('stale words');
     connected({
       close: () => {
@@ -103,48 +84,48 @@ test('replacing borrowed Transcription releases only the recording Chat started 
     chat.dispose();
     first.dispose();
     second.dispose();
-    nodes.close();
+    await db[Symbol.asyncDispose]();
   }
 });
 
 test('a replaced Vault session destroys pending prompts without disposing borrowed storage', async () => {
-  const { nodes, options } = await fixture();
+  const { db, options } = await fixture();
   const next = await fixture();
   const voice = createTranscription(async () => ({ finish: async () => '', close() {} }));
-  const chat = createNodeConversation(
-    transactionOptionsFixture({
-      ...options,
-      transcription: voice,
-    }),
-  );
+  const chat = createConversation({
+    ...options,
+    transcription: voice,
+  });
   try {
     chat.setDraft('Retained words');
     await chat.captureAction();
     chat.receivePrompt({ n: 1, text: 'Retained Ask', send: true });
     expect(chat.snapshot().prompts).toHaveLength(1);
-    chat.updateOptions(transactionOptionsFixture(next.options));
+    chat.updateOptions(next.options);
     const closed = chat.snapshot();
     expect(chat.closed()).toBe(true);
     expect(chat.prepareSubmission().status).toBe('blocked');
     expect(chat.applyPrompt(1).status).toBe('blocked');
-    chat.updateOptions(transactionOptionsFixture(options));
+    chat.updateOptions(options);
     chat.setDraft('Cannot revive');
     expect(chat.snapshot()).toBe(closed);
-    expect(await nodes.snapshot()).toBeDefined();
-    const fresh = createNodeConversation(transactionOptionsFixture(next.options));
+    expect(await db.transaction((tx) => tx.entities.conversations.query({ select: {} }))).toEqual(
+      [],
+    );
+    const fresh = createConversation(next.options);
     expect(fresh.snapshot()).toMatchObject({ draft: '', prompts: [], turns: [] });
-    expect(fresh.conversation()).not.toBe(chat.conversation());
+    expect(fresh.conversation()).toBe('dialogue');
     fresh.dispose();
     voice.dispose();
   } finally {
     chat.dispose();
-    nodes.close();
-    next.nodes.close();
+    await db[Symbol.asyncDispose]();
+    await next.db[Symbol.asyncDispose]();
   }
 });
 
 test('an accepted run keeps its model context while later explicit work uses changed capabilities', async () => {
-  const { nodes, options } = await fixture();
+  const { db, options } = await fixture();
   const { MockLanguageModelV4, convertArrayToReadableStream } = await import('ai/test');
   let entered!: () => void;
   const started = new Promise<void>((resolve) => {
@@ -180,21 +161,17 @@ test('an accepted run keeps its model context while later explicit work uses cha
   const newModel = new MockLanguageModelV4({
     doStream: async () => response('New capability answer'),
   });
-  const chat = createNodeConversation(
-    transactionOptionsFixture({ ...options, model: async () => oldModel }),
-  );
+  const chat = createConversation({ ...options, model: async () => oldModel });
   try {
     const old = chat.prepareSubmission({ text: 'First explicit work' });
     if (old.status !== 'owned') throw new Error('Expected owned request');
     await started;
-    chat.updateOptions(
-      transactionOptionsFixture({
-        ...options,
-        model: async () => newModel,
-        selectedModel: 'new-model',
-        instructions: 'New instructions',
-      }),
-    );
+    chat.updateOptions({
+      ...options,
+      model: async () => newModel,
+      selectedModel: 'new-model',
+      instructions: 'New instructions',
+    });
     release();
     await old.done;
     expect(chat.snapshot().turns.at(-1)?.parts).toEqual([
@@ -210,12 +187,11 @@ test('an accepted run keeps its model context while later explicit work uses cha
   } finally {
     release();
     chat.dispose();
-    nodes.close();
+    await db[Symbol.asyncDispose]();
   }
 });
 
 test('destroying Chat during held durable acceptance retains that record but admits no model or later save', async () => {
-  const { nodes, options } = await fixture();
   let entered!: () => void;
   const started = new Promise<void>((resolve) => {
     entered = resolve;
@@ -224,10 +200,18 @@ test('destroying Chat during held durable acceptance retains that record but adm
   const held = new Promise<void>((resolve) => {
     release = resolve;
   });
-  const commits: string[] = [];
+  let attempts = 0;
+  const storage = controlledChatStorage(async (request) => {
+    attempts++;
+    if (request.commit.facts.some((fact) => fact.value === 'chat.exchange')) {
+      entered();
+      await held;
+    }
+  });
+  const { db, options } = await chatFixture(storage);
   let modelUsed = false;
   let published = false;
-  const chat = createNodeConversation({
+  const chat = createConversation({
     ...options,
     model: async () => {
       modelUsed = true;
@@ -236,17 +220,6 @@ test('destroying Chat during held durable acceptance retains that record but adm
     onConversation: () => {
       published = true;
     },
-    nodes: transactionFixture({
-      ...nodes,
-      commit: async (value) => {
-        commits.push(`${value.kind.scope}:${value.kind.action}`);
-        if (value.kind.scope === 'chat' && value.kind.action === 'submit') {
-          entered();
-          await held;
-        }
-        return nodes.commit(value);
-      },
-    }),
   });
   try {
     const outcome = chat.prepareSubmission({ text: 'Accepted before shutdown' });
@@ -258,36 +231,34 @@ test('destroying Chat during held durable acceptance retains that record but adm
     await outcome.done;
     await vi.waitFor(async () =>
       expect(
-        (await nodes.history()).some(
-          (record) => record.metadata?.chatRequest === outcome.request.id,
+        await db.transaction((tx) =>
+          tx.entities.exchanges.first({
+            where: { submission: { eq: outcome.request.id } },
+            select: {},
+          }),
         ),
-      ).toBe(true),
+      ).toBeDefined(),
     );
     expect(modelUsed).toBe(false);
     expect(published).toBe(false);
-    expect(commits).toEqual(['chat:submit']);
+    expect(attempts).toBe(2);
     expect(chat.snapshot()).toBe(closed);
   } finally {
     release();
     chat.dispose();
-    nodes.close();
+    await db[Symbol.asyncDispose]();
   }
 });
 
 test('a recovery requested just before destruction cannot start another acceptance attempt', async () => {
-  const { nodes, options } = await fixture();
   let attempts = 0;
-  const chat = createNodeConversation({
-    ...options,
-    nodes: transactionFixture({
-      ...nodes,
-      commit: async (value) => {
-        attempts++;
-        if (value.kind.scope === 'chat') throw new Error('Acceptance unavailable');
-        return nodes.commit(value);
-      },
+  const { db, options } = await chatFixture(
+    controlledChatStorage(async () => {
+      attempts++;
+      throw new Error('Acceptance unavailable');
     }),
-  });
+  );
+  const chat = createConversation(options);
   try {
     const outcome = chat.prepareSubmission({ text: 'Retained acceptance obligation' });
     if (outcome.status !== 'owned') throw new Error('Expected request');
@@ -299,7 +270,7 @@ test('a recovery requested just before destruction cannot start another acceptan
     expect(attempts).toBe(1);
   } finally {
     chat.dispose();
-    nodes.close();
+    await db[Symbol.asyncDispose]();
   }
 });
 
@@ -315,10 +286,8 @@ test('recording capability updates affect the next capture and hide interruption
       finish: async () => 'Old final speech',
     };
   });
-  const { nodes, options } = await fixture();
-  const chat = createNodeConversation(
-    transactionOptionsFixture({ ...options, transcription: voice }),
-  );
+  const { db, options } = await fixture();
+  const chat = createConversation({ ...options, transcription: voice });
   try {
     chat.setDraft('Prefix');
     await chat.captureAction();
@@ -340,7 +309,7 @@ test('recording capability updates affect the next capture and hide interruption
   } finally {
     chat.dispose();
     voice.dispose();
-    nodes.close();
+    await db[Symbol.asyncDispose]();
   }
 });
 
@@ -349,10 +318,8 @@ test('manual replacement publishes its newer draft before recording cancellation
     close: () => undefined,
     finish: async () => 'Speech',
   }));
-  const { nodes, options } = await fixture();
-  const chat = createNodeConversation(
-    transactionOptionsFixture({ ...options, transcription: voice }),
-  );
+  const { db, options } = await fixture();
+  const chat = createConversation({ ...options, transcription: voice });
   let sent: ReturnType<typeof chat.prepareSubmission> | undefined;
   try {
     chat.setDraft('Old draft');
@@ -369,83 +336,24 @@ test('manual replacement publishes its newer draft before recording cancellation
   } finally {
     chat.dispose();
     voice.dispose();
-    nodes.close();
-  }
-});
-
-test('store readiness in one session rebinds saved records and invalidates old selection reads', async () => {
-  const { nodes, options } = await fixture();
-  const { create, request } = await import('@/vault/nodes/fixtures.test-support.ts');
-  const session = {};
-  let read!: () => void;
-  let release!: () => void;
-  const entered = new Promise<void>((resolve) => {
-    read = resolve;
-  });
-  const held = new Promise<void>((resolve) => {
-    release = resolve;
-  });
-  const unavailable = {
-    ...nodes,
-    snapshot: async (sequence?: number) => {
-      read();
-      await held;
-      return nodes.snapshot(sequence);
-    },
-  };
-  const chat = createNodeConversation({
-    ...options,
-    nodes: transactionFixture(unavailable),
-    session,
-  });
-  const close = chat.watchRecords();
-  try {
-    const selection = chat.open('old-selection');
-    await entered;
-    chat.setDraft('Same-session draft');
-    chat.updateOptions(transactionOptionsFixture({ ...options, session }));
-    release();
-    expect(await selection).toEqual({ status: 'superseded' });
-    expect(chat.snapshot().draft).toBe('Same-session draft');
-    await nodes.commit(
-      request('saved', [
-        create('saved-chat', {
-          kind: 'conversation',
-          title: 'Ready history',
-          createdAt: '2026-10-10T12:00:00Z',
-        }),
-      ]),
-    );
-    await vi.waitFor(() =>
-      expect(chat.snapshot().records.chats?.[0]?.data.title).toBe('Ready history'),
-    );
-  } finally {
-    release();
-    close();
-    close();
-    chat.dispose();
-    nodes.close();
+    await db[Symbol.asyncDispose]();
   }
 });
 
 test('changed suggestion capabilities invalidate optional old results before later explicit suggestions', async () => {
-  const { nodes, options } = await fixture();
+  const { db, options } = await fixture();
   let release!: (text: string[]) => void;
   const held = new Promise<string[]>((resolve) => {
     release = resolve;
   });
-  const chat = createNodeConversation(
-    transactionOptionsFixture({ ...options, suggestions: async () => held }),
-  );
+  const chat = createConversation({ ...options, suggestions: async () => held });
   try {
     const previous = chat.suggest();
-    chat.updateOptions(
-      transactionOptionsFixture({
-        ...options,
-        selectedModel: 'new-model',
-        suggestions: async () => ['New suggestion'],
-      }),
-    );
+    chat.updateOptions({
+      ...options,
+      selectedModel: 'new-model',
+      suggestions: async () => ['New suggestion'],
+    });
     release(['Stale suggestion']);
     await previous;
     expect(chat.snapshot().suggestions).toEqual([]);
@@ -454,39 +362,35 @@ test('changed suggestion capabilities invalidate optional old results before lat
   } finally {
     release([]);
     chat.dispose();
-    nodes.close();
+    await db[Symbol.asyncDispose]();
   }
 });
 
 test('changed permission and capabilities become available atomically to synchronous Chat subscribers', async () => {
-  const { nodes, options } = await fixture();
+  const { db, options } = await fixture();
   let oldUsed = false;
   let newUsed = false;
-  const chat = createNodeConversation(
-    transactionOptionsFixture({
-      ...options,
-      availability: 'Unavailable',
-      model: async () => {
-        oldUsed = true;
-        throw new Error('Old capability');
-      },
-    }),
-  );
+  const chat = createConversation({
+    ...options,
+    availability: 'Unavailable',
+    model: async () => {
+      oldUsed = true;
+      throw new Error('Old capability');
+    },
+  });
   chat.setDraft('New explicit work');
   let owned: ReturnType<typeof chat.prepareSubmission> | undefined;
   const unsubscribe = chat.subscribe(() => {
     if (!owned && chat.snapshot().submissionAvailability.allowed) owned = chat.prepareSubmission();
   });
   try {
-    chat.updateOptions(
-      transactionOptionsFixture({
-        ...options,
-        model: async () => {
-          newUsed = true;
-          throw new Error('New capability');
-        },
-      }),
-    );
+    chat.updateOptions({
+      ...options,
+      model: async () => {
+        newUsed = true;
+        throw new Error('New capability');
+      },
+    });
     if (owned?.status !== 'owned') throw new Error('Expected request');
     await owned.done;
     expect(oldUsed).toBe(false);
@@ -494,6 +398,6 @@ test('changed permission and capabilities become available atomically to synchro
   } finally {
     unsubscribe();
     chat.dispose();
-    nodes.close();
+    await db[Symbol.asyncDispose]();
   }
 });

@@ -14,9 +14,9 @@ import { ConversationList } from './ConversationList.tsx';
 import { ChatSurface, ChatWelcome, type ChatPresentation } from './ChatSurface.tsx';
 import { ChatMessage } from './ChatMessage.tsx';
 import { later } from '@/runtime/later.ts';
-import type { NodeConversation, Prompt, ChatSubmissionIntent } from './node-conversation.ts';
-export type { Prompt } from './node-conversation.ts';
-import { useNodeChat } from './use-node-conversation.ts';
+import type { Conversation, Prompt, ChatSubmissionIntent } from './conversation.ts';
+export type { Prompt } from './conversation.ts';
+import { useChat } from './use-conversation.ts';
 import { model } from './model.ts';
 import type { ToolPresentationAdapter } from '@/agent/tool-presentation.tsx';
 
@@ -26,7 +26,7 @@ export function Chat({
   presentation,
   toolPresentations,
 }: {
-  conversation: NodeConversation;
+  conversation: Conversation;
   arg: Prompt | null;
   presentation: ChatPresentation;
   toolPresentations?: readonly ToolPresentationAdapter[];
@@ -48,7 +48,7 @@ export function Chat({
     selection,
     actionReason,
     prompts,
-  } = useNodeChat(conversation);
+  } = useChat(conversation);
   const [focused, setFocused] = useState(false);
   const recording = ['connecting', 'listening', 'finishing'].includes(capture.phase);
   const visible = presentation.page || presentation.open;

@@ -1,13 +1,13 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { expect, test, vi } from 'vitest';
+import { Text } from '@/ui/kit/index.ts';
 import {
   RecordedToolExecution,
-  toolStatus,
-  toolSummary,
   type ToolEvidenceState,
   type ToolPresentationAdapter,
+  toolStatus,
+  toolSummary,
 } from './tool-presentation.tsx';
-import { Text } from '@/ui/kit/index.ts';
 
 const evidence: ToolEvidenceState = {
   name: 'retiredAction',

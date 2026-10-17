@@ -1,6 +1,6 @@
 import type { ToolSet } from 'ai';
+import type { JsonValue } from '@/vault/eav/index.ts';
 import type { HistoryPart, ProviderHistory } from './history.ts';
-import type { JsonValue } from '@/vault/nodes/model.ts';
 
 export interface VoiceTranscript {
   readonly role: 'user' | 'agent';
@@ -28,7 +28,7 @@ export interface VoiceToolCall {
 export type VoicePart = HistoryPart;
 export type VoiceHistory = ProviderHistory;
 
-/** Media/provider protocol is separate from trusted node persistence and presentation. */
+/** Media/provider protocol is separate from trusted persistence and presentation. */
 export interface LiveVoiceOptions<History, Part> {
   readonly instructions: string;
   readonly events: LiveVoiceEvents;

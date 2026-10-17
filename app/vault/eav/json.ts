@@ -7,6 +7,26 @@ export type JsonValue =
   | readonly JsonValue[]
   | { readonly [key: string]: JsonValue };
 
+export type JsonObject = { readonly [key: string]: JsonValue };
+export const compare = (left: string, right: string) => (left < right ? -1 : left > right ? 1 : 0);
+
+/** Freeze retained plain values without stripping opaque entity references. */
+export function frozen<T>(value: T): T {
+  if (value !== null && typeof value === 'object') {
+    for (const child of Object.values(value)) frozen(child);
+    Object.freeze(value);
+  }
+  return value;
+}
+
+export const canonical = encodeJson;
+
+export async function digest(value: unknown): Promise<string> {
+  const bytes = new TextEncoder().encode(encodeJson(value));
+  const result = new Uint8Array(await crypto.subtle.digest('SHA-256', bytes));
+  return [...result].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
 /** Reject lossy JSON conversions, including hidden entity identity and sparse arrays. */
 export function encodeJson(input: unknown): string {
   const ancestors = new Set<object>();
@@ -40,7 +60,7 @@ export function encodeJson(input: unknown): string {
         return `[${parts.join(',')}]`;
       }
       return `{${Object.keys(descriptors)
-        .sort()
+        .sort(compare)
         .map((key) => `${JSON.stringify(key)}:${encode(descriptors[key]!.value, depth + 1)}`)
         .join(',')}}`;
     } finally {

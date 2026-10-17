@@ -1,4 +1,4 @@
-import { expect, test } from 'vitest';
+import { expect, test, vi } from 'vitest';
 import { e, openDatabase, createPersistentStorage, type Journal } from '@/vault/eav/index.ts';
 import { agentEntities } from '@/agent/data/schema.ts';
 import { startAgentRun } from '@/agent/data/operations.ts';
@@ -17,6 +17,7 @@ for (const stop of [false, true]) {
         scope: 'wiki-tool-recovery',
         load: async () => structuredClone(journal),
         append: async (request) => {
+          await Promise.resolve();
           if (!journal.commits.some((commit) => commit.id === request.commit.id))
             journal = structuredClone({
               schemas: request.schemas,
@@ -37,20 +38,23 @@ for (const stop of [false, true]) {
       run,
       tools: enabled,
     } = await db.transaction(async (tx) => {
-      const author = await tx.entities.actors.insert({ name: 'Writer', kind: 'agent' });
+      const attribution = await tx.entities.actors.insert({ name: 'Writer', kind: 'agent' });
       const capability = await tx.entities.toolDefinitions.insert({
         name: 'createWikiPage',
         version: '1',
       });
       const agent = await tx.entities.agents.insert({
-        actor: author,
+        actor: attribution,
         provider: 'test',
         model: 'test',
         instructions: '',
         settings: {},
         tools: [capability],
       });
-      return { author, ...(await startAgentRun(tx, { agent, startedAt: new Date(), inputs: [] })) };
+      return {
+        author: attribution,
+        ...(await startAgentRun(tx, { agent, startedAt: new Date(), inputs: [] })),
+      };
     });
     const abort = new AbortController();
     const native = wikiTools(db, { author, origin: run, signal: abort.signal });
@@ -66,11 +70,11 @@ for (const stop of [false, true]) {
       signal: abort.signal,
       tools: { createWikiPage: native.createWikiPage },
       check: () => abort.signal.throwIfAborted(),
-      execution: () => {},
-      changed: () => {},
-      paused: () => notifyPaused(),
-      recovered: () => {},
-      halt: () => {},
+      changed: vi.fn(),
+      paused: vi.fn(),
+      contentFailed: () => notifyPaused(),
+      recovered: vi.fn(),
+      halt: vi.fn(),
     });
     const execute = owner.tools.createWikiPage!.execute!;
     const input = { key: 'once', title: 'Once', summary: '' };
@@ -81,21 +85,25 @@ for (const stop of [false, true]) {
       (error: unknown) => ({ error }),
     );
     await paused;
-    expect(owner.pending()?.retryable).toBe(true);
+    expect(owner.contentPending()).toBe(true);
+    expect(owner.pending()).toBeUndefined();
     if (stop) abort.abort();
-    await owner.retrySave();
-    if (stop) expect(await settled).toHaveProperty('error');
-    else {
-      expect(await settled).toEqual({ value: { accepted: true, recovered: true } });
-      expect(await execute(input, context)).toEqual({ accepted: true, recovered: true });
-    }
+    await owner.retryContentSave();
+    expect(await settled).toHaveProperty('error');
+    expect(owner.contentPending()).toBe(false);
+    await expect(execute(input, context)).rejects.toThrow();
     await owner.settle();
     expect(await db.entities.wikiPages.query({ select: { title: true } })).toMatchObject([
       { title: 'Once' },
     ]);
     expect(
-      await db.entities.toolExecutions.query({ select: { status: true, output: true } }),
-    ).toMatchObject([{ status: 'complete', output: { accepted: true, recovered: true } }]);
+      await db.entities.toolExecutions.query({
+        select: { status: true, output: true, error: true },
+      }),
+    ).toMatchObject([{ status: 'failed', error: { code: 'contentSaveUncertain' } }]);
+    expect(
+      (await db.entities.toolExecutions.first({ select: { output: true } }))?.output,
+    ).toBeUndefined();
     expect(
       journal.commits.filter((commit) =>
         commit.facts.some((fact) => fact.attribute === 'wiki.page/title'),

@@ -11,9 +11,8 @@ The consumer adapts and verifies output when advancing the pin; Vaulter does not
 adapters to keep that consumer unchanged. A separate compatibility layer in Vaulter would make its
 modules responsible for source-specific policy and constrain subsequent design.
 
-[ADR 0002](0002-versioned-node-model.md) and [ADR 0005](0005-wiki-citation-selections.md) still require
-immutable published history, readable exact addresses and the retained text grammar of historical
-selections. They do not require future module writes to keep their original payloads or structure.
-Modules may introduce new shapes and behavior, supplying explicit historical decoders and appended
-upgrades when meanings or required fields change. Legacy import replay remains scratch verification;
-enrichment and application upgrades append to published history rather than replacing its prefix.
+[ADR 0014](0014-eav-only-vault.md) and [ADR 0005](0005-wiki-citation-selections.md) require
+immutable accepted history, validated historical references and the retained text grammar of selections.
+Modules may introduce new shapes and behavior through explicit schema evolution. Source translation
+must target the current typed owner interfaces and verify historical evidence and provenance before
+publication. Application opening performs no translation or regeneration of private source data.

@@ -1,7 +1,13 @@
 import { sameEntity, type EntityRef, type EntityDefinition } from '@/vault/eav/index.ts';
-import { contentSelection, contentText, selectedText, type ContentValue } from './content.ts';
 import {
-  readSelector,
+  contentSelection,
+  projectContentText,
+  selectedText,
+  type ContentValue,
+} from './content.ts';
+import {
+  type readSelector,
+  selectorReader,
   documentSources,
   type WikiDatabase,
   type SourceReading,
@@ -19,7 +25,28 @@ export async function readEavWiki(
   });
   if (!latest) return [];
   const view = db.at(latest);
-  const sources = suppliedSources ?? documentSources(db);
+  const readSource = suppliedSources ?? documentSources(db);
+  const sourceReadings = new Map<string, ReturnType<SourceReading>>();
+  const sources: SourceReading = (address) => {
+    const key = JSON.stringify(address);
+    let reading = sourceReadings.get(key);
+    if (!reading) {
+      reading = readSource(address);
+      sourceReadings.set(key, reading);
+    }
+    return reading;
+  };
+  const readSelection = selectorReader(db, sources);
+  const selectorReadings = new Map<string, ReturnType<typeof readSelector>>();
+  const selector = (selection: Parameters<typeof readSelector>[1]) => {
+    const key = JSON.stringify(selection);
+    let reading = selectorReadings.get(key);
+    if (!reading) {
+      reading = readSelection(selection);
+      selectorReadings.set(key, reading);
+    }
+    return reading;
+  };
   const [pages, content, appearances, reviews, passages, references] = await Promise.all([
     view.entities.wikiPages.query({
       select: { key: true, title: true, summary: true, aliases: true, available: true },
@@ -44,6 +71,7 @@ export async function readEavWiki(
     }),
     view.entities.wikiPageReferences.query({ select: { key: true, page: true, source: true } }),
   ]);
+  const currentText = projectContentText(content, appearances);
   const sourceReference = async (
     id: string,
     address: WikiReference['address'],
@@ -62,6 +90,7 @@ export async function readEavWiki(
       address,
       title: recorded.title,
       context: recorded.text,
+      currentText: current?.available ? current.text : undefined,
       text: range ? selectedText(recorded.text, range.start, range.end) : recorded.text,
       range,
       claim,
@@ -86,9 +115,17 @@ export async function readEavWiki(
     const evidence: WikiReference[] = [];
     let disputed = false,
       needsReview = false;
+    // Historical targets retain their identity: discard unrelated reviews before resolving prose.
+    const candidates = await Promise.all(
+      [entity, ...fragments.map((item) => item.entity)].map((item) =>
+        db.history.reference(latest, item),
+      ),
+    );
+    const candidateIds = new Set(candidates.map((item) => item.entity));
     for (const review of reviews) {
-      if (review.assertion.format !== format) continue;
-      const original = await readSelector(db, review.assertion, sources);
+      if (review.assertion.format !== format || !candidateIds.has(review.assertion.target.entity))
+        continue;
+      const original = await selector(review.assertion);
       const fragment = sameEntity(original.entity, entity)
         ? { text, offset: 0 }
         : fragments.find((item) => sameEntity(original.entity, item.entity));
@@ -154,8 +191,8 @@ export async function readEavWiki(
         .filter((item) => item.available && item.parent && sameEntity(item.parent, value))
         .map((item) => block(item, [...path, value], `${occurrence}/${item.key}`)),
     );
-    const text = await contentText(view, value);
-    const fragments = [];
+    const text = currentText(value);
+    const fragments: { entity: EntityRef<EntityDefinition>; text: string; offset: number }[] = [];
     if (['paragraph', 'heading', 'cell'].includes(value.kind)) {
       let offset = 0;
       for (const appearance of appearances.filter(
@@ -163,7 +200,7 @@ export async function readEavWiki(
       )) {
         const child = content.find((item) => sameEntity(item, appearance.content));
         if (!child?.available) continue;
-        const childText = await contentText(view, child);
+        const childText = currentText(child);
         fragments.push({ entity: child, text: childText, offset });
         offset += childText.length;
       }
@@ -190,6 +227,7 @@ export async function readEavWiki(
     // Child-level evidence remains independently selectable without lending support to its siblings.
     return {
       id: occurrence,
+      address: await db.history.reference(latest, value),
       data,
       children,
       href: value.targetPage ? `#/wiki/${encodeURIComponent(value.targetPage.key)}/` : value.href,

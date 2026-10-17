@@ -1,82 +1,90 @@
 import { expect, test } from 'vitest';
-import { memoryNodeBackend } from '@/vault/nodes/memory.ts';
-import { create, request, revise } from '@/vault/nodes/fixtures.test-support.ts';
-import { readWiki } from '@/workflows/wiki/pages.ts';
-import { applicationGraph, applicationSources, applicationWikiGraph } from './composition.ts';
+import { e, openDatabase } from '@/vault/eav/index.ts';
+import { wikiSchema } from '@/workflows/wiki/data/schema.ts';
+import { wikiActions } from '@/workflows/wiki/data/operations.ts';
+import { graphEntities } from '@/workflows/graph/data/schema.ts';
+import { topicActions } from '@/workflows/graph/data/topics.ts';
+import { graphActions } from '@/workflows/graph/data/operations.ts';
+import { projectGraphExplorer } from '@/workflows/graph/explorer.ts';
+import { projectGraphMap } from '@/workflows/graph/map.ts';
+import { readWikiGraphTopics } from './wiki-graph.ts';
 
-test('Wiki metadata and embedded queries share Graph interpretation independently of placement', async () => {
-  const nodes = memoryNodeBackend();
-  await nodes.commit(
-    request('seed', [
-      create('user', { kind: 'actor' }),
-      create('index', { kind: 'page', title: 'Index' }),
-      create('studio', { kind: 'page', title: 'Studio' }),
-      create('term', { kind: 'term', scheme: 'type', key: 'place', label: 'Place' }),
-      create('tag', { kind: 'term', scheme: 'area', key: 'work', label: 'Creative work' }),
-      create('query', { kind: 'query', type: 'place', tag: 'work' }, 'index'),
-      {
-        ...create('type', { kind: 'relationship', predicate: 'type' }, 'index'),
-        connection: { source: { node: 'studio' }, target: { node: 'term' } },
-      },
-      {
-        ...create('classification', { kind: 'relationship', predicate: 'tag' }),
-        connection: { source: { node: 'studio', transaction: 'seed' }, target: { node: 'tag' } },
-      },
-    ]),
+test('editorial Topics use retained subject identity, current member prose and exact native evidence', async () => {
+  await using db = await openDatabase({ schema: e.registry({ ...wikiSchema, ...graphEntities }) });
+  const author = await db.transaction((tx) =>
+    tx.entities.actors.insert({ name: 'Editor', kind: 'user' }),
   );
-  const pages = await readWiki(nodes, applicationSources, applicationWikiGraph);
-  const studio = pages.find((page) => page.id === 'studio')!;
-  const index = pages.find((page) => page.id === 'index')!;
-  const graph = await applicationGraph(nodes);
-  expect(studio.metadata).toEqual(graph.classifications({ node: 'studio', transaction: 'seed' }));
-  expect(studio.kind).toBe('place');
-  expect(studio.entry.g).toEqual(['work']);
-  expect(index.metadata).toEqual([]);
-  // Placement controls where the relationship is rendered; source controls what it classifies.
-  expect(index.blocks.find((block) => block.id === 'type')?.data.label).toBe('Place');
-  expect(
-    index.blocks.find((block) => block.id === 'query')?.children.map((block) => block.data.text),
-  ).toEqual(['Studio']);
-  await nodes.commit(
-    request('edit', [await revise(nodes, 'studio', { kind: 'page', title: 'Edited studio' })]),
+  const wiki = wikiActions(db, author);
+  const broad = await wiki.createPage({ key: 'garden', title: 'Garden', summary: '' });
+  const narrow = await wiki.createPage({ key: 'water', title: 'Watering', summary: '' });
+  const paragraph = await wiki.append(
+    'paragraph',
+    { kind: 'paragraph' },
+    { page: narrow, order: 'a' },
   );
-  const changed = await readWiki(nodes, applicationSources, applicationWikiGraph);
-  expect(
-    changed.find((page) => page.id === 'studio')?.metadata.map((term) => term.relationship),
-  ).toEqual(['type']);
-  expect(
-    changed.find((page) => page.id === 'index')?.blocks.find((block) => block.id === 'query')
-      ?.children,
-  ).toEqual([]);
-  nodes.close();
-});
-
-test('Wiki and Graph keep exact classifications while excluding deleted identity classifications', async () => {
-  const nodes = memoryNodeBackend();
-  await nodes.commit(
-    request('seed', [
-      create('user', { kind: 'actor' }),
-      create('page', { kind: 'page', title: 'Studio' }),
-      create('term', { kind: 'term', scheme: 'area', key: 'work', label: 'Creative work' }),
-      create('query', { kind: 'query', tag: 'work' }, 'page'),
-      {
-        ...create('exact', { kind: 'relationship', predicate: 'tag' }, 'page'),
-        connection: { source: { node: 'page' }, target: { node: 'term', transaction: 'seed' } },
-      },
-      {
-        ...create('live', { kind: 'relationship', predicate: 'tag' }, 'page'),
-        connection: { source: { node: 'page' }, target: { node: 'term' } },
-      },
-    ]),
+  await wiki.append(
+    'words',
+    { kind: 'text', text: 'Water slowly.' },
+    { parent: paragraph, order: 'a' },
   );
-  await nodes.commit(request('delete', [await revise(nodes, 'term', null)]));
-  const [page] = await readWiki(nodes, applicationSources, applicationWikiGraph);
-  const graph = await applicationGraph(nodes);
-  expect(page.metadata).toEqual(graph.classifications({ node: 'page' }));
-  expect(page.metadata.map((term) => term.state)).toEqual(['resolved', 'deleted']);
-  expect(page.entry.g).toEqual(['work']);
-  expect(
-    page.blocks.find((block) => block.id === 'query')?.children.map((block) => block.id),
-  ).toEqual(['query:page']);
-  nodes.close();
+  const document = await db.transaction({ author }, (tx) =>
+    tx.entities.sourceDocuments.insert({
+      key: 'source',
+      title: 'Source',
+      text: 'Water slowly.',
+      origin: 'https://example.invalid',
+      attribution: 'Gardener',
+      capturedAt: new Date(),
+      available: true,
+    }),
+  );
+  const snapshot = (await db.history.transactions.first({
+    select: {},
+    orderBy: [{ sequence: 'desc' }],
+  }))!;
+  const subject = await db.history.reference(snapshot, broad);
+  const member = await db.history.reference(snapshot, narrow);
+  const assertion = await db.history.reference(snapshot, paragraph);
+  const source = await db.history.reference(snapshot, document);
+  const topics = topicActions(db, { author });
+  await topics.promote({ key: 'garden', subject, title: 'Garden topic', rationale: 'Broad area.' });
+  await topics.addMember('garden', member, true, 'Watering belongs here.');
+  await wiki.review({
+    key: 'review',
+    assertion: { target: assertion, format: 'wiki-text-utf16-v1', start: 0, end: 13 },
+    passages: [{ target: source, format: 'source-text-utf16-v1', start: 0, end: 13 }],
+    result: 'supported',
+    rationale: 'Exact passage.',
+  });
+  await graphActions(db, { author }).connect({
+    key: 'related',
+    predicate: 'related-to',
+    source: subject,
+    target: member,
+  });
+  let projected = await readWikiGraphTopics(db);
+  expect(projected[0]).toMatchObject({
+    id: subject.entity,
+    title: 'Garden topic',
+    href: '#/wiki/garden/',
+    available: true,
+  });
+  expect(projected[0]?.blocks[0]).toMatchObject({
+    id: assertion.entity,
+    evidence: [{ address: source, text: 'Water slowly.' }],
+  });
+  const map = projectGraphMap(projected, await projectGraphExplorer(db));
+  expect(map.edges.find((edge) => edge.id === 'related')).toMatchObject({
+    source: subject.entity,
+    target: member.entity,
+  });
+  expect(map.records.filter((record) => record.id === subject.entity)).toHaveLength(1);
+  await wiki.updatePage(broad, { available: false });
+  await db.transaction({ author }, (tx) => tx.entities.sourceDocuments.delete(document));
+  projected = await readWikiGraphTopics(db);
+  expect(projected[0]?.available).toBe(false);
+  expect(projected[0]?.blocks[0]?.evidence[0]).toMatchObject({
+    text: 'Water slowly.',
+    state: 'deleted',
+  });
 });

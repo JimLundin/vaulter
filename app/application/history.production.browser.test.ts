@@ -3,61 +3,27 @@ import { createPersistentStorage, openDatabase, type Journal } from '@/vault/eav
 import { chatSchema } from '@/workflows/chat/data/schema.ts';
 import { expect, test } from '@playwright/test';
 import { fakeGitHub } from '@/vault/storage/github-client/fake-github.ts';
-import { create, request } from '@/vault/nodes/fixtures.test-support.ts';
-import { accept } from '@/vault/nodes/history.ts';
-import { canonical, digest } from '@/vault/nodes/json.ts';
 import { seal } from '@/vault/session/sealed.ts';
 
-test('production History displays historical attribution and records confirmed content compensation', async ({
-  page,
-}) => {
-  const initial = request('history-fixture', [
-    create('user', { kind: 'actor', name: 'Original owner' }),
-    create('content', { kind: 'content', title: 'Quiet mornings', text: 'Leave room for a walk.' }),
-  ]);
-  const initialRecord = accept(
-    [],
-    initial,
-    await digest(canonical(initial)),
-    '2026-10-11T09:00:00Z',
-  );
-  const edit = {
-    ...request('content-edit', [
-      {
-        ...create('content', {
-          kind: 'content',
-          title: 'Quiet mornings',
-          text: 'Leave room for a longer walk.',
-        }),
-        expected: 'history-fixture',
-      },
-    ]),
-    message: 'Lengthen the morning walk',
-  };
-  const editRecord = accept(
-    [initialRecord],
-    edit,
-    await digest(canonical(edit)),
-    '2026-10-11T09:05:00Z',
-  );
-  const rename = request('rename-author', [
-    { ...create('user', { kind: 'actor', name: 'Current owner' }), expected: 'history-fixture' },
-  ]);
-  const renameRecord = accept(
-    [initialRecord, editRecord],
-    rename,
-    await digest(canonical(rename)),
-    '2026-10-11T09:10:00Z',
-  );
+test('production History displays historical attribution and survives reload', async ({ page }) => {
   const eavFiles: Record<string, string> = {};
   let journal: Journal = { schemas: [], commits: [] };
+  const scope = JSON.stringify([
+    'https://api.github.com',
+    'JimLundin',
+    'vault',
+    'main',
+    '.vaulter/eav/transactions/',
+  ]);
   const eav = createPersistentStorage({
-    scope: 'production-history-fixture',
+    scope,
     load: async () => journal,
     append: async ({ schemas, commit, base }) => {
       journal = { schemas, commits: [...journal.commits, commit] };
       eavFiles[`.vaulter/eav/transactions/${encodeURIComponent(commit.id)}.json`] = JSON.stringify({
         base,
+        format: 1,
+        scope,
         schemas,
         commit,
       });
@@ -87,12 +53,7 @@ test('production History displays historical attribution and records confirmed c
   await database.transaction((tx) =>
     tx.entities.actors.update({ ...author, name: 'Current speaker' }),
   );
-  const fake = await fakeGitHub({
-    ...eavFiles,
-    '.vaulter/nodes/v1/transactions/history-fixture.json': JSON.stringify(initialRecord),
-    '.vaulter/nodes/v1/transactions/content-edit.json': JSON.stringify(editRecord),
-    '.vaulter/nodes/v1/transactions/rename-author.json': JSON.stringify(renameRecord),
-  });
+  const fake = await fakeGitHub(eavFiles);
   const password = 'fictional-history-password';
   const sealed = await seal({ github: 'fictional-token' }, password, undefined, 1000);
   await page.route('**/secrets.json', (route) => route.fulfill({ json: sealed }));
@@ -156,21 +117,6 @@ test('production History displays historical attribution and records confirmed c
     eavRow.getByRole('cell', { name: 'Updated history message', exact: true }),
   ).toBeVisible();
   await expect(eavRow.getByRole('button', { name: /Undo transaction/ })).toHaveCount(0);
-  const title = page.getByRole('button', { name: 'Lengthen the morning walk', exact: true });
-  const row = page.getByRole('region', { name: 'Lengthen the morning walk', exact: true });
-  await expect(row).toContainText('Original owner');
-  await expect(row).not.toContainText('Current owner');
-  await title.click();
-  await expect(row.getByText('#2', { exact: true })).toBeVisible();
-  await expect(row.getByText('Updated content: Quiet mornings', { exact: true })).toBeVisible();
-  await row.getByRole('button', { name: 'Undo transaction #2', exact: true }).click();
-  const review = page.getByRole('dialog', {
-    name: 'Undo “Lengthen the morning walk”?',
-    exact: true,
-  });
-  await review.getByRole('button', { name: 'Undo', exact: true }).click();
-  await expect(review).toBeHidden();
-  await expect(page.getByRole('button', { name: 'Undo content-edit', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Close history', exact: true }).click();
   await expect(input).toHaveValue('A draft stays here');
   expect(page.url()).toBe(original);
@@ -179,7 +125,6 @@ test('production History displays historical attribution and records confirmed c
   await expect(page.getByRole('region', { name: eavTitle, exact: true })).toContainText(
     'Original speaker',
   );
-  await expect(page.getByRole('button', { name: 'Undo content-edit', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Close history', exact: true }).click();
   if (compact) await page.getByRole('button', { name: 'Modules', exact: true }).click();
   await signOut.click();

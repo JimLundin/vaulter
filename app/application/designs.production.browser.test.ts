@@ -4,11 +4,7 @@ import { wikiActions } from '@/workflows/wiki/data/operations.ts';
 import { expect, test } from '@playwright/test';
 import { navigateToModule } from '@/ui/kit/navigation.browser.test-support.ts';
 import { fakeGitHub } from '@/vault/storage/github-client/fake-github.ts';
-import { memoryNodeBackend } from '@/vault/nodes/memory.ts';
-import { create, request } from '@/vault/nodes/fixtures.test-support.ts';
 import { seal } from '@/vault/session/sealed.ts';
-import { accept } from '@/vault/nodes/history.ts';
-import { canonical, digest } from '@/vault/nodes/json.ts';
 
 test('production opens real Wiki pages and exact evidence alongside persistent Chat', async ({
   page,
@@ -20,33 +16,11 @@ test('production opens real Wiki pages and exact evidence alongside persistent C
     });
     Object.defineProperty(globalThis, 'cspViolations', { value: violations });
   });
-  const nodes = memoryNodeBackend();
   const sourceText =
     'Earlier plans. '.repeat(40) +
     'I want quiet mornings in the studio.' +
     ' Later details.'.repeat(40);
   const passageStart = sourceText.indexOf('I want');
-  const input = request('wiki-fixture', [
-    create('user', { kind: 'actor', name: 'Fictional owner' }),
-    create('chat', {
-      kind: 'conversation',
-      title: 'Studio plans',
-      createdAt: '2026-10-11T09:00:00Z',
-    }),
-    create('exchange', { kind: 'exchange', startedAt: '2026-10-11T09:00:00Z' }, 'chat'),
-    create(
-      'source',
-      {
-        kind: 'message',
-        role: 'user',
-        at: '2026-10-11T09:00:00Z',
-        text: sourceText,
-      },
-      'exchange',
-    ),
-  ]);
-  const transaction = await nodes.commit(input);
-  const record = accept([], input, await digest(canonical(input)), transaction.recordedAt);
   let journal: Journal = { schemas: [], commits: [] };
   const scope = JSON.stringify([
     'https://api.github.com',
@@ -97,12 +71,28 @@ test('production opens real Wiki pages and exact evidence alongside persistent C
     { kind: 'text', text: ' free. Afternoons are flexible.' },
     { parent: paragraph, order: 'c' },
   );
+  await db.transaction({ author }, async (tx) => {
+    const conversation = await tx.entities.conversations.insert({
+      createdAt: new Date('2026-10-11T09:00:00Z'),
+    });
+    const exchange = await tx.entities.exchanges.insert({
+      conversation,
+      position: 1,
+      startedAt: new Date('2026-10-11T09:00:00Z'),
+    });
+    await tx.entities.messages.insert({
+      exchange,
+      author,
+      at: new Date('2026-10-11T09:00:00Z'),
+      text: sourceText,
+    });
+  });
   const source = await db.transaction((tx) =>
     tx.entities.sourceDocuments.insert({
       key: 'source',
       title: 'Studio plans',
       text: sourceText,
-      origin: '#/chat/chat/',
+      origin: '#/chat/',
       attribution: 'Fictional owner',
       capturedAt: new Date(),
       available: true,
@@ -145,10 +135,7 @@ test('production opens real Wiki pages and exact evidence alongside persistent C
       }),
     ]),
   );
-  const fake = await fakeGitHub({
-    ...files,
-    '.vaulter/nodes/v1/transactions/wiki-fixture.json': JSON.stringify(record),
-  });
+  const fake = await fakeGitHub(files);
   const password = 'fictional-production-password';
   const sealed = await seal({ github: 'fictional-token' }, password, undefined, 1000);
   await page.route('**/secrets.json', (route) => route.fulfill({ json: sealed }));
@@ -254,7 +241,7 @@ test('production opens real Wiki pages and exact evidence alongside persistent C
   ).toBeVisible();
   await expect(evidence.getByRole('link', { name: 'Studio plans' })).toHaveAttribute(
     'href',
-    '#/chat/chat/',
+    '#/chat/',
   );
   if (test.info().project.name === 'phone') {
     await evidence.getByRole('button', { name: 'Close references' }).click();

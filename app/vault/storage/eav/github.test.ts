@@ -6,6 +6,8 @@ import {
   openDatabase,
   createPersistentStorage,
   closeStorage,
+  cachedStorage,
+  refreshStorage,
   SaveError,
   ConflictError,
   type MemoryStorage,
@@ -35,7 +37,7 @@ afterEach(async () => {
 async function setup() {
   const fake = await fakeGitHub({
     'Existing.md': 'Retained',
-    '.vaulter/nodes/unrelated': 'Node data',
+    'Sources/unrelated.txt': 'Source data',
   });
   const open = async (fetchFn = fake.fetchFn) => {
     const storage = createPersistentStorage(
@@ -64,7 +66,7 @@ test('durable EAV acceptance survives a fresh backend and preserves unrelated fi
   ).toMatchObject({ text: 'Retained', details: { array: ['a', 'b', 'a'] } });
   expect(await reopened.schema.revisions()).toHaveLength(1);
   expect(filesAt()['Existing.md']).toBe('Retained');
-  expect(filesAt()['.vaulter/nodes/unrelated']).toBe('Node data');
+  expect(filesAt()['Sources/unrelated.txt']).toBe('Source data');
 });
 
 test('historical evidence resolves after GitHub reopen and from the offline device cache', async () => {
@@ -183,4 +185,27 @@ test('rewritten remote history is rejected without falling back to a cached view
   expect(await db.entities.messages.first({ select: { text: true } })).toMatchObject({
     text: 'Original',
   });
+});
+
+test('accepted empty cache loads without remote requests and remains readable offline', async () => {
+  const fake = await fakeGitHub({});
+  const options = {
+    token: 'fictional',
+    repo: { owner: 'test', name: 'empty', branch: 'main' },
+    api: 'https://gh.test',
+  };
+  const first = createPersistentStorage(githubEavAdapter({ ...options, fetch: fake.fetchFn }));
+  stores.push(first);
+  expect(await cachedStorage(first)).toBe(false);
+  await refreshStorage(first, { remote: true });
+  const offline = vi.fn<typeof fetch>(async () => {
+    throw new TypeError('Offline');
+  });
+  const reopened = createPersistentStorage(githubEavAdapter({ ...options, fetch: offline }));
+  stores.push(reopened);
+  expect(await cachedStorage(reopened)).toBe(true);
+  expect(offline).not.toHaveBeenCalled();
+  await using db = await openDatabase({ schema, storage: reopened });
+  expect(await db.entities.messages.query({ select: {} })).toEqual([]);
+  await expect(refreshStorage(reopened, { remote: true })).rejects.toThrow('Offline');
 });

@@ -1,18 +1,24 @@
-import { asSchema } from 'ai';
-import { historyModelMessages } from './history.ts';
 import type { ToolSet } from 'ai';
-import type { TransactionStore, WriteLifetime } from '@/vault/transactions/store.ts';
-import type { JsonValue } from '@/vault/nodes/model.ts';
-import { canonical, frozen } from '@/vault/nodes/json.ts';
+import { asSchema } from 'ai';
+import type { EntityRef } from '@/vault/eav/index.ts';
+import { type Database, SaveError, type Transaction } from '@/vault/eav/index.ts';
+import type { Actor } from '@/vault/records/actor.ts';
+import { historyModelMessages } from './history.ts';
+
 import { cancellable, serial } from '@/runtime/async.ts';
-import { createAgentBackend } from './runtime.ts';
-import type { AgentRun, AgentRunState } from './runtime.ts';
+import type { JsonValue } from '@/vault/eav/index.ts';
+import { canonical, frozen } from '@/vault/eav/index.ts';
+import type { RunInput } from './data/operations.ts';
+import { finishAgentRun, readAgentRun, startAgentRun } from './data/operations.ts';
+import type { AgentRef, AgentRunRef, agentSchema } from './data/schema.ts';
+import { executeEavRun } from './eav/runtime.ts';
 import type { AgentExecutionInput, AgentExecutionResult } from './providers.ts';
-import { prepareAgentRun } from './store.ts';
-import type { PreparedAgentRun, SuppliedContext } from './store.ts';
-import type { AgentToolFactory, AgentToolContext, ContentWritePolicy } from './tools.ts';
-import { voiceInstructions } from './voice.ts';
+import type { AgentRun, AgentRunState } from './runtime.ts';
+import type { AgentToolContext, AgentToolFactory } from './tools.ts';
 import type { LiveVoiceEvents, LiveVoiceProvider, VoiceHistory, VoicePart } from './voice.ts';
+import { voiceInstructions } from './voice.ts';
+
+type ActorRef = EntityRef<typeof Actor>;
 
 export interface VoiceTurnPreparation {
   readonly provider: string;
@@ -23,18 +29,16 @@ export interface VoiceTurnPreparation {
   readonly timing: { readonly started: string; readonly ended: string };
   readonly instructions: string;
   readonly history: readonly VoiceHistory[];
-  readonly context: readonly SuppliedContext[];
+  readonly context: readonly RunInput[];
   readonly enabledTools: readonly { readonly name: string }[];
 }
 export interface VoiceAgentOptions {
-  readonly nodes: TransactionStore;
-  readonly user: string;
-  readonly agent: string;
+  readonly db: Pick<Database<typeof agentSchema>, 'entities' | 'transaction' | 'refresh'>;
+  readonly user: ActorRef;
+  readonly agent: AgentRef;
   /** Planned caller context; it may be created by the initial turn calculation. */
-  readonly origin?: string | null;
+  readonly origin?: ActorRef | AgentRunRef;
   readonly instructions: string;
-  readonly writableKinds?: readonly string[];
-  readonly contentPolicy?: ContentWritePolicy;
   readonly tools: AgentToolFactory;
   readonly provider: string;
   readonly model: string;
@@ -46,8 +50,8 @@ export interface VoiceAgentOptions {
   /** Caller may compose its own initial records, preserving the effective supplied context. */
   readonly prepareTurn?: (
     input: VoiceTurnPreparation,
-    lifetime: WriteLifetime,
-  ) => Promise<PreparedAgentRun>;
+    tx: Transaction<typeof agentSchema>,
+  ) => Promise<{ readonly run: AgentRunRef }>;
   /** Caller owns transcript persistence; retain the exact prepared request under projection ID for retry. */
   readonly onResponse?: (
     item: string,
@@ -59,7 +63,7 @@ export interface VoiceAgentOptions {
 }
 export interface VoiceAgentState {
   readonly phase: 'connecting' | 'listening' | 'responding' | 'closed' | 'paused' | 'unsaved';
-  readonly run?: string;
+  readonly run?: AgentRunRef;
   readonly execution?: AgentRunState;
   readonly parts?: readonly VoicePart[];
   readonly persistenceError?: string;
@@ -89,7 +93,7 @@ async function describe(tools: ToolSet) {
           return {
             name,
             description: tool.description ?? name,
-            schema: await asSchema(tool.inputSchema).jsonSchema,
+            schema: JSON.parse(JSON.stringify(await asSchema(tool.inputSchema).jsonSchema)),
           };
         }),
     ),
@@ -107,7 +111,7 @@ export async function createVoiceAgent(options: VoiceAgentOptions) {
   const listeners = new Set<() => void>();
   let state: VoiceAgentState = frozen({ phase: 'connecting' });
   const notify = (next: VoiceAgentState) => {
-    state = frozen(structuredClone(next));
+    state = frozen({ ...next });
     for (const listener of listeners) {
       try {
         listener();
@@ -117,14 +121,7 @@ export async function createVoiceAgent(options: VoiceAgentOptions) {
     }
   };
   const declarationAbort = AbortSignal.abort();
-  const declarationContext: AgentToolContext = {
-    signal: declarationAbort,
-    snapshot: () => {
-      throw new Error('Tool declarations cannot read before an accepted turn');
-    },
-    write: () =>
-      Promise.reject(new Error('Tool declarations cannot write before an accepted turn')),
-  };
+  const declarationContext: AgentToolContext = { signal: declarationAbort };
   const declarations = await cancellable(
     Promise.resolve(options.tools(declarationContext)),
     signal,
@@ -133,13 +130,14 @@ export async function createVoiceAgent(options: VoiceAgentOptions) {
   const turns: {
     item: string;
     handle: AgentRun;
-    prepared: PreparedAgentRun;
+    prepared: { readonly run: AgentRunRef };
     input?: AgentExecutionInput;
     finish: ReturnType<typeof deferred<AgentExecutionResult>>;
     parts: readonly VoicePart[];
     dispose: () => void;
   }[] = [];
   let current: (typeof turns)[number] | undefined;
+  const admissions: { error?: SaveError; run: AgentRunRef; author: ActorRef; endedAt: Date }[] = [];
   const projections: {
     readonly id: string;
     readonly item: string;
@@ -180,17 +178,18 @@ export async function createVoiceAgent(options: VoiceAgentOptions) {
   };
   const reflectRecovery = () => {
     const execution = current?.handle.snapshot();
-    const phase = projections.length
-      ? 'unsaved'
-      : execution?.phase === 'paused' || execution?.phase === 'unsaved'
-        ? execution.phase
-        : signal.aborted
-          ? turns.some(needsRecovery)
-            ? 'paused'
-            : 'closed'
-          : execution && ['accepting', 'running', 'saving'].includes(execution.phase)
-            ? 'responding'
-            : 'listening';
+    const phase =
+      projections.length || admissions.length
+        ? 'unsaved'
+        : execution?.phase === 'paused' || execution?.phase === 'unsaved'
+          ? execution.phase
+          : signal.aborted
+            ? turns.some(needsRecovery)
+              ? 'paused'
+              : 'closed'
+            : execution && ['accepting', 'running', 'saving'].includes(execution.phase)
+              ? 'responding'
+              : 'listening';
     notify({ ...state, execution, phase });
     return state;
   };
@@ -212,7 +211,12 @@ export async function createVoiceAgent(options: VoiceAgentOptions) {
         });
         notify({
           ...state,
-          phase: projections.length ? 'unsaved' : turns.some(needsRecovery) ? 'paused' : 'closed',
+          phase:
+            projections.length || admissions.length
+              ? 'unsaved'
+              : turns.some(needsRecovery)
+                ? 'paused'
+                : 'closed',
         });
       })
       .finally(() => recording.abort());
@@ -247,28 +251,16 @@ export async function createVoiceAgent(options: VoiceAgentOptions) {
             ...historyModelMessages(history),
             { role: 'user' as const, content: text },
           ];
-          const context: SuppliedContext[] = [
-            {
-              data: {
-                kind: 'contextInput',
-                role: 'system',
-                position: 0,
-                transformation: 'verbatim',
-                content: instructions,
-              },
-            },
+          const context: RunInput[] = [
+            { role: 'system', transformation: 'generated', content: instructions },
             ...messages.map(
-              (message, index): SuppliedContext => ({
-                data: {
-                  kind: 'contextInput',
-                  role: message.role,
-                  position: index + 1,
-                  transformation: typeof message.content === 'string' ? 'verbatim' : 'generated',
-                  content:
-                    typeof message.content === 'string'
-                      ? message.content
-                      : { message: JSON.parse(canonical(message)) },
-                },
+              (message): RunInput => ({
+                role: message.role,
+                transformation: typeof message.content === 'string' ? 'verbatim' : 'generated',
+                content:
+                  typeof message.content === 'string'
+                    ? message.content
+                    : { message: JSON.parse(canonical(message)) },
               }),
             ),
           ];
@@ -288,33 +280,75 @@ export async function createVoiceAgent(options: VoiceAgentOptions) {
           // Finalized protocol input drains after execution closes; caller preparation expires now.
           const preparationSignal = options.prepareTurn ? signal : recording.signal;
           preparationSignal.throwIfAborted();
-          using writes = options.nodes
-            .writer({ recordedBy: options.user, origin: options.origin ?? null })
-            .lifetime({ signal: preparationSignal });
-          const prepared = options.prepareTurn
-            ? await cancellable(options.prepareTurn(input, writes), signal)
-            : await prepareAgentRun(writes, {
-                run: crypto.randomUUID(),
-                agent: options.agent,
-                at: timing.ended,
-                provider: options.provider,
-                model: options.model,
-                settings: {},
-                context,
-                enabledTools,
+          let acceptedRun: AgentRunRef | undefined;
+          let acceptedAuthor: ActorRef | undefined;
+          let prepared: { readonly run: AgentRunRef };
+          try {
+            prepared = await options.db.transaction(
+              { author: options.user, ...(options.origin && { origin: options.origin }) },
+              async (tx) => {
+                preparationSignal.throwIfAborted();
+                const accepted = options.prepareTurn
+                  ? await cancellable(options.prepareTurn(input, tx), preparationSignal)
+                  : await startAgentRun(tx, {
+                      agent: options.agent,
+                      startedAt: new Date(timing.ended),
+                      instructions,
+                      inputs: context.slice(1),
+                    });
+                preparationSignal.throwIfAborted();
+                const recorded = await readAgentRun(tx, accepted.run);
+                if (
+                  !recorded ||
+                  recorded.provider !== options.provider ||
+                  recorded.requestedModel !== options.model
+                )
+                  throw new Error('Voice prepared run must retain the session provider and model');
+                if (
+                  canonical(
+                    recorded.inputs.map(({ role, transformation, content }) => ({
+                      role,
+                      transformation,
+                      content,
+                    })),
+                  ) !== canonical(context)
+                )
+                  throw new Error('Voice prepared context must retain effective session inputs');
+                if (
+                  canonical(
+                    recorded.tools
+                      .map(({ name }) => ({ name }))
+                      .sort((a, b) => a.name.localeCompare(b.name)),
+                  ) !== canonical([...enabledTools].sort((a, b) => a.name.localeCompare(b.name)))
+                )
+                  throw new Error('Voice prepared tools must retain session capabilities');
+                acceptedRun = accepted.run;
+                acceptedAuthor = recorded.author;
+                return accepted;
+              },
+            );
+          } catch (error) {
+            if (error instanceof SaveError && acceptedRun && acceptedAuthor) {
+              admissions.push({
+                error,
+                run: acceptedRun,
+                author: acceptedAuthor,
+                endedAt: new Date(),
               });
-          const recordedContext = prepared.commit.changes
-            .filter(
-              ({ placement, data }) =>
-                placement?.parent === prepared.run && data?.kind === 'contextInput',
-            )
-            .map(({ data }) => data);
-          if (canonical(recordedContext) !== canonical(context.map(({ data }) => data)))
-            throw new Error('Voice prepared context must retain effective session inputs');
+              notify({
+                ...state,
+                phase: 'unsaved',
+                run: acceptedRun,
+                persistenceError: error.message,
+              });
+            }
+            throw error;
+          }
           const ready = deferred<AgentExecutionInput>();
           const finish = deferred<AgentExecutionResult>();
-          const backend = createAgentBackend({
-            nodes: options.nodes,
+          const handle = executeEavRun({
+            db: options.db,
+            run: prepared.run,
             tools: async (owned) => {
               // Close drains finalized inputs without constructing new executable module contexts.
               if (signal.aborted) return declarations;
@@ -323,15 +357,12 @@ export async function createVoiceAgent(options: VoiceAgentOptions) {
                 throw new Error('Voice tool declarations must remain stable for the live session');
               return supplied;
             },
-            writableKinds: options.writableKinds,
-            contentPolicy: options.contentPolicy,
             execution: async (executionInput) => {
               ready.resolve(executionInput);
               if (signal.aborted) return { status: 'stopped', text: '' };
               return await finish.promise;
             },
           });
-          const handle = backend.start(prepared);
           const turn = {
             item,
             prepared,
@@ -339,7 +370,7 @@ export async function createVoiceAgent(options: VoiceAgentOptions) {
             finish,
             parts: [] as readonly VoicePart[],
             input: undefined as AgentExecutionInput | undefined,
-            dispose: backend.dispose,
+            dispose: handle.dispose,
           };
           turns.push(turn);
           current = turn;
@@ -490,6 +521,37 @@ export async function createVoiceAgent(options: VoiceAgentOptions) {
       return reflectRecovery();
     },
     retrySave: async () => {
+      while (admissions.length) {
+        const admission = admissions[0]!;
+        try {
+          if (admission.error) {
+            // biome-ignore lint/performance/noAwaitInLoops: Recover admissions in accepted order.
+            await admission.error.retry();
+            admission.error = undefined;
+          }
+          await options.db.transaction(
+            { author: admission.author, origin: admission.run },
+            async (tx) => {
+              const run = await readAgentRun(tx, admission.run);
+              if (run?.status === 'running')
+                await finishAgentRun(tx, admission.run, {
+                  status: 'interrupted',
+                  endedAt: admission.endedAt,
+                  finishReason: 'admissionNotExecuted',
+                });
+            },
+          );
+          admissions.shift();
+        } catch (error) {
+          if (error instanceof SaveError) admission.error = error;
+          notify({
+            ...state,
+            phase: 'unsaved',
+            persistenceError: error instanceof Error ? error.message : String(error),
+          });
+          return state;
+        }
+      }
       for (const turn of turns) {
         if (turn.handle.snapshot().phase !== 'paused' && turn.handle.snapshot().phase !== 'unsaved')
           continue;
