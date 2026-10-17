@@ -61,5 +61,16 @@ test('production Wiki reads typed EAV prose and retained citations after reload'
   await expect(page.getByRole('heading', { name: 'Garden studio', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Evidence for Keep mornings free.', exact: true }).click();
   await expect(page.getByRole('link', { name: 'Studio plans', exact: true })).toBeVisible();
+  await page
+    .getByRole('toolbar', { name: 'Wiki page' })
+    .getByRole('button', { name: 'Wiki', exact: true })
+    .click();
+  await expect(page.getByRole('heading', { name: 'A place to begin.' })).toBeVisible();
+  const directory = page.getByRole('region', { name: 'Page directory' });
+  await page.getByRole('textbox', { name: 'Find pages' }).fill('slow');
+  await expect(directory.getByRole('link')).toHaveText(['Slow mornings']);
+  await directory.getByRole('link', { name: 'Slow mornings', exact: true }).click();
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Slow mornings', exact: true })).toBeVisible();
   for (const [path, bytes] of Object.entries(files)) expect(fake.filesAt()[path]).toBe(bytes);
 });
