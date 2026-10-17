@@ -26,8 +26,8 @@ import {
   Stack,
   Text,
   Loader,
-} from '../../ui/kit/index.ts';
-import { go } from '../../navigation/routing.ts';
+} from '@/ui/kit/index.ts';
+import { go } from '@/navigation/routing.ts';
 import { graphRoute, graphSubjectRoute } from './routes.ts';
 import {
   projectGraphMap,

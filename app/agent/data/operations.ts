@@ -1,11 +1,6 @@
-import { agentSettingsSchema } from '../schema.ts';
+import { agentSettingsSchema } from '@/agent/schema.ts';
 import { z } from 'zod';
-import {
-  sameEntity,
-  type Transaction,
-  type ReadView,
-  type JsonValue,
-} from '../../vault/eav/index.ts';
+import { sameEntity, type Transaction, type ReadView, type JsonValue } from '@/vault/eav/index.ts';
 import type {
   agentSchema,
   AgentRef,

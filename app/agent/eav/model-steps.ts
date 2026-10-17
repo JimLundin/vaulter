@@ -5,8 +5,8 @@ import {
   type EntityRef,
   type EntityDefinition,
   type JsonValue,
-} from '../../vault/eav/index.ts';
-import type { agentSchema, AgentRunRef, ModelStepRef } from '../data/schema.ts';
+} from '@/vault/eav/index.ts';
+import type { agentSchema, AgentRunRef, ModelStepRef } from '@/agent/data/schema.ts';
 
 /** Request admission and response acceptance, without an execution-resume scheduler. */
 export function modelSteps(options: {

@@ -1,11 +1,11 @@
 import { expect, test } from '@playwright/test';
-import { navigateToModule } from '../../ui/kit/navigation.browser.test-support.ts';
-import { fakeGitHub } from '../../vault/storage/github-client/fake-github.ts';
-import { memoryNodeBackend } from '../../vault/nodes/memory.ts';
-import { create, request } from '../../vault/nodes/fixtures.test-support.ts';
-import { seal } from '../../vault/session/sealed.ts';
-import { accept } from '../../vault/nodes/history.ts';
-import { canonical, digest } from '../../vault/nodes/json.ts';
+import { navigateToModule } from '@/ui/kit/navigation.browser.test-support.ts';
+import { fakeGitHub } from '@/vault/storage/github-client/fake-github.ts';
+import { memoryNodeBackend } from '@/vault/nodes/memory.ts';
+import { create, request } from '@/vault/nodes/fixtures.test-support.ts';
+import { seal } from '@/vault/session/sealed.ts';
+import { accept } from '@/vault/nodes/history.ts';
+import { canonical, digest } from '@/vault/nodes/json.ts';
 
 test('production Graph reads persisted relationships, navigates subjects and survives reload', async ({
   page,

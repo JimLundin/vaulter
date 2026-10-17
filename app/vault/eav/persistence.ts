@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { serial } from '../../runtime/async.ts';
+import { serial } from '@/runtime/async.ts';
 import { encodeJson } from './json.ts';
 import { checkCompatibility, type Schema, type AttributeSchema } from './schema.ts';
 import {

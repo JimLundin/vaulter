@@ -245,8 +245,10 @@ export function checkLayout(root: string): string[] {
         const symbol = project.checker.getSymbolAtLocation(value);
         const resolved = symbol?.declarations[0]?.resolve()?.getSourceFile().fileName;
         const target =
-          (/\.css$/.test(value.text) && value.text.startsWith('.')
-            ? resolve(dirname(filename), value.text)
+          (/\.css$/.test(value.text) && (value.text.startsWith('.') || value.text.startsWith('@/'))
+            ? value.text.startsWith('@/')
+              ? resolve(root, 'app', value.text.slice(2))
+              : resolve(dirname(filename), value.text)
             : resolved) ??
           (value.text.startsWith('.') ? resolve(dirname(filename), value.text) : null);
         if (allExports) {

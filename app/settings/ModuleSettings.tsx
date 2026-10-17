@@ -17,7 +17,7 @@ import {
   SettingField,
   Stack,
   TextBox,
-} from '../ui/kit/index.ts';
+} from '@/ui/kit/index.ts';
 
 function SettingControl({
   field,

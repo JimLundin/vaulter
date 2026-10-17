@@ -1,10 +1,10 @@
 // @vitest-environment happy-dom
-import { transactionFixture } from '../../vault/transactions/fixtures.test-support.ts';
+import { transactionFixture } from '@/vault/transactions/fixtures.test-support.ts';
 // biome-ignore lint/correctness/noUnresolvedImports: React 19 exposes StrictMode; TypeScript and the build verify it.
 import { act, StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { expect, test, vi } from 'vitest';
-import { memoryNodeBackend } from '../../vault/nodes/memory.ts';
+import { memoryNodeBackend } from '@/vault/nodes/memory.ts';
 import type { QuestionAnswers, QuestionAnswersOptions } from './answers.ts';
 import { useQuestionAnswers } from './use-questions.ts';
 

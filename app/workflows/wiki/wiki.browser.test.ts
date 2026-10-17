@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { setPreviewMobile } from '../../ui/kit/preview.browser.test-support.ts';
+import { setPreviewMobile } from '@/ui/kit/preview.browser.test-support.ts';
 
 test('fictional Wiki nodes keep selected evidence and expanded source context across bounded arrangements', async ({
   page,

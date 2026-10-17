@@ -1,10 +1,10 @@
 import { expect, test } from 'vitest';
-import { create, request } from '../../vault/nodes/fixtures.test-support.ts';
-import { accept, snapshotOf } from '../../vault/nodes/history.ts';
-import { digest } from '../../vault/nodes/json.ts';
-import type { NodeChange, NodeSnapshot } from '../../vault/nodes/store.ts';
-import type { NodeRecord } from '../../vault/nodes/validation.ts';
-import type { SourceReader } from '../../vault/sources.ts';
+import { create, request } from '@/vault/nodes/fixtures.test-support.ts';
+import { accept, snapshotOf } from '@/vault/nodes/history.ts';
+import { digest } from '@/vault/nodes/json.ts';
+import type { NodeChange, NodeSnapshot } from '@/vault/nodes/store.ts';
+import type { NodeRecord } from '@/vault/nodes/validation.ts';
+import type { SourceReader } from '@/vault/sources.ts';
 import {
   prepareWikiReferences,
   type ReferencePreparation,

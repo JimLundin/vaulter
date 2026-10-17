@@ -93,6 +93,23 @@ Settings binds preferences to kit controls, Search binds results and commands to
 and Application selects navigation entries for the kit's layout. Module-owned record UI stays
 beside the record it interprets, as required by [ADR 0006](docs/adr/0006-module-ui-and-shared-presentation.md).
 
+## Import paths
+
+Use `@/` (the `app/` root) for imports outside the current directory, including tests,
+re-exports and dynamic imports. For example, use `@/ui/kit/index.ts` instead of
+`../../../ui/kit/index.ts`. Keep `./` for neighboring files so local implementation
+files can move together. Biome enforces this convention in app source.
+
+Import an owner's public entry when one exists, such as `@/vault/eav/index.ts` or
+`@/ui/kit/index.ts`. Aliases keep imports stable when a caller moves; public entries
+keep callers stable when private implementation files move. Moving a public entry
+still requires updating its callers. The compiler-resolved ownership checks apply
+to both relative paths and aliases.
+
+TypeScript, Vite, Vitest and the standalone kit resolve `@/` to `app/`; Playwright
+uses the TypeScript paths. Node tools and configuration files retain explicit relative
+imports because Node's native TypeScript execution does not resolve TypeScript aliases.
+
 ## Wiki, Questions and Agent
 
 ```mermaid

@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { expect, test } from 'vitest';
 import { WikiPageView } from './WikiPageView.tsx';
 import type { WikiPage } from './pages.ts';
-import { Text } from '../../ui/kit/index.ts';
+import { Text } from '@/ui/kit/index.ts';
 
 const page: WikiPage = {
   id: 'studio',

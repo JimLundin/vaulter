@@ -5,19 +5,23 @@ import {
   type Database,
   type EntityRef,
   type EntityDefinition,
-} from '../../vault/eav/index.ts';
-import { cancellable } from '../../runtime/async.ts';
-import { canonical } from '../../vault/nodes/json.ts';
-import { startToolExecution, finishToolExecution, type ToolOutcome } from '../data/operations.ts';
+} from '@/vault/eav/index.ts';
+import { cancellable } from '@/runtime/async.ts';
+import { canonical } from '@/vault/nodes/json.ts';
+import {
+  startToolExecution,
+  finishToolExecution,
+  type ToolOutcome,
+} from '@/agent/data/operations.ts';
 import type {
   agentSchema,
   AgentRunRef,
   RunToolRef,
   ToolExecutionRef,
   ModelStepRef,
-} from '../data/schema.ts';
-import type { ToolExecutionData } from '../records.ts';
-import type { PendingToolSave } from '../tool-execution.ts';
+} from '@/agent/data/schema.ts';
+import type { ToolExecutionData } from '@/agent/records.ts';
+import type { PendingToolSave } from '@/agent/tool-execution.ts';
 
 const message = (error: unknown) => (error instanceof Error ? error.message : String(error));
 export function eavTools(options: {

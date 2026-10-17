@@ -1,7 +1,7 @@
 // Agent-owned historical interpretation. Reading retained records never executes their producer.
-import type { NodeVersion } from '../vault/nodes/model.ts';
-import type { NodeSnapshot } from '../vault/nodes/store.ts';
-import { frozen } from '../vault/nodes/json.ts';
+import type { NodeVersion } from '@/vault/nodes/model.ts';
+import type { NodeSnapshot } from '@/vault/nodes/store.ts';
+import { frozen } from '@/vault/nodes/json.ts';
 import type { AgentRunData, ContextInputData, ToolExecutionData } from './records.ts';
 import { parseAgentRun, parseContextInput, parseToolExecution } from './schema.ts';
 

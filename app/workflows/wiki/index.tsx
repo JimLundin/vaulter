@@ -8,8 +8,8 @@ import {
   Loader,
   Stack,
   Text,
-} from '../../ui/kit/index.ts';
-import { go } from '../../navigation/routing.ts';
+} from '@/ui/kit/index.ts';
+import { go } from '@/navigation/routing.ts';
 import type { WikiClassification, WikiPage } from './pages.ts';
 import { wikiRoute, pageRoute } from './routes.ts';
 import { WikiPageView } from './WikiPageView.tsx';

@@ -14,7 +14,7 @@ import {
   SupportingPane,
   Text,
   PageHeader,
-} from '../../ui/kit/index.ts';
+} from '@/ui/kit/index.ts';
 import type { WikiBlock, WikiClassification, WikiPage } from './pages.ts';
 import { WikiBlocks, type ForeignRecordRenderer } from './rendering/blocks.tsx';
 import { ReferenceCard } from './rendering/references.tsx';

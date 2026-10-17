@@ -1,20 +1,20 @@
 import type { ModelMessage } from 'ai';
-import { historyModelMessages } from '../../agent/history.ts';
-import type { JsonObject } from '../../vault/nodes/model.ts';
-import type { NodeCommit } from '../../vault/nodes/store.ts';
+import { historyModelMessages } from '@/agent/history.ts';
+import type { JsonObject } from '@/vault/nodes/model.ts';
+import type { NodeCommit } from '@/vault/nodes/store.ts';
 import type {
   TransactionStore,
   TransactionRequest,
   WriteLifetime,
-} from '../../vault/transactions/store.ts';
-import { composeChanges } from '../../vault/transactions/composition.ts';
-import { canonical, frozen } from '../../vault/nodes/json.ts';
-import { serial } from '../../runtime/async.ts';
-import { createAgentBackend } from '../../agent/runtime.ts';
-import type { AgentBackendOptions, AgentRun, AgentRunState } from '../../agent/runtime.ts';
-import { calculateAgentRun, readAgentRun } from '../../agent/store.ts';
-import type { PreparedAgentRun, SuppliedContext } from '../../agent/store.ts';
-import type { AgentRunData } from '../../agent/records.ts';
+} from '@/vault/transactions/store.ts';
+import { composeChanges } from '@/vault/transactions/composition.ts';
+import { canonical, frozen } from '@/vault/nodes/json.ts';
+import { serial } from '@/runtime/async.ts';
+import { createAgentBackend } from '@/agent/runtime.ts';
+import type { AgentBackendOptions, AgentRun, AgentRunState } from '@/agent/runtime.ts';
+import { calculateAgentRun, readAgentRun } from '@/agent/store.ts';
+import type { PreparedAgentRun, SuppliedContext } from '@/agent/store.ts';
+import type { AgentRunData } from '@/agent/records.ts';
 import {
   prepareChatSubmission,
   prepareChatResponse,

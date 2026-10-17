@@ -1,8 +1,8 @@
-import { transactionFixture } from '../../vault/transactions/fixtures.test-support.ts';
+import { transactionFixture } from '@/vault/transactions/fixtures.test-support.ts';
 import { expect, test, vi } from 'vitest';
-import type { NodeCommit, NodeStore } from '../../vault/nodes/store.ts';
-import { memoryNodeBackend } from '../../vault/nodes/memory.ts';
-import { create, request, revise } from '../../vault/nodes/fixtures.test-support.ts';
+import type { NodeCommit, NodeStore } from '@/vault/nodes/store.ts';
+import { memoryNodeBackend } from '@/vault/nodes/memory.ts';
+import { create, request, revise } from '@/vault/nodes/fixtures.test-support.ts';
 import { createQuestionAnswers } from './answers.ts';
 import { readQuestions } from './reading.ts';
 

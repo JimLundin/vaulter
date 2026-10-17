@@ -3,7 +3,7 @@
 // Plain keys don't fire while typing; mod keys do. Lists: rows marked data-nav move with j/k, and with
 // ↑/↓ once one has focus (otherwise the arrows scroll the page); Enter opens, Escape leaves the list.
 import { useEffect, useRef } from 'react';
-import { navigateList } from '../ui/kit/index.ts';
+import { navigateList } from '@/ui/kit/index.ts';
 
 export interface Binding {
   keys: string;

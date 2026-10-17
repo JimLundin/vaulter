@@ -2,8 +2,8 @@ import { expect, test, vi } from 'vitest';
 import { memoryNodeBackend } from './memory.ts';
 import { create, request, seed, revise } from './fixtures.test-support.ts';
 import { nodeClosure } from './operations-runtime.ts';
-import { transactionHistory } from '../transactions/history/nodes.ts';
-import { transactionFixture } from '../transactions/fixtures.test-support.ts';
+import { transactionHistory } from '@/vault/transactions/history/nodes.ts';
+import { transactionFixture } from '@/vault/transactions/fixtures.test-support.ts';
 
 test('live publication policy sees complete immutable state and can veto every proposed change atomically', async () => {
   const store = memoryNodeBackend();

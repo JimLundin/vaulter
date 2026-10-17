@@ -1,9 +1,9 @@
 // Content module operations: accepted publication is immediate, without legacy file staging.
 import { tool } from 'ai';
 import { z } from 'zod';
-import type { NodeSnapshot, NodeDifference } from '../nodes/store.ts';
-import { nodeOperations } from '../nodes/operations.ts';
-import type { TransactionDraft } from '../transactions/store.ts';
+import type { NodeSnapshot, NodeDifference } from '@/vault/nodes/store.ts';
+import { nodeOperations } from '@/vault/nodes/operations.ts';
+import type { TransactionDraft } from '@/vault/transactions/store.ts';
 import { contentToolActions } from './tool-actions.ts';
 
 interface ContentContext {

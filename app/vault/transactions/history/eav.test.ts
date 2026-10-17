@@ -1,7 +1,7 @@
 import { expect, test, vi } from 'vitest';
-import { e, openDatabase, clear } from '../../eav/index.ts';
-import { memoryNodeBackend } from '../../nodes/memory.ts';
-import { create, request, seed } from '../../nodes/fixtures.test-support.ts';
+import { e, openDatabase, clear } from '@/vault/eav/index.ts';
+import { memoryNodeBackend } from '@/vault/nodes/memory.ts';
+import { create, request, seed } from '@/vault/nodes/fixtures.test-support.ts';
 import { nodeHistory } from './nodes.ts';
 import { vaultHistory } from './eav.ts';
 

@@ -1,8 +1,8 @@
 // Shared layout and typography primitives; independent of app frames and menu surfaces.
 import { cva } from 'class-variance-authority';
 import type { ComponentProps, ReactNode } from 'react';
-import { type Unstyled } from '../lib/unstyled.tsx';
-import { cn } from '../lib/utils.ts';
+import { type Unstyled } from '@/ui/kit/lib/unstyled.tsx';
+import { cn } from '@/ui/kit/lib/utils.ts';
 
 export type Gap = 'none' | 'xs' | 'sm' | 'md' | 'lg' | 'xl';
 

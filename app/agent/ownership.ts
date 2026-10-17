@@ -1,5 +1,5 @@
-import type { NodeReading } from '../vault/nodes/store.ts';
-import { canonical } from '../vault/nodes/json.ts';
+import type { NodeReading } from '@/vault/nodes/store.ts';
+import { canonical } from '@/vault/nodes/json.ts';
 import type { AgentRun } from './runtime.ts';
 import type { PreparedAgentRun } from './store.ts';
 

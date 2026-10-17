@@ -2,8 +2,8 @@ import {
   createSettings,
   type SettingDefinition,
   type SettingsDefinition,
-} from '../settings/store.ts';
-import type { JsonObject } from '../vault/nodes/model.ts';
+} from '@/settings/store.ts';
+import type { JsonObject } from '@/vault/nodes/model.ts';
 import { agentSettingsSchema, parseAgentSettings } from './schema.ts';
 
 type AgentSettingKey = keyof typeof agentSettingsSchema.shape;

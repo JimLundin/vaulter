@@ -1,14 +1,14 @@
-import { applicationWikiGraph } from '../application/composition.ts';
+import { applicationWikiGraph } from '@/application/composition.ts';
 // Explicit preview adapter: fictional NodeStore -> production Wiki reader -> production record UI.
 import { useEffect, useState } from 'react';
-import { Button, Stack, Text } from '../ui/kit/index.ts';
-import { memoryNodeBackend } from '../vault/nodes/memory.ts';
-import type { NodeBackend } from '../vault/nodes/store.ts';
-import { retainedRecordSources } from '../vault/records/sources.ts';
-import { describeSource, type SourceReader } from '../vault/sources.ts';
-import { Wiki } from '../workflows/wiki/index.tsx';
-import { pageRoute } from '../workflows/wiki/routes.ts';
-import { useWikiReading, useWiki } from '../workflows/wiki/use-wiki.ts';
+import { Button, Stack, Text } from '@/ui/kit/index.ts';
+import { memoryNodeBackend } from '@/vault/nodes/memory.ts';
+import type { NodeBackend } from '@/vault/nodes/store.ts';
+import { retainedRecordSources } from '@/vault/records/sources.ts';
+import { describeSource, type SourceReader } from '@/vault/sources.ts';
+import { Wiki } from '@/workflows/wiki/index.tsx';
+import { pageRoute } from '@/workflows/wiki/routes.ts';
+import { useWikiReading, useWiki } from '@/workflows/wiki/use-wiki.ts';
 import { seedPreviewRecords } from './records.ts';
 
 const sources: SourceReader = {

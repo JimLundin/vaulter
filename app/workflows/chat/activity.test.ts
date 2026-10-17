@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { liveLabel, running, segments, summarize, type ToolPart } from './activity.ts';
 import type { Part } from './view.ts';
-import type { ToolPresentationAdapter } from '../../agent/tool-presentation.tsx';
+import type { ToolPresentationAdapter } from '@/agent/tool-presentation.tsx';
 
 const tool = (name: string, extra: Partial<ToolPart> = {}): ToolPart => ({
   kind: 'tool',

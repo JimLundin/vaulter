@@ -7,7 +7,7 @@ import {
   type ToolEvidenceState,
   type ToolPresentationAdapter,
 } from './tool-presentation.tsx';
-import { Text } from '../ui/kit/index.ts';
+import { Text } from '@/ui/kit/index.ts';
 
 const evidence: ToolEvidenceState = {
   name: 'retiredAction',

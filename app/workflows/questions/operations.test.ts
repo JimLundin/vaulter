@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
-import { create, request, revise } from '../../vault/nodes/fixtures.test-support.ts';
-import { memoryNodeBackend } from '../../vault/nodes/memory.ts';
+import { create, request, revise } from '@/vault/nodes/fixtures.test-support.ts';
+import { memoryNodeBackend } from '@/vault/nodes/memory.ts';
 import type { QuestionCommit } from './operations.ts';
 import { prepareAnswerQuestion, prepareAskQuestion } from './operations.ts';
 import { createQuestionsReading, readQuestions } from './reading.ts';

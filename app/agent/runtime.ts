@@ -1,9 +1,9 @@
 // Independent browser Agent lifetime. Callers own context assembly and presentation.
 import { streamText, isStepCount } from 'ai';
 import type { ModelMessage, SystemModelMessage } from 'ai';
-import type { TransactionRequest, TransactionStore } from '../vault/transactions/store.ts';
-import { canonical, frozen, compare } from '../vault/nodes/json.ts';
-import { cancellable } from '../runtime/async.ts';
+import type { TransactionRequest, TransactionStore } from '@/vault/transactions/store.ts';
+import { canonical, frozen, compare } from '@/vault/nodes/json.ts';
+import { cancellable } from '@/runtime/async.ts';
 import type { LanguageModelProvider, AgentExecutionProvider } from './providers.ts';
 import { agentContentContext } from './tool-context.ts';
 import { durableTools } from './tool-execution.ts';

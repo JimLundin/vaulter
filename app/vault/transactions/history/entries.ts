@@ -1,5 +1,5 @@
-import type { NodeVersion } from '../../nodes/model.ts';
-import type { NodeDifference } from '../../nodes/store.ts';
+import type { NodeVersion } from '@/vault/nodes/model.ts';
+import type { NodeDifference } from '@/vault/nodes/store.ts';
 import type { NodeHistoryEntry } from './nodes.ts';
 
 export interface NodeHistorySource {

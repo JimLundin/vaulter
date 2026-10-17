@@ -1,17 +1,17 @@
-import { contentEnabledTools } from '../vault/content/tool-actions.ts';
-import { transactionFixture } from '../vault/transactions/fixtures.test-support.ts';
+import { contentEnabledTools } from '@/vault/content/tool-actions.ts';
+import { transactionFixture } from '@/vault/transactions/fixtures.test-support.ts';
 import { expect, test } from 'vitest';
 import { MockLanguageModelV4, convertArrayToReadableStream } from 'ai/test';
-import type { AgentToolContext } from '../agent/tools.ts';
-import { createAgentBackend } from '../agent/runtime.ts';
-import { readAgentRun } from '../agent/store.ts';
-import { prepareAgentRunFixture as prepareAgentRun } from '../agent/preparation.test-support.ts';
-import { create, request, revise } from '../vault/nodes/fixtures.test-support.ts';
-import { memoryNodeBackend } from '../vault/nodes/memory.ts';
-import { readQuestions } from '../workflows/questions/reading.ts';
+import type { AgentToolContext } from '@/agent/tools.ts';
+import { createAgentBackend } from '@/agent/runtime.ts';
+import { readAgentRun } from '@/agent/store.ts';
+import { prepareAgentRunFixture as prepareAgentRun } from '@/agent/preparation.test-support.ts';
+import { create, request, revise } from '@/vault/nodes/fixtures.test-support.ts';
+import { memoryNodeBackend } from '@/vault/nodes/memory.ts';
+import { readQuestions } from '@/workflows/questions/reading.ts';
 import { createApplicationTools, applicationNodes, agentContextReading } from './composition.ts';
-import type { AgentContextReading } from '../agent/discovery.ts';
-import { listWikiSubjects } from '../workflows/wiki/subjects.ts';
+import type { AgentContextReading } from '@/agent/discovery.ts';
+import { listWikiSubjects } from '@/workflows/wiki/subjects.ts';
 
 const execution = { toolCallId: 'question-call', messages: [], context: {} };
 const proposals = {
@@ -557,7 +557,7 @@ test('Agent composition admits only current self-contained source and knowledge 
 });
 
 test('Agent grounding retains foreign ancestor reads through atomic Question acceptance', async () => {
-  const { agentContentContext } = await import('../agent/tool-context.ts');
+  const { agentContentContext } = await import('@/agent/tool-context.ts');
   const raw = memoryNodeBackend();
   await raw.commit(
     request('setup', [

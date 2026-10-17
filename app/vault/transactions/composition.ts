@@ -1,5 +1,5 @@
-import type { NodeChange, NodeCommit } from '../nodes/store.ts';
-import { NodePublicationRejected } from '../nodes/history.ts';
+import type { NodeChange, NodeCommit } from '@/vault/nodes/store.ts';
+import { NodePublicationRejected } from '@/vault/nodes/history.ts';
 
 type Part = Pick<NodeCommit, 'changes' | 'expectedReads'>;
 

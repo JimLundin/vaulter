@@ -2,11 +2,11 @@
 // notes ranked by the vault's search and already bound commands.
 import { useMemo, useState } from 'react';
 import { search } from './entries.ts';
-import type { Command } from '../navigation/commands.ts';
+import type { Command } from '@/navigation/commands.ts';
 import type { Entry, Hit } from './entries.ts';
-import { showKeys } from '../navigation/keys.ts';
+import { showKeys } from '@/navigation/keys.ts';
 import { useRecent } from './recent.ts';
-import { go, useRoute } from '../navigation/routing.ts';
+import { go, useRoute } from '@/navigation/routing.ts';
 import {
   Command as Palette,
   CommandEmpty,
@@ -20,7 +20,7 @@ import {
   CommandOverlay,
   Row,
   Text,
-} from '../ui/kit/index.ts';
+} from '@/ui/kit/index.ts';
 
 export function Keys({ keys }: { keys: string }) {
   return (

@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { usePresentation } from '../presentation.tsx';
+import { usePresentation } from '@/ui/kit/presentation.tsx';
 
 // Mobile keyboards resize the visual viewport, which can be smaller than 100dvh. Keep the composer
 // and app controls in that space, including browsers that pan while an input has focus.

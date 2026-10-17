@@ -1,9 +1,9 @@
-import { applicationWikiGraph } from '../application/composition.ts';
+import { applicationWikiGraph } from '@/application/composition.ts';
 import { expect, test } from 'vitest';
-import { memoryNodeBackend } from '../vault/nodes/memory.ts';
-import { retainedRecordSources } from '../vault/records/sources.ts';
-import { describeSource, type SourceReader } from '../vault/sources.ts';
-import { readWiki } from '../workflows/wiki/pages.ts';
+import { memoryNodeBackend } from '@/vault/nodes/memory.ts';
+import { retainedRecordSources } from '@/vault/records/sources.ts';
+import { describeSource, type SourceReader } from '@/vault/sources.ts';
+import { readWiki } from '@/workflows/wiki/pages.ts';
 import { seedPreviewRecords } from './records.ts';
 
 const sources: SourceReader = {

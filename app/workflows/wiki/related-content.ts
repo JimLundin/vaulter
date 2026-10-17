@@ -1,5 +1,5 @@
-import type { JsonObject, NodeAddress, NodeVersion } from '../../vault/nodes/model.ts';
-import type { NodeSnapshot } from '../../vault/nodes/store.ts';
+import type { JsonObject, NodeAddress, NodeVersion } from '@/vault/nodes/model.ts';
+import type { NodeSnapshot } from '@/vault/nodes/store.ts';
 import type { WikiClassification } from './pages.ts';
 
 /** Supplied by Application for this exact Snapshot; Wiki owns candidate pages and their rendering. */

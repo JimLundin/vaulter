@@ -1,51 +1,51 @@
-import { vaultHistory } from '../vault/transactions/history/eav.ts';
-import { openDatabase, type MemoryStorage } from '../vault/eav/index.ts';
-import { chatSchema } from '../workflows/chat/data/schema.ts';
-import { createEavChatBackend } from '../workflows/chat/eav-backend.ts';
-import type { ChatBackendFactory } from '../workflows/chat/backend.ts';
+import { vaultHistory } from '@/vault/transactions/history/eav.ts';
+import { openDatabase, type MemoryStorage } from '@/vault/eav/index.ts';
+import { chatSchema } from '@/workflows/chat/data/schema.ts';
+import { createEavChatBackend } from '@/workflows/chat/eav-backend.ts';
+import type { ChatBackendFactory } from '@/workflows/chat/backend.ts';
 import {
   agentDiscoveryTools,
   discoveryEnabledTools,
   validateAgentContext,
   type AgentContextReading,
-} from '../agent/discovery.ts';
+} from '@/agent/discovery.ts';
 // Application-owned connections between record modules; no mounted views or shell state.
-import type { NodeDifference, NodeStore } from '../vault/nodes/store.ts';
-import type { TransactionStore } from '../vault/transactions/store.ts';
-import { createTransactionSession, withPublication } from '../vault/transactions/lifetime.ts';
-import { nodeContentTools, canUndoContent } from '../vault/content/tools.ts';
-import { contentEnabledTools } from '../vault/content/tool-actions.ts';
-import { contentToolPresentation } from '../vault/content/tool-presentation.tsx';
-import { preservesAgentRecords } from '../agent/preservation.ts';
-import type { AgentToolFactory, AgentToolContext } from '../agent/tools.ts';
-import { agentSources, isAgentContext } from '../agent/sources.ts';
-import { agentOptions, agentPreferences } from '../agent/settings.ts';
-import { preservesChatRecords } from '../workflows/chat/records/chat.ts';
-import { chatSources } from '../workflows/chat/records/sources.ts';
-import { contentSources } from '../vault/content/sources.ts';
-import { retainedRecordSources } from '../vault/records/sources.ts';
-import { describeSource, type SourceReader } from '../vault/sources.ts';
+import type { NodeDifference, NodeStore } from '@/vault/nodes/store.ts';
+import type { TransactionStore } from '@/vault/transactions/store.ts';
+import { createTransactionSession, withPublication } from '@/vault/transactions/lifetime.ts';
+import { nodeContentTools, canUndoContent } from '@/vault/content/tools.ts';
+import { contentEnabledTools } from '@/vault/content/tool-actions.ts';
+import { contentToolPresentation } from '@/vault/content/tool-presentation.tsx';
+import { preservesAgentRecords } from '@/agent/preservation.ts';
+import type { AgentToolFactory, AgentToolContext } from '@/agent/tools.ts';
+import { agentSources, isAgentContext } from '@/agent/sources.ts';
+import { agentOptions, agentPreferences } from '@/agent/settings.ts';
+import { preservesChatRecords } from '@/workflows/chat/records/chat.ts';
+import { chatSources } from '@/workflows/chat/records/sources.ts';
+import { contentSources } from '@/vault/content/sources.ts';
+import { retainedRecordSources } from '@/vault/records/sources.ts';
+import { describeSource, type SourceReader } from '@/vault/sources.ts';
 import {
   createNodeConversation,
   type NodeConversationOptions,
-} from '../workflows/chat/node-conversation.ts';
-import { transactionHistory } from '../vault/transactions/history/nodes.ts';
-import { isWikiContent } from '../workflows/wiki/citations.ts';
-import { wikiSources as wikiSourceReader, describeWikiTarget } from '../workflows/wiki/sources.ts';
-import { questionTools } from '../workflows/questions/tools.ts';
-import { askQuestionInput, createQuestionOwnership } from '../workflows/questions/actions.ts';
-import { questionSources } from '../workflows/questions/sources.ts';
-import { questionEnabledTools } from '../workflows/questions/tool-actions.ts';
-import { questionToolPresentation } from '../workflows/questions/tool-presentation.tsx';
+} from '@/workflows/chat/node-conversation.ts';
+import { transactionHistory } from '@/vault/transactions/history/nodes.ts';
+import { isWikiContent } from '@/workflows/wiki/citations.ts';
+import { wikiSources as wikiSourceReader, describeWikiTarget } from '@/workflows/wiki/sources.ts';
+import { questionTools } from '@/workflows/questions/tools.ts';
+import { askQuestionInput, createQuestionOwnership } from '@/workflows/questions/actions.ts';
+import { questionSources } from '@/workflows/questions/sources.ts';
+import { questionEnabledTools } from '@/workflows/questions/tool-actions.ts';
+import { questionToolPresentation } from '@/workflows/questions/tool-presentation.tsx';
 import { defaultIdentities, type ApplicationIdentities } from './identities.ts';
 import { conversationRoute } from './routes.ts';
-import { discoveryPresentation } from '../agent/discovery-presentation.tsx';
-import { listWikiSubjects } from '../workflows/wiki/subjects.ts';
-import { readGraph } from '../workflows/graph/reading.ts';
-import { graphSources } from '../workflows/graph/sources.ts';
-import type { GraphDescription } from '../workflows/graph/explorer.ts';
-import { graphRelatedContent } from '../workflows/graph/related-content.ts';
-import type { WikiRelatedContentReading } from '../workflows/wiki/related-content.ts';
+import { discoveryPresentation } from '@/agent/discovery-presentation.tsx';
+import { listWikiSubjects } from '@/workflows/wiki/subjects.ts';
+import { readGraph } from '@/workflows/graph/reading.ts';
+import { graphSources } from '@/workflows/graph/sources.ts';
+import type { GraphDescription } from '@/workflows/graph/explorer.ts';
+import { graphRelatedContent } from '@/workflows/graph/related-content.ts';
+import type { WikiRelatedContentReading } from '@/workflows/wiki/related-content.ts';
 
 const contentKinds = ['content', 'question', 'relationship'];
 const enabledContentTools = [

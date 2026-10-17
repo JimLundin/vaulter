@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react';
-import { usePresentation } from '../presentation.tsx';
+import { usePresentation } from '@/ui/kit/presentation.tsx';
 
 export type SizeClass = 'compact' | 'expanded' | 'wide';
 

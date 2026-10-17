@@ -4,7 +4,7 @@ import {
   toolSummary,
   toolLiveLabel,
   type ToolPresentationAdapter,
-} from '../../agent/tool-presentation.tsx';
+} from '@/agent/tool-presentation.tsx';
 
 export type ToolPart = Part & { kind: 'tool' };
 export type Segment =

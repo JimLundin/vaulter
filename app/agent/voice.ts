@@ -1,6 +1,6 @@
 import type { ToolSet } from 'ai';
 import type { HistoryPart, ProviderHistory } from './history.ts';
-import type { JsonValue } from '../vault/nodes/model.ts';
+import type { JsonValue } from '@/vault/nodes/model.ts';
 
 export interface VoiceTranscript {
   readonly role: 'user' | 'agent';

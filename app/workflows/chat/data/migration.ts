@@ -1,8 +1,8 @@
-import type { Database, Transaction } from '../../../vault/eav/index.ts';
-import type { TransactionStore } from '../../../vault/transactions/store.ts';
-import { canonical } from '../../../vault/nodes/json.ts';
-import type { NodeVersion } from '../../../vault/nodes/model.ts';
-import { savedMessages, type SavedMessage } from '../records/chat-store.ts';
+import type { Database, Transaction } from '@/vault/eav/index.ts';
+import type { TransactionStore } from '@/vault/transactions/store.ts';
+import { canonical } from '@/vault/nodes/json.ts';
+import type { NodeVersion } from '@/vault/nodes/model.ts';
+import { savedMessages, type SavedMessage } from '@/workflows/chat/records/chat-store.ts';
 import { appendExchange, conversation } from './operations.ts';
 import type { chatSchema } from './schema.ts';
 

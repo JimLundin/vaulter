@@ -1,6 +1,6 @@
 import { useLayoutEffect, useState, useSyncExternalStore } from 'react';
-import type { NodeReading } from '../../vault/nodes/store.ts';
-import type { SourceReader } from '../../vault/sources.ts';
+import type { NodeReading } from '@/vault/nodes/store.ts';
+import type { SourceReader } from '@/vault/sources.ts';
 import { createWikiReading, type WikiReading } from './reading.ts';
 import type { WikiRelatedContentReading } from './related-content.ts';
 

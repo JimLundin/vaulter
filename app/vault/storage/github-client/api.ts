@@ -1,7 +1,7 @@
 // GitHub transport for node persistence: read the branch tree and verified blobs, then
 // publish complete transaction envelopes with a non-forced Git ref update.
 
-import { blobSha } from '../blob-sha.ts';
+import { blobSha } from '@/vault/storage/blob-sha.ts';
 
 export interface Repo {
   owner: string;

@@ -1,5 +1,5 @@
-import { usePresentationPolicy } from '../presentation-policy.tsx';
-import { cn } from '../lib/utils.ts';
+import { usePresentationPolicy } from '@/ui/kit/presentation-policy.tsx';
+import { cn } from '@/ui/kit/lib/utils.ts';
 import { Tooltip as TooltipPrimitive } from '@base-ui/react/tooltip';
 import { useAnchoredPositioning } from './use-anchored-positioning.ts';
 

@@ -1,8 +1,8 @@
 // Questions owns retained requests for information independently of their presentation in Chat or Wiki.
 import { z } from 'zod';
-import { canonical, frozen } from '../../vault/nodes/json.ts';
-import type { JsonObject } from '../../vault/nodes/model.ts';
-import { text } from '../../vault/records/common.ts';
+import { canonical, frozen } from '@/vault/nodes/json.ts';
+import type { JsonObject } from '@/vault/nodes/model.ts';
+import { text } from '@/vault/records/common.ts';
 
 const proposalText = z
   .string()

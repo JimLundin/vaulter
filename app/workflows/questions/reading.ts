@@ -1,5 +1,5 @@
-import type { NodeAddress, NodeVersion, Transaction } from '../../vault/nodes/model.ts';
-import type { NodeSnapshot, NodeReading } from '../../vault/nodes/store.ts';
+import type { NodeAddress, NodeVersion, Transaction } from '@/vault/nodes/model.ts';
+import type { NodeSnapshot, NodeReading } from '@/vault/nodes/store.ts';
 import { parseQuestion, type QuestionData } from './records.ts';
 
 export interface QuestionTarget {

@@ -5,8 +5,8 @@ import {
   PresentationSurface,
   usePresentationPolicy,
   usePresentationSurface,
-} from '../presentation-policy.tsx';
-import { cn } from '../lib/utils.ts';
+} from '@/ui/kit/presentation-policy.tsx';
+import { cn } from '@/ui/kit/lib/utils.ts';
 import { CheckIcon, ChevronRightIcon, CircleIcon } from 'lucide-react';
 import { Menu as DropdownMenuPrimitive } from '@base-ui/react/menu';
 import { useAnchoredPositioning } from './use-anchored-positioning.ts';

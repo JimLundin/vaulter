@@ -5,16 +5,16 @@ import {
   type Database,
   type EntityRef,
   type EntityDefinition,
-} from '../../vault/eav/index.ts';
-import { cancellable } from '../../runtime/async.ts';
-import { canonical, frozen } from '../../vault/nodes/json.ts';
-import type { TransactionRequest } from '../../vault/transactions/store.ts';
-import { agentContentContext } from '../tool-context.ts';
-import type { AgentBackendOptions, AgentRun, AgentRunState } from '../runtime.ts';
-import type { AgentRunData } from '../records.ts';
-import { parseAgentSettings } from '../schema.ts';
-import type { agentSchema, AgentRunRef, ToolExecutionRef } from '../data/schema.ts';
-import { finishAgentRun, readAgentRun } from '../data/operations.ts';
+} from '@/vault/eav/index.ts';
+import { cancellable } from '@/runtime/async.ts';
+import { canonical, frozen } from '@/vault/nodes/json.ts';
+import type { TransactionRequest } from '@/vault/transactions/store.ts';
+import { agentContentContext } from '@/agent/tool-context.ts';
+import type { AgentBackendOptions, AgentRun, AgentRunState } from '@/agent/runtime.ts';
+import type { AgentRunData } from '@/agent/records.ts';
+import { parseAgentSettings } from '@/agent/schema.ts';
+import type { agentSchema, AgentRunRef, ToolExecutionRef } from '@/agent/data/schema.ts';
+import { finishAgentRun, readAgentRun } from '@/agent/data/operations.ts';
 import { eavTools } from './tools.ts';
 import { modelSteps } from './model-steps.ts';
 

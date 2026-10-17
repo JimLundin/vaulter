@@ -1,17 +1,17 @@
-import { transactionFixture } from '../vault/transactions/fixtures.test-support.ts';
+import { transactionFixture } from '@/vault/transactions/fixtures.test-support.ts';
 import { expect, test } from 'vitest';
 import { tool } from 'ai';
 import { z } from 'zod';
 import { applicationChatOptions, applicationNodes } from './composition.ts';
-import { memoryNodeBackend } from '../vault/nodes/memory.ts';
-import { create, request, revise } from '../vault/nodes/fixtures.test-support.ts';
-import { prepareAgentRunFixture as prepareAgentRun } from '../agent/preparation.test-support.ts';
-import { createAgentBackend } from '../agent/runtime.ts';
-import { agentContentContext } from '../agent/tool-context.ts';
-import { NodePublicationRejected } from '../vault/nodes/history.ts';
+import { memoryNodeBackend } from '@/vault/nodes/memory.ts';
+import { create, request, revise } from '@/vault/nodes/fixtures.test-support.ts';
+import { prepareAgentRunFixture as prepareAgentRun } from '@/agent/preparation.test-support.ts';
+import { createAgentBackend } from '@/agent/runtime.ts';
+import { agentContentContext } from '@/agent/tool-context.ts';
+import { NodePublicationRejected } from '@/vault/nodes/history.ts';
 import { createApplicationIdentities } from './identities.ts';
-import { canonical } from '../vault/nodes/json.ts';
-import { previewModel } from '../preview/model.ts';
+import { canonical } from '@/vault/nodes/json.ts';
+import { previewModel } from '@/preview/model.ts';
 
 test('every Application node entry rejects handcrafted Questions and task Relationships atomically', async () => {
   const raw = memoryNodeBackend();

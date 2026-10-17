@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react';
-import type { WikiBlock, WikiReference } from '../pages.ts';
-import { isSafeUrl } from '../../../navigation/urls.ts';
-import { Bars, Button, Sparkline, Text } from '../../../ui/kit/index.ts';
-import { wikiSchemas } from '../records.ts';
+import type { WikiBlock, WikiReference } from '@/workflows/wiki/pages.ts';
+import { isSafeUrl } from '@/navigation/urls.ts';
+import { Bars, Button, Sparkline, Text } from '@/ui/kit/index.ts';
+import { wikiSchemas } from '@/workflows/wiki/records.ts';
 
 /** Application supplies the owning module's UI for records included in Wiki content. */
 export type ForeignRecordRenderer = (block: WikiBlock) => ReactNode | undefined;

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { navigateToModule } from '../ui/kit/navigation.browser.test-support.ts';
+import { navigateToModule } from '@/ui/kit/navigation.browser.test-support.ts';
 // biome-ignore lint/correctness/noUnresolvedImports: Playwright re-exports these browser types.
 import type { Locator, Page } from '@playwright/test';
 

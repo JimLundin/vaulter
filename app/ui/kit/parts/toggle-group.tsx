@@ -1,5 +1,5 @@
-import { useFieldUnsupportedControl } from '../field-association.ts';
-import { cn } from '../lib/utils.ts';
+import { useFieldUnsupportedControl } from '@/ui/kit/field-association.ts';
+import { cn } from '@/ui/kit/lib/utils.ts';
 import { ToggleGroup as ToggleGroupPrimitive } from '@base-ui/react/toggle-group';
 import { Toggle as TogglePrimitive } from '@base-ui/react/toggle';
 

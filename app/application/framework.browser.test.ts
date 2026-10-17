@@ -2,7 +2,7 @@ import {
   openAppAction,
   expectAppActionFocus,
   navigateToModule,
-} from '../ui/kit/navigation.browser.test-support.ts';
+} from '@/ui/kit/navigation.browser.test-support.ts';
 import { expect, test } from '@playwright/test';
 
 test(

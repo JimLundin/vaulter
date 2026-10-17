@@ -1,11 +1,11 @@
 // Application payloads stored in the common node model, independent of model SDKs and storage.
-import type { JsonValue } from '../../../vault/nodes/model.ts';
-import type { TransactionKind } from '../../../vault/nodes/operations.ts';
-import type { Precision } from '../../../vault/records/common.ts';
-import type { NodeDifference } from '../../../vault/nodes/store.ts';
+import type { JsonValue } from '@/vault/nodes/model.ts';
+import type { TransactionKind } from '@/vault/nodes/operations.ts';
+import type { Precision } from '@/vault/records/common.ts';
+import type { NodeDifference } from '@/vault/nodes/store.ts';
 import type { MessageInput, MetadataData, MetadataReferenceData } from './chat-metadata.ts';
 
-declare module '../../../vault/nodes/operations.ts' {
+declare module '@/vault/nodes/operations.ts' {
   interface TransactionActions {
     readonly chat:
       | 'submit'

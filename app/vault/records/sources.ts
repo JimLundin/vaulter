@@ -1,5 +1,5 @@
-import type { NodeVersion } from '../nodes/model.ts';
-import type { SourceReader } from '../sources.ts';
+import type { NodeVersion } from '@/vault/nodes/model.ts';
+import type { SourceReader } from '@/vault/sources.ts';
 
 // Historical source kinds whose text remains available to application citation reading.
 const ownedKinds = new Set(['task', 'decision', 'date', 'timeline', 'resource', 'actor', 'agent']);

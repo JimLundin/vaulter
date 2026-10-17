@@ -5,8 +5,8 @@ import {
   type EntityRef,
   type Registry,
   type TransactionRef,
-} from '../../eav/index.ts';
-import type { NodeReading } from '../../nodes/store.ts';
+} from '@/vault/eav/index.ts';
+import type { NodeReading } from '@/vault/nodes/store.ts';
 import {
   nodeHistoryEntry,
   type HistoryEntry,

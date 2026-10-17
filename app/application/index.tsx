@@ -12,7 +12,7 @@ import {
 } from './composition.ts';
 // Application shell and module views. Record composition lives in composition.ts.
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { useTranscription, type TranscriptionProvider } from '../transcription.ts';
+import { useTranscription, type TranscriptionProvider } from '@/transcription.ts';
 import type { LanguageModel } from 'ai';
 import {
   useVaultSession,
@@ -23,27 +23,27 @@ import {
   SignOut,
   createSessionCredentials,
   restrictSessionCredentials,
-} from '../vault/index.ts';
+} from '@/vault/index.ts';
 import { Frame } from './Frame.tsx';
-import { Search, Keys } from '../search/Search.tsx';
+import { Search, Keys } from '@/search/Search.tsx';
 import { Previews } from './Previews.tsx';
-import { useKeys } from '../navigation/keys.ts';
-import { opened } from '../search/recent.ts';
-import { go, link, parseRoute, useRoute } from '../navigation/routing.ts';
-import { later } from '../runtime/later.ts';
+import { useKeys } from '@/navigation/keys.ts';
+import { opened } from '@/search/recent.ts';
+import { go, link, parseRoute, useRoute } from '@/navigation/routing.ts';
+import { later } from '@/runtime/later.ts';
 import { AppearanceSettings, appearanceSettings } from './AppearanceSettings.tsx';
-import { agentSettings, agentOptions, agentPreferences } from '../agent/settings.ts';
-import { AgentSettings } from '../agent/Settings.tsx';
-import { OpenAISettings } from '../agent/openai/Settings.tsx';
-import { GitHubSettings } from '../vault/storage/Settings.tsx';
+import { agentSettings, agentOptions, agentPreferences } from '@/agent/settings.ts';
+import { AgentSettings } from '@/agent/Settings.tsx';
+import { OpenAISettings } from '@/agent/openai/Settings.tsx';
+import { GitHubSettings } from '@/vault/storage/Settings.tsx';
 import {
   createOpenAISettings,
   createOpenAIPreferences,
   openAIOptions,
-} from '../agent/openai/settings.ts';
-import { githubSettings } from '../vault/storage/settings.ts';
-import { chatPreferences, chatSettings } from '../workflows/chat/preferences.ts';
-import { nodeWriteAvailability, nodeRecordsReady } from '../vault/session/availability.ts';
+} from '@/agent/openai/settings.ts';
+import { githubSettings } from '@/vault/storage/settings.ts';
+import { chatPreferences, chatSettings } from '@/workflows/chat/preferences.ts';
+import { nodeWriteAvailability, nodeRecordsReady } from '@/vault/session/availability.ts';
 import {
   Button,
   Alert,
@@ -58,8 +58,8 @@ import {
   Text,
   setTheme,
   useLayout,
-} from '../ui/kit/index.ts';
-import type { Command, Navigation } from '../navigation/commands.ts';
+} from '@/ui/kit/index.ts';
+import type { Command, Navigation } from '@/navigation/commands.ts';
 import {
   ChatPage,
   ChatPanel,
@@ -67,23 +67,23 @@ import {
   useConversation,
   useChat,
   type Prompt,
-} from '../workflows/chat/index.tsx';
+} from '@/workflows/chat/index.tsx';
 import {
   createApplicationIdentities,
   defaultIdentities,
   type ApplicationIdentities,
 } from './identities.ts';
-import type { TransactionStore } from '../vault/transactions/store.ts';
-import { createOpenAICapabilities } from '../agent/openai/index.ts';
-import { HistoryDrawer } from '../vault/transactions/history/index.tsx';
-import { Wiki, type ForeignRecordRenderer } from '../workflows/wiki/index.tsx';
-import { wikiRoute, pageRoute } from '../workflows/wiki/routes.ts';
-import { useWikiReading, useWiki } from '../workflows/wiki/use-wiki.ts';
-import { describeWikiTarget } from '../workflows/wiki/sources.ts';
-import { recordText } from '../workflows/wiki/text.ts';
-import { GraphPage } from '../workflows/graph/GraphPage.tsx';
-import { graphRoute, graphSubjectRoute } from '../workflows/graph/routes.ts';
-import { useGraph, useGraphExplorer } from '../workflows/graph/use-graph.ts';
+import type { TransactionStore } from '@/vault/transactions/store.ts';
+import { createOpenAICapabilities } from '@/agent/openai/index.ts';
+import { HistoryDrawer } from '@/vault/transactions/history/index.tsx';
+import { Wiki, type ForeignRecordRenderer } from '@/workflows/wiki/index.tsx';
+import { wikiRoute, pageRoute } from '@/workflows/wiki/routes.ts';
+import { useWikiReading, useWiki } from '@/workflows/wiki/use-wiki.ts';
+import { describeWikiTarget } from '@/workflows/wiki/sources.ts';
+import { recordText } from '@/workflows/wiki/text.ts';
+import { GraphPage } from '@/workflows/graph/GraphPage.tsx';
+import { graphRoute, graphSubjectRoute } from '@/workflows/graph/routes.ts';
+import { useGraph, useGraphExplorer } from '@/workflows/graph/use-graph.ts';
 import {
   QuestionsPage,
   questionsRoute,
@@ -93,7 +93,7 @@ import {
   questionAnswerAvailability,
   questionDescriptions,
   renderQuestionRecord,
-} from '../workflows/questions/index.tsx';
+} from '@/workflows/questions/index.tsx';
 
 const unavailableNodes: TransactionStore = {
   identity: {},
@@ -119,7 +119,7 @@ export function Application({
   identities,
 }: {
   openNodes: OpenNodes;
-  openEav?: import('../vault/session/adapters.ts').OpenEav;
+  openEav?: import('@/vault/session/adapters.ts').OpenEav;
   identities?: ApplicationIdentities;
 }) {
   const session = useVaultSession(openNodes, openEav);

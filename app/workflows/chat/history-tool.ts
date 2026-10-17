@@ -1,6 +1,6 @@
 import { tool } from 'ai';
 import { z } from 'zod';
-import type { Database } from '../../vault/eav/index.ts';
+import type { Database } from '@/vault/eav/index.ts';
 import type { chatSchema } from './data/schema.ts';
 import { projectedExchange } from './data/projection.ts';
 

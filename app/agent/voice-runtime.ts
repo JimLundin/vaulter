@@ -1,10 +1,10 @@
 import { asSchema } from 'ai';
 import { historyModelMessages } from './history.ts';
 import type { ToolSet } from 'ai';
-import type { TransactionStore, WriteLifetime } from '../vault/transactions/store.ts';
-import type { JsonValue } from '../vault/nodes/model.ts';
-import { canonical, frozen } from '../vault/nodes/json.ts';
-import { cancellable, serial } from '../runtime/async.ts';
+import type { TransactionStore, WriteLifetime } from '@/vault/transactions/store.ts';
+import type { JsonValue } from '@/vault/nodes/model.ts';
+import { canonical, frozen } from '@/vault/nodes/json.ts';
+import { cancellable, serial } from '@/runtime/async.ts';
 import { createAgentBackend } from './runtime.ts';
 import type { AgentRun, AgentRunState } from './runtime.ts';
 import type { AgentExecutionInput, AgentExecutionResult } from './providers.ts';

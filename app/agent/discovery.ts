@@ -1,8 +1,8 @@
 // Agent discovers retained evidence and chooses how its actions connect records.
 import { tool } from 'ai';
 import { z } from 'zod';
-import type { NodeAddress, NodeVersion } from '../vault/nodes/model.ts';
-import type { NodeSnapshot, NodeReading } from '../vault/nodes/store.ts';
+import type { NodeAddress, NodeVersion } from '@/vault/nodes/model.ts';
+import type { NodeSnapshot, NodeReading } from '@/vault/nodes/store.ts';
 import type { AgentToolContext } from './tools.ts';
 
 // Retained tool identities continue to describe the same Agent discovery actions.

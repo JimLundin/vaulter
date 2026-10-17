@@ -1,11 +1,11 @@
 import { expect, test } from '@playwright/test';
-import { navigateToModule } from '../../ui/kit/navigation.browser.test-support.ts';
-import { fakeGitHub } from '../../vault/storage/github-client/fake-github.ts';
-import { create, request } from '../../vault/nodes/fixtures.test-support.ts';
-import { accept } from '../../vault/nodes/history.ts';
-import { canonical, digest } from '../../vault/nodes/json.ts';
-import { parseRecord } from '../../vault/nodes/validation.ts';
-import { seal } from '../../vault/session/sealed.ts';
+import { navigateToModule } from '@/ui/kit/navigation.browser.test-support.ts';
+import { fakeGitHub } from '@/vault/storage/github-client/fake-github.ts';
+import { create, request } from '@/vault/nodes/fixtures.test-support.ts';
+import { accept } from '@/vault/nodes/history.ts';
+import { canonical, digest } from '@/vault/nodes/json.ts';
+import { parseRecord } from '@/vault/nodes/validation.ts';
+import { seal } from '@/vault/session/sealed.ts';
 
 test('production shares suggestion lists and inline context in Questions and Wiki and persists an explicit answer', async ({
   page,

@@ -1,6 +1,6 @@
-import { openAppAction, expectAppActionFocus } from '../ui/kit/navigation.browser.test-support.ts';
+import { openAppAction, expectAppActionFocus } from '@/ui/kit/navigation.browser.test-support.ts';
 import { expect, test } from '@playwright/test';
-import { setPreviewMobile } from '../ui/kit/preview.browser.test-support.ts';
+import { setPreviewMobile } from '@/ui/kit/preview.browser.test-support.ts';
 // biome-ignore lint/correctness/noUnresolvedImports: Playwright re-exports these browser types.
 import type { Locator, Page } from '@playwright/test';
 

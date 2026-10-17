@@ -1,4 +1,4 @@
-import { openAppAction, expectAppActionFocus } from '../ui/kit/navigation.browser.test-support.ts';
+import { openAppAction, expectAppActionFocus } from '@/ui/kit/navigation.browser.test-support.ts';
 import { expect, test } from '@playwright/test';
 
 test('module settings persist valid preferences and keep credentials with their implementation', {

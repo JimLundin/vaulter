@@ -1,9 +1,9 @@
 import { applicationWikiGraph } from './composition.ts';
 import { expect, test } from 'vitest';
-import { memoryNodeBackend } from '../vault/nodes/memory.ts';
-import { create, request, revise } from '../vault/nodes/fixtures.test-support.ts';
-import { readWiki } from '../workflows/wiki/pages.ts';
-import type { SourceReader } from '../vault/sources.ts';
+import { memoryNodeBackend } from '@/vault/nodes/memory.ts';
+import { create, request, revise } from '@/vault/nodes/fixtures.test-support.ts';
+import { readWiki } from '@/workflows/wiki/pages.ts';
+import type { SourceReader } from '@/vault/sources.ts';
 
 // Supplied source adapter: Wiki verifies historical selection, not foreign payload decoding.
 const sources: SourceReader = {

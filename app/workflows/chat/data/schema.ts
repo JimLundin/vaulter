@@ -1,6 +1,6 @@
-import { e, type EntityRef } from '../../../vault/eav/index.ts';
-import { Actor } from '../../../vault/records/actor.ts';
-import { AgentRun, ContextInput, agentEntities } from '../../../agent/data/schema.ts';
+import { e, type EntityRef } from '@/vault/eav/index.ts';
+import { Actor } from '@/vault/records/actor.ts';
+import { AgentRun, ContextInput, agentEntities } from '@/agent/data/schema.ts';
 
 /** One native dialogue per Vault. Topics and dates never create another scope. */
 export const Conversation = e.entity('chat.conversation', {
