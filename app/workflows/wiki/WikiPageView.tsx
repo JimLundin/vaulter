@@ -29,12 +29,14 @@ export function WikiPageView({
   onFilter,
   renderRecord,
   timeline,
+  actions,
 }: {
   page: WikiPage;
   onBack: () => void;
   onFilter: (term: WikiClassification) => void;
   renderRecord?: ForeignRecordRenderer;
   timeline?: ReactNode;
+  actions?: ReactNode;
 }) {
   const [selected, setSelected] = useState<WikiBlock>();
   const [referencesOpen, setReferencesOpen] = useState(false);
@@ -77,7 +79,7 @@ export function WikiPageView({
     <SplitView
       main={
         <ReadingColumn label="Wiki reading">
-          <PageHeader title="Wiki" label="Wiki page" onBack={onBack} />
+          <PageHeader title="Wiki" label="Wiki page" onBack={onBack} actions={actions} />
           <ScrollArea grow={true}>
             <Page>
               <Stack gap="lg" as="header">

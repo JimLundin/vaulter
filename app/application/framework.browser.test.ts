@@ -158,7 +158,7 @@ test('feature pages center their reading or directory column', async ({ page }) 
       await expect(column).toBeVisible();
       await expect
         .poll(async () => {
-          const parent = (await (path === '/preview/'
+          const parent = (await (path === '/preview/' || path.includes('/wiki/')
             ? column.locator('..')
             : main
           ).boundingBox())!;

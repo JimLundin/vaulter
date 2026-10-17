@@ -201,6 +201,8 @@ test('production opens real Wiki pages and exact evidence alongside persistent C
   }
   await navigateToModule(page, 'Wiki');
   await expect(page).toHaveURL(/#\/wiki\/$/);
+  if (test.info().project.name === 'phone')
+    await page.getByRole('button', { name: 'Pages', exact: true }).click();
   await page
     .getByRole('region', { name: 'Page directory' })
     .getByRole('link', { name: 'Garden studio', exact: true })
@@ -268,6 +270,8 @@ test('production opens real Wiki pages and exact evidence alongside persistent C
     await evidence.getByRole('button', { name: 'Close references' }).click();
   await page.getByRole('button', { name: 'Wiki', exact: true }).click();
   await expect(page).toHaveURL(/#\/wiki\/$/);
+  if (test.info().project.name === 'phone')
+    await page.getByRole('button', { name: 'Pages', exact: true }).click();
   await page
     .getByRole('region', { name: 'Page directory' })
     .getByRole('link', { name: 'Garden studio', exact: true })

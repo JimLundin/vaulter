@@ -67,11 +67,13 @@ test('production Wiki reads typed EAV prose and retained citations after reload'
   }
   await navigateToModule(page, 'Wiki');
   if (test.info().project.name === 'phone')
-    await page.getByRole('button', { name: 'Find pages', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'A place to begin.' })).toBeVisible();
+    await page.getByRole('button', { name: 'Pages', exact: true }).click();
+
   const directory = page.getByRole('region', { name: 'Page directory' });
   await page.getByRole('textbox', { name: 'Find pages' }).fill('slow');
-  await expect(directory.getByRole('link')).toHaveText(['Slow mornings']);
+  await expect(directory.getByRole('link').filter({ hasNotText: 'Wiki home' })).toHaveText([
+    'Slow mornings',
+  ]);
   await directory.getByRole('link', { name: 'Slow mornings', exact: true }).click();
   await page.reload();
   await expect(page.getByRole('heading', { name: 'Slow mornings', exact: true })).toBeVisible();

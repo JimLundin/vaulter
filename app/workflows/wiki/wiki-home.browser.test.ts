@@ -1,41 +1,53 @@
 import { expect, test } from '@playwright/test';
 
-test('Wiki home offers starting pages and a searchable, sortable directory', async ({ page }) => {
+test('Wiki sidebar browses pages independently of the curated home and stays available while reading', {
+  tag: '@phone',
+}, async ({ page }) => {
   await page.goto('/preview/wiki.html');
   const sample = page.locator('[data-design-preview]');
   await sample
     .getByRole('toolbar', { name: 'Wiki page' })
     .getByRole('button', { name: 'Wiki', exact: true })
     .click();
-  const discovery = sample.getByRole('region', { name: 'Start exploring' });
+  const compact = test.info().project.name === 'phone';
+  if (compact) await sample.getByRole('button', { name: 'Pages', exact: true }).click();
   const directory = sample.getByRole('region', { name: 'Page directory' });
-  await expect(discovery.getByRole('link')).toHaveCount(3);
-  await expect(directory.getByRole('link')).toHaveText([
-    'Garden studio',
-    'Reading list',
-    'Slow mornings',
-  ]);
+  const pageLinks = directory.getByRole('link').filter({ hasNotText: 'Wiki home' });
+  await expect(pageLinks).toHaveText(['Garden studio', 'Reading list', 'Slow mornings']);
   await directory.getByRole('combobox', { name: 'Sort pages' }).selectOption('reverse');
-  await expect(directory.getByRole('link')).toHaveText([
-    'Slow mornings',
-    'Reading list',
-    'Garden studio',
-  ]);
-  await sample.getByRole('textbox', { name: 'Find pages' }).fill('  slow  ');
-  await expect(discovery).toHaveCount(0);
-  await expect(directory.getByRole('link')).toHaveText(['Slow mornings']);
+  await expect(pageLinks).toHaveText(['Slow mornings', 'Reading list', 'Garden studio']);
+  await directory.getByRole('textbox', { name: 'Find pages' }).fill('  slow  ');
+  await expect(pageLinks).toHaveText(['Slow mornings']);
   await expect(directory.getByRole('status')).toContainText('1 of 3 pages');
-  await sample.getByRole('textbox', { name: 'Find pages' }).fill('missing');
-  await expect(directory.getByRole('heading', { name: 'No pages found.' })).toBeVisible();
+  await directory.getByRole('textbox', { name: 'Find pages' }).fill('missing');
+  await expect(directory.getByText('No pages found.')).toBeVisible();
   await directory.getByRole('button', { name: 'Show all pages' }).click();
-  await expect(directory.getByRole('link')).toHaveCount(3);
-  await page.setViewportSize({ width: 390, height: 844 });
-  const cards = discovery.locator('[data-surface="subtle"]');
-  const first = await cards.nth(0).boundingBox();
-  const second = await cards.nth(1).boundingBox();
-  expect(second!.y).toBeGreaterThanOrEqual(first!.y + first!.height);
-  expect(first!.x).toBeGreaterThanOrEqual(0);
-  expect(first!.x + first!.width).toBeLessThanOrEqual(390);
-  await discovery.getByRole('link', { name: 'Garden studio', exact: true }).click();
-  await expect(sample.getByRole('heading', { name: 'Garden studio', exact: true })).toBeVisible();
+  await directory.getByRole('link', { name: 'Slow mornings', exact: true }).click();
+  await expect(sample.getByRole('heading', { name: 'Slow mornings', exact: true })).toBeVisible();
+  if (compact) {
+    await expect(sample.getByRole('dialog', { name: 'Pages', exact: true })).toBeHidden();
+    await sample.getByRole('button', { name: 'Pages', exact: true }).click();
+  }
+  await expect(directory.getByRole('link', { name: 'Slow mornings', exact: true })).toHaveAttribute(
+    'aria-current',
+    'page',
+  );
+  await directory.getByRole('link', { name: 'Wiki home', exact: true }).click();
+  const focus = sample.getByRole('region', { name: 'In focus' });
+  await expect(focus.getByRole('link').first()).toHaveText('Garden studio');
+  await expect(sample.getByRole('region', { name: 'From the pages' })).toContainText(
+    'Keep mornings free.',
+  );
+  if (!compact) {
+    await directory.getByRole('textbox', { name: 'Find pages' }).fill('reading');
+    await expect(focus.getByRole('link')).toHaveCount(3);
+    const sidebar = await directory.boundingBox();
+    const content = await focus.boundingBox();
+    expect(sidebar!.x + sidebar!.width).toBeLessThanOrEqual(content!.x);
+  } else {
+    await sample.getByRole('button', { name: 'Pages', exact: true }).click();
+    const close = sample.getByRole('button', { name: 'Close pages', exact: true });
+    await close.click();
+    await expect(sample.getByRole('button', { name: 'Pages', exact: true })).toBeFocused();
+  }
 });
