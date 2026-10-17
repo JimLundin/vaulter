@@ -11,6 +11,11 @@ import {
   Drawer,
   Heading,
   Input,
+  InputGroup,
+  InputGroupInput,
+  InputGroupAddon,
+  InputGroupButton,
+  FieldError,
   Row,
   Select,
   RadioGroup,
@@ -396,12 +401,13 @@ function RefinedCards({
   const choose = (
     label: string,
     value: string,
-    options: { value: string; label: string }[],
+    options: { value: string; label: string; detail?: string }[],
     onChange: (value: string) => void,
+    presentation: 'segmented' | 'cards' | 'tiles' = 'cards',
   ) => (
     <RadioGroup
       aria-label={label}
-      variant="choices"
+      variant={presentation}
       value={value}
       onValueChange={(next) => {
         if (next !== null) onChange(next);
@@ -409,9 +415,16 @@ function RefinedCards({
     >
       {options.map((option) => (
         <RadioGroupItem key={option.value} value={option.value}>
-          <Text as="span" size="sm">
-            {option.label}
-          </Text>
+          <Stack gap="xs" align="start">
+            <Text as="span" size="sm" weight="medium">
+              {option.label}
+            </Text>
+            {option.detail ? (
+              <Text as="span" size="xs" tone="muted">
+                {option.detail}
+              </Text>
+            ) : null}
+          </Stack>
           <RadioGroupIndicator>✓</RadioGroupIndicator>
         </RadioGroupItem>
       ))}
@@ -429,6 +442,7 @@ function RefinedCards({
             { value: 'dark', label: 'Dark' },
           ],
           setTheme,
+          'segmented',
         )}
       </Container>
       <Stack gap="lg">
@@ -451,7 +465,8 @@ function RefinedCards({
             openai.model ?? '',
             models.map((model, index) => ({
               value: model.value,
-              label: `${modelNames[index] ?? model.label} · ${model.label}`,
+              label: modelNames[index] ?? model.label,
+              detail: model.label,
             })),
             (value) => {
               stores.openai.set('model', value);
@@ -590,19 +605,13 @@ function RefinedCards({
       <Stack gap="lg">
         <Heading level={2}>Voice & dictation</Heading>
         <Container title="Voice">
-          <Row wrap={true}>
-            {voices.map((voice) => (
-              <Button
-                key={voice.value}
-                variant={openai.voice === voice.value ? 'filled' : 'outline'}
-                size="compact"
-                aria-pressed={openai.voice === voice.value}
-                onClick={() => stores.openai.set('voice', voice.value)}
-              >
-                {voice.label}
-              </Button>
-            ))}
-          </Row>
+          {choose(
+            'Voice',
+            openai.voice ?? '',
+            voices.map((voice) => ({ value: voice.value, label: voice.label })),
+            (value) => stores.openai.set('voice', value),
+            'tiles',
+          )}
         </Container>
         <Container
           title="Voice models"
@@ -658,9 +667,9 @@ function RefinedCards({
         <Heading level={2}>Connections</Heading>
         {['OpenAI', 'GitHub'].map((name) => (
           <Container key={name} title={name}>
-            <SettingsInfo
-              label="API endpoint"
-              value={
+            <EndpointField
+              name={name}
+              initial={
                 name === 'OpenAI'
                   ? 'https://api.openai.com/v1'
                   : (githubSettings.fields.find((field) => field.key === 'api')?.defaultValue ?? '')
@@ -720,7 +729,7 @@ function RefinedCards({
               ) : null}
             </Stack>
             {name === 'GitHub' ? (
-              <SettingsInfo
+              <InlineCopyField
                 label="Vault repository"
                 value={
                   githubSettings.fields.find((field) => field.key === 'repository')?.defaultValue ??
@@ -734,6 +743,116 @@ function RefinedCards({
           <ModuleSettings definition={agentSettings} store={stores.agent} keys={['maxRetries']} />
         </SettingsDisclosure>
       </Stack>
+    </Stack>
+  );
+}
+
+function InlineCopyField({ label, value }: { label: string; value: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <SettingField label={label} description="">
+      <InputGroup>
+        <InputGroupInput readOnly={true} value={value} />
+        <InputGroupAddon align="inline-end">
+          <InputGroupButton
+            aria-label={`Copy ${label}`}
+            onClick={async () => {
+              await navigator.clipboard.writeText(value);
+              setCopied(true);
+            }}
+          >
+            {copied ? 'Copied' : 'Copy'}
+          </InputGroupButton>
+        </InputGroupAddon>
+      </InputGroup>
+    </SettingField>
+  );
+}
+
+function EndpointField({ name, initial }: { name: string; initial: string }) {
+  const [value, setValue] = useState(initial);
+  const [accepted, setAccepted] = useState(initial);
+  const [error, setError] = useState('');
+  const [copied, setCopied] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const changed = value !== accepted;
+  return (
+    <Stack gap="sm">
+      <SettingField label="API endpoint" description="">
+        <InputGroup>
+          <InputGroupInput
+            aria-label={`${name} API endpoint`}
+            type="url"
+            autoComplete="url"
+            spellCheck={false}
+            value={value}
+            aria-invalid={!!error || undefined}
+            onChange={(event) => {
+              setValue(event.currentTarget.value);
+              setError('');
+              setCopied(false);
+              setSaved(false);
+            }}
+          />
+          <InputGroupAddon align="inline-end">
+            <InputGroupButton
+              aria-label={`Copy ${name} API endpoint`}
+              onClick={async () => {
+                await navigator.clipboard.writeText(value);
+                setCopied(true);
+              }}
+            >
+              {copied ? 'Copied' : 'Copy'}
+            </InputGroupButton>
+          </InputGroupAddon>
+        </InputGroup>
+      </SettingField>
+      {changed ? (
+        <Row wrap={true}>
+          <Button
+            size="compact"
+            onClick={() => {
+              try {
+                const url = new URL(value.trim());
+                if (
+                  !['https:', 'http:'].includes(url.protocol) ||
+                  url.username ||
+                  url.password ||
+                  url.search ||
+                  url.hash
+                )
+                  throw new Error();
+                const endpoint = value.trim().replace(/\/+$/, '');
+                setAccepted(endpoint);
+                setValue(endpoint);
+                setSaved(true);
+              } catch {
+                setError(
+                  'Enter an HTTP or HTTPS API URL without credentials, query parameters or a fragment.',
+                );
+              }
+            }}
+          >
+            Save endpoint
+          </Button>
+          <Button
+            variant="ghost"
+            size="compact"
+            onClick={() => {
+              setValue(accepted);
+              setError('');
+            }}
+          >
+            Cancel
+          </Button>
+        </Row>
+      ) : null}
+      {error ? <FieldError>{error}</FieldError> : null}
+      {saved ? (
+        <Text size="sm" tone="muted" role="status">
+          Endpoint saved for this preview
+        </Text>
+      ) : null}
     </Stack>
   );
 }

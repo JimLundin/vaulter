@@ -696,3 +696,7 @@ reading a record; task actions retain `PageControls` responsive placement.
 Settings uses `SettingsDisclosure` for named, keyboard-accessible expandable groups; children
 stay mounted to retain drafts. `SettingsInfo` presents copyable installation details. Modules
 choose grouping and availability; Application composes Appearance, Agent and Connections.
+
+RadioGroup also supports `cards` for stacked choices with secondary text and `tiles` for a
+responsive two/three-column selection grid. Both keep radio keyboard behavior and a visible
+selected indicator at every width.
