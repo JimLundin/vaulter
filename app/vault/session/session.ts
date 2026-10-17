@@ -1,3 +1,5 @@
+import { githubPreferences } from '@/vault/storage/settings.ts';
+import { apiEndpoint } from '@/settings/endpoint.ts';
 import {
   closeStorage,
   clearStorage,
@@ -44,6 +46,7 @@ export interface Session {
   preloadedSecrets: Secrets | null;
   secretOverrides: SecretOverrides;
   /** Undefined restores login defaults; null disables an optional credential. */
+  updateEndpoint: (value: string) => Promise<void>;
   updateSecret: (key: keyof Secrets, value: string | null | undefined) => Promise<void>;
   /** Set while the secrets wait for the password. */
   locked: { unlock: (password: string) => Promise<void> } | null;
@@ -126,7 +129,10 @@ export function useSession(openEav: OpenEav): Session {
   const begin = (credentials: Credentials, runGeneration: number) => {
     checkSession(runGeneration);
     publishCredentials(credentials);
-    const store = openEav({ secrets: () => currentCredentials.current?.secrets ?? null });
+    const store = openEav({
+      secrets: () => currentCredentials.current?.secrets ?? null,
+      api: githubPreferences.snapshot().api,
+    });
     activeStorage.current = store;
     setEav(store);
     setReady(false);
@@ -169,7 +175,10 @@ export function useSession(openEav: OpenEav): Session {
       let candidate: MemoryStorage | undefined;
       try {
         if (reconnect) {
-          candidate = openEav({ secrets: () => next.secrets });
+          candidate = openEav({
+            secrets: () => next.secrets,
+            api: githubPreferences.snapshot().api,
+          });
           candidates.current.add(candidate);
           await cachedStorage(candidate);
           checkSession(runGeneration);
@@ -197,6 +206,52 @@ export function useSession(openEav: OpenEav): Session {
       if (mounted.current && !signingOut.current)
         setCredentialPending(credentialUpdates.current > 0);
     });
+  };
+
+  const updateEndpoint = (value: string) => {
+    const runGeneration = generation.current;
+    let api: string;
+    try {
+      api = apiEndpoint(value);
+      checkSession(runGeneration);
+    } catch (error) {
+      return Promise.reject(error);
+    }
+    credentialUpdates.current++;
+    setCredentialPending(true);
+    return updates
+      .current(async () => {
+        checkSession(runGeneration);
+        if (!currentCredentials.current)
+          throw new Error('Unlock the vault to change its connection.');
+        const candidate = openEav({
+          secrets: () => currentCredentials.current?.secrets ?? null,
+          api,
+        });
+        candidates.current.add(candidate);
+        try {
+          await cachedStorage(candidate);
+          await refreshStorage(candidate, { remote: true });
+          checkSession(runGeneration);
+          const previous = activeStorage.current;
+          if (previous) await drainStorage(previous);
+          checkSession(runGeneration);
+          githubPreferences.set('api', api);
+          activeStorage.current = candidate;
+          candidates.current.delete(candidate);
+          setEav(candidate);
+          setReady(true);
+          setStatus({ kind: 'synced', at: Date.now() });
+          if (previous) closeStorage(previous);
+        } finally {
+          if (candidates.current.delete(candidate)) closeStorage(candidate);
+        }
+      }, lifetime.current.signal)
+      .finally(() => {
+        credentialUpdates.current--;
+        if (mounted.current && !signingOut.current)
+          setCredentialPending(credentialUpdates.current > 0);
+      });
   };
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: once, on mount; what it calls reads only refs and state setters
@@ -290,6 +345,7 @@ export function useSession(openEav: OpenEav): Session {
     preloadedSecrets,
     secretOverrides,
     updateSecret,
+    updateEndpoint,
     eav,
     status,
     refresh: () => (eav ? refresh(eav) : Promise.resolve()),

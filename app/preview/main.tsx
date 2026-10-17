@@ -5,6 +5,7 @@ import '@fontsource-variable/newsreader';
 import '@/ui/kit/styles.css';
 import { createRoot } from 'react-dom/client';
 import { useState } from 'react';
+import { DesignComparison } from '@/ui/kit/index.ts';
 import { OpenApplication } from '@/application/index.tsx';
 import { applicationWiki } from '@/application/composition.ts';
 import { startTheme, Text, DesignPreview, Gate, Brand, Button, Stack } from '@/ui/kit/index.ts';
@@ -49,6 +50,9 @@ const opening = (async () => {
 })();
 function Preview() {
   const [signedOut, setSignedOut] = useState(false);
+  const [settingsVariant, setSettingsVariant] = useState<'cards' | 'compact'>(
+    query.get('variant') === 'compact' ? 'compact' : 'cards',
+  );
   const product = () => (
     <OpenApplication
       session={{
@@ -66,6 +70,7 @@ function Preview() {
       }}
       model={agent?.model ?? (async () => previewModel)}
       preview={{
+        settingsVariant,
         provider: agent ? 'openai' : 'preview',
         defaultModel: agent ? agentConnection?.defaultModel : undefined,
         transcription,
@@ -102,6 +107,23 @@ function Preview() {
       )}
     </DesignPreview>
   );
+  if (query.get('compare') === 'settings')
+    return (
+      <DesignComparison
+        defaultValue={settingsVariant}
+        alternatives={[
+          { id: 'cards', label: 'Grouped cards', content: null },
+          { id: 'compact', label: 'Grouped cards · compact', content: null },
+        ]}
+        onValueChange={(value) => {
+          setSettingsVariant(value === 'compact' ? 'compact' : 'cards');
+          const url = new URL(location.href);
+          url.searchParams.set('variant', value);
+          history.replaceState(null, '', url);
+        }}
+        preview={(controls) => frame(product(), controls)}
+      />
+    );
   return frame(product());
 }
 

@@ -12,6 +12,7 @@ import {
   openAIOptions,
   providerSettings,
   selectedOpenAIModel,
+  supportsOpenAISampling,
 } from './settings.ts';
 
 afterEach(() => {
@@ -43,15 +44,18 @@ test('OpenAI settings expose installed defaults and exclude credentials from pre
   const preferences = createSettings(definition);
   expect(preferences.snapshot().api).toBe('https://fixture.example/v1');
   expect(openAIOptions(preferences.values())).toEqual({
+    baseURL: 'https://fixture.example/v1',
     models: { ...DEFAULT_MODELS, llm: 'preview-model' },
     voice: DEFAULT_VOICE,
   });
   expect(preferences.snapshot()).not.toHaveProperty('openai');
   expect(() => preferences.set('openai', 'a-secret')).toThrow();
-  expect(() => preferences.set('api', 'https://other.example')).toThrow();
+  expect(() => preferences.set('api', 'not-a-url')).toThrow();
+  preferences.set('api', 'https://other.example/v1');
+  expect(createOpenAIPreferences(definition).snapshot().api).toBe('https://other.example/v1');
   preferences.set('voice', 'cedar');
   expect(localStorage.getItem('vaulter.settings.openai')).not.toContain('a-secret');
-  expect(localStorage.getItem('vaulter.settings.openai')).not.toContain('fixture.example');
+  expect(localStorage.getItem('vaulter.settings.openai')).toContain('other.example');
 });
 
 test('OpenAI model choices match each capability and retain the installation model', () => {
@@ -113,6 +117,7 @@ test('dropdown suggestions preserve saved custom model and voice IDs across reop
   }
   const reopened = createOpenAIPreferences(definition);
   expect(openAIOptions(reopened.values())).toEqual({
+    baseURL: definition.fields.find((field) => field.key === 'api')!.defaultValue,
     models: {
       llm: custom.model,
       voice: custom.voiceModel,
@@ -123,6 +128,7 @@ test('dropdown suggestions preserve saved custom model and voice IDs across reop
   });
   reopened.reset();
   expect(openAIOptions(reopened.values())).toEqual({
+    baseURL: definition.fields.find((field) => field.key === 'api')!.defaultValue,
     models: { ...DEFAULT_MODELS, llm: 'installed-model' },
     voice: DEFAULT_VOICE,
   });
@@ -132,6 +138,7 @@ test('saved models configure actual text and audio requests', async () => {
   const preferences = createSettings(providerSettings);
   preferences.set('model', 'configured-text');
   preferences.set('fileTranscriptionModel', 'configured-file');
+  preferences.set('api', 'https://compatible.test/openai/v1');
   const fetch = vi.fn<typeof globalThis.fetch>().mockImplementation((url) => {
     if (String(url).endsWith('/audio/transcriptions'))
       return Promise.resolve(Response.json({ text: 'Transcript' }));
@@ -172,6 +179,10 @@ test('saved models configure actual text and audio requests', async () => {
     store: false,
   });
   expect((fetch.mock.calls[1]![1]!.body as FormData).get('model')).toBe('configured-file');
+  expect(String(fetch.mock.calls[0]![0])).toBe('https://compatible.test/openai/v1/responses');
+  expect(String(fetch.mock.calls[1]![0])).toBe(
+    'https://compatible.test/openai/v1/audio/transcriptions',
+  );
 });
 
 test('voice and live transcription settings reach their separate realtime sessions', async () => {
@@ -219,4 +230,11 @@ test('voice and live transcription settings reach their separate realtime sessio
     audio: { input: { transcription: { model: 'configured-transcription' } } },
   });
   capture.close();
+});
+
+test('sampling controls are available for nonreasoning and compatible model IDs', () => {
+  for (const model of ['gpt-6-astra', 'gpt-6.1-sol', 'gpt-6-luna', 'gpt-5.1', 'o3', 'o4-mini'])
+    expect(supportsOpenAISampling(model)).toBe(false);
+  for (const model of ['gpt-4.1', 'gpt-4o', 'compatible-model'])
+    expect(supportsOpenAISampling(model)).toBe(true);
 });

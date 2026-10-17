@@ -314,15 +314,15 @@ test('preview device changes keep open settings and search inside the app frame'
   const banner = page.getByRole('complementary', { name: 'Design preview' });
   await openAppAction(page, 'Settings');
   const settings = page.getByRole('dialog', { name: 'Settings', exact: true });
-  const model = settings.getByRole('combobox', { name: 'Model', exact: true });
-  await model.selectOption({ label: 'Custom…' });
-  const customModel = settings.getByRole('textbox', { name: 'Custom model', exact: true });
+  const model = settings.getByRole('radiogroup', { name: 'Chat model', exact: true });
+  await settings.getByRole('button', { name: 'Custom model', exact: true }).click();
+  const customModel = settings.getByRole('textbox', { name: 'Custom chat model', exact: true });
   await customModel.fill('A model selected during design review');
   await model.evaluate((node) => node.setAttribute('data-preview-model', ''));
   for (const mode of [true, false, true]) {
     await setPreviewMobile(banner, mode);
     await expect(settings).toBeVisible();
-    await expect(model.locator('option:checked')).toHaveText('Custom…');
+    await expect(customModel).toBeVisible();
     await expect(customModel).toHaveValue('A model selected during design review');
     await expect(model).toHaveAttribute('data-preview-model', '');
     await expect

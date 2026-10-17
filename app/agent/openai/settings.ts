@@ -1,3 +1,4 @@
+import { apiEndpoint } from '@/settings/endpoint.ts';
 import {
   createSettings,
   deviceSettingsStorage,
@@ -69,7 +70,7 @@ export function createOpenAISettings(
       },
       modelSetting(
         'model',
-        'Model',
+        'Chat model',
         'Used for new messages. Saved on this device.',
         options.defaultModel ?? DEFAULT_MODELS.llm,
         MODEL_CHOICES.llm,
@@ -105,9 +106,9 @@ export function createOpenAISettings(
       {
         key: 'api',
         label: 'OpenAI API endpoint',
-        description: 'The API endpoint configured for this installation.',
-        kind: 'readonly',
+        description: 'The OpenAI-compatible API endpoint used on this device.',
         defaultValue: openAIEndpoint(options.baseURL),
+        parse: apiEndpoint,
       },
     ],
   };
@@ -134,6 +135,7 @@ export function openAIOptions(values: Readonly<Record<string, unknown>>) {
   const text = (key: string, fallback: string) =>
     typeof values[key] === 'string' && values[key].trim() ? values[key].trim() : fallback;
   return {
+    baseURL: text('api', openAIEndpoint()),
     models: {
       llm: text('model', DEFAULT_MODELS.llm),
       voice: text('voiceModel', DEFAULT_MODELS.voice),
@@ -142,4 +144,10 @@ export function openAIOptions(values: Readonly<Record<string, unknown>>) {
     },
     voice: text('voice', DEFAULT_VOICE),
   };
+}
+
+/** The Responses adapter drops sampling controls for these reasoning families. Custom
+ * compatible model IDs remain tunable; their server determines parameter support. */
+export function supportsOpenAISampling(model: string): boolean {
+  return !(/^o\d+(?:-|$)/.test(model) || /^gpt-(?:[5-9]|[1-9]\d)(?:\.|-|$)/.test(model));
 }

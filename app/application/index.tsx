@@ -1,3 +1,5 @@
+import { GroupedSettingsMenu } from './SettingsCards.tsx';
+import { githubPreferences } from '@/vault/storage/settings.ts';
 import { applicationQuestionCollection, applicationQuestionAnswers } from './composition.ts';
 import { chatRoute, historyRoute, settingsRoute } from './routes.ts';
 import {
@@ -39,17 +41,12 @@ import { useKeys } from '@/navigation/keys.ts';
 import { opened } from '@/search/recent.ts';
 import { go, link, parseRoute, useRoute } from '@/navigation/routing.ts';
 import { later } from '@/runtime/later.ts';
-import { AppearanceSettings, appearanceSettings } from './AppearanceSettings.tsx';
-import { agentSettings, agentOptions, agentPreferences } from '@/agent/settings.ts';
-import { AgentSettings } from '@/agent/Settings.tsx';
-import { OpenAISettings } from '@/agent/openai/Settings.tsx';
-import { GitHubSettings } from '@/vault/storage/Settings.tsx';
+import { agentOptions, agentPreferences } from '@/agent/settings.ts';
 import {
   createOpenAISettings,
   createOpenAIPreferences,
   openAIOptions,
 } from '@/agent/openai/settings.ts';
-import { githubSettings } from '@/vault/storage/settings.ts';
 import { chatPreferences, chatSettings } from '@/workflows/chat/preferences.ts';
 import { writeAvailability, recordsReady } from '@/vault/session/availability.ts';
 import {
@@ -60,7 +57,6 @@ import {
   Link,
   Overlay,
   Page,
-  SettingsMenu,
   Row,
   Stack,
   Text,
@@ -71,7 +67,6 @@ import type { Command, Navigation } from '@/navigation/commands.ts';
 import {
   ChatPage,
   ChatPanel,
-  ChatSettings,
   useConversation,
   useChat,
   type Prompt,
@@ -103,8 +98,11 @@ import {
 const unavailableModel = () =>
   Promise.reject(new Error('Configure an OpenAI key to send messages.'));
 type VaultSession = ReturnType<typeof useVaultSession>;
-type SuppliedSession = Omit<VaultSession, 'identity' | 'credentialPending' | 'credentials'> &
-  Partial<Pick<VaultSession, 'identity' | 'credentialPending' | 'credentials'>>;
+type SuppliedSession = Omit<
+  VaultSession,
+  'identity' | 'credentialPending' | 'credentials' | 'updateEndpoint'
+> &
+  Partial<Pick<VaultSession, 'identity' | 'credentialPending' | 'credentials' | 'updateEndpoint'>>;
 
 export function Application({
   openEav,
@@ -136,6 +134,7 @@ export function OpenApplication({
     defaultModel?: string;
     suggestions: () => Promise<string[]>;
     transcription: TranscriptionProvider;
+    settingsVariant?: 'cards' | 'compact';
   };
 }) {
   const { status, eav } = session;
@@ -158,6 +157,10 @@ export function OpenApplication({
   const executionValues = useSyncExternalStore(
     agentPreferences.subscribe,
     agentPreferences.snapshot,
+  );
+  const githubValues = useSyncExternalStore(
+    githubPreferences.subscribe,
+    githubPreferences.snapshot,
   );
   const chatValues = useSyncExternalStore(chatPreferences.subscribe, chatPreferences.snapshot);
   // biome-ignore lint/correctness/useExhaustiveDependencies: the snapshot invalidates parsed settings from this store.
@@ -342,7 +345,6 @@ export function OpenApplication({
       session.secrets?.openai
         ? createOpenAICapabilities({
             apiKey: session.secrets.openai,
-            baseURL: import.meta.env.VITE_OPENAI_API || undefined,
             ...providerOptions,
           })
         : null,
@@ -742,31 +744,22 @@ export function OpenApplication({
       <HistoryDrawer open={historyOpen} onClose={closeCoreAction} history={historyView}>
         <RefreshVault status={status} refresh={session.refresh} />
       </HistoryDrawer>
-      <SettingsMenu
+      <GroupedSettingsMenu
         open={settingsOpen}
         onClose={closeCoreAction}
-        features={[
-          { name: appearanceSettings.name, content: <AppearanceSettings /> },
-          { name: chatSettings.name, content: <ChatSettings /> },
-          {
-            name: agentSettings.name,
-            content: <AgentSettings />,
-          },
-          {
-            name: providerDefinition.name,
-            content: (
-              <OpenAISettings
-                definition={providerDefinition}
-                preferences={providerPreferences}
-                credential={credentials.openai}
-              />
-            ),
-          },
-          {
-            name: githubSettings.name,
-            content: <GitHubSettings credential={credentials.github} />,
-          },
-        ]}
+        stores={{
+          provider: providerDefinition,
+          openai: providerPreferences,
+          agent: agentPreferences,
+          chat: chatPreferences,
+        }}
+        chatDefinition={chatSettings}
+        credentials={credentials}
+        githubEndpoint={githubValues.api ?? ''}
+        saveGitHubEndpoint={
+          session.updateEndpoint ?? (async (value) => githubPreferences.set('api', value))
+        }
+        variant={preview?.settingsVariant}
       />
       <Search commands={commands} index={index} open={search} setSearch={setSearch} onAsk={ask} />
       <Previews index={index} />

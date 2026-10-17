@@ -9,20 +9,18 @@ import { noEval } from './tools/build/no-eval.ts';
 const SITE = fileURLToPath(new URL('.', import.meta.url));
 
 // The built page's Content Security Policy: script only from the app itself (no eval, no inline), network
-// only to GitHub and the configured model transport. Styles may be inline (React style props, Shiki's colours).
+// permits user-configured API transports. Styles may be inline (React style props, Shiki's colours).
 const csp = (): Plugin => ({
   name: 'csp',
   apply: 'build',
   transformIndexHtml(html) {
-    const api = new URL(process.env.VITE_GITHUB_API || 'https://api.github.com').origin;
-    const ai = new URL(process.env.VITE_OPENAI_API || 'https://api.openai.com').origin;
     const policy = [
       "default-src 'none'",
       "script-src 'self'",
       "worker-src 'self'",
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data:",
-      `connect-src 'self' ${api} ${ai}`,
+      "connect-src 'self' https: http: wss: ws:",
       "font-src 'self'",
       // The Home Screen install reads the manifest; default-src 'none' would refuse it.
       "manifest-src 'self'",
