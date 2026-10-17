@@ -789,7 +789,7 @@ function Settings() {
           {
             name: 'Agent',
             content: (
-              <K.SettingsDisclosure title="Model preferences" summary="Default">
+              <K.SettingsDisclosure title="Model preferences" summary="Default" defaultOpen={true}>
                 <Preferences model={model} onChange={setModel} />
                 <K.SettingsInfo label="API endpoint" value="https://example.test/v1" />
               </K.SettingsDisclosure>
