@@ -11,7 +11,7 @@ import {
   SupportingPane,
   SplitView,
   Text,
-  Toolbar,
+  PageHeader,
 } from '../../ui/kit/index.ts';
 
 export type ChatPresentation =
@@ -95,15 +95,15 @@ export function ChatSurface({
     </Stack>
   );
   const page = (
-    <ReadingColumn page={true} label="Conversation">
-      <Toolbar label="Chat actions" actions={actions}>
-        {header}
-      </Toolbar>
-      <AutoScrollArea empty={empty} scrollTarget={scrollTarget}>
-        {children}
-      </AutoScrollArea>
-      <Dock status={status}>{dock}</Dock>
-    </ReadingColumn>
+    <Stack grow={true} fill={true} gap="none">
+      <PageHeader title="Chat" label="Chat actions" actions={actions} />
+      <ReadingColumn page={true} label="Conversation">
+        <AutoScrollArea empty={empty} scrollTarget={scrollTarget}>
+          {children}
+        </AutoScrollArea>
+        <Dock status={status}>{dock}</Dock>
+      </ReadingColumn>
+    </Stack>
   );
   return presentation.page ? (
     supporting ? (

@@ -129,10 +129,34 @@ test('production opens real Wiki pages and exact evidence alongside persistent C
   expect(policy).not.toContain('unsafe-eval');
   await page.getByLabel('Password', { exact: true }).fill(password);
   await page.getByRole('button', { name: 'Open vault', exact: true }).click();
+  let headerStyle: string | undefined;
+  for (const module of ['Chat', 'Wiki', 'Questions', 'Graph'] as const) {
+    await navigateToModule(page, module);
+    const header = page.locator('[data-page-header]');
+    await expect(header.getByRole('heading', { name: module, exact: true })).toBeVisible();
+    const geometry = await header.evaluate((element) => {
+      const title = element.querySelector('h1')!;
+      const style = getComputedStyle(title);
+      const bounds = element.getBoundingClientRect();
+      return {
+        top: bounds.top,
+        height: bounds.height,
+        inset: title.getBoundingClientRect().left - bounds.left,
+        type: [style.fontFamily, style.fontSize, style.fontWeight, style.lineHeight].join('|'),
+      };
+    });
+    expect(geometry.top).toBe(0);
+    expect(geometry.height).toBe(48);
+    expect(geometry.inset).toBeGreaterThan(0);
+    const currentStyle = `${geometry.inset}|${geometry.type}`;
+    headerStyle ??= currentStyle;
+    expect(currentStyle).toBe(headerStyle);
+  }
   await navigateToModule(page, 'Wiki');
   await expect(page).toHaveURL(/#\/wiki\/$/);
   await page.getByRole('link', { name: 'Garden studio', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Garden studio', exact: true })).toBeVisible();
+  await expect(page.locator('[data-page-header] h1')).toHaveText('Wiki');
   const claim = page.getByRole('button', {
     name: 'Evidence for Keep the mornings free.',
     exact: true,

@@ -21,6 +21,7 @@ import { useFieldSemanticDiagnostic } from './field-association.ts';
 
 export type Tone = 'neutral' | 'people' | 'places' | 'events';
 import { Link, gap, type Gap } from './parts/layout.tsx';
+import { PageControls } from './page-controls.tsx';
 
 const chip = {
   neutral: 'bg-muted text-foreground',
@@ -330,7 +331,7 @@ export function Page({ aside, children }: { aside?: ReactNode; children?: ReactN
   );
 }
 
-/** Feature screens share a centered reading column; compact space uses its full width. */
+/** Feature screens share a compact module header above their reading column. */
 export function FeaturePage({
   title,
   description,
@@ -345,51 +346,72 @@ export function FeaturePage({
   width?: 'reading' | 'wide';
 }) {
   return (
-    <article
-      data-feature-page=""
-      className="w-full md:px-[var(--page-inset)] md:py-[var(--page-block)]"
-    >
-      <div
-        data-reading-column=""
-        className={cn(
-          'mx-auto flex w-full flex-col md:gap-6',
-          width === 'wide' ? 'max-w-[1200px]' : 'max-w-[var(--reading-width)]',
-        )}
-      >
-        <PageHeader title={title} description={description} actions={actions} />
-        {children}
+    <article data-feature-page="" className="w-full">
+      <PageHeader title={title} actions={actions} />
+      <div className="md:px-[var(--page-inset)] md:py-[var(--page-block)]">
+        <div
+          data-reading-column=""
+          className={cn(
+            'mx-auto flex w-full flex-col gap-4 md:gap-6',
+            width === 'wide' ? 'max-w-[1200px]' : 'max-w-[var(--reading-width)]',
+          )}
+        >
+          {description ? (
+            <p className="m-0 px-[var(--page-inset)] pt-4 text-copy text-muted-foreground md:px-0 md:pt-0">
+              {description}
+            </p>
+          ) : null}
+          {children}
+        </div>
       </div>
     </article>
   );
 }
 
-/** A screen's title, what it holds, and its actions. One component, two placements: on a phone a
- * bordered strip above full-width content, on desktop the top of the reading column. The type roles
- * and the copy are the same on both; only the placement differs. */
+/** A compact screen identity with shared type, height and inset on every device. */
 export function PageHeader({
   title,
   description,
   actions,
+  label = title,
+  onBack,
 }: {
   title: string;
   description?: string;
   actions?: ReactNode;
+  label?: string;
+  onBack?: () => void;
 }) {
-  const mobile = useLayout() === 'compact';
   return (
-    <header
-      data-variant={mobile ? 'mobile' : 'desktop'}
-      className={cn(
-        'flex items-start justify-between gap-4',
-        mobile && 'border-b bg-background px-[var(--page-inset)] py-[var(--page-block)]',
-      )}
-    >
-      <div className="flex min-w-0 flex-col gap-1">
-        <h1 className="m-0 text-title font-semibold">{title}</h1>
-        {description ? <p className="m-0 text-copy text-muted-foreground">{description}</p> : null}
-      </div>
-      {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
-    </header>
+    <>
+      <header
+        data-page-header=""
+        role="toolbar"
+        aria-label={label}
+        className="flex h-[var(--supporting-header-height)] shrink-0 items-center justify-between gap-3 border-b bg-background px-[var(--page-inset)]"
+      >
+        <h1 className="m-0 min-w-0 truncate font-sans text-sm font-semibold">
+          {onBack ? (
+            <button
+              type="button"
+              onClick={onBack}
+              className="flex min-h-11 max-w-full cursor-pointer items-center gap-2 rounded-md border-0 bg-transparent p-0 text-inherit hover:text-muted-foreground focus-visible:outline-2 focus-visible:outline-ring"
+            >
+              <Icon name="chevron-left" size="sm" />
+              <span className="truncate">{title}</span>
+            </button>
+          ) : (
+            title
+          )}
+        </h1>
+        <PageControls actions={actions} />
+      </header>
+      {description ? (
+        <p className="m-0 px-[var(--page-inset)] py-3 text-copy text-muted-foreground">
+          {description}
+        </p>
+      ) : null}
+    </>
   );
 }
 
