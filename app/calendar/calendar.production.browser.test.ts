@@ -46,6 +46,7 @@ test('production Calendar accepts a user event through EAV and retains it after 
     await page.getByLabel('Password', { exact: true }).fill(password);
     await page.getByRole('button', { name: 'Open vault', exact: true }).click();
   }
+  await expect(header.getByRole('heading', { name: 'Calendar', exact: true })).toBeVisible();
   if (await page.getByRole('button', { name: 'Open timeline', exact: true }).isVisible())
     await page.getByRole('button', { name: 'Open timeline', exact: true }).click();
   await expect(
