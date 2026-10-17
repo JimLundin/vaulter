@@ -29,8 +29,9 @@ bounded before diagram construction; narrow pages remain directly reachable and 
 
 The production and preview use this same reading/writing path. The preview seeds fictional native
 EAV records. Private published pages must be transferred through the source-vault publication
-procedure before appearing here; opening Wiki never performs a destructive conversion. The historical
-compatibility readers remain outside this native owner until source-vault tooling retires them.
+procedure before appearing here; opening Wiki reads the single EAV journal without converting sources.
+Vaulter retains no node-store compatibility readers; private translation targets the current typed
+owner interfaces under [ADR 0007](../../../../docs/adr/0007-vault-owned-translation.md).
 
 Focused checks: `npm run test:fast -- app/workflows/wiki/data app/vault/eav app/workflows/graph/data`;
 `npm run test:ui -- app/workflows/wiki/wiki.browser.test.ts --project=desktop`;

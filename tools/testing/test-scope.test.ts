@@ -32,7 +32,7 @@ test.each([
 
 test.each([
   ['vitest', ['run', 'app/workflows/chat', '--project=behavior']],
-  ['vitest', ['related', 'app/workflows/chat/node-conversation.ts', '--run']],
+  ['vitest', ['related', 'app/workflows/chat/conversation.ts', '--run']],
   ['vitest', ['run', '--changed']],
   ['vitest', ['run', '--changed=main']],
   ['vitest', ['run', '-t', 'rejects stale writes']],

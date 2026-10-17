@@ -1,14 +1,15 @@
 import { expect, test } from 'vitest';
 import { previewModel } from '@/preview/model.ts';
+import { createMemoryStorage } from '@/vault/eav/index.ts';
+import { applicationWiki, createApplicationConversation } from './composition.ts';
+import { seedEavWiki } from '@/preview/wiki-records.ts';
+import { readEavQuestions } from '@/workflows/questions/data/reading.ts';
+import { createApplicationIdentities } from './identities.ts';
+
 test('Application agent asks an EAV Question and reopens its accepted receipt without execution', async () => {
-  const { createMemoryStorage } = await import('@/vault/eav/index.ts');
-  const { applicationWiki, createApplicationConversation } = await import('./composition.ts');
-  const { seedEavWiki } = await import('@/preview/wiki-records.ts');
-  const { readEavQuestions } = await import('@/workflows/questions/data/reading.ts');
   const storage = createMemoryStorage();
   const db = await applicationWiki(storage).database();
   await seedEavWiki(db);
-  const { createApplicationIdentities } = await import('./identities.ts');
   const setup = createApplicationIdentities(() => applicationWiki(storage).database());
   await setup.ensure();
   const options = {
