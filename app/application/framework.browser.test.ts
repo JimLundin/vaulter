@@ -500,6 +500,10 @@ test('the composer and search stay within the visual viewport when a keyboard op
   await page.goto('/preview/');
   const input = page.getByRole('textbox', { name: 'Message', exact: true });
   await input.fill('Keyboard draft');
+  const previewGrip = page.locator('[data-preview-drag-handle]');
+  await previewGrip.focus();
+  for (let step = 0; step < 20; step++) await page.keyboard.press('ArrowDown');
+  await input.focus();
   await page.evaluate(() => {
     Object.defineProperty(window.visualViewport!, 'height', { value: 440, writable: true });
     window.visualViewport!.dispatchEvent(new Event('resize'));

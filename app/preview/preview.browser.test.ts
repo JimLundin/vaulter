@@ -384,6 +384,9 @@ test(
       exact: true,
     });
     await expect(signOut).toBeVisible();
+    const status = core.getByRole('status');
+    await expect(status).toHaveText(/^\d{2}:\d{2}$/);
+    expect(await status.evaluate((node) => node.scrollWidth <= node.clientWidth)).toBe(true);
     const signOutBox = (await signOut.boundingBox())!;
     const settingsBox = (await core
       .getByRole(compact ? 'menuitem' : 'button', {

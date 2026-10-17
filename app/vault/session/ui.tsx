@@ -208,7 +208,7 @@ export function CredentialSetting({
 export function SessionStatus({ status }: { status: Status }) {
   const label =
     status.kind === 'synced'
-      ? `Synced ${new Date(status.at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`
+      ? new Date(status.at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
       : status.kind === 'error'
         ? status.message
         : status.kind === 'offline'
@@ -217,6 +217,8 @@ export function SessionStatus({ status }: { status: Status }) {
   return (
     <Text
       role="status"
+      aria-label={status.kind === 'synced' ? `Synced at ${label}` : undefined}
+      title={status.kind === 'synced' ? `Synced at ${label}` : label}
       size="xs"
       tone={['error', 'offline'].includes(status.kind) ? 'danger' : 'subtle'}
     >

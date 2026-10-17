@@ -104,8 +104,9 @@ test('History opens from core actions, search, shortcut and its retained direct 
   });
   await expect(historyAction).toHaveCount(1);
   const syncStatus = historyAction.getByRole('status');
-  await expect(syncStatus).toHaveText(/^Synced \d{2}:\d{2}$/);
-  await expect(historyAction).toHaveAccessibleDescription(/^Synced \d{2}:\d{2}$/);
+  await expect(syncStatus).toHaveText(/^\d{2}:\d{2}$/);
+  await expect(syncStatus).toHaveAccessibleName(/^Synced at \d{2}:\d{2}$/);
+  await expect(historyAction).toHaveAccessibleDescription(/^Synced at \d{2}:\d{2}$/);
   // The complete timestamp fits on one line beside the icon, without clipping.
   expect(
     await syncStatus.evaluate((element) => {

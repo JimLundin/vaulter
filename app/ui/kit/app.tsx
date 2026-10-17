@@ -283,9 +283,11 @@ export function Brand({
   const Action = menu ? DropdownMenuItem : Button;
   return (
     <div className="flex items-center gap-2.5 px-1.5">
-      <div className="flex size-[30px] shrink-0 items-center justify-center rounded-[9px] bg-primary text-sm font-semibold text-primary-foreground">
-        V
-      </div>
+      {!menu && (
+        <div className="flex size-[30px] shrink-0 items-center justify-center rounded-[9px] bg-primary text-sm font-semibold text-primary-foreground">
+          V
+        </div>
+      )}
       {statusAction ? (
         <Action
           className="kit-brand-status-action"
