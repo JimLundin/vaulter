@@ -60,7 +60,7 @@ it, while string keys and JSON contain only selected fields. An ordinary object,
 detached JSON/structured clone, an object of another type, or one from another storage backend cannot
 identify an entity in a write. Identity is validated at runtime as well as through TypeScript.
 Objects retain their identity across handles on the same storage backend. This is not an
-authentication mechanism. Address export/import is not part of this first interface.
+authentication mechanism. Historical evidence has a separate validated export/import interface below.
 
 Read objects and collection values are frozen. Dates are detached Date values: mutating a returned
 Date cannot mutate retained data. Attribute changes persist only when explicitly submitted to a
@@ -174,6 +174,32 @@ Facts store individual asserted/retracted values, with internal type, existence 
 presence attributes. Historical views reconstruct them from accepted transactions. First open and
 history reads are not bounded for large datasets. Checkpoints, indexed reads,
 incompatible schema migrations and broader application adoption need subsequent work.
+
+## Historical evidence references
+
+`history.reference(transaction, entity)` exports a frozen `HistoricalReference` for a live entity
+in that accepted snapshot. Its versioned format retains the storage scope, first journal transaction,
+selected transaction, entity identity and type. JSON serialization preserves the address.
+`history.resolve(unknown)` validates those fields, journal membership and target availability,
+then returns opaque `transaction` and `entity` handles for `at` and `history.inspect`:
+
+```ts
+const address = await db.history.reference(transaction, message);
+const evidence = await db.history.resolve(JSON.parse(JSON.stringify(address)));
+const retained = await db.history.inspect(evidence.transaction, evidence.entity);
+```
+
+The address selects state at a snapshot cutoff, including nested references, rather than requiring
+the entity itself to change in that transaction. Later edits and deletion cannot change that state.
+Unknown transactions, entities not yet created or deleted at the cutoff, wrong types, foreign scopes
+and different journals are rejected. Unaccepted inserts cannot be exported. Durable adapters must
+retain a stable scope across reopen; memory scopes last for the reused storage object.
+
+Resolution reads available accepted history and never refreshes, publishes or executes effects.
+Refresh explicitly when remote evidence is newer than the loaded journal. The address is neither
+an authorization token nor a live typed reference. Schema fields for historical references,
+acceptance-time integrity for stored evidence, text projection formats and passage ranges remain
+content-migration work; merely storing this address in JSON does not enforce those contracts.
 
 ## Verification
 

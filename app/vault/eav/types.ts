@@ -144,6 +144,15 @@ export type TransactionEntity = Entity<
   }
 >;
 export type TransactionRef = EntityRef<TransactionEntity>;
+/** Serializable evidence address. It selects an entity in an accepted snapshot, not live state. */
+export interface HistoricalReference {
+  readonly format: 'vaulter-eav-snapshot-v1';
+  readonly scope: string;
+  readonly journal: string;
+  readonly transaction: string;
+  readonly entity: string;
+  readonly type: string;
+}
 export interface TransactionContext {
   readonly author?: EntityRef<EntityDefinition>;
   readonly origin?: EntityRef<EntityDefinition>;
@@ -206,6 +215,14 @@ export type TransactionChange<R extends Registry> = {
   };
 }[keyof R];
 export interface History<R extends Registry> {
+  reference: (
+    transaction: TransactionRef,
+    entity: EntityRef<EntityDefinition>,
+  ) => Promise<HistoricalReference>;
+  resolve: (reference: unknown) => Promise<{
+    readonly transaction: TransactionRef;
+    readonly entity: EntityRef<EntityDefinition>;
+  }>;
   readonly transactions: Reader<TransactionEntity>;
   readonly entities: { readonly [K in keyof R]: ChangeReader<R[K]> };
   changes: (transaction: TransactionRef) => Promise<readonly TransactionChange<R>[]>;

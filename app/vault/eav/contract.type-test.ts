@@ -50,6 +50,19 @@ export async function contract() {
   if (latest) {
     const date: Date = latest.committedAt;
     inspect(date);
+    const evidenceSource = await db.entities.messages.first({ select: {} });
+    if (evidenceSource) {
+      const address = await db.history.reference(latest, evidenceSource);
+      const restored = await db.history.resolve(address);
+      await db.history.inspect(restored.transaction, restored.entity);
+      db.at(restored.transaction);
+      // @ts-expect-error An evidence address cannot replace a live typed entity reference.
+      await db.transaction((tx) => tx.entities.messages.delete(address));
+      // @ts-expect-error An entity is not an accepted transaction handle.
+      await db.history.reference(evidenceSource, evidenceSource);
+      // @ts-expect-error A detached object is not an entity reference.
+      await db.history.reference(latest, { text: 'Copied' });
+    }
     const past = db.at(latest);
     const earlier = await past.entities.messages.first({ select: { text: true } });
     if (earlier) {

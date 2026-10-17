@@ -12,6 +12,7 @@ export type {
   ReadView,
   Transaction,
   TransactionRef,
+  HistoricalReference,
   TransactionContext,
   Reader,
   Writer,

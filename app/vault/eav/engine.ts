@@ -1,4 +1,5 @@
 import { refreshStorage, persist, SaveError, storageClosed } from './persistence.ts';
+import { captureReference, resolveReference } from './references.ts';
 import {
   e,
   describe,
@@ -534,6 +535,20 @@ export async function openDatabase<const R extends Registry>(
     },
     transaction,
     history: Object.freeze({
+      // biome-ignore lint/suspicious/useAwait: Validation errors are promise rejections.
+      reference: async (recorded: unknown, entity: unknown) => {
+        ensure();
+        return captureReference(storage, commitFor(recorded), entity);
+      },
+      // biome-ignore lint/suspicious/useAwait: Validation errors are promise rejections.
+      resolve: async (address: unknown) => {
+        ensure();
+        const resolved = resolveReference(storage, address);
+        return Object.freeze({
+          transaction: transactionObject(resolved.commit, {}),
+          entity: resolved.entity,
+        });
+      },
       // biome-ignore lint/suspicious/useAwait: Validation errors are promise rejections.
       inspect: async (transaction: unknown, value: unknown) => {
         ensure();

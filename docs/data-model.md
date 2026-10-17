@@ -167,11 +167,15 @@ must be settled with each owning module before registering and publishing its sc
 | Observations and Interpretations | Retain measured/described time separately from recording time, source provenance, uncertainty and attribution. Later interpretations or corrections coexist with original evidence. |
 | Independent live voice | Migrate its producer to the same Agent and Chat entities while preserving effective context, finalized speech, stop/close, tool declarations and persistence-only recovery. The independent compatibility voice runtime still uses Nodes. |
 
-EAV's current public references address entity identities, not exportable exact-version addresses.
-Before migrating citations or other exact evidence, implement a validated historical-reference
-contract (identity plus accepted transaction/snapshot and projection semantics), including durable
-serialization and unavailable-content behavior. Do not replace exact Node addresses with live EAV
-references or unvalidated JSON strings. Existing [citation rules](adr/0005-wiki-citation-selections.md)
+EAV now exports validated snapshot evidence through `history.reference` and restores opaque handles
+through `history.resolve`. The versioned address survives durable storage reopen and retains entity
+identity/type, journal identity and an accepted snapshot; nested references resolve at that cutoff,
+even after later deletion. This is a snapshot address, not an exact entity-change transaction pair.
+Before migrating citations or other exact evidence, add schema-defined historical-reference fields
+with acceptance-time integrity, owner-defined projection formats, passage ranges and live
+unavailable-content behavior. A serialized address alone does not provide those guarantees.
+Do not replace exact Node addresses with live EAV references or unvalidated JSON strings.
+Existing [citation rules](adr/0005-wiki-citation-selections.md)
 and historical availability obligations remain binding during this transition.
 
 ## Persistence and rollout
@@ -196,5 +200,5 @@ regeneration of published history or destructive in-place conversion is part of 
 
 The application migration is complete when all production producers and readers use EAV, retained
 Node evidence still resolves, the bridges are unnecessary, and focused persistence/recovery checks
-plus the implementation commit's full CI verification pass. This continuation completes History
-adoption; it does not claim completion of content, citation, Questions or independent voice migration.
+plus the implementation commit's full CI verification pass. History adoption and historical-address
+export/resolution are implemented; content, citation, Questions and independent voice migration remain.

@@ -67,6 +67,31 @@ test('durable EAV acceptance survives a fresh backend and preserves unrelated fi
   expect(filesAt()['.vaulter/nodes/unrelated']).toBe('Node data');
 });
 
+test('historical evidence resolves after GitHub reopen and from the offline device cache', async () => {
+  const { open } = await setup();
+  await using db = await open();
+  const message = await db.transaction((tx) =>
+    tx.entities.messages.insert({ text: 'Exact evidence', details: null }),
+  );
+  const snapshot = (await db.history.transactions.first({ select: {} }))!;
+  const address = JSON.parse(JSON.stringify(await db.history.reference(snapshot, message)));
+  await db.transaction((tx) => tx.entities.messages.delete(message));
+  await using reopened = await open();
+  const evidence = await reopened.history.resolve(address);
+  expect(await reopened.history.inspect(evidence.transaction, evidence.entity)).toMatchObject({
+    type: 'message',
+    values: { text: 'Exact evidence' },
+  });
+  await using offline = await open(async () => {
+    throw new TypeError('Offline');
+  });
+  const cached = await offline.history.resolve(address);
+  expect(await offline.history.inspect(cached.transaction, cached.entity)).toMatchObject({
+    values: { text: 'Exact evidence' },
+  });
+  expect(await offline.entities.messages.first({ select: {} })).toBeUndefined();
+});
+
 test('lost remote acceptance retries exactly one publication without repeating calculation', async () => {
   const { open, fetchFn, filesAt } = await setup();
   let broken = false;
