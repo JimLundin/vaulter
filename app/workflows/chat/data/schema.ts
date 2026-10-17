@@ -31,6 +31,7 @@ export const RetainedSource = e.entity('chat.retainedSource', {
   position: e.number(),
   speaker: e.enum('user', 'agent', 'unknown'),
   occurredAt: e.string(),
+  occurredAtPrecision: e.enum('second', 'minute', 'day', 'approximate').optional(),
   text: e.string().optional(),
   activity: e.json().optional(),
   label: e.string().optional(),

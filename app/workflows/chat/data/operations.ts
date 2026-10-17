@@ -81,6 +81,7 @@ export async function readExchange(view: Reading, identity: ExchangeRef) {
     select: {
       speaker: true,
       occurredAt: true,
+      occurredAtPrecision: true,
       text: true,
       activity: true,
       label: true,

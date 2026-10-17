@@ -30,8 +30,10 @@ credential changes and sign-out cover EAV storage. No automatic execution schedu
 A one-time importer captures earlier chats into the target retained-source contract, preserving known
 speaker/status/content, old grouping and exact immutable Node versions as provenance. It does not
 manufacture model steps, authors or outcomes. Its deterministic source ordering is presentation order;
-unknown dates or ties retain that uncertainty. Normal chat readers subsequently use only EAV. Original
-Node history remains for exact evidence and other modules' gradual migration.
+each historical contribution is ordered by its message instant, then original placement and identity.
+Old containers are not timeline boundaries. Recorded date precision remains available, and day-only
+accounts do not display an invented clock time. Ties retain their uncertainty. Normal chat readers
+subsequently use only EAV. Original Node history remains for exact evidence and other modules' gradual migration.
 
 The production UI and default preview reopen the same dialogue and retire New/Open conversation
 selection. A conversation timeline retains navigation within that single dialogue. Existing draft, capture, submission and recovery ownership remains in the retained Chat

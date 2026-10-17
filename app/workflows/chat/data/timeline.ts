@@ -22,7 +22,10 @@ export async function dialogue(view: ReadView<typeof chatSchema>) {
       exchange,
       position: exchange.position,
       anchor,
-      at: exchange.startedAt?.toISOString() ?? messages[0]?.at ?? '',
+      at:
+        messages[0]?.atPrecision === 'day' || messages[0]?.atPrecision === 'approximate'
+          ? messages[0].at.slice(0, 10)
+          : (exchange.startedAt?.toISOString() ?? messages[0]?.at ?? ''),
       title: text.replace(/\s+/g, ' ').slice(0, 90) || 'Recorded activity',
       messages,
     });

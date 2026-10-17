@@ -17,6 +17,7 @@ export async function projectedExchange(
     parseMessage({
       kind: 'message',
       at: source.occurredAt,
+      ...(source.occurredAtPrecision && { atPrecision: source.occurredAtPrecision }),
       ...(source.speaker === 'agent'
         ? { role: 'agent', status: source.status ?? 'running', parts: source.activity ?? [] }
         : source.speaker === 'user'
