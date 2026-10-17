@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { openAppAction } from '@/ui/kit/navigation.browser.test-support.ts';
 import { createPersistentStorage, openDatabase, type Journal } from '@/vault/eav/index.ts';
 import { applicationSchema } from '@/application/composition.ts';
 import { seedEavWiki } from '@/preview/wiki-records.ts';
@@ -61,12 +62,13 @@ test('production Wiki reads typed EAV prose and retained citations after reload'
   await expect(page.getByRole('heading', { name: 'Garden studio', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Evidence for Keep mornings free.', exact: true }).click();
   await expect(page.getByRole('link', { name: 'Studio plans', exact: true })).toBeVisible();
-  await page
-    .getByRole('toolbar', { name: 'Wiki page' })
-    .getByRole('button', { name: 'Wiki', exact: true })
-    .click();
+  const closeReferences = page.getByRole('button', { name: 'Close references', exact: true });
+  if (await closeReferences.isVisible()) await closeReferences.click();
+  await openAppAction(page, 'Wiki');
   await expect(page.getByRole('heading', { name: 'A place to begin.' })).toBeVisible();
   const directory = page.getByRole('region', { name: 'Page directory' });
+  const findPages = page.getByRole('button', { name: 'Find pages', exact: true });
+  if (await findPages.isVisible()) await findPages.click();
   await page.getByRole('textbox', { name: 'Find pages' }).fill('slow');
   await expect(directory.getByRole('link')).toHaveText(['Slow mornings']);
   await directory.getByRole('link', { name: 'Slow mornings', exact: true }).click();
