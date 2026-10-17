@@ -134,7 +134,10 @@ test('paired module evidence stays bounded and independent through device change
     .click();
   await expect(desktop.getByRole('textbox', { name: 'Find pages' })).toBeVisible();
   await expect(mobile.getByRole('heading', { name: 'Garden studio', exact: true })).toBeVisible();
-  await desktop.getByRole('link', { name: 'Slow mornings', exact: true }).click();
+  await desktop
+    .getByRole('region', { name: 'Page directory' })
+    .getByRole('link', { name: 'Slow mornings', exact: true })
+    .click();
   await expect(desktop.getByRole('heading', { name: 'Slow mornings', exact: true })).toBeVisible();
   await expect(mobile.getByRole('heading', { name: 'Garden studio', exact: true })).toBeVisible();
 });
