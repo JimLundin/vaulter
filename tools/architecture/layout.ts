@@ -137,6 +137,7 @@ export function importProblem(from: string, to: string): string | null {
     !compositionEntry(from) &&
     !applicationTest(from) &&
     !(target === 'questions' && from === 'app/preview/question-records.ts') &&
+    !(target === 'chat' && from === 'app/preview/conversation-records.ts') &&
     !(
       ['app/preview/graph-density.ts', 'app/preview/graph-evidence.ts'].includes(from) &&
       ['wiki', 'graph', 'questions'].includes(target)
