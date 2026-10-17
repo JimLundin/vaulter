@@ -1,7 +1,5 @@
-import { frozen } from '../../vault/nodes/json.ts';
-import type { TransactionRequest, TransactionStore } from '../../vault/transactions/store.ts';
+import { SaveError } from '@/vault/eav/index.ts';
 
-import { createQuestionOwnership } from './actions.ts';
 import type { Question } from './reading.ts';
 
 export type QuestionAnswerHandler = (question: Question, text: string) => Promise<void>;
@@ -9,14 +7,10 @@ export type QuestionAnswerHandler = (question: Question, text: string) => Promis
 export interface QuestionAnswersOptions {
   /** Navigation and capability replacement retain this application session's task owner. */
   readonly session: object;
-  readonly nodes: TransactionStore | null;
-  /** Supplied by the trusted application, never chosen by an Answer's text or record. */
-  readonly recordedBy: string;
+  readonly actions: { readonly answer: QuestionAnswerHandler } | null;
   readonly availability?: string;
   /** Consult current session admission again after asynchronous reads and before publication. */
   readonly admission?: () => string | undefined;
-  /** The application supplies the same owner used by its publication checks. */
-  readonly ownership?: ReturnType<typeof createQuestionOwnership>;
 }
 
 export interface QuestionAnswers {
@@ -44,27 +38,24 @@ export interface QuestionAnswersState {
 interface AnswerTask {
   readonly question: Question;
   readonly text: string;
-  readonly recordedBy: string;
-  /** Retain the whole request after entering publication: retries never generate another Answer. */
-  request?: TransactionRequest<void>;
+  retrySave?: () => Promise<unknown>;
   pending?: Promise<void>;
   error?: string;
 }
 
-/** Questions owns fresh reads, retained relationship discovery and exact-request Answer publication. */
+/** Questions retains admitted Answers and exact-save recovery across view lifetimes. */
 export function createQuestionAnswers(initial: QuestionAnswersOptions): QuestionAnswers {
   let options = initial;
   let disposed = false;
-  const abort = new AbortController();
   const tasks = new Map<string, AnswerTask>();
-  let state: QuestionAnswersState = frozen({ attempts: [] });
+  let state: QuestionAnswersState = Object.freeze({ attempts: [] });
   const listeners = new Set<() => void>();
   const publish = () => {
-    state = frozen({
+    state = Object.freeze({
       attempts: [...tasks.values()].map((task) => ({
         question: task.question,
         text: task.text,
-        phase: task.pending ? 'pending' : 'uncertain',
+        phase: task.pending ? ('pending' as const) : ('uncertain' as const),
         ...(task.error ? { error: task.error } : {}),
       })),
     });
@@ -75,35 +66,17 @@ export function createQuestionAnswers(initial: QuestionAnswersOptions): Question
     if (options.availability) throw new Error(options.availability);
     const reason = options.admission?.();
     if (reason) throw new Error(reason);
-    if (!options.nodes) throw new Error('Node store is unavailable.');
-    return options.nodes;
+    if (!options.actions) throw new Error('Questions storage is unavailable.');
+    return options.actions;
   };
   const run = async (task: AnswerTask) => {
-    const nodes = available();
-    const { recordedBy } = task;
-    using writes = nodes
-      .writer({
-        recordedBy,
-        origin: task.question.id,
-        admission: () => {
-          if (available() !== nodes)
-            throw new Error('The node store changed. Review the question before saving an answer.');
-        },
-      })
-      .lifetime({ signal: abort.signal });
-    if (task.request) await writes.retry(task.request);
-    else {
-      task.request = writes.write(async ({ id, nodes: reading }) => {
-        const view = await reading.snapshot();
-        const ownership = options.ownership ?? createQuestionOwnership({ nodes: reading });
-        const transaction = await ownership.answer(
-          view,
-          { question: task.question.key, text: task.text },
-          { id, kind: 'person', recordedBy, origin: task.question.id },
-        );
-        return { value: undefined, transaction: { ...transaction, undoOf: null } };
-      });
-      await task.request.result;
+    const actions = available();
+    try {
+      if (task.retrySave) await task.retrySave();
+      else await actions.answer(task.question, task.text);
+    } catch (error) {
+      if (error instanceof SaveError) task.retrySave = error.retry;
+      throw error;
     }
   };
   const answer: QuestionAnswerHandler = (question, text) => {
@@ -116,8 +89,8 @@ export function createQuestionAnswers(initial: QuestionAnswersOptions): Question
     const existing = tasks.get(question.id);
     if (
       existing &&
-      ((!existing.request?.snapshot().finalized &&
-        existing.question.key.transaction !== question.key.transaction) ||
+      ((!existing.retrySave &&
+        existing.question.evidence.transaction !== question.evidence.transaction) ||
         existing.text !== trimmed)
     )
       return Promise.reject(
@@ -126,7 +99,6 @@ export function createQuestionAnswers(initial: QuestionAnswersOptions): Question
     const task: AnswerTask = existing ?? {
       question,
       text: trimmed,
-      recordedBy: options.recordedBy,
     };
     if (task.pending !== undefined) return task.pending;
     tasks.set(question.id, task);
@@ -137,11 +109,7 @@ export function createQuestionAnswers(initial: QuestionAnswersOptions): Question
       })
       .catch((error: unknown) => {
         // Preparation never published. A conflict is also a definitive rejection, so new wording may be read.
-        if (
-          (!task.request?.snapshot().finalized || task.request.snapshot().phase === 'rejected') &&
-          tasks.get(question.id) === task
-        )
-          tasks.delete(question.id);
+        if (!task.retrySave && tasks.get(question.id) === task) tasks.delete(question.id);
         else task.error = error instanceof Error ? error.message : String(error);
         throw error;
       })
@@ -171,7 +139,6 @@ export function createQuestionAnswers(initial: QuestionAnswersOptions): Question
       if (disposed) return;
       if (initial.session !== next.session) {
         disposed = true;
-        abort.abort(new Error('This Questions session is closed.'));
         listeners.clear();
         return;
       }
@@ -180,7 +147,6 @@ export function createQuestionAnswers(initial: QuestionAnswersOptions): Question
     closed: () => disposed,
     dispose: () => {
       disposed = true;
-      abort.abort(new Error('This Questions session is closed.'));
       listeners.clear();
     },
   };

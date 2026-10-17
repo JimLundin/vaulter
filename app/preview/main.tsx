@@ -1,22 +1,25 @@
+import { seedEavQuestions } from './question-records.ts';
 import '@fontsource-variable/geist';
 import '@fontsource-variable/geist-mono';
 import '@fontsource-variable/newsreader';
-import '../ui/kit/styles.css';
+import '@/ui/kit/styles.css';
 import { createRoot } from 'react-dom/client';
 import { useState } from 'react';
-import { OpenApplication } from '../application/index.tsx';
-import { applicationNodes } from '../application/composition.ts';
-import { startTheme, Text, DesignPreview, Gate, Brand, Button, Stack } from '../ui/kit/index.ts';
+import { OpenApplication } from '@/application/index.tsx';
+import { applicationNodes, applicationWiki } from '@/application/composition.ts';
+import { startTheme, Text, DesignPreview, Gate, Brand, Button, Stack } from '@/ui/kit/index.ts';
 import { seedGraphEvidence } from './graph-evidence.ts';
 import { seedGraphDensity } from './graph-density.ts';
 import { previewModel } from './model.ts';
-import { createOpenAICapabilities } from '../agent/openai/index.ts';
-import { recordedTranscription } from '../agent/recorded-transcription.ts';
+import { createOpenAICapabilities } from '@/agent/openai/index.ts';
+import { recordedTranscription } from '@/agent/recorded-transcription.ts';
 import { previewTranscription } from './transcription.ts';
 import { previewNodes, previewJournalKey } from './nodes.ts';
 import { previewEav, previewEavKey } from './eav.ts';
-import type { NodeChange } from '../vault/nodes/store.ts';
-import type { NodeStore } from '../vault/nodes/store.ts';
+import type { NodeChange } from '@/vault/nodes/store.ts';
+import type { NodeStore } from '@/vault/nodes/store.ts';
+import { seedEavWiki } from './wiki-records.ts';
+import { seedCalendar } from './calendar-records.ts';
 import { seedPreviewRecords } from './records.ts';
 
 const query = new URLSearchParams(location.search);
@@ -41,29 +44,12 @@ const transcription = agent ? recordedTranscription(agent.transcribe) : previewT
 const openingNodes = previewNodes(sessionStorage, query.get('scenario') ?? undefined).then(
   async (nodes) => {
     await seedPreviewRecords(nodes);
+    await seedEavWiki(await applicationWiki(eav).database());
+    await seedCalendar(eav);
+    await seedEavQuestions(await applicationWiki(eav).database());
     if (query.get('compare') === 'graph') {
       await seedGraphEvidence(nodes);
       await seedGraphDensity(nodes);
-      if (!(await nodes.snapshot()).get('preview:inquiry:studio-context:0')) {
-        await nodes.commit({
-          id: 'preview:inquiry:studio-context',
-          recordedBy: 'preview:wiki-owner',
-          origin: null,
-          undoOf: null,
-          kind: { scope: 'node', action: 'create' },
-          message: 'Fictional context for open Studio questions',
-          changes: [0, 1].map((index) => ({
-            node: `preview:inquiry:studio-context:${index}`,
-            expected: null,
-            data: { kind: 'relationship', predicate: 'informed-by' },
-            placement: { parent: `preview:density:studio-question:${index}`, order: 'a' },
-            connection: {
-              source: { node: `preview:density:studio-question:${index}` },
-              target: { node: `preview:graph-claim:${index}` },
-            },
-          })),
-        });
-      }
     }
     if (query.has('conversations') && !(await nodes.snapshot()).get('preview:list-owner')) {
       await nodes.commit({
@@ -192,8 +178,9 @@ function Preview({ nodes }: { nodes: NodeStore }) {
       }}
     />
   );
-  return (
+  const frame = (content: React.ReactNode, variantControls?: React.ReactNode) => (
     <DesignPreview
+      variantControls={variantControls}
       label={`${agent ? 'Live agent preview' : 'Design preview'} · ${(import.meta.env.VITE_PREVIEW_COMMIT || 'local').slice(0, 7)}`}
       chat={agent ? 'Live agent' : 'Scripted chat'}
       onReset={() => {
@@ -213,10 +200,11 @@ function Preview({ nodes }: { nodes: NodeStore }) {
           </Stack>
         </Gate>
       ) : (
-        product()
+        content
       )}
     </DesignPreview>
   );
+  return frame(product());
 }
 
 startTheme();

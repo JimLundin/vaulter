@@ -1,18 +1,27 @@
+import { applicationQuestionCollection, applicationQuestionAnswers } from './composition.ts';
 import { chatRoute, conversationRoute, historyRoute, settingsRoute } from './routes.ts';
 import {
+  CalendarPage,
+  CalendarTimeline,
+  useCalendar,
+  calendarRoute,
+  calendarEntries,
+  type CalendarData,
+} from '@/calendar/index.ts';
+import {
   applicationNodes,
-  applicationQuestions,
   applicationHistory,
   applicationChatOptions,
   applicationSources,
   applicationGraphDescription,
-  applicationWikiGraph,
-  agentContextReading,
+  applicationWiki,
+  applicationCalendar,
+  applicationSubjectCalendar,
   toolPresentations,
 } from './composition.ts';
 // Application shell and module views. Record composition lives in composition.ts.
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { useTranscription, type TranscriptionProvider } from '../transcription.ts';
+import { useTranscription, type TranscriptionProvider } from '@/transcription.ts';
 import type { LanguageModel } from 'ai';
 import {
   useVaultSession,
@@ -23,27 +32,27 @@ import {
   SignOut,
   createSessionCredentials,
   restrictSessionCredentials,
-} from '../vault/index.ts';
+} from '@/vault/index.ts';
 import { Frame } from './Frame.tsx';
-import { Search, Keys } from '../search/Search.tsx';
+import { Search, Keys } from '@/search/Search.tsx';
 import { Previews } from './Previews.tsx';
-import { useKeys } from '../navigation/keys.ts';
-import { opened } from '../search/recent.ts';
-import { go, link, parseRoute, useRoute } from '../navigation/routing.ts';
-import { later } from '../runtime/later.ts';
+import { useKeys } from '@/navigation/keys.ts';
+import { opened } from '@/search/recent.ts';
+import { go, link, parseRoute, useRoute } from '@/navigation/routing.ts';
+import { later } from '@/runtime/later.ts';
 import { AppearanceSettings, appearanceSettings } from './AppearanceSettings.tsx';
-import { agentSettings, agentOptions, agentPreferences } from '../agent/settings.ts';
-import { AgentSettings } from '../agent/Settings.tsx';
-import { OpenAISettings } from '../agent/openai/Settings.tsx';
-import { GitHubSettings } from '../vault/storage/Settings.tsx';
+import { agentSettings, agentOptions, agentPreferences } from '@/agent/settings.ts';
+import { AgentSettings } from '@/agent/Settings.tsx';
+import { OpenAISettings } from '@/agent/openai/Settings.tsx';
+import { GitHubSettings } from '@/vault/storage/Settings.tsx';
 import {
   createOpenAISettings,
   createOpenAIPreferences,
   openAIOptions,
-} from '../agent/openai/settings.ts';
-import { githubSettings } from '../vault/storage/settings.ts';
-import { chatPreferences, chatSettings } from '../workflows/chat/preferences.ts';
-import { nodeWriteAvailability, nodeRecordsReady } from '../vault/session/availability.ts';
+} from '@/agent/openai/settings.ts';
+import { githubSettings } from '@/vault/storage/settings.ts';
+import { chatPreferences, chatSettings } from '@/workflows/chat/preferences.ts';
+import { nodeWriteAvailability, nodeRecordsReady } from '@/vault/session/availability.ts';
 import {
   Button,
   Alert,
@@ -58,8 +67,8 @@ import {
   Text,
   setTheme,
   useLayout,
-} from '../ui/kit/index.ts';
-import type { Command, Navigation } from '../navigation/commands.ts';
+} from '@/ui/kit/index.ts';
+import type { Command, Navigation } from '@/navigation/commands.ts';
 import {
   ChatPage,
   ChatPanel,
@@ -67,23 +76,22 @@ import {
   useConversation,
   useChat,
   type Prompt,
-} from '../workflows/chat/index.tsx';
+} from '@/workflows/chat/index.tsx';
 import {
   createApplicationIdentities,
   defaultIdentities,
   type ApplicationIdentities,
 } from './identities.ts';
-import type { TransactionStore } from '../vault/transactions/store.ts';
-import { createOpenAICapabilities } from '../agent/openai/index.ts';
-import { HistoryDrawer } from '../vault/transactions/history/index.tsx';
-import { Wiki, type ForeignRecordRenderer } from '../workflows/wiki/index.tsx';
-import { wikiRoute, pageRoute } from '../workflows/wiki/routes.ts';
-import { useWikiReading, useWiki } from '../workflows/wiki/use-wiki.ts';
-import { describeWikiTarget } from '../workflows/wiki/sources.ts';
-import { recordText } from '../workflows/wiki/text.ts';
-import { GraphPage } from '../workflows/graph/GraphPage.tsx';
-import { graphRoute, graphSubjectRoute } from '../workflows/graph/routes.ts';
-import { useGraph, useGraphExplorer } from '../workflows/graph/use-graph.ts';
+import type { TransactionStore } from '@/vault/transactions/store.ts';
+import { createOpenAICapabilities } from '@/agent/openai/index.ts';
+import { HistoryDrawer } from '@/vault/transactions/history/index.tsx';
+import { Wiki, type ForeignRecordRenderer } from '@/workflows/wiki/index.tsx';
+import { wikiRoute, pageRoute } from '@/workflows/wiki/routes.ts';
+import { useEavWikiReading } from '@/workflows/wiki/data/reading.ts';
+import { recordText } from '@/workflows/wiki/text.ts';
+import { GraphPage } from '@/workflows/graph/GraphPage.tsx';
+import { graphRoute, graphSubjectRoute } from '@/workflows/graph/routes.ts';
+import { useGraph, useGraphExplorer } from '@/workflows/graph/use-graph.ts';
 import {
   QuestionsPage,
   questionsRoute,
@@ -93,7 +101,7 @@ import {
   questionAnswerAvailability,
   questionDescriptions,
   renderQuestionRecord,
-} from '../workflows/questions/index.tsx';
+} from '@/workflows/questions/index.tsx';
 
 const unavailableNodes: TransactionStore = {
   identity: {},
@@ -119,7 +127,7 @@ export function Application({
   identities,
 }: {
   openNodes: OpenNodes;
-  openEav?: import('../vault/session/adapters.ts').OpenEav;
+  openEav?: import('@/vault/session/adapters.ts').OpenEav;
   identities?: ApplicationIdentities;
 }) {
   const session = useVaultSession(openNodes, openEav);
@@ -212,17 +220,63 @@ export function OpenApplication({
     if (nodeStatus.kind === 'synced') later(prepareIdentities());
   }, [prepareIdentities, nodeStatus.kind]);
   const route = useRoute();
-  const wikiSources = applicationSources;
-  const wiki = useWikiReading(nodes, wikiSources, applicationWikiGraph);
-  const { pages, error: wikiError } = useWiki(wiki);
+  const wikiInput = useMemo(
+    () => (session.eav ? applicationWiki(session.eav) : null),
+    [session.eav],
+  );
+  const { reading: wiki, pages, error: wikiError } = useEavWikiReading(wikiInput);
+  const [wikiTopics, setWikiTopics] = useState<
+    Awaited<ReturnType<NonNullable<typeof wikiInput>['topics']>>
+  >([]);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Wiki publications invalidate the Topic projection.
+  useEffect(() => {
+    let active = true;
+    void wikiInput?.topics().then((topics) => {
+      if (active) setWikiTopics(topics);
+    });
+    return () => {
+      active = false;
+    };
+  }, [wikiInput, pages]);
   const wikiPage = pageRoute.match(route.path)?.node;
   const onWiki = !!wikiRoute.match(route.path) || !!wikiPage;
+  const onCalendar = !!calendarRoute.match(route.path);
+  const calendarInput = useMemo(
+    () => (session.eav ? applicationCalendar(session.eav, identities) : null),
+    [session.eav, identities],
+  );
+  const calendar = useCalendar(calendarInput);
+  const [subjectCalendar, setSubjectCalendar] = useState<{
+    data: CalendarData;
+    page: string;
+    source: CalendarData;
+  }>();
+  useEffect(() => {
+    let active = true;
+    if (session.eav && wikiPage && calendar.data) {
+      const source = calendar.data;
+      applicationSubjectCalendar(session.eav, wikiPage, source)
+        .then((data) => {
+          if (active) setSubjectCalendar({ data, page: wikiPage, source });
+        })
+        .catch(() => {
+          if (active) setSubjectCalendar(undefined);
+        });
+    }
+    return () => {
+      active = false;
+    };
+  }, [session.eav, wikiPage, calendar.data]);
   const onQuestions = !!questionsRoute.match(route.path);
   const graphSubject = graphSubjectRoute.match(route.path)?.node;
   const onGraph = !!graphRoute.match(route.path) || !!graphSubject;
   const graph = useGraphExplorer(onGraph ? nodes : null, applicationGraphDescription);
   const graphState = useGraph(graph);
-  const questions = useQuestionsReading(onWiki || onQuestions ? nodes : null);
+  const nativeQuestions = useMemo(
+    () => (session.eav ? applicationQuestionCollection(session.eav) : null),
+    [session.eav],
+  );
+  const questions = useQuestionsReading(onWiki || onQuestions ? nativeQuestions : null);
   const questionState = useQuestions(questions);
   // Session identity survives credential reconnects; independent supplied stores get a new owner.
   const chatScope = useRef<{ nodes: TransactionStore | null; key: object }>({
@@ -246,17 +300,15 @@ export function OpenApplication({
   admission.current = writeAdmission;
   const answers = useQuestionAnswers({
     session: chatSession,
-    nodes,
-    ownership: nodes ? applicationQuestions(nodes) : undefined,
-    recordedBy: identities.user,
-    admission: () => admission.current,
+    actions: session.eav
+      ? applicationQuestionAnswers(session.eav, identities, () =>
+          answers.closed() ? 'This Questions session is closed.' : admission.current,
+        )
+      : null,
+    admission: () => (answers.closed() ? 'This Questions session is closed.' : admission.current),
   });
   const answerAvailability = questionAnswerAvailability(questionState, writeAdmission);
-  const descriptions = questionDescriptions(questionState.view, {
-    text: agentContextReading.text,
-    describe: (node, view) =>
-      applicationSources.describe(node, view) ?? describeWikiTarget(node, view),
-  });
+  const descriptions = questionDescriptions();
   const renderWikiRecord: ForeignRecordRenderer = (record) =>
     renderQuestionRecord(record, questionState, {
       ...descriptions,
@@ -309,9 +361,11 @@ export function OpenApplication({
           ? (pages?.find((page) => page.id === wikiPage)?.title ?? 'Wiki')
           : onQuestions
             ? 'Questions'
-            : onGraph
-              ? 'Graph'
-              : 'Not found';
+            : onCalendar
+              ? 'Calendar'
+              : onGraph
+                ? 'Graph'
+                : 'Not found';
   const provider = useMemo(
     () =>
       session.secrets?.openai
@@ -419,6 +473,7 @@ export function OpenApplication({
     { label: 'Chat', href: chatRoute.href(), icon: 'sparkles', current: onChat },
     { label: 'Wiki', href: wikiRoute.href(), icon: 'book', current: onWiki },
     { label: 'Graph', href: graphRoute.href(), icon: 'network', current: onGraph },
+    { label: 'Calendar', href: calendarRoute.href(), icon: 'calendar', current: onCalendar },
     { label: 'Questions', href: questionsRoute.href(), icon: 'help', current: onQuestions },
     ...(nodes
       ? [
@@ -466,6 +521,14 @@ export function OpenApplication({
     later(conversation.captureAction());
   };
   const commands: Command[] = [
+    {
+      id: 'go.calendar',
+      label: 'Calendar',
+      group: 'Go to',
+      icon: 'calendar',
+      keys: 'g c',
+      run: () => go(calendarRoute.href()),
+    },
     {
       id: 'go.graph',
       label: 'Graph',
@@ -648,6 +711,21 @@ export function OpenApplication({
             prompt={prompt}
             toolPresentations={toolPresentations}
           />
+        ) : onCalendar ? (
+          <CalendarPage
+            data={calendar.data}
+            error={
+              calendar.error ?? (!calendarInput ? 'Calendar storage is unavailable.' : undefined)
+            }
+            actions={calendarInput?.actions}
+            disabledReason={
+              session.credentialPending
+                ? 'Wait for credentials to finish updating.'
+                : nodeStatus.kind === 'synced'
+                  ? undefined
+                  : 'Reconnect before saving Calendar changes.'
+            }
+          />
         ) : onQuestions ? (
           <QuestionsPage
             state={questionState}
@@ -661,7 +739,7 @@ export function OpenApplication({
           <GraphPage
             state={graphState}
             node={graphSubject}
-            topics={pages ?? []}
+            topics={wikiTopics}
             currentSourceText={(node) => {
               const view = graphState.view;
               const source = view?.get(node);
@@ -678,6 +756,41 @@ export function OpenApplication({
             node={wikiPage}
             error={wikiError}
             renderRecord={renderWikiRecord}
+            renderRelatedRecords={(page) => {
+              const related =
+                questionState.questions?.filter((question) =>
+                  question.subjects.some(
+                    (subject) => subject.href === `#/wiki/${encodeURIComponent(page.id)}/`,
+                  ),
+                ) ?? [];
+              return related.length ? (
+                <Stack gap="lg">
+                  {related.map((question) =>
+                    renderWikiRecord({
+                      id: question.id,
+                      data: question.data,
+                      children: [],
+                      evidence: [],
+                    }),
+                  )}
+                </Stack>
+              ) : null;
+            }}
+            renderTimeline={() =>
+              subjectCalendar &&
+              subjectCalendar.page === wikiPage &&
+              subjectCalendar.source === calendar.data &&
+              (subjectCalendar.data.events.length || subjectCalendar.data.annualDates.length) ? (
+                <CalendarTimeline
+                  title="Subject timeline"
+                  entries={calendarEntries(
+                    subjectCalendar.data,
+                    new Date().getFullYear(),
+                    Intl.DateTimeFormat().resolvedOptions().timeZone,
+                  )}
+                />
+              ) : null
+            }
           />
         ) : (
           <Page>

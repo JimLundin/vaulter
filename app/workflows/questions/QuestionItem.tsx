@@ -15,11 +15,10 @@ import {
   Text,
   TextBox,
   VoiceStatus,
-} from '../../ui/kit/index.ts';
-import type { Transcription } from '../../transcription.ts';
-import { isSafeUrl } from '../../navigation/urls.ts';
+} from '@/ui/kit/index.ts';
+import type { Transcription } from '@/transcription.ts';
+import { isSafeUrl } from '@/navigation/urls.ts';
 import type { Question, QuestionTarget } from './reading.ts';
-import { parseAnswer } from './records.ts';
 import type { QuestionAnswers } from './answers.ts';
 import { useQuestionAnswerState } from './use-questions.ts';
 import { useAnswerDictation } from './use-answer-dictation.ts';
@@ -78,7 +77,7 @@ export function QuestionItem({
   const stale =
     !!draft &&
     (draft.question.id !== question.id ||
-      draft.question.key.transaction !== question.key.transaction);
+      draft.question.evidence.transaction !== question.evidence.transaction);
   const locked = pending || !!disabledReason || !!attempt;
   const canAnswer = question.status === 'open' && !!submitAnswer;
   const edit = (next: string) => {
@@ -340,33 +339,22 @@ function Targets({
 }) {
   return (
     <Stack gap="sm">
-      {targets.map((target, index) => {
+      {targets.map((target) => {
         const description = describeTarget?.(target);
-        const answerText =
-          !subject && target.version?.data?.kind === 'answer'
-            ? parseAnswer(target.version.data).text
-            : undefined;
+        const answerText = !subject ? target.text : undefined;
         const availability = subject
           ? target.state === 'deleted'
             ? 'Subject removed'
-            : target.state === 'missing'
-              ? 'Subject unavailable'
-              : target.state === 'unresolved'
-                ? 'Subject not linked'
-                : target.state === 'newer'
-                  ? 'Newer subject content available'
-                  : undefined
+            : target.state === 'newer'
+              ? 'Newer subject content available'
+              : undefined
           : target.state === 'deleted'
             ? 'Answer removed; recorded link retained'
-            : target.state === 'missing'
-              ? 'Answer unavailable; recorded link retained'
-              : target.state === 'unresolved'
-                ? 'Answer not linked'
-                : target.state === 'newer'
-                  ? 'Recorded answer; newer content available'
-                  : 'Recorded answer';
+            : target.state === 'newer'
+              ? 'Recorded answer; newer content available'
+              : 'Recorded answer';
         return (
-          <Stack key={target.relationship ?? index} gap="xs">
+          <Stack key={`${target.evidence.entity}:${target.evidence.transaction}`} gap="xs">
             {!!answerText && <Text preserve={true}>{answerText}</Text>}
             <Text size={subject ? 'xs' : 'sm'} tone="muted">
               {subject ? 'About ' : ''}

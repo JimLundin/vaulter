@@ -76,23 +76,10 @@ must execute in their owning module, rather than delegate an unrecorded effect t
 The module owns its input schema, content payloads, operation validation and publication choice.
 Agent owns the run and tool activity, not a universal staging or review rule.
 
-Questions publication is restricted to that module's create and answer actions. Application supplies
-the same enforcing TransactionStore to independent Agent execution, Chat composition and direct Answer
-tasks. An Agent tool delegates asking to Questions with its trusted Agent author and run origin;
-it cannot grant permission by constructing Question JSON, copying a transaction kind or bypassing
-the tool through initial caller-composed changes. Questions retains the complete authorized work
-and required reads, checked against authoritative history at atomic acceptance. Agent may add its
-tracked reads and compose foreign records without adding or changing Questions-owned work.
-An entered failed save retains that authorization for the exact existing recovery request, including
-after Stop, so saving never needs to repeat the tool or fabricate a new Question.
-
-Agent discovery owns source/knowledge selection and subject discovery. Application composes exact
-text readers and Wiki's subject reader into `AgentContextReading`; Questions does not consume that
-interface. Agent validates grounding before delegating to the Questions action, and its tracked
-Snapshot reads guard the selected evidence and classification ancestry at acceptance. Discovery
-scans an untracked snapshot at the same sequence, then tracks selected subjects, so mutable Agent
-activity does not become an accidental dependency of a later ask. Historical discovery tool names
-remain `listQuestionContext` and `listQuestionSubjects`; their receipts are Agent-owned.
+Questions actions validate trusted Agent attribution, proposals and accepted historical EAV
+addresses. Direct Answers belong to the person. Application supplies EAV source and subject
+readers through `listQuestionContext` and `listQuestionSubjects`. The execution wrapper retains
+exact-save recovery without repeating tools or generating another Question.
 
 Each `toolExecution` is a stable child of its run. It retains call identity, name/version, attempt,
 arguments, timing and status. Its connection source identifies the exact initial run version and

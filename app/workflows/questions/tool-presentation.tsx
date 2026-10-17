@@ -1,9 +1,7 @@
-import type {
-  RecordedToolEvidence,
-  ToolPresentationAdapter,
-} from '../../agent/tool-presentation.tsx';
-import { Stack, Text } from '../../ui/kit/index.ts';
-import type { JsonObject, JsonValue } from '../../vault/nodes/model.ts';
+import type { RecordedToolEvidence, ToolPresentationAdapter } from '@/agent/tool-presentation.tsx';
+import { Stack, Text } from '@/ui/kit/index.ts';
+import type { JsonValue } from '@/vault/eav/index.ts';
+type JsonObject = { readonly [key: string]: JsonValue };
 import { questionToolActions } from './tool-actions.ts';
 
 const isObject = (value: JsonValue | undefined): value is JsonObject =>
@@ -35,7 +33,7 @@ export function QuestionToolReceipt({ evidence }: { evidence: RecordedToolEviden
 }
 
 export const questionToolPresentation: ToolPresentationAdapter = (evidence) => {
-  if (evidence.version !== undefined) return;
+  if (evidence.version !== undefined && evidence.version !== '2') return;
   const action =
     evidence.name === questionToolActions.ask
       ? { title: 'Ask a Question', live: 'Retaining a Question', done: 'retained Questions' }
@@ -52,7 +50,7 @@ export const questionToolPresentation: ToolPresentationAdapter = (evidence) => {
         typeof output.question === 'string' &&
         typeof output.transaction === 'string'
       : evidence.name === questionToolActions.read
-        ? typeof output?.question === 'string' && typeof output.text === 'string'
+        ? typeof output?.id === 'string' && typeof object(output.data)?.text === 'string'
         : Array.isArray(evidence.output);
   return {
     title: action.title,

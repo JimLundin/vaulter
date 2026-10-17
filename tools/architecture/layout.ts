@@ -114,10 +114,16 @@ export function importProblem(from: string, to: string): string | null {
     target &&
     !compositionEntry(from) &&
     !applicationTest(from) &&
+    !(target === 'questions' && from === 'app/preview/question-records.ts') &&
     // Explicit preview-owned adapters consume public module reading and record UI interfaces.
     !(
       target === 'wiki' &&
-      ['app/preview/wiki-example.tsx', 'app/preview/records.test.ts'].includes(from)
+      [
+        'app/preview/wiki-example.tsx',
+        'app/preview/wiki-records.ts',
+        'app/preview/calendar.tsx',
+        'app/preview/records.test.ts',
+      ].includes(from)
     ) &&
     workflow(from) !== target
   )
@@ -224,8 +230,8 @@ export function checkLayout(root: string): string[] {
               `${from} accesses a raw node session; use the Application-supplied TransactionStore`,
             );
           if (
-            owner === 'app/workflows/questions/actions.ts' &&
-            owned.name === 'createQuestionOwnership' &&
+            owner === 'app/workflows/questions/data/operations.ts' &&
+            owned.name === 'questionActions' &&
             !(
               from === 'app/application/composition.ts' ||
               workflow(from) === 'questions' ||
@@ -245,8 +251,10 @@ export function checkLayout(root: string): string[] {
         const symbol = project.checker.getSymbolAtLocation(value);
         const resolved = symbol?.declarations[0]?.resolve()?.getSourceFile().fileName;
         const target =
-          (/\.css$/.test(value.text) && value.text.startsWith('.')
-            ? resolve(dirname(filename), value.text)
+          (/\.css$/.test(value.text) && (value.text.startsWith('.') || value.text.startsWith('@/'))
+            ? value.text.startsWith('@/')
+              ? resolve(root, 'app', value.text.slice(2))
+              : resolve(dirname(filename), value.text)
             : resolved) ??
           (value.text.startsWith('.') ? resolve(dirname(filename), value.text) : null);
         if (allExports) {

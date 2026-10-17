@@ -1,11 +1,16 @@
 import { expect, test } from '@playwright/test';
 // biome-ignore lint/correctness/noUnresolvedImports: Biome cannot resolve Playwright's type re-export in CI.
 import type { Page } from '@playwright/test';
-import type { NodeCommit } from '../../vault/nodes/store.ts';
+import type { Journal } from '@/vault/eav/index.ts';
 
 const journal = (page: Page) =>
   page.evaluate(
-    () => JSON.parse(sessionStorage.getItem('vaulter:preview:accepted:v1') ?? '[]') as NodeCommit[],
+    () =>
+      (
+        JSON.parse(
+          sessionStorage.getItem('vaulter:preview:eav:dialogue:v1') ?? '{"commits":[]}',
+        ) as Journal
+      ).commits,
   );
 
 async function selectStatus(page: Page, name: string) {
@@ -50,7 +55,7 @@ test('Questions keeps its compact multiline draft through responsive changes and
   const entry = page.getByRole('group', { name: 'Your answer text box', exact: true });
   const save = entry.getByRole('button', { name: 'Save answer', exact: true });
   await expect(save).toBeEnabled();
-  await answer.evaluate((node) => node.setAttribute('data-original-field', ''));
+  await answer.evaluate((field) => field.setAttribute('data-original-field', ''));
   for (const width of [1440, 390, 320]) {
     await page.setViewportSize({ width, height: 1000 });
     await expect(answer).toBeFocused();
@@ -90,7 +95,7 @@ test('Questions dictates into the compact draft and saves only when explicitly r
   await entry.getByRole('button', { name: 'Start voice interaction', exact: true }).click();
   await expect(answer).toHaveAttribute('readonly');
   // Deliver every scripted word through the actual interval without waiting for demo pacing.
-  await page.clock.runFor(5_040);
+  await page.clock.runFor(5040);
   const dictated =
     'Keep the workbench clear. Leave space for a walk before work, and keep an afternoon free for the garden studio.';
   await expect(answer).toHaveValue(dictated, { timeout: 15_000 });
@@ -114,12 +119,26 @@ async function askQuestion(page: Page, text: string) {
   await expect(page.getByText('Saved question:', { exact: false })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Stop', exact: true })).toBeHidden();
   const publication = (await journal(page)).find((request) =>
-    request.changes.some((change) => change.data?.kind === 'question' && change.data.text === text),
+    request.facts.some(
+      (fact) => fact.added && fact.attribute === 'questions.question/text' && fact.value === text,
+    ),
   )!;
-  expect(publication.kind).toEqual({ scope: 'questions', action: 'ask' });
-  expect(publication.recordedBy).toBe('vaulter:agent');
-  const question = publication.changes.find((change) => change.data?.kind === 'question')!;
-  expect(question.placement?.parent).toBe('preview:page:0');
+  const identity = publication.facts.find(
+    (fact) => fact.added && fact.attribute === 'questions.question/text' && fact.value === text,
+  )!.entity;
+  const facts = publication.facts.filter((fact) => fact.entity === identity && fact.added);
+  const question = {
+    key: String(facts.find((fact) => fact.attribute === 'questions.question/key')!.value),
+    data: {
+      suggestions: JSON.parse(
+        (
+          facts.find((fact) => fact.attribute === 'questions.question/suggestions')!.value as {
+            json: string;
+          }
+        ).json,
+      ),
+    },
+  };
   const outcomes = await page.evaluate(() => {
     const journal = JSON.parse(sessionStorage.getItem('vaulter:preview:eav:dialogue:v1')!);
     return journal.commits.flatMap(
@@ -130,7 +149,7 @@ async function askQuestion(page: Page, text: string) {
     );
   });
   expect(outcomes).toContainEqual({
-    question: question.node,
+    question: question.key,
     transaction: publication.id,
     accepted: true,
   });
@@ -165,14 +184,19 @@ test('agent questions can be answered in Questions and remain on their Wiki page
   await selectStatus(page, 'Answered');
   await expect(record).toHaveAttribute('aria-label', 'Answered');
   await expect(record).toContainText('Use the garden wall.');
-  const answered = (await journal(page)).find(
-    (request) => request.kind.scope === 'questions' && request.kind.action === 'answer',
+  const answered = (await journal(page)).find((request) =>
+    request.facts.some(
+      (fact) =>
+        fact.attribute === 'questions.answer/text' &&
+        fact.added &&
+        fact.value === 'Use the garden wall.',
+    ),
   )!;
-  expect(answered.recordedBy).toBe('vaulter:owner');
-  const answer = answered.changes.find((change) => change.data?.kind === 'answer')!;
-  const relationship = answered.changes.find((change) => change.data?.predicate === 'answered-by')!;
-  expect(relationship.connection?.source.node).toBe(question.node);
-  expect(relationship.connection?.target).toEqual({ node: answer.node, transaction: answered.id });
+  expect(
+    answered.facts.some(
+      (fact) => fact.attribute === 'questions.answer/questionVersion' && fact.added,
+    ),
+  ).toBe(true);
   const accepted = await journal(page);
   await page.reload();
   await selectStatus(page, 'Answered');
@@ -225,8 +249,8 @@ test('suggestion lists preserve edited drafts, inline context and shared card ty
   await expect(choose('Write my own')).toHaveCount(0);
   await expect(answer).toHaveValue('Use a mobile tool cart.');
   const typography = () =>
-    record.evaluate((node) => {
-      const style = getComputedStyle(node.querySelector('h2')!);
+    record.evaluate((card) => {
+      const style = getComputedStyle(card.querySelector('h2')!);
       return {
         font: style.fontFamily,
         size: style.fontSize,
@@ -309,7 +333,7 @@ test('Wiki answers update Questions filters and search without creating a second
   await expect(main.getByText('Keep the chisels and hand plane.', { exact: true })).toBeVisible();
   expect(await journal(page)).toEqual(before);
   const questions = before
-    .flatMap(({ changes }) => changes)
-    .filter((change) => change.data?.kind === 'question');
-  expect(new Set(questions.map(({ node }) => node))).toEqual(new Set(['preview:question']));
+    .flatMap(({ facts }) => facts)
+    .filter((fact) => fact.added && fact.attribute === 'questions.question/key');
+  expect(questions.map(({ value }) => value)).toEqual(['preview:question']);
 });

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import {
   Button,
   Chip,
@@ -14,10 +14,11 @@ import {
   SupportingPane,
   Text,
   PageHeader,
-} from '../../ui/kit/index.ts';
-import type { WikiBlock, WikiClassification, WikiPage } from './pages.ts';
+} from '@/ui/kit/index.ts';
+import type { WikiBlock, WikiClassification, WikiPage } from './view.ts';
 import { WikiBlocks, type ForeignRecordRenderer } from './rendering/blocks.tsx';
 import { ReferenceCard } from './rendering/references.tsx';
+import { SupportIndicators } from './support.tsx';
 
 const titleCase = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
 
@@ -27,11 +28,15 @@ export function WikiPageView({
   onBack,
   onFilter,
   renderRecord,
+  timeline,
+  relatedRecords,
 }: {
   page: WikiPage;
   onBack: () => void;
   onFilter: (term: WikiClassification) => void;
   renderRecord?: ForeignRecordRenderer;
+  timeline?: ReactNode;
+  relatedRecords?: ReactNode;
 }) {
   const [selected, setSelected] = useState<WikiBlock>();
   const [referencesOpen, setReferencesOpen] = useState(false);
@@ -92,9 +97,27 @@ export function WikiPageView({
                   {facets.map(chip)}
                 </Row>
                 {!!page.summary && (
-                  <Prose>
-                    <Text size="lg">{page.summary}</Text>
-                  </Prose>
+                  <Stack gap="xs">
+                    <Prose>
+                      <Text size="lg">{page.summary}</Text>
+                    </Prose>
+                    <SupportIndicators state={page.summarySupport} />
+                    {!!page.summaryEvidence?.length && (
+                      <Button
+                        variant="inline"
+                        onClick={() =>
+                          selectEvidence({
+                            id: `${page.id}:summary`,
+                            data: { kind: 'summary' },
+                            children: [],
+                            evidence: page.summaryEvidence!,
+                          })
+                        }
+                      >
+                        Summary evidence
+                      </Button>
+                    )}
+                  </Stack>
                 )}
                 {!!tags.length && (
                   <Row as="fieldset" wrap={true} aria-label="Subject tags">
@@ -108,6 +131,8 @@ export function WikiPageView({
                 )}
               </Stack>
               {blocks(body)}
+              {timeline}
+              {relatedRecords}
               {!!connections.length && (
                 <Surface variant="grouped" as="section">
                   <Heading>Connections</Heading>

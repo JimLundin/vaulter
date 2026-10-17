@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef } from 'react';
-import { useTranscript, type Transcription, type TranscriptionState } from '../../transcription.ts';
+import { useTranscript, type Transcription, type TranscriptionState } from '@/transcription.ts';
 import type { Question } from './reading.ts';
 
 const active = (phase: TranscriptionState['phase']) =>
@@ -48,14 +48,14 @@ export function useAnswerDictation(options: {
     const reflect = () => {
       const next = transcription?.snapshot();
       const captured = association.current;
-      if (!next || !captured || captured.voice !== transcription) return;
+      if (!(next && captured) || captured.voice !== transcription) return;
       if (next.phase === 'connecting' && !captured.session) captured.session = next.session;
       const latest = current.current;
       if (
         next.session !== captured.session ||
         latest.disabled ||
         latest.question.id !== captured.question ||
-        latest.question.key.transaction !== captured.version ||
+        latest.question.evidence.transaction !== captured.version ||
         latest.choice !== captured.choice
       )
         return;
@@ -82,13 +82,13 @@ export function useAnswerDictation(options: {
       captured &&
       (disabled ||
         captured.question !== question.id ||
-        captured.version !== question.key.transaction ||
+        captured.version !== question.evidence.transaction ||
         captured.choice !== choice)
     ) {
       association.current = undefined;
       if (captured.session) captured.voice.clear(captured.session);
     }
-  }, [disabled, question.id, question.key.transaction, choice]);
+  }, [disabled, question.id, question.evidence.transaction, choice]);
 
   return {
     phase: owns() ? state.phase : ('idle' as const),
@@ -99,7 +99,7 @@ export function useAnswerDictation(options: {
       !!transcription &&
       (active(state.phase)
         ? owns() && state.phase !== 'finishing'
-        : !disabled && !transcription.availability()),
+        : !(disabled || transcription.availability())),
     cancel,
     async action() {
       if (!transcription) return;
@@ -115,7 +115,7 @@ export function useAnswerDictation(options: {
       association.current = {
         voice: transcription,
         question: latest.question.id,
-        version: latest.question.key.transaction,
+        version: latest.question.evidence.transaction,
         choice: latest.choice,
         prefix: latest.text,
         session: null,

@@ -1,10 +1,9 @@
 import type { QuestionAnswerHandler } from './answers.ts';
 import { useState } from 'react';
-import type { Transcription } from '../../transcription.ts';
-import { FeaturePage, PageControls, Loader, Stack, Text } from '../../ui/kit/index.ts';
+import type { Transcription } from '@/transcription.ts';
+import { FeaturePage, PageControls, Loader, Stack, Text } from '@/ui/kit/index.ts';
 import { QuestionItem, type QuestionTargetDescription } from './QuestionItem.tsx';
 import type { Question, QuestionTarget, QuestionsReadingState } from './reading.ts';
-import { parseAnswer } from './records.ts';
 import type { QuestionAnswers } from './answers.ts';
 import { questionAnswerAvailability } from './availability.ts';
 import { useQuestionAnswerState } from './use-questions.ts';
@@ -122,10 +121,8 @@ function searchText(
   return [
     question.data.text,
     ...question.subjects.map((subject) => describeTarget?.(subject)?.title || subject.label || ''),
-    ...question.answers.map((answer) =>
-      answer.version?.data?.kind === 'answer'
-        ? parseAnswer(answer.version.data).text
-        : describeTarget?.(answer)?.title || answer.label || '',
+    ...question.answers.map(
+      (answer) => answer.text || describeTarget?.(answer)?.title || answer.label || '',
     ),
     ...(question.sources ?? []).map(
       (source) => describeTarget?.(source)?.title || source.label || '',

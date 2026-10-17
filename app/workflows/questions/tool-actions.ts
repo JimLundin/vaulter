@@ -4,4 +4,3 @@ export const questionToolActions = {
   read: 'readQuestion',
   list: 'listQuestions',
 } as const;
-export const questionEnabledTools = Object.values(questionToolActions).map((name) => ({ name }));

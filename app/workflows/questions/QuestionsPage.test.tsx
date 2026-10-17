@@ -1,3 +1,4 @@
+import { evidence } from './fixtures.test-support.ts';
 // @vitest-environment happy-dom
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
@@ -8,35 +9,30 @@ import { questionsRoute } from './routes.ts';
 
 const open: Question = {
   id: 'open',
-  key: { node: 'open', transaction: 'asked' },
+  evidence: evidence('open', 'asked'),
   data: { kind: 'question', text: 'Where should the workbench go?' },
   status: 'open',
-  subjects: [{ address: { node: 'studio' }, state: 'available' }],
+  subjects: [{ evidence: evidence('studio'), state: 'available' }],
   answers: [],
 };
 const answered: Question = {
   ...open,
   id: 'answered',
-  key: { node: 'answered', transaction: 'asked' },
+  evidence: evidence('answered', 'asked'),
   data: { kind: 'question', text: 'Which wall should be painted?' },
   status: 'answered',
   answers: [
     {
-      address: { node: 'answer', transaction: 'answered' },
+      evidence: evidence('answer', 'answered'),
       state: 'available',
-      version: {
-        key: { node: 'answer', transaction: 'answered' },
-        data: { kind: 'answer', text: 'The garden wall.' },
-        placement: null,
-        connection: null,
-      },
+      text: 'The garden wall.',
     },
   ],
 };
 const abandoned: Question = {
   ...open,
   id: 'abandoned',
-  data: { kind: 'question', text: 'Should the old desk be retained?', abandoned: true },
+  data: { kind: 'question', text: 'Should the old desk be retained?' },
   status: 'abandoned',
 };
 const roots: Root[] = [];
@@ -71,7 +67,7 @@ function search(text: string) {
 const collection: QuestionsPageProps = {
   state: { questions: [open, answered, abandoned], loading: false },
   describeTarget: (target) =>
-    target.address?.node === 'studio'
+    target.evidence.entity === 'studio'
       ? { title: 'Garden studio', href: '#/wiki/studio/' }
       : undefined,
 };

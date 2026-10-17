@@ -1,3 +1,4 @@
+import { evidence } from './fixtures.test-support.ts';
 // @vitest-environment happy-dom
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
@@ -9,11 +10,11 @@ import {
   createTranscription,
   type Transcription,
   type TranscriptionEvents,
-} from '../../transcription.ts';
+} from '@/transcription.ts';
 
 const question: Question = {
   id: 'question',
-  key: { node: 'question', transaction: 'raised' },
+  evidence: evidence('question', 'raised'),
   data: { kind: 'question', text: 'Where should the workbench go?' },
   status: 'open',
   subjects: [],
@@ -124,7 +125,7 @@ test('changing the question during finalization keeps available words and reject
   await act(async () => button('Start voice interaction').click());
   await act(async () => events.text('Keep the available words.'));
   await act(async () => button('Finish recording').click());
-  const changed = { ...question, key: { ...question.key, transaction: 'reworded' } };
+  const changed = { ...question, evidence: { ...question.evidence, transaction: 'reworded' } };
   await act(async () =>
     root.render(<QuestionItem question={changed} onAnswer={onAnswer} transcription={voice} />),
   );
@@ -187,8 +188,7 @@ test('the same projected question shows its lifecycle without copying or interpr
         status: 'answered',
         answers: [
           {
-            address: { node: 'answer', transaction: 'answered' },
-            relationship: 'answered-by',
+            evidence: evidence('answer', 'answered'),
             state: 'deleted',
           },
         ],
@@ -212,13 +212,13 @@ test('unavailable answer navigation never emits unsafe URLs', () => {
       question={{
         ...question,
         status: 'answered',
-        answers: [{ address: { node: 'answer' }, state: 'missing' }],
+        answers: [{ evidence: evidence('answer'), state: 'deleted' }],
       }}
       describeTarget={() => ({ title: 'Answer response', href: 'javascript:alert(1)' })}
     />,
   );
   expect(html).toContain('Answer response');
-  expect(html).toContain('Answer unavailable; recorded link retained');
+  expect(html).toContain('Answer removed; recorded link retained');
   expect(html).not.toContain('javascript:');
 });
 
@@ -228,22 +228,17 @@ test('own retained answers render their text and subject links use only safe sup
       question={{
         ...question,
         status: 'answered',
-        subjects: [{ address: { node: 'studio' }, state: 'available' }],
+        subjects: [{ evidence: evidence('studio'), state: 'available' }],
         answers: [
           {
-            address: { node: 'answer', transaction: 'answered' },
+            evidence: evidence('answer', 'answered'),
             state: 'available',
-            version: {
-              key: { node: 'answer', transaction: 'answered' },
-              data: { kind: 'answer', text: 'Beside the garden wall.' },
-              placement: null,
-              connection: null,
-            },
+            text: 'Beside the garden wall.',
           },
         ],
       }}
       describeTarget={(target) =>
-        target.address?.node === 'studio'
+        target.evidence.entity === 'studio'
           ? { title: 'Garden studio', href: 'javascript:alert(1)' }
           : undefined
       }
@@ -320,7 +315,7 @@ test('an answer draft blocks stale wording until the person reviews the current 
   await act(async () => writeAnswer('Beside the garden wall.'));
   const changed: Question = {
     ...question,
-    key: { ...question.key, transaction: 'reworded' },
+    evidence: { ...question.evidence, transaction: 'reworded' },
     data: { kind: 'question', text: 'Where should the larger workbench go?' },
   };
   await act(async () => root.render(<QuestionItem question={changed} onAnswer={onAnswer} />));

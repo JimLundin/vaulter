@@ -1,58 +1,64 @@
-import { vaultHistory } from '../vault/transactions/history/eav.ts';
-import { openDatabase, type MemoryStorage } from '../vault/eav/index.ts';
-import { chatSchema } from '../workflows/chat/data/schema.ts';
-import { createEavChatBackend } from '../workflows/chat/eav-backend.ts';
-import type { ChatBackendFactory } from '../workflows/chat/backend.ts';
+import { tool } from 'ai';
+import { z } from 'zod';
+import { questionEntities } from '@/workflows/questions/data/schema.ts';
+import { questionActions } from '@/workflows/questions/data/operations.ts';
+import { readEavQuestions } from '@/workflows/questions/data/reading.ts';
+import { nativeQuestionTools, questionCapabilities } from '@/workflows/questions/data/tools.ts';
+import { vaultHistory } from '@/vault/transactions/history/eav.ts';
+import { openDatabase, type MemoryStorage } from '@/vault/eav/index.ts';
 import {
-  agentDiscoveryTools,
-  discoveryEnabledTools,
-  validateAgentContext,
-  type AgentContextReading,
-} from '../agent/discovery.ts';
+  calendarEntities,
+  createEvent,
+  reviseEvent,
+  removeEvent,
+  type CalendarActions,
+  type CalendarData,
+} from '@/calendar/index.ts';
+import { sameEntity, SaveError } from '@/vault/eav/index.ts';
+import { wikiTools, wikiCapabilities } from '@/workflows/wiki/data/tools.ts';
+import { wikiEntities } from '@/workflows/wiki/data/schema.ts';
+import { sourceEntities } from '@/vault/sources/schema.ts';
+import { evidenceEntities } from '@/vault/evidence/schema.ts';
+import { readTopics } from '@/workflows/graph/data/topics.ts';
+import { topicEntities } from '@/workflows/graph/data/schema.ts';
+import { e } from '@/vault/eav/index.ts';
+import { chatSchema } from '@/workflows/chat/data/schema.ts';
+import { createEavChatBackend } from '@/workflows/chat/eav-backend.ts';
+import type { ChatBackendFactory } from '@/workflows/chat/backend.ts';
 // Application-owned connections between record modules; no mounted views or shell state.
-import type { NodeDifference, NodeStore } from '../vault/nodes/store.ts';
-import type { TransactionStore } from '../vault/transactions/store.ts';
-import { createTransactionSession, withPublication } from '../vault/transactions/lifetime.ts';
-import { nodeContentTools, canUndoContent } from '../vault/content/tools.ts';
-import { contentEnabledTools } from '../vault/content/tool-actions.ts';
-import { contentToolPresentation } from '../vault/content/tool-presentation.tsx';
-import { preservesAgentRecords } from '../agent/preservation.ts';
-import type { AgentToolFactory, AgentToolContext } from '../agent/tools.ts';
-import { agentSources, isAgentContext } from '../agent/sources.ts';
-import { agentOptions, agentPreferences } from '../agent/settings.ts';
-import { preservesChatRecords } from '../workflows/chat/records/chat.ts';
-import { chatSources } from '../workflows/chat/records/sources.ts';
-import { contentSources } from '../vault/content/sources.ts';
-import { retainedRecordSources } from '../vault/records/sources.ts';
-import { describeSource, type SourceReader } from '../vault/sources.ts';
+import type { NodeDifference, NodeStore } from '@/vault/nodes/store.ts';
+import type { TransactionStore } from '@/vault/transactions/store.ts';
+import { createTransactionSession } from '@/vault/transactions/lifetime.ts';
+import { nodeContentTools, canUndoContent } from '@/vault/content/tools.ts';
+import { contentEnabledTools } from '@/vault/content/tool-actions.ts';
+import { contentToolPresentation } from '@/vault/content/tool-presentation.tsx';
+import { preservesAgentRecords } from '@/agent/preservation.ts';
+import type { AgentToolFactory, AgentToolContext } from '@/agent/tools.ts';
+import { agentSources } from '@/agent/sources.ts';
+import { agentOptions, agentPreferences } from '@/agent/settings.ts';
+import { preservesChatRecords } from '@/workflows/chat/records/chat.ts';
+import { chatSources } from '@/workflows/chat/records/sources.ts';
+import { contentSources } from '@/vault/content/sources.ts';
+import { retainedRecordSources } from '@/vault/records/sources.ts';
+import { describeSource, type SourceReader } from '@/vault/sources.ts';
 import {
   createNodeConversation,
   type NodeConversationOptions,
-} from '../workflows/chat/node-conversation.ts';
-import { transactionHistory } from '../vault/transactions/history/nodes.ts';
-import { isWikiContent } from '../workflows/wiki/citations.ts';
-import { wikiSources as wikiSourceReader, describeWikiTarget } from '../workflows/wiki/sources.ts';
-import { questionTools } from '../workflows/questions/tools.ts';
-import { askQuestionInput, createQuestionOwnership } from '../workflows/questions/actions.ts';
-import { questionSources } from '../workflows/questions/sources.ts';
-import { questionEnabledTools } from '../workflows/questions/tool-actions.ts';
-import { questionToolPresentation } from '../workflows/questions/tool-presentation.tsx';
+} from '@/workflows/chat/node-conversation.ts';
+import { transactionHistory } from '@/vault/transactions/history/nodes.ts';
+import { wikiSources as wikiSourceReader, describeWikiTarget } from '@/workflows/wiki/sources.ts';
+import { questionToolPresentation } from '@/workflows/questions/tool-presentation.tsx';
 import { defaultIdentities, type ApplicationIdentities } from './identities.ts';
 import { conversationRoute } from './routes.ts';
-import { discoveryPresentation } from '../agent/discovery-presentation.tsx';
-import { listWikiSubjects } from '../workflows/wiki/subjects.ts';
-import { readGraph } from '../workflows/graph/reading.ts';
-import { graphSources } from '../workflows/graph/sources.ts';
-import type { GraphDescription } from '../workflows/graph/explorer.ts';
-import { graphRelatedContent } from '../workflows/graph/related-content.ts';
-import type { WikiRelatedContentReading } from '../workflows/wiki/related-content.ts';
+import { discoveryPresentation } from '@/agent/discovery-presentation.tsx';
+import { readGraph } from '@/workflows/graph/reading.ts';
+import { graphSources } from '@/workflows/graph/sources.ts';
+import type { GraphDescription } from '@/workflows/graph/explorer.ts';
+import { graphRelatedContent } from '@/workflows/graph/related-content.ts';
+import type { WikiRelatedContentReading } from '@/workflows/wiki/related-content.ts';
 
-const contentKinds = ['content', 'question', 'relationship'];
-const enabledContentTools = [
-  ...contentEnabledTools,
-  ...questionEnabledTools,
-  ...discoveryEnabledTools,
-];
+const contentKinds = ['content', 'relationship'];
+const enabledContentTools = contentEnabledTools;
 export const toolPresentations = [
   contentToolPresentation,
   questionToolPresentation,
@@ -62,7 +68,6 @@ const chatSourceReader = chatSources((node) => `#${conversationRoute.href({ node
 const sourceOwners = [
   chatSourceReader,
   contentSources,
-  questionSources,
   retainedRecordSources,
   graphSources,
   agentSources,
@@ -82,19 +87,6 @@ export const applicationSources: SourceReader = {
   },
   describe: (node, view) => describeSource(node, view, sourceOwners),
 };
-export const agentContextReading: AgentContextReading = {
-  subjects: listWikiSubjects,
-  text: (node, view) =>
-    ['question', 'answer'].includes(String(node.data?.kind))
-      ? undefined
-      : applicationSources.exactText?.(node, view),
-  isKnowledge: (node, view) => !isAgentContext(node) && isWikiContent(node, view),
-  title: (node, view) =>
-    applicationSources.describe(node, view)?.title ||
-    describeWikiTarget(node, view)?.title ||
-    'Retained source',
-};
-
 export const applicationGraphDescription: GraphDescription = (node, view) =>
   describeWikiTarget(node, view) ?? applicationSources.describe(node, view);
 
@@ -109,14 +101,13 @@ export async function applicationGraph(
 }
 interface ApplicationNodeOwner {
   nodes: TransactionStore;
-  readonly questions: ReturnType<typeof createQuestionOwnership>;
   readonly histories: Map<string, ReturnType<typeof transactionHistory>>;
   readonly transactions?: ReturnType<typeof createTransactionSession>;
   source: NodeStore | TransactionStore;
   session?: object;
 }
 const applicationNodeOwners = new WeakMap<object, ApplicationNodeOwner>();
-const applicationQuestionSessions = new WeakMap<object, ApplicationNodeOwner>();
+const applicationStoreSessions = new WeakMap<object, ApplicationNodeOwner>();
 
 /** Application supplies owner rules; the core owns the session and every publication attempt. */
 export function applicationNodes(
@@ -124,17 +115,15 @@ export function applicationNodes(
   session?: object,
 ): TransactionStore {
   let owner =
-    (session && applicationQuestionSessions.get(session)) ||
+    (session && applicationStoreSessions.get(session)) ||
     applicationNodeOwners.get(supplied) ||
     ('writer' in supplied ? applicationNodeOwners.get(supplied.identity) : undefined);
   if (owner && session && owner.session && owner.session !== session) owner = undefined;
   if (!owner) {
     const transactions = 'writer' in supplied ? undefined : createTransactionSession(supplied);
     const reading = transactions?.nodes ?? (supplied as TransactionStore);
-    const questions = createQuestionOwnership({ nodes: reading });
     owner = {
-      nodes: withPublication(reading, questions.publication),
-      questions,
+      nodes: reading,
       histories: new Map(),
       transactions,
       source: supplied,
@@ -154,27 +143,23 @@ export function applicationNodes(
       void owner.transactions.replace(supplied);
       reading = owner.transactions.nodes;
     }
-    owner.nodes = withPublication(reading, owner.questions.publication);
+    owner.nodes = reading;
     applicationNodeOwners.set(owner.nodes, owner);
     owner.source = supplied;
   }
   applicationNodeOwners.set(supplied, owner);
   if (session) {
     owner.session = session;
-    applicationQuestionSessions.set(session, owner);
+    applicationStoreSessions.set(session, owner);
   }
   return owner.nodes;
 }
 
-export function applicationQuestions(source: TransactionStore) {
-  return (applicationNodeOwners.get(source) ?? applicationNodeOwners.get(applicationNodes(source)))!
-    .questions;
-}
 const applicationToolFactories = new WeakMap<TransactionStore, AgentToolFactory>();
 function applicationTools(nodes: TransactionStore): AgentToolFactory {
   let factory = applicationToolFactories.get(nodes);
   if (!factory) {
-    factory = (context) => createApplicationTools(context, nodes);
+    factory = (context) => createApplicationTools(context);
     applicationToolFactories.set(nodes, factory);
   }
   return factory;
@@ -207,20 +192,185 @@ type ApplicationChatOptions = Omit<
   readonly eav?: MemoryStorage | null;
 };
 /** The same explicit composition used by the Application views and independent application callers. */
+export const applicationSchema = e.registry({
+  ...chatSchema,
+  ...wikiEntities,
+  ...sourceEntities,
+  ...evidenceEntities,
+  ...topicEntities,
+  ...calendarEntities,
+  ...questionEntities,
+});
 const applicationDatabases = new WeakMap<
   MemoryStorage,
-  ReturnType<typeof openDatabase<typeof chatSchema>>
+  ReturnType<typeof openDatabase<typeof applicationSchema>>
 >();
 function applicationDatabase(storage: MemoryStorage) {
   let database = applicationDatabases.get(storage);
   if (!database) {
-    database = openDatabase({ schema: chatSchema, storage }).catch((error) => {
+    database = openDatabase({ schema: applicationSchema, storage }).catch((error) => {
       applicationDatabases.delete(storage);
       throw error;
     });
     applicationDatabases.set(storage, database);
   }
   return database;
+}
+export function applicationWiki(storage: MemoryStorage) {
+  return {
+    database: () => applicationDatabase(storage),
+    topics: () => applicationDatabase(storage).then(readTopics),
+  };
+}
+const questionCollections = new WeakMap<MemoryStorage, ReturnType<typeof makeQuestionCollection>>();
+function makeQuestionCollection(storage: MemoryStorage) {
+  return {
+    collection: () => applicationDatabase(storage).then(readEavQuestions),
+    subscribe: (listener: () => void) => {
+      let disposed = false;
+      let unsubscribe: (() => void) | undefined;
+      applicationDatabase(storage)
+        .then((db) => {
+          if (!disposed) unsubscribe = db.subscribe(listener);
+        })
+        .catch(listener);
+      return () => {
+        disposed = true;
+        unsubscribe?.();
+      };
+    },
+  };
+}
+export function applicationQuestionCollection(storage: MemoryStorage) {
+  let collection = questionCollections.get(storage);
+  if (!collection) {
+    collection = makeQuestionCollection(storage);
+    questionCollections.set(storage, collection);
+  }
+  return collection;
+}
+export function applicationQuestionAnswers(
+  storage: MemoryStorage,
+  identities: ApplicationIdentities,
+  admission: () => string | undefined,
+) {
+  const check = () => {
+    const reason = admission();
+    if (reason) throw new Error(reason);
+  };
+  const answer = async (
+    question: import('@/workflows/questions/reading.ts').Question,
+    text: string,
+  ): Promise<void> => {
+    check();
+    if (!question.evidence) throw new Error('Question has no native EAV address.');
+    const db = await applicationDatabase(storage);
+    let binding = await db.entities.actorBindings.first({
+      where: { key: { eq: identities.user } },
+      select: { actor: true },
+    });
+    if (!binding) {
+      try {
+        await db.transaction(async (tx) => {
+          check();
+          if (
+            await tx.entities.actorBindings.first({
+              where: { key: { eq: identities.user } },
+              select: {},
+            })
+          )
+            return;
+          const actor = await tx.entities.actors.insert({ name: 'Vault owner', kind: 'user' });
+          await tx.entities.actorBindings.insert({ key: identities.user, actor });
+          check();
+        });
+      } catch (error) {
+        if (error instanceof SaveError) {
+          throw new SaveError(error.message, async () => {
+            await error.retry();
+            await answer(question, text);
+          });
+        }
+        throw error;
+      }
+      binding = await db.entities.actorBindings.first({
+        where: { key: { eq: identities.user } },
+        select: { actor: true },
+      });
+    }
+    if (!binding) throw new Error('Preparing Vault identities…');
+    await questionActions(db, { author: binding.actor }, undefined, check).answer(
+      question.evidence,
+      text,
+    );
+  };
+  return { answer };
+}
+export function applicationCalendar(
+  storage: MemoryStorage,
+  identities: ApplicationIdentities = defaultIdentities,
+) {
+  const author = async () => {
+    const db = await applicationDatabase(storage);
+    return db.transaction(async (tx) => {
+      const binding = await tx.entities.actorBindings.first({
+        where: { key: { eq: identities.user } },
+        select: { actor: { kind: true } },
+      });
+      if (binding) {
+        if (binding.actor.kind !== 'user')
+          throw new Error('Configured Calendar author must be a user.');
+        return binding.actor;
+      }
+      const actor = await tx.entities.actors.insert({ name: 'Vault owner', kind: 'user' });
+      await tx.entities.actorBindings.insert({ key: identities.user, actor });
+      return actor;
+    });
+  };
+  const actions: CalendarActions = {
+    create: async (input) => {
+      const db = await applicationDatabase(storage);
+      await createEvent(db, input, { author: await author() });
+    },
+    revise: async (event, input) => {
+      await reviseEvent(await applicationDatabase(storage), event, input, {
+        author: await author(),
+      });
+    },
+    remove: async (event) => {
+      await removeEvent(await applicationDatabase(storage), event, { author: await author() });
+    },
+  };
+  return { database: () => applicationDatabase(storage), actions };
+}
+
+/** Match the original subject identity, independently of the snapshot retained by Calendar. */
+export async function applicationSubjectCalendar(
+  storage: MemoryStorage,
+  key: string,
+  data: CalendarData,
+): Promise<CalendarData> {
+  const db = await applicationDatabase(storage);
+  const page = await db.entities.wikiPages.first({ where: { key: { eq: key } }, select: {} });
+  if (!page) return { events: [], annualDates: [] };
+  const matches = async (address: import('@/vault/eav/index.ts').HistoricalReference) =>
+    sameEntity((await db.history.resolve(address)).entity, page);
+  const events = await Promise.all(
+    data.events.map(async (event) =>
+      (await Promise.all(event.roles.map((role) => matches(role.subject)))).some(Boolean)
+        ? event
+        : undefined,
+    ),
+  );
+  const dates = await Promise.all(
+    data.annualDates.map(async (date) =>
+      date.subject && (await matches(date.subject)) ? date : undefined,
+    ),
+  );
+  return {
+    events: events.filter((event) => event !== undefined),
+    annualDates: dates.filter((date) => date !== undefined),
+  };
 }
 const eavChatFactories = new WeakMap<MemoryStorage, ChatBackendFactory>();
 function eavChatFactory(storage: MemoryStorage): ChatBackendFactory {
@@ -229,6 +379,88 @@ function eavChatFactory(storage: MemoryStorage): ChatBackendFactory {
     factory = (options) =>
       createEavChatBackend({
         ...options,
+        nativeTools: async (context) => {
+          const db = await applicationDatabase(storage);
+          const trusted = { author: context.author, origin: context.run };
+          return {
+            ...nativeQuestionTools(db, trusted, context.signal),
+            listQuestionSubjects: tool({
+              description:
+                'List existing Wiki subjects with accepted EAV addresses. This does not promote broad Topics.',
+              inputSchema: z.object({}),
+              execute: async () => {
+                context.signal.throwIfAborted();
+                const snapshot = (await db.history.transactions.first({
+                  select: {},
+                  orderBy: [{ sequence: 'desc' }],
+                }))!;
+                const pages = await db.at(snapshot).entities.wikiPages.query({
+                  where: { available: { eq: true } },
+                  select: { key: true, title: true },
+                  limit: 20,
+                });
+                return Promise.all(
+                  pages.map(async (page) => ({
+                    key: page.key,
+                    title: page.title,
+                    address: await db.history.reference(snapshot, page),
+                  })),
+                );
+              },
+            }),
+            listQuestionContext: tool({
+              description:
+                'Read retained EAV source messages/documents and Wiki subject addresses for preparing a question. Exact addresses retain the supplied evidence.',
+              inputSchema: z.object({}),
+              execute: async () => {
+                context.signal.throwIfAborted();
+                const snapshot = (await db.history.transactions.first({
+                  select: {},
+                  orderBy: [{ sequence: 'desc' }],
+                }))!;
+                const view = db.at(snapshot);
+                const [messages, documents, pages] = await Promise.all([
+                  view.entities.messages.query({
+                    select: { text: true },
+                    limit: 20,
+                    orderBy: [{ at: 'desc' }],
+                  }),
+                  view.entities.sourceDocuments.query({
+                    select: { text: true, title: true },
+                    where: { available: { eq: true } },
+                    limit: 20,
+                  }),
+                  view.entities.wikiPages.query({
+                    select: { key: true, title: true, summary: true },
+                    where: { available: { eq: true } },
+                    limit: 20,
+                  }),
+                ]);
+                return {
+                  sources: await Promise.all(
+                    [...messages, ...documents].map(async (source) => ({
+                      text: source.text,
+                      address: await db.history.reference(snapshot, source),
+                    })),
+                  ),
+                  knowledge: [],
+                  subjects: await Promise.all(
+                    pages.map(async (page) => ({
+                      key: page.key,
+                      title: page.title,
+                      address: await db.history.reference(snapshot, page),
+                    })),
+                  ),
+                };
+              },
+            }),
+            ...wikiTools(db, {
+              author: context.author,
+              origin: context.run,
+              signal: context.signal,
+            }),
+          };
+        },
         get database() {
           return applicationDatabase(storage);
         },
@@ -263,7 +495,15 @@ export function applicationChatOptions({
     agent: identities.agent,
     tools: applicationTools(nodes),
     writableKinds: contentKinds,
-    enabledTools: enabledContentTools,
+    enabledTools: eav
+      ? [
+          ...enabledContentTools,
+          ...wikiCapabilities,
+          ...questionCapabilities,
+          { name: 'listQuestionContext', version: '2' },
+          { name: 'listQuestionSubjects', version: '2' },
+        ]
+      : enabledContentTools,
     settings: options.settings ?? agentOptions(agentPreferences.values()),
   };
 }
@@ -272,40 +512,8 @@ export function createApplicationConversation(options: ApplicationChatOptions) {
 }
 
 /** Agent adapters connect module actions and retained evidence; record owners stay independent. */
-export function createApplicationTools(
-  context: AgentToolContext,
-  nodes: TransactionStore,
-  reading: AgentContextReading = agentContextReading,
-) {
-  const ownership = applicationQuestions(nodes);
-  const questions = questionTools(context, nodes, ownership);
+export function createApplicationTools(context: AgentToolContext) {
   return {
     ...nodeContentTools(context),
-    ...agentDiscoveryTools(context, nodes, reading),
-    ...questions,
-    askQuestion: {
-      ...questions.askQuestion,
-      execute: async (
-        ...[input, options]: Parameters<NonNullable<typeof questions.askQuestion.execute>>
-      ) => {
-        const chosen = askQuestionInput.parse(input);
-        if (!context.author)
-          throw new Error('Question creation requires a trusted Agent invocation.');
-        const grounded = questionTools(
-          {
-            ...context,
-            write: (calculate) =>
-              context.write((id) => {
-                // Classification and Question preparation must observe the same serialized Snapshot.
-                validateAgentContext(context.snapshot(), chosen, reading);
-                return calculate(id);
-              }),
-          },
-          nodes,
-          ownership,
-        );
-        return grounded.askQuestion.execute!(chosen, options);
-      },
-    },
   };
 }

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { setPreviewMobile } from '../../ui/kit/preview.browser.test-support.ts';
+import { setPreviewMobile } from '@/ui/kit/preview.browser.test-support.ts';
 
 test('fictional Wiki nodes keep selected evidence and expanded source context across bounded arrangements', async ({
   page,
@@ -59,8 +59,11 @@ test('Wiki fictional reader exposes filtering, loading, errors and missing recor
 }) => {
   await page.goto('/preview/wiki.html');
   const sample = page.locator('[data-design-preview]');
-  await sample.getByRole('button', { name: 'Tag: Creative work', exact: true }).click();
-  await expect(sample.getByRole('heading', { name: 'Pages tagged Creative work' })).toBeVisible();
+  await sample
+    .getByRole('toolbar', { name: 'Wiki page' })
+    .getByRole('button', { name: 'Wiki', exact: true })
+    .click();
+  await expect(sample.getByRole('heading', { name: 'Wiki', exact: true })).toBeVisible();
   await sample.getByRole('textbox', { name: 'Find pages' }).fill('missing');
   await expect(sample.getByText('No pages found.')).toBeVisible();
   await sample.getByRole('button', { name: 'Toggle loading' }).click();
@@ -81,6 +84,9 @@ test('fictional Wiki navigation returns to the local index and opens the selecte
     .getByRole('button', { name: 'Wiki', exact: true })
     .click();
   await expect(example.getByRole('textbox', { name: 'Find pages' })).toBeVisible();
-  await example.getByRole('link', { name: 'Slow mornings', exact: true }).click();
+  await example
+    .getByRole('region', { name: 'Page directory' })
+    .getByRole('link', { name: 'Slow mornings', exact: true })
+    .click();
   await expect(example.getByRole('heading', { name: 'Slow mornings', exact: true })).toBeVisible();
 });
