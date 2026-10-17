@@ -1,5 +1,5 @@
-import type { NodeReading } from '../../vault/nodes/store.ts';
-import type { SourceReader } from '../../vault/sources.ts';
+import type { NodeReading } from '@/vault/nodes/store.ts';
+import type { SourceReader } from '@/vault/sources.ts';
 import { readWiki, type WikiPage } from './pages.ts';
 import type { WikiRelatedContentReading } from './related-content.ts';
 

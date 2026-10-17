@@ -9,7 +9,7 @@ import {
   createTranscription,
   type Transcription,
   type TranscriptionEvents,
-} from '../../transcription.ts';
+} from '@/transcription.ts';
 
 const question: Question = {
   id: 'question',

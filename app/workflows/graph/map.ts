@@ -1,4 +1,4 @@
-import type { JsonObject } from '../../vault/nodes/model.ts';
+import type { JsonObject } from '@/vault/nodes/model.ts';
 import type { GraphExplorerState } from './explorer.ts';
 
 /** Application supplies record-owner projections; Graph interprets only map membership. */

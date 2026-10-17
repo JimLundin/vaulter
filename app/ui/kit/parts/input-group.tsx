@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { cva, type VariantProps } from 'class-variance-authority';
-import { cn } from '../lib/utils.ts';
+import { cn } from '@/ui/kit/lib/utils.ts';
 
 import { Button } from './button.tsx';
 import { Input } from './input.tsx';

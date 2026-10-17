@@ -1,8 +1,8 @@
 import { expect, test } from 'vitest';
-import type { NodeAddress } from '../../vault/nodes/model.ts';
-import type { NodeChange } from '../../vault/nodes/store.ts';
-import { memoryNodeBackend } from '../../vault/nodes/memory.ts';
-import { create, request, revise } from '../../vault/nodes/fixtures.test-support.ts';
+import type { NodeAddress } from '@/vault/nodes/model.ts';
+import type { NodeChange } from '@/vault/nodes/store.ts';
+import { memoryNodeBackend } from '@/vault/nodes/memory.ts';
+import { create, request, revise } from '@/vault/nodes/fixtures.test-support.ts';
 import { readGraph } from './reading.ts';
 
 const relation = (

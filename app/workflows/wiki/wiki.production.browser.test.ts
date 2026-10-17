@@ -1,9 +1,9 @@
 import { expect, test } from '@playwright/test';
-import { createPersistentStorage, openDatabase, type Journal } from '../../vault/eav/index.ts';
-import { applicationSchema } from '../../application/composition.ts';
-import { seedEavWiki } from '../../preview/wiki-records.ts';
-import { fakeGitHub } from '../../vault/storage/github-client/fake-github.ts';
-import { seal } from '../../vault/session/sealed.ts';
+import { createPersistentStorage, openDatabase, type Journal } from '@/vault/eav/index.ts';
+import { applicationSchema } from '@/application/composition.ts';
+import { seedEavWiki } from '@/preview/wiki-records.ts';
+import { fakeGitHub } from '@/vault/storage/github-client/fake-github.ts';
+import { seal } from '@/vault/session/sealed.ts';
 
 test('production Wiki reads typed EAV prose and retained citations after reload', async ({
   page,

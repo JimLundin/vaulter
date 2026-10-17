@@ -1,7 +1,7 @@
 // The rule that keeps every screen coherent: what the kit hands to extensions takes no `className` and
 // no `style`, in its types and at runtime too, so an extension composes the kit and never styles it.
 import { type ComponentType, createElement } from 'react';
-import { useFieldSemanticDiagnostic } from '../field-association.ts';
+import { useFieldSemanticDiagnostic } from '@/ui/kit/field-association.ts';
 
 export type Unstyled<P> = Omit<P, 'className' | 'style'>;
 

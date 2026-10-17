@@ -1,11 +1,11 @@
 // @vitest-environment happy-dom
-import { transactionFixture } from '../../vault/transactions/fixtures.test-support.ts';
+import { transactionFixture } from '@/vault/transactions/fixtures.test-support.ts';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { expect, test, vi } from 'vitest';
-import { memoryNodeBackend } from '../../vault/nodes/memory.ts';
-import { create, request, revise } from '../../vault/nodes/fixtures.test-support.ts';
-import type { NodeCommit } from '../../vault/nodes/store.ts';
+import { memoryNodeBackend } from '@/vault/nodes/memory.ts';
+import { create, request, revise } from '@/vault/nodes/fixtures.test-support.ts';
+import type { NodeCommit } from '@/vault/nodes/store.ts';
 import { createQuestionAnswers } from './answers.ts';
 import { EmbeddedQuestion } from './EmbeddedQuestion.tsx';
 import { QuestionsPage } from './QuestionsPage.tsx';

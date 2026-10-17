@@ -5,7 +5,7 @@ import {
   ReadingColumn,
   SupportingPane,
   SplitView,
-  Toolbar,
+  PageHeader,
   Select,
   SettingField,
   Checkbox,
@@ -26,8 +26,8 @@ import {
   Stack,
   Text,
   Loader,
-} from '../../ui/kit/index.ts';
-import { go } from '../../navigation/routing.ts';
+} from '@/ui/kit/index.ts';
+import { go } from '@/navigation/routing.ts';
 import { graphRoute, graphSubjectRoute } from './routes.ts';
 import {
   projectGraphMap,
@@ -337,15 +337,13 @@ export function GraphPage({
     <SplitView
       main={
         <ReadingColumn label="Graph workspace">
-          <Toolbar label="Graph">
-            <Row>
-              <Heading level={1}>Graph</Heading>
-              <Text size="sm" tone="muted">
-                {grouping === 'none' ? 'Relationships' : 'Parent topics'} · {spacing} ·{' '}
-                {edgeSpacing} edges
-              </Text>
-            </Row>
-          </Toolbar>
+          <PageHeader title="Graph" />
+          <Row inset="page" block="sm">
+            <Text size="sm" tone="muted">
+              {grouping === 'none' ? 'Relationships' : 'Parent topics'} · {spacing} · {edgeSpacing}{' '}
+              edges
+            </Text>
+          </Row>
           {state.loading && <Loader>Opening Graph…</Loader>}
           {!!state.error && (
             <Row>

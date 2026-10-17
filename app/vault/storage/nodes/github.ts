@@ -1,12 +1,12 @@
 // GitHub is authoritative; local cache publication never counts as remote acceptance.
-import type { NodeBackend, NodeCommit, NodePublicationRule } from '../../nodes/store.ts';
-import { parseCommit, parseRecord, type NodeRecord } from '../../nodes/validation.ts';
-import { accept, validateRecordsAsync } from '../../nodes/history.ts';
-import { canonical, digest } from '../../nodes/json.ts';
-import { nodeInterface, notifications } from '../../nodes/backend.ts';
-import { github, NotFastForward, REPO, API, type Repo } from '../github-client/api.ts';
-import { blobSha } from '../blob-sha.ts';
-import { serial } from '../../../runtime/async.ts';
+import type { NodeBackend, NodeCommit, NodePublicationRule } from '@/vault/nodes/store.ts';
+import { parseCommit, parseRecord, type NodeRecord } from '@/vault/nodes/validation.ts';
+import { accept, validateRecordsAsync } from '@/vault/nodes/history.ts';
+import { canonical, digest } from '@/vault/nodes/json.ts';
+import { nodeInterface, notifications } from '@/vault/nodes/backend.ts';
+import { github, NotFastForward, REPO, API, type Repo } from '@/vault/storage/github-client/api.ts';
+import { blobSha } from '@/vault/storage/blob-sha.ts';
+import { serial } from '@/runtime/async.ts';
 import { nodeCache, type RemoteHead } from './cache.ts';
 
 export const NODE_NAMESPACE = '.vaulter/nodes/v1/transactions/';

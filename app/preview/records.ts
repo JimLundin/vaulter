@@ -1,6 +1,6 @@
 // Fictional retained history; production readers interpret every page, claim and source.
-import type { JsonObject } from '../vault/nodes/model.ts';
-import type { NodeChange, NodeCommit, NodeStore } from '../vault/nodes/store.ts';
+import type { JsonObject } from '@/vault/nodes/model.ts';
+import type { NodeChange, NodeCommit, NodeStore } from '@/vault/nodes/store.ts';
 
 const create = (node: string, data: JsonObject, parent?: string, order = 'a'): NodeChange => ({
   node,

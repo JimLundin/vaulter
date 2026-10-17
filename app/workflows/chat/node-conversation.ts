@@ -12,7 +12,7 @@ import type {
 import type { MessageData } from './records/chat.ts';
 import { CONVERSATION_PAGE_SIZE, type SavedChat } from './records/chat-store.ts';
 import { generateSuggestions, type SuggestionProvider } from './suggestions.ts';
-import type { Transcription, TranscriptionState } from '../../transcription.ts';
+import type { Transcription, TranscriptionState } from '@/transcription.ts';
 
 /** One task request supplied by the application composition, shared by page and panel views. */
 export interface Prompt {

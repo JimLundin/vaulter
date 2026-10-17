@@ -1,9 +1,9 @@
 import { expect, test } from 'vitest';
-import { memoryNodeBackend } from '../../../vault/nodes/memory.ts';
-import { create, request, seed } from '../../../vault/nodes/fixtures.test-support.ts';
+import { memoryNodeBackend } from '@/vault/nodes/memory.ts';
+import { create, request, seed } from '@/vault/nodes/fixtures.test-support.ts';
 import { recordChatMetadata, type MetadataEntry } from './chat-metadata-store.ts';
-import type { NodeStore } from '../../../vault/nodes/store.ts';
-import { transactionFixture } from '../../../vault/transactions/fixtures.test-support.ts';
+import type { NodeStore } from '@/vault/nodes/store.ts';
+import { transactionFixture } from '@/vault/transactions/fixtures.test-support.ts';
 import type { InterpretationData, ObservationData } from './chat-metadata.ts';
 
 async function saveMetadata(
@@ -271,7 +271,7 @@ test('legacy execution metadata decodes through Agent schemas without dropping o
 });
 
 test('new Chat metadata production refuses Agent execution payloads while the historical decoder retains them', async () => {
-  const { memoryNodeBackend } = await import('../../../vault/nodes/memory.ts');
+  const { memoryNodeBackend } = await import('@/vault/nodes/memory.ts');
   const nodes = memoryNodeBackend();
   const run = {
     kind: 'agentRun',

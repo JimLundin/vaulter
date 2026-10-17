@@ -1,7 +1,7 @@
 // Fictional preview only: replay accepted requests through the production memory adapter.
-import { memoryNodeBackend } from '../vault/nodes/memory.ts';
-import type { NodeCommit, NodePublicationRule } from '../vault/nodes/store.ts';
-import { frozen } from '../vault/nodes/json.ts';
+import { memoryNodeBackend } from '@/vault/nodes/memory.ts';
+import type { NodeCommit, NodePublicationRule } from '@/vault/nodes/store.ts';
+import { frozen } from '@/vault/nodes/json.ts';
 
 export const previewJournalKey = 'vaulter:preview:accepted:v1';
 export async function previewNodes(storage: Storage, scenario?: string) {

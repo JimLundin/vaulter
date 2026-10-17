@@ -1,5 +1,5 @@
-import type { NodeVersion } from '../../vault/nodes/model.ts';
-import type { NodeSnapshot } from '../../vault/nodes/store.ts';
+import type { NodeVersion } from '@/vault/nodes/model.ts';
+import type { NodeSnapshot } from '@/vault/nodes/store.ts';
 import { readGraph } from './reading.ts';
 import { graphSchemas } from './records.ts';
 

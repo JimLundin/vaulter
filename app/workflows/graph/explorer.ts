@@ -1,6 +1,6 @@
-import type { NodeReading, NodeSnapshot } from '../../vault/nodes/store.ts';
-import type { NodeVersion } from '../../vault/nodes/model.ts';
-import type { SourceDescription } from '../../vault/sources.ts';
+import type { NodeReading, NodeSnapshot } from '@/vault/nodes/store.ts';
+import type { NodeVersion } from '@/vault/nodes/model.ts';
+import type { SourceDescription } from '@/vault/sources.ts';
 import { readGraph, type Graph } from './reading.ts';
 
 export interface GraphSubject {

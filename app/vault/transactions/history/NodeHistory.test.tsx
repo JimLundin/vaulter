@@ -4,10 +4,10 @@ import { createRoot } from 'react-dom/client';
 import { expect, test, vi } from 'vitest';
 import { NodeHistory, TransactionItem } from './NodeHistory.tsx';
 import type { NodeHistoryEntry } from './nodes.ts';
-import { parseCommit } from '../../nodes/validation.ts';
+import { parseCommit } from '@/vault/nodes/validation.ts';
 import { nodeHistory } from './nodes.ts';
-import { memoryNodeBackend } from '../../nodes/memory.ts';
-import { create, request, seed } from '../../nodes/fixtures.test-support.ts';
+import { memoryNodeBackend } from '@/vault/nodes/memory.ts';
+import { create, request, seed } from '@/vault/nodes/fixtures.test-support.ts';
 
 test('new transactions preserve loaded older pages and every kind remains visible', async () => {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);

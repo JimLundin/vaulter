@@ -1,4 +1,4 @@
-import { closeStorage, clearStorage, type MemoryStorage } from '../eav/index.ts';
+import { closeStorage, clearStorage, type MemoryStorage } from '@/vault/eav/index.ts';
 import type { OpenNodes, OpenEav } from './adapters.ts';
 // Which vault the app is on, and its state: GitHub through the device cache, in every browser. Built, the
 // secrets are unlocked with the password (unlock.ts); in dev they come from the environment (vite.config.ts)
@@ -15,10 +15,10 @@ import {
   type Credentials,
   type SecretOverrides,
 } from './unlock.ts';
-import type { NodeBackend } from '../nodes/store.ts';
-import type { TransactionStore } from '../transactions/store.ts';
-import { createTransactionSession } from '../transactions/lifetime.ts';
-import { serial } from '../../runtime/async.ts';
+import type { NodeBackend } from '@/vault/nodes/store.ts';
+import type { TransactionStore } from '@/vault/transactions/store.ts';
+import { createTransactionSession } from '@/vault/transactions/lifetime.ts';
+import { serial } from '@/runtime/async.ts';
 import { createSessionCredentials, type SessionCredentials } from './credentials.ts';
 
 export type Status =

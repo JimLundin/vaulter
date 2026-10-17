@@ -1,7 +1,7 @@
-import { useFieldUnsupportedControl } from '../field-association.ts';
+import { useFieldUnsupportedControl } from '@/ui/kit/field-association.ts';
 import * as React from 'react';
 import { Autocomplete as CommandPrimitive } from '@base-ui/react/autocomplete';
-import { cn } from '../lib/utils.ts';
+import { cn } from '@/ui/kit/lib/utils.ts';
 import { SearchIcon } from 'lucide-react';
 
 type CommandContextValue = {

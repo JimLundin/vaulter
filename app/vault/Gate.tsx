@@ -10,7 +10,7 @@ import {
   Gate,
   Heading,
   Loader,
-} from '../ui/kit/index.ts';
+} from '@/ui/kit/index.ts';
 import type { Session } from './session/session.ts';
 import { Unlock } from './session/ui.tsx';
 

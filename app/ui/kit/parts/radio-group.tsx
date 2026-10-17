@@ -1,8 +1,8 @@
 import type { ComponentProps } from 'react';
 import { RadioGroup as GroupPrimitive } from '@base-ui/react/radio-group';
 import { Radio as Primitive } from '@base-ui/react/radio';
-import { useFieldGroupAssociation } from '../field-association.ts';
-import { cn } from '../lib/utils.ts';
+import { useFieldGroupAssociation } from '@/ui/kit/field-association.ts';
+import { cn } from '@/ui/kit/lib/utils.ts';
 
 function RadioGroup({
   className,

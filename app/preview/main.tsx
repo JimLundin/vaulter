@@ -1,7 +1,7 @@
 import '@fontsource-variable/geist';
 import '@fontsource-variable/geist-mono';
 import '@fontsource-variable/newsreader';
-import '../ui/kit/styles.css';
+import '@/ui/kit/styles.css';
 import { createRoot } from 'react-dom/client';
 import { useState } from 'react';
 import { OpenApplication } from '@/application/index.tsx';

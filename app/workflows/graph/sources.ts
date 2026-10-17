@@ -1,5 +1,5 @@
-import type { NodeVersion } from '../../vault/nodes/model.ts';
-import type { SourceReader } from '../../vault/sources.ts';
+import type { NodeVersion } from '@/vault/nodes/model.ts';
+import type { SourceReader } from '@/vault/sources.ts';
 import { graphSchemas } from './records.ts';
 
 export const graphSources: SourceReader = {

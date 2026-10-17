@@ -1,5 +1,5 @@
-import type { SettingsDefinition } from '../settings/store.ts';
-import { SettingField, ThemeSwitch } from '../ui/kit/index.ts';
+import type { SettingsDefinition } from '@/settings/store.ts';
+import { SettingField, ThemeSwitch } from '@/ui/kit/index.ts';
 
 export const appearanceSettings: SettingsDefinition = {
   id: 'appearance',

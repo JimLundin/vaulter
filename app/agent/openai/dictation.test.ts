@@ -2,8 +2,8 @@
 import { afterEach, expect, test, vi } from 'vitest';
 import { openAIDictation } from './dictation.ts';
 import { OpenAIRequestError } from './http.ts';
-import type { FileTranscriptionProvider } from '../providers.ts';
-import type { TranscriptionProvider } from '../transcription.ts';
+import type { FileTranscriptionProvider } from '@/agent/providers.ts';
+import type { TranscriptionProvider } from '@/agent/transcription.ts';
 
 afterEach(() => vi.unstubAllGlobals());
 

@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
-import { memoryNodeBackend } from '../nodes/memory.ts';
-import { create, seed } from '../nodes/fixtures.test-support.ts';
-import { nodeOperations } from '../nodes/operations.ts';
-import { NodePublicationRejected } from '../nodes/history.ts';
-import type { NodeCommit } from '../nodes/store.ts';
+import { memoryNodeBackend } from '@/vault/nodes/memory.ts';
+import { create, seed } from '@/vault/nodes/fixtures.test-support.ts';
+import { nodeOperations } from '@/vault/nodes/operations.ts';
+import { NodePublicationRejected } from '@/vault/nodes/history.ts';
+import type { NodeCommit } from '@/vault/nodes/store.ts';
 import {
   createTransactionSession,
   PreparationReplaced,

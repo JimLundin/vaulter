@@ -1,5 +1,5 @@
 // Agent owns execution payloads. Existing JSON meanings remain compatible.
-import type { JsonObject, JsonValue } from '../vault/nodes/model.ts';
+import type { JsonObject, JsonValue } from '@/vault/nodes/model.ts';
 // biome-ignore lint/style/useConsistentTypeDefinitions: type aliases satisfy JsonObject structurally
 export type TextSelection = {
   readonly format: 'text';

@@ -1,12 +1,12 @@
-import type { NodeSnapshot } from '../vault/nodes/store.ts';
+import type { NodeSnapshot } from '@/vault/nodes/store.ts';
 import type {
   TransactionRequest,
   TransactionStore,
   WriteLifetime,
-} from '../vault/transactions/store.ts';
-import { composeChanges } from '../vault/transactions/composition.ts';
+} from '@/vault/transactions/store.ts';
+import { composeChanges } from '@/vault/transactions/composition.ts';
 import type { AgentToolContext, ContentWritePolicy } from './tools.ts';
-import { frozen } from '../vault/nodes/json.ts';
+import { frozen } from '@/vault/nodes/json.ts';
 
 const ownedKinds = new Set(['agentRun', 'contextInput', 'toolExecution']);
 /** Agent-owned audit protection is independent of a caller's additional producer policy. */

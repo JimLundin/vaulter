@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react';
-import type { NodeVersion, JsonObject } from '../../vault/nodes/model.ts';
-import type { NodeSnapshot } from '../../vault/nodes/store.ts';
-import type { SourceDescription } from '../../vault/sources.ts';
-import { Stack, Text } from '../../ui/kit/index.ts';
+import type { NodeVersion, JsonObject } from '@/vault/nodes/model.ts';
+import type { NodeSnapshot } from '@/vault/nodes/store.ts';
+import type { SourceDescription } from '@/vault/sources.ts';
+import { Stack, Text } from '@/ui/kit/index.ts';
 import {
   QuestionItem,
   type QuestionItemProps,

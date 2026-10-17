@@ -1,9 +1,6 @@
-import type {
-  RecordedToolEvidence,
-  ToolPresentationAdapter,
-} from '../../agent/tool-presentation.tsx';
-import { Stack, Text } from '../../ui/kit/index.ts';
-import type { JsonObject, JsonValue } from '../../vault/nodes/model.ts';
+import type { RecordedToolEvidence, ToolPresentationAdapter } from '@/agent/tool-presentation.tsx';
+import { Stack, Text } from '@/ui/kit/index.ts';
+import type { JsonObject, JsonValue } from '@/vault/nodes/model.ts';
 import { questionToolActions } from './tool-actions.ts';
 
 const isObject = (value: JsonValue | undefined): value is JsonObject =>

@@ -1,5 +1,5 @@
 // Chat presentation snapshots shared by its controller and views.
-import type { ToolEvidenceState } from '../../agent/tool-presentation.tsx';
+import type { ToolEvidenceState } from '@/agent/tool-presentation.tsx';
 export type Part =
   | { kind: 'text'; text: string }
   | (ToolEvidenceState & { kind: 'tool'; callId?: string });

@@ -1,14 +1,14 @@
 // @vitest-environment happy-dom
-import { transactionFixture } from '../vault/transactions/fixtures.test-support.ts';
+import { transactionFixture } from '@/vault/transactions/fixtures.test-support.ts';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { expect, test, vi } from 'vitest';
 import { OpenApplication } from './index.tsx';
 import { applicationNodes } from './composition.ts';
-import { memoryNodeBackend } from '../vault/nodes/memory.ts';
-import { create, request, revise } from '../vault/nodes/fixtures.test-support.ts';
-import type { NodeCommit, NodeStore } from '../vault/nodes/store.ts';
-import type { TransactionStore } from '../vault/transactions/store.ts';
+import { memoryNodeBackend } from '@/vault/nodes/memory.ts';
+import { create, request, revise } from '@/vault/nodes/fixtures.test-support.ts';
+import type { NodeCommit, NodeStore } from '@/vault/nodes/store.ts';
+import type { TransactionStore } from '@/vault/transactions/store.ts';
 
 test('Application composes the shared Questions owner for retained questions and answers', async () => {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);

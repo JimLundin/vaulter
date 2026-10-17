@@ -1,14 +1,14 @@
 import { readAgentRunAt, type RecordedAgentRun } from './reading.ts';
-import type { JsonObject, NodeAddress } from '../vault/nodes/model.ts';
-import type { NodeCommit, NodeChange, NodeReading } from '../vault/nodes/store.ts';
-import { canonical, frozen } from '../vault/nodes/json.ts';
-import type { WriteLifetime, PreparedRequest } from '../vault/transactions/store.ts';
-import type { TransactionKind } from '../vault/nodes/operations.ts';
+import type { JsonObject, NodeAddress } from '@/vault/nodes/model.ts';
+import type { NodeCommit, NodeChange, NodeReading } from '@/vault/nodes/store.ts';
+import { canonical, frozen } from '@/vault/nodes/json.ts';
+import type { WriteLifetime, PreparedRequest } from '@/vault/transactions/store.ts';
+import type { TransactionKind } from '@/vault/nodes/operations.ts';
 import type { AgentRunData, ContextInputData } from './records.ts';
 import { hasLiveAgentOwner } from './ownership.ts';
 import { parseAgentRun, parseContextInput, parseAgentSettings } from './schema.ts';
 
-declare module '../vault/nodes/operations.ts' {
+declare module '@/vault/nodes/operations.ts' {
   interface TransactionActions {
     readonly agent: 'startRun' | 'completeRun' | 'stopRun' | 'recordTool' | 'completeTool';
   }

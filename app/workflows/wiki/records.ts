@@ -1,8 +1,8 @@
 // Wiki owns page, block, inline and citation definitions independently of storage and migration.
 import { z } from 'zod';
-import type { JsonObject } from '../../vault/nodes/model.ts';
-import { canonical, frozen } from '../../vault/nodes/json.ts';
-import { localDate, text } from '../../vault/records/common.ts';
+import type { JsonObject } from '@/vault/nodes/model.ts';
+import { canonical, frozen } from '@/vault/nodes/json.ts';
+import { localDate, text } from '@/vault/records/common.ts';
 
 export const page = z.strictObject({
   kind: z.literal('page'),

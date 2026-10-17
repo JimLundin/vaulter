@@ -1,5 +1,5 @@
 import { useLayoutEffect, useState, useSyncExternalStore } from 'react';
-import type { NodeReading } from '../../vault/nodes/store.ts';
+import type { NodeReading } from '@/vault/nodes/store.ts';
 import { createQuestionsReading, type QuestionsReading } from './reading.ts';
 import {
   createQuestionAnswers,

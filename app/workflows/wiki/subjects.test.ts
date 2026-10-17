@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
-import { create, request, revise } from '../../vault/nodes/fixtures.test-support.ts';
-import { memoryNodeBackend } from '../../vault/nodes/memory.ts';
+import { create, request, revise } from '@/vault/nodes/fixtures.test-support.ts';
+import { memoryNodeBackend } from '@/vault/nodes/memory.ts';
 import { listWikiSubjects, readWikiSubject } from './subjects.ts';
 
 test('Wiki discovers its live pages and sections through the full containment ancestry', async () => {

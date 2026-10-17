@@ -1,14 +1,9 @@
 // Chat acceptance and projection over the common node store. Model SDKs stay in the workflow.
-import type { NodeVersion } from '../../../vault/nodes/model.ts';
-import type {
-  NodeChange,
-  NodeCommit,
-  NodeReading,
-  NodeSnapshot,
-} from '../../../vault/nodes/store.ts';
-import { agentRunsIn } from '../../../agent/reading.ts';
+import type { NodeVersion } from '@/vault/nodes/model.ts';
+import type { NodeChange, NodeCommit, NodeReading, NodeSnapshot } from '@/vault/nodes/store.ts';
+import { agentRunsIn } from '@/agent/reading.ts';
 import { parseConversation, parseExchange, parseMessage, parseChatInstant } from './chat-schema.ts';
-import { frozen } from '../../../vault/nodes/json.ts';
+import { frozen } from '@/vault/nodes/json.ts';
 import { chatOperations, type ConversationData, type MessageData } from './chat.ts';
 
 export interface SavedChat {

@@ -1,6 +1,6 @@
-import type { NodeAddress, NodeVersion } from '../../vault/nodes/model.ts';
-import type { NodeSnapshot } from '../../vault/nodes/store.ts';
-import { frozen } from '../../vault/nodes/json.ts';
+import type { NodeAddress, NodeVersion } from '@/vault/nodes/model.ts';
+import type { NodeSnapshot } from '@/vault/nodes/store.ts';
+import { frozen } from '@/vault/nodes/json.ts';
 import { graphSchemas, type QueryData, type RelationshipData, type TermData } from './records.ts';
 
 export interface GraphEndpoint {

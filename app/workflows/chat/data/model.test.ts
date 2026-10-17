@@ -1,12 +1,12 @@
 import { expect, test } from 'vitest';
-import { openDatabase, sameEntity, createMemoryStorage } from '../../../vault/eav/index.ts';
+import { openDatabase, sameEntity, createMemoryStorage } from '@/vault/eav/index.ts';
 import {
   startAgentRun,
   finishAgentRun,
   startToolExecution,
   finishToolExecution,
   readAgentRun,
-} from '../../../agent/data/operations.ts';
+} from '@/agent/data/operations.ts';
 import { chatSchema } from './schema.ts';
 import { conversation as getConversation, submitChat, readExchange } from './operations.ts';
 

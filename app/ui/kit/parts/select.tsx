@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { ChevronDown } from 'lucide-react';
-import { useFieldSelectAssociation } from '../field-association.ts';
-import { cn } from '../lib/utils.ts';
+import { useFieldSelectAssociation } from '@/ui/kit/field-association.ts';
+import { cn } from '@/ui/kit/lib/utils.ts';
 
 type SelectProps = Omit<React.ComponentProps<'select'>, 'children'> & {
   options: readonly { value: string; label: string }[];

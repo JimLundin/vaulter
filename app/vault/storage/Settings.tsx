@@ -1,8 +1,8 @@
-import { createSettings } from '../../settings/store.ts';
-import { Stack } from '../../ui/kit/index.ts';
-import { ModuleSettings } from '../../settings/ModuleSettings.tsx';
-import type { Credential } from '../session/credentials.ts';
-import { CredentialSetting } from '../session/ui.tsx';
+import { createSettings } from '@/settings/store.ts';
+import { Stack } from '@/ui/kit/index.ts';
+import { ModuleSettings } from '@/settings/ModuleSettings.tsx';
+import type { Credential } from '@/vault/session/credentials.ts';
+import { CredentialSetting } from '@/vault/session/ui.tsx';
 import { githubSettings } from './settings.ts';
 
 const preferences = createSettings(githubSettings);

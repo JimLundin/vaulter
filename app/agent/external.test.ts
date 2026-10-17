@@ -1,10 +1,10 @@
-import { transactionFixture } from '../vault/transactions/fixtures.test-support.ts';
+import { transactionFixture } from '@/vault/transactions/fixtures.test-support.ts';
 import { expect, test } from 'vitest';
 import { tool } from 'ai';
 import { z } from 'zod';
-import { memoryNodeBackend } from '../vault/nodes/memory.ts';
-import { create, request } from '../vault/nodes/fixtures.test-support.ts';
-import { nodeOperations } from '../vault/nodes/operations.ts';
+import { memoryNodeBackend } from '@/vault/nodes/memory.ts';
+import { create, request } from '@/vault/nodes/fixtures.test-support.ts';
+import { nodeOperations } from '@/vault/nodes/operations.ts';
 import { readAgentRun } from './store.ts';
 import { prepareAgentRunFixture as prepareAgentRun } from './preparation.test-support.ts';
 import { createAgentBackend } from './runtime.ts';

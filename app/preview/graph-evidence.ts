@@ -1,6 +1,6 @@
 // Fictional evidence scenario, installed only for the explicit Graph comparison.
-import type { JsonObject } from '../vault/nodes/model.ts';
-import type { NodeChange, NodeCommit, NodeStore } from '../vault/nodes/store.ts';
+import type { JsonObject } from '@/vault/nodes/model.ts';
+import type { NodeChange, NodeCommit, NodeStore } from '@/vault/nodes/store.ts';
 
 export async function seedGraphEvidence(nodes: NodeStore) {
   if ((await nodes.snapshot()).get('preview:graph-topic')) return;

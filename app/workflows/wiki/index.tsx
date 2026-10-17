@@ -1,5 +1,14 @@
 import { useState } from 'react';
-import { Button, FeaturePage, PageControls, Link, Loader, Stack, Text } from '@/ui/kit/index.ts';
+import {
+  Button,
+  FeaturePage,
+  Heading,
+  PageControls,
+  Link,
+  Loader,
+  Stack,
+  Text,
+} from '@/ui/kit/index.ts';
 import { go } from '@/navigation/routing.ts';
 import type { WikiClassification, WikiPage } from './view.ts';
 import { wikiRoute, pageRoute } from './routes.ts';
@@ -41,7 +50,8 @@ export function Wiki({
   const page = pages.find((entry) => entry.id === node);
   if (node && !page)
     return (
-      <FeaturePage title="Page unavailable">
+      <FeaturePage title="Wiki">
+        <Heading level={2}>Page unavailable</Heading>
         <Text>This page is missing or has been removed.</Text>
       </FeaturePage>
     );
@@ -79,11 +89,9 @@ export function Wiki({
     ).values(),
   ].sort((a, b) => a.label.localeCompare(b.label));
   return (
-    <FeaturePage
-      title={filter ? `Pages tagged ${filter.label}` : 'Wiki'}
-      description="People, places and ideas in your vault."
-    >
+    <FeaturePage title="Wiki" description="People, places and ideas in your vault.">
       <Stack>
+        {!!filter && <Heading level={2}>Pages tagged {filter.label}</Heading>}
         <PageControls
           search={{
             label: 'Find pages',

@@ -1,6 +1,6 @@
-import { expectAppActionFocus, openAppAction } from '../ui/kit/navigation.browser.test-support.ts';
+import { expectAppActionFocus, openAppAction } from '@/ui/kit/navigation.browser.test-support.ts';
 import { expect, test } from '@playwright/test';
-import { setPreviewMobile } from '../ui/kit/preview.browser.test-support.ts';
+import { setPreviewMobile } from '@/ui/kit/preview.browser.test-support.ts';
 
 test('the preview handle drags without toggling controls, stays bounded, and supports keyboard reset', {
   tag: ['@phone', '@touch'],

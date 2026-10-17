@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { later } from '../../runtime/later.ts';
+import { later } from '@/runtime/later.ts';
 import {
   createNodeConversation,
   type NodeConversationOptions,

@@ -1,4 +1,4 @@
-import type { SettingsDefinition } from '../../settings/store.ts';
+import type { SettingsDefinition } from '@/settings/store.ts';
 import { API, REPO } from './github-client/api.ts';
 
 export const githubSettings: SettingsDefinition = {

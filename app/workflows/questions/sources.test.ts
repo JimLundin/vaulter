@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
-import { memoryNodeBackend } from '../../vault/nodes/memory.ts';
-import { create, request, revise } from '../../vault/nodes/fixtures.test-support.ts';
+import { memoryNodeBackend } from '@/vault/nodes/memory.ts';
+import { create, request, revise } from '@/vault/nodes/fixtures.test-support.ts';
 import { questionSources } from './sources.ts';
 
 test('Question source text retains the historical grammar and subject attribution', async () => {

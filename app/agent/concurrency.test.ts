@@ -1,18 +1,18 @@
 import {
   transactionFixture,
   transactionOptionsFixture,
-} from '../vault/transactions/fixtures.test-support.ts';
+} from '@/vault/transactions/fixtures.test-support.ts';
 import { expect, test, vi } from 'vitest';
 import { tool } from 'ai';
 import { z } from 'zod';
 import { MockLanguageModelV4, convertArrayToReadableStream } from 'ai/test';
-import { memoryNodeBackend } from '../vault/nodes/memory.ts';
-import { create, request, seed } from '../vault/nodes/fixtures.test-support.ts';
+import { memoryNodeBackend } from '@/vault/nodes/memory.ts';
+import { create, request, seed } from '@/vault/nodes/fixtures.test-support.ts';
 import { createAgentBackend } from './runtime.ts';
 import { readAgentRunFixture as readAgentRun } from './preparation.test-support.ts';
 import { prepareAgentRunFixture as prepareAgentRun } from './preparation.test-support.ts';
-import { nodeOperations } from '../vault/nodes/operations.ts';
-import { serial } from '../runtime/async.ts';
+import { nodeOperations } from '@/vault/nodes/operations.ts';
+import { serial } from '@/runtime/async.ts';
 import type { AgentToolContext } from './tools.ts';
 
 function gate() {
@@ -273,7 +273,7 @@ test('disposing a reader does not stop another caller and disposing a settled re
   const recoveryRequest = await prepare('recovery');
   const transport = {
     ...nodes,
-    commit: async (value: import('../vault/nodes/store.ts').NodeCommit) => {
+    commit: async (value: import('@/vault/nodes/store.ts').NodeCommit) => {
       await nodes.commit(value);
       throw new Error('Acceptance response lost');
     },
@@ -347,7 +347,7 @@ test('disposal drains an entered detached content publication after its tool has
   let publication!: Promise<string>;
   const transport = {
     ...nodes,
-    commit: async (value: import('../vault/nodes/store.ts').NodeCommit) => {
+    commit: async (value: import('@/vault/nodes/store.ts').NodeCommit) => {
       if (value.changes.some((change) => change.node === 'disposing-paragraph')) {
         entered.release();
         await held.held;

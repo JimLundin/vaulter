@@ -1,5 +1,5 @@
 import { onTestFinished } from 'vitest';
-import type { NodeStore } from '../nodes/store.ts';
+import type { NodeStore } from '@/vault/nodes/store.ts';
 import type { TransactionStore, WriterContext } from './store.ts';
 import { createTransactionSession } from './lifetime.ts';
 

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { navigateToModule } from '../../ui/kit/navigation.browser.test-support.ts';
+import { navigateToModule } from '@/ui/kit/navigation.browser.test-support.ts';
 
 test('global topic map offers gentle defaults, local exploration and retained deep links', {
   tag: ['@phone', '@touch'],

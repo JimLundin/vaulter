@@ -1,12 +1,12 @@
-import { transactionFixture } from '../vault/transactions/fixtures.test-support.ts';
+import { transactionFixture } from '@/vault/transactions/fixtures.test-support.ts';
 import { expect, test } from 'vitest';
-import { memoryNodeBackend } from '../vault/nodes/memory.ts';
-import { create, request, seed, revise } from '../vault/nodes/fixtures.test-support.ts';
+import { memoryNodeBackend } from '@/vault/nodes/memory.ts';
+import { create, request, seed, revise } from '@/vault/nodes/fixtures.test-support.ts';
 import { applicationNodeHistory } from './composition.ts';
-import { parseToolExecution } from '../agent/schema.ts';
-import { seedPreviewRecords } from '../preview/records.ts';
-import { previewModel } from '../preview/model.ts';
-import type { NodeCommit } from '../vault/nodes/store.ts';
+import { parseToolExecution } from '@/agent/schema.ts';
+import { seedPreviewRecords } from '@/preview/records.ts';
+import { previewModel } from '@/preview/model.ts';
+import type { NodeCommit } from '@/vault/nodes/store.ts';
 
 test('Application retains History recovery when the session reading facade changes', async () => {
   const raw = memoryNodeBackend();
@@ -169,9 +169,9 @@ test('composed Chat and an independent Agent retain attributed generic History a
   expect((await nodes.history()).length).toBe(beforeRead);
   expect(model.doStreamCalls).toHaveLength(2);
   const { prepareAgentRunFixture: prepareAgentRun } = await import(
-    '../agent/preparation.test-support.ts'
+    '@/agent/preparation.test-support.ts'
   );
-  const { createAgentBackend } = await import('../agent/runtime.ts');
+  const { createAgentBackend } = await import('@/agent/runtime.ts');
   const standalone = await prepareAgentRun(transactionFixture(nodes), {
     id: 'independent',
     run: 'standalone',

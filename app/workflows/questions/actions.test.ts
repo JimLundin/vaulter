@@ -1,18 +1,18 @@
 import 'fake-indexeddb/auto';
 import { Dexie } from 'dexie';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { create, request, revise } from '../../vault/nodes/fixtures.test-support.ts';
-import { NodePublicationRejected } from '../../vault/nodes/history.ts';
-import { memoryNodeBackend } from '../../vault/nodes/memory.ts';
-import type { JsonObject } from '../../vault/nodes/model.ts';
+import { create, request, revise } from '@/vault/nodes/fixtures.test-support.ts';
+import { NodePublicationRejected } from '@/vault/nodes/history.ts';
+import { memoryNodeBackend } from '@/vault/nodes/memory.ts';
+import type { JsonObject } from '@/vault/nodes/model.ts';
 import type {
   NodeBackend,
   NodeCommit,
   NodePublicationRule,
   NodeStore,
-} from '../../vault/nodes/store.ts';
-import { fakeGitHub } from '../../vault/storage/github-client/fake-github.ts';
-import { githubNodeBackend } from '../../vault/storage/nodes/github.ts';
+} from '@/vault/nodes/store.ts';
+import { fakeGitHub } from '@/vault/storage/github-client/fake-github.ts';
+import { githubNodeBackend } from '@/vault/storage/nodes/github.ts';
 import { createQuestionOwnership, type AskQuestionInput, type QuestionWriter } from './actions.ts';
 import { prepareAskQuestion, type QuestionCommit } from './operations.ts';
 import { readQuestions } from './reading.ts';

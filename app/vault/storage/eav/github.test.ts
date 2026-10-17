@@ -10,10 +10,10 @@ import {
   ConflictError,
   type MemoryStorage,
   type Transaction,
-} from '../../eav/index.ts';
+} from '@/vault/eav/index.ts';
 import { githubEavAdapter } from './github.ts';
-import { fakeGitHub } from '../github-client/fake-github.ts';
-import { serial } from '../../../runtime/async.ts';
+import { fakeGitHub } from '@/vault/storage/github-client/fake-github.ts';
+import { serial } from '@/runtime/async.ts';
 
 const schema = e.registry({
   messages: e.entity('message', { text: e.string(), details: e.json() }),

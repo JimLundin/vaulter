@@ -1,12 +1,12 @@
-import { openAppAction } from '../ui/kit/navigation.browser.test-support.ts';
-import { createPersistentStorage, openDatabase, type Journal } from '../vault/eav/index.ts';
-import { chatSchema } from '../workflows/chat/data/schema.ts';
+import { openAppAction } from '@/ui/kit/navigation.browser.test-support.ts';
+import { createPersistentStorage, openDatabase, type Journal } from '@/vault/eav/index.ts';
+import { chatSchema } from '@/workflows/chat/data/schema.ts';
 import { expect, test } from '@playwright/test';
-import { fakeGitHub } from '../vault/storage/github-client/fake-github.ts';
-import { create, request } from '../vault/nodes/fixtures.test-support.ts';
-import { accept } from '../vault/nodes/history.ts';
-import { canonical, digest } from '../vault/nodes/json.ts';
-import { seal } from '../vault/session/sealed.ts';
+import { fakeGitHub } from '@/vault/storage/github-client/fake-github.ts';
+import { create, request } from '@/vault/nodes/fixtures.test-support.ts';
+import { accept } from '@/vault/nodes/history.ts';
+import { canonical, digest } from '@/vault/nodes/json.ts';
+import { seal } from '@/vault/session/sealed.ts';
 
 test('production History displays historical attribution and records confirmed content compensation', async ({
   page,

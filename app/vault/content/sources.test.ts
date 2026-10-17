@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
-import { memoryNodeBackend } from '../nodes/memory.ts';
-import { create, request, revise } from '../nodes/fixtures.test-support.ts';
+import { memoryNodeBackend } from '@/vault/nodes/memory.ts';
+import { create, request, revise } from '@/vault/nodes/fixtures.test-support.ts';
 import { contentSources } from './sources.ts';
 
 test('Content supplies its historical text and title as independently owned source material', async () => {
