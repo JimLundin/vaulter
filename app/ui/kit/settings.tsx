@@ -17,7 +17,7 @@ import {
 } from './field-association.ts';
 import { Field, FieldContent, FieldDescription, FieldLabel, FieldTitle } from './parts/field.tsx';
 import { Button } from './parts/button.tsx';
-import { Stack, Text } from './parts/layout.tsx';
+import { Stack, Row, Text } from './parts/layout.tsx';
 import { Heading } from './parts/layout.tsx';
 import { Surface } from './primitives.tsx';
 import { Drawer } from './drawer.tsx';
@@ -210,5 +210,34 @@ export function SettingsInfo({ label, value }: { label: string; value: string })
         </Text>
       ) : null}
     </Stack>
+  );
+}
+
+export function SettingsCard({
+  title,
+  description,
+  action,
+  children,
+}: {
+  title: string;
+  description?: string;
+  action?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <Surface as="section" aria-label={title} variant="subtle">
+      <Row justify="between" wrap={true}>
+        <Stack gap="xs">
+          <Heading level={3}>{title}</Heading>
+          {description ? (
+            <Text size="sm" tone="muted">
+              {description}
+            </Text>
+          ) : null}
+        </Stack>
+        {action}
+      </Row>
+      {children}
+    </Surface>
   );
 }

@@ -14,15 +14,13 @@ const csp = (): Plugin => ({
   name: 'csp',
   apply: 'build',
   transformIndexHtml(html) {
-    const api = new URL(process.env.VITE_GITHUB_API || 'https://api.github.com').origin;
-    const ai = new URL(process.env.VITE_OPENAI_API || 'https://api.openai.com').origin;
     const policy = [
       "default-src 'none'",
       "script-src 'self'",
       "worker-src 'self'",
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data:",
-      `connect-src 'self' ${api} ${ai} https://nominatim.openstreetmap.org https://api.open-meteo.com`,
+      "connect-src 'self' https: http: wss: ws:",
       "font-src 'self'",
       // The Home Screen install reads the manifest; default-src 'none' would refuse it.
       "manifest-src 'self'",

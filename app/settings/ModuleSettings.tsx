@@ -149,11 +149,13 @@ export function ModuleSettings({
   store,
   keys,
   disclosure,
+  reset = true,
 }: {
   definition: SettingsDefinition;
   store: SettingsStore;
   keys?: readonly string[];
   disclosure?: string;
+  reset?: boolean;
 }) {
   const subscribe = useCallback((listener: () => void) => store.subscribe(listener), [store]);
   const snapshot = useCallback(() => store.snapshot(), [store]);
@@ -176,7 +178,7 @@ export function ModuleSettings({
           store={store}
         />
       ))}
-      {fields.some((field) => field.kind !== 'readonly') && (
+      {reset && fields.some((field) => field.kind !== 'readonly') && (
         <Row>
           <Button
             variant="outline"

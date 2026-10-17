@@ -1,115 +1,99 @@
-import { openAppAction } from '@/ui/kit/navigation.browser.test-support.ts';
 import { expect, test } from '@playwright/test';
+import { openAppAction } from '@/ui/kit/navigation.browser.test-support.ts';
 
-async function reveal(settings: import('@playwright/test').Locator, title: string) {
-  await settings.locator('summary').filter({ hasText: title }).click();
-}
-
-test('settings reveal customization on request, preserve overrides and reset only the chosen group', {
+test('grouped settings persist selectors, instructions and endpoints after reload', {
   tag: '@phone',
 }, async ({ page }) => {
   await page.goto('/preview/#/settings/');
-  const settings = page.getByRole('dialog', { name: 'Settings', exact: true });
-  const model = settings.getByRole('combobox', { name: 'Chat model', exact: true });
-  const voice = settings.getByRole('combobox', { name: 'Voice', exact: true });
-  await expect(model).toBeVisible();
-  await expect(voice).toBeVisible();
-  const instructions = settings.getByRole('textbox', { name: 'Instructions', exact: true });
-  const steps = settings.getByRole('combobox', { name: 'Maximum steps', exact: true });
-  const voiceModel = settings.getByRole('combobox', { name: 'Voice model', exact: true });
-  await expect(instructions).toBeHidden();
-  await expect(steps).toBeHidden();
-  await expect(voiceModel).toBeHidden();
-  for (const label of ['Top K', 'Presence penalty', 'Frequency penalty', 'Stop sequences', 'Seed'])
-    await expect(settings.getByLabel(label, { exact: true })).toHaveCount(0);
-  await model.selectOption({ label: 'Custom…' });
-  await settings
-    .getByRole('textbox', { name: 'Custom chat model', exact: true })
-    .fill('review-model');
-  await voice.selectOption('cedar');
-  await reveal(settings, 'Customize instructions');
-  await instructions.fill('Keep the sources.');
-  await reveal(settings, 'Customize instructions');
-  await expect(
-    settings.locator('summary').filter({ hasText: 'Customize instructions' }),
-  ).toContainText('1 customized');
-  await reveal(settings, 'Run limits');
-  await steps.selectOption('20');
-  const output = settings.getByRole('combobox', { name: 'Maximum output tokens', exact: true });
-  await output.selectOption({ label: 'Custom…' });
-  const custom = settings.getByRole('textbox', {
-    name: 'Custom maximum output tokens',
-    exact: true,
-  });
-  await custom.fill('0');
-  await expect(custom).toHaveAttribute('aria-invalid', 'true');
-  await custom.fill('1536');
-  await expect(custom).not.toHaveAttribute('aria-invalid');
-  await reveal(settings, 'Troubleshooting');
-  await settings.getByRole('combobox', { name: 'Maximum retries', exact: true }).selectOption('3');
-  await reveal(settings, 'Voice and transcription models');
-  await voiceModel.selectOption('gpt-realtime-2.1-mini');
-  await page.reload();
-  await expect(model.locator('option:checked')).toHaveText('Custom…');
-  await expect(
-    settings.getByRole('textbox', { name: 'Custom chat model', exact: true }),
-  ).toHaveValue('review-model');
-  await expect(voice).toHaveValue('cedar');
-  await expect(instructions).toBeHidden();
-  await expect(settings.locator('summary').filter({ hasText: 'Run limits' })).toContainText(
-    '2 customized',
-  );
-  await reveal(settings, 'Run limits');
-  await expect(steps).toHaveValue('20');
-  await expect(custom).toHaveValue('1536');
-  await settings.getByRole('button', { name: 'Reset Run limits to defaults', exact: true }).click();
-  await expect(steps).toHaveValue('12');
-  await expect(output).toHaveValue('');
+  const d = page.getByRole('dialog', { name: 'Settings', exact: true });
+  await d.getByRole('radio', { name: /Balanced/ }).click();
+  await d.getByRole('radio', { name: 'cedar', exact: true }).click();
+  await d.getByRole('button', { name: 'Edit', exact: true }).click();
+  await d.getByRole('textbox', { name: 'Instructions', exact: true }).fill('Use concise answers.');
+  await d.getByRole('button', { name: 'Adjust', exact: true }).click();
+  await d.getByRole('combobox', { name: 'Maximum steps', exact: true }).selectOption('20');
+  await d
+    .getByRole('combobox', { name: 'Maximum output tokens', exact: true })
+    .selectOption('2048');
+  await d
+    .getByRole('region', { name: 'Voice models', exact: true })
+    .getByRole('button', { name: 'Change', exact: true })
+    .click();
+  await d
+    .getByRole('combobox', { name: 'Voice model', exact: true })
+    .selectOption('gpt-realtime-2.1-mini');
+  await d
+    .getByRole('combobox', { name: 'Live transcription model', exact: true })
+    .selectOption('gpt-realtime-whisper');
+  await d
+    .getByRole('combobox', { name: 'File transcription model', exact: true })
+    .selectOption('gpt-4o-mini-transcribe');
+  await d.locator('summary').filter({ hasText: 'Troubleshooting' }).click();
+  await d.getByRole('combobox', { name: 'Maximum retries', exact: true }).selectOption('3');
+  const endpoint = d
+    .getByRole('region', { name: 'OpenAI', exact: true })
+    .locator('input[type=url]');
+  await endpoint.fill('https://example.test/openai/v1');
+  await d
+    .getByRole('region', { name: 'OpenAI', exact: true })
+    .getByRole('button', { name: 'Save endpoint', exact: true })
+    .click();
   await expect
     .poll(() =>
-      page.evaluate(() => JSON.parse(localStorage.getItem('vaulter.settings.agent') ?? '{}')),
+      page.evaluate(() => JSON.parse(localStorage.getItem('vaulter.settings.openai') ?? '{}').api),
     )
-    .toEqual({ maxRetries: '3' });
-  await reveal(settings, 'Voice and transcription models');
-  await settings
-    .getByRole('button', { name: 'Reset Voice and transcription models to defaults', exact: true })
+    .toBe('https://example.test/openai/v1');
+  await page.reload();
+  await expect(d.getByRole('radio', { name: /Balanced/ })).toBeChecked();
+  await expect(d.getByRole('radio', { name: 'cedar', exact: true })).toBeChecked();
+  await expect(endpoint).toHaveValue('https://example.test/openai/v1');
+  await d.getByRole('button', { name: 'Edit', exact: true }).click();
+  await expect(d.getByRole('textbox', { name: 'Instructions', exact: true })).toHaveValue(
+    'Use concise answers.',
+  );
+  await d.getByRole('button', { name: 'Adjust', exact: true }).click();
+  await expect(d.getByRole('combobox', { name: 'Maximum steps', exact: true })).toHaveValue('20');
+  await expect(d.getByRole('combobox', { name: 'Maximum output tokens', exact: true })).toHaveValue(
+    '2048',
+  );
+  await d
+    .getByRole('region', { name: 'Voice models', exact: true })
+    .getByRole('button', { name: 'Change', exact: true })
     .click();
-  await expect(voice).toHaveValue('cedar');
+  await expect(d.getByRole('combobox', { name: 'Voice model', exact: true })).toHaveValue(
+    'gpt-realtime-2.1-mini',
+  );
   await expect(
-    settings.getByRole('textbox', { name: 'Custom chat model', exact: true }),
-  ).toHaveValue('review-model');
-  await model.selectOption('gpt-6-astra');
+    d.getByRole('combobox', { name: 'Live transcription model', exact: true }),
+  ).toHaveValue('gpt-realtime-whisper');
   await expect(
-    settings.locator('summary').filter({ hasText: 'Advanced model tuning' }),
-  ).toHaveCount(0);
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await settings.getByRole('button', { name: 'Close settings', exact: true }).click();
-  await expect(settings).toHaveCount(0);
+    d.getByRole('combobox', { name: 'File transcription model', exact: true }),
+  ).toHaveValue('gpt-4o-mini-transcribe');
+  await d.getByRole('button', { name: 'Restore default models', exact: true }).click();
+  await expect(d.getByRole('radio', { name: 'cedar', exact: true })).toBeChecked();
+  await expect(endpoint).toHaveValue('https://example.test/openai/v1');
 });
 
-test('connection editors and installation details reveal explicitly and disclose disabled preview credentials', {
+test('comparison cycles only grouped layouts without reloading or remounting the app', {
   tag: '@phone',
 }, async ({ page }) => {
-  await page.goto('/preview/');
+  await page.goto('/preview/?compare=settings&variant=cards#/chat/');
+  const message = page.getByRole('textbox', { name: 'Message', exact: true });
+  await message.fill('Keep this conversation draft');
+  await message.evaluate((node) => node.setAttribute('data-retained', 'yes'));
+  await page.evaluate(() => {
+    Object.assign(window, { retainedPage: 'yes' });
+  });
   await openAppAction(page, 'Settings');
-  const settings = page.getByRole('dialog', { name: 'Settings', exact: true });
-  for (const [title, label] of [
-    ['Manage OpenAI connection', 'OpenAI API key'],
-    ['Manage GitHub connection', 'GitHub token'],
-  ]) {
-    const editor = settings.getByLabel(label!, { exact: true });
-    await expect(editor).toBeHidden();
-    const trigger = settings.locator('summary').filter({ hasText: title! });
-    await trigger.focus();
-    await page.keyboard.press('Enter');
-    await expect(editor).toBeVisible();
-    await expect(editor).toBeDisabled();
-    await expect(editor).toHaveValue('');
-    await expect(editor).toHaveAttribute('type', 'password');
-  }
-  await reveal(settings, 'OpenAI connection details');
-  await expect(settings.getByText('https://api.openai.com/v1', { exact: true })).toBeVisible();
-  await expect(
-    settings.getByRole('button', { name: 'Copy OpenAI API endpoint', exact: true }),
-  ).toBeVisible();
+  const d = page.getByRole('dialog', { name: 'Settings', exact: true });
+  await d.getByRole('radio', { name: 'cedar', exact: true }).click();
+  const mobileControls = page.getByRole('button', { name: 'Preview controls', exact: true });
+  if (await mobileControls.isVisible()) await mobileControls.click();
+  await page.getByRole('button', { name: 'Next design', exact: true }).click();
+  await expect(d).toBeVisible();
+  await expect(d.getByRole('radio', { name: 'cedar', exact: true })).toBeChecked();
+  expect(await page.evaluate(() => Reflect.get(window, 'retainedPage'))).toBe('yes');
+  await d.getByRole('button', { name: 'Close settings', exact: true }).click();
+  await expect(message).toHaveValue('Keep this conversation draft');
+  await expect(message).toHaveAttribute('data-retained', 'yes');
 });

@@ -43,6 +43,7 @@ export const compositions = [
       'FieldLabel',
       'FieldTitle',
       'Heading',
+      'Row',
       'Stack',
       'Text',
       'Button',

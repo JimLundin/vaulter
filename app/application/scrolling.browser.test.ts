@@ -70,8 +70,7 @@ test('a short settings drawer scrolls its body while the close control stays rea
   await page.goto('/preview/');
   await openAppAction(page, 'Settings');
   const dialog = page.getByRole('dialog', { name: 'Settings', exact: true });
-  await dialog.locator('summary').filter({ hasText: 'Manage GitHub connection' }).click();
-  await dialog.locator('summary').filter({ hasText: 'GitHub connection details' }).click();
+  await dialog.getByRole('button', { name: 'Change GitHub credential', exact: true }).click();
   const track = dialog.locator('[data-slot="scroll-area-scrollbar"]');
   await expect(track).toBeVisible();
   expect((await track.boundingBox())!.width).toBe(12);
@@ -80,9 +79,7 @@ test('a short settings drawer scrolls its body while the close control stays rea
     node.scrollTop = node.scrollHeight;
   });
   expect(await viewport.evaluate((node) => node.scrollTop)).toBeGreaterThan(0);
-  await expect(
-    dialog.getByRole('button', { name: 'Copy GitHub API endpoint', exact: true }),
-  ).toBeInViewport();
+  await expect(dialog.getByText('Troubleshooting', { exact: true })).toBeInViewport();
   await expect(dialog.getByRole('button', { name: 'Close settings' })).toBeInViewport();
   await dialog.getByRole('button', { name: 'Close settings' }).click();
   await expectAppActionFocus(page, 'Settings');

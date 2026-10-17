@@ -304,6 +304,7 @@ export {
   SettingField,
   SettingsDisclosure,
   SettingsInfo,
+  SettingsCard,
 } from './settings.tsx';
 export {
   NavigationSuite,

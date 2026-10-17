@@ -791,7 +791,9 @@ function Settings() {
             content: (
               <K.SettingsDisclosure title="Model preferences" summary="Default" defaultOpen={true}>
                 <Preferences model={model} onChange={setModel} />
-                <K.SettingsInfo label="API endpoint" value="https://example.test/v1" />
+                <K.SettingsCard title="Connection">
+                  <K.SettingsInfo label="API endpoint" value="https://example.test/v1" />
+                </K.SettingsCard>
               </K.SettingsDisclosure>
             ),
           },
@@ -1841,6 +1843,7 @@ export const catalogue: Specimen[] = [
       'SettingsSection',
       'SettingsDisclosure',
       'SettingsInfo',
+      'SettingsCard',
       'SettingField',
       'ThemeSwitch',
       'RadioGroup',

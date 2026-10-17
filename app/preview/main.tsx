@@ -5,7 +5,6 @@ import '@fontsource-variable/newsreader';
 import '@/ui/kit/styles.css';
 import { createRoot } from 'react-dom/client';
 import { useState } from 'react';
-import { SettingsPrototype, type SettingsVariant } from './settings-prototype.tsx';
 import { DesignComparison } from '@/ui/kit/index.ts';
 import { OpenApplication } from '@/application/index.tsx';
 import { applicationWiki } from '@/application/composition.ts';
@@ -49,7 +48,10 @@ const opening = (async () => {
 })();
 function Preview() {
   const [signedOut, setSignedOut] = useState(false);
-  const product = (variant?: SettingsVariant) => (
+  const [settingsVariant, setSettingsVariant] = useState<'cards' | 'compact'>(
+    query.get('variant') === 'compact' ? 'compact' : 'cards',
+  );
+  const product = () => (
     <OpenApplication
       session={{
         ready: true,
@@ -66,15 +68,7 @@ function Preview() {
       }}
       model={agent?.model ?? (async () => previewModel)}
       preview={{
-        ...(variant
-          ? {
-              settingsMenu: (props: {
-                open: boolean;
-                onClose: () => void;
-                chatDefinition: import('@/settings/store.ts').SettingsDefinition;
-              }) => <SettingsPrototype variant={variant} {...props} />,
-            }
-          : {}),
+        settingsVariant,
         provider: agent ? 'openai' : 'preview',
         defaultModel: agent ? agentConnection?.defaultModel : undefined,
         transcription,
@@ -114,18 +108,18 @@ function Preview() {
   if (query.get('compare') === 'settings')
     return (
       <DesignComparison
-        defaultValue={query.get('variant') ?? 'cards'}
+        defaultValue={settingsVariant}
         alternatives={[
-          { id: 'cards', label: 'Grouped cards', content: product('cards') },
-          { id: 'categories', label: 'Category navigator', content: product('categories') },
-          { id: 'overview', label: 'Overview & details', content: product('overview') },
+          { id: 'cards', label: 'Grouped cards', content: null },
+          { id: 'compact', label: 'Grouped cards · compact', content: null },
         ]}
         onValueChange={(value) => {
+          setSettingsVariant(value === 'compact' ? 'compact' : 'cards');
           const url = new URL(location.href);
           url.searchParams.set('variant', value);
           history.replaceState(null, '', url);
         }}
-        preview={(controls, content) => frame(content, controls)}
+        preview={(controls) => frame(product(), controls)}
       />
     );
   return frame(product());

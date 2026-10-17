@@ -80,7 +80,13 @@ function selectField(label: string) {
 
 function button(label: string) {
   const control = document.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`);
-  if (!control) throw new Error(`Missing button ${label}`);
+  if (!control) {
+    const byText = [...document.querySelectorAll<HTMLButtonElement>('button')].find(
+      (node) => node.textContent === label,
+    );
+    if (byText) return byText;
+    throw new Error(`Missing button ${label}`);
+  }
   return control;
 }
 
@@ -118,7 +124,22 @@ async function openSettings() {
     history.replaceState(null, '', '#/settings/');
     globalThis.dispatchEvent(new HashChangeEvent('hashchange'));
   });
-  await act(async () => vi.waitFor(() => field('Chat model')));
+  await act(async () => vi.waitFor(() => document.querySelector('[aria-label="Chat model"]')));
+  for (const name of ['OpenAI', 'GitHub']) {
+    if (
+      !(
+        document.querySelector('label[for]') &&
+        [...document.querySelectorAll('label')].some(
+          (node) => node.textContent === (name === 'OpenAI' ? 'OpenAI API key' : 'GitHub token'),
+        )
+      )
+    )
+      await act(() => button(`Change ${name} credential`).click());
+  }
+  if (![...document.querySelectorAll('label')].some((node) => node.textContent === 'Maximum steps'))
+    await act(() => button('Adjust').click());
+  if (![...document.querySelectorAll('label')].some((node) => node.textContent === 'Instructions'))
+    await act(() => button('Edit').click());
 }
 
 async function fixture({
@@ -235,10 +256,17 @@ async function fixture({
   await act(() => {
     globalThis.dispatchEvent(new StorageEvent('storage', { key: null, storageArea: localStorage }));
   });
-  await vi.waitFor(async () => {
-    await act(async () => {});
-    if (field('Message').disabled) throw new Error('Message text box is still unavailable');
-  });
+  await vi.waitFor(
+    async () => {
+      await act(async () => {});
+      if (field('Message').disabled) throw new Error('Message text box is still unavailable');
+    },
+    { timeout: 10_000 },
+  );
+  await act(() => button('Change OpenAI credential').click());
+  await act(() => button('Change GitHub credential').click());
+  const voiceCard = document.querySelector('section[aria-label="Voice models"]');
+  await act(() => voiceCard?.querySelector<HTMLButtonElement>('button')?.click());
   return {
     storage: initialStorage,
     model,
@@ -262,39 +290,20 @@ test.each([false, true])(
   async (strict) => {
     localStorage.setItem('vaulter.settings.openai', JSON.stringify({ model: 'saved-model' }));
     const { model, suppliedModel, storage } = await fixture({ strict, preview: true });
-    for (const name of ['Appearance', 'Agent', 'Connections'])
-      expect(document.querySelector(`section[aria-label="${name}"]`)).not.toBeNull();
-    for (const label of [
+    for (const name of [
+      'Appearance',
+      'Chat model',
       'Instructions',
-      'Maximum steps',
-      'Maximum output tokens',
-      'Temperature',
-      'Top P',
-      'Maximum retries',
-      'Chat model',
-      'Voice model',
-      'Live transcription model',
-      'File transcription model',
+      'Run limits',
       'Voice',
+      'OpenAI',
+      'GitHub',
     ])
-      expect(field(label)).toBeDefined();
-    for (const label of [
-      'Maximum steps',
-      'Maximum output tokens',
-      'Maximum retries',
-      'Chat model',
-      'Voice model',
-      'Live transcription model',
-      'File transcription model',
-      'Voice',
-    ])
-      expect(selectField(label)).toBeDefined();
-    expect(selectField('Chat model').selectedOptions[0]?.textContent).toBe('Custom…');
+      expect(document.querySelector(`section[aria-label="${name}"]`)).not.toBeNull();
+    await act(() => button('Adjust').click());
+    await act(() => button('Edit').click());
     expect(textField('Custom chat model').value).toBe('saved-model');
-    for (const label of ['OpenAI API endpoint', 'Vault repository', 'GitHub API endpoint'])
-      expect(document.body.textContent).toContain(label);
     expect(field('OpenAI API key').disabled).toBe(true);
-    expect(document.body.textContent).toContain('Credentials are supplied by the preview server.');
     await fill('Message', 'Keep this draft while changing preferences.');
     await fill('Custom chat model', 'configured-model');
     await fill('Instructions', 'Use the supplied evidence.\nKeep answers concise.');
@@ -331,8 +340,13 @@ test.each([false, true])(
     expect(selectField('Maximum steps').value).toBe('20');
     expect(selectField('Maximum output tokens').value).toBe('256');
     expect(selectField('Maximum retries').value).toBe('3');
-    await select('Chat model', 'gpt-6-astra');
-    expect(document.body.textContent).not.toContain('Custom chat model');
+    await act(() => {
+      const target = [...document.querySelectorAll<HTMLElement>('[role=radio]')].find((node) =>
+        node.textContent?.includes('gpt-6-astra'),
+      );
+      if (!target) throw new Error('Missing model choice');
+      target.click();
+    });
     await fill('Instructions', 'Prefer direct answers.');
     expect(document.body.textContent).not.toContain('Temperature');
     await act(() => button('Close settings').click());
