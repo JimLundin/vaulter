@@ -365,3 +365,42 @@ test('preview device changes keep open settings and search inside the app frame'
     })
     .toBeLessThanOrEqual(1);
 });
+
+test(
+  'the preview shows Sign out beside Settings and can reopen its sample vault',
+  {
+    tag: '@phone',
+  },
+  async ({ page }, info) => {
+    await page.goto('/preview/');
+    const compact = info.project.name === 'phone';
+    await expect(page.getByRole('textbox', { name: 'Message', exact: true })).toBeVisible();
+    if (compact) await page.getByRole('button', { name: 'Modules', exact: true }).click();
+    const core = compact
+      ? page.locator('.kit-edge-menu-brand').first()
+      : page.locator('[data-slot="sidebar-header"]');
+    const signOut = core.getByRole(compact ? 'menuitem' : 'button', {
+      name: 'Sign out',
+      exact: true,
+    });
+    await expect(signOut).toBeVisible();
+    const signOutBox = (await signOut.boundingBox())!;
+    const settingsBox = (await core
+      .getByRole(compact ? 'menuitem' : 'button', {
+        name: 'Settings',
+        exact: true,
+      })
+      .boundingBox())!;
+    expect(signOutBox.x).toBeGreaterThan(settingsBox.x);
+    expect(signOutBox.y + signOutBox.height / 2).toBeCloseTo(
+      settingsBox.y + settingsBox.height / 2,
+      0,
+    );
+    await signOut.click();
+    await expect(
+      page.getByText('Preview signed out. Your demo records are still here.', { exact: true }),
+    ).toBeVisible();
+    await page.getByRole('button', { name: 'Open demo vault', exact: true }).click();
+    await expect(page.getByRole('textbox', { name: 'Message', exact: true })).toBeVisible();
+  },
+);

@@ -3,9 +3,10 @@ import '@fontsource-variable/geist-mono';
 import '@fontsource-variable/newsreader';
 import '../ui/kit/styles.css';
 import { createRoot } from 'react-dom/client';
+import { useState } from 'react';
 import { OpenApplication } from '../application/index.tsx';
 import { applicationNodes } from '../application/composition.ts';
-import { startTheme, Text, DesignPreview } from '../ui/kit/index.ts';
+import { startTheme, Text, DesignPreview, Gate, Brand, Button, Stack } from '../ui/kit/index.ts';
 import { seedGraphEvidence } from './graph-evidence.ts';
 import { seedGraphDensity } from './graph-density.ts';
 import { previewModel } from './model.ts';
@@ -160,13 +161,14 @@ const openingNodes = previewNodes(sessionStorage, query.get('scenario') ?? undef
   },
 );
 function Preview({ nodes }: { nodes: NodeStore }) {
+  const [signedOut, setSignedOut] = useState(false);
   const product = () => (
     <OpenApplication
       session={{
         ready: true,
         eav,
         locked: null,
-        signOut: null,
+        signOut: async () => setSignedOut(true),
         secrets: null,
         preloadedSecrets: null,
         secretOverrides: {},
@@ -202,7 +204,17 @@ function Preview({ nodes }: { nodes: NodeStore }) {
       }}
       kitHref={import.meta.env.DEV ? '/ui/kit/' : './kit/'}
     >
-      {product()}
+      {signedOut ? (
+        <Gate>
+          <Brand />
+          <Stack>
+            <Text>Preview signed out. Your demo records are still here.</Text>
+            <Button onClick={() => setSignedOut(false)}>Open demo vault</Button>
+          </Stack>
+        </Gate>
+      ) : (
+        product()
+      )}
     </DesignPreview>
   );
 }
