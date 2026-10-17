@@ -50,7 +50,7 @@ import {
   createOpenAIPreferences,
   openAIOptions,
 } from '@/agent/openai/settings.ts';
-import { chatPreferences } from '@/workflows/chat/preferences.ts';
+import { chatPreferences, chatSettings } from '@/workflows/chat/preferences.ts';
 import { writeAvailability, recordsReady } from '@/vault/session/availability.ts';
 import {
   Button,
@@ -136,6 +136,11 @@ export function OpenApplication({
     defaultModel?: string;
     suggestions: () => Promise<string[]>;
     transcription: TranscriptionProvider;
+    settingsMenu?: (props: {
+      open: boolean;
+      onClose: () => void;
+      chatDefinition: import('@/settings/store.ts').SettingsDefinition;
+    }) => React.ReactNode;
   };
 }) {
   const { status, eav } = session;
@@ -771,42 +776,50 @@ export function OpenApplication({
       <HistoryDrawer open={historyOpen} onClose={closeCoreAction} history={historyView}>
         <RefreshVault status={status} refresh={session.refresh} />
       </HistoryDrawer>
-      <SettingsMenu
-        open={settingsOpen}
-        onClose={closeCoreAction}
-        features={[
-          { name: appearanceSettings.name, content: <AppearanceSettings /> },
-          {
-            name: agentSettings.name,
-            content: (
-              <Stack gap="lg">
-                <OpenAISettings
-                  definition={providerDefinition}
-                  preferences={providerPreferences}
-                  credential={credentials.openai}
-                />
-                <ChatSettings />
-                <AgentSettings sampling={supportsOpenAISampling(providerOptions.models.llm)} />
-              </Stack>
-            ),
-          },
-          {
-            name: 'Connections',
-            content: (
-              <Stack gap="lg">
-                <OpenAISettings
-                  definition={providerDefinition}
-                  preferences={providerPreferences}
-                  credential={credentials.openai}
-                  connection={true}
-                />
-                <GitHubSettings credential={credentials.github} />
-                <AgentTroubleshooting />
-              </Stack>
-            ),
-          },
-        ]}
-      />
+      {preview?.settingsMenu ? (
+        preview.settingsMenu({
+          open: settingsOpen,
+          onClose: closeCoreAction,
+          chatDefinition: chatSettings,
+        })
+      ) : (
+        <SettingsMenu
+          open={settingsOpen}
+          onClose={closeCoreAction}
+          features={[
+            { name: appearanceSettings.name, content: <AppearanceSettings /> },
+            {
+              name: agentSettings.name,
+              content: (
+                <Stack gap="lg">
+                  <OpenAISettings
+                    definition={providerDefinition}
+                    preferences={providerPreferences}
+                    credential={credentials.openai}
+                  />
+                  <ChatSettings />
+                  <AgentSettings sampling={supportsOpenAISampling(providerOptions.models.llm)} />
+                </Stack>
+              ),
+            },
+            {
+              name: 'Connections',
+              content: (
+                <Stack gap="lg">
+                  <OpenAISettings
+                    definition={providerDefinition}
+                    preferences={providerPreferences}
+                    credential={credentials.openai}
+                    connection={true}
+                  />
+                  <GitHubSettings credential={credentials.github} />
+                  <AgentTroubleshooting />
+                </Stack>
+              ),
+            },
+          ]}
+        />
+      )}
       <Search commands={commands} index={index} open={search} setSearch={setSearch} onAsk={ask} />
       <Previews index={index} />
       <Overlay
