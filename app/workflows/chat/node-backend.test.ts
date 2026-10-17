@@ -1,16 +1,16 @@
 import {
   transactionFixture,
   transactionOptionsFixture,
-} from '../../vault/transactions/fixtures.test-support.ts';
+} from '@/vault/transactions/fixtures.test-support.ts';
 import { expect, test } from 'vitest';
 import { tool } from 'ai';
 import { z } from 'zod';
 import { MockLanguageModelV4, convertArrayToReadableStream } from 'ai/test';
-import { memoryNodeBackend } from '../../vault/nodes/memory.ts';
-import { create, request, seed, revise } from '../../vault/nodes/fixtures.test-support.ts';
-import { nodeOperations } from '../../vault/nodes/operations.ts';
-import type { NodeReading } from '../../vault/nodes/store.ts';
-import { readAgentRun } from '../../agent/store.ts';
+import { memoryNodeBackend } from '@/vault/nodes/memory.ts';
+import { create, request, seed, revise } from '@/vault/nodes/fixtures.test-support.ts';
+import { nodeOperations } from '@/vault/nodes/operations.ts';
+import type { NodeReading } from '@/vault/nodes/store.ts';
+import { readAgentRun } from '@/agent/store.ts';
 import { createNodeChatBackend, prepareNodeChatSubmission } from './node-backend.ts';
 import { createNodeConversation } from './node-conversation.ts';
 

@@ -1,8 +1,8 @@
 import { createOpenAI } from '@ai-sdk/openai';
 import { wrapLanguageModel } from 'ai';
-import type { AgentBackendOptions } from '../runtime.ts';
-import { createVoiceAgent, type VoiceAgentOptions } from '../voice-runtime.ts';
-import { createAgentBackend } from '../runtime.ts';
+import type { AgentBackendOptions } from '@/agent/runtime.ts';
+import { createVoiceAgent, type VoiceAgentOptions } from '@/agent/voice-runtime.ts';
+import { createAgentBackend } from '@/agent/runtime.ts';
 import { openAITranscription } from './live-transcription.ts';
 import { openAIDictation } from './dictation.ts';
 import { openAIFileTranscription } from './file-transcription.ts';

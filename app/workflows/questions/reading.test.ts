@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
-import { memoryNodeBackend } from '../../vault/nodes/memory.ts';
-import { create, request, revise } from '../../vault/nodes/fixtures.test-support.ts';
+import { memoryNodeBackend } from '@/vault/nodes/memory.ts';
+import { create, request, revise } from '@/vault/nodes/fixtures.test-support.ts';
 import { createQuestionsReading, readQuestion, readQuestions } from './reading.ts';
 
 test('one retained question shares its subjects and explicit answer independently of placement', async () => {

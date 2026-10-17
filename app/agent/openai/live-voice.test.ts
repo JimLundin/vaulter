@@ -1,13 +1,13 @@
 // @vitest-environment happy-dom
-import { transactionFixture } from '../../vault/transactions/fixtures.test-support.ts';
+import { transactionFixture } from '@/vault/transactions/fixtures.test-support.ts';
 import { afterEach, expect, test, vi } from 'vitest';
 import { createOpenAICapabilities } from './index.ts';
 import { media, speech, response, done, call, creates, outputs } from './media.test-support.ts';
-import { memoryNodeBackend } from '../../vault/nodes/memory.ts';
-import { create, request } from '../../vault/nodes/fixtures.test-support.ts';
-import { paragraphTools } from '../tool-fixture.test-support.ts';
-import { readAgentRun } from '../store.ts';
-import type { NodeCommit, NodeStore } from '../../vault/nodes/store.ts';
+import { memoryNodeBackend } from '@/vault/nodes/memory.ts';
+import { create, request } from '@/vault/nodes/fixtures.test-support.ts';
+import { paragraphTools } from '@/agent/tool-fixture.test-support.ts';
+import { readAgentRun } from '@/agent/store.ts';
+import type { NodeCommit, NodeStore } from '@/vault/nodes/store.ts';
 
 afterEach(() => {
   vi.restoreAllMocks();

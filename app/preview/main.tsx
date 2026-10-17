@@ -1,12 +1,27 @@
 import '@fontsource-variable/geist';
 import '@fontsource-variable/geist-mono';
 import '@fontsource-variable/newsreader';
-import '../ui/kit/styles.css';
+import '@/ui/kit/styles.css';
 import { createRoot } from 'react-dom/client';
 import { useState } from 'react';
 import { OpenApplication } from '@/application/index.tsx';
 import { applicationNodes, applicationWiki } from '@/application/composition.ts';
-import { startTheme, Text, DesignPreview, Gate, Brand, Button, Stack } from '@/ui/kit/index.ts';
+import {
+  startTheme,
+  Text,
+  DesignPreview,
+  DesignComparison,
+  Gate,
+  Brand,
+  Button,
+  Stack,
+} from '@/ui/kit/index.ts';
+import {
+  CalendarToolbarPrototype,
+  CalendarPanePrototype,
+  CalendarMinimalPrototype,
+} from './calendar-layout.prototype.tsx';
+import type { CalendarPage } from '@/calendar/index.ts';
 import { seedGraphEvidence } from './graph-evidence.ts';
 import { seedGraphDensity } from './graph-density.ts';
 import { previewModel } from './model.ts';
@@ -18,6 +33,7 @@ import { previewEav, previewEavKey } from './eav.ts';
 import type { NodeChange } from '@/vault/nodes/store.ts';
 import type { NodeStore } from '@/vault/nodes/store.ts';
 import { seedEavWiki } from './wiki-records.ts';
+import { seedCalendar } from './calendar-records.ts';
 import { seedPreviewRecords } from './records.ts';
 
 const query = new URLSearchParams(location.search);
@@ -43,6 +59,7 @@ const openingNodes = previewNodes(sessionStorage, query.get('scenario') ?? undef
   async (nodes) => {
     await seedPreviewRecords(nodes);
     await seedEavWiki(await applicationWiki(eav).database());
+    await seedCalendar(eav);
     if (query.get('compare') === 'graph') {
       await seedGraphEvidence(nodes);
       await seedGraphDensity(nodes);
@@ -164,7 +181,9 @@ const openingNodes = previewNodes(sessionStorage, query.get('scenario') ?? undef
 );
 function Preview({ nodes }: { nodes: NodeStore }) {
   const [signedOut, setSignedOut] = useState(false);
-  const product = () => (
+  const product = (
+    renderCalendar?: (props: Parameters<typeof CalendarPage>[0]) => React.ReactNode,
+  ) => (
     <OpenApplication
       session={{
         ready: true,
@@ -183,6 +202,7 @@ function Preview({ nodes }: { nodes: NodeStore }) {
       }}
       model={agent?.model ?? (async () => previewModel)}
       preview={{
+        renderCalendar,
         provider: agent ? 'openai' : 'preview',
         defaultModel: agent ? agentConnection?.defaultModel : undefined,
         transcription,
@@ -194,8 +214,9 @@ function Preview({ nodes }: { nodes: NodeStore }) {
       }}
     />
   );
-  return (
+  const frame = (content: React.ReactNode, variantControls?: React.ReactNode) => (
     <DesignPreview
+      variantControls={variantControls}
       label={`${agent ? 'Live agent preview' : 'Design preview'} · ${(import.meta.env.VITE_PREVIEW_COMMIT || 'local').slice(0, 7)}`}
       chat={agent ? 'Live agent' : 'Scripted chat'}
       onReset={() => {
@@ -215,10 +236,41 @@ function Preview({ nodes }: { nodes: NodeStore }) {
           </Stack>
         </Gate>
       ) : (
-        product()
+        content
       )}
     </DesignPreview>
   );
+  if (query.get('compare') === 'calendar') {
+    return (
+      <DesignComparison
+        defaultValue={query.get('variant') ?? 'toolbar'}
+        alternatives={[
+          {
+            id: 'toolbar',
+            label: 'A · Month toolbar',
+            content: product((props) => <CalendarToolbarPrototype {...props} />),
+          },
+          {
+            id: 'pane',
+            label: 'B · Timeline actions',
+            content: product((props) => <CalendarPanePrototype {...props} />),
+          },
+          {
+            id: 'minimal',
+            label: 'C · Minimal + menu',
+            content: product((props) => <CalendarMinimalPrototype {...props} />),
+          },
+        ]}
+        onValueChange={(value) => {
+          const url = new URL(location.href);
+          url.searchParams.set('variant', value);
+          history.replaceState(null, '', url);
+        }}
+        preview={(controls, content) => frame(content, controls)}
+      />
+    );
+  }
+  return frame(product());
 }
 
 startTheme();

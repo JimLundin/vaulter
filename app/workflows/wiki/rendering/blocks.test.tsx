@@ -1,8 +1,8 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { expect, test } from 'vitest';
-import type { WikiBlock, WikiReference } from '../pages.ts';
+import type { WikiBlock, WikiReference } from '@/workflows/wiki/pages.ts';
 import { WikiBlocks } from './blocks.tsx';
-import { Text } from '../../../ui/kit/index.ts';
+import { Text } from '@/ui/kit/index.ts';
 
 const reference = (id: string, start: number, end: number): WikiReference => ({
   id,

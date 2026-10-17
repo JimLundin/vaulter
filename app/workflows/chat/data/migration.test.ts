@@ -1,8 +1,8 @@
 import { expect, test } from 'vitest';
-import { openDatabase, createMemoryStorage } from '../../../vault/eav/index.ts';
-import { memoryNodeBackend } from '../../../vault/nodes/memory.ts';
-import { seed, create, request } from '../../../vault/nodes/fixtures.test-support.ts';
-import { transactionFixture } from '../../../vault/transactions/fixtures.test-support.ts';
+import { openDatabase, createMemoryStorage } from '@/vault/eav/index.ts';
+import { memoryNodeBackend } from '@/vault/nodes/memory.ts';
+import { seed, create, request } from '@/vault/nodes/fixtures.test-support.ts';
+import { transactionFixture } from '@/vault/transactions/fixtures.test-support.ts';
 import { migrateDialogue } from './migration.ts';
 import { chatSchema } from './schema.ts';
 import { dialogue } from './timeline.ts';

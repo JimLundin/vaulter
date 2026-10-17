@@ -1,7 +1,7 @@
 import { expect, test } from 'vitest';
-import { memoryNodeBackend } from '../vault/nodes/memory.ts';
-import { create, request } from '../vault/nodes/fixtures.test-support.ts';
-import type { NodeVersion } from '../vault/nodes/model.ts';
+import { memoryNodeBackend } from '@/vault/nodes/memory.ts';
+import { create, request } from '@/vault/nodes/fixtures.test-support.ts';
+import type { NodeVersion } from '@/vault/nodes/model.ts';
 import { agentSources } from './sources.ts';
 
 test('Agent source reading retains supplied text and never turns tool output JSON into prose', async () => {

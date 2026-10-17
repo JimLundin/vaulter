@@ -1,6 +1,6 @@
 // Comparison-only sample Vault: connected topics, shared sources and a deliberately busy topic.
-import type { JsonObject } from '../vault/nodes/model.ts';
-import type { NodeChange, NodeCommit, NodeStore } from '../vault/nodes/store.ts';
+import type { JsonObject } from '@/vault/nodes/model.ts';
+import type { NodeChange, NodeCommit, NodeStore } from '@/vault/nodes/store.ts';
 
 const topicSamples = [
   [

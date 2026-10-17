@@ -1,9 +1,6 @@
 import { useMemo } from 'react';
-import { LiveStatus, Markdown, Message, Stack, Text, ToolGroup } from '../../ui/kit/index.ts';
-import {
-  RecordedToolExecution,
-  type ToolPresentationAdapter,
-} from '../../agent/tool-presentation.tsx';
+import { LiveStatus, Markdown, Message, Stack, Text, ToolGroup } from '@/ui/kit/index.ts';
+import { RecordedToolExecution, type ToolPresentationAdapter } from '@/agent/tool-presentation.tsx';
 import { liveLabel, running, segments, summarize, type ToolPart } from './activity.ts';
 import { renderMarkdown } from './rendering/markdown.ts';
 import type { Turn } from './view.ts';

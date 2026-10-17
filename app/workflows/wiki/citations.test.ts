@@ -1,8 +1,8 @@
 import { expect, test } from 'vitest';
-import { create, request } from '../../vault/nodes/fixtures.test-support.ts';
-import { accept, snapshotOf } from '../../vault/nodes/history.ts';
-import { digest } from '../../vault/nodes/json.ts';
-import type { SourceReader } from '../../vault/sources.ts';
+import { create, request } from '@/vault/nodes/fixtures.test-support.ts';
+import { accept, snapshotOf } from '@/vault/nodes/history.ts';
+import { digest } from '@/vault/nodes/json.ts';
+import type { SourceReader } from '@/vault/sources.ts';
 import { selectText } from './citations.ts';
 import { parseWikiRecord } from './records.ts';
 import { recordText } from './text.ts';

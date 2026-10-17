@@ -1,12 +1,12 @@
-import { transactionFixture } from '../../vault/transactions/fixtures.test-support.ts';
+import { transactionFixture } from '@/vault/transactions/fixtures.test-support.ts';
 import { expect, test, vi } from 'vitest';
 import { generateText } from 'ai';
 import { createOpenAICapabilities } from './index.ts';
 import { openAIFileTranscription } from './file-transcription.ts';
-import { memoryNodeBackend } from '../../vault/nodes/memory.ts';
-import { create, request } from '../../vault/nodes/fixtures.test-support.ts';
-import { readAgentRun } from '../store.ts';
-import { prepareAgentRunFixture as prepareAgentRun } from '../preparation.test-support.ts';
+import { memoryNodeBackend } from '@/vault/nodes/memory.ts';
+import { create, request } from '@/vault/nodes/fixtures.test-support.ts';
+import { readAgentRun } from '@/agent/store.ts';
+import { prepareAgentRunFixture as prepareAgentRun } from '@/agent/preparation.test-support.ts';
 
 function completion(text: string) {
   return {

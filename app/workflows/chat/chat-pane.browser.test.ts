@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { setPreviewMobile } from '../../ui/kit/preview.browser.test-support.ts';
+import { setPreviewMobile } from '@/ui/kit/preview.browser.test-support.ts';
 
 test('one dialogue retains its draft across page and supporting layouts without a chooser', {
   tag: ['@phone', '@touch'],

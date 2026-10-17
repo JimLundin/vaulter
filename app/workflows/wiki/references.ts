@@ -1,6 +1,6 @@
-import type { NodeSnapshot } from '../../vault/nodes/store.ts';
-import type { NodeVersion } from '../../vault/nodes/model.ts';
-import type { SourceReader } from '../../vault/sources.ts';
+import type { NodeSnapshot } from '@/vault/nodes/store.ts';
+import type { NodeVersion } from '@/vault/nodes/model.ts';
+import type { SourceReader } from '@/vault/sources.ts';
 import { recordText } from './text.ts';
 import { isWikiContent } from './citations.ts';
 

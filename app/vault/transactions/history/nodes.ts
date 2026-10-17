@@ -1,9 +1,9 @@
 // Core History reads and guarded compensation over the Transaction lifetime.
-import type { NodeVersion, Transaction } from '../../nodes/model.ts';
-import type { NodeCommit, NodeDifference, NodeReading } from '../../nodes/store.ts';
-import { frozen } from '../../nodes/json.ts';
-import type { TransactionStore, TransactionRequest } from '../store.ts';
-import { transactionOperations } from '../../nodes/operations.ts';
+import type { NodeVersion, Transaction } from '@/vault/nodes/model.ts';
+import type { NodeCommit, NodeDifference, NodeReading } from '@/vault/nodes/store.ts';
+import { frozen } from '@/vault/nodes/json.ts';
+import type { TransactionStore, TransactionRequest } from '@/vault/transactions/store.ts';
+import { transactionOperations } from '@/vault/nodes/operations.ts';
 
 export interface NodeHistoryEntry {
   readonly transaction: Transaction;

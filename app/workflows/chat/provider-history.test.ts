@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { historyModelMessages } from '../../agent/history.ts';
+import { historyModelMessages } from '@/agent/history.ts';
 import { chatModelMessages } from './node-backend.ts';
 
 test('provider history preserves successful, failed, cancelled and uncertain tool outcomes consistently for text and voice', () => {

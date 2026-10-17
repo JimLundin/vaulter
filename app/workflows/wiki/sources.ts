@@ -1,6 +1,6 @@
-import type { NodeVersion } from '../../vault/nodes/model.ts';
-import type { NodeSnapshot } from '../../vault/nodes/store.ts';
-import type { SourceDescription, SourceReader } from '../../vault/sources.ts';
+import type { NodeVersion } from '@/vault/nodes/model.ts';
+import type { NodeSnapshot } from '@/vault/nodes/store.ts';
+import type { SourceDescription, SourceReader } from '@/vault/sources.ts';
 import { wikiSchemas } from './records.ts';
 import { pageRoute } from './routes.ts';
 

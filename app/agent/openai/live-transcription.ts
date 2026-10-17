@@ -1,8 +1,8 @@
 // OpenAI transcription-only WebRTC. Never asks the speech model to answer or execute tools.
 // https://developers.openai.com/api/docs/guides/realtime-transcription
 // https://developers.openai.com/api/docs/guides/realtime-webrtc
-import type { TranscriptionProvider } from '../transcription.ts';
-import { transcriptBuffer } from '../transcript.ts';
+import type { TranscriptionProvider } from '@/agent/transcription.ts';
+import { transcriptBuffer } from '@/agent/transcript.ts';
 import { openAIWebRTC } from './webrtc.ts';
 import { DEFAULT_MODELS, DEFAULT_OPENAI_API } from './defaults.ts';
 

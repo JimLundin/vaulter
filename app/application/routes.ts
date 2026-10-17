@@ -1,4 +1,4 @@
-import { pattern } from '../navigation/routing.ts';
+import { pattern } from '@/navigation/routing.ts';
 
 export const chatRoute = pattern('/chat/');
 export const conversationRoute = pattern('/chat/:node/');

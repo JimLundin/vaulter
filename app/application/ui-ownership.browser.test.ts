@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { setPreviewMobile } from '../ui/kit/preview.browser.test-support.ts';
+import { setPreviewMobile } from '@/ui/kit/preview.browser.test-support.ts';
 
 test('one kit pane width token changes Chat and Wiki references', async ({ page }) => {
   await page.setViewportSize({ width: 900, height: 844 });

@@ -1,7 +1,7 @@
 // Base UI intersects collisionBoundary with the browser viewport. Compensate that intersection
 // for bounded canvases so its own flip, shift and size mechanics use the entire local canvas.
 import { useLayoutEffect, useState } from 'react';
-import { usePresentationPolicy } from '../presentation-policy.tsx';
+import { usePresentationPolicy } from '@/ui/kit/presentation-policy.tsx';
 
 export function useAnchoredPositioning() {
   const policy = usePresentationPolicy();

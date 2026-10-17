@@ -1,7 +1,7 @@
 import * as React from 'react';
-import { cn } from '../lib/utils.ts';
-import { useFieldTextAssociation } from '../field-association.ts';
-import { useInputProtection } from '../presentation-policy.tsx';
+import { cn } from '@/ui/kit/lib/utils.ts';
+import { useFieldTextAssociation } from '@/ui/kit/field-association.ts';
+import { useInputProtection } from '@/ui/kit/presentation-policy.tsx';
 
 function Textarea({
   className,

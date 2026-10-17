@@ -1,8 +1,8 @@
 // Prepare Wiki-owned references without publishing or choosing import identities and authorship.
-import { canonical } from '../../vault/nodes/json.ts';
-import type { JsonObject, NodeAddress, NodeVersion } from '../../vault/nodes/model.ts';
-import type { NodeChange, NodeSnapshot } from '../../vault/nodes/store.ts';
-import type { SourceReader } from '../../vault/sources.ts';
+import { canonical } from '@/vault/nodes/json.ts';
+import type { JsonObject, NodeAddress, NodeVersion } from '@/vault/nodes/model.ts';
+import type { NodeChange, NodeSnapshot } from '@/vault/nodes/store.ts';
+import type { SourceReader } from '@/vault/sources.ts';
 import { readCitation, selectText, validatePageReference } from './citations.ts';
 import { validateEvidence, type EvidenceEndpoint, type EvidencePair } from './evidence.ts';
 import { pageReferenceLinks } from './references.ts';

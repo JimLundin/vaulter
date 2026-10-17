@@ -1,8 +1,8 @@
 // Feature ingress validates metadata semantics before crossing the generic JSON store seam.
 import { z } from 'zod';
-import { contextInputSchema, agentRunSchema, toolExecutionSchema } from '../../../agent/schema.ts';
-import { canonical, frozen } from '../../../vault/nodes/json.ts';
-import { jsonObject, jsonRecord } from '../../../vault/nodes/json-schema.ts';
+import { contextInputSchema, agentRunSchema, toolExecutionSchema } from '@/agent/schema.ts';
+import { canonical, frozen } from '@/vault/nodes/json.ts';
+import { jsonObject, jsonRecord } from '@/vault/nodes/json-schema.ts';
 import type { MetadataData, MetadataReferenceData } from './chat-metadata.ts';
 
 const text = z.string().min(1);

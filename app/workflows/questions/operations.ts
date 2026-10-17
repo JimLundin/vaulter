@@ -1,12 +1,12 @@
-import { liveAncestry } from '../../vault/nodes/reading.ts';
-import { frozen } from '../../vault/nodes/json.ts';
-import type { NodeAddress, NodeVersion, Placement } from '../../vault/nodes/model.ts';
-import type { NodeCommit, NodeSnapshot } from '../../vault/nodes/store.ts';
-import type { TransactionKind } from '../../vault/nodes/operations.ts';
+import { liveAncestry } from '@/vault/nodes/reading.ts';
+import { frozen } from '@/vault/nodes/json.ts';
+import type { NodeAddress, NodeVersion, Placement } from '@/vault/nodes/model.ts';
+import type { NodeCommit, NodeSnapshot } from '@/vault/nodes/store.ts';
+import type { TransactionKind } from '@/vault/nodes/operations.ts';
 import { parseAnswer, parseQuestion, type AnswerSuggestion } from './records.ts';
 import { readQuestion } from './reading.ts';
 
-declare module '../../vault/nodes/operations.ts' {
+declare module '@/vault/nodes/operations.ts' {
   interface TransactionActions {
     readonly questions: 'ask' | 'answer';
   }

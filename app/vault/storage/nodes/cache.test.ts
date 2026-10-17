@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto';
 import { afterEach, expect, test } from 'vitest';
 import { Dexie } from 'dexie';
-import { digest } from '../../nodes/json.ts';
+import { digest } from '@/vault/nodes/json.ts';
 import { nodeCache } from './cache.ts';
 
 const scope = 'fictional-cache-reset';

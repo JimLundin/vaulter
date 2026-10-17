@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { expect, test } from 'vitest';
-import { RecordedToolExecution, toolSummary } from '../../agent/tool-presentation.tsx';
+import { RecordedToolExecution, toolSummary } from '@/agent/tool-presentation.tsx';
 import { contentToolPresentation } from './tool-presentation.tsx';
 import { contentEnabledTools } from './tool-actions.ts';
 

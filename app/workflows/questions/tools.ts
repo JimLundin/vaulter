@@ -1,8 +1,8 @@
 import { tool } from 'ai';
 import { z } from 'zod';
-import type { AgentToolContext } from '../../agent/tools.ts';
-import type { JsonObject } from '../../vault/nodes/model.ts';
-import type { NodeReading } from '../../vault/nodes/store.ts';
+import type { AgentToolContext } from '@/agent/tools.ts';
+import type { JsonObject } from '@/vault/nodes/model.ts';
+import type { NodeReading } from '@/vault/nodes/store.ts';
 import { parseAnswer } from './records.ts';
 import { askQuestionInput, createQuestionOwnership } from './actions.ts';
 import { readQuestions, type Question, type QuestionTarget } from './reading.ts';

@@ -15,9 +15,9 @@ import {
   Text,
   TextBox,
   VoiceStatus,
-} from '../../ui/kit/index.ts';
-import type { Transcription } from '../../transcription.ts';
-import { isSafeUrl } from '../../navigation/urls.ts';
+} from '@/ui/kit/index.ts';
+import type { Transcription } from '@/transcription.ts';
+import { isSafeUrl } from '@/navigation/urls.ts';
 import type { Question, QuestionTarget } from './reading.ts';
 import { parseAnswer } from './records.ts';
 import type { QuestionAnswers } from './answers.ts';

@@ -1,13 +1,13 @@
-import { transactionFixture } from '../vault/transactions/fixtures.test-support.ts';
+import { transactionFixture } from '@/vault/transactions/fixtures.test-support.ts';
 import { expect, test } from 'vitest';
 import { tool } from 'ai';
 type ModelStream = Awaited<ReturnType<MockLanguageModelV4['doStream']>>['stream'];
 type ModelStreamPart = ModelStream extends ReadableStream<infer Part> ? Part : never;
 import { z } from 'zod';
 import { MockLanguageModelV4, convertArrayToReadableStream } from 'ai/test';
-import { memoryNodeBackend } from '../vault/nodes/memory.ts';
-import { create, request, seed } from '../vault/nodes/fixtures.test-support.ts';
-import { nodeOperations } from '../vault/nodes/operations.ts';
+import { memoryNodeBackend } from '@/vault/nodes/memory.ts';
+import { create, request, seed } from '@/vault/nodes/fixtures.test-support.ts';
+import { nodeOperations } from '@/vault/nodes/operations.ts';
 import { readAgentRun } from './store.ts';
 import { prepareAgentRunFixture as prepareAgentRun } from './preparation.test-support.ts';
 import { createAgentBackend } from './runtime.ts';
@@ -399,7 +399,7 @@ test('Agent protects execution records while the caller composes its own transcr
   const preservesTranscript = ({
     before,
     after,
-  }: import('../vault/nodes/store.ts').NodeDifference) =>
+  }: import('@/vault/nodes/store.ts').NodeDifference) =>
     [before, after].every((version) => version?.data?.kind !== 'message');
   const { nodes, prepared } = await fixture(['modify']);
   await nodes.commit(

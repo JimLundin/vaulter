@@ -1,14 +1,14 @@
 import { z } from 'zod';
-import { NodePublicationRejected } from '../../vault/nodes/history.ts';
-import { canonical, compare, frozen } from '../../vault/nodes/json.ts';
-import type { NodeAddress, NodeVersion } from '../../vault/nodes/model.ts';
+import { NodePublicationRejected } from '@/vault/nodes/history.ts';
+import { canonical, compare, frozen } from '@/vault/nodes/json.ts';
+import type { NodeAddress, NodeVersion } from '@/vault/nodes/model.ts';
 import type {
   NodeCommit,
   NodePublicationContext,
   NodePublicationRule,
   NodeSnapshot,
   NodeReading,
-} from '../../vault/nodes/store.ts';
+} from '@/vault/nodes/store.ts';
 import { prepareAnswerQuestion, prepareAskQuestion, type QuestionCommit } from './operations.ts';
 import { readQuestions } from './reading.ts';
 import { answerSuggestions } from './records.ts';

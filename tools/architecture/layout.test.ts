@@ -1174,3 +1174,34 @@ test('application behavior cannot return to an unowned shared UI folder', () => 
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test('app-root CSS aliases preserve presentation ownership', () => {
+  const root = mkdtempSync(join(tmpdir(), 'vaulter-css-alias-'));
+  try {
+    const files = {
+      'app/ui/kit/styles.css': '',
+      'app/search/custom.css': '',
+      'app/search/view.ts': "import '@/ui/kit/styles.css'; import '@/search/custom.css';",
+    };
+    writeFileSync(
+      join(root, 'tsconfig.json'),
+      JSON.stringify({
+        compilerOptions: {
+          module: 'ESNext',
+          moduleResolution: 'Bundler',
+          paths: { '@/*': ['./app/*'] },
+        },
+        include: ['app'],
+      }),
+    );
+    for (const [path, source] of Object.entries(files)) {
+      mkdirSync(join(root, path, '..'), { recursive: true });
+      writeFileSync(join(root, path), source);
+    }
+    expect(checkLayout(root)).toEqual([
+      'app/search/view.ts: app styles belong in the kit or content renderer',
+    ]);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});

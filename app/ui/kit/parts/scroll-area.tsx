@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { cn } from '../lib/utils.ts';
+import { cn } from '@/ui/kit/lib/utils.ts';
 import { ScrollArea as ScrollAreaPrimitive } from '@base-ui/react/scroll-area';
 
 function ScrollArea({

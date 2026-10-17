@@ -1,6 +1,6 @@
 import type { ToolSet } from 'ai';
-import type { NodeSnapshot, NodeDifference } from '../vault/nodes/store.ts';
-import type { TransactionDraft } from '../vault/transactions/store.ts';
+import type { NodeSnapshot, NodeDifference } from '@/vault/nodes/store.ts';
+import type { TransactionDraft } from '@/vault/transactions/store.ts';
 
 export type ToolChanges = Omit<TransactionDraft, 'undoOf'>;
 export type ToolCalculation = (id: string) => ToolChanges | Promise<ToolChanges>;

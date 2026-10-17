@@ -1,5 +1,5 @@
-import type { TransactionStore, TransactionRequest } from '../../vault/transactions/store.ts';
-import { nodeOperations } from '../../vault/nodes/operations.ts';
+import type { TransactionStore, TransactionRequest } from '@/vault/transactions/store.ts';
+import { nodeOperations } from '@/vault/nodes/operations.ts';
 
 /** Immutable evidence for consumers that still require Node addresses and exact versions. */
 export async function publishChatEvidence(options: {

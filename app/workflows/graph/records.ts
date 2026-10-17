@@ -1,8 +1,8 @@
 // Graph owns relationships, vocabulary terms and live queries. Retain the imported payload shapes.
 import { z } from 'zod';
-import type { JsonObject } from '../../vault/nodes/model.ts';
-import { canonical, frozen } from '../../vault/nodes/json.ts';
-import { text } from '../../vault/records/common.ts';
+import type { JsonObject } from '@/vault/nodes/model.ts';
+import { canonical, frozen } from '@/vault/nodes/json.ts';
+import { text } from '@/vault/records/common.ts';
 
 export const graphSchemas = {
   /** Placement and connection source are independent. A missing connection retains a source label. */

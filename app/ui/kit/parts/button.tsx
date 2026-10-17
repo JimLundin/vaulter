@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { cva, type VariantProps } from 'class-variance-authority';
-import { cn } from '../lib/utils.ts';
+import { cn } from '@/ui/kit/lib/utils.ts';
 import { Button as ButtonPrimitive } from '@base-ui/react/button';
 
 // Responsive sizes change hit targets immediately; only visual feedback should animate.

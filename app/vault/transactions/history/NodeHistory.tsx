@@ -15,7 +15,7 @@ import {
   Row,
   Stack,
   Text,
-} from '../../../ui/kit/index.ts';
+} from '@/ui/kit/index.ts';
 import type { NodeHistoryEntry } from './nodes.ts';
 import {
   nodeHistoryEntry,

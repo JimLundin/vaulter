@@ -1,6 +1,6 @@
 // Wiki evidence integrity is independent of storage history envelopes and migration review files.
-import type { NodeAddress, NodeVersion } from '../../vault/nodes/model.ts';
-import type { NodeSnapshot } from '../../vault/nodes/store.ts';
+import type { NodeAddress, NodeVersion } from '@/vault/nodes/model.ts';
+import type { NodeSnapshot } from '@/vault/nodes/store.ts';
 import type { TextSelection } from './citations.ts';
 import { citation } from './records.ts';
 

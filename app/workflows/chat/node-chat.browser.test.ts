@@ -1,4 +1,4 @@
-import { openAppAction } from '../../ui/kit/navigation.browser.test-support.ts';
+import { openAppAction } from '@/ui/kit/navigation.browser.test-support.ts';
 import { expect, test } from '@playwright/test';
 
 test('each preview tab retains its own single dialogue across reload', {

@@ -105,6 +105,26 @@
   },
   "overrides": [
     {
+      "includes": ["app/**", "!app/ui/kit/vite.config.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": ["../**"],
+                    "message": "Use @/ for app imports outside this directory; keep ./ for neighboring files."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
       "includes": [
         "tools/**",
         "**/*.browser.test.ts",
@@ -133,7 +153,9 @@
       "includes": ["**/*.browser.test.ts"],
       "linter": {
         "rules": {
-          "performance": { "noAwaitInLoops": "off" }
+          "performance": {
+            "noAwaitInLoops": "off"
+          }
         }
       }
     },

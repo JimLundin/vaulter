@@ -1,9 +1,8 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import {
   Button,
   Chip,
   Heading,
-  Icon,
   Page,
   Prose,
   ReadingColumn,
@@ -14,7 +13,7 @@ import {
   Surface,
   SupportingPane,
   Text,
-  Toolbar,
+  PageHeader,
 } from '@/ui/kit/index.ts';
 import type { WikiBlock, WikiClassification, WikiPage } from './view.ts';
 import { WikiBlocks, type ForeignRecordRenderer } from './rendering/blocks.tsx';
@@ -29,11 +28,13 @@ export function WikiPageView({
   onBack,
   onFilter,
   renderRecord,
+  timeline,
 }: {
   page: WikiPage;
   onBack: () => void;
   onFilter: (term: WikiClassification) => void;
   renderRecord?: ForeignRecordRenderer;
+  timeline?: ReactNode;
 }) {
   const [selected, setSelected] = useState<WikiBlock>();
   const [referencesOpen, setReferencesOpen] = useState(false);
@@ -76,22 +77,7 @@ export function WikiPageView({
     <SplitView
       main={
         <ReadingColumn label="Wiki reading">
-          <Toolbar label="Wiki page">
-            <Button variant="ghost" size="compact" onClick={onBack}>
-              <Icon name="chevron-left" size="sm" />
-              Wiki
-            </Button>
-            <Text as="div" truncate={true} size="sm" tone="muted">
-              <Button
-                variant="inline"
-                title={page.title}
-                onClick={showPageReferences}
-                aria-description="Open page references"
-              >
-                {page.title}
-              </Button>
-            </Text>
-          </Toolbar>
+          <PageHeader title="Wiki" label="Wiki page" onBack={onBack} />
           <ScrollArea grow={true}>
             <Page>
               <Stack gap="lg" as="header">
@@ -143,6 +129,7 @@ export function WikiPageView({
                 )}
               </Stack>
               {blocks(body)}
+              {timeline}
               {!!connections.length && (
                 <Surface variant="grouped" as="section">
                   <Heading>Connections</Heading>

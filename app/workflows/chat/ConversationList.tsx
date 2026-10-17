@@ -6,11 +6,11 @@ import {
   SelectionRow,
   SelectionGroupHeading,
   SupportingPane,
-} from '../../ui/kit/index.ts';
+} from '@/ui/kit/index.ts';
 import type { NodeConversation } from './node-conversation.ts';
 import { useNodeChat } from './use-node-conversation.ts';
 import type { SavedChat } from './records/chat-store.ts';
-import { later } from '../../runtime/later.ts';
+import { later } from '@/runtime/later.ts';
 
 export function ConversationList({
   conversation,

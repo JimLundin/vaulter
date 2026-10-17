@@ -1,7 +1,7 @@
-import { transactionFixture } from '../../vault/transactions/fixtures.test-support.ts';
+import { transactionFixture } from '@/vault/transactions/fixtures.test-support.ts';
 import { expect, test, vi } from 'vitest';
-import { memoryNodeBackend } from '../../vault/nodes/memory.ts';
-import { create, request, seed } from '../../vault/nodes/fixtures.test-support.ts';
+import { memoryNodeBackend } from '@/vault/nodes/memory.ts';
+import { create, request, seed } from '@/vault/nodes/fixtures.test-support.ts';
 import { createNodeConversation } from './node-conversation.ts';
 
 async function fixture() {
@@ -329,7 +329,7 @@ test('content publication recovery never conceals the separate completed outcome
   const { nodes, options } = await fixture();
   const { tool } = await import('ai');
   const { z } = await import('zod');
-  const { nodeOperations } = await import('../../vault/nodes/operations.ts');
+  const { nodeOperations } = await import('@/vault/nodes/operations.ts');
   const { MockLanguageModelV4, convertArrayToReadableStream } = await import('ai/test');
   let contentFails = true;
   let outcomeFails = true;

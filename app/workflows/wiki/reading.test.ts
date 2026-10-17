@@ -1,9 +1,9 @@
 import { unrelatedContent } from './related-content.test-support.ts';
 import { expect, test, vi } from 'vitest';
-import { memoryNodeBackend } from '../../vault/nodes/memory.ts';
-import { create, request, revise } from '../../vault/nodes/fixtures.test-support.ts';
-import type { NodeSnapshot, NodeStore } from '../../vault/nodes/store.ts';
-import type { SourceReader } from '../../vault/sources.ts';
+import { memoryNodeBackend } from '@/vault/nodes/memory.ts';
+import { create, request, revise } from '@/vault/nodes/fixtures.test-support.ts';
+import type { NodeSnapshot, NodeStore } from '@/vault/nodes/store.ts';
+import type { SourceReader } from '@/vault/sources.ts';
 import { createWikiReading } from './reading.ts';
 
 const sources: SourceReader = { text: () => undefined, describe: () => undefined };

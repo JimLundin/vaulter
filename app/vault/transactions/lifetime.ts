@@ -1,8 +1,13 @@
 import './disposal.ts';
-import type { NodeCommit, NodePublicationRule, NodeReading, NodeStore } from '../nodes/store.ts';
-import { NodeConflict, NodePublicationRejected } from '../nodes/history.ts';
-import { frozen } from '../nodes/json.ts';
-import { parseCommit } from '../nodes/validation.ts';
+import type {
+  NodeCommit,
+  NodePublicationRule,
+  NodeReading,
+  NodeStore,
+} from '@/vault/nodes/store.ts';
+import { NodeConflict, NodePublicationRejected } from '@/vault/nodes/history.ts';
+import { frozen } from '@/vault/nodes/json.ts';
+import { parseCommit } from '@/vault/nodes/validation.ts';
 import { composeChanges } from './composition.ts';
 import type {
   Calculated,

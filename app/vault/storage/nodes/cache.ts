@@ -1,9 +1,9 @@
 // Plaintext, repository-scoped Dexie cache.
 import { Dexie } from 'dexie';
-import { digest } from '../../nodes/json.ts';
-import { parseRecord, type NodeRecord } from '../../nodes/validation.ts';
-import { validateRecordsAsync } from '../../nodes/history.ts';
-import { loadingTurns } from '../../nodes/loading.ts';
+import { digest } from '@/vault/nodes/json.ts';
+import { parseRecord, type NodeRecord } from '@/vault/nodes/validation.ts';
+import { validateRecordsAsync } from '@/vault/nodes/history.ts';
+import { loadingTurns } from '@/vault/nodes/loading.ts';
 
 export interface RemoteHead {
   readonly commit: string;

@@ -1,5 +1,13 @@
 import { chatRoute, conversationRoute, historyRoute, settingsRoute } from './routes.ts';
 import {
+  CalendarPage,
+  CalendarTimeline,
+  useCalendar,
+  calendarRoute,
+  calendarEntries,
+  type CalendarData,
+} from '@/calendar/index.ts';
+import {
   applicationNodes,
   applicationQuestions,
   applicationHistory,
@@ -7,6 +15,8 @@ import {
   applicationSources,
   applicationGraphDescription,
   applicationWiki,
+  applicationCalendar,
+  applicationSubjectCalendar,
   agentContextReading,
   toolPresentations,
 } from './composition.ts';
@@ -145,6 +155,7 @@ export function OpenApplication({
     defaultModel?: string;
     suggestions: () => Promise<string[]>;
     transcription: TranscriptionProvider;
+    renderCalendar?: (props: Parameters<typeof CalendarPage>[0]) => React.ReactNode;
   };
 }) {
   const { nodeStatus } = session;
@@ -232,6 +243,33 @@ export function OpenApplication({
   }, [wikiInput, pages]);
   const wikiPage = pageRoute.match(route.path)?.node;
   const onWiki = !!wikiRoute.match(route.path) || !!wikiPage;
+  const onCalendar = !!calendarRoute.match(route.path);
+  const calendarInput = useMemo(
+    () => (session.eav ? applicationCalendar(session.eav, identities) : null),
+    [session.eav, identities],
+  );
+  const calendar = useCalendar(calendarInput);
+  const [subjectCalendar, setSubjectCalendar] = useState<{
+    data: CalendarData;
+    page: string;
+    source: CalendarData;
+  }>();
+  useEffect(() => {
+    let active = true;
+    if (session.eav && wikiPage && calendar.data) {
+      const source = calendar.data;
+      applicationSubjectCalendar(session.eav, wikiPage, source)
+        .then((data) => {
+          if (active) setSubjectCalendar({ data, page: wikiPage, source });
+        })
+        .catch(() => {
+          if (active) setSubjectCalendar(undefined);
+        });
+    }
+    return () => {
+      active = false;
+    };
+  }, [session.eav, wikiPage, calendar.data]);
   const onQuestions = !!questionsRoute.match(route.path);
   const graphSubject = graphSubjectRoute.match(route.path)?.node;
   const onGraph = !!graphRoute.match(route.path) || !!graphSubject;
@@ -324,9 +362,11 @@ export function OpenApplication({
           ? (pages?.find((page) => page.id === wikiPage)?.title ?? 'Wiki')
           : onQuestions
             ? 'Questions'
-            : onGraph
-              ? 'Graph'
-              : 'Not found';
+            : onCalendar
+              ? 'Calendar'
+              : onGraph
+                ? 'Graph'
+                : 'Not found';
   const provider = useMemo(
     () =>
       session.secrets?.openai
@@ -434,6 +474,7 @@ export function OpenApplication({
     { label: 'Chat', href: chatRoute.href(), icon: 'sparkles', current: onChat },
     { label: 'Wiki', href: wikiRoute.href(), icon: 'book', current: onWiki },
     { label: 'Graph', href: graphRoute.href(), icon: 'network', current: onGraph },
+    { label: 'Calendar', href: calendarRoute.href(), icon: 'calendar', current: onCalendar },
     { label: 'Questions', href: questionsRoute.href(), icon: 'help', current: onQuestions },
     ...(nodes
       ? [
@@ -481,6 +522,14 @@ export function OpenApplication({
     later(conversation.captureAction());
   };
   const commands: Command[] = [
+    {
+      id: 'go.calendar',
+      label: 'Calendar',
+      group: 'Go to',
+      icon: 'calendar',
+      keys: 'g c',
+      run: () => go(calendarRoute.href()),
+    },
     {
       id: 'go.graph',
       label: 'Graph',
@@ -663,6 +712,18 @@ export function OpenApplication({
             prompt={prompt}
             toolPresentations={toolPresentations}
           />
+        ) : onCalendar ? (
+          (preview?.renderCalendar ?? ((props) => <CalendarPage {...props} />))({
+            data: calendar.data,
+            error:
+              calendar.error ?? (!calendarInput ? 'Calendar storage is unavailable.' : undefined),
+            actions: calendarInput?.actions,
+            disabledReason: session.credentialPending
+              ? 'Wait for credentials to finish updating.'
+              : nodeStatus.kind === 'synced'
+                ? undefined
+                : 'Reconnect before saving Calendar changes.',
+          })
         ) : onQuestions ? (
           <QuestionsPage
             state={questionState}
@@ -693,6 +754,21 @@ export function OpenApplication({
             node={wikiPage}
             error={wikiError}
             renderRecord={renderWikiRecord}
+            renderTimeline={() =>
+              subjectCalendar &&
+              subjectCalendar.page === wikiPage &&
+              subjectCalendar.source === calendar.data &&
+              (subjectCalendar.data.events.length || subjectCalendar.data.annualDates.length) ? (
+                <CalendarTimeline
+                  title="Subject timeline"
+                  entries={calendarEntries(
+                    subjectCalendar.data,
+                    new Date().getFullYear(),
+                    Intl.DateTimeFormat().resolvedOptions().timeZone,
+                  )}
+                />
+              ) : null
+            }
           />
         ) : (
           <Page>

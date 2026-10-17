@@ -1,13 +1,13 @@
 import type { ToolSet } from 'ai';
-import type { NodeChange } from '../vault/nodes/store.ts';
+import type { NodeChange } from '@/vault/nodes/store.ts';
 import type {
   Calculation,
   TransactionRequest,
   TransactionStore,
-} from '../vault/transactions/store.ts';
-import type { JsonValue } from '../vault/nodes/model.ts';
-import { canonical, frozen } from '../vault/nodes/json.ts';
-import { cancellable } from '../runtime/async.ts';
+} from '@/vault/transactions/store.ts';
+import type { JsonValue } from '@/vault/nodes/model.ts';
+import { canonical, frozen } from '@/vault/nodes/json.ts';
+import { cancellable } from '@/runtime/async.ts';
 import { parseToolExecution } from './schema.ts';
 import { agentOperations } from './store.ts';
 import type { ToolExecutionData } from './records.ts';

@@ -1,9 +1,9 @@
 import { expect, test } from '@playwright/test';
-import { fakeGitHub } from '../../vault/storage/github-client/fake-github.ts';
-import { create, request } from '../../vault/nodes/fixtures.test-support.ts';
-import { accept } from '../../vault/nodes/history.ts';
-import { canonical, digest } from '../../vault/nodes/json.ts';
-import { seal } from '../../vault/session/sealed.ts';
+import { fakeGitHub } from '@/vault/storage/github-client/fake-github.ts';
+import { create, request } from '@/vault/nodes/fixtures.test-support.ts';
+import { accept } from '@/vault/nodes/history.ts';
+import { canonical, digest } from '@/vault/nodes/json.ts';
+import { seal } from '@/vault/session/sealed.ts';
 
 test.use({
   permissions: ['microphone'],

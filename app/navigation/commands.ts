@@ -1,4 +1,4 @@
-import type { IconName } from '../ui/kit/index.ts';
+import type { IconName } from '@/ui/kit/index.ts';
 
 // Already bound actions. Application chooses them; presentation displays them.
 export interface Command {

@@ -1,5 +1,5 @@
-import { frozen } from '../../vault/nodes/json.ts';
-import type { TransactionRequest, TransactionStore } from '../../vault/transactions/store.ts';
+import { frozen } from '@/vault/nodes/json.ts';
+import type { TransactionRequest, TransactionStore } from '@/vault/transactions/store.ts';
 
 import { createQuestionOwnership } from './actions.ts';
 import type { Question } from './reading.ts';

@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef } from 'react';
-import { useTranscript, type Transcription, type TranscriptionState } from '../../transcription.ts';
+import { useTranscript, type Transcription, type TranscriptionState } from '@/transcription.ts';
 import type { Question } from './reading.ts';
 
 const active = (phase: TranscriptionState['phase']) =>

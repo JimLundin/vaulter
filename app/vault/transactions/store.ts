@@ -1,5 +1,5 @@
-import type { NodeCommit, NodePublicationRule, NodeReading } from '../nodes/store.ts';
-import type { Transaction, TransactionId } from '../nodes/model.ts';
+import type { NodeCommit, NodePublicationRule, NodeReading } from '@/vault/nodes/store.ts';
+import type { Transaction, TransactionId } from '@/vault/nodes/model.ts';
 
 export interface WriterContext {
   readonly recordedBy: string;
