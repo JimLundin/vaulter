@@ -43,7 +43,7 @@ test('Wiki sidebar browses pages independently of the curated home and stays ava
     await expect(focus.getByRole('link')).toHaveCount(3);
     const sidebar = await directory.boundingBox();
     const content = await focus.boundingBox();
-    expect(sidebar!.x + sidebar!.width).toBeLessThanOrEqual(content!.x);
+    expect(sidebar!.x).toBeGreaterThanOrEqual(content!.x + content!.width);
   } else {
     await sample.getByRole('button', { name: 'Pages', exact: true }).click();
     const close = sample.getByRole('button', { name: 'Close pages', exact: true });

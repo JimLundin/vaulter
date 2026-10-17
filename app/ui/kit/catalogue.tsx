@@ -886,11 +886,6 @@ function Agent() {
         </K.SupportingPane>
         <K.SplitView
           main={<K.Text>Main content</K.Text>}
-          navigation={
-            <K.SupportingPane title="Browse records" open={false} persistent={true} onClose={noop}>
-              <K.Link href="#record">A record to read</K.Link>
-            </K.SupportingPane>
-          }
           supporting={
             <K.SupportingPane
               title="Supporting content"

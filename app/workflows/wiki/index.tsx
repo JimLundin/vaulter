@@ -159,7 +159,7 @@ export function Wiki({
         </Text>
         <Stack gap="lg">
           {matching.map((entry) => (
-            <Stack key={entry.id} gap="xs">
+            <Surface key={entry.id} variant="subtle">
               <Link
                 plain={true}
                 href={`#${pageRoute.href({ node: entry.id })}`}
@@ -173,7 +173,7 @@ export function Wiki({
                   {entry.summary}
                 </Text>
               )}
-            </Stack>
+            </Surface>
           ))}
         </Stack>
         {!matching.length && <Text>No pages found.</Text>}
@@ -262,7 +262,7 @@ export function Wiki({
   );
   return (
     <SplitView
-      navigation={directory}
+      supporting={directory}
       main={
         page ? (
           <WikiPageView

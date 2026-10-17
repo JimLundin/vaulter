@@ -87,19 +87,9 @@ export function SelectionRow({
   );
 }
 
-export function SplitView({
-  main,
-  supporting,
-  navigation,
-}: {
-  main: ReactNode;
-  supporting?: ReactNode;
-  /** A persistent browsing pane precedes the reading task. */
-  navigation?: ReactNode;
-}) {
+export function SplitView({ main, supporting }: { main: ReactNode; supporting: ReactNode }) {
   return (
     <div className="kit-split-view flex h-full min-h-0 min-w-0 flex-1">
-      {navigation}
       <div className="kit-split-main flex min-h-0 min-w-0 flex-1 flex-col">{main}</div>
       {supporting}
     </div>
