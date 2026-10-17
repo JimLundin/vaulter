@@ -101,7 +101,8 @@ a plaintext Dexie device cache. Node-backed Chat accepts its message
 and initial Agent run together, while Agent can also execute independently of conversations. Modules
 choose their tools and publication rules. Generic History reads expose records, cutoffs and differences
 without running producers; Application composes Agent/Chat/content preservation for compensation. The
-History screen reads node transactions and Search uses Wiki page entries. See [Agent records](./app/agent/README.md),
+History is a core action alongside Settings: its drawer reviews EAV and Node transactions over the
+current page. Search uses Wiki page entries. See [Agent records](./app/agent/README.md),
 [Chat nodes](./app/workflows/chat/README.md) and [Vault](./app/vault/README.md)
 for target layouts, recovery, acceptance and current limits.
 

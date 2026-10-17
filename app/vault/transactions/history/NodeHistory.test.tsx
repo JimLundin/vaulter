@@ -112,12 +112,12 @@ test('a recorded transaction renders historical attribution and unknown kinds wi
   try {
     await act(async () => root.render(<Example />));
     expect(host.textContent).toContain('Original author');
-    expect(host.textContent).toContain('#2');
     expect(host.textContent).not.toContain('Original source');
     const toggle = host.querySelector<HTMLButtonElement>('button[aria-label="future.import"]')!;
     await act(async () => toggle.click());
     expect(toggle.getAttribute('aria-expanded')).toBe('true');
-    expect(host.textContent).toContain('From Original source');
+    expect(host.textContent).toContain('Original source');
+    expect(host.textContent).toContain('#2');
     expect(host.textContent).toContain('Created future-content: Retained item');
     const undo = host.querySelector<HTMLButtonElement>('button[aria-label="Undo transaction #2"]');
     expect(undo).not.toBeNull();

@@ -5,7 +5,7 @@ test('one kit pane width token changes Chat and Wiki references', async ({ page 
   await page.setViewportSize({ width: 900, height: 844 });
   const changeKitWidth = async () =>
     page.addStyleTag({ content: ':root, .kit-presentation { --drawer-width: 300px; }' });
-  await page.goto('/preview/#/history/');
+  await page.goto('/preview/#/wiki/');
   await changeKitWidth();
   await page.keyboard.press('Control+j');
   const chat = page.getByRole('complementary', { name: 'Chat', exact: true });

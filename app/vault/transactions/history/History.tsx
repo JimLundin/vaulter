@@ -1,0 +1,31 @@
+import type { ReactNode } from 'react';
+// Core transaction utility; Application supplies the current session and compensation policy.
+import { Drawer, Surface, Text } from '../../../ui/kit/index.ts';
+import { HistoryList } from './NodeHistory.tsx';
+import type { HistorySource } from './entries.ts';
+
+export function HistoryDrawer({
+  open,
+  onClose,
+  history,
+  children,
+}: {
+  open: boolean;
+  onClose: () => void;
+  history?: HistorySource;
+  children?: ReactNode;
+}) {
+  return (
+    <Drawer
+      open={open}
+      onClose={onClose}
+      title="History"
+      description="Recorded changes to your vault"
+    >
+      <Surface variant="preferences">
+        {children && <Surface variant="groupHeading">{children}</Surface>}
+        {history ? <HistoryList history={history} /> : <Text tone="subtle">Opening history…</Text>}
+      </Surface>
+    </Drawer>
+  );
+}

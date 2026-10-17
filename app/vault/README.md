@@ -203,3 +203,7 @@ and origin labels resolve at their transaction cutoff; expanded entries show ent
 changes. Node compensation retains its existing owner policy. EAV entries are read-only. Combined
 timestamp ordering is presentation across independent journals, not a shared transaction sequence.
 See the [target EAV model](../../docs/data-model.md) for current and remaining migration contracts.
+
+History is opened through a core application action, like Settings. Its shared drawer keeps the
+current page and draft mounted, groups entries by date, and composes kit details and diffs. Search
+and the keyboard shortcut open the same utility; `/history/` remains a direct-entry compatibility URL.

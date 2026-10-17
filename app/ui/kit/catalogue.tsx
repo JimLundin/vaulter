@@ -1160,6 +1160,7 @@ function Navigation() {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('all');
   const [settings, setSettings] = useState(false);
+  const [history, setHistory] = useState(false);
   const [search, setSearch] = useState(false);
   const [current, setCurrent] = useState('Agent');
   const [multiple, setMultiple] = useState(false);
@@ -1173,13 +1174,22 @@ function Navigation() {
         </K.Text>
       }
       search={{ label: 'Search your vault', keys: '⌘ K', onSelect: () => setSearch(true) }}
-      destinations={['Agent', 'History'].map((label) => ({
+      destinations={['Agent', 'Wiki'].map((label) => ({
         label,
         href: `#${label.toLowerCase()}`,
-        icon: label === 'Agent' ? 'sparkles' : 'history',
+        icon: label === 'Agent' ? 'sparkles' : 'book',
         current: label === current,
       }))}
-      actions={[{ label: 'Settings', icon: 'settings', onSelect: () => setSettings(true) }]}
+      actions={[
+        {
+          label: 'History',
+          icon: 'history',
+          placement: 'header',
+          expanded: history,
+          onSelect: () => setHistory(true),
+        },
+        { label: 'Settings', icon: 'settings', onSelect: () => setSettings(true) },
+      ]}
     >
       <K.FeaturePage title={current} description="Shared navigation and feature content.">
         <K.Stack>
@@ -1248,12 +1258,22 @@ function Navigation() {
           </K.Button>
           <K.Button
             variant="outline"
-            onClick={() => setCurrent(current === 'Agent' ? 'History' : 'Agent')}
+            onClick={() => setCurrent(current === 'Agent' ? 'Wiki' : 'Agent')}
           >
             Switch sample feature
           </K.Button>
         </K.Stack>
       </K.FeaturePage>
+      <K.Drawer
+        open={history}
+        onClose={() => setHistory(false)}
+        title="History"
+        description="Recorded changes"
+      >
+        <K.Surface variant="preferences">
+          <ExpandableRows />
+        </K.Surface>
+      </K.Drawer>
       <K.SettingsMenu
         open={settings}
         onClose={() => setSettings(false)}

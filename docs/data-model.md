@@ -124,10 +124,16 @@ select a different run context, discard drafts or trigger execution. The recorde
 `readConversationHistory` tool retrieves source activity by position without replay. Automatic
 checkpoint scheduling, context budgets and bounded tool-result projections remain unimplemented.
 
-## History — implemented during this continuation
+## History — core application utility
 
-History presents accepted EAV and remaining Node transactions in one list. Each entry keeps its
-own store identity and sequence. Recorded timestamps order the combined presentation, with stable
+History belongs to core Transactions and is opened as an application action, alongside Settings.
+It is not a workflow destination. Its shared drawer overlays the current page without changing the
+route or replacing the current draft. Search and the `g y` shortcut open that same drawer. Existing
+`/history/` links open it over Chat; closing such a direct link returns to Chat. The shared kit owns
+responsive geometry, scrolling, dismissal, focus, grouped surfaces and expandable rows.
+
+History presents accepted EAV and remaining Node transactions in one list, grouped by recording date.
+Each entry keeps its own store identity and sequence. Recorded timestamps order the combined presentation, with stable
 ties; there is no shared sequence, atomic snapshot or causal ordering across the two journals.
 Pagination preserves transaction identities as new activity arrives. Loading metadata scans the
 retained journals; only the selected page's before/after records are reconstructed. Indexing and
@@ -136,8 +142,9 @@ bounded cold-history loading remain future performance work.
 EAV entries include historical author/origin labels and entity/attribute changes, including removed
 optional values, reference retargets and deletion. No author is invented for unattributed bootstrap
 transactions. Generic inspection uses persisted types and attributes, without importing Chat or Agent
-into the History owner. The list shows up to 100 detail lines per expanded entry and reports additional
-lines; the database history API retains the complete change set.
+into the History owner. Expanded entries use shared labelled metadata and before/after diff components.
+The list shows up to 100 changed entities (or legacy detail lines) per expanded entry and reports additional
+changes; the database history API retains the complete change set.
 
 Existing content compensation remains an explicit, confirmed, guarded Node transaction. EAV dialogue
 and execution entries have no generic Undo action. A future content compensation implementation must

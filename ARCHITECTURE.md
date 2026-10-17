@@ -275,6 +275,10 @@ limits; [ADR 0003](docs/adr/0003-github-node-persistence.md) records GitHub acce
 
 History interprets accepted Transactions and supplies guarded compensation. Application composes
 producer-owned preservation policies into History; History never imports those workflows.
+History is a core application action alongside Settings, not a workflow destination. Its drawer
+retains the underlying page and draft and uses the shared kit's geometry, grouped surfaces,
+expandable rows, labelled details and diffs. Direct History URLs remain compatibility entry points
+into that same drawer over Chat.
 Chat reads Agent activity through Agent's historical reading interface, keeping transcript ordering
 and message projection with Chat. Reading records never depends on live execution ownership.
 

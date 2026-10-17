@@ -75,7 +75,7 @@ import {
 } from './identities.ts';
 import type { TransactionStore } from '../vault/transactions/store.ts';
 import { createOpenAICapabilities } from '../agent/openai/index.ts';
-import { HistoryPage } from '../vault/transactions/history/index.tsx';
+import { HistoryDrawer } from '../vault/transactions/history/index.tsx';
 import { Wiki, type ForeignRecordRenderer } from '../workflows/wiki/index.tsx';
 import { wikiRoute, pageRoute } from '../workflows/wiki/routes.ts';
 import { useWikiReading, useWiki } from '../workflows/wiki/use-wiki.ts';
@@ -269,7 +269,7 @@ export function OpenApplication({
   const mobile = layout === 'compact';
   const [search, setSearch] = useState(false);
   const [help, setHelp] = useState(false);
-  const [settings, setSettings] = useState(false);
+  const [coreAction, setCoreAction] = useState<'settings' | 'history' | null>(null);
   const [panel, setPanel] = useState(
     () => layout === 'wide' && localStorage.getItem('vault-panel') === 'agent',
   );
@@ -279,29 +279,32 @@ export function OpenApplication({
     else localStorage.removeItem('vault-panel');
   };
   const dismissSupportingTasks = () => {
-    setSettings(false);
+    closeCoreAction();
     setSearch(false);
     setHelp(false);
     showPanel(false);
   };
   const onSettings = !!settingsRoute.match(route.path);
+  const onHistory = !!historyRoute.match(route.path);
   const onChat =
     route.path === '/' ||
     !!chatRoute.match(route.path) ||
     !!conversationRoute.match(route.path) ||
-    onSettings;
-  const onHistory = !!historyRoute.match(route.path);
-  const settingsOpen = settings || onSettings;
-  const closeSettings = () => {
-    setSettings(false);
-    if (onSettings) go(chatRoute.href());
+    onSettings ||
+    onHistory;
+  const activeCoreAction = coreAction ?? (onSettings ? 'settings' : onHistory ? 'history' : null);
+  const settingsOpen = activeCoreAction === 'settings';
+  const historyOpen = activeCoreAction === 'history';
+  const closeCoreAction = () => {
+    setCoreAction(null);
+    if (onSettings || onHistory) go(chatRoute.href());
   };
   const title = settingsOpen
     ? 'Settings'
-    : onChat
-      ? 'Chat'
-      : onHistory
-        ? 'History'
+    : historyOpen
+      ? 'History'
+      : onChat
+        ? 'Chat'
         : onWiki
           ? (pages?.find((page) => page.id === wikiPage)?.title ?? 'Wiki')
           : onQuestions
@@ -417,13 +420,26 @@ export function OpenApplication({
     { label: 'Wiki', href: wikiRoute.href(), icon: 'book', current: onWiki },
     { label: 'Graph', href: graphRoute.href(), icon: 'network', current: onGraph },
     { label: 'Questions', href: questionsRoute.href(), icon: 'help', current: onQuestions },
-    ...(nodes ? [{ label: 'History', href: historyRoute.href(), icon: 'history' as const }] : []),
+    ...(nodes
+      ? [
+          {
+            label: 'History',
+            href: historyRoute.href(),
+            icon: 'history' as const,
+            kind: 'action' as const,
+            placement: 'header' as const,
+            onSelect: () => setCoreAction('history'),
+            current: historyOpen,
+            expanded: historyOpen,
+          },
+        ]
+      : []),
     {
       label: 'Settings',
       href: settingsRoute.href(),
       icon: 'settings',
       kind: 'action',
-      onSelect: () => setSettings(true),
+      onSelect: () => setCoreAction('settings'),
       current: settingsOpen,
       expanded: settingsOpen,
     },
@@ -487,19 +503,19 @@ export function OpenApplication({
           {
             id: 'go.history',
             label: 'History',
-            group: 'Go to',
+            group: 'Application',
             icon: 'history' as const,
             keys: 'g y',
-            run: () => go(historyRoute.href()),
+            run: () => setCoreAction('history'),
           },
         ]
       : []),
     {
       id: 'go.settings',
       label: 'Settings',
-      group: 'Go to',
+      group: 'Application',
       icon: 'settings',
-      run: () => setSettings(true),
+      run: () => setCoreAction('settings'),
     },
     {
       id: 'agent.ask',
@@ -663,11 +679,6 @@ export function OpenApplication({
             error={wikiError}
             renderRecord={renderWikiRecord}
           />
-        ) : onHistory ? (
-          <Stack>
-            <RefreshNodes status={nodeStatus} refresh={session.refreshNodes} />
-            <HistoryPage history={historyView} />
-          </Stack>
         ) : (
           <Page>
             <Heading level={1}>Not found</Heading>
@@ -676,9 +687,12 @@ export function OpenApplication({
           </Page>
         )}
       </Frame>
+      <HistoryDrawer open={historyOpen} onClose={closeCoreAction} history={historyView}>
+        <RefreshNodes status={nodeStatus} refresh={session.refreshNodes} />
+      </HistoryDrawer>
       <SettingsMenu
         open={settingsOpen}
-        onClose={closeSettings}
+        onClose={closeCoreAction}
         features={[
           { name: appearanceSettings.name, content: <AppearanceSettings /> },
           { name: chatSettings.name, content: <ChatSettings /> },

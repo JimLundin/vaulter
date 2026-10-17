@@ -1,3 +1,4 @@
+import { openAppAction } from '../ui/kit/navigation.browser.test-support.ts';
 import { createPersistentStorage, openDatabase, type Journal } from '../vault/eav/index.ts';
 import { chatSchema } from '../workflows/chat/data/schema.ts';
 import { expect, test } from '@playwright/test';
@@ -111,25 +112,33 @@ test('production History displays historical attribution and records confirmed c
       headers: Object.fromEntries(response.headers),
     });
   });
-  await page.goto('/#/history/');
+  await page.goto('/#/chat/');
   await page.getByLabel('Password', { exact: true }).fill(password);
   await page.getByRole('button', { name: 'Open vault', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'History', exact: true })).toBeVisible();
-  const eavTitle = 'Updated messages: Updated history message';
+  const input = page.getByRole('textbox', { name: 'Message', exact: true });
+  await input.fill('A draft stays here');
+  const original = page.url();
+  await openAppAction(page, 'History');
+  await expect(page.getByRole('dialog', { name: 'History', exact: true })).toBeVisible();
+  expect(page.url()).toBe(original);
+  const eavTitle = 'Updated chat message: Updated history message';
   const eavRow = page.getByRole('region', { name: eavTitle, exact: true });
   await expect(eavRow).toContainText('Original speaker');
   await expect(eavRow).not.toContainText('Current speaker');
   await eavRow.getByRole('button', { name: eavTitle, exact: true }).click();
-  await expect(eavRow).toContainText(
-    'text: "Original history message" → "Updated history message"',
-  );
+  await expect(
+    eavRow.getByRole('cell', { name: 'Original history message', exact: true }),
+  ).toBeVisible();
+  await expect(
+    eavRow.getByRole('cell', { name: 'Updated history message', exact: true }),
+  ).toBeVisible();
   await expect(eavRow.getByRole('button', { name: /Undo transaction/ })).toHaveCount(0);
   const title = page.getByRole('button', { name: 'Lengthen the morning walk', exact: true });
   const row = page.getByRole('region', { name: 'Lengthen the morning walk', exact: true });
   await expect(row).toContainText('Original owner');
   await expect(row).not.toContainText('Current owner');
-  await expect(row.getByText('#2', { exact: true })).toBeVisible();
   await title.click();
+  await expect(row.getByText('#2', { exact: true })).toBeVisible();
   await expect(row.getByText('Updated content: Quiet mornings', { exact: true })).toBeVisible();
   await row.getByRole('button', { name: 'Undo transaction #2', exact: true }).click();
   const review = page.getByRole('dialog', {
@@ -139,7 +148,11 @@ test('production History displays historical attribution and records confirmed c
   await review.getByRole('button', { name: 'Undo', exact: true }).click();
   await expect(review).toBeHidden();
   await expect(page.getByRole('button', { name: 'Undo content-edit', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Close history', exact: true }).click();
+  await expect(input).toHaveValue('A draft stays here');
+  expect(page.url()).toBe(original);
   await page.reload();
+  await openAppAction(page, 'History');
   await expect(page.getByRole('region', { name: eavTitle, exact: true })).toContainText(
     'Original speaker',
   );

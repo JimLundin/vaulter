@@ -119,8 +119,8 @@ test('the freestanding rail follows the keyboard viewport and leaves Chat contro
   await setKeyboardViewport(page, 844, 0);
   await message.fill('Keep this draft beside the rail');
   await expect(page.getByRole('button', { name: 'Conversations', exact: true })).toHaveCount(0);
-  await navigateToModule(page, 'History');
-  await expectAnchor(page, 1);
+  await navigateToModule(page, 'Wiki');
+  await expectAnchor(page, 3);
   await navigateToModule(page, 'Chat');
   await expectAnchor(page, 2);
   await expect(message).toHaveValue('Keep this draft beside the rail');

@@ -221,14 +221,14 @@ test('the Modules anchor keeps its rounded surface and marks the selected destin
     'aria-current',
     'page',
   );
-  await navigation.getByRole('menuitem', { name: 'History', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'History', exact: true })).toBeVisible();
+  await navigation.getByRole('menuitem', { name: 'Wiki', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Wiki', exact: true })).toBeVisible();
   await page.mouse.move(0, 0);
   await expect(menu).toHaveAttribute('aria-expanded', 'false');
   await expect(menu).not.toHaveAttribute('aria-current');
   await expect(menu).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
   await menu.click();
-  await expect(navigation.getByRole('menuitem', { name: 'History', exact: true })).toHaveAttribute(
+  await expect(navigation.getByRole('menuitem', { name: 'Wiki', exact: true })).toHaveAttribute(
     'aria-current',
     'page',
   );

@@ -63,16 +63,16 @@ test(
     await page.getByRole('button', { name: 'Close settings' }).click();
     await expect(settings).toBeHidden();
     await expectAppActionFocus(page, 'Settings');
-    await navigateToModule(page, 'History');
-    await expect(page.getByRole('heading', { name: 'History', exact: true })).toBeVisible();
-    const historyURL = page.url();
+    await navigateToModule(page, 'Wiki');
+    await expect(page.getByRole('heading', { name: 'Wiki', exact: true })).toBeVisible();
+    const wikiURL = page.url();
     await openAppAction(page, 'Settings');
     await expect(settings).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(settings).toBeHidden();
-    expect(page.url()).toBe(historyURL);
-    await expect(page.getByRole('heading', { name: 'History', exact: true })).toBeVisible();
-    // Settings reached through Search uses the same menu and leaves History underneath.
+    expect(page.url()).toBe(wikiURL);
+    await expect(page.getByRole('heading', { name: 'Wiki', exact: true })).toBeVisible();
+    // Settings reached through Search uses the same menu and leaves Wiki underneath.
     await openAppAction(page, 'Search');
     await page
       .getByRole('dialog', { name: 'Search or ask', exact: true })
@@ -80,7 +80,7 @@ test(
       .fill('Settings');
     await page.getByRole('option', { name: 'Settings', exact: true }).click();
     await expect(settings).toBeVisible();
-    expect(page.url()).toBe(historyURL);
+    expect(page.url()).toBe(wikiURL);
     await expect(page.getByRole('button', { name: 'Close settings' })).toBeFocused();
     await page.keyboard.press('Escape');
     await expect(settings).toBeHidden();
@@ -148,7 +148,7 @@ test('Appearance group retains keyboard selection and device preference after re
 });
 
 test('every feature page centers the same reading column', async ({ page }) => {
-  for (const path of ['/preview/', '/preview/#/history/', '/ui/kit/tests/browser.html']) {
+  for (const path of ['/preview/', '/preview/#/wiki/', '/ui/kit/tests/browser.html']) {
     await page.setViewportSize({ width: 390, height: 1000 });
     await page.goto(path);
     for (const width of [390, 768, 1440, 1920]) {
@@ -655,8 +655,8 @@ test('live transcription updates the shared message field and uses the normal se
   await expect(page.getByRole('button', { name: 'Start voice interaction' })).toBeVisible();
   await expect(page.getByRole('region', { name: 'Live transcription' })).toHaveCount(0);
   await input.fill(`${text} Edited before sending.`);
-  await navigateToModule(page, 'History');
-  await expect(page.getByRole('heading', { name: 'History', exact: true })).toBeVisible();
+  await navigateToModule(page, 'Wiki');
+  await expect(page.getByRole('heading', { name: 'Wiki', exact: true })).toBeVisible();
   await openAppAction(page, 'Start voice interaction');
   await expect(input).toHaveValue(/Edited before sending\. Leave/);
   await page.getByRole('button', { name: 'Finish recording' }).click();
@@ -691,8 +691,8 @@ test('Chat retains the shared draft when its view closes and reopens', { tag: '@
   await page.goto('/preview/');
   const field = page.getByRole('textbox', { name: 'Message', exact: true });
   await field.fill('An unfinished workflow thought');
-  await navigateToModule(page, 'History');
-  await expect(page.getByRole('heading', { name: 'History', exact: true })).toBeVisible();
+  await navigateToModule(page, 'Wiki');
+  await expect(page.getByRole('heading', { name: 'Wiki', exact: true })).toBeVisible();
   await navigateToModule(page, 'Chat');
   await expect(field).toHaveValue('An unfinished workflow thought');
   await field.press('Enter');

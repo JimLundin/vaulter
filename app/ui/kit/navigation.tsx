@@ -33,6 +33,7 @@ export interface NavigationAction {
   current?: boolean;
   expanded?: boolean;
   disabled?: boolean;
+  placement?: 'header' | 'footer';
 }
 
 export function NavigationSuite({
@@ -67,7 +68,10 @@ export function NavigationSuite({
     : undefined;
   const searchVisible = !!(compact && pageSearch && openSearch === pageSearch.id);
   const settings = actions.find((action) => action.icon === 'settings');
-  const otherActions = actions.filter((action) => action !== settings);
+  const headerActions = actions.filter(
+    (action) => action.placement === 'header' || action === settings,
+  );
+  const otherActions = actions.filter((action) => !headerActions.includes(action));
 
   return (
     <PageControlsContext.Provider value={pageControls.context}>
@@ -77,25 +81,22 @@ export function NavigationSuite({
             <SidebarHeader>
               <Brand
                 status={status}
-                actions={
-                  settings && (
-                    <Button
-                      variant="ghost"
-                      size="standard"
-                      iconOnly={true}
-                      aria-label={settings.label}
-                      aria-expanded={settings.expanded}
-                      title={settings.label}
-                      disabled={settings.disabled}
-                      render={
-                        settings.href ? <a href={settings.href}>{settings.label}</a> : undefined
-                      }
-                      onClick={settings.href ? undefined : settings.onSelect}
-                    >
-                      <Icon name={settings.icon} />
-                    </Button>
-                  )
-                }
+                actions={headerActions.map((action) => (
+                  <Button
+                    key={action.label}
+                    variant="ghost"
+                    size="standard"
+                    iconOnly={true}
+                    aria-label={action.label}
+                    aria-expanded={action.expanded}
+                    title={action.label}
+                    disabled={action.disabled}
+                    render={action.href ? <a href={action.href}>{action.label}</a> : undefined}
+                    onClick={action.href ? undefined : action.onSelect}
+                  >
+                    <Icon name={action.icon} />
+                  </Button>
+                ))}
               />
               <SearchButton
                 label={search.label}
@@ -167,7 +168,7 @@ export function NavigationSuite({
           compact={compact}
           status={status}
           destinations={destinations}
-          actions={otherActions}
+          actions={actions.filter((action) => action !== settings)}
           settings={settings}
           pageActions={pageControls.actions}
           pageSearch={pageSearch}

@@ -5,7 +5,7 @@ test('one dialogue retains its draft across page and supporting layouts without 
   tag: ['@phone', '@touch'],
 }, async ({ page }) => {
   for (const presentation of ['page', 'supporting']) {
-    await page.goto(`/preview/?conversations${presentation === 'supporting' ? '#/history/' : ''}`);
+    await page.goto(`/preview/?conversations${presentation === 'supporting' ? '#/wiki/' : ''}`);
     if (presentation === 'supporting') await page.keyboard.press('Control+j');
     const field = page.getByRole('textbox', { name: 'Message', exact: true });
     await field.fill('Keep this continuous dialogue draft');
@@ -23,7 +23,7 @@ test('one dialogue retains its draft across page and supporting layouts without 
 test('Chat supporting pane keeps one following feed, draft and accepted activity across close and resize', {
   tag: '@phone',
 }, async ({ page }) => {
-  await page.goto('/preview/#/history/');
+  await page.goto('/preview/#/wiki/');
   const handle = page.locator('[data-preview-drag-handle]');
   for (let i = 0; i < 10; i++) await handle.press('Shift+ArrowDown');
   await page.keyboard.press('Control+j');

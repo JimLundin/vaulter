@@ -23,10 +23,10 @@ export function ExpandableRow({
   return (
     <section
       aria-label={title}
-      className="border-b px-[var(--page-inset)] pb-4 md:border-t md:border-b-0 md:px-0 md:py-5"
+      className="border-b bg-background px-[var(--page-inset)] py-3 last:border-b-0 md:px-0"
     >
-      <div className="flex items-start justify-between gap-2 md:gap-4">
-        <div className="flex min-w-0 flex-1 flex-col gap-2">
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
           <button
             type="button"
             data-touch-target=""
@@ -34,9 +34,11 @@ export function ExpandableRow({
             aria-expanded={expanded}
             aria-controls={expanded ? details : undefined}
             onClick={onExpand}
-            className="flex min-h-11 min-w-0 items-center gap-2 text-left text-copy font-medium hover:underline focus-visible:outline-2 focus-visible:outline-ring"
+            className="flex min-h-11 min-w-0 items-center gap-2 text-left text-label font-medium hover:text-primary focus-visible:outline-2 focus-visible:outline-ring"
           >
-            <Icon name={expanded ? 'chevron-left' : 'chevron-right'} />
+            <span className={expanded ? 'rotate-90' : undefined}>
+              <Icon name="chevron-right" />
+            </span>
             <span className="min-w-0 break-words">{title}</span>
           </button>
           {!!metadata && <div className="pl-6 text-caption text-muted-foreground">{metadata}</div>}
@@ -44,7 +46,7 @@ export function ExpandableRow({
         {actions}
       </div>
       {!!expanded && (
-        <div id={details} className="flex flex-col gap-3 pt-4 pl-6">
+        <div id={details} className="flex min-w-0 flex-col gap-3 pt-3">
           {children}
         </div>
       )}

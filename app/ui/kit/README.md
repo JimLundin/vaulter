@@ -658,3 +658,9 @@ through a caller callback. The kit owns the 250ms hover delay, pointer capabilit
 measurement, leave/scroll/hash dismissal and bounded popup position. The resolver owns link meaning
 and supplies retained title/excerpt without exposing a store or workflow to the kit. Independent
 bounded specimens obey their own pointer policy and ignore neighboring links.
+
+`NavigationAction.placement="header"` places a prominent core utility beside the brand on desktop;
+it remains an action in the compact Tools menu. Settings retains its existing brand placement.
+The Navigation catalogue demonstrates History as a drawer action alongside workflow destinations.
+`ExpandableRow` uses the shared compact type and spacing scale, a 44px disclosure target and
+consistent separators; record owners compose `Details` and `CodeDiff` within its expanded content.

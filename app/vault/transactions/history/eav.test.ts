@@ -52,7 +52,7 @@ test('mixed history retains independent identities, historical attribution and p
     origin: 'Evidence',
     details: expect.arrayContaining(['text: "Before" → "After"']),
   });
-  expect(all.find((entry) => entry.key === 'eav:4')!.details).toContain('Deleted notes: Evidence');
+  expect(all.find((entry) => entry.key === 'eav:4')!.details).toContain('Deleted note: Evidence');
   expect(all.filter((entry) => entry.key.startsWith('eav:')).every((entry) => !entry.undo)).toBe(
     true,
   );

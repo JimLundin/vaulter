@@ -77,7 +77,7 @@ test('Search Ask is accepted once when Chat moves between the page and its suppo
   const accepted = await page.evaluate(() => sessionStorage.getItem('vaulter:preview:accepted:v1'));
   // Hash navigation changes Application's composition without reloading its retained lifetime.
   await page.evaluate(() => {
-    location.hash = '#/history/';
+    location.hash = '#/wiki/';
   });
   const pane = page.getByRole(test.info().project.name === 'phone' ? 'dialog' : 'complementary', {
     name: 'Chat',
@@ -128,7 +128,7 @@ test('Search Ask during recording survives reopening, never auto-sends, and expl
   await expect(paneInput).toBeEditable();
   const draft = await paneInput.inputValue();
   await page.evaluate(() => {
-    location.hash = '#/history/';
+    location.hash = '#/wiki/';
   });
   await expect(pane).toBeVisible();
   await expect(pane.getByText('Ask after recording', { exact: true })).toBeVisible();

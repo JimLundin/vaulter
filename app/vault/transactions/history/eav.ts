@@ -131,7 +131,12 @@ export function vaultHistory<R extends Registry>(options: {
               ]);
               const details = await Promise.all(
                 changes.map(async (change) => {
-                  const type = String(change.type);
+                  const at = change.after ? transaction : transactions[index - 1];
+                  const record = at ? await db.history.inspect(at, change.entity) : undefined;
+                  const type = (record?.type ?? String(change.type))
+                    .replaceAll('.', ' ')
+                    .replace(/([a-z])([A-Z])/g, '$1 $2')
+                    .toLowerCase();
                   const action =
                     change.before === null
                       ? 'Created'
@@ -139,7 +144,8 @@ export function vaultHistory<R extends Registry>(options: {
                         ? 'Deleted'
                         : 'Updated';
                   const values = change.after ?? change.before!;
-                  const title = `${action} ${type}: ${label(values, type)}`;
+                  const name = label(values, '');
+                  const title = `${action} ${type}${name ? `: ${name}` : ''}`;
                   const fields = new Set([
                     ...Object.keys(change.before ?? {}),
                     ...Object.keys(change.after ?? {}),
@@ -159,22 +165,38 @@ export function vaultHistory<R extends Registry>(options: {
                             valueText(db, transactions[index - 1], previous),
                             valueText(db, transaction, next),
                           ]);
-                          return `${field}: ${from} → ${to}${from === to ? ' (reference changed)' : ''}`;
+                          return {
+                            line: `${field}: ${from} → ${to}${from === to ? ' (reference changed)' : ''}`,
+                            field: {
+                              label: field,
+                              before: typeof previous === 'string' ? previous : from,
+                              after:
+                                typeof next === 'string'
+                                  ? next
+                                  : `${to}${from === to ? ' (reference changed)' : ''}`,
+                            },
+                          };
                         })(),
                       ];
                     }),
                   );
-                  return [title, ...edits];
+                  return {
+                    title,
+                    details: [title, ...edits.map((edit) => edit.line)],
+                    fields: edits.map((edit) => edit.field),
+                  };
                 }),
               );
               return {
                 key: `eav:${transaction.sequence}`,
-                title: details.length === 1 ? details[0][0] : `Recorded ${details.length} changes`,
+                title:
+                  details.length === 1 ? details[0].title : `Recorded ${details.length} changes`,
                 recordedAt: transaction.committedAt.toISOString(),
                 sequence: transaction.sequence,
                 author: author ? label(author.values, author.type) : undefined,
                 origin: origin ? label(origin.values, origin.type) : undefined,
-                details: details.flat(),
+                details: details.flatMap((entry) => entry.details),
+                changes: details.map(({ title, fields }) => ({ title, fields })),
               };
             },
           });

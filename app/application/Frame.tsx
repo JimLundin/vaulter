@@ -50,6 +50,7 @@ export function Frame({
             onSelect: entry.onSelect,
             current: entry.current ?? current(entry.href),
             expanded: entry.expanded,
+            placement: entry.placement,
           }))}
         primary={primary}
         footer={signOut}

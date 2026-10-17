@@ -3,6 +3,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
+  CodeDiff,
+  Details,
+  Heading,
+  Surface,
   AlertDescription,
   Button,
   ExpandableRow,
@@ -24,6 +28,18 @@ export type { NodeHistorySource } from './entries.ts';
 const PAGE = 25;
 const SHOWN = 100;
 
+const day = (instant: string) =>
+  new Date(instant).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+function groupDays(entries: readonly HistoryEntry[]) {
+  const groups = new Map<string, HistoryEntry[]>();
+  for (const entry of entries) {
+    const date = day(entry.recordedAt);
+    const group = groups.get(date) ?? [];
+    group.push(entry);
+    groups.set(date, group);
+  }
+  return [...groups];
+}
 const when = (instant: string) =>
   new Date(instant).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' });
 
@@ -146,22 +162,31 @@ export function HistoryList({ history }: { history: HistorySource }) {
       ) : !list.length ? (
         <Text tone="muted">No recorded changes yet.</Text>
       ) : (
-        <Stack gap="xl">
-          {list.map((entry) => (
-            <HistoryTransactionItem
-              key={entry.key}
-              entry={entry}
-              expanded={open.has(entry.key)}
-              onExpand={() =>
-                setOpen((current) => {
-                  const next = new Set(current);
-                  if (!next.delete(entry.key)) next.add(entry.key);
-                  return next;
-                })
-              }
-              canUndo={!!entry.undo}
-              onUndo={() => setConfirm(entry)}
-            />
+        <Stack gap="lg">
+          {groupDays(list).map(([date, entries]) => (
+            <Surface key={date} variant="grouped" as="section" aria-label={date}>
+              <Surface variant="groupHeading">
+                <Heading level={2}>{date}</Heading>
+              </Surface>
+              <Surface>
+                {entries.map((entry) => (
+                  <HistoryTransactionItem
+                    key={entry.key}
+                    entry={entry}
+                    expanded={open.has(entry.key)}
+                    onExpand={() =>
+                      setOpen((current) => {
+                        const next = new Set(current);
+                        if (!next.delete(entry.key)) next.add(entry.key);
+                        return next;
+                      })
+                    }
+                    canUndo={!!entry.undo}
+                    onUndo={() => setConfirm(entry)}
+                  />
+                ))}
+              </Surface>
+            </Surface>
           ))}
           {more && (
             <Row justify="center">
@@ -237,10 +262,7 @@ function HistoryTransactionItem({
       metadata={
         <Text size="xs" tone="muted">
           {when(entry.recordedAt)}
-          {entry.author ? ` · ${entry.author}` : ''} ·{' '}
-          <Text as="span" size="xs" tone="muted" mono={true}>
-            #{entry.sequence}
-          </Text>
+          {entry.author ? ` · ${entry.author}` : ''}
         </Text>
       }
       expanded={expanded}
@@ -258,13 +280,41 @@ function HistoryTransactionItem({
     >
       {expanded && (
         <Stack gap="xs">
-          {!!entry.origin && <Text tone="subtle">From {entry.origin}</Text>}
-          {entry.details.slice(0, SHOWN).map((detail, index) => (
-            // biome-ignore lint/suspicious/noArrayIndexKey: positions belong to this immutable accepted transaction.
-            <Text key={`${index}:${detail}`}>{detail}</Text>
-          ))}
-          {entry.details.length > SHOWN && (
-            <Text tone="subtle">and {entry.details.length - SHOWN} more changes</Text>
+          <Details
+            items={[
+              ['Recorded', when(entry.recordedAt)],
+              ...(entry.author ? [['Author', entry.author] as [string, string]] : []),
+              ['Transaction', `#${entry.sequence}`],
+              ...(entry.origin ? [['From', entry.origin] as [string, string]] : []),
+            ]}
+          />
+          {entry.changes
+            ? entry.changes.slice(0, SHOWN).map((change, index) => (
+                // biome-ignore lint/suspicious/noArrayIndexKey: positions belong to this immutable accepted transaction.
+                <Stack key={index} gap="sm">
+                  <Text size="sm" weight="medium">
+                    {change.title}
+                  </Text>
+                  {change.fields.map((field) => (
+                    <CodeDiff
+                      key={field.label}
+                      path={field.label}
+                      before={field.before}
+                      after={field.after}
+                    />
+                  ))}
+                </Stack>
+              ))
+            : entry.details.slice(0, SHOWN).map((detail, index) => (
+                // biome-ignore lint/suspicious/noArrayIndexKey: positions belong to this immutable accepted transaction.
+                <Text key={index} size="sm">
+                  {detail}
+                </Text>
+              ))}
+          {(entry.changes?.length ?? entry.details.length) > SHOWN && (
+            <Text tone="subtle">
+              and {(entry.changes?.length ?? entry.details.length) - SHOWN} more changes
+            </Text>
           )}
         </Stack>
       )}

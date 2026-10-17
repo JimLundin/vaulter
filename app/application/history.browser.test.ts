@@ -1,3 +1,4 @@
+import { openAppAction, expectAppActionFocus } from '../ui/kit/navigation.browser.test-support.ts';
 import { expect, test } from '@playwright/test';
 
 test('shared expandable rows retain independent disclosure and action behavior in bounded samples', async ({
@@ -47,10 +48,23 @@ test('History expands a transaction and confirms guarded compensation without re
   // The visible reply streams before terminal acceptance; navigation must retain the completed reply.
   await expect(page.getByRole('button', { name: 'Stop', exact: true })).toBeHidden();
   const conversationURL = page.url();
-  await page.goto('/preview/#/history/');
+  await input.fill('Keep this draft while reviewing changes');
+  await openAppAction(page, 'History');
+  const history = page.getByRole('dialog', { name: 'History', exact: true });
+  await expect(history).toBeVisible();
+  expect(page.url()).toBe(conversationURL);
+  await expect(
+    page.getByRole('link', { name: 'History', exact: true, includeHidden: true }),
+  ).toHaveCount(0);
   const update = page.getByRole('button', { name: 'Update Preview thought', exact: true });
   await update.click();
   await expect(update).toHaveAttribute('aria-expanded', 'true');
+  for (const width of [390, 1440]) {
+    await page.setViewportSize({ width, height: 1000 });
+    await expect(history).toBeVisible();
+    await expect(update).toHaveAttribute('aria-expanded', 'true');
+    await expect(history).toHaveCSS('border-top-left-radius', width < 768 ? '10px' : '12px');
+  }
   await expect(page.getByText('Updated content: Preview thought', { exact: true })).toBeVisible();
   // Select the action through the public record region instead of its layout DOM.
   const action = page
@@ -66,9 +80,47 @@ test('History expands a transaction and confirms guarded compensation without re
   await review.getByRole('button', { name: 'Undo', exact: true }).click();
   await expect(review).toBeHidden();
   await expect(page.getByRole('button', { name: /^Undo [a-z0-9-]+$/ })).toBeVisible();
-  await page.goto(conversationURL);
+  await page.getByRole('button', { name: 'Close history', exact: true }).click();
+  await expect(history).toBeHidden();
+  expect(page.url()).toBe(conversationURL);
+  await expect(input).toHaveValue('Keep this draft while reviewing changes');
   await expect(page.locator('[data-message="user"]')).toContainText(
     'vault it: keep mornings quiet',
   );
   await expect(page.getByText('Filed in', { exact: false })).toBeVisible();
+});
+
+test('History opens from core actions, search, shortcut and its retained direct URL', {
+  tag: '@phone',
+}, async ({ page }) => {
+  await page.goto('/preview/');
+  const history = page.getByRole('dialog', { name: 'History', exact: true });
+  const original = page.url();
+  await openAppAction(page, 'History');
+  await expect(history).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Close history', exact: true })).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(history).toBeHidden();
+  await expectAppActionFocus(page, 'History');
+  expect(page.url()).toBe(original);
+  await openAppAction(page, 'Search');
+  await page
+    .getByRole('dialog', { name: 'Search or ask', exact: true })
+    .getByRole('combobox')
+    .fill('History');
+  await page.getByRole('option', { name: /^History(?:\s|$)/ }).click();
+  await expect(history).toBeVisible();
+  expect(page.url()).toBe(original);
+  await page.keyboard.press('Escape');
+  await expect(history).toBeHidden();
+  await page.keyboard.press('g');
+  await page.keyboard.press('y');
+  await expect(history).toBeVisible();
+  expect(page.url()).toBe(original);
+  await page.goto('/preview/#/history/');
+  await expect(history).toBeVisible();
+  await page.getByRole('button', { name: 'Close history', exact: true }).click();
+  await expect(history).toBeHidden();
+  await expect(page.getByRole('textbox', { name: 'Message', exact: true })).toBeVisible();
+  await expect(page).toHaveURL(/#\/chat\/$/);
 });

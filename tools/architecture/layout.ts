@@ -82,7 +82,7 @@ const vaultUi = new Set([
   'app/vault/storage/Settings.tsx',
   'app/vault/content/tool-presentation.tsx',
   'app/vault/transactions/history/NodeHistory.tsx',
-  'app/vault/transactions/history/HistoryPage.tsx',
+  'app/vault/transactions/history/History.tsx',
 ]);
 export function importProblem(from: string, to: string): string | null {
   if (

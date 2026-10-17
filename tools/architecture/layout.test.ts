@@ -27,7 +27,7 @@ test('the dependency policy rejects cross-workflow imports and private kit acces
   expect(
     importProblem(
       'app/vault/transactions/history/index.tsx',
-      'app/vault/transactions/history/HistoryPage.tsx',
+      'app/vault/transactions/history/History.tsx',
     ),
   ).toBeNull();
   expect(importProblem('app/workflows/chat/Chat.tsx', 'app/ui/kit/parts/button.tsx')).toContain(
