@@ -2,7 +2,7 @@ import { chatRoute, conversationRoute, historyRoute, settingsRoute } from './rou
 import {
   applicationNodes,
   applicationQuestions,
-  applicationNodeHistory,
+  applicationHistory,
   applicationChatOptions,
   applicationSources,
   applicationGraphDescription,
@@ -185,9 +185,9 @@ export function OpenApplication({
     () => (nodes ? createApplicationIdentities(nodes, identities) : null),
     [nodes?.identity, identities.user, identities.agent],
   );
-  const nodeHistoryView = useMemo(
-    () => (nodes ? applicationNodeHistory(nodes, identities) : undefined),
-    [nodes, identities],
+  const historyView = useMemo(
+    () => (nodes ? applicationHistory(nodes, identities, session.eav) : undefined),
+    [nodes, identities, session.eav],
   );
   const [identityState, setIdentityState] = useState<{
     owner: typeof setup;
@@ -666,7 +666,7 @@ export function OpenApplication({
         ) : onHistory ? (
           <Stack>
             <RefreshNodes status={nodeStatus} refresh={session.refreshNodes} />
-            <HistoryPage nodes={nodeHistoryView} />
+            <HistoryPage history={historyView} />
           </Stack>
         ) : (
           <Page>

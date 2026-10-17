@@ -1,3 +1,4 @@
+import { vaultHistory } from '../vault/transactions/history/eav.ts';
 import { openDatabase, type MemoryStorage } from '../vault/eav/index.ts';
 import { chatSchema } from '../workflows/chat/data/schema.ts';
 import { createEavChatBackend } from '../workflows/chat/eav-backend.ts';
@@ -206,28 +207,47 @@ type ApplicationChatOptions = Omit<
   readonly eav?: MemoryStorage | null;
 };
 /** The same explicit composition used by the Application views and independent application callers. */
+const applicationDatabases = new WeakMap<
+  MemoryStorage,
+  ReturnType<typeof openDatabase<typeof chatSchema>>
+>();
+function applicationDatabase(storage: MemoryStorage) {
+  let database = applicationDatabases.get(storage);
+  if (!database) {
+    database = openDatabase({ schema: chatSchema, storage }).catch((error) => {
+      applicationDatabases.delete(storage);
+      throw error;
+    });
+    applicationDatabases.set(storage, database);
+  }
+  return database;
+}
 const eavChatFactories = new WeakMap<MemoryStorage, ChatBackendFactory>();
 function eavChatFactory(storage: MemoryStorage): ChatBackendFactory {
   let factory = eavChatFactories.get(storage);
   if (!factory) {
-    let database: ReturnType<typeof openDatabase<typeof chatSchema>> | undefined;
-    const open = () => {
-      database ??= openDatabase({ schema: chatSchema, storage }).catch((error) => {
-        database = undefined;
-        throw error;
-      });
-      return database;
-    };
     factory = (options) =>
       createEavChatBackend({
         ...options,
         get database() {
-          return open();
+          return applicationDatabase(storage);
         },
       });
     eavChatFactories.set(storage, factory);
   }
   return factory;
+}
+
+export function applicationHistory(
+  nodes: TransactionStore,
+  identities: ApplicationIdentities,
+  eav?: MemoryStorage | null,
+) {
+  return vaultHistory({
+    nodes,
+    legacy: applicationNodeHistory(nodes, identities),
+    database: eav ? () => applicationDatabase(eav) : undefined,
+  });
 }
 export function applicationChatOptions({
   eav,

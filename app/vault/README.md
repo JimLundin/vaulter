@@ -197,3 +197,9 @@ retries, admission, independent writes, composition, original-result retention a
 Application integration tests exercise Chat→Agent→content→durable receipts→response→reopened records,
 independent Agent execution and producer-owned compensation. Text/voice execution and recovery use
 the same TransactionStore. No test accesses the private Vault or performs the separate migration.
+
+History now also reads accepted EAV transactions through the same list presentation. EAV author
+and origin labels resolve at their transaction cutoff; expanded entries show entity and attribute
+changes. Node compensation retains its existing owner policy. EAV entries are read-only. Combined
+timestamp ordering is presentation across independent journals, not a shared transaction sequence.
+See the [target EAV model](../../docs/data-model.md) for current and remaining migration contracts.

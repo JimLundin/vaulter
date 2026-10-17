@@ -2,10 +2,11 @@
 
 The browser app Jim reads the vault in, at **https://jimlundin.github.io/vaulter/**. It holds no notes:
 behind a password it reads them at runtime from the vault, the private repo `JimLundin/vault`, keeps
-them in plaintext on the device, and works offline. Chat and Agent now produce nodes in the shared NodeStore. Search reads Wiki nodes; History reads accepted Node Transactions. The Vault owns [translation and enrichment tooling](https://github.com/JimLundin/vault/tree/main/.vaulter/tooling/migration)
+them in plaintext on the device, and works offline. Chat and Agent use durable typed EAV records. Search still reads Wiki nodes; History reads accepted EAV and Node transactions. The Vault owns [translation and enrichment tooling](https://github.com/JimLundin/vault/tree/main/.vaulter/tooling/migration)
 that targets the current Vaulter modules. Its source readers, extraction policy and private review
 data evolve in the Vault; Vaulter modules own their current record validation and historical reads.
 See [Wiki ingestion](./app/workflows/wiki/README.md) for the boundary and current interfaces.
+See the [target EAV data model and migration status](docs/data-model.md).
 See [Architecture](ARCHITECTURE.md) for module boundaries and [ADRs](docs/adr/) for accepted decisions.
 
 ## Commands
@@ -29,9 +30,9 @@ See [Architecture](ARCHITECTURE.md) for module boundaries and [ADRs](docs/adr/) 
 | `npm run typecheck` | TypeScript over the app, tools and Vite/Vitest/Playwright configurations |
 | `node tools/build/seal-secrets.ts <out>` | seal the token and key with the password from the environment (what CI runs; see Publishing) |
 
-Application composes node-backed Chat, independent Agent and module-owned content tools. Content
-publication records immutable node history and attributed tool receipts; failed saves are recoverable
-without repeating effects. All application reads and writes use node storage.
+Application composes EAV-backed Chat and Agent with module-owned content tools. Content still
+records immutable Node history; Agent retains attributed tool receipts in EAV. Failed saves are
+recoverable without repeating effects. The target model documents the remaining producer migrations.
 Consecutive tool calls fold into an expandable summary, with a live status showing the current action.
 The app includes a manifest and icons for installing it to the Home Screen.
 Questions collects retained requests for information, with search and Open, Answered, Abandoned

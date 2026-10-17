@@ -209,6 +209,13 @@ export interface History<R extends Registry> {
   readonly transactions: Reader<TransactionEntity>;
   readonly entities: { readonly [K in keyof R]: ChangeReader<R[K]> };
   changes: (transaction: TransactionRef) => Promise<readonly TransactionChange<R>[]>;
+  /** Generic tooling can resolve attribution without knowing its entity type in advance. */
+  inspect: (
+    transaction: TransactionRef,
+    entity: EntityRef<EntityDefinition>,
+  ) => Promise<
+    { readonly type: string; readonly values: Readonly<Record<string, unknown>> } | undefined
+  >;
 }
 export interface Database<R extends Registry> extends ReadView<R>, AsyncDisposable {
   readonly history: History<R>;

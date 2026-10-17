@@ -1,9 +1,11 @@
+import { createPersistentStorage, openDatabase, type Journal } from '../vault/eav/index.ts';
+import { chatSchema } from '../workflows/chat/data/schema.ts';
 import { expect, test } from '@playwright/test';
-import { fakeGitHub } from '../../storage/github-client/fake-github.ts';
-import { create, request } from '../../nodes/fixtures.test-support.ts';
-import { accept } from '../../nodes/history.ts';
-import { canonical, digest } from '../../nodes/json.ts';
-import { seal } from '../../session/sealed.ts';
+import { fakeGitHub } from '../vault/storage/github-client/fake-github.ts';
+import { create, request } from '../vault/nodes/fixtures.test-support.ts';
+import { accept } from '../vault/nodes/history.ts';
+import { canonical, digest } from '../vault/nodes/json.ts';
+import { seal } from '../vault/session/sealed.ts';
 
 test('production History displays historical attribution and records confirmed content compensation', async ({
   page,
@@ -46,7 +48,46 @@ test('production History displays historical attribution and records confirmed c
     await digest(canonical(rename)),
     '2026-10-11T09:10:00Z',
   );
+  const eavFiles: Record<string, string> = {};
+  let journal: Journal = { schemas: [], commits: [] };
+  const eav = createPersistentStorage({
+    scope: 'production-history-fixture',
+    load: async () => journal,
+    append: async ({ schemas, commit, base }) => {
+      journal = { schemas, commits: [...journal.commits, commit] };
+      eavFiles[`.vaulter/eav/transactions/${encodeURIComponent(commit.id)}.json`] = JSON.stringify({
+        base,
+        schemas,
+        commit,
+      });
+    },
+  });
+  await using database = await openDatabase({ schema: chatSchema, storage: eav });
+  const author = await database.transaction((tx) =>
+    tx.entities.actors.insert({ name: 'Original speaker', kind: 'user' }),
+  );
+  const message = await database.transaction({ author }, async (tx) => {
+    const conversation = await tx.entities.conversations.insert({ createdAt: new Date() });
+    const exchange = await tx.entities.exchanges.insert({
+      conversation,
+      position: 1,
+      startedAt: new Date(),
+    });
+    return tx.entities.messages.insert({
+      exchange,
+      author,
+      at: new Date(),
+      text: 'Original history message',
+    });
+  });
+  await database.transaction({ author }, (tx) =>
+    tx.entities.messages.update({ ...message, text: 'Updated history message' }),
+  );
+  await database.transaction((tx) =>
+    tx.entities.actors.update({ ...author, name: 'Current speaker' }),
+  );
   const fake = await fakeGitHub({
+    ...eavFiles,
     '.vaulter/nodes/v1/transactions/history-fixture.json': JSON.stringify(initialRecord),
     '.vaulter/nodes/v1/transactions/content-edit.json': JSON.stringify(editRecord),
     '.vaulter/nodes/v1/transactions/rename-author.json': JSON.stringify(renameRecord),
@@ -74,6 +115,15 @@ test('production History displays historical attribution and records confirmed c
   await page.getByLabel('Password', { exact: true }).fill(password);
   await page.getByRole('button', { name: 'Open vault', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'History', exact: true })).toBeVisible();
+  const eavTitle = 'Updated messages: Updated history message';
+  const eavRow = page.getByRole('region', { name: eavTitle, exact: true });
+  await expect(eavRow).toContainText('Original speaker');
+  await expect(eavRow).not.toContainText('Current speaker');
+  await eavRow.getByRole('button', { name: eavTitle, exact: true }).click();
+  await expect(eavRow).toContainText(
+    'text: "Original history message" → "Updated history message"',
+  );
+  await expect(eavRow.getByRole('button', { name: /Undo transaction/ })).toHaveCount(0);
   const title = page.getByRole('button', { name: 'Lengthen the morning walk', exact: true });
   const row = page.getByRole('region', { name: 'Lengthen the morning walk', exact: true });
   await expect(row).toContainText('Original owner');
@@ -90,5 +140,8 @@ test('production History displays historical attribution and records confirmed c
   await expect(review).toBeHidden();
   await expect(page.getByRole('button', { name: 'Undo content-edit', exact: true })).toBeVisible();
   await page.reload();
+  await expect(page.getByRole('region', { name: eavTitle, exact: true })).toContainText(
+    'Original speaker',
+  );
   await expect(page.getByRole('button', { name: 'Undo content-edit', exact: true })).toBeVisible();
 });

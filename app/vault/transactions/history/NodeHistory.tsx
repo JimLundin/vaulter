@@ -1,6 +1,6 @@
-// The vault's recorded node history, newest first. Generic: it names changed nodes by their kind and
-// common label fields, never interpreting another workflow's records; Application supplies undo policy.
-import { useCallback, useEffect, useRef, useState } from 'react';
+// Shared recorded History presentation, with a compatibility adapter for Node-only callers.
+// Application supplies resolved records and guarded compensation; this list never executes producers.
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   AlertDescription,
@@ -12,78 +12,74 @@ import {
   Stack,
   Text,
 } from '../../../ui/kit/index.ts';
-import type { NodeVersion } from '../../nodes/model.ts';
-import type { NodeDifference } from '../../nodes/store.ts';
 import type { NodeHistoryEntry } from './nodes.ts';
-
-export interface NodeHistorySource {
-  readonly entries: (options?: {
-    readonly beforeSequence?: number;
-    readonly limit?: number;
-  }) => Promise<readonly NodeHistoryEntry[]>;
-  readonly subscribe: (listener: () => void) => () => void;
-  readonly canUndo?: (entry: NodeHistoryEntry) => boolean;
-  readonly undo?: (entry: NodeHistoryEntry) => Promise<unknown>;
-}
+import {
+  nodeHistoryEntry,
+  type HistoryEntry,
+  type HistorySource,
+  type NodeHistorySource,
+} from './entries.ts';
+export type { NodeHistorySource } from './entries.ts';
 
 const PAGE = 25;
 const SHOWN = 100;
 
-/** A version's readable name: its first common label field, else its identity. */
-export function labelOf(version: NodeVersion | null | undefined): string {
-  const data = version?.data;
-  for (const field of ['title', 'name', 'label', 'what', 'text', 'url', 'key'] as const) {
-    const value = data?.[field];
-    if (typeof value === 'string' && value.trim())
-      return value.trim().split('\n')[0]!.slice(0, 120);
-  }
-  return version?.key.node ?? '';
-}
-export function describe({ before, after }: NodeDifference): string {
-  const action =
-    before === null
-      ? 'Created'
-      : after.data === null
-        ? 'Deleted'
-        : before.data === null
-          ? 'Restored'
-          : 'Updated';
-  const kind = String((after.data ?? before?.data)?.kind ?? 'node');
-  return `${action} ${kind}: ${labelOf(after.data ? after : before)}`;
-}
 const when = (instant: string) =>
   new Date(instant).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' });
 
 export function NodeHistory({ history }: { history: NodeHistorySource }) {
-  const [list, setList] = useState<readonly NodeHistoryEntry[] | null>(null);
+  const source = useMemo<HistorySource>(
+    () => ({
+      subscribe: history.subscribe,
+      entries: async (options) =>
+        (
+          await history.entries({
+            beforeSequence: options?.before ? Number(options.before) : undefined,
+            limit: options?.limit,
+          })
+        ).map((entry) => ({
+          ...nodeHistoryEntry(
+            entry,
+            history.undo && history.canUndo?.(entry) ? () => history.undo!(entry) : undefined,
+          ),
+          key: String(entry.transaction.sequence),
+        })),
+    }),
+    [history],
+  );
+  return <HistoryList history={source} />;
+}
+
+export function HistoryList({ history }: { history: HistorySource }) {
+  const [list, setList] = useState<readonly HistoryEntry[] | null>(null);
   const [more, setMore] = useState(false);
   const [open, setOpen] = useState<ReadonlySet<string>>(new Set());
   const [error, setError] = useState('');
-  const [confirm, setConfirm] = useState<NodeHistoryEntry | null>(null);
+  const [confirm, setConfirm] = useState<HistoryEntry | null>(null);
   const [busy, setBusy] = useState(false);
-  const oldest = useRef<number | undefined>(undefined);
+  const oldest = useRef<string | undefined>(undefined);
   const generation = useRef(0);
   const [loading, setLoading] = useState(false);
   const reload = useCallback(async () => {
     const request = ++generation.current;
     setLoading(true);
     try {
-      const all: NodeHistoryEntry[] = [];
-      let beforeSequence: number | undefined;
-      let page: readonly NodeHistoryEntry[];
+      const all: HistoryEntry[] = [];
+      let before: string | undefined;
+      let page: readonly HistoryEntry[];
       do {
         // biome-ignore lint/performance/noAwaitInLoops: each cursor depends on the preceding page.
-        page = await history.entries({ beforeSequence, limit: PAGE });
+        page = await history.entries({ before, limit: PAGE });
         if (request !== generation.current) return;
         all.push(...page);
-        beforeSequence = page.at(-1)?.transaction.sequence;
+        before = page.at(-1)?.key;
       } while (
         page.length === PAGE &&
-        beforeSequence !== undefined &&
+        before !== undefined &&
         oldest.current !== undefined &&
-        beforeSequence > oldest.current
+        !all.some((entry) => entry.key === oldest.current)
       );
-      oldest.current = all.at(-1)?.transaction.sequence;
+      oldest.current = all.at(-1)?.key;
       setList(all);
       setMore(page.length === PAGE);
       setError('');
@@ -110,11 +106,11 @@ export function NodeHistory({ history }: { history: NodeHistorySource }) {
     setLoading(true);
     try {
       const entries = await history.entries({
-        beforeSequence: last.transaction.sequence,
+        before: last.key,
         limit: PAGE,
       });
       if (request !== generation.current) return;
-      oldest.current = entries.at(-1)?.transaction.sequence ?? last.transaction.sequence;
+      oldest.current = entries.at(-1)?.key ?? last.key;
       setList((current) => [...(current ?? []), ...entries]);
       setMore(entries.length === PAGE);
       setError('');
@@ -125,11 +121,11 @@ export function NodeHistory({ history }: { history: NodeHistorySource }) {
     }
   };
   const undo = async () => {
-    if (!(confirm && history.undo) || busy) return;
+    if (!confirm?.undo || busy) return;
     setBusy(true);
     setError('');
     try {
-      await history.undo(confirm);
+      await confirm.undo();
       setConfirm(null);
       await reload();
     } catch (e) {
@@ -152,18 +148,18 @@ export function NodeHistory({ history }: { history: NodeHistorySource }) {
       ) : (
         <Stack gap="xl">
           {list.map((entry) => (
-            <TransactionItem
-              key={entry.transaction.id}
+            <HistoryTransactionItem
+              key={entry.key}
               entry={entry}
-              expanded={open.has(entry.transaction.id)}
+              expanded={open.has(entry.key)}
               onExpand={() =>
                 setOpen((current) => {
                   const next = new Set(current);
-                  if (!next.delete(entry.transaction.id)) next.add(entry.transaction.id);
+                  if (!next.delete(entry.key)) next.add(entry.key);
                   return next;
                 })
               }
-              canUndo={!!history.undo && !!history.canUndo?.(entry)}
+              canUndo={!!entry.undo}
               onUndo={() => setConfirm(entry)}
             />
           ))}
@@ -181,7 +177,7 @@ export function NodeHistory({ history }: { history: NodeHistorySource }) {
         onClose={() => {
           if (!busy) setConfirm(null);
         }}
-        title={`Undo “${confirm?.transaction.message?.split('\n')[0] ?? ''}”?`}
+        title={`Undo “${confirm?.title ?? ''}”?`}
         description="This records a new change that restores the previous versions."
       >
         <Row justify="end">
@@ -211,18 +207,39 @@ export function TransactionItem({
   canUndo: boolean;
   onUndo: () => void;
 }) {
-  const { transaction } = entry;
-  const title =
-    transaction.message?.split('\n')[0] || `${transaction.kind.scope}.${transaction.kind.action}`;
+  return (
+    <HistoryTransactionItem
+      entry={nodeHistoryEntry(entry)}
+      expanded={expanded}
+      onExpand={onExpand}
+      canUndo={canUndo}
+      onUndo={onUndo}
+    />
+  );
+}
+
+function HistoryTransactionItem({
+  entry,
+  expanded,
+  onExpand,
+  canUndo,
+  onUndo,
+}: {
+  entry: HistoryEntry;
+  expanded: boolean;
+  onExpand: () => void;
+  canUndo: boolean;
+  onUndo: () => void;
+}) {
   return (
     <ExpandableRow
-      key={transaction.id}
-      title={title}
+      title={entry.title}
       metadata={
         <Text size="xs" tone="muted">
-          {when(transaction.recordedAt)} · {labelOf(entry.author)} ·{' '}
+          {when(entry.recordedAt)}
+          {entry.author ? ` · ${entry.author}` : ''} ·{' '}
           <Text as="span" size="xs" tone="muted" mono={true}>
-            #{transaction.sequence}
+            #{entry.sequence}
           </Text>
         </Text>
       }
@@ -232,7 +249,7 @@ export function TransactionItem({
         canUndo ? (
           <RowAction
             label="Revert"
-            accessibleLabel={`Undo transaction #${transaction.sequence}`}
+            accessibleLabel={`Undo transaction #${entry.sequence}`}
             icon="undo"
             onClick={onUndo}
           />
@@ -241,15 +258,13 @@ export function TransactionItem({
     >
       {expanded && (
         <Stack gap="xs">
-          {transaction.message?.includes('\n') && (
-            <Text tone="muted">{transaction.message.split('\n').slice(1).join('\n').trim()}</Text>
-          )}
-          {!!entry.origin && <Text tone="subtle">From {labelOf(entry.origin)}</Text>}
-          {entry.differences.slice(0, SHOWN).map((difference) => (
-            <Text key={difference.node}>{describe(difference)}</Text>
+          {!!entry.origin && <Text tone="subtle">From {entry.origin}</Text>}
+          {entry.details.slice(0, SHOWN).map((detail, index) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: positions belong to this immutable accepted transaction.
+            <Text key={`${index}:${detail}`}>{detail}</Text>
           ))}
-          {entry.differences.length > SHOWN && (
-            <Text tone="subtle">and {entry.differences.length - SHOWN} more changes</Text>
+          {entry.details.length > SHOWN && (
+            <Text tone="subtle">and {entry.details.length - SHOWN} more changes</Text>
           )}
         </Stack>
       )}

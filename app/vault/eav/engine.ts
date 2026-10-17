@@ -534,6 +534,29 @@ export async function openDatabase<const R extends Registry>(
     },
     transaction,
     history: Object.freeze({
+      // biome-ignore lint/suspicious/useAwait: Validation errors are promise rejections.
+      inspect: async (transaction: unknown, value: unknown) => {
+        ensure();
+        const commit = commitFor(transaction);
+        const identity = identify(storage, value);
+        const entity = Object.values(registry).find(
+          (definition) => definition.name === identity.type,
+        );
+        if (!entity) throw new Error('Entity type is not registered');
+        const snapshot = snapshotAt(storage, commit.sequence);
+        const record = snapshot.get(identity.id);
+        if (!isLive(record)) return;
+        return Object.freeze({
+          type: entity.name,
+          values: project(
+            context(snapshot, commit.sequence),
+            entity,
+            identity.id,
+            record,
+            allFields(entity),
+          ),
+        });
+      },
       transactions: Object.freeze({
         // biome-ignore lint/suspicious/useAwait: Validation errors are promise rejections.
         get: async (value: unknown, options: { readonly select: unknown }) => {

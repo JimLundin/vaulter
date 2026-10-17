@@ -200,3 +200,9 @@ The owner closes persistent storage with `closeStorage(storage)` when its sessio
 `clearStorage(storage)` to remove its rebuildable device cache on sign-out. Closing an individual
 `await using db` handle does not discard shared storage. The production credential getter supplies the
 current token without changing storage identity or retaining credentials in records.
+
+`history.inspect(transaction, entity)` supports generic History tooling: it returns the registered
+entity type and all writable attribute values at that transaction, or `undefined` if the entity
+is absent there. It validates both handles against the database, retains opaque identity and resolves
+references in that snapshot. Later edits or deletion cannot change this historical projection.
+See the [target application model](../../../docs/data-model.md) for adoption status.
