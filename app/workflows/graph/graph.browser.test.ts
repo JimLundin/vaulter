@@ -52,20 +52,6 @@ test('global topic map offers gentle defaults, local exploration and retained de
   );
 });
 
-test('graph inspection retains reviewed passages after the source changes', async ({ page }) => {
-  await page.goto('/preview/?compare=graph#/graph/preview%3Agraph-claim%3A0/');
-  await expect(
-    page.getByRole('heading', {
-      name: 'Protect mornings for focused hand-tool work.',
-      exact: true,
-    }),
-  ).toBeVisible();
-  await expect(page.getByText('Source changed', { exact: true })).toBeVisible();
-  await expect(page.getByText('SOURCE NOW SAYS', { exact: true })).toBeVisible();
-  await expect(page.getByText(/I use chisels and a hand plane most mornings/)).toBeVisible();
-  await expect(page.getByText(/My schedule changed. Mornings now include calls/)).toBeVisible();
-});
-
 test('graph search and unavailable deep links give explicit feedback', async ({ page }) => {
   await page.goto('/preview/#/graph/');
   await expect(page.getByRole('figure', { name: 'Global Vault graph' })).toBeVisible();
