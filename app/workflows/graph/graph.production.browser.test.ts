@@ -1,3 +1,7 @@
+import { openDatabase, createPersistentStorage, type Journal } from '@/vault/eav/index.ts';
+import { applicationSchema } from '@/application/composition.ts';
+import { wikiActions } from '@/workflows/wiki/data/operations.ts';
+import { topicActions } from './data/topics.ts';
 import { expect, test } from '@playwright/test';
 import { navigateToModule } from '../../ui/kit/navigation.browser.test-support.ts';
 import { fakeGitHub } from '../../vault/storage/github-client/fake-github.ts';
@@ -29,7 +33,56 @@ test('production Graph reads persisted relationships, navigates subjects and sur
   ]);
   const transaction = await nodes.commit(input);
   const record = accept([], input, await digest(canonical(input)), transaction.recordedAt);
+  let journal: Journal = { schemas: [], commits: [] };
+  const scope = JSON.stringify([
+    'https://api.github.com',
+    'JimLundin',
+    'vault',
+    'main',
+    '.vaulter/eav/transactions/',
+  ]);
+  await using db = await openDatabase({
+    schema: applicationSchema,
+    storage: createPersistentStorage({
+      scope,
+      load: async () => journal,
+      append: async (publication) => {
+        journal = structuredClone({
+          schemas: publication.schemas,
+          commits: [...journal.commits, publication.commit],
+        });
+      },
+    }),
+  });
+  const author = await db.transaction((tx) =>
+    tx.entities.actors.insert({ name: 'Editor', kind: 'user' }),
+  );
+  const wiki = wikiActions(db, author);
+  const morning = await wiki.createPage({ key: 'mornings', title: 'Slow mornings', summary: '' });
+  const snapshot = (await db.history.transactions.first({
+    select: {},
+    orderBy: [{ sequence: 'desc' }],
+  }))!;
+  await topicActions(db, { author }).promote({
+    key: 'mornings',
+    subject: await db.history.reference(snapshot, morning),
+    title: 'Slow mornings',
+    rationale: 'A recurring area of inquiry.',
+  });
+  const files = Object.fromEntries(
+    journal.commits.map((commit, index) => [
+      `.vaulter/eav/transactions/${commit.id}.json`,
+      JSON.stringify({
+        base: journal.commits[index - 1]?.id ?? null,
+        format: 1,
+        scope,
+        schemas: journal.schemas.slice(0, commit.schemaRevision),
+        commit,
+      }),
+    ]),
+  );
   const fake = await fakeGitHub({
+    ...files,
     '.vaulter/nodes/v1/transactions/graph-fixture.json': JSON.stringify(record),
   });
   const password = 'fictional-production-password';
@@ -61,7 +114,13 @@ test('production Graph reads persisted relationships, navigates subjects and sur
     await page.getByRole('button', { name: 'Open vault', exact: true }).click();
   }
   await expect(page.getByRole('heading', { name: 'Slow mornings', exact: true })).toBeVisible();
-  await page.getByRole('link', { name: 'Open source', exact: true }).click();
+  await expect(page.getByRole('link', { name: 'Open source', exact: true })).toHaveAttribute(
+    'href',
+    '#/wiki/mornings/',
+  );
+  await page.evaluate(() => {
+    location.hash = '#/wiki/mornings/';
+  });
   await expect(page.getByRole('heading', { name: 'Slow mornings', exact: true })).toBeVisible();
   nodes.close();
 });

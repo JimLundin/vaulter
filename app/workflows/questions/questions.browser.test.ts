@@ -90,7 +90,7 @@ test('Questions dictates into the compact draft and saves only when explicitly r
   await entry.getByRole('button', { name: 'Start voice interaction', exact: true }).click();
   await expect(answer).toHaveAttribute('readonly');
   // Deliver every scripted word through the actual interval without waiting for demo pacing.
-  await page.clock.runFor(5_040);
+  await page.clock.runFor(5040);
   const dictated =
     'Keep the workbench clear. Leave space for a walk before work, and keep an afternoon free for the garden studio.';
   await expect(answer).toHaveValue(dictated, { timeout: 15_000 });
@@ -139,7 +139,7 @@ async function askQuestion(page: Page, text: string) {
   return { question, publication, receipt };
 }
 
-test('agent questions can be answered in Questions and remain on their Wiki page after reload', {
+test('agent questions can be answered in Questions and retain their answer after reload', {
   tag: '@phone',
 }, async ({ page }) => {
   await page.goto('/preview/');
@@ -180,18 +180,9 @@ test('agent questions can be answered in Questions and remain on their Wiki page
     'Use the garden wall.',
   );
   expect(await journal(page)).toEqual(accepted);
-  await page.evaluate(() => {
-    location.hash = '#/wiki/preview:page:0/';
-  });
-  await expect(page.getByRole('heading', { name: 'Garden studio', exact: true })).toBeVisible();
-  await expect(
-    page
-      .getByRole('region', { name: 'Answered', exact: true })
-      .filter({ hasText: 'Where should the bench go?' }),
-  ).toContainText('Use the garden wall.');
 });
 
-test('suggestion lists preserve edited drafts, inline context and shared card typography in Wiki', {
+test('suggestion lists preserve edited drafts, inline context and card typography across navigation', {
   tag: '@phone',
 }, async ({ page }) => {
   await page.goto('/preview/#/questions/');
@@ -236,9 +227,12 @@ test('suggestion lists preserve edited drafts, inline context and shared card ty
     });
   const collectionStyle = await typography();
   await page.evaluate(() => {
-    location.hash = '#/wiki/preview:page:0/';
+    location.hash = '#/chat/';
   });
-  await expect(page.getByRole('heading', { name: 'Garden studio', exact: true })).toBeVisible();
+  await expect(answer).toHaveCount(0);
+  await page.evaluate(() => {
+    location.hash = '#/questions/';
+  });
   await expect(answer).toBeVisible();
   expect(await typography()).toEqual(collectionStyle);
   await expect(record).toContainText('I use chisels and a hand plane most mornings.');
@@ -255,11 +249,11 @@ test('suggestion lists preserve edited drafts, inline context and shared card ty
   expect(await journal(page)).toEqual(initial);
 });
 
-test('Wiki answers update Questions filters and search without creating a second question', {
+test('Answers update Questions filters and search without creating a second question', {
   tag: '@phone',
 }, async ({ page }) => {
   const compact = test.info().project.name === 'phone';
-  await page.goto('/preview/#/wiki/preview:page:0/');
+  await page.goto('/preview/#/questions/');
   const record = page
     .getByRole('region', { name: /^(Open question|Answered)$/ })
     .filter({ hasText: 'Which tools should stay?' });
@@ -268,7 +262,6 @@ test('Wiki answers update Questions filters and search without creating a second
     .getByRole('textbox', { name: 'Your answer', exact: true })
     .fill('Keep the chisels and hand plane.');
   await record.getByRole('button', { name: 'Save answer', exact: true }).click();
-  await expect(record).toHaveAttribute('aria-label', 'Answered');
   await page.evaluate(() => {
     location.hash = '#/questions/';
   });

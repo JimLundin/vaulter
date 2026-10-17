@@ -7,7 +7,7 @@ import { canonical, digest } from '../../vault/nodes/json.ts';
 import { parseRecord } from '../../vault/nodes/validation.ts';
 import { seal } from '../../vault/session/sealed.ts';
 
-test('production shares suggestion lists and inline context in Questions and Wiki and persists an explicit answer', async ({
+test('production shares suggestion lists and inline context in Questions and persists an explicit answer', async ({
   page,
 }) => {
   const transaction = 'questions-fixture';
@@ -188,15 +188,6 @@ test('production shares suggestion lists and inline context in Questions and Wik
   expect(fake.state.calls.filter((call) => call.startsWith('PATCH '))).toHaveLength(
     writesBeforeChoosing,
   );
-  await page.evaluate(() => {
-    location.hash = '#/wiki/studio/';
-  });
-  await expect(answer).toBeEnabled();
-  const wiki = await presentation();
-  expect(wiki.heading).toEqual(collection.heading);
-  expect(wiki.padding).toBe(collection.padding);
-  expect(wiki.editorHeight).toBe(44);
-  await expect(card).toContainText('I use the hand plane every morning');
   await answer.fill('Use a mobile tool cart and leave the bench clear.');
   const writesBeforeSubmit = fake.state.calls.filter((call) => call.startsWith('PATCH ')).length;
   await answer.press('End');
@@ -207,6 +198,11 @@ test('production shares suggestion lists and inline context in Questions and Wik
   );
   await answer.press('Enter');
   const answered = page.getByRole('region', { name: 'Answered', exact: true });
+  if (compact) {
+    await page.getByRole('button', { name: 'Filters', exact: true }).click();
+    await page.getByRole('menuitemradio', { name: 'Answered', exact: true }).click();
+  } else
+    await page.getByRole('main').getByRole('button', { name: 'Answered', exact: true }).click();
   await expect(answered).toContainText('Use a mobile tool cart and leave the bench clear.');
   const saved = Object.entries(fake.filesAt())
     .filter(([path]) => path.startsWith('.vaulter/nodes/v1/transactions/'))
@@ -225,7 +221,7 @@ test('production shares suggestion lists and inline context in Questions and Wik
     target: { node: recordedAnswer?.key.node, transaction: saved?.transaction.id },
   });
   await page.reload();
-  await expect(answered).toContainText('Use a mobile tool cart and leave the bench clear.');
+  await expect(page.getByRole('heading', { name: 'Questions', exact: true })).toBeVisible();
   await page.evaluate(() => {
     location.hash = '#/questions/';
   });

@@ -1,3 +1,6 @@
+import { openDatabase, createPersistentStorage, type Journal } from '@/vault/eav/index.ts';
+import { applicationSchema } from './composition.ts';
+import { wikiActions } from '@/workflows/wiki/data/operations.ts';
 import { expect, test } from '@playwright/test';
 import { navigateToModule } from '../ui/kit/navigation.browser.test-support.ts';
 import { fakeGitHub } from '../vault/storage/github-client/fake-github.ts';
@@ -25,30 +28,6 @@ test('production opens real Wiki pages and exact evidence alongside persistent C
   const passageStart = sourceText.indexOf('I want');
   const input = request('wiki-fixture', [
     create('user', { kind: 'actor', name: 'Fictional owner' }),
-    create('studio', { kind: 'page', title: 'Garden studio', summary: 'Space for making things.' }),
-    create('paragraph', { kind: 'paragraph' }, 'studio'),
-    {
-      ...create('sentence', { kind: 'run', text: 'Keep the ' }, 'paragraph'),
-      placement: { parent: 'paragraph', order: 'a' },
-    },
-    {
-      ...create('sentence-bold', { kind: 'run', text: 'mornings', marks: ['strong'] }, 'paragraph'),
-      placement: { parent: 'paragraph', order: 'b' },
-    },
-    {
-      ...create(
-        'sentence-end',
-        { kind: 'run', text: ' free. Afternoons are flexible.' },
-        'paragraph',
-      ),
-      placement: { parent: 'paragraph', order: 'c' },
-    },
-    create('tag', { kind: 'term', scheme: 'tag', key: 'creative', label: 'Creative work' }),
-    {
-      ...create('tag-link', { kind: 'relationship', predicate: 'tag' }, 'studio'),
-      connection: { source: { node: 'studio' }, target: { node: 'tag' } },
-    },
-    create('source-paragraph', { kind: 'paragraph' }, 'studio'),
     create('chat', {
       kind: 'conversation',
       title: 'Studio plans',
@@ -65,41 +44,109 @@ test('production opens real Wiki pages and exact evidence alongside persistent C
       },
       'exchange',
     ),
-    {
-      ...create(
-        'citation',
-        {
-          kind: 'cite',
-          unit: 'utf16',
-          claim: { sequence: 1, start: 0, end: 23 },
-          passage: {
-            sequence: 1,
-            start: passageStart,
-            end: passageStart + 'I want quiet mornings in the studio.'.length,
-          },
-        },
-        'paragraph',
-      ),
-      connection: {
-        source: { node: 'paragraph', transaction: 'wiki-fixture' },
-        target: { node: 'source', transaction: 'wiki-fixture' },
-      },
-    },
-    {
-      ...create('page-source', { kind: 'cite', scope: 'page', sequence: 1 }, 'studio'),
-      connection: {
-        source: { node: 'studio', transaction: 'wiki-fixture' },
-        target: { node: 'source', transaction: 'wiki-fixture' },
-      },
-    },
-    {
-      ...create('source-link', { kind: 'link', text: 'Planning conversation' }, 'source-paragraph'),
-      connection: { source: { node: 'source-paragraph' }, target: { node: 'exchange' } },
-    },
   ]);
   const transaction = await nodes.commit(input);
   const record = accept([], input, await digest(canonical(input)), transaction.recordedAt);
+  let journal: Journal = { schemas: [], commits: [] };
+  const scope = JSON.stringify([
+    'https://api.github.com',
+    'JimLundin',
+    'vault',
+    'main',
+    '.vaulter/eav/transactions/',
+  ]);
+  await using db = await openDatabase({
+    schema: applicationSchema,
+    storage: createPersistentStorage({
+      scope,
+      load: async () => journal,
+      append: async (publication) => {
+        journal = structuredClone({
+          schemas: publication.schemas,
+          commits: [...journal.commits, publication.commit],
+        });
+      },
+    }),
+  });
+  const author = await db.transaction((tx) =>
+    tx.entities.actors.insert({ name: 'Fictional owner', kind: 'user' }),
+  );
+  const wiki = wikiActions(db, author);
+  const wikiPage = await wiki.createPage({
+    key: 'studio',
+    title: 'Garden studio',
+    summary: 'Space for making things.',
+  });
+  const paragraph = await wiki.append(
+    'paragraph',
+    { kind: 'paragraph' },
+    { page: wikiPage, order: 'a' },
+  );
+  await wiki.append(
+    'start',
+    { kind: 'text', text: 'Keep the ' },
+    { parent: paragraph, order: 'a' },
+  );
+  await wiki.append(
+    'bold',
+    { kind: 'text', text: 'mornings', marks: ['strong'] },
+    { parent: paragraph, order: 'b' },
+  );
+  await wiki.append(
+    'end',
+    { kind: 'text', text: ' free. Afternoons are flexible.' },
+    { parent: paragraph, order: 'c' },
+  );
+  const source = await db.transaction((tx) =>
+    tx.entities.sourceDocuments.insert({
+      key: 'source',
+      title: 'Studio plans',
+      text: sourceText,
+      origin: '#/chat/chat/',
+      attribution: 'Fictional owner',
+      capturedAt: new Date(),
+      available: true,
+    }),
+  );
+  const snapshot = (await db.history.transactions.first({
+    select: {},
+    orderBy: [{ sequence: 'desc' }],
+  }))!;
+  const address = await db.history.reference(snapshot, source);
+  await wiki.referencePage('source', wikiPage, address);
+  await wiki.review({
+    key: 'review',
+    assertion: {
+      target: await db.history.reference(snapshot, paragraph),
+      format: 'wiki-text-utf16-v1',
+      start: 0,
+      end: 23,
+    },
+    passages: [
+      {
+        target: address,
+        format: 'source-text-utf16-v1',
+        start: passageStart,
+        end: passageStart + 'I want quiet mornings in the studio.'.length,
+      },
+    ],
+    result: 'supported',
+    rationale: 'Retained account supports this clause.',
+  });
+  const files = Object.fromEntries(
+    journal.commits.map((commit, index) => [
+      `.vaulter/eav/transactions/${commit.id}.json`,
+      JSON.stringify({
+        base: journal.commits[index - 1]?.id ?? null,
+        format: 1,
+        scope,
+        schemas: journal.schemas.slice(0, commit.schemaRevision),
+        commit,
+      }),
+    ]),
+  );
   const fake = await fakeGitHub({
+    ...files,
     '.vaulter/nodes/v1/transactions/wiki-fixture.json': JSON.stringify(record),
   });
   const password = 'fictional-production-password';
@@ -188,13 +235,10 @@ test('production opens real Wiki pages and exact evidence alongside persistent C
     .getByRole('heading', { name: 'Garden studio', exact: true })
     .getByRole('button')
     .click();
-  await expect(evidence.getByRole('link', { name: 'Studio plans' })).toHaveCount(2);
+  await expect(evidence.getByRole('link', { name: 'Studio plans' })).toHaveCount(1);
   await expect(evidence.locator('mark')).toHaveCount(0);
   if (test.info().project.name === 'phone')
     await evidence.getByRole('button', { name: 'Close references' }).click();
-  await page.getByRole('button', { name: 'Tag: Creative work', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Pages tagged Creative work' })).toBeVisible();
-  await page.getByRole('link', { name: 'Garden studio', exact: true }).click();
   await page.getByRole('button', { name: 'Wiki', exact: true }).click();
   await expect(page).toHaveURL(/#\/wiki\/$/);
   await page.getByRole('link', { name: 'Garden studio', exact: true }).click();

@@ -10,10 +10,10 @@ import { create, request, revise } from '../vault/nodes/fixtures.test-support.ts
 import type { NodeCommit, NodeStore } from '../vault/nodes/store.ts';
 import type { TransactionStore } from '../vault/transactions/store.ts';
 
-test('Application composes the shared Questions owner for nested Wiki questions and retained answers', async () => {
+test('Application composes the shared Questions owner for retained questions and answers', async () => {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
   localStorage.clear();
-  history.replaceState(null, '', '#/wiki/studio/');
+  history.replaceState(null, '', '#/questions/');
 
   const nodes = memoryNodeBackend();
   await nodes.commit(
@@ -87,6 +87,10 @@ test('Application composes the shared Questions owner for nested Wiki questions 
           },
         ]),
       );
+      const all = [...document.querySelectorAll('button')].find(
+        (button) => button.textContent === 'All',
+      )!;
+      all.click();
       await vi.waitFor(() => expect(document.body.textContent).toContain('Recorded answer'));
     });
     expect(document.body.textContent).not.toContain('Open question');
@@ -110,10 +114,10 @@ test('Application composes the shared Questions owner for nested Wiki questions 
   }
 });
 
-test('Application saves answers from Wiki and Questions and filters the retained shared collection', async () => {
+test('Application saves answers in Questions and filters the retained shared collection', async () => {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
   localStorage.clear();
-  history.replaceState(null, '', '#/wiki/studio/');
+  history.replaceState(null, '', '#/questions/');
 
   const nodes = memoryNodeBackend();
   await nodes.commit(
@@ -218,7 +222,7 @@ test('Application saves answers from Wiki and Questions and filters the retained
         expect(document.body.textContent).toContain('Which wall should hold the bench?'),
       );
     });
-    await saveAnswer('Which wall should hold the bench?', 'Use the garden wall.');
+    await saveAnswer('Which wall should hold the bench?', 'Use the garden wall.', true);
     await navigate('#/questions/');
     await act(async () => {
       await vi.waitFor(() =>
@@ -264,12 +268,6 @@ test('Application saves answers from Wiki and Questions and filters the retained
         ),
       ].sort(),
     ).toEqual(['abandoned-question', 'module-question', 'wiki-question']);
-    await navigate('#/wiki/studio/');
-    await act(async () => {
-      await vi.waitFor(() =>
-        expect(document.body.textContent).toContain('Keep the chisels and hand plane.'),
-      );
-    });
     expect(document.body.textContent).toContain('Use the garden wall.');
   } finally {
     await act(async () => root.unmount());
@@ -286,7 +284,7 @@ async function answerLifetimeFixture(
 ) {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
   localStorage.clear();
-  history.replaceState(null, '', '#/wiki/studio/');
+  history.replaceState(null, '', '#/questions/');
 
   const nodes = memoryNodeBackend();
   await nodes.commit(
@@ -453,7 +451,7 @@ test('credential replacement retains entered Answer permission and moves prewrap
   }
 });
 
-test('Application retains an admitted Wiki answer across Chat navigation and retries its original request in Questions', async () => {
+test('Application retains an admitted answer across Chat navigation and retries its original request in Questions', async () => {
   const fixture = await answerLifetimeFixture();
   const { nodes, button, draft, navigate } = fixture;
   const { commit } = nodes;
