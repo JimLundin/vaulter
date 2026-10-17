@@ -8,6 +8,7 @@ import type { chatSchema } from './schema.ts';
 /** A consistent dialogue read supplies both navigation anchors and context source coverage. */
 export async function dialogue(view: ReadView<typeof chatSchema>) {
   const exchanges = await view.entities.exchanges.query({
+    limit: null, // Checkpoint coverage and dialogue context require the complete retained Conversation.
     select: { position: true, startedAt: true, run: { status: true } },
     orderBy: [{ position: 'asc' }],
   });
@@ -38,6 +39,7 @@ export const coverageFingerprint = (entries: Dialogue) =>
 
 export async function checkpoints(view: ReadView<typeof chatSchema>) {
   return view.entities.contextCheckpoints.query({
+    limit: null, // Checkpoint coverage and dialogue context require the complete retained Conversation.
     select: {
       through: { position: true },
       covered: true,

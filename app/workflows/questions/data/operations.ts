@@ -2,10 +2,12 @@ import { z } from 'zod';
 import {
   sameEntity,
   type HistoricalReference,
+  type EntityRef,
   type TransactionContext,
 } from '@/vault/eav/index.ts';
 import { answerSuggestions } from '@/workflows/questions/records.ts';
-import type { QuestionDatabase } from './schema.ts';
+import type { Actor } from '@/vault/records/actor.ts';
+import type { QuestionRecord, QuestionDatabase } from './schema.ts';
 
 export const historicalAddress = z.strictObject({
   format: z.literal('vaulter-eav-snapshot-v1'),
@@ -39,8 +41,10 @@ export function questionActions(
   const actor = async (kind: 'user' | 'agent') => {
     if (
       !context.author ||
-      (await db.entities.actors.query({ select: { kind: true } })).find((actor) =>
-        sameEntity(actor, context.author),
+      (
+        await db.entities.actors.get(context.author as EntityRef<typeof Actor>, {
+          select: { kind: true },
+        })
       )?.kind !== kind
     )
       throw new Error(
@@ -93,11 +97,11 @@ export function questionActions(
       await actor('user');
       const resolved = await db.history.resolve(address);
       if (address.type !== 'questions.question') throw new Error('Question is unavailable.');
-      const original = (
-        await db.at(resolved.transaction).entities.questions.query({
+      const original = await db
+        .at(resolved.transaction)
+        .entities.questions.get(resolved.entity as EntityRef<typeof QuestionRecord>, {
           select: { text: true, status: true, suggestions: true, available: true },
-        })
-      ).find((question) => sameEntity(question, resolved.entity));
+        });
       return db.transaction(context, async (tx) => {
         check();
         const current =
@@ -135,9 +139,10 @@ export function questionActions(
       if (address.type !== 'questions.question') throw new Error('Question is unavailable.');
       return db.transaction(context, async (tx) => {
         check();
-        const current = (
-          await tx.entities.questions.query({ select: { status: true, available: true } })
-        ).find((question) => sameEntity(question, resolved.entity));
+        const current = await tx.entities.questions.get(
+          resolved.entity as EntityRef<typeof QuestionRecord>,
+          { select: { status: true, available: true } },
+        );
         if (!current?.available || current.status !== 'open')
           throw new Error('Only an open Question can be abandoned.');
         const latest = await db.history.entities.questions.first({

@@ -74,10 +74,12 @@ export async function readExchange(view: Reading, identity: ExchangeRef) {
   });
   if (!exchange) return;
   const messages = await view.entities.messages.query({
+    limit: null, // An Exchange must retain every Message and source contribution.
     where: { exchange: { eq: exchange } },
     select: { author: { name: true }, at: true, text: true, input: true },
   });
   const sources = await view.entities.retainedSources.query({
+    limit: null, // An Exchange must retain every Message and source contribution.
     where: { exchange: { eq: exchange } },
     select: {
       speaker: true,

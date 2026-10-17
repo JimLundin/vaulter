@@ -180,6 +180,7 @@ export async function startToolExecution(
       throw new Error('Tool step belongs to another run');
   }
   const executions = await tx.entities.toolExecutions.query({
+    limit: null, // Canonical run reading and tool admission require the complete ordered activity.
     where: { tool: { matches: { run: { eq: tool.run } } } },
     select: { position: true, call: true, attempt: true, status: true, tool: true },
     orderBy: [{ position: 'desc' }],
@@ -259,16 +260,19 @@ export async function readAgentRun(view: Reading, identity: AgentRunRef) {
   });
   if (!run) return;
   const inputs = await view.entities.contextInputs.query({
+    limit: null, // Canonical run reading and tool admission require the complete ordered activity.
     where: { run: { eq: run } },
     select: { position: true, role: true, transformation: true, content: true },
     orderBy: [{ position: 'asc' }],
   });
   const tools = await view.entities.runTools.query({
+    limit: null, // Canonical run reading and tool admission require the complete ordered activity.
     where: { run: { eq: run } },
     select: { name: true, version: true },
     orderBy: [{ name: 'asc' }],
   });
   const executions = await view.entities.toolExecutions.query({
+    limit: null, // Canonical run reading and tool admission require the complete ordered activity.
     where: { tool: { matches: { run: { eq: run } } } },
     select: {
       tool: { name: true, version: true },
@@ -286,6 +290,7 @@ export async function readAgentRun(view: Reading, identity: AgentRunRef) {
     orderBy: [{ position: 'asc' }],
   });
   const steps = await view.entities.modelSteps.query({
+    limit: null, // Canonical run reading and tool admission require the complete ordered activity.
     where: { run: { eq: run } },
     select: {
       position: true,

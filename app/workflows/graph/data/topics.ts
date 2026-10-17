@@ -23,7 +23,10 @@ export function topicActions(db: TopicDatabase, context: TransactionContext, sig
       await db.history.resolve(input.subject);
       return db.transaction(context, async (tx) => {
         signal?.throwIfAborted();
-        const topics = await tx.entities.topics.query({ select: { subject: true, key: true } });
+        const topics = await tx.entities.topics.query({
+          limit: null, // Topic uniqueness and membership admission must inspect all relevant retained associations.
+          select: { subject: true, key: true },
+        });
         if (
           topics.some(
             (topic) => topic.key === input.key || topic.subject.entity === input.subject.entity,
@@ -51,6 +54,7 @@ export function topicActions(db: TopicDatabase, context: TransactionContext, sig
         });
         if (!topic?.available) throw new Error('Topic is unavailable');
         const memberships = await tx.entities.topicMemberships.query({
+          limit: null, // Topic uniqueness and membership admission must inspect all relevant retained associations.
           select: { topic: true, member: true, primary: true },
         });
         if (
@@ -71,6 +75,7 @@ export function topicActions(db: TopicDatabase, context: TransactionContext, sig
 export async function readTopics(db: TopicDatabase) {
   return (
     await db.entities.topics.query({
+      limit: null, // Topic uniqueness and membership admission must inspect all relevant retained associations.
       where: { available: { eq: true } },
       select: { key: true, title: true, subject: true },
       orderBy: [{ title: 'asc' }],

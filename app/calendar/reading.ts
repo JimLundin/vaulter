@@ -13,6 +13,7 @@ export async function readCalendar(db: CalendarDatabase, snapshot?: TransactionR
 async function readCalendarView(view: CalendarReading) {
   const [events, roles, sources, annualDates] = await Promise.all([
     view.entities.calendarEvents.query({
+      limit: null, // Calendar assembly must join complete roles, sources and annual dates before window filtering.
       select: {
         title: true,
         description: true,
@@ -24,11 +25,16 @@ async function readCalendarView(view: CalendarReading) {
       where: { available: { eq: true } },
     }),
     view.entities.calendarEventRoles.query({
+      limit: null, // Calendar assembly must join complete roles, sources and annual dates before window filtering.
       select: { event: true, subject: true, kind: true, role: true, order: true },
       orderBy: [{ order: 'asc' }],
     }),
-    view.entities.calendarEventSources.query({ select: { event: true, source: true } }),
+    view.entities.calendarEventSources.query({
+      limit: null, // Calendar assembly must join complete roles, sources and annual dates before window filtering.
+      select: { event: true, source: true },
+    }),
     view.entities.calendarAnnualDates.query({
+      limit: null, // Calendar assembly must join complete roles, sources and annual dates before window filtering.
       select: { title: true, month: true, day: true, subject: true, expression: true },
       where: { available: { eq: true } },
     }),

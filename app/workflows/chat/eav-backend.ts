@@ -32,6 +32,7 @@ export function createEavChatBackend(
     const db = await database();
     return db.transaction(async (tx) => {
       const exchanges = await tx.entities.exchanges.query({
+        limit: null, // Transcript restoration must not lose earlier Exchanges.
         select: {},
         orderBy: [{ position: 'asc' }],
       });

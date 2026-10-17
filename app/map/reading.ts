@@ -15,6 +15,7 @@ export async function readCoordinates(db: MapDatabase, query: CoordinateQuery = 
     (await db.history.transactions.first({ select: {}, orderBy: [{ sequence: 'desc' }] }));
   if (!snapshot) return [];
   const records = await db.at(snapshot).entities.mapCoordinates.query({
+    limit: null, // Coordinate subject matching happens after historical identity resolution.
     select: { subject: true, coordinates: true },
     where: { available: { eq: true } },
   });

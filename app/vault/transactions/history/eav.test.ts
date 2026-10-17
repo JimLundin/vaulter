@@ -211,3 +211,29 @@ test('uncertain compensation retries the exact publication without recalculating
   expect((await db.entities.notes.get(note, { select: { title: true } }))!.title).toBe('Before');
   expect(await db.history.transactions.query({ select: {} })).toHaveLength(4);
 });
+
+test('a deletion at the page boundary retains predecessor reference labels', async () => {
+  await using db = await openDatabase({ schema });
+  const actor = await db.transaction((tx) => tx.entities.actors.insert({ name: 'Retained name' }));
+  const note = await db.transaction((tx) =>
+    tx.entities.notes.insert({ title: 'Removed', source: actor }),
+  );
+  await db.transaction((tx) => tx.entities.notes.delete(note));
+  const history = vaultHistory({ database: async () => db });
+  const page = await history.entries({ limit: 1 });
+  expect(page).toHaveLength(1);
+  expect(page[0].details).toContain('source: actor: Retained name → not set');
+  const next = await history.entries({ before: page[0].key, limit: 1 });
+  expect(next.map((entry) => entry.key)).toEqual(['eav:2']);
+  const oldest = await history.entries({ before: next[0].key, limit: 1 });
+  expect(oldest.map((entry) => entry.key)).toEqual(['eav:1']);
+  expect(await history.entries({ before: oldest[0].key, limit: 1 })).toEqual([]);
+});
+
+test('history rejects invalid page sizes and accepts an empty page', async () => {
+  await using db = await openDatabase({ schema });
+  const history = vaultHistory({ database: async () => db });
+  for (const limit of [-1, 1.5, Number.POSITIVE_INFINITY, Number.MAX_SAFE_INTEGER])
+    await expect(history.entries({ limit })).rejects.toThrow('History page limit');
+  expect(await history.entries({ limit: 0 })).toEqual([]);
+});

@@ -88,6 +88,19 @@ const schema = e.registry({
 The inverse can be selected and filtered with `some`. It is read-only; omit derived fields from an
 update patch. The target of an inverse must have a reference back to the declaring type.
 
+Every `query` defaults to `DEFAULT_QUERY_LIMIT` (100 rows), including pending and historical
+entity reads, transaction history, and entity-change history. Pass a nonnegative safe integer to
+choose a page size, or `limit: null` to deliberately request every match. `first` always selects
+at most one row and rejects a caller-supplied limit. `history.changes(transaction)` returns the
+complete transaction receipt. Limits apply to top-level rows; selected sets and inverse relationships
+remain complete so a record's contents are never silently truncated.
+
+Bounded queries retain only their best page of candidates while ordering. Large scans and batches
+of projections yield to the event loop. This bounds result memory and allows input between batches;
+it does not bound scan time, historical reconstruction, or an individual nested projection.
+Use a direct `get` for known identities and filters or pagination for lists. Complete owner reads
+must opt in explicitly and account for their processing cost.
+
 `after: previousResult` provides pagination with implicit identity. A cursor must come from the same
 snapshot; a newer committed transaction invalidates a live-view cursor. Use `db.at(transaction)` for
 a fixed historical view when paginating across concurrent changes. Ordering and filters must remain
@@ -172,7 +185,7 @@ and membership, not nested projections or ordering. Relationships remain typed r
 
 Facts store individual asserted/retracted values, with internal type, existence and empty-set
 presence attributes. Historical views reconstruct them from accepted transactions. First open and
-history reads are not bounded for large datasets. Checkpoints, indexed reads,
+historical snapshot reconstruction can still load or scan the full journal. Checkpoints, indexed reads,
 and incompatible schema migrations need subsequent work.
 
 ## Historical evidence references

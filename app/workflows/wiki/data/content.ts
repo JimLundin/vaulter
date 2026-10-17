@@ -84,8 +84,12 @@ export async function contentText(
   view: ReadView<typeof wikiSchema>,
   root: ContentRef,
 ): Promise<string> {
-  const contents = await view.entities.wikiContent.query({ select: contentSelection });
+  const contents = await view.entities.wikiContent.query({
+    limit: null, // Text projection must preserve complete retained content and UTF-16 positions.
+    select: contentSelection,
+  });
   const placements = await view.entities.wikiAppearances.query({
+    limit: null, // Text projection must preserve complete retained content and UTF-16 positions.
     select: { content: true, parent: true, order: true, key: true, available: true },
     orderBy: [{ order: 'asc' }, { key: 'asc' }],
   });

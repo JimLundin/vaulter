@@ -1,4 +1,5 @@
-import { sameEntity, type DomainDatabase, type HistoricalReference } from '@/vault/eav/index.ts';
+import type { EntityRef, DomainDatabase, HistoricalReference } from '@/vault/eav/index.ts';
+import type { SourceDocument } from '@/vault/sources/schema.ts';
 import { Content, WikiPage, type wikiSchema } from './schema.ts';
 import { contentSelection, projectContentText, selectedText } from './content.ts';
 
@@ -28,8 +29,9 @@ export function documentSources(db: WikiDatabase): SourceReading {
     if (address.type !== 'source.document')
       throw new Error('The selected record is not an eligible source document');
     const past = db.at(resolved.transaction);
-    const original = (
-      await past.entities.sourceDocuments.query({
+    const original = await past.entities.sourceDocuments.get(
+      resolved.entity as EntityRef<typeof SourceDocument>,
+      {
         select: {
           key: true,
           title: true,
@@ -39,8 +41,8 @@ export function documentSources(db: WikiDatabase): SourceReading {
           occurredAt: true,
           available: true,
         },
-      })
-    ).find((item) => sameEntity(item, resolved.entity));
+      },
+    );
     if (!original?.available)
       throw new Error('Source material is unavailable in its selected snapshot');
     const current = await db.entities.sourceDocuments.get(original, {
@@ -74,23 +76,29 @@ export function selectorReader(db: WikiDatabase, sources: SourceReading) {
     if (selection.format === 'wiki-summary-utf16-v1') {
       if (selection.target.type !== WikiPage.name)
         throw new Error('Summary selection requires a Wiki page');
-      const page = (
-        await view.entities.wikiPages.query({ select: { summary: true, available: true } })
-      ).find((item) => sameEntity(item, resolved.entity));
+      const page = await view.entities.wikiPages.get(
+        resolved.entity as EntityRef<typeof WikiPage>,
+        { select: { summary: true, available: true } },
+      );
       if (!page?.available) throw new Error('Selected page is unavailable');
       context = page.summary;
     } else if (selection.format === 'wiki-text-utf16-v1') {
       if (selection.target.type !== Content.name)
         throw new Error('Wiki text selection requires Wiki content');
-      const content = (await view.entities.wikiContent.query({ select: { available: true } })).find(
-        (item) => sameEntity(item, resolved.entity),
+      const content = await view.entities.wikiContent.get(
+        resolved.entity as EntityRef<typeof Content>,
+        { select: { available: true } },
       );
       if (!content?.available) throw new Error('Selected content is unavailable');
       let projection = projections.get(selection.target.transaction);
       if (!projection) {
         projection = Promise.all([
-          view.entities.wikiContent.query({ select: contentSelection }),
+          view.entities.wikiContent.query({
+            limit: null, // Historical selection projection must preserve complete content and appearances.
+            select: contentSelection,
+          }),
           view.entities.wikiAppearances.query({
+            limit: null, // Historical selection projection must preserve complete content and appearances.
             select: { content: true, parent: true, order: true, key: true, available: true },
             orderBy: [{ order: 'asc' }, { key: 'asc' }],
           }),

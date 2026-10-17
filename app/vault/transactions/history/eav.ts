@@ -144,14 +144,34 @@ export function vaultHistory<R extends Registry>(options: {
       };
     },
     async entries({ before, limit = 25 } = {}) {
+      if (!Number.isSafeInteger(limit) || limit < 0 || limit >= Number.MAX_SAFE_INTEGER)
+        throw new Error(
+          'History page limit must be a nonnegative safe integer with room for a predecessor',
+        );
       const db = await options.database();
+      let cutoff: number | undefined;
+      if (before !== undefined) {
+        const match = /^eav:([1-9][0-9]*)$/.exec(before);
+        cutoff = match ? Number(match[1]) : undefined;
+        if (
+          cutoff === undefined ||
+          !Number.isSafeInteger(cutoff) ||
+          !(await db.history.transactions.first({
+            select: {},
+            where: { sequence: { eq: cutoff } },
+          }))
+        )
+          throw new Error('History cursor is unavailable; reload history');
+      }
       const candidates: { key: string; sequence: number; load: () => Promise<HistoryEntry> }[] = [];
       {
         const transactions = await db.history.transactions.query({
           select: { sequence: true, committedAt: true, author: true, origin: true },
-          orderBy: [{ sequence: 'asc' }],
+          ...(cutoff !== undefined ? { where: { sequence: { lt: cutoff } } } : {}),
+          orderBy: [{ sequence: 'desc' }],
+          limit: limit + 1,
         });
-        for (const [index, transaction] of transactions.entries()) {
+        for (const [index, transaction] of transactions.slice(0, limit).entries()) {
           candidates.push({
             key: `eav:${transaction.sequence}`,
             sequence: transaction.sequence,
@@ -167,7 +187,7 @@ export function vaultHistory<R extends Registry>(options: {
               ]);
               const details = await Promise.all(
                 changes.map(async (change) => {
-                  const at = change.after ? transaction : transactions[index - 1];
+                  const at = change.after ? transaction : transactions[index + 1];
                   const record = at ? await db.history.inspect(at, change.entity) : undefined;
                   const type = (record?.type ?? String(change.type))
                     .replaceAll('.', ' ')
@@ -198,7 +218,7 @@ export function vaultHistory<R extends Registry>(options: {
                       return [
                         (async () => {
                           const [from, to] = await Promise.all([
-                            valueText(db, transactions[index - 1], previous),
+                            valueText(db, transactions[index + 1], previous),
                             valueText(db, transaction, next),
                           ]);
                           return {
@@ -250,14 +270,7 @@ export function vaultHistory<R extends Registry>(options: {
         }
       }
       // Reconstruct before/after evidence only for the requested page.
-      candidates.sort((a, b) => b.sequence - a.sequence);
-      const cursor =
-        before === undefined ? -1 : candidates.findIndex((entry) => entry.key === before);
-      if (before !== undefined && cursor === -1)
-        throw new Error('History cursor is unavailable; reload history');
-      return Promise.all(
-        candidates.slice(cursor + 1, cursor + 1 + limit).map((entry) => entry.load()),
-      );
+      return Promise.all(candidates.map((entry) => entry.load()));
     },
   };
 }
