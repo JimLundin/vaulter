@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import {
   Button,
   FeaturePage,
@@ -23,12 +23,14 @@ export function Wiki({
   error,
   onNavigate = go,
   renderRecord,
+  renderTimeline,
 }: {
   pages: WikiPage[] | null;
   node?: string;
   error?: string;
   onNavigate?: (path: string) => void;
   renderRecord?: ForeignRecordRenderer;
+  renderTimeline?: (page: WikiPage) => ReactNode;
 }) {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<WikiClassification>();
@@ -68,6 +70,7 @@ export function Wiki({
         onBack={() => onNavigate(wikiRoute.href())}
         onFilter={filterTag}
         renderRecord={renderRecord}
+        timeline={renderTimeline?.(page)}
       />
     );
   const matching = pages.filter(

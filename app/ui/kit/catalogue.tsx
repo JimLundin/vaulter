@@ -53,6 +53,9 @@ function Buttons() {
     <K.Stack gap="lg">
       <K.Row wrap={true}>
         <K.Button onClick={() => setCount(count + 1)}>Save note</K.Button>
+        <K.Button compactIcon="plus" aria-label="Add event" title="Add event">
+          Add event
+        </K.Button>
         <K.Button variant="outline">Cancel</K.Button>
         <K.Button variant="ghost">More</K.Button>
         <K.Link href="#typography">Open note</K.Link>
@@ -1720,7 +1723,53 @@ function BoundedPresentation() {
   );
 }
 
+function Chronology() {
+  const [selected, setSelected] = useState<string>();
+  return (
+    <K.Stack gap="xl">
+      <K.MonthCalendar
+        label="October 2026"
+        offset={3}
+        selected={selected}
+        onSelect={setSelected}
+        days={Array.from({ length: 31 }, (_, index) => ({
+          date: `2026-10-${String(index + 1).padStart(2, '0')}`,
+          label: `${index + 1} October 2026`,
+          number: index + 1,
+          items: index === 16 ? [{ id: 'walk', title: 'A walk in the garden' }] : [],
+        }))}
+      />
+      <K.Timeline
+        label="A little history"
+        items={[
+          {
+            id: 'first',
+            date: 'Around June 2026',
+            title: 'The first idea',
+            metadata: 'Approximate',
+            description: 'A place for making things.',
+          },
+          {
+            id: 'second',
+            date: '17 October 2026',
+            title: 'A walk in the garden',
+            metadata: 'Planned',
+            details: 'Bring a notebook.',
+          },
+        ]}
+      />
+    </K.Stack>
+  );
+}
+
 export const catalogue: Specimen[] = [
+  {
+    id: 'chronology',
+    title: 'Calendar & timeline',
+    description: 'Controlled month selection and an embeddable chronology.',
+    components: ['MonthCalendar', 'Timeline'],
+    Sample: Chronology,
+  },
   {
     id: 'text-box',
     title: 'Text box',

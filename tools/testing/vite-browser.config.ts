@@ -30,6 +30,7 @@ export default defineConfig({
         'preview/wiki.html',
         'preview/records.html',
         'preview/search.html',
+        'preview/calendar.html',
         'ui/kit/index.html',
         'ui/kit/tests/browser.html',
         'ui/kit/tests/controls.html',

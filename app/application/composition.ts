@@ -1,5 +1,14 @@
 import { vaultHistory } from '@/vault/transactions/history/eav.ts';
 import { openDatabase, type MemoryStorage } from '@/vault/eav/index.ts';
+import {
+  calendarEntities,
+  createEvent,
+  reviseEvent,
+  removeEvent,
+  type CalendarActions,
+  type CalendarData,
+} from '@/calendar/index.ts';
+import { sameEntity } from '@/vault/eav/index.ts';
 import { wikiTools, wikiCapabilities } from '@/workflows/wiki/data/tools.ts';
 import { wikiEntities } from '@/workflows/wiki/data/schema.ts';
 import { sourceEntities } from '@/vault/sources/schema.ts';
@@ -220,6 +229,7 @@ export const applicationSchema = e.registry({
   ...sourceEntities,
   ...evidenceEntities,
   ...topicEntities,
+  ...calendarEntities,
 });
 const applicationDatabases = new WeakMap<
   MemoryStorage,
@@ -240,6 +250,72 @@ export function applicationWiki(storage: MemoryStorage) {
   return {
     database: () => applicationDatabase(storage),
     topics: () => applicationDatabase(storage).then(readTopics),
+  };
+}
+export function applicationCalendar(
+  storage: MemoryStorage,
+  identities: ApplicationIdentities = defaultIdentities,
+) {
+  const author = async () => {
+    const db = await applicationDatabase(storage);
+    return db.transaction(async (tx) => {
+      const binding = await tx.entities.actorBindings.first({
+        where: { key: { eq: identities.user } },
+        select: { actor: { kind: true } },
+      });
+      if (binding) {
+        if (binding.actor.kind !== 'user')
+          throw new Error('Configured Calendar author must be a user.');
+        return binding.actor;
+      }
+      const actor = await tx.entities.actors.insert({ name: 'Vault owner', kind: 'user' });
+      await tx.entities.actorBindings.insert({ key: identities.user, actor });
+      return actor;
+    });
+  };
+  const actions: CalendarActions = {
+    create: async (input) => {
+      const db = await applicationDatabase(storage);
+      await createEvent(db, input, { author: await author() });
+    },
+    revise: async (event, input) => {
+      await reviseEvent(await applicationDatabase(storage), event, input, {
+        author: await author(),
+      });
+    },
+    remove: async (event) => {
+      await removeEvent(await applicationDatabase(storage), event, { author: await author() });
+    },
+  };
+  return { database: () => applicationDatabase(storage), actions };
+}
+
+/** Match the original subject identity, independently of the snapshot retained by Calendar. */
+export async function applicationSubjectCalendar(
+  storage: MemoryStorage,
+  key: string,
+  data: CalendarData,
+): Promise<CalendarData> {
+  const db = await applicationDatabase(storage);
+  const page = await db.entities.wikiPages.first({ where: { key: { eq: key } }, select: {} });
+  if (!page) return { events: [], annualDates: [] };
+  const matches = async (address: import('@/vault/eav/index.ts').HistoricalReference) =>
+    sameEntity((await db.history.resolve(address)).entity, page);
+  const events = await Promise.all(
+    data.events.map(async (event) =>
+      (await Promise.all(event.roles.map((role) => matches(role.subject)))).some(Boolean)
+        ? event
+        : undefined,
+    ),
+  );
+  const dates = await Promise.all(
+    data.annualDates.map(async (date) =>
+      date.subject && (await matches(date.subject)) ? date : undefined,
+    ),
+  );
+  return {
+    events: events.filter((event) => event !== undefined),
+    annualDates: dates.filter((date) => date !== undefined),
   };
 }
 const eavChatFactories = new WeakMap<MemoryStorage, ChatBackendFactory>();

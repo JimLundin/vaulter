@@ -18,6 +18,7 @@ import { previewEav, previewEavKey } from './eav.ts';
 import type { NodeChange } from '@/vault/nodes/store.ts';
 import type { NodeStore } from '@/vault/nodes/store.ts';
 import { seedEavWiki } from './wiki-records.ts';
+import { seedCalendar } from './calendar-records.ts';
 import { seedPreviewRecords } from './records.ts';
 
 const query = new URLSearchParams(location.search);
@@ -43,6 +44,7 @@ const openingNodes = previewNodes(sessionStorage, query.get('scenario') ?? undef
   async (nodes) => {
     await seedPreviewRecords(nodes);
     await seedEavWiki(await applicationWiki(eav).database());
+    await seedCalendar(eav);
     if (query.get('compare') === 'graph') {
       await seedGraphEvidence(nodes);
       await seedGraphDensity(nodes);
@@ -194,8 +196,9 @@ function Preview({ nodes }: { nodes: NodeStore }) {
       }}
     />
   );
-  return (
+  const frame = (content: React.ReactNode, variantControls?: React.ReactNode) => (
     <DesignPreview
+      variantControls={variantControls}
       label={`${agent ? 'Live agent preview' : 'Design preview'} · ${(import.meta.env.VITE_PREVIEW_COMMIT || 'local').slice(0, 7)}`}
       chat={agent ? 'Live agent' : 'Scripted chat'}
       onReset={() => {
@@ -215,10 +218,11 @@ function Preview({ nodes }: { nodes: NodeStore }) {
           </Stack>
         </Gate>
       ) : (
-        product()
+        content
       )}
     </DesignPreview>
   );
+  return frame(product());
 }
 
 startTheme();

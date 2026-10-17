@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import {
   Button,
   Chip,
@@ -28,11 +28,13 @@ export function WikiPageView({
   onBack,
   onFilter,
   renderRecord,
+  timeline,
 }: {
   page: WikiPage;
   onBack: () => void;
   onFilter: (term: WikiClassification) => void;
   renderRecord?: ForeignRecordRenderer;
+  timeline?: ReactNode;
 }) {
   const [selected, setSelected] = useState<WikiBlock>();
   const [referencesOpen, setReferencesOpen] = useState(false);
@@ -127,6 +129,7 @@ export function WikiPageView({
                 )}
               </Stack>
               {blocks(body)}
+              {timeline}
               {!!connections.length && (
                 <Surface variant="grouped" as="section">
                   <Heading>Connections</Heading>
