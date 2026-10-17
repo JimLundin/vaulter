@@ -9,6 +9,18 @@ One supporting-pane policy owns geometry and interaction across those clients.
 The [public interface](index.ts) defines the kit's exports; catalogue and composition checks
 verify their examples and implementation ownership.
 
+`Timeline` presents caller-ordered entries with supplied date labels, metadata, descriptions and
+optional native disclosure details. It can sit inside another page without owning navigation or
+scrolling. `MonthCalendar` presents caller-supplied civil days, weekday offset, entry markers and
+controlled selection. It owns responsive cell geometry and accessible button names; callers own
+date calculations and record meaning. Both have paired examples in the Calendar & timeline family.
+`MonthCalendar fit` fills a bounded flex container with equal week rows, so the full month stays
+visible as the viewport height changes. Day targets retain a 44px minimum; supporting detail
+belongs in an independently scrolling pane.
+`PageControls.bottomActions` supplies horizontal navigation to a compact bottom edge rail.
+The workspace reserves its height and leaves the Modules anchor at the lower right. Ordinary
+`actions` remain on the side rail; callers supply an expanded desktop presentation separately.
+
 `NetworkDiagram` presents caller-supplied node labels and directed edges in a bounded neighborhood.
 Its optional `map` layout computes spring-and-repulsion geometry from supplied edges, scales node
 diameters by supplied connection counts, and supports population colors, selection and node dragging,
@@ -166,6 +178,8 @@ and grows with the draft. The catalogue demonstrates these presentations.
 Button has four styles: `filled` for primary create/submit actions, `outline` for secondary actions,
 `ghost` for quiet controls and `destructive` for destructive actions. Its two sizes are `standard`
 (44px) and `compact` (32px); `iconOnly` makes either size square without changing its corners.
+`compactIcon` replaces a text label with an icon on compact layouts, including page actions in
+the mobile rail. Supply `aria-label` and `title` to retain the action's name.
 Touch controls retain a minimum 44px target. `InputGroupButton` uses these same sizes, defaulting to
 compact ghost, and only removes the shadow for its inset placement. The same action retains its
 role across devices. Navigation uses `Link` rather than a link-colored Button.

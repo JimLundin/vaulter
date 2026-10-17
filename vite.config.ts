@@ -55,6 +55,7 @@ const entries = (design: boolean): Record<string, string> =>
         wiki: fileURLToPath(new URL('app/preview/wiki.html', import.meta.url)),
         records: fileURLToPath(new URL('app/preview/records.html', import.meta.url)),
         search: fileURLToPath(new URL('app/preview/search.html', import.meta.url)),
+        calendar: fileURLToPath(new URL('app/preview/calendar.html', import.meta.url)),
       }
     : {
         index: fileURLToPath(new URL('app/index.html', import.meta.url)),

@@ -120,6 +120,7 @@ export function importProblem(from: string, to: string): string | null {
       [
         'app/preview/wiki-example.tsx',
         'app/preview/wiki-records.ts',
+        'app/preview/calendar.tsx',
         'app/preview/records.test.ts',
       ].includes(from)
     ) &&

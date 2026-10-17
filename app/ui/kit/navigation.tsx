@@ -172,7 +172,18 @@ export function NavigationSuite({
             </SidebarFooter>
           </Sidebar>
         )}
-        <WorkspaceFrame bar={null} pageControlsClearance={clearance}>
+        <WorkspaceFrame
+          bar={
+            pageControls.bottomActions ? (
+              <div className="kit-bottom-rail-space">
+                <div role="toolbar" aria-label="Page navigation" className="kit-bottom-rail">
+                  {pageControls.bottomActions}
+                </div>
+              </div>
+            ) : null
+          }
+          pageControlsClearance={clearance}
+        >
           {children}
         </WorkspaceFrame>
         {aside}
