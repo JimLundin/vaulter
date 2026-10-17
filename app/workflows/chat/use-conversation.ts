@@ -45,7 +45,10 @@ export function useConversation(options: ConversationOptions) {
       (!conversation.snapshot().reading.error || previous.availability === options.availability)
     )
       return;
-    restoration.current.requested = { availability: options.availability, backend: options.backend };
+    restoration.current.requested = {
+      availability: options.availability,
+      backend: options.backend,
+    };
     later(
       (restoring ? conversation.restore() : conversation.reload()).then((outcome) => {
         if (!conversation.closed() && outcome.status !== 'superseded')

@@ -123,6 +123,35 @@ test('requested history waits for the initial database read without showing a fa
   }
 });
 
+test('same-session backend replacement reloads current history without clearing the draft', async () => {
+  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+  const { db, options } = await chatFixture();
+  await using _db = db;
+  await retainHistory(db, 'Current accepted dialogue');
+  const first: typeof options.backend = (input) => ({
+    ...options.backend(input),
+    messages: async () => [],
+  });
+  let owner: ReturnType<typeof useConversation>;
+  function Surface({ backend }: { backend: typeof first }) {
+    owner = useConversation({ ...options, backend });
+    return <Chat conversation={owner} arg={null} presentation={{ page: true }} />;
+  }
+  const root = createRoot(document.body);
+  try {
+    await act(async () => root.render(<Surface backend={first} />));
+    await act(async () => owner!.setDraft('Keep my draft'));
+    await act(async () => root.render(<Surface backend={options.backend} />));
+    expect(document.body.textContent).toContain('Current accepted dialogue');
+    expect(owner!.snapshot().draft).toBe('Keep my draft');
+    expect(await db.entities.messages.query({ select: {} })).toHaveLength(1);
+  } finally {
+    await act(async () => root.unmount());
+    document.body.replaceChildren();
+    vi.unstubAllGlobals();
+  }
+});
+
 test('a reply finishing with the mounted pane closed remains unread until it reopens', async () => {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
   const { db, options: baseOptions } = await chatFixture();
