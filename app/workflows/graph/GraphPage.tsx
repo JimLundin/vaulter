@@ -5,7 +5,7 @@ import {
   ReadingColumn,
   SupportingPane,
   SplitView,
-  Toolbar,
+  PageHeader,
   Select,
   SettingField,
   Checkbox,
@@ -337,15 +337,13 @@ export function GraphPage({
     <SplitView
       main={
         <ReadingColumn label="Graph workspace">
-          <Toolbar label="Graph">
-            <Row>
-              <Heading level={1}>Graph</Heading>
-              <Text size="sm" tone="muted">
-                {grouping === 'none' ? 'Relationships' : 'Parent topics'} · {spacing} ·{' '}
-                {edgeSpacing} edges
-              </Text>
-            </Row>
-          </Toolbar>
+          <PageHeader title="Graph" />
+          <Row inset="page" block="sm">
+            <Text size="sm" tone="muted">
+              {grouping === 'none' ? 'Relationships' : 'Parent topics'} · {spacing} · {edgeSpacing}{' '}
+              edges
+            </Text>
+          </Row>
           {state.loading && <Loader>Opening Graph…</Loader>}
           {!!state.error && (
             <Row>

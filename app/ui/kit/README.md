@@ -217,7 +217,7 @@ adds one.
 | Settings beside the Vaulter mark; other actions in sidebar footer | Settings beside the mark; other actions under Tools in Modules | `NavigationSuite` `actions` |
 | Optional primary sidebar control | Optional action under Tools in Modules | `NavigationSuite` `primary` |
 | Brand and sync status at the sidebar's top | Modules menu header | `Brand` |
-| Page header at the top of the reading column | Bordered header strip | `PageHeader` |
+| Compact module header above content | Same compact header | `PageHeader` |
 | Centered dialog | Bottom-aligned dialog | `Overlay` |
 | Settings dialog over the current feature | Settings drawer over the current feature | `SettingsMenu` → `Drawer` |
 | Side panel (wide) or centered dialog | Full-height bottom drawer | `SupportingPane` → `Drawer` |
@@ -672,3 +672,9 @@ it remains an action in the compact Tools menu. Settings retains its existing br
 The Navigation catalogue demonstrates History as a drawer action alongside workflow destinations.
 `ExpandableRow` uses the shared compact type and spacing scale, a 44px disclosure target and
 consistent separators; record owners compose `Details` and `CodeDiff` within its expanded content.
+
+Module screens use `PageHeader` for their identity: a 48px bordered strip, shared page inset and
+small semibold sans-serif heading on every device. `FeaturePage` composes this above its reading
+column; full-height Chat, Graph and Wiki reading screens use it directly. Descriptions, filters and
+record titles belong below the module header. `onBack` makes the module name a back control when
+reading a record; task actions retain `PageControls` responsive placement.
