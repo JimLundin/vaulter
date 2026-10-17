@@ -16,7 +16,11 @@ export async function seedEavWiki(db: WikiDatabase) {
       await actions.createPage({
         key: `preview:page:${index}`,
         title,
-        summary: 'Room for the things that matter.',
+        summary: [
+          'Plans for a garden workspace, with protected mornings for making things and flexible afternoons.',
+          'A quieter start to the day: leave mornings free for making things before other commitments take over.',
+          'Reading and ideas to return to, with space in the week to put them into practice.',
+        ][index]!,
       }),
     );
   }

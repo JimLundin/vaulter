@@ -62,16 +62,21 @@ test('production Wiki reads typed EAV prose and retained citations after reload'
   await expect(page.getByRole('heading', { name: 'Garden studio', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Evidence for Keep mornings free.', exact: true }).click();
   await expect(page.getByRole('link', { name: 'Studio plans', exact: true })).toBeVisible();
-  const closeReferences = page.getByRole('button', { name: 'Close references', exact: true });
-  if (await closeReferences.isVisible()) await closeReferences.click();
+  if (test.info().project.name === 'phone') {
+    await page.getByRole('button', { name: 'Close references', exact: true }).click();
+  }
   await openAppAction(page, 'Wiki');
-  await expect(page.getByRole('heading', { name: 'A place to begin.' })).toBeVisible();
+  const starting = page.getByRole('region', { name: 'Starting pages' });
+  await expect(starting.getByRole('link')).toHaveCount(3);
+  await page.getByRole('textbox', { name: 'Search wiki' }).fill('slow');
+  await expect(starting.getByRole('link')).toHaveText(['Slow mornings']);
+  if (test.info().project.name === 'phone')
+    await page.getByRole('button', { name: 'Pages', exact: true }).click();
+
   const directory = page.getByRole('region', { name: 'Page directory' });
-  const findPages = page.getByRole('button', { name: 'Find pages', exact: true });
-  if (await findPages.isVisible()) await findPages.click();
   await page.getByRole('textbox', { name: 'Find pages' }).fill('slow');
-  await expect(directory.getByRole('link')).toHaveText(['Slow mornings']);
-  await directory.getByRole('link', { name: 'Slow mornings', exact: true }).click();
+  await expect(directory.getByRole('button', { name: 'Slow mornings', exact: true })).toBeVisible();
+  await directory.getByRole('button', { name: 'Slow mornings', exact: true }).click();
   await page.reload();
   await expect(page.getByRole('heading', { name: 'Slow mornings', exact: true })).toBeVisible();
   for (const [path, bytes] of Object.entries(files)) expect(fake.filesAt()[path]).toBe(bytes);

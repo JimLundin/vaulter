@@ -127,7 +127,7 @@ test('the freestanding rail follows the keyboard viewport and leaves Chat contro
   await message.fill('Keep this draft beside the rail');
   await expect(page.getByRole('button', { name: 'Conversations', exact: true })).toHaveCount(0);
   await navigateToModule(page, 'Wiki');
-  await expectAnchor(page, 3);
+  await expectAnchor(page, 2);
   await navigateToModule(page, 'Chat');
   await expectAnchor(page, 2);
   await expect(message).toHaveValue('Keep this draft beside the rail');
@@ -217,16 +217,14 @@ test('Questions search and filters share the rail while trailing Save stays reac
   );
   await navigateToModule(page, 'Wiki');
   await expect(page.getByRole('heading', { name: 'Wiki', exact: true })).toBeVisible();
-  await expectAnchor(page, 3);
-  await page.getByRole('button', { name: 'Find pages', exact: true }).click();
-  const pageSearch = page.getByRole('textbox', { name: 'Find pages', exact: true });
+  await expectAnchor(page, 2);
+  await page.getByRole('button', { name: 'Pages', exact: true }).click();
+  const directory = page.getByRole('region', { name: 'Page directory' });
+  const pageSearch = directory.getByRole('textbox', { name: 'Find pages', exact: true });
   await pageSearch.fill('No matching fictional page');
-  await expect(page.getByText('No pages found.', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Clear search', exact: true }).click();
-  await page
-    .getByRole('region', { name: 'Page directory', exact: true })
-    .getByRole('link', { name: 'Garden studio', exact: true })
-    .click();
+  await expect(directory.getByText('No pages found.', { exact: true })).toBeVisible();
+  await directory.getByRole('button', { name: 'Show all pages', exact: true }).click();
+  await directory.getByRole('button', { name: 'Garden studio', exact: true }).click();
   await expectAnchor(page, 1);
   await expect(pageSearch).toHaveCount(0);
 });

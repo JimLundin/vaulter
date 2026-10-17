@@ -23,7 +23,10 @@ function Typography() {
       <K.Heading level={1}>A page title</K.Heading>
       <K.Heading level={2}>A section heading</K.Heading>
       <K.Heading level={3}>A group heading</K.Heading>
-      <K.Text>Body copy stays readable at every size.</K.Text>
+      <K.Text lines={3}>
+        Body copy stays readable at every size. Preview prose can be bounded within a fitted
+        workspace.
+      </K.Text>
       <K.Text size="sm" tone="muted">
         Secondary text
       </K.Text>
@@ -94,6 +97,14 @@ function Buttons() {
           </K.SelectionRow>
         ))}
       </K.Stack>
+      <K.SelectionRow
+        appearance="navigation"
+        selected={false}
+        aria-label="Read a page"
+        onSelect={noop}
+      >
+        <K.Text as="span">Read a page</K.Text>
+      </K.SelectionRow>
       <K.ToggleGroup type="single" aria-label="Date range" defaultValue="day">
         <K.ToggleGroupItem value="day">Day</K.ToggleGroupItem>
         <K.ToggleGroupItem value="week">Week</K.ToggleGroupItem>

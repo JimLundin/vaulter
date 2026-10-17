@@ -147,7 +147,7 @@ test('Appearance group retains keyboard selection and device preference after re
   await expect(group.getByRole('radio', { name: 'Dark', exact: true })).toBeChecked();
 });
 
-test('feature pages center their reading column or wide directory', async ({ page }) => {
+test('feature pages center their reading or directory column', async ({ page }) => {
   for (const path of ['/preview/', '/preview/#/wiki/', '/ui/kit/tests/browser.html']) {
     await page.setViewportSize({ width: 390, height: 1000 });
     await page.goto(path);
@@ -158,7 +158,7 @@ test('feature pages center their reading column or wide directory', async ({ pag
       await expect(column).toBeVisible();
       await expect
         .poll(async () => {
-          const parent = (await (path === '/preview/'
+          const parent = (await (path === '/preview/' || path.includes('/wiki/')
             ? column.locator('..')
             : main
           ).boundingBox())!;
