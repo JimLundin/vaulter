@@ -1,27 +1,27 @@
 import type { ToolSet } from 'ai';
 import {
-  SaveError,
-  ConflictError,
-  type Database,
-  type EntityRef,
-  type EntityDefinition,
-} from '@/vault/eav/index.ts';
-import { cancellable } from '@/runtime/async.ts';
-import { canonical } from '@/vault/nodes/json.ts';
-import {
-  startToolExecution,
   finishToolExecution,
+  startToolExecution,
   type ToolOutcome,
 } from '@/agent/data/operations.ts';
 import type {
-  agentSchema,
   AgentRunRef,
+  agentSchema,
+  ModelStepRef,
   RunToolRef,
   ToolExecutionRef,
-  ModelStepRef,
 } from '@/agent/data/schema.ts';
 import type { ToolExecutionData } from '@/agent/records.ts';
-import type { PendingToolSave } from '@/agent/tool-execution.ts';
+import type { PendingToolSave } from '@/agent/runtime.ts';
+import { cancellable } from '@/runtime/async.ts';
+import {
+  ConflictError,
+  canonical,
+  type Database,
+  type EntityDefinition,
+  type EntityRef,
+  SaveError,
+} from '@/vault/eav/index.ts';
 
 const message = (error: unknown) => (error instanceof Error ? error.message : String(error));
 export function eavTools<T extends ToolSet>(options: {
@@ -33,11 +33,12 @@ export function eavTools<T extends ToolSet>(options: {
   readonly signal: AbortSignal;
   readonly step?: () => ModelStepRef | undefined;
   readonly check: () => void;
-  readonly execution: (active: boolean) => void;
   readonly changed: (key: string, value: ToolExecutionData, entity: ToolExecutionRef) => void;
   readonly paused: (pending: PendingToolSave, error: unknown) => void;
   readonly recovered: () => void;
   readonly halt: () => void;
+  readonly contentFailed?: (id: string, error: unknown) => void;
+  readonly contentRecovered?: (id: string) => void;
 }) {
   let tail: Promise<unknown> = Promise.resolve();
   const calls = new Map<string, { identity: string; result: Promise<unknown> }>();
@@ -51,6 +52,10 @@ export function eavTools<T extends ToolSet>(options: {
       }
     | undefined;
   let retry: Promise<void> | undefined;
+  let contentSave:
+    | { id: string; error: SaveError; release: () => void; record: () => Promise<void> }
+    | undefined;
+  let contentRetry: Promise<void> | undefined;
   const pause = async (
     error: SaveError | ConflictError,
     write: () => Promise<unknown>,
@@ -97,6 +102,7 @@ export function eavTools<T extends ToolSet>(options: {
               return previous.result;
             }
             const result = tail.then(async () => {
+              if (contentSave) throw new Error('Content publication requires recovery');
               options.check();
               const key = context.toolCallId;
               let entity!: ToolExecutionRef;
@@ -192,7 +198,6 @@ export function eavTools<T extends ToolSet>(options: {
                 };
               } else {
                 options.check();
-                options.execution(true);
                 try {
                   output = await execute(input, context);
                   outcome = {
@@ -201,54 +206,50 @@ export function eavTools<T extends ToolSet>(options: {
                     output: JSON.parse(canonical(output)),
                   };
                 } catch (error) {
+                  failure = error;
+                  outcome = {
+                    status: options.signal.aborted ? 'cancelled' : 'failed',
+                    endedAt: new Date(),
+                    error: {
+                      code: error instanceof SaveError ? 'contentSaveUncertain' : 'toolFailed',
+                      message: message(error),
+                    },
+                  };
                   if (error instanceof SaveError) {
-                    const recoveredOutcome: ToolOutcome = {
-                      status: 'complete',
-                      endedAt: new Date(),
-                      output: { accepted: true, recovered: true },
+                    const failed = outcome;
+                    const { endedAt: failedAt, ...failureData } = failed;
+                    const failedData: ToolExecutionData = {
+                      ...data,
+                      ...failureData,
+                      ended: failedAt.toISOString(),
                     };
-                    let stoppedSave: SaveError | undefined;
-                    await pause(
+                    let release!: () => void;
+                    const accepted = new Promise<void>((resolve) => {
+                      release = resolve;
+                    });
+                    let receiptSave: SaveError | undefined;
+                    contentSave = {
+                      id: key,
                       error,
-                      () => error.retry(),
-                      { id: key, node: key, execution: data, stage: 'outcome', retryable: true },
-                      async () => {
-                        if (stoppedSave) await stoppedSave.retry();
-                        else {
+                      release,
+                      record: async () => {
+                        if (receiptSave) await receiptSave.retry();
+                        else
                           try {
                             await options.db.transaction(
                               { author: options.author, origin: options.run },
-                              (tx) => finishToolExecution(tx, entity, recoveredOutcome),
+                              (tx) => finishToolExecution(tx, entity, failed),
                             );
                           } catch (failure) {
-                            if (failure instanceof SaveError) stoppedSave = failure;
+                            if (failure instanceof SaveError) receiptSave = failure;
                             throw failure;
                           }
-                        }
-                        options.changed(
-                          key,
-                          {
-                            ...data,
-                            status: 'complete',
-                            ended: recoveredOutcome.endedAt.toISOString(),
-                            output: { accepted: true, recovered: true },
-                          },
-                          entity,
-                        );
+                        options.changed(key, failedData, entity);
                       },
-                    );
-                    output = { accepted: true, recovered: true };
-                    outcome = recoveredOutcome;
-                  } else {
-                    failure = error;
-                    outcome = {
-                      status: options.signal.aborted ? 'cancelled' : 'failed',
-                      endedAt: new Date(),
-                      error: { code: 'toolFailed', message: message(error) },
                     };
+                    options.contentFailed?.(key, error);
+                    await cancellable(accepted, options.signal);
                   }
-                } finally {
-                  options.execution(false);
                 }
               }
               const { endedAt, ...resultData } = outcome;
@@ -305,6 +306,26 @@ export function eavTools<T extends ToolSet>(options: {
   return {
     tools,
     pending: () => pending?.value,
+    contentPending: () => !!contentSave,
+    retryContentSave: () => {
+      contentRetry ??= (async () => {
+        const retained = contentSave;
+        if (!retained) return;
+        try {
+          await retained.error.retry();
+          await retained.record();
+          contentSave = undefined;
+          options.halt();
+          retained.release();
+          options.contentRecovered?.(retained.id);
+        } catch (error) {
+          options.contentFailed?.(retained.id, error);
+        }
+      })().finally(() => {
+        contentRetry = undefined;
+      });
+      return contentRetry;
+    },
     settle: () => Promise.allSettled([...effects]),
     retrySave: () => {
       retry ??= (async () => {

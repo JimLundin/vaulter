@@ -1,5 +1,4 @@
 // @vitest-environment happy-dom
-import { transactionFixture } from '@/vault/transactions/fixtures.test-support.ts';
 // biome-ignore lint/correctness/noUnresolvedImports: React 19 exposes StrictMode; TypeScript and runtime tests verify it.
 import { act, StrictMode, useState } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -7,8 +6,8 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { MockLanguageModelV4, convertArrayToReadableStream } from 'ai/test';
 import { OpenApplication } from './index.tsx';
 import { Surface } from '@/ui/kit/index.ts';
-import { memoryNodeBackend } from '@/vault/nodes/memory.ts';
-import type { NodeBackend } from '@/vault/nodes/store.ts';
+import { createMemoryStorage, sameEntity, type MemoryStorage } from '@/vault/eav/index.ts';
+import { applicationDatabase } from './composition.ts';
 import type { Secrets } from '@/vault/session/sealed.ts';
 import { media } from '@/agent/openai/media.test-support.ts';
 
@@ -126,7 +125,7 @@ async function fixture({
   strict = false,
   preview = false,
   stream = async () => answer('Completed settings request.'),
-  nodes: initialNodes = memoryNodeBackend(),
+  storage: initialStorage = createMemoryStorage(),
   identity = {},
   credentialPending = false,
   saveSecret = async () => undefined,
@@ -134,19 +133,18 @@ async function fixture({
   strict?: boolean;
   preview?: boolean;
   stream?: () => Promise<StreamResult>;
-  nodes?: NodeBackend;
+  storage?: MemoryStorage;
   identity?: object;
   credentialPending?: boolean;
   saveSecret?: (key: keyof Secrets, value: string | null | undefined) => Promise<void>;
 } = {}) {
-  const adapters = new Set([initialNodes]);
   const model = new MockLanguageModelV4({ doStream: stream });
   const suppliedModel = vi.fn(async (_name: string) => model);
   const updateSecret = vi.fn(saveSecret);
   const preloadedSecrets = { github: 'login-github', openai: 'login-openai' };
   const root = createRoot(document.body);
   let configure!: (changes: {
-    nodes?: NodeBackend;
+    storage?: MemoryStorage;
     identity?: object;
     credentialPending?: boolean;
   }) => void;
@@ -161,12 +159,11 @@ async function fixture({
       },
     );
     const [configuration, setConfiguration] = useState({
-      nodes: initialNodes,
+      storage: initialStorage,
       identity,
       credentialPending,
     });
     configure = (changes) => {
-      if (changes.nodes) adapters.add(changes.nodes);
       setConfiguration((current) => ({ ...current, ...changes }));
     };
     return (
@@ -203,9 +200,9 @@ async function fixture({
               }
             },
 
-            nodes: transactionFixture(configuration.nodes, configuration.identity),
-            nodeStatus: { kind: 'synced', at: 0 },
-            refreshNodes: async () => undefined,
+            eav: configuration.storage,
+            status: { kind: 'synced', at: 0 },
+            refresh: async () => undefined,
           }}
           model={suppliedModel}
           preview={
@@ -223,7 +220,6 @@ async function fixture({
   }
   cleanups.push(async () => {
     await act(() => root.unmount());
-    for (const adapter of adapters) adapter.close();
   });
   await act(() =>
     root.render(
@@ -244,7 +240,7 @@ async function fixture({
     if (field('Message').disabled) throw new Error('Message text box is still unavailable');
   });
   return {
-    nodes: initialNodes,
+    storage: initialStorage,
     model,
     suppliedModel,
     updateSecret,
@@ -252,21 +248,20 @@ async function fixture({
   };
 }
 
-async function runs(nodes: ReturnType<typeof memoryNodeBackend>) {
-  const view = await nodes.snapshot();
-  const changes = await Promise.all((await nodes.history()).map(({ id }) => nodes.changes(id)));
-  const identities = new Set(changes.flat().map(({ node }) => node));
-  return [...identities].flatMap((node) => {
-    const version = view.get(node);
-    return version?.data?.kind === 'agentRun' ? [version] : [];
-  });
+async function runs(storage: MemoryStorage) {
+  const db = await applicationDatabase(storage);
+  return db.entities.agentRuns.query({ select: { requestedModel: true, settings: true } });
+}
+
+async function conversations(storage: MemoryStorage) {
+  return (await applicationDatabase(storage)).entities.conversations.query({ select: {} });
 }
 
 test.each([false, true])(
   'settings update future runs and retain drafts (StrictMode=%s)',
   async (strict) => {
     localStorage.setItem('vaulter.settings.openai', JSON.stringify({ model: 'saved-model' }));
-    const { model, suppliedModel, nodes } = await fixture({ strict, preview: true });
+    const { model, suppliedModel, storage } = await fixture({ strict, preview: true });
     for (const name of ['Appearance', 'Chat', 'Agent', 'OpenAI', 'GitHub storage'])
       expect(document.querySelector(`section[aria-label="${name}"]`)).not.toBeNull();
     for (const label of [
@@ -330,15 +325,13 @@ test.each([false, true])(
         }),
       ]),
     );
-    const [firstRun] = await runs(nodes);
-    expect(firstRun?.data).toMatchObject({
-      model: { requested: 'configured-model' },
+    const [firstRun] = await runs(storage);
+    expect(firstRun).toMatchObject({
+      requestedModel: 'configured-model',
       settings: { maxSteps: 20, temperature: 0.4, maxOutputTokens: 256, maxRetries: 3 },
     });
-    const conversations = (await nodes.snapshot())
-      .roots()
-      .filter(({ data }) => data?.kind === 'conversation');
-    expect(conversations).toHaveLength(1);
+    const initialConversations = await conversations(storage);
+    expect(initialConversations).toHaveLength(1);
     await fill('Message', 'Continue the same conversation.');
     await openSettings();
     expect(selectField('Maximum steps').value).toBe('20');
@@ -361,12 +354,11 @@ test.each([false, true])(
       ]),
     );
     expect(
-      (await nodes.snapshot())
-        .roots()
-        .filter(({ data }) => data?.kind === 'conversation')
-        .map(({ key }) => key.node),
-    ).toEqual(conversations.map(({ key }) => key.node));
-    expect(await runs(nodes)).toHaveLength(2);
+      (await conversations(storage)).every((item, index) =>
+        sameEntity(item, initialConversations[index]),
+      ),
+    ).toBe(true);
+    expect(await runs(storage)).toHaveLength(2);
   },
 );
 
@@ -424,7 +416,7 @@ test('chat dictation falls back from a missing Realtime endpoint and keeps the c
     return Promise.resolve(Response.json({ text: 'Dictated words.' }));
   });
   vi.stubGlobal('fetch', fetch);
-  const { model, nodes } = await fixture();
+  const { model, storage } = await fixture();
   await select('File transcription model', 'gpt-4o-transcribe');
   await act(() => {
     history.replaceState(null, '', '#/chat/');
@@ -442,19 +434,19 @@ test('chat dictation falls back from a missing Realtime endpoint and keeps the c
   expect(field('Message').value).toBe('Keep my draft. Dictated words.');
   expect(fetch).toHaveBeenCalledTimes(2);
   expect(model.doStreamCalls).toHaveLength(0);
-  expect(await runs(nodes)).toEqual([]);
+  expect(await runs(storage)).toEqual([]);
   await act(async () => button('Start voice interaction').click());
   expect(fetch).toHaveBeenCalledTimes(2);
   await act(async () => button('Finish recording').click());
   expect(fetch).toHaveBeenCalledTimes(3);
 });
 
-test('pending GitHub replacement blocks new activity and retains the draft and conversation across adapters', async () => {
+test('pending GitHub replacement blocks new activity and retains the draft and conversation while reconnecting', async () => {
   let release!: () => void;
   const saving = new Promise<void>((resolve) => {
     release = resolve;
   });
-  const { nodes, model, updateSecret, configure } = await fixture({
+  const { storage, model, updateSecret, configure } = await fixture({
     identity: {},
     saveSecret: () => saving,
   });
@@ -464,12 +456,10 @@ test('pending GitHub replacement blocks new activity and retains the draft and c
   await act(async () =>
     vi.waitFor(() => expect(button('Start voice interaction').disabled).toBe(false)),
   );
-  const conversations = (await nodes.snapshot())
-    .roots()
-    .filter(({ data }) => data?.kind === 'conversation')
-    .map(({ key }) => key.node);
-  expect(conversations).toHaveLength(1);
-  const recordedHistory = await nodes.history();
+  const initialConversations = await conversations(storage);
+  expect(initialConversations).toHaveLength(1);
+  const db = await applicationDatabase(storage);
+  const recordedHistory = await db.history.transactions.query({ select: { sequence: true } });
   await fill('Message', 'Keep this draft in the same conversation.');
   await openSettings();
   await fill('GitHub token', 'replacement-token');
@@ -485,14 +475,14 @@ test('pending GitHub replacement blocks new activity and retains the draft and c
   expect(button('Send').disabled).toBe(true);
   await submit();
   expect(model.doStreamCalls).toHaveLength(1);
-  expect(await nodes.history()).toEqual(recordedHistory);
+  expect(await db.history.transactions.query({ select: { sequence: true } })).toEqual(
+    recordedHistory,
+  );
   expect(field('Message').value).toBe('Keep this draft in the same conversation.');
   await act(() => field('Message').blur());
   expect(button('Start voice interaction').disabled).toBe(true);
   await act(() => field('Message').focus());
-  const commit = vi.fn(nodes.commit);
-  const replacement = { ...nodes, commit };
-  await configure({ nodes: replacement });
+  await configure({ credentialPending: true });
   expect(field('Message').value).toBe('Keep this draft in the same conversation.');
   expect(document.body.textContent).toContain('Record the conversation before reconnecting.');
   expect(document.body.textContent).toContain('Completed settings request.');
@@ -507,14 +497,12 @@ test('pending GitHub replacement blocks new activity and retains the draft and c
   await act(async () =>
     vi.waitFor(() => expect(button('Start voice interaction').disabled).toBe(false)),
   );
-  expect(commit).toHaveBeenCalled();
   expect(
-    (await nodes.snapshot())
-      .roots()
-      .filter(({ data }) => data?.kind === 'conversation')
-      .map(({ key }) => key.node),
-  ).toEqual(conversations);
-  expect(await runs(nodes)).toHaveLength(2);
+    (await conversations(storage)).every((item, index) =>
+      sameEntity(item, initialConversations[index]),
+    ),
+  ).toBe(true);
+  expect(await runs(storage)).toHaveLength(2);
 });
 
 test('active Agent work disables credential changes until the recorded run finishes', async () => {

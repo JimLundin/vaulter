@@ -1,7 +1,7 @@
-import type { FileTranscriptionProvider } from '@/agent/providers.ts';
 import { z } from 'zod';
-import { openAIHttp, type OpenAIConnectionOptions } from './http.ts';
+import type { FileTranscriptionProvider } from '@/agent/providers.ts';
 import { defaultFileTranscriptionModel } from './defaults.ts';
+import { type OpenAIConnectionOptions, openAIHttp } from './http.ts';
 
 export function openAIFileTranscription(
   options: OpenAIConnectionOptions & { readonly model?: string },

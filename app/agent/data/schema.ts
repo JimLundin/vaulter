@@ -1,4 +1,4 @@
-import { e, type EntityRef } from '@/vault/eav/index.ts';
+import { type EntityRef, e } from '@/vault/eav/index.ts';
 import { Actor, ActorBinding } from '@/vault/records/actor.ts';
 
 export const ToolDefinition = e.entity('agent.toolDefinition', {

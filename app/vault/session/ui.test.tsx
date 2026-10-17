@@ -2,7 +2,7 @@
 import { act, useState, type ReactNode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
-import { CredentialSetting, RefreshNodes, SessionStatus, SignOut, Unlock } from './ui.tsx';
+import { CredentialSetting, RefreshVault, SessionStatus, SignOut, Unlock } from './ui.tsx';
 import { createSessionCredentials, restrictSessionCredentials } from './credentials.ts';
 import type { Secrets } from './sealed.ts';
 import type { SecretOverrides } from './unlock.ts';
@@ -231,7 +231,7 @@ test('Session status and refresh/sign-out actions retain failures for explicit r
   await mount(
     <>
       <SessionStatus status={{ kind: 'offline' }} />
-      <RefreshNodes status={{ kind: 'error', message: 'Node unavailable.' }} refresh={refresh} />
+      <RefreshVault status={{ kind: 'error', message: 'Node unavailable.' }} refresh={refresh} />
       <SignOut onSignOut={signOut} />
     </>,
   );

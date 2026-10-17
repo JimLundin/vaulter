@@ -1,25 +1,29 @@
 // @vitest-environment happy-dom
-import {
-  transactionFixture,
-  transactionOptionsFixture,
-} from '@/vault/transactions/fixtures.test-support.ts';
 // biome-ignore lint/correctness/noUnresolvedImports: React 19 exposes StrictMode; TypeScript and runtime tests verify it.
 import { act, StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { expect, test, vi } from 'vitest';
 import { MockLanguageModelV4, convertArrayToReadableStream } from 'ai/test';
-import { memoryNodeBackend } from '@/vault/nodes/memory.ts';
-import { create, request, seed } from '@/vault/nodes/fixtures.test-support.ts';
-import type { NodeStore } from '@/vault/nodes/store.ts';
 import { Text } from '@/ui/kit/index.ts';
-import { createNodeConversation } from './node-conversation.ts';
+import { createConversation } from './conversation.ts';
 import { createTranscription, useTranscription } from '@/transcription.ts';
 import { Chat } from './Chat.tsx';
 import { ChatIndicator } from './index.tsx';
-import { useNodeConversation, useNodeChat } from './use-node-conversation.ts';
+import { useConversation, useChat } from './use-conversation.ts';
+import { chatFixture } from './fixtures.test-support.ts';
+import { appendExchange } from './data/operations.ts';
+
+async function retainHistory(db: Awaited<ReturnType<typeof chatFixture>>['db'], text: string) {
+  await db.transaction(async (tx) => {
+    const author = await tx.entities.actors.insert({ name: 'User', kind: 'user' });
+    const at = new Date('2026-10-10T12:00:00Z');
+    const exchange = await appendExchange(tx, at);
+    await tx.entities.messages.insert({ exchange, author, at, text });
+  });
+}
 
 test.each([undefined, 'missing-retained-chat', 'saved-chat'])(
-  'a fresh chat page stays empty and error-free with retained selection %s',
+  'native dialogue restores its history independently of retained selection %s',
   async (retainedConversation) => {
     vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
     if (retainedConversation)
@@ -27,43 +31,16 @@ test.each([undefined, 'missing-retained-chat', 'saved-chat'])(
         'vaulter:conversation:https://api.github.com:JimLundin/vault@main',
         retainedConversation,
       );
-    const nodes = memoryNodeBackend();
-    await seed(nodes);
-    await nodes.commit(
-      request('saved', [
-        create('saved-chat', {
-          kind: 'conversation',
-          title: 'Saved',
-          createdAt: '2026-10-10T12:00:00Z',
-        }),
-        create(
-          'saved-exchange',
-          { kind: 'exchange', startedAt: '2026-10-10T12:00:00Z' },
-          'saved-chat',
-        ),
-        create(
-          'saved-message',
-          {
-            kind: 'message',
-            role: 'user',
-            at: '2026-10-10T12:00:00Z',
-            text: 'Earlier conversation',
-          },
-          'saved-exchange',
-        ),
-      ]),
-    );
+    const { db, options } = await chatFixture();
+    await using _db = db;
+    await retainHistory(db, 'Earlier conversation');
     const model = vi.fn(async () => {
       throw new Error('Reading must not execute');
     });
     function Surface() {
-      const conversation = useNodeConversation({
-        nodes: transactionFixture(nodes),
-        user: 'user',
-        agent: 'user',
-        provider: 'fictional',
+      const conversation = useConversation({
+        ...options,
         selectedModel: '',
-        instructions: '',
         model,
         suggestions: async () => [],
       });
@@ -72,16 +49,12 @@ test.each([undefined, 'missing-retained-chat', 'saved-chat'])(
     const root = createRoot(document.body);
     try {
       await act(async () => root.render(<Surface />));
-      expect(
-        [...document.querySelectorAll('[role="alert"]')].map((element) => element.textContent),
-      ).toEqual([]);
-      expect(document.body.textContent).not.toContain('Earlier conversation');
-      expect(document.querySelector('[data-message]')).toBeNull();
+      expect(document.querySelector('[role="alert"]')).toBeNull();
+      expect(document.body.textContent).toContain('Earlier conversation');
       expect(model).not.toHaveBeenCalled();
-      expect(await nodes.history()).toHaveLength(2);
+      expect(await db.entities.messages.query({ select: {} })).toHaveLength(1);
     } finally {
       await act(async () => root.unmount());
-      nodes.close();
       localStorage.clear();
       document.body.replaceChildren();
       vi.unstubAllGlobals();
@@ -91,67 +64,25 @@ test.each([undefined, 'missing-retained-chat', 'saved-chat'])(
 
 test('requested history retries a failed read when store readiness changes', async () => {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
-  const store = memoryNodeBackend();
-  await seed(store);
-  await store.commit(
-    request('saved', [
-      create('saved-chat', {
-        kind: 'conversation',
-        title: 'Saved',
-        createdAt: '2026-10-10T12:00:00Z',
-      }),
-      create(
-        'saved-exchange',
-        { kind: 'exchange', startedAt: '2026-10-10T12:00:00Z' },
-        'saved-chat',
-      ),
-      create(
-        'saved-message',
-        {
-          kind: 'message',
-          role: 'user',
-          at: '2026-10-10T12:00:00Z',
-          text: 'Retained history is readable',
-        },
-        'saved-exchange',
-      ),
-    ]),
-  );
+  const { db, options } = await chatFixture();
+  await using _db = db;
+  await retainHistory(db, 'Retained history is readable');
   let unavailable = true;
-  const nodes: NodeStore = {
-    ...store,
-    snapshot: (sequence) =>
-      unavailable ? Promise.reject(new Error('Store is opening')) : store.snapshot(sequence),
+  const backend: typeof options.backend = (input) => {
+    const store = options.backend(input);
+    return {
+      ...store,
+      messages: (...args) =>
+        unavailable ? Promise.reject(new Error('Store is opening')) : store.messages(...args),
+    };
   };
-  const options = {
-    nodes,
-    user: 'user',
-    agent: 'user',
-    provider: 'fictional',
-    selectedModel: '',
-    instructions: '',
-    conversation: 'saved-chat',
-    model: () => Promise.reject(new Error('Reading must not execute')),
-  };
-  function Surface({
-    availability,
-    route = 'saved-chat',
-  }: {
-    availability: string;
-    route?: string;
-  }) {
-    const conversation = useNodeConversation(
-      transactionOptionsFixture({
-        ...options,
-        availability,
-        conversation: route || undefined,
-      }),
-    );
+  function Surface({ availability }: { availability: string }) {
+    const conversation = useConversation({ ...options, backend, selectedModel: '', availability });
     return <Chat conversation={conversation} arg={null} presentation={{ page: true }} />;
   }
   const root = createRoot(document.body);
   try {
-    await act(async () => root.render(<Surface availability="Opening the node store…" />));
+    await act(async () => root.render(<Surface availability="Opening the database…" />));
     expect(document.body.textContent).toContain('Store is opening');
     unavailable = false;
     await act(async () =>
@@ -161,59 +92,33 @@ test('requested history retries a failed read when store readiness changes', asy
     expect(document.body.textContent).not.toContain('Store is opening');
   } finally {
     await act(async () => root.unmount());
-    store.close();
     document.body.replaceChildren();
     vi.unstubAllGlobals();
   }
 });
 
-test('requested history waits for the initial node read without showing a false unavailable error', async () => {
+test('requested history waits for the initial database read without showing a false unavailable error', async () => {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
-  const store = memoryNodeBackend();
-  await seed(store);
-  await store.commit(
-    request('saved', [
-      create('saved-chat', {
-        kind: 'conversation',
-        title: 'Saved',
-        createdAt: '2026-10-10T12:00:00Z',
-      }),
-      create(
-        'saved-exchange',
-        { kind: 'exchange', startedAt: '2026-10-10T12:00:00Z' },
-        'saved-chat',
-      ),
-      create(
-        'saved-message',
-        { kind: 'message', role: 'user', at: '2026-10-10T12:00:00Z', text: 'Ready history' },
-        'saved-exchange',
-      ),
-    ]),
-  );
+  const { db, options } = await chatFixture();
+  await using _db = db;
+  await retainHistory(db, 'Ready history');
   let ready = false;
-  const snapshot = vi.fn<NodeStore['snapshot']>((sequence) =>
-    ready ? store.snapshot(sequence) : Promise.reject(new Error('Conversation is unavailable')),
-  );
-  const nodes: NodeStore = { ...store, snapshot };
+  const messages = vi.fn<import('./backend.ts').ChatBackend['messages']>();
+  const backend: typeof options.backend = (input) => {
+    const store = options.backend(input);
+    messages.mockImplementation((...args) =>
+      ready ? store.messages(...args) : Promise.reject(new Error('Dialogue is unavailable')),
+    );
+    return { ...store, messages };
+  };
   function Surface({ recordsReady }: { recordsReady: boolean }) {
-    const conversation = useNodeConversation({
-      nodes: transactionFixture(nodes),
-      user: 'user',
-      agent: 'user',
-      provider: 'fictional',
-      selectedModel: '',
-      instructions: '',
-      conversation: 'saved-chat',
-      recordsReady,
-      suggestions: async () => [],
-      model: () => Promise.reject(new Error('Reading must not execute')),
-    });
+    const conversation = useConversation({ ...options, backend, selectedModel: '', recordsReady });
     return <Chat conversation={conversation} arg={null} presentation={{ page: true }} />;
   }
   const root = createRoot(document.body);
   try {
     await act(async () => root.render(<Surface recordsReady={false} />));
-    expect(snapshot).not.toHaveBeenCalled();
+    expect(messages).not.toHaveBeenCalled();
     expect(document.querySelector('[role="alert"]')).toBeNull();
     ready = true;
     await act(async () => root.render(<Surface recordsReady={true} />));
@@ -221,7 +126,6 @@ test('requested history waits for the initial node read without showing a false 
     expect(document.querySelector('[role="alert"]')).toBeNull();
   } finally {
     await act(async () => root.unmount());
-    store.close();
     document.body.replaceChildren();
     vi.unstubAllGlobals();
   }
@@ -229,9 +133,8 @@ test('requested history waits for the initial node read without showing a false 
 
 test('a reply finishing with the mounted pane closed remains unread until it reopens', async () => {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
-  const nodes = memoryNodeBackend();
-  await seed(nodes);
-  await nodes.commit(request('agent', [create('agent', { kind: 'agent', name: 'Fictional' })]));
+  const { db, options: baseOptions } = await chatFixture();
+  await using _db = db;
   let release!: () => void;
   const waiting = new Promise<void>((resolve) => {
     release = resolve;
@@ -257,8 +160,8 @@ test('a reply finishing with the mounted pane closed remains unread until it reo
       };
     },
   });
-  const conversation = createNodeConversation({
-    nodes: transactionFixture(nodes),
+  const conversation = createConversation({
+    ...baseOptions,
     user: 'user',
     agent: 'agent',
     provider: 'fictional',
@@ -301,7 +204,6 @@ test('a reply finishing with the mounted pane closed remains unread until it reo
     await act(async () => root.unmount());
     conversation.dispose();
     voice.dispose();
-    nodes.close();
     document.body.replaceChildren();
     vi.unstubAllGlobals();
   }
@@ -309,9 +211,8 @@ test('a reply finishing with the mounted pane closed remains unread until it reo
 
 test('retained prompts are consumed once across page and panel views, including edit-only drafts', async () => {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
-  const nodes = memoryNodeBackend();
-  await seed(nodes);
-  await nodes.commit(request('agent', [create('agent', { kind: 'agent', name: 'Fictional' })]));
+  const { db, options: baseOptions } = await chatFixture();
+  await using _db = db;
   const model = new MockLanguageModelV4({
     doStream: async () => ({
       stream: convertArrayToReadableStream([
@@ -330,8 +231,8 @@ test('retained prompts are consumed once across page and panel views, including 
       ]),
     }),
   });
-  const conversation = createNodeConversation({
-    nodes: transactionFixture(nodes),
+  const conversation = createConversation({
+    ...baseOptions,
     user: 'user',
     agent: 'agent',
     provider: 'fictional',
@@ -380,7 +281,6 @@ test('retained prompts are consumed once across page and panel views, including 
     await act(async () => root.unmount());
     conversation.dispose();
     voice.dispose();
-    nodes.close();
     document.body.replaceChildren();
     vi.unstubAllGlobals();
   }
@@ -388,9 +288,10 @@ test('retained prompts are consumed once across page and panel views, including 
 
 test('changed supplied availability reaches mounted Chat without notifying subscribers during React render', async () => {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
-  const nodes = memoryNodeBackend();
+  const { db, options: baseOptions } = await chatFixture();
+  await using _db = db;
   const options = {
-    nodes,
+    ...baseOptions,
     user: 'user',
     agent: 'agent',
     provider: 'fictional',
@@ -400,9 +301,7 @@ test('changed supplied availability reaches mounted Chat without notifying subsc
     suggestions: async () => [],
   };
   function Surface({ availability }: { availability?: string }) {
-    const conversation = useNodeConversation(
-      transactionOptionsFixture({ ...options, availability }),
-    );
+    const conversation = useConversation({ ...options, availability });
     return <Chat conversation={conversation} arg={null} presentation={{ page: true }} />;
   }
   const root = createRoot(document.body);
@@ -415,7 +314,6 @@ test('changed supplied availability reaches mounted Chat without notifying subsc
   } finally {
     await act(async () => root.unmount());
     errors.mockRestore();
-    nodes.close();
     document.body.replaceChildren();
     vi.unstubAllGlobals();
   }
@@ -423,10 +321,11 @@ test('changed supplied availability reaches mounted Chat without notifying subsc
 
 test('simultaneous and reopened Chat views retain blocked Ask with visible Use and Dismiss actions', async () => {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
-  const nodes = memoryNodeBackend();
+  const { db, options: baseOptions } = await chatFixture();
+  await using _db = db;
   const voice = createTranscription(async () => ({ finish: async () => 'Spoken', close() {} }));
-  const conversation = createNodeConversation({
-    nodes: transactionFixture(nodes),
+  const conversation = createConversation({
+    ...baseOptions,
     user: 'user',
     agent: 'agent',
     provider: 'fictional',
@@ -476,7 +375,6 @@ test('simultaneous and reopened Chat views retain blocked Ask with visible Use a
     await act(async () => root.unmount());
     conversation.dispose();
     voice.dispose();
-    nodes.close();
     document.body.replaceChildren();
     vi.unstubAllGlobals();
   }
@@ -484,8 +382,8 @@ test('simultaneous and reopened Chat views retain blocked Ask with visible Use a
 
 test('StrictMode owns fresh Chat and recording lifetimes and replacing the Vault session retains no old task', async () => {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
-  const nodes = memoryNodeBackend();
-  await seed(nodes);
+  const { db, options: baseOptions } = await chatFixture();
+  await using _db = db;
   let transcript!: import('@/transcription.ts').TranscriptionEvents;
   let recordingClosed = false;
   const provider: import('@/transcription.ts').TranscriptionProvider = async (events) => {
@@ -497,14 +395,14 @@ test('StrictMode owns fresh Chat and recording lifetimes and replacing the Vault
       finish: async () => 'Final speech',
     };
   };
-  let current!: ReturnType<typeof useNodeConversation>;
+  let current!: ReturnType<typeof useConversation>;
   function Surface({ session }: { session: object }) {
     const voice = useTranscription(provider, session);
-    const conversation = useNodeConversation({
+    const conversation = useConversation({
+      ...baseOptions,
       session,
-      nodes: transactionFixture(nodes),
       user: 'user',
-      agent: 'user',
+      agent: 'agent',
       provider: 'fictional',
       selectedModel: '',
       model: () => Promise.reject(new Error('Reading must not execute')),
@@ -554,7 +452,6 @@ test('StrictMode owns fresh Chat and recording lifetimes and replacing the Vault
     expect(document.body.querySelector('textarea')?.value).toBe('New session text fresh speech');
   } finally {
     await act(async () => root.unmount());
-    nodes.close();
     document.body.replaceChildren();
     vi.unstubAllGlobals();
   }
@@ -562,16 +459,16 @@ test('StrictMode owns fresh Chat and recording lifetimes and replacing the Vault
 
 test('mounted shared Chat ignores composition option identity changes without a render loop', async () => {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
-  const nodes = memoryNodeBackend();
-  await seed(nodes);
+  const { db, options: baseOptions } = await chatFixture();
+  await using _db = db;
   let renders = 0;
   function Surface() {
     renders++;
     if (renders > 20) throw new Error('Chat composition entered a render loop');
-    const conversation = useNodeConversation({
-      nodes: transactionFixture(nodes),
+    const conversation = useConversation({
+      ...baseOptions,
       user: 'user',
-      agent: 'user',
+      agent: 'agent',
       provider: 'fictional',
       selectedModel: '',
       model: () => Promise.reject(new Error('No model expected')),
@@ -579,7 +476,7 @@ test('mounted shared Chat ignores composition option identity changes without a 
       instructions: '',
       suggestions: async () => [],
     });
-    const snapshot = useNodeChat(conversation);
+    const snapshot = useChat(conversation);
     return (
       <>
         <Text>{snapshot.capture.phase}</Text>
@@ -595,7 +492,6 @@ test('mounted shared Chat ignores composition option identity changes without a 
     expect(renders).toBeLessThan(20);
   } finally {
     await act(async () => root.unmount());
-    nodes.close();
     document.body.replaceChildren();
     vi.unstubAllGlobals();
   }

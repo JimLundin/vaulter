@@ -21,13 +21,19 @@ export type {
   Selected,
   Where,
   QueryOptions,
+  TransactionChange,
 } from './types.ts';
-export type { JsonValue } from './json.ts';
+export { canonical, frozen, digest, compare } from './json.ts';
+export type { JsonValue, JsonObject } from './json.ts';
 export {
   createPersistentStorage,
   SaveError,
   parseJournal,
   closeStorage,
   clearStorage,
+  cachedStorage,
+  refreshStorage,
+  suspendStorage,
+  drainStorage,
 } from './persistence.ts';
 export type { StorageAdapter, Journal, AppendRequest } from './persistence.ts';

@@ -8,57 +8,32 @@ Vaulter retains connected knowledge, source material, conversations and agent ac
 The collection of connected records and their history that holds the application's
 data. Conversations and agent-produced content are part of this same collection.
 
-**Node**:
-An individually addressable part of the application's data that can connect to other nodes. Its
-identity persists when its content or placement changes.
+**Record**:
+An individually addressable part of the Vault whose identity persists when its content or placement changes.
 
 **Relationship**:
-A named connection between nodes.
-
-**Connection**:
-The source and target addressed by a relationship node, independently of that node's placement.
-Each endpoint may refer to a node identity or an exact recorded version.
+A named, directed connection between retained records.
 
 **Containment**:
-The placement of a node within a parent node, including its order among that parent's children.
+The placement of content within a parent, including its order among that parent's children.
 
 **Appearance**:
-A node representing one placement of shared content within a parent node. Several appearances can
-refer to the same content node.
+One placement of shared content within a parent. Several appearances can refer to the same content.
 
-**Node version**:
-An immutable record of a node's state at a point in its history.
-
-**Node address**:
-A reference to a node identity, optionally qualified by the transaction that recorded a particular
-version. A version's own address always identifies that exact version.
+**Historical reference**:
+A reference to a retained record in a particular recorded state of the Vault.
 
 **Snapshot**:
-The recorded state of the vault after a particular transaction, including the version of each node
-present at that point in history.
+The recorded state of the Vault after a particular transaction.
 
 **Transaction**:
-A group of changes recorded and applied together as one unit, with its author and originating
-context retained in history.
-
-**Transaction request**:
-A proposed group of changes with its intended author and originating context. Repeating a request
-seeks acceptance of those same changes; revising them creates a different request.
+A group of changes recorded and applied together as one unit, retaining available author and originating context.
 
 **Transaction author**:
 The user, agent, or system responsible for producing a transaction's changes.
 
 **Transaction origin**:
-The context from which a transaction arose, such as a chat exchange or import. It is distinct from
-the author of the changes.
-
-**Transaction kind**:
-A classification of the operation recorded by a transaction, with a scope and an action,
-interpreted by the feature that owns it.
-
-**Closure**:
-The live node versions reachable from a root through containment and connection targets in a
-selected snapshot. Different versions of one node may be reachable through exact references.
+The context from which a transaction arose, such as an exchange or import, distinct from its author.
 
 **Observation**:
 A recorded measurement or collection outcome about the circumstances of an exchange, retaining

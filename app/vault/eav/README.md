@@ -1,11 +1,11 @@
 # EAV engine
 
-The standalone engine exposes typed entity objects over entity–attribute–value facts. Its public
-interface is `index.ts`. It has no dependency on the existing Node model or application workflows.
+The engine exposes typed entity objects over entity–attribute–value facts. Its public
+interface is `index.ts`. It has no dependency on application workflows.
 `createMemoryStorage()` retains a database across handles within one process. For durable storage,
-`createPersistentStorage(adapter)` supplies an atomic journal adapter. Production Chat uses the
+`createPersistentStorage(adapter)` supplies an atomic journal adapter. Production uses the
 GitHub adapter in `app/vault/storage/eav`, with a plaintext IndexedDB cache for offline reads.
-The application is adopting EAV one producer at a time; see ADR 0011.
+All application owners use this engine; see ADR 0014.
 
 ```ts
 import { e, openDatabase, createMemoryStorage } from './index.ts';
@@ -173,7 +173,7 @@ and membership, not nested projections or ordering. Relationships remain typed r
 Facts store individual asserted/retracted values, with internal type, existence and empty-set
 presence attributes. Historical views reconstruct them from accepted transactions. First open and
 history reads are not bounded for large datasets. Checkpoints, indexed reads,
-incompatible schema migrations and broader application adoption need subsequent work.
+and incompatible schema migrations need subsequent work.
 
 ## Historical evidence references
 
@@ -199,7 +199,7 @@ Resolution reads available accepted history and never refreshes, publishes or ex
 Refresh explicitly when remote evidence is newer than the loaded journal. The address is neither
 an authorization token nor a live typed reference. Schema fields for historical references,
 acceptance-time integrity for stored evidence, text projection formats and passage ranges remain
-content-migration work; merely storing this address in JSON does not enforce those contracts.
+owner-model work; merely storing this address in JSON does not enforce those contracts.
 
 ## Verification
 
@@ -222,10 +222,16 @@ accepted. A rejected/conflicting callback still invalidates its newly allocated 
 application result needed for recovery and query accepted state after retry. A conflicting request
 requires a new calculation against current state, never automatic replay of effects.
 
-The owner closes persistent storage with `closeStorage(storage)` when its session ends and calls
-`clearStorage(storage)` to remove its rebuildable device cache on sign-out. Closing an individual
-`await using db` handle does not discard shared storage. The production credential getter supplies the
-current token without changing storage identity or retaining credentials in records.
+The owner loads accepted device data with `cachedStorage(storage)` before a strict remote
+`refreshStorage(storage, { remote: true })`. Cache readiness distinguishes an accepted empty vault
+from a cold device. Ordinary database opens may read retained cache offline.
+
+When a session ends, `suspendStorage(storage)` immediately rejects new operations and save retries;
+`await drainStorage(storage)` lets an entered publication settle before `closeStorage(storage)` retires
+the adapter. Sign-out clears the rebuildable device cache with `clearStorage(storage)` after draining
+and before closing. Closing an individual `await using db` handle does not discard shared storage.
+The production credential getter supplies the current token without changing storage identity or
+retaining credentials in records.
 
 `history.inspect(transaction, entity)` supports generic History tooling: it returns the registered
 entity type and all writable attribute values at that transaction, or `undefined` if the entity

@@ -30,6 +30,10 @@ export interface AppendRequest {
 export interface StorageAdapter {
   readonly scope: string;
   readonly load: () => Promise<Journal>;
+  /** An accepted device snapshot, including an empty vault; no remote requests. */
+  readonly cached?: () => Promise<Journal | null>;
+  /** Strict remote refresh when load permits offline cached reads. */
+  readonly refresh?: () => Promise<Journal>;
   readonly append: (request: AppendRequest) => Promise<void>;
   readonly close?: () => void;
   readonly clear?: () => Promise<void>;
@@ -299,26 +303,60 @@ function validateSnapshot(snapshot: Snapshot, schema: Schema) {
   }
 }
 
-export async function refreshStorage(storage: MemoryStorage): Promise<void> {
+function acceptJournal(storage: MemoryStorage, journal: Journal): void {
+  const current = readStorage(storage);
+  for (const [index, commit] of current.commits.entries())
+    if (encodeJson(journal.commits[index]) !== encodeJson(commit))
+      throw new Error('Accepted EAV history was removed or rewritten');
+  if (journal.commits.length === current.commits.length) return;
+  let snapshot = current.current;
+  for (const commit of journal.commits.slice(current.commits.length))
+    snapshot = applyFacts(snapshot, commit.facts);
+  publish(storage, current.generation, {
+    schemas: journal.schemas,
+    commits: journal.commits,
+    current: snapshot,
+  });
+}
+
+/** Load accepted device state without treating a cold, empty store as accepted data. */
+export async function cachedStorage(storage: MemoryStorage): Promise<boolean> {
+  if (closed.has(storage)) throw new Error('EAV storage is closed');
+  const owned = adapters.get(storage);
+  if (!owned) return true;
+  return owned.queue(async () => {
+    if (closed.has(storage)) throw new Error('EAV storage is closed');
+    const journal = await owned.adapter.cached?.();
+    if (!journal) return false;
+    acceptJournal(storage, parseJournal(journal));
+    return true;
+  });
+}
+
+export async function refreshStorage(
+  storage: MemoryStorage,
+  options: { readonly remote?: boolean } = {},
+): Promise<void> {
   if (closed.has(storage)) throw new Error('EAV storage is closed');
   const owned = adapters.get(storage);
   if (!owned) return;
   await owned.queue(async () => {
-    const journal = parseJournal(await owned.adapter.load());
-    const current = readStorage(storage);
-    for (const [index, commit] of current.commits.entries())
-      if (encodeJson(journal.commits[index]) !== encodeJson(commit))
-        throw new Error('Accepted EAV history was removed or rewritten');
-    if (journal.commits.length === current.commits.length) return;
-    let snapshot = current.current;
-    for (const commit of journal.commits.slice(current.commits.length))
-      snapshot = applyFacts(snapshot, commit.facts);
-    publish(storage, current.generation, {
-      schemas: journal.schemas,
-      commits: journal.commits,
-      current: snapshot,
-    });
+    if (closed.has(storage)) throw new Error('EAV storage is closed');
+    const load = options.remote
+      ? (owned.adapter.refresh ?? owned.adapter.load)
+      : owned.adapter.load;
+    acceptJournal(storage, parseJournal(await load()));
   });
+}
+
+/** Reject new operations immediately while allowing an entered publication to settle. */
+export function suspendStorage(storage: MemoryStorage): void {
+  closed.add(storage);
+}
+
+/** Wait for storage work already queued before retiring or clearing the adapter. */
+export async function drainStorage(storage: MemoryStorage): Promise<void> {
+  await adapters.get(storage)?.queue(() => Promise.resolve());
 }
 
 /** Retains the exact publication, never reruns the transaction callback. */

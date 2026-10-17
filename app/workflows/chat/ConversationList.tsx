@@ -7,9 +7,9 @@ import {
   SelectionGroupHeading,
   SupportingPane,
 } from '@/ui/kit/index.ts';
-import type { NodeConversation } from './node-conversation.ts';
-import { useNodeChat } from './use-node-conversation.ts';
-import type { SavedChat } from './records/chat-store.ts';
+import type { Conversation } from './conversation.ts';
+import { useChat } from './use-conversation.ts';
+import type { SavedChat } from './backend.ts';
 import { later } from '@/runtime/later.ts';
 
 export function ConversationList({
@@ -19,14 +19,14 @@ export function ConversationList({
   persistent = true,
   variant = 'numbered',
 }: {
-  conversation: NodeConversation;
+  conversation: Conversation;
   open: boolean;
   onClose: () => void;
   persistent?: boolean;
   variant?: 'rule' | 'numbered' | 'badged';
 }) {
   const [visible, setVisible] = useState(false);
-  const { records, selection, selectionAvailability } = useNodeChat(conversation);
+  const { records, selection, selectionAvailability } = useChat(conversation);
   const blocked = !selectionAvailability.allowed;
   const chats = records.chats;
   useEffect(() => {

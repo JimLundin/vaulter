@@ -1,32 +1,44 @@
 import { expect, test } from 'vitest';
-import { memoryNodeBackend } from '@/vault/nodes/memory.ts';
-import { create, request, revise } from '@/vault/nodes/fixtures.test-support.ts';
-import { applicationGraph, applicationSources } from './composition.ts';
+import { createMemoryStorage } from '@/vault/eav/index.ts';
+import { applicationDatabase, applicationGraph } from './composition.ts';
 
-test('Application composes Graph snapshot reading and Graph-owned historical sources', async () => {
-  const nodes = memoryNodeBackend();
-  await nodes.commit(
-    request('seed', [
-      create('user', { kind: 'actor' }),
-      create('page', { kind: 'page', title: 'Studio' }),
-      create('term', { kind: 'term', scheme: 'type', key: 'place' }),
-      {
-        ...create('type', { kind: 'relationship', predicate: 'type' }, 'page'),
-        connection: { source: { node: 'page' }, target: { node: 'term' } },
-      },
-    ]),
+test('Application Graph reads owner entities and retains accepted endpoint evidence after deletion', async () => {
+  const storage = createMemoryStorage();
+  const db = await applicationDatabase(storage);
+  const { page, term } = await db.transaction(async (tx) => ({
+    page: await tx.entities.wikiPages.insert({
+      key: 'studio',
+      title: 'Studio',
+      summary: '',
+      aliases: [],
+      available: true,
+      createdAt: new Date(),
+    }),
+    term: await tx.entities.graphTerms.insert({ key: 'place', scheme: 'type', available: true }),
+  }));
+  const snapshot = (await db.history.transactions.first({
+    select: {},
+    orderBy: [{ sequence: 'desc' }],
+  }))!;
+  const source = await db.history.reference(snapshot, page);
+  const target = await db.history.reference(snapshot, term);
+  await db.transaction((tx) =>
+    tx.entities.graphRelationships.insert({
+      key: 'type',
+      predicate: 'type',
+      source,
+      target,
+      available: true,
+    }),
   );
-  const original = await applicationGraph(nodes);
-  expect(original.vocabulary('type')[0].data.key).toBe('place');
+  const original = await applicationGraph(storage);
+  expect(original.vocabulary('type')[0]?.data.key).toBe('place');
   expect(
-    original.query({ kind: 'query', type: 'place' }, [{ node: 'page', title: 'Studio' }]),
+    original.query({ type: 'place' }, [{ entity: source.entity, title: 'Studio' }]),
   ).toHaveLength(1);
-  const view = await nodes.snapshot();
-  expect(applicationSources.text(view.get('type')!, { view, textOf: () => '' })).toBe('');
-  expect(applicationSources.describe(view.get('type')!, view)?.title).toBe('Studio');
-  await nodes.commit(request('delete', [await revise(nodes, 'term', null)]));
-  expect((await applicationGraph(nodes)).vocabulary()).toEqual([]);
-  expect((await applicationGraph(nodes, 1)).vocabulary()).toHaveLength(1);
+  await db.transaction((tx) => tx.entities.graphTerms.delete(term));
+  const current = await applicationGraph(storage);
+  expect(current.vocabulary()).toEqual([]);
+  expect(current.classifications(source)).toMatchObject([{ key: 'place', state: 'resolved' }]);
   expect(original.vocabulary()).toHaveLength(1);
-  nodes.close();
 });

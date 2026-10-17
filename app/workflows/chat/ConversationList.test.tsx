@@ -1,51 +1,46 @@
 // @vitest-environment happy-dom
-import { transactionFixture } from '@/vault/transactions/fixtures.test-support.ts';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { expect, test, vi } from 'vitest';
-import { memoryNodeBackend } from '@/vault/nodes/memory.ts';
-import { create, request, seed } from '@/vault/nodes/fixtures.test-support.ts';
-import type { NodeStore } from '@/vault/nodes/store.ts';
+import type { ChatBackend, SavedChat } from './backend.ts';
+import { chatFixture } from './fixtures.test-support.ts';
 import { ConversationList } from './ConversationList.tsx';
-import { createNodeConversation } from './node-conversation.ts';
+import { createConversation } from './conversation.ts';
 
 test('saved conversation loading and read errors remain visible and a later recorded update recovers selection', async () => {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
-  const backend = memoryNodeBackend();
-  await seed(backend);
-  await backend.commit(
-    request('saved-chat', [
-      create('chat', {
-        kind: 'conversation',
-        title: 'Retained studio conversation',
-        createdAt: '2026-10-10T12:00:00Z',
-      }),
-    ]),
-  );
+  const { db, options } = await chatFixture();
+  await using _db = db;
+  const chats: SavedChat[] = [
+    {
+      node: 'chat',
+      data: { title: 'Retained studio conversation' },
+      activeAt: '2026-10-10T12:00:00Z',
+    },
+  ];
+  const listeners = new Set<() => void>();
   let release: () => void = () => undefined;
   const pending = new Promise<void>((resolve) => {
     release = resolve;
   });
   let failure = true;
-  const nodes: NodeStore = {
-    ...backend,
-    snapshot: async (sequence) => {
+  const backend: ChatBackend = {
+    chats: async () => {
       await pending;
       if (failure) throw new Error('Saved conversation read unavailable');
-      return backend.snapshot(sequence);
+      return chats;
     },
-  };
-  const conversation = createNodeConversation({
-    nodes: transactionFixture(nodes),
-    user: 'user',
-    agent: 'user',
-    provider: 'fictional',
-    selectedModel: 'fictional',
-    instructions: '',
-    model: async () => {
+    messages: async () => [],
+    send: () => {
       throw new Error('Reading must not execute');
     },
-  });
+    subscribe: (listener) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    dispose: () => listeners.clear(),
+  };
+  const conversation = createConversation({ ...options, backend: () => backend });
   const host = document.body;
   const root = createRoot(host);
   let closed = false;
@@ -68,9 +63,7 @@ test('saved conversation loading and read errors remain visible and a later reco
     );
     failure = false;
     await act(async () => {
-      await backend.commit(
-        request('recorded-update', [create('additional-content', { kind: 'content' })]),
-      );
+      for (const listener of listeners) listener();
     });
     expect(host.querySelector('[role="alert"]')).toBeNull();
     const row = Array.from(host.querySelectorAll('button')).find((button) =>
@@ -84,47 +77,33 @@ test('saved conversation loading and read errors remain visible and a later reco
     await act(async () => root.unmount());
     host.replaceChildren();
     conversation.dispose();
-    backend.close();
     vi.unstubAllGlobals();
   }
 });
 
 test('the conversation picker loads twenty recent conversations at a time and retries failed pages without selecting one', async () => {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
-  const backend = memoryNodeBackend();
-  await seed(backend);
-  await backend.commit(
-    request(
-      'many-chats',
-      Array.from({ length: 65 }, (_, index) => {
-        const node = `chat-${String(index).padStart(2, '0')}`;
-        return create(node, {
-          kind: 'conversation',
-          title: node,
-          createdAt: new Date(Date.parse('2026-10-10T12:00:00Z') + index * 60_000).toISOString(),
-        });
-      }),
-    ),
-  );
+  const { db, options } = await chatFixture();
+  await using _db = db;
+  const chats: SavedChat[] = Array.from({ length: 65 }, (_, index) => ({
+    node: `chat-${String(index).padStart(2, '0')}`,
+    data: { title: `chat-${String(index).padStart(2, '0')}` },
+    activeAt: new Date(Date.parse('2026-10-10T12:00:00Z') + index * 60_000).toISOString(),
+  })).reverse();
   let failure = false;
-  const nodes: NodeStore = {
-    ...backend,
-    snapshot: async (sequence) => {
+  const backend: ChatBackend = {
+    chats: async (query) => {
       if (failure) throw new Error('Older conversations could not load');
-      return backend.snapshot(sequence);
+      return chats.slice(0, query?.limit);
     },
-  };
-  const conversation = createNodeConversation({
-    nodes: transactionFixture(nodes),
-    user: 'user',
-    agent: 'user',
-    provider: 'fictional',
-    selectedModel: '',
-    instructions: '',
-    model: async () => {
+    messages: async () => [],
+    send: () => {
       throw new Error('Reading must not execute');
     },
-  });
+    subscribe: () => () => {},
+    dispose: () => {},
+  };
+  const conversation = createConversation({ ...options, backend: () => backend });
   const selected = conversation.conversation();
   const root = createRoot(document.body);
   const rows = () =>
@@ -164,7 +143,6 @@ test('the conversation picker loads twenty recent conversations at a time and re
   } finally {
     await act(async () => root.unmount());
     conversation.dispose();
-    backend.close();
     document.body.replaceChildren();
     vi.unstubAllGlobals();
   }

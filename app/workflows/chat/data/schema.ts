@@ -38,7 +38,7 @@ export const RetainedSource = e.entity('chat.retainedSource', {
   status: e.enum('running', 'complete', 'failed', 'stopped', 'interrupted').optional(),
   provenance: e.json(),
 });
-/** One-time importer bookkeeping, independent of dialogue identity. */
+/** Retained definition for journals written before native-only Chat; no importer runs. */
 export const Migration = e.entity('chat.migration', {
   key: e.string(),
   sourceSequence: e.number(),

@@ -1,18 +1,15 @@
 import {
   sameEntity,
+  clear,
+  SaveError,
   type Database,
   type EntityDefinition,
   type EntityRef,
   type Registry,
   type TransactionRef,
+  type TransactionChange,
 } from '@/vault/eav/index.ts';
-import type { NodeReading } from '@/vault/nodes/store.ts';
-import {
-  nodeHistoryEntry,
-  type HistoryEntry,
-  type HistorySource,
-  type NodeHistorySource,
-} from './entries.ts';
+import type { HistoryEntry, HistorySource } from './entries.ts';
 
 function label(values: Readonly<Record<string, unknown>>, fallback: string) {
   for (const key of ['title', 'name', 'label', 'text', 'key']) {
@@ -54,22 +51,87 @@ async function valueText<R extends Registry>(
   return JSON.stringify(value);
 }
 
-/** Read-only mixed history. Timestamp order is presentation, never a shared transaction sequence. */
+/** Accepted EAV transactions in journal order, with evidence resolved at each recorded snapshot. */
 export function vaultHistory<R extends Registry>(options: {
-  readonly nodes: NodeReading;
-  readonly legacy: NodeHistorySource;
-  readonly database?: () => Promise<Database<R>>;
+  readonly database: () => Promise<Database<R>>;
+  readonly compensation?: {
+    /** Application owns the admission policy and mutable record allow-list. */
+    readonly types: readonly (keyof R)[];
+    readonly author: () => Promise<EntityRef<EntityDefinition>>;
+    readonly admission?: () => void;
+  };
 }): HistorySource {
+  const pending = new Map<number, SaveError>();
+  const active = new Map<number, Promise<void>>();
+  const undo = (
+    db: Database<R>,
+    sequence: number,
+    changes: readonly TransactionChange<R>[],
+  ): Promise<void> => {
+    const current = active.get(sequence);
+    if (current !== undefined) return current;
+    const work = (async () => {
+      const policy = options.compensation!;
+      policy.admission?.();
+      const retained = pending.get(sequence);
+      try {
+        if (retained) {
+          await retained.retry();
+        } else {
+          const author = await policy.author();
+          policy.admission?.();
+          await db.transaction({ author }, async (tx) => {
+            policy.admission?.();
+            for (const change of changes) {
+              const latest = await db.history.entities[change.type].first({
+                where: { entity: { eq: change.entity } },
+                select: { sequence: true },
+                orderBy: [{ sequence: 'desc' }],
+              });
+              if (latest?.sequence !== sequence)
+                throw new Error(
+                  'A changed record has newer history; this transaction cannot be undone.',
+                );
+              const values: Record<string, unknown> = Object.fromEntries(
+                Object.entries(change.before!),
+              );
+              for (const field of Object.keys(change.after!)) {
+                if (!Object.hasOwn(change.before!, field)) values[field] = clear;
+              }
+              // Registry dispatch retains the entity/version token; the owner policy admits these updates.
+              const writer = tx.entities[change.type] as {
+                update: (
+                  value: EntityRef<EntityDefinition> & Readonly<Record<string, unknown>>,
+                ) => Promise<void>;
+              };
+              await writer.update({ ...change.after!, ...values });
+            }
+            policy.admission?.();
+          });
+        }
+        pending.delete(sequence);
+      } catch (error) {
+        if (error instanceof SaveError) pending.set(sequence, error);
+        else pending.delete(sequence);
+        throw error;
+      }
+    })();
+    active.set(sequence, work);
+    work.then(
+      () => active.delete(sequence),
+      () => active.delete(sequence),
+    );
+    return work;
+  };
   return {
     subscribe(listener) {
-      const unsubscribe = options.legacy.subscribe(listener);
       let closed = false;
-      let unsubscribeEav: (() => void) | undefined;
+      let unsubscribe: (() => void) | undefined;
       void options
-        .database?.()
+        .database()
         .then((db) => {
           if (!closed) {
-            unsubscribeEav = db.subscribe(listener);
+            unsubscribe = db.subscribe(listener);
             listener();
           }
         })
@@ -78,37 +140,13 @@ export function vaultHistory<R extends Registry>(options: {
         });
       return () => {
         closed = true;
-        unsubscribe();
-        unsubscribeEav?.();
+        unsubscribe?.();
       };
     },
     async entries({ before, limit = 25 } = {}) {
-      const [nodeTransactions, db] = await Promise.all([
-        options.nodes.history({ limit: Number.MAX_SAFE_INTEGER }),
-        options.database?.(),
-      ]);
-      const candidates = nodeTransactions.map((transaction) => ({
-        key: `node:${transaction.id}`,
-        time: new Date(transaction.recordedAt).getTime(),
-        sequence: transaction.sequence,
-        source: 'node',
-        async load(): Promise<HistoryEntry> {
-          const snapshot = await options.nodes.snapshot(transaction.sequence);
-          const entry = {
-            transaction,
-            author: snapshot.get(transaction.recordedBy)!,
-            origin: transaction.origin ? snapshot.get(transaction.origin)! : null,
-            differences: await options.nodes.changes(transaction.id),
-          };
-          return nodeHistoryEntry(
-            entry,
-            options.legacy.undo && options.legacy.canUndo?.(entry)
-              ? () => options.legacy.undo!(entry)
-              : undefined,
-          );
-        },
-      }));
-      if (db) {
+      const db = await options.database();
+      const candidates: { key: string; sequence: number; load: () => Promise<HistoryEntry> }[] = [];
+      {
         const transactions = await db.history.transactions.query({
           select: { sequence: true, committedAt: true, author: true, origin: true },
           orderBy: [{ sequence: 'asc' }],
@@ -116,9 +154,7 @@ export function vaultHistory<R extends Registry>(options: {
         for (const [index, transaction] of transactions.entries()) {
           candidates.push({
             key: `eav:${transaction.sequence}`,
-            time: transaction.committedAt.getTime(),
             sequence: transaction.sequence,
-            source: 'eav',
             async load() {
               const [changes, author, origin] = await Promise.all([
                 db.history.changes(transaction),
@@ -189,6 +225,17 @@ export function vaultHistory<R extends Registry>(options: {
               );
               return {
                 key: `eav:${transaction.sequence}`,
+                undo:
+                  options.compensation &&
+                  changes.length > 0 &&
+                  changes.every(
+                    (change) =>
+                      options.compensation!.types.includes(change.type) &&
+                      change.before !== null &&
+                      change.after !== null,
+                  )
+                    ? () => undo(db, transaction.sequence, changes)
+                    : undefined,
                 title:
                   details.length === 1 ? details[0].title : `Recorded ${details.length} changes`,
                 recordedAt: transaction.committedAt.toISOString(),
@@ -202,10 +249,8 @@ export function vaultHistory<R extends Registry>(options: {
           });
         }
       }
-      // Scan metadata only; reconstruct before/after values for the requested page.
-      candidates.sort(
-        (a, b) => b.time - a.time || a.source.localeCompare(b.source) || b.sequence - a.sequence,
-      );
+      // Reconstruct before/after evidence only for the requested page.
+      candidates.sort((a, b) => b.sequence - a.sequence);
       const cursor =
         before === undefined ? -1 : candidates.findIndex((entry) => entry.key === before);
       if (before !== undefined && cursor === -1)

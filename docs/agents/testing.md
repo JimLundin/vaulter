@@ -9,7 +9,7 @@ the change.
 - Run behavior tests for the owning module with `npm run test:fast -- app/workflows/chat`, or
   keep them running with `npm run test:watch -- app/workflows/chat`.
 - To select behavior tests through imports, use
-  `npm exec vitest -- related app/workflows/chat/node-conversation.ts --run --project=behavior`.
+  `npm exec vitest -- related app/workflows/chat/conversation.ts --run --project=behavior`.
   Source-inspection checks read files directly and need explicit selection.
 - For browser behavior, select the relevant test file and project, for example
   `npm run test:ui -- app/ui/kit/composer.browser.test.ts --project=desktop`.
@@ -30,16 +30,12 @@ use focused selection locally rather than setting CI variables to bypass the gua
 
 ## Mutation testing
 
-`npm run test:mutation` runs focused node history, traversal and ingress validation with Stryker,
-using node behavior tests and the existing transaction recovery tests. Its configuration reuses
-the application's transforms and aliases.
-HTML and JSON reports are written to `reports/mutation/`. Review survivors for observable failures
-before adding assertions or suppressing equivalent mutations; the pilot reports without a score gate.
-The separate Mutation testing workflow runs this pilot on demand and retains reports for seven days.
-Expand mutation targets and the corresponding test selection together in `tools/testing/`.
-The pilot disables Stryker's tsconfig rewriting because its rewriter requires the pre-TypeScript-7
-compiler API. The repository tsconfig uses local paths that remain valid in the sandbox;
-ordinary `typecheck` still verifies the application outside mutation runs.
+`npm run test:mutation` runs focused EAV engine behavior with Stryker. Its configuration reuses the
+application transforms and aliases. HTML and JSON reports are written to `reports/mutation/`.
+Review survivors for observable failures before adding assertions or suppressing equivalent mutations.
+The on-demand Mutation testing workflow retains reports for seven days. Expand mutation targets and
+the corresponding focused selection together in `tools/testing/`; ordinary type checking verifies
+the application outside mutation runs.
 
 ## Test placement and device coverage
 

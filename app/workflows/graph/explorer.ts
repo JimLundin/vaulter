@@ -1,11 +1,8 @@
-import type { NodeReading, NodeSnapshot } from '@/vault/nodes/store.ts';
-import type { NodeVersion } from '@/vault/nodes/model.ts';
-import type { SourceDescription } from '@/vault/sources.ts';
+import type { GraphDatabase, GraphEndpoint } from './reading.ts';
 import { readGraph, type Graph } from './reading.ts';
 
 export interface GraphSubject {
   readonly id: string;
-  readonly address: NodeVersion['key'];
   readonly title: string;
   readonly href?: string;
   readonly connections: number;
@@ -13,56 +10,39 @@ export interface GraphSubject {
 }
 export interface GraphExplorerState {
   readonly graph: Graph | null;
-  readonly view?: NodeSnapshot;
   readonly subjects: readonly GraphSubject[];
   readonly loading: boolean;
   readonly error?: string;
 }
 export type GraphDescription = (
-  node: NodeVersion,
-  view: NodeSnapshot,
-) => SourceDescription | undefined;
-
-/** Project only relationship endpoints and Terms; foreign record descriptions are supplied by owners. */
-export function projectGraphExplorer(
-  view: NodeSnapshot,
-  describe: GraphDescription,
-): GraphExplorerState {
-  const graph = readGraph(view);
+  endpoint: GraphEndpoint,
+) => { title: string; href?: string } | undefined;
+export interface EavGraphInput {
+  readonly database: () => Promise<GraphDatabase>;
+  readonly describe?: GraphDescription;
+}
+export async function projectGraphExplorer(
+  db: GraphDatabase,
+  describe?: GraphDescription,
+): Promise<GraphExplorerState> {
+  const graph = await readGraph(db);
   const subjects = new Map<string, GraphSubject>();
-  const add = (node: NodeVersion) => {
-    if (subjects.has(node.key.node)) return;
-    const term = node.data?.kind === 'term';
-    const description = describe(node, view);
-    const title = term
-      ? String(node.data?.label ?? node.data?.key ?? 'Unnamed term')
-      : description?.title || 'Untitled subject';
-    subjects.set(node.key.node, {
-      id: node.key.node,
-      address: node.key,
-      title,
+  for (const endpoint of graph.endpoints) {
+    if (!endpoint.address || subjects.has(endpoint.address.entity)) continue;
+    const values = endpoint.current ?? endpoint.values;
+    const description = describe?.(endpoint);
+    subjects.set(endpoint.address.entity, {
+      id: endpoint.address.entity,
+      title:
+        description?.title ??
+        String(values?.title ?? values?.label ?? values?.key ?? 'Untitled subject'),
       href: description?.href,
-      state: node.data ? 'available' : 'deleted',
-      connections: graph.relationships({ node: node.key.node }).length,
+      state: !endpoint.current || endpoint.current.available === false ? 'deleted' : 'available',
+      connections: graph.relationships(endpoint.address).length,
     });
-  };
-  const pending = [...view.roots()];
-  while (pending.length) {
-    const node = pending.pop()!;
-    pending.push(...view.children(node.key.node));
-    if (node.data?.kind === 'term') add(node);
-    if (node.data?.kind !== 'relationship') continue;
-    const source =
-      node.connection?.source ?? (node.placement ? { node: node.placement.parent } : undefined);
-    for (const address of [source, node.connection?.target]) {
-      if (!address) continue;
-      const selected = view.get(address.node) ?? view.resolve(address);
-      if (selected) add(selected);
-    }
   }
   return {
     graph,
-    view,
     subjects: [...subjects.values()].sort(
       (a, b) => a.title.localeCompare(b.title) || a.id.localeCompare(b.id),
     ),
@@ -71,8 +51,8 @@ export function projectGraphExplorer(
 }
 
 /** Own subscribed reads, generation ordering, retained results and disposal. */
-export function createGraphExplorer(nodes: NodeReading | null, describe: GraphDescription) {
-  let state: GraphExplorerState = { graph: null, subjects: [], loading: !!nodes };
+export function createGraphExplorer(input: EavGraphInput | null) {
+  let state: GraphExplorerState = { graph: null, subjects: [], loading: !!input };
   let generation = 0;
   let disposed = false;
   let started = false;
@@ -83,12 +63,14 @@ export function createGraphExplorer(nodes: NodeReading | null, describe: GraphDe
     for (const listener of listeners) listener();
   };
   const reload = async () => {
-    if (disposed || !nodes) return;
+    if (disposed || !input) return;
     const request = ++generation;
     publish({ ...state, loading: true });
     try {
-      const view = await nodes.snapshot();
-      const next = projectGraphExplorer(view, describe);
+      const db = await input.database();
+      if (disposed || request !== generation) return;
+      unsubscribe ??= db.subscribe(() => void reload());
+      const next = await projectGraphExplorer(db, input.describe);
       if (!disposed && request === generation) publish(next);
     } catch (error) {
       if (!disposed && request === generation)
@@ -103,7 +85,6 @@ export function createGraphExplorer(nodes: NodeReading | null, describe: GraphDe
     start: () => {
       if (started || disposed) return;
       started = true;
-      unsubscribe = nodes?.subscribe(() => void reload());
       void reload();
     },
     reload,

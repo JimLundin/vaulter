@@ -6,13 +6,13 @@ export interface WikiReference {
   title: string;
   text: string;
   context: string;
+  currentText?: string;
   range?: { start: number; end: number };
   claim?: { start: number; end: number };
   date?: string;
   author?: string;
   href?: string;
   state: 'original' | 'newer' | 'deleted';
-  source?: { node: string; transaction: string };
   address?: HistoricalReference;
   sequence: number;
   speaker?: 'user' | 'agent';
@@ -28,6 +28,7 @@ export interface WikiClassification {
 
 export interface WikiBlock {
   id: string;
+  address?: HistoricalReference;
   data: { readonly [key: string]: JsonValue };
   children: WikiBlock[];
   href?: string;

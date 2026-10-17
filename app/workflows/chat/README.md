@@ -1,31 +1,22 @@
 # Chat
 
 Chat is one continuous user-agent dialogue per Vault. The [EAV record contract](data/README.md) owns
-its single Conversation, ordered Exchanges and canonical user Messages. Agent owns execution and
-responses. `eav-backend.ts` projects them into the dialogue without copying Agent output into a second
-Chat record. Topic/date changes, view closure, reload and device navigation do not create new chats.
+its single Conversation, ordered Exchanges and canonical submitted Messages. Agent owns execution,
+responses and tool outcomes. The backend projects those records into the dialogue. Topic/date changes,
+view closure, reload and device navigation continue the same Conversation.
 
-Production and the default preview use the EAV backend. A one-time importer converts earlier chats
-into retained source records with exact provenance. Ordinary readers use the target EAV contract.
-There is no New/Open chooser in this path. See [ADR 0011](../../../docs/adr/0011-chat-agent-eav-adoption.md).
+`createConversation()` owns drafts, capture association, prompt admission, submissions and
+recovery across page/pane views. `prepareSubmission()` retains text and request identity before clearing
+the draft. Enter, Send and Ask use the same policy. Agent execution begins after initial acceptance;
+Stop drains entered work. Recovery delegates to the producing owner and retries exact publications
+without executing a model or tool again.
 
-`createNodeConversation()` retains the shared interaction lifetime while its name and compatibility
-interface await cleanup. It owns drafts, capture association, prompt admission, submissions and recovery
-across page/pane views. A continuous backend disables the obsolete selection operations and restores
-its authoritative dialogue at startup. Legacy selection behavior exists only for independent callers
-still supplying the Node backend. Views cannot bypass owner admission by changing local flags.
+RetainedSource contributions preserve imported material with its known provenance and date precision,
+without inventing unavailable execution records. Native Agent output is projected directly. Historical
+reading never resumes effects. Explicit ContextCheckpoints summarize accepted dialogue prefixes;
+subsequent runs use an applicable checkpoint, later Exchanges and current instructions while retaining
+exactly supplied ContextInputs. Automatic checkpoint scheduling and context budgets remain future work.
 
-`prepareSubmission()` retains text and request identity before clearing its draft source. Enter,
-Send and Ask use that policy. Model/tool execution begins only after initial EAV acceptance and the
-required compatibility publication. Stop drains entered work. Save retry retains completed results and
-never runs a provider or tool again. Recovery obligations remain with the producing writer/runtime;
-Chat presents their state and delegates retry. Pending content publication is distinct from execution
-receipt recovery.
-
-The backend reads retained contributions separately from constructing effective model context. Each
-Agent run captures its initial inputs, and each observable text ModelStep captures the supplied request
-context and response metadata. Historical reads do not resume unknown effects. Context budgeting and
-compaction are subsequent work.
-
-Focused checks cover domain admission, migration, canonical output, request/response recovery and
-production reload. Browser checks cover continuous dialogue, draft/capture lifetime and page/pane layout.
+`eavChatFactory()` binds the native database used by production and fictional previews. Focused checks cover admission,
+canonical output, recovery and reload; browser checks cover continuous dialogue, draft/capture lifetime
+and page/pane layout. See [ADR 0011](../../../docs/adr/0011-chat-agent-eav-adoption.md).

@@ -1,75 +1,91 @@
-import { transactionFixture } from '@/vault/transactions/fixtures.test-support.ts';
 import { expect, test } from 'vitest';
-import { memoryNodeBackend } from '@/vault/nodes/memory.ts';
+import {
+  createMemoryStorage,
+  createPersistentStorage,
+  sameEntity,
+  type AppendRequest,
+  type Journal,
+} from '@/vault/eav/index.ts';
+import { applicationDatabase } from './composition.ts';
 import { createApplicationIdentities } from './identities.ts';
 
-test('application identity setup is stable across callers and preserves migrated Agent configuration', async () => {
-  const nodes = memoryNodeBackend();
-  const setup = createApplicationIdentities(transactionFixture(nodes));
+test('application identity setup is stable across callers and preserves Agent configuration', async () => {
+  const storage = createMemoryStorage();
+  const database = () => applicationDatabase(storage);
+  const setup = createApplicationIdentities(database);
   await setup.ensure();
-  const ids = setup.identities;
-  expect((await nodes.snapshot()).get(ids.user)?.data?.kind).toBe('actor');
-  const agent = (await nodes.snapshot()).get(ids.agent)!;
-  await nodes.commit({
-    id: 'configured',
-    kind: { scope: 'node', action: 'update' },
-    recordedBy: ids.user,
-    origin: null,
-    undoOf: null,
-    message: null,
-    changes: [
-      {
-        node: ids.agent,
-        expected: agent.key.transaction,
-        placement: null,
-        connection: null,
-        data: { kind: 'agent', instructions: 'Retain this configuration.' },
-      },
-    ],
-  });
-  await createApplicationIdentities(transactionFixture(nodes)).ensure();
-  expect((await nodes.snapshot()).get(ids.agent)?.data?.instructions).toBe(
-    'Retain this configuration.',
+  const db = await database();
+  const owner = (await db.entities.actorBindings.first({
+    where: { key: { eq: setup.identities.user } },
+    select: { actor: { kind: true } },
+  }))!;
+  expect(owner.actor.kind).toBe('user');
+  const binding = (await db.entities.actorBindings.first({
+    where: { key: { eq: setup.identities.agent } },
+    select: { actor: true },
+  }))!;
+  const agent = await db.transaction((tx) =>
+    tx.entities.agents.insert({
+      actor: binding.actor,
+      provider: 'fictional',
+      model: 'fictional',
+      instructions: '',
+      settings: {},
+      tools: [],
+    }),
   );
-  expect(await nodes.history()).toHaveLength(2);
+  await db.transaction((tx) =>
+    tx.entities.agents.update({ ...agent, instructions: 'Retain this configuration.' }),
+  );
+  await createApplicationIdentities(database).ensure();
+  expect(await db.entities.agents.first({ select: { instructions: true } })).toMatchObject({
+    instructions: 'Retain this configuration.',
+  });
+  const sameOwner = (await db.entities.actorBindings.first({
+    where: { key: { eq: setup.identities.user } },
+    select: { actor: true },
+  }))!;
+  expect(sameEntity(owner.actor, sameOwner.actor)).toBe(true);
+  expect(await db.entities.actors.query({ select: {} })).toHaveLength(2);
 });
 
-test('identity bootstrap retries a rejected request unchanged and never restores a deleted actor', async () => {
-  const memory = memoryNodeBackend();
-  const requests: unknown[] = [];
-  let reject = true;
-  const nodes = {
-    ...memory,
-    commit: async (request: Parameters<typeof memory.commit>[0]) => {
-      requests.push(request);
-      if (reject) throw new Error('Offline');
-      return memory.commit(request);
+test('identity bootstrap retries the same publication after an uncertain save', async () => {
+  let journal: Journal = { schemas: [], commits: [] };
+  const requests: AppendRequest[] = [];
+  let loseResponse = true;
+  const storage = createPersistentStorage({
+    scope: 'identity-recovery',
+    load: async () => structuredClone(journal),
+    append: async (request) => {
+      requests.push(structuredClone(request));
+      if (!journal.commits.some((commit) => commit.id === request.commit.id))
+        journal = structuredClone({
+          schemas: request.schemas,
+          commits: [...journal.commits, request.commit],
+        });
+      if (loseResponse) {
+        loseResponse = false;
+        throw new Error('Acknowledgement lost');
+      }
     },
-  };
-  const setup = createApplicationIdentities(transactionFixture(nodes));
-  await expect(setup.ensure()).rejects.toThrow('Offline');
-  reject = false;
+  });
+  const setup = createApplicationIdentities(() => applicationDatabase(storage));
+  await expect(setup.ensure()).rejects.toThrow('Acknowledgement lost');
   await setup.ensure();
   expect(requests[1]).toEqual(requests[0]);
-  const actor = (await nodes.snapshot()).get(setup.identities.user)!;
-  await memory.commit({
-    id: 'delete-actor',
-    kind: { scope: 'node', action: 'delete' },
-    recordedBy: setup.identities.user,
-    origin: null,
-    undoOf: null,
-    message: null,
-    changes: [
-      {
-        node: actor.key.node,
-        expected: actor.key.transaction,
-        placement: null,
-        connection: null,
-        data: null,
-      },
-    ],
+  const db = await applicationDatabase(storage);
+  expect(await db.entities.actorBindings.query({ select: {} })).toHaveLength(2);
+  expect(journal.commits).toHaveLength(1);
+});
+
+test('application refuses an incompatible configured owner identity', async () => {
+  const storage = createMemoryStorage();
+  const db = await applicationDatabase(storage);
+  await db.transaction(async (tx) => {
+    const actor = await tx.entities.actors.insert({ name: 'System', kind: 'system' });
+    await tx.entities.actorBindings.insert({ key: 'vaulter:owner', actor });
   });
-  await expect(createApplicationIdentities(transactionFixture(nodes)).ensure()).rejects.toThrow(
-    'deleted or has an incompatible kind',
-  );
+  await expect(
+    createApplicationIdentities(() => applicationDatabase(storage)).ensure(),
+  ).rejects.toThrow();
 });

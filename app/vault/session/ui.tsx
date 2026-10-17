@@ -227,13 +227,7 @@ export function SessionStatus({ status }: { status: Status }) {
   );
 }
 
-export function RefreshNodes({
-  status,
-  refresh,
-}: {
-  status: Status;
-  refresh: Session['refreshNodes'];
-}) {
+export function RefreshVault({ status, refresh }: { status: Status; refresh: Session['refresh'] }) {
   const [pending, setPending] = useState(false);
   const refreshing = useRef<boolean>(false);
   const [error, setError] = useState('');

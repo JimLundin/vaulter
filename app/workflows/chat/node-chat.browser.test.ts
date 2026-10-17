@@ -1,6 +1,10 @@
 import { openAppAction } from '@/ui/kit/navigation.browser.test-support.ts';
 import { expect, test } from '@playwright/test';
 
+test.beforeEach(async ({ page }) => {
+  await page.clock.install();
+});
+
 test('each preview tab retains its own single dialogue across reload', {
   tag: '@phone',
 }, async ({ page }) => {
@@ -8,6 +12,7 @@ test('each preview tab retains its own single dialogue across reload', {
   const input = page.getByRole('textbox', { name: 'Message', exact: true });
   await input.fill('Remember this tab');
   await input.press('Enter');
+  await page.clock.runFor(10_000);
   await expect(page.locator('[data-message="agent"]')).toBeVisible();
   const other = await page.context().newPage();
   await other.goto('/preview/');
@@ -33,6 +38,7 @@ for (const restriction of ['recording', 'save recovery']) {
     const input = main.getByRole('textbox', { name: 'Message', exact: true });
     await input.fill('Keep this conversation');
     await input.press('Enter');
+    await page.clock.runFor(10_000);
     await expect(main.getByRole('button', { name: 'Stop', exact: true })).toBeHidden();
     if (restriction === 'recording') {
       await input.fill('Keep the recording draft');
@@ -74,7 +80,9 @@ test('Search Ask is accepted once when Chat moves between the page and its suppo
   await expect(
     page.getByRole('main').getByRole('button', { name: 'Stop', exact: true }),
   ).toBeHidden();
-  const accepted = await page.evaluate(() => sessionStorage.getItem('vaulter:preview:accepted:v1'));
+  const accepted = await page.evaluate(() =>
+    sessionStorage.getItem('vaulter:preview:eav:dialogue:v1'),
+  );
   // Hash navigation changes Application's composition without reloading its retained lifetime.
   await page.evaluate(() => {
     location.hash = '#/wiki/';
@@ -93,7 +101,7 @@ test('Search Ask is accepted once when Chat moves between the page and its suppo
     page.getByRole('main').getByRole('heading', { name: 'Chat', exact: true }),
   ).toBeVisible();
   await expect(page.getByRole('main').locator('[data-message="user"]')).toHaveCount(1);
-  expect(await page.evaluate(() => sessionStorage.getItem('vaulter:preview:accepted:v1'))).toBe(
+  expect(await page.evaluate(() => sessionStorage.getItem('vaulter:preview:eav:dialogue:v1'))).toBe(
     accepted,
   );
 });
@@ -152,17 +160,18 @@ test('Send retains EAV dialogue and content receipts across reload without repla
   const input = page.getByRole('textbox', { name: 'Message', exact: true });
   await input.fill('vault it: leave room for walks');
   await input.press('Enter');
+  await page.clock.runFor(10_000);
   await expect(page.getByText('Filed in', { exact: false })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Stop', exact: true })).toBeHidden();
   const before = await page.evaluate(
-    () => JSON.parse(sessionStorage.getItem('vaulter:preview:accepted:v1') ?? '[]').length,
+    () => JSON.parse(sessionStorage.getItem('vaulter:preview:eav:dialogue:v1')!).commits.length,
   );
   await page.reload();
   await expect(page.getByText('Filed in', { exact: false })).toBeVisible();
   await expect(page.locator('[data-message="user"]')).toHaveCount(1);
   expect(
     await page.evaluate(
-      () => JSON.parse(sessionStorage.getItem('vaulter:preview:accepted:v1') ?? '[]').length,
+      () => JSON.parse(sessionStorage.getItem('vaulter:preview:eav:dialogue:v1')!).commits.length,
     ),
   ).toBe(before);
 });
@@ -172,19 +181,20 @@ test('Retry save reconciles the initial message without executing content', asyn
   const input = page.getByRole('textbox', { name: 'Message', exact: true });
   await input.fill('vault it: keep this thought');
   await input.press('Enter');
+  await page.clock.runFor(10_000);
   await expect(page.getByRole('alert').filter({ hasText: /needs? saving/ })).toBeVisible();
   await page.getByRole('button', { name: 'Retry save', exact: true }).click();
   await expect(page.getByRole('status').filter({ hasText: 'Message saved' })).toBeVisible();
   const created = await page.evaluate(
     () =>
-      JSON.parse(sessionStorage.getItem('vaulter:preview:accepted:v1') ?? '[]').filter(
-        (request: {
-          kind: { scope: string; action: string };
-          changes: { data?: { kind?: string } }[];
-        }) =>
-          request.kind.scope === 'node' &&
-          request.kind.action === 'create' &&
-          request.changes.some((change) => change.data?.kind === 'content'),
+      JSON.parse(sessionStorage.getItem('vaulter:preview:eav:dialogue:v1')!).commits.filter(
+        (commit: { facts: { attribute: string; value: unknown; added: boolean }[] }) =>
+          commit.facts.some(
+            (fact) =>
+              fact.attribute === 'wiki.page/title' &&
+              fact.added &&
+              fact.value === 'Preview thought',
+          ),
       ).length,
   );
   expect(created).toBe(0);
@@ -197,7 +207,9 @@ test('Retry content save reconciles the original publication without repeating a
   const input = page.getByRole('textbox', { name: 'Message', exact: true });
   await input.fill('vault it: keep publication');
   await input.press('Enter');
+  await page.clock.runFor(10_000);
   await expect(page.getByRole('alert').filter({ hasText: 'Content save:' })).toBeVisible();
+  await page.getByRole('button', { name: 'Stop', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Stop', exact: true })).toBeHidden();
   await input.fill('Another message');
   await expect(page.getByRole('button', { name: 'Send', exact: true })).toBeDisabled();
@@ -213,16 +225,16 @@ test('Retry content save reconciles the original publication without repeating a
   await input.focus();
   await expect(page.getByRole('button', { name: 'Send', exact: true })).toBeEnabled();
   const counts = await page.evaluate(() => {
-    const requests = JSON.parse(sessionStorage.getItem('vaulter:preview:accepted:v1') ?? '[]');
+    const journal = JSON.parse(sessionStorage.getItem('vaulter:preview:eav:dialogue:v1')!);
     return {
-      contents: requests.filter(
-        (request: {
-          kind: { scope: string; action: string };
-          changes: { data?: { kind?: string } }[];
-        }) =>
-          request.kind.scope === 'node' &&
-          request.kind.action === 'create' &&
-          request.changes.some((change) => change.data?.kind === 'content'),
+      contents: journal.commits.filter(
+        (commit: { facts: { attribute: string; value: unknown; added: boolean }[] }) =>
+          commit.facts.some(
+            (fact) =>
+              fact.attribute === 'wiki.page/title' &&
+              fact.added &&
+              fact.value === 'Preview thought',
+          ),
       ).length,
       tools: JSON.parse(sessionStorage.getItem('vaulter:preview:eav:dialogue:v1')!).commits.filter(
         (commit: { facts: { attribute: string }[] }) =>
@@ -231,8 +243,16 @@ test('Retry content save reconciles the original publication without repeating a
     };
   });
   expect(counts.contents).toBe(1);
-  expect(receipts).toHaveLength(2);
-  expect(counts.tools).toEqual(receipts);
+  expect(receipts).toHaveLength(1);
+  expect(counts.tools).toHaveLength(2);
+  expect(counts.tools[0]).toEqual(receipts[0]);
+  expect(counts.tools[1].facts).toContainEqual(
+    expect.objectContaining({
+      attribute: 'agent.toolExecution/status',
+      added: true,
+      value: 'failed',
+    }),
+  );
 });
 
 test('different topics remain in one dialogue after navigation and reload', {
@@ -243,6 +263,7 @@ test('different topics remain in one dialogue after navigation and reload', {
   for (const text of ['A morning routine', 'A different subject']) {
     await input.fill(text);
     await input.press('Enter');
+    await page.clock.runFor(10_000);
     await expect(page.getByRole('button', { name: 'Stop', exact: true })).toBeHidden();
   }
   await expect(page.locator('[data-message="user"]')).toContainText([

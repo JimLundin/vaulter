@@ -21,6 +21,10 @@ export function previewEav(storage: Storage, scenario?: string) {
       const matches = request.commit.facts.some((fact) => {
         if (scenario === 'initial-save' || scenario === 'lost-response')
           return fact.attribute === 'chat.exchange/submission';
+        if (scenario === 'content-save' || scenario === 'content-lost-response')
+          return (
+            fact.attribute === 'wiki.page/title' && fact.added && fact.value === 'Preview thought'
+          );
         if (scenario === 'outcome-save')
           return (
             fact.attribute === 'agent.toolExecution/status' &&
@@ -33,7 +37,7 @@ export function previewEav(storage: Storage, scenario?: string) {
       });
       const fail = !fault && matches;
       if (fail) fault = true;
-      if (fail && scenario !== 'lost-response')
+      if (fail && scenario !== 'lost-response' && scenario !== 'content-lost-response')
         throw new Error('The preview rejected this save once. Retry saving to continue.');
       const next = parseJournal({
         schemas: request.schemas,
@@ -43,11 +47,14 @@ export function previewEav(storage: Storage, scenario?: string) {
       journal = next;
       if (fail)
         throw new Error(
-          'The preview accepted the message but lost its response. Retry saving to reconcile.',
+          scenario === 'content-lost-response'
+            ? 'The preview accepted content but lost its response. Retry content saving to reconcile.'
+            : 'The preview accepted the message but lost its response. Retry saving to reconcile.',
         );
     },
-    clear: async () => {
+    clear: () => {
       storage.removeItem(previewEavKey);
+      return Promise.resolve();
     },
   });
 }

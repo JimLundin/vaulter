@@ -1,7 +1,7 @@
 # Architecture
 
 Application composes independently owned modules. A code dependency points from a caller to the
-module whose interface it uses. A relationship stored between Nodes does not create a dependency
+module whose interface it uses. A relationship stored between entities does not create a dependency
 between their owning modules. Agent chooses those relationships; Application wires the available
 record actions, readers and renderers into Agent and the views.
 
@@ -16,14 +16,14 @@ flowchart TD
   Application --> Session
   Application --> History[Transactions / History]
   Chat --> Agent
-  Agent --> Transactions
+  Agent --> EAV
   Questions --> EAV
-  Wiki --> Nodes[Node reading]
+  Wiki --> EAV[Typed EAV engine]
   History --> Transactions
-  Transactions --> Nodes
-  Session --> Transactions
+  Transactions --> EAV
+  Session --> EAV
   Session --> Storage[Storage adapters]
-  Storage --> Nodes
+  Storage --> EAV
   Search --> Entries[Search entries and ranking]
 ```
 
@@ -37,13 +37,13 @@ workflows. There is no extension registry, common workflow manifest or runtime f
 |---|---|---|
 | Application | Routes, shell, identities, module selection, record/tool/source composition | Record schemas or persistence |
 | Agent | Execution, context discovery, grounding choices, durable tool activity, recovery, historical decoding | Wiki or Question payload interpretation |
-| Chat | Conversations, messages, drafts, capture, projecting typed Agent activity into a transcript | Decoding Agent records |
+| Chat | Continuous conversation, messages, drafts, capture, projecting typed Agent activity into a transcript | Decoding Agent records |
 | Wiki | Pages, blocks, citations, subject discovery and page presentation | Creating or answering Questions |
-| Graph | Relationships, vocabulary Terms, snapshot traversal, live Query evaluation and exploration UI | Wiki page membership or presentation, persistence |
+| Graph | Topics, memberships, typed relationships, historical endpoint interpretation and exploration UI | Wiki content or presentation, persistence |
 | Questions | Question/Answer records, action admission, atomic references, collection and embedded UI | Wiki classification or deciding which evidence to use |
-| Transactions / History | Write lifetimes, acceptance/recovery state, history and guarded compensation | Producer-specific admission or undo policy |
+| Transactions / History | Single-journal history and historical change presentation | Producer-specific admission or compensation policy |
 | Session | Credentials, unlocking, adapter creation/replacement and cache lifetime | Record meaning |
-| Storage | Node persistence, caches and GitHub transport | Features, credentials UI or record meaning |
+| Storage | EAV journal persistence, caches and GitHub transport | Features, credentials UI or record meaning |
 | UI kit | Generic presentation, controls, focus, scrolling, responsive layout and styling | Routes, preference storage or record interpretation |
 | Settings / Navigation / Search / Runtime | Preferences and settings binding / routes and commands / search interaction / scheduling and service worker | Workflow composition |
 
@@ -70,14 +70,14 @@ app/
   runtime/                   scheduling, cancellation and offline application cache
   transcription.ts           shared recording sessions and microphone lifetime
   vault/
-    nodes/                   immutable model, acceptance, snapshots and memory adapter
-    transactions/            scoped write lifetime, recovery and History UI/compensation
-    content/                 content operations, tools and recorded action receipts
-    records/                 historical source reading and shared validation values
-    sources.ts               generic historical source-reading contract
-    session/                 credentials, encryption and Node adapter lifetime
+    eav/                     typed engine, atomic transactions, snapshots and memory storage
+    transactions/            core History reading and UI
+    records/                 shared Actor records
+    sources/                 retained SourceDocuments
+    evidence/                historical selections, Reviews and passages
+    session/                 credentials, encryption and EAV journal lifetime
     storage/
-      nodes/                 GitHub transaction persistence
+      eav/                   GitHub transaction persistence
       github-client/         shared GitHub transport
   ui/kit/                    public generic presentation and its private implementation
   preview/                   fictional adapters and examples
@@ -125,7 +125,7 @@ flowchart LR
 Wiki and Questions do not call one another or consume one another's reading interfaces.
 Wiki also has no direct dependency on Graph. Application supplies a snapshot-scoped related-content
 reading that delegates classification, Relationship labels and Query evaluation to Graph. Wiki
-supplies page candidates and renders the results; Graph is the sole interpreter for those records.
+supplies page candidates and renders the results; Graph interprets its own organization and relationships.
 Questions accepts accepted historical EAV addresses for subjects, sources, knowledge and reviews.
 It validates availability, schema, attribution and atomic publication. Application supplies EAV
 source and subject discovery to Agent. Questions owns `askQuestion`, `readQuestion` and
@@ -144,11 +144,9 @@ inputs are validated by the owning module. Wire views, routes and navigation in
 `application/index.tsx`; wire readers, tools and publication rules in `application/composition.ts`.
 Module integration tests live in `app/application/`.
 
-Remove a workflow by deleting its folder and Application wiring. Persisted Nodes remain in the
-Vault; remaining readers retain their generic unknown-record behavior. History is core Transaction
-infrastructure under `vault/transactions/history/`, as decided in ADR 0009. The browser stores
-application data only as Nodes. Renaming a Node means appending changed content to the same stable identity;
-it does not require a separate module or rewriting identity references.
+Remove a workflow by deleting its folder and Application wiring. Accepted history remains immutable;
+registered schema removal requires explicit evolution. History is core infrastructure under
+`vault/transactions/history/`. Content changes append transactions to stable entity identities.
 
 Modules define their configuration through `SettingsDefinition` in `app/settings/store.ts`: field keys,
 labels, defaults, kinds, suggested choices, custom-value support and parsing. Agent owns invocation
@@ -173,33 +171,24 @@ Questions owns complete creation and answering actions: input validation, propos
 evidence and atomic changes. Application supplies trusted actor/origin context. EAV acceptance
 rejects stale drafts and competing answers; uncertain saves retain the exact publication retry.
 
-Raw node adapters and acceptance/loading functions are private to bootstrap, persistence and
-historical fixtures. Session hooks exposing raw handles remain with Vault session assembly and
-Application; preview fixtures cannot be imported by production callers. The compiler-backed layout policy
-checks these resolved origins through aliases and re-exports, while permitting ordinary node reads
-and errors. Keeping those handles out of task
-code prevents a new producer from bypassing the Application-supplied interface. Validation and action ownership remain local to their modules.
+Persistence construction stays with bootstrap, Vault session assembly and storage. Workflows receive
+typed owner interfaces; production callers cannot import preview fixtures. Compiler-backed ownership
+checks follow resolved origins through aliases and re-exports. Validation and domain action admission
+remain local to owners.
 
-## Node-only application data
+## EAV application data
 
-Session opens one Node adapter and exposes managed Transaction reading/writing. It admits the
-application after a cached snapshot or successful remote refresh, including an empty vault.
-Cold-load errors stay on the opening screen; cached data stays readable through refresh failures
-or offline use. GitHub credential replacement prepares and validates only the Node adapter before
-activating it. Search receives Wiki entries and starts empty while that reading is loading.
-
-The browser has no file backend, file staging, Markdown fallback or schema startup gate. Chat
-submits node messages directly after admission; pending node persistence still uses its existing
-recovery actions. Shared search entries/ranking live in Search, safe URLs in Navigation, and
-Markdown rendering in Chat.
-
-Source translation and enrichment belong to the private Vault under ADR 0007.
+Session opens one EAV journal and admits the application once accepted cached or remote state is
+available, including an empty Vault. Cached state remains readable during refresh failures. Credential
+replacement validates a candidate adapter before activation. Search receives Wiki entries and remains
+empty until its reader is ready. Private source translation and enrichment stay with Vault tooling
+under ADR 0007.
 
 ## Conversation lifetime
 
-Application creates one node-backed Chat interaction above route selection, scoped to its Vault
-session. The page, pane, chooser, routes and commands request tasks through that same owner.
-Chat owns conversational admission, drafts, selection, prompts, unread acknowledgement and recovery
+Application creates one continuous Chat interaction above route selection, scoped to its Vault
+session. The page, pane, routes and commands request tasks through that same owner.
+Chat owns conversational admission, drafts, timeline navigation, prompts, unread acknowledgement and recovery
 presentation; closing a view preserves task state. Accepted history is read without executing Agent.
 
 Application supplies capabilities, navigation and the shared Transcription. Same-session updates
@@ -267,46 +256,36 @@ The [preview guide](docs/agents/preview.md) owns comparisons, review and promoti
 the [testing guide](docs/agents/testing.md) owns focused checks, devices and commit verification.
 [Publishing](README.md#publishing) documents installation configuration and artifact packaging.
 
-## Node storage
+## EAV storage and History
 
-NodeStore provides generic snapshot and exact-version reading plus atomic append writes. Storage
-owns structural integrity and acceptance; producers own payload meaning and admission. Session
-owns adapter/cache lifetime and exposes managed Transactions to Application and its callers.
-The [Vault guide](app/vault/README.md) owns persisted layouts, retry, ordering, offline and history
-limits; [ADR 0003](docs/adr/0003-github-node-persistence.md) records GitHub acceptance authority.
+The typed engine provides opaque entity identity, atomic transactions, queryable snapshots and
+validated historical references. Storage owns acceptance and immutable journal replay; producers own
+domain meaning and admission. Session owns the single adapter/cache lifetime. The [Vault guide](app/vault/README.md)
+documents retry, offline reading and history limits; [ADR 0003](docs/adr/0003-github-eav-persistence.md)
+records remote acceptance authority and [ADR 0014](docs/adr/0014-eav-only-vault.md) records complete adoption.
 
-History interprets accepted Transactions and supplies guarded compensation. Application composes
-producer-owned preservation policies into History; History never imports those workflows.
-History is a core application action alongside Settings, not a workflow destination. Its drawer
-retains the underlying page and draft and uses the shared kit's geometry, grouped surfaces,
-expandable rows, labelled details and diffs. Direct History URLs remain compatibility entry points
-into that same drawer over Chat.
-Chat reads Agent activity through Agent's historical reading interface, keeping transcript ordering
-and message projection with Chat. Reading records never depends on live execution ownership.
+History reads accepted transactions and historical entity changes without importing workflows or
+resuming execution. It is a core application action alongside Settings. Its drawer retains the
+underlying page and draft and uses the kit's grouped surfaces, expandable rows, metadata and diffs.
+Direct History URLs enter that same drawer over Chat. Chat reads canonical Agent activity through
+Agent's owner interface and retains transcript ordering and message projection.
 
 ## Wiki record ownership
 
-Wiki owns page/block/citation payloads, containment, text grammar, source eligibility and evidence
-validation. Only page records enter its collections and page routes. Content, Chat, Agent and retained
-records remain independent sources interpreted by their owners through vault/sources.ts;
-Application explicitly composes those readers and foreign-record renderers.
+Wiki owns typed pages, content, appearances, containment, text grammar, source eligibility and selected
+assertion evidence. Captured sources, Chat, Agent and Questions keep independent owner records.
+Application explicitly composes source projections and foreign-record renderers; Wiki consumes the
+supplied interfaces without importing sibling workflows.
 
-The private Vault owns source reading, translation, enrichment and review policy. It pins Vaulter
-as a Git submodule and imports existing owner preparation and validation entries. Advancing that
-pin requires adapting the consumer rather than preserving a separate migration SDK, as decided in
-[ADR 0007](docs/adr/0007-vault-owned-translation.md). Published exact evidence remains readable as
-future payloads evolve through owner historical decoders and appended upgrades.
-
-Production reads historical source text through retainedRecordSources. Shared validation values
-support historical Wiki and Chat records. Validation used solely to translate
-unimplemented record kinds belongs with the private Vault tooling.
-See [Wiki ingestion](app/workflows/wiki/README.md) for preparation, exact-baseline validation and
-links to private Vault operations.
+The private Vault pins Vaulter and targets current typed owner interfaces for translation and reviewed
+publication. Advancing that pin requires adapting the consumer under [ADR 0007](docs/adr/0007-vault-owned-translation.md).
+Historical EAV references preserve accepted source snapshots. Application opening performs no source
+translation or history reset. See the [Wiki guide](app/workflows/wiki/README.md).
 
 ## Chat record UI and shared presentation
 
 Chat owns message roles, transcript ordering, conversation rows and conversational task UI.
-Agent owns run/tool interpretation; Content and Questions own action labels and receipt rendering.
+Agent owns run/tool interpretation; Wiki, Graph and Questions own action labels and receipt rendering.
 Application supplies those adapters to Chat. Unknown actions retain raw readable evidence;
 rendering neither creates executable tools nor publishes records. Record views accept typed data
 and explicit actions independently of a live store or execution controller.

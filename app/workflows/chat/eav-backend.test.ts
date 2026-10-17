@@ -7,23 +7,16 @@ import {
   type Journal,
   type AppendRequest,
 } from '@/vault/eav/index.ts';
-import { memoryNodeBackend } from '@/vault/nodes/memory.ts';
-import { seed, create, request } from '@/vault/nodes/fixtures.test-support.ts';
-import { transactionFixture } from '@/vault/transactions/fixtures.test-support.ts';
 import { createEavChatBackend } from './eav-backend.ts';
 import { chatSchema } from './data/schema.ts';
 import type { AgentExecutionProvider } from '@/agent/providers.ts';
 
 async function setup(storage = createMemoryStorage(), execute?: AgentExecutionProvider) {
-  const raw = memoryNodeBackend();
-  await seed(raw);
-  await raw.commit(request('agent', [create('agent', { kind: 'agent', name: 'Assistant' })]));
   const db = await openDatabase({ schema: chatSchema, storage });
   const execution = vi.fn(
     execute ?? (async () => ({ status: 'complete' as const, text: 'Hello back' })),
   );
   const options = {
-    nodes: transactionFixture(raw),
     database: Promise.resolve(db),
     user: 'user',
     agent: 'agent',
@@ -31,12 +24,12 @@ async function setup(storage = createMemoryStorage(), execute?: AgentExecutionPr
     instructions: 'Be helpful',
     execution,
   };
-  return { raw, db, execution, options, backend: createEavChatBackend(options) };
+  return { db, execution, options, backend: createEavChatBackend(options) };
 }
 const send = { id: 'send', conversation: 'chat', text: 'Hello', model: 'test' };
 
 test('live chat records EAV, restores history and never executes a restored submission', async () => {
-  const { raw, db, execution, options, backend } = await setup();
+  const { db, execution, options, backend } = await setup();
   await using _db = db;
   expect(await backend.send(send).done).toMatchObject({ phase: 'complete' });
   expect(execution).toHaveBeenCalledOnce();
@@ -46,14 +39,6 @@ test('live chat records EAV, restores history and never executes a restored subm
   ]);
   expect(await backend.chats()).toEqual([]);
   expect(await db.entities.messages.query({ select: {} })).toHaveLength(1);
-  const roots = (await raw.snapshot()).roots();
-  expect(
-    roots.some((node) =>
-      ['conversation', 'exchange', 'message', 'agentRun', 'toolExecution'].includes(
-        String(node.data?.kind),
-      ),
-    ),
-  ).toBe(false);
   const reopened = createEavChatBackend(options);
   expect((await reopened.send(send).done).phase).toBe('complete');
   expect(execution).toHaveBeenCalledOnce();
@@ -158,49 +143,6 @@ test.each([
     backend.dispose();
   },
 );
-
-test('imports prior conversation evidence once and continues the single native dialogue', async () => {
-  const { raw, db, backend, execution } = await setup();
-  await using _db = db;
-  await raw.commit(
-    request('old-chat', [
-      create('chat', {
-        kind: 'conversation',
-        title: 'Original subject',
-        createdAt: '2026-01-01T00:00:00Z',
-      }),
-      create('old-exchange', { kind: 'exchange', startedAt: '2026-01-01T00:00:00Z' }, 'chat'),
-      create(
-        'old-message',
-        {
-          kind: 'message',
-          role: 'user',
-          text: 'Remember the earlier discussion',
-          at: '2026-01-01T00:00:00Z',
-        },
-        'old-exchange',
-      ),
-    ]),
-  );
-  expect((await backend.send(send).done).phase).toBe('complete');
-  expect(execution.mock.calls[0]?.[0]?.messages).toEqual(
-    expect.arrayContaining([{ role: 'user', content: 'Remember the earlier discussion' }]),
-  );
-  expect(await backend.messages('chat')).toHaveLength(3);
-  expect(await db.entities.retainedSources.first({ select: { provenance: true } })).toMatchObject({
-    provenance: {
-      title: 'Original subject',
-      message: { node: 'old-message', transaction: 'old-chat' },
-    },
-  });
-  const old = (await raw.snapshot()).get('old-message');
-  expect(old?.key.transaction).toBe('old-chat');
-  const { chatSources } = await import('./records/sources.ts');
-  const view = await raw.snapshot();
-  expect(chatSources().exactText?.(view.get('eav-message:send:user')!, view)).toBe('Hello');
-  expect(chatSources().exactText?.(view.get('eav-message:send:agent')!, view)).toBe('Hello back');
-  backend.dispose();
-});
 
 test('concurrent submission recovery restores the winner without creating or executing another run', async () => {
   const { db, options, execution, backend } = await setup();

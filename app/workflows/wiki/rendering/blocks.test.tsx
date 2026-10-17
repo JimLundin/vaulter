@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { expect, test } from 'vitest';
-import type { WikiBlock, WikiReference } from '@/workflows/wiki/pages.ts';
+import type { WikiBlock, WikiReference } from '@/workflows/wiki/view.ts';
 import { WikiBlocks } from './blocks.tsx';
 import { Text } from '@/ui/kit/index.ts';
 
@@ -10,7 +10,6 @@ const reference = (id: string, start: number, end: number): WikiReference => ({
   text: 'Retained source',
   context: 'Retained source',
   claim: { start, end },
-  source: { node: 'message', transaction: 'original' },
   sequence: 1,
   state: 'original',
 });

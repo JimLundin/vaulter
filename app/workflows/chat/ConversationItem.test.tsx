@@ -3,13 +3,13 @@ import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { expect, test, vi } from 'vitest';
 import { ConversationItem } from './ConversationList.tsx';
-import type { SavedChat } from './records/chat-store.ts';
+import type { SavedChat } from './backend.ts';
 
-test('a saved conversation keeps node identity in its explicit selection action', async () => {
+test('a saved conversation keeps its identity in its explicit selection action', async () => {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
   const chat: SavedChat = {
     node: 'conversation-walks',
-    data: { kind: 'conversation', title: 'Room for walks', createdAt: '2026-10-11T09:00:00Z' },
+    data: { title: 'Room for walks' },
     activeAt: '2026-10-11T09:05:00Z',
   };
   const opened: string[] = [];

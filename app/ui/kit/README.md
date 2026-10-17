@@ -72,8 +72,8 @@ metadata placement and details geometry; `RowAction` owns compact accessible act
 Callers supply title, metadata content, explicit expansion state, actions and details. The kit does
 not interpret transaction sequence, authors, origin, differences or compensation policy. Its paired
 Expandable rows catalogue example uses plain fictional items rather than a Git-shaped History
-record. The live fictional preview exercises History's actual NodeStore → `NodeHistoryEntry` →
-`TransactionItem` pipeline, including confirmation and guarded compensation.
+record. The live fictional preview exercises History's actual EAV journal → historical transaction projection →
+`TransactionItem` pipeline.
 
 Base UI owns control and overlay interactions. The single public `Drawer` serves compact side
 panels, navigation and settings; Search uses Base UI Autocomplete. Private composition verification,
@@ -628,8 +628,8 @@ viewport resize.
 Live microphone capture still needs device validation; the sample preview uses scripted audio.
 
 Fictional Wiki record examples live in `app/preview/`, outside the production catalogue and kit
-interface. Both the full preview and independent bounded pairs install real retained nodes, call
-`readWiki` and render module-owned `Wiki` UI. Selected evidence and newer/deleted source context
+interface. Both the full preview and independent bounded pairs install native EAV records, call
+the Wiki reader and render module-owned `Wiki` UI. Selected evidence and newer/deleted source context
 use `PassageCard` and the shared supporting pane. Historical design links redirect only in the
 preview bootstrap.
 

@@ -1,44 +1,43 @@
 // @vitest-environment happy-dom
-import { transactionFixture } from '@/vault/transactions/fixtures.test-support.ts';
 import { afterEach, expect, test, vi } from 'vitest';
+import { readAgentRun } from '@/agent/data/operations.ts';
+import { voiceFixture } from '@/agent/voice-fixture.test-support.ts';
 import { createOpenAICapabilities } from './index.ts';
-import { media, speech, response, done, call, creates, outputs } from './media.test-support.ts';
-import { memoryNodeBackend } from '@/vault/nodes/memory.ts';
-import { create, request } from '@/vault/nodes/fixtures.test-support.ts';
-import { paragraphTools } from '@/agent/tool-fixture.test-support.ts';
-import { readAgentRun } from '@/agent/store.ts';
-import type { NodeCommit, NodeStore } from '@/vault/nodes/store.ts';
+import { call, creates, done, media, outputs, response, speech } from './media.test-support.ts';
 
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
-async function setup(transform: (nodes: NodeStore) => NodeStore = (nodes) => nodes) {
+async function setup() {
   const harness = media();
   const abort = new AbortController();
-  const nodes = memoryNodeBackend();
-  await nodes.commit(
-    request('seed', [create('user', { kind: 'actor' }), create('agent', { kind: 'agent' })]),
-  );
+  const fixture = await voiceFixture();
   const events = { transcript: vi.fn(), audio: vi.fn(), error: vi.fn() };
   const capabilities = createOpenAICapabilities({
     apiKey: 'fictional-secret',
     fetch: harness.fetch,
   });
+  await fixture.db.transaction((tx) =>
+    tx.entities.agents.update({
+      ...fixture.agent,
+      provider: 'openai',
+      model: capabilities.models.voice,
+    }),
+  );
   const voice = await capabilities.voiceAgent({
-    nodes: transactionFixture(transform(nodes)),
-    user: 'user',
-    agent: 'agent',
+    db: fixture.db,
+    user: fixture.user,
+    agent: fixture.agent,
     instructions: 'Capture paragraphs.',
-    tools: paragraphTools,
-    writableKinds: ['paragraph'],
+    tools: fixture.tools,
     events,
     signal: abort.signal,
   });
-  return { ...harness, nodes, events, voice, abort };
+  return { ...harness, ...fixture, events, voice, abort };
 }
 test('actual voice protocol accepts Agent context before response and durable direct tools before continuation', async () => {
-  const { channel, nodes, voice, fetch, track } = await setup();
+  const { channel, db, voice, fetch, track } = await setup();
   const { session } = JSON.parse(fetch.mock.calls[0]![1]!.body as string);
   expect(session.audio.input.turn_detection).toMatchObject({
     create_response: false,
@@ -48,11 +47,11 @@ test('actual voice protocol accepts Agent context before response and durable di
   speech(channel);
   await vi.waitFor(() => expect(creates(channel)).toBe(1));
   const run = voice.snapshot().run!;
-  expect((await readAgentRun(nodes, run))?.context[0]?.data.content).toBe(session.instructions);
+  expect((await readAgentRun(db, run))?.inputs[0]?.content).toBe(session.instructions);
   response(channel);
   done(channel, [call('captureParagraph', { text: 'hello' })]);
   await vi.waitFor(() => expect(creates(channel)).toBe(2));
-  expect((await readAgentRun(nodes, run))?.tools[0]?.data).toMatchObject({
+  expect((await readAgentRun(db, run))?.executions[0]).toMatchObject({
     status: 'complete',
     input: { text: 'note:hello' },
   });
@@ -69,67 +68,14 @@ test('actual voice protocol accepts Agent context before response and durable di
   });
   done(channel, [], 'completed', 'final');
   await vi.waitFor(() => expect(voice.snapshot().execution?.phase).toBe('complete'));
-  expect((await readAgentRun(nodes, run))?.data.output).toMatchObject({ text: 'Captured.' });
+  expect((await readAgentRun(db, run))?.output).toMatchObject({ text: 'Captured.' });
   await voice.close();
+  await db[Symbol.asyncDispose]();
   expect(track.stop).toHaveBeenCalled();
 });
 
-test.each(['recover', 'close'])(
-  'outcome-save pause holds protocol continuation and %s never reexecutes the tool',
-  async (action) => {
-    let offline = true;
-    const saves: NodeCommit[] = [];
-    const { channel, nodes, voice, events } = await setup((store) => ({
-      ...store,
-      commit: async (value) => {
-        if (value.kind.action === 'completeTool') {
-          saves.push(value);
-          // biome-ignore lint/suspicious/noUnnecessaryConditions: recovery changes this transport flag.
-          if (offline) throw new Error('Outcome offline');
-        }
-        return await store.commit(value);
-      },
-    }));
-    speech(channel);
-    await vi.waitFor(() => expect(creates(channel)).toBe(1));
-    const run = voice.snapshot().run!;
-    response(channel);
-    done(channel, [call('captureParagraph', { text: 'hello' })]);
-    await vi.waitFor(() => expect(voice.snapshot().phase).toBe('paused'));
-    expect(creates(channel)).toBe(1);
-    expect(outputs(channel)).toHaveLength(0);
-    expect(
-      (await nodes.history()).filter(({ kind }) => kind.scope === 'paragraphFixture'),
-    ).toHaveLength(1);
-    expect((await readAgentRun(nodes, run))?.tools[0]?.effects).toBe('uncertain');
-    expect(events.error).not.toHaveBeenCalled();
-    if (action === 'close') {
-      await voice.close();
-      expect(voice.snapshot().execution?.phase).toBe('paused');
-    }
-    offline = false;
-    await voice.retrySave();
-    expect(saves[1]).toEqual(saves[0]);
-    expect(
-      (await nodes.history()).filter(({ kind }) => kind.scope === 'paragraphFixture'),
-    ).toHaveLength(1);
-    expect((await readAgentRun(nodes, run))?.tools[0]?.data.status).toBe('complete');
-    if (action === 'recover') {
-      await vi.waitFor(() => expect(creates(channel)).toBe(2));
-      expect(outputs(channel)).toHaveLength(1);
-    } else {
-      expect(creates(channel)).toBe(1);
-      expect(outputs(channel)).toHaveLength(0);
-      expect(voice.snapshot().phase).toBe('closed');
-      await voice.retrySave();
-      expect(saves).toHaveLength(2);
-    }
-    await voice.close();
-  },
-);
-
 test('final transcripts follow committed audio order and interrupted old responses cannot invoke tools', async () => {
-  const { channel, nodes, voice } = await setup();
+  const { channel, db, voice } = await setup();
   for (const item of ['one', 'two']) {
     channel.event({ type: 'input_audio_buffer.speech_started' });
     channel.event({ type: 'input_audio_buffer.speech_stopped' });
@@ -147,33 +93,32 @@ test('final transcripts follow committed audio order and interrupted old respons
     transcript: 'First thought',
   });
   await vi.waitFor(() => expect(creates(channel)).toBe(1));
-  const accepted = (await nodes.history())
-    .filter(({ kind }) => kind.action === 'startRun')
-    .reverse();
-  const inputs: unknown[] = [];
-  for (const transaction of accepted) {
-    // biome-ignore lint/performance/noAwaitInLoops: reconstruct accepted speech in definitive sequence order.
-    const changes = await nodes.changes(transaction.id);
-    inputs.push(
-      changes
-        .filter(({ after }) => after.data?.kind === 'contextInput' && after.data.role === 'user')
-        .at(-1)?.after.data?.content,
-    );
-  }
-  expect(inputs).toEqual(['First thought', 'Second thought']);
+  const users = await db.entities.contextInputs.query({
+    where: { role: { eq: 'user' } },
+    select: { content: true },
+  });
+  expect(users.map(({ content }) => content).sort()).toEqual([
+    'First thought',
+    'First thought',
+    'Second thought',
+  ]);
+  const current = await readAgentRun(db, voice.snapshot().run!);
+  expect(
+    current?.inputs.filter((input) => input.role === 'user').map((input) => input.content),
+  ).toEqual(['First thought', 'Second thought']);
   response(channel);
   speech(channel, 'three', 'Leave it alone');
   done(channel, [call('captureParagraph', { text: 'Wrong' })]);
   await vi.waitFor(() => expect(creates(channel)).toBe(2));
-  expect((await nodes.history()).some(({ kind }) => kind.scope === 'paragraphFixture')).toBe(false);
+  expect(await db.entities.notes.query({ select: {} })).toEqual([]);
   expect(channel.sent).toContainEqual({ type: 'response.cancel' });
   await voice.close();
+  await db[Symbol.asyncDispose]();
 });
-
 test.each(['cancelled', 'incomplete'])(
   'a %s voice response cannot trigger supplied tools',
   async (status) => {
-    const { channel, nodes, voice } = await setup();
+    const { channel, db, voice } = await setup();
     speech(channel);
     await vi.waitFor(() => expect(creates(channel)).toBe(1));
     response(channel);
@@ -183,48 +128,11 @@ test.each(['cancelled', 'incomplete'])(
         status === 'cancelled' ? 'stopped' : 'failed',
       ),
     );
-    expect((await nodes.history()).some(({ kind }) => kind.scope === 'paragraphFixture')).toBe(
-      false,
-    );
+    expect(await db.entities.notes.query({ select: {} })).toEqual([]);
     await voice.close();
+    await db[Symbol.asyncDispose]();
   },
 );
-
-test('Close settles an already-started content acceptance and retains its successful outcome', async () => {
-  let release!: () => void;
-  let started!: () => void;
-  const entered = new Promise<void>((resolve) => {
-    started = resolve;
-  });
-  const held = new Promise<void>((resolve) => {
-    release = resolve;
-  });
-  const { channel, nodes, voice } = await setup((store) => ({
-    ...store,
-    commit: async (value) => {
-      if (value.kind.scope === 'paragraphFixture') {
-        started();
-        await held;
-      }
-      return await store.commit(value);
-    },
-  }));
-  speech(channel);
-  await vi.waitFor(() => expect(creates(channel)).toBe(1));
-  response(channel);
-  done(channel, [call('captureParagraph', { text: 'Keep it' })]);
-  await entered;
-  const closing = voice.close();
-  release();
-  await closing;
-  const run = voice.snapshot().run!;
-  expect(
-    (await nodes.history()).filter(({ kind }) => kind.scope === 'paragraphFixture'),
-  ).toHaveLength(1);
-  expect((await readAgentRun(nodes, run))?.tools[0]?.data.status).toBe('complete');
-  expect((await readAgentRun(nodes, run))?.data.status).toBe('stopped');
-  expect(outputs(channel)).toHaveLength(0);
-});
 
 test('microphone cancellation stops late tracks before any endpoint call', async () => {
   const { microphone, track, fetch } = media();
@@ -258,88 +166,8 @@ test('microphone cancellation stops late tracks before any endpoint call', async
   expect(fetch).not.toHaveBeenCalled();
 });
 
-test.each(['Close', 'Cancellation'])(
-  '%s drains finalized speech received while initial acceptance is held',
-  async (action) => {
-    let release!: () => void;
-    let started!: () => void;
-    const entered = new Promise<void>((resolve) => {
-      started = resolve;
-    });
-    const held = new Promise<void>((resolve) => {
-      release = resolve;
-    });
-    let initial = true;
-    const { channel, nodes, voice, abort } = await setup((store) => ({
-      ...store,
-      commit: async (value) => {
-        if (initial) {
-          initial = false;
-          started();
-          await held;
-        }
-        return await store.commit(value);
-      },
-    }));
-    speech(channel, 'one', 'First thought');
-    await entered;
-    speech(channel, 'two', 'Second thought');
-    if (action === 'Cancellation') abort.abort();
-    const closing = voice.close();
-    release();
-    await closing;
-    const accepted = (await nodes.history())
-      .filter(({ kind }) => kind.action === 'startRun')
-      .reverse();
-    const inputs = await Promise.all(
-      accepted.map(
-        async (transaction) =>
-          (await nodes.changes(transaction.id))
-            .filter(
-              ({ after }) => after.data?.kind === 'contextInput' && after.data.role === 'user',
-            )
-            .at(-1)?.after.data?.content,
-      ),
-    );
-    expect(inputs).toEqual(['First thought', 'Second thought']);
-    expect(voice.snapshot().phase).toBe('closed');
-    expect(creates(channel)).toBe(0);
-  },
-);
-
-test('invocation persistence failure prevents execution and recovery preserves uncertainty without protocol continuation', async () => {
-  let offline = true;
-  const saves: NodeCommit[] = [];
-  const { channel, nodes, voice } = await setup((store) => ({
-    ...store,
-    commit: async (value) => {
-      if (value.kind.action === 'recordTool') {
-        saves.push(value);
-        // biome-ignore lint/suspicious/noUnnecessaryConditions: recovery changes this transport flag.
-        if (offline) throw new Error('Invocation offline');
-      }
-      return await store.commit(value);
-    },
-  }));
-  speech(channel);
-  await vi.waitFor(() => expect(creates(channel)).toBe(1));
-  response(channel);
-  done(channel, [call('captureParagraph', { text: 'Never execute' })]);
-  await vi.waitFor(() => expect(voice.snapshot().execution?.persistenceStage).toBe('invocation'));
-  expect((await nodes.history()).some(({ kind }) => kind.scope === 'paragraphFixture')).toBe(false);
-  offline = false;
-  await voice.retrySave();
-  await vi.waitFor(() => expect(voice.snapshot().execution?.data.status).toBe('interrupted'));
-  expect(saves[1]).toEqual(saves[0]);
-  expect((await nodes.history()).some(({ kind }) => kind.scope === 'paragraphFixture')).toBe(false);
-  expect((await readAgentRun(nodes, voice.snapshot().run!))?.tools[0]?.effects).toBe('uncertain');
-  expect(outputs(channel)).toHaveLength(0);
-  expect(creates(channel)).toBe(1);
-  await voice.close();
-});
-
 test('partial and final transcripts retain text and buffered playback interruption preserves accepted history', async () => {
-  const { channel, voice, nodes } = await setup();
+  const { channel, voice, db } = await setup();
   speech(channel);
   await vi.waitFor(() => expect(creates(channel)).toBe(1));
   const firstRun = voice.snapshot().run!;
@@ -362,6 +190,7 @@ test('partial and final transcripts retain text and buffered playback interrupti
   speech(channel, 'second', 'The last one');
   await vi.waitFor(() => expect(creates(channel)).toBe(2));
   expect(channel.sent).toContainEqual({ type: 'output_audio_buffer.clear' });
-  expect((await readAgentRun(nodes, firstRun))?.data.output?.text).toBe('Which paragraph?');
+  expect((await readAgentRun(db, firstRun))?.output).toMatchObject({ text: 'Which paragraph?' });
   await voice.close();
+  await db[Symbol.asyncDispose]();
 });

@@ -62,7 +62,7 @@ behavior without variation labels or an inactive picker.
 
 `main` publishes production and restores retained branch previews. Other branches publish only
 their sample preview while preserving the currently deployed production artifact. The hosted
-preview uses a tab journal; Reset demo clears its accepted records and conversation selection,
+preview uses a tab journal; Reset demo clears its accepted records,
 while device preferences remain. Local `design:agent` uses configured server credentials with
 sample storage; `build:design` always emits scripted behavior. New fictional fixtures must preserve
-the existing recovery scenarios in `app/preview/nodes.ts`.
+the existing recovery scenarios in `app/preview/eav.ts`.

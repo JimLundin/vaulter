@@ -1,23 +1,30 @@
-import { historyCapability, historyTool } from './history-tool.ts';
-import { dialogueContext, timeline } from './data/timeline.ts';
-import { createCheckpointTask } from './checkpoint-task.ts';
-import { projectedExchange } from './data/projection.ts';
-import { publishChatEvidence } from './eav-bridge.ts';
-import { SaveError, sameEntity, type DomainDatabase, type Transaction } from '@/vault/eav/index.ts';
-import { canonical } from '@/vault/nodes/json.ts';
-import { nodeOperations } from '@/vault/nodes/operations.ts';
-import type { TransactionRequest } from '@/vault/transactions/store.ts';
 import { executeEavRun } from '@/agent/eav/runtime.ts';
 import type { AgentRunState } from '@/agent/runtime.ts';
-import type { chatSchema } from './data/schema.ts';
+import {
+  canonical,
+  type DomainDatabase,
+  SaveError,
+  sameEntity,
+  type Transaction,
+} from '@/vault/eav/index.ts';
+import type {
+  ChatBackend,
+  ChatBackendFactory,
+  ChatOptions,
+  ChatRequest,
+  ChatRun,
+  ChatRunState,
+} from './backend.ts';
+import { createCheckpointTask } from './checkpoint-task.ts';
 import { submitChat } from './data/operations.ts';
-import { migrateDialogue } from './data/migration.ts';
-import type { MessagePart } from './records/chat.ts';
-import type { NodeChatOptions, NodeChatRequest, NodeChatRunState } from './node-backend.ts';
-import type { ChatBackend, ChatRun } from './backend.ts';
+import { projectedExchange } from './data/projection.ts';
+import type { chatSchema } from './data/schema.ts';
+import { dialogueContext, timeline } from './data/timeline.ts';
+import { historyCapability, historyTool } from './history-tool.ts';
+import type { MessagePart } from './message.ts';
 
 type DB = DomainDatabase<typeof chatSchema>;
-const migrations = new WeakMap<DB, Promise<void>>();
+
 async function boundActor(tx: Transaction<typeof chatSchema>, key: string, kind: 'user' | 'agent') {
   const binding = await tx.entities.actorBindings.first({
     where: { key: { eq: key } },
@@ -34,32 +41,11 @@ async function boundActor(tx: Transaction<typeof chatSchema>, key: string, kind:
 const message = (error: unknown) => (error instanceof Error ? error.message : String(error));
 /** One continuous dialogue. Retained history and model-context projection are separate reads. */
 export function createEavChatBackend(
-  options: NodeChatOptions & {
-    readonly database: Promise<DB>;
-    readonly nativeTools?: (context: {
-      author: import('@/vault/eav/index.ts').EntityRef<
-        typeof import('@/vault/records/actor.ts').Actor
-      >;
-      run: import('@/agent/data/schema.ts').AgentRunRef;
-      signal: AbortSignal;
-    }) => Promise<import('ai').ToolSet>;
-  },
+  options: ChatOptions & { readonly database: Promise<DB> },
 ): ChatBackend {
   let disposed = false;
   const runs = new Map<string, { request: string; handle: ChatRun; dispose: () => void }>();
-  const database = async () => {
-    const db = await options.database;
-    let migration = migrations.get(db);
-    if (!migration) {
-      migration = migrateDialogue(db, options.nodes).catch((error) => {
-        migrations.delete(db);
-        throw error;
-      });
-      migrations.set(db, migration);
-    }
-    await migration;
-    return db;
-  };
+  const database = () => options.database;
   const messages = async () => {
     const db = await database();
     return db.transaction(async (tx) => {
@@ -72,7 +58,7 @@ export function createEavChatBackend(
         .map((data) => ({ data }));
     });
   };
-  const send = (input: NodeChatRequest): ChatRun => {
+  const send = (input: ChatRequest): ChatRun => {
     if (disposed) throw new Error('Chat backend is disposed');
     const request = { ...input, conversation: 'dialogue', text: input.text.trim() };
     if (!(request.id && request.conversation && request.text && request.model))
@@ -86,10 +72,13 @@ export function createEavChatBackend(
     const listeners = new Set<() => void>();
     let stopped = false;
     let prepared = false;
+    let saving = false;
+    let savingContent = false;
+    let refreshing = false;
     let execution: ReturnType<typeof executeEavRun> | undefined;
     let submitted: Awaited<ReturnType<typeof submitChat>> | undefined;
     let pending: { stage: 'initial' | 'response'; retry: () => Promise<unknown> } | undefined;
-    let state: NodeChatRunState = {
+    let state: ChatRunState = {
       phase: 'queued',
       response: {
         kind: 'message',
@@ -100,7 +89,7 @@ export function createEavChatBackend(
         model: request.model,
       },
     };
-    const notify = (patch: Partial<NodeChatRunState>) => {
+    const notify = (patch: Partial<ChatRunState>) => {
       if (disposed) return;
       state = { ...state, ...patch };
       state = {
@@ -112,24 +101,24 @@ export function createEavChatBackend(
                 stage: state.persistenceStage,
                 error: state.persistenceError,
                 label: 'Chat activity needs saving',
-                allowed: true,
-                inProgress: false,
+                allowed: !saving,
+                inProgress: saving,
               },
             }),
           ...(state.contentPersistence && {
             content: {
               error: state.contentPersistence.error,
               label: 'Content publication needs recovery',
-              allowed: true,
-              inProgress: false,
+              allowed: !savingContent,
+              inProgress: savingContent,
             },
           }),
           ...(state.contextError && {
             refresh: {
               error: state.contextError,
               label: 'Records need refreshing',
-              allowed: true,
-              inProgress: false,
+              allowed: !refreshing,
+              inProgress: refreshing,
             },
           }),
         },
@@ -233,58 +222,6 @@ export function createEavChatBackend(
       });
       return true;
     };
-    const saveEvidence = async (role: 'user' | 'agent', text: string) => {
-      let publication: TransactionRequest<unknown> | undefined;
-      const author = role === 'user' ? options.user : options.agent;
-      try {
-        await publishChatEvidence({
-          nodes: options.nodes,
-          submission: request.id,
-          conversation: request.conversation,
-          role,
-          text,
-          at: submitted?.userMessage.at.toISOString() ?? state.response.at,
-          author,
-          origin: `eav-run:${request.id}`,
-          pending: (value) => {
-            publication = value;
-          },
-        });
-      } catch (error) {
-        if (publication) {
-          const retained = publication;
-          pending = {
-            stage: role === 'user' ? 'initial' : 'response',
-            retry: async () => {
-              using writes = options.nodes
-                .writer({ recordedBy: author, origin: `eav-run:${request.id}` })
-                .lifetime();
-              await writes.retry(retained);
-            },
-          };
-        }
-        throw error;
-      }
-    };
-    const saveResponse = async () => {
-      if (disposed || !execution || !submitted || pending) return;
-      const current = execution.snapshot();
-      if (
-        current.data.status === 'running' ||
-        current.persistenceError ||
-        current.phase === 'paused'
-      )
-        return;
-      try {
-        await saveEvidence('agent', current.text);
-      } catch (error) {
-        notify({
-          phase: 'unsaved',
-          persistenceStage: 'response',
-          persistenceError: message(error),
-        });
-      }
-    };
     const done = (async () => {
       try {
         const db = await database();
@@ -370,91 +307,12 @@ export function createEavChatBackend(
           await restore(db);
           return state;
         }
-        // A small retained backlink lets unmigrated modules attribute content to this EAV run.
-        const origin = `eav-run:${request.id}`;
-        let bridge: TransactionRequest<unknown> | undefined;
-        try {
-          if (!(await options.nodes.snapshot()).get(origin)) {
-            using writes = options.nodes
-              .writer({ recordedBy: options.agent, origin: null })
-              .lifetime();
-            bridge = writes.write(() => ({
-              value: undefined,
-              transaction: {
-                kind: nodeOperations.create,
-                message: null,
-                undoOf: null,
-                changes: [
-                  {
-                    node: origin,
-                    expected: null,
-                    data: {
-                      kind: 'externalRecord',
-                      system: 'eav',
-                      type: 'agent.run',
-                      submission: request.id,
-                      conversation: request.conversation,
-                    },
-                    placement: null,
-                    connection: null,
-                  },
-                ],
-              },
-            }));
-            await bridge.result;
-          }
-        } catch (error) {
-          if (bridge) {
-            const request = bridge;
-            pending = {
-              stage: 'initial',
-              retry: async () => {
-                using writes = options.nodes
-                  .writer({ recordedBy: options.agent, origin: null })
-                  .lifetime();
-                await writes.retry(request);
-              },
-            };
-          }
-          notify({
-            phase: 'unsaved',
-            persistenceStage: 'initial',
-            persistenceError: message(error),
-          });
-          return state;
-        }
-        if (disposed || stopped) {
-          await restore(db);
-          return state;
-        }
-        try {
-          await saveEvidence('user', request.text);
-        } catch (error) {
-          notify({
-            phase: 'unsaved',
-            persistenceStage: 'initial',
-            persistenceError: message(error),
-          });
-          return state;
-        }
-        if (disposed || stopped) {
-          await restore(db);
-          return state;
-        }
         execution = executeEavRun({
           ...options,
           db,
           run: submitted!.run,
-          origin,
           tools: async (context) => ({
             ...(await options.tools?.(context)),
-            ...(await options.nativeTools?.({
-              author: (await db.entities.agentRuns.get(submitted!.run, {
-                select: { author: true },
-              }))!.author,
-              run: submitted!.run,
-              signal: context.signal,
-            })),
             [historyCapability.name]: historyTool(db),
           }),
         });
@@ -462,7 +320,6 @@ export function createEavChatBackend(
         reflect();
         await execution.done;
         reflect();
-        await saveResponse();
       } catch (error) {
         notify({
           phase: 'failed',
@@ -471,7 +328,7 @@ export function createEavChatBackend(
       }
       return state;
     })();
-    let retry: Promise<NodeChatRunState> | undefined;
+    let retry: Promise<ChatRunState> | undefined;
     const handle: ChatRun = {
       snapshot: () => state,
       done,
@@ -485,36 +342,57 @@ export function createEavChatBackend(
         execution?.stop();
       },
       retrySave: () => {
-        retry ??= (async () => {
-          if (disposed) return state;
-          if (pending) {
-            try {
-              await pending.retry();
-              pending = undefined;
-              await restore(await options.database);
-            } catch (error) {
-              notify({ persistenceError: message(error) });
+        if (retry) return retry;
+        saving = true;
+        retry = Promise.resolve()
+          .then(async () => {
+            if (disposed) return state;
+            if (pending) {
+              try {
+                await pending.retry();
+                pending = undefined;
+                await restore(await options.database);
+              } catch (error) {
+                notify({ persistenceError: message(error) });
+              }
+            } else {
+              await execution?.retrySave();
+              reflect();
             }
-          } else {
-            await execution?.retrySave();
-            reflect();
-            await saveResponse();
-          }
-          return state;
-        })().finally(() => {
-          retry = undefined;
-        });
+            return state;
+          })
+          .finally(() => {
+            retry = undefined;
+            saving = false;
+            notify({});
+          })
+          .then(() => state);
+        notify({});
         return retry;
       },
       retryContentSave: async () => {
-        await execution?.retryContentSave();
-        reflect();
+        savingContent = true;
+        notify({});
+        try {
+          await execution?.retryContentSave();
+        } finally {
+          savingContent = false;
+          reflect();
+          notify({});
+        }
         return state;
       },
       refreshContext: async () => {
-        await (await options.database).refresh();
-        await execution?.refreshContext();
-        reflect();
+        refreshing = true;
+        notify({});
+        try {
+          await (await options.database).refresh();
+          await execution?.refreshContext();
+        } finally {
+          refreshing = false;
+          reflect();
+          notify({});
+        }
         return state;
       },
     };
@@ -540,7 +418,6 @@ export function createEavChatBackend(
     subscribe: (listener) => {
       let close: (() => void) | undefined;
       let active = true;
-      const old = options.nodes.subscribe(listener);
       void options.database
         .then((db) => {
           if (active) close = db.subscribe(listener);
@@ -549,7 +426,6 @@ export function createEavChatBackend(
       return () => {
         active = false;
         close?.();
-        old();
       };
     },
     dispose: () => {
@@ -557,4 +433,9 @@ export function createEavChatBackend(
       for (const run of runs.values()) run.dispose();
     },
   };
+}
+
+/** Bind a Vault database once; interaction options can change within its session. */
+export function eavChatFactory(database: Promise<DB>): ChatBackendFactory {
+  return (options) => createEavChatBackend({ ...options, database });
 }

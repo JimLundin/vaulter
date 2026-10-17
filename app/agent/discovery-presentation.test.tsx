@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { expect, test } from 'vitest';
-import { RecordedToolExecution, toolSummary } from './tool-presentation.tsx';
 import { discoveryPresentation } from './discovery-presentation.tsx';
+import { RecordedToolExecution, toolSummary } from './tool-presentation.tsx';
 
 test('Agent preserves historical discovery labels and context receipts without executable tools', () => {
   const evidence = {

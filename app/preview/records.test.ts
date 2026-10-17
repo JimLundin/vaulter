@@ -1,71 +1,84 @@
-import { applicationWikiGraph } from '@/application/composition.ts';
 import { expect, test } from 'vitest';
-import { memoryNodeBackend } from '@/vault/nodes/memory.ts';
-import { retainedRecordSources } from '@/vault/records/sources.ts';
-import { describeSource, type SourceReader } from '@/vault/sources.ts';
-import { readWiki } from '@/workflows/wiki/pages.ts';
-import { seedPreviewRecords } from './records.ts';
+import { createMemoryStorage, openDatabase } from '@/vault/eav/index.ts';
+import { applicationSchema } from '@/application/composition.ts';
+import { readEavWiki } from '@/workflows/wiki/data/pages.ts';
+import { seedEavWiki } from './wiki-records.ts';
 
-const sources: SourceReader = {
-  text: retainedRecordSources.text,
-  describe: (node, view) => describeSource(node, view, [retainedRecordSources]),
-};
-
-test('fictional retained nodes resolve exact selected passages with newer and removed source context', async () => {
-  const nodes = memoryNodeBackend();
-  await seedPreviewRecords(nodes);
-  const pages = await readWiki(nodes, sources, applicationWikiGraph);
-  const page = pages.find((entry) => entry.id === 'preview:page:0')!;
-  expect(page.blocks[0].evidence[0]).toMatchObject({
+test('fictional EAV evidence retains exact passages after source edits and deletion', async () => {
+  await using db = await openDatabase({
+    schema: applicationSchema,
+    storage: createMemoryStorage(),
+  });
+  await seedEavWiki(db);
+  const page = (await readEavWiki(db)).find((entry) => entry.id === 'preview:page:0')!;
+  expect(page.blocks[0]!.evidence[0]).toMatchObject({
     title: 'Studio plans',
     text: 'Keep mornings free.',
     context: 'Earlier plans. '.repeat(40) + 'Keep mornings free.' + ' Later details.'.repeat(40),
     range: { start: 600, end: 619 },
     claim: { start: 0, end: 19 },
     state: 'newer',
-    href: 'https://example.invalid/planning/1',
-    source: { node: 'preview:source:0', transaction: 'preview:evidence-original' },
   });
-  expect(page.blocks[1].evidence[0]).toMatchObject({
+  expect(page.blocks[1]!.evidence[0]).toMatchObject({
     text: 'Afternoons are flexible.',
     state: 'deleted',
-    source: { node: 'preview:source:1', transaction: 'preview:evidence-original' },
   });
   expect(page.sources).toHaveLength(12);
-  const before = await nodes.history();
-  await seedPreviewRecords(nodes);
-  expect(await nodes.history()).toEqual(before);
-  nodes.close();
+  const before = await db.history.transactions.query({ select: {} });
+  await seedEavWiki(db);
+  expect(await db.history.transactions.query({ select: {} })).toEqual(before);
 });
 
-test('fictional exact selections use the accepted sequence after pre-existing journal history', async () => {
-  const nodes = memoryNodeBackend();
-  await nodes.commit({
-    id: 'earlier-journal',
-    recordedBy: 'earlier-owner',
-    origin: null,
-    undoOf: null,
-    kind: { scope: 'node', action: 'create' },
-    message: null,
-    changes: [
-      {
-        node: 'earlier-owner',
-        expected: null,
-        placement: null,
-        connection: null,
-        data: { kind: 'actor' },
-      },
-    ],
+test('fictional EAV exact selections resolve after pre-existing history', async () => {
+  await using db = await openDatabase({
+    schema: applicationSchema,
+    storage: createMemoryStorage(),
   });
-  await seedPreviewRecords(nodes);
-  const page = (await readWiki(nodes, sources, applicationWikiGraph)).find(
-    (entry) => entry.id === 'preview:page:0',
-  )!;
-  expect(page.blocks[0].evidence[0]).toMatchObject({
+  await db.transaction((tx) => tx.entities.actors.insert({ name: 'Earlier owner', kind: 'user' }));
+  await seedEavWiki(db);
+  const page = (await readEavWiki(db)).find((entry) => entry.id === 'preview:page:0')!;
+  expect(page.blocks[0]!.evidence[0]).toMatchObject({
     text: 'Keep mornings free.',
     range: { start: 600, end: 619 },
-    sequence: 3,
     state: 'newer',
   });
-  nodes.close();
+});
+
+test('native comparison fixtures retain a dense graph with shared sources and open questions', {
+  timeout: 20_000,
+}, async () => {
+  const { seedGraphEvidence } = await import('./graph-evidence.ts');
+  const { seedGraphDensity } = await import('./graph-density.ts');
+  await using db = await openDatabase({
+    schema: applicationSchema,
+    storage: createMemoryStorage(),
+  });
+  await seedEavWiki(db);
+  await seedGraphEvidence(db);
+  await seedGraphDensity(db);
+  expect(await db.entities.topics.query({ select: {} })).toHaveLength(11);
+  expect(await db.entities.questions.query({ select: {} })).toHaveLength(22);
+  const studio = (await db.entities.wikiPages.first({
+    where: { key: { eq: 'preview:graph-topic' } },
+    select: {},
+  }))!;
+  expect(
+    await db.entities.wikiAppearances.query({ where: { page: { eq: studio } }, select: {} }),
+  ).toHaveLength(20);
+  const recorded = (await db.entities.sourceDocuments.first({
+    where: { key: { eq: 'preview:density:source:0' } },
+    select: { text: true },
+  }))!;
+  expect(recorded.text).toContain('Later review');
+  expect(await db.entities.reviews.query({ select: {} })).toHaveLength(77);
+  const pages = await readEavWiki(db);
+  expect(
+    pages
+      .find((page) => page.id === 'preview:graph-topic')!
+      .blocks.some((block) => block.evidence.some((item) => item.state === 'newer')),
+  ).toBe(true);
+  const before = await db.history.transactions.query({ select: {} });
+  await seedGraphEvidence(db);
+  await seedGraphDensity(db);
+  expect(await db.history.transactions.query({ select: {} })).toEqual(before);
 });

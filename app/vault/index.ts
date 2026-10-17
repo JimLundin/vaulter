@@ -1,10 +1,8 @@
-// The Vault exposes its managed node session and credential controls.
+// The Vault exposes its EAV session and credential controls.
 export { useSession as useVaultSession } from './session/session.ts';
-export type { OpenNodes } from './session/adapters.ts';
-export type { NodeReading } from './nodes/store.ts';
-export type { TransactionStore, TransactionRequest, WriteLifetime } from './transactions/store.ts';
+export type { OpenEav } from './session/adapters.ts';
 export { VaultGate } from './Gate.tsx';
-export { CredentialSetting, RefreshNodes, SessionStatus, SignOut, Unlock } from './session/ui.tsx';
+export { CredentialSetting, RefreshVault, SessionStatus, SignOut, Unlock } from './session/ui.tsx';
 export {
   createSessionCredentials,
   restrictSessionCredentials,

@@ -5,19 +5,19 @@ import { expect, test, vi } from 'vitest';
 import { VaultGate } from './Gate.tsx';
 import type { Session } from './session/session.ts';
 
-test('startup waits for node data, displays cold-load failures and keeps accepted data readable offline', async () => {
+test('startup waits for accepted EAV data, displays cold-load failures and keeps accepted data readable offline', async () => {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
   const root = createRoot(document.body);
-  const show = (ready: boolean, nodeStatus: Session['nodeStatus']) =>
+  const show = (ready: boolean, status: Session['status']) =>
     act(async () =>
-      root.render(<VaultGate state={{ ready, nodeStatus, locked: null }}>Open product</VaultGate>),
+      root.render(<VaultGate state={{ ready, status, locked: null }}>Open product</VaultGate>),
     );
   try {
     await show(false, { kind: 'loading' });
     expect(document.body.textContent).toContain('Opening your vault');
     expect(document.body.textContent).not.toContain('Open product');
-    await show(false, { kind: 'error', message: 'Node storage failed.' });
-    expect(document.body.textContent).toContain('Node storage failed.');
+    await show(false, { kind: 'error', message: 'Vault storage failed.' });
+    expect(document.body.textContent).toContain('Vault storage failed.');
     expect(document.body.textContent).not.toContain('Open product');
     await show(false, { kind: 'offline' });
     expect(document.body.textContent).toContain('Connect to load your vault');

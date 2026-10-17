@@ -1,7 +1,7 @@
 import { defineConfig } from 'vitest/config';
 import base from '../../vitest.config.ts';
 
-// Reuse application transforms and aliases; exercise node behavior and its recovery consumer.
+// Reuse application transforms and aliases; exercise EAV history, validation and queries.
 export default defineConfig({
   ...base,
   test: {
@@ -11,7 +11,7 @@ export default defineConfig({
         extends: true,
         test: {
           name: 'behavior',
-          include: ['app/vault/nodes/*.test.ts', 'app/vault/transactions/lifetime.test.ts'],
+          include: ['app/vault/eav/*.test.ts', 'app/vault/storage/eav/*.test.ts'],
           maxWorkers: 1,
         },
       },

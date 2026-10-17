@@ -1,8 +1,7 @@
 # Store vault contents in plaintext on the device
 
-Store node transaction envelopes, remote heads, and application state as plaintext
-structured values in IndexedDB to remove per-record encryption and decryption. This supersedes
-the device-cache encryption decision in ADR 0003. Credentials in `secrets.json` remain
+Store EAV transaction envelopes, remote heads, and application state as plaintext
+structured values in IndexedDB to remove per-record encryption and decryption. This defines the device-cache policy for ADR 0003. Credentials in `secrets.json` remain
 password-encrypted; the device remembers only the password-derived credential key.
 Encrypted device credential overrides extend this decision in [ADR 0008](0008-device-credential-overrides.md).
 

@@ -1,17 +1,16 @@
-# Target data model: typed EAV
+# Data model: typed EAV
 
-Status: migration in progress. This specification consolidates the target agreed in
-[ADR 0010](adr/0010-typed-eav-engine.md) and [ADR 0011](adr/0011-chat-agent-eav-adoption.md),
-including continuous dialogue, context checkpoints and History. It distinguishes implemented
-contracts from the preservation requirements that still gate migration of other modules.
+All application owners use the single EAV journal under [ADR 0014](adr/0014-eav-only-vault.md).
+This specification consolidates the typed engine and owner contracts, including continuous dialogue,
+context checkpoints, historical evidence and independent voice.
 [GLOSSARY.md](../GLOSSARY.md) defines the domain vocabulary. The executable definitions linked
 below are authoritative for currently registered attribute names, types and optionality.
 
 ## Storage and identity
 
-The target is one Vault of typed entities, relationships and immutable transaction history.
+The model is one Vault of typed entities, relationships and immutable transaction history.
 Entity–attribute–value facts are the engine's physical representation; application modules use
-schema-defined entity objects, not arbitrary string attributes or JSON copies of Node payloads.
+schema-defined entity objects with declared attributes and relationships.
 
 | Concept | Contract |
 |---|---|
@@ -41,10 +40,9 @@ publish. Invalid writes, throws and conflicts abort the whole transaction; callb
 automatically retried. Current acceptance conservatively rejects any intervening publication.
 The transaction lifetime ends before model/network execution, streaming or tool effects begin.
 
-Live EAV references require live targets; deletion is restricted while such references remain.
-This differs from Node's retained links to tombstones. Migration of shared content must settle
-an explicit unavailable-content representation before transferring those references. Retaining
-history does not by itself make a deleted entity a valid live reference.
+Live references require live targets; deletion is restricted while such references remain.
+Wiki content uses explicit availability to retain shared placements through removal and restoration.
+Historical references independently retain accepted evidence after later edits or deletion.
 
 ## Shared attribution and Agent records — implemented
 
@@ -96,7 +94,7 @@ checks. A submission key deduplicates admission; it is not an entity ID or a que
 | Message | Exchange; author Actor; at; text | input metadata, including capture provenance |
 | InputSource | ContextInput; Message | Connects supplied context to its submitted source. |
 | RetainedSource | Exchange; position; speaker; occurredAt; provenance | date precision, text, activity, label, known status |
-| Migration | key; sourceSequence | One-time importer bookkeeping. |
+| Migration | key; sourceSequence | Retained persisted schema definition; no application importer. |
 | ContextCheckpoint | through Exchange; covered Exchange set; fingerprint; generating AgentRun; createdAt; title; summary | — |
 | RunContext | AgentRun; selected Exchange set | selected ContextCheckpoint |
 
@@ -106,8 +104,7 @@ exist independently of Chat. Exchange positions order the dialogue and ContextIn
 the supplied model context; neither is the database transaction sequence.
 
 RetainedSource preserves imported contributions whose original execution records are unavailable.
-Speaker is user/agent/unknown. Known completion status, old grouping, source text and exact immutable
-Node versions remain provenance; missing model requests, authors or outcomes stay absent. Historical
+Speaker is user/agent/unknown. Known completion status, old grouping, source text and retained source provenance remain available; missing model requests, authors or outcomes stay absent. Historical
 contributions are presented by their recorded instant, then original placement and identity.
 Day-only evidence remains day-only; ties and uncertain dates do not acquire invented precision.
 Earlier containers are provenance, not new dialogue boundaries.
@@ -132,24 +129,17 @@ route or replacing the current draft. Search and the `g y` shortcut open that sa
 `/history/` links open it over Chat; closing such a direct link returns to Chat. The shared kit owns
 responsive geometry, scrolling, dismissal, focus, grouped surfaces and expandable rows.
 
-History presents accepted EAV and remaining Node transactions in one list, grouped by recording date.
-Each entry keeps its own store identity and sequence. Recorded timestamps order the combined presentation, with stable
-ties; there is no shared sequence, atomic snapshot or causal ordering across the two journals.
-Pagination preserves transaction identities as new activity arrives. Loading metadata scans the
-retained journals; only the selected page's before/after records are reconstructed. Indexing and
-bounded cold-history loading remain future performance work.
+History presents accepted EAV transactions grouped by recording date. The single journal sequence
+retains acceptance order. Pagination preserves transaction identities as new activity arrives; only
+the selected page's before/after records are reconstructed. Cold history loading and indexed scans
+remain future performance work.
 
-EAV entries include historical author/origin labels and entity/attribute changes, including removed
-optional values, reference retargets and deletion. No author is invented for unattributed bootstrap
-transactions. Generic inspection uses persisted types and attributes, without importing Chat or Agent
-into the History owner. Expanded entries use shared labelled metadata and before/after diff components.
-The list shows up to 100 changed entities (or legacy detail lines) per expanded entry and reports additional
-changes; the database history API retains the complete change set.
-
-Existing content compensation remains an explicit, confirmed, guarded Node transaction. EAV dialogue
-and execution entries have no generic Undo action. A future content compensation implementation must
-preserve transcript, execution and exact-source evidence, reject intervening changes, and append
-compensation rather than rewriting accepted history.
+Entries include historical author/origin labels and entity/attribute changes, including removed
+optional values, reference retargets and deletion. Generic inspection reads persisted definitions
+without importing workflows. Expanded entries use shared metadata and before/after diffs and report
+omitted entities when a presentation limit is reached; the history API retains complete changes.
+No author is invented for unattributed bootstrap transactions. Generic compensation remains future
+owner work and must append changes while preserving transcript, execution and source evidence.
 
 ## Native Wiki — implemented
 
@@ -174,58 +164,37 @@ identity correspondence remain a separate preservation procedure; opening Wiki r
 accepted entities and does not convert or erase published records. Qualified structured assertions,
 whole-assertion selectors and the full cross-domain Evidence review screen remain subsequent work.
 
-## Remaining content migration — required preservation contracts
+## Native Graph and independent voice
 
-The remaining producers and source-vault conversion must preserve the contracts below.
-Native Wiki content, selected evidence and Topic organization are implemented above; other owner
-schemas remain migration work. Exact entity names and field layouts
-must be settled with each owning module before registering and publishing its schema.
+Graph owns explicit broad Topics, editorial memberships, named directed relationships and vocabulary.
+Its typed historical endpoints retain source/target meaning at accepted snapshots. Graph projects owner
+records for exploration; it does not become a duplicate content authority. Ordinary relationship cycles
+are permitted while containment remains acyclic. Wiki receives Graph interpretation through Application.
 
-| Area | Target EAV relationships and invariants |
-|---|---|
-| Content and containment | Independently addressable content; separate placement/order and shared appearances. Editing a child or moving a placement must not version ancestors or descendants. Multiple appearances share one content identity. |
-| Relationships and Graph | Named typed connections retain source/target identity and direction. Graph remains a projection of owner records, not a competing canonical copy. Cycles in ordinary relationships are allowed; containment remains acyclic. |
-| Wiki pages and Subjects | Distilled knowledge retains page/section structure, Subject associations and source provenance. Other retained material remains evidence rather than automatically becoming a Wiki page. |
-| Citations and page references | Claim and evidence must preserve exact historical content, the selected snapshot, projection format and half-open UTF-16 ranges. Page-wide provenance remains distinct from statement support. Only eligible underlying source material supports citations. |
-| Questions and Answers | Questions retain their Subject, prompt, attribution and open/answered/abandoned state. Answer evidence and its link are accepted atomically; subsequent edits/deletion cannot erase the originally recorded answer. |
-| Observations and Interpretations | Retain measured/described time separately from recording time, source provenance, uncertainty and attribution. Later interpretations or corrections coexist with original evidence. |
-| Independent live voice | Migrate its producer to the same Agent and Chat entities while preserving effective context, finalized speech, stop/close, tool declarations and persistence-only recovery. The independent compatibility voice runtime still uses Nodes. |
+Independent voice produces the same Agent configuration, runs, effective inputs, observed model activity
+and canonical tool outcomes as text execution. It retains finalized speech and provider metadata actually
+observed. Stop/close prevents further execution and failed saves retain exact persistence-only recovery.
+Opaque providers do not acquire invented internal request receipts.
 
-EAV now exports validated snapshot evidence through `history.reference` and restores opaque handles
-through `history.resolve`. The versioned address survives durable storage reopen and retains entity
-identity/type, journal identity and an accepted snapshot; nested references resolve at that cutoff,
-even after later deletion. This is a snapshot address, not an exact entity-change transaction pair.
-Native Wiki adds schema-defined historical-reference fields with acceptance-time integrity,
-owner-defined projection formats, passage ranges and explicit content availability. Other evidence
-owners must retain these guarantees when migrating; a serialized address alone is insufficient.
-Do not replace exact Node addresses with live EAV references or unvalidated JSON strings.
-Existing [citation rules](adr/0005-wiki-citation-selections.md)
-and historical availability obligations remain binding during this transition.
+## Historical evidence and persistence
 
-## Persistence and rollout
+`history.reference` exports validated snapshot evidence and `history.resolve` restores opaque handles.
+References retain identity/type, journal identity and an accepted snapshot; nested references resolve
+at that cutoff after later edits or deletion. Schema-defined historical-reference attributes validate
+acceptance and durable replay. Source owners define text projections and selection ranges under
+[ADR 0005](adr/0005-wiki-citation-selections.md).
 
-Production EAV publishes immutable transaction envelopes, including schema revisions, under
-`.vaulter/eav/transactions/` in the private Vault repository. Git ref compare-and-swap acceptance
-preserves unrelated Node and content paths. A plaintext IndexedDB cache supports offline reads;
-writes require remote acceptance. Session replacement, credential changes and sign-out cover both
-stores; sign-out clears device data while retaining remote history.
+Production publishes immutable transaction envelopes and schema revisions under
+`.vaulter/eav/transactions/` in the private repository. Git ref compare-and-swap establishes remote
+acceptance and preserves unrelated paths. A plaintext IndexedDB cache supports offline reads;
+writes require remote acceptance. Session replacement, credential changes and sign-out manage this
+one journal. Sign-out clears device records while retaining remote history.
 
-Chat's one-time importer retains exact Node evidence, and normal Chat reads then use EAV.
-Unmigrated content tools still require Node authors, origins and citation endpoints. Immutable
-`externalRecord` run backlinks and message excerpts bridge that requirement, with their own save
-recovery. These are compatibility evidence, not a second dialogue/execution authority. There is no
-cross-store atomic transaction.
-
-Continue migration by transferring an owner's schema, producer, reads, history/source projections
-and recovery together. Verify re-opened data and failed/uncertain-save recovery using fictional
-persistence. Keep imported source identities and original history resolvable. Retire a compatibility
-seam only after every caller and exact evidence reference has a supported replacement. No reset,
-regeneration of published history or destructive in-place conversion is part of this specification.
-
-The application migration is complete when all production producers and readers use EAV, retained
-Node evidence still resolves, the bridges are unnecessary, and focused persistence/recovery checks
-plus the implementation commit's full CI verification pass. History adoption and historical-address
-export/resolution are implemented; source-vault conversion, qualified structured knowledge and independent voice migration remain.
+Private source translation, identity mapping and verified publication remain outside application startup
+under ADR 0007. The application has one authoritative store and no automatic source conversion.
+Focused owner checks establish persistence/recovery behavior; the exact implementation commit's CI
+establishes complete routine verification. Qualified structured knowledge, shared honest effective-time
+contracts, interpreted events and a full cross-domain Evidence review screen remain future owner work.
 
 ## Native Questions
 

@@ -1,8 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { fakeGitHub } from '@/vault/storage/github-client/fake-github.ts';
-import { create, request } from '@/vault/nodes/fixtures.test-support.ts';
-import { accept } from '@/vault/nodes/history.ts';
-import { digest } from '@/vault/nodes/json.ts';
+import { createPersistentStorage, openDatabase, type Journal } from '@/vault/eav/index.ts';
+import { chatSchema } from './data/schema.ts';
 import { seal } from '@/vault/session/sealed.ts';
 // biome-ignore lint/correctness/noUnresolvedImports: Playwright re-exports these browser types.
 import type { Page } from '@playwright/test';
@@ -38,38 +37,55 @@ test.use({
   },
 });
 
-test('production opens one continuous dialogue and imports earlier conversations once', async ({
+test('production opens one continuous dialogue and restores retained messages', async ({
   page,
 }) => {
   const at = '2026-10-13T09:00:00Z';
-  const initial = request('chat-fixture', [
-    create('user', { kind: 'actor', name: 'Fictional owner' }),
-    ...Array.from({ length: 45 }, (_, index) => {
-      const node = `chat-${String(index).padStart(2, '0')}`;
-      const date = new Date(Date.parse(at) + index * 60_000).toISOString();
-      return [
-        create(node, { kind: 'conversation', title: node, createdAt: date }),
-        create(`${node}-exchange`, { kind: 'exchange', startedAt: date }, node),
-        create(
-          `${node}-message`,
-          { kind: 'message', role: 'user', at: date, text: `Recorded message ${index}` },
-          `${node}-exchange`,
-        ),
-      ];
-    }).flat(),
+  const files: Record<string, string> = {};
+  let journal: Journal = { schemas: [], commits: [] };
+  const scope = JSON.stringify([
+    'https://api.github.com',
+    'JimLundin',
+    'vault',
+    'main',
+    '.vaulter/eav/transactions/',
   ]);
-  const record = accept([], initial, await digest(initial), at);
-  const fake = await fakeGitHub({
-    '.vaulter/nodes/v1/transactions/chat-fixture.json': JSON.stringify(record),
+  const storage = createPersistentStorage({
+    scope,
+    load: async () => journal,
+    append: async ({ schemas, commit, base }) => {
+      journal = { schemas, commits: [...journal.commits, commit] };
+      files[`.vaulter/eav/transactions/${encodeURIComponent(commit.id)}.json`] = JSON.stringify({
+        base,
+        format: 1,
+        scope,
+        schemas,
+        commit,
+      });
+    },
   });
+  await using database = await openDatabase({ schema: chatSchema, storage });
+  await database.transaction(async (tx) => {
+    const author = await tx.entities.actors.insert({ name: 'Fictional owner', kind: 'user' });
+    const conversation = await tx.entities.conversations.insert({ createdAt: new Date(at) });
+    for (let position = 0; position < 45; position++) {
+      const date = new Date(Date.parse(at) + position * 60_000);
+      const exchange = await tx.entities.exchanges.insert({
+        conversation,
+        position,
+        startedAt: date,
+      });
+      await tx.entities.messages.insert({
+        exchange,
+        author,
+        at: date,
+        text: `Recorded message ${position}`,
+      });
+    }
+  });
+  const fake = await fakeGitHub(files);
   const password = 'fictional-chat-password';
   const sealed = await seal({ github: 'fictional-token' }, password, undefined, 1000);
-  await page.addInitScript(() => {
-    localStorage.setItem(
-      'vaulter:conversation:https://api.github.com:JimLundin/vault@main',
-      'missing-retained-chat',
-    );
-  });
   await page.route('**/secrets.json', (route) => route.fulfill({ json: sealed }));
   await page.route('https://api.github.com/**', async (route) => {
     const request = route.request();
@@ -136,7 +152,7 @@ test('production opens one continuous dialogue and imports earlier conversations
   await page.reload();
   await expect(page.locator('[data-message]')).toHaveCount(45);
   await expect(page.getByRole('alert')).toHaveCount(0);
-  await page.goto('/#/chat/chat-00/');
+  await page.goto('/#/chat/');
   await expect(page.locator('[data-message]')).toHaveCount(45);
   await expect(page.getByRole('button', { name: 'New conversation', exact: true })).toHaveCount(0);
 });
@@ -274,7 +290,7 @@ test.describe('production recorded dictation', () => {
   });
 });
 
-test('production saves a new chat to EAV and restores it without reexecuting the Agent', async ({
+test('production saves a new exchange to EAV and restores it without reexecuting the Agent', async ({
   page,
 }) => {
   const fake = await fakeGitHub({ 'Retained.md': 'Untouched' });

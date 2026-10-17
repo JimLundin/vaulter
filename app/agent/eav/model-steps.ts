@@ -1,12 +1,12 @@
+import type { AgentRunRef, agentSchema, ModelStepRef } from '@/agent/data/schema.ts';
 import {
   ConflictError,
-  SaveError,
   type Database,
-  type EntityRef,
   type EntityDefinition,
+  type EntityRef,
   type JsonValue,
+  SaveError,
 } from '@/vault/eav/index.ts';
-import type { agentSchema, AgentRunRef, ModelStepRef } from '@/agent/data/schema.ts';
 
 /** Request admission and response acceptance, without an execution-resume scheduler. */
 export function modelSteps(options: {

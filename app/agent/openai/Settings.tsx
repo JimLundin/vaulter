@@ -1,8 +1,8 @@
-import { Stack } from '@/ui/kit/index.ts';
 import { ModuleSettings } from '@/settings/ModuleSettings.tsx';
-import { CredentialSetting } from '@/vault/session/ui.tsx';
-import type { Credential } from '@/vault/session/credentials.ts';
 import type { SettingsDefinition, SettingsStore } from '@/settings/store.ts';
+import { Stack } from '@/ui/kit/index.ts';
+import type { Credential } from '@/vault/session/credentials.ts';
+import { CredentialSetting } from '@/vault/session/ui.tsx';
 
 /** The caller supplies the same OpenAI-owned preferences used to configure its capabilities. */
 export function OpenAISettings({

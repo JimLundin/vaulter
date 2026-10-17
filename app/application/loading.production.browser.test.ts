@@ -52,7 +52,7 @@ test('startup stays visible before JavaScript loads and hands over to the React 
   }
 });
 
-test('node startup ignores legacy files and stays visible through credentials and data fetches', async ({
+test('EAV startup ignores unrelated files and stays visible through credentials and data fetches', async ({
   page,
 }) => {
   const fake = await fakeGitHub({

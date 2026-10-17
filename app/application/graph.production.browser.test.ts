@@ -5,34 +5,11 @@ import { topicActions } from '@/workflows/graph/data/topics.ts';
 import { expect, test } from '@playwright/test';
 import { navigateToModule } from '@/ui/kit/navigation.browser.test-support.ts';
 import { fakeGitHub } from '@/vault/storage/github-client/fake-github.ts';
-import { memoryNodeBackend } from '@/vault/nodes/memory.ts';
-import { create, request } from '@/vault/nodes/fixtures.test-support.ts';
 import { seal } from '@/vault/session/sealed.ts';
-import { accept } from '@/vault/nodes/history.ts';
-import { canonical, digest } from '@/vault/nodes/json.ts';
 
-test('production Graph reads persisted relationships, navigates subjects and survives reload', async ({
+test('production Graph reads persisted topics, navigates subjects and survives reload', async ({
   page,
 }) => {
-  const nodes = memoryNodeBackend();
-  const input = request('graph-fixture', [
-    create('user', { kind: 'actor' }),
-    create('studio', { kind: 'page', title: 'Garden studio' }),
-    create('mornings', { kind: 'page', title: 'Slow mornings' }),
-    create('predicate', {
-      kind: 'term',
-      scheme: 'predicate',
-      key: 'related-to',
-      label: 'Related to',
-      symmetric: true,
-    }),
-    {
-      ...create('edge', { kind: 'relationship', predicate: 'related-to' }, 'studio'),
-      connection: { source: { node: 'studio' }, target: { node: 'mornings' } },
-    },
-  ]);
-  const transaction = await nodes.commit(input);
-  const record = accept([], input, await digest(canonical(input)), transaction.recordedAt);
   let journal: Journal = { schemas: [], commits: [] };
   const scope = JSON.stringify([
     'https://api.github.com',
@@ -81,10 +58,7 @@ test('production Graph reads persisted relationships, navigates subjects and sur
       }),
     ]),
   );
-  const fake = await fakeGitHub({
-    ...files,
-    '.vaulter/nodes/v1/transactions/graph-fixture.json': JSON.stringify(record),
-  });
+  const fake = await fakeGitHub(files);
   const password = 'fictional-production-password';
   const sealed = await seal({ github: 'fictional-token' }, password, undefined, 1000);
   await page.route('**/secrets.json', (route) => route.fulfill({ json: sealed }));
@@ -122,5 +96,4 @@ test('production Graph reads persisted relationships, navigates subjects and sur
     location.hash = '#/wiki/mornings/';
   });
   await expect(page.getByRole('heading', { name: 'Slow mornings', exact: true })).toBeVisible();
-  nodes.close();
 });

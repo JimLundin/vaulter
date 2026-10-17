@@ -35,69 +35,37 @@ test('the dependency policy rejects cross-workflow imports and private kit acces
   );
 });
 
-test('application tasks cannot construct raw node adapters', () => {
-  const entries = [
-    'app/vault/nodes/memory.ts',
-    'app/vault/nodes/backend.ts',
-    'app/vault/storage/nodes/github.ts',
-  ];
-  for (const entry of entries) {
-    for (const caller of [
-      'app/agent/tool-context.ts',
-      'app/workflows/questions/data/operations.ts',
-      'app/vault/content/tools.ts',
-      'app/application/index.tsx',
-    ])
-      expect(importProblem(caller, entry)).toContain('Application-supplied TransactionStore');
+test('removed store imports cannot return, including tests and storage assembly', () => {
+  for (const entry of ['app/vault/nodes/memory.ts', 'app/vault/storage/nodes/github.ts'])
     for (const caller of [
       'app/main.tsx',
-      'app/vault/nodes/memory.ts',
-      'app/vault/storage/nodes/github.ts',
-      'app/preview/nodes.ts',
       'app/agent/tools.test.ts',
-      'app/vault/nodes/fixtures.test-support.ts',
+      'app/application/composition.ts',
     ])
-      if (caller === 'app/vault/nodes/memory.ts' && entry.startsWith('app/vault/storage/'))
-        expect(importProblem(caller, entry)).toContain('higher-level');
-      else expect(importProblem(caller, entry)).toBeNull();
-  }
-  expect(
-    importProblem('app/agent/new-tool.ts', 'app/vault/nodes/fixtures.test-support.ts'),
-  ).toContain('fixtures cannot publish application data');
-  expect(
-    importProblem('app/agent/new-tool.test.ts', 'app/vault/nodes/fixtures.test-support.ts'),
-  ).toBeNull();
-  expect(
-    importProblem('app/preview/nodes.ts', 'app/vault/nodes/fixtures.test-support.ts'),
-  ).toBeNull();
-  expect(importProblem('app/agent/new-tool.ts', 'app/preview/nodes.ts')).toContain(
-    'fixtures cannot publish application data',
-  );
-  expect(importProblem('app/agent/new-tool.test.ts', 'app/preview/nodes.ts')).toBeNull();
+      expect(importProblem(caller, entry)).toContain('removed store');
+  expect(importProblem('app/agent/new-tool.ts', 'app/preview/eav.ts')).toContain('preview-only');
+  expect(importProblem('app/agent/new-tool.test.ts', 'app/preview/eav.ts')).toBeNull();
   expect(importProblem('app/agent/new-tool.ts', 'app/agent/contracts.type-test.ts')).toContain(
-    'fixtures cannot publish application data',
+    'test-only',
   );
-  expect(
-    importProblem('app/agent/new-tool.type-test.ts', 'app/vault/nodes/fixtures.test-support.ts'),
-  ).toBeNull();
 });
 
 test('browser drivers are shared across test owners without exposing private kit code', () => {
   const driver = 'app/ui/kit/navigation.browser.test-support.ts';
-  expect(importProblem('app/workflows/chat/node-chat.browser.test.ts', driver)).toBeNull();
+  expect(importProblem('app/workflows/chat/eav-chat.browser.test.ts', driver)).toBeNull();
   expect(importProblem('app/application/navigation.browser.test.ts', driver)).toBeNull();
   expect(importProblem('app/workflows/chat/Chat.tsx', driver)).toContain('test-only');
   expect(
-    importProblem('app/workflows/chat/node-chat.browser.test.ts', 'app/ui/kit/navigation.tsx'),
+    importProblem('app/workflows/chat/eav-chat.browser.test.ts', 'app/ui/kit/navigation.tsx'),
   ).toContain('private kit');
 });
 
 test('raw session hooks remain with Vault assembly and Application through every import form', () => {
-  const root = mkdtempSync(join(tmpdir(), 'vaulter-node-session-policy-'));
+  const root = mkdtempSync(join(tmpdir(), 'vaulter-vault-session-policy-'));
   try {
     const files = {
       'app/vault/session/session.ts':
-        'export function useSession() { return {nodes: {}}; } export type Session = {nodes: unknown};',
+        'export function useSession() { return {storage: {}}; } export type Session = {storage: unknown};',
       'app/vault/index.ts':
         "import { useSession } from './session/session.ts'; export { useSession as open }; export function useVaultSession() { return useSession(); } export type { Session } from './session/session.ts';",
       'app/application/index.tsx':
@@ -138,7 +106,7 @@ test('raw session hooks remain with Vault assembly and Application through every
       ['import', 'value-alias', 'export', 'export-all', 'namespace', 'export-namespace', 'dynamic']
         .map(
           (name) =>
-            `app/agent/${name}.ts accesses a raw node session; use the Application-supplied TransactionStore`,
+            `app/agent/${name}.ts accesses a raw vault session; use the Application-supplied database`,
         )
         .concat(
           'app/agent/value-alias.ts imports Application composition; dependencies point from Application to module owners',
@@ -150,34 +118,87 @@ test('raw session hooks remain with Vault assembly and Application through every
   }
 });
 
-test('compiler resolution prevents raw node acceptance hidden by aliases and re-exports', () => {
-  const root = mkdtempSync(join(tmpdir(), 'vaulter-node-publication-policy-'));
+test('compiler ownership follows EAV storage and database factories through aliases and re-exports', () => {
+  const root = mkdtempSync(join(tmpdir(), 'vaulter-eav-factories-'));
   try {
     const files = {
-      'app/vault/nodes/memory.ts': 'export function memoryNodeBackend() { return {}; }',
-      'app/vault/nodes/history.ts':
-        'export function accept() {} export function validateRecords() {} export function validateRecordsAsync() {} export class NodeConflict extends Error {} export class NodePublicationRejected extends Error {} export function snapshotOf() {}',
-      'app/vault/nodes/public-looking.ts':
-        "export { memoryNodeBackend as build } from './memory.ts'; export { accept as publish, validateRecords as load, validateRecordsAsync as loadAsync, NodeConflict, NodePublicationRejected, snapshotOf } from './history.ts';",
-      'app/vault/nodes/aliased.ts':
-        "import { memoryNodeBackend } from './memory.ts'; const backend = memoryNodeBackend; export const build = backend;",
-      'app/workflows/example/value-alias.ts':
-        "import { build } from '@/vault/nodes/aliased.ts'; export { build };",
-      'app/workflows/example/import.ts':
-        "import { build as construct, publish as write, load, loadAsync } from '@/vault/nodes/public-looking.ts'; export { construct, write, load, loadAsync };",
-      'app/workflows/example/export.ts':
-        "export { build as construct, publish as write } from '@/vault/nodes/public-looking.ts';",
-      'app/workflows/example/export-all.ts': "export * from '@/vault/nodes/public-looking.ts';",
-      'app/workflows/example/namespace.ts':
-        "import * as persistence from '@/vault/nodes/public-looking.ts'; export { persistence };",
-      'app/workflows/example/export-namespace.ts':
-        "export * as persistence from '@/vault/nodes/public-looking.ts';",
-      'app/workflows/example/dynamic.ts':
-        "export const persistence = () => import('@/vault/nodes/public-looking.ts');",
-      'app/workflows/example/require.ts':
-        "export const persistence = require('@/vault/nodes/public-looking.ts');",
-      'app/workflows/example/errors-and-reading.ts':
-        "import { NodeConflict, NodePublicationRejected, snapshotOf } from '@/vault/nodes/public-looking.ts'; export { NodeConflict, NodePublicationRejected, snapshotOf };",
+      'app/vault/eav/memory.ts': 'export function createMemoryStorage() { return {}; }',
+      'app/vault/eav/engine.ts': 'export function openDatabase() { return {}; }',
+      'app/vault/eav/index.ts':
+        "export {createMemoryStorage} from './memory.ts'; export {openDatabase} from './engine.ts';",
+      'app/application/composition.ts':
+        "import {openDatabase} from '../vault/eav/index.ts'; const open=openDatabase; export {open};",
+      'app/main.tsx':
+        "import {createMemoryStorage} from './vault/eav/index.ts'; export {createMemoryStorage};",
+      'app/preview/seed.ts':
+        "import {createMemoryStorage,openDatabase} from '../vault/eav/index.ts'; export {createMemoryStorage,openDatabase};",
+    };
+    writeFileSync(
+      join(root, 'tsconfig.json'),
+      JSON.stringify({
+        compilerOptions: {
+          module: 'ESNext',
+          moduleResolution: 'Bundler',
+          jsx: 'preserve',
+          paths: { '@/*': ['./app/*'] },
+        },
+        include: ['app'],
+      }),
+    );
+    const cases = {
+      import:
+        "import {createMemoryStorage as build,openDatabase as open} from '@/vault/eav/index.ts'; export {build,open};",
+      export: "export {createMemoryStorage,openDatabase} from '@/vault/eav/index.ts';",
+      all: "export * from '@/vault/eav/index.ts';",
+      namespace: "import * as eav from '@/vault/eav/index.ts'; export {eav};",
+      dynamic: "export const load=()=>import('@/vault/eav/index.ts');",
+      alias: "import {open} from '@/application/composition.ts'; export {open};",
+    };
+    for (const [name, source] of Object.entries(cases))
+      Object.assign(files, { [`app/agent/${name}.ts`]: source });
+    for (const [path, source] of Object.entries(files)) {
+      mkdirSync(join(root, path, '..'), { recursive: true });
+      writeFileSync(join(root, path), source);
+    }
+    const problems = checkLayout(root);
+    for (const name of Object.keys(cases))
+      expect(problems).toContain(
+        `app/agent/${name}.ts opens an EAV database; compose database ownership in Application`,
+      );
+    for (const name of Object.keys(cases).filter((caseName) => caseName !== 'alias'))
+      expect(problems).toContain(
+        `app/agent/${name}.ts constructs raw EAV storage; use the Application-supplied database`,
+      );
+    expect(problems.some((problem) => problem.startsWith('app/main.tsx '))).toBe(false);
+    expect(problems.some((problem) => problem.startsWith('app/preview/seed.ts '))).toBe(false);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('raw journal publication cannot escape through properties, destructuring or aliases', () => {
+  const root = mkdtempSync(join(tmpdir(), 'vaulter-eav-append-'));
+  try {
+    const files = {
+      'app/vault/eav/persistence.ts':
+        'export interface StorageAdapter {append():void;load():void;}',
+      'app/vault/eav/index.ts': "export type {StorageAdapter} from './persistence.ts';",
+      'app/workflows/example/property.ts':
+        "import type {StorageAdapter} from '@/vault/eav/index.ts'; export const write=(adapter:StorageAdapter)=>adapter.append();",
+      'app/workflows/example/element.ts':
+        "import type {StorageAdapter} from '@/vault/eav/index.ts'; const method='append'; export const write=(adapter:StorageAdapter)=>adapter[method]();",
+      'app/workflows/example/destructure.ts':
+        "import type {StorageAdapter} from '@/vault/eav/index.ts'; declare const adapter:StorageAdapter; const {append:publish}=adapter; export {publish};",
+      'app/workflows/example/alias.ts':
+        "import type {StorageAdapter} from '@/vault/eav/index.ts'; declare const adapter:StorageAdapter;const borrowed=adapter; const publish=borrowed.append;export {publish};",
+      'app/workflows/example/read.ts':
+        "import type {StorageAdapter} from '@/vault/eav/index.ts';export const read=(adapter:StorageAdapter)=>adapter.load();",
+      'app/workflows/example/unrelated.ts':
+        'interface Files {append():void} export const save=(files:Files)=>files.append();',
+      'app/vault/storage/eav/writer.ts':
+        "import type {StorageAdapter} from '../../eav/index.ts'; export const persist=(adapter:StorageAdapter)=>adapter.append();",
+      'app/workflows/example/seed.test.ts':
+        "import type {StorageAdapter} from '@/vault/eav/index.ts';export const seed=(adapter:StorageAdapter)=>adapter.append();",
     };
     writeFileSync(
       join(root, 'tsconfig.json'),
@@ -195,54 +216,30 @@ test('compiler resolution prevents raw node acceptance hidden by aliases and re-
       writeFileSync(join(root, path), source);
     }
     expect(checkLayout(root).toSorted((a, b) => a.localeCompare(b))).toEqual(
-      ['import', 'export', 'export-all', 'namespace', 'export-namespace', 'dynamic', 'value-alias']
-        .map(
-          (name) =>
-            `app/workflows/example/${name}.ts accesses raw node persistence; use the Application-supplied TransactionStore`,
-        )
-        .concat(
-          'app/workflows/example/require.ts: module loading must resolve through TypeScript so ownership can be checked',
-        )
-        .toSorted((a, b) => a.localeCompare(b)),
+      ['alias', 'destructure', 'element', 'property'].map(
+        (name) =>
+          `app/workflows/example/${name}.ts accesses raw EAV append; write through database.transaction`,
+      ),
     );
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
 });
 
-test('application writers cannot access raw Node commit through properties, destructuring or aliases', () => {
-  const root = mkdtempSync(join(tmpdir(), 'vaulter-node-commit-policy-'));
+test('deleted modules and store types stay forbidden even through unresolved and type-only imports', () => {
+  const root = mkdtempSync(join(tmpdir(), 'vaulter-retired-store-'));
   try {
     const files = {
-      'app/vault/nodes/store.ts':
-        'export interface NodeStore { commit(): void; snapshot(): void; } export interface NodeBackend extends NodeStore { close(): void; }',
-      'app/vault/nodes/reading.ts':
-        "export type { NodeStore as Store, NodeBackend as Backend } from './store.ts';",
-      'app/workflows/example/property.ts':
-        "import type { Store } from '@/vault/nodes/reading.ts'; export const write = (nodes: Store) => nodes.commit();",
-      'app/workflows/example/element.ts':
-        "import type { Backend } from '@/vault/nodes/reading.ts'; const method = 'commit'; export const write = (nodes: Backend) => nodes[method]();",
-      'app/workflows/example/destructure.ts':
-        "import type { Store } from '@/vault/nodes/reading.ts'; declare const nodes: Store; const { commit: publish } = nodes; export const write = publish;",
-      'app/workflows/example/alias.ts':
-        "import type { Store } from '@/vault/nodes/reading.ts'; declare const nodes: Store; const borrowed = nodes; const publish = borrowed.commit; export const write = publish;",
-      'app/workflows/example/read.ts':
-        "import type { Store } from '@/vault/nodes/reading.ts'; export const read = (nodes: Store) => nodes.snapshot();",
-      'app/workflows/example/legacy.ts':
-        'interface Files { commit(): void; } export const save = (files: Files) => files.commit();',
-      'app/vault/transactions/lifetime.ts':
-        "import type { NodeStore } from '../nodes/store.ts'; export const persist = (nodes: NodeStore) => nodes.commit();",
-      'app/workflows/example/seed.test.ts':
-        "import type { Store } from '@/vault/nodes/reading.ts'; export const seed = (nodes: Store) => nodes.commit();",
+      'app/vault/nodes/reintroduced.ts': 'export const old=1;',
+      'app/agent/types.ts': 'export interface NodeStore {}',
+      'app/agent/missing.ts': "export type Store=import('@/vault/nodes/store.ts').Store;",
+      'app/agent/type-only.ts':
+        "import type {Store} from '../vault/storage/nodes/missing.ts';export type Data=Store;",
     };
     writeFileSync(
       join(root, 'tsconfig.json'),
       JSON.stringify({
-        compilerOptions: {
-          module: 'ESNext',
-          moduleResolution: 'Bundler',
-          paths: { '@/*': ['./app/*'] },
-        },
+        compilerOptions: { module: 'ESNext', moduleResolution: 'Bundler' },
         include: ['app'],
       }),
     );
@@ -250,11 +247,13 @@ test('application writers cannot access raw Node commit through properties, dest
       mkdirSync(join(root, path, '..'), { recursive: true });
       writeFileSync(join(root, path), source);
     }
-    expect(checkLayout(root).sort()).toEqual(
-      ['alias', 'destructure', 'element', 'property'].map(
-        (name) =>
-          `app/workflows/example/${name}.ts accesses raw Node commit; use a TransactionStore write lifetime`,
-      ),
+    expect(checkLayout(root)).toEqual(
+      expect.arrayContaining([
+        'app/vault/nodes/reintroduced.ts: the removed store cannot be reintroduced; use EAV',
+        'app/agent/types.ts: removed store type NodeStore cannot be reintroduced; use EAV',
+        'app/agent/missing.ts imports the removed store; use the typed EAV interface',
+        'app/agent/type-only.ts imports the removed store; use the typed EAV interface',
+      ]),
     );
   } finally {
     rmSync(root, { recursive: true, force: true });
@@ -302,7 +301,6 @@ test('Vault task UI composes shared presentation while persistence keeps its own
     'app/vault/Gate.tsx',
     'app/vault/session/ui.tsx',
     'app/vault/storage/Settings.tsx',
-    'app/vault/content/tool-presentation.tsx',
   ]) {
     expect(importProblem(source, 'app/ui/kit/index.ts')).toBeNull();
     expect(importProblem(source, 'app/ui/kit/parts/button.tsx')).toContain('private kit');
@@ -312,8 +310,8 @@ test('Vault task UI composes shared presentation while persistence keeps its own
   }
   for (const source of [
     'app/vault/session/session.ts',
-    'app/vault/nodes/store.ts',
-    'app/vault/storage/nodes/github.ts',
+    'app/vault/eav/types.ts',
+    'app/vault/storage/eav/github.ts',
     'app/vault/content/tools.ts',
     'app/vault/session/new-helper.tsx',
   ])
@@ -529,7 +527,7 @@ test('shared row presentation cannot interpret Vault records through aliases, re
   const root = mkdtempSync(join(tmpdir(), 'vaulter-record-presentation-policy-'));
   try {
     mkdirSync(join(root, 'app/ui/kit'), { recursive: true });
-    mkdirSync(join(root, 'app/vault/nodes'), { recursive: true });
+    mkdirSync(join(root, 'app/vault/sources'), { recursive: true });
     writeFileSync(
       join(root, 'tsconfig.json'),
       JSON.stringify({
@@ -541,11 +539,11 @@ test('shared row presentation cannot interpret Vault records through aliases, re
         include: ['app'],
       }),
     );
-    writeFileSync(join(root, 'app/vault/nodes/model.ts'), 'export const transaction = 1;');
+    writeFileSync(join(root, 'app/vault/sources/schema.ts'), 'export const transaction = 1;');
     const imports = [
-      "import { transaction } from '@/vault/nodes/model.ts'; export { transaction };",
-      "export { transaction } from '@/vault/nodes/model.ts';",
-      "export const load = () => import('@/vault/nodes/model.ts');",
+      "import { transaction } from '@/vault/sources/schema.ts'; export { transaction };",
+      "export { transaction } from '@/vault/sources/schema.ts';",
+      "export const load = () => import('@/vault/sources/schema.ts');",
     ];
     for (const [index, source] of imports.entries())
       writeFileSync(join(root, `app/ui/kit/row${index}.ts`), source);
@@ -1065,7 +1063,7 @@ test('installed presentation-library targets cannot hide behind path aliases or 
 test('module owners cannot depend on their consumers', () => {
   expect(importProblem('app/agent/store.ts', 'app/vault/eav/identity.ts')).toContain('private EAV');
   expect(importProblem('app/agent/store.ts', 'app/vault/eav/index.ts')).toBeNull();
-  for (const owner of ['runtime', 'navigation', 'settings', 'vault/nodes', 'vault/eav']) {
+  for (const owner of ['runtime', 'navigation', 'settings', 'vault/eav']) {
     expect(importProblem(`app/${owner}/core.ts`, 'app/application/composition.ts')).toContain(
       'imports Application composition',
     );

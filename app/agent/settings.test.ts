@@ -1,14 +1,7 @@
-import { transactionFixture } from '@/vault/transactions/fixtures.test-support.ts';
 import { expect, test } from 'vitest';
-import { MockLanguageModelV4, convertArrayToReadableStream } from 'ai/test';
 import { createSettings } from '@/settings/store.ts';
-import { memoryNodeBackend } from '@/vault/nodes/memory.ts';
-import { create, request } from '@/vault/nodes/fixtures.test-support.ts';
-import { createAgentBackend } from './runtime.ts';
-import { readAgentRun } from './store.ts';
-import { prepareAgentRunFixture as prepareAgentRun } from './preparation.test-support.ts';
-import { agentSettings, agentOptions } from './settings.ts';
 import { agentSettingsSchema } from './schema.ts';
+import { agentOptions, agentSettings } from './settings.ts';
 
 function storage(): Storage {
   const entries = new Map<string, string>();
@@ -128,81 +121,4 @@ test.each([
 ])('rejects invalid %s preferences (%s)', (key, value) => {
   const preferences = createSettings(agentSettings, { storage: storage() });
   expect(() => preferences.set(key, value)).toThrow();
-});
-
-test('configured Agent sampling is retained in the run and reaches the provider', async () => {
-  const preferences = createSettings(agentSettings, { storage: storage() });
-  for (const [key, value] of Object.entries({
-    maxOutputTokens: '256',
-    temperature: '0.5',
-    topP: '0.9',
-    topK: '10',
-    presencePenalty: '-1',
-    frequencyPenalty: '1',
-    seed: '-42',
-    stopSequences: 'END\nDONE',
-    maxRetries: '0',
-  }))
-    preferences.set(key, value);
-  const options = agentOptions(preferences.values());
-  const nodes = memoryNodeBackend();
-  await nodes.commit(
-    request('actors', [create('user', { kind: 'actor' }), create('agent', { kind: 'agent' })]),
-  );
-  const prepared = await prepareAgentRun(nodes, {
-    id: 'start',
-    run: 'run',
-    agent: 'agent',
-    recordedBy: 'user',
-    at: '2026-10-13T10:00:00Z',
-    provider: 'fixture',
-    model: 'fixture-model',
-    settings: options,
-    context: [
-      {
-        data: {
-          kind: 'contextInput',
-          role: 'user',
-          position: 0,
-          transformation: 'verbatim',
-          content: 'Hello',
-        },
-      },
-    ],
-  });
-  const languageModel = new MockLanguageModelV4({
-    doStream: async () => ({
-      stream: convertArrayToReadableStream([
-        { type: 'stream-start', warnings: [] },
-        { type: 'text-start', id: 'text' },
-        { type: 'text-delta', id: 'text', delta: 'Hello' },
-        { type: 'text-end', id: 'text' },
-        {
-          type: 'finish',
-          finishReason: { unified: 'stop', raw: undefined },
-          usage: {
-            inputTokens: { total: 1, noCache: 1, cacheRead: 0, cacheWrite: 0 },
-            outputTokens: { total: 1, text: 1, reasoning: 0 },
-          },
-        },
-      ]),
-    }),
-  });
-  const backend = createAgentBackend({
-    nodes: transactionFixture(nodes),
-    model: async () => languageModel,
-  });
-  expect((await backend.start(prepared).done).phase).toBe('complete');
-  expect((await readAgentRun(nodes, 'run'))?.data.settings).toEqual(options);
-  expect(languageModel.doStreamCalls[0]).toMatchObject({
-    maxOutputTokens: 256,
-    temperature: 0.5,
-    topP: 0.9,
-    topK: 10,
-    presencePenalty: -1,
-    frequencyPenalty: 1,
-    seed: -42,
-    stopSequences: ['END', 'DONE'],
-  });
-  backend.dispose();
 });

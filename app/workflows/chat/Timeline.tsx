@@ -9,9 +9,9 @@ import {
   SupportingPane,
   Markdown,
 } from '@/ui/kit/index.ts';
-import type { NodeConversation } from './node-conversation.ts';
+import type { Conversation } from './conversation.ts';
 import type { TimelineEntry } from './data/timeline.ts';
-import { useNodeChat } from './use-node-conversation.ts';
+import { useChat } from './use-conversation.ts';
 import { later } from '@/runtime/later.ts';
 
 export function Timeline({
@@ -21,7 +21,7 @@ export function Timeline({
   onClose,
   onJump,
 }: {
-  conversation: NodeConversation;
+  conversation: Conversation;
   open: boolean;
   persistent: boolean;
   onClose: () => void;
@@ -32,7 +32,7 @@ export function Timeline({
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<number>();
-  const { checkpoint } = useNodeChat(conversation);
+  const { checkpoint } = useChat(conversation);
   useEffect(() => {
     if (!visible) return;
     let active = true;
