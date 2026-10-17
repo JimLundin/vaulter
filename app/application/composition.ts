@@ -32,6 +32,7 @@ import { questionToolPresentation } from '@/workflows/questions/tool-presentatio
 import { defaultIdentities, type ApplicationIdentities } from './identities.ts';
 import { discoveryPresentation } from '@/agent/discovery-presentation.tsx';
 import { readGraph } from '@/workflows/graph/reading.ts';
+import { mapEntities } from '@/map/index.ts';
 
 export const toolPresentations = [questionToolPresentation, discoveryPresentation];
 
@@ -57,6 +58,7 @@ export const applicationSchema = e.registry({
   ...evidenceEntities,
   ...graphEntities,
   ...calendarEntities,
+  ...mapEntities,
   ...questionEntities,
 });
 const applicationDatabases = new WeakMap<

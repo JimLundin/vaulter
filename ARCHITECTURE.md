@@ -36,6 +36,7 @@ workflows. There is no extension registry, common workflow manifest or runtime f
 | Owner | Responsibility | Does not own |
 |---|---|---|
 | Application | Routes, shell, identities, module selection, record/tool/source composition | Record schemas or persistence |
+| Map | Geographic coordinate values, required subject associations and historical coordinate reading | Subject records, coordinate conversion or map presentation |
 | Agent | Execution, context discovery, grounding choices, durable tool activity, recovery, historical decoding | Wiki or Question payload interpretation |
 | Chat | Continuous conversation, messages, drafts, capture, projecting typed Agent activity into a transcript | Decoding Agent records |
 | Wiki | Pages, blocks, citations, subject discovery and page presentation | Creating or answering Questions |
@@ -59,6 +60,7 @@ app/
     AppearanceSettings.tsx   application appearance preferences
     Previews.tsx              delegated document previews
   agent/                     execution, discovery, historical reading, tools, providers and recovery
+  map/                       geographic coordinate values and attached coordinate records
   workflows/
     chat/                    conversations, messages, capture and Chat UI
     wiki/                    pages, blocks, citations, subjects and Wiki UI

@@ -118,6 +118,10 @@ It is source material with its own provenance, distinct from verbatim messages.
 **Subject**:
 The person, topic or other matter that knowledge and questions concern.
 
+**Coordinate record**:
+A retained geographic position associated with another Record, expressed in an explicit coordinate
+reference system. Several Coordinate records can describe the same Record.
+
 **Question**:
 An unresolved request for information about a subject, retained when asked from any context. It
 remains open until an answer is recorded or it is explicitly abandoned.
