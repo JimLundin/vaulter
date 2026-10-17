@@ -1,5 +1,4 @@
 import { type ComponentType, useEffect, useState } from 'react';
-import './map.css';
 
 export interface MapMarker {
   id: string;
