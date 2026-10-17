@@ -37,18 +37,29 @@ test('Wiki sidebar browses pages independently of the curated home and gives way
     .getByRole('toolbar', { name: 'Wiki page' })
     .getByRole('button', { name: 'Wiki', exact: true })
     .click();
-  const focus = sample.getByRole('region', { name: 'In focus' });
-  await expect(focus.getByRole('link').first()).toHaveText('Garden studio');
-  await expect(sample.getByRole('region', { name: 'From the pages' })).toContainText(
+  await expect(sample.getByRole('region', { name: 'From your wiki' })).toContainText(
     'Keep mornings free.',
   );
+  const starting = sample.getByRole('region', { name: 'Starting pages' });
+  await expect(starting.getByRole('link')).toHaveText([
+    'Garden studio',
+    'Reading list',
+    'Slow mornings',
+  ]);
+  await expect(starting.getByRole('region', { name: 'Garden studio', exact: true })).toContainText(
+    'Plans for a garden workspace',
+  );
+  const search = sample.getByRole('textbox', { name: 'Search wiki' });
+  await search.fill('reading');
+  await expect(starting.getByRole('link')).toHaveText(['Reading list']);
+  if (!compact) await expect(pageLinks).toHaveCount(1);
+  await search.fill('no such idea');
+  await expect(starting).toContainText('No pages match.');
+  await starting.getByRole('button', { name: 'Clear filters' }).click();
+  await expect(starting.getByRole('link')).toHaveCount(3);
   if (!compact) {
-    await directory.getByRole('textbox', { name: 'Find pages' }).fill('reading');
-    await expect(focus.getByRole('link')).toHaveCount(1);
-    await sample.getByRole('button', { name: 'Next featured page' }).click();
-    await expect(focus.getByRole('link')).toHaveText('Reading list');
     const sidebar = await directory.boundingBox();
-    const content = await focus.boundingBox();
+    const content = await starting.boundingBox();
     expect(sidebar!.x).toBeGreaterThanOrEqual(content!.x + content!.width);
   } else {
     await sample.getByRole('button', { name: 'Pages', exact: true }).click();
@@ -71,7 +82,7 @@ test('Wiki home fits the center while its page cards scroll independently', asyn
     await expect(home.locator('[data-slot="scroll-area-viewport"]')).toHaveCount(0);
     const box = (await home.boundingBox())!;
     expect(box.y + box.height).toBeLessThanOrEqual(viewport.height + 1);
-    await expect(home.getByRole('region', { name: 'In focus' })).toBeInViewport();
+    await expect(home.getByRole('region', { name: 'Starting pages' })).toBeInViewport();
     const geometry = await home.evaluate((node) => ({
       height: node.clientHeight,
       content: node.scrollHeight,

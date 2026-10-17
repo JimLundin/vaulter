@@ -40,7 +40,7 @@ test('home prioritizes pages linked by distinct other pages and attributes excer
   const home = wikiHome(pages);
   expect(home.featured[0]?.page.id).toBe('Central');
   expect(home.featured[0]?.connections).toBe(2);
-  expect(home.passages[0]).toMatchObject({ page: { id: 'Central' }, excerpt: 'Central passage' });
+  expect(home.featured[0]).toMatchObject({ page: { id: 'Central' }, excerpt: 'Central passage' });
   expect(pages.map((item) => item.id)).toEqual(['Alpha', 'Central', 'Reader', 'Other']);
 });
 
@@ -54,6 +54,27 @@ test('self links do not promote a page and unavailable content is not excerpted'
   };
   const home = wikiHome([hidden]);
   expect(home.featured[0]?.connections).toBe(0);
-  expect(home.passages).toEqual([]);
-  expect(wikiHome([])).toEqual({ featured: [], passages: [] });
+  expect(home.featured[0]?.excerpt).toBeUndefined();
+  expect(wikiHome([])).toEqual({ featured: [], subjects: [] });
+});
+
+test('subjects count distinct pages and exclude removed or unresolved classifications', () => {
+  const studio = page('Studio');
+  const reading = page('Reading');
+  const term = {
+    id: 'creative',
+    relationship: 'membership',
+    scheme: 'topic',
+    key: 'creative',
+    label: 'Creative work',
+    state: 'resolved',
+  } satisfies import('./view.ts').WikiClassification;
+  studio.metadata = [
+    term,
+    { ...term, relationship: 'duplicate' },
+    { ...term, id: 'deleted', state: 'deleted' },
+    { ...term, id: 'missing', state: 'unresolved' },
+  ];
+  reading.metadata = [term, { ...term, id: 'type', scheme: 'type' }];
+  expect(wikiHome([studio, reading]).subjects).toEqual([{ term, count: 2 }]);
 });

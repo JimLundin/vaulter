@@ -66,6 +66,10 @@ test('production Wiki reads typed EAV prose and retained citations after reload'
     await page.getByRole('button', { name: 'Close references', exact: true }).click();
   }
   await navigateToModule(page, 'Wiki');
+  const starting = page.getByRole('region', { name: 'Starting pages' });
+  await expect(starting.getByRole('link')).toHaveCount(3);
+  await page.getByRole('textbox', { name: 'Search wiki' }).fill('slow');
+  await expect(starting.getByRole('link')).toHaveText(['Slow mornings']);
   if (test.info().project.name === 'phone')
     await page.getByRole('button', { name: 'Pages', exact: true }).click();
 

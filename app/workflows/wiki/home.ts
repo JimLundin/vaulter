@@ -1,14 +1,16 @@
-import type { WikiBlock, WikiPage } from './view.ts';
+import type { WikiBlock, WikiClassification, WikiPage } from './view.ts';
 
 function text(block: WikiBlock): string {
   if (block.data.kind === 'unavailable') return '';
   return typeof block.data.text === 'string' ? block.data.text : block.children.map(text).join('');
 }
 function links(blocks: WikiBlock[]): string[] {
-  return blocks.flatMap((block) => [
-    ...(block.href?.startsWith('#/wiki/') ? [block.href] : []),
-    ...links(block.children),
-  ]);
+  return blocks
+    .filter((block) => block.data.kind !== 'unavailable')
+    .flatMap((block) => [
+      ...(block.href?.startsWith('#/wiki/') ? [block.href] : []),
+      ...links(block.children),
+    ]);
 }
 
 /** Choose useful entry points using actual links, source material and page content. */
@@ -35,8 +37,22 @@ export function wikiHome(pages: WikiPage[]) {
       };
     })
     .sort((a, b) => b.score - a.score || a.page.title.localeCompare(b.page.title));
+  const subjects = new Map<string, { term: WikiClassification; count: number }>();
+  for (const page of pages) {
+    const terms = new Map(
+      page.metadata
+        .filter((term) => term.state === 'resolved' && ['topic', 'tag'].includes(term.scheme))
+        .map((term) => [term.id, term]),
+    );
+    for (const term of terms.values()) {
+      const existing = subjects.get(term.id);
+      subjects.set(term.id, { term, count: (existing?.count ?? 0) + 1 });
+    }
+  }
   return {
+    subjects: [...subjects.values()].sort(
+      (a, b) => b.count - a.count || a.term.label.localeCompare(b.term.label),
+    ),
     featured: entries.slice(0, 3),
-    passages: entries.filter((entry) => entry.excerpt).slice(0, 3),
   };
 }

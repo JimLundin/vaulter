@@ -1,6 +1,5 @@
 import { useState, type ReactNode } from 'react';
 import {
-  Badge,
   Button,
   FeaturePage,
   Heading,
@@ -9,9 +8,7 @@ import {
   Loader,
   ReadingColumn,
   PageHeader,
-  PageControls,
   Row,
-  Icon,
   SelectionRow,
   Select,
   SplitView,
@@ -48,7 +45,6 @@ export function Wiki({
   const [filter, setFilter] = useState<WikiClassification>();
   const [sort, setSort] = useState('title');
   const [directoryOpen, setDirectoryOpen] = useState(false);
-  const [spotlight, setSpotlight] = useState(0);
   const openDirectory = (
     <Button
       variant="ghost"
@@ -115,7 +111,9 @@ export function Wiki({
       {entry.title}
     </Link>
   );
-  const curated = wikiHome(pages);
+  const curated = wikiHome(matching);
+  const { subjects } = wikiHome(pages);
+  const passage = curated.featured.find((entry) => entry.excerpt);
   const directory = (
     <SupportingPane
       title="Pages"
@@ -187,111 +185,108 @@ export function Wiki({
       </Stack>
     </SupportingPane>
   );
-  const focused = curated.featured[spotlight % Math.max(1, curated.featured.length)];
-  const passage = curated.passages.find((entry) => entry.page.id === focused?.page.id);
-  const move = (direction: number) =>
-    setSpotlight(
-      (current) =>
-        (current + direction + curated.featured.length) % Math.max(1, curated.featured.length),
-    );
-  const previous = (
-    <Button
-      variant="ghost"
-      iconOnly={true}
-      aria-label="Previous featured page"
-      disabled={curated.featured.length < 2}
-      onClick={() => move(-1)}
-    >
-      <Icon name="chevron-left" />
-    </Button>
-  );
-  const next = (
-    <Button
-      variant="ghost"
-      iconOnly={true}
-      aria-label="Next featured page"
-      disabled={curated.featured.length < 2}
-      onClick={() => move(1)}
-    >
-      <Icon name="chevron-right" />
-    </Button>
-  );
   const frontPage = (
     <ReadingColumn label="Wiki home">
       <PageHeader title="Wiki" actions={openDirectory} />
       <ReadingColumn page={true}>
         <Stack grow={true} inset="page" block="md" gap="lg">
-          <Stack gap="xs">
-            <Heading level={2} serif={true} size="title">
-              A place to begin.
+          <Stack gap="sm">
+            <Heading level={1} serif={true} size="title">
+              Explore your wiki
             </Heading>
             <Text size="sm" tone="muted">
-              Knowledge taking shape in your vault.
+              Find what you know, revisit an idea, or follow a connection.
             </Text>
-            <Badge variant="secondary">
-              {pages.length} {pages.length === 1 ? 'page' : 'pages'}
-            </Badge>
+            <Input
+              aria-label="Search wiki"
+              placeholder="What would you like to find?"
+              value={query}
+              onChange={(event) => setQuery(event.currentTarget.value)}
+            />
+            {!!subjects.length && (
+              <Select
+                aria-label="Explore a subject"
+                value={filter?.id ?? ''}
+                options={[
+                  { value: '', label: 'Explore all subjects' },
+                  ...subjects.map(({ term, count }) => ({
+                    value: term.id,
+                    label: `${term.label} · ${count} ${count === 1 ? 'page' : 'pages'}`,
+                  })),
+                ]}
+                onChange={(event) =>
+                  setFilter(
+                    subjects.find(({ term }) => term.id === event.currentTarget.value)?.term,
+                  )
+                }
+              />
+            )}
           </Stack>
-          {focused ? (
-            <Stack grow={true} justify="center" gap="lg" as="section" aria-label="In focus">
-              <Text size="xs" tone="muted">
-                In focus · {(spotlight % curated.featured.length) + 1} of {curated.featured.length}
-              </Text>
-              <Heading level={2} serif={true} size="title">
-                {pageLink(focused.page)}
-              </Heading>
-              {!!focused.page.summary && (
-                <Text tone="muted" lines={3}>
-                  {focused.page.summary}
-                </Text>
-              )}
-              {!!focused.connections && (
+          {!!passage && !search && !filter && (
+            <Surface variant="subtle" as="section" aria-label="From your wiki">
+              <Stack gap="xs">
                 <Text size="xs" tone="muted">
-                  Linked from {focused.connections} {focused.connections === 1 ? 'page' : 'pages'}
+                  From your wiki · {passage.page.title}
+                </Text>
+                <Text lines={3}>{passage.excerpt}</Text>
+              </Stack>
+            </Surface>
+          )}
+          {pages.length ? (
+            <Stack grow={true} justify="center" gap="lg" as="section" aria-label="Starting pages">
+              <Row justify="between">
+                <Heading level={2}>{search || filter ? 'Matching pages' : 'Start here'}</Heading>
+                {!!(search || filter) && (
+                  <Button variant="ghost" onClick={reset}>
+                    Clear filters
+                  </Button>
+                )}
+              </Row>
+              {curated.featured.map(({ page: entry, excerpt, connections }) => (
+                <Stack key={entry.id} gap="xs" as="section" aria-label={entry.title}>
+                  <Text size="lg" weight="medium" truncate={true}>
+                    {pageLink(entry)}
+                  </Text>
+                  {!!(entry.summary.trim() || excerpt) && (
+                    <Text size="sm" tone="muted" lines={3}>
+                      {entry.summary.trim() || excerpt}
+                    </Text>
+                  )}
+                  {!!connections && (
+                    <Text size="xs" tone="muted">
+                      Connects {connections} {connections === 1 ? 'other page' : 'other pages'}
+                    </Text>
+                  )}
+                </Stack>
+              ))}
+              {!matching.length && (
+                <Text size="sm" tone="muted">
+                  No pages match. Try another word or clear your filters.
                 </Text>
               )}
-              {!!passage && (
-                <Surface variant="grouped" as="section" aria-label="From the pages">
-                  <Text size="sm" tone="muted">
-                    From the page
-                  </Text>
-                  <Text lines={4}>{passage.excerpt}</Text>
-                </Surface>
-              )}
-              <Text size="xs" tone="muted">
-                Open the page to explore its context and sources.
-              </Text>
             </Stack>
           ) : (
             <Stack grow={true} justify="center" gap="sm">
-              <Heading level={2}>Your wiki starts here</Heading>
-              <Text tone="muted">
-                Share something with your agent and ask it to create a wiki page.
+              <Heading level={2}>Build on something you care about</Heading>
+              <Text size="sm" tone="muted">
+                Share notes, a project or an idea with your agent, then ask it to make a wiki page.
+                Your pages will bring the knowledge together with links to its sources.
               </Text>
+              <Link href="#/chat/" onClick={() => onNavigate('/chat/')}>
+                Open Chat
+              </Link>
             </Stack>
           )}
-          {!!focused && (
-            <Row justify="between" visible="expanded">
+          {!!pages.length && (
+            <Row justify="between">
               <Text size="xs" tone="muted">
-                Selected from page connections, sources and depth.
+                {matching.length} {matching.length === 1 ? 'page' : 'pages'}
+                {search || filter ? ' found' : ' in your wiki'}
               </Text>
-              <Row>
-                {previous}
-                {next}
-              </Row>
+              <Button variant="ghost" onClick={() => setDirectoryOpen(true)}>
+                {search || filter ? 'Browse matches' : 'Browse all pages'}
+              </Button>
             </Row>
-          )}
-          {!!focused && (
-            <PageControls
-              placement="rail"
-              bottomActions={
-                <>
-                  {previous}
-                  <Text size="sm">In focus</Text>
-                  {next}
-                </>
-              }
-            />
           )}
         </Stack>
       </ReadingColumn>
