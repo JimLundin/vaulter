@@ -225,7 +225,7 @@ test('Questions search and filters share the rail while trailing Save stays reac
   await expect(directory.getByText('No pages found.', { exact: true })).toBeVisible();
   await directory.getByRole('button', { name: 'Show all pages', exact: true }).click();
   await directory.getByRole('button', { name: 'Garden studio', exact: true }).click();
-  await expectAnchor(page, 2);
+  await expectAnchor(page, 1);
   await expect(pageSearch).toHaveCount(0);
 });
 

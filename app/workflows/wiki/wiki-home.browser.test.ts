@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-test('Wiki sidebar browses pages independently of the curated home and stays available while reading', {
+test('Wiki sidebar browses pages independently of the curated home and gives way to references when reading', {
   tag: '@phone',
 }, async ({ page }) => {
   await page.goto('/preview/wiki.html');
@@ -12,7 +12,8 @@ test('Wiki sidebar browses pages independently of the curated home and stays ava
   const compact = test.info().project.name === 'phone';
   if (compact) await sample.getByRole('button', { name: 'Pages', exact: true }).click();
   const directory = sample.getByRole('region', { name: 'Page directory' });
-  const pageLinks = directory.locator('[data-selection-appearance=card]');
+  await expect(directory.getByRole('link', { name: 'Wiki home', exact: true })).toHaveCount(0);
+  const pageLinks = directory.locator('[data-selection-appearance=navigation]');
   expect(
     await pageLinks.evaluateAll((nodes) => nodes.map((node) => node.getAttribute('aria-label'))),
   ).toEqual(['Garden studio', 'Reading list', 'Slow mornings']);
@@ -27,16 +28,15 @@ test('Wiki sidebar browses pages independently of the curated home and stays ava
   await directory.getByRole('textbox', { name: 'Find pages' }).fill('missing');
   await expect(directory.getByText('No pages found.')).toBeVisible();
   await directory.getByRole('button', { name: 'Show all pages' }).click();
+  await expect(pageLinks.locator('[aria-hidden=true]')).toHaveCount(0);
   await directory.getByRole('button', { name: 'Slow mornings', exact: true }).click();
   await expect(sample.getByRole('heading', { name: 'Slow mornings', exact: true })).toBeVisible();
-  if (compact) {
-    await expect(sample.getByRole('dialog', { name: 'Pages', exact: true })).toBeHidden();
-    await sample.getByRole('button', { name: 'Pages', exact: true }).click();
-  }
-  await expect(
-    directory.getByRole('button', { name: 'Slow mornings', exact: true }),
-  ).toHaveAttribute('aria-current', 'true');
-  await directory.getByRole('link', { name: 'Wiki home', exact: true }).click();
+  await expect(directory).toHaveCount(0);
+  await expect(sample.getByRole('button', { name: 'Pages', exact: true })).toHaveCount(0);
+  await sample
+    .getByRole('toolbar', { name: 'Wiki page' })
+    .getByRole('button', { name: 'Wiki', exact: true })
+    .click();
   const focus = sample.getByRole('region', { name: 'In focus' });
   await expect(focus.getByRole('link').first()).toHaveText('Garden studio');
   await expect(sample.getByRole('region', { name: 'From the pages' })).toContainText(

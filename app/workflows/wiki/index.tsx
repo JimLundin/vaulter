@@ -85,6 +85,7 @@ export function Wiki({
   const filterTag = (term: WikiClassification) => {
     setFilter(term);
     setQuery('');
+    onNavigate(wikiRoute.href());
     setDirectoryOpen(true);
   };
   const reset = () => {
@@ -123,13 +124,6 @@ export function Wiki({
       onClose={() => setDirectoryOpen(false)}
     >
       <Stack as="section" aria-label="Page directory" gap="lg">
-        <Link
-          href={`#${wikiRoute.href()}`}
-          onClick={home}
-          aria-current={!node ? 'page' : undefined}
-        >
-          Wiki home
-        </Link>
         <Input
           aria-label="Find pages"
           placeholder="Find a page or subject…"
@@ -166,8 +160,8 @@ export function Wiki({
           {matching.map((entry) => (
             <SelectionRow
               key={entry.id}
-              appearance="card"
-              selected={entry.id === node}
+              appearance="navigation"
+              selected={false}
               aria-label={entry.title}
               onSelect={() => openPage(entry)}
             >
@@ -303,29 +297,26 @@ export function Wiki({
       </ReadingColumn>
     </ReadingColumn>
   );
-  return (
-    <SplitView
-      supporting={directory}
-      main={
-        page ? (
-          <WikiPageView
-            key={page.id}
-            page={page}
-            onBack={home}
-            onFilter={filterTag}
-            renderRecord={renderRecord}
-            timeline={renderTimeline?.(page)}
-            actions={openDirectory}
-          />
-        ) : node ? (
-          <FeaturePage title="Wiki" actions={openDirectory}>
-            <Heading level={2}>Page unavailable</Heading>
-            <Text>This page is missing or has been removed.</Text>
-          </FeaturePage>
-        ) : (
-          frontPage
-        )
-      }
-    />
-  );
+  if (page)
+    return (
+      <WikiPageView
+        key={page.id}
+        page={page}
+        onBack={home}
+        onFilter={filterTag}
+        renderRecord={renderRecord}
+        timeline={renderTimeline?.(page)}
+      />
+    );
+  if (node)
+    return (
+      <FeaturePage title="Wiki">
+        <Heading level={2}>Page unavailable</Heading>
+        <Text>This page is missing or has been removed.</Text>
+        <Button variant="ghost" onClick={home}>
+          Wiki home
+        </Button>
+      </FeaturePage>
+    );
+  return <SplitView supporting={directory} main={frontPage} />;
 }

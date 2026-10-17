@@ -128,10 +128,11 @@ test('paired module evidence stays bounded and independent through device change
     }),
   ).toBeVisible();
   await expect(mobile.getByRole('dialog', { name: 'References', exact: true })).toHaveCount(0);
-  await desktop
-    .getByRole('region', { name: 'Page directory' })
-    .getByRole('link', { name: 'Wiki home', exact: true })
-    .click();
+  const back = desktop
+    .getByRole('toolbar', { name: 'Wiki page' })
+    .getByRole('button', { name: 'Wiki', exact: true });
+  await back.focus();
+  await back.press('Enter');
   await expect(desktop.getByRole('textbox', { name: 'Find pages' })).toBeVisible();
   await expect(mobile.getByRole('heading', { name: 'Garden studio', exact: true })).toBeVisible();
   await desktop

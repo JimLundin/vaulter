@@ -97,6 +97,14 @@ function Buttons() {
           </K.SelectionRow>
         ))}
       </K.Stack>
+      <K.SelectionRow
+        appearance="navigation"
+        selected={false}
+        aria-label="Read a page"
+        onSelect={noop}
+      >
+        <K.Text as="span">Read a page</K.Text>
+      </K.SelectionRow>
       <K.ToggleGroup type="single" aria-label="Date range" defaultValue="day">
         <K.ToggleGroupItem value="day">Day</K.ToggleGroupItem>
         <K.ToggleGroupItem value="week">Week</K.ToggleGroupItem>
