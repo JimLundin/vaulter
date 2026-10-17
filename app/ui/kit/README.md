@@ -651,8 +651,10 @@ Badge keeps default, secondary and destructive status labels. Named category Chi
 uses private secondary badge styling and remains passive or an accessible button when given an
 action; decorative dots require a supplied visible label, and callers own counts and state.
 
-MapView is planned for reintroduction when an application feature needs geographic presentation.
-Revisit selectable places, routes, theme and resize behavior, touch targets, tile-provider/CSP
+`MapView` presents supplied latitude/longitude markers on OpenStreetMap tiles with pan/zoom,
+keyboard selection, ResizeObserver sizing and contributor attribution. Its caller owns records
+and selection. Tile failures preserve the coordinate list. The production CSP permits only the
+OpenStreetMap tile image host for this view. Revisit routes, theme and additional tile-provider/CSP
 requirements and worker packaging then. The earlier implementation is available in Git history
 at `a2f5f8b`; it adds no current exports or dependencies.
 

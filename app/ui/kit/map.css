@@ -1,0 +1,50 @@
+.kit-map-frame {
+  position: relative;
+  flex: 1;
+  min-height: 280px;
+  isolation: isolate;
+}
+.kit-map-canvas {
+  height: 100%;
+  min-height: 280px;
+  width: 100%;
+  background: var(--muted);
+  font: inherit;
+}
+.kit-map-pin {
+  display: grid;
+  place-items: center;
+}
+.kit-map-pin span {
+  width: 18px;
+  height: 18px;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  border: 3px solid white;
+  background: #285b45;
+  box-shadow: 0 2px 5px #0005;
+}
+.kit-map-pin-selected span {
+  background: #b45309;
+  width: 25px;
+  height: 25px;
+}
+.kit-map-pin:focus-visible {
+  outline: 3px solid #b45309;
+  border-radius: 50%;
+}
+.kit-map-status {
+  position: absolute;
+  bottom: 24px;
+  left: 12px;
+  right: 12px;
+  z-index: 1000;
+  padding: 12px;
+  background: var(--background);
+  color: var(--foreground);
+  border-radius: 8px;
+  font-size: 13px;
+}
+.kit-map-canvas .leaflet-control a {
+  color: #172c22;
+}

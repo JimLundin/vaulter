@@ -1,3 +1,4 @@
+import { MapPage, useMap, mapRoute } from '@/map/index.ts';
 import { applicationQuestionCollection, applicationQuestionAnswers } from './composition.ts';
 import { chatRoute, conversationRoute, historyRoute, settingsRoute } from './routes.ts';
 import {
@@ -15,6 +16,7 @@ import {
   applicationDatabase,
   applicationWiki,
   applicationCalendar,
+  applicationMap,
   applicationSubjectCalendar,
   toolPresentations,
 } from './composition.ts';
@@ -223,6 +225,12 @@ export function OpenApplication({
   }, [wikiInput, pages]);
   const wikiPage = pageRoute.match(route.path)?.node;
   const onWiki = !!wikiRoute.match(route.path) || !!wikiPage;
+  const onMap = !!mapRoute.match(route.path);
+  const mapInput = useMemo(
+    () => (session.eav ? applicationMap(session.eav, identities) : null),
+    [session.eav, identities],
+  );
+  const map = useMap(onMap ? mapInput : null);
   const onCalendar = !!calendarRoute.match(route.path);
   const calendarInput = useMemo(
     () => (session.eav ? applicationCalendar(session.eav, identities) : null),
@@ -337,11 +345,13 @@ export function OpenApplication({
           ? (pages?.find((page) => page.id === wikiPage)?.title ?? 'Wiki')
           : onQuestions
             ? 'Questions'
-            : onCalendar
-              ? 'Calendar'
-              : onGraph
-                ? 'Graph'
-                : 'Not found';
+            : onMap
+              ? 'Map'
+              : onCalendar
+                ? 'Calendar'
+                : onGraph
+                  ? 'Graph'
+                  : 'Not found';
   const provider = useMemo(
     () =>
       session.secrets?.openai
@@ -448,6 +458,7 @@ export function OpenApplication({
     { label: 'Chat', href: chatRoute.href(), icon: 'sparkles', current: onChat },
     { label: 'Wiki', href: wikiRoute.href(), icon: 'book', current: onWiki },
     { label: 'Graph', href: graphRoute.href(), icon: 'network', current: onGraph },
+    { label: 'Map', href: mapRoute.href(), icon: 'map', current: onMap },
     { label: 'Calendar', href: calendarRoute.href(), icon: 'calendar', current: onCalendar },
     { label: 'Questions', href: questionsRoute.href(), icon: 'help', current: onQuestions },
     ...(eav
@@ -496,6 +507,14 @@ export function OpenApplication({
     later(conversation.captureAction());
   };
   const commands: Command[] = [
+    {
+      id: 'go.map',
+      label: 'Map',
+      group: 'Go to',
+      icon: 'map',
+      keys: 'g m',
+      run: () => go(mapRoute.href()),
+    },
     {
       id: 'go.calendar',
       label: 'Calendar',
@@ -685,6 +704,19 @@ export function OpenApplication({
             conversation={conversation}
             prompt={prompt}
             toolPresentations={toolPresentations}
+          />
+        ) : onMap ? (
+          <MapPage
+            data={map.data}
+            error={map.error ?? (!mapInput ? 'Map storage is unavailable.' : undefined)}
+            actions={mapInput?.actions}
+            disabledReason={
+              session.credentialPending
+                ? 'Wait for credentials to finish updating.'
+                : status.kind === 'synced'
+                  ? undefined
+                  : 'Reconnect before saving Map changes.'
+            }
           />
         ) : onCalendar ? (
           <CalendarPage

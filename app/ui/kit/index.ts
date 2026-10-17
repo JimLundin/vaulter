@@ -2,6 +2,7 @@
 // the kit's own pieces (app.tsx), all without className or style: an extension composes these and can't
 // style anything, so every screen looks like the app (README.md).
 import { unstyled } from './lib/unstyled.tsx';
+export { MapView, type MapMarker } from './map.tsx';
 export { Timeline, MonthCalendar, type TimelineItem, type MonthDay } from './timeline.tsx';
 
 import {

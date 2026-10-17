@@ -21,7 +21,7 @@ const csp = (): Plugin => ({
       "script-src 'self'",
       "worker-src 'self'",
       "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data:",
+      "img-src 'self' data: https://tile.openstreetmap.org",
       `connect-src 'self' ${api} ${ai} https://nominatim.openstreetmap.org https://api.open-meteo.com`,
       "font-src 'self'",
       // The Home Screen install reads the manifest; default-src 'none' would refuse it.

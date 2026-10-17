@@ -521,6 +521,10 @@ function Charts() {
         ]}
       />
       <K.Sparkline label="Notes over time" values={[3, 5, 2, 7, 4, 6, 8]} />
+      <K.MapView
+        markers={[{ id: 'studio', label: 'Studio', latitude: 59.3293, longitude: 18.0686 }]}
+        onSelect={noop}
+      />
       <K.NetworkDiagram
         label="Population map"
         actions={
@@ -2103,7 +2107,7 @@ export const catalogue: Specimen[] = [
     id: 'charts',
     title: 'Charts',
     description: 'Accessible bars and sparklines with shared data.',
-    components: ['Bars', 'Sparkline', 'NetworkDiagram'],
+    components: ['Bars', 'Sparkline', 'NetworkDiagram', 'MapView'],
     Sample: Charts,
   },
   {

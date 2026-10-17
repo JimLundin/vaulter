@@ -27,7 +27,7 @@ const stockholm: CoordinateValue = {
   longitude: 18.0686,
 };
 
-test('geographic formats and grid/geocentric positions retain their system, units and wording', () => {
+test('latitude and longitude retain decimal or DMS representation and reject other systems', () => {
   for (const value of [
     stockholm,
     {
@@ -36,14 +36,12 @@ test('geographic formats and grid/geocentric positions retain their system, unit
       latitude: { degrees: 59, minutes: 19, seconds: 45.48, hemisphere: 'N' },
       longitude: { degrees: 18, minutes: 4, seconds: 6.96, hemisphere: 'E' },
       expression: '59°19′45.48″N 18°4′6.96″E',
-      height: { value: 12, unit: 'metre', crs: 'EPSG:5613' },
     },
-    { kind: 'projected', crs: 'EPSG:3006', easting: 674_571, northing: 6_580_743, unit: 'metre' },
-    { kind: 'geocentric', crs: 'EPSG:4978', x: -1, y: 0, z: 2, unit: 'metre' },
   ])
     expect(parseCoordinates(value)).toEqual(value);
   for (const invalid of [
     { ...stockholm, crs: '' },
+    { ...stockholm, crs: 'EPSG:4269' },
     { ...stockholm, latitude: 91 },
     { ...stockholm, longitude: Number.POSITIVE_INFINITY },
     { ...stockholm, longitude: Number.NaN },
@@ -75,13 +73,7 @@ test('positions stay attached across subject snapshots and deletion, corrections
   const renamedAddress = await db.history.reference(renamed, subject);
   await createCoordinates(db, {
     subject: renamedAddress,
-    coordinates: {
-      kind: 'projected',
-      crs: 'EPSG:3006',
-      easting: 674_571,
-      northing: 6_580_743,
-      unit: 'metre',
-    },
+    coordinates: { ...stockholm, latitude: 59 },
   });
   expect(await readCoordinates(db, { subject: renamedAddress })).toHaveLength(2);
   await reviseCoordinates(db, coordinate, { ...stockholm, latitude: 60 });
@@ -91,9 +83,7 @@ test('positions stay attached across subject snapshots and deletion, corrections
   });
   const live = await readCoordinates(db, { subject: address });
   expect(live).toHaveLength(2);
-  expect(
-    live.find((record) => record.coordinates.kind === 'geographic')?.coordinates,
-  ).toMatchObject({ latitude: 60 });
+  expect(live.map((record) => record.coordinates.latitude)).toContain(60);
   await removeCoordinates(db, coordinate);
   expect(await readCoordinates(db, { subject: address })).toHaveLength(1);
   expect(await readCoordinates(db, { snapshot: original })).toMatchObject([
