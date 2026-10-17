@@ -1,4 +1,5 @@
 import { useState, useSyncExternalStore } from 'react';
+import { AppearanceSettings } from './AppearanceSettings.tsx';
 import type { SettingsDefinition, SettingsStore } from '@/settings/store.ts';
 import { agentSettings } from '@/agent/settings.ts';
 import { githubSettings } from '@/vault/storage/settings.ts';
@@ -26,7 +27,6 @@ import {
   Text,
   TextBox,
   SettingsCard,
-  ThemeSwitch,
   Drawer,
 } from '@/ui/kit/index.ts';
 // Selected direction: a single card per subject, with direct choices and paired connection fields.
@@ -129,7 +129,7 @@ export function SettingsCards({
     <Stack gap={variant === 'compact' ? 'lg' : 'xl'}>
       {saveError ? <FieldError>{saveError}</FieldError> : null}
       <SettingsCard title="Appearance">
-        <ThemeSwitch />
+        <AppearanceSettings />
       </SettingsCard>
       <Stack gap="lg">
         <Heading level={2}>Agent</Heading>
