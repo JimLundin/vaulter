@@ -63,8 +63,16 @@ test('live preview streams through the Responses adapter and records real provid
   expect(calls).toHaveLength(1);
   expect(calls[0]).toMatchObject({ model: 'fixture-llm', store: false });
   expect(await page.evaluate(() => Reflect.get(globalThis, 'dynamicCodeAttempts'))).toEqual([]);
-  const journal = await page.evaluate(() => sessionStorage.getItem('vaulter:preview:accepted:v1'));
-  expect(journal).toContain('"provider":"openai"');
+  const journal = await page.evaluate(() =>
+    sessionStorage.getItem('vaulter:preview:eav:dialogue:v1'),
+  );
+  const providers = JSON.parse(journal!).commits.flatMap(
+    (commit: { facts: { added: boolean; attribute: string; value: unknown }[] }) =>
+      commit.facts
+        .filter((fact) => fact.added && fact.attribute === 'agent.run/provider')
+        .map((fact) => fact.value),
+  );
+  expect(providers).toEqual(['openai']);
   expect(journal).not.toContain('local-preview');
   await page.reload();
   await expect(page.getByText('Live adapter reply', { exact: true })).toBeVisible();
