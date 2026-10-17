@@ -280,6 +280,8 @@ test('settings is a shared drawer that keeps feature fields and focus when resiz
   await expect(settings).toBeHidden();
   await expectAppActionFocus(page, 'Settings');
   await page.setViewportSize({ width: 390, height: 844 });
+  // Wait for the resize to install compact navigation before choosing its action.
+  await expect(page.getByRole('button', { name: 'Modules', exact: true })).toBeVisible();
   await openAppAction(page, 'Settings');
   await expect(field).toHaveValue('Keep this draft');
 });
