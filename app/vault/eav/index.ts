@@ -9,6 +9,7 @@ export type { MemoryStorage } from './memory.ts';
 export type { EntityDefinition, Registry, Schema } from './schema.ts';
 export type {
   Database,
+  DomainDatabase,
   ReadView,
   Transaction,
   TransactionRef,

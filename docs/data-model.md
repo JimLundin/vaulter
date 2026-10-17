@@ -151,10 +151,34 @@ and execution entries have no generic Undo action. A future content compensation
 preserve transcript, execution and exact-source evidence, reject intervening changes, and append
 compensation rather than rewriting accepted history.
 
+## Native Wiki — implemented
+
+[ADR 0012](adr/0012-native-eav-wiki.md) adopts the [knowledge-model proposal](research/knowledge-model-proposal.md).
+Wiki production reads and writes use typed EAV [owner definitions](../app/workflows/wiki/data/schema.ts):
+WikiPage, Content, Appearance and PageReference. Prose remains prose; a selected assertion does not
+require a duplicate Claim entity. Pages may serve as Subjects, and Graph separately owns explicit
+Topic promotion and editorial membership. Creating a page never automatically creates a Topic.
+
+Content owns typed text and formatting. Appearances own ordered placement and share one content
+identity. Removal retains availability and history; restoration reveals current descendant content.
+Native [SourceDocument](../app/vault/sources/schema.ts) records retain captured text and provenance.
+[Evidence records](../app/vault/evidence/schema.ts) retain exact body/summary/source selectors,
+attributed reviews and supporting or challenging passages. EAV historical-reference fields validate
+accepted targets and durable replay. Partial coverage leaves unselected clauses unsupported;
+page provenance cannot mark summaries supported. Changed selected text requires review, while
+source edits and deletion preserve historical passages. Support and disagreement remain independent.
+
+Application composes these schemas once with the other EAV owners. Native Wiki tooling, Chat tools,
+production reading, Search and the fictional preview use this model. Source-vault conversion and
+identity correspondence remain a separate preservation procedure; opening Wiki reads only native
+accepted entities and does not convert or erase published records. Qualified structured assertions,
+whole-assertion selectors and the full cross-domain Evidence review screen remain subsequent work.
+
 ## Remaining content migration — required preservation contracts
 
-These modules still read and write Nodes. The following are target semantics and migration gates,
-not claims that their EAV schemas have already been implemented. Exact entity names and field layouts
+The remaining producers and source-vault conversion must preserve the contracts below.
+Native Wiki content, selected evidence and Topic organization are implemented above; other owner
+schemas remain migration work. Exact entity names and field layouts
 must be settled with each owning module before registering and publishing its schema.
 
 | Area | Target EAV relationships and invariants |
@@ -171,9 +195,9 @@ EAV now exports validated snapshot evidence through `history.reference` and rest
 through `history.resolve`. The versioned address survives durable storage reopen and retains entity
 identity/type, journal identity and an accepted snapshot; nested references resolve at that cutoff,
 even after later deletion. This is a snapshot address, not an exact entity-change transaction pair.
-Before migrating citations or other exact evidence, add schema-defined historical-reference fields
-with acceptance-time integrity, owner-defined projection formats, passage ranges and live
-unavailable-content behavior. A serialized address alone does not provide those guarantees.
+Native Wiki adds schema-defined historical-reference fields with acceptance-time integrity,
+owner-defined projection formats, passage ranges and explicit content availability. Other evidence
+owners must retain these guarantees when migrating; a serialized address alone is insufficient.
 Do not replace exact Node addresses with live EAV references or unvalidated JSON strings.
 Existing [citation rules](adr/0005-wiki-citation-selections.md)
 and historical availability obligations remain binding during this transition.
@@ -201,4 +225,4 @@ regeneration of published history or destructive in-place conversion is part of 
 The application migration is complete when all production producers and readers use EAV, retained
 Node evidence still resolves, the bridges are unnecessary, and focused persistence/recovery checks
 plus the implementation commit's full CI verification pass. History adoption and historical-address
-export/resolution are implemented; content, citation, Questions and independent voice migration remain.
+export/resolution are implemented; source-vault conversion, qualified structured knowledge, Questions and independent voice migration remain.

@@ -117,7 +117,11 @@ export function importProblem(from: string, to: string): string | null {
     // Explicit preview-owned adapters consume public module reading and record UI interfaces.
     !(
       target === 'wiki' &&
-      ['app/preview/wiki-example.tsx', 'app/preview/records.test.ts'].includes(from)
+      [
+        'app/preview/wiki-example.tsx',
+        'app/preview/wiki-records.ts',
+        'app/preview/records.test.ts',
+      ].includes(from)
     ) &&
     workflow(from) !== target
   )

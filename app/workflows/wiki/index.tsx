@@ -1,15 +1,7 @@
 import { useState } from 'react';
-import {
-  Button,
-  FeaturePage,
-  PageControls,
-  Link,
-  Loader,
-  Stack,
-  Text,
-} from '../../ui/kit/index.ts';
-import { go } from '../../navigation/routing.ts';
-import type { WikiClassification, WikiPage } from './pages.ts';
+import { Button, FeaturePage, PageControls, Link, Loader, Stack, Text } from '@/ui/kit/index.ts';
+import { go } from '@/navigation/routing.ts';
+import type { WikiClassification, WikiPage } from './view.ts';
 import { wikiRoute, pageRoute } from './routes.ts';
 import { WikiPageView } from './WikiPageView.tsx';
 import type { ForeignRecordRenderer } from './rendering/blocks.tsx';

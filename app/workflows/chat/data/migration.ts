@@ -1,13 +1,16 @@
-import type { Database, Transaction } from '../../../vault/eav/index.ts';
-import type { TransactionStore } from '../../../vault/transactions/store.ts';
-import { canonical } from '../../../vault/nodes/json.ts';
-import type { NodeVersion } from '../../../vault/nodes/model.ts';
-import { savedMessages, type SavedMessage } from '../records/chat-store.ts';
+import type { DomainDatabase, Transaction } from '@/vault/eav/index.ts';
+import type { TransactionStore } from '@/vault/transactions/store.ts';
+import { canonical } from '@/vault/nodes/json.ts';
+import type { NodeVersion } from '@/vault/nodes/model.ts';
+import { savedMessages, type SavedMessage } from '@/workflows/chat/records/chat-store.ts';
 import { appendExchange, conversation } from './operations.ts';
 import type { chatSchema } from './schema.ts';
 
 /** Convert once; normal Chat reads never consult the retired selectable-chat layout. */
-export async function migrateDialogue(db: Database<typeof chatSchema>, nodes: TransactionStore) {
+export async function migrateDialogue(
+  db: DomainDatabase<typeof chatSchema>,
+  nodes: TransactionStore,
+) {
   const key = 'node-chat-v1';
   if (await db.entities.chatMigrations.first({ where: { key: { eq: key } }, select: {} })) return;
   const snapshot = await nodes.snapshot();

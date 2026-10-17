@@ -1,5 +1,10 @@
 # Wiki
 
+Production Wiki uses the [native EAV model](data/README.md), adopting the knowledge proposal under
+[ADR 0012](../../../docs/adr/0012-native-eav-wiki.md). Native pages, content, appearances and evidence
+reviews are the current owner interface. The historical contracts below remain for source-vault
+translation and retained evidence readers; they do not drive the production Wiki collection.
+
 The private Vault owns [translation and enrichment tooling](https://github.com/JimLundin/vault/tree/main/.vaulter/tooling/migration).
 It interprets old files and Git history, chooses extraction and review policy, and targets the current
 Vaulter modules. Private content, review packets, examples and operational commands live in the

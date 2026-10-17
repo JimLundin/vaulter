@@ -15,10 +15,11 @@ import {
   SupportingPane,
   Text,
   Toolbar,
-} from '../../ui/kit/index.ts';
-import type { WikiBlock, WikiClassification, WikiPage } from './pages.ts';
+} from '@/ui/kit/index.ts';
+import type { WikiBlock, WikiClassification, WikiPage } from './view.ts';
 import { WikiBlocks, type ForeignRecordRenderer } from './rendering/blocks.tsx';
 import { ReferenceCard } from './rendering/references.tsx';
+import { SupportIndicators } from './support.tsx';
 
 const titleCase = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
 
@@ -108,9 +109,27 @@ export function WikiPageView({
                   {facets.map(chip)}
                 </Row>
                 {!!page.summary && (
-                  <Prose>
-                    <Text size="lg">{page.summary}</Text>
-                  </Prose>
+                  <Stack gap="xs">
+                    <Prose>
+                      <Text size="lg">{page.summary}</Text>
+                    </Prose>
+                    <SupportIndicators state={page.summarySupport} />
+                    {!!page.summaryEvidence?.length && (
+                      <Button
+                        variant="inline"
+                        onClick={() =>
+                          selectEvidence({
+                            id: `${page.id}:summary`,
+                            data: { kind: 'summary' },
+                            children: [],
+                            evidence: page.summaryEvidence!,
+                          })
+                        }
+                      >
+                        Summary evidence
+                      </Button>
+                    )}
+                  </Stack>
                 )}
                 {!!tags.length && (
                   <Row as="fieldset" wrap={true} aria-label="Subject tags">

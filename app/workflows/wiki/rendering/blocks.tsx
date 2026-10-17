@@ -1,8 +1,32 @@
 import type { ReactNode } from 'react';
-import type { WikiBlock, WikiReference } from '../pages.ts';
-import { isSafeUrl } from '../../../navigation/urls.ts';
-import { Bars, Button, Sparkline, Text } from '../../../ui/kit/index.ts';
-import { wikiSchemas } from '../records.ts';
+import type { WikiBlock, WikiReference } from '@/workflows/wiki/view.ts';
+import { isSafeUrl } from '@/navigation/urls.ts';
+import { Bars, Button, Sparkline, Text } from '@/ui/kit/index.ts';
+import { z } from 'zod';
+const chartSchema = z.object({
+  chart: z.enum(['line', 'bar']),
+  title: z.string(),
+  unit: z.string().optional(),
+  x: z.array(z.string()),
+  series: z.array(z.object({ name: z.string(), values: z.array(z.number()) })),
+});
+const contentKinds = new Set([
+  'run',
+  'link',
+  'section',
+  'heading',
+  'paragraph',
+  'list',
+  'item',
+  'quote',
+  'table',
+  'row',
+  'cell',
+  'code',
+  'rule',
+  'chart',
+]);
+import { SupportIndicators } from '@/workflows/wiki/support.tsx';
 
 /** Application supplies the owning module's UI for records included in Wiki content. */
 export type ForeignRecordRenderer = (block: WikiBlock) => ReactNode | undefined;
@@ -163,7 +187,7 @@ function Block({
   renderRecord?: ForeignRecordRenderer;
 }): ReactNode {
   const { data, children } = block;
-  if (!(String(data.kind) in wikiSchemas)) {
+  if (!contentKinds.has(String(data.kind))) {
     const supplied = renderRecord?.(block);
     if (supplied !== undefined) return supplied;
   }
@@ -230,7 +254,12 @@ function Block({
       return <H>{inner}</H>;
     }
     case 'paragraph':
-      return <p id={block.id}>{inner}</p>;
+      return (
+        <>
+          <p id={block.id}>{inner}</p>
+          <SupportIndicators state={block.support} />
+        </>
+      );
     case 'list':
       return data.ordered ? <ol>{inner}</ol> : <ul>{inner}</ul>;
     case 'item':
@@ -262,7 +291,7 @@ function Block({
     case 'rule':
       return <hr />;
     case 'chart': {
-      const chart = wikiSchemas.chart.safeParse(data);
+      const chart = chartSchema.safeParse(data);
       if (!chart.success) return <Text tone="muted">Chart unavailable.</Text>;
       return chart.data.series.map((series) => (
         <figure key={series.name}>

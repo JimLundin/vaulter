@@ -10,7 +10,7 @@ export type InputValue<F extends AnyField> =
     ? EntityRef<E>
     : F extends Field<'set', infer Item extends AnyField, boolean>
       ? readonly InputValue<Item>[]
-      : F extends Field<'scalar' | 'json', infer V, boolean>
+      : F extends Field<'scalar' | 'json' | 'historical', infer V, boolean>
         ? V
         : never;
 type StoredValue<F extends AnyField> =
@@ -94,7 +94,7 @@ type FieldPredicate<F extends AnyField> =
       ? { readonly eq?: EntityRef<E>; readonly matches?: Where<E> }
       : F extends Field<'set', infer Item extends AnyField, boolean>
         ? { readonly some?: FieldPredicate<Item> }
-        : F extends Field<'json', infer V, boolean>
+        : F extends Field<'json' | 'historical', infer V, boolean>
           ? { readonly eq?: V; readonly in?: readonly V[] }
           : F extends Field<'scalar', infer V, boolean>
             ? ScalarPredicate<V>
@@ -245,6 +245,10 @@ export interface Database<R extends Registry> extends ReadView<R>, AsyncDisposab
   transaction<T>(context: TransactionContext, work: (tx: Transaction<R>) => Promise<T>): Promise<T>;
   subscribe: (listener: () => void) => () => void;
 }
+/** A domain can consume its entities in a larger registry without narrowing generic history changes. */
+export type DomainDatabase<R extends Registry> = Omit<Database<R>, 'history'> & {
+  readonly history: Omit<History<R>, 'changes'>;
+};
 export interface OpenOptions<R extends Registry> {
   readonly schema: R;
   readonly storage?: MemoryStorage;

@@ -100,6 +100,30 @@ corrections coexist with the original interpretation.
 The collection of distilled knowledge drawn from retained sources. Wiki pages connect that
 knowledge and cite the underlying source material.
 
+**Topic**:
+A broad subject explicitly chosen to organize a recurring area of inquiry or activity.
+Narrower subjects and their material can belong under a topic without becoming topics themselves.
+
+**Topic membership**:
+An editorial association of a subject or its material with a topic. Membership does not assert
+a factual relationship between subjects.
+
+**Claim**:
+An assertion that can be reviewed against retained source material, expressed in prose or by a
+structured record.
+
+**Source document**:
+An independently retained document or excerpt with its origin and attribution preserved.
+Capturing a document preserves what it said without certifying its assertions.
+
+**Review**:
+An attributed assessment of a particular claim and the material considered for it. Its conclusion
+applies to the assertion that was reviewed.
+
+**Challenge**:
+An attributed connection between a claim and source material considered to contradict it,
+retaining the disagreement without deciding the claim's truth automatically.
+
 **Conversation**:
 The single ongoing user-agent dialogue in a Vault. Changes of subject or date continue the same
 Conversation. Conversations obtained elsewhere remain retained source material with their own provenance.

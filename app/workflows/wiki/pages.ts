@@ -1,55 +1,14 @@
-import type { JsonObject, NodeVersion, Transaction } from '../../vault/nodes/model.ts';
-import type { NodeSnapshot, NodeReading } from '../../vault/nodes/store.ts';
-import type { Entry } from '../../search/entries.ts';
+import type { NodeVersion, Transaction } from '@/vault/nodes/model.ts';
+import type { NodeSnapshot, NodeReading } from '@/vault/nodes/store.ts';
 import { recordText, UnsupportedSourceRecordError } from './text.ts';
 import { citation as citationSchema } from './records.ts';
 import { isWikiContent, readCitation, validatePageReference } from './citations.ts';
 import { pageReferenceLinks } from './references.ts';
-import type { SourceReader } from '../../vault/sources.ts';
+import type { SourceReader } from '@/vault/sources.ts';
 import type { WikiRelatedContentReading } from './related-content.ts';
 
-export interface WikiReference {
-  id: string;
-  title: string;
-  text: string;
-  context: string;
-  range?: { start: number; end: number };
-  claim?: { start: number; end: number };
-  date?: string;
-  author?: string;
-  href?: string;
-  state: 'original' | 'newer' | 'deleted';
-  source: { node: string; transaction: string };
-  sequence: number;
-  speaker?: 'user' | 'agent';
-}
-export interface WikiClassification {
-  id: string;
-  relationship: string;
-  scheme: string;
-  key: string;
-  label: string;
-  state: 'resolved' | 'unresolved' | 'deleted';
-}
-
-export interface WikiBlock {
-  id: string;
-  data: JsonObject;
-  children: WikiBlock[];
-  href?: string;
-  evidence: WikiReference[];
-}
-export interface WikiPage {
-  id: string;
-  title: string;
-  summary: string;
-  kind: string;
-  updated: string;
-  blocks: WikiBlock[];
-  entry: Entry;
-  metadata: WikiClassification[];
-  sources: WikiReference[];
-}
+export type { WikiReference, WikiClassification, WikiBlock, WikiPage } from './view.ts';
+import type { WikiReference, WikiClassification, WikiBlock, WikiPage } from './view.ts';
 
 /** Read the live collection; exact citation targets retain their original text after later edits. */
 export async function readWiki(
@@ -273,8 +232,8 @@ export async function readWiki(
           (source, index, list) =>
             list.findIndex(
               (other) =>
-                other.source.node === source.source.node &&
-                other.source.transaction === source.source.transaction &&
+                other.source?.node === source.source?.node &&
+                other.source?.transaction === source.source?.transaction &&
                 other.sequence === source.sequence,
             ) === index,
         );

@@ -1,3 +1,4 @@
+import { resolveReference } from './references.ts';
 import { encodeJson, decodeJson } from './json.ts';
 import type { EntityDefinition, FieldDefinition } from './schema.ts';
 import { attributeKey } from './schema.ts';
@@ -48,6 +49,8 @@ export function limit(value: unknown): number {
 }
 export function scalar(definition: FieldDefinition, value: unknown): Atom {
   switch (definition.kind) {
+    case 'historical':
+      throw new Error('Historical references require database validation');
     case 'json':
       return { json: encodeJson(value) };
     case 'string':
@@ -146,6 +149,13 @@ function projectValue(
     const entity = context.definitions.get(atom.type) ?? target(context, definition);
     return project(context, entity, atom.ref, resolved, selection === true ? {} : selection);
   }
+  if (definition.kind === 'historical') {
+    if (typeof atom !== 'object' || !('history' in atom))
+      throw new Error('Corrupt historical reference');
+    const address = decodeJson(atom.history);
+    resolveReference(context.storage, address);
+    return address;
+  }
   if (definition.kind === 'json') {
     if (typeof atom !== 'object' || !('json' in atom)) throw new Error('Corrupt JSON');
     return decodeJson(atom.json);
@@ -195,6 +205,14 @@ export function project(
   );
 }
 
+function predicateAtom(context: QueryContext, definition: FieldDefinition, value: unknown): Atom {
+  if (definition.kind === 'historical') {
+    resolveReference(context.storage, value);
+    return { history: encodeJson(value) };
+  }
+  return scalar(definition, value);
+}
+
 function validatePredicate(
   context: QueryContext,
   definition: FieldDefinition,
@@ -238,10 +256,10 @@ function validatePredicate(
   for (const [operation, value] of Object.entries(predicate)) {
     if (operation === 'in') {
       if (!Array.isArray(value)) throw new Error('in requires an array');
-      for (const item of value) scalar(definition, item);
+      for (const item of value) predicateAtom(context, definition, item);
     } else if (operation === 'contains') {
       if (typeof value !== 'string') throw new Error('contains requires text');
-    } else scalar(definition, value);
+    } else predicateAtom(context, definition, value);
   }
 }
 export function validateWhere(
@@ -309,12 +327,13 @@ function matchesValue(
     } else if (operation === 'in') {
       if (
         !(expected as unknown[]).some(
-          (item) => atomKey(scalar(definition, item)) === atomKey(value),
+          (item) => atomKey(predicateAtom(context, definition, item)) === atomKey(value),
         )
       )
         return false;
     } else {
-      const other = operation === 'contains' ? String(expected) : scalar(definition, expected);
+      const other =
+        operation === 'contains' ? String(expected) : predicateAtom(context, definition, expected);
       if (operation === 'eq' && atomKey(value) !== atomKey(other)) return false;
       if (operation === 'gte' && !(value >= other)) return false;
       if (operation === 'lt' && !(value < other)) return false;
@@ -368,7 +387,10 @@ export function selectRecords(
     for (const part of input.orderBy) {
       for (const [name, direction] of Object.entries(object(part, 'Order'))) {
         const definition = entity.fields[name]?.definition;
-        if (!definition || ['ref', 'set', 'inverse', 'json'].includes(definition.kind))
+        if (
+          !definition ||
+          ['ref', 'set', 'inverse', 'json', 'historical'].includes(definition.kind)
+        )
           throw new Error(`Cannot order by ${name}`);
         if (direction !== 'asc' && direction !== 'desc')
           throw new Error('Order must be asc or desc');

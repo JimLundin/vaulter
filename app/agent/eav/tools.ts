@@ -5,26 +5,30 @@ import {
   type Database,
   type EntityRef,
   type EntityDefinition,
-} from '../../vault/eav/index.ts';
-import { cancellable } from '../../runtime/async.ts';
-import { canonical } from '../../vault/nodes/json.ts';
-import { startToolExecution, finishToolExecution, type ToolOutcome } from '../data/operations.ts';
+} from '@/vault/eav/index.ts';
+import { cancellable } from '@/runtime/async.ts';
+import { canonical } from '@/vault/nodes/json.ts';
+import {
+  startToolExecution,
+  finishToolExecution,
+  type ToolOutcome,
+} from '@/agent/data/operations.ts';
 import type {
   agentSchema,
   AgentRunRef,
   RunToolRef,
   ToolExecutionRef,
   ModelStepRef,
-} from '../data/schema.ts';
-import type { ToolExecutionData } from '../records.ts';
-import type { PendingToolSave } from '../tool-execution.ts';
+} from '@/agent/data/schema.ts';
+import type { ToolExecutionData } from '@/agent/records.ts';
+import type { PendingToolSave } from '@/agent/tool-execution.ts';
 
 const message = (error: unknown) => (error instanceof Error ? error.message : String(error));
-export function eavTools(options: {
+export function eavTools<T extends ToolSet>(options: {
   readonly db: Pick<Database<typeof agentSchema>, 'entities' | 'transaction' | 'refresh'>;
   readonly run: AgentRunRef;
   readonly author: EntityRef<EntityDefinition>;
-  readonly tools: ToolSet;
+  readonly tools: T;
   readonly enabled: readonly (RunToolRef & { readonly name: string; readonly version: string })[];
   readonly signal: AbortSignal;
   readonly step?: () => ModelStepRef | undefined;
@@ -197,12 +201,52 @@ export function eavTools(options: {
                     output: JSON.parse(canonical(output)),
                   };
                 } catch (error) {
-                  failure = error;
-                  outcome = {
-                    status: options.signal.aborted ? 'cancelled' : 'failed',
-                    endedAt: new Date(),
-                    error: { code: 'toolFailed', message: message(error) },
-                  };
+                  if (error instanceof SaveError) {
+                    const recoveredOutcome: ToolOutcome = {
+                      status: 'complete',
+                      endedAt: new Date(),
+                      output: { accepted: true, recovered: true },
+                    };
+                    let stoppedSave: SaveError | undefined;
+                    await pause(
+                      error,
+                      () => error.retry(),
+                      { id: key, node: key, execution: data, stage: 'outcome', retryable: true },
+                      async () => {
+                        if (stoppedSave) await stoppedSave.retry();
+                        else {
+                          try {
+                            await options.db.transaction(
+                              { author: options.author, origin: options.run },
+                              (tx) => finishToolExecution(tx, entity, recoveredOutcome),
+                            );
+                          } catch (failure) {
+                            if (failure instanceof SaveError) stoppedSave = failure;
+                            throw failure;
+                          }
+                        }
+                        options.changed(
+                          key,
+                          {
+                            ...data,
+                            status: 'complete',
+                            ended: recoveredOutcome.endedAt.toISOString(),
+                            output: { accepted: true, recovered: true },
+                          },
+                          entity,
+                        );
+                      },
+                    );
+                    output = { accepted: true, recovered: true };
+                    outcome = recoveredOutcome;
+                  } else {
+                    failure = error;
+                    outcome = {
+                      status: options.signal.aborted ? 'cancelled' : 'failed',
+                      endedAt: new Date(),
+                      error: { code: 'toolFailed', message: message(error) },
+                    };
+                  }
                 } finally {
                   options.execution(false);
                 }
@@ -255,7 +299,7 @@ export function eavTools(options: {
         },
       ];
     }),
-  ) as ToolSet;
+  ) as T;
   if (Object.keys(tools).length !== options.enabled.length)
     throw new Error('Supplied tools differ from accepted capabilities');
   return {

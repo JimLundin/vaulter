@@ -4,19 +4,20 @@ import '@fontsource-variable/newsreader';
 import '../ui/kit/styles.css';
 import { createRoot } from 'react-dom/client';
 import { useState } from 'react';
-import { OpenApplication } from '../application/index.tsx';
-import { applicationNodes } from '../application/composition.ts';
-import { startTheme, Text, DesignPreview, Gate, Brand, Button, Stack } from '../ui/kit/index.ts';
+import { OpenApplication } from '@/application/index.tsx';
+import { applicationNodes, applicationWiki } from '@/application/composition.ts';
+import { startTheme, Text, DesignPreview, Gate, Brand, Button, Stack } from '@/ui/kit/index.ts';
 import { seedGraphEvidence } from './graph-evidence.ts';
 import { seedGraphDensity } from './graph-density.ts';
 import { previewModel } from './model.ts';
-import { createOpenAICapabilities } from '../agent/openai/index.ts';
-import { recordedTranscription } from '../agent/recorded-transcription.ts';
+import { createOpenAICapabilities } from '@/agent/openai/index.ts';
+import { recordedTranscription } from '@/agent/recorded-transcription.ts';
 import { previewTranscription } from './transcription.ts';
 import { previewNodes, previewJournalKey } from './nodes.ts';
 import { previewEav, previewEavKey } from './eav.ts';
-import type { NodeChange } from '../vault/nodes/store.ts';
-import type { NodeStore } from '../vault/nodes/store.ts';
+import type { NodeChange } from '@/vault/nodes/store.ts';
+import type { NodeStore } from '@/vault/nodes/store.ts';
+import { seedEavWiki } from './wiki-records.ts';
 import { seedPreviewRecords } from './records.ts';
 
 const query = new URLSearchParams(location.search);
@@ -41,6 +42,7 @@ const transcription = agent ? recordedTranscription(agent.transcribe) : previewT
 const openingNodes = previewNodes(sessionStorage, query.get('scenario') ?? undefined).then(
   async (nodes) => {
     await seedPreviewRecords(nodes);
+    await seedEavWiki(await applicationWiki(eav).database());
     if (query.get('compare') === 'graph') {
       await seedGraphEvidence(nodes);
       await seedGraphDensity(nodes);
