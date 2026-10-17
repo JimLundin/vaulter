@@ -69,7 +69,6 @@ test('Chat owns a request before clearing its source and preserves newer typing 
     if (owned.status !== 'owned') throw new Error('Expected owned request');
     expect(owned.request).toMatchObject({
       text: 'First request',
-      conversation: chat.conversation(),
     });
     expect(owned.request.id).toBeTruthy();
     expect(chat.snapshot()).toMatchObject({ draft: '', submission: owned.request, busy: true });
@@ -162,14 +161,13 @@ test.each([
     'Select a model before sending.',
   ],
 ] as const)(
-  '%s is denied without changing draft, conversation, or request state',
+  '%s is denied without changing draft, history, or request state',
   async (_name, text, overrides, reason) => {
     const { db, model, options } = await fixture(overrides);
     const chat = createConversation(options);
     try {
       chat.setDraft(text);
       const before = chat.snapshot();
-      const identity = chat.conversation();
       expect(chat.snapshot().submissionAvailability).toEqual({ allowed: false, reason });
       expect(chat.prepareSubmission()).toEqual({ status: 'blocked', reason });
       expect(chat.snapshot()).toMatchObject({
@@ -179,7 +177,6 @@ test.each([
       });
       expect(chat.snapshot().submission).toBe(before.submission);
 
-      expect(chat.conversation()).toBe(identity);
       expect(model.doStreamCalls).toHaveLength(0);
     } finally {
       chat.dispose();

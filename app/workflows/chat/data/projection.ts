@@ -1,12 +1,8 @@
-import { modelMessageSchema } from 'ai';
 import type { ReadView } from '@/vault/eav/index.ts';
 import type { chatSchema, ExchangeRef } from './schema.ts';
 import { readExchange } from './operations.ts';
 import { parseMessage } from '@/workflows/chat/message-schema.ts';
-import type { MessageData, MessagePart } from '@/workflows/chat/message.ts';
-const jsonError = (value: unknown) =>
-  value && typeof value === 'object' && 'message' in value ? String(value.message) : undefined;
-
+import type { MessageData } from '@/workflows/chat/message.ts';
 export async function projectedExchange(
   tx: ReadView<typeof chatSchema>,
   identity: ExchangeRef,
@@ -39,79 +35,7 @@ export async function projectedExchange(
   );
   const run = exchange.execution;
   if (run) {
-    const receipts = run.executions.map((execution) => ({
-      kind: 'tool' as const,
-      callId: execution.call,
-      name: execution.tool.name,
-      // Unversioned tools retain a storage marker; presentation represents them without a version.
-      version: execution.tool.version === 'unversioned' ? undefined : execution.tool.version,
-      input: execution.input,
-      status: execution.status,
-      ...(execution.output !== undefined && { output: execution.output }),
-      ...(execution.error !== undefined && { error: jsonError(execution.error) }),
-    }));
-    const parts: MessagePart[] = [];
-    for (const step of run.steps) {
-      const response = step.response;
-      if (
-        !(
-          response &&
-          typeof response === 'object' &&
-          'messages' in response &&
-          Array.isArray(response.messages)
-        )
-      )
-        continue;
-      for (const raw of response.messages) {
-        const message = modelMessageSchema.parse(raw);
-        if (message.role !== 'assistant') continue;
-        if (typeof message.content === 'string')
-          parts.push({ kind: 'text', text: message.content });
-        else
-          for (const block of message.content) {
-            if (block.type === 'text') parts.push({ kind: 'text', text: block.text });
-            if (block.type === 'tool-call') {
-              const receipt = receipts.find((item) => item.callId === block.toolCallId);
-              if (
-                receipt &&
-                !parts.some((item) => item.kind === 'tool' && item.callId === receipt.callId)
-              )
-                parts.push(receipt);
-            }
-          }
-      }
-    }
-    // Partial or opaque external execution can expose receipts without an observable model response.
-    for (const receipt of receipts)
-      if (!parts.some((part) => part.kind === 'tool' && part.callId === receipt.callId))
-        parts.push(receipt);
-    if (
-      run.output &&
-      typeof run.output === 'object' &&
-      'text' in run.output &&
-      typeof run.output.text === 'string'
-    ) {
-      const recordedText = parts
-        .flatMap((part) => (part.kind === 'text' ? [part.text] : []))
-        .join('');
-      const remaining = run.output.text.startsWith(recordedText)
-        ? run.output.text.slice(recordedText.length)
-        : '';
-      if (remaining) parts.push({ kind: 'text', text: remaining });
-    }
-    result.push({
-      kind: 'message',
-      role: 'agent',
-      at: run.startedAt.toISOString(),
-      status: run.status,
-      parts,
-      model: run.servedModel ?? run.requestedModel,
-      ...(run.inputTokens !== undefined &&
-        run.outputTokens !== undefined && {
-          tokens: { in: run.inputTokens, out: run.outputTokens },
-        }),
-      ...(run.error !== undefined && { error: jsonError(run.error) }),
-    });
+    result.push({ kind: 'message', role: 'agent', ...run });
   }
   return result;
 }

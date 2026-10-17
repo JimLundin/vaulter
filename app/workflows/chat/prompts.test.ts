@@ -128,7 +128,7 @@ test('capture retains each supplied prompt without replacing spoken words and ex
   }
 });
 
-test('a retained prompt stays associated with the single dialogue after a rejected New action', async () => {
+test('a retained prompt stays associated with the single dialogue after capture finishes', async () => {
   const transcription = createTranscription(async () => ({ finish: async () => '', close() {} }));
   const { db, model, options } = await fixture({ transcription });
   const chat = createConversation(options);
@@ -136,7 +136,6 @@ test('a retained prompt stays associated with the single dialogue after a reject
     await chat.captureAction();
     chat.receivePrompt({ n: 1, send: true, text: 'Keep in this dialogue' });
     await chat.captureAction();
-    expect(chat.newChat()).toMatchObject({ status: 'blocked' });
     const sent = chat.applyPrompt(1);
     if (sent.status !== 'owned') throw new Error('Expected retained prompt submission');
     await sent.done;
@@ -172,7 +171,7 @@ test('explicit Use submits a retained Ask once and removes the retained text aft
   }
 });
 
-test('suggestions arriving after an admitted Open cannot publish into the changing conversation', async () => {
+test('suggestions arriving after an admitted history reload cannot publish into the changing conversation', async () => {
   let releaseSuggestions!: (suggestions: string[]) => void;
   const { db, options } = await fixture({
     suggestions: () =>
@@ -185,19 +184,19 @@ test('suggestions arriving after an admitted Open cannot publish into the changi
     const backend = options.backend(value);
     return {
       ...backend,
-      messages: async (conversation) => {
+      messages: async () => {
         await new Promise<void>((resolve) => {
           releaseRead = resolve;
         });
-        return backend.messages(conversation);
+        return backend.messages();
       },
     };
   };
   const chat = createConversation({ ...options, backend: reader });
   try {
     const suggesting = chat.suggest();
-    const opening = chat.open('missing');
-    releaseSuggestions(['Text for the old conversation']);
+    const opening = chat.reload();
+    releaseSuggestions(['Text before the history reload']);
     await suggesting;
     expect(chat.snapshot().suggestions).toEqual([]);
     releaseRead();
@@ -208,18 +207,18 @@ test('suggestions arriving after an admitted Open cannot publish into the changi
   }
 });
 
-test('an admitted Open removes displayed suggestions before the selected conversation read completes', async () => {
+test('an admitted history reload removes displayed suggestions before the recorded activity read completes', async () => {
   const { db, options } = await fixture({ suggestions: async () => ['Old suggestion'] });
   let releaseRead!: () => void;
   const reader: ConversationOptions['backend'] = (value) => {
     const backend = options.backend(value);
     return {
       ...backend,
-      messages: async (conversation) => {
+      messages: async () => {
         await new Promise<void>((resolve) => {
           releaseRead = resolve;
         });
-        return backend.messages(conversation);
+        return backend.messages();
       },
     };
   };
@@ -227,7 +226,7 @@ test('an admitted Open removes displayed suggestions before the selected convers
   try {
     await chat.suggest();
     expect(chat.snapshot().suggestions).toEqual(['Old suggestion']);
-    const opening = chat.open('missing');
+    const opening = chat.reload();
     expect(chat.snapshot().suggestions).toEqual([]);
     releaseRead();
     await opening;

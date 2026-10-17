@@ -28,7 +28,7 @@ export function useConversation(options: ConversationOptions) {
   }, [conversation, options]);
   const restoration = useRef<{
     owner: Conversation;
-    requested?: { node: string; availability?: string };
+    requested?: { availability?: string; backend: ConversationOptions['backend'] };
     startup: boolean;
   }>({ owner: conversation, startup: true });
   if (restoration.current.owner !== conversation)
@@ -38,34 +38,20 @@ export function useConversation(options: ConversationOptions) {
     if (options.recordsReady === false) return;
     const restoring = restoration.current.startup;
     restoration.current.startup = false;
-    const requested = conversation.continuous ? 'dialogue' : options.conversation;
-    if (requested) {
-      const previous = restoration.current.requested;
-      if (
-        previous?.node === requested &&
-        (!conversation.snapshot().selection.error || previous.availability === options.availability)
-      )
-        return;
-      restoration.current.requested = { node: requested, availability: options.availability };
-      // Selection already published by the owner has just been reflected in Application navigation.
-      if (
-        !(restoring && conversation.continuous) &&
-        conversation.conversation() === requested &&
-        !conversation.snapshot().selection.pending &&
-        !conversation.snapshot().selection.error
-      )
-        return;
-      later(
-        (restoring ? conversation.restore(requested) : conversation.open(requested)).then(
-          (outcome) => {
-            if (!conversation.closed() && outcome.status !== 'superseded')
-              options.onSelectionOutcome?.(outcome);
-          },
-        ),
-      );
-    } else {
-      restoration.current.requested = undefined;
-    }
-  }, [conversation, options.conversation, options.availability, options.recordsReady]);
+    const previous = restoration.current.requested;
+    if (
+      previous &&
+      previous.backend === options.backend &&
+      (!conversation.snapshot().reading.error || previous.availability === options.availability)
+    )
+      return;
+    restoration.current.requested = { availability: options.availability, backend: options.backend };
+    later(
+      (restoring ? conversation.restore() : conversation.reload()).then((outcome) => {
+        if (!conversation.closed() && outcome.status !== 'superseded')
+          options.onReadOutcome?.(outcome);
+      }),
+    );
+  }, [conversation, options.backend, options.availability, options.recordsReady]);
   return conversation;
 }

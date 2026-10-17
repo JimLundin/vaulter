@@ -9,7 +9,7 @@ import { noEval } from './tools/build/no-eval.ts';
 const SITE = fileURLToPath(new URL('.', import.meta.url));
 
 // The built page's Content Security Policy: script only from the app itself (no eval, no inline), network
-// only to GitHub and OpenAI, and for a capture's metadata OpenStreetMap's geocoder (an address) and open-meteo (the weather). Styles may be inline (React style props, Shiki's colours).
+// only to GitHub and the configured model transport. Styles may be inline (React style props, Shiki's colours).
 const csp = (): Plugin => ({
   name: 'csp',
   apply: 'build',
@@ -22,7 +22,7 @@ const csp = (): Plugin => ({
       "worker-src 'self'",
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data:",
-      `connect-src 'self' ${api} ${ai} https://nominatim.openstreetmap.org https://api.open-meteo.com`,
+      `connect-src 'self' ${api} ${ai}`,
       "font-src 'self'",
       // The Home Screen install reads the manifest; default-src 'none' would refuse it.
       "manifest-src 'self'",

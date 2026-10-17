@@ -40,7 +40,7 @@ test('Chat capture replaces partials with corrected finals and preserves the sta
   voice.dispose();
 });
 
-test('New and Send cannot replace the recording association or clear its draft while capture is active', async () => {
+test('Send cannot replace the recording association or clear its draft while capture is active', async () => {
   let events!: TranscriptionEvents;
   const voice = createTranscription((callbacks) => {
     events = callbacks;
@@ -48,15 +48,14 @@ test('New and Send cannot replace the recording association or clear its draft w
   });
   const chat = await controller(voice);
   chat.setDraft('Keep prefix');
-  const original = chat.conversation();
+
   await chat.captureAction();
   events.text('Partial');
-  chat.newChat();
   expect(chat.prepareSubmission()).toMatchObject({
     status: 'blocked',
     reason: 'Finish or cancel the current recording before sending.',
   });
-  expect(chat.conversation()).toBe(original);
+
   expect(chat.snapshot().draft).toBe('Keep prefix Partial');
   expect(chat.snapshot().capture.phase).toBe('listening');
   await chat.captureAction();

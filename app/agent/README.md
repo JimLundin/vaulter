@@ -23,3 +23,8 @@ source records. Historical EAV evidence references preserve accepted source snap
 
 See the [data model](../../docs/data-model.md) and [Chat contract](../workflows/chat/README.md).
 Focused runtime checks exercise admission, outcomes, Stop, failed saves and effect-free recovery.
+
+`reading.ts` interprets accepted Agent activity for transcript and timeline callers. It decodes the
+current Model step format, orders text and Tool execution receipts, and reconciles opaque external
+output without executing providers or retrying publications. Live receipt projection also stays with
+Agent. Chat orders Exchanges and owns Conversation meaning; it does not parse model response formats.

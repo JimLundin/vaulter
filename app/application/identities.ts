@@ -1,3 +1,4 @@
+import { bindActor } from '@/vault/records/actor.ts';
 import { ConflictError, SaveError, type DomainDatabase } from '@/vault/eav/index.ts';
 import type { Actor, ActorBinding } from '@/vault/records/actor.ts';
 
@@ -35,17 +36,7 @@ export function createApplicationIdentities(
           ['user', 'user', 'Vault owner'],
           ['agent', 'agent', 'Vault agent'],
         ] as const) {
-          const existing = await tx.entities.actorBindings.first({
-            where: { key: { eq: identities[role] } },
-            select: { actor: { kind: true } },
-          });
-          if (existing) {
-            if (existing.actor.kind !== kind)
-              throw new Error(`Configured ${role} account has an incompatible actor kind.`);
-            continue;
-          }
-          const actor = await tx.entities.actors.insert({ name, kind });
-          await tx.entities.actorBindings.insert({ key: identities[role], actor });
+          await bindActor(tx, identities[role], kind, name);
         }
       });
     } catch (error) {

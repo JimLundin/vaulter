@@ -1,3 +1,4 @@
+import { bindActor, readActorBinding } from '@/vault/records/actor.ts';
 import { tool } from 'ai';
 import { z } from 'zod';
 import { questionEntities } from '@/workflows/questions/data/schema.ts';
@@ -125,23 +126,12 @@ export function applicationQuestionAnswers(
     check();
     if (!question.evidence) throw new Error('Question has no native EAV address.');
     const db = await applicationDatabase(storage);
-    let binding = await db.entities.actorBindings.first({
-      where: { key: { eq: identities.user } },
-      select: { actor: true },
-    });
-    if (!binding) {
+    let actor = await readActorBinding(db, identities.user, 'user');
+    if (!actor) {
       try {
         await db.transaction(async (tx) => {
           check();
-          if (
-            await tx.entities.actorBindings.first({
-              where: { key: { eq: identities.user } },
-              select: {},
-            })
-          )
-            return;
-          const actor = await tx.entities.actors.insert({ name: 'Vault owner', kind: 'user' });
-          await tx.entities.actorBindings.insert({ key: identities.user, actor });
+          await bindActor(tx, identities.user, 'user', 'Vault owner');
           check();
         });
       } catch (error) {
@@ -153,16 +143,10 @@ export function applicationQuestionAnswers(
         }
         throw error;
       }
-      binding = await db.entities.actorBindings.first({
-        where: { key: { eq: identities.user } },
-        select: { actor: true },
-      });
+      actor = await readActorBinding(db, identities.user, 'user');
     }
-    if (!binding) throw new Error('Preparing Vault identities…');
-    await questionActions(db, { author: binding.actor }, undefined, check).answer(
-      question.evidence,
-      text,
-    );
+    if (!actor) throw new Error('Preparing Vault identities…');
+    await questionActions(db, { author: actor }, undefined, check).answer(question.evidence, text);
   };
   return { answer };
 }
@@ -172,20 +156,7 @@ export function applicationCalendar(
 ) {
   const author = async () => {
     const db = await applicationDatabase(storage);
-    return db.transaction(async (tx) => {
-      const binding = await tx.entities.actorBindings.first({
-        where: { key: { eq: identities.user } },
-        select: { actor: { kind: true } },
-      });
-      if (binding) {
-        if (binding.actor.kind !== 'user')
-          throw new Error('Configured Calendar author must be a user.');
-        return binding.actor;
-      }
-      const actor = await tx.entities.actors.insert({ name: 'Vault owner', kind: 'user' });
-      await tx.entities.actorBindings.insert({ key: identities.user, actor });
-      return actor;
-    });
+    return db.transaction(async (tx) => bindActor(tx, identities.user, 'user', 'Vault owner'));
   };
   const actions: CalendarActions = {
     create: async (input) => {
@@ -352,13 +323,9 @@ export function applicationHistory(
       ],
       author: async () => {
         const db = await applicationDatabase(storage);
-        const binding = await db.entities.actorBindings.first({
-          where: { key: { eq: identities.user } },
-          select: { actor: { kind: true } },
-        });
-        if (!binding || binding.actor.kind !== 'user')
-          throw new Error('Vault owner identity is unavailable.');
-        return binding.actor;
+        const actor = await readActorBinding(db, identities.user, 'user');
+        if (!actor) throw new Error('Vault owner identity is unavailable.');
+        return actor;
       },
       admission: () => {
         const reason = admission();
@@ -377,11 +344,9 @@ export function applicationChatOptions({
     backend: eav
       ? eavChatFactory(eav)
       : () => ({
-          continuous: true,
           send: () => {
             throw new Error('Vault storage is unavailable.');
           },
-          chats: async () => [],
           messages: async () => [],
           subscribe: () => () => {},
           dispose: () => {},

@@ -26,18 +26,17 @@ async function setup(storage = createMemoryStorage(), execute?: AgentExecutionPr
   };
   return { db, execution, options, backend: createEavChatBackend(options) };
 }
-const send = { id: 'send', conversation: 'chat', text: 'Hello', model: 'test' };
+const send = { id: 'send', text: 'Hello', model: 'test' };
 
 test('live chat records EAV, restores history and never executes a restored submission', async () => {
   const { db, execution, options, backend } = await setup();
   await using _db = db;
   expect(await backend.send(send).done).toMatchObject({ phase: 'complete' });
   expect(execution).toHaveBeenCalledOnce();
-  expect(await backend.messages('chat')).toMatchObject([
+  expect(await backend.messages()).toMatchObject([
     { data: { role: 'user', text: 'Hello' } },
     { data: { role: 'agent', parts: [{ kind: 'text', text: 'Hello back' }], status: 'complete' } },
   ]);
-  expect(await backend.chats()).toEqual([]);
   expect(await db.entities.messages.query({ select: {} })).toHaveLength(1);
   const reopened = createEavChatBackend(options);
   expect((await reopened.send(send).done).phase).toBe('complete');
@@ -194,14 +193,14 @@ test('terminal recovery after another accepted write retains the result without 
   expect(handle.snapshot()).toMatchObject({ phase: 'complete', response: { status: 'complete' } });
   expect(handle.snapshot().persistenceError).toBeUndefined();
   expect(execution).toHaveBeenCalledOnce();
-  expect(await backend.messages('chat')).toMatchObject([
+  expect(await backend.messages()).toMatchObject([
     { data: { role: 'user', text: 'Hello' } },
     { data: { role: 'agent', parts: [{ kind: 'text', text: 'Hello back' }] } },
   ]);
   backend.dispose();
 });
 
-test('different topics and navigation keys continue the same dialogue after reopening', async () => {
+test('different topics continue the same dialogue after reopening', async () => {
   const { db, options, backend, execution } = await setup();
   await using _db = db;
   await backend.send(send).done;
@@ -209,7 +208,6 @@ test('different topics and navigation keys continue the same dialogue after reop
   await reopened.send({
     ...send,
     id: 'other',
-    conversation: 'a-different-topic',
     text: 'Another subject',
   }).done;
   expect(execution.mock.calls[1]?.[0]?.messages).toEqual(
@@ -219,7 +217,7 @@ test('different topics and navigation keys continue the same dialogue after reop
     ]),
   );
   expect(await db.entities.conversations.query({ select: {} })).toHaveLength(1);
-  expect(await reopened.messages('ignored-device-selection')).toHaveLength(4);
+  expect(await reopened.messages()).toHaveLength(4);
   expect(await db.entities.messages.query({ select: {} })).toHaveLength(2);
   backend.dispose();
   reopened.dispose();
@@ -283,7 +281,7 @@ test('text requests retain each effective input and response and render text/too
   expect(
     await db.entities.toolExecutions.first({ select: { step: { position: true } } }),
   ).toMatchObject({ step: { position: 0 } });
-  const transcript = await backend.messages('dialogue');
+  const transcript = await backend.messages();
   const response = transcript.at(-1)?.data;
   if (response?.role !== 'agent') throw new Error('Missing Agent response');
   expect(response.parts.map((part) => part.kind)).toEqual(['text', 'tool', 'text']);
@@ -370,7 +368,7 @@ test('timeline checkpoints retain history while new runs receive summary plus su
   expect(timeline).toMatchObject([{ anchor: 0, checkpoints: [{ title: 'Garden plans' }] }]);
   const calls = execution.mock.calls.length;
   expect(await backend.timeline!()).toHaveLength(1);
-  expect(await backend.messages('dialogue')).toHaveLength(2);
+  expect(await backend.messages()).toHaveLength(2);
   expect(execution.mock.calls).toHaveLength(calls);
   await backend.send({ ...send, id: 'dimensions', text: 'It should be two metres wide' }).done;
   await backend.send({ ...send, id: 'continue', text: 'What next?' }).done;
@@ -383,7 +381,7 @@ test('timeline checkpoints retain history while new runs receive summary plus su
   });
   expect(contexts.map((context) => context.exchanges.length).sort()).toEqual([0, 0, 1]);
   expect(contexts.filter((context) => context.checkpoint)).toHaveLength(2);
-  expect(await backend.messages('dialogue')).toHaveLength(6);
+  expect(await backend.messages()).toHaveLength(6);
   expect((await backend.timeline!()).map((entry) => entry.anchor)).toEqual([0, 2, 4]);
   checkpoint.dispose();
   backend.dispose();

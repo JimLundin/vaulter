@@ -56,7 +56,7 @@ test('Application agent asks an EAV Question and reopens its accepted receipt wi
         }),
       ]),
     );
-    await reopened.open(chat.conversation());
+    await reopened.reload();
     expect(reopened.snapshot().turns.flatMap(({ parts }) => parts)).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ kind: 'tool', name: 'askQuestion', output: receipt }),

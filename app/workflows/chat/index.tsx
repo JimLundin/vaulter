@@ -63,6 +63,4 @@ export function ChatIndicator({ conversation }: { conversation: Conversation }) 
   ) : null;
 }
 
-export { ConversationList, ConversationItem } from './ConversationList.tsx';
-
 export { ChatMessage } from './ChatMessage.tsx';

@@ -1,5 +1,5 @@
 import { applicationQuestionCollection, applicationQuestionAnswers } from './composition.ts';
-import { chatRoute, conversationRoute, historyRoute, settingsRoute } from './routes.ts';
+import { chatRoute, historyRoute, settingsRoute } from './routes.ts';
 import {
   CalendarPage,
   CalendarTimeline,
@@ -314,12 +314,7 @@ export function OpenApplication({
   };
   const onSettings = !!settingsRoute.match(route.path);
   const onHistory = !!historyRoute.match(route.path);
-  const onChat =
-    route.path === '/' ||
-    !!chatRoute.match(route.path) ||
-    !!conversationRoute.match(route.path) ||
-    onSettings ||
-    onHistory;
+  const onChat = route.path === '/' || !!chatRoute.match(route.path) || onSettings || onHistory;
   const activeCoreAction = coreAction ?? (onSettings ? 'settings' : onHistory ? 'history' : null);
   const settingsOpen = activeCoreAction === 'settings';
   const historyOpen = activeCoreAction === 'history';
@@ -383,23 +378,13 @@ export function OpenApplication({
         ? 'Wait for the credential update to finish before starting recording.'
         : undefined,
       transcription: voice,
-      conversation: conversationRoute.match(route.path)?.node,
       recordsReady: !!eav && recordsReady(status),
-      onSelectionOutcome: (outcome) => {
+      onReadOutcome: (outcome) => {
         if (
           (outcome.status === 'blocked' || outcome.status === 'failed') &&
           parseRoute(location.hash).path === route.path
         )
           go(chatRoute.href());
-      },
-      onConversation: (id) => {
-        const path = parseRoute(location.hash).path;
-        const selected = conversationRoute.match(path)?.node;
-        if (selected !== id && (selected || path === '/' || chatRoute.match(path)))
-          go(conversationRoute.href({ node: id }));
-      },
-      onNewChat: () => {
-        if (conversationRoute.match(parseRoute(location.hash).path)) go(chatRoute.href());
       },
     }),
   );
@@ -410,7 +395,7 @@ export function OpenApplication({
   const promptSequence = useRef(0);
   // Supplied intent belongs to the receiving owner, including owners replaced by effect replay.
   const prompt = suppliedPrompt?.owner === conversation ? suppliedPrompt.value : null;
-  const { capture, turns, selectionAvailability } = useChat(conversation);
+  const { capture } = useChat(conversation);
   const currentSession = useRef(session);
   currentSession.current = session;
   const currentConversation = useRef(conversation);
@@ -563,20 +548,6 @@ export function OpenApplication({
       keys: 'mod+j',
       run: () => showPanel(!panel),
     },
-    ...(!conversation.continuous && turns.length && selectionAvailability.allowed
-      ? [
-          {
-            id: 'agent.new',
-            label: 'New chat',
-            group: 'Chat',
-            icon: 'plus' as const,
-            run: () => {
-              const outcome = conversation.newChat();
-              if (outcome.status === 'selected') ask();
-            },
-          },
-        ]
-      : []),
     {
       id: 'search',
       label: 'Search',

@@ -6,7 +6,6 @@ import type { TimelineEntry } from './data/timeline.ts';
 import type { MessageData } from './message.ts';
 export interface ChatRequest {
   readonly id: string;
-  readonly conversation: string;
   readonly text: string;
   readonly model: string;
 }
@@ -54,19 +53,11 @@ export interface ChatRun {
   readonly prepared: () => unknown;
 }
 
-export interface SavedChat {
-  readonly node: string;
-  readonly data: { readonly title: string };
-  readonly activeAt: string;
-}
-export const CONVERSATION_PAGE_SIZE = 20;
 export interface ChatBackend {
-  readonly continuous?: boolean;
   timeline?: () => Promise<readonly TimelineEntry[]>;
   checkpoint?: (model: string) => CheckpointTask;
   send: (request: ChatRequest) => ChatRun;
-  chats: (query?: { readonly limit?: number }) => Promise<readonly SavedChat[]>;
-  messages: (conversation: string) => Promise<readonly { readonly data: MessageData }[]>;
+  messages: () => Promise<readonly { readonly data: MessageData }[]>;
   subscribe: (listener: () => void) => () => void;
   dispose: () => void;
 }

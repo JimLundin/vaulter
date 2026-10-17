@@ -14,3 +14,9 @@ Published history remains immutable; domain corrections append new transactions.
 translation under ADR 0007 targets the current typed owners and must separately verify evidence,
 identity and chronology. Application opening performs no source conversion. ADR 0005's historical
 text projections and evidence boundary remain binding.
+
+Retired models and compatibility definitions do not constrain current module interfaces. The unused
+`chat.migration` definition is removed rather than retained solely to open older journals. A journal
+requiring retired schema must be converted separately by private source tooling before opening;
+application opening does not translate, reset or silently discard accepted data. Current recorded
+activity and historical references remain supported by their owning modules.

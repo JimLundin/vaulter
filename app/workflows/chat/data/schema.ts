@@ -38,11 +38,6 @@ export const RetainedSource = e.entity('chat.retainedSource', {
   status: e.enum('running', 'complete', 'failed', 'stopped', 'interrupted').optional(),
   provenance: e.json(),
 });
-/** Retained definition for journals written before native-only Chat; no importer runs. */
-export const Migration = e.entity('chat.migration', {
-  key: e.string(),
-  sourceSequence: e.number(),
-});
 /** An attributed summary of a fixed, recorded prefix of the dialogue. */
 export const ContextCheckpoint = e.entity('chat.contextCheckpoint', {
   through: e.ref(Exchange),
@@ -67,7 +62,6 @@ export const chatEntities = {
   messages: Message,
   inputSources: InputSource,
   retainedSources: RetainedSource,
-  chatMigrations: Migration,
 } as const;
 export const chatSchema = e.registry({ ...agentEntities, ...chatEntities });
 export type ConversationRef = EntityRef<typeof Conversation>;

@@ -1,7 +1,8 @@
 import { z } from 'zod';
 import type { Transaction, ReadView, EntityRef, JsonValue } from '@/vault/eav/index.ts';
 import type { Actor } from '@/vault/records/actor.ts';
-import { startAgentRun, readAgentRun, type RunInput } from '@/agent/data/operations.ts';
+import { startAgentRun, type RunInput } from '@/agent/data/operations.ts';
+import { readAgentActivity } from '@/agent/reading.ts';
 import type { AgentRef } from '@/agent/data/schema.ts';
 import type { chatSchema, ExchangeRef } from './schema.ts';
 
@@ -94,6 +95,6 @@ export async function readExchange(view: Reading, identity: ExchangeRef) {
     ...exchange,
     messages,
     sources,
-    execution: exchange.run ? await readAgentRun(view, exchange.run) : undefined,
+    execution: exchange.run ? await readAgentActivity(view, exchange.run) : undefined,
   };
 }

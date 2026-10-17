@@ -41,8 +41,7 @@ Save retry is persistence-only, including request/response saves; it never resum
 
 RetainedSource records preserve source text, known attribution and honest occurrence precision.
 Unavailable per-step details remain absent. Deterministic source ordering is presentation order rather
-than a claim of precise chronology. The persisted Migration schema remains readable for accepted history;
-application startup performs no conversion. All producers and readers use the native EAV contract.
+than a claim of precise chronology. Application startup performs no conversion or compatibility decoding of retired data models. All producers and readers use the native EAV contract.
 
 Use a transaction or `db.at(commit)` for consistent multi-query reads. Retained history and effective
 model context are separate records. Explicit context checkpoints summarize a recorded prefix and supply future runs with summary plus

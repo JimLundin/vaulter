@@ -1,3 +1,4 @@
+import { bindActor } from '@/vault/records/actor.ts';
 import { startAgentRun } from '@/agent/data/operations.ts';
 import { executeEavRun } from '@/agent/eav/runtime.ts';
 import { ConflictError, canonical, type DomainDatabase, SaveError } from '@/vault/eav/index.ts';
@@ -70,14 +71,7 @@ export function createCheckpointTask(
       let prepared: Awaited<ReturnType<typeof startAgentRun>> | undefined;
       try {
         await db.transaction(async (tx) => {
-          const binding = await tx.entities.actorBindings.first({
-            where: { key: { eq: options.agent } },
-            select: { actor: true },
-          });
-          const actor =
-            binding?.actor ??
-            (await tx.entities.actors.insert({ name: options.agent, kind: 'agent' }));
-          if (!binding) await tx.entities.actorBindings.insert({ key: options.agent, actor });
+          const actor = await bindActor(tx, options.agent, 'agent', options.agent);
           const agent = await tx.entities.agents.insert({
             actor,
             provider: options.provider,

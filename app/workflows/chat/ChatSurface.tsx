@@ -22,11 +22,8 @@ export type ChatPresentation =
 export function ChatSurface({
   presentation,
   supporting,
-  onNewChat,
-  onConversations,
   onTimeline,
   scrollTarget,
-  busy,
   composer,
   suggestions,
   status,
@@ -35,11 +32,8 @@ export function ChatSurface({
 }: {
   presentation: ChatPresentation;
   supporting?: ReactNode;
-  onNewChat?: () => void;
-  onConversations?: () => void;
   onTimeline?: () => void;
   scrollTarget?: { index: number; request: number };
-  busy: boolean;
   composer: ReactNode;
   suggestions?: ReactNode;
   status?: ReactNode;
@@ -56,30 +50,6 @@ export function ChatSurface({
         onClick={onTimeline}
       >
         <Icon name="list" />
-      </Button>
-    </Row>
-  ) : onNewChat && onConversations ? (
-    <Row gap="xs">
-      <Row visible="compact">
-        <Button
-          variant="ghost"
-          size="compact"
-          iconOnly={true}
-          aria-label="Conversations"
-          onClick={onConversations}
-        >
-          <Icon name="list" />
-        </Button>
-      </Row>
-      <Button
-        variant="filled"
-        size="standard"
-        iconOnly={true}
-        aria-label="New conversation"
-        disabled={busy}
-        onClick={onNewChat}
-      >
-        <Icon name="plus" />
       </Button>
     </Row>
   ) : undefined;

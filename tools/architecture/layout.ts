@@ -47,6 +47,7 @@ const compositionEntry = (path: string) =>
   ].includes(path);
 const applicationTest = (path: string) => path.startsWith('app/application/') && testSource(path);
 const workflow = (path: string) => /^app\/workflows\/([^/]+)\//.exec(path)?.[1];
+const standaloneOwner = (path: string) => /^app\/(calendar|map)\//.exec(path)?.[1];
 const fixture = (path: string) =>
   /\.(?:test|type-test|test-support)\.[cm]?tsx?$/.test(path) || path.startsWith('app/preview/');
 const testSource = (path: string) => /\.(?:test|type-test|test-support)\.[cm]?tsx?$/.test(path);
@@ -131,6 +132,16 @@ export function importProblem(from: string, to: string): string | null {
     return `${from} imports source interpretation; supply owner reading through Application composition`;
   if (kit(from) && (to.startsWith('app/vault/') || to.startsWith('app/agent/')))
     return `${from} imports record interpretation; keep Vault and Agent knowledge with its owning module`;
+  const standalone = standaloneOwner(to);
+  if (
+    standalone &&
+    standaloneOwner(from) !== standalone &&
+    !compositionEntry(from) &&
+    !applicationTest(from) &&
+    !fixture(from) &&
+    to !== `app/${standalone}/index.ts`
+  )
+    return `${from} imports private ${standalone} implementation; use its public entry`;
   const target = workflow(to);
   if (
     target &&
@@ -249,6 +260,21 @@ export function checkLayout(root: string): string[] {
           if (ts.isVariableDeclaration(resolvedDeclaration) && resolvedDeclaration.initializer)
             checkOwnedSymbol(valueTarget(aliasValue(resolvedDeclaration.initializer)), seen);
           const owner = slash(relative(root, source.fileName));
+          const namedOwner = standaloneOwner(owner);
+          if (
+            namedOwner &&
+            namedOwner !== standaloneOwner(from) &&
+            !compositionEntry(from) &&
+            !applicationTest(from) &&
+            !fixture(from) &&
+            !ts.isInterfaceDeclaration(resolvedDeclaration) &&
+            !ts.isTypeAliasDeclaration(resolvedDeclaration) &&
+            !['parseTime', 'parseCoordinates'].includes(owned.name)
+          )
+            problems.push(
+              `${from} accesses ${namedOwner} record behavior; compose it in Application and use shared values through the public entry`,
+            );
+
           if (
             !storageAssembly(from) &&
             rawEavSymbols.get(owner)?.has(owned.name) &&

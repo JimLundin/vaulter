@@ -72,7 +72,10 @@ test('topic and date changes append to one authoritative dialogue with canonical
   await using reopened = await openDatabase({ schema: chatSchema, storage });
   const retained = await reopened.transaction((tx) => readExchange(tx, first.exchange));
   expect(retained?.messages).toHaveLength(1);
-  expect(retained?.execution).toMatchObject({ status: 'complete', output: { text: 'A response' } });
+  expect(retained?.execution).toMatchObject({
+    status: 'complete',
+    parts: [{ kind: 'text', text: 'A response' }],
+  });
 });
 
 test('repeated admission and invalid authors create no additional records', async () => {
