@@ -1,3 +1,4 @@
+import { seedEavQuestions } from './question-records.ts';
 import '@fontsource-variable/geist';
 import '@fontsource-variable/geist-mono';
 import '@fontsource-variable/newsreader';
@@ -45,29 +46,10 @@ const openingNodes = previewNodes(sessionStorage, query.get('scenario') ?? undef
     await seedPreviewRecords(nodes);
     await seedEavWiki(await applicationWiki(eav).database());
     await seedCalendar(eav);
+    await seedEavQuestions(await applicationWiki(eav).database());
     if (query.get('compare') === 'graph') {
       await seedGraphEvidence(nodes);
       await seedGraphDensity(nodes);
-      if (!(await nodes.snapshot()).get('preview:inquiry:studio-context:0')) {
-        await nodes.commit({
-          id: 'preview:inquiry:studio-context',
-          recordedBy: 'preview:wiki-owner',
-          origin: null,
-          undoOf: null,
-          kind: { scope: 'node', action: 'create' },
-          message: 'Fictional context for open Studio questions',
-          changes: [0, 1].map((index) => ({
-            node: `preview:inquiry:studio-context:${index}`,
-            expected: null,
-            data: { kind: 'relationship', predicate: 'informed-by' },
-            placement: { parent: `preview:density:studio-question:${index}`, order: 'a' },
-            connection: {
-              source: { node: `preview:density:studio-question:${index}` },
-              target: { node: `preview:graph-claim:${index}` },
-            },
-          })),
-        });
-      }
     }
     if (query.has('conversations') && !(await nodes.snapshot()).get('preview:list-owner')) {
       await nodes.commit({

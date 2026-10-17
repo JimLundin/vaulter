@@ -1,10 +1,9 @@
+import { evidence } from './fixtures.test-support.ts';
 // @vitest-environment happy-dom
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { expect, test, vi } from 'vitest';
-import { memoryNodeBackend } from '@/vault/nodes/memory.ts';
-import { create, request } from '@/vault/nodes/fixtures.test-support.ts';
 import {
   EmbeddedQuestion,
   questionDescriptions,
@@ -14,7 +13,7 @@ import type { Question } from './reading.ts';
 
 const question: Question = {
   id: 'question',
-  key: { node: 'question', transaction: 'asked' },
+  evidence: evidence('question', 'asked'),
   data: { kind: 'question', text: 'Which wall?' },
   status: 'open',
   subjects: [],
@@ -82,45 +81,20 @@ test('embedded read errors preserve the Question and disable its Answer action u
   }
 });
 
-test('Question target descriptions resolve its addresses while foreign owners interpret payloads', async () => {
-  const nodes = memoryNodeBackend();
-  await nodes.commit(
-    request('asked', [
-      create('user', { kind: 'actor', name: 'Owner' }),
-      create('evidence', { kind: 'content', text: 'Garden.' }),
-    ]),
-  );
-  const view = await nodes.snapshot();
-  const descriptions = questionDescriptions(view, {
-    text: vi.fn(() => 'Foreign exact prose'),
-    describe: vi.fn(() => ({ title: 'Planning', href: '#/foreign/planning/' })),
-  });
+test('Question target descriptions expose retained text and source navigation', () => {
+  const descriptions = questionDescriptions();
   expect(
-    descriptions.describeTarget({ version: view.get('evidence'), state: 'available' }),
+    descriptions.describeTarget({
+      evidence: evidence('source'),
+      text: 'Garden.',
+      label: 'Planning',
+      href: '#/wiki/planning/',
+      state: 'available',
+    }),
   ).toEqual({
     title: 'Planning',
-    href: '#/foreign/planning/',
-    text: 'Foreign exact prose',
+    text: 'Garden.',
+    href: '#/wiki/planning/',
     navigationLabel: 'Open source context: Planning',
   });
-  const wiki = questionDescriptions(view, {
-    text: () => undefined,
-    describe: () => ({
-      title: 'Studio',
-      href: '#/wiki/studio/',
-      navigationLabel: 'Open Wiki page: Studio',
-    }),
-  });
-  expect(
-    wiki.describeTarget({ version: view.get('evidence'), state: 'available' })?.navigationLabel,
-  ).toBe('Open Wiki page: Studio');
-  const unnamed = questionDescriptions(view, {
-    text: () => 'Retained prose',
-    describe: () => undefined,
-  });
-  expect(unnamed.describeTarget({ version: view.get('evidence'), state: 'available' })).toEqual({
-    title: 'Retained source',
-    text: 'Retained prose',
-  });
-  nodes.close();
 });

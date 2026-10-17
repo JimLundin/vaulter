@@ -3,8 +3,6 @@ import { expect, test } from 'vitest';
 import { memoryNodeBackend } from '@/vault/nodes/memory.ts';
 import { create, request, seed, revise } from '@/vault/nodes/fixtures.test-support.ts';
 import { applicationNodeHistory } from './composition.ts';
-import { parseToolExecution } from '@/agent/schema.ts';
-import { seedPreviewRecords } from '@/preview/records.ts';
 import { previewModel } from '@/preview/model.ts';
 import type { NodeCommit } from '@/vault/nodes/store.ts';
 
@@ -239,16 +237,21 @@ test('History refuses mixed, deleted and retagged execution or transcript transa
   }
 });
 
-test('Application agent asks a retained Question with its accepted receipt and stable identity after reopen', async () => {
-  const nodes = memoryNodeBackend();
+test('Application agent asks an EAV Question and reopens its accepted receipt without execution', async () => {
+  const { createMemoryStorage } = await import('@/vault/eav/index.ts');
+  const { applicationWiki, createApplicationConversation } = await import('./composition.ts');
+  const { seedEavWiki } = await import('@/preview/wiki-records.ts');
+  const { readEavQuestions } = await import('@/workflows/questions/data/reading.ts');
+  const storage = createMemoryStorage();
+  const db = await applicationWiki(storage).database();
+  await seedEavWiki(db);
+  const transport = memoryNodeBackend();
   const { createApplicationIdentities } = await import('./identities.ts');
-  const setup = createApplicationIdentities(transactionFixture(nodes));
+  const setup = createApplicationIdentities(transactionFixture(transport));
   await setup.ensure();
-  await seedPreviewRecords(nodes);
-  const { createApplicationConversation } = await import('./composition.ts');
   const options = {
-    nodes,
-    identities: setup.identities,
+    nodes: transport,
+    eav: storage,
     model: async () => previewModel,
     selectedModel: 'fictional',
     provider: 'fictional',
@@ -263,68 +266,43 @@ test('Application agent asks a retained Question with its accepted receipt and s
     const outcome = chat.prepareSubmission({ text: 'ask me: Where should the bench go?' });
     if (outcome.status !== 'owned') throw new Error('Expected retained request');
     await outcome.done;
-    const view = await nodes.snapshot();
-    const question = view
-      .children('preview:page:0')
-      .find(({ data }) => data?.kind === 'question' && data.text === 'Where should the bench go?')!;
+    const question = (await readEavQuestions(db))[0]!;
+    expect(question, JSON.stringify(chat.snapshot())).toBeDefined();
     expect(question.data).toMatchObject({
-      kind: 'question',
       text: 'Where should the bench go?',
       suggestions: expect.arrayContaining([
         expect.objectContaining({ title: 'Prioritise morning work' }),
       ]),
     });
-    const context = view.children(question.key.node);
-    expect(context.map((node) => node.data?.predicate)).toEqual(['generated-from', 'informed-by']);
-    const source = view.resolve(context[0].connection!.target);
-    expect(source?.data?.text ?? source?.data?.content).toBe('ask me: Where should the bench go?');
-    expect(question.placement?.parent).toBe('preview:page:0');
-    const publication = (await nodes.history()).find(({ id }) => id === question.key.transaction)!;
-    expect(publication.kind).toEqual({ scope: 'questions', action: 'ask' });
-    expect(publication.recordedBy).toBe(setup.identities.agent);
-    expect(publication.origin).not.toBeNull();
-    expect((await nodes.snapshot()).get(publication.origin!)?.data?.kind).toBe('agentRun');
-    const transactions = await nodes.history();
-    const changes = await Promise.all(transactions.map(({ id }) => nodes.changes(id)));
-    const completed = changes
-      .flat()
-      .find(
-        ({ after }) =>
-          after.data?.kind === 'toolExecution' &&
-          after.data.name === 'askQuestion' &&
-          after.data.status === 'complete',
-      )!;
+    expect(question.sources?.[0]?.text).toBe('ask me: Where should the bench go?');
+    expect(question.subjects[0]?.href).toBe('#/wiki/preview%3Apage%3A0/');
+    expect(question.created?.author?.type).toBe('actor');
+    expect(question.created?.origin?.type).toBe('agent.run');
     const receipt = {
-      question: question.key.node,
-      transaction: question.key.transaction,
+      question: question.id,
+      transaction: question.evidence.transaction,
       accepted: true,
     };
-    expect(parseToolExecution(completed.after.data).output).toEqual(receipt);
-    const accepted = chat
-      .snapshot()
-      .turns.flatMap(({ parts }) => parts)
-      .find((part) => part.kind === 'tool' && part.name === 'askQuestion');
-    expect(accepted).toMatchObject({ kind: 'tool', output: receipt, status: 'complete' });
-    const before = (await nodes.history()).length;
+    expect(chat.snapshot().turns.flatMap(({ parts }) => parts)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: 'tool',
+          name: 'askQuestion',
+          output: receipt,
+          status: 'complete',
+        }),
+      ]),
+    );
     await reopened.open(chat.conversation());
     expect(reopened.snapshot().turns.flatMap(({ parts }) => parts)).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ kind: 'tool', name: 'askQuestion', output: receipt }),
       ]),
     );
-    expect(
-      reopened
-        .snapshot()
-        .turns.flatMap(({ parts }) => parts)
-        .filter((part) => part.kind === 'text')
-        .map(({ text }) => text)
-        .join(''),
-    ).toContain('[Open questions](/questions/)');
-    expect((await nodes.snapshot()).get(question.key.node)?.key).toEqual(question.key);
-    expect((await nodes.history()).length).toBe(before);
+    expect(await readEavQuestions(db)).toHaveLength(1);
   } finally {
     chat.dispose();
     reopened.dispose();
-    nodes.close();
+    transport.close();
   }
 });

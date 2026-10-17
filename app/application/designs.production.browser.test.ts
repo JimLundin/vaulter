@@ -201,8 +201,13 @@ test('production opens real Wiki pages and exact evidence alongside persistent C
   }
   await navigateToModule(page, 'Wiki');
   await expect(page).toHaveURL(/#\/wiki\/$/);
-  await page.getByRole('link', { name: 'Garden studio', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Garden studio', exact: true })).toBeVisible();
+  await page
+    .getByRole('region', { name: 'Page directory', exact: true })
+    .getByRole('link', { name: 'Garden studio', exact: true })
+    .click();
+  await expect(
+    page.getByRole('heading', { name: 'Garden studio', exact: true, level: 1 }),
+  ).toBeVisible();
   await expect(page.locator('[data-page-header] h1')).toHaveText('Wiki');
   const claim = page.getByRole('button', {
     name: 'Evidence for Keep the mornings free.',
@@ -256,7 +261,7 @@ test('production opens real Wiki pages and exact evidence alongside persistent C
     await expect(page.getByRole('button', { name: /evidence for keep/i })).toBeFocused();
   }
   await page
-    .getByRole('heading', { name: 'Garden studio', exact: true })
+    .getByRole('heading', { name: 'Garden studio', exact: true, level: 1 })
     .getByRole('button')
     .click();
   await expect(evidence.getByRole('link', { name: 'Studio plans' })).toHaveCount(1);
@@ -265,7 +270,10 @@ test('production opens real Wiki pages and exact evidence alongside persistent C
     await evidence.getByRole('button', { name: 'Close references' }).click();
   await page.getByRole('button', { name: 'Wiki', exact: true }).click();
   await expect(page).toHaveURL(/#\/wiki\/$/);
-  await page.getByRole('link', { name: 'Garden studio', exact: true }).click();
+  await page
+    .getByRole('region', { name: 'Page directory', exact: true })
+    .getByRole('link', { name: 'Garden studio', exact: true })
+    .click();
   await page.getByRole('button', { name: /evidence for keep/i }).click();
   await evidence.getByRole('link', { name: 'Studio plans' }).click();
   await expect(page.locator('[data-message="user"]')).toContainText(

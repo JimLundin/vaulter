@@ -1,7 +1,7 @@
 import { pattern } from '@/navigation/routing.ts';
 
 const collection = pattern('/questions/');
-const formerDetail = pattern('/questions/:node/');
+const formerDetail = pattern('/questions/:key/');
 
 /** Retained links to individual questions now open the collection too. */
 export const questionsRoute = {

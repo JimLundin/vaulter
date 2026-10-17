@@ -7,8 +7,6 @@ export {
 export { QuestionsPage, type QuestionsPageProps } from './QuestionsPage.tsx';
 export {
   createQuestionsReading,
-  readQuestion,
-  readQuestions,
   type Question,
   type QuestionAttribution,
   type QuestionTarget,
@@ -31,5 +29,5 @@ export {
 } from './EmbeddedQuestion.tsx';
 export { questionAnswerAvailability } from './availability.ts';
 export { questionsRoute } from './routes.ts';
-export { questionToolActions, questionEnabledTools } from './tool-actions.ts';
+export { questionToolActions } from './tool-actions.ts';
 export { QuestionToolReceipt, questionToolPresentation } from './tool-presentation.tsx';

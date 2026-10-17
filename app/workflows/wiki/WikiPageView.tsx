@@ -29,12 +29,14 @@ export function WikiPageView({
   onFilter,
   renderRecord,
   timeline,
+  relatedRecords,
 }: {
   page: WikiPage;
   onBack: () => void;
   onFilter: (term: WikiClassification) => void;
   renderRecord?: ForeignRecordRenderer;
   timeline?: ReactNode;
+  relatedRecords?: ReactNode;
 }) {
   const [selected, setSelected] = useState<WikiBlock>();
   const [referencesOpen, setReferencesOpen] = useState(false);
@@ -130,6 +132,7 @@ export function WikiPageView({
               </Stack>
               {blocks(body)}
               {timeline}
+              {relatedRecords}
               {!!connections.length && (
                 <Surface variant="grouped" as="section">
                   <Heading>Connections</Heading>

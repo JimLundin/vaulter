@@ -1,3 +1,4 @@
+import type { HistoricalReference } from '@/vault/eav/index.ts';
 // A local model adapter exercises the real conversation and tools without keys or network requests.
 import type { LanguageModel } from 'ai';
 
@@ -50,9 +51,10 @@ export const previewModel: PreviewModel = {
     const groundingData = grounding?.output.type === 'json' ? grounding.output.value : null;
     const passages =
       groundingData && typeof groundingData === 'object' && 'sources' in groundingData
-        ? (groundingData as {
-            sources: { node: string; transaction: string; text: string }[];
-            knowledge: { node: string; transaction: string; text: string }[];
+        ? (groundingData as unknown as {
+            sources: { address: HistoricalReference; text: string }[];
+            knowledge: { address: HistoricalReference; text: string }[];
+            subjects: { key: string; address: HistoricalReference }[];
           })
         : undefined;
     const askedData = asked?.output.type === 'json' ? asked.output.value : null;
@@ -87,9 +89,9 @@ export const previewModel: PreviewModel = {
         ...text('I’ll retain this question on the Garden studio page.'),
         call('askQuestion', {
           text: asking,
-          subject: 'preview:page:0',
-          source: { node: source.node, transaction: source.transaction },
-          knowledge: known ? [{ node: known.node, transaction: known.transaction }] : [],
+          subject: passages?.subjects.find((subject) => subject.key === 'preview:page:0')?.address,
+          source: source.address,
+          knowledge: known ? [known.address] : [],
           suggestions: [
             {
               title: 'Prioritise morning work',

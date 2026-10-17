@@ -44,7 +44,7 @@ test('application tasks cannot construct raw node adapters', () => {
   for (const entry of entries) {
     for (const caller of [
       'app/agent/tool-context.ts',
-      'app/workflows/questions/actions.ts',
+      'app/workflows/questions/data/operations.ts',
       'app/vault/content/tools.ts',
       'app/application/index.tsx',
     ])
@@ -265,16 +265,16 @@ test('Questions ownership factories remain private when another module re-export
   const root = mkdtempSync(join(tmpdir(), 'vaulter-question-owner-policy-'));
   try {
     const files = {
-      'app/workflows/questions/actions.ts':
-        'export function createQuestionOwnership() { return {}; } export type QuestionWriter = {kind: string};',
-      'app/workflows/questions/tools.ts':
-        "import { createQuestionOwnership } from './actions.ts'; export const own = createQuestionOwnership;",
+      'app/workflows/questions/data/operations.ts':
+        'export function questionActions() { return {}; } export type QuestionDatabase = {kind: string};',
+      'app/workflows/questions/data/tools.ts':
+        "import { questionActions } from './operations.ts'; export const own = questionActions;",
       'app/application/composition.ts':
-        "import { createQuestionOwnership } from '../workflows/questions/actions.ts'; const own = createQuestionOwnership; export const exposed = own; export type { QuestionWriter } from '../workflows/questions/actions.ts';",
+        "import { questionActions } from '../workflows/questions/data/operations.ts'; const own = questionActions; export const exposed = own; export type { QuestionDatabase } from '../workflows/questions/data/operations.ts';",
       'app/agent/helper.ts':
         "import { exposed as manufacture } from '../application/composition.ts'; export const own = manufacture;",
       'app/agent/types.ts':
-        "import type { QuestionWriter } from '../application/composition.ts'; export type Author = QuestionWriter;",
+        "import type { QuestionDatabase } from '../application/composition.ts'; export type Author = QuestionDatabase;",
     };
     writeFileSync(
       join(root, 'tsconfig.json'),
@@ -1076,7 +1076,7 @@ test('module owners cannot depend on their consumers', () => {
       'kit owns generic presentation only',
     );
   expect(
-    importProblem('app/application/composition.ts', 'app/workflows/questions/actions.ts'),
+    importProblem('app/application/composition.ts', 'app/workflows/questions/data/operations.ts'),
   ).toBeNull();
   expect(
     importProblem('app/application/connections.test.ts', 'app/workflows/wiki/subjects.ts'),

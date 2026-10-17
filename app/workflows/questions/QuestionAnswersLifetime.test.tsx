@@ -1,18 +1,16 @@
 // @vitest-environment happy-dom
-import { transactionFixture } from '@/vault/transactions/fixtures.test-support.ts';
 // biome-ignore lint/correctness/noUnresolvedImports: React 19 exposes StrictMode; TypeScript and the build verify it.
 import { act, StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { expect, test, vi } from 'vitest';
-import { memoryNodeBackend } from '@/vault/nodes/memory.ts';
 import type { QuestionAnswers, QuestionAnswersOptions } from './answers.ts';
 import { useQuestionAnswers } from './use-questions.ts';
 
 test('Answer hook keeps one owner across navigation and capabilities, replaces sessions and cleans up effect replay', async () => {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
   const root = createRoot(document.body);
-  const nodes = memoryNodeBackend();
-  const replacementNodes = memoryNodeBackend();
+  const actions = { answer: async () => undefined };
+  const replacement = { answer: async () => undefined };
   let answers!: QuestionAnswers;
   function Surface({ options }: { options: QuestionAnswersOptions }) {
     answers = useQuestionAnswers(options);
@@ -23,7 +21,7 @@ test('Answer hook keeps one owner across navigation and capabilities, replaces s
     await act(() =>
       root.render(
         <StrictMode>
-          <Surface options={{ session, nodes: transactionFixture(nodes), recordedBy: 'user' }} />
+          <Surface options={{ session, actions }} />
         </StrictMode>,
       ),
     );
@@ -36,8 +34,7 @@ test('Answer hook keeps one owner across navigation and capabilities, replaces s
           <Surface
             options={{
               session,
-              nodes: transactionFixture(replacementNodes),
-              recordedBy: 'user',
+              actions: replacement,
               availability: 'Reconnect before answering.',
             }}
           />
@@ -52,8 +49,7 @@ test('Answer hook keeps one owner across navigation and capabilities, replaces s
           <Surface
             options={{
               session: {},
-              nodes: transactionFixture(replacementNodes),
-              recordedBy: 'user',
+              actions: replacement,
             }}
           />
         </StrictMode>,
@@ -65,8 +61,6 @@ test('Answer hook keeps one owner across navigation and capabilities, replaces s
     await act(() => root.unmount());
     expect(answers.closed()).toBe(true);
   } finally {
-    nodes.close();
-    replacementNodes.close();
     document.body.replaceChildren();
     vi.unstubAllGlobals();
   }

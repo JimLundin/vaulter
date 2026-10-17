@@ -1,7 +1,4 @@
 import type { ReactNode } from 'react';
-import type { NodeVersion, JsonObject } from '@/vault/nodes/model.ts';
-import type { NodeSnapshot } from '@/vault/nodes/store.ts';
-import type { SourceDescription } from '@/vault/sources.ts';
 import { Stack, Text } from '@/ui/kit/index.ts';
 import {
   QuestionItem,
@@ -12,39 +9,24 @@ import type { QuestionTarget, QuestionsReadingState } from './reading.ts';
 import { questionAnswerAvailability } from './availability.ts';
 import { useQuestionAnswerState } from './use-questions.ts';
 
-/** Questions interprets its records; supplied readers retain foreign text, navigation and identity meaning. */
-export function questionDescriptions(
-  view: NodeSnapshot | undefined,
-  reading: {
-    readonly text: (node: NodeVersion, view: NodeSnapshot) => string | undefined;
-    readonly describe: (
-      node: NodeVersion,
-      view: NodeSnapshot,
-    ) => (SourceDescription & { readonly navigationLabel?: string }) | undefined;
-  },
-) {
+export function questionDescriptions() {
   return {
-    describeTarget: (target: QuestionTarget): QuestionTargetDescription | undefined => {
-      if (!(view && target.version)) return;
-      const text = reading.text(target.version, view);
-      const description = reading.describe(target.version, view);
-      if (description)
-        return {
-          ...description,
-          text,
-          navigationLabel:
-            description.navigationLabel ??
-            (description.href
-              ? `Open source context${description.title ? `: ${description.title}` : ''}`
-              : undefined),
-        };
-      if (text) return { title: 'Retained source', text };
-    },
+    describeTarget: (target: QuestionTarget): QuestionTargetDescription => ({
+      title: target.label || 'Retained source',
+      text: target.text,
+      href: target.href,
+      navigationLabel: target.href
+        ? `Open source context: ${target.label || 'Retained source'}`
+        : undefined,
+    }),
   };
 }
 
 export interface EmbeddedQuestionProps extends Omit<QuestionItemProps, 'question'> {
-  readonly record: { readonly id: string; readonly data: JsonObject };
+  readonly record: {
+    readonly id: string;
+    readonly data: { readonly kind?: string; readonly text?: string };
+  };
   readonly state: QuestionsReadingState;
 }
 
@@ -55,7 +37,7 @@ export function renderQuestionRecord(
   props: Omit<EmbeddedQuestionProps, 'record' | 'state'>,
 ): ReactNode | undefined {
   if (record.data.kind !== 'question') return;
-  return <EmbeddedQuestion record={record} state={state} {...props} />;
+  return <EmbeddedQuestion key={record.id} record={record} state={state} {...props} />;
 }
 
 /** Store-free Question rendering for any enclosing module, without importing its record projection. */

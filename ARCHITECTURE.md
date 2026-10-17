@@ -17,7 +17,7 @@ flowchart TD
   Application --> History[Transactions / History]
   Chat --> Agent
   Agent --> Transactions
-  Questions --> Transactions
+  Questions --> EAV
   Wiki --> Nodes[Node reading]
   History --> Transactions
   Transactions --> Nodes
@@ -115,8 +115,8 @@ imports because Node's native TypeScript execution does not resolve TypeScript a
 ```mermaid
 flowchart LR
   Agent -->|choose subject and exact evidence| Actions[Questions actions]
-  Actions -->|atomic record references| Vault[Vault Nodes]
-  Wiki -->|read page containment| Vault
+  Actions -->|atomic record references| Vault[Vault EAV]
+  Wiki -->|read typed content| Vault
   Questions -->|read questions and answers| Vault
   Application -->|supply foreign-record renderer| Wiki
   Application -->|compose embedded Question UI| Questions
@@ -126,12 +126,10 @@ Wiki and Questions do not call one another or consume one another's reading inte
 Wiki also has no direct dependency on Graph. Application supplies a snapshot-scoped related-content
 reading that delegates classification, Relationship labels and Query evaluation to Graph. Wiki
 supplies page candidates and renders the results; Graph is the sole interpreter for those records.
-Questions accepts a generic live Node as its optional subject and exact Node addresses for source
-and knowledge evidence. It validates availability, schema, attribution and atomic publication.
-Agent discovers Wiki subjects and classifies evidence through owner-supplied readers composed by
-Application. Agent's grounding reads remain conflict expectations until the Question is accepted.
-The historical tool names `listQuestionSubjects` and `listQuestionContext` belong to Agent discovery;
-Questions owns `askQuestion`, `readQuestion` and `listQuestions`.
+Questions accepts accepted historical EAV addresses for subjects, sources, knowledge and reviews.
+It validates availability, schema, attribution and atomic publication. Application supplies EAV
+source and subject discovery to Agent. Questions owns `askQuestion`, `readQuestion` and
+`listQuestions`; its public model uses EAV evidence and attribution throughout.
 
 Wiki receives a generic foreign-record renderer. Application dispatches a Question record to the
 Questions-owned embedded UI and supplies its actions. Rendering a record in a Wiki page therefore
@@ -171,29 +169,16 @@ prohibits imports back into Application and
 keeps UI callers on public kit exports. The kit owns presentation; lower-level record and persistence
 implementations cannot import views.
 
-Record ownership includes publication. Questions owns the complete creation and answering actions:
-payload validation, suggested-answer shape, direct Answer evidence, required reads and atomic
-changes. Callers request those actions through Application composition. Pure preparation entries remain
-available to the private Vault's translation, but do not authorize new application writes. The
-Questions ownership factory is private to Application and Questions; copying valid-looking payloads,
-setting a transaction kind or using the same author does not confer permission to publish.
-
-Every Application entry supplies an enforcing NodeStore, including independent Agent and Chat
-construction. Questions privately retains its action-produced work through entered publication and
-exact save retries. A generic publication rule runs against authoritative history at acceptance in
-both memory and GitHub adapters. Persistence owns structural integrity; Questions owns interpretation
-and admission of Question, Answer and task Relationship changes. An unauthorized change rejects the
-whole Transaction, including when bundled with initial Chat and Agent records. Historical loading
-and identical already-accepted retries retain their existing behavior.
+Questions owns complete creation and answering actions: input validation, proposals, direct Answer
+evidence and atomic changes. Application supplies trusted actor/origin context. EAV acceptance
+rejects stale drafts and competing answers; uncertain saves retain the exact publication retry.
 
 Raw node adapters and acceptance/loading functions are private to bootstrap, persistence and
 historical fixtures. Session hooks exposing raw handles remain with Vault session assembly and
 Application; preview fixtures cannot be imported by production callers. The compiler-backed layout policy
 checks these resolved origins through aliases and re-exports, while permitting ordinary node reads
 and errors. Keeping those handles out of task
-code prevents a new producer from bypassing the Application-supplied interface. This deepens the
-Questions module at its existing seam: callers gain leverage from two actions, and validation,
-construction, ownership and tests retain locality within Questions.
+code prevents a new producer from bypassing the Application-supplied interface. Validation and action ownership remain local to their modules.
 
 ## Node-only application data
 
@@ -313,7 +298,7 @@ pin requires adapting the consumer rather than preserving a separate migration S
 future payloads evolve through owner historical decoders and appended upgrades.
 
 Production reads historical source text through retainedRecordSources. Shared validation values
-support current Wiki, Questions and historical Chat records. Validation used solely to translate
+support historical Wiki and Chat records. Validation used solely to translate
 unimplemented record kinds belongs with the private Vault tooling.
 See [Wiki ingestion](app/workflows/wiki/README.md) for preparation, exact-baseline validation and
 links to private Vault operations.

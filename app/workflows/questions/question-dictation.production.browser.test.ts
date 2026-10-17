@@ -1,8 +1,9 @@
 import { expect, test } from '@playwright/test';
 import { fakeGitHub } from '@/vault/storage/github-client/fake-github.ts';
-import { create, request } from '@/vault/nodes/fixtures.test-support.ts';
-import { accept } from '@/vault/nodes/history.ts';
-import { canonical, digest } from '@/vault/nodes/json.ts';
+import { createPersistentStorage, openDatabase, type Journal } from '@/vault/eav/index.ts';
+import { applicationSchema } from '@/application/composition.ts';
+import { seedEavWiki } from '@/preview/wiki-records.ts';
+import { seedEavQuestions } from '@/preview/question-records.ts';
 import { seal } from '@/vault/session/sealed.ts';
 
 test.use({
@@ -16,14 +17,28 @@ test.use({
 test('production dictates into a Question draft and persists only its explicit answer', async ({
   page,
 }) => {
-  const initial = request('spoken-question-fixture', [
-    create('user', { kind: 'actor', name: 'Fictional owner' }),
-    create('spoken-question', { kind: 'question', text: 'Where should the workbench go?' }),
-  ]);
-  const record = accept([], initial, await digest(canonical(initial)), '2026-10-14T09:00:00Z');
-  const fake = await fakeGitHub({
-    '.vaulter/nodes/v1/transactions/spoken-question-fixture.json': JSON.stringify(record),
+  const files: Record<string, string> = {};
+  let journal: Journal = { schemas: [], commits: [] };
+  const storage = createPersistentStorage({
+    scope: JSON.stringify([
+      'https://api.github.com',
+      'JimLundin',
+      'vault',
+      'main',
+      '.vaulter/eav/transactions/',
+    ]),
+    load: () => Promise.resolve(journal),
+    append: (request) => {
+      journal = { schemas: request.schemas, commits: [...journal.commits, request.commit] };
+      files[`.vaulter/eav/transactions/${encodeURIComponent(request.commit.id)}.json`] =
+        JSON.stringify(request);
+      return Promise.resolve();
+    },
   });
+  await using db = await openDatabase({ schema: applicationSchema, storage });
+  await seedEavWiki(db);
+  await seedEavQuestions(db);
+  const fake = await fakeGitHub(files);
   const password = 'fictional-question-dictation-password';
   const sealed = await seal(
     { github: 'fictional-token', openai: 'fictional-openai-key' },
@@ -89,15 +104,7 @@ test('production dictates into a Question draft and persists only its explicit a
   await answer.fill('Leave room for shelves.');
   await answer.blur();
   const writes = () => fake.state.calls.filter((call) => call.startsWith('PATCH ')).length;
-  // Dialogue import runs at startup independently of the visible Questions module.
-  await expect
-    .poll(() =>
-      Object.entries(fake.filesAt()).some(
-        ([path, text]) =>
-          path.startsWith('.vaulter/eav/transactions/') && text.includes('node-chat-v1'),
-      ),
-    )
-    .toBe(true);
+  await expect(page.getByText('Loading conversation…', { exact: true })).toBeHidden();
   const before = writes();
   await entry.getByRole('button', { name: 'Start voice interaction', exact: true }).click();
   await expect(entry.getByRole('button', { name: 'Finish recording', exact: true })).toBeVisible();

@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { expect, test } from 'vitest';
 import { RecordedToolExecution, toolSummary } from '@/agent/tool-presentation.tsx';
 import { questionToolPresentation } from './tool-presentation.tsx';
-import { questionEnabledTools } from './tool-actions.ts';
+import { questionCapabilities } from './data/tools.ts';
 
 test('Questions renders retained request evidence and owner labels without reading or answering it', () => {
   const evidence = {
@@ -20,7 +20,7 @@ test('Questions renders retained request evidence and owner labels without readi
   expect(markup).toContain('Recorded transaction: accepted-1');
   expect(markup).not.toContain('Answer question');
   expect(toolSummary(evidence, 1, [questionToolPresentation])).toBe('retained 1 Question');
-  expect(questionEnabledTools.map(({ name }) => name)).toEqual([
+  expect(questionCapabilities.map(({ name }) => name)).toEqual([
     'askQuestion',
     'readQuestion',
     'listQuestions',
@@ -31,7 +31,7 @@ test('Question read receipts keep recorded status while unknown versions fall ba
   const evidence = {
     name: 'readQuestion',
     status: 'complete' as const,
-    input: { node: 'question-1' },
+    input: { key: 'question-1' },
     output: {
       question: 'question-1',
       transaction: 'original-1',

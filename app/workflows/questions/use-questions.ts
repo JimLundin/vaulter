@@ -1,6 +1,9 @@
 import { useLayoutEffect, useState, useSyncExternalStore } from 'react';
-import type { NodeReading } from '@/vault/nodes/store.ts';
-import { createQuestionsReading, type QuestionsReading } from './reading.ts';
+import {
+  createQuestionsReading,
+  type QuestionsReading,
+  type QuestionCollection,
+} from './reading.ts';
 import {
   createQuestionAnswers,
   type QuestionAnswers,
@@ -24,24 +27,24 @@ export function useQuestionAnswerState(answers?: QuestionAnswers) {
 export const useQuestions = (reading: QuestionsReading) =>
   useSyncExternalStore(reading.subscribe, reading.snapshot);
 
-export function useQuestionsReading(nodes: NodeReading | null): QuestionsReading {
+export function useQuestionsReading(source: QuestionCollection | null): QuestionsReading {
   const [lifetime, setLifetime] = useState(() => ({
-    nodes,
-    reading: createQuestionsReading(nodes),
+    source,
+    reading: createQuestionsReading(source),
   }));
   let current = lifetime;
-  if (lifetime.nodes !== nodes) {
-    current = { nodes, reading: createQuestionsReading(nodes) };
+  if (lifetime.source !== source) {
+    current = { source, reading: createQuestionsReading(source) };
     setLifetime(current);
   }
   const { reading } = current;
   // biome-ignore lint/correctness/useExhaustiveDependencies: the input scope owns the lifetime; effect replay replaces its disposed reader.
   useLayoutEffect(() => {
-    const owned = reading.closed() ? createQuestionsReading(nodes) : reading;
-    if (owned !== reading) setLifetime({ nodes, reading: owned });
+    const owned = reading.closed() ? createQuestionsReading(source) : reading;
+    if (owned !== reading) setLifetime({ source, reading: owned });
     owned.start();
     return () => owned.dispose();
-  }, [nodes]);
+  }, [source]);
   return reading;
 }
 

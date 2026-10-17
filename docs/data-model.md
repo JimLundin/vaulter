@@ -225,4 +225,14 @@ regeneration of published history or destructive in-place conversion is part of 
 The application migration is complete when all production producers and readers use EAV, retained
 Node evidence still resolves, the bridges are unnecessary, and focused persistence/recovery checks
 plus the implementation commit's full CI verification pass. History adoption and historical-address
-export/resolution are implemented; source-vault conversion, qualified structured knowledge, Questions and independent voice migration remain.
+export/resolution are implemented; source-vault conversion, qualified structured knowledge and independent voice migration remain.
+
+## Native Questions
+
+[ADR 0013](adr/0013-native-eav-questions.md) adopts `questions.question`, `questions.context` and
+`questions.answer` in the application EAV registry. Context records retain historical subject,
+source, knowledge and review addresses without duplicating their owners' identities. A person’s
+Answer records the exact Question version and changes its state atomically. Original response
+text and author remain readable in EAV history after subsequent edits or removal. The
+Questions view observes this collection in both Questions and subject pages. Questions uses EAV
+exclusively for reading, writing, evidence and attribution.

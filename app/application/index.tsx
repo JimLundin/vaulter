@@ -1,3 +1,4 @@
+import { applicationQuestionCollection, applicationQuestionAnswers } from './composition.ts';
 import { chatRoute, conversationRoute, historyRoute, settingsRoute } from './routes.ts';
 import {
   CalendarPage,
@@ -9,7 +10,6 @@ import {
 } from '@/calendar/index.ts';
 import {
   applicationNodes,
-  applicationQuestions,
   applicationHistory,
   applicationChatOptions,
   applicationSources,
@@ -17,7 +17,6 @@ import {
   applicationWiki,
   applicationCalendar,
   applicationSubjectCalendar,
-  agentContextReading,
   toolPresentations,
 } from './composition.ts';
 // Application shell and module views. Record composition lives in composition.ts.
@@ -89,7 +88,6 @@ import { HistoryDrawer } from '@/vault/transactions/history/index.tsx';
 import { Wiki, type ForeignRecordRenderer } from '@/workflows/wiki/index.tsx';
 import { wikiRoute, pageRoute } from '@/workflows/wiki/routes.ts';
 import { useEavWikiReading } from '@/workflows/wiki/data/reading.ts';
-import { describeWikiTarget } from '@/workflows/wiki/sources.ts';
 import { recordText } from '@/workflows/wiki/text.ts';
 import { GraphPage } from '@/workflows/graph/GraphPage.tsx';
 import { graphRoute, graphSubjectRoute } from '@/workflows/graph/routes.ts';
@@ -274,7 +272,11 @@ export function OpenApplication({
   const onGraph = !!graphRoute.match(route.path) || !!graphSubject;
   const graph = useGraphExplorer(onGraph ? nodes : null, applicationGraphDescription);
   const graphState = useGraph(graph);
-  const questions = useQuestionsReading(onWiki || onQuestions ? nodes : null);
+  const nativeQuestions = useMemo(
+    () => (session.eav ? applicationQuestionCollection(session.eav) : null),
+    [session.eav],
+  );
+  const questions = useQuestionsReading(onWiki || onQuestions ? nativeQuestions : null);
   const questionState = useQuestions(questions);
   // Session identity survives credential reconnects; independent supplied stores get a new owner.
   const chatScope = useRef<{ nodes: TransactionStore | null; key: object }>({
@@ -298,17 +300,15 @@ export function OpenApplication({
   admission.current = writeAdmission;
   const answers = useQuestionAnswers({
     session: chatSession,
-    nodes,
-    ownership: nodes ? applicationQuestions(nodes) : undefined,
-    recordedBy: identities.user,
-    admission: () => admission.current,
+    actions: session.eav
+      ? applicationQuestionAnswers(session.eav, identities, () =>
+          answers.closed() ? 'This Questions session is closed.' : admission.current,
+        )
+      : null,
+    admission: () => (answers.closed() ? 'This Questions session is closed.' : admission.current),
   });
   const answerAvailability = questionAnswerAvailability(questionState, writeAdmission);
-  const descriptions = questionDescriptions(questionState.view, {
-    text: agentContextReading.text,
-    describe: (node, view) =>
-      applicationSources.describe(node, view) ?? describeWikiTarget(node, view),
-  });
+  const descriptions = questionDescriptions();
   const renderWikiRecord: ForeignRecordRenderer = (record) =>
     renderQuestionRecord(record, questionState, {
       ...descriptions,
@@ -756,6 +756,26 @@ export function OpenApplication({
             node={wikiPage}
             error={wikiError}
             renderRecord={renderWikiRecord}
+            renderRelatedRecords={(page) => {
+              const related =
+                questionState.questions?.filter((question) =>
+                  question.subjects.some(
+                    (subject) => subject.href === `#/wiki/${encodeURIComponent(page.id)}/`,
+                  ),
+                ) ?? [];
+              return related.length ? (
+                <Stack gap="lg">
+                  {related.map((question) =>
+                    renderWikiRecord({
+                      id: question.id,
+                      data: question.data,
+                      children: [],
+                      evidence: [],
+                    }),
+                  )}
+                </Stack>
+              ) : null;
+            }}
             renderTimeline={() =>
               subjectCalendar &&
               subjectCalendar.page === wikiPage &&

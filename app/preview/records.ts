@@ -65,12 +65,6 @@ export async function seedPreviewRecords(nodes: NodeStore): Promise<void> {
         ),
         connection: { source: { node: 'preview:page:0' }, target: { node: 'preview:creative' } },
       },
-      create(
-        'preview:question',
-        { kind: 'question', text: 'Which tools should stay?' },
-        'preview:page:0',
-        'd',
-      ),
     ];
     const before = current.get('preview:run:0')!;
     changes.push({
@@ -181,70 +175,7 @@ export async function seedPreviewRecords(nodes: NodeStore): Promise<void> {
       ),
     );
   }
-  if (!history.some((transaction) => transaction.id === 'preview:question-proposals')) {
-    const view = await nodes.snapshot();
-    const question = view.get('preview:question')!;
-    const transaction = 'preview:question-proposals';
-    // Prewritten fictional generation output exercises the production suggestion contract.
-    await nodes.commit(
-      request(transaction, [
-        create('preview:tool-source', {
-          kind: 'resource',
-          title: 'Studio tools conversation',
-          url: 'https://example.invalid/studio-tools',
-        }),
-        create(
-          'preview:tool-source-text',
-          {
-            kind: 'run',
-            text: 'I use chisels and a hand plane most mornings. The power tools are for occasional projects, and there is not room to leave everything out.',
-          },
-          'preview:tool-source',
-        ),
-        create('preview:tool-knowledge', { kind: 'paragraph' }, 'preview:page:0', 'c'),
-        create(
-          'preview:tool-knowledge-text',
-          { kind: 'run', text: 'Leave the workbench clear at the end of each session.' },
-          'preview:tool-knowledge',
-        ),
-        {
-          node: question.key.node,
-          expected: question.key.transaction,
-          data: {
-            ...question.data,
-            suggestions: [
-              {
-                title: 'Keep hand tools close',
-                text: 'Keep the chisels and hand plane within reach. Store the power tools until they are needed, and clear the workbench after each session.',
-                reason:
-                  'The source describes daily hand-tool work and occasional power-tool use; the studio notes ask for a clear bench.',
-              },
-              {
-                title: 'Store everything between sessions',
-                text: 'Store every tool after each session, with the chisels and hand plane together in an easy-to-reach drawer.',
-                reason:
-                  'The source says there is not room to leave everything out; the existing notes prioritise a clear workbench.',
-              },
-            ],
-          },
-          placement: question.placement,
-          connection: question.connection,
-        },
-        ...[
-          ['preview:question-source', 'generated-from', 'preview:tool-source-text'],
-          ['preview:question-knowledge', 'informed-by', 'preview:tool-knowledge-text'],
-        ].map(
-          ([node, predicate, target], index): NodeChange => ({
-            ...create(node, { kind: 'relationship', predicate }, question.key.node, String(index)),
-            connection: {
-              source: { node: question.key.node, transaction },
-              target: { node: target, transaction },
-            },
-          }),
-        ),
-      ]),
-    );
-  }
+
   if (!(await nodes.snapshot()).get('preview:graph-predicate')) {
     await nodes.commit(
       request('preview:graph-foundation', [

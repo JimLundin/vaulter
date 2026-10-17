@@ -114,6 +114,7 @@ export function importProblem(from: string, to: string): string | null {
     target &&
     !compositionEntry(from) &&
     !applicationTest(from) &&
+    !(target === 'questions' && from === 'app/preview/question-records.ts') &&
     // Explicit preview-owned adapters consume public module reading and record UI interfaces.
     !(
       target === 'wiki' &&
@@ -229,8 +230,8 @@ export function checkLayout(root: string): string[] {
               `${from} accesses a raw node session; use the Application-supplied TransactionStore`,
             );
           if (
-            owner === 'app/workflows/questions/actions.ts' &&
-            owned.name === 'createQuestionOwnership' &&
+            owner === 'app/workflows/questions/data/operations.ts' &&
+            owned.name === 'questionActions' &&
             !(
               from === 'app/application/composition.ts' ||
               workflow(from) === 'questions' ||
