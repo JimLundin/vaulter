@@ -148,6 +148,8 @@ export interface TextProps extends Unstyled<ComponentProps<'p'>> {
   weight?: 'normal' | 'medium' | 'semibold';
   mono?: boolean;
   truncate?: boolean;
+  /** Bound preview prose within a fitted workspace; full text remains with its record. */
+  lines?: 3 | 4;
   as?: 'p' | 'span' | 'div';
   children?: ReactNode;
 }
@@ -159,6 +161,7 @@ export function Text({
   weight,
   mono,
   truncate,
+  lines,
   align: textAlign,
   preserve,
   ...props
@@ -170,6 +173,8 @@ export function Text({
         text({ size, tone, weight, mono, truncate }),
         textAlign === 'end' && 'text-right',
         preserve && 'whitespace-pre-wrap break-words',
+        lines === 3 && 'line-clamp-3',
+        lines === 4 && 'line-clamp-4',
       )}
     />
   );

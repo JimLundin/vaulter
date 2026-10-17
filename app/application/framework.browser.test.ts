@@ -167,7 +167,7 @@ test('feature pages center their reading or directory column', async ({ page }) 
         })
         .toBeLessThanOrEqual(1);
       const child = (await column.boundingBox())!;
-      expect(child.width).toBeLessThanOrEqual(path.includes('/wiki/') ? 1200 : 768);
+      expect(child.width).toBeLessThanOrEqual(768);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
         true,
       );

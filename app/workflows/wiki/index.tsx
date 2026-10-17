@@ -2,13 +2,17 @@ import { useState, type ReactNode } from 'react';
 import {
   Badge,
   Button,
-  Columns,
   FeaturePage,
   Heading,
   Input,
   Link,
   Loader,
-  ScrollArea,
+  ReadingColumn,
+  PageHeader,
+  PageControls,
+  Row,
+  Icon,
+  SelectionRow,
   Select,
   SplitView,
   Stack,
@@ -44,6 +48,7 @@ export function Wiki({
   const [filter, setFilter] = useState<WikiClassification>();
   const [sort, setSort] = useState('title');
   const [directoryOpen, setDirectoryOpen] = useState(false);
+  const [spotlight, setSpotlight] = useState(0);
   const openDirectory = (
     <Button
       variant="ghost"
@@ -157,23 +162,26 @@ export function Wiki({
         <Text size="xs" tone="muted" role="status">
           {matching.length} of {pages.length} pages
         </Text>
-        <Stack gap="lg">
+        <Stack gap="sm">
           {matching.map((entry) => (
-            <Surface key={entry.id} variant="subtle">
-              <Link
-                plain={true}
-                href={`#${pageRoute.href({ node: entry.id })}`}
-                onClick={() => openPage(entry)}
-                aria-current={entry.id === node ? 'page' : undefined}
-              >
-                {entry.title}
-              </Link>
-              {!!entry.summary && (
-                <Text size="xs" tone="muted">
-                  {entry.summary}
+            <SelectionRow
+              key={entry.id}
+              appearance="card"
+              selected={entry.id === node}
+              aria-label={entry.title}
+              onSelect={() => openPage(entry)}
+            >
+              <Stack gap="xs">
+                <Text as="span" size="sm" weight="medium">
+                  {entry.title}
                 </Text>
-              )}
-            </Surface>
+                {!!entry.summary && (
+                  <Text as="span" size="xs" tone="muted">
+                    {entry.summary}
+                  </Text>
+                )}
+              </Stack>
+            </SelectionRow>
           ))}
         </Stack>
         {!matching.length && <Text>No pages found.</Text>}
@@ -185,80 +193,115 @@ export function Wiki({
       </Stack>
     </SupportingPane>
   );
+  const focused = curated.featured[spotlight % Math.max(1, curated.featured.length)];
+  const passage = curated.passages.find((entry) => entry.page.id === focused?.page.id);
+  const move = (direction: number) =>
+    setSpotlight(
+      (current) =>
+        (current + direction + curated.featured.length) % Math.max(1, curated.featured.length),
+    );
+  const previous = (
+    <Button
+      variant="ghost"
+      iconOnly={true}
+      aria-label="Previous featured page"
+      disabled={curated.featured.length < 2}
+      onClick={() => move(-1)}
+    >
+      <Icon name="chevron-left" />
+    </Button>
+  );
+  const next = (
+    <Button
+      variant="ghost"
+      iconOnly={true}
+      aria-label="Next featured page"
+      disabled={curated.featured.length < 2}
+      onClick={() => move(1)}
+    >
+      <Icon name="chevron-right" />
+    </Button>
+  );
   const frontPage = (
-    <ScrollArea grow={true}>
-      <FeaturePage title="Wiki" actions={openDirectory}>
-        <Stack gap="xl" inset="page" block="md">
-          <Stack gap="sm">
-            <Text size="sm" tone="muted">
-              Your wiki
-            </Text>
-            <Heading level={2} serif={true} size="display">
+    <ReadingColumn label="Wiki home">
+      <PageHeader title="Wiki" actions={openDirectory} />
+      <ReadingColumn page={true}>
+        <Stack grow={true} inset="page" block="md" gap="lg">
+          <Stack gap="xs">
+            <Heading level={2} serif={true} size="title">
               A place to begin.
             </Heading>
-            <Text size="lg" tone="muted">
-              {curated.featured.length
-                ? `From ${curated.featured.map((entry) => entry.page.title).join(', ')}, explore the knowledge taking shape in your vault.`
-                : 'A home for the knowledge taking shape in your vault.'}
+            <Text size="sm" tone="muted">
+              Knowledge taking shape in your vault.
             </Text>
             <Badge variant="secondary">
               {pages.length} {pages.length === 1 ? 'page' : 'pages'}
             </Badge>
           </Stack>
-          {!!curated.featured.length && (
-            <Stack as="section" aria-label="In focus" gap="lg">
-              <Heading level={2}>In focus</Heading>
-              <Text size="sm" tone="muted">
-                Starting points selected for their connections, source material and depth.
+          {focused ? (
+            <Stack grow={true} justify="center" gap="lg" as="section" aria-label="In focus">
+              <Text size="xs" tone="muted">
+                In focus · {(spotlight % curated.featured.length) + 1} of {curated.featured.length}
               </Text>
-              <Columns count={2} gap="lg">
-                {curated.featured.map(({ page: entry, connections }) => (
-                  <Surface key={entry.id} variant="subtle">
-                    <Heading level={3}>{pageLink(entry)}</Heading>
-                    <Text tone="muted">
-                      {entry.summary || 'Follow this page into the collection.'}
-                    </Text>
-                    {!!connections && (
-                      <Text size="xs" tone="muted">
-                        Linked from {connections} {connections === 1 ? 'page' : 'pages'}
-                      </Text>
-                    )}
-                  </Surface>
-                ))}
-              </Columns>
-            </Stack>
-          )}
-          {!!curated.passages.length && (
-            <Stack as="section" aria-label="From the pages" gap="lg">
-              <Heading level={2}>From the pages</Heading>
-              {curated.passages.map(({ page: entry, excerpt }) => (
-                <Surface key={entry.id} variant="grouped">
-                  <Text size="lg" preserve={true}>
-                    {excerpt}
+              <Heading level={2} serif={true} size="title">
+                {pageLink(focused.page)}
+              </Heading>
+              {!!focused.page.summary && (
+                <Text tone="muted" lines={3}>
+                  {focused.page.summary}
+                </Text>
+              )}
+              {!!focused.connections && (
+                <Text size="xs" tone="muted">
+                  Linked from {focused.connections} {focused.connections === 1 ? 'page' : 'pages'}
+                </Text>
+              )}
+              {!!passage && (
+                <Surface variant="grouped" as="section" aria-label="From the pages">
+                  <Text size="sm" tone="muted">
+                    From the page
                   </Text>
-                  <Text size="sm">From {pageLink(entry)}</Text>
+                  <Text lines={4}>{passage.excerpt}</Text>
                 </Surface>
-              ))}
+              )}
+              <Text size="xs" tone="muted">
+                Open the page to explore its context and sources.
+              </Text>
             </Stack>
-          )}
-          {!pages.length && (
-            <Surface variant="subtle">
+          ) : (
+            <Stack grow={true} justify="center" gap="sm">
               <Heading level={2}>Your wiki starts here</Heading>
               <Text tone="muted">
-                Share something with your agent and ask it to create a wiki page. As your collection
-                grows, its pages and ideas will find a home here.
+                Share something with your agent and ask it to create a wiki page.
               </Text>
-            </Surface>
+            </Stack>
           )}
-          {!!pages.length && (
-            <Text size="sm" tone="muted">
-              These excerpts come from your wiki pages. Open a page to read its context and inspect
-              the sources behind it.
-            </Text>
+          {!!focused && (
+            <Row justify="between" visible="expanded">
+              <Text size="xs" tone="muted">
+                Selected from page connections, sources and depth.
+              </Text>
+              <Row>
+                {previous}
+                {next}
+              </Row>
+            </Row>
+          )}
+          {!!focused && (
+            <PageControls
+              placement="rail"
+              bottomActions={
+                <>
+                  {previous}
+                  <Text size="sm">In focus</Text>
+                  {next}
+                </>
+              }
+            />
           )}
         </Stack>
-      </FeaturePage>
-    </ScrollArea>
+      </ReadingColumn>
+    </ReadingColumn>
   );
   return (
     <SplitView

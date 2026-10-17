@@ -205,7 +205,7 @@ test('production opens real Wiki pages and exact evidence alongside persistent C
     await page.getByRole('button', { name: 'Pages', exact: true }).click();
   await page
     .getByRole('region', { name: 'Page directory' })
-    .getByRole('link', { name: 'Garden studio', exact: true })
+    .getByRole('button', { name: 'Garden studio', exact: true })
     .click();
   await expect(page.getByRole('heading', { name: 'Garden studio', exact: true })).toBeVisible();
   await expect(page.locator('[data-page-header] h1')).toHaveText('Wiki');
@@ -274,7 +274,7 @@ test('production opens real Wiki pages and exact evidence alongside persistent C
     await page.getByRole('button', { name: 'Pages', exact: true }).click();
   await page
     .getByRole('region', { name: 'Page directory' })
-    .getByRole('link', { name: 'Garden studio', exact: true })
+    .getByRole('button', { name: 'Garden studio', exact: true })
     .click();
   await page.getByRole('button', { name: /evidence for keep/i }).click();
   await evidence.getByRole('link', { name: 'Studio plans' }).click();

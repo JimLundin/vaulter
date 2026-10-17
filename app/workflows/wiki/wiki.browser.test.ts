@@ -86,7 +86,7 @@ test('fictional Wiki navigation returns to the local index and opens the selecte
   await expect(example.getByRole('textbox', { name: 'Find pages' })).toBeVisible();
   await example
     .getByRole('region', { name: 'Page directory' })
-    .getByRole('link', { name: 'Slow mornings', exact: true })
+    .getByRole('button', { name: 'Slow mornings', exact: true })
     .click();
   await expect(example.getByRole('heading', { name: 'Slow mornings', exact: true })).toBeVisible();
 });

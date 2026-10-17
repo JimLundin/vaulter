@@ -23,7 +23,10 @@ function Typography() {
       <K.Heading level={1}>A page title</K.Heading>
       <K.Heading level={2}>A section heading</K.Heading>
       <K.Heading level={3}>A group heading</K.Heading>
-      <K.Text>Body copy stays readable at every size.</K.Text>
+      <K.Text lines={3}>
+        Body copy stays readable at every size. Preview prose can be bounded within a fitted
+        workspace.
+      </K.Text>
       <K.Text size="sm" tone="muted">
         Secondary text
       </K.Text>

@@ -15,6 +15,7 @@ export function SelectionRow({
   timestamp,
   marker = 'none',
   ordinal,
+  'aria-label': accessibleLabel,
 }: {
   selected: boolean;
   disabled?: boolean;
@@ -26,10 +27,12 @@ export function SelectionRow({
   timestamp?: string;
   marker?: 'none' | 'number' | 'badge';
   ordinal?: number;
+  'aria-label'?: string;
 }) {
   return (
     <Button
       type="button"
+      aria-label={accessibleLabel}
       variant={appearance === 'card' || selected ? 'outline' : 'ghost'}
       disabled={disabled}
       aria-current={selected ? 'true' : undefined}
