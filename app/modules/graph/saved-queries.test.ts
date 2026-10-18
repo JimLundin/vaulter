@@ -162,6 +162,14 @@ test('query embed derives ordered results at the selected snapshot rather than c
       }),
     );
   const oldCandidates = await candidates();
+  const tiedCandidates = oldCandidates
+    .map((candidate) => ({ ...candidate, title: 'Same' }))
+    .reverse();
+  expect(
+    (await readQueryEmbed(db, query, tiedCandidates, { snapshot: before }))?.results.map(
+      (candidate) => candidate.entity,
+    ),
+  ).toEqual(tiedCandidates.map((candidate) => candidate.entity));
   const pinned = await readQueryEmbed(db, query, oldCandidates, { snapshot: before });
   expect(pinned?.resultKind).toBe('historical-derived');
   expect(pinned?.results.map((item) => item.title)).toEqual(['Alpha', 'Zulu']);

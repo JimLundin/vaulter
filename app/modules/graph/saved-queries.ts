@@ -169,6 +169,9 @@ export async function readQueryEmbed<Candidate extends SavedQueryCandidate>(
     }),
   );
   const graph = await readGraph(db, snapshot);
+  const originalOrder = new Map(
+    candidates.map((candidate, position) => [candidate.entity, position]),
+  );
   return {
     query: saved,
     address: await db.history.reference(snapshot, saved),
@@ -188,7 +191,9 @@ export async function readQueryEmbed<Candidate extends SavedQueryCandidate>(
       .sort((a, b) => {
         const first = criteria.sort === 'created' ? (a.created ?? '') : a.title;
         const second = criteria.sort === 'created' ? (b.created ?? '') : b.title;
-        return first.localeCompare(second) || a.entity.localeCompare(b.entity);
+        return (
+          first.localeCompare(second) || originalOrder.get(a.entity)! - originalOrder.get(b.entity)!
+        );
       }),
   };
 }

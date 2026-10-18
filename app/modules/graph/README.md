@@ -55,3 +55,5 @@ type/tags and that evidence in typed attributes, rather than leaving evaluation 
 strings. The provider implements the source's interpretation: original type uses the first ordered
 type child's connected Term key, otherwise `page`; tags use each tag child's connected key, then
 its recorded label, then empty text. A type label alone never establishes an effective type.
+Equal sort values retain the supplied candidate order, matching stable source evaluation; owner
+providers must therefore preserve the rendered cutoff's candidate order rather than sort identities.
