@@ -7,12 +7,13 @@ capability separately from conversion of the private source inventory. **The new
 migration is not yet verified.** The earlier one-time test migration is excluded.
 
 Implementation commits below belong to `feedback/vault-eav-migration-20261018`.
-Focused behavior fixtures are linked as evidence of the selected contracts; they
-do not establish exhaustive source conversion or a passing full CI suite. Combined CI for checkpoint `22ae8ca` failed; fixes landed in `6839b20`.
-Its follow-up CI passed Behavior, Lint/types and Architecture at inspection; the
-final integration requires its own full commit-specific CI result.
-Final branch verification and exact pushed-commit CI status must be supplied at
-delivery. No passing full-suite verification is claimed here.
+The complete implementation at `8550da62eebed5bf27106a0af6bdbf0ac2eeaaa3`
+passed the full Deploy workflow, including aggregate `test`, production checks,
+all four browser shards, architecture, lint and types:
+[CI evidence](https://github.com/JimLundin/vaulter/actions/runs/39128729282).
+This establishes application verification, not exhaustive private source conversion.
+The later documentation-only handoff update records this result; merge and
+production deployment must be verified against their own exact commit.
 
 | Request | Status | Agreed contract / implemented basis | Owner and public interface | Integrated implementation commits | Verification / remaining gaps |
 | --- | --- | --- | --- | --- | --- |
@@ -42,8 +43,8 @@ delivery. No passing full-suite verification is claimed here.
 - Calendar time-value coverage for source minute/second precision, original
   expression/offset/timezone, explicit null and unknown timing. Admission time is
   not occurrence, completion or capture time.
-- Final commit-specific CI evidence for the combined branch. Root integration of
-  redirects, retained-state references and embed insertion is complete. Merge
-  interaction and direct route adapters are beyond the current redirect basis.
+- Root integration and full implementation CI are complete. Merge interaction
+  and direct route adapters are beyond the current redirect basis. Verify the
+  final merged main commit and its deployment separately.
 - Exhaustive independent reopening and source-backed verification of the new
   migration. No conversion is certified by the application's owner fixtures alone.
