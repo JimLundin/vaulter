@@ -19,6 +19,9 @@ import { readDecisions } from '@/modules/decisions/index.ts';
 import { DecisionList } from '@/modules/decisions/presentation/index.ts';
 import { readObservations } from '@/modules/observations/index.ts';
 import { EmbeddedObservation } from '@/modules/observations/presentation/index.ts';
+import { readQueryEmbed, readQuerySelections, type SavedQueryRef } from '@/modules/graph/index.ts';
+import { readChronology, type ChronologyRef } from '@/modules/calendar/index.ts';
+import { Stack } from '@/shared/ui/kit/index.ts';
 import { Text } from '@/shared/ui/kit/index.ts';
 import type { applicationDatabase } from './database.ts';
 import { readActorBinding } from '@/modules/actors/index.ts';
@@ -177,7 +180,89 @@ export async function readEmbeddedRecord(
       : undefined;
   const { entity, snapshot } = current ?? (await resolveEmbed(database, embed, cutoff));
   const target = current?.canonical ?? embed.target;
-  if (embed.target.type === 'questions.question') {
+  if (embed.target.type === 'graph.query') {
+    const query = await readQueryEmbed(
+      database,
+      entity as SavedQueryRef,
+      async (selected) => {
+        const pages = await database.at(selected).entities.wikiPages.query({
+          where: { available: { eq: true } },
+          select: { title: true, createdAt: true, available: true },
+          limit: null,
+        });
+        return Promise.all(
+          pages.map(async (page) => {
+            const address = await database.history.reference(selected, page);
+            return {
+              entity: address.entity,
+              address,
+              title: page.title,
+              created: page.createdAt.toISOString(),
+              available: page.available,
+            };
+          }),
+        );
+      },
+      { snapshot },
+    );
+    if (query)
+      return createElement(
+        Stack,
+        {},
+        ...query.results.map((record) => createElement(Text, { key: record.entity }, record.title)),
+      );
+  } else if (embed.target.type === 'graph.querySelection') {
+    const records = await readQuerySelections(database, { snapshot });
+    const selection = records.find((record) => sameEntity(record, entity));
+    if (selection)
+      return createElement(
+        Stack,
+        {},
+        ...selection.members.map((member) =>
+          createElement(
+            Text,
+            { key: member.position },
+            String(member.values?.title ?? 'Unavailable page'),
+          ),
+        ),
+      );
+  } else if (embed.target.type === 'calendar.chronology') {
+    const chronology = await readChronology(database, entity as ChronologyRef, { snapshot });
+    if (chronology)
+      return createElement(
+        Stack,
+        {},
+        ...(chronology.label === undefined
+          ? []
+          : [createElement(Text, { key: 'label' }, chronology.label)]),
+        ...chronology.items.map((item) =>
+          createElement(
+            Text,
+            { key: item.order },
+            String(
+              item.recordedChild?.values.title ??
+                item.recordedChild?.values.text ??
+                item.recordedChild?.values.label ??
+                item.recordedChild?.type ??
+                'Unavailable record',
+            ),
+          ),
+        ),
+        ...chronology.closure.map((item) =>
+          createElement(
+            Text,
+            { key: item.order },
+            String(
+              item.recordedChild?.values.title ??
+                item.recordedChild?.values.text ??
+                item.recordedChild?.values.label ??
+                item.recordedChild?.type ??
+                'Unavailable record',
+            ),
+          ),
+        ),
+      );
+  } else if (embed.target.type === 'questions.question') {
     const questions = await readEavQuestions(database, snapshot);
     const question = questions.find((record) => record.evidence.entity === target.entity);
     if (question) return createElement(QuestionItem, { question });
