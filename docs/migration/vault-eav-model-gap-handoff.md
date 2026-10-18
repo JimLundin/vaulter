@@ -12,7 +12,7 @@ payloads, names and source text remain in the private Vault checkout.
 | [Sources](../../app/modules/sources/index.ts) | insertSourceAssociation / updateSourceAssociation in a caller transaction; createSourceAssociation / reviseSourceAssociation wrappers; readSourceAssociations / readHistoricalSourceAssociation | `edb7391`: topic/place/suppliedContext roles, optional endpoint states and labels, directed/unrecorded direction, independent placement/order, provenance and availability. [Reopen fixtures](../../app/modules/sources/associations.test.ts) retain missing knowledge, deleted endpoint selections and clarification history. |
 | [Graph](../../app/modules/graph/index.ts) | savedQueryAdmission; readQueries / readQueryEmbed; querySelectionAdmission / readQuerySelections | `ab35de3`, `9778045`, `6459421`: omitted sort retained, snapshot evaluation, exact source taxonomy evidence and immutable ordered migration-evaluation selections. [Definition fixtures](../../app/modules/graph/saved-queries.test.ts) and [selection fixtures](../../app/modules/graph/query-selections.test.ts) separate definition, derived results and captured evidence. |
 | [Calendar](../../app/modules/calendar/index.ts) | chronologyAdmission; readChronologies / readChronologyClosure / readChronology | `c4f6b6b`: optional labels, civil contexts, separate yearly recurrence, collections and exact ordered cross-owner placements. [Closure fixtures](../../app/modules/calendar/chronology.test.ts) preserve child-only revisions, deleted selections and final fields without fabricating Events or deleting descendants. |
-| [Application embed reading](../../app/application/composition/embeds.ts) | Existing owner dispatch for saved Query, QuerySelection and Calendar chronology | `d4238bc`: readers use selected live/pinned/host cutoff through the existing embedding seam. [Dispatch fixture](../../app/application/chronology-embeds.test.ts). No new collection authoring UI or migration source parser is introduced. |
+| [Application embed reading](../../app/application/composition/embeds.ts) | Existing owner dispatch for saved Query, QuerySelection and Calendar chronology | `d4238bc`: readers use selected live/pinned/host cutoff through the existing embedding seam. [Dispatch fixture](../../app/application/migration-collections.test.tsx). No new collection authoring UI or migration source parser is introduced. |
 
 Sources uses `direction: unrecorded` for the audit's unknown-direction cases.
 Placement never establishes direction. Original dialogue endpoints select preserved
@@ -38,7 +38,7 @@ exact owner timestamp strings and explicit nulls; admission time is not source t
 
 ## Retained contribution metadata
 
-Conversation owner commit `f0be87f` adds `appendRetainedContribution` in a caller
+Conversation owner commit `7f006e8` adds `appendRetainedContribution` in a caller
 transaction, with current/historical metadata exposed through `projectedExchange`
 and Conversation reading. Exact user input JSON, agent model, token counts,
 source timing/precision and provenance survive independently of live execution.
@@ -46,8 +46,34 @@ Omission and explicit null remain distinct. Supplied model/usage is not evidence
 of an observed provider request and creates no Agent run or ModelStep. Structural
 `suppliedContext` endpoint references remain typed Sources associations.
 [Metadata fixtures](../../app/modules/conversation/retained-contributions.test.ts)
-cover revisions, reopen, native input, nulls and invalid usage. Integration of this
-owner commit into the follow-up branch is pending.
+cover revisions, reopen, native input, nulls and invalid usage. This owner commit is integrated into the follow-up branch.
+
+## Decision civil-date precision
+
+The source audit found 29 of 144 Decision states with year or month precision.
+Decisions owner commit `0ea01f4` accepts and validates exact `YYYY`, `YYYY-MM`
+and `YYYY-MM-DD` through the existing `createDecision`/`reviseDecision` APIs.
+`readDecisions` returns the original precision; no padded day or occurrence time
+is invented. No retained schema or UI change is needed.
+[Decision fixtures](../../app/modules/decisions/decisions.test.ts) verify real
+civil values and historical year→month→day revisions after durable reopening.
+
+## Recorded external Agent runs
+
+The Agent owner adds explicit `recordAgentRun` transactional admission and
+`reviseRecordedAgentRun` for historical external activity. A recorded agent Actor
+provides attribution without asserting an editable Agent configuration. These
+records retain author/provenance, supplied configuration and timing, already
+supplied ordered ContextInputs, and known/unknown accepted tool versions. Settings,
+usage, output, cost and error JSON preserve explicit nulls. Instructions are not
+prepended; elapsed timing and ModelSteps are not invented.
+
+`AgentRun.agent` is optional for external records; live `startAgentRun` still
+requires configured Agent, and execution adapters reject Actor-only external runs.
+[Retained run fixtures](../../app/modules/agent/retained-runs.test.ts) verify
+independent reopen, ordering, rejection and earlier configured-run compatibility.
+Integrated implementation commit: `47db7cd`. Live finish/tool/ModelStep admission
+also rejects retained external runs. Final integration CI remains pending.
 
 ## Remaining private verification
 
