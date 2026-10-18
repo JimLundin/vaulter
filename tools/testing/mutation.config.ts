@@ -11,10 +11,7 @@ export default defineConfig({
         extends: true,
         test: {
           name: 'behavior',
-          include: [
-            'app/application/store/*.test.ts',
-            'app/application/persistence/journal/*.test.ts',
-          ],
+          include: ['app/core/store/*.test.ts', 'app/core/persistence/journal/*.test.ts'],
           maxWorkers: 1,
         },
       },

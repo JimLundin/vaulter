@@ -41,7 +41,7 @@ Keep experiments in an explicit comparison entry or prototype branch. Reuse publ
 
 Keep fixtures equivalent across alternatives. The picker owns selection; changing devices retains
 the active content, while changing variants mounts the chosen content afresh. See the
-[kit preview interface](../../app/ui/kit/README.md#live-comparisons) for the controls. Preserve the
+[kit preview interface](../../app/shared/ui/kit/README.md#live-comparisons) for the controls. Preserve the
 comparison and verdict separately after selection, and return the default preview to current Application
 behavior without variation labels or an inactive picker.
 

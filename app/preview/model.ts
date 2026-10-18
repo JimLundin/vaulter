@@ -1,4 +1,4 @@
-import type { HistoricalReference } from '@/application/store/index.ts';
+import type { HistoricalReference } from '@/core/store/index.ts';
 // A local model adapter exercises the real conversation and tools without keys or network requests.
 import type { LanguageModel } from 'ai';
 

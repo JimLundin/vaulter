@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Button, Stack, Text } from '@/ui/kit/index.ts';
-import { openDatabase } from '@/application/store/index.ts';
-import { wikiSchema } from '@/wiki/records.ts';
-import { useEavWikiReading, type EavWikiInput } from '@/wiki/reading.ts';
-import { Wiki } from '@/wiki/presentation/index.tsx';
-import { pageRoute } from '@/wiki/routes.ts';
+import { Button, Stack, Text } from '@/shared/ui/kit/index.ts';
+import { openDatabase } from '@/core/store/index.ts';
+import { wikiSchema } from '@/modules/wiki/records.ts';
+import { useEavWikiReading, type EavWikiInput } from '@/modules/wiki/reading.ts';
+import { Wiki } from '@/modules/wiki/presentation/index.tsx';
+import { pageRoute } from '@/modules/wiki/routes.ts';
 import { seedEavWiki } from './wiki-records.ts';
 
 export function WikiExample({ controls = false }: { controls?: boolean }) {

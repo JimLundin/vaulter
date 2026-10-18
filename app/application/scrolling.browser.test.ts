@@ -1,10 +1,13 @@
-import { openAppAction, expectAppActionFocus } from '@/ui/kit/navigation.browser.test-support.ts';
+import {
+  openAppAction,
+  expectAppActionFocus,
+} from '@/shared/ui/kit/navigation.browser.test-support.ts';
 import { expect, test } from '@playwright/test';
 
 test('long kit samples have a visible scrollbar without hovering', { tag: '@phone' }, async ({
   page,
 }) => {
-  await page.goto('/ui/kit/');
+  await page.goto('/shared/ui/kit/');
   await page.getByRole('searchbox', { name: 'Find a component' }).fill('Forms & fields');
   const sample = page.locator('[data-kit-comparison="fields"] [data-kit-preview="desktop"]');
   await sample.scrollIntoViewIfNeeded();
@@ -20,7 +23,7 @@ test('long kit samples have a visible scrollbar without hovering', { tag: '@phon
 });
 
 test('a full-height specimen does not create a tiny outer overflow', async ({ page }) => {
-  await page.goto('/ui/kit/');
+  await page.goto('/shared/ui/kit/');
   const sample = page.locator('[data-kit-comparison="navigation"] [data-kit-preview="desktop"]');
   const content = sample.locator('.kit-specimen-content > [data-slot="scroll-area-viewport"]');
   await expect(content).toBeVisible();
@@ -30,7 +33,7 @@ test('a full-height specimen does not create a tiny outer overflow', async ({ pa
 test('paired canvases and inner scrolling samples have usable tracks and no extra scroll owner', {
   tag: '@phone',
 }, async ({ page }) => {
-  await page.goto('/ui/kit/');
+  await page.goto('/shared/ui/kit/');
   const filter = page.getByRole('searchbox', { name: 'Find a component' });
   await filter.fill('Scroll area');
   const family = page.locator('[data-kit-comparison="scrolling"]');
@@ -88,7 +91,7 @@ test('a short settings drawer scrolls its body while the close control stays rea
 test('the shared feed follows appended content and lets the reader scroll back', async ({
   page,
 }) => {
-  await page.goto('/ui/kit/');
+  await page.goto('/shared/ui/kit/');
   await page
     .getByRole('searchbox', { name: 'Find a component' })
     .fill('Following scroll primitive');

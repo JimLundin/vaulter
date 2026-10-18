@@ -1,6 +1,9 @@
-import { openAppAction, expectAppActionFocus } from '@/ui/kit/navigation.browser.test-support.ts';
+import {
+  openAppAction,
+  expectAppActionFocus,
+} from '@/shared/ui/kit/navigation.browser.test-support.ts';
 import { expect, test } from '@playwright/test';
-import { setPreviewMobile } from '@/ui/kit/preview.browser.test-support.ts';
+import { setPreviewMobile } from '@/shared/ui/kit/preview.browser.test-support.ts';
 // biome-ignore lint/correctness/noUnresolvedImports: Playwright re-exports these browser types.
 import type { Locator, Page } from '@playwright/test';
 
@@ -28,7 +31,7 @@ test('the compact supporting panel fills the available height and dismisses with
   tag: ['@phone', '@touch'],
 }, async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/ui/kit/tests/browser.html');
+  await page.goto('/shared/ui/kit/tests/browser.html');
   await openAppAction(page, 'Open agent');
   const panel = page.getByRole('dialog', { name: 'Chat', exact: true });
   await expect(panel).toBeVisible();

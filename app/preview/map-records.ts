@@ -1,6 +1,6 @@
-import { applicationDatabase } from '@/application/composition.ts';
-import { createCoordinates } from '@/map/index.ts';
-import type { JournalStorage } from '@/application/store/index.ts';
+import { applicationDatabase } from '@/application/composition/composition.ts';
+import { createCoordinates } from '@/modules/map/index.ts';
+import type { JournalStorage } from '@/core/store/index.ts';
 
 /** Sample positions are fictional annotations on the existing sample pages. */
 export async function seedMap(storage: JournalStorage) {

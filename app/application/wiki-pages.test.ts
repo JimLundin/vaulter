@@ -1,8 +1,8 @@
 import { expect, test } from 'vitest';
-import { createPersistentStorage, type Journal } from '@/application/store/index.ts';
-import { wikiActions } from '@/wiki/operations.ts';
-import { readEavWiki } from '@/wiki/pages.ts';
-import { applicationDatabase, applicationHistory } from './composition.ts';
+import { createPersistentStorage, type Journal } from '@/core/store/index.ts';
+import { wikiActions } from '@/modules/wiki/operations.ts';
+import { readEavWiki } from '@/modules/wiki/pages.ts';
+import { applicationDatabase, applicationHistory } from './composition/composition.ts';
 
 test('application Wiki reopens exact source evidence and historical attribution after edits and deletion', async () => {
   let journal: Journal = { schemas: [], commits: [] };

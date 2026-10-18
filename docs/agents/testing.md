@@ -9,10 +9,10 @@ the change.
 - Run behavior tests for the owning module with `npm run test:fast -- app/conversation`, or
   keep them running with `npm run test:watch -- app/conversation`.
 - To select behavior tests through imports, use
-  `npm exec vitest -- related app/conversation/conversation.ts --run --project=behavior`.
+  `npm exec vitest -- related app/modules/conversation/conversation.ts --run --project=behavior`.
   Source-inspection checks read files directly and need explicit selection.
 - For browser behavior, select the relevant test file and project, for example
-  `npm run test:ui -- app/ui/kit/composer.browser.test.ts --project=desktop`.
+  `npm run test:ui -- app/shared/ui/kit/composer.browser.test.ts --project=desktop`.
   `--grep 'part of the test name'` narrows a file further.
 - For imports and module ownership, run `npm run test:architecture -- tools/architecture/layout.test.ts`.
   For shared compositions or public kit components, select `tools/architecture/composition.test.ts` or
@@ -80,7 +80,7 @@ existing specimen URLs once per shard and installs only Chromium's headless shel
 use the development server; set `VAULTER_UI_BUILD=1` to verify a focused selection against the
 bundled fixtures. The test build uses fictional provider settings and is never published.
 
-Use `npm run test:ui:matrix -- app/ui/kit/composer.browser.test.ts --project=phone` to debug an untagged
+Use `npm run test:ui:matrix -- app/shared/ui/kit/composer.browser.test.ts --project=phone` to debug an untagged
 scenario on a particular device. Full device audits run in CI through the workflow's
 `full_ui_matrix` input; use them when changing shared responsive and input mechanics.
 

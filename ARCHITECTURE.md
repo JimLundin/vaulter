@@ -5,32 +5,25 @@ module whose interface it uses. A relationship stored between entities does not 
 between their owning modules. Agent chooses those relationships; Application wires the available
 record actions, readers and renderers into Agent and the views.
 
-The [project ownership map](app/README.md) is the directory and responsibility reference.
-Core Application owns Settings, the typed store, Transactions, journal persistence, unlocked session
-lifetime and History. Each other domain owns its retained definitions, admission, reading and
-presentation. Source document reading lives with Sources; Wiki Reviews keeps selection validation,
-admission and support interpretation beside Review definitions. Questions owns collection subscriptions
-and direct Answer publication recovery. Conversation owns dialogue coordination; Agent owns effects.
+The [project ownership map](app/README.md) is the authoritative layout and responsibility reference.
+`application/` composes the product. `core/` contains core-owned capabilities, including Store,
+Transactions, History, Settings, Session, Search and Navigation. `modules/` contains domain owners.
+Both core and domain modules keep behavior and presentation together. `shared/` provides generic
+mechanics and cannot depend on product modules.
 
-Application composes cross-domain choices and projections through public owner entries. Explicit
-semantic dependencies include Conversation → Agent, producers → Actors, and capture callers →
-Transcription. Wiki and Questions remain independent. Calendar and Map expose shared values while
-record behavior stays with their owners. The kit interprets no domain records.
-
-Each module's interface hides implementation obligations. A root `index.ts` exposes useful behavior;
-a separate presentation entry keeps browser views independently navigable. `records.ts` names retained
-definitions; `configuration.ts` names settings validation; outward models have descriptive names.
-Private folders name cohesive behavior, such as `wiki/reviews` and `agent/execution`.
+Routable modules declare their own patterns, views, destinations and shortcuts. Application explicitly
+registers these contributions and supplies context; it does not duplicate owner route definitions.
+Core Navigation provides the routing contract. Cross-domain combinations stay in Application.
 
 ## Import paths
 
 Use `@/` (the `app/` root) for imports outside the current directory, including tests,
-re-exports and dynamic imports. For example, use `@/ui/kit/index.ts` instead of
-`../../../ui/kit/index.ts`. Keep `./` for neighboring files so local implementation
+re-exports and dynamic imports. For example, use `@/shared/ui/kit/index.ts` instead of
+`../../../shared/ui/kit/index.ts`. Keep `./` for neighboring files so local implementation
 files can move together. Biome enforces this convention in app source.
 
-Import an owner's public entry when one exists, such as `@/application/store/index.ts` or
-`@/ui/kit/index.ts`. Aliases keep imports stable when a caller moves; public entries
+Import an owner's public entry when one exists, such as `@/core/store/index.ts` or
+`@/shared/ui/kit/index.ts`. Aliases keep imports stable when a caller moves; public entries
 keep callers stable when private implementation files move. Moving a public entry
 still requires updating its callers. The compiler-resolved ownership checks apply
 to both relative paths and aliases.
@@ -67,17 +60,17 @@ Agent makes the choice, Questions records it, and each view reads through its ow
 
 ## Adding or removing a workflow
 
-Create a named domain folder under `app/` with its views, operations, state, adapters and tests.
+Create a named domain folder under `app/modules/` with its views, operations, state, adapters and tests.
 Expose ordinary named functions and views, such as Questions' creation/answering actions. External
 inputs are validated by the owning module. Wire views, routes and navigation in
-`application/index.tsx`; wire readers, tools and publication rules in `application/composition.ts`.
+`application/presentation/index.tsx`; wire readers, tools and publication rules in `application/composition/composition.ts`.
 Module integration tests live in `app/application/`.
 
 Remove a workflow by deleting its folder and Application wiring. Accepted history remains immutable;
 registered schema removal requires explicit evolution. History is core infrastructure under
-`application/history/`. Content changes append transactions to stable entity identities.
+`core/history/`. Content changes append transactions to stable entity identities.
 
-Modules define their configuration through `SettingsDefinition` in `app/application/settings/store.ts`: field keys,
+Modules define their configuration through `SettingsDefinition` in `app/core/settings/store.ts`: field keys,
 labels, defaults, kinds, suggested choices, custom-value support and parsing. Agent owns invocation
 settings, Chat owns instructions, and
 OpenAI and GitHub storage own implementation-specific options and settings views. Session owns
@@ -131,9 +124,9 @@ model/tool effects. Chat's append queue covers preparation and initial acceptanc
 whole execution. Agent owns run/tool ordering and outcome recovery; tools own domain admission and
 publication. The kit presents supplied state and actions without acquiring those lifetimes.
 
-See the [Chat interface and lifetime](app/conversation/README.md),
-[Agent execution and recovery](app/agent/README.md) and shared recording owner in
-[transcription.ts](app/transcription/capture.ts) for task contracts, capture revisions and recovery details.
+See the [Chat interface and lifetime](app/modules/conversation/README.md),
+[Agent execution and recovery](app/modules/agent/README.md) and shared recording owner in
+[transcription.ts](app/modules/transcription/capture.ts) for task contracts, capture revisions and recovery details.
 
 ## UI kit
 
@@ -142,20 +135,20 @@ modules own record-specific UI and typed reading projections; the kit owns gener
 shared compositions. Supporting panes share one geometry, scrolling, dismissal, focus and responsive
 policy. Callers supply content, actions and requested visibility.
 
-The [public kit interface](app/ui/kit/index.ts) and [kit guide](app/ui/kit/README.md) own supported
+The [public kit interface](app/shared/ui/kit/index.ts) and [kit guide](app/shared/ui/kit/README.md) own supported
 components, detailed presentation contracts and paired catalogue examples. Public components accept
 no styling props; Tailwind scans only the kit. Application, Settings, Navigation, Search and workflow
 views compose those exports. Semantic content renderers have narrow permissions for text markup;
 they cannot implement layout, controls, viewport policy or private presentation-library mechanics.
 
-Search belongs to [app/search/Search.tsx](app/search/Search.tsx). Its container owns query, ranking,
+Search belongs to [app/core/search/presentation/Search.tsx](app/core/search/presentation/Search.tsx). Its container owns query, ranking,
 recent destinations and navigation/command/ask actions; SearchView accepts resolved entries and
 explicit actions. CommandOverlay supplies generic responsive geometry and focus/dismissal mechanics.
 The kit imports neither Search nor other application consumers.
 
 The compiler-backed [layout policy](tools/architecture/layout.test.ts) checks dependency direction,
 domain isolation, public kit imports and presentation ownership. Exact declaration roles in
-[composition.ts](app/ui/kit/composition.ts) distinguish DOM/library mechanics from checked
+[composition.ts](app/shared/ui/kit/composition.ts) distinguish DOM/library mechanics from checked
 compositions. [Composition checks](tools/architecture/composition.test.ts) follow reachable private
 helpers through imports, aliases and re-exports, stopping at approved building blocks; they also
 verify the catalogue's Built from metadata. [Catalogue checks](tools/architecture/catalogue.test.ts)
@@ -170,7 +163,7 @@ secrets.json relative to the published app root. Notes stay in the private Vault
 Session owns credential unlocking, encrypted device overrides, adapter replacement and sign-out.
 Replacing GitHub credentials prepares and refreshes a candidate adapter before activation; failure
 preserves the active session. A successful replacement keeps the stable session identity and open
-conversation. See the [Vault guide](app/application/store/OWNERSHIP.md) and
+conversation. See the [Vault guide](app/core/store/OWNERSHIP.md) and
 [credential decision](docs/adr/0008-device-credential-overrides.md) for the current contracts.
 
 The alternate bootstrap in app/preview supplies fictional records, memory persistence and scripted
@@ -189,7 +182,7 @@ the [testing guide](docs/agents/testing.md) owns focused checks, devices and com
 
 The typed engine provides opaque entity identity, atomic transactions, queryable snapshots and
 validated historical references. Storage owns acceptance and immutable journal replay; producers own
-domain meaning and admission. Session owns the single adapter/cache lifetime. The [Vault guide](app/application/store/OWNERSHIP.md)
+domain meaning and admission. Session owns the single adapter/cache lifetime. The [Vault guide](app/core/store/OWNERSHIP.md)
 documents retry, offline reading and history limits; [ADR 0003](docs/adr/0003-github-eav-persistence.md)
 records remote acceptance authority and [ADR 0014](docs/adr/0014-eav-only-vault.md) records complete adoption.
 
@@ -209,7 +202,7 @@ supplied interfaces without importing unrelated domain modules.
 The private Vault pins Vaulter and targets current typed owner interfaces for translation and reviewed
 publication. Advancing that pin requires adapting the consumer under [ADR 0007](docs/adr/0007-vault-owned-translation.md).
 Historical EAV references preserve accepted source snapshots. Application opening performs no source
-translation or history reset. See the [Wiki guide](app/wiki/README.md).
+translation or history reset. See the [Wiki guide](app/modules/wiki/README.md).
 
 ## Chat record UI and shared presentation
 
@@ -224,8 +217,8 @@ feed, dock and supporting-pane presentation; Wiki and its embedded Question card
 shared pane and text-entry policies. TextBox owns keyboard/form/focus and inset actions while
 domain owners retain drafts, capture associations, validation, acceptance and persistence.
 
-The [Chat guide](app/conversation/README.md) owns detailed projections and lifetime contracts;
-the [kit guide](app/ui/kit/README.md) owns presentation APIs. Semantic text conversion remains a
+The [Chat guide](app/modules/conversation/README.md) owns detailed projections and lifetime contracts;
+the [kit guide](app/shared/ui/kit/README.md) owns presentation APIs. Semantic text conversion remains a
 narrow renderer permission, with prose typography and code scrolling supplied by the kit.
 
 ## Current-model cleanup

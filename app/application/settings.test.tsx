@@ -4,12 +4,12 @@ import { act, StrictMode, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { MockLanguageModelV4, convertArrayToReadableStream } from 'ai/test';
-import { OpenApplication } from './index.tsx';
-import { Surface } from '@/ui/kit/index.ts';
-import { createMemoryStorage, sameEntity, type JournalStorage } from '@/application/store/index.ts';
-import { applicationDatabase } from './composition.ts';
-import type { Secrets } from '@/application/session/sealed.ts';
-import { media } from '@/agent/openai/media.test-support.ts';
+import { OpenApplication } from './presentation/index.tsx';
+import { Surface } from '@/shared/ui/kit/index.ts';
+import { createMemoryStorage, sameEntity, type JournalStorage } from '@/core/store/index.ts';
+import { applicationDatabase } from './composition/composition.ts';
+import type { Secrets } from '@/core/session/sealed.ts';
+import { media } from '@/modules/agent/openai/media.test-support.ts';
 
 type StreamResult = Awaited<ReturnType<MockLanguageModelV4['doStream']>>;
 const cleanups: (() => Promise<void>)[] = [];

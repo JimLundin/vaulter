@@ -1,8 +1,8 @@
 // Fictional native relationships and, for the explicit comparison, retained evidence.
-import type { Database, EntityRef } from '@/application/store/index.ts';
-import type { applicationSchema } from '@/application/composition.ts';
-import { wikiActions } from '@/wiki/operations.ts';
-import { topicActions } from '@/graph/topics.ts';
+import type { Database, EntityRef } from '@/core/store/index.ts';
+import type { applicationSchema } from '@/application/composition/composition.ts';
+import { wikiActions } from '@/modules/wiki/operations.ts';
+import { topicActions } from '@/modules/graph/topics.ts';
 
 type PreviewDatabase = Database<typeof applicationSchema>;
 export async function seedGraphEvidence(db: PreviewDatabase, comparison = true) {
@@ -95,7 +95,7 @@ export async function seedGraphEvidence(db: PreviewDatabase, comparison = true) 
     'I use chisels and a hand plane most mornings. It is the only part of the day when I can work without interruptions. The power tools are for occasional afternoon projects.',
     'There is not room to leave everything out. When tools stay on the bench overnight, I spend the next session moving them before I can start.',
   ];
-  const paragraphs: EntityRef<typeof import('@/wiki/records.ts').Content>[] = [];
+  const paragraphs: EntityRef<typeof import('@/modules/wiki/records.ts').Content>[] = [];
   for (const [index, text] of claims.entries()) {
     const paragraph = await wiki.append(
       `preview:graph-claim:${index}`,
@@ -109,7 +109,7 @@ export async function seedGraphEvidence(db: PreviewDatabase, comparison = true) 
       { parent: paragraph, order: 'a' },
     );
   }
-  const documents: EntityRef<typeof import('@/sources/records.ts').SourceDocument>[] = [];
+  const documents: EntityRef<typeof import('@/modules/sources/records.ts').SourceDocument>[] = [];
   for (const [index, text] of passages.entries())
     documents.push(
       await db.transaction({ author }, (tx) =>

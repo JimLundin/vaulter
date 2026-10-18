@@ -11,8 +11,8 @@ test('every public kit component is catalogued and actually rendered by a sample
   const snapshot = api.updateSnapshot({ openProjects: [resolve(root, 'tsconfig.json')] });
   try {
     const project = snapshot.getProjects()[0]!;
-    const kit = project.program.getSourceFile(resolve(root, 'app/ui/kit/index.ts'))!;
-    const source = project.program.getSourceFile(resolve(root, 'app/ui/kit/catalogue.tsx'))!;
+    const kit = project.program.getSourceFile(resolve(root, 'app/shared/ui/kit/index.ts'))!;
+    const source = project.program.getSourceFile(resolve(root, 'app/shared/ui/kit/catalogue.tsx'))!;
     const names = project.checker
       .getExportsOfModule(project.checker.getSymbolAtLocation(kit)!)
       .filter((symbol) => /^[A-Z]/.test(symbol.name))

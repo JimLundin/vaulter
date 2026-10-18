@@ -4,7 +4,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { API } from 'typescript/unstable/sync';
 import { expect, test } from 'vitest';
-import { compositions, implementations } from '../../app/ui/kit/composition.ts';
+import { compositions, implementations } from '../../app/shared/ui/kit/composition.ts';
 import { checkCompositions, type CompositionRoot } from './composition.ts';
 
 // CI and source-project fixtures use the same composition-policy interface.
@@ -15,13 +15,13 @@ test('Agent, Settings and their shared menu use only documented public building 
   const snapshot = api.updateSnapshot({ openProjects: [resolve(root, 'tsconfig.json')] });
   try {
     const result = checkCompositions(snapshot.getProjects()[0]!, {
-      publicKit: 'app/ui/kit/index.ts',
+      publicKit: 'app/shared/ui/kit/index.ts',
       implementations: implementations.map((role) => ({
         ...role,
-        source: `app/ui/kit/${role.source}`,
+        source: `app/shared/ui/kit/${role.source}`,
       })),
       roots: compositions.map((composition) => ({
-        source: `app/ui/kit/${composition.source}`,
+        source: `app/shared/ui/kit/${composition.source}`,
         primitives: composition.primitives,
       })),
     });

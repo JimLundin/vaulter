@@ -7,7 +7,8 @@ import { dirname, relative, resolve } from 'node:path';
 import { compilerValues } from './compiler-values.ts';
 
 const slash = (path: string) => path.replaceAll('\\', '/');
-const semanticRenderer = (path: string) => path === 'app/wiki/presentation/rendering/blocks.tsx';
+const semanticRenderer = (path: string) =>
+  path === 'app/modules/wiki/presentation/rendering/blocks.tsx';
 const semanticTags = new Set([
   'section',
   'h2',
@@ -38,26 +39,26 @@ const semanticTags = new Set([
 ]);
 // Chat permits semantic code markup, never a renderer-wide presentation exemption.
 const chatCodeRenderer = (path: string) =>
-  path === 'app/conversation/presentation/rendering/highlight.tsx';
-const kit = (path: string) => path.startsWith('app/ui/kit/');
+  path === 'app/modules/conversation/presentation/rendering/highlight.tsx';
+const kit = (path: string) => path.startsWith('app/shared/ui/kit/');
 const compositionEntry = (path: string) =>
   [
-    'app/application/index.tsx',
-    'app/application/composition.ts',
-    'app/application/database.ts',
-    'app/application/wiki-graph.ts',
+    'app/application/presentation/index.tsx',
+    'app/application/composition/composition.ts',
+    'app/application/composition/database.ts',
+    'app/application/composition/wiki-graph.ts',
   ].includes(path);
 const applicationTest = (path: string) => path.startsWith('app/application/') && testSource(path);
 const workflow = (path: string) =>
-  /^app\/(conversation|wiki|questions|graph)\//.exec(path)?.[1] ??
+  /^app\/modules\/(conversation|wiki|questions|graph)\//.exec(path)?.[1] ??
   /^app\/workflows\/([^/]+)\//.exec(path)?.[1];
-const standaloneOwner = (path: string) => /^app\/(calendar|map)\//.exec(path)?.[1];
+const standaloneOwner = (path: string) => /^app\/modules\/(calendar|map)\//.exec(path)?.[1];
 const fixture = (path: string) =>
   /\.(?:test|type-test|test-support)\.[cm]?tsx?$/.test(path) || path.startsWith('app/preview/');
 const testSource = (path: string) => /\.(?:test|type-test|test-support)\.[cm]?tsx?$/.test(path);
 const removedStorePath = (path: string) =>
   /^app\/vault\/(?:nodes|storage\/nodes)(?:\/|$)/.test(path) ||
-  /^app\/application\/persistence\/nodes(?:\/|$)/.test(path) ||
+  /^app\/core\/persistence\/nodes(?:\/|$)/.test(path) ||
   /^app\/vault\/transactions\/(?:store|lifetime|request|request-state|undo)\.[cm]?tsx?$/.test(path);
 const removedStoreTypes = new Set([
   'NodeId',
@@ -81,49 +82,49 @@ const removedStoreTypes = new Set([
   'NodeConflict',
   'NodePublicationRejected',
 ]);
-const eavImplementation = (path: string) => path.startsWith('app/application/store/');
+const eavImplementation = (path: string) => path.startsWith('app/core/store/');
 const storageAssembly = (path: string) =>
   path === 'app/main.tsx' ||
-  path.startsWith('app/application/session/') ||
-  path.startsWith('app/application/persistence/') ||
+  path.startsWith('app/core/session/') ||
+  path.startsWith('app/core/persistence/') ||
   eavImplementation(path) ||
   fixture(path);
 const databaseAssembly = (path: string) =>
-  path === 'app/application/database.ts' ||
-  path === 'app/application/composition.ts' ||
+  path === 'app/application/composition/database.ts' ||
+  path === 'app/application/composition/composition.ts' ||
   eavImplementation(path) ||
   fixture(path);
 const rawEavSymbols = new Map([
-  ['app/application/store/memory.ts', new Set(['createMemoryStorage'])],
-  ['app/application/store/persistence.ts', new Set(['createPersistentStorage'])],
+  ['app/core/store/memory.ts', new Set(['createMemoryStorage'])],
+  ['app/core/store/persistence.ts', new Set(['createPersistentStorage'])],
 ]);
 const sessionSymbols = new Map([
-  ['app/application/session/session.ts', new Set(['useSession'])],
-  ['app/application/session/index.ts', new Set(['useVaultSession'])],
+  ['app/core/session/session.ts', new Set(['useSession'])],
+  ['app/core/session/index.ts', new Set(['useVaultSession'])],
 ]);
 const sessionCaller = (from: string, owner: string) =>
   fixture(from) ||
-  (owner === 'app/application/session/session.ts'
-    ? from === 'app/application/index.tsx' ||
-      from === 'app/application/session/index.ts' ||
-      from.startsWith('app/application/session/')
-    : from === 'app/application/index.tsx');
+  (owner === 'app/core/session/session.ts'
+    ? from === 'app/application/presentation/index.tsx' ||
+      from === 'app/core/session/index.ts' ||
+      from.startsWith('app/core/session/')
+    : from === 'app/application/presentation/index.tsx');
 // These owner UI declarations compose presentation; storage/model implementations remain separate.
 const vaultUi = new Set([
-  'app/application/session/Gate.tsx',
-  'app/application/session/ui.tsx',
-  'app/application/persistence/Settings.tsx',
-  'app/application/history/History.tsx',
-  'app/application/history/HistoryList.tsx',
+  'app/core/session/presentation/Gate.tsx',
+  'app/core/session/presentation/ui.tsx',
+  'app/core/persistence/presentation/Settings.tsx',
+  'app/core/history/presentation/History.tsx',
+  'app/core/history/presentation/HistoryList.tsx',
 ]);
 export function importProblem(from: string, to: string): string | null {
   if (removedStorePath(to)) return `${from} imports the removed store; use the typed EAV interface`;
   if (
-    to.startsWith('app/application/store/') &&
-    !from.startsWith('app/application/store/') &&
-    to !== 'app/application/store/index.ts'
+    to.startsWith('app/core/store/') &&
+    !from.startsWith('app/core/store/') &&
+    to !== 'app/core/store/index.ts'
   )
-    return `${from} imports private EAV implementation; use app/application/store/index.ts`;
+    return `${from} imports private EAV implementation; use app/core/store/index.ts`;
   if (to.startsWith('app/preview/') && !fixture(from))
     return `${from} imports preview-only ${to}; fixtures cannot publish application data`;
   if (testSource(to) && !fixture(from))
@@ -133,7 +134,7 @@ export function importProblem(from: string, to: string): string | null {
   if (
     workflow(from) === 'wiki' &&
     (workflow(to) === 'conversation' ||
-      to.startsWith('app/agent/') ||
+      to.startsWith('app/modules/agent/') ||
       to.startsWith('app/vault/content/') ||
       to === 'app/vault/records/sources.ts')
   )
@@ -141,7 +142,9 @@ export function importProblem(from: string, to: string): string | null {
   if (
     kit(from) &&
     (to.startsWith('app/vault/') ||
-      /^app\/(actors|sources|conversation|agent|wiki|graph|questions|calendar|map)\//.test(to))
+      /^app\/modules\/(actors|sources|conversation|agent|wiki|graph|questions|calendar|map)\//.test(
+        to,
+      ))
   )
     return `${from} imports record interpretation; keep Vault and Agent knowledge with its owning module`;
   const standalone = standaloneOwner(to);
@@ -151,52 +154,85 @@ export function importProblem(from: string, to: string): string | null {
     !compositionEntry(from) &&
     !applicationTest(from) &&
     !fixture(from) &&
-    to !== `app/${standalone}/index.ts`
+    to !== `app/modules/${standalone}/index.ts` &&
+    !/^app\/modules\/[^/]+\/presentation\/index\.tsx?$/.test(to)
   )
     return `${from} imports private ${standalone} implementation; use its public entry`;
   const target = workflow(to);
   const fromOwner = workflow(from);
-  if (target && target !== fromOwner && !compositionEntry(from) && !fixture(from))
+  if (
+    target &&
+    target !== fromOwner &&
+    !compositionEntry(from) &&
+    !fixture(from) &&
+    !from.startsWith('app/modules/') &&
+    !from.startsWith('app/application/presentation/')
+  )
     return `${from} imports optional workflow ${target}; compose it in Application`;
   if (
     to.startsWith('app/application/') &&
     !from.startsWith('app/application/') &&
     from !== 'app/main.tsx' &&
     !fixture(from) &&
-    !to.startsWith('app/application/store/') &&
-    !to.startsWith('app/application/settings/')
+    !to.startsWith('app/core/store/') &&
+    !to.startsWith('app/core/settings/')
   )
     return `${from} imports Application composition; dependencies point from Application to module owners`;
+  if (from.startsWith('app/core/') && to.startsWith('app/application/'))
+    return `${from} imports Application composition; core modules cannot import their consumer`;
   if (
-    /^app\/application\/(store|session|persistence|history|settings)\//.test(from) &&
-    /^app\/application\/(?:index\.tsx|composition\.ts|Frame\.tsx)$/.test(to)
+    from.startsWith('app/shared/') &&
+    (to.startsWith('app/core/') ||
+      to.startsWith('app/modules/') ||
+      to.startsWith('app/application/'))
   )
-    return `${from} imports Application composition; core domains cannot import their consumer`;
+    return `${from} imports product behavior; Shared cannot depend on its consumers`;
   for (const [owner, allowed] of [
-    ['app/runtime/', ['app/runtime/']],
-    ['app/navigation/', ['app/navigation/', 'app/runtime/', 'app/ui/kit/']],
-    ['app/application/settings/', ['app/application/settings/', 'app/runtime/', 'app/ui/kit/']],
-    ['app/application/store/', ['app/application/store/', 'app/runtime/']],
+    ['app/shared/async/', ['app/shared/async/']],
+    ['app/core/navigation/', ['app/core/navigation/', 'app/shared/async/', 'app/shared/ui/kit/']],
+    [
+      'app/core/settings/',
+      [
+        'app/core/settings/',
+        'app/core/navigation/',
+        'app/core/session/',
+        'app/shared/async/',
+        'app/shared/ui/kit/',
+      ],
+    ],
+    ['app/core/store/', ['app/core/store/', 'app/shared/async/']],
   ] as const) {
     if (
       from.startsWith(owner) &&
-      from !== 'app/application/settings/presentation.ts' &&
+      from !== 'app/core/settings/presentation/index.ts' &&
       !fixture(from) &&
       to.startsWith('app/') &&
       !allowed.some((prefix) => to.startsWith(prefix))
     )
       return `${from} imports higher-level ${to}; keep ${owner} independent of its consumers`;
   }
+  const coreOwner = (path: string) => /^app\/core\/([^/]+)\//.exec(path)?.[1];
+  const targetCore = coreOwner(to);
+  if (
+    targetCore &&
+    targetCore !== coreOwner(from) &&
+    !fixture(from) &&
+    !/^app\/core\/[^/]+\/(?:index\.ts|routes\.ts|presentation\/index\.tsx?)$/.test(to) &&
+    !from.startsWith('app/application/') &&
+    from !== 'app/main.tsx'
+  )
+    return `${from} imports private core ${targetCore} implementation; use its public entry`;
   const domain = (path: string) =>
-    /^app\/(actors|sources|conversation|agent|wiki|graph|questions|calendar|map|transcription)\//.exec(
+    /^app\/modules\/(actors|sources|conversation|agent|wiki|graph|questions|calendar|map|transcription)\//.exec(
       path,
     )?.[1];
   const owner = domain(to);
   const caller = domain(from);
   if (owner && owner !== caller && !fixture(from)) {
-    const entry = /^app\/[^/]+\/(?:index\.ts|presentation\/index\.tsx?|openai\/index\.ts)$/.test(
-      to,
-    );
+    const entry =
+      /^app\/modules\/[^/]+\/(?:index\.ts|routes\.ts|presentation\/index\.tsx?|openai\/index\.ts)$/.test(
+        to,
+      );
     if (!entry) return `${from} imports private ${owner} implementation; use its public entry`;
     const allowed: Record<string, readonly string[]> = {
       conversation: ['agent', 'actors', 'transcription'],
@@ -209,34 +245,36 @@ export function importProblem(from: string, to: string): string | null {
     if (
       from.startsWith('app/application/') &&
       !compositionEntry(from) &&
-      !from.startsWith('app/application/compositions/') &&
+      !from.startsWith('app/application/composition/') &&
       ![
-        'app/application/SettingsCards.tsx',
-        'app/application/Previews.tsx',
-        'app/application/identities.ts',
+        'app/application/presentation/SettingsCards.tsx',
+        'app/application/presentation/Previews.tsx',
+        'app/application/composition/identities.ts',
       ].includes(from)
     )
       return `${from} imports domain ${owner}; compose it in Application`;
   }
-  if (kit(from) && to.startsWith('app/') && !kit(to) && !to.startsWith('app/runtime/'))
+  if (kit(from) && to.startsWith('app/') && !kit(to) && !to.startsWith('app/shared/async/'))
     return `${from} imports application behavior ${to}; the kit owns generic presentation only`;
 
   if (
-    to.startsWith('app/ui/kit/') &&
-    !from.startsWith('app/ui/kit/') &&
-    to !== 'app/ui/kit/index.ts' &&
-    to !== 'app/ui/kit/styles.css' &&
+    to.startsWith('app/shared/ui/kit/') &&
+    !from.startsWith('app/shared/ui/kit/') &&
+    to !== 'app/shared/ui/kit/index.ts' &&
+    to !== 'app/shared/ui/kit/styles.css' &&
     // Colocated browser drivers are shared by tests, never production callers.
     !(testSource(from) && /\.browser\.test-support\.ts$/.test(to))
   )
-    return `${from} imports a private kit file; use app/ui/kit/index.ts`;
+    return `${from} imports a private kit file; use app/shared/ui/kit/index.ts`;
   if (
-    (from.startsWith('app/vault/') ||
-      /^app\/application\/(store|session|persistence)\//.test(from)) &&
-    (to.startsWith('app/ui/') || to === 'app/application/settings/ModuleSettings.tsx') &&
+    (from.startsWith('app/vault/') || /^app\/core\/(store|session|persistence)\//.test(from)) &&
+    (to.startsWith('app/shared/ui/') ||
+      to === 'app/core/settings/presentation/ModuleSettings.tsx') &&
     !(
-      vaultUi.has(from) &&
-      ['app/ui/kit/index.ts', 'app/application/settings/ModuleSettings.tsx'].includes(to)
+      (vaultUi.has(from) || from.includes('/presentation/')) &&
+      ['app/shared/ui/kit/index.ts', 'app/core/settings/presentation/ModuleSettings.tsx'].includes(
+        to,
+      )
     )
   )
     return `${from} imports presentation from the vault`;
@@ -330,7 +368,7 @@ export function checkLayout(root: string): string[] {
               `${from} constructs raw EAV storage; use the Application-supplied database`,
             );
           if (
-            owner === 'app/application/store/engine.ts' &&
+            owner === 'app/core/store/engine.ts' &&
             owned.name === 'openDatabase' &&
             !databaseAssembly(from)
           )
@@ -342,16 +380,16 @@ export function checkLayout(root: string): string[] {
               `${from} accesses a raw vault session; use the Application-supplied database`,
             );
           if (
-            owner === 'app/questions/operations.ts' &&
+            owner === 'app/modules/questions/operations.ts' &&
             owned.name === 'questionActions' &&
             !(
-              from === 'app/application/composition.ts' ||
+              from === 'app/application/composition/composition.ts' ||
               workflow(from) === 'questions' ||
               fixture(from)
             )
           )
             problems.push(
-              `${from} accesses Questions ownership; compose actions in app/application/composition.ts`,
+              `${from} accesses Questions ownership; compose actions in app/application/composition/composition.ts`,
             );
         }
       };
@@ -393,12 +431,14 @@ export function checkLayout(root: string): string[] {
                 slash(target),
               )))
         )
-          problems.push(`${from}: presentation dependencies belong behind app/ui/kit/index.ts`);
+          problems.push(
+            `${from}: presentation dependencies belong behind app/shared/ui/kit/index.ts`,
+          );
         if (
           !kit(from) &&
           /\.css$/.test(value.text) &&
           target &&
-          slash(relative(root, target)) !== 'app/ui/kit/styles.css'
+          slash(relative(root, target)) !== 'app/shared/ui/kit/styles.css'
         )
           problems.push(`${from}: app styles belong in the kit or content renderer`);
         if (!target) return;
@@ -537,11 +577,7 @@ export function checkLayout(root: string): string[] {
         if (
           accessedMember?.name === 'append' &&
           accessedMember.object &&
-          !(
-            eavImplementation(from) ||
-            from.startsWith('app/application/persistence/') ||
-            fixture(from)
-          )
+          !(eavImplementation(from) || from.startsWith('app/core/persistence/') || fixture(from))
         ) {
           const type = project.checker.getTypeAtLocation(accessedMember.object);
           const append =
@@ -552,9 +588,7 @@ export function checkLayout(root: string): string[] {
           if (
             append?.declarations.some((declaration) => {
               const owner = declaration.resolve()?.getSourceFile().fileName;
-              return (
-                owner && slash(relative(root, owner)) === 'app/application/store/persistence.ts'
-              );
+              return owner && slash(relative(root, owner)) === 'app/core/store/persistence.ts';
             })
           )
             problems.push(`${from} accesses raw EAV append; write through database.transaction`);
@@ -619,7 +653,7 @@ export function checkLayout(root: string): string[] {
             intrinsic(node.arguments[0]) &&
             ['createElement', 'jsx', 'jsxs', 'jsxDEV'].includes(valueName(node.expression)) &&
             !(
-              from === 'app/conversation/presentation/rendering/markdown.ts' &&
+              from === 'app/modules/conversation/presentation/rendering/markdown.ts' &&
               intrinsic(node.arguments[0]) === 'p'
             )
           )
@@ -630,14 +664,18 @@ export function checkLayout(root: string): string[] {
         // The size class is the kit's: views outside it never branch on the viewport. Application may
         // read it to choose a route or restore a panel.
         if (
-          !(kit(from) || from === 'app/application/index.tsx' || /\.test\.[cm]?tsx?$/.test(from)) &&
+          !(
+            kit(from) ||
+            from === 'app/application/presentation/index.tsx' ||
+            /\.test\.[cm]?tsx?$/.test(from)
+          ) &&
           ts.isImportSpecifier(node) &&
           ['useIsMobile', 'useLayout', 'useMedia'].includes((node.propertyName ?? node.name).text)
         )
           problems.push(`${from}: size-dependent presentation belongs in the kit`);
         const outsidePresentation = !(
           kit(from) ||
-          from === 'app/application/index.tsx' ||
+          from === 'app/application/presentation/index.tsx' ||
           /\.test\.[cm]?tsx?$/.test(from)
         );
         if (outsidePresentation && viewportDimension(accessedMember))
@@ -657,7 +695,11 @@ export function checkLayout(root: string): string[] {
         // Application restores a route anchor; the kit owns list focus and scrolling.
         // Other module/helper/semantic sources do not own measured presentation or scrolling.
         if (
-          !(kit(from) || from === 'app/application/index.tsx' || /\.test\.[cm]?tsx?$/.test(from)) &&
+          !(
+            kit(from) ||
+            from === 'app/application/presentation/index.tsx' ||
+            /\.test\.[cm]?tsx?$/.test(from)
+          ) &&
           ((accessedMember &&
             [
               'scrollTop',
@@ -679,7 +721,7 @@ export function checkLayout(root: string): string[] {
     }
     // This is the architectural source graph, including type-only imports. Emitted tree shaking
     // must not hide fictional records or preview tooling in a production dependency.
-    for (const entry of ['app/main.tsx', 'app/runtime/sw.ts']) {
+    for (const entry of ['app/main.tsx', 'app/application/runtime/sw.ts']) {
       const visited = new Set<string>();
       const walk = (from: string) => {
         if (visited.has(from)) return;
@@ -687,8 +729,8 @@ export function checkLayout(root: string): string[] {
         for (const to of graph.get(from) ?? []) {
           if (
             to.startsWith('app/preview/') ||
-            to === 'app/ui/kit/catalogue.tsx' ||
-            to === 'app/ui/kit/gallery.tsx' ||
+            to === 'app/shared/ui/kit/catalogue.tsx' ||
+            to === 'app/shared/ui/kit/gallery.tsx' ||
             /\/prototype-[^/]+\.[cm]?tsx?$/.test(to)
           )
             problems.push(`${entry} reaches preview-only ${to} through ${from}`);

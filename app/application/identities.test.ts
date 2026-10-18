@@ -5,9 +5,9 @@ import {
   sameEntity,
   type AppendRequest,
   type Journal,
-} from '@/application/store/index.ts';
-import { applicationDatabase } from './composition.ts';
-import { createApplicationIdentities } from './identities.ts';
+} from '@/core/store/index.ts';
+import { applicationDatabase } from './composition/composition.ts';
+import { createApplicationIdentities } from './composition/identities.ts';
 
 test('application identity setup is stable across callers and preserves Agent configuration', async () => {
   const storage = createMemoryStorage();

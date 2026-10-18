@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { navigateToModule } from '@/ui/kit/navigation.browser.test-support.ts';
+import { navigateToModule } from '@/shared/ui/kit/navigation.browser.test-support.ts';
 // biome-ignore lint/correctness/noUnresolvedImports: Playwright re-exports these browser types.
 import type { Locator, Page } from '@playwright/test';
 
@@ -232,7 +232,7 @@ test('Questions search and filters share the rail while trailing Save stays reac
 test('paired navigation scopes keep page controls and Settings independent of the gallery', {
   tag: '@phone',
 }, async ({ page }) => {
-  await page.goto('/ui/kit/');
+  await page.goto('/shared/ui/kit/');
   await page.getByRole('searchbox', { name: 'Find a component' }).fill('Navigation & workspace');
   const family = page.locator('[data-kit-comparison="navigation"]');
   const mobile = family.locator('[data-kit-preview="mobile"]');
@@ -262,7 +262,7 @@ test('paired navigation scopes keep page controls and Settings independent of th
 test('the module bar groups page actions and keeps independent filters open while choices change', {
   tag: '@phone',
 }, async ({ page }) => {
-  await page.goto('/ui/kit/');
+  await page.goto('/shared/ui/kit/');
   await page.getByRole('searchbox', { name: 'Find a component' }).fill('Navigation & workspace');
   const mobile = page.locator('[data-kit-comparison="navigation"] [data-kit-preview="mobile"]');
   const desktop = page.locator('[data-kit-comparison="navigation"] [data-kit-preview="desktop"]');
