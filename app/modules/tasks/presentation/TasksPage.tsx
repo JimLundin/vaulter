@@ -242,6 +242,8 @@ export function TasksPage({
         actions={
           actions && (
             <Button
+              aria-label="Add task"
+              title="Add task"
               compactIcon="plus"
               size="compact"
               disabled={!!disabledReason || saving || !!statusRecovery}

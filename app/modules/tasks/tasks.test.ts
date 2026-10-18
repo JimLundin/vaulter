@@ -159,3 +159,22 @@ test('an accepted publication with a lost response retries the exact task instea
   expect(requests[0]).toBe(requests[1]);
   expect(await readTasks(db)).toHaveLength(1);
 });
+
+test('task creation and revision retain exact task text while rejecting blank titles', async () => {
+  await using db = await openDatabase({ schema: taskSchema });
+  const title = '  Renew membership\n';
+  const task = await createTask(db, {
+    title,
+    description: '  Recorded task details\n',
+    status: 'backlog',
+    sourceStatus: 'open',
+  });
+  expect((await readTasks(db))[0]).toMatchObject({
+    title,
+    description: '  Recorded task details\n',
+  });
+  await reviseTask(db, task, { title: '\tRenew annual membership  ' });
+  expect((await readTasks(db))[0]!.title).toBe('\tRenew annual membership  ');
+  expect(() => createTask(db, { title: ' \n\t ', description: '', status: 'backlog' })).toThrow();
+  expect(() => reviseTask(db, task, { title: ' \n ' })).toThrow();
+});

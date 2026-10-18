@@ -23,7 +23,7 @@ export const taskStatusLabels: Record<TaskStatus, string> = {
 };
 const fields = z
   .object({
-    title: z.string().trim().min(1),
+    title: z.string().refine((value) => value.trim().length > 0, 'Task title must not be blank'),
     description: z.string(),
     status: z.enum(taskStatuses),
   })
