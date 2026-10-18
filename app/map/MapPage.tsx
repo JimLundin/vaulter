@@ -17,6 +17,8 @@ import {
   Loader,
   MapView,
   SelectionRow,
+  Surface,
+  Separator,
 } from '@/ui/kit/index.ts';
 import type { CoordinateInput } from './operations.ts';
 import type { CoordinateValue } from './coordinates.ts';
@@ -169,6 +171,8 @@ export function MapPage({
   const add = (
     <Button
       compactIcon="plus"
+      size="compact"
+      variant="outline"
       aria-label="Add coordinates"
       title="Add coordinates"
       disabled={!(actions && data?.subjects.length) || !!disabledReason}
@@ -223,70 +227,88 @@ export function MapPage({
             onClose={() => setOpen(false)}
             selection={selected}
           >
-            <Stack>
-              <PageControls placement="expanded" actions={add} />
+            <Stack gap="lg">
+              <PageControls
+                placement="expanded"
+                actions={
+                  <Row justify="between">
+                    <Text size="sm" tone="muted">
+                      {data?.entries.length ?? 0} locations
+                    </Text>
+                    {add}
+                  </Row>
+                }
+              />
               {!!disabledReason && (
                 <Text tone="muted" size="sm">
                   {disabledReason}
                 </Text>
               )}
               {!!entry && (
-                <Stack>
-                  <Heading level={2}>{entry.label}</Heading>
-                  <Text size="sm">
-                    {decimalDegrees(entry.record.coordinates.latitude).toFixed(6)},{' '}
-                    {decimalDegrees(entry.record.coordinates.longitude).toFixed(6)}
-                  </Text>
-                  <Row>
-                    <Button
-                      variant="outline"
-                      disabled={!actions || !!disabledReason}
-                      onClick={() => setEditor({ entry })}
-                    >
-                      Edit coordinates
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      disabled={!actions || !!disabledReason}
-                      onClick={() => {
-                        setActionError(undefined);
-                        setRemoval(entry);
-                      }}
-                    >
-                      Remove coordinates
-                    </Button>
-                  </Row>
-                </Stack>
-              )}
-              <Heading level={2}>Saved coordinates</Heading>
-              {data && !data.entries.length && (
-                <Text tone="muted">
-                  No coordinates yet. Attach a location to a vault record to place it on the map.
-                </Text>
-              )}
-              {data && !data.subjects.length && (
-                <Text size="sm" tone="muted">
-                  Create a record in Wiki or Calendar first.
-                </Text>
-              )}
-              {data?.entries.map((item) => (
-                <SelectionRow
-                  key={item.id}
-                  selected={item.id === selected}
-                  onSelect={() => pick(item.id)}
-                  aria-label={`Select ${item.label}`}
-                >
-                  <Stack gap="xs">
-                    <Text as="span" weight="medium">
-                      {item.label}
+                <Surface variant="subtle" as="section" aria-label="Selected location">
+                  <Stack gap="sm">
+                    <Heading level={2}>{entry.label}</Heading>
+                    <Text size="sm" tone="muted" mono={true}>
+                      {decimalDegrees(entry.record.coordinates.latitude).toFixed(6)},{' '}
+                      {decimalDegrees(entry.record.coordinates.longitude).toFixed(6)}
                     </Text>
-                    <Text as="span" size="sm" tone="muted">
-                      {decimalDegrees(item.record.coordinates.latitude).toFixed(4)},{' '}
-                      {decimalDegrees(item.record.coordinates.longitude).toFixed(4)}
-                    </Text>
+                    <Row wrap={true}>
+                      <Button
+                        size="compact"
+                        variant="outline"
+                        disabled={!actions || !!disabledReason}
+                        onClick={() => setEditor({ entry })}
+                      >
+                        Edit coordinates
+                      </Button>
+                      <Button
+                        size="compact"
+                        variant="ghost"
+                        disabled={!actions || !!disabledReason}
+                        onClick={() => {
+                          setActionError(undefined);
+                          setRemoval(entry);
+                        }}
+                      >
+                        Remove coordinates
+                      </Button>
+                    </Row>
                   </Stack>
-                </SelectionRow>
-              ))}
+                </Surface>
+              )}
+              <Separator />
+              <Stack gap="xs">
+                <Heading level={3}>Saved coordinates</Heading>
+                {data && !data.entries.length && (
+                  <Text tone="muted">
+                    No coordinates yet. Attach a location to a vault record to place it on the map.
+                  </Text>
+                )}
+                {data && !data.subjects.length && (
+                  <Text size="sm" tone="muted">
+                    Create a record in Wiki or Calendar first.
+                  </Text>
+                )}
+                {data?.entries.map((item) => (
+                  <SelectionRow
+                    key={item.id}
+                    compact={true}
+                    selected={item.id === selected}
+                    onSelect={() => pick(item.id)}
+                    aria-label={`Select ${item.label}`}
+                  >
+                    <Stack gap="xs">
+                      <Text as="span" size="sm" weight="medium">
+                        {item.label}
+                      </Text>
+                      <Text as="span" size="xs" tone="muted" mono={true}>
+                        {decimalDegrees(item.record.coordinates.latitude).toFixed(4)},{' '}
+                        {decimalDegrees(item.record.coordinates.longitude).toFixed(4)}
+                      </Text>
+                    </Stack>
+                  </SelectionRow>
+                ))}
+              </Stack>
             </Stack>
           </SupportingPane>
         }

@@ -1,5 +1,6 @@
 // Restore the MapLibre/OpenFreeMap presentation retained before c88b4f5.
 import {
+  AttributionControl,
   LngLatBounds,
   Map as MapLibre,
   Marker,
@@ -36,12 +37,25 @@ export function MapImpl({ markers, selected, onSelect }: MapViewProps) {
       style: styles[latest.current.dark ? 'dark' : 'light'],
       center: [10, 25],
       zoom: 2,
-      attributionControl: { compact: true },
+      attributionControl: false,
       dragRotate: false,
       pitchWithRotate: false,
       touchPitch: false,
     });
-    view.addControl(new NavigationControl({ showCompass: false }), 'top-right');
+    view.addControl(new NavigationControl({ showCompass: false }), 'bottom-right');
+    view.addControl(new AttributionControl({ compact: true }), 'bottom-left');
+    // Compact attribution expands on first source load. Collapse that initial state once.
+    const attribution = host.current.querySelector<HTMLDetailsElement>('.maplibregl-ctrl-attrib');
+    const collapse = () => {
+      if (!attribution?.classList.contains('maplibregl-compact')) return;
+      attribution.classList.remove('maplibregl-compact-show');
+      attribution.open = false;
+      attributionObserver.disconnect();
+    };
+    const attributionObserver = new MutationObserver(collapse);
+    if (attribution)
+      attributionObserver.observe(attribution, { attributes: true, attributeFilter: ['class'] });
+    collapse();
     view.on('error', () => setError(true));
     view.on('style.load', () => setError(false));
     map.current = view;
@@ -50,6 +64,7 @@ export function MapImpl({ markers, selected, onSelect }: MapViewProps) {
     setReady(true);
     return () => {
       resize.disconnect();
+      attributionObserver.disconnect();
       view.remove();
       rendered.current.clear();
       map.current = undefined;

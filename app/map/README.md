@@ -10,7 +10,9 @@ structured degrees/minutes/seconds with a hemisphere and retains optional source
 Arbitrary projected grids, geocentric coordinates and coordinate conversions are outside Map.
 
 `MapPage` is available at `/map/` in Application navigation. It shows the retained OpenFreeMap Positron/light and Dark base maps,
-keyboard-selectable markers and a supporting list that becomes a drawer on phones. Add coordinates
+keyboard-selectable markers and a supporting list that becomes a drawer on phones. Zoom controls
+sit at the bottom-right; attribution starts collapsed at the bottom-left and remains expandable.
+The coordinate pane uses compact task actions, grouped selected-record details and dense list rows. Add coordinates
 chooses an existing Wiki, Calendar, Question or Source document record and decimal latitude/longitude.
 Edit preserves a stored DMS representation when its numeric position is unchanged. Failed saves
 retain the draft for explicit retry; removing a location retains its history. Offline reading

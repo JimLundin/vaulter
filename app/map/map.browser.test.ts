@@ -41,7 +41,13 @@ test('Map restores Positron and Dark styles while retaining selection through ap
     return route.fulfill({
       json: {
         version: 8,
-        sources: {},
+        sources: {
+          attribution: {
+            type: 'geojson',
+            data: { type: 'FeatureCollection', features: [] },
+            attribution: 'Map contributors',
+          },
+        },
         layers: [
           {
             id: 'ground',
@@ -57,6 +63,19 @@ test('Map restores Positron and Dark styles while retaining selection through ap
   await page.goto('/preview/index.html#/map/');
   const map = page.getByRole('region', { name: 'Geographic map' });
   await expect(map.locator('canvas')).toBeVisible();
+  const attribution = map.locator('.maplibregl-ctrl-attrib');
+  await expect(attribution).toHaveClass(/maplibregl-compact/);
+  await expect(attribution).not.toHaveClass(/maplibregl-compact-show/);
+  await expect(attribution).not.toHaveAttribute('open');
+  await attribution.locator('summary').click();
+  await expect(attribution).toHaveClass(/maplibregl-compact-show/);
+  await expect(attribution.getByText('Map contributors')).toBeVisible();
+  const controls = map.locator('.maplibregl-ctrl-bottom-right');
+  await expect(controls.getByRole('button', { name: 'Zoom in' })).toBeVisible();
+  const geometry = await map.boundingBox();
+  const zoom = await controls.getByRole('button', { name: 'Zoom in' }).boundingBox();
+  expect(zoom!.y).toBeGreaterThan(geometry!.y + geometry!.height / 2);
+
   await expect.poll(() => styles.some((url) => url.endsWith('/styles/positron'))).toBe(true);
   const marker = map.getByRole('button', { name: 'Garden studio', exact: true });
   await marker.click();
