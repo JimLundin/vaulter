@@ -48,6 +48,8 @@ app/
 │   │   └── presentation/            Questions, embedded Answers, tool views and routes
 │   ├── calendar/                    Time values, Events and annual dates
 │   │   └── presentation/            Calendar page, timeline and routes
+│   ├── decisions/                   Recorded choices, rationale and provenance
+│   │   └── presentation/            Global decision log and embedded records
 │   └── map/                         Coordinates and geographic values
 │       └── presentation/            Map page and routes
 ├── shared/                          Mechanics independent of product modules

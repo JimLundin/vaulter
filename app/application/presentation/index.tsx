@@ -1,3 +1,5 @@
+import { decisionsRoute } from '@/modules/decisions/index.ts';
+import { decisionsPage, useDecisions } from '@/modules/decisions/presentation/index.ts';
 import { historyNavigation, historyCommand } from '@/core/history/presentation/index.tsx';
 import { settingsNavigation, settingsCommand } from '@/core/settings/presentation/index.ts';
 import { renderPage, pageNavigation, pageCommands } from '@/core/navigation/index.ts';
@@ -27,6 +29,7 @@ import {
   applicationDatabase,
   applicationWiki,
   applicationCalendar,
+  applicationDecisions,
   applicationMap,
   applicationSubjectCalendar,
   toolPresentations,
@@ -240,6 +243,12 @@ export function OpenApplication({
     [session.eav, identities],
   );
   const map = useMap(onMap ? mapInput : null);
+  const onDecisions = !!decisionsRoute.match(route.path);
+  const decisionsInput = useMemo(
+    () => (session.eav ? applicationDecisions(session.eav, identities) : null),
+    [session.eav, identities],
+  );
+  const decisions = useDecisions(onDecisions ? decisionsInput : null);
   const onCalendar = !!calendarRoute.match(route.path);
   const calendarInput = useMemo(
     () => (session.eav ? applicationCalendar(session.eav, identities) : null),
@@ -351,11 +360,13 @@ export function OpenApplication({
             ? 'Questions'
             : onMap
               ? 'Map'
-              : onCalendar
-                ? 'Calendar'
-                : onGraph
-                  ? 'Graph'
-                  : 'Not found';
+              : onDecisions
+                ? 'Decisions'
+                : onCalendar
+                  ? 'Calendar'
+                  : onGraph
+                    ? 'Graph'
+                    : 'Not found';
   const provider = useMemo(
     () =>
       session.secrets?.openai
@@ -454,6 +465,7 @@ export function OpenApplication({
       graphPage,
       mapPage,
       calendarPage,
+      decisionsPage,
       questionsPage,
     ]),
     ...(eav ? [historyNavigation(historyOpen, () => setCoreAction('history'))] : []),
@@ -481,7 +493,15 @@ export function OpenApplication({
     later(conversation.captureAction());
   };
   const commands: Command[] = [
-    ...pageCommands([mapPage, calendarPage, graphPage, wikiPageView, chatPage, questionsPage]),
+    ...pageCommands([
+      mapPage,
+      calendarPage,
+      decisionsPage,
+      graphPage,
+      wikiPageView,
+      chatPage,
+      questionsPage,
+    ]),
     ...(eav ? [historyCommand(() => setCoreAction('history'))] : []),
     settingsCommand(() => setCoreAction('settings')),
     {
@@ -608,6 +628,18 @@ export function OpenApplication({
                 : status.kind === 'synced'
                   ? undefined
                   : 'Reconnect before saving Map changes.',
+            }),
+            decisionsPage.mount({
+              data: decisions.data,
+              error:
+                decisions.error ??
+                (!decisionsInput ? 'Decisions storage is unavailable.' : undefined),
+              actions: decisionsInput?.actions,
+              disabledReason: session.credentialPending
+                ? 'Wait for credentials to finish updating.'
+                : status.kind === 'synced'
+                  ? undefined
+                  : 'Reconnect before saving Decisions changes.',
             }),
             calendarPage.mount({
               data: calendar.data,

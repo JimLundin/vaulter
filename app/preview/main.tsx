@@ -1,3 +1,4 @@
+import { seedDecisions } from './decision-records.ts';
 import { seedEavQuestions } from './question-records.ts';
 import '@fontsource-variable/geist';
 import '@fontsource-variable/geist-mono';
@@ -52,6 +53,7 @@ const opening = (async () => {
   const db = await applicationWiki(eav).database();
   await seedEavWiki(db);
   await seedCalendar(eav);
+  await seedDecisions(eav);
   await seedMap(eav);
   await seedEavQuestions(db);
   await seedGraphEvidence(db, query.get('compare') === 'graph');

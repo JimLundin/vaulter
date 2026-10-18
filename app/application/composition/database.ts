@@ -3,6 +3,7 @@ import { chatSchema } from '@/modules/conversation/index.ts';
 import { wikiEntities } from '@/modules/wiki/index.ts';
 import { graphEntities } from '@/modules/graph/index.ts';
 import { questionEntities } from '@/modules/questions/index.ts';
+import { decisionEntities } from '@/modules/decisions/index.ts';
 import { calendarEntities } from '@/modules/calendar/index.ts';
 import { mapEntities } from '@/modules/map/index.ts';
 import { observationEntities } from '@/modules/observations/index.ts';
@@ -16,6 +17,7 @@ export const applicationSchema = e.registry({
   ...evidenceEntities,
   ...graphEntities,
   ...calendarEntities,
+  ...decisionEntities,
   ...mapEntities,
   ...questionEntities,
   ...observationEntities,

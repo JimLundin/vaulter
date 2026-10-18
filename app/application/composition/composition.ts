@@ -1,3 +1,5 @@
+import { createDecision, reviseDecision, removeDecision } from '@/modules/decisions/index.ts';
+import type { DecisionActions } from '@/modules/decisions/presentation/index.ts';
 import { applicationDatabase } from './database.ts';
 export { applicationDatabase, applicationSchema } from './database.ts';
 import { bindActor, readActorBinding } from '@/modules/actors/index.ts';
@@ -395,4 +397,32 @@ export function applicationChatOptions({
 }
 export function createApplicationConversation(options: ApplicationChatOptions) {
   return createConversation(applicationChatOptions(options));
+}
+
+export function applicationDecisions(
+  storage: JournalStorage,
+  identities: ApplicationIdentities = defaultIdentities,
+) {
+  const author = async () => {
+    const db = await applicationDatabase(storage);
+    const actor = await readActorBinding(db, identities.user, 'user');
+    if (!actor) throw new Error('Vault owner identity is unavailable.');
+    return actor;
+  };
+  const actions: DecisionActions = {
+    create: async (input) => {
+      await createDecision(await applicationDatabase(storage), input, { author: await author() });
+    },
+    revise: async (decision, patch) => {
+      await reviseDecision(await applicationDatabase(storage), decision, patch, {
+        author: await author(),
+      });
+    },
+    remove: async (decision) => {
+      await removeDecision(await applicationDatabase(storage), decision, {
+        author: await author(),
+      });
+    },
+  };
+  return { database: () => applicationDatabase(storage), actions };
 }
