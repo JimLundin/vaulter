@@ -1,6 +1,15 @@
 # Proposed contracts and implementation order
 
-Status: proposed for discussion, not an agreed schema or completed migration.
+Status: proposed for discussion, with V01's product direction and a dedicated
+Tasks module with a Kanban board agreed on 2026-10-18.
+The initial board uses fixed Backlog, Ready, In progress and Done columns;
+configurable statuses and boards are deferred.
+Decisions is also agreed as a dedicated module with a global list page and
+embedded presentation, retaining decision text, civil date, optional rationale
+and revision history without implying continued applicability.
+Observations is agreed as an owner of structured retained records and embeddable
+presentation, with no standalone measurements page in the initial scope.
+No field schema is agreed and no migration is claimed complete.
 This proposal responds to [the feedback](vault-eav-feedback.md), its
 [exact gap contracts](vault-eav-gap-contracts.md), and the
 [Observation supplement](vault-eav-observations.md).
@@ -41,10 +50,10 @@ it. Import/conversion time is never occurrence, completion or capture time.
 
 | Request | Proposed owner and retained shape | Required behavior |
 | --- | --- | --- |
-| V01 | Conversation: imported grouping with kind `conversation` or `exchange`, provenance, availability, optional title/summary/preamble and recorded creation/start/end values. Separate member records carry grouping, explicit position and exact historical member reference. | A grouping belongs to the single native Conversation without becoming another Conversation or a Context checkpoint. Members may be contributions, nested groupings, Pages, associations, Observations or Agent records. Read complete original grouping history independently of contribution availability; reject containment cycles. |
-| V02 Tasks | New Tasks domain: exact text, recorded `open`/`completed`/`abandoned` status, optional civil due date, availability and provenance. | Revise status without deriving completion time. Wiki owns ordered Page placement through the proposed foreign Appearance contract. Task historical states are valid relationship/source endpoints. |
-| V02 Decisions | New Decisions domain: exact text, recorded civil decision date, optional rationale, availability and provenance. | Preserve revisions and final fields after removal. Optional attribution is retained only when supplied; admission author does not become original author. Wiki owns Page placement. |
-| V02 Observations | New Observations domain: subject, structured source, requested/observed/received timing, optional elapsed milliseconds, structured outcome, availability and provenance. Host/session/weather projections expose recorded measurements and quality metadata, retaining raw external values. | The complete imported Exchange grouping is the recorded context. Preserve explicit nulls and collected/failed/unknown outcomes when supplied. Weather coordinates describe measurement context and do not assert anyone's presence. Reopen typed readings without reparsing a SourceDocument. |
+| V01 | Agreed product direction: private tooling processes old conversations into the current ongoing dialogue. Sources retains old notes as external source material, including original versions and structure needed for provenance. Conversation gains no legacy conversation/exchange grouping types. | Converted contributions use current Conversation semantics. References to an original container select its preserved external source state rather than an arbitrary converted contribution. Source-to-native correspondence remains explicit. Source capture/admission time is distinct from original dialogue time. The Sources field/selection contract remains to be designed. |
+| V02 Tasks | Agreed basis: dedicated Tasks domain and routable presentation, comparable to Calendar, with fixed Backlog, Ready, In progress and Done columns. Retain task text, optional civil due date, availability and provenance. Configurable statuses/boards are deferred; additional task features remain to be discussed. | Tasks owns admission, lifecycle and board behavior. Map imported open tasks to Backlog as a current workflow default, retaining the original open status in source provenance without claiming recorded readiness or activity. Completed tasks map to Done; abandoned tasks remain separately retained and accessible, never mapped to Done. Do not derive completion time. Application composes links to Wiki, Conversation and Calendar. Task historical states are valid relationship/source endpoints. |
+| V02 Decisions | Agreed basis: dedicated Decisions domain with a routable global decision log and embedded presentation for other modules. Retain exact text, recorded civil decision date, optional rationale, availability and provenance. | Global and embedded views read the same records. Preserve revisions and final fields after removal without implying the decision is still in force. Optional attribution is retained only when supplied; admission author does not become original author. Application composes connections to relevant subjects, discussions and tasks; Wiki owns Page placement. |
+| V02 Observations | Agreed basis: Observations owns structured retained records and embeddable presentation; no standalone measurements page initially. Retain subject, structured source, requested/observed/received timing, optional elapsed milliseconds, structured outcome, availability and provenance. Host/session/weather projections expose recorded measurements and quality metadata, retaining raw external values. | Original Exchange context selects preserved external source material under V01; a current native Exchange link requires verified conversion correspondence. Preserve explicit nulls and collected/failed/unknown outcomes when supplied. Weather coordinates describe measurement context and do not assert anyone's presence. Reopen typed readings without reparsing a SourceDocument. |
 | V03 | Graph: extend the same Relationship identity with explicit endpoint/direction knowledge and readable reasons for missing endpoints. Add a distinct source-association shape for topic/place role, optional label, availability and historical endpoints. | Allow unresolved → resolved → revised → unavailable history without creating a replacement identity. Placement does not infer direction. Source associations remain distinct from editorial Topic membership and Wiki Review. |
 | V04 | Wiki: separate foreign Appearance records with ordered Page/parent placement and historical owner reference; existing prose Content remains unchanged. Graph owns Query definition and recorded historical result membership/order. Calendar owns a chronology shape with ordered buckets/items, optional labels, original time expressions and recurrence. | Application supplies owner renderers. Reading renders the selected historical Query/chronology state rather than running a current query. Unlabelled buckets need no fabricated Event. Query and chronology contracts require the two original blocked fixtures before their fields are finalised. |
 | V05 | Private vault tooling: immutable evidence export and explicit address-translation manifest targeting the composed native schema. | Map each accepted old address to its exact derivative address or an explicit unresolved gate. Preserve source bytes, reconcile prepared/published contribution identities, deduplicate only by verified correspondence and reopen one Conversation through the current GitHub adapter. No startup conversion or published cutover is included in these application changes. |
@@ -76,7 +85,7 @@ continue to require a live selected target. Never substitute an earlier live sta
 
 Before implementation, inspect the Store history interface and decide whether this
 can extend its reference value format or needs a separate field/value format.
-Relationship/grouping/redirect fields may use retained-state references; supporting
+Relationship/source/redirect fields may use retained-state references; supporting
 evidence must preserve its existing admission requirements. Record this decision
 in an ADR and verify both independent replay and old evidence behavior.
 
@@ -87,7 +96,7 @@ in an ADR and verify both independent replay and old evidence behavior.
 | 0 | Incorporate current main; agree retained-state reference, recorded-time and ordered-placement contracts. | These affect several owners. Decide supported semantics before fixing field names. No legacy compatibility types or broad module refactor. |
 | 1 | V07 batch validation, historical validation reuse and bounded read caching. | Removes a measured readback bottleneck for every later owner. Preserve rejection behavior; compare performance against the unchanged implementation. Coordinate with `feat/eav-query-limits`, whose query bounds and history work are related but do not implement this request. |
 | 2 | Core retained-state references and Calendar recorded-time values; V08 leads, V09 unknown versions, V06 qualification. | Establish shared prerequisites and independently verifiable additions. Deliver each owner with reopened current/historical examples. |
-| 3 | V01 complete imported groupings and ordered members. | Unblocks exact original Exchange endpoints for associations, Observations and execution correspondence. Test groupings with no, one and several contributions plus foreign members. |
+| 3 | V01 external source preservation and conversion correspondence using current Conversation records. | Original container endpoints remain addressable as source evidence. Verify contributions converted into the ongoing dialogue without legacy grouping types; references to source containers do not silently resolve to one or all converted contributions. |
 | 4 | V02 Tasks, Decisions and Observations; structural provenance links; V03 unresolved Relationships/source associations. | Complete missing native meanings using stage 2/3 references. Verify revisions, resolution, unavailability and original metadata independently. |
 | 5 | V04 foreign Wiki appearances, Query result history and chronology; V10 redirects. | Use the exact blocked fixtures to settle rendering semantics; validate current canonical resolution separately from historical identity. Redirects can proceed earlier if their source/target owners are available. |
 | 6 | Return exact implementation commits and evidence; private V05 reconciliation and exhaustive source-backed verification. | Run each owner's checks during its stage. Final migration gate requires all original versions and newer published work in one verified derivative journal. Publishing a cutover is a separate action. |
@@ -99,16 +108,21 @@ capability from verified conversion of the private source inventory.
 
 ## Decisions for discussion
 
-1. Keep Tasks, Decisions and Observations as separate domain owners, or put Tasks
-   and Decisions in one intentions module? The proposal favours separate owners
-   because their lifecycle and required fields differ; neither creates a duplicate
-   Wiki subject identity.
+1. Tasks is agreed as a dedicated domain module with a Kanban board, comparable
+   to Calendar, initially using fixed Backlog, Ready, In progress and Done columns.
+   Configurable statuses/boards are deferred. Ordering, additional fields/views and
+   cancellation interaction remain implementation/design details to settle.
+   Decisions is agreed as a dedicated module with a global list and embedded
+   views. Observations is agreed as structured records with embedded presentation;
+   a standalone page is deferred.
 2. Accept a separate retained-state reference rather than changing what an accepted
    evidence reference means?
-3. Accept Conversation ownership of imported groupings and Wiki ownership of
-   foreign placement, with Application composing foreign presentation?
+3. V01 direction agreed: old notes are external source material and their dialogue
+   is processed into the ongoing Conversation. Sources owns preserved originals;
+   Conversation does not model legacy containers. Remaining discussion concerns
+   source selection/correspondence fields and Wiki ownership of foreign placement.
 4. Confirm the original Query/chronology fixture shapes before agreeing V04's
    complete field contract. The feedback alone does not specify enough to do so.
 
-These decisions are pending. This document does not mark any request implemented,
+Other decisions remain pending. This document does not mark any request implemented,
 agree a schema migration, or claim source conversion completion.
