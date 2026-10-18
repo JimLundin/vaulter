@@ -4,6 +4,11 @@ See [the source-backed requests](vault-eav-feedback.md). This file is the return
 handoff to the vault migration. Replace `pending` when a contract is agreed or
 implemented; link the exact implementation commit and evidence.
 
+A [contract and implementation-order proposal](vault-eav-contract-proposal.md)
+is available for discussion. It uses the current module ownership layout and
+identifies the historical deletion contract that must be resolved first. The
+requests below remain pending agreement; no implementation is claimed.
+
 | Request | Status | Agreed contract / alternative | Owner and public interface | Implementation commit | Verification / remaining gaps |
 | --- | --- | --- | --- | --- | --- |
 | V01 Imported dialogue grouping | pending | | | | |
