@@ -65,3 +65,46 @@ opens the Garden studio Wiki page with its subject timeline. Both use fictional 
 
 The reviewed alternatives are retained on `prototype/calendar-layouts` at `16b417b`. The chosen
 layout is B (Timeline actions), with the bottom month rail and a calendar that fits the viewport.
+
+Calendar also retains **Chronology** collections and date contexts. A date context is a temporal
+bucket for ordered material, without asserting Event title, status, attendance or occurrence.
+`createChronology(db, input, items?, transactionContext?)` admits the record and initial items
+atomically. `kind: 'collection'` carries no date; `kind: 'date-context'` requires `TimeValue`.
+Labels are optional (absent and empty remain distinct). The supported optional recurrence is
+`yearly`, preserving a recorded annual rule independently of its original civil anchor and
+without generating occurrences. Other recurrence rules are unsupported.
+
+`context`, `provenance` and each ordered item `target` use exact Retained state references,
+including deleted endpoint states. They are associations, not supporting-evidence declarations.
+Items preserve string placement tokens and availability. `createChronologyItem` appends an
+individually addressable item; `reviseChronologyItem` changes its endpoint/order/availability.
+`reviseChronology` replaces recorded fields, clears absent optional metadata, and can hide or
+restore availability. Accepted history remains readable; writes never rerun effects.
+
+`readChronologies(db, { snapshot?, chronology?, includeUnavailable? })` returns collection/date
+records and their ordered items from one accepted snapshot. Current reading omits unavailable
+records/items by default; history can include their last fields explicitly. A Chronology record
+can be the target of the existing live/pinned Wiki embed and ordered Appearance contract.
+Owner reading is available independently of a standalone Chronology page or embed rendering UI.
+Private migration tooling supplies exact source correspondence and original attribution; native
+admission does not guess original order, authorship, time or semantic Event status.
+
+`chronologyAdmission(tx)` offers `create`, `revise`, `place` and `revisePlacement` inside a
+caller-owned transaction, allowing private source conversion to preserve atomic source boundaries.
+`ChronologyPlacement` retains exact `parent` and `child` Retained state references, verbatim
+`order`, optional provenance and explicit availability independently of the parent record.
+It can connect external Sources, Wiki pages/sections, Calendar contexts and Graph records
+without storing relationships in arbitrary JSON. Removing a parent never removes descendants.
+
+`readChronologyClosure(db, parentReference, { snapshot?, includeUnavailable? })` reads ordered
+membership at the requested cutoff, resolves its exact recorded child selections and reports
+live/deleted endpoint states plus retained child fields. Deleted endpoints keep their deleted
+selection even when their final values are read from history. Private conversion must revise
+placement selections at child-only source changes or movements; the parent's unchanged payload
+is not sufficient to establish its historical closure. `snapshot` is the mapped native source
+cutoff, independently of the parent's selected historical endpoint.
+
+`readChronology(db, chronologyRef, { snapshot?, includeUnavailable? })` is the per-record embed
+projection: label/kind/time/recurrence plus ordered items and cross-owner closure, each exposing
+exact endpoint availability and recorded child fields. The view can render unlabeled date buckets
+without inventing an Event title or description.
