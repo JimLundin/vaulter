@@ -1,3 +1,7 @@
+import { createDecision, reviseDecision, removeDecision } from '@/modules/decisions/index.ts';
+import type { DecisionActions } from '@/modules/decisions/presentation/index.ts';
+import { createTask, reviseTask } from '@/modules/tasks/index.ts';
+import type { TaskActions } from '@/modules/tasks/presentation/index.ts';
 import { applicationDatabase } from './database.ts';
 export { applicationDatabase, applicationSchema } from './database.ts';
 import { bindActor, readActorBinding } from '@/modules/actors/index.ts';
@@ -16,7 +20,12 @@ import {
 import type { CalendarActions } from '@/modules/calendar/presentation/index.ts';
 import { sameEntity } from '@/core/store/index.ts';
 import { wikiTools, wikiCapabilities } from '@/modules/wiki/index.ts';
-import { graphTools, graphCapabilities } from '@/modules/graph/index.ts';
+import {
+  graphTools,
+  graphCapabilities,
+  graphActions,
+  type RelationshipCandidateActions,
+} from '@/modules/graph/index.ts';
 import { readWikiGraphTopics } from './wiki-graph.ts';
 import { createEavChatBackend } from '@/modules/conversation/index.ts';
 import type { ChatBackendFactory } from '@/modules/conversation/index.ts';
@@ -47,8 +56,91 @@ type ApplicationChatOptions = Omit<
 export function applicationGraph(storage: JournalStorage) {
   return applicationDatabase(storage).then(readGraph);
 }
+export function applicationRelationshipCandidates(
+  storage: JournalStorage,
+  identities: ApplicationIdentities,
+  admission: () => string | undefined,
+): RelationshipCandidateActions {
+  const actions = async () => {
+    const reason = admission();
+    if (reason) throw new Error(reason);
+    const db = await applicationDatabase(storage);
+    const author = await db.transaction((tx) =>
+      bindActor(tx, identities.user, 'user', 'Vault owner'),
+    );
+    const latestReason = admission();
+    if (latestReason) throw new Error(latestReason);
+    return graphActions(db, { author });
+  };
+  return {
+    clarify: async (key, input) => {
+      await (await actions()).clarify(key, input);
+    },
+    remove: async (key) => {
+      await (await actions()).remove(key);
+    },
+  };
+}
 export function applicationGraphInput(storage: JournalStorage) {
-  return { database: () => applicationDatabase(storage) };
+  return {
+    database: () => applicationDatabase(storage),
+    endpointChoices: async () => {
+      const db = await applicationDatabase(storage);
+      const snapshot = await db.history.transactions.first({
+        select: {},
+        orderBy: [{ sequence: 'desc' }],
+      });
+      if (!snapshot) return [];
+      const view = db.at(snapshot);
+      const records = (
+        await Promise.all([
+          view.entities.wikiPages.query({
+            select: { title: true },
+            where: { available: { eq: true } },
+            limit: null,
+          }),
+          view.entities.sourceDocuments.query({
+            select: { title: true },
+            where: { available: { eq: true } },
+            limit: null,
+          }),
+          view.entities.calendarEvents.query({
+            select: { title: true },
+            where: { available: { eq: true } },
+            limit: null,
+          }),
+          view.entities.questions.query({ select: {}, limit: null }),
+          view.entities.sourceLeads.query({
+            select: {},
+            where: { available: { eq: true } },
+            limit: null,
+          }),
+          view.entities.tasks.query({
+            select: {},
+            where: { available: { eq: true } },
+            limit: null,
+          }),
+          view.entities.decisions.query({
+            select: {},
+            where: { available: { eq: true } },
+            limit: null,
+          }),
+          view.entities.observations.query({
+            select: {},
+            where: { available: { eq: true } },
+            limit: null,
+          }),
+        ])
+      ).flat();
+      return Promise.all(
+        records.map(async (record) => ({
+          address: await db.history.reference(snapshot, record),
+          values: (await db.history.inspect(snapshot, record))?.values,
+          state: 'available' as const,
+        })),
+      );
+    },
+  };
 }
 export function applicationWiki(storage: JournalStorage) {
   return {
@@ -76,6 +168,32 @@ export function applicationQuestionAnswers(
     admission,
   });
 }
+export function applicationTasks(
+  storage: JournalStorage,
+  identities: ApplicationIdentities,
+  admission: () => string | undefined,
+) {
+  const database = () => applicationDatabase(storage);
+  const author = async () => {
+    const reason = admission();
+    if (reason) throw new Error(reason);
+    const actor = await readActorBinding(await database(), identities.user, 'user');
+    if (!actor) throw new Error('Vault owner identity is unavailable.');
+    return actor;
+  };
+  const actions: TaskActions = {
+    create: async (input) => {
+      const actor = await author();
+      await createTask(await database(), input, { author: actor });
+    },
+    revise: async (task, patch) => {
+      const actor = await author();
+      await reviseTask(await database(), task, patch, { author: actor });
+    },
+  };
+  return { database, actions };
+}
+
 export function applicationCalendar(
   storage: JournalStorage,
   identities: ApplicationIdentities = defaultIdentities,
@@ -395,4 +513,32 @@ export function applicationChatOptions({
 }
 export function createApplicationConversation(options: ApplicationChatOptions) {
   return createConversation(applicationChatOptions(options));
+}
+
+export function applicationDecisions(
+  storage: JournalStorage,
+  identities: ApplicationIdentities = defaultIdentities,
+) {
+  const author = async () => {
+    const db = await applicationDatabase(storage);
+    const actor = await readActorBinding(db, identities.user, 'user');
+    if (!actor) throw new Error('Vault owner identity is unavailable.');
+    return actor;
+  };
+  const actions: DecisionActions = {
+    create: async (input) => {
+      await createDecision(await applicationDatabase(storage), input, { author: await author() });
+    },
+    revise: async (decision, patch) => {
+      await reviseDecision(await applicationDatabase(storage), decision, patch, {
+        author: await author(),
+      });
+    },
+    remove: async (decision) => {
+      await removeDecision(await applicationDatabase(storage), decision, {
+        author: await author(),
+      });
+    },
+  };
+  return { database: () => applicationDatabase(storage), actions };
 }

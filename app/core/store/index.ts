@@ -15,6 +15,7 @@ export type {
   Transaction,
   TransactionRef,
   HistoricalReference,
+  RetainedStateReference,
   TransactionContext,
   Reader,
   Writer,

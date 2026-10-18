@@ -210,13 +210,36 @@ retain a stable scope across reopen; memory scopes last for the reused storage o
 
 Resolution reads available accepted history and never refreshes, publishes or executes effects.
 Refresh explicitly when remote evidence is newer than the loaded journal. The address is neither
-an authorization token nor a live typed reference. Schema fields for historical references,
-acceptance-time integrity for stored evidence, text projection formats and passage ranges remain
-owner-model work; merely storing this address in JSON does not enforce those contracts.
+an authorization token nor a live typed reference. Schema-defined `e.historicalRef()` fields enforce acceptance-time and durable evidence integrity.
+Text projection formats and passage ranges belong to their owners; storing an address in JSON
+alone does not enforce those contracts.
+
+## Retained state references
+
+`history.retainedStateReference(transaction, entity)` exports a frozen `RetainedStateReference`
+using the distinct `vaulter-eav-retained-state-v1` format. It selects a retained identity at an
+accepted snapshot even when the record is deleted there. `history.resolveRetainedState(unknown)`
+returns opaque transaction/entity handles and `state: 'live' | 'deleted'`. A deleted state is a
+retained tombstone, not a live projection; ordinary `get` and `history.inspect` remain absent for
+that state. Earlier live snapshots remain separately readable.
+
+`e.retainedStateRef()` validates these addresses in scalar and set attributes, including acceptance,
+queries and durable replay. Target identity/type, scope, journal and accepted cutoff must agree;
+not-yet-created, missing and future targets are rejected. Persistent reopen validates the adapter
+scope. Standalone `parseJournal(value, { scope })` can apply that same scope check; without the
+optional scope it validates journal-internal integrity only. Later changes cannot alter the selected
+live/deleted state.
+
+These addresses support relationship, provenance and History descriptions of deleted states.
+They cannot be written to `e.historicalRef()` evidence fields or resolved as supporting evidence;
+ADR 0005's available-at-the-selected-snapshot evidence requirement is unchanged. Existing owner
+fields are not automatically widened. A new optional retained-state field is compatible; changing
+an existing historical field's kind requires explicit migration. See
+[ADR 0015](../../../docs/adr/0015-retained-state-references.md).
 
 ## Verification
 
-`npm run test:fast -- app/application/store` exercises the public interface. `contract.type-test.ts` is checked
+`npm run test:fast -- app/core/store` exercises the public interface. `contract.type-test.ts` is checked
 by `npm run typecheck` and includes valid and rejected call sites, including `first` absence handling.
 Full routine verification runs in CI under the repository testing policy.
 

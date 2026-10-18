@@ -22,7 +22,11 @@ import {
 } from '@/shared/ui/kit/index.ts';
 import type { CoordinateInput } from '@/modules/map/operations.ts';
 import type { CoordinateValue } from '@/modules/map/coordinates.ts';
-import { decimalDegrees, parseCoordinates } from '@/modules/map/coordinates.ts';
+import {
+  decimalDegrees,
+  parseCoordinates,
+  spatialQualificationLabel,
+} from '@/modules/map/coordinates.ts';
 import type { CoordinateRef } from '@/modules/map/records.ts';
 import { mapMarkers, type MapData, type MapEntry } from '@/modules/map/view.ts';
 
@@ -53,6 +57,7 @@ function CoordinateEditor({
   const [longitude, setLongitude] = useState(
     original ? String(decimalDegrees(original.longitude)) : '',
   );
+  const [qualification, setQualification] = useState(original?.qualification ?? '');
   const [error, setError] = useState<string>();
   const [busy, setBusy] = useState(false);
   const pending = useRef<boolean>(false);
@@ -69,14 +74,17 @@ function CoordinateEditor({
         !original ||
         latitude !== String(decimalDegrees(original.latitude)) ||
         longitude !== String(decimalDegrees(original.longitude));
-      const coordinates = changed
+      const coordinates: CoordinateValue = changed
         ? parseCoordinates({
             kind: 'geographic',
             crs: 'EPSG:4326',
             latitude: Number(latitude),
             longitude: Number(longitude),
           })
-        : original;
+        : { ...original };
+      if (qualification === 'street') coordinates.qualification = qualification;
+      // biome-ignore lint/performance/noDelete: Clearing a retained JSON field must omit it rather than store undefined.
+      else delete coordinates.qualification;
       if (entry) await actions.revise(entry.record, coordinates);
       else {
         const target = data.subjects[Number(subject)];
@@ -130,6 +138,22 @@ function CoordinateEditor({
           value={longitude}
           disabled={busy}
           onChange={(event) => setLongitude(event.currentTarget.value)}
+        />
+      </SettingField>
+      <SettingField
+        label="Location precision"
+        description="Record the spatial precision stated by the source. Unspecified does not imply an exact location."
+      >
+        <Select
+          value={qualification}
+          disabled={busy}
+          options={[
+            { value: '', label: 'Unspecified' },
+            { value: 'street', label: spatialQualificationLabel('street') },
+          ]}
+          onChange={(event) =>
+            setQualification(event.currentTarget.value === 'street' ? 'street' : '')
+          }
         />
       </SettingField>
       {!!error && (
@@ -248,6 +272,11 @@ export function MapPage({
                 <Surface variant="subtle" as="section" aria-label="Selected location">
                   <Stack gap="sm">
                     <Heading level={2}>{entry.label}</Heading>
+                    {!!entry.record.coordinates.qualification && (
+                      <Text size="sm" tone="muted">
+                        {spatialQualificationLabel(entry.record.coordinates.qualification)}
+                      </Text>
+                    )}
                     <Text size="sm" tone="muted" mono={true}>
                       {decimalDegrees(entry.record.coordinates.latitude).toFixed(6)},{' '}
                       {decimalDegrees(entry.record.coordinates.longitude).toFixed(6)}
@@ -301,6 +330,11 @@ export function MapPage({
                       <Text as="span" size="sm" weight="medium">
                         {item.label}
                       </Text>
+                      {!!item.record.coordinates.qualification && (
+                        <Text as="span" size="xs" tone="muted">
+                          {spatialQualificationLabel(item.record.coordinates.qualification)}
+                        </Text>
+                      )}
                       <Text as="span" size="xs" tone="muted" mono={true}>
                         {decimalDegrees(item.record.coordinates.latitude).toFixed(4)},{' '}
                         {decimalDegrees(item.record.coordinates.longitude).toFixed(4)}

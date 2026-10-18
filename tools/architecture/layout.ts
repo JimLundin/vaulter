@@ -47,12 +47,14 @@ const compositionEntry = (path: string) =>
     'app/application/composition/composition.ts',
     'app/application/composition/database.ts',
     'app/application/composition/wiki-graph.ts',
+    'app/application/composition/embeds.ts',
   ].includes(path);
 const applicationTest = (path: string) => path.startsWith('app/application/') && testSource(path);
 const workflow = (path: string) =>
   /^app\/modules\/(conversation|wiki|questions|graph)\//.exec(path)?.[1] ??
   /^app\/workflows\/([^/]+)\//.exec(path)?.[1];
-const standaloneOwner = (path: string) => /^app\/modules\/(calendar|map)\//.exec(path)?.[1];
+const standaloneOwner = (path: string) =>
+  /^app\/modules\/(calendar|map|decisions|tasks|observations)\//.exec(path)?.[1];
 const fixture = (path: string) =>
   /\.(?:test|type-test|test-support)\.[cm]?tsx?$/.test(path) || path.startsWith('app/preview/');
 const testSource = (path: string) => /\.(?:test|type-test|test-support)\.[cm]?tsx?$/.test(path);
@@ -142,7 +144,7 @@ export function importProblem(from: string, to: string): string | null {
   if (
     kit(from) &&
     (to.startsWith('app/vault/') ||
-      /^app\/modules\/(actors|sources|conversation|agent|wiki|graph|questions|calendar|map)\//.test(
+      /^app\/modules\/(actors|sources|conversation|agent|wiki|graph|questions|calendar|map|decisions|tasks|observations)\//.test(
         to,
       ))
   )
@@ -223,7 +225,7 @@ export function importProblem(from: string, to: string): string | null {
   )
     return `${from} imports private core ${targetCore} implementation; use its public entry`;
   const domain = (path: string) =>
-    /^app\/modules\/(actors|sources|conversation|agent|wiki|graph|questions|calendar|map|transcription)\//.exec(
+    /^app\/modules\/(actors|sources|conversation|agent|wiki|graph|questions|calendar|map|decisions|tasks|observations|transcription)\//.exec(
       path,
     )?.[1];
   const owner = domain(to);
@@ -240,7 +242,11 @@ export function importProblem(from: string, to: string): string | null {
       wiki: ['actors', 'sources'],
       questions: ['actors', 'agent', 'transcription'],
     };
-    if (caller && !['calendar', 'map'].includes(owner) && !allowed[caller]?.includes(owner))
+    if (
+      caller &&
+      !['calendar', 'map', 'decisions'].includes(owner) &&
+      !allowed[caller]?.includes(owner)
+    )
       return `${from} imports ${owner} ownership; compose unrelated domains in Application`;
     if (
       from.startsWith('app/application/') &&

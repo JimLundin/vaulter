@@ -17,6 +17,7 @@ test('Map selects locations and keeps edited coordinates after reload', { tag: '
   await marker.click();
   await page.getByRole('button', { name: 'Edit coordinates', exact: true }).click();
   await page.getByLabel('Latitude', { exact: true }).fill('60.25');
+  await page.getByLabel('Location precision', { exact: true }).selectOption('street');
   await page.getByRole('button', { name: 'Save coordinates', exact: true }).click();
   await expect(
     page
@@ -24,11 +25,15 @@ test('Map selects locations and keeps edited coordinates after reload', { tag: '
       .filter({ has: page.getByRole('heading', { name: 'Edit coordinates', exact: true }) }),
   ).toHaveCount(0);
   await expect(page.getByText(/^60.250000,/)).toBeVisible();
+  await expect(
+    page.getByLabel('Selected location').getByText('Street-level location'),
+  ).toBeVisible();
   await page.reload();
   await expect(page.locator('.kit-map-marker').first()).toBeVisible();
   if (await page.getByRole('button', { name: 'Open coordinates', exact: true }).isVisible())
     await page.getByRole('button', { name: 'Open coordinates', exact: true }).click();
   await expect(page.getByText(/^60.2500,/)).toBeVisible();
+  await expect(page.getByText('Street-level location')).toBeVisible();
 });
 
 test('Map restores Positron and Dark styles while retaining selection through appearance changes', async ({

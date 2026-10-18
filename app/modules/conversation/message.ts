@@ -1,4 +1,5 @@
 import type { JsonValue } from '@/core/store/index.ts';
+import type { RecordEmbed } from '@/core/embeds/index.ts';
 import type { Precision } from '@/modules/conversation/retained-values.ts';
 
 export type MessagePart =
@@ -17,7 +18,7 @@ export type MessagePart =
       readonly error?: string;
     };
 
-export type MessageData =
+export type MessageData = { readonly embeds?: readonly RecordEmbed[] } & (
   | {
       readonly kind: 'message';
       readonly role: 'user';
@@ -45,4 +46,5 @@ export type MessageData =
       readonly atPrecision?: Precision;
       readonly text: string;
       readonly record: { readonly kind: 'summary'; readonly label?: string };
-    };
+    }
+);

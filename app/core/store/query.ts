@@ -1,4 +1,4 @@
-import { resolveReference } from './references.ts';
+import { resolveReference, resolveRetainedStateReference } from './references.ts';
 import { encodeJson, decodeJson } from './json.ts';
 import type { EntityDefinition, FieldDefinition } from './schema.ts';
 import { attributeKey } from './schema.ts';
@@ -53,6 +53,7 @@ export function limit(value: unknown): number {
 export function scalar(definition: FieldDefinition, value: unknown): Atom {
   switch (definition.kind) {
     case 'historical':
+    case 'retained-state':
       throw new Error('Historical references require database validation');
     case 'json':
       return { json: encodeJson(value) };
@@ -152,11 +153,14 @@ function projectValue(
     const entity = context.definitions.get(atom.type) ?? target(context, definition);
     return project(context, entity, atom.ref, resolved, selection === true ? {} : selection);
   }
-  if (definition.kind === 'historical') {
+  if (definition.kind === 'historical' || definition.kind === 'retained-state') {
     if (typeof atom !== 'object' || !('history' in atom))
       throw new Error('Corrupt historical reference');
     const address = decodeJson(atom.history);
-    resolveReference(context.storage, address);
+    (definition.kind === 'historical' ? resolveReference : resolveRetainedStateReference)(
+      context.storage,
+      address,
+    );
     return address;
   }
   if (definition.kind === 'json') {
@@ -209,8 +213,11 @@ export function project(
 }
 
 function predicateAtom(context: QueryContext, definition: FieldDefinition, value: unknown): Atom {
-  if (definition.kind === 'historical') {
-    resolveReference(context.storage, value);
+  if (definition.kind === 'historical' || definition.kind === 'retained-state') {
+    (definition.kind === 'historical' ? resolveReference : resolveRetainedStateReference)(
+      context.storage,
+      value,
+    );
     return { history: encodeJson(value) };
   }
   return scalar(definition, value);
@@ -392,7 +399,9 @@ export async function selectRecords(
         const definition = entity.fields[name]?.definition;
         if (
           !definition ||
-          ['ref', 'set', 'inverse', 'json', 'historical'].includes(definition.kind)
+          ['ref', 'set', 'inverse', 'json', 'historical', 'retained-state'].includes(
+            definition.kind,
+          )
         )
           throw new Error(`Cannot order by ${name}`);
         if (direction !== 'asc' && direction !== 'desc')

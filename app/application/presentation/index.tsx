@@ -1,9 +1,15 @@
+import { EmbedHostControls } from './EmbedHostControls.tsx';
+import { decisionsRoute } from '@/modules/decisions/index.ts';
+import { decisionsPage, useDecisions } from '@/modules/decisions/presentation/index.ts';
+import { EmbeddedRecord } from './EmbeddedRecord.tsx';
 import { historyNavigation, historyCommand } from '@/core/history/presentation/index.tsx';
 import { settingsNavigation, settingsCommand } from '@/core/settings/presentation/index.ts';
 import { renderPage, pageNavigation, pageCommands } from '@/core/navigation/index.ts';
 import { chatPage } from '@/modules/conversation/presentation/index.tsx';
 import { questionsPage } from '@/modules/questions/presentation/index.tsx';
 import { mapPage } from '@/modules/map/presentation/index.ts';
+import { tasksPage, useTasks } from '@/modules/tasks/presentation/index.ts';
+import { tasksRoute } from '@/modules/tasks/index.ts';
 import { calendarPage } from '@/modules/calendar/presentation/index.ts';
 import { graphPage } from '@/modules/graph/presentation/index.ts';
 import { wikiPage as wikiPageView } from '@/modules/wiki/presentation/index.tsx';
@@ -24,9 +30,12 @@ import {
   applicationHistory,
   applicationChatOptions,
   applicationGraphInput,
+  applicationRelationshipCandidates,
   applicationDatabase,
   applicationWiki,
   applicationCalendar,
+  applicationDecisions,
+  applicationTasks,
   applicationMap,
   applicationSubjectCalendar,
   toolPresentations,
@@ -240,6 +249,12 @@ export function OpenApplication({
     [session.eav, identities],
   );
   const map = useMap(onMap ? mapInput : null);
+  const onDecisions = !!decisionsRoute.match(route.path);
+  const decisionsInput = useMemo(
+    () => (session.eav ? applicationDecisions(session.eav, identities) : null),
+    [session.eav, identities],
+  );
+  const decisions = useDecisions(onDecisions ? decisionsInput : null);
   const onCalendar = !!calendarRoute.match(route.path);
   const calendarInput = useMemo(
     () => (session.eav ? applicationCalendar(session.eav, identities) : null),
@@ -290,7 +305,20 @@ export function OpenApplication({
         : undefined));
   const admission = useRef(writeAdmission);
   admission.current = writeAdmission;
+  const candidateActions = useMemo(
+    () =>
+      session.eav
+        ? applicationRelationshipCandidates(session.eav, identities, () => admission.current)
+        : undefined,
+    [session.eav, identities],
+  );
   historyAdmission.current = () => writeAdmission;
+  const onTasks = !!tasksRoute.match(route.path);
+  const tasksInput = useMemo(
+    () => (session.eav ? applicationTasks(session.eav, identities, () => admission.current) : null),
+    [session.eav, identities],
+  );
+  const tasks = useTasks(onTasks ? tasksInput : null);
   const answers = useQuestionAnswers({
     session: chatSession,
     actions: session.eav
@@ -302,14 +330,19 @@ export function OpenApplication({
   });
   const answerAvailability = questionAnswerAvailability(questionState, writeAdmission);
   const descriptions = questionDescriptions();
+  const embedDatabase = useMemo(() => (eav ? applicationDatabase(eav) : null), [eav]);
   const renderWikiRecord: ForeignRecordRenderer = (record) =>
-    renderQuestionRecord(record, questionState, {
-      ...descriptions,
-      answers,
-      onAnswer: answers.answer,
-      disabledReason: writeAdmission,
-      transcription: voice,
-    });
+    record.embed ? (
+      <EmbeddedRecord database={embedDatabase} embed={record.embed} cutoff={record.embedCutoff} />
+    ) : (
+      renderQuestionRecord(record, questionState, {
+        ...descriptions,
+        answers,
+        onAnswer: answers.answer,
+        disabledReason: writeAdmission,
+        transcription: voice,
+      })
+    );
   const layout = useLayout();
   const mobile = layout === 'compact';
   const [search, setSearch] = useState(false);
@@ -351,11 +384,15 @@ export function OpenApplication({
             ? 'Questions'
             : onMap
               ? 'Map'
-              : onCalendar
-                ? 'Calendar'
-                : onGraph
-                  ? 'Graph'
-                  : 'Not found';
+              : onDecisions
+                ? 'Decisions'
+                : onCalendar
+                  ? 'Calendar'
+                  : onTasks
+                    ? 'Tasks'
+                    : onGraph
+                      ? 'Graph'
+                      : 'Not found';
   const provider = useMemo(
     () =>
       session.secrets?.openai
@@ -454,6 +491,8 @@ export function OpenApplication({
       graphPage,
       mapPage,
       calendarPage,
+      decisionsPage,
+      tasksPage,
       questionsPage,
     ]),
     ...(eav ? [historyNavigation(historyOpen, () => setCoreAction('history'))] : []),
@@ -481,7 +520,16 @@ export function OpenApplication({
     later(conversation.captureAction());
   };
   const commands: Command[] = [
-    ...pageCommands([mapPage, calendarPage, graphPage, wikiPageView, chatPage, questionsPage]),
+    ...pageCommands([
+      mapPage,
+      calendarPage,
+      decisionsPage,
+      tasksPage,
+      graphPage,
+      wikiPageView,
+      chatPage,
+      questionsPage,
+    ]),
     ...(eav ? [historyCommand(() => setCoreAction('history'))] : []),
     settingsCommand(() => setCoreAction('settings')),
     {
@@ -583,6 +631,17 @@ export function OpenApplication({
           <ChatPanel
             conversation={conversation}
             toolPresentations={toolPresentations}
+            embedControls={
+              embedDatabase && (
+                <EmbedHostControls
+                  database={embedDatabase}
+                  user={identities.user}
+                  disabledReason={conversation.readAvailability().reason ?? writeAdmission}
+                  onSaved={() => conversation.reload()}
+                />
+              )
+            }
+            renderEmbed={(embed) => <EmbeddedRecord database={embedDatabase} embed={embed} />}
             prompt={onChat ? null : prompt}
             open={panel}
             onClose={() => showPanel(false)}
@@ -598,7 +657,20 @@ export function OpenApplication({
         {renderPage(
           onSettings || onHistory ? chatRoute.href() : route.path,
           [
-            chatPage.mount({ conversation, prompt, toolPresentations }),
+            chatPage.mount({
+              conversation,
+              prompt,
+              toolPresentations,
+              embedControls: embedDatabase && (
+                <EmbedHostControls
+                  database={embedDatabase}
+                  user={identities.user}
+                  disabledReason={conversation.readAvailability().reason ?? writeAdmission}
+                  onSaved={() => conversation.reload()}
+                />
+              ),
+              renderEmbed: (embed) => <EmbeddedRecord database={embedDatabase} embed={embed} />,
+            }),
             mapPage.mount({
               data: map.data,
               error: map.error ?? (!mapInput ? 'Map storage is unavailable.' : undefined),
@@ -608,6 +680,24 @@ export function OpenApplication({
                 : status.kind === 'synced'
                   ? undefined
                   : 'Reconnect before saving Map changes.',
+            }),
+            decisionsPage.mount({
+              data: decisions.data,
+              error:
+                decisions.error ??
+                (!decisionsInput ? 'Decisions storage is unavailable.' : undefined),
+              actions: decisionsInput?.actions,
+              disabledReason: session.credentialPending
+                ? 'Wait for credentials to finish updating.'
+                : status.kind === 'synced'
+                  ? undefined
+                  : 'Reconnect before saving Decisions changes.',
+            }),
+            tasksPage.mount({
+              data: tasks.data,
+              error: tasks.error ?? (!tasksInput ? 'Tasks storage is unavailable.' : undefined),
+              actions: tasksInput?.actions,
+              disabledReason: writeAdmission,
             }),
             calendarPage.mount({
               data: calendar.data,
@@ -630,6 +720,8 @@ export function OpenApplication({
             }),
             graphPage.mount({
               state: graphState,
+              candidateActions,
+              candidateDisabledReason: writeAdmission,
               node: graphSubject,
               topics: wikiTopics,
               onRetry: () => later(graph.reload()),
@@ -640,6 +732,16 @@ export function OpenApplication({
                 node: wikiPage,
                 error: wikiError,
                 renderRecord: renderWikiRecord,
+                renderEmbedControls: (page) =>
+                  embedDatabase && (
+                    <EmbedHostControls
+                      key={page.id}
+                      database={embedDatabase}
+                      user={identities.user}
+                      page={page}
+                      disabledReason={writeAdmission}
+                    />
+                  ),
                 renderRelatedRecords: (page) => {
                   const related =
                     questionState.questions?.filter((question) =>

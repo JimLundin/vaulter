@@ -105,6 +105,7 @@ const attribute = z.strictObject({
     'set',
     'inverse',
     'historical',
+    'retained-state',
   ]),
   optional: z.boolean(),
   values: z.array(z.string()).optional(),
@@ -121,7 +122,15 @@ const journalSchema = z.strictObject({
   ),
   commits: z.array(commitSchema),
 });
-export function parseJournal(value: unknown): Journal {
+const historyAddressSchema = z.strictObject({
+  format: z.enum(['vaulter-eav-snapshot-v1', 'vaulter-eav-retained-state-v1']),
+  scope: z.string().min(1),
+  journal: z.string().min(1),
+  transaction: z.string().min(1),
+  entity: z.string().min(1),
+  type: z.string().min(1),
+});
+export function parseJournal(value: unknown, options?: { readonly scope: string }): Journal {
   const parsed = journalSchema.parse(value);
   const ids = new Set<string>();
   const journal = structuredClone(value) as Journal;
@@ -159,14 +168,12 @@ export function parseJournal(value: unknown): Journal {
     }
     for (const fact of commit.facts) {
       if (fact.added && typeof fact.value === 'object' && 'history' in fact.value) {
-        const address = JSON.parse(fact.value.history);
+        const address = historyAddressSchema.parse(JSON.parse(fact.value.history));
         const recorded = journal.commits
           .slice(0, index)
           .find((item) => item.id === address.transaction);
         if (
-          address.format !== 'vaulter-eav-snapshot-v1' ||
-          typeof address.scope !== 'string' ||
-          !address.scope ||
+          (options && address.scope !== options.scope) ||
           address.journal !== journal.commits[0]?.id ||
           !recorded
         )
@@ -175,7 +182,11 @@ export function parseJournal(value: unknown): Journal {
         for (const item of journal.commits.slice(0, recorded.sequence))
           historical = applyFacts(historical, item.facts);
         const target = historical.get(address.entity);
-        if (!isLive(target) || recordType(target) !== address.type)
+        if (
+          !target ||
+          (address.format === 'vaulter-eav-snapshot-v1' && !isLive(target)) ||
+          recordType(target) !== address.type
+        )
           throw new Error('Unavailable historical evidence reference');
       }
     }
@@ -219,6 +230,7 @@ function validateSchema(schema: Schema) {
             'ref',
             'inverse',
             'historical',
+            'retained-state',
           ].includes(member.kind)
         )
       )
@@ -243,7 +255,14 @@ function validateSchema(schema: Schema) {
 }
 
 function validAtom(value: Atom, field: Omit<AttributeSchema, 'key' | 'name'>): boolean {
-  if (field.kind === 'historical') return typeof value === 'object' && 'history' in value;
+  if (field.kind === 'historical' || field.kind === 'retained-state') {
+    if (typeof value !== 'object' || !('history' in value)) return false;
+    const address = historyAddressSchema.parse(JSON.parse(value.history));
+    return (
+      address.format ===
+      (field.kind === 'historical' ? 'vaulter-eav-snapshot-v1' : 'vaulter-eav-retained-state-v1')
+    );
+  }
   if (field.kind === 'json') return typeof value === 'object' && 'json' in value;
   if (field.kind === 'ref')
     return typeof value === 'object' && 'ref' in value && value.type === field.target;
@@ -328,7 +347,7 @@ export async function cachedStorage(storage: JournalStorage): Promise<boolean> {
     if (closed.has(storage)) throw new Error('EAV storage is closed');
     const journal = await owned.adapter.cached?.();
     if (!journal) return false;
-    acceptJournal(storage, parseJournal(journal));
+    acceptJournal(storage, parseJournal(journal, { scope: owned.adapter.scope }));
     return true;
   });
 }
@@ -345,7 +364,7 @@ export async function refreshStorage(
     const load = options.remote
       ? (owned.adapter.refresh ?? owned.adapter.load)
       : owned.adapter.load;
-    acceptJournal(storage, parseJournal(await load()));
+    acceptJournal(storage, parseJournal(await load(), { scope: owned.adapter.scope }));
   });
 }
 

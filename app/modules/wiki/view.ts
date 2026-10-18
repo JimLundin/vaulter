@@ -1,4 +1,5 @@
-import type { JsonValue, HistoricalReference } from '@/core/store/index.ts';
+import type { JsonValue, HistoricalReference, TransactionRef } from '@/core/store/index.ts';
+import type { RecordEmbed } from '@/core/embeds/index.ts';
 import type { Entry } from '@/core/search/index.ts';
 
 export interface WikiReference {
@@ -29,6 +30,8 @@ export interface WikiClassification {
 export interface WikiBlock {
   id: string;
   address?: HistoricalReference;
+  embed?: RecordEmbed;
+  embedCutoff?: TransactionRef;
   data: { readonly [key: string]: JsonValue };
   children: WikiBlock[];
   href?: string;

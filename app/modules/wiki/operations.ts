@@ -56,6 +56,7 @@ async function validatePlacement(
     if (!parent?.available) throw new Error('Parent content is unavailable');
     const allowed: Record<string, readonly string[]> = {
       section: [
+        'embed',
         'heading',
         'section',
         'paragraph',
@@ -69,11 +70,11 @@ async function validatePlacement(
       heading: ['text', 'link'],
       paragraph: ['text', 'link'],
       cell: ['text', 'link'],
-      item: ['text', 'link', 'paragraph', 'list', 'quote', 'table', 'code'],
+      item: ['text', 'link', 'paragraph', 'list', 'quote', 'table', 'code', 'embed'],
       list: ['item'],
       table: ['row'],
       row: ['cell'],
-      quote: ['section', 'paragraph', 'list', 'quote', 'table', 'code', 'chart', 'rule'],
+      quote: ['section', 'paragraph', 'list', 'quote', 'table', 'code', 'chart', 'rule', 'embed'],
     };
     if (!allowed[parent.kind]?.includes(child.kind)) {
       // Check cycles before reporting structural incompatibility so failed moves remain explicit.
@@ -185,6 +186,8 @@ export function wikiActions(
           chartTitle: clear,
           chartUnit: clear,
           chartData: clear,
+          embedMode: clear,
+          embedTarget: clear,
           ...data,
         });
       }),

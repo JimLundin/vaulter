@@ -1,4 +1,8 @@
-import type { DomainDatabase, HistoricalReference } from '@/core/store/index.ts';
+import type {
+  DomainDatabase,
+  HistoricalReference,
+  RetainedStateReference,
+} from '@/core/store/index.ts';
 import { graphSchemas, type QueryData } from './query.ts';
 import type { graphEntities } from './records.ts';
 
@@ -8,7 +12,7 @@ export interface GraphAddress {
   readonly transaction?: string;
 }
 export interface GraphEndpoint {
-  readonly address?: HistoricalReference;
+  readonly address?: HistoricalReference | RetainedStateReference;
   readonly state: 'available' | 'deleted' | 'missing' | 'unresolved';
   readonly values?: Readonly<Record<string, unknown>>;
   readonly current?: Readonly<Record<string, unknown>>;
@@ -33,6 +37,18 @@ export interface GraphRelationship {
   readonly direction: 'outgoing' | 'incoming';
   readonly label: string;
 }
+export interface GraphRelationshipCandidate {
+  readonly id: string;
+  readonly address: HistoricalReference;
+  readonly predicate?: string;
+  readonly label?: string;
+  readonly source: GraphEndpoint;
+  readonly target: GraphEndpoint;
+  readonly direction: 'directed' | 'unknown';
+  readonly reason: string;
+  readonly missing: readonly ('predicate' | 'source' | 'target' | 'direction')[];
+  readonly provenance?: GraphEndpoint;
+}
 export interface RelationshipSelection {
   readonly predicate?: string;
   readonly direction?: 'outgoing' | 'incoming' | 'both';
@@ -53,6 +69,7 @@ export interface QueryCandidate {
   readonly created?: string;
 }
 export interface Graph {
+  readonly candidates: readonly GraphRelationshipCandidate[];
   readonly sequence: number;
   readonly endpoints: readonly GraphEndpoint[];
   readonly vocabulary: (scheme?: string) => readonly GraphTerm[];
@@ -82,7 +99,7 @@ export async function readGraph(db: GraphDatabase): Promise<Graph> {
     orderBy: [{ sequence: 'desc' }],
   });
   const view = latest ? db.at(latest) : db;
-  const [records, vocabulary] = await Promise.all([
+  const [retainedRecords, vocabulary] = await Promise.all([
     view.entities.graphRelationships.query({
       limit: null, // Graph interpretation needs complete vocabulary and relationship endpoints.
       where: { available: { eq: true } },
@@ -91,7 +108,14 @@ export async function readGraph(db: GraphDatabase): Promise<Graph> {
         predicate: true,
         source: true,
         target: true,
+        sourceState: true,
+        targetState: true,
         label: true,
+        status: true,
+        direction: true,
+        clarificationReason: true,
+        provenance: true,
+        provenanceState: true,
       },
     }),
     view.entities.graphTerms.query({
@@ -107,20 +131,43 @@ export async function readGraph(db: GraphDatabase): Promise<Graph> {
       },
     }),
   ]);
+  const records = retainedRecords.map((record) => {
+    for (const key of ['source', 'target', 'provenance'] as const)
+      if (record[key] && record[`${key}State`])
+        throw new Error(`Relationship ${key} selects two states`);
+    return {
+      ...record,
+      source: record.source ?? record.sourceState,
+      target: record.target ?? record.targetState,
+      provenance: record.provenance ?? record.provenanceState,
+    };
+  });
   const endpoints = new Map<string, GraphEndpoint>();
-  const endpoint = async (address?: HistoricalReference): Promise<GraphEndpoint> => {
+  const endpoint = async (
+    address?: HistoricalReference | RetainedStateReference,
+  ): Promise<GraphEndpoint> => {
     if (!address) return { state: 'unresolved' };
     const key = JSON.stringify([address.entity, address.transaction]);
     const cached = endpoints.get(key);
     if (cached) return cached;
-    const resolved = await db.history.resolve(address);
+    const resolved =
+      address.format === 'vaulter-eav-retained-state-v1'
+        ? await db.history.resolveRetainedState(address)
+        : await db.history.resolve(address);
     const recorded = await db.history.inspect(resolved.transaction, resolved.entity);
     const current = latest ? await db.history.inspect(latest, resolved.entity) : undefined;
     const result: GraphEndpoint = {
       address,
       values: recorded?.values,
       current: current?.values,
-      state: !recorded ? 'missing' : recorded.values.available === false ? 'deleted' : 'available',
+      state:
+        'state' in resolved && resolved.state === 'deleted'
+          ? 'deleted'
+          : !recorded
+            ? 'missing'
+            : recorded.values.available === false
+              ? 'deleted'
+              : 'available',
     };
     endpoints.set(key, result);
     return result;
@@ -138,13 +185,50 @@ export async function readGraph(db: GraphDatabase): Promise<Graph> {
       compare(a.data.key, b.data.key) ||
       compare(a.id, b.id),
   );
-  const edges = await Promise.all(
-    records.map(async (record) => ({
+  const candidateRecords = records.filter(
+    (record) =>
+      record.status === 'candidate' ||
+      record.direction === 'unknown' ||
+      !record.source ||
+      !record.target ||
+      !record.predicate,
+  );
+  const candidates: GraphRelationshipCandidate[] = await Promise.all(
+    candidateRecords.map(async (record) => ({
       id: record.key,
-      data: record,
+      address: await db.history.reference(latest!, record),
+      predicate: record.predicate,
+      label: record.label,
       source: await endpoint(record.source),
       target: await endpoint(record.target),
+      direction: record.direction ?? 'directed',
+      reason: record.clarificationReason ?? 'Target identity requires clarification',
+      missing: [
+        ...(!record.predicate ? ['predicate' as const] : []),
+        ...(!record.source ? ['source' as const] : []),
+        ...(!record.target ? ['target' as const] : []),
+        ...(record.direction === 'unknown' ? ['direction' as const] : []),
+      ],
+      provenance: record.provenance ? await endpoint(record.provenance) : undefined,
     })),
+  );
+  candidates.sort((a, b) => compare(a.id, b.id));
+  const edges = await Promise.all(
+    records
+      .filter(
+        (record) =>
+          record.status !== 'candidate' &&
+          record.direction !== 'unknown' &&
+          record.source &&
+          record.target &&
+          record.predicate,
+      )
+      .map(async (record) => ({
+        id: record.key,
+        data: { ...record, predicate: record.predicate! },
+        source: await endpoint(record.source),
+        target: await endpoint(record.target),
+      })),
   );
   const outgoing = new Map<string, typeof edges>();
   const incoming = new Map<string, typeof edges>();
@@ -221,6 +305,7 @@ export async function readGraph(db: GraphDatabase): Promise<Graph> {
         };
       });
   return {
+    candidates,
     sequence: latest?.sequence ?? 0,
     endpoints: [...endpoints.values()],
     vocabulary: (scheme) => terms.filter((term) => !scheme || term.data.scheme === scheme),

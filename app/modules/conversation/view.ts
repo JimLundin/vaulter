@@ -1,9 +1,11 @@
 // Chat presentation snapshots shared by its controller and views.
+import type { RecordEmbed } from '@/core/embeds/index.ts';
 import type { ToolEvidenceState } from '@/modules/agent/index.ts';
 export type Part =
   | { kind: 'text'; text: string }
   | (ToolEvidenceState & { kind: 'tool'; callId?: string });
 export interface Turn {
+  embeds?: readonly RecordEmbed[];
   role: 'user' | 'agent' | 'record';
   record?: { kind: 'summary'; label?: string };
   parts: Part[];

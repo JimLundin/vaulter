@@ -71,6 +71,9 @@ test('a short settings drawer scrolls its body while the close control stays rea
 }, async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 560 });
   await page.goto('/preview/');
+  // Keep the movable preview controls clear of the full-height navigation menu.
+  const previewGrip = page.getByRole('button', { name: 'Move preview controls' });
+  for (let step = 0; step < 5; step++) await previewGrip.press('Shift+ArrowRight');
   await openAppAction(page, 'Settings');
   const dialog = page.getByRole('dialog', { name: 'Settings', exact: true });
   await dialog.getByRole('button', { name: 'Change GitHub credential', exact: true }).click();

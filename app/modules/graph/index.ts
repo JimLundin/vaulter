@@ -8,10 +8,17 @@ export {
   Term,
   Query,
 } from './records.ts';
+export type { RelationshipInput, RelationshipCandidateActions } from './operations.ts';
 export { graphActions } from './operations.ts';
 export { graphTools, graphCapabilities } from './tools.ts';
 export { readGraph } from './reading.ts';
-export type { Graph, GraphAddress, GraphEndpoint, GraphClassification } from './reading.ts';
+export type {
+  Graph,
+  GraphAddress,
+  GraphEndpoint,
+  GraphClassification,
+  GraphRelationshipCandidate,
+} from './reading.ts';
 export { readTopics } from './topics.ts';
 export { graphRoute, graphSubjectRoute } from './routes.ts';
 export { useGraph, useGraphExplorer } from './use-graph.ts';

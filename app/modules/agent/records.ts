@@ -55,11 +55,12 @@ export const ModelStep = e.entity('agent.modelStep', {
   error: e.json().optional(),
 });
 
-/** Accepted tool name/version, independent of later configuration edits. */
+/** Accepted tool identity. Historical activity can explicitly retain an unknown version. */
 export const RunTool = e.entity('agent.runTool', {
   run: e.ref(AgentRun),
   name: e.string(),
-  version: e.string(),
+  version: e.string().optional(),
+  versionStatus: e.enum('unknown').optional(),
 });
 
 export const ContextInput = e.entity('agent.contextInput', {

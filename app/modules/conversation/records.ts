@@ -13,6 +13,14 @@ export const Exchange = e.entity('chat.exchange', {
   submission: e.string().optional(),
   run: e.ref(AgentRun).optional(),
 });
+/** Host-owned ordered placements; targets are interpreted by their owning modules. */
+export const ExchangeEmbed = e.entity('chat.exchangeEmbed', {
+  exchange: e.ref(Exchange),
+  order: e.number(),
+  mode: e.enum('live', 'pinned'),
+  target: e.historicalRef(),
+  available: e.boolean(),
+});
 /** Canonical submitted words. Agent output is owned by its execution records. */
 export const Message = e.entity('chat.message', {
   exchange: e.ref(Exchange),
@@ -60,6 +68,7 @@ export const chatEntities = {
   conversations: Conversation.extend({ exchanges: e.inverse(Exchange, 'conversation') }),
   exchanges: Exchange.extend({ messages: e.inverse(Message, 'exchange') }),
   messages: Message,
+  exchangeEmbeds: ExchangeEmbed,
   inputSources: InputSource,
   retainedSources: RetainedSource,
 } as const;

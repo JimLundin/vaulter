@@ -62,7 +62,7 @@ test('native graph preserves directed cycles, inverse vocabulary and exact endpo
   expect(graph.relationships(source)).toHaveLength(3);
 });
 
-test('historical classifications retain their selected term and unresolved labels without duplicating candidates', async () => {
+test('historical classifications retain selected terms while label-only relationships need clarification', async () => {
   await using db = await openDatabase({ schema });
   const { author, subject, term } = await db.transaction(async (tx) => ({
     author: await tx.entities.actors.insert({ name: 'Person', kind: 'user' }),
@@ -88,9 +88,9 @@ test('historical classifications retain their selected term and unresolved label
   );
   const graph = await readGraph(db);
   const candidate = { entity: source.entity, title: 'Studio' };
-  expect(graph.query({ type: 'place', tag: 'garden' }, [candidate, candidate])).toEqual([
-    candidate,
-  ]);
+  expect(graph.query({ type: 'place' }, [candidate, candidate])).toEqual([candidate]);
+  expect(graph.query({ tag: 'garden' }, [candidate])).toEqual([]);
+  expect(graph.candidates).toMatchObject([{ id: 'tag', label: 'garden', missing: ['target'] }]);
   expect(graph.query({ type: 'building' }, [candidate])).toEqual([]);
   expect(
     graph.query({}, [{ entity: 'isolated', title: 'Isolated owner projection' }]),

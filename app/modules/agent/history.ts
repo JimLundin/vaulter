@@ -9,6 +9,7 @@ export type HistoryPart =
       readonly callId: string;
       readonly name: string;
       readonly version?: string;
+      readonly versionStatus?: 'unknown';
       readonly input: JsonValue;
       readonly status: 'running' | 'complete' | 'failed' | 'cancelled';
       readonly output?: JsonValue;

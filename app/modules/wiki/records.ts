@@ -29,6 +29,7 @@ export const Content = e.entity('wiki.content', {
     'rule',
     'text',
     'link',
+    'embed',
   ),
   available: e.boolean(),
   text: e.string().optional(),
@@ -42,6 +43,8 @@ export const Content = e.entity('wiki.content', {
   chartTitle: e.string().optional(),
   chartUnit: e.string().optional(),
   chartData: e.json().optional(),
+  embedMode: e.enum('live', 'pinned').optional(),
+  embedTarget: e.historicalRef().optional(),
 });
 /** Repeated/shared content has one identity and independently ordered appearances. */
 export const Appearance = e.entity('wiki.appearance', {

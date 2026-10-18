@@ -1,5 +1,10 @@
 import { reviewSupport, reviewSelection, passageSelection } from './reviews/reading.ts';
-import { sameEntity, type EntityRef, type EntityDefinition } from '@/core/store/index.ts';
+import {
+  sameEntity,
+  type EntityRef,
+  type EntityDefinition,
+  type TransactionRef,
+} from '@/core/store/index.ts';
 import {
   contentSelection,
   projectContentText,
@@ -19,11 +24,14 @@ import type { WikiBlock, WikiPage, WikiReference } from '@/modules/wiki/view.ts'
 export async function readEavWiki(
   db: WikiDatabase,
   suppliedSources?: SourceReading,
+  snapshot?: TransactionRef,
 ): Promise<WikiPage[]> {
-  const latest = await db.history.transactions.first({
-    select: { committedAt: true },
-    orderBy: [{ sequence: 'desc' }],
-  });
+  const latest = snapshot
+    ? await db.history.transactions.get(snapshot, { select: { committedAt: true } })
+    : await db.history.transactions.first({
+        select: { committedAt: true },
+        orderBy: [{ sequence: 'desc' }],
+      });
   if (!latest) return [];
   const view = db.at(latest);
   const readSource = suppliedSources ?? documentSources(db);
@@ -168,6 +176,11 @@ export async function readEavWiki(
       id: occurrence,
       address: await db.history.reference(latest, value),
       data,
+      ...(value.kind === 'embed' &&
+        value.embedTarget && {
+          ...(snapshot && { embedCutoff: snapshot }),
+          embed: { mode: value.embedMode ?? 'live', target: value.embedTarget },
+        }),
       children,
       href: value.targetPage ? `#/wiki/${encodeURIComponent(value.targetPage.key)}/` : value.href,
       evidence: reviewed.evidence,

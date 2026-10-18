@@ -14,12 +14,15 @@ import {
   Stack,
   startTheme,
 } from '@/shared/ui/kit/index.ts';
+import { EmbeddedObservation } from '@/modules/observations/presentation/index.ts';
+import { fictionalWeatherObservation } from './observation-records.ts';
 import { WikiExample } from './wiki-example.tsx';
 
 function Examples() {
   return (
     <Stack inset="page" block="lg">
       <Heading level={1}>Fictional module records</Heading>
+      <EmbeddedObservation record={{ value: fictionalWeatherObservation, available: true }} />
       <ScrollArea axis="horizontal">
         <Row>
           {(['desktop', 'mobile'] as const).map((device) => (

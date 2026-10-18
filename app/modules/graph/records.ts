@@ -19,10 +19,17 @@ export const topicEntities = { topics: Topic, topicMemberships: TopicMembership 
 /** Named connections retain accepted endpoint snapshots independently of editorial placement. */
 export const Relationship = e.entity('graph.relationship', {
   key: e.string(),
-  predicate: e.string(),
-  source: e.historicalRef(),
+  predicate: e.string().optional(),
+  source: e.historicalRef().optional(),
   target: e.historicalRef().optional(),
+  sourceState: e.retainedStateRef().optional(),
+  targetState: e.retainedStateRef().optional(),
   label: e.string().optional(),
+  status: e.enum('candidate', 'resolved').optional(),
+  direction: e.enum('directed', 'unknown').optional(),
+  clarificationReason: e.string().optional(),
+  provenance: e.historicalRef().optional(),
+  provenanceState: e.retainedStateRef().optional(),
   available: e.boolean(),
 });
 export const Term = e.entity('graph.term', {

@@ -7,7 +7,7 @@ import { graphActions } from './operations.ts';
 import { topicActions, readTopics, topicMembers } from './topics.ts';
 
 const key = z.string().trim().min(1);
-const address = z.strictObject({
+const evidenceAddress = z.strictObject({
   format: z.literal('vaulter-eav-snapshot-v1'),
   scope: key,
   journal: key,
@@ -15,9 +15,18 @@ const address = z.strictObject({
   entity: key,
   type: key,
 });
+const address = z.union([
+  evidenceAddress,
+  evidenceAddress.extend({
+    format: z.literal('vaulter-eav-retained-state-v1'),
+  }),
+]);
 export const graphCapabilities = [
   'readGraph',
   'createRelationship',
+  'createRelationshipCandidate',
+  'clarifyRelationship',
+  'listRelationshipCandidates',
   'removeRelationship',
   'createGraphTerm',
   'createGraphQuery',
@@ -52,6 +61,51 @@ export function graphTools(db: GraphDatabase, context: TransactionContext, signa
           relationships: graph.relationships(input),
           classifications: graph.classifications(input),
         };
+      },
+    }),
+    listRelationshipCandidates: tool({
+      description:
+        'List incomplete relationships needing clarification. Candidates do not assert resolved directed graph edges.',
+      inputSchema: z.strictObject({}),
+      execute: async () => {
+        check();
+        return (await readGraph(db)).candidates;
+      },
+    }),
+    createRelationshipCandidate: tool({
+      description:
+        'Retain known relationship information and explicit missing endpoints or direction, with optional external source provenance. Never infer endpoints from placement.',
+      inputSchema: z.strictObject({
+        key,
+        predicate: key.optional(),
+        label: key.optional(),
+        source: address.optional(),
+        target: address.optional(),
+        direction: z.enum(['unknown', 'directed']),
+        clarificationReason: key,
+        provenance: address.optional(),
+      }),
+      execute: async (input) => {
+        check();
+        return receipt(await actions.candidate(input));
+      },
+    }),
+    clarifyRelationship: tool({
+      description:
+        'Revise a relationship under its existing identity. Resolve only with known predicate, directed source and target; otherwise retain a reason for remaining uncertainty.',
+      inputSchema: z.strictObject({
+        key,
+        predicate: key.optional(),
+        label: key.optional(),
+        source: address.optional(),
+        target: address.optional(),
+        direction: z.enum(['unknown', 'directed']),
+        clarificationReason: key.optional(),
+        provenance: address.optional(),
+      }),
+      execute: async ({ key, ...input }) => {
+        check();
+        return receipt(await actions.clarify(key, input));
       },
     }),
     createRelationship: tool({
@@ -131,7 +185,7 @@ export function graphTools(db: GraphDatabase, context: TransactionContext, signa
     promoteTopic: tool({
       description:
         'Explicitly promote an existing subject to a broad editorial Topic with a rationale. Page creation never promotes a Topic automatically.',
-      inputSchema: z.strictObject({ key, subject: address, title: key, rationale: key }),
+      inputSchema: z.strictObject({ key, subject: evidenceAddress, title: key, rationale: key }),
       execute: async (input) => {
         check();
         return receipt(await topics.promote(input));
@@ -142,7 +196,7 @@ export function graphTools(db: GraphDatabase, context: TransactionContext, signa
         'Associate narrower subject/material with a broad Topic. Editorial membership does not assert a factual relationship.',
       inputSchema: z.strictObject({
         topic: key,
-        member: address,
+        member: evidenceAddress,
         primary: z.boolean(),
         rationale: key,
       }),

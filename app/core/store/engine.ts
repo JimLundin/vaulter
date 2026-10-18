@@ -1,6 +1,11 @@
 import { refreshStorage, persist, SaveError, storageClosed } from './persistence.ts';
 import { encodeJson } from './json.ts';
-import { captureReference, resolveReference } from './references.ts';
+import {
+  captureReference,
+  resolveReference,
+  captureRetainedStateReference,
+  resolveRetainedStateReference,
+} from './references.ts';
 import {
   e,
   describe,
@@ -244,8 +249,12 @@ export async function openDatabase<const R extends Registry>(
           throw new Error(`Expected set array: ${name}`);
         const incoming: unknown[] = field.kind === 'set' ? (value as unknown[]) : [value];
         const atoms = incoming.map((item) =>
-          member.kind === 'historical'
-            ? (resolveReference(storage, item), { history: encodeJson(item) })
+          member.kind === 'historical' || member.kind === 'retained-state'
+            ? ((member.kind === 'historical' ? resolveReference : resolveRetainedStateReference)(
+                storage,
+                item,
+              ),
+              { history: encodeJson(item) })
             : member.kind === 'ref'
               ? reference(view(), member, item)
               : scalar(member, item),
@@ -574,6 +583,21 @@ export async function openDatabase<const R extends Registry>(
     },
     transaction,
     history: Object.freeze({
+      // biome-ignore lint/suspicious/useAwait: Validation errors are promise rejections.
+      retainedStateReference: async (recorded: unknown, entity: unknown) => {
+        ensure();
+        return captureRetainedStateReference(storage, commitFor(recorded), entity);
+      },
+      // biome-ignore lint/suspicious/useAwait: Validation errors are promise rejections.
+      resolveRetainedState: async (address: unknown) => {
+        ensure();
+        const resolved = resolveRetainedStateReference(storage, address);
+        return Object.freeze({
+          transaction: transactionObject(resolved.commit, {}),
+          entity: resolved.entity,
+          state: resolved.state,
+        });
+      },
       // biome-ignore lint/suspicious/useAwait: Validation errors are promise rejections.
       reference: async (recorded: unknown, entity: unknown) => {
         ensure();

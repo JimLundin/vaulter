@@ -10,7 +10,7 @@ export type InputValue<F extends AnyField> =
     ? EntityRef<E>
     : F extends Field<'set', infer Item extends AnyField, boolean>
       ? readonly InputValue<Item>[]
-      : F extends Field<'scalar' | 'json' | 'historical', infer V, boolean>
+      : F extends Field<'scalar' | 'json' | 'historical' | 'retained-state', infer V, boolean>
         ? V
         : never;
 type StoredValue<F extends AnyField> =
@@ -94,7 +94,7 @@ type FieldPredicate<F extends AnyField> =
       ? { readonly eq?: EntityRef<E>; readonly matches?: Where<E> }
       : F extends Field<'set', infer Item extends AnyField, boolean>
         ? { readonly some?: FieldPredicate<Item> }
-        : F extends Field<'json' | 'historical', infer V, boolean>
+        : F extends Field<'json' | 'historical' | 'retained-state', infer V, boolean>
           ? { readonly eq?: V; readonly in?: readonly V[] }
           : F extends Field<'scalar', infer V, boolean>
             ? ScalarPredicate<V>
@@ -148,6 +148,15 @@ export type TransactionRef = EntityRef<TransactionEntity>;
 /** Serializable evidence address. It selects an entity in an accepted snapshot, not live state. */
 export interface HistoricalReference {
   readonly format: 'vaulter-eav-snapshot-v1';
+  readonly scope: string;
+  readonly journal: string;
+  readonly transaction: string;
+  readonly entity: string;
+  readonly type: string;
+}
+/** A retained identity at an accepted snapshot, including its deleted state. */
+export interface RetainedStateReference {
+  readonly format: 'vaulter-eav-retained-state-v1';
   readonly scope: string;
   readonly journal: string;
   readonly transaction: string;
@@ -217,6 +226,15 @@ export type TransactionChange<R extends Registry> = {
   };
 }[keyof R];
 export interface History<R extends Registry> {
+  retainedStateReference: (
+    transaction: TransactionRef,
+    entity: EntityRef<EntityDefinition>,
+  ) => Promise<RetainedStateReference>;
+  resolveRetainedState: (reference: unknown) => Promise<{
+    readonly transaction: TransactionRef;
+    readonly entity: EntityRef<EntityDefinition>;
+    readonly state: 'live' | 'deleted';
+  }>;
   reference: (
     transaction: TransactionRef,
     entity: EntityRef<EntityDefinition>,

@@ -43,6 +43,7 @@ test('production Map attaches coordinates to a record, reloads and removes them'
     .selectOption({ label: 'Meeting place' });
   await page.getByLabel('Latitude', { exact: true }).fill('59.3293');
   await page.getByLabel('Longitude', { exact: true }).fill('18.0686');
+  await page.getByLabel('Location precision', { exact: true }).selectOption('street');
   await page.getByRole('button', { name: 'Save coordinates', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.locator('.kit-map-marker')).toHaveCount(1);
@@ -54,6 +55,17 @@ test('production Map attaches coordinates to a record, reloads and removes them'
   await expect(page.locator('.kit-map-marker')).toHaveCount(1);
   await page.locator('.kit-map-marker').click();
   await expect(page.getByRole('heading', { name: 'Meeting place', exact: true })).toBeVisible();
+  await expect(
+    page.getByLabel('Selected location').getByText('Street-level location'),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Edit coordinates', exact: true }).click();
+  await expect(page.getByLabel('Location precision', { exact: true })).toHaveValue('street');
+  await page.getByLabel('Latitude', { exact: true }).fill('59.4');
+  await page.getByRole('button', { name: 'Save coordinates', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Edit coordinates', exact: true })).toBeHidden();
+  await expect(
+    page.getByLabel('Selected location').getByText('Street-level location'),
+  ).toBeVisible();
   await page.getByRole('button', { name: 'Remove coordinates', exact: true }).click();
   await page
     .getByRole('dialog')

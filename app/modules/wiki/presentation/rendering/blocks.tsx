@@ -179,6 +179,8 @@ function Block({
   renderRecord?: ForeignRecordRenderer;
 }): ReactNode {
   const { data, children } = block;
+  if (block.embed)
+    return renderRecord?.(block) ?? <Text tone="muted">Embedded record unavailable.</Text>;
   if (!contentKinds.has(String(data.kind))) {
     const supplied = renderRecord?.(block);
     if (supplied !== undefined) return supplied;

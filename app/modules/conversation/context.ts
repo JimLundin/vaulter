@@ -15,7 +15,7 @@ export async function dialogue(view: ReadView<typeof chatSchema>) {
   let anchor = 0;
   const entries = [];
   for (const exchange of exchanges) {
-    const messages = await projectedExchange(view, exchange);
+    const messages = await projectedExchange(view, exchange, { includeEmbeds: false });
     const first = messages.find((item) => item.role === 'user' || item.role === 'record');
     const text = first && 'text' in first ? first.text : 'Recorded activity';
     entries.push({

@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react';
+import type { RecordEmbed } from '@/core/embeds/index.ts';
 // biome-ignore lint/correctness/noUnresolvedImports: React 19 exposes Suspense; TypeScript and the build verify it
 import { lazy, Suspense } from 'react';
 import { Activity, Text } from '@/shared/ui/kit/index.ts';
@@ -18,7 +20,11 @@ export function ChatPanel({
   open,
   onClose,
   toolPresentations,
+  renderEmbed,
+  embedControls,
 }: {
+  embedControls?: ReactNode;
+  renderEmbed?: (embed: RecordEmbed) => ReactNode;
   conversation: Conversation;
   prompt?: Prompt | null;
   open: boolean;
@@ -32,6 +38,8 @@ export function ChatPanel({
         arg={prompt}
         presentation={{ open, onClose }}
         toolPresentations={toolPresentations}
+        renderEmbed={renderEmbed}
+        embedControls={embedControls}
       />
     </Suspense>
   );
@@ -40,7 +48,11 @@ export function ChatPage({
   conversation,
   prompt = null,
   toolPresentations,
+  renderEmbed,
+  embedControls,
 }: {
+  embedControls?: ReactNode;
+  renderEmbed?: (embed: RecordEmbed) => ReactNode;
   conversation: Conversation;
   prompt?: Prompt | null;
   toolPresentations?: readonly ToolPresentationAdapter[];
@@ -52,6 +64,8 @@ export function ChatPage({
         arg={prompt}
         presentation={{ page: true }}
         toolPresentations={toolPresentations}
+        renderEmbed={renderEmbed}
+        embedControls={embedControls}
       />
     </Suspense>
   );

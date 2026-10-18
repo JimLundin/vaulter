@@ -16,8 +16,9 @@ export async function readAgentActivity(view: ReadView<typeof agentSchema>, iden
     kind: 'tool' as const,
     callId: execution.call,
     name: execution.tool.name,
-    // Unversioned tools retain a storage marker; presentation represents them without a version.
+    // Preserve the earlier unversioned display while retaining explicit unknown historical versions.
     version: execution.tool.version === 'unversioned' ? undefined : execution.tool.version,
+    ...(execution.tool.versionStatus && { versionStatus: execution.tool.versionStatus }),
     input: execution.input,
     status: execution.status,
     ...(execution.output !== undefined && { output: execution.output }),

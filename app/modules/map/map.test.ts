@@ -55,6 +55,57 @@ test('latitude and longitude retain decimal or DMS representation and reject oth
     expect(() => parseCoordinates(invalid)).toThrow();
 });
 
+test('spatial qualification preserves source precision independently of coordinate expression', () => {
+  const qualified = { ...stockholm, expression: 'A street in Stockholm', qualification: 'street' };
+  expect(parseCoordinates(qualified)).toEqual(qualified);
+  expect(parseCoordinates(stockholm)).not.toHaveProperty('qualification');
+  for (const qualification of ['city', 'exact', 100, null])
+    expect(() => parseCoordinates({ ...stockholm, qualification })).toThrow();
+});
+
+test('durable reopen retains spatial qualification and independently reads its correction history', async () => {
+  let journal: Journal = { schemas: [], commits: [] };
+  const storage = () =>
+    createPersistentStorage({
+      scope: 'map-qualification-reopen',
+      load: async () => structuredClone(journal),
+      append: (request) => {
+        journal = structuredClone({
+          schemas: request.schemas,
+          commits: [...journal.commits, request.commit],
+        });
+        return Promise.resolve();
+      },
+    });
+  const qualified: CoordinateValue = { ...stockholm, qualification: 'street' };
+  let qualifiedSequence: number;
+  {
+    await using db = await openDatabase({ schema, storage: storage() });
+    const subject = await db.transaction((tx) => tx.entities.subjects.insert({ title: 'Street' }));
+    const snapshot = (await db.history.transactions.first({ select: {} }))!;
+    const coordinate = await createCoordinates(db, {
+      subject: await db.history.reference(snapshot, subject),
+      coordinates: qualified,
+    });
+    qualifiedSequence = (await db.history.transactions.first({
+      select: { sequence: true },
+      orderBy: [{ sequence: 'desc' }],
+    }))!.sequence;
+    await reviseCoordinates(db, coordinate, stockholm);
+  }
+  await using db = await openDatabase({ schema, storage: storage() });
+  expect(await readCoordinates(db)).toMatchObject([{ coordinates: stockholm }]);
+  expect((await readCoordinates(db))[0]!.coordinates).not.toHaveProperty('qualification');
+  const snapshot = await db.history.transactions.first({
+    select: {},
+    where: { sequence: { eq: qualifiedSequence } },
+  });
+  expect(snapshot).toBeDefined();
+  expect(await readCoordinates(db, { snapshot: snapshot! })).toMatchObject([
+    { coordinates: qualified },
+  ]);
+});
+
 test('positions stay attached across subject snapshots and deletion, corrections retain history', async () => {
   await using db = await openDatabase({ schema });
   const subject = await db.transaction((tx) => tx.entities.subjects.insert({ title: 'Venue' }));

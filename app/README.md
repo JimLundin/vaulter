@@ -18,6 +18,7 @@ app/
 │   │   └── SettingsCards.tsx        Compose owner-defined settings fields
 │   └── runtime/sw.ts                Offline application asset caching
 ├── core/                            Core-owned modules
+│   ├── identity/                    Merge correspondence and canonical current resolution
 │   ├── store/                       Typed records, Transactions, Snapshots and exact save retry
 │   ├── persistence/                 Journal transport and cache
 │   │   └── presentation/            Connection preferences
@@ -48,6 +49,12 @@ app/
 │   │   └── presentation/            Questions, embedded Answers, tool views and routes
 │   ├── calendar/                    Time values, Events and annual dates
 │   │   └── presentation/            Calendar page, timeline and routes
+│   ├── decisions/                   Recorded choices, rationale and provenance
+│   │   └── presentation/            Global decision log and embedded records
+│   ├── tasks/                       Tasks, fixed status workflow and provenance
+│   │   └── presentation/            Task board, embedded cards and routes
+│   ├── observations/                Structured measurements and collection outcomes
+│   │   └── presentation/            Embedded observation records
 │   └── map/                         Coordinates and geographic values
 │       └── presentation/            Map page and routes
 ├── shared/                          Mechanics independent of product modules

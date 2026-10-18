@@ -6,6 +6,7 @@ import type { ToolExecutionData } from './activity-data.ts';
 export interface RecordedToolEvidence {
   readonly name: string;
   readonly version?: string;
+  readonly versionStatus?: 'unknown';
   readonly input: JsonValue;
   readonly output?: JsonValue;
   readonly status: ToolExecutionData['status'];
@@ -28,7 +29,11 @@ export interface ToolEvidenceState extends RecordedToolEvidence {
 }
 
 const named = (evidence: RecordedToolEvidence) =>
-  evidence.version ? `${evidence.name} (${evidence.version})` : evidence.name;
+  evidence.versionStatus === 'unknown'
+    ? `${evidence.name} (version unknown)`
+    : evidence.version
+      ? `${evidence.name} (${evidence.version})`
+      : evidence.name;
 const times = (count: number) => (count === 1 ? '' : ` ${count} times`);
 
 export function toolPresentation(

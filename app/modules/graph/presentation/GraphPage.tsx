@@ -1,3 +1,4 @@
+import { RelationshipCandidates } from './RelationshipCandidates.tsx';
 import { useEffect, useState } from 'react';
 import {
   Badge,
@@ -55,6 +56,8 @@ export function GraphPage({
   node,
   onNavigate = go,
   onRetry,
+  candidateActions,
+  candidateDisabledReason,
 }: GraphPageProps) {
   const [enabled, setEnabled] = useState<Population[]>(populations);
   const [query, setQuery] = useState('');
@@ -537,6 +540,7 @@ export function GraphPage({
                 <TabsTrigger value="settings">Settings</TabsTrigger>
                 <TabsTrigger value="records">Records</TabsTrigger>
                 <TabsTrigger value="vocabulary">Vocabulary</TabsTrigger>
+                <TabsTrigger value="candidates">Clarify</TabsTrigger>
               </TabsList>
               <TabsContent value="settings">
                 <Stack gap="xl" block="sm">
@@ -743,6 +747,14 @@ export function GraphPage({
                   <Heading level={2}>Find a record</Heading>
                   {recordIndex}
                 </Stack>
+              </TabsContent>
+              <TabsContent value="candidates">
+                <RelationshipCandidates
+                  candidates={state.graph?.candidates ?? []}
+                  endpoints={[...(state.graph?.endpoints ?? []), ...(state.endpointChoices ?? [])]}
+                  actions={candidateActions}
+                  disabledReason={candidateDisabledReason}
+                />
               </TabsContent>
               <TabsContent value="vocabulary">
                 <Stack gap="lg" block="sm">

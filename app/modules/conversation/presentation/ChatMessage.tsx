@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { LiveStatus, Markdown, Message, Stack, Text, ToolGroup } from '@/shared/ui/kit/index.ts';
 import {
   RecordedToolExecution,
@@ -12,6 +12,7 @@ import {
   type ToolPart,
 } from '@/modules/conversation/activity.ts';
 import { renderMarkdown } from './rendering/markdown.ts';
+import type { RecordEmbed } from '@/core/embeds/index.ts';
 import type { Turn } from '@/modules/conversation/view.ts';
 
 /** A recorded turn needs no store or execution controller to display accepted evidence. */
@@ -19,7 +20,9 @@ export function ChatMessage({
   turn,
   live = false,
   toolPresentations = [],
+  renderEmbed,
 }: {
+  renderEmbed?: (embed: RecordEmbed) => ReactNode;
   turn: Turn;
   live?: boolean;
   toolPresentations?: readonly ToolPresentationAdapter[];
@@ -41,6 +44,12 @@ export function ChatMessage({
       ) : (
         <AgentTurn turn={turn} live={live} toolPresentations={toolPresentations} />
       )}
+      {turn.embeds?.map((embed, index) => (
+        // biome-ignore lint/suspicious/noArrayIndexKey: host placements are ordered retained attachments.
+        <Stack key={index}>
+          {renderEmbed?.(embed) ?? <Text tone="muted">Embedded record unavailable.</Text>}
+        </Stack>
+      ))}
     </Message>
   );
 }
