@@ -180,6 +180,13 @@ test('owner admission rejects missing, blank and contradictory historical versio
   );
 });
 
+test('historical reading rejects a missing version unless explicitly marked unknown', async () => {
+  const { db, run } = await fixture();
+  await using _db = db;
+  await db.transaction((tx) => tx.entities.runTools.insert({ run, name: 'inspect' }));
+  await expect(readAgentActivity(db, run)).rejects.toThrow();
+});
+
 test('new tool execution rejects unknown historical versions before accepting an invocation', async () => {
   const { db, run } = await fixture();
   await using _db = db;

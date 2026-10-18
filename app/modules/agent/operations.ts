@@ -74,8 +74,10 @@ export async function startAgentRun(
     settings: agent.settings,
   });
   const tools = [];
-  for (const tool of agent.tools)
-    tools.push(await recordRunTool(tx, run, { name: tool.name, version: tool.version }));
+  for (const tool of agent.tools) {
+    const recorded = await recordRunTool(tx, run, { name: tool.name, version: tool.version });
+    tools.push({ ...recorded, version: tool.version });
+  }
   const effective: RunInput[] = instructions
     ? [{ role: 'system', transformation: 'generated', content: instructions }, ...inputs]
     : inputs;
