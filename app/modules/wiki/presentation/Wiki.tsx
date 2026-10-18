@@ -35,6 +35,7 @@ export function Wiki({
   renderRecord,
   renderTimeline,
   renderRelatedRecords,
+  renderEmbedControls,
 }: {
   pages: WikiPage[] | null;
   node?: string;
@@ -42,6 +43,7 @@ export function Wiki({
   onNavigate?: (path: string) => void;
   renderRecord?: ForeignRecordRenderer;
   renderTimeline?: (page: WikiPage) => ReactNode;
+  renderEmbedControls?: (page: WikiPage) => ReactNode;
   renderRelatedRecords?: (page: WikiPage) => ReactNode;
 }) {
   const [query, setQuery] = useState('');
@@ -305,6 +307,7 @@ export function Wiki({
         renderRecord={renderRecord}
         timeline={renderTimeline?.(page)}
         relatedRecords={renderRelatedRecords?.(page)}
+        embedControls={renderEmbedControls?.(page)}
       />
     );
   if (node)

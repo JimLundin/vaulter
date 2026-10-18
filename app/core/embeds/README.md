@@ -21,3 +21,9 @@ Application supplies target-owner presentation to both hosts. Questions and Map 
 identity and selected transaction. There is no module registry. Pinned and historical presentations
 are read-only. The initial contract covers individual records; saved queries, collection embeds,
 user-facing embed insertion controls and finer placement among Chat parts remain follow-up work.
+
+Current host UI exposes `Embed a record` with Application-supplied Task, Question and Location
+choices. Wiki appends the selected record after its current page content; Chat asks which Exchange
+should own the attachment and defaults to the latest. Removing an embed removes its placement,
+not its target. Live is the default, while pinning retains the state selected when choices were read.
+Failed saves expose an exact retry and keep that control's choices disabled until acceptance.

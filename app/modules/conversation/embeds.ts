@@ -37,3 +37,15 @@ export async function readExchangeEmbeds(view: ReadView<typeof chatSchema>, exch
   });
   return placements.filter((placement) => sameEntity(placement.exchange, exchange));
 }
+
+export async function removeExchangeEmbed(
+  db: DomainDatabase<typeof chatSchema>,
+  placement: Awaited<ReturnType<typeof readExchangeEmbeds>>[number],
+  context: TransactionContext = {},
+) {
+  return db.transaction(context, async (tx) => {
+    const current = await tx.entities.exchangeEmbeds.get(placement, { select: {} });
+    if (!current) throw new Error('Embed placement is unavailable');
+    await tx.entities.exchangeEmbeds.update({ ...current, available: false });
+  });
+}

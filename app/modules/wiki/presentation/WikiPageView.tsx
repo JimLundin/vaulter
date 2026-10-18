@@ -30,6 +30,7 @@ export function WikiPageView({
   renderRecord,
   timeline,
   relatedRecords,
+  embedControls,
 }: {
   page: WikiPage;
   onBack: () => void;
@@ -37,6 +38,7 @@ export function WikiPageView({
   renderRecord?: ForeignRecordRenderer;
   timeline?: ReactNode;
   relatedRecords?: ReactNode;
+  embedControls?: ReactNode;
 }) {
   const [selected, setSelected] = useState<WikiBlock>();
   const [referencesOpen, setReferencesOpen] = useState(false);
@@ -131,6 +133,7 @@ export function WikiPageView({
                 )}
               </Stack>
               {blocks(body)}
+              {embedControls}
               {timeline}
               {relatedRecords}
               {!!connections.length && (

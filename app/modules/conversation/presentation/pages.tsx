@@ -21,7 +21,9 @@ export function ChatPanel({
   onClose,
   toolPresentations,
   renderEmbed,
+  embedControls,
 }: {
+  embedControls?: ReactNode;
   renderEmbed?: (embed: RecordEmbed) => ReactNode;
   conversation: Conversation;
   prompt?: Prompt | null;
@@ -37,6 +39,7 @@ export function ChatPanel({
         presentation={{ open, onClose }}
         toolPresentations={toolPresentations}
         renderEmbed={renderEmbed}
+        embedControls={embedControls}
       />
     </Suspense>
   );
@@ -46,7 +49,9 @@ export function ChatPage({
   prompt = null,
   toolPresentations,
   renderEmbed,
+  embedControls,
 }: {
+  embedControls?: ReactNode;
   renderEmbed?: (embed: RecordEmbed) => ReactNode;
   conversation: Conversation;
   prompt?: Prompt | null;
@@ -60,6 +65,7 @@ export function ChatPage({
         presentation={{ page: true }}
         toolPresentations={toolPresentations}
         renderEmbed={renderEmbed}
+        embedControls={embedControls}
       />
     </Suspense>
   );

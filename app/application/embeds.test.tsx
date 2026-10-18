@@ -1,3 +1,4 @@
+import { Text } from '@/shared/ui/kit/index.ts';
 import { WikiBlocks } from '@/modules/wiki/presentation/rendering/blocks.tsx';
 import { ChatMessage } from '@/modules/conversation/presentation/ChatMessage.tsx';
 import { expect, test } from 'vitest';

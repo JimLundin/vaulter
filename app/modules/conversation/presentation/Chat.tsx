@@ -31,7 +31,9 @@ export function Chat({
   presentation,
   toolPresentations,
   renderEmbed,
+  embedControls,
 }: {
+  embedControls?: ReactNode;
   renderEmbed?: (embed: RecordEmbed) => ReactNode;
   conversation: Conversation;
   arg: Prompt | null;
@@ -244,6 +246,7 @@ export function Chat({
           />
         </Stack>
       ))}
+      {embedControls}
     </ChatSurface>
   );
 }

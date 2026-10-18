@@ -1,3 +1,4 @@
+import { EmbedHostControls } from './EmbedHostControls.tsx';
 import { decisionsRoute } from '@/modules/decisions/index.ts';
 import { decisionsPage, useDecisions } from '@/modules/decisions/presentation/index.ts';
 import { EmbeddedRecord } from './EmbeddedRecord.tsx';
@@ -630,6 +631,16 @@ export function OpenApplication({
           <ChatPanel
             conversation={conversation}
             toolPresentations={toolPresentations}
+            embedControls={
+              embedDatabase && (
+                <EmbedHostControls
+                  database={embedDatabase}
+                  user={identities.user}
+                  disabledReason={conversation.readAvailability().reason ?? writeAdmission}
+                  onSaved={() => conversation.reload()}
+                />
+              )
+            }
             renderEmbed={(embed) => <EmbeddedRecord database={embedDatabase} embed={embed} />}
             prompt={onChat ? null : prompt}
             open={panel}
@@ -650,6 +661,14 @@ export function OpenApplication({
               conversation,
               prompt,
               toolPresentations,
+              embedControls: embedDatabase && (
+                <EmbedHostControls
+                  database={embedDatabase}
+                  user={identities.user}
+                  disabledReason={conversation.readAvailability().reason ?? writeAdmission}
+                  onSaved={() => conversation.reload()}
+                />
+              ),
               renderEmbed: (embed) => <EmbeddedRecord database={embedDatabase} embed={embed} />,
             }),
             mapPage.mount({
@@ -713,6 +732,16 @@ export function OpenApplication({
                 node: wikiPage,
                 error: wikiError,
                 renderRecord: renderWikiRecord,
+                renderEmbedControls: (page) =>
+                  embedDatabase && (
+                    <EmbedHostControls
+                      key={page.id}
+                      database={embedDatabase}
+                      user={identities.user}
+                      page={page}
+                      disabledReason={writeAdmission}
+                    />
+                  ),
                 renderRelatedRecords: (page) => {
                   const related =
                     questionState.questions?.filter((question) =>
