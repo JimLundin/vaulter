@@ -34,6 +34,29 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
 
+  framework-prototypes:
+    name: Framework prototype compilers and static builds
+    if: github.ref == 'refs/heads/prototype/sveltekit-solidstart'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with: { node-version: 24, cache: npm }
+      - run: npm ci
+      - run: npm ci --prefix prototypes/framework-migration/sveltekit
+      - run: npm ci --prefix prototypes/framework-migration/solidstart
+      - run: npm --prefix prototypes/framework-migration/sveltekit run check
+      - run: npm --prefix prototypes/framework-migration/solidstart run check
+      - run: npm --prefix prototypes/framework-migration/sveltekit run build
+      - run: npm --prefix prototypes/framework-migration/solidstart run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: framework-migration-prototypes
+          path: |
+            prototypes/framework-migration/sveltekit/build/
+            prototypes/framework-migration/solidstart/dist/client/
+          retention-days: 7
+
   behavior:
     name: Behavior
     runs-on: ubuntu-latest

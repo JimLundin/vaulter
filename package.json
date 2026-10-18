@@ -21,7 +21,8 @@
     "test:ui": "node tools/testing/run.ts playwright test",
     "test:ui:matrix": "node tools/testing/run.ts playwright-matrix test",
     "test:production": "node tools/testing/run.ts playwright test --config tools/testing/production.config.ts",
-    "test:mutation": "stryker run tools/testing/stryker.config.json"
+    "test:mutation": "stryker run tools/testing/stryker.config.json",
+    "prototype:frameworks": "node prototypes/framework-migration/run.mjs"
   },
   "dependencies": {
     "@ai-sdk/openai": "^4.0.83",

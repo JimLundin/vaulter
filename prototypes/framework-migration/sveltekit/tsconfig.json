@@ -1,0 +1,25 @@
+{
+  "extends": "$app/tsconfig",
+  "compilerOptions": {
+    "strict": true,
+    "allowImportingTsExtensions": true,
+    "skipLibCheck": true,
+    "paths": {
+      "@/*": [
+        "../../../app/*"
+      ],
+      "@prototype/*": [
+        "../shared/*"
+      ]
+    },
+    "jsx": "react-jsx",
+    "jsxImportSource": "react"
+  },
+  "include": [
+    "src",
+    "vite.config.ts"
+  ],
+  "exclude": [
+    "src/service-worker"
+  ]
+}

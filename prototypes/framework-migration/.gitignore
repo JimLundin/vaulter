@@ -1,0 +1,7 @@
+**/node_modules/
+**/.svelte-kit/
+**/.solid/
+**/.output/
+**/dist/
+**/build/
+**/.vinxi/
