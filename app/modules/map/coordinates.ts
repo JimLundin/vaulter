@@ -31,11 +31,20 @@ const coordinates = z
     latitude: angle('latitude', 90),
     longitude: angle('longitude', 180),
     expression: z.string().optional(),
+    qualification: z.enum(['street']).optional(),
   })
   .strict();
 
 /** WGS84 latitude/longitude, in decimal degrees or degrees/minutes/seconds. */
 export type CoordinateValue = z.infer<typeof coordinates>;
+/** Source-stated spatial precision, independent of numeric representation or measured accuracy. */
+export type SpatialQualification = NonNullable<CoordinateValue['qualification']>;
+const qualificationLabels: Record<SpatialQualification, string> = {
+  street: 'Street-level location',
+};
+export function spatialQualificationLabel(qualification: SpatialQualification): string {
+  return qualificationLabels[qualification];
+}
 export function parseCoordinates(value: unknown): CoordinateValue {
   return coordinates.parse(value);
 }

@@ -6,6 +6,10 @@ EAV journal.
 
 `CoordinateValue` uses WGS84 latitude/longitude (`EPSG:4326`). It accepts decimal degrees or
 structured degrees/minutes/seconds with a hemisphere and retains optional source `expression`.
+Optional `qualification: 'street'` retains source-stated spatial precision, displayed as
+“Street-level location” in Map details and the saved-coordinate list. It is independent of the
+coordinate expression, reference system and measured accuracy; omission makes no precision claim.
+The editor can set or clear this qualification and preserves it when the numeric position changes.
 `parseCoordinates` rejects invalid angular values, missing axes and other coordinate systems.
 Arbitrary projected grids, geocentric coordinates and coordinate conversions are outside Map.
 
