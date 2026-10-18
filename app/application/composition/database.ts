@@ -5,6 +5,7 @@ import { graphEntities } from '@/modules/graph/index.ts';
 import { questionEntities } from '@/modules/questions/index.ts';
 import { calendarEntities } from '@/modules/calendar/index.ts';
 import { mapEntities } from '@/modules/map/index.ts';
+import { observationEntities } from '@/modules/observations/index.ts';
 import { sourceEntities } from '@/modules/sources/index.ts';
 import { evidenceEntities } from '@/modules/wiki/index.ts';
 /** The same explicit composition used by the Application views and independent application callers. */
@@ -17,6 +18,7 @@ export const applicationSchema = e.registry({
   ...calendarEntities,
   ...mapEntities,
   ...questionEntities,
+  ...observationEntities,
 });
 const applicationDatabases = new WeakMap<
   JournalStorage,
