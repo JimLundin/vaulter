@@ -33,3 +33,11 @@ Historical Run tools can explicitly retain `versionStatus: unknown` with no vers
 Known versions keep their existing nonempty version strings. Agent admission and reading validate
 these mutually exclusive states. New run admission and tool execution require a known version;
 importing unknown activity never creates Model steps or invokes a tool.
+
+`recordAgentRun` admits retained external activity inside the caller's transaction, accepting
+its agent Actor, separate author, exact source-state provenance, observed run fields, positioned
+Context inputs and Run tools. It requires no editable Agent configuration and adds no generated
+instructions or Model steps. `reviseRecordedAgentRun` retains subsequent observed states on the
+same identity without recomputing supplied timing or filling missing outcome metadata. Optional
+JSON nulls remain null; absent fields remain absent. Live admission still requires a configured
+Agent, and live run/tool execution rejects retained external runs even when marked running.

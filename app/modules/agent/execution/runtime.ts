@@ -106,7 +106,7 @@ export function executeEavRun(
   const done = (async () => {
     try {
       const run = await options.db.transaction((tx) => readAgentRun(tx, options.run));
-      if (!run || run.status !== 'running')
+      if (!(run && run.agent) || run.provenance || run.status !== 'running')
         throw new Error('Agent run is not available for execution');
       const enabled = run.tools.map((tool) => ({ ...tool, version: knownToolVersion(tool) }));
       author = run.author;
