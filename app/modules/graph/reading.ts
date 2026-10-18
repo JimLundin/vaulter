@@ -2,6 +2,7 @@ import type {
   DomainDatabase,
   HistoricalReference,
   RetainedStateReference,
+  TransactionRef,
 } from '@/core/store/index.ts';
 import { graphSchemas, type QueryData } from './query.ts';
 import type { graphEntities } from './records.ts';
@@ -93,12 +94,17 @@ export interface Graph {
 const compare = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 
 /** Pin every projection to one accepted snapshot; historical endpoints survive later deletion. */
-export async function readGraph(db: GraphDatabase): Promise<Graph> {
-  const latest = await db.history.transactions.first({
-    select: { sequence: true },
-    orderBy: [{ sequence: 'desc' }],
-  });
+export async function readGraph(db: GraphDatabase, snapshot?: TransactionRef): Promise<Graph> {
+  const latest =
+    snapshot ??
+    (await db.history.transactions.first({
+      select: { sequence: true },
+      orderBy: [{ sequence: 'desc' }],
+    }));
   const view = latest ? db.at(latest) : db;
+  const selectedTransaction = latest
+    ? await db.history.transactions.get(latest, { select: { sequence: true } })
+    : undefined;
   const [retainedRecords, vocabulary] = await Promise.all([
     view.entities.graphRelationships.query({
       limit: null, // Graph interpretation needs complete vocabulary and relationship endpoints.
@@ -306,7 +312,7 @@ export async function readGraph(db: GraphDatabase): Promise<Graph> {
       });
   return {
     candidates,
-    sequence: latest?.sequence ?? 0,
+    sequence: selectedTransaction?.sequence ?? 0,
     endpoints: [...endpoints.values()],
     vocabulary: (scheme) => terms.filter((term) => !scheme || term.data.scheme === scheme),
     relationships,

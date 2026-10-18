@@ -46,11 +46,28 @@ export const Query = e.entity('graph.query', {
   type: e.string().optional(),
   tag: e.string().optional(),
   sort: e.enum('title', 'created').optional(),
+  provenance: e.retainedStateRef().optional(),
   available: e.boolean(),
+});
+/** A captured evaluation is new evidence, separate from the saved definition and host. */
+export const QuerySelection = e.entity('graph.querySelection', {
+  key: e.string(),
+  query: e.historicalRef(),
+  origin: e.enum('migration-evaluation'),
+  provenance: e.retainedStateRef(),
+  available: e.boolean(),
+});
+export const QuerySelectionMember = e.entity('graph.querySelectionMember', {
+  selection: e.ref(QuerySelection),
+  page: e.historicalRef(),
+  correspondence: e.retainedStateRef(),
+  position: e.number(),
 });
 export const graphEntities = {
   ...topicEntities,
   graphRelationships: Relationship,
   graphTerms: Term,
   graphQueries: Query,
+  graphQuerySelections: QuerySelection,
+  graphQuerySelectionMembers: QuerySelectionMember,
 } as const;

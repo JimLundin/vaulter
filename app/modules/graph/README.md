@@ -26,3 +26,25 @@ snapshot with Store's `history.retainedStateReference` and use these same native
 [The explorer](explorer.ts) subscribes to the EAV database, retains previous results after a failed refresh and rejects late responses after disposal or replacement. Application supplies foreign owner descriptions and topic, content and evidence projections. [The map](map.ts) keeps shared source identities and every incident connection before filtering.
 
 The Graph screen uses the shared NetworkDiagram and SupportingPane. Topic grouping, color, spacing, local one/two-step exploration, vocabulary and retained deep links remain available. Qualified assertions and effective-time fields remain subsequent work; historical endpoint retention does not imply an evidence review or factual qualification.
+
+Saved Query definitions are retained through `savedQueryAdmission(tx)` or `savedQueryActions(db)`.
+`replace` accepts a complete recorded definition and clears absent criteria; omitted sort remains
+omitted. `readQueries` reads current or explicit historical definitions and optionally unavailable
+final fields. Optional provenance selects the exact preserved Source state, including deletion.
+
+`readQueryEmbed` derives results at one selected snapshot. Application supplies candidate projections,
+or a provider called with that snapshot, retaining exact owner addresses and optional owner taxonomy
+(`classification.type` and `classification.tags`). This taxonomy is independent of resolved directed
+Graph edges: an externally recorded label can participate in source query evaluation without being
+promoted to a factual connection. Without a supplied taxonomy, Graph classifications supply native
+query behavior. The reader labels results as live-derived or historical-derived; omitted sort uses
+title ordering during evaluation. A pinned host supplies its selected snapshot, and historical live
+hosts supply their cutoff so Page/tag-only revisions do not leak current data into old results.
+
+`querySelectionAdmission(tx).capture` retains an ordered result evaluation separately from Query
+identity and host placement. Its explicit `migration-evaluation` origin never claims an original
+execution occurred. Each member selects an exact Page at the evaluation cutoff, preserved external
+source correspondence and a unique position. The selection's provenance selects the preserved
+source cutoff. `readQuerySelections` resolves original member values and order without reevaluation,
+including after later Page edits/removal or selection unavailability. Wiki and Chat hosts use their
+existing ordered embed placement to reference either a Query or a captured QuerySelection.
