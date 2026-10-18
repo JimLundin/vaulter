@@ -47,6 +47,7 @@ const compositionEntry = (path: string) =>
     'app/application/composition/composition.ts',
     'app/application/composition/database.ts',
     'app/application/composition/wiki-graph.ts',
+    'app/application/composition/embeds.ts',
   ].includes(path);
 const applicationTest = (path: string) => path.startsWith('app/application/') && testSource(path);
 const workflow = (path: string) =>

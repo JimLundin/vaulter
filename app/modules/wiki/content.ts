@@ -1,5 +1,10 @@
 import { z } from 'zod';
-import { sameEntity, type ReadView, type Selected } from '@/core/store/index.ts';
+import {
+  sameEntity,
+  type ReadView,
+  type Selected,
+  type HistoricalReference,
+} from '@/core/store/index.ts';
 import type { Content, wikiSchema, ContentRef } from './records.ts';
 
 export const contentSelection = {
@@ -17,6 +22,8 @@ export const contentSelection = {
   chartTitle: true,
   chartUnit: true,
   chartData: true,
+  embedMode: true,
+  embedTarget: true,
 } as const;
 export type ContentValue = Selected<typeof Content, typeof contentSelection>;
 const marks = z.enum(['strong', 'emphasis', 'code', 'strike']);
@@ -37,7 +44,18 @@ export const contentInput = z
       'rule',
       'text',
       'link',
+      'embed',
     ]),
+    embedMode: z.enum(['live', 'pinned']).optional(),
+    embedTarget: z
+      .custom<HistoricalReference>(
+        (value) =>
+          !!value &&
+          typeof value === 'object' &&
+          'format' in value &&
+          value.format === 'vaulter-eav-snapshot-v1',
+      )
+      .optional(),
     text: z.string().optional(),
     marks: z.array(marks).optional(),
     ordered: z.boolean().optional(),
@@ -57,11 +75,15 @@ export const contentInput = z
   .superRefine((data, context) => {
     if (['text', 'link', 'code'].includes(data.kind) && data.text === undefined)
       context.addIssue({ code: 'custom', message: 'Text content requires text' });
+    if (data.kind === 'embed' && !data.embedTarget)
+      context.addIssue({ code: 'custom', message: 'An embed requires a retained target' });
     if (data.kind === 'list' && data.ordered === undefined)
       context.addIssue({ code: 'custom', message: 'A list requires an explicit order policy' });
     if (data.kind === 'chart' && !(data.chartType && data.chartTitle && data.chartData))
       context.addIssue({ code: 'custom', message: 'A chart requires typed chart data' });
     for (const [field, kinds] of Object.entries({
+      embedMode: ['embed'],
+      embedTarget: ['embed'],
       text: ['text', 'link', 'code'],
       marks: ['text', 'link'],
       ordered: ['list'],

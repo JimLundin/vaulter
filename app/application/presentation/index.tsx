@@ -1,5 +1,6 @@
 import { decisionsRoute } from '@/modules/decisions/index.ts';
 import { decisionsPage, useDecisions } from '@/modules/decisions/presentation/index.ts';
+import { EmbeddedRecord } from './EmbeddedRecord.tsx';
 import { historyNavigation, historyCommand } from '@/core/history/presentation/index.tsx';
 import { settingsNavigation, settingsCommand } from '@/core/settings/presentation/index.ts';
 import { renderPage, pageNavigation, pageCommands } from '@/core/navigation/index.ts';
@@ -328,14 +329,19 @@ export function OpenApplication({
   });
   const answerAvailability = questionAnswerAvailability(questionState, writeAdmission);
   const descriptions = questionDescriptions();
+  const embedDatabase = useMemo(() => (eav ? applicationDatabase(eav) : null), [eav]);
   const renderWikiRecord: ForeignRecordRenderer = (record) =>
-    renderQuestionRecord(record, questionState, {
-      ...descriptions,
-      answers,
-      onAnswer: answers.answer,
-      disabledReason: writeAdmission,
-      transcription: voice,
-    });
+    record.embed ? (
+      <EmbeddedRecord database={embedDatabase} embed={record.embed} cutoff={record.embedCutoff} />
+    ) : (
+      renderQuestionRecord(record, questionState, {
+        ...descriptions,
+        answers,
+        onAnswer: answers.answer,
+        disabledReason: writeAdmission,
+        transcription: voice,
+      })
+    );
   const layout = useLayout();
   const mobile = layout === 'compact';
   const [search, setSearch] = useState(false);
@@ -626,6 +632,7 @@ export function OpenApplication({
           <ChatPanel
             conversation={conversation}
             toolPresentations={toolPresentations}
+            renderEmbed={(embed) => <EmbeddedRecord database={embedDatabase} embed={embed} />}
             prompt={onChat ? null : prompt}
             open={panel}
             onClose={() => showPanel(false)}
@@ -641,7 +648,12 @@ export function OpenApplication({
         {renderPage(
           onSettings || onHistory ? chatRoute.href() : route.path,
           [
-            chatPage.mount({ conversation, prompt, toolPresentations }),
+            chatPage.mount({
+              conversation,
+              prompt,
+              toolPresentations,
+              renderEmbed: (embed) => <EmbeddedRecord database={embedDatabase} embed={embed} />,
+            }),
             mapPage.mount({
               data: map.data,
               error: map.error ?? (!mapInput ? 'Map storage is unavailable.' : undefined),

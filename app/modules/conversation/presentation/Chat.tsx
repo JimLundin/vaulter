@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react';
+import type { RecordEmbed } from '@/core/embeds/index.ts';
 import { Timeline } from './Timeline.tsx';
 // Chat behaviour composes the public kit; presentation and styling stay in the kit.
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -28,7 +30,9 @@ export function Chat({
   arg,
   presentation,
   toolPresentations,
+  renderEmbed,
 }: {
+  renderEmbed?: (embed: RecordEmbed) => ReactNode;
   conversation: Conversation;
   arg: Prompt | null;
   presentation: ChatPresentation;
@@ -236,6 +240,7 @@ export function Chat({
             turn={turn}
             live={busy && i === turns.length - 1}
             toolPresentations={toolPresentations}
+            renderEmbed={renderEmbed}
           />
         </Stack>
       ))}

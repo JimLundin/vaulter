@@ -9,3 +9,5 @@ export { projectedExchange } from './projection.ts';
 export { submitChat } from './submission.ts';
 export { chatPreferences, chatSettings } from './preferences.ts';
 export type { MessageData, MessagePart } from './message.ts';
+
+export { appendExchangeEmbed, readExchangeEmbeds } from './embeds.ts';

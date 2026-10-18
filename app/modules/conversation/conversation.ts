@@ -83,9 +83,15 @@ export interface ConversationState extends ChatState {
 }
 function turn(data: MessageData, live = false, pendingToolCall?: string): Turn {
   if (data.role === 'user')
-    return { role: 'user', at: data.at, parts: [{ kind: 'text', text: data.text }] };
+    return {
+      ...(data.embeds && { embeds: data.embeds }),
+      role: 'user',
+      at: data.at,
+      parts: [{ kind: 'text', text: data.text }],
+    };
   if (data.role === 'record')
     return {
+      ...(data.embeds && { embeds: data.embeds }),
       role: 'record',
       at: data.at,
       record: data.record,
@@ -107,6 +113,7 @@ function turn(data: MessageData, live = false, pendingToolCall?: string): Turn {
         },
   );
   return {
+    ...(data.embeds && { embeds: data.embeds }),
     role: 'agent',
     at: data.at,
     parts,

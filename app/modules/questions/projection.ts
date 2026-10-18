@@ -1,4 +1,4 @@
-import { sameEntity, type HistoricalReference } from '@/core/store/index.ts';
+import { sameEntity, type HistoricalReference, type TransactionRef } from '@/core/store/index.ts';
 import type { Question, QuestionTarget } from '@/modules/questions/reading.ts';
 import { answerSuggestions } from '@/modules/questions/suggestions.ts';
 import type { QuestionDatabase } from './records.ts';
@@ -7,13 +7,16 @@ import type { QuestionDatabase } from './records.ts';
 export async function readTarget(
   db: QuestionDatabase,
   address: HistoricalReference,
+  cutoff?: TransactionRef,
 ): Promise<QuestionTarget> {
   const resolved = await db.history.resolve(address);
   const recorded = await db.history.inspect(resolved.transaction, resolved.entity);
-  const latest = await db.history.transactions.first({
-    select: { sequence: true },
-    orderBy: [{ sequence: 'desc' }],
-  });
+  const latest =
+    cutoff ??
+    (await db.history.transactions.first({
+      select: { sequence: true },
+      orderBy: [{ sequence: 'desc' }],
+    }));
   const current = latest && (await db.history.inspect(latest, resolved.entity));
   const values = recorded?.values ?? {};
   return {
@@ -33,11 +36,16 @@ export async function readTarget(
   };
 }
 
-export async function readEavQuestions(db: QuestionDatabase): Promise<Question[]> {
-  const snapshot = await db.history.transactions.first({
-    select: { sequence: true },
-    orderBy: [{ sequence: 'desc' }],
-  });
+export async function readEavQuestions(
+  db: QuestionDatabase,
+  cutoff?: TransactionRef,
+): Promise<Question[]> {
+  const snapshot = cutoff
+    ? await db.history.transactions.get(cutoff, { select: { sequence: true } })
+    : await db.history.transactions.first({
+        select: { sequence: true },
+        orderBy: [{ sequence: 'desc' }],
+      });
   if (!snapshot) return [];
   const view = db.at(snapshot);
   const [questions, contexts, answers] = await Promise.all([
@@ -99,7 +107,7 @@ export async function readEavQuestions(db: QuestionDatabase): Promise<Question[]
             .filter((entry) => sameEntity(entry.question, question))
             .map(async (entry) => ({
               role: entry.role,
-              target: await readTarget(db, entry.target),
+              target: await readTarget(db, entry.target, snapshot),
             })),
         );
         const response = await Promise.all(
@@ -114,6 +122,7 @@ export async function readEavQuestions(db: QuestionDatabase): Promise<Question[]
               const target = await readTarget(
                 db,
                 await db.history.reference(first.transaction, answer),
+                snapshot,
               );
               return target;
             }),

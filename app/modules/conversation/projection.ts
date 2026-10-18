@@ -1,3 +1,4 @@
+import { readExchangeEmbeds } from './embeds.ts';
 import type { ReadView } from '@/core/store/index.ts';
 import type { chatSchema, ExchangeRef } from './records.ts';
 import { readExchange } from './submission.ts';
@@ -6,6 +7,7 @@ import type { MessageData } from '@/modules/conversation/message.ts';
 export async function projectedExchange(
   tx: ReadView<typeof chatSchema>,
   identity: ExchangeRef,
+  options: { readonly includeEmbeds?: boolean } = {},
 ): Promise<MessageData[]> {
   const exchange = await readExchange(tx, identity);
   if (!exchange) throw new Error('Dialogue contribution is unavailable');
@@ -37,5 +39,8 @@ export async function projectedExchange(
   if (run) {
     result.push({ kind: 'message', role: 'agent', ...run });
   }
+  const placements = options.includeEmbeds === false ? [] : await readExchangeEmbeds(tx, identity);
+  if (result.length && placements.length)
+    result[0] = { ...result[0]!, embeds: placements.map(({ mode, target }) => ({ mode, target })) };
   return result;
 }
