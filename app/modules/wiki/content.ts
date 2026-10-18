@@ -1,10 +1,5 @@
 import { z } from 'zod';
-import {
-  sameEntity,
-  type ReadView,
-  type Selected,
-  type HistoricalReference,
-} from '@/core/store/index.ts';
+import { sameEntity, type ReadView, type Selected } from '@/core/store/index.ts';
 import type { Content, wikiSchema, ContentRef } from './records.ts';
 
 export const contentSelection = {
@@ -48,13 +43,14 @@ export const contentInput = z
     ]),
     embedMode: z.enum(['live', 'pinned']).optional(),
     embedTarget: z
-      .custom<HistoricalReference>(
-        (value) =>
-          !!value &&
-          typeof value === 'object' &&
-          'format' in value &&
-          value.format === 'vaulter-eav-snapshot-v1',
-      )
+      .strictObject({
+        format: z.literal('vaulter-eav-snapshot-v1'),
+        scope: z.string().min(1),
+        journal: z.string().min(1),
+        transaction: z.string().min(1),
+        entity: z.string().min(1),
+        type: z.string().min(1),
+      })
       .optional(),
     text: z.string().optional(),
     marks: z.array(marks).optional(),

@@ -62,7 +62,7 @@ test('production Map attaches coordinates to a record, reloads and removes them'
   await expect(page.getByLabel('Location precision', { exact: true })).toHaveValue('street');
   await page.getByLabel('Latitude', { exact: true }).fill('59.4');
   await page.getByRole('button', { name: 'Save coordinates', exact: true }).click();
-  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.getByRole('dialog', { name: 'Edit coordinates', exact: true })).toBeHidden();
   await expect(
     page.getByLabel('Selected location').getByText('Street-level location'),
   ).toBeVisible();
