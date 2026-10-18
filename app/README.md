@@ -26,16 +26,125 @@ app/
 │   ├── reviews/                 Review records, selection validation and admission
 │   └── presentation/            Wiki pages, support views and semantic rendering
 ├── graph/                       Topics, membership, Relationships and vocabulary
+│   └── presentation/            Graph page and exploration
 ├── questions/                   Questions, Answers, collection lifetime and save recovery
+│   └── presentation/            Questions page, embedded Questions and tool results
 ├── calendar/                    Time values, Events and recurring annual dates
+│   └── presentation/            Calendar page and timeline
 ├── map/                         Coordinate records and geographic values
+│   └── presentation/            Map page
 ├── transcription/               Capture lifetime and transport contract
 ├── search/                      Ranking, recent entries and search interaction
+│   └── Search.tsx               Search presentation (not yet in presentation/)
 ├── navigation/                  Routes, commands and keyboard navigation
 ├── ui/kit/                      Generic presentation and browser mechanics
 ├── runtime/                     Small independent runtime utilities
 └── preview/                     Fictional records and scripted transport adapters
 ```
+
+## Proposed next structure: explicit module homes
+
+The tree above describes the current code. This target makes module homes explicit and applies
+the same presentation convention to domain modules and core-owned modules. It has not yet been
+implemented. A module contains its behavior and presentation together; `modules/` contains the
+domain modules, and `application/` contains the shell, composition and core-owned modules.
+
+```text
+app/
+├── main.tsx
+├── application/                 Core application owner
+│   ├── composition/             Database registry, domain joins and production wiring
+│   ├── presentation/            Frame, routes, navigation and global settings composition
+│   ├── store/                   Core module: typed database and Transactions
+│   ├── persistence/             Core module: journal transport and cache
+│   │   └── presentation/        Connection preferences
+│   ├── session/                 Core module: unlock, refresh and lifetime
+│   │   └── presentation/        Gate and session controls
+│   ├── settings/                Core module: preference persistence and credential editing
+│   │   └── presentation/        Shared setting fields and credential controls
+│   └── history/                 Core module: accepted Transaction reading
+│       └── presentation/        History drawer and list
+├── modules/                     Domain modules; each directory is an owner
+│   ├── actors/                  Behavior and records; no standalone presentation today
+│   ├── sources/                 Behavior and records; no standalone presentation today
+│   ├── transcription/           Capture behavior; presentation belongs to capture callers
+│   ├── conversation/
+│   │   └── presentation/        Chat, timeline, rendering and Conversation settings
+│   ├── agent/
+│   │   ├── openai/              Provider adapter and configuration
+│   │   └── presentation/        Agent settings and activity/tool views
+│   ├── wiki/
+│   │   ├── reviews/             Private cohesive Review behavior
+│   │   └── presentation/        Pages, support views and rendering
+│   ├── graph/
+│   │   └── presentation/        Graph exploration
+│   ├── questions/
+│   │   └── presentation/        Questions, Answers and tool results
+│   ├── calendar/
+│   │   └── presentation/        Calendar page and timeline
+│   └── map/
+│       └── presentation/        Map page
+├── shared/                      Reusable support; no domain record interpretation
+│   ├── search/                  Ranking and search interaction; Application supplies entries
+│   │   └── presentation/        Search overlay
+│   ├── navigation/              Route and command mechanics
+│   ├── ui/                      Generic UI kit
+│   └── runtime/                 Independent utilities
+└── preview/                     Fictional composition using public module entries
+```
+
+### Module convention
+
+Every module has one home and a named public behavior entry. A module with presentation exposes
+`presentation/index.ts` (or `.tsx`), consistently. Application mounts that presentation and supplies
+cross-domain context. A module owns its page, settings fields, embedded views and tool-result views,
+even when those views appear inside another module's screen.
+
+```text
+<module>/
+├── index.ts                     Public behavior interface
+├── records.ts                   Retained definitions, when the module owns records
+├── operations.ts                Writes and admission, when needed
+├── reading.ts                   Reads and projections, when needed
+├── configuration.ts             Configuration meaning and validation, when needed
+├── <named-behavior>/            Private cohesive behavior, when it merits a folder
+└── presentation/                When the module has UI
+    ├── index.ts                 Public presentation interface
+    ├── <Module>Page.tsx          Page, when it has one
+    ├── Settings.tsx             Owner-specific settings fields, when needed
+    └── ...                      Owner views, hooks and rendering
+```
+
+The public entries are consistent; implementation names follow the domain's vocabulary.
+Small modules do not need empty folders or placeholder files. Tests live beside the behavior or
+presentation they verify. Internal owner code can use relative imports; outside callers cross
+public entries. React rendering and presentation hooks live in `presentation/`; admission,
+subscriptions and recovery that must also work without React remain in behavior.
+
+```mermaid
+flowchart LR
+  Shell["application/presentation/\nMounts module views"] -->|public presentation| Presentation["modules/calendar/presentation/index.ts"]
+  Composition["application/composition/\nSupplies database and subject context"] -->|public behavior| Interface["modules/calendar/index.ts"]
+  Presentation -->|local owner behavior| Interface
+  Presentation -->|generic controls| Shared["shared/ui/"]
+  Interface -->|queries and Transactions| Store["application/store/index.ts"]
+```
+
+This Calendar example applies to every module with UI. Core-owned modules use the same convention
+under `application/`. Cross-domain semantic dependencies stay explicit as described below;
+the directory move does not replace them with a global module registry.
+
+### Framework inspiration
+
+| Source | Convention to adopt here | Adaptation for this project |
+| --- | --- | --- |
+| [Feature-Sliced Design](https://feature-sliced.design/docs/reference/slices-segments) | Explicit module directories, private implementation and public entries | Keep each domain's records, behavior and presentation together; preserve the existing semantic dependencies between domains |
+| [Angular style guide](https://angular.dev/style-guide) | Organize by feature area and keep related files together | Apply that organization to React; a page and its behavior live in the same owning module |
+| [Hexagonal architecture](https://alistair.cockburn.us/hexagonal-architecture) | Separate behavior from presentation and external adapters | Keep journal/model transports replaceable and behavior usable without React; introduce adapter folders where concrete variation exists |
+
+The recommended next pass is to establish these root directories, normalize presentation entries,
+move core presentation beside its owning behavior, and update import enforcement. This changes
+where modules live and how callers find them; it does not require a framework migration.
 
 ## Ownership and dependencies
 
