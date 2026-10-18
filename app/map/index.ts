@@ -7,3 +7,8 @@ export { createCoordinates, reviseCoordinates, removeCoordinates } from './opera
 export type { CoordinateInput } from './operations.ts';
 export { readCoordinates } from './reading.ts';
 export type { CoordinateQuery, CoordinateRecord } from './reading.ts';
+export { decimalDegrees } from './coordinates.ts';
+export { MapPage, type MapActions } from './MapPage.tsx';
+export { useMap, type MapInput } from './use-map.ts';
+export { mapRoute } from './routes.ts';
+export type { MapData, MapEntry, MapSubject } from './presentation.ts';

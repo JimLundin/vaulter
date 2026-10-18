@@ -2,20 +2,26 @@
 
 Map owns geographic coordinate values and Coordinate records associated with existing Vault
 records. Its public interface is `index.ts`; Application registers `mapEntities` in the shared
-EAV journal. Map has no UI, tile provider, geocoder or coordinate conversion dependency.
+EAV journal.
 
-`CoordinateValue` retains an explicit CRS identifier (for example `EPSG:4326`, `EPSG:3006` or
-`EPSG:4978`). Geographic values use named latitude/longitude axes in decimal degrees or structured
-degrees/minutes/seconds with a hemisphere. Projected values use easting/northing and an explicit
-unit; geocentric values use x/y/z and an explicit unit. Geographic/projected values may carry a
-height with its own unit and vertical CRS. Optional `expression` retains original source wording.
-UTM zone/hemisphere and local grid definitions belong in an unambiguous CRS identifier.
+`CoordinateValue` uses WGS84 latitude/longitude (`EPSG:4326`). It accepts decimal degrees or
+structured degrees/minutes/seconds with a hemisphere and retains optional source `expression`.
+`parseCoordinates` rejects invalid angular values, missing axes and other coordinate systems.
+Arbitrary projected grids, geocentric coordinates and coordinate conversions are outside Map.
 
-`parseCoordinates` rejects missing systems, non-finite values, invalid angular ranges/hemispheres,
-and extra fields. CRS and unit identifiers are required nonempty strings: the module does not
-consult a CRS catalogue, certify unit/system compatibility, convert values, or decode arbitrary
-text/grid-reference formats. Such inputs must first be explicitly interpreted into these forms.
-The supplied representation is retained without implicit normalization or inferred precision.
+`MapPage` is available at `/map/` in Application navigation. It shows the retained OpenFreeMap Positron/light and Dark base maps,
+keyboard-selectable markers and a supporting list that becomes a drawer on phones. Zoom controls
+sit at the bottom-right; attribution starts collapsed at the bottom-left and remains expandable.
+The coordinate pane uses compact task actions, grouped selected-record details and dense list rows. Add coordinates
+chooses an existing Wiki, Calendar, Question or Source document record and decimal latitude/longitude.
+Edit preserves a stored DMS representation when its numeric position is unchanged. Failed saves
+retain the draft for explicit retry; removing a location retains its history. Offline reading
+retains coordinates even when map tiles cannot load. MapLibre loads OpenFreeMap vector tiles and displays contributor attribution. Appearance follows
+the application theme, including system changes, and switching theme retains camera and selection. No geocoding or device location is requested.
+
+The kit's `MapView` owns pan/zoom, marker mechanics, resizing and base-map presentation. Map owns
+coordinate interpretation and record UI; Application supplies foreign-record choices and user
+attribution. The ordinary preview includes fictional coordinates on its existing sample pages.
 
 `createCoordinates(db, { subject, coordinates }, context?)` admits one position with a mandatory
 engine-validated historical reference to an existing accepted record of any owner type. Several

@@ -1,3 +1,4 @@
+@import "./map.css";
 @import "./prose.css";
 @import "./loading.css";
 /* Tailwind scans only the kit. Application modules compose its public presentation. */

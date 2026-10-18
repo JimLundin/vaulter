@@ -17,6 +17,7 @@ import { recordedTranscription } from '@/agent/recorded-transcription.ts';
 import { previewTranscription } from './transcription.ts';
 import { previewEav, previewEavKey } from './eav.ts';
 import { seedEavWiki } from './wiki-records.ts';
+import { seedMap } from './map-records.ts';
 import { seedCalendar } from './calendar-records.ts';
 import { seedConversation } from './conversation-records.ts';
 
@@ -43,6 +44,7 @@ const opening = (async () => {
   const db = await applicationWiki(eav).database();
   await seedEavWiki(db);
   await seedCalendar(eav);
+  await seedMap(eav);
   await seedEavQuestions(db);
   await seedGraphEvidence(db, query.get('compare') === 'graph');
   if (query.get('compare') === 'graph') await seedGraphDensity(db);

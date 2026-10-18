@@ -54,6 +54,18 @@ export function setTheme(theme: Theme) {
   for (const l of listeners) l();
 }
 
+const isDark = () => !!globalThis.document?.documentElement.classList.contains('dark');
+
+/** Whether the page is dark now, whatever the choice: for what draws its own colours (a map). */
+export const useDark = (): boolean =>
+  useSyncExternalStore((l) => {
+    const root = globalThis.document?.documentElement;
+    if (!root) return () => undefined;
+    const watch = new MutationObserver(l);
+    watch.observe(root, { attributes: true, attributeFilter: ['class'] });
+    return () => watch.disconnect();
+  }, isDark);
+
 export const useTheme = (): Theme =>
   useSyncExternalStore(
     (l) => {

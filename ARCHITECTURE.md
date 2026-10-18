@@ -38,7 +38,7 @@ workflows. There is no extension registry, common workflow manifest or runtime f
 |---|---|---|
 | Application | Routes, shell, identities, module selection, record/tool/source composition | Record schemas or persistence |
 | Calendar | TimeValue conventions, Events, annual dates and calendar reading/presentation | Subject meaning, reminders or automatic time-based state changes |
-| Map | Geographic coordinate values, required subject associations and historical coordinate reading | Subject records, coordinate conversion or map presentation |
+| Map | Latitude/longitude values, required subject associations and Map record UI | Subject records, coordinate conversion or base-map mechanics |
 | Agent | Execution, context discovery, grounding choices, durable tool activity, recovery, historical decoding | Wiki or Question payload interpretation |
 | Chat | Continuous conversation, messages, drafts, capture, projecting typed Agent activity into a transcript | Decoding Agent records |
 | Wiki | Pages, blocks, citations, subject discovery and page presentation | Creating or answering Questions |

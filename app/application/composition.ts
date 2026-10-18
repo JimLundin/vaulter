@@ -33,7 +33,15 @@ import { questionToolPresentation } from '@/workflows/questions/tool-presentatio
 import { defaultIdentities, type ApplicationIdentities } from './identities.ts';
 import { discoveryPresentation } from '@/agent/discovery-presentation.tsx';
 import { readGraph } from '@/workflows/graph/reading.ts';
-import { mapEntities } from '@/map/index.ts';
+import {
+  mapEntities,
+  createCoordinates,
+  reviseCoordinates,
+  removeCoordinates,
+  readCoordinates,
+  type MapActions,
+  type MapInput,
+} from '@/map/index.ts';
 
 export const toolPresentations = [questionToolPresentation, discoveryPresentation];
 
@@ -173,6 +181,110 @@ export function applicationCalendar(
     },
   };
   return { database: () => applicationDatabase(storage), actions };
+}
+
+/** Application supplies foreign-record choices; Map retains only their historical identity. */
+export function applicationMap(
+  storage: MemoryStorage,
+  identities: ApplicationIdentities = defaultIdentities,
+) {
+  const author = async () => {
+    const db = await applicationDatabase(storage);
+    const binding = await db.entities.actorBindings.first({
+      where: { key: { eq: identities.user } },
+      select: { actor: { kind: true } },
+    });
+    if (!binding || binding.actor.kind !== 'user')
+      throw new Error('Vault owner identity is unavailable.');
+    return binding.actor;
+  };
+  const actions: MapActions = {
+    create: async (input) => {
+      await createCoordinates(await applicationDatabase(storage), input, {
+        author: await author(),
+      });
+    },
+    revise: async (record, coordinates) => {
+      await reviseCoordinates(await applicationDatabase(storage), record, coordinates, {
+        author: await author(),
+      });
+    },
+    remove: async (record) => {
+      await removeCoordinates(await applicationDatabase(storage), record, {
+        author: await author(),
+      });
+    },
+  };
+  const input: MapInput = {
+    read: async () => {
+      const db = await applicationDatabase(storage);
+      const snapshot = await db.history.transactions.first({
+        select: {},
+        orderBy: [{ sequence: 'desc' }],
+      });
+      if (!snapshot) return { entries: [], subjects: [] };
+      const view = db.at(snapshot);
+      const [coordinates, pages, events, questions, sources] = await Promise.all([
+        readCoordinates(db, { snapshot }),
+        view.entities.wikiPages.query({
+          where: { available: { eq: true } },
+          select: { title: true },
+        }),
+        view.entities.calendarEvents.query({
+          where: { available: { eq: true } },
+          select: { title: true },
+        }),
+        view.entities.questions.query({ select: {} }),
+        view.entities.sourceDocuments.query({ select: {} }),
+      ]);
+      const subjects = await Promise.all(
+        [...pages, ...events, ...questions, ...sources].map(async (entity) => {
+          const reference = await db.history.reference(snapshot, entity);
+          const retained = await db.history.inspect(snapshot, entity);
+          const values = retained?.values ?? {};
+          const title = ['title', 'text', 'name', 'question']
+            .map((key) => values[key])
+            .find((value) => typeof value === 'string' && value.trim());
+          return {
+            reference,
+            label: typeof title === 'string' ? title.slice(0, 120) : reference.type,
+          };
+        }),
+      );
+      const entries = await Promise.all(
+        coordinates.map(async (record) => {
+          const target = await db.history.resolve(record.subject);
+          const retained = await db.history.inspect(target.transaction, target.entity);
+          const title = ['title', 'text', 'name', 'question']
+            .map((key) => retained?.values[key])
+            .find((value) => typeof value === 'string' && value.trim());
+          const identity = await db.history.reference(snapshot, record);
+          return {
+            id: identity.entity,
+            label: typeof title === 'string' ? title.slice(0, 120) : record.subject.type,
+            record,
+          };
+        }),
+      );
+      return { entries, subjects };
+    },
+    subscribe: (listener) => {
+      let active = true;
+      let close: () => void = () => undefined;
+      void applicationDatabase(storage)
+        .then((db) => {
+          if (active) close = db.subscribe(listener);
+        })
+        .catch(() => {
+          if (active) listener();
+        });
+      return () => {
+        active = false;
+        close();
+      };
+    },
+  };
+  return { ...input, actions };
 }
 
 /** Match the original subject identity, independently of the snapshot retained by Calendar. */
