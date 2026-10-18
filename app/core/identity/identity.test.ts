@@ -144,6 +144,53 @@ test('concurrent admissions cannot establish conflicting survivors or a cycle', 
   expect(await db.entities.identityRedirects.query({ select: {} })).toHaveLength(1);
 });
 
+test('engine-deleted canonical records without a domain availability field remain unavailable after reopen', async () => {
+  let journal: Journal = { schemas: [], commits: [] };
+  const storage = () =>
+    createPersistentStorage({
+      scope: 'identity-engine-deletion-test',
+      load: async () => structuredClone(journal),
+      append: (request) => {
+        journal = structuredClone({
+          schemas: request.schemas,
+          commits: [...journal.commits, request.commit],
+        });
+        return Promise.resolve();
+      },
+    });
+  {
+    await using db = await openDatabase({ schema, storage: storage() });
+    const records = await db.transaction(async (tx) => ({
+      source: await tx.entities.tasks.insert({ text: 'Duplicate task' }),
+      survivor: await tx.entities.tasks.insert({ text: 'Surviving task' }),
+    }));
+    const snapshot = (await db.history.transactions.first({ select: {} }))!;
+    const source = await db.history.reference(snapshot, records.source);
+    const target = await db.history.reference(snapshot, records.survivor);
+    await createIdentityRedirect(db, { source, target });
+    expect((await resolveCurrentIdentity(db, source)).available).toBe(true);
+    await db.transaction((tx) => tx.entities.tasks.delete(records.survivor));
+    const deleted = await resolveCurrentIdentity(db, source);
+    expect(deleted.available).toBe(false);
+    expect(deleted.record).toBeUndefined();
+    expect(sameEntity(deleted.entity, records.survivor)).toBe(true);
+    expect(await db.entities.tasks.get(records.source, { select: { text: true } })).toMatchObject({
+      text: 'Duplicate task',
+    });
+  }
+  await using reopened = await openDatabase({ schema, storage: storage() });
+  const redirect = (await reopened.entities.identityRedirects.first({
+    select: { source: true, target: true },
+  }))!;
+  const deleted = await resolveCurrentIdentity(reopened, redirect.source);
+  expect(deleted.available).toBe(false);
+  expect(deleted.record).toBeUndefined();
+  expect(deleted.canonical).toEqual(redirect.target);
+  expect((await resolveHistoricalIdentity(reopened, redirect.target)).record?.values).toMatchObject(
+    { text: 'Surviving task' },
+  );
+});
+
 test('independent durable reopen retains redirect revisions, original evidence and withdrawal history', async () => {
   let journal: Journal = { schemas: [], commits: [] };
   const storage = () =>
