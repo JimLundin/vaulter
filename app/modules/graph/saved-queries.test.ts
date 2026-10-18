@@ -105,7 +105,16 @@ test('saved query replacement preserves omission, source state and unavailable f
 
 test('query embed derives ordered results at the selected snapshot rather than current data or invented receipts', async () => {
   await using db = await openDatabase({ schema });
-  const { a, b } = await db.transaction(async (tx) => ({
+  const { a, b, evidence } = await db.transaction(async (tx) => ({
+    evidence: await tx.entities.sourceDocuments.insert({
+      key: 'taxonomy',
+      title: 'Taxonomy source',
+      text: 'Recorded type and tags',
+      origin: 'external:taxonomy',
+      attribution: 'Author',
+      capturedAt: new Date(),
+      available: true,
+    }),
     a: await tx.entities.subjects.insert({
       title: 'Zulu',
       available: true,
@@ -128,6 +137,7 @@ test('query embed derives ordered results at the selected snapshot rather than c
     select: {},
     orderBy: [{ sequence: 'desc' }],
   }))!;
+  const taxonomySource = await db.history.retainedStateReference(before, evidence);
   const candidates = async (snapshot = before) =>
     Promise.all(
       (
@@ -142,7 +152,12 @@ test('query embed derives ordered results at the selected snapshot rather than c
           address,
           title: subject.title,
           available: subject.available,
-          classification: { type: subject.type, tags: subject.tags ?? [] },
+          classification: {
+            type: subject.type,
+            tags: subject.tags ?? [],
+            cutoff: taxonomySource,
+            sources: [taxonomySource],
+          },
         };
       }),
     );

@@ -99,7 +99,26 @@ export async function readQueries(
 export interface SavedQueryCandidate extends QueryCandidate {
   readonly address: HistoricalReference;
   /** Owner's recorded taxonomy, independent of Graph's directed factual edges. */
-  readonly classification?: { readonly type?: string; readonly tags: readonly string[] };
+  readonly classification?: QueryClassification;
+}
+
+export interface QueryClassification {
+  readonly type?: string;
+  readonly tags: readonly string[];
+  readonly cutoff: RetainedStateReference;
+  readonly sources: readonly RetainedStateReference[];
+  readonly hashes?: readonly string[];
+}
+
+export function validateQueryClassification(classification: QueryClassification) {
+  if (
+    classification.cutoff.type !== 'source.document' ||
+    !classification.sources.length ||
+    classification.sources.some((source) => source.type !== 'source.document')
+  )
+    throw new Error('Supplied query taxonomy requires exact source evidence and cutoff');
+  if (classification.hashes?.some((hash) => !/^[a-f0-9]{64}$/i.test(hash)))
+    throw new Error('Query taxonomy hashes must be SHA-256 digests');
 }
 
 /** Results are derived at a selected state, never claimed as a recorded execution receipt. */
@@ -132,6 +151,14 @@ export async function readQueryEmbed<Candidate extends SavedQueryCandidate>(
   // A candidate's title/order metadata must describe precisely the chosen owner snapshot.
   await Promise.all(
     candidates.map(async (candidate) => {
+      if (candidate.classification) {
+        validateQueryClassification(candidate.classification);
+        await Promise.all(
+          [candidate.classification.cutoff, ...candidate.classification.sources].map((address) =>
+            db.history.resolveRetainedState(address),
+          ),
+        );
+      }
       const resolved = await db.history.resolve(candidate.address);
       const expected = await db.history.reference(snapshot, resolved.entity);
       if (

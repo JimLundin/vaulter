@@ -62,6 +62,11 @@ export const QuerySelectionMember = e.entity('graph.querySelectionMember', {
   page: e.historicalRef(),
   correspondence: e.retainedStateRef(),
   position: e.number(),
+  classificationType: e.string().optional(),
+  classificationTags: e.set(e.string()).optional(),
+  classificationCutoff: e.retainedStateRef().optional(),
+  classificationSources: e.set(e.retainedStateRef()).optional(),
+  classificationHashes: e.set(e.string()).optional(),
 });
 export const graphEntities = {
   ...topicEntities,

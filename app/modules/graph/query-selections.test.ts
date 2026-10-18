@@ -76,7 +76,18 @@ test('captured migration evaluation retains exact ordered Page states and corres
     provenance,
     origin: 'migration-evaluation' as const,
     members: [
-      { page: pageA, correspondence: provenance, position: 1 },
+      {
+        page: pageA,
+        correspondence: provenance,
+        position: 1,
+        classification: {
+          type: 'person',
+          tags: ['colleague'],
+          cutoff: provenance,
+          sources: [provenance],
+          hashes: ['a'.repeat(64)],
+        },
+      },
       { page: pageB, correspondence: provenance, position: 0 },
     ],
   };
@@ -116,6 +127,13 @@ test('captured migration evaluation retains exact ordered Page states and corres
   await using reopened = await openDatabase({ schema, storage: storage() });
   expect(await readQuerySelections(reopened)).toEqual([]);
   const retained = (await readQuerySelections(reopened, { includeUnavailable: true }))[0]!;
+  expect(retained.members.find((member) => member.position === 1)).toMatchObject({
+    classificationType: 'person',
+    classificationTags: ['colleague'],
+    classificationCutoff: provenance,
+    classificationSources: [provenance],
+    classificationHashes: ['a'.repeat(64)],
+  });
   expect(retained).toMatchObject({
     available: false,
     origin: 'migration-evaluation',

@@ -48,3 +48,10 @@ source correspondence and a unique position. The selection's provenance selects 
 source cutoff. `readQuerySelections` resolves original member values and order without reevaluation,
 including after later Page edits/removal or selection unavailability. Wiki and Chat hosts use their
 existing ordered embed placement to reference either a Query or a captured QuerySelection.
+
+Supplied taxonomy always carries exact external Source references and a preserved source cutoff;
+optional SHA-256 hashes can bind the original material. Captured selection members retain the supplied
+type/tags and that evidence in typed attributes, rather than leaving evaluation dependent on bare
+strings. The provider implements the source's interpretation: original type uses the first ordered
+type child's connected Term key, otherwise `page`; tags use each tag child's connected key, then
+its recorded label, then empty text. A type label alone never establishes an effective type.

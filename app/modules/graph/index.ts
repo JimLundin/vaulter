@@ -20,7 +20,12 @@ export {
   readQueries,
   readQueryEmbed,
 } from './saved-queries.ts';
-export type { SavedQueryRef, SavedQueryInput, SavedQueryCandidate } from './saved-queries.ts';
+export type {
+  SavedQueryRef,
+  SavedQueryInput,
+  SavedQueryCandidate,
+  QueryClassification,
+} from './saved-queries.ts';
 export { querySelectionAdmission, readQuerySelections } from './query-selections.ts';
 export type { QuerySelectionInput, QuerySelectionRef } from './query-selections.ts';
 export type {

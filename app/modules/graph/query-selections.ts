@@ -8,6 +8,7 @@ import {
 } from '@/core/store/index.ts';
 import type { QuerySelection, graphEntities } from './records.ts';
 import type { GraphDatabase } from './reading.ts';
+import { validateQueryClassification, type QueryClassification } from './saved-queries.ts';
 
 export type QuerySelectionRef = EntityRef<typeof QuerySelection>;
 export interface QuerySelectionInput {
@@ -23,6 +24,7 @@ export interface QuerySelectionInput {
     readonly page: HistoricalReference;
     readonly correspondence: RetainedStateReference;
     readonly position: number;
+    readonly classification?: QueryClassification;
   }[];
 }
 
@@ -37,6 +39,7 @@ export function querySelectionAdmission(tx: Transaction<typeof graphEntities>) {
       const positions = new Set<number>();
       const pages = new Set<string>();
       for (const member of input.members) {
+        if (member.classification) validateQueryClassification(member.classification);
         if (member.page.type !== 'wiki.page' || member.correspondence.type !== 'source.document')
           throw new Error(
             'Query results require Page selections and external source correspondence',
@@ -68,8 +71,18 @@ export function querySelectionAdmission(tx: Transaction<typeof graphEntities>) {
         available: input.available ?? true,
       });
       await Promise.all(
-        input.members.map((member) =>
-          tx.entities.graphQuerySelectionMembers.insert({ selection, ...member }),
+        input.members.map(({ classification, ...member }) =>
+          tx.entities.graphQuerySelectionMembers.insert({
+            selection,
+            ...member,
+            ...(classification && {
+              ...(classification.type !== undefined && { classificationType: classification.type }),
+              classificationTags: classification.tags,
+              classificationCutoff: classification.cutoff,
+              classificationSources: classification.sources,
+              ...(classification.hashes && { classificationHashes: classification.hashes }),
+            }),
+          }),
         ),
       );
       return selection;
@@ -100,7 +113,17 @@ export async function readQuerySelections(
     }),
     view.entities.graphQuerySelectionMembers.query({
       limit: null, // Each selection retains all members, including exact unavailable source states.
-      select: { selection: true, page: true, correspondence: true, position: true },
+      select: {
+        selection: true,
+        page: true,
+        correspondence: true,
+        position: true,
+        classificationType: true,
+        classificationTags: true,
+        classificationCutoff: true,
+        classificationSources: true,
+        classificationHashes: true,
+      },
       orderBy: [{ position: 'asc' }],
     }),
   ]);
