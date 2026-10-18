@@ -23,6 +23,10 @@ One placement of shared content within a parent. Several appearances can refer t
 **Historical reference**:
 A reference to a retained record in a particular recorded state of the Vault.
 
+**Retained state reference**:
+A reference to a record in a particular Snapshot that preserves whether the record was live or deleted.
+It can describe a removed record without treating that removed state as supporting evidence.
+
 **Snapshot**:
 The recorded state of the Vault after a particular transaction.
 
