@@ -64,3 +64,30 @@ test('graph search and unavailable deep links give explicit feedback', async ({ 
     page.getByText('This subject is unavailable or no longer has connections.', { exact: true }),
   ).toBeVisible();
 });
+
+test('Graph clarifies a candidate explicitly and preserves the accepted result after reload', async ({
+  page,
+}) => {
+  await page.goto('/preview/#/graph/');
+  await page.getByRole('button', { name: 'Graph options', exact: true }).click();
+  await page.getByRole('tab', { name: 'Clarify', exact: true }).click();
+  const candidate = page.locator('section[aria-label="Clarify Studio relationship"]');
+  await expect(candidate).toBeVisible();
+  await expect(
+    candidate.getByText('The note did not record a direction', { exact: true }),
+  ).toBeVisible();
+  await candidate
+    .getByRole('combobox', { name: 'Relationship direction' })
+    .selectOption('directed');
+  await candidate.getByRole('button', { name: 'Save clarification' }).click();
+  await expect(candidate).not.toBeVisible();
+  await expect(
+    page.getByText('No relationships need clarification.', { exact: true }),
+  ).toBeVisible();
+  await page.reload();
+  await page.getByRole('button', { name: 'Graph options', exact: true }).click();
+  await page.getByRole('tab', { name: 'Clarify', exact: true }).click();
+  await expect(
+    page.getByText('No relationships need clarification.', { exact: true }),
+  ).toBeVisible();
+});

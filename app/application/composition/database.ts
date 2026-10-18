@@ -21,4 +21,21 @@ export const applicationSchema = e.registry({
   ...decisionEntities,
   ...mapEntities,
   ...questionEntities,
+  ...observationEntities,
   ...taskEntities,
+});
+const applicationDatabases = new WeakMap<
+  JournalStorage,
+  ReturnType<typeof openDatabase<typeof applicationSchema>>
+>();
+export function applicationDatabase(storage: JournalStorage) {
+  let database = applicationDatabases.get(storage);
+  if (!database) {
+    database = openDatabase({ schema: applicationSchema, storage }).catch((error) => {
+      applicationDatabases.delete(storage);
+      throw error;
+    });
+    applicationDatabases.set(storage, database);
+  }
+  return database;
+}

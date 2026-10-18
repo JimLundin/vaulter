@@ -1,6 +1,7 @@
 import { openDatabase, createPersistentStorage, type Journal } from '@/core/store/index.ts';
 import { applicationSchema } from '@/application/composition/composition.ts';
 import { wikiActions } from '@/modules/wiki/operations.ts';
+import { graphActions } from '@/modules/graph/index.ts';
 import { topicActions } from '@/modules/graph/topics.ts';
 import { expect, test } from '@playwright/test';
 import { navigateToModule } from '@/shared/ui/kit/navigation.browser.test-support.ts';
@@ -46,6 +47,13 @@ test('production Graph reads persisted topics, navigates subjects and survives r
     title: 'Slow mornings',
     rationale: 'A recurring area of inquiry.',
   });
+  await graphActions(db, { author }).candidate({
+    key: 'uncertain',
+    predicate: 'related-to',
+    label: 'Unclear morning link',
+    direction: 'unknown',
+    clarificationReason: 'Endpoints and direction were not recorded',
+  });
   const files = Object.fromEntries(
     journal.commits.map((commit, index) => [
       `.vaulter/eav/transactions/${commit.id}.json`,
@@ -80,6 +88,37 @@ test('production Graph reads persisted topics, navigates subjects and survives r
   await navigateToModule(page, 'Graph');
   const diagram = page.getByRole('figure', { name: 'Global Vault graph' });
   await expect(diagram).toBeVisible();
+  await page.getByRole('button', { name: 'Graph options', exact: true }).click();
+  await page.getByRole('tab', { name: 'Clarify', exact: true }).click();
+  const candidate = page.locator('section[aria-label="Clarify Unclear morning link"]');
+  await expect(candidate).toBeVisible();
+  const sourceChoice = await candidate
+    .getByRole('combobox', { name: 'Relationship source' })
+    .locator('option')
+    .filter({ hasText: 'Slow mornings' })
+    .getAttribute('value');
+  await candidate
+    .getByRole('combobox', { name: 'Relationship source' })
+    .selectOption(sourceChoice!);
+  await candidate
+    .getByRole('combobox', { name: 'Relationship target' })
+    .selectOption(sourceChoice!);
+  await candidate
+    .getByRole('combobox', { name: 'Relationship direction' })
+    .selectOption('directed');
+  await candidate.getByRole('button', { name: 'Save clarification' }).click();
+  await expect(candidate).not.toBeVisible();
+  await page.reload();
+  if (await page.getByLabel('Password', { exact: true }).isVisible()) {
+    await page.getByLabel('Password', { exact: true }).fill(password);
+    await page.getByRole('button', { name: 'Open vault', exact: true }).click();
+  }
+  await page.getByRole('button', { name: 'Graph options', exact: true }).click();
+  await page.getByRole('tab', { name: 'Clarify', exact: true }).click();
+  await expect(
+    page.getByText('No relationships need clarification.', { exact: true }),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Close graph options', exact: true }).click();
   await diagram.getByRole('button', { name: 'Explore Slow mornings', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Slow mornings', exact: true })).toBeVisible();
   await page.reload();

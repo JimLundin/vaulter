@@ -2,6 +2,7 @@
 import type { Database, EntityRef } from '@/core/store/index.ts';
 import type { applicationSchema } from '@/application/composition/composition.ts';
 import { wikiActions } from '@/modules/wiki/operations.ts';
+import { graphActions } from '@/modules/graph/index.ts';
 import { topicActions } from '@/modules/graph/topics.ts';
 
 type PreviewDatabase = Database<typeof applicationSchema>;
@@ -69,6 +70,35 @@ export async function seedGraphEvidence(db: PreviewDatabase, comparison = true) 
         target: placeAddress,
         available: true,
       });
+    });
+  }
+  if (
+    !(await db.entities.graphRelationships.first({
+      where: { key: { eq: 'preview:graph-candidate' } },
+      select: {},
+    }))
+  ) {
+    const pages = await db.entities.wikiPages.query({ select: { key: true } });
+    const snapshot = (await db.history.transactions.first({
+      select: {},
+      orderBy: [{ sequence: 'desc' }],
+    }))!;
+    const source = await db.history.reference(
+      snapshot,
+      pages.find((item) => item.key === 'preview:page:0')!,
+    );
+    const target = await db.history.reference(
+      snapshot,
+      pages.find((item) => item.key === 'preview:page:1')!,
+    );
+    await graphActions(db, { author }).candidate({
+      key: 'preview:graph-candidate',
+      predicate: 'related-to',
+      label: 'Studio relationship',
+      source,
+      target,
+      direction: 'unknown',
+      clarificationReason: 'The note did not record a direction',
     });
   }
   if (

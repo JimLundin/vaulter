@@ -33,6 +33,18 @@ export interface GraphRelationship {
   readonly direction: 'outgoing' | 'incoming';
   readonly label: string;
 }
+export interface GraphRelationshipCandidate {
+  readonly id: string;
+  readonly address: HistoricalReference;
+  readonly predicate?: string;
+  readonly label?: string;
+  readonly source: GraphEndpoint;
+  readonly target: GraphEndpoint;
+  readonly direction: 'directed' | 'unknown';
+  readonly reason: string;
+  readonly missing: readonly ('predicate' | 'source' | 'target' | 'direction')[];
+  readonly provenance?: GraphEndpoint;
+}
 export interface RelationshipSelection {
   readonly predicate?: string;
   readonly direction?: 'outgoing' | 'incoming' | 'both';
@@ -53,6 +65,7 @@ export interface QueryCandidate {
   readonly created?: string;
 }
 export interface Graph {
+  readonly candidates: readonly GraphRelationshipCandidate[];
   readonly sequence: number;
   readonly endpoints: readonly GraphEndpoint[];
   readonly vocabulary: (scheme?: string) => readonly GraphTerm[];
@@ -92,6 +105,10 @@ export async function readGraph(db: GraphDatabase): Promise<Graph> {
         source: true,
         target: true,
         label: true,
+        status: true,
+        direction: true,
+        clarificationReason: true,
+        provenance: true,
       },
     }),
     view.entities.graphTerms.query({
@@ -138,13 +155,50 @@ export async function readGraph(db: GraphDatabase): Promise<Graph> {
       compare(a.data.key, b.data.key) ||
       compare(a.id, b.id),
   );
-  const edges = await Promise.all(
-    records.map(async (record) => ({
+  const candidateRecords = records.filter(
+    (record) =>
+      record.status === 'candidate' ||
+      record.direction === 'unknown' ||
+      !record.source ||
+      !record.target ||
+      !record.predicate,
+  );
+  const candidates: GraphRelationshipCandidate[] = await Promise.all(
+    candidateRecords.map(async (record) => ({
       id: record.key,
-      data: record,
+      address: await db.history.reference(latest!, record),
+      predicate: record.predicate,
+      label: record.label,
       source: await endpoint(record.source),
       target: await endpoint(record.target),
+      direction: record.direction ?? 'directed',
+      reason: record.clarificationReason ?? 'Target identity requires clarification',
+      missing: [
+        ...(!record.predicate ? ['predicate' as const] : []),
+        ...(!record.source ? ['source' as const] : []),
+        ...(!record.target ? ['target' as const] : []),
+        ...(record.direction === 'unknown' ? ['direction' as const] : []),
+      ],
+      provenance: record.provenance ? await endpoint(record.provenance) : undefined,
     })),
+  );
+  candidates.sort((a, b) => compare(a.id, b.id));
+  const edges = await Promise.all(
+    records
+      .filter(
+        (record) =>
+          record.status !== 'candidate' &&
+          record.direction !== 'unknown' &&
+          record.source &&
+          record.target &&
+          record.predicate,
+      )
+      .map(async (record) => ({
+        id: record.key,
+        data: { ...record, predicate: record.predicate! },
+        source: await endpoint(record.source),
+        target: await endpoint(record.target),
+      })),
   );
   const outgoing = new Map<string, typeof edges>();
   const incoming = new Map<string, typeof edges>();
@@ -221,6 +275,7 @@ export async function readGraph(db: GraphDatabase): Promise<Graph> {
         };
       });
   return {
+    candidates,
     sequence: latest?.sequence ?? 0,
     endpoints: [...endpoints.values()],
     vocabulary: (scheme) => terms.filter((term) => !scheme || term.data.scheme === scheme),

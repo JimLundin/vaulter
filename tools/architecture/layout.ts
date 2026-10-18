@@ -52,3 +52,717 @@ const applicationTest = (path: string) => path.startsWith('app/application/') &&
 const workflow = (path: string) =>
   /^app\/modules\/(conversation|wiki|questions|graph)\//.exec(path)?.[1] ??
   /^app\/workflows\/([^/]+)\//.exec(path)?.[1];
+const standaloneOwner = (path: string) =>
+  /^app\/modules\/(calendar|map|decisions|tasks|observations)\//.exec(path)?.[1];
+const fixture = (path: string) =>
+  /\.(?:test|type-test|test-support)\.[cm]?tsx?$/.test(path) || path.startsWith('app/preview/');
+const testSource = (path: string) => /\.(?:test|type-test|test-support)\.[cm]?tsx?$/.test(path);
+const removedStorePath = (path: string) =>
+  /^app\/vault\/(?:nodes|storage\/nodes)(?:\/|$)/.test(path) ||
+  /^app\/core\/persistence\/nodes(?:\/|$)/.test(path) ||
+  /^app\/vault\/transactions\/(?:store|lifetime|request|request-state|undo)\.[cm]?tsx?$/.test(path);
+const removedStoreTypes = new Set([
+  'NodeId',
+  'NodeChange',
+  'NodeCommit',
+  'NodeSnapshot',
+  'NodePublicationContext',
+  'NodePublicationRule',
+  'NodeReading',
+  'TransactionDraft',
+  'TransactionRequest',
+  'PreparedRequest',
+  'WriteLifetime',
+  'ScopedTransactionWriter',
+  'TransactionStore',
+  'NodeStore',
+  'NodeBackend',
+  'NodeDifference',
+  'NodeVersion',
+  'NodeAddress',
+  'NodeConflict',
+  'NodePublicationRejected',
+]);
+const eavImplementation = (path: string) => path.startsWith('app/core/store/');
+const storageAssembly = (path: string) =>
+  path === 'app/main.tsx' ||
+  path.startsWith('app/core/session/') ||
+  path.startsWith('app/core/persistence/') ||
+  eavImplementation(path) ||
+  fixture(path);
+const databaseAssembly = (path: string) =>
+  path === 'app/application/composition/database.ts' ||
+  path === 'app/application/composition/composition.ts' ||
+  eavImplementation(path) ||
+  fixture(path);
+const rawEavSymbols = new Map([
+  ['app/core/store/memory.ts', new Set(['createMemoryStorage'])],
+  ['app/core/store/persistence.ts', new Set(['createPersistentStorage'])],
+]);
+const sessionSymbols = new Map([
+  ['app/core/session/session.ts', new Set(['useSession'])],
+  ['app/core/session/index.ts', new Set(['useVaultSession'])],
+]);
+const sessionCaller = (from: string, owner: string) =>
+  fixture(from) ||
+  (owner === 'app/core/session/session.ts'
+    ? from === 'app/application/presentation/index.tsx' ||
+      from === 'app/core/session/index.ts' ||
+      from.startsWith('app/core/session/')
+    : from === 'app/application/presentation/index.tsx');
+// These owner UI declarations compose presentation; storage/model implementations remain separate.
+const vaultUi = new Set([
+  'app/core/session/presentation/Gate.tsx',
+  'app/core/session/presentation/ui.tsx',
+  'app/core/persistence/presentation/Settings.tsx',
+  'app/core/history/presentation/History.tsx',
+  'app/core/history/presentation/HistoryList.tsx',
+]);
+export function importProblem(from: string, to: string): string | null {
+  if (removedStorePath(to)) return `${from} imports the removed store; use the typed EAV interface`;
+  if (
+    to.startsWith('app/core/store/') &&
+    !from.startsWith('app/core/store/') &&
+    to !== 'app/core/store/index.ts'
+  )
+    return `${from} imports private EAV implementation; use app/core/store/index.ts`;
+  if (to.startsWith('app/preview/') && !fixture(from))
+    return `${from} imports preview-only ${to}; fixtures cannot publish application data`;
+  if (testSource(to) && !fixture(from))
+    return `${from} imports test-only ${to}; fixtures cannot publish application data`;
+  if (workflow(from) === 'wiki' && to.startsWith('tools/'))
+    return `${from} imports tooling; migration depends on Wiki, never Wiki on migration`;
+  if (
+    workflow(from) === 'wiki' &&
+    (workflow(to) === 'conversation' ||
+      to.startsWith('app/modules/agent/') ||
+      to.startsWith('app/vault/content/') ||
+      to === 'app/vault/records/sources.ts')
+  )
+    return `${from} imports source interpretation; supply owner reading through Application composition`;
+  if (
+    kit(from) &&
+    (to.startsWith('app/vault/') ||
+      /^app\/modules\/(actors|sources|conversation|agent|wiki|graph|questions|calendar|map|decisions|tasks|observations)\//.test(
+        to,
+      ))
+  )
+    return `${from} imports record interpretation; keep Vault and Agent knowledge with its owning module`;
+  const standalone = standaloneOwner(to);
+  if (
+    standalone &&
+    standaloneOwner(from) !== standalone &&
+    !compositionEntry(from) &&
+    !applicationTest(from) &&
+    !fixture(from) &&
+    to !== `app/modules/${standalone}/index.ts` &&
+    !/^app\/modules\/[^/]+\/presentation\/index\.tsx?$/.test(to)
+  )
+    return `${from} imports private ${standalone} implementation; use its public entry`;
+  const target = workflow(to);
+  const fromOwner = workflow(from);
+  if (
+    target &&
+    target !== fromOwner &&
+    !compositionEntry(from) &&
+    !fixture(from) &&
+    !from.startsWith('app/modules/') &&
+    !from.startsWith('app/application/presentation/')
+  )
+    return `${from} imports optional workflow ${target}; compose it in Application`;
+  if (
+    to.startsWith('app/application/') &&
+    !from.startsWith('app/application/') &&
+    from !== 'app/main.tsx' &&
+    !fixture(from) &&
+    !to.startsWith('app/core/store/') &&
+    !to.startsWith('app/core/settings/')
+  )
+    return `${from} imports Application composition; dependencies point from Application to module owners`;
+  if (from.startsWith('app/core/') && to.startsWith('app/application/'))
+    return `${from} imports Application composition; core modules cannot import their consumer`;
+  if (
+    from.startsWith('app/shared/') &&
+    (to.startsWith('app/core/') ||
+      to.startsWith('app/modules/') ||
+      to.startsWith('app/application/'))
+  )
+    return `${from} imports product behavior; Shared cannot depend on its consumers`;
+  for (const [owner, allowed] of [
+    ['app/shared/async/', ['app/shared/async/']],
+    ['app/core/navigation/', ['app/core/navigation/', 'app/shared/async/', 'app/shared/ui/kit/']],
+    [
+      'app/core/settings/',
+      [
+        'app/core/settings/',
+        'app/core/navigation/',
+        'app/core/session/',
+        'app/shared/async/',
+        'app/shared/ui/kit/',
+      ],
+    ],
+    ['app/core/store/', ['app/core/store/', 'app/shared/async/']],
+  ] as const) {
+    if (
+      from.startsWith(owner) &&
+      from !== 'app/core/settings/presentation/index.ts' &&
+      !fixture(from) &&
+      to.startsWith('app/') &&
+      !allowed.some((prefix) => to.startsWith(prefix))
+    )
+      return `${from} imports higher-level ${to}; keep ${owner} independent of its consumers`;
+  }
+  const coreOwner = (path: string) => /^app\/core\/([^/]+)\//.exec(path)?.[1];
+  const targetCore = coreOwner(to);
+  if (
+    targetCore &&
+    targetCore !== coreOwner(from) &&
+    !fixture(from) &&
+    !/^app\/core\/[^/]+\/(?:index\.ts|routes\.ts|presentation\/index\.tsx?)$/.test(to) &&
+    !from.startsWith('app/application/') &&
+    from !== 'app/main.tsx'
+  )
+    return `${from} imports private core ${targetCore} implementation; use its public entry`;
+  const domain = (path: string) =>
+    /^app\/modules\/(actors|sources|conversation|agent|wiki|graph|questions|calendar|map|decisions|tasks|observations|transcription)\//.exec(
+      path,
+    )?.[1];
+  const owner = domain(to);
+  const caller = domain(from);
+  if (owner && owner !== caller && !fixture(from)) {
+    const entry =
+      /^app\/modules\/[^/]+\/(?:index\.ts|routes\.ts|presentation\/index\.tsx?|openai\/index\.ts)$/.test(
+        to,
+      );
+    if (!entry) return `${from} imports private ${owner} implementation; use its public entry`;
+    const allowed: Record<string, readonly string[]> = {
+      conversation: ['agent', 'actors', 'transcription'],
+      agent: ['actors', 'transcription'],
+      wiki: ['actors', 'sources'],
+      questions: ['actors', 'agent', 'transcription'],
+    };
+    if (
+      caller &&
+      !['calendar', 'map', 'decisions'].includes(owner) &&
+      !allowed[caller]?.includes(owner)
+    )
+      return `${from} imports ${owner} ownership; compose unrelated domains in Application`;
+    if (
+      from.startsWith('app/application/') &&
+      !compositionEntry(from) &&
+      !from.startsWith('app/application/composition/') &&
+      ![
+        'app/application/presentation/SettingsCards.tsx',
+        'app/application/presentation/Previews.tsx',
+        'app/application/composition/identities.ts',
+      ].includes(from)
+    )
+      return `${from} imports domain ${owner}; compose it in Application`;
+  }
+  if (kit(from) && to.startsWith('app/') && !kit(to) && !to.startsWith('app/shared/async/'))
+    return `${from} imports application behavior ${to}; the kit owns generic presentation only`;
+
+  if (
+    to.startsWith('app/shared/ui/kit/') &&
+    !from.startsWith('app/shared/ui/kit/') &&
+    to !== 'app/shared/ui/kit/index.ts' &&
+    to !== 'app/shared/ui/kit/styles.css' &&
+    // Colocated browser drivers are shared by tests, never production callers.
+    !(testSource(from) && /\.browser\.test-support\.ts$/.test(to))
+  )
+    return `${from} imports a private kit file; use app/shared/ui/kit/index.ts`;
+  if (
+    (from.startsWith('app/vault/') || /^app\/core\/(store|session|persistence)\//.test(from)) &&
+    (to.startsWith('app/shared/ui/') ||
+      to === 'app/core/settings/presentation/ModuleSettings.tsx') &&
+    !(
+      (vaultUi.has(from) || from.includes('/presentation/')) &&
+      ['app/shared/ui/kit/index.ts', 'app/core/settings/presentation/ModuleSettings.tsx'].includes(
+        to,
+      )
+    )
+  )
+    return `${from} imports presentation from the vault`;
+  if (
+    owner &&
+    owner === caller &&
+    to.includes('/presentation/') &&
+    !from.includes('/presentation/') &&
+    !fixture(from) &&
+    !from.endsWith('/index.ts') &&
+    !from.includes('/use-')
+  )
+    return `${from} imports domain presentation; keep outward state with its behavior owner`;
+  return null;
+}
+function sources(directory: string): string[] {
+  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const path = resolve(directory, entry.name);
+    if (entry.isDirectory()) return sources(path);
+    return /\.[cm]?tsx?$/.test(entry.name) ? [path] : [];
+  });
+}
+export function checkLayout(root: string): string[] {
+  const api = new API({ cwd: root });
+  const snapshot = api.updateSnapshot({ openProjects: [resolve(root, 'tsconfig.json')] });
+  const project = snapshot.getProjects()[0];
+  if (!project) {
+    api.close();
+    throw new Error('No TypeScript project');
+  }
+  try {
+    const problems: string[] = [];
+    const graph = new Map<string, Set<string>>();
+    const runtimeGraph = new Map<string, Set<string>>();
+    for (const filename of sources(resolve(root, 'app'))) {
+      const from = slash(relative(root, filename));
+      if (removedStorePath(from))
+        problems.push(`${from}: the removed store cannot be reintroduced; use EAV`);
+      if (from.startsWith('app/ui/') && !kit(from) && !fixture(from))
+        problems.push(
+          `${from}: app/ui contains only the kit; place application behavior with its owner`,
+        );
+      const file = project.program.getSourceFile(filename);
+      if (!file) {
+        problems.push(`${from}: source is outside the checked TypeScript project`);
+        continue;
+      }
+      const {
+        name: valueName,
+        literal: intrinsic,
+        member,
+        propertyName,
+        value: aliasValue,
+        target: valueTarget,
+      } = compilerValues(project);
+      const checkOwnedSymbol = (symbol: CompilerSymbol | undefined, seen = new Set<number>()) => {
+        if (!symbol) return;
+        const owned =
+          symbol.flags & SymbolFlags.Alias ? project.checker.getAliasedSymbol(symbol) : symbol;
+        if (seen.has(owned.id)) return;
+        seen.add(owned.id);
+        for (const declaration of owned.declarations) {
+          const resolvedDeclaration = declaration.resolve();
+          if (!resolvedDeclaration) continue;
+          const source = resolvedDeclaration.getSourceFile();
+          if (ts.isVariableDeclaration(resolvedDeclaration) && resolvedDeclaration.initializer)
+            checkOwnedSymbol(valueTarget(aliasValue(resolvedDeclaration.initializer)), seen);
+          const owner = slash(relative(root, source.fileName));
+          const namedOwner = standaloneOwner(owner);
+          if (
+            namedOwner &&
+            namedOwner !== standaloneOwner(from) &&
+            !compositionEntry(from) &&
+            !applicationTest(from) &&
+            !fixture(from) &&
+            !ts.isInterfaceDeclaration(resolvedDeclaration) &&
+            !ts.isTypeAliasDeclaration(resolvedDeclaration) &&
+            !['parseTime', 'parseCoordinates'].includes(owned.name)
+          )
+            problems.push(
+              `${from} accesses ${namedOwner} record behavior; compose it in Application and use shared values through the public entry`,
+            );
+
+          if (
+            !storageAssembly(from) &&
+            rawEavSymbols.get(owner)?.has(owned.name) &&
+            !ts.isInterfaceDeclaration(resolvedDeclaration) &&
+            !ts.isTypeAliasDeclaration(resolvedDeclaration)
+          )
+            problems.push(
+              `${from} constructs raw EAV storage; use the Application-supplied database`,
+            );
+          if (
+            owner === 'app/core/store/engine.ts' &&
+            owned.name === 'openDatabase' &&
+            !databaseAssembly(from)
+          )
+            problems.push(
+              `${from} opens an EAV database; compose database ownership in Application`,
+            );
+          if (sessionSymbols.get(owner)?.has(owned.name) && !sessionCaller(from, owner))
+            problems.push(
+              `${from} accesses a raw vault session; use the Application-supplied database`,
+            );
+          if (
+            owner === 'app/modules/questions/operations.ts' &&
+            owned.name === 'questionActions' &&
+            !(
+              from === 'app/application/composition/composition.ts' ||
+              workflow(from) === 'questions' ||
+              fixture(from)
+            )
+          )
+            problems.push(
+              `${from} accesses Questions ownership; compose actions in app/application/composition/composition.ts`,
+            );
+        }
+      };
+      const check = (value: ts.Expression, allExports = false, runtime = true) => {
+        if (!(ts.isStringLiteral(value) || ts.isNoSubstitutionTemplateLiteral(value))) {
+          problems.push(`${from}: imports must use literal module paths so removal can be checked`);
+          return;
+        }
+        const symbol = project.checker.getSymbolAtLocation(value);
+        const resolved = symbol?.declarations[0]?.resolve()?.getSourceFile().fileName;
+        const target =
+          (/\.css$/.test(value.text) && (value.text.startsWith('.') || value.text.startsWith('@/'))
+            ? value.text.startsWith('@/')
+              ? resolve(root, 'app', value.text.slice(2))
+              : resolve(dirname(filename), value.text)
+            : resolved) ??
+          (value.text.startsWith('@/')
+            ? resolve(root, 'app', value.text.slice(2))
+            : value.text.startsWith('.')
+              ? resolve(dirname(filename), value.text)
+              : null);
+        if (allExports) {
+          const moduleFile = target && project.program.getSourceFile(target);
+          const moduleSymbol =
+            symbol ?? (moduleFile && project.checker.getSymbolAtLocation(moduleFile));
+          if (moduleSymbol)
+            for (const exported of project.checker.getExportsOfModule(moduleSymbol))
+              checkOwnedSymbol(exported);
+          else
+            problems.push(
+              `${from}: module loading must resolve through TypeScript so ownership can be checked`,
+            );
+        }
+        if (
+          !(kit(from) || /\.test\.[cm]?tsx?$/.test(from)) &&
+          (/^(?:lucide-react|radix-ui|@base-ui|cmdk|sonner)(?:\/|$)/.test(value.text) ||
+            (!!target &&
+              /\/node_modules\/(?:lucide-react|radix-ui|@base-ui|cmdk|sonner)(?:\/|$)/.test(
+                slash(target),
+              )))
+        )
+          problems.push(
+            `${from}: presentation dependencies belong behind app/shared/ui/kit/index.ts`,
+          );
+        if (
+          !kit(from) &&
+          /\.css$/.test(value.text) &&
+          target &&
+          slash(relative(root, target)) !== 'app/shared/ui/kit/styles.css'
+        )
+          problems.push(`${from}: app styles belong in the kit or content renderer`);
+        if (!target) return;
+        const to = slash(relative(root, target));
+        if (to.startsWith('app/')) {
+          const dependencies = graph.get(from) ?? new Set<string>();
+          dependencies.add(to);
+          graph.set(from, dependencies);
+          if (runtime && !fixture(from) && !fixture(to) && !to.endsWith('.css')) {
+            const values = runtimeGraph.get(from) ?? new Set<string>();
+            values.add(to);
+            runtimeGraph.set(from, values);
+          }
+        }
+        const problem = importProblem(from, to);
+        if (problem) problems.push(problem);
+      };
+      const semanticControl = (name: string, value?: ts.Node) =>
+        /^on[A-Z]/.test(name) ||
+        [
+          'tabIndex',
+          'contentEditable',
+          'draggable',
+          'aria-expanded',
+          'aria-controls',
+          'aria-pressed',
+          'aria-checked',
+          'aria-selected',
+          'aria-activedescendant',
+        ].includes(name) ||
+        (name === 'role' &&
+          ![
+            'article',
+            'note',
+            'presentation',
+            'none',
+            'img',
+            'document',
+            'list',
+            'listitem',
+            'table',
+            'row',
+            'cell',
+            'heading',
+            'separator',
+          ].includes(value ? (intrinsic(value) ?? '') : ''));
+      const semanticProps = (expression: ts.Node, seen = new Set<string>()): boolean => {
+        const node = aliasValue(expression);
+        const identity = `${node.getSourceFile().fileName}:${node.pos}:${node.end}`;
+        if (seen.has(identity)) return false;
+        seen.add(identity);
+        if (ts.isObjectLiteralExpression(node))
+          return node.properties.some((property) =>
+            ts.isSpreadAssignment(property)
+              ? semanticProps(property.expression, seen)
+              : (ts.isPropertyAssignment(property) ||
+                  ts.isShorthandPropertyAssignment(property) ||
+                  ts.isMethodDeclaration(property) ||
+                  ts.isGetAccessorDeclaration(property) ||
+                  ts.isSetAccessorDeclaration(property)) &&
+                semanticControl(
+                  propertyName(property.name),
+                  ts.isPropertyAssignment(property) ? property.initializer : property.name,
+                ),
+          );
+        if (ts.isCallExpression(node)) {
+          const declaration = valueTarget(node.expression)?.declarations[0]?.resolve();
+          if (!declaration) return false;
+          const returnsControl = (child: ts.Node): boolean => {
+            if (ts.isReturnStatement(child) && child.expression)
+              return semanticProps(child.expression, seen);
+            if (ts.isArrowFunction(child) && !ts.isBlock(child.body))
+              return semanticProps(child.body, seen);
+            return !!child.forEachChild(returnsControl);
+          };
+          return returnsControl(declaration);
+        }
+        return false;
+      };
+      const viewportDimension = (property: ReturnType<typeof member>) => {
+        if (!property) return false;
+        if (['innerWidth', 'innerHeight', 'outerWidth', 'outerHeight'].includes(property.name))
+          return true;
+        return (
+          ['width', 'height'].includes(property.name) &&
+          !!property.object &&
+          valueName(property.object) === 'visualViewport'
+        );
+      };
+      const visit = (node: ts.Node) => {
+        // Alias initializers are visited directly; only member syntax needs compiler resolution.
+        const accessedMember =
+          ts.isPropertyAccessExpression(node) ||
+          ts.isElementAccessExpression(node) ||
+          ts.isBindingElement(node)
+            ? member(node)
+            : undefined;
+        if (ts.isImportDeclaration(node) && node.moduleSpecifier)
+          check(
+            node.moduleSpecifier,
+            !!node.importClause?.namedBindings &&
+              ts.isNamespaceImport(node.importClause.namedBindings),
+            node.importClause?.phaseModifier !== ts.SyntaxKind.TypeKeyword &&
+              !(
+                node.importClause?.namedBindings &&
+                ts.isNamedImports(node.importClause.namedBindings) &&
+                !node.importClause.name &&
+                node.importClause.namedBindings.elements.length > 0 &&
+                node.importClause.namedBindings.elements.every((item) => item.isTypeOnly)
+              ),
+          );
+        if (ts.isExportDeclaration(node) && node.moduleSpecifier)
+          check(
+            node.moduleSpecifier,
+            !node.exportClause || ts.isNamespaceExport(node.exportClause),
+            !(
+              node.isTypeOnly ||
+              (node.exportClause &&
+                ts.isNamedExports(node.exportClause) &&
+                node.exportClause.elements.length > 0 &&
+                node.exportClause.elements.every((item) => item.isTypeOnly))
+            ),
+          );
+        if (
+          ts.isImportTypeNode(node) &&
+          ts.isLiteralTypeNode(node.argument) &&
+          ts.isStringLiteral(node.argument.literal)
+        )
+          check(node.argument.literal, false, false);
+        if (ts.isImportSpecifier(node) || ts.isExportSpecifier(node))
+          checkOwnedSymbol(project.checker.getSymbolAtLocation(node.name));
+        if (ts.isImportClause(node) && node.name)
+          checkOwnedSymbol(project.checker.getSymbolAtLocation(node.name));
+        if (ts.isIdentifier(node) && removedStoreTypes.has(node.text))
+          problems.push(`${from}: removed store type ${node.text} cannot be reintroduced; use EAV`);
+        if (
+          accessedMember?.name === 'append' &&
+          accessedMember.object &&
+          !(eavImplementation(from) || from.startsWith('app/core/persistence/') || fixture(from))
+        ) {
+          const type = project.checker.getTypeAtLocation(accessedMember.object);
+          const append =
+            type &&
+            project.checker
+              .getPropertiesOfType(type)
+              .find((property) => property.name === 'append');
+          if (
+            append?.declarations.some((declaration) => {
+              const owner = declaration.resolve()?.getSourceFile().fileName;
+              return owner && slash(relative(root, owner)) === 'app/core/store/persistence.ts';
+            })
+          )
+            problems.push(`${from} accesses raw EAV append; write through database.transaction`);
+        }
+        if (
+          ts.isCallExpression(node) &&
+          (node.expression.kind === ts.SyntaxKind.ImportKeyword ||
+            (ts.isIdentifier(node.expression) && node.expression.text === 'require')) &&
+          node.arguments[0]
+        )
+          check(node.arguments[0], true);
+        if (!kit(from)) {
+          if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) {
+            const tag =
+              ts.isIdentifier(node.tagName) && /^[a-z]/.test(node.tagName.text)
+                ? node.tagName.text
+                : intrinsic(node.tagName);
+            if (
+              tag &&
+              (semanticRenderer(from) || chatCodeRenderer(from)) &&
+              node.attributes.properties.some((attribute) =>
+                ts.isJsxSpreadAttribute(attribute)
+                  ? semanticProps(attribute.expression)
+                  : ts.isJsxAttribute(attribute) &&
+                    semanticControl(
+                      attribute.name.getText(file),
+                      attribute.initializer && ts.isJsxExpression(attribute.initializer)
+                        ? attribute.initializer.expression
+                        : attribute.initializer,
+                    ),
+              )
+            )
+              problems.push(`${from}: semantic content controls belong in public kit components`);
+            if (
+              tag &&
+              !(chatCodeRenderer(from) && tag === 'pre') &&
+              !(semanticRenderer(from) && semanticTags.has(tag))
+            )
+              problems.push(`${from}: <${tag}> must be a public kit component`);
+          }
+          if (
+            ts.isJsxAttribute(node) &&
+            ['className', 'style', 'dangerouslySetInnerHTML'].includes(node.name.getText(file))
+          )
+            problems.push(
+              `${from}: app views must compose the public kit instead of styling elements`,
+            );
+          if (
+            ts.isObjectLiteralExpression(node) &&
+            node.properties.some(
+              (property) =>
+                (ts.isPropertyAssignment(property) || ts.isShorthandPropertyAssignment(property)) &&
+                ['className', 'style', 'dangerouslySetInnerHTML'].includes(
+                  propertyName(property.name),
+                ),
+            )
+          )
+            problems.push(`${from}: presentation props belong in the kit or content renderer`);
+          if (
+            ts.isCallExpression(node) &&
+            node.arguments[0] &&
+            intrinsic(node.arguments[0]) &&
+            ['createElement', 'jsx', 'jsxs', 'jsxDEV'].includes(valueName(node.expression)) &&
+            !(
+              from === 'app/modules/conversation/presentation/rendering/markdown.ts' &&
+              intrinsic(node.arguments[0]) === 'p'
+            )
+          )
+            problems.push(
+              `${from}: intrinsic element factories belong in the kit or content renderer`,
+            );
+        }
+        // The size class is the kit's: views outside it never branch on the viewport. Application may
+        // read it to choose a route or restore a panel.
+        if (
+          !(
+            kit(from) ||
+            from === 'app/application/presentation/index.tsx' ||
+            /\.test\.[cm]?tsx?$/.test(from)
+          ) &&
+          ts.isImportSpecifier(node) &&
+          ['useIsMobile', 'useLayout', 'useMedia'].includes((node.propertyName ?? node.name).text)
+        )
+          problems.push(`${from}: size-dependent presentation belongs in the kit`);
+        const outsidePresentation = !(
+          kit(from) ||
+          from === 'app/application/presentation/index.tsx' ||
+          /\.test\.[cm]?tsx?$/.test(from)
+        );
+        if (outsidePresentation && viewportDimension(accessedMember))
+          problems.push(`${from}: viewport dimensions belong in the kit`);
+        if (outsidePresentation && ts.isCallExpression(node)) {
+          const name = valueName(node.expression);
+          if (['useIsMobile', 'useLayout', 'useMedia'].includes(name))
+            problems.push(`${from}: size-dependent presentation belongs in the kit`);
+          if (
+            name === 'matchMedia' &&
+            node.arguments[0] &&
+            (!intrinsic(node.arguments[0]) ||
+              /\b(?:width|height|orientation|pointer|hover)\b/.test(intrinsic(node.arguments[0])!))
+          )
+            problems.push(`${from}: viewport queries belong in the kit`);
+        }
+        // Application restores a route anchor; the kit owns list focus and scrolling.
+        // Other module/helper/semantic sources do not own measured presentation or scrolling.
+        if (
+          !(
+            kit(from) ||
+            from === 'app/application/presentation/index.tsx' ||
+            /\.test\.[cm]?tsx?$/.test(from)
+          ) &&
+          ((accessedMember &&
+            [
+              'scrollTop',
+              'scrollLeft',
+              'scrollHeight',
+              'scrollWidth',
+              'clientHeight',
+              'clientWidth',
+              'getBoundingClientRect',
+              'scrollTo',
+              'scrollIntoView',
+            ].includes(accessedMember.name)) ||
+            (ts.isNewExpression(node) && node.expression.getText(file) === 'ResizeObserver'))
+        )
+          problems.push(`${from}: passage measurement and scrolling belong in the kit`);
+        node.forEachChild(visit);
+      };
+      visit(file);
+    }
+    // This is the architectural source graph, including type-only imports. Emitted tree shaking
+    // must not hide fictional records or preview tooling in a production dependency.
+    for (const entry of ['app/main.tsx', 'app/application/runtime/sw.ts']) {
+      const visited = new Set<string>();
+      const walk = (from: string) => {
+        if (visited.has(from)) return;
+        visited.add(from);
+        for (const to of graph.get(from) ?? []) {
+          if (
+            to.startsWith('app/preview/') ||
+            to === 'app/shared/ui/kit/catalogue.tsx' ||
+            to === 'app/shared/ui/kit/gallery.tsx' ||
+            /\/prototype-[^/]+\.[cm]?tsx?$/.test(to)
+          )
+            problems.push(`${entry} reaches preview-only ${to} through ${from}`);
+          else walk(to);
+        }
+      };
+      walk(entry);
+    }
+    // Type-only edges still obey ownership/reachability rules above, but cannot execute a cycle.
+    const visited = new Set<string>();
+    const active: string[] = [];
+    const walkRuntime = (from: string) => {
+      const start = active.indexOf(from);
+      if (start !== -1) {
+        problems.push(`Runtime import cycle: ${[...active.slice(start), from].join(' -> ')}`);
+        return;
+      }
+      if (visited.has(from)) return;
+      visited.add(from);
+      active.push(from);
+      for (const to of [...(runtimeGraph.get(from) ?? [])].sort()) walkRuntime(to);
+      active.pop();
+    };
+    for (const from of [...runtimeGraph.keys()].sort()) walkRuntime(from);
+    return [...new Set(problems)];
+  } finally {
+    snapshot.dispose();
+    api.close();
+  }
+}

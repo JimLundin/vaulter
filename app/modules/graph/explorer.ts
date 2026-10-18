@@ -11,6 +11,7 @@ export interface GraphSubject {
 export interface GraphExplorerState {
   readonly graph: Graph | null;
   readonly subjects: readonly GraphSubject[];
+  readonly endpointChoices?: readonly GraphEndpoint[];
   readonly loading: boolean;
   readonly error?: string;
 }
@@ -20,6 +21,7 @@ export type GraphDescription = (
 export interface EavGraphInput {
   readonly database: () => Promise<GraphDatabase>;
   readonly describe?: GraphDescription;
+  readonly endpointChoices?: () => Promise<readonly GraphEndpoint[]>;
 }
 export async function projectGraphExplorer(
   db: GraphDatabase,
@@ -70,7 +72,9 @@ export function createGraphExplorer(input: EavGraphInput | null) {
       const db = await input.database();
       if (disposed || request !== generation) return;
       unsubscribe ??= db.subscribe(() => void reload());
-      const next = await projectGraphExplorer(db, input.describe);
+      const projected = await projectGraphExplorer(db, input.describe);
+      const endpointChoices = await input.endpointChoices?.();
+      const next = { ...projected, endpointChoices };
       if (!disposed && request === generation) publish(next);
     } catch (error) {
       if (!disposed && request === generation)

@@ -1,4 +1,5 @@
 import type { JsonValue, HistoricalReference } from '@/core/store/index.ts';
+import type { RelationshipCandidateActions } from './operations.ts';
 import type { GraphExplorerState } from './explorer.ts';
 
 /** Application supplies record-owner projections; Graph interprets only map membership. */
@@ -32,6 +33,8 @@ export interface GraphPageProps {
   currentSourceText?: (entity: string) => string | undefined;
   onNavigate?: (href: string) => void;
   onRetry?: () => void;
+  candidateActions?: RelationshipCandidateActions;
+  candidateDisabledReason?: string;
 }
 export interface GraphMapRecord {
   id: string;

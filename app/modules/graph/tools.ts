@@ -18,6 +18,9 @@ const address = z.strictObject({
 export const graphCapabilities = [
   'readGraph',
   'createRelationship',
+  'createRelationshipCandidate',
+  'clarifyRelationship',
+  'listRelationshipCandidates',
   'removeRelationship',
   'createGraphTerm',
   'createGraphQuery',
@@ -52,6 +55,51 @@ export function graphTools(db: GraphDatabase, context: TransactionContext, signa
           relationships: graph.relationships(input),
           classifications: graph.classifications(input),
         };
+      },
+    }),
+    listRelationshipCandidates: tool({
+      description:
+        'List incomplete relationships needing clarification. Candidates do not assert resolved directed graph edges.',
+      inputSchema: z.strictObject({}),
+      execute: async () => {
+        check();
+        return (await readGraph(db)).candidates;
+      },
+    }),
+    createRelationshipCandidate: tool({
+      description:
+        'Retain known relationship information and explicit missing endpoints or direction, with optional external source provenance. Never infer endpoints from placement.',
+      inputSchema: z.strictObject({
+        key,
+        predicate: key.optional(),
+        label: key.optional(),
+        source: address.optional(),
+        target: address.optional(),
+        direction: z.enum(['unknown', 'directed']),
+        clarificationReason: key,
+        provenance: address.optional(),
+      }),
+      execute: async (input) => {
+        check();
+        return receipt(await actions.candidate(input));
+      },
+    }),
+    clarifyRelationship: tool({
+      description:
+        'Revise a relationship under its existing identity. Resolve only with known predicate, directed source and target; otherwise retain a reason for remaining uncertainty.',
+      inputSchema: z.strictObject({
+        key,
+        predicate: key.optional(),
+        label: key.optional(),
+        source: address.optional(),
+        target: address.optional(),
+        direction: z.enum(['unknown', 'directed']),
+        clarificationReason: key.optional(),
+        provenance: address.optional(),
+      }),
+      execute: async ({ key, ...input }) => {
+        check();
+        return receipt(await actions.clarify(key, input));
       },
     }),
     createRelationship: tool({
