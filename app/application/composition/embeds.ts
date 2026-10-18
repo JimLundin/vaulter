@@ -10,6 +10,8 @@ import { readEavQuestions } from '@/modules/questions/index.ts';
 import { QuestionItem } from '@/modules/questions/presentation/index.tsx';
 import { readCoordinates } from '@/modules/map/index.ts';
 import { EmbeddedCoordinate } from '@/modules/map/presentation/index.ts';
+import { readSourceLeads } from '@/modules/sources/index.ts';
+import { SourceLeadView } from '@/modules/sources/presentation/index.ts';
 import { readTasks } from '@/modules/tasks/index.ts';
 import { TaskCard } from '@/modules/tasks/presentation/index.ts';
 import { readDecisions } from '@/modules/decisions/index.ts';
@@ -41,6 +43,10 @@ export async function readEmbeddedRecord(
     const records = await readCoordinates(database, { snapshot });
     const record = records.find((candidate) => sameEntity(candidate, entity));
     if (record) return createElement(EmbeddedCoordinate, { record });
+  } else if (embed.target.type === 'source.lead') {
+    const records = await readSourceLeads(database, { snapshot });
+    const lead = records.find((candidate) => sameEntity(candidate, entity));
+    if (lead) return createElement(SourceLeadView, { lead });
   } else if (embed.target.type === 'tasks.task') {
     const records = await readTasks(database, snapshot);
     const task = records.find((candidate) => sameEntity(candidate, entity));

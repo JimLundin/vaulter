@@ -110,6 +110,11 @@ export function applicationGraphInput(storage: JournalStorage) {
             limit: null,
           }),
           view.entities.questions.query({ select: {}, limit: null }),
+          view.entities.sourceLeads.query({
+            select: {},
+            where: { available: { eq: true } },
+            limit: null,
+          }),
           view.entities.tasks.query({
             select: {},
             where: { available: { eq: true } },
