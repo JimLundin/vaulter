@@ -1,19 +1,39 @@
 import { z } from 'zod';
 import { clear, type HistoricalReference, type TransactionContext } from '@/core/store/index.ts';
+import { parseTime } from '@/modules/calendar/index.ts';
 import type { DecisionDatabase, DecisionRef } from './records.ts';
 
 const text = z.string().refine((value) => value.trim().length > 0, 'Decision text is required');
+const civilDate = z.string().refine((value) => {
+  if (!/^\d{4}(?:-\d{2}(?:-\d{2})?)?$/.test(value)) return false;
+  const [year, month, day] = value.split('-').map(Number);
+  try {
+    parseTime({
+      kind: 'point',
+      approximate: false,
+      point:
+        day !== undefined
+          ? { precision: 'day', year, month, day }
+          : month !== undefined
+            ? { precision: 'month', year, month }
+            : { precision: 'year', year },
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}, 'Expected a valid civil YYYY, YYYY-MM or YYYY-MM-DD date');
 const fields = z
   .object({
     text,
-    date: z.iso.date().optional(),
+    date: civilDate.optional(),
     rationale: z.string().optional(),
     attribution: z.string().optional(),
   })
   .strict();
 export interface DecisionInput {
   text: string;
-  /** Recorded civil date, without an invented time or timezone. Omit when unknown. */
+  /** Exact civil YYYY, YYYY-MM or YYYY-MM-DD; omit when unknown. */
   date?: string;
   rationale?: string;
   /** Exact supplied attribution, separate from the author of this publication. */
@@ -22,6 +42,7 @@ export interface DecisionInput {
 }
 export interface DecisionPatch {
   text?: string;
+  /** Preserve supplied civil precision; null clears the recorded date. */
   date?: string | null;
   rationale?: string | null;
   attribution?: string | null;
@@ -52,7 +73,7 @@ export function reviseDecision(
   const data = fields
     .partial()
     .extend({
-      date: z.iso.date().nullish(),
+      date: civilDate.nullish(),
       rationale: z.string().nullish(),
       attribution: z.string().nullish(),
     })
