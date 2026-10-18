@@ -1,336 +1,184 @@
 # Project layout and ownership
 
-Start in the domain that owns the behavior. Its retained definitions, operations, reading and
-presentation live together. `index.ts` is the behavior entry; `presentation/index.tsx` (or `.ts`)
-is the presentation entry when one exists. Implementation files stay private to their owner.
+Start with the module that owns the concept. Core and domain modules both contain behavior,
+retained definitions, reading, presentation and route declarations. Application installs their
+contributions and supplies context. Shared contains generic mechanics.
 
 ```text
 app/
-├── application/                 Core application
-│   ├── database.ts              Compose owner definitions; open one typed database
-│   ├── composition.ts           Compose domain behavior and trusted context
-│   ├── store/                   Entities, Transactions, Snapshots, history, exact save retry
-│   ├── persistence/             GitHub journal transport, cache and connection preferences
-│   ├── session/                 Credentials, unlock, refresh and journal retirement
-│   ├── settings/                Shared preference persistence and credential presentation
-│   ├── history/                 Transaction inspection and History drawer
-│   └── index.tsx                Navigation, global presentation and mounted owner lifetime
-├── actors/                      Attribution identity and atomic account binding
-├── sources/                     Source documents and recorded/current source reading
-├── conversation/                Conversation, Exchanges, Messages, context and recovery
-│   └── presentation/            Chat page/pane, dialogue timeline and text rendering
-├── agent/                       Agent runs, Model steps, Tool executions, text/voice effects
-│   ├── openai/                  Provider transport adapters and configuration
-│   └── presentation/            Agent settings and recorded/live activity views
-├── wiki/                        Pages, content, Appearance and Page references
-│   ├── reviews/                 Review records, selection validation and admission
-│   └── presentation/            Wiki pages, support views and semantic rendering
-├── graph/                       Topics, membership, Relationships and vocabulary
-│   └── presentation/            Graph page and exploration
-├── questions/                   Questions, Answers, collection lifetime and save recovery
-│   └── presentation/            Questions page, embedded Questions and tool results
-├── calendar/                    Time values, Events and recurring annual dates
-│   └── presentation/            Calendar page and timeline
-├── map/                         Coordinate records and geographic values
-│   └── presentation/            Map page
-├── transcription/               Capture lifetime and transport contract
-├── search/                      Ranking, recent entries and search interaction
-│   └── Search.tsx               Search presentation (not yet in presentation/)
-├── navigation/                  Routes, commands and keyboard navigation
-├── ui/kit/                      Generic presentation and browser mechanics
-├── runtime/                     Small independent runtime utilities
-└── preview/                     Fictional records and scripted transport adapters
+├── main.tsx                         Production bootstrap
+├── application/                     Product composition
+│   ├── composition/                 Database registry, identities and cross-module joins
+│   │   ├── database.ts              Assemble definitions; open one typed database
+│   │   ├── composition.ts           Supply context, tools and adapters
+│   │   └── wiki-graph.ts            Join Wiki pages with Graph Topics
+│   ├── presentation/                Application shell and mounted module lifetime
+│   │   ├── index.tsx                Register module pages and navigation contributions
+│   │   ├── Frame.tsx                Supply navigation to the UI kit
+│   │   └── SettingsCards.tsx        Compose owner-defined settings fields
+│   └── runtime/sw.ts                Offline application asset caching
+├── core/                            Core-owned modules
+│   ├── store/                       Typed records, Transactions, Snapshots and exact save retry
+│   ├── persistence/                 Journal transport and cache
+│   │   └── presentation/            Connection preferences
+│   ├── session/                     Unlock, credentials, refresh and journal lifetime
+│   │   └── presentation/            Gate and session controls
+│   ├── settings/                    Preference persistence and credential editing
+│   │   └── presentation/            Setting fields and Settings navigation contribution
+│   ├── history/                     Accepted Transaction reading and compensation
+│   │   └── presentation/            History drawer, list and navigation contribution
+│   ├── search/                      Ranking and recent destinations
+│   │   └── presentation/            Search palette, commands and Agent handoff
+│   └── navigation/                  Route contract, matching, transitions and key bindings
+├── modules/                         Domain-owned modules
+│   ├── actors/                      Attribution and atomic account binding; no standalone UI
+│   ├── sources/                     Source documents and provenance; no standalone UI
+│   ├── transcription/               Capture lifetime; caller owns draft association and UI
+│   ├── conversation/                Dialogue, Exchanges, context and recovery
+│   │   └── presentation/            Chat pages, pane, timeline, settings and routes
+│   ├── agent/                       Runs, Model steps, tools and effect recovery
+│   │   ├── openai/                  Provider adapters and configuration
+│   │   └── presentation/            Settings and recorded/live activity views
+│   ├── wiki/                        Pages, content, Appearance and Page references
+│   │   ├── reviews/                 Review validation, admission and support reading
+│   │   └── presentation/            Wiki pages, rendering, support views and routes
+│   ├── graph/                       Topics, membership, Relationships and vocabulary
+│   │   └── presentation/            Graph exploration and routes
+│   ├── questions/                   Questions, Answers, collection lifetime and save recovery
+│   │   └── presentation/            Questions, embedded Answers, tool views and routes
+│   ├── calendar/                    Time values, Events and annual dates
+│   │   └── presentation/            Calendar page, timeline and routes
+│   └── map/                         Coordinates and geographic values
+│       └── presentation/            Map page and routes
+├── shared/                          Mechanics independent of product modules
+│   ├── ui/kit/                      Controls, responsive layout, theme, focus and scrolling
+│   ├── async/                       Serialization, cancellation and reported background work
+│   └── browser/                     Safe URL handling for content renderers
+└── preview/                         Fictional composition and scripted adapters
 ```
 
-## Proposed next structure: explicit module homes
+## Ownership and dependency direction
 
-The tree above describes the current code. This target makes module homes explicit and applies
-the same presentation convention to domain modules and core-owned modules. It has not yet been
-implemented. A module contains its behavior and presentation together; `modules/` contains the
-domain modules, and `application/` contains the shell, composition and core-owned modules.
+Application owns assembly and global product context. Core owns application-wide capabilities.
+Domains own their concepts. Core and domain modules use declared public interfaces; Shared imports
+neither Core, Application nor domain modules. Being used by several modules does not make behavior
+Shared. Search is core-owned because its ranking and interactions are product decisions.
 
-```text
-app/
-├── main.tsx
-├── application/                 Core application owner
-│   ├── composition/             Database registry, domain joins and production wiring
-│   ├── presentation/            Frame, routes, navigation and global settings composition
-│   ├── navigation/              Routes, destinations, commands and global key bindings
-│   ├── search/                  Global search, ranking and recent destinations
-│   │   └── presentation/        Search palette and Agent handoff
-│   ├── runtime/                 Startup and offline application asset caching
-│   ├── store/                   Core module: typed database and Transactions
-│   ├── persistence/             Core module: journal transport and cache
-│   │   └── presentation/        Connection preferences
-│   ├── session/                 Core module: unlock, refresh and lifetime
-│   │   └── presentation/        Gate and session controls
-│   ├── settings/                Core module: preference persistence and credential editing
-│   │   └── presentation/        Shared setting fields and credential controls
-│   └── history/                 Core module: accepted Transaction reading
-│       └── presentation/        History drawer and list
-├── modules/                     Domain modules; each directory is an owner
-│   ├── actors/                  Behavior and records; no standalone presentation today
-│   ├── sources/                 Behavior and records; no standalone presentation today
-│   ├── transcription/           Capture behavior; presentation belongs to capture callers
-│   ├── conversation/
-│   │   └── presentation/        Chat, timeline, rendering and Conversation settings
-│   ├── agent/
-│   │   ├── openai/              Provider adapter and configuration
-│   │   └── presentation/        Agent settings and activity/tool views
-│   ├── wiki/
-│   │   ├── reviews/             Private cohesive Review behavior
-│   │   └── presentation/        Pages, support views and rendering
-│   ├── graph/
-│   │   └── presentation/        Graph exploration
-│   ├── questions/
-│   │   └── presentation/        Questions, Answers and tool results
-│   ├── calendar/
-│   │   └── presentation/        Calendar page and timeline
-│   └── map/
-│       └── presentation/        Map page
-├── shared/                      Reusable support; no domain record interpretation
-│   ├── ui/kit/                  Generic controls, layouts, focus and interaction mechanics
-│   ├── browser/                 Safe URL handling shared by content renderers
-│   └── async/                   Independent queue and cancellation utilities
-└── preview/                     Fictional composition using public module entries
-```
-
-### Application versus Shared
-
-Application owns product-wide behavior, core data infrastructure and composition. Shared owns
-reusable mechanics whose interface can be described without naming an application workflow.
-Use by several domains does not by itself make something Shared. Both Application and domain
-modules may use Shared; Shared imports neither Application nor domain owners.
-
-| Capability | Target home | Ownership |
-| --- | --- | --- |
-| Global Search | `application/search/` | Entry contract, ranking policy, recent destinations and search/command/Agent interaction; Application composition assembles entries from domain readers |
-| Application Navigation | `application/navigation/` | Route contracts, destination definitions, commands, URL transitions and global shortcuts; module-specific actions remain with their module |
-| UI kit | `shared/ui/kit/` | Generic rendering, responsive layout, theme mechanics, focus, scrolling, keyboard list movement, overlays and controls; callers supply content and actions |
-| Application frame | `application/presentation/` | Which destinations and actions appear, their labels, current route and module mounting; the kit renders supplied navigation |
-| Settings | `application/settings/` | Shared preference persistence and credential editing; each domain owns its setting meanings and fields; Application composes the global Settings screen |
-| Theme preferences | `application/settings/` | The selected preference and its persistence; kit theme controls and visual application consume the supplied preference |
-| Offline application runtime | `application/runtime/` | Startup, service-worker registration and caching rules for application assets and sealed credentials |
-| Async mechanics | `shared/async/` | In-process serialization, cancellation and reporting of unobserved work; no journal or domain policy |
-| Safe browser URLs | `shared/browser/` | URL scheme validation usable by multiple content renderers; navigation destinations remain Application-owned |
-| Preview | `preview/` | Fictional Application composition and adapters, outside production ownership |
-
-Search is a core-owned module with behavior and presentation, just like History and Settings.
-Its current ranking prioritizes Topics and Notes, and its palette combines commands, recent
-destinations and an Agent handoff. These are product decisions. The kit owns the generic palette
-controls; Search owns how those controls become the product's Search experience.
-
-Navigation has the same split: Application chooses destinations, routes and actions; the kit
-renders a sidebar, compact navigation and generic keyboard interactions. Keep routing behavior
-together under Application initially. Extract a generic router only if another real caller needs
-an independent interface. Existing module-local search stays inside its owning module.
+Boxes identify homes; arrows mean **uses a public interface**. This overview shows allowed dependency
+roles, not permission to import arbitrary implementation files.
 
 ```mermaid
-flowchart LR
-  subgraph Application["application/ — product ownership"]
-    Composition["composition/\nDomain readers → search entries"] -->|supplies entries| Search["search/\nRanking + recent + palette"]
-    Search -->|opens destination or runs command| Navigation["navigation/\nRoutes + commands"]
-    Shell["presentation/\nFrame + mounted module views"] -->|current route and destinations| Navigation
-    Search -->|Ask action supplied by composition| Handoff["Conversation handoff"]
-  end
-  Search -->|palette controls| Kit["shared/ui/kit/\nGeneric presentation mechanics"]
-  Shell -->|navigation layout| Kit
+flowchart TD
+  Application["application/\nComposition + shell"] -->|installs and supplies context| Domains["modules/\nDomain behavior + presentation"]
+  Application -->|installs and supplies context| Core["core/\nStore, Settings, History, Search, Navigation"]
+  Domains -->|declared core interfaces| Core
+  Application --> Shared["shared/\nUI kit + async + browser mechanics"]
+  Domains --> Shared
+  Core --> Shared
 ```
 
-These are target placements; the current source paths remain in the first tree.
+Core modules declare their own dependencies. Store remains independent of Navigation and UI.
+History reads accepted Transactions through Store; Settings provides preference persistence;
+Session owns credentials and connection lifetime; Search uses Navigation and UI kit controls.
+The store engine knows no domain schemas: Application's `composition/database.ts` combines
+owner-defined records. Transactions and History remain core-owned.
 
-### Module convention
-
-Every module has one home and a named public behavior entry. A module with presentation exposes
-`presentation/index.ts` (or `.tsx`), consistently. Application mounts that presentation and supplies
-cross-domain context. A module owns its page, settings fields, embedded views and tool-result views,
-even when those views appear inside another module's screen.
+## Module convention
 
 ```text
 <module>/
-├── index.ts                     Public behavior interface
-├── records.ts                   Retained definitions, when the module owns records
-├── operations.ts                Writes and admission, when needed
-├── reading.ts                   Reads and projections, when needed
-├── configuration.ts             Configuration meaning and validation, when needed
-├── <named-behavior>/            Private cohesive behavior, when it merits a folder
-└── presentation/                When the module has UI
-    ├── index.ts                 Public presentation interface
-    ├── <Module>Page.tsx          Page, when it has one
-    ├── Settings.tsx             Owner-specific settings fields, when needed
-    └── ...                      Owner views, hooks and rendering
+├── index.ts                         Public behavior entry
+├── records.ts                       Retained definitions, when owned
+├── operations.ts                    Writes and admission, when needed
+├── reading.ts                       Reading and projection, when needed
+├── configuration.ts                 Configuration meanings and validation, when needed
+├── routes.ts                        Typed URL identities, when the module has routes
+├── <named-behavior>/                 Private cohesive behavior, when needed
+└── presentation/                    When the module has UI
+    ├── index.ts or index.tsx         Public presentation entry
+    ├── routes.ts                    Associate owner route patterns with owner views
+    ├── navigation.ts                Drawer/action contributions, when needed
+    ├── <Module>Page.tsx              Module-owned page
+    ├── Settings.tsx                 Owner-specific settings fields, when needed
+    └── ...                          Embedded views, hooks and rendering
 ```
 
-The public entries are consistent; implementation names follow the domain's vocabulary.
-Small modules do not need empty folders or placeholder files. Tests live beside the behavior or
-presentation they verify. Internal owner code can use relative imports; outside callers cross
-public entries. React rendering and presentation hooks live in `presentation/`; admission,
-subscriptions and recovery that must also work without React remain in behavior.
+The entries and presentation location are consistent; private filenames follow domain vocabulary.
+Small modules do not need empty directories. `view.ts`, `projection.ts`, `suggestions.ts` and
+`activity-data.ts` name outward values. Domain operations and recovery remain usable without React;
+presentation hooks and rendering stay under `presentation/`. Tests live beside what they verify;
+cross-module scenarios live under `application/`.
+
+## Module-owned routes and navigation
+
+Each routable module declares its URL patterns, page presentation, destination label, icon and
+navigation shortcut. Core Navigation provides `definePage`, matching and transitions. Application
+registers the contributions explicitly and supplies database, session and foreign context.
+There is no filename-based route discovery or global module registry.
 
 ```mermaid
 flowchart LR
-  Shell["application/presentation/\nMounts module views"] -->|public presentation| Presentation["modules/calendar/presentation/index.ts"]
-  Composition["application/composition/\nSupplies database and subject context"] -->|public behavior| Interface["modules/calendar/index.ts"]
-  Presentation -->|local owner behavior| Interface
-  Presentation -->|generic controls| Shared["shared/ui/kit/"]
-  Interface -->|queries and Transactions| Store["application/store/index.ts"]
+  Routes["Wiki routes.ts\n/wiki/ + /wiki/:node/"] --> Declaration["Wiki presentation/routes.ts\nPage + destination + shortcut"]
+  View["Wiki presentation/Wiki.tsx\nOwner UI"] --> Declaration
+  Navigation["core/navigation/\nRoute contribution contract"] --> Declaration
+  Application["application/presentation/\nExplicit installation + supplied context"] -->|mounts contribution| Declaration
+  View -->|owner behavior| Wiki["Wiki index.ts\nReading + admission"]
+  Wiki -->|queries and Transactions| Store["core/store/index.ts"]
+  View -->|generic controls| Kit["shared/ui/kit/index.ts"]
 ```
 
-This Calendar example applies to every module with UI. Core-owned modules use the same convention
-under `application/`. Cross-domain semantic dependencies stay explicit as described below;
-the directory move does not replace them with a global module registry.
+In this registration diagram, incoming arrows identify inputs to a route contribution; the
+Application arrow identifies the caller mounting it. Settings and History contribute drawer
+navigation and commands while their existing URLs retain the Chat background. Search combines
+module destinations and commands with ranked results. Module-local search belongs to its module.
+Changing a module's routes, page or destination stays local. Installing or removing a module changes
+Application composition. Existing URL patterns and persisted entity/attribute keys remain stable.
 
-### Framework inspiration
+## Domain connections
 
-| Source | Convention to adopt here | Adaptation for this project |
-| --- | --- | --- |
-| [Feature-Sliced Design](https://feature-sliced.design/docs/reference/slices-segments) | Explicit module directories, private implementation and public entries | Keep each domain's records, behavior and presentation together; preserve the existing semantic dependencies between domains |
-| [Angular style guide](https://angular.dev/style-guide) | Organize by feature area and keep related files together | Apply that organization to React; a page and its behavior live in the same owning module |
-| [Hexagonal architecture](https://alistair.cockburn.us/hexagonal-architecture) | Separate behavior from presentation and external adapters | Keep journal/model transports replaceable and behavior usable without React; introduce adapter folders where concrete variation exists |
-
-The recommended next pass is to establish these root directories, normalize presentation entries,
-move core presentation beside its owning behavior, and update import enforcement. This changes
-where modules live and how callers find them; it does not require a framework migration.
-
-## Ownership and dependencies
-
-Read these views in order: ownership, core services, domain connections, then Application joins.
-Boxes show owners or public capabilities. In dependency diagrams, `A → B` means **A uses B**;
-edge labels say what it uses. The diagrams show architectural relationships, not every import.
-
-### 1. Ownership: where to start
-
-The three rows are directory groups. This view has no dependency arrows. Grouping related domains
-helps navigation; it does not introduce another owner above them.
-
-```mermaid
-block-beta
-  columns 1
-  block:core
-    columns 3
-    Core["CORE APPLICATION\napplication/"] Composition["Composition + database"] Lifecycle["Session + Settings"]
-    space Store["Store + Transactions"] History["History + Persistence"]
-  end
-  block:domains
-    columns 3
-    Domains["DOMAIN OWNERS\nOne app/ directory each"] Dialogue["Conversation · Agent\nTranscription"] Knowledge["Wiki · Sources · Graph"]
-    space Identity["Actors"] Organization["Questions · Calendar · Map"]
-  end
-  block:shared
-    columns 3
-    Shared["SHARED SUPPORT\napp/"] Interaction["Search · Navigation\nUI kit · Runtime"] Fixtures["Preview\nfictional adapters"]
-  end
-  style core fill:#eff6ff,stroke:#2563eb
-  style domains fill:#f0fdf4,stroke:#16a34a
-  style shared fill:#f8fafc,stroke:#64748b
-```
-
-### 2. Core services: one shared database
-
-Settings, the data store, Transactions and History belong to the core application.
-Domain owners define their records; `application/database.ts` combines those definitions.
-The store engine remains independent of those domain schemas.
+These dependencies carry domain meaning and stay explicit. `A → B` means A uses B.
 
 ```mermaid
 flowchart LR
-  subgraph Core["application/ — core ownership"]
-    direction LR
-    Database["database.ts\nSchema composition"] -->|opens| Store["store/\nTyped database + Transactions"]
-    History["history/\nTransaction inspection"] -->|reads accepted Transactions| Store
-    Store -->|journal adapter| Persistence["persistence/\nGitHub journal + cache"]
-    Session["session/\nUnlock + refresh + lifetime"] -->|opens and retires journal| Persistence
-    Session -->|credential controls| Settings["settings/\nPreferences + credential editing"]
-  end
-```
-
-Retained-record owners use the core store's public interface for queries and atomic writes.
-This is a common dependency across those owners, so it is shown once here. Domain-specific
-settings fields keep their meanings in their domain; core Settings owns persistence and editing.
-
-### 3. Domain connections: execution and knowledge
-
-These connections carry domain meaning. They belong in the consuming owner.
-Conversation owns dialogue; Agent owns execution, including runs that have no Conversation.
-
-```mermaid
-flowchart LR
-  Conversation["conversation/\nDialogue + recovery"] -->|starts and reads runs| Agent["agent/\nModel + tool execution"]
-  Conversation -->|draft capture| Transcription["transcription/\nCapture lifetime"]
-  Questions["questions/\nQuestions + Answers"] -->|answer dictation| Transcription
+  Conversation -->|starts and reads runs| Agent
+  Conversation -->|draft capture| Transcription
+  Questions -->|answer dictation| Transcription
   Questions -->|tool presentation contract| Agent
   Agent -->|provider adapter| Transcription
 ```
 
 ```mermaid
 flowchart LR
-  Wiki["wiki/\nPages + Reviews"] -->|recorded and current source reading| Sources["sources/\nSource documents + provenance"]
+  Wiki -->|recorded and current source reading| Sources
 ```
 
-Conversation, Agent, Wiki and Questions use `actors/` directly for shared attribution.
-Application supplies trusted author references to Calendar and Map. Producers that bind an account
-do so inside their own Transaction. These shared relationships are stated once to keep the diagrams legible.
-Graph, Calendar and Map receive foreign-record descriptions from Application.
+Conversation, Agent, Wiki and Questions use Actors directly for attribution. Account binding occurs
+inside the producer's Transaction. Application supplies author references to Calendar and Map.
+Agent execution remains independent of Conversation. Wiki and Questions remain independent;
+Application supplies foreign renderers and context to combine them.
 
-### 4. Application joins: where domains meet
+## Application joins
 
-Application supplies context and adapters through public owner interfaces. These combinations
-are owned by `application/`; they do not make either domain responsible for the other's behavior.
-
-| Application composition | Owners connected | What Application supplies |
+| Composition | Modules connected | Supplied context |
 | --- | --- | --- |
-| Wiki Topics | Wiki + Graph | Topic membership for Wiki pages |
-| Subject calendars | Wiki + Calendar | Subject descriptions and calendar context |
+| Wiki Topics | Wiki + Graph | Topic membership and classifications |
+| Subject calendars | Wiki + Calendar | Subject descriptions and time context |
 | Map choices | Map + Wiki, Calendar, Questions, Sources | Foreign record choices and descriptions |
-| Question context | Questions + selected foreign records | Selected context and trusted user identity |
-| Search entries | Search + searchable domain owners | Entries produced from each owner's records |
-| Agent tools | Agent + tool-owning domains | Tool adapters and trusted execution context |
+| Question context | Questions + selected foreign records | Selected evidence and trusted user identity |
+| Search entries | Search + searchable modules | Entries derived through owner reading |
+| Agent tools | Agent + tool owners | Tool adapters and trusted execution context |
 
-### 5. Inside one domain: keep the whole concept together
+Each domain interprets its own records. Initial Exchange and Agent run acceptance remains atomic.
+Save recovery republishes the exact failed request without repeating a provider or tool effect.
+Preview supplies fictional adapters through public entries; production cannot reach preview records.
 
-This is the reading path for a typical domain; specific filenames reflect its vocabulary.
-Application callers use the public entries, and presentation delegates behavior to its owner.
+## Framework inspiration
 
-```mermaid
-flowchart LR
-  Caller["Application caller"] -->|behavior API| Entry["index.ts\nPublic behavior entry"]
-  View["presentation/\nOwner's UI"] -->|owner behavior| Entry
-  View -->|generic controls| Kit["ui/kit/"]
-  Entry -->|encapsulates| Behavior["Operations + reading\nPrivate cohesive behavior"]
-  Behavior -->|owner definitions| Records["records.ts"]
-  Behavior -->|queries + atomic writes| Store["application/store/\nPublic typed interface"]
-```
+SvelteKit and SolidStart separate route entry points from reusable feature presentation. Here each
+module declares its routes and views, and Application explicitly installs them. Browser transports,
+IndexedDB and workers occupy the adapter roles that a fullstack application might perform on a server.
+No framework migration or server runtime is required.
 
-### Ownership reference
-
-| Module | Owns | Caller supplies |
-| --- | --- | --- |
-| Core store | Typed records, identity, queries, atomic Transactions, recorded history and exact publication retry | Composed owner definitions; persistence adapter |
-| Core session | Unlock, credential changes, cache readiness, refresh and journal retirement | Production or fictional persistence factory |
-| Core Settings | Preference persistence and safe credential editing | Owner-defined field meanings |
-| Core History | Generic accepted Transaction inspection and drawer presentation | Shared database and permitted compensation context |
-| Actors | Actor records and account binding inside a producer's Transaction | Trusted account identity; caller's Transaction |
-| Sources | Source document records, provenance and recorded/current projection | Shared database |
-| Conversation | Dialogue identity, admission, draft/capture association, Exchanges, context checkpoints and recovery | Agent execution and owner tools; trusted identities |
-| Agent | Configuration snapshots, runs, supplied Context inputs, Model steps, Tool executions and effect recovery | Model/voice transport and owner tool adapters |
-| Wiki | Content, containment, availability, citations and Wiki Review admission | Source reading and foreign presentation |
-| Graph | Topics, membership, Relationships and exploration | Foreign record descriptions |
-| Questions | Question/Answer admission, collection subscriptions and answer save recovery | Database, trusted user identity, readiness and selected foreign context |
-| Calendar / Map | Their native records, value interpretation, writes and reading | Foreign subject descriptions and trusted attribution |
-| Transcription | Capture connection lifetime and output identity | Transport adapter; draft association stays with its caller |
-| UI kit | Shared geometry, input, focus, scrolling and generic controls | Owner presentation content |
-| Preview | Fictional records and scripted adapters | Public owner interfaces and explicit test seams |
-
-`records.ts` contains retained definitions. `configuration.ts` validates configuration;
-`suggestions.ts`, `activity-data.ts`, `view.ts` and `projection.ts` name outward values and reading.
-A private subfolder names cohesive behavior (`wiki/reviews`), rather than a generic `data` owner.
-
-The core store has no knowledge of domain schemas. `application/database.ts` assembles the registry.
-Actor binding stays inside the producer's atomic Transaction. Initial Exchange and Agent run
-acceptance remains atomic. Save recovery republishes the exact failed request without repeating a
-provider or tool effect. Directory and TypeScript names are independent of stable persisted entity
-and attribute keys.
-
-Tests sit beside the owner they exercise; cross-owner scenarios sit in `application/`.
-`tools/architecture/layout.test.ts` checks public entries, dependency direction, private engine
-access, presentation mechanics and fixture isolation. Use the [testing guide](../docs/agents/testing.md)
-for focused local checks and CI verification.
+Compiler-resolved checks in `tools/architecture/layout.test.ts` enforce declared domain dependencies,
+public entries, private store access, generic kit ownership and preview isolation. Follow the
+[testing guide](../docs/agents/testing.md) for focused checks and commit-specific CI verification.

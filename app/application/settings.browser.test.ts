@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { openAppAction } from '@/ui/kit/navigation.browser.test-support.ts';
+import { openAppAction } from '@/shared/ui/kit/navigation.browser.test-support.ts';
 
 test('grouped settings persist selectors, instructions and endpoints after reload', {
   tag: '@phone',

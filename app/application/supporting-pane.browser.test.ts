@@ -22,7 +22,7 @@ test('supporting content stays beside the task in expanded space and preserves i
   tag: '@phone',
 }, async ({ page }) => {
   await page.setViewportSize({ width: 900, height: 844 });
-  await page.goto('/ui/kit/tests/browser.html?supporting-pane');
+  await page.goto('/shared/ui/kit/tests/browser.html?supporting-pane');
   const opener = page.getByRole('button', { name: 'Open supporting task', exact: true });
   await opener.click();
   const pane = page.getByRole('complementary', { name: 'Supporting task', exact: true });
@@ -63,7 +63,7 @@ test('closing a supporting pane in expanded space restores its opening action', 
   tag: ['@phone', '@touch'],
 }, async ({ page }) => {
   await page.setViewportSize({ width: 900, height: 844 });
-  await page.goto('/ui/kit/tests/browser.html?supporting-pane');
+  await page.goto('/shared/ui/kit/tests/browser.html?supporting-pane');
   const opener = page.getByRole('button', { name: 'Open supporting task', exact: true });
   await opener.click();
   const pane = page.getByRole('complementary', { name: 'Supporting task', exact: true });
@@ -76,7 +76,7 @@ test('closing a supporting pane in expanded space restores its opening action', 
 test('paired supporting panes keep independent scrolling content and dismiss their nested review first', {
   tag: '@phone',
 }, async ({ page }) => {
-  await page.goto('/ui/kit/');
+  await page.goto('/shared/ui/kit/');
   await page.getByRole('searchbox', { name: 'Find a component' }).fill('SupportingPane');
   const family = page.locator('[data-kit-comparison="supporting-pane"]');
   const desktop = family.locator('[data-kit-preview="desktop"]');
@@ -117,7 +117,7 @@ test('paired supporting panes keep independent scrolling content and dismiss the
 test('supporting feed scrolls above one anchored composer without losing its draft', {
   tag: '@phone',
 }, async ({ page }) => {
-  await page.goto('/ui/kit/');
+  await page.goto('/shared/ui/kit/');
   await page.getByRole('searchbox', { name: 'Find a component' }).fill('SupportingPane');
   const sample = page.locator(
     '[data-kit-comparison="supporting-pane"] [data-kit-preview="mobile"]',
@@ -147,7 +147,7 @@ test('a new selection resets the supporting body without caller access to its sc
   tag: '@phone',
 }, async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/ui/kit/tests/browser.html?supporting-pane');
+  await page.goto('/shared/ui/kit/tests/browser.html?supporting-pane');
   await page.getByRole('button', { name: 'Open supporting task', exact: true }).click();
   const pane = page.getByRole('dialog', { name: 'Supporting task', exact: true });
   const scroll = pane.locator('[data-slot="scroll-area-viewport"]');

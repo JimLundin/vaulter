@@ -1,7 +1,7 @@
-import type { QuestionDatabase } from '@/questions/records.ts';
-import { questionActions } from '@/questions/operations.ts';
-import type { applicationSchema } from '@/application/composition.ts';
-import type { Database } from '@/application/store/index.ts';
+import type { QuestionDatabase } from '@/modules/questions/records.ts';
+import { questionActions } from '@/modules/questions/operations.ts';
+import type { applicationSchema } from '@/application/composition/composition.ts';
+import type { Database } from '@/core/store/index.ts';
 
 export async function seedEavQuestions(db: Database<typeof applicationSchema> & QuestionDatabase) {
   if (await db.entities.questions.first({ where: { key: { eq: 'preview:question' } }, select: {} }))

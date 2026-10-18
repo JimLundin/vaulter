@@ -1,9 +1,9 @@
 import { expect, test } from 'vitest';
-import { createMemoryStorage, sameEntity } from '@/application/store/index.ts';
-import { createCoordinates, readCoordinates } from '@/map/index.ts';
-import { createEvent } from '@/calendar/index.ts';
-import { createApplicationIdentities } from './identities.ts';
-import { applicationDatabase, applicationMap } from './composition.ts';
+import { createMemoryStorage, sameEntity } from '@/core/store/index.ts';
+import { createCoordinates, readCoordinates } from '@/modules/map/index.ts';
+import { createEvent } from '@/modules/calendar/index.ts';
+import { createApplicationIdentities } from './composition/identities.ts';
+import { applicationDatabase, applicationMap } from './composition/composition.ts';
 
 test('Application retains coordinates on another owner in its shared journal', async () => {
   await using db = await applicationDatabase(createMemoryStorage());

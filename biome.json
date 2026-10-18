@@ -105,7 +105,7 @@
   },
   "overrides": [
     {
-      "includes": ["app/**", "!app/ui/kit/vite.config.ts"],
+      "includes": ["app/**", "!app/shared/ui/kit/vite.config.ts"],
       "linter": {
         "rules": {
           "style": {
@@ -173,7 +173,7 @@
       }
     },
     {
-      "includes": ["app/ui/kit/parts/**", "app/ui/kit/hooks/**"],
+      "includes": ["app/shared/ui/kit/parts/**", "app/shared/ui/kit/hooks/**"],
       "linter": {
         "enabled": false
       }

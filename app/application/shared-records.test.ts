@@ -5,13 +5,13 @@ import {
   refreshStorage,
   closeStorage,
   type JournalStorage,
-} from '@/application/store/index.ts';
-import { githubEavAdapter } from '@/application/persistence/journal/github.ts';
-import { fakeGitHub } from '@/application/persistence/github-client/fake-github.ts';
-import { serial } from '@/runtime/async.ts';
-import { wikiActions } from '@/wiki/operations.ts';
-import { readEavWiki } from '@/wiki/pages.ts';
-import { applicationDatabase, applicationHistory } from './composition.ts';
+} from '@/core/store/index.ts';
+import { githubEavAdapter } from '@/core/persistence/journal/github.ts';
+import { fakeGitHub } from '@/core/persistence/github-client/fake-github.ts';
+import { serial } from '@/shared/async/async.ts';
+import { wikiActions } from '@/modules/wiki/operations.ts';
+import { readEavWiki } from '@/modules/wiki/pages.ts';
+import { applicationDatabase, applicationHistory } from './composition/composition.ts';
 
 test('Wiki and History projections include writes accepted on independent devices', async () => {
   const queue = serial();

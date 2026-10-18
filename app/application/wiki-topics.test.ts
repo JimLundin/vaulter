@@ -1,9 +1,9 @@
 import { expect, test } from 'vitest';
-import { e, openDatabase } from '@/application/store/index.ts';
-import { wikiSchema } from '@/wiki/records.ts';
-import { wikiActions } from '@/wiki/operations.ts';
-import { topicEntities } from '@/graph/records.ts';
-import { topicActions, readTopics, topicMembers } from '@/graph/topics.ts';
+import { e, openDatabase } from '@/core/store/index.ts';
+import { wikiSchema } from '@/modules/wiki/records.ts';
+import { wikiActions } from '@/modules/wiki/operations.ts';
+import { topicEntities } from '@/modules/graph/records.ts';
+import { topicActions, readTopics, topicMembers } from '@/modules/graph/topics.ts';
 
 test('page existence does not promote a topic and one broad topic keeps independently reachable members', async () => {
   await using db = await openDatabase({ schema: e.registry({ ...wikiSchema, ...topicEntities }) });

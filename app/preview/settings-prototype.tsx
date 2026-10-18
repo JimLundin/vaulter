@@ -1,11 +1,11 @@
 // Throwaway comparison: can containers and navigation make settings easier to scan?
 // Three layouts share the same fictional, memory-only preferences.
 import { useState, useSyncExternalStore, type ReactNode } from 'react';
-import { ModuleSettings } from '@/application/settings/presentation.ts';
-import { type SettingsDefinition, createSettings } from '@/application/settings/index.ts';
-import { agentSettings } from '@/agent/settings.ts';
-import { createOpenAISettings } from '@/agent/openai/settings.ts';
-import { githubSettings } from '@/application/persistence/settings.ts';
+import { ModuleSettings } from '@/core/settings/presentation/index.ts';
+import { type SettingsDefinition, createSettings } from '@/core/settings/index.ts';
+import { agentSettings } from '@/modules/agent/settings.ts';
+import { createOpenAISettings } from '@/modules/agent/openai/settings.ts';
+import { githubSettings } from '@/core/persistence/index.ts';
 import {
   Button,
   Drawer,
@@ -28,7 +28,7 @@ import {
   Stack,
   Surface,
   Text,
-} from '@/ui/kit/index.ts';
+} from '@/shared/ui/kit/index.ts';
 
 function memoryStorage(): Storage {
   const values = new Map<string, string>();

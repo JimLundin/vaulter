@@ -3,7 +3,7 @@ import '@fontsource-variable/geist';
 import '@fontsource-variable/geist-mono';
 import '@fontsource-variable/newsreader';
 import { createRoot } from 'react-dom/client';
-import '@/ui/kit/styles.css';
+import '@/shared/ui/kit/styles.css';
 import {
   DesignComparison,
   DesignPreview,
@@ -13,7 +13,7 @@ import {
   ScrollArea,
   Stack,
   startTheme,
-} from '@/ui/kit/index.ts';
+} from '@/shared/ui/kit/index.ts';
 import { WikiExample } from './wiki-example.tsx';
 
 function Examples() {
@@ -39,7 +39,7 @@ function Examples() {
                   preview={(controls, content) => (
                     <DesignPreview
                       label="Fictional Wiki records"
-                      kitHref={import.meta.env.DEV ? '/ui/kit/' : '../kit/'}
+                      kitHref={import.meta.env.DEV ? '/shared/ui/kit/' : '@/kit'}
                       onReset={() => location.reload()}
                       variantControls={controls}
                     >

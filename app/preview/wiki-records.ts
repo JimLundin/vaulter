@@ -1,6 +1,6 @@
-import { sameEntity } from '@/application/store/index.ts';
-import { wikiActions } from '@/wiki/operations.ts';
-import type { WikiDatabase } from '@/wiki/reviews/selection.ts';
+import { sameEntity } from '@/core/store/index.ts';
+import { wikiActions } from '@/modules/wiki/operations.ts';
+import type { WikiDatabase } from '@/modules/wiki/reviews/selection.ts';
 
 /** Fictional records exercise the native typed Wiki, source and review contracts. */
 export async function seedEavWiki(db: WikiDatabase) {
@@ -62,8 +62,8 @@ export async function seedEavWiki(db: WikiDatabase) {
       { parent: paragraph, order: 'a' },
     );
   }
-  const documents: import('@/application/store/index.ts').EntityRef<
-    typeof import('@/sources/records.ts').SourceDocument
+  const documents: import('@/core/store/index.ts').EntityRef<
+    typeof import('@/modules/sources/records.ts').SourceDocument
   >[] = [];
   for (let index = 0; index < 12; index++) {
     documents.push(

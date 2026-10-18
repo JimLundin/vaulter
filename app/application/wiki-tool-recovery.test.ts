@@ -1,15 +1,10 @@
 import { expect, test, vi } from 'vitest';
-import {
-  e,
-  openDatabase,
-  createPersistentStorage,
-  type Journal,
-} from '@/application/store/index.ts';
-import { agentEntities } from '@/agent/records.ts';
-import { startAgentRun } from '@/agent/operations.ts';
-import { eavTools } from '@/agent/execution/tools.ts';
-import { wikiSchema } from '@/wiki/records.ts';
-import { wikiTools } from '@/wiki/tools.ts';
+import { e, openDatabase, createPersistentStorage, type Journal } from '@/core/store/index.ts';
+import { agentEntities } from '@/modules/agent/records.ts';
+import { startAgentRun } from '@/modules/agent/operations.ts';
+import { eavTools } from '@/modules/agent/execution/tools.ts';
+import { wikiSchema } from '@/modules/wiki/records.ts';
+import { wikiTools } from '@/modules/wiki/tools.ts';
 
 for (const stop of [false, true]) {
   test(`Wiki side-effect save recovery preserves one publication and canonical outcome${stop ? ' after stop' : ''}`, async () => {
