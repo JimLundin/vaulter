@@ -7,11 +7,27 @@ export {
   Relationship,
   Term,
   Query,
+  QuerySelection,
+  QuerySelectionMember,
 } from './records.ts';
 export type { RelationshipInput, RelationshipCandidateActions } from './operations.ts';
 export { graphActions } from './operations.ts';
 export { graphTools, graphCapabilities } from './tools.ts';
 export { readGraph } from './reading.ts';
+export {
+  savedQueryAdmission,
+  savedQueryActions,
+  readQueries,
+  readQueryEmbed,
+} from './saved-queries.ts';
+export type {
+  SavedQueryRef,
+  SavedQueryInput,
+  SavedQueryCandidate,
+  QueryClassification,
+} from './saved-queries.ts';
+export { querySelectionAdmission, readQuerySelections } from './query-selections.ts';
+export type { QuerySelectionInput, QuerySelectionRef } from './query-selections.ts';
 export type {
   Graph,
   GraphAddress,

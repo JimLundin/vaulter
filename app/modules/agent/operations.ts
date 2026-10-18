@@ -66,6 +66,7 @@ export async function startAgentRun(
   const run = await tx.entities.agentRuns.insert({
     agent,
     author: agent.actor,
+    agentActor: agent.actor,
     startedAt,
     status: 'running',
     provider: agent.provider,
@@ -136,9 +137,10 @@ export type RunOutcome = z.input<typeof outcomeSchema>;
 export async function finishAgentRun(tx: Writing, identity: AgentRunRef, outcome: RunOutcome) {
   const parsed = outcomeSchema.parse(outcome);
   const run = await tx.entities.agentRuns.get(identity, {
-    select: { status: true, startedAt: true },
+    select: { agent: true, provenance: true, status: true, startedAt: true },
   });
-  if (!run || run.status !== 'running') throw new Error('Only a running Agent run can finish');
+  if (!(run && run.agent) || run.provenance || run.status !== 'running')
+    throw new Error('Only a running Agent run can finish');
   const elapsedMs = parsed.endedAt.getTime() - run.startedAt.getTime();
   if (elapsedMs < 0 || (parsed.firstOutputMs ?? 0) > elapsedMs)
     throw new Error('Invalid run timing');
@@ -181,9 +183,13 @@ export async function startToolExecution(
   const { step, ...supplied } = invocation;
   const value = invocationSchema.parse(supplied);
   const tool = await tx.entities.runTools.get(identity, {
-    select: { version: true, versionStatus: true, run: { status: true, startedAt: true } },
+    select: {
+      version: true,
+      versionStatus: true,
+      run: { agent: true, provenance: true, status: true, startedAt: true },
+    },
   });
-  if (!tool || tool.run.status !== 'running')
+  if (!(tool && tool.run.agent) || tool.run.provenance || tool.run.status !== 'running')
     throw new Error('Tool execution requires a running run');
   knownToolVersion(tool);
   if (value.startedAt < tool.run.startedAt) throw new Error('Tool starts before its run');
@@ -235,9 +241,18 @@ export async function finishToolExecution(
 ) {
   const parsed = toolOutcomeSchema.parse(outcome);
   const execution = await tx.entities.toolExecutions.get(identity, {
-    select: { startedAt: true, status: true, tool: { run: { status: true } } },
+    select: {
+      startedAt: true,
+      status: true,
+      tool: { run: { agent: true, provenance: true, status: true } },
+    },
   });
-  if (!execution || execution.status !== 'running' || execution.tool.run.status !== 'running')
+  if (
+    !(execution && execution.tool.run.agent) ||
+    execution.tool.run.provenance ||
+    execution.status !== 'running' ||
+    execution.tool.run.status !== 'running'
+  )
     throw new Error('Only a running tool in a running run can finish');
   const elapsedMs = parsed.endedAt.getTime() - execution.startedAt.getTime();
   if (elapsedMs < 0) throw new Error('Tool ends before it starts');
@@ -250,6 +265,8 @@ export async function readAgentRun(view: Reading, identity: AgentRunRef) {
   const run = await view.entities.agentRuns.get(identity, {
     select: {
       agent: true,
+      agentActor: { kind: true, name: true },
+      provenance: true,
       author: { name: true },
       status: true,
       startedAt: true,

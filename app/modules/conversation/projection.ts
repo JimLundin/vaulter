@@ -17,9 +17,20 @@ export async function projectedExchange(
       at: source.occurredAt,
       ...(source.occurredAtPrecision && { atPrecision: source.occurredAtPrecision }),
       ...(source.speaker === 'agent'
-        ? { role: 'agent', status: source.status ?? 'running', parts: source.activity ?? [] }
+        ? {
+            role: 'agent',
+            status: source.status ?? 'running',
+            parts: source.activity ?? [],
+            ...(source.model !== undefined && { model: source.model }),
+            ...(source.tokens !== undefined && { tokens: source.tokens }),
+            ...(source.error !== undefined && { error: source.error }),
+          }
         : source.speaker === 'user'
-          ? { role: 'user', text: source.text ?? '' }
+          ? {
+              role: 'user',
+              text: source.text ?? '',
+              ...(source.input !== undefined && { input: source.input }),
+            }
           : {
               role: 'record',
               text: source.text ?? '',
@@ -33,6 +44,7 @@ export async function projectedExchange(
       role: 'user' as const,
       at: message.at.toISOString(),
       text: message.text,
+      ...(message.input !== undefined && { input: message.input }),
     })),
   );
   const run = exchange.execution;

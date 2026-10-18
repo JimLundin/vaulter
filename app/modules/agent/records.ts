@@ -17,7 +17,9 @@ export const Agent = e.entity('agent', {
 });
 
 export const AgentRun = e.entity('agent.run', {
-  agent: e.ref(Agent),
+  agent: e.ref(Agent).optional(),
+  agentActor: e.ref(Actor).optional(),
+  provenance: e.retainedStateRef().optional(),
   author: e.ref(Actor),
   startedAt: e.datetime(),
   status: e.enum('running', 'complete', 'failed', 'stopped', 'interrupted'),

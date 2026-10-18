@@ -15,11 +15,32 @@ test('decision admission preserves exact text and validates real civil dates wit
   await createDecision(db, { text });
   expect(await readDecisions(db)).toMatchObject([{ text, available: true }]);
   expect((await readDecisions(db))[0]?.date).toBeUndefined();
-  for (const date of ['2026-02-29', '2026-13-01', '2026-10-18T00:00:00Z'])
+  for (const date of [
+    '0000',
+    '10000',
+    '2026-00',
+    '2026-13',
+    '2026-2',
+    '2026-02-29',
+    '2026-04-31',
+    '2026-13-01',
+    '2026-10-18T00:00:00Z',
+  ])
     expect(() => createDecision(db, { text: 'Choice', date })).toThrow();
   expect(() => createDecision(db, { text: '  \n ' })).toThrow();
   expect(await readDecisions(db)).toHaveLength(1);
 });
+
+test.each(['2026', '2026-06', '2024-02-29'])(
+  'decision preserves exact supplied date %s and rejects impossible revisions',
+  async (date) => {
+    await using db = await openDatabase({ schema: decisionSchema });
+    const decision = await createDecision(db, { text: 'Choice', date });
+    expect(await readDecisions(db)).toMatchObject([{ date }]);
+    expect(() => reviseDecision(db, decision, { date: '2026-02-29' })).toThrow();
+    expect(await readDecisions(db)).toMatchObject([{ date }]);
+  },
+);
 
 test('independent durable reopen retains revisions, provenance and attribution after removal', async () => {
   const Source = e.entity('test.decisionSource', { text: e.string() });
@@ -46,11 +67,13 @@ test('independent durable reopen retains revisions, provenance and attribution a
     const reference = await db.history.reference(snapshot, source);
     const decision = await createDecision(db, {
       text: 'Original choice',
-      date: '2026-10-12',
+      date: '2026',
       rationale: 'Original reason',
       attribution: 'Original source author',
       sources: [reference],
     });
+    await reviseDecision(db, decision, { date: '2026-06' });
+    await reviseDecision(db, decision, { date: '2026-10-12' });
     await reviseDecision(db, decision, {
       text: 'Corrected choice',
       date: null,
@@ -91,12 +114,24 @@ test('independent durable reopen retains revisions, provenance and attribution a
   expect(await readDecisions(reopened, { snapshot: creation })).toMatchObject([
     {
       text: 'Original choice',
-      date: '2026-10-12',
+      date: '2026',
       rationale: 'Original reason',
       attribution: 'Original source author',
       available: true,
     },
   ]);
+  const transactions = await reopened.history.transactions.query({ select: { sequence: true } });
+  await Promise.all(
+    (
+      [
+        [3, '2026-06'],
+        [4, '2026-10-12'],
+      ] as const
+    ).map(async ([sequence, date]) => {
+      const snapshot = transactions.find((transaction) => transaction.sequence === sequence)!;
+      expect(await readDecisions(reopened, { snapshot })).toMatchObject([{ date }]);
+    }),
+  );
 });
 
 test('invalid source provenance aborts the whole decision publication', async () => {

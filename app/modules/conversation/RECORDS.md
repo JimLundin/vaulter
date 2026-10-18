@@ -40,6 +40,13 @@ known run-level inputs/output and do not manufacture ModelSteps. Failed/stopped 
 Save retry is persistence-only, including request/response saves; it never resumes a model or tool.
 
 RetainedSource records preserve source text, known attribution and honest occurrence precision.
+`appendRetainedContribution(tx, exchange, { position, message, provenance })` admits supplied
+contributions into an existing Exchange; `appendExchange(tx)` adds to the ongoing Conversation.
+Optional `input`, `model`, `tokens` and `error` retain source-reported contribution metadata.
+Input is exact JSON, including supplied voice capture details. A source-reported model name or
+token count does not establish an observed provider request or create Agent execution records.
+Explicit null and unavailable metadata remain distinguishable; historical projections return the
+selected state's values. Native submitted input is also exposed through `projectedExchange`.
 Unavailable per-step details remain absent. Deterministic source ordering is presentation order rather
 than a claim of precise chronology. Application startup performs no conversion or compatibility decoding of retired data models. All producers and readers use the native EAV contract.
 

@@ -21,8 +21,26 @@ export const SourceDocument = e.entity('source.document', {
   available: e.boolean(),
   lead: e.historicalRef().optional(),
 });
-export const sourceEntities = { sourceDocuments: SourceDocument, sourceLeads: SourceLead } as const;
+/** Recorded source context, distinct from editorial membership or supporting evidence. */
+export const SourceAssociation = e.entity('source.association', {
+  key: e.string(),
+  role: e.enum('topic', 'place', 'suppliedContext'),
+  direction: e.enum('directed', 'unrecorded'),
+  source: e.retainedStateRef().optional(),
+  target: e.retainedStateRef().optional(),
+  label: e.string().optional(),
+  placement: e.retainedStateRef().optional(),
+  placementOrder: e.string().optional(),
+  provenance: e.set(e.retainedStateRef()),
+  available: e.boolean(),
+});
+export const sourceEntities = {
+  sourceDocuments: SourceDocument,
+  sourceLeads: SourceLead,
+  sourceAssociations: SourceAssociation,
+} as const;
 export const sourceSchema = e.registry(sourceEntities);
 export type SourceDatabase = DomainDatabase<typeof sourceEntities>;
 export type SourceLeadRef = EntityRef<typeof SourceLead>;
 export type SourceDocumentRef = EntityRef<typeof SourceDocument>;
+export type SourceAssociationRef = EntityRef<typeof SourceAssociation>;

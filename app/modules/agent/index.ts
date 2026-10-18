@@ -20,3 +20,5 @@ export type {
   ToolPresentationAdapter,
 } from './tool-evidence.ts';
 export type { RecordedToolVersion } from './tool-version.ts';
+export { recordAgentRun, reviseRecordedAgentRun } from './retained-runs.ts';
+export type { RetainedAgentRunInput, RetainedAgentRunValue } from './retained-runs.ts';

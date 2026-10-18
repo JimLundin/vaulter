@@ -21,22 +21,7 @@ const message = z.discriminatedUnion('role', [
     at: instant,
     atPrecision: precision.optional(),
     text: z.string(),
-    input: z
-      .object({
-        methods: z.array(z.enum(['typed', 'dictated', 'pasted', 'imported', 'shared'])),
-        language: z.string().optional(),
-        transcription: z
-          .object({
-            provider: z.string().min(1),
-            model: z.string().min(1),
-            request: z.string().optional(),
-            started: instant,
-            ended: instant,
-            durationMs: z.number().nonnegative().optional(),
-          })
-          .optional(),
-      })
-      .optional(),
+    input: json.optional(),
   }),
   z.object({
     kind: z.literal('message'),
@@ -59,8 +44,8 @@ const message = z.discriminatedUnion('role', [
         }),
       ]),
     ),
-    model: z.string().optional(),
-    tokens: z.object({ in: count, out: count }).optional(),
+    model: z.string().nullable().optional(),
+    tokens: z.object({ in: count, out: count }).nullable().optional(),
     error: z.string().optional(),
   }),
   z.object({

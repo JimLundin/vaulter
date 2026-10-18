@@ -6,7 +6,8 @@ export type { Conversation, ConversationOptions, Prompt } from './conversation.t
 export { createEavChatBackend, eavChatFactory } from './eav-backend.ts';
 export type { ChatBackendFactory, ChatOptions } from './backend.ts';
 export { projectedExchange } from './projection.ts';
-export { submitChat } from './submission.ts';
+export { submitChat, appendExchange } from './submission.ts';
+export { appendRetainedContribution } from './retained-contributions.ts';
 export { chatPreferences, chatSettings } from './preferences.ts';
 export type { MessageData, MessagePart } from './message.ts';
 

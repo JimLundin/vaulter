@@ -1,4 +1,5 @@
 // Chat presentation snapshots shared by its controller and views.
+import type { JsonValue } from '@/core/store/index.ts';
 import type { RecordEmbed } from '@/core/embeds/index.ts';
 import type { ToolEvidenceState } from '@/modules/agent/index.ts';
 export type Part =
@@ -13,8 +14,9 @@ export interface Turn {
   status?: 'unknown';
   /** When it started, for the raw record; and, for the agent's, what it cost and who answered. */
   at: string;
-  tokens?: { in: number; out: number };
-  model?: string;
+  input?: JsonValue;
+  tokens?: { in: number; out: number } | null;
+  model?: string | null;
 }
 
 /** What views render: replaced on every change, so it's its own snapshot. */

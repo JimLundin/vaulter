@@ -45,8 +45,11 @@ export function modelSteps(options: {
       const startedAt = new Date();
       await retain(() =>
         options.db.transaction({ author: options.author, origin: options.run }, async (tx) => {
-          const run = await tx.entities.agentRuns.get(options.run, { select: { status: true } });
-          if (run?.status !== 'running') throw new Error('Model step requires a running Agent');
+          const run = await tx.entities.agentRuns.get(options.run, {
+            select: { status: true, agent: true, provenance: true },
+          });
+          if (!run?.agent || run.provenance || run.status !== 'running')
+            throw new Error('Model step requires a running Agent');
           const last = await tx.entities.modelSteps.first({
             where: { run: { eq: options.run } },
             select: { position: true, status: true },
