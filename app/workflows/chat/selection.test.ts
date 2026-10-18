@@ -11,13 +11,13 @@ async function fixture() {
     const source = options.backend(value);
     return {
       ...source,
-      messages: async (conversation) => {
+      messages: async () => {
         if (hold) {
           await new Promise<void>((release) => {
             reads.push({ release });
           });
         }
-        return source.messages(conversation);
+        return source.messages();
       },
     };
   };
@@ -33,35 +33,16 @@ async function fixture() {
   };
 }
 
-test('New cannot create another dialogue or clear an unfinished draft', async () => {
-  const { db, chat } = await fixture();
-  await using _db = db;
-  try {
-    chat.setDraft('An unfinished thought');
-    expect(chat.newChat()).toEqual({
-      status: 'blocked',
-      reason: 'Chat is one continuous dialogue.',
-    });
-    expect(chat.conversation()).toBe('dialogue');
-    expect(chat.snapshot().draft).toBe('An unfinished thought');
-    expect(await db.transaction((tx) => tx.entities.conversations.query({ select: {} }))).toEqual(
-      [],
-    );
-  } finally {
-    chat.dispose();
-  }
-});
-
 test('latest eligible history read wins and preserves the shared draft when earlier reads finish late', async () => {
   const { db, chat, hold, reads } = await fixture();
   await using _db = db;
   try {
     chat.setDraft('An unfinished thought');
     hold();
-    const earlier = chat.open('dialogue');
-    const later = chat.open('dialogue');
+    const earlier = chat.reload();
+    const later = chat.reload();
     reads[1]!.release();
-    expect(await later).toEqual({ status: 'selected', conversation: 'dialogue' });
+    expect(await later).toEqual({ status: 'loaded' });
     reads[0]!.release();
     expect(await earlier).toEqual({ status: 'superseded' });
     expect(chat.snapshot().draft).toBe('An unfinished thought');
@@ -76,13 +57,12 @@ test('explicit history reload supersedes startup restoration during its read', a
   try {
     hold();
     const restoration = chat.restore();
-    const explicit = chat.open('dialogue');
+    const explicit = chat.reload();
     reads[1]!.release();
     await explicit;
     reads[0]!.release();
     expect(await restoration).toEqual({ status: 'superseded' });
     expect(await chat.restore()).toEqual({ status: 'superseded' });
-    expect(chat.conversation()).toBe('dialogue');
   } finally {
     chat.dispose();
   }
@@ -96,16 +76,16 @@ test('an ineligible history reload does not cancel an eligible read or change ca
     chat.updateOptions({ ...options, transcription: voice });
     chat.setDraft('Prefix');
     hold();
-    const valid = chat.open('dialogue');
+    const valid = chat.reload();
     await chat.captureAction();
-    expect(await chat.open('dialogue')).toMatchObject({
+    expect(await chat.reload()).toMatchObject({
       status: 'blocked',
       reason: expect.stringContaining('recording'),
     });
     expect(chat.snapshot()).toMatchObject({ draft: 'Prefix', capture: { phase: 'listening' } });
     await chat.captureAction();
     reads[0]!.release();
-    expect(await valid).toMatchObject({ status: 'selected', conversation: 'dialogue' });
+    expect(await valid).toMatchObject({ status: 'loaded' });
     expect(chat.snapshot().draft).toBe('Prefix Final');
   } finally {
     chat.dispose();
@@ -121,7 +101,7 @@ test('history reload rechecks capture after reading and preserves the current dr
     chat.updateOptions({ ...options, transcription: voice });
     chat.setDraft('Prefix');
     hold();
-    const opening = chat.open('dialogue');
+    const opening = chat.reload();
     await chat.captureAction();
     reads[0]!.release();
     expect(await opening).toMatchObject({ status: 'blocked' });
@@ -140,7 +120,7 @@ test('disposal invalidates held history completion and retains the closed snapsh
   const { db, chat, hold, reads } = await fixture();
   await using _db = db;
   hold();
-  const opening = chat.open('dialogue');
+  const opening = chat.reload();
   const before = chat.snapshot();
   chat.dispose();
   reads[0]!.release();

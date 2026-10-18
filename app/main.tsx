@@ -11,10 +11,10 @@ import { startTheme } from './ui/kit/index.ts';
 import type { OpenEav } from './vault/session/adapters.ts';
 
 startTheme();
-const openEav: OpenEav = ({ secrets }) =>
+const openEav: OpenEav = ({ secrets, api }) =>
   createPersistentStorage(
     githubEavAdapter({
-      api: import.meta.env.VITE_GITHUB_API || undefined,
+      api: api ?? (import.meta.env.VITE_GITHUB_API || undefined),
       token: () => {
         const token = secrets()?.github;
         if (!token) throw new Error('The vault session has closed.');

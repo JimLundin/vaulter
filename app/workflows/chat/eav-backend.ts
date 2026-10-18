@@ -1,12 +1,7 @@
+import { bindActor } from '@/vault/records/actor.ts';
 import { executeEavRun } from '@/agent/eav/runtime.ts';
 import type { AgentRunState } from '@/agent/runtime.ts';
-import {
-  canonical,
-  type DomainDatabase,
-  SaveError,
-  sameEntity,
-  type Transaction,
-} from '@/vault/eav/index.ts';
+import { canonical, type DomainDatabase, SaveError, sameEntity } from '@/vault/eav/index.ts';
 import type {
   ChatBackend,
   ChatBackendFactory,
@@ -21,23 +16,10 @@ import { projectedExchange } from './data/projection.ts';
 import type { chatSchema } from './data/schema.ts';
 import { dialogueContext, timeline } from './data/timeline.ts';
 import { historyCapability, historyTool } from './history-tool.ts';
-import type { MessagePart } from './message.ts';
+import { agentActivity } from '@/agent/reading.ts';
 
 type DB = DomainDatabase<typeof chatSchema>;
 
-async function boundActor(tx: Transaction<typeof chatSchema>, key: string, kind: 'user' | 'agent') {
-  const binding = await tx.entities.actorBindings.first({
-    where: { key: { eq: key } },
-    select: { actor: { name: true, kind: true } },
-  });
-  if (binding) {
-    if (binding.actor.kind !== kind) throw new Error('Configured actor has an incompatible role');
-    return binding.actor;
-  }
-  const actor = await tx.entities.actors.insert({ name: key, kind });
-  await tx.entities.actorBindings.insert({ key, actor });
-  return actor;
-}
 const message = (error: unknown) => (error instanceof Error ? error.message : String(error));
 /** One continuous dialogue. Retained history and model-context projection are separate reads. */
 export function createEavChatBackend(
@@ -50,6 +32,7 @@ export function createEavChatBackend(
     const db = await database();
     return db.transaction(async (tx) => {
       const exchanges = await tx.entities.exchanges.query({
+        limit: null, // Transcript restoration must not lose earlier Exchanges.
         select: {},
         orderBy: [{ position: 'asc' }],
       });
@@ -60,8 +43,8 @@ export function createEavChatBackend(
   };
   const send = (input: ChatRequest): ChatRun => {
     if (disposed) throw new Error('Chat backend is disposed');
-    const request = { ...input, conversation: 'dialogue', text: input.text.trim() };
-    if (!(request.id && request.conversation && request.text && request.model))
+    const request = { ...input, text: input.text.trim() };
+    if (!(request.id && request.text && request.model))
       throw new Error('Chat submission is incomplete');
     const requestKey = canonical(request);
     const previous = runs.get(request.id);
@@ -134,24 +117,7 @@ export function createEavChatBackend(
     const reflect = () => {
       if (!execution) return;
       const current = execution.snapshot();
-      const receipts = [...(current.tools ?? [])];
-      if (current.pendingTool?.stage === 'outcome') {
-        const index = receipts.findIndex((tool) => tool.node === current.pendingTool!.node);
-        if (index >= 0)
-          receipts[index] = { node: current.pendingTool.node, data: current.pendingTool.execution };
-        else receipts.push({ node: current.pendingTool.node, data: current.pendingTool.execution });
-      }
-      const parts: MessagePart[] = receipts.map(({ data }) => ({
-        kind: 'tool',
-        callId: data.call,
-        name: data.name,
-        version: data.version === 'unversioned' ? undefined : data.version,
-        input: data.input,
-        status: data.status,
-        ...(data.output !== undefined && { output: data.output }),
-        ...(data.error && { error: data.error.message }),
-      }));
-      if (current.text) parts.push({ kind: 'text', text: current.text });
+      const parts = agentActivity(current);
       notify({
         phase: current.phase,
         execution: current,
@@ -231,11 +197,13 @@ export function createEavChatBackend(
         const prepare = async () => {
           await db.refresh();
           if (await restore(db)) return;
-          const author = await db.transaction((tx) => boundActor(tx, options.user, 'user'));
+          const author = await db.transaction((tx) =>
+            bindActor(tx, options.user, 'user', options.user),
+          );
           return db.transaction({ author }, async (tx) => {
             if (disposed || stopped) throw new Error('Chat stopped before acceptance');
             const user = author;
-            const actor = await boundActor(tx, options.agent, 'agent');
+            const actor = await bindActor(tx, options.agent, 'agent', options.agent);
             const tools = [];
             for (const tool of [...(options.enabledTools ?? []), historyCapability]) {
               const version = tool.version ?? 'unversioned';
@@ -410,11 +378,9 @@ export function createEavChatBackend(
   return {
     send,
     messages,
-    continuous: true,
     timeline: () => database().then((db) => db.transaction(timeline)),
     checkpoint: (model) =>
       createCheckpointTask({ ...options, database: database(), modelName: model }),
-    chats: async () => [],
     subscribe: (listener) => {
       let close: (() => void) | undefined;
       let active = true;

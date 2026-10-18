@@ -39,8 +39,8 @@ test('an unseen completed reply remains unread through failed record refresh and
       const backend = createEavChatBackend({ ...settings, database: options.database });
       return {
         ...backend,
-        messages: (id) =>
-          readsFail ? Promise.reject(new Error('Recorded view unavailable')) : backend.messages(id),
+        messages: () =>
+          readsFail ? Promise.reject(new Error('Recorded view unavailable')) : backend.messages(),
       };
     },
   });
@@ -189,13 +189,13 @@ test('terminal saving and accepted-record refresh remain separate shared obligat
       const backend = createEavChatBackend({ ...settings, database: options.database });
       return {
         ...backend,
-        messages: async (id) => {
+        messages: async () => {
           if (readsFail) throw new Error('Recorded view unavailable');
           if (holdReads) {
             refreshReads++;
             await reading;
           }
-          return backend.messages(id);
+          return backend.messages();
         },
       };
     },
@@ -271,7 +271,6 @@ test('a synchronous observer cannot start a competing owner retry during admissi
   try {
     const retained = backend.send({
       id: 'request',
-      conversation: 'dialogue',
       text: 'Retain',
       model: 'fictional',
     });
@@ -306,7 +305,6 @@ test('a failed retry returns settled owner progress while retaining its exact re
   try {
     const retained = backend.send({
       id: 'request',
-      conversation: 'dialogue',
       text: 'Retain',
       model: 'fictional',
     });

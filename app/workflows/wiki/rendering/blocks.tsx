@@ -31,14 +31,6 @@ import { SupportIndicators } from '@/workflows/wiki/support.tsx';
 /** Application supplies the owning module's UI for records included in Wiki content. */
 export type ForeignRecordRenderer = (block: WikiBlock) => ReactNode | undefined;
 
-export const blockText = (block: WikiBlock): string =>
-  typeof block.data.text === 'string'
-    ? block.data.text
-    : block.children
-        .filter((child) => child.data.kind !== 'cite')
-        .map(blockText)
-        .join('');
-
 function marked(text: string, marks: unknown): ReactNode {
   let content: ReactNode = text;
   for (const mark of Array.isArray(marks) ? marks : []) {

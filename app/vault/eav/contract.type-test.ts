@@ -39,6 +39,11 @@ export async function contract() {
     // @ts-expect-error first retains the exact projection.
     inspect(first.sentAt);
   }
+  await db.entities.messages.query({ select: {}, limit: null });
+  await db.history.transactions.query({ select: {}, limit: null });
+  await db.history.entities.messages.query({ select: {}, limit: null });
+  // @ts-expect-error Query limits must be numbers or null.
+  await db.entities.messages.query({ select: {}, limit: '100' });
   // @ts-expect-error first owns its one-result limit.
   await db.entities.messages.first({ select: { text: true }, limit: 2 });
   // @ts-expect-error first validates nested selections just like query.

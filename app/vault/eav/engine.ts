@@ -36,6 +36,7 @@ import {
   reference,
   project,
   selectRecords,
+  queryYield,
   validateSelection,
   limit,
   type QueryContext,
@@ -73,7 +74,7 @@ interface ChangeInput {
     readonly sequence?: unknown;
   };
   readonly orderBy?: readonly { readonly sequence: 'asc' | 'desc' }[];
-  readonly limit?: number;
+  readonly limit?: number | null;
 }
 
 // biome-ignore lint/suspicious/useAwait: This async interface converts synchronous validation failures into promise rejections.
@@ -121,13 +122,22 @@ export async function openDatabase<const R extends Registry>(
   const readEntities = (read: () => QueryContext) =>
     Object.fromEntries(
       Object.entries(registry).map(([name, entity]) => {
-        // biome-ignore lint/suspicious/useAwait: This async interface converts synchronous validation failures into promise rejections.
         const query = async (input: QueryInput, first = false) => {
           ensure();
           const view = read();
-          return selectRecords(view, entity, input, first).map(([id, record]) =>
-            project(view, entity, id, record, input.select),
-          );
+          const records = await selectRecords(view, entity, input, first);
+          ensure();
+          if (view.issuance) read(); // Recheck the transaction scope after asynchronous work.
+          const result = [];
+          for (const [index, [id, record]] of records.entries()) {
+            if (index && index % 100 === 0) {
+              await queryYield();
+              ensure();
+              if (view.issuance) read(); // Recheck the transaction scope after asynchronous work.
+            }
+            result.push(project(view, entity, id, record, input.select));
+          }
+          return result;
         };
         return [
           name,
@@ -390,24 +400,33 @@ export async function openDatabase<const R extends Registry>(
       Object.fromEntries(Object.entries(projected)),
     );
   };
-  // biome-ignore lint/suspicious/useAwait: This async interface converts synchronous validation failures into promise rejections.
   const historyTransactions = async (input: QueryInput, first = false) => {
     ensure();
     const stored = readStorage(storage);
     const snapshot = new Map(stored.current);
-    for (const commit of stored.commits) snapshot.set(commit.id, transactionRecord(commit));
+    for (const [index, commit] of stored.commits.entries()) {
+      if (index && index % 512 === 0) {
+        await queryYield();
+        ensure();
+      }
+      snapshot.set(commit.id, transactionRecord(commit));
+    }
     const view = context(snapshot, stored.commits.length);
-    return selectRecords(view, transactionEntity, input, first).map(([id]) =>
-      transactionObject(
-        stored.commits.find((commit) => commit.id === id)!,
-        input.select,
-        stored.commits.length,
-      ),
-    );
+    const records = await selectRecords(view, transactionEntity, input, first);
+    ensure();
+    const commits = new Map(stored.commits.map((commit) => [commit.id, commit]));
+    const result = [];
+    for (const [index, [id]] of records.entries()) {
+      if (index && index % 100 === 0) {
+        await queryYield();
+        ensure();
+      }
+      result.push(transactionObject(commits.get(id)!, input.select, stored.commits.length));
+    }
+    return result;
   };
   const historyEntities = Object.fromEntries(
     Object.entries(registry).map(([name, entity]) => {
-      // biome-ignore lint/suspicious/useAwait: This async interface converts synchronous validation failures into promise rejections.
       const query = async (input: ChangeInput, first = false) => {
         ensure();
         keys(
@@ -461,9 +480,15 @@ export async function openDatabase<const R extends Registry>(
           throw new Error('History ordering supports one sequence direction');
         const take = first ? 1 : limit(input.limit);
         const found: object[] = [];
-        const commits = [...readStorage(storage).commits];
+        const commits = transactionId
+          ? readStorage(storage).commits.filter((commit) => commit.id === transactionId)
+          : [...readStorage(storage).commits];
         if (direction === 'desc') commits.reverse();
-        for (const commit of commits) {
+        for (const [index, commit] of commits.entries()) {
+          if (index && index % 32 === 0) {
+            await queryYield();
+            ensure();
+          }
           if (found.length >= take) break;
           if (
             (transactionId && commit.id !== transactionId) ||
@@ -473,9 +498,18 @@ export async function openDatabase<const R extends Registry>(
             ('in' in sequence && !(sequence.in as number[]).includes(commit.sequence))
           )
             continue;
+          const ids = [...new Set(commit.facts.map((fact) => fact.entity))].filter((id) => {
+            const record = view.snapshot.get(id);
+            return record && recordType(record) === entity.name && (!entityId || id === entityId);
+          });
+          if (!ids.length) continue;
           const before = snapshotAt(storage, commit.sequence - 1);
           const after = snapshotAt(storage, commit.sequence);
-          for (const id of new Set(commit.facts.map((fact) => fact.entity))) {
+          for (const [index, id] of ids.entries()) {
+            if (index && index % 100 === 0) {
+              await queryYield();
+              ensure();
+            }
             if (found.length >= take) break;
             const old = before.get(id);
             const next = after.get(id);
@@ -601,6 +635,7 @@ export async function openDatabase<const R extends Registry>(
           Object.entries(registry).map(async ([name, entity]) => {
             const items = await historyEntities[name]!.query({
               where: { transaction: { eq: value } },
+              limit: null, // A transaction receipt must include every change.
               select: { entity: true, before: allFields(entity), after: allFields(entity) },
             });
             return items.map((item) => Object.freeze({ type: name, ...item }));

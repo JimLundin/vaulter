@@ -4,7 +4,6 @@ import type { ChatBackend, ChatBackendFactory, ChatRun } from './backend.ts';
 import type { ChatState, Turn, Part } from './view.ts';
 import type { ChatOptions, ChatRequest, ChatRunState, ChatRecovery } from './backend.ts';
 import type { MessageData } from './message.ts';
-import { CONVERSATION_PAGE_SIZE, type SavedChat } from './backend.ts';
 import { generateSuggestions, type SuggestionProvider } from './suggestions.ts';
 import type { Transcription, TranscriptionState } from '@/transcription.ts';
 
@@ -19,16 +18,13 @@ export interface ConversationOptions extends ChatOptions {
   /** Stable owning Vault session. Capability readiness may change within it. */
   readonly session: object;
   readonly selectedModel: string;
-  readonly conversation?: string;
   /** The initial cache/remote read has settled; model and write availability are independent. */
   readonly recordsReady?: boolean;
-  readonly onSelectionOutcome?: (outcome: ChatSelectionOutcome) => void;
+  readonly onReadOutcome?: (outcome: ChatReadOutcome) => void;
   readonly availability?: string;
   /** Application admission for starting recording; finishing an owned recording stays available. */
   readonly captureAvailability?: string;
   readonly suggestions?: SuggestionProvider;
-  readonly onConversation?: (id: string) => void;
-  readonly onNewChat?: () => void;
   /** Supplied recording owner. Chat owns its draft association, not this borrowed module. */
   readonly transcription?: Transcription;
 }
@@ -52,36 +48,27 @@ export type ChatSubmissionOutcome =
   | { readonly status: 'blocked'; readonly reason: string }
   | { readonly status: 'owned'; readonly request: ChatRequest; readonly done: Promise<void> };
 export interface ChatRetainedPrompt extends Readonly<Prompt> {
-  readonly conversation: string;
   readonly task: number;
   readonly reason: string;
 }
 export type ChatPromptOutcome = ChatSubmissionOutcome | { readonly status: 'ignored' | 'edited' };
-export type ChatSelectionOutcome =
-  | { readonly status: 'selected'; readonly conversation: string }
+export type ChatReadOutcome =
+  | { readonly status: 'loaded' }
   | { readonly status: 'blocked'; readonly reason: string }
   | { readonly status: 'failed'; readonly error: string }
   | { readonly status: 'superseded' };
-export interface ChatSelection {
+export interface ChatReadingState {
   readonly pending?: {
-    readonly conversation?: string;
     readonly source: 'explicit' | 'restoration';
   };
   readonly error?: string;
   readonly reason?: string;
 }
-export interface ChatRecords {
-  readonly chats: readonly SavedChat[] | null;
-  readonly loading: boolean;
-  readonly hasMore: boolean;
-  readonly error?: string;
-}
 export interface ConversationState extends ChatState {
   readonly checkpoint?: CheckpointState;
   readonly prompts: readonly ChatRetainedPrompt[];
-  readonly selection: ChatSelection;
-  readonly selectionAvailability: ChatActionAvailability;
-  readonly records: ChatRecords;
+  readonly reading: ChatReadingState;
+  readonly readAvailability: ChatActionAvailability;
   readonly submission?: ChatRequest;
   readonly actionReason?: string;
   readonly submissionAvailability: ChatActionAvailability;
@@ -135,14 +122,11 @@ export function createConversation(initial: ConversationOptions) {
   let activeBackend = backend;
   let unsubscribeActive: (() => void) | undefined;
   let options = initial;
-  const continuous = 'continuous' in backend && backend.continuous === true;
-  let id: string = continuous ? 'dialogue' : crypto.randomUUID();
   let transcription = initial.transcription;
   let state: ConversationState = {
     draft: '',
-    selection: {},
-    selectionAvailability: { allowed: true },
-    records: { chats: null, loading: false, hasMore: false },
+    reading: {},
+    readAvailability: { allowed: true },
     turns: [],
     suggestions: [],
     prompts: [],
@@ -164,7 +148,6 @@ export function createConversation(initial: ConversationOptions) {
   let recordRefreshError: string | undefined;
   let recordRefresh:
     | {
-        readonly conversation: string;
         readonly retained?: ChatRun;
         readonly done: Promise<void>;
       }
@@ -175,12 +158,8 @@ export function createConversation(initial: ConversationOptions) {
   let suggestedFor: string | undefined;
   let suggestionAbort: AbortController | undefined;
   let draftRevision = 0;
-  let selectionGeneration = 0;
-  let explicitSelection = false;
-  let recordsGeneration = 0;
-  let recordViews = 0;
-  let recordsLimit = CONVERSATION_PAGE_SIZE;
-  let unsubscribeRecords: (() => void) | undefined;
+  let readGeneration = 0;
+  let explicitTask = false;
   let captureSession: string | undefined;
   const releaseCapture = (interrupt = false) => {
     const session = captureSession;
@@ -194,7 +173,6 @@ export function createConversation(initial: ConversationOptions) {
   let captureDraft:
     | {
         prefix: string;
-        conversation: string;
         draftRevision: number;
         session: string | null;
         revision: number;
@@ -212,14 +190,13 @@ export function createConversation(initial: ConversationOptions) {
       state.contextError
     )
       return;
-    const key = `${id}:${state.turns.length}:${options.selectedModel}`;
+    const key = `${state.turns.length}:${options.selectedModel}`;
     if (key === suggestedFor) return;
     suggestedFor = key;
     suggestionAbort?.abort();
     const abort = new AbortController();
     suggestionAbort = abort;
-    const conversation = id;
-    const generation = selectionGeneration;
+    const generation = readGeneration;
     const context = {
       turns: state.turns.map(({ role, record, parts }) => ({
         role,
@@ -231,11 +208,7 @@ export function createConversation(initial: ConversationOptions) {
       const suggestions = options.suggestions
         ? await options.suggestions(context, abort.signal)
         : await generateSuggestions(options.model, options.selectedModel, context, abort.signal);
-      if (
-        !(disposed || abort.signal.aborted) &&
-        id === conversation &&
-        generation === selectionGeneration
-      )
+      if (!(disposed || abort.signal.aborted) && generation === readGeneration)
         set({ suggestions });
     } catch {
       /* Suggestions are optional and never execute tools. */
@@ -246,14 +219,14 @@ export function createConversation(initial: ConversationOptions) {
     state = { ...state, ...next };
     const owned = active?.snapshot().recovery ?? {};
     const refreshError = recordRefreshError ?? owned.refresh?.error;
-    const reading = recordRefresh?.conversation === id && recordRefresh.retained === active;
+    const reading = !!recordRefresh && recordRefresh.retained === active;
     state = {
       ...state,
       prompts: state.prompts.map((prompt) =>
-        prompt.conversation !== id || prompt.task !== selectionGeneration
+        prompt.task !== readGeneration
           ? Object.freeze({
               ...prompt,
-              reason: 'Conversation changed. Review this text before using it.',
+              reason: 'Earlier task changed. Review this text before using it.',
             })
           : prompt,
       ),
@@ -273,7 +246,7 @@ export function createConversation(initial: ConversationOptions) {
       },
       capture: captureState(),
       submissionAvailability: submissionAvailability(),
-      selectionAvailability: selectionAvailability(),
+      readAvailability: readAvailability(),
     };
     for (const listener of listeners) listener();
   };
@@ -330,33 +303,29 @@ export function createConversation(initial: ConversationOptions) {
                   : undefined));
     return { allowed: !reason, ...(reason ? { reason } : {}) };
   };
-  const selectionAvailability = (): ChatActionAvailability => {
+  const readAvailability = (): ChatActionAvailability => {
     const reason = disposed
       ? 'This Chat session is closed.'
       : recording()
-        ? 'Finish or cancel the current recording before switching conversations.'
+        ? 'Finish or cancel the current recording before reloading Conversation history.'
         : state.busy
-          ? 'Wait for the Agent to finish before switching conversations.'
+          ? 'Wait for the Agent to finish before reloading Conversation history.'
           : state.persistenceError || state.contentPersistence || state.contextError
-            ? 'Resolve the pending recovery before switching conversations.'
+            ? 'Resolve the pending recovery before reloading Conversation history.'
             : undefined;
     return { allowed: !reason, ...(reason ? { reason } : {}) };
   };
-  const invalidateSelection = () => {
-    explicitSelection = true;
-    selectionGeneration++;
+  const invalidateRead = () => {
+    explicitTask = true;
+    readGeneration++;
   };
-  async function readSelection(
-    conversation: string,
-    generation: number,
-    reader: typeof backend,
-  ): Promise<ChatSelectionOutcome> {
+  async function readHistory(generation: number, reader: typeof backend): Promise<ChatReadOutcome> {
     try {
-      const messages = await reader.messages(conversation);
-      if (disposed || generation !== selectionGeneration) return { status: 'superseded' };
-      const permission = selectionAvailability();
+      const messages = await reader.messages();
+      if (disposed || generation !== readGeneration) return { status: 'superseded' };
+      const permission = readAvailability();
       if (!permission.allowed) {
-        set({ selection: { reason: permission.reason } });
+        set({ reading: { reason: permission.reason } });
         return { status: 'blocked', reason: permission.reason! };
       }
       unsubscribeActive?.();
@@ -365,9 +334,8 @@ export function createConversation(initial: ConversationOptions) {
       captureDraft = undefined;
       suggestionAbort?.abort();
       suggestedFor = undefined;
-      id = conversation;
       set({
-        selection: {},
+        reading: {},
         turns: messages.map(({ data }) => turn(data)),
         submission: undefined,
 
@@ -381,39 +349,12 @@ export function createConversation(initial: ConversationOptions) {
         contentAccepted: undefined,
         contextError: undefined,
       });
-      if (!continuous) options.onConversation?.(conversation);
-      return { status: 'selected', conversation };
+      return { status: 'loaded' };
     } catch (error) {
-      if (disposed || generation !== selectionGeneration) return { status: 'superseded' };
+      if (disposed || generation !== readGeneration) return { status: 'superseded' };
       const message = error instanceof Error ? error.message : String(error);
-      set({ selection: { error: message } });
+      set({ reading: { error: message } });
       return { status: 'failed', error: message };
-    }
-  }
-  async function reloadRecords() {
-    if (disposed || options.recordsReady === false) return;
-    const generation = ++recordsGeneration;
-    const reader = backend;
-    set({ records: { ...state.records, loading: true } });
-    try {
-      const chats = await reader.chats({ limit: recordsLimit + 1 });
-      if (!disposed && generation === recordsGeneration)
-        set({
-          records: {
-            chats: Object.freeze(chats.slice(0, recordsLimit)),
-            loading: false,
-            hasMore: chats.length > recordsLimit,
-          },
-        });
-    } catch (error) {
-      if (!disposed && generation === recordsGeneration)
-        set({
-          records: {
-            ...state.records,
-            loading: false,
-            error: error instanceof Error ? error.message : String(error),
-          },
-        });
     }
   }
   const submissionAvailability = (text = state.draft): ChatActionAvailability =>
@@ -430,7 +371,6 @@ export function createConversation(initial: ConversationOptions) {
       if (
         next.session === association.session &&
         next.revision !== association.revision &&
-        association.conversation === id &&
         association.draftRevision === draftRevision
       ) {
         association.revision = next.revision;
@@ -455,20 +395,12 @@ export function createConversation(initial: ConversationOptions) {
     ...state,
     capture: captureState(),
     submissionAvailability: submissionAvailability(),
-    selectionAvailability: selectionAvailability(),
+    readAvailability: readAvailability(),
   };
   const reflect = () => {
     if (disposed || !active) return;
     const retained = active;
     const current = retained.snapshot();
-    if (
-      active.prepared() &&
-      current.execution &&
-      current.phase !== 'accepting' &&
-      current.persistenceStage !== 'initial' &&
-      !continuous
-    )
-      options.onConversation?.(id);
     set({
       turns: [
         ...activeBase,
@@ -499,7 +431,6 @@ export function createConversation(initial: ConversationOptions) {
     try {
       request = Object.freeze({
         id: crypto.randomUUID(),
-        conversation: id,
         text: intent.text.trim(),
         model: options.selectedModel,
       });
@@ -508,7 +439,7 @@ export function createConversation(initial: ConversationOptions) {
     } catch (error) {
       return { status: 'blocked', reason: error instanceof Error ? error.message : String(error) };
     }
-    invalidateSelection();
+    invalidateRead();
     suggestionAbort?.abort();
     suggestedFor = undefined;
     const at = new Date().toISOString();
@@ -528,38 +459,30 @@ export function createConversation(initial: ConversationOptions) {
     }
     set({
       suggestions: [],
-      selection: {},
+      reading: {},
       submission: request,
-
       actionReason: undefined,
       busy: true,
       phase: 'queued',
       ...(clearSource ? { draft: '' } : {}),
     });
     reflect();
-    return { status: 'owned', request, done: complete(sent, sentBackend, request.conversation) };
+    return { status: 'owned', request, done: complete(sent, sentBackend) };
   }
-  async function complete(sent: ChatRun, sentBackend: typeof backend, conversation: string) {
+  async function complete(sent: ChatRun, sentBackend: typeof backend) {
     await sent.done;
     if (disposed || active !== sent) return;
     reflect();
-    if (
-      active.prepared() &&
-      active.snapshot().execution &&
-      active.snapshot().persistenceStage !== 'initial' &&
-      !continuous
-    )
-      options.onConversation?.(id);
     if (
       sent.snapshot().execution &&
       !(state.persistenceError || state.busy) &&
       state.phase !== 'recorded'
     ) {
       try {
-        const messages = await sentBackend.messages(conversation);
+        const messages = await sentBackend.messages();
         if (!disposed && active === sent) set({ turns: messages.map(({ data }) => turn(data)) });
       } catch (error) {
-        if (!disposed && active === sent && id === conversation) {
+        if (!disposed && active === sent) {
           recordRefreshError = error instanceof Error ? error.message : String(error);
           set({});
         }
@@ -578,19 +501,15 @@ export function createConversation(initial: ConversationOptions) {
     completedReplies.add(retained);
     set({ unread: views === 0 });
   }
-  async function refreshMessages(
-    retained: ChatRun | undefined,
-    owner: typeof backend,
-    conversation: string,
-  ) {
+  async function refreshMessages(retained: ChatRun | undefined, owner: typeof backend) {
     try {
-      const messages = await owner.messages(conversation);
-      if (disposed || active !== retained || id !== conversation) return;
+      const messages = await owner.messages();
+      if (disposed || active !== retained) return;
       recordRefreshError = undefined;
       // Reading cannot replace a response which resumed while the records were loading.
       set({ ...(state.busy ? {} : { turns: messages.map(({ data }) => turn(data)) }) });
     } catch (error) {
-      if (disposed || active !== retained || id !== conversation) return;
+      if (disposed || active !== retained) return;
       recordRefreshError = error instanceof Error ? error.message : String(error);
       set({});
     }
@@ -617,10 +536,7 @@ export function createConversation(initial: ConversationOptions) {
   };
   const retainPrompt = (prompt: Readonly<Prompt>, reason: string) =>
     set({
-      prompts: [
-        ...state.prompts,
-        Object.freeze({ ...prompt, conversation: id, task: selectionGeneration, reason }),
-      ],
+      prompts: [...state.prompts, Object.freeze({ ...prompt, task: readGeneration, reason })],
     });
   const api = {
     snapshot: () => state,
@@ -631,7 +547,6 @@ export function createConversation(initial: ConversationOptions) {
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
-    continuous,
     timeline: () => backend.timeline?.() ?? Promise.resolve([]),
     watchTimeline: (listener: () => void) => backend.subscribe(listener),
     createCheckpoint: async () => {
@@ -657,7 +572,6 @@ export function createConversation(initial: ConversationOptions) {
       await checkpointTask?.retry();
     },
     stopCheckpoint: () => checkpointTask?.stop(),
-    conversation: () => id,
     setDraft: (draft: string) => {
       if (disposed) return;
       const session = captureSession;
@@ -678,7 +592,6 @@ export function createConversation(initial: ConversationOptions) {
       } else {
         captureDraft = {
           prefix: state.draft,
-          conversation: id,
           draftRevision,
           session: null,
           revision: 0,
@@ -721,7 +634,6 @@ export function createConversation(initial: ConversationOptions) {
         options.availability !== next.availability ||
         options.captureAvailability !== next.captureAvailability ||
         options.selectedModel !== next.selectedModel;
-      const readingBecameReady = options.recordsReady === false && next.recordsReady !== false;
       if (changed) {
         const previous = backend;
         backend = next.backend(next);
@@ -745,21 +657,9 @@ export function createConversation(initial: ConversationOptions) {
       }
       observeCapture();
       if (storeChanged) {
-        selectionGeneration++;
-        recordsGeneration++;
-        recordsLimit = CONVERSATION_PAGE_SIZE;
-        unsubscribeRecords?.();
-        unsubscribeRecords = undefined;
-        set({ selection: {}, records: { chats: null, loading: false, hasMore: false } });
-        if (recordViews) {
-          unsubscribeRecords = backend.subscribe(() => void reloadRecords());
-          void reloadRecords();
-        }
-      } else {
-        if (permissionChanged || transcriptionChanged) set({});
-        if (recordViews && (readingBecameReady || (permissionChanged && state.records.error)))
-          void reloadRecords();
-      }
+        readGeneration++;
+        set({ reading: {} });
+      } else if (permissionChanged || transcriptionChanged) set({});
       if (previousCapture) previousTranscription?.interrupt(previousCapture);
     },
     submissionAvailability,
@@ -776,7 +676,6 @@ export function createConversation(initial: ConversationOptions) {
     retrySave: () => {
       const retained = active;
       const owner = activeBackend;
-      const conversation = id;
       if (!retained || disposed) return Promise.resolve();
       const known = saveRecoveries.get(retained);
       if (known !== undefined) return known;
@@ -784,17 +683,11 @@ export function createConversation(initial: ConversationOptions) {
         .then(async () => {
           if (disposed || active !== retained) return;
           await retained.retrySave();
-          if (disposed || active !== retained || id !== conversation) return;
+          if (disposed || active !== retained) return;
           reflect();
-          if (
-            retained.prepared() &&
-            retained.snapshot().persistenceStage !== 'initial' &&
-            !continuous
-          )
-            options.onConversation?.(conversation);
           if (!(state.persistenceError || state.busy)) {
             acknowledgeCompletion(retained);
-            await refreshMessages(retained, owner, conversation);
+            await refreshMessages(retained, owner);
           }
         })
         .finally(() => {
@@ -805,7 +698,6 @@ export function createConversation(initial: ConversationOptions) {
     },
     retryContentSave: () => {
       const retained = active;
-      const conversation = id;
       if (!retained || disposed) return Promise.resolve();
       const known = contentRecoveries.get(retained);
       if (known !== undefined) return known;
@@ -813,7 +705,7 @@ export function createConversation(initial: ConversationOptions) {
         .then(async () => {
           if (disposed || active !== retained) return;
           await retained.retryContentSave();
-          if (!disposed && active === retained && id === conversation) reflect();
+          if (!disposed && active === retained) reflect();
         })
         .finally(() => {
           contentRecoveries.delete(retained);
@@ -824,24 +716,22 @@ export function createConversation(initial: ConversationOptions) {
     refreshContext: () => {
       const retained = active;
       const owner = active ? activeBackend : backend;
-      const conversation = id;
       if (disposed) return Promise.resolve();
-      if (recordRefresh?.conversation === conversation && recordRefresh.retained === retained)
-        return recordRefresh.done;
+      if (recordRefresh?.retained === retained && recordRefresh) return recordRefresh.done;
       const done = Promise.resolve()
         .then(async () => {
           if (disposed || active !== retained) return;
           await retained?.refreshContext();
-          if (disposed || active !== retained || id !== conversation) return;
+          if (disposed || active !== retained) return;
           reflect();
           if (retained?.snapshot().recovery?.refresh) return;
-          await refreshMessages(retained, owner, conversation);
+          await refreshMessages(retained, owner);
         })
         .finally(() => {
           if (recordRefresh?.done === done) recordRefresh = undefined;
           set({});
         });
-      recordRefresh = { conversation, retained, done };
+      recordRefresh = { retained, done };
       set({});
       return done;
     },
@@ -863,12 +753,12 @@ export function createConversation(initial: ConversationOptions) {
     applyPrompt: (n: number): ChatPromptOutcome => {
       const prompt = state.prompts.find((pending) => pending.n === n);
       if (!prompt) return { status: 'blocked', reason: 'This text is no longer pending.' };
-      if (prompt.conversation !== id || prompt.task !== selectionGeneration) {
-        const reason = 'Conversation changed. Review this text and use again.';
+      if (prompt.task !== readGeneration) {
+        const reason = 'Earlier task changed. Review this text and use again.';
         set({
           prompts: state.prompts.map((pending) =>
             pending === prompt
-              ? Object.freeze({ ...prompt, conversation: id, task: selectionGeneration, reason })
+              ? Object.freeze({ ...prompt, task: readGeneration, reason })
               : pending,
           ),
         });
@@ -903,111 +793,39 @@ export function createConversation(initial: ConversationOptions) {
         views--;
       };
     },
-    selectionAvailability,
-    open: async (conversation: string): Promise<ChatSelectionOutcome> => {
-      if (continuous) conversation = 'dialogue';
-      const permission = selectionAvailability();
+    readAvailability,
+    reload: async (): Promise<ChatReadOutcome> => {
+      const permission = readAvailability();
       if (!permission.allowed) {
-        set({ selection: { ...state.selection, reason: permission.reason } });
+        set({ reading: { ...state.reading, reason: permission.reason } });
         return { status: 'blocked', reason: permission.reason! };
       }
-      invalidateSelection();
-      const generation = selectionGeneration;
+      invalidateRead();
+      const generation = readGeneration;
       suggestionAbort?.abort();
       suggestedFor = undefined;
       set({
-        selection: { pending: { conversation, source: 'explicit' } },
+        reading: { pending: { source: 'explicit' } },
         suggestions: [],
 
         actionReason: undefined,
       });
-      return readSelection(conversation, generation, backend);
-    },
-    /** Shared record reading lifetime; views retain only whether their chooser is visible. */
-    watchRecords: () => {
-      if (disposed) return () => {};
-      recordViews++;
-      if (recordViews === 1) {
-        void reloadRecords();
-        unsubscribeRecords = backend.subscribe(() => void reloadRecords());
-      }
-      let released = false;
-      return () => {
-        if (released) return;
-        released = true;
-        recordViews--;
-        if (!recordViews) {
-          unsubscribeRecords?.();
-          unsubscribeRecords = undefined;
-        }
-      };
-    },
-    loadOlderRecords: async () => {
-      if (disposed || state.records.loading || !state.records.hasMore) return;
-      recordsLimit = (state.records.chats?.length ?? 0) + CONVERSATION_PAGE_SIZE;
-      await reloadRecords();
+      return readHistory(generation, backend);
     },
     /** Startup restoration has lower priority than any admitted explicit conversational intent. */
-    restore: async (conversation?: string): Promise<ChatSelectionOutcome> => {
-      if (continuous) conversation = 'dialogue';
-      if (disposed || explicitSelection || state.turns.length) return { status: 'superseded' };
-      if (!conversation) return { status: 'selected', conversation: id };
-      const permission = selectionAvailability();
+    restore: async (): Promise<ChatReadOutcome> => {
+      if (disposed || explicitTask || state.turns.length) return { status: 'superseded' };
+      const permission = readAvailability();
       if (!permission.allowed) return { status: 'blocked', reason: permission.reason! };
-      const generation = ++selectionGeneration;
+      const generation = ++readGeneration;
       const reader = backend;
-      set({ selection: { pending: { conversation, source: 'restoration' } } });
-      return readSelection(conversation, generation, reader);
-    },
-    newChat: (): ChatSelectionOutcome => {
-      if (continuous) return { status: 'blocked', reason: 'Chat is one continuous dialogue.' };
-      const permission = selectionAvailability();
-      if (!permission.allowed) {
-        set({ selection: { ...state.selection, reason: permission.reason } });
-        return { status: 'blocked', reason: permission.reason! };
-      }
-      let next: string;
-      try {
-        next = crypto.randomUUID();
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        set({ selection: { ...state.selection, error: message } });
-        return { status: 'failed', error: message };
-      }
-      invalidateSelection();
-      unsubscribeActive?.();
-      id = next;
-      draftRevision++;
-      captureDraft = undefined;
-      active = undefined;
-      recordRefreshError = undefined;
-      suggestionAbort?.abort();
-      suggestedFor = undefined;
-      set({
-        selection: {},
-        turns: [],
-        submission: undefined,
-
-        actionReason: undefined,
-        draft: '',
-        suggestions: [],
-        unread: false,
-        phase: undefined,
-        persistenceError: undefined,
-        persistenceStage: undefined,
-        contentPersistence: undefined,
-        contentAccepted: undefined,
-        contextError: undefined,
-      });
-      options.onNewChat?.();
-      return { status: 'selected', conversation: id };
+      set({ reading: { pending: { source: 'restoration' } } });
+      return readHistory(generation, reader);
     },
     dispose: () => {
       if (disposed) return;
-      explicitSelection = true;
-      selectionGeneration++;
-      recordsGeneration++;
-      unsubscribeRecords?.();
+      explicitTask = true;
+      readGeneration++;
       disposed = true;
       unsubscribeCapture?.();
       releaseCapture(true);

@@ -1,4 +1,5 @@
-import type { SettingsDefinition } from '@/settings/store.ts';
+import { apiEndpoint } from '@/settings/endpoint.ts';
+import { createSettings, type SettingsDefinition } from '@/settings/store.ts';
 import { API, REPO } from './github-client/api.ts';
 
 export const githubSettings: SettingsDefinition = {
@@ -21,10 +22,11 @@ export const githubSettings: SettingsDefinition = {
     {
       key: 'api',
       label: 'GitHub API endpoint',
-      description:
-        'The GitHub endpoint allowed by this installation. Configured when the app is built.',
-      kind: 'readonly',
+      description: 'The GitHub API endpoint used on this device.',
       defaultValue: API,
+      parse: apiEndpoint,
     },
   ],
 };
+
+export const githubPreferences = createSettings(githubSettings);

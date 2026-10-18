@@ -1203,3 +1203,65 @@ test('app-root CSS aliases preserve presentation ownership', () => {
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test('Calendar and Map protect private record implementation while exposing shared value entries', () => {
+  expect(importProblem('app/workflows/wiki/example.ts', 'app/calendar/operations.ts')).toContain(
+    'private calendar',
+  );
+  expect(importProblem('app/workflows/questions/example.ts', 'app/map/reading.ts')).toContain(
+    'private map',
+  );
+  expect(importProblem('app/workflows/wiki/example.ts', 'app/calendar/index.ts')).toBeNull();
+  expect(importProblem('app/application/composition.ts', 'app/map/schema.ts')).toBeNull();
+});
+
+test('compiler resolution protects standalone owner record behavior through public re-exports', () => {
+  const root = mkdtempSync(join(tmpdir(), 'vaulter-owner-seams-'));
+  try {
+    const files = {
+      'app/calendar/operations.ts': 'export const createEvent = () => 1;',
+      'app/calendar/time.ts':
+        'export const parseTime = () => 1; export interface TimeValue { day: string }',
+      'app/calendar/index.ts':
+        "export { createEvent } from './operations.ts'; export { parseTime } from './time.ts'; export type { TimeValue } from './time.ts';",
+      'app/map/reading.ts': 'export const readCoordinates = () => 1;',
+      'app/map/index.ts': "export { readCoordinates } from './reading.ts';",
+      'app/workflows/wiki/allowed.ts':
+        "import { parseTime, type TimeValue } from '../../calendar/index.ts'; export const parse = parseTime; export type Value = TimeValue;",
+      'app/workflows/wiki/leak.ts':
+        "import { createEvent } from '../../calendar/index.ts'; export const leaked = createEvent;",
+      'app/workflows/questions/leak.ts':
+        "import { readCoordinates } from '../../map/index.ts'; export const leaked = readCoordinates;",
+      'app/application/composition.ts':
+        "import { createEvent } from '../calendar/index.ts'; export const allowed = createEvent;",
+    };
+    writeFileSync(
+      join(root, 'tsconfig.json'),
+      JSON.stringify({
+        compilerOptions: { module: 'ESNext', moduleResolution: 'Bundler' },
+        include: ['app'],
+      }),
+    );
+    for (const [path, source] of Object.entries(files)) {
+      mkdirSync(join(root, path, '..'), { recursive: true });
+      writeFileSync(join(root, path), source);
+    }
+    const problems = checkLayout(root);
+    expect(
+      problems.some((problem) =>
+        problem.startsWith('app/workflows/wiki/leak.ts accesses calendar record behavior'),
+      ),
+    ).toBe(true);
+    expect(
+      problems.some((problem) =>
+        problem.startsWith('app/workflows/questions/leak.ts accesses map record behavior'),
+      ),
+    ).toBe(true);
+    expect(problems.filter((problem) => problem.includes('allowed.ts'))).toEqual([]);
+    expect(problems.filter((problem) => problem.includes('application/composition.ts'))).toEqual(
+      [],
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});

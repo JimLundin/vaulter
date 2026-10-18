@@ -114,7 +114,7 @@ test('a replaced Vault session destroys pending prompts without disposing borrow
     );
     const fresh = createConversation(next.options);
     expect(fresh.snapshot()).toMatchObject({ draft: '', prompts: [], turns: [] });
-    expect(fresh.conversation()).toBe('dialogue');
+
     fresh.dispose();
     voice.dispose();
   } finally {
@@ -210,15 +210,11 @@ test('destroying Chat during held durable acceptance retains that record but adm
   });
   const { db, options } = await chatFixture(storage);
   let modelUsed = false;
-  let published = false;
   const chat = createConversation({
     ...options,
     model: async () => {
       modelUsed = true;
       throw new Error('Closed session executed');
-    },
-    onConversation: () => {
-      published = true;
     },
   });
   try {
@@ -240,7 +236,6 @@ test('destroying Chat during held durable acceptance retains that record but adm
       ).toBeDefined(),
     );
     expect(modelUsed).toBe(false);
-    expect(published).toBe(false);
     expect(attempts).toBe(2);
     expect(chat.snapshot()).toBe(closed);
   } finally {

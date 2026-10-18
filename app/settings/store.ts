@@ -21,7 +21,7 @@ export interface SettingsStore {
   readonly snapshot: () => Readonly<Record<string, string>>;
   readonly subscribe: (listener: () => void) => () => void;
   readonly set: (key: string, value: string) => void;
-  readonly reset: () => void;
+  readonly reset: (keys?: readonly string[]) => void;
   readonly values: () => Readonly<Record<string, unknown>>;
 }
 
@@ -125,7 +125,24 @@ export function createSettings(
       current = Object.freeze(next);
       notify();
     },
-    reset() {
+    reset(keys) {
+      if (keys) {
+        refresh();
+        const next = { ...current };
+        for (const field of editable)
+          if (keys.includes(field.key)) next[field.key] = defaults[field.key]!;
+        const overrides = Object.fromEntries(
+          editable
+            .filter((field) => next[field.key] !== defaults[field.key])
+            .map((field) => [field.key, next[field.key]]),
+        );
+        const serialized = JSON.stringify(overrides);
+        storage?.setItem(storageKey, serialized);
+        storedRaw = serialized;
+        current = Object.freeze(next);
+        notify();
+        return;
+      }
       storage?.removeItem(storageKey);
       storedRaw = null;
       current = Object.freeze({ ...defaults });

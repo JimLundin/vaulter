@@ -2,6 +2,7 @@
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, expect, test, vi } from 'vitest';
+import { githubPreferences } from '@/vault/storage/settings.ts';
 import { useSession, type Session } from './session.ts';
 import {
   rememberedCredentials,
@@ -38,6 +39,7 @@ afterEach(async () => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
   vi.clearAllMocks();
+  githubPreferences.reset();
 });
 const empty = { commits: [], schemas: [] };
 function fixture(overrides: Partial<StorageAdapter> = {}) {
@@ -567,4 +569,36 @@ test('a pending EAV save retries after token rotation without repeating its calc
   expect(await db.entities.records.first({ select: { text: true } })).toMatchObject({
     text: 'Once',
   });
+});
+
+test('endpoint replacement validates before persistence and keeps failed candidates inactive', async () => {
+  const live = fixture();
+  const candidate = fixture();
+  const factory: OpenEav = ({ api }) =>
+    api === 'https://new.test' ? candidate.storage : live.storage;
+  const { session } = await open(live, { openEav: factory });
+  await act(async () => session().updateEndpoint('https://new.test'));
+  expect(githubPreferences.snapshot().api).toBe('https://new.test');
+  expect(session().eav).toBe(candidate.storage);
+  expect(live.adapter.close).toHaveBeenCalledOnce();
+});
+
+test('failed endpoint validation preserves active storage and saved preference', async () => {
+  const live = fixture();
+  const before = githubPreferences.snapshot().api;
+  const candidate = fixture({
+    load: async () => {
+      throw new Error('Cannot connect');
+    },
+  });
+  const { session } = await open(live, {
+    openEav: ({ api }) => (api === 'https://broken.test' ? candidate.storage : live.storage),
+  });
+  await act(async () => {
+    await expect(session().updateEndpoint('https://broken.test')).rejects.toThrow('Cannot connect');
+  });
+  expect(session().eav).toBe(live.storage);
+  expect(githubPreferences.snapshot().api).toBe(before);
+  expect(candidate.adapter.close).toHaveBeenCalledOnce();
+  expect(live.adapter.close).not.toHaveBeenCalled();
 });

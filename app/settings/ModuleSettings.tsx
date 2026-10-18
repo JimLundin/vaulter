@@ -15,6 +15,7 @@ import {
   Row,
   Select,
   SettingField,
+  SettingsDisclosure,
   Stack,
   TextBox,
 } from '@/ui/kit/index.ts';
@@ -146,17 +147,28 @@ function SettingControl({
 export function ModuleSettings({
   definition,
   store,
+  keys,
+  disclosure,
+  reset = true,
 }: {
   definition: SettingsDefinition;
   store: SettingsStore;
+  keys?: readonly string[];
+  disclosure?: string;
+  reset?: boolean;
 }) {
   const subscribe = useCallback((listener: () => void) => store.subscribe(listener), [store]);
   const snapshot = useCallback(() => store.snapshot(), [store]);
   const values = useSyncExternalStore(subscribe, snapshot, snapshot);
   const [resetVersion, setResetVersion] = useState(0);
   const [resetError, setResetError] = useState('');
-  const fields = definition.fields.filter((field) => field.kind !== 'secret');
-  return (
+  const fields = definition.fields.filter(
+    (field) => field.kind !== 'secret' && (!keys || keys.includes(field.key)),
+  );
+  const customized = fields.filter(
+    (field) => field.kind !== 'readonly' && values[field.key] !== (field.defaultValue ?? ''),
+  ).length;
+  const content = (
     <Stack gap="lg">
       {fields.map((field) => (
         <SettingControl
@@ -166,15 +178,15 @@ export function ModuleSettings({
           store={store}
         />
       ))}
-      {fields.some((field) => field.kind !== 'readonly') && (
+      {reset && fields.some((field) => field.kind !== 'readonly') && (
         <Row>
           <Button
             variant="outline"
             size="compact"
-            aria-label={`Reset ${definition.name} to defaults`}
+            aria-label={`Reset ${disclosure ?? definition.name} to defaults`}
             onClick={() => {
               try {
-                store.reset();
+                store.reset(keys);
                 setResetVersion((version) => version + 1);
                 setResetError('');
               } catch (error) {
@@ -190,5 +202,15 @@ export function ModuleSettings({
       )}
       {resetError ? <FieldError>{resetError}</FieldError> : null}
     </Stack>
+  );
+  return disclosure ? (
+    <SettingsDisclosure
+      title={disclosure}
+      summary={customized ? `${customized} customized` : 'Default'}
+    >
+      {content}
+    </SettingsDisclosure>
+  ) : (
+    content
   );
 }

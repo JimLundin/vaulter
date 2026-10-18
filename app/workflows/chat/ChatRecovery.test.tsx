@@ -57,7 +57,6 @@ test('both visible Chat surfaces observe the same response-save progress', async
     return state;
   };
   const backend: ChatBackend = {
-    chats: async () => [],
     messages: async () => [{ data: state.response }],
     subscribe: () => () => {},
     dispose: () => listeners.clear(),

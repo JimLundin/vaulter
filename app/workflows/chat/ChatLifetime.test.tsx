@@ -22,45 +22,37 @@ async function retainHistory(db: Awaited<ReturnType<typeof chatFixture>>['db'], 
   });
 }
 
-test.each([undefined, 'missing-retained-chat', 'saved-chat'])(
-  'native dialogue restores its history independently of retained selection %s',
-  async (retainedConversation) => {
-    vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
-    if (retainedConversation)
-      localStorage.setItem(
-        'vaulter:conversation:https://api.github.com:JimLundin/vault@main',
-        retainedConversation,
-      );
-    const { db, options } = await chatFixture();
-    await using _db = db;
-    await retainHistory(db, 'Earlier conversation');
-    const model = vi.fn(async () => {
-      throw new Error('Reading must not execute');
+test('native dialogue restores recorded history without executing providers', async () => {
+  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+  const { db, options } = await chatFixture();
+  await using _db = db;
+  await retainHistory(db, 'Earlier conversation');
+  const model = vi.fn(async () => {
+    throw new Error('Reading must not execute');
+  });
+  function Surface() {
+    const conversation = useConversation({
+      ...options,
+      selectedModel: '',
+      model,
+      suggestions: async () => [],
     });
-    function Surface() {
-      const conversation = useConversation({
-        ...options,
-        selectedModel: '',
-        model,
-        suggestions: async () => [],
-      });
-      return <Chat conversation={conversation} arg={null} presentation={{ page: true }} />;
-    }
-    const root = createRoot(document.body);
-    try {
-      await act(async () => root.render(<Surface />));
-      expect(document.querySelector('[role="alert"]')).toBeNull();
-      expect(document.body.textContent).toContain('Earlier conversation');
-      expect(model).not.toHaveBeenCalled();
-      expect(await db.entities.messages.query({ select: {} })).toHaveLength(1);
-    } finally {
-      await act(async () => root.unmount());
-      localStorage.clear();
-      document.body.replaceChildren();
-      vi.unstubAllGlobals();
-    }
-  },
-);
+    return <Chat conversation={conversation} arg={null} presentation={{ page: true }} />;
+  }
+  const root = createRoot(document.body);
+  try {
+    await act(async () => root.render(<Surface />));
+    expect(document.querySelector('[role="alert"]')).toBeNull();
+    expect(document.body.textContent).toContain('Earlier conversation');
+    expect(model).not.toHaveBeenCalled();
+    expect(await db.entities.messages.query({ select: {} })).toHaveLength(1);
+  } finally {
+    await act(async () => root.unmount());
+    localStorage.clear();
+    document.body.replaceChildren();
+    vi.unstubAllGlobals();
+  }
+});
 
 test('requested history retries a failed read when store readiness changes', async () => {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
@@ -72,8 +64,8 @@ test('requested history retries a failed read when store readiness changes', asy
     const store = options.backend(input);
     return {
       ...store,
-      messages: (...args) =>
-        unavailable ? Promise.reject(new Error('Store is opening')) : store.messages(...args),
+      messages: () =>
+        unavailable ? Promise.reject(new Error('Store is opening')) : store.messages(),
     };
   };
   function Surface({ availability }: { availability: string }) {
@@ -106,8 +98,8 @@ test('requested history waits for the initial database read without showing a fa
   const messages = vi.fn<import('./backend.ts').ChatBackend['messages']>();
   const backend: typeof options.backend = (input) => {
     const store = options.backend(input);
-    messages.mockImplementation((...args) =>
-      ready ? store.messages(...args) : Promise.reject(new Error('Dialogue is unavailable')),
+    messages.mockImplementation(() =>
+      ready ? store.messages() : Promise.reject(new Error('Dialogue is unavailable')),
     );
     return { ...store, messages };
   };
@@ -124,6 +116,35 @@ test('requested history waits for the initial database read without showing a fa
     await act(async () => root.render(<Surface recordsReady={true} />));
     expect(document.body.textContent).toContain('Ready history');
     expect(document.querySelector('[role="alert"]')).toBeNull();
+  } finally {
+    await act(async () => root.unmount());
+    document.body.replaceChildren();
+    vi.unstubAllGlobals();
+  }
+});
+
+test('same-session backend replacement reloads current history without clearing the draft', async () => {
+  vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+  const { db, options } = await chatFixture();
+  await using _db = db;
+  await retainHistory(db, 'Current accepted dialogue');
+  const first: typeof options.backend = (input) => ({
+    ...options.backend(input),
+    messages: async () => [],
+  });
+  let owner: ReturnType<typeof useConversation>;
+  function Surface({ backend }: { backend: typeof first }) {
+    owner = useConversation({ ...options, backend });
+    return <Chat conversation={owner} arg={null} presentation={{ page: true }} />;
+  }
+  const root = createRoot(document.body);
+  try {
+    await act(async () => root.render(<Surface backend={first} />));
+    await act(async () => owner!.setDraft('Keep my draft'));
+    await act(async () => root.render(<Surface backend={options.backend} />));
+    expect(document.body.textContent).toContain('Current accepted dialogue');
+    expect(owner!.snapshot().draft).toBe('Keep my draft');
+    expect(await db.entities.messages.query({ select: {} })).toHaveLength(1);
   } finally {
     await act(async () => root.unmount());
     document.body.replaceChildren();

@@ -30,12 +30,14 @@ flowchart TD
 The graph shows the principal code dependencies. All UI owners may compose the public kit; record
 modules may use Settings, Navigation and Runtime where needed. Those supporting modules never
 import their consumers. No workflow imports a sibling workflow, including through a type-only
-reference. Only the explicit Application composition entries and their integration tests combine
+reference. Calendar and Map keep record behavior behind their public entries and Application composition;
+other owners may consume their shared value types and parsers without acquiring their record behavior. Only the explicit Application composition entries and their integration tests combine
 workflows. There is no extension registry, common workflow manifest or runtime feature toggle.
 
 | Owner | Responsibility | Does not own |
 |---|---|---|
 | Application | Routes, shell, identities, module selection, record/tool/source composition | Record schemas or persistence |
+| Calendar | TimeValue conventions, Events, annual dates and calendar reading/presentation | Subject meaning, reminders or automatic time-based state changes |
 | Map | Latitude/longitude values, required subject associations and Map record UI | Subject records, coordinate conversion or base-map mechanics |
 | Agent | Execution, context discovery, grounding choices, durable tool activity, recovery, historical decoding | Wiki or Question payload interpretation |
 | Chat | Continuous conversation, messages, drafts, capture, projecting typed Agent activity into a transcript | Decoding Agent records |
@@ -60,6 +62,7 @@ app/
     AppearanceSettings.tsx   application appearance preferences
     Previews.tsx              delegated document previews
   agent/                     execution, discovery, historical reading, tools, providers and recovery
+  calendar/                  TimeValue, Events, annual dates and Calendar UI
   map/                       geographic coordinate values and attached coordinate records
   workflows/
     chat/                    conversations, messages, capture and Chat UI
@@ -300,3 +303,20 @@ workflow owners retain drafts, capture associations, validation, acceptance and 
 The [Chat guide](app/workflows/chat/README.md) owns detailed projections and lifetime contracts;
 the [kit guide](app/ui/kit/README.md) owns presentation APIs. Semantic text conversion remains a
 narrow renderer permission, with prose typography and code scrolling supplied by the kit.
+
+## Current-model cleanup
+
+Chat exposes one Conversation and a reload task, with no selectable-chat mode, caller-supplied Conversation identity, saved-chat collection,
+pagination or creation action. Agent's `reading.ts` owns recorded Model step decoding and live Tool
+execution projections; Chat receives interpreted activity and retains Exchange ordering. Only the
+current `ai-sdk-model-messages-v7` format is decoded. Absent responses on unfinished requests and
+opaque external execution are current behavior, not compatibility with retired formats.
+
+Actor records own shared binding lookup, kind validation and atomic creation. Callers keep configured
+account keys, trusted author selection, transaction admission and exact-save recovery. Binding creation
+runs inside the caller's transaction and never retries it independently.
+
+Retired models do not constrain the current schema or reading interface. The obsolete `chat.migration`
+definition is removed; journals requiring retired definitions need separate source-vault conversion
+before opening. Current accepted Transactions, historical references and execution-neutral reads remain
+part of the product. Application opening performs no conversion or history reset.

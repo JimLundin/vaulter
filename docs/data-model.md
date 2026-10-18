@@ -94,7 +94,6 @@ checks. A submission key deduplicates admission; it is not an entity ID or a que
 | Message | Exchange; author Actor; at; text | input metadata, including capture provenance |
 | InputSource | ContextInput; Message | Connects supplied context to its submitted source. |
 | RetainedSource | Exchange; position; speaker; occurredAt; provenance | date precision, text, activity, label, known status |
-| Migration | key; sourceSequence | Retained persisted schema definition; no application importer. |
 | ContextCheckpoint | through Exchange; covered Exchange set; fingerprint; generating AgentRun; createdAt; title; summary | — |
 | RunContext | AgentRun; selected Exchange set | selected ContextCheckpoint |
 

@@ -313,3 +313,116 @@ test('navigation-only reviews do not certify prose support', async () => {
   });
   expect(block.evidence).toHaveLength(1);
 });
+
+test('historical evidence and text projection remain complete beyond the default query page', async () => {
+  const { db, paragraph } = await fixture();
+  await using owned = db;
+  void owned;
+  await db.transaction(async (tx) => {
+    for (let index = 0; index < 110; index++) {
+      await tx.entities.wikiPages.insert({
+        key: `bulk-page-${index}`,
+        title: `Page ${index}`,
+        summary: `Summary ${index}`,
+        aliases: [],
+        available: true,
+        createdAt: new Date(),
+      });
+      const content = await tx.entities.wikiContent.insert({
+        key: `bulk-text-${index}`,
+        kind: 'text',
+        text: 'x',
+        available: true,
+      });
+      await tx.entities.wikiAppearances.insert({
+        key: `bulk-appearance-${index}`,
+        content,
+        parent: paragraph,
+        order: `z${String(index).padStart(3, '0')}`,
+        available: true,
+      });
+      await tx.entities.sourceDocuments.insert({
+        key: `bulk-source-${index}`,
+        title: `Source ${index}`,
+        attribution: 'Recorded speaker',
+        text: `Evidence ${index}`,
+        origin: '',
+        capturedAt: new Date(),
+        available: true,
+      });
+    }
+  });
+  const pageWindow = await db.entities.wikiPages.query({ select: {} });
+  const page = (await db.entities.wikiPages.query({ select: { summary: true }, limit: null })).find(
+    (item) => !pageWindow.some((row) => sameEntity(row, item)),
+  )!;
+  const sourceWindow = await db.entities.sourceDocuments.query({ select: {} });
+  const source = (
+    await db.entities.sourceDocuments.query({ select: { text: true }, limit: null })
+  ).find((item) => !sourceWindow.some((row) => sameEntity(row, item)))!;
+  const contentWindow = await db.entities.wikiContent.query({ select: {} });
+  const content = (
+    await db.entities.wikiContent.query({ select: { text: true }, limit: null })
+  ).find((item) => !contentWindow.some((row) => sameEntity(row, item)))!;
+  const snapshot = (await db.history.transactions.first({
+    select: {},
+    orderBy: [{ sequence: 'desc' }],
+  }))!;
+  const { documentSources, selectorReader } = await import('./evidence.ts');
+  const readSelection = selectorReader(db, documentSources(db));
+  const sourceAddress = await db.history.reference(snapshot, source);
+  expect((await documentSources(db)(sourceAddress)).recorded.text).toBe(source.text);
+  expect(
+    (
+      await readSelection({
+        target: await db.history.reference(snapshot, page),
+        format: 'wiki-summary-utf16-v1',
+        start: 0,
+        end: page.summary.length,
+      })
+    ).text,
+  ).toBe(page.summary);
+  expect(
+    (
+      await readSelection({
+        target: await db.history.reference(snapshot, content),
+        format: 'wiki-text-utf16-v1',
+        start: 0,
+        end: content.text!.length,
+      })
+    ).text,
+  ).toBe(content.text);
+  const text = await contentText(db.at(snapshot), paragraph);
+  expect(text).toBe(`Keep mornings free. Afternoons are flexible.${'x'.repeat(110)}`);
+  expect(await readEavWiki(db)).toHaveLength(111);
+});
+
+test('containment admission detects a cycle whose path exceeds the default query page', async () => {
+  const { db, actions, page } = await fixture();
+  await using owned = db;
+  const sections = await owned.transaction(async (tx) => {
+    const chain = [];
+    for (let index = 0; index < 105; index++) {
+      const section = await tx.entities.wikiContent.insert({
+        key: `section-${index}`,
+        kind: 'section',
+        available: true,
+      });
+      await tx.entities.wikiAppearances.insert({
+        key: `section-${index}:appearance`,
+        content: section,
+        ...(index ? { parent: chain[index - 1] } : { page }),
+        order: 'a',
+        available: true,
+      });
+      chain.push(section);
+    }
+    return chain;
+  });
+  await expect(
+    actions.share('cycle', sections[0], { parent: sections.at(-1)!, order: 'b' }),
+  ).rejects.toThrow('recursive');
+  expect(
+    await owned.entities.wikiAppearances.first({ where: { key: { eq: 'cycle' } }, select: {} }),
+  ).toBeUndefined();
+});

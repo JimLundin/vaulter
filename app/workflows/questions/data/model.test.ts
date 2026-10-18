@@ -181,3 +181,51 @@ test('session closure prevents later answers and retries', async () => {
   await expect(answers.answer(question, 'Keep it.')).rejects.toThrow('closed');
   expect(writes).toBe(0);
 });
+
+test('complete Question assembly and trusted author lookup work beyond the default query page', async () => {
+  const { db, input } = await fixture();
+  await using owned = db;
+  await owned.transaction(async (tx) => {
+    for (let index = 0; index < 105; index++) {
+      await tx.entities.actors.insert({ name: `Person ${index}`, kind: 'user' });
+      const question = await tx.entities.questions.insert({
+        key: `bulk-${index}`,
+        text: `Question ${index}?`,
+        status: 'open',
+        createdAt: new Date(),
+        available: true,
+      });
+      await tx.entities.questionContexts.insert({
+        question,
+        role: 'source',
+        target: input.source,
+        order: 0,
+      });
+    }
+  });
+  const { sameEntity } = await import('@/vault/eav/index.ts');
+  const actorPage = await owned.entities.actors.query({ select: {} });
+  const user = (await owned.entities.actors.query({ select: { kind: true }, limit: null })).find(
+    (actor) => actor.kind === 'user' && !actorPage.some((row) => sameEntity(row, actor)),
+  )!;
+  const questionPage = await owned.entities.questions.query({ select: {} });
+  const target = (await owned.entities.questions.query({ select: {}, limit: null })).find(
+    (question) => !questionPage.some((row) => sameEntity(row, question)),
+  )!;
+  const latest = (await owned.history.transactions.first({
+    select: {},
+    orderBy: [{ sequence: 'desc' }],
+  }))!;
+  await questionActions(owned, { author: user }).answer(
+    await owned.history.reference(latest, target),
+    'Retained answer',
+  );
+  const questions = await readEavQuestions(owned);
+  expect(questions).toHaveLength(106);
+  expect(
+    questions.every((question) => question.sources?.[0]?.text === 'I use the plane daily.'),
+  ).toBe(true);
+  expect(questions.find((question) => question.answers.length)?.answers[0]?.text).toBe(
+    'Retained answer',
+  );
+});

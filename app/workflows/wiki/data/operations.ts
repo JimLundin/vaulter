@@ -81,6 +81,7 @@ async function validatePlacement(
       throw new Error(`${parent.kind} cannot contain ${child.kind}`);
     }
     const edges = await tx.entities.wikiAppearances.query({
+      limit: null, // Containment admission must detect cycles across the complete appearance graph.
       select: { content: true, parent: true, available: true },
     });
     const pending = [content];

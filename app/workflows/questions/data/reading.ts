@@ -42,6 +42,7 @@ export async function readEavQuestions(db: QuestionDatabase): Promise<Question[]
   const view = db.at(snapshot);
   const [questions, contexts, answers] = await Promise.all([
     view.entities.questions.query({
+      limit: null, // Question assembly needs complete contexts and Answers.
       select: {
         key: true,
         text: true,
@@ -53,10 +54,12 @@ export async function readEavQuestions(db: QuestionDatabase): Promise<Question[]
       orderBy: [{ createdAt: 'asc' }],
     }),
     view.entities.questionContexts.query({
+      limit: null, // Question assembly needs complete contexts and Answers.
       select: { question: true, role: true, target: true, order: true },
       orderBy: [{ order: 'asc' }],
     }),
     view.entities.questionAnswers.query({
+      limit: null, // Question assembly needs complete contexts and Answers.
       select: { key: true, question: true, text: true, available: true, recordedAt: true },
       orderBy: [{ recordedAt: 'asc' }],
     }),

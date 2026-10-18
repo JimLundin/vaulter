@@ -120,8 +120,9 @@ export interface Reader<E extends EntityDefinition> {
     entity: EntityRef<E>,
     options: { readonly select: S & ExactSelection<E, S> },
   ) => Promise<Selected<E, S> | undefined>;
+  /** Defaults to 100 top-level rows; null explicitly requests every match. */
   query: <const S extends Selection<E>>(
-    options: QueryOptions<E, S> & { readonly limit?: number },
+    options: QueryOptions<E, S> & { readonly limit?: number | null },
   ) => Promise<Selected<E, S>[]>;
   first: <const S extends Selection<E>>(
     options: QueryOptions<E, S> & { readonly limit?: never },
@@ -199,8 +200,9 @@ export interface ChangeOptions<E extends EntityDefinition, S extends ChangeSelec
   readonly orderBy?: readonly { readonly sequence: 'asc' | 'desc' }[];
 }
 export interface ChangeReader<E extends EntityDefinition> {
+  /** Defaults to 100 top-level rows; null explicitly requests every match. */
   query: <const S extends ChangeSelection<E>>(
-    options: ChangeOptions<E, S> & { readonly limit?: number },
+    options: ChangeOptions<E, S> & { readonly limit?: number | null },
   ) => Promise<ChangeResult<E, S>[]>;
   first: <const S extends ChangeSelection<E>>(
     options: ChangeOptions<E, S> & { readonly limit?: never },

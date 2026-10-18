@@ -46,6 +46,8 @@ test('History expands a transaction and confirms guarded compensation without re
   await input.fill('vault it: keep mornings quiet');
   await input.press('Enter');
   await page.clock.runFor(10_000);
+  // Resume timers for cooperative EAV reads and drawer transitions.
+  await page.clock.resume();
   await expect(page.getByText('Filed in', { exact: false })).toBeVisible();
   // The visible reply streams before terminal acceptance; navigation must retain the completed reply.
   await expect(page.getByRole('button', { name: 'Stop', exact: true })).toBeHidden();
@@ -105,7 +107,7 @@ test('History expands a transaction and confirms guarded compensation without re
 test('History opens from core actions, search, shortcut and its retained direct URL', {
   tag: '@phone',
 }, async ({ page, isMobile }) => {
-  await page.clock.install();
+  await page.clock.setFixedTime(new Date('2026-01-01T12:00:00Z'));
   await page.goto('/preview/');
   const history = page.getByRole('dialog', { name: 'History', exact: true });
   const original = page.url();

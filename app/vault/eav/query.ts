@@ -25,7 +25,7 @@ export interface QueryInput {
   readonly where?: unknown;
   readonly orderBy?: unknown;
   readonly after?: unknown;
-  readonly limit?: number;
+  readonly limit?: number | null;
 }
 
 export function object(value: unknown, label: string): Record<string, unknown> {
@@ -41,10 +41,13 @@ export function keys(
   for (const key of Object.keys(value))
     if (!allowed.includes(key)) throw new Error(`Unknown ${label}: ${key}`);
 }
+/** Collection queries are bounded unless the owning caller explicitly needs a complete read. */
+export const DEFAULT_QUERY_LIMIT = 100;
 export function limit(value: unknown): number {
-  if (value === undefined) return Number.POSITIVE_INFINITY;
+  if (value === undefined) return DEFAULT_QUERY_LIMIT;
+  if (value === null) return Number.POSITIVE_INFINITY;
   if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0)
-    throw new Error('Query limit must be a nonnegative safe integer');
+    throw new Error('Query limit must be a nonnegative safe integer or null');
   return value;
 }
 export function scalar(definition: FieldDefinition, value: unknown): Atom {
@@ -366,12 +369,12 @@ export function matches(
 }
 
 /** Filter and order before projecting, including for first(). Stable ties use internal identities. */
-export function selectRecords(
+export async function selectRecords(
   context: QueryContext,
   entity: EntityDefinition,
   input: QueryInput,
   first: boolean,
-): [string, RecordState][] {
+): Promise<[string, RecordState][]> {
   const options = object(input, 'Query');
   keys(
     options,
@@ -425,14 +428,48 @@ export function selectRecords(
     if (!isLive(record)) throw new Error('Pagination cursor is unavailable');
     after = [identity.id, record];
   }
-  return [...context.snapshot]
-    .filter(
-      ([id, record]) =>
-        isLive(record) &&
-        recordType(record) === entity.name &&
-        (input.where === undefined || matches(context, entity, id, record, input.where)),
+  if (take === 0) return [];
+  // Keep only the best K matches: the root is the largest retained value.
+  // Stable identity ordering still requires visiting every candidate, even without orderBy.
+  const found: [string, RecordState][] = [];
+  let scanned = 0;
+  for (const [id, record] of context.snapshot) {
+    if (++scanned % 512 === 0) await queryYield();
+    if (
+      !isLive(record) ||
+      recordType(record) !== entity.name ||
+      (input.where !== undefined && !matches(context, entity, id, record, input.where))
     )
-    .sort(compare)
-    .filter((item) => !after || compare(item, after) > 0)
-    .slice(0, take);
+      continue;
+    const item: [string, RecordState] = [id, record];
+    if (after && compare(item, after) <= 0) continue;
+    if (take === Number.POSITIVE_INFINITY) {
+      found.push(item);
+      continue;
+    }
+    if (found.length < take) {
+      found.push(item);
+      let child = found.length - 1;
+      while (child > 0) {
+        const parent = (child - 1) >> 1;
+        if (compare(found[parent]!, found[child]!) >= 0) break;
+        [found[parent], found[child]] = [found[child]!, found[parent]!];
+        child = parent;
+      }
+    } else if (compare(item, found[0]!) < 0) {
+      found[0] = item;
+      let parent = 0;
+      while (parent * 2 + 1 < found.length) {
+        let child = parent * 2 + 1;
+        if (child + 1 < found.length && compare(found[child + 1]!, found[child]!) > 0) child++;
+        if (compare(found[parent]!, found[child]!) >= 0) break;
+        [found[parent], found[child]] = [found[child]!, found[parent]!];
+        parent = child;
+      }
+    }
+  }
+  return found.sort(compare);
 }
+
+/** Yield to browser input/paint as well as Node callers; a microtask alone cannot do that. */
+export const queryYield = () => new Promise<void>((resolve) => setTimeout(resolve, 0));

@@ -56,12 +56,6 @@ export function atomKey(atom: Atom): string {
         : `r:${atom.type.length}:${atom.type}:${atom.ref}`;
   return `${typeof atom}:${String(atom)}`;
 }
-export function sameValues(left: readonly Atom[] = [], right: readonly Atom[] = []): boolean {
-  return (
-    left.length === right.length && left.every((atom, i) => atomKey(atom) === atomKey(right[i]!))
-  );
-}
-
 export function applyFacts(snapshot: Snapshot, facts: readonly Fact[]): Snapshot {
   const result = new Map(snapshot);
   for (const fact of facts) {

@@ -71,14 +71,12 @@ test('conversation keeps its draft and execution across view close and reconstru
     busy: false,
     unread: true,
   });
-  const conversation = controller.conversation();
   expect(controller.snapshot().turns.map(({ role }) => role)).toEqual(['user', 'agent']);
   const reopened = createConversation({
     ...options,
-    conversation,
     model: () => Promise.reject(new Error('Must not execute')),
   });
-  await reopened.open(conversation);
+  await reopened.reload();
   expect(reopened.snapshot().turns[1]?.parts).toEqual([{ kind: 'text', text: 'Recorded.' }]);
   expect(model.doStreamCalls).toHaveLength(1);
   controller.dispose();

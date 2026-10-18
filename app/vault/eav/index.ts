@@ -4,6 +4,7 @@ export { openDatabase } from './engine.ts';
 export { createMemoryStorage, ConflictError } from './memory.ts';
 export { sameEntity } from './identity.ts';
 export { clear } from './types.ts';
+export { DEFAULT_QUERY_LIMIT } from './query.ts';
 export type { EntityRef } from './identity.ts';
 export type { MemoryStorage } from './memory.ts';
 export type { EntityDefinition, Registry, Schema } from './schema.ts';

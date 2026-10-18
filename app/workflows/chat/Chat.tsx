@@ -10,7 +10,6 @@ import {
   Stack,
   Text,
 } from '@/ui/kit/index.ts';
-import { ConversationList } from './ConversationList.tsx';
 import { ChatSurface, ChatWelcome, type ChatPresentation } from './ChatSurface.tsx';
 import { ChatMessage } from './ChatMessage.tsx';
 import { later } from '@/runtime/later.ts';
@@ -31,7 +30,7 @@ export function Chat({
   presentation: ChatPresentation;
   toolPresentations?: readonly ToolPresentationAdapter[];
 }) {
-  const { newChat, stop, viewing } = conversation;
+  const { stop, viewing } = conversation;
   const [choosing, setChoosing] = useState(false);
   const [scrollTarget, setScrollTarget] = useState<{ index: number; request: number }>();
   const showChats = () => setChoosing(true);
@@ -45,21 +44,13 @@ export function Chat({
     phase,
     capture,
     submissionAvailability,
-    selection,
+    reading,
     actionReason,
     prompts,
   } = useChat(conversation);
   const [focused, setFocused] = useState(false);
   const recording = ['connecting', 'listening', 'finishing'].includes(capture.phase);
   const visible = presentation.page || presentation.open;
-  const chooser = (
-    <ConversationList
-      conversation={conversation}
-      open={visible && choosing}
-      persistent={visible}
-      onClose={() => setChoosing(false)}
-    />
-  );
   const ref = useRef<HTMLTextAreaElement>(null);
   const type = conversation.setDraft;
   const say = useCallback(
@@ -73,20 +64,10 @@ export function Chat({
     if (visible) return viewing();
   }, [viewing, visible]);
   const selectedModel = model();
-  // biome-ignore lint/correctness/useExhaustiveDependencies: a new chat or model invalidates cached suggestions
+  // biome-ignore lint/correctness/useExhaustiveDependencies: model and transcript changes invalidate cached suggestions
   useEffect(() => {
     if (visible && !(focused || input || busy || recording)) later(conversation.suggest());
-  }, [
-    conversation,
-    focused,
-    input,
-    busy,
-    conversation.conversation(),
-    turns.length,
-    selectedModel,
-    recording,
-    visible,
-  ]);
+  }, [conversation, focused, input, busy, turns.length, selectedModel, recording, visible]);
   const showSuggestions = !(focused || input || busy || recording) && suggestions.length > 0;
   useEffect(() => {
     if (!(visible && arg)) return;
@@ -101,27 +82,20 @@ export function Chat({
   return (
     <ChatSurface
       supporting={
-        conversation.continuous ? (
-          <Timeline
-            conversation={conversation}
-            open={visible && choosing}
-            persistent={visible && !!presentation.page}
-            onClose={() => setChoosing(false)}
-            onJump={(index) =>
-              setScrollTarget((prior) => ({ index, request: (prior?.request ?? 0) + 1 }))
-            }
-          />
-        ) : (
-          chooser
-        )
+        <Timeline
+          conversation={conversation}
+          open={visible && choosing}
+          persistent={visible && !!presentation.page}
+          onClose={() => setChoosing(false)}
+          onJump={(index) =>
+            setScrollTarget((prior) => ({ index, request: (prior?.request ?? 0) + 1 }))
+          }
+        />
       }
-      onTimeline={conversation.continuous ? showChats : undefined}
+      onTimeline={showChats}
       scrollTarget={scrollTarget}
       presentation={presentation}
-      onNewChat={conversation.continuous ? undefined : newChat}
-      onConversations={conversation.continuous ? undefined : showChats}
       empty={!turns.length}
-      busy={!conversation.snapshot().selectionAvailability.allowed}
       status={
         <Stack>
           {prompts.map((prompt) => (
@@ -147,11 +121,11 @@ export function Chat({
               </Row>
             </Stack>
           ))}
-          {!!selection.pending && <Text role="status">Opening conversation…</Text>}
-          {!!selection.reason && <Text role="status">{selection.reason}</Text>}
-          {!!selection.error && (
+          {!!reading.pending && <Text role="status">Reading conversation history…</Text>}
+          {!!reading.reason && <Text role="status">{reading.reason}</Text>}
+          {!!reading.error && (
             <Text role="alert" tone="danger">
-              {selection.error}
+              {reading.error}
             </Text>
           )}
           {!!actionReason && (

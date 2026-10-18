@@ -49,14 +49,20 @@ export async function readEavWiki(
   };
   const [pages, content, appearances, reviews, passages, references] = await Promise.all([
     view.entities.wikiPages.query({
+      limit: null, // Wiki assembly joins complete content, appearances and evidence in one snapshot.
       select: { key: true, title: true, summary: true, aliases: true, available: true },
     }),
-    view.entities.wikiContent.query({ select: contentSelection }),
+    view.entities.wikiContent.query({
+      limit: null, // Wiki assembly joins complete content, appearances and evidence in one snapshot.
+      select: contentSelection,
+    }),
     view.entities.wikiAppearances.query({
+      limit: null, // Wiki assembly joins complete content, appearances and evidence in one snapshot.
       select: { key: true, content: true, page: true, parent: true, order: true, available: true },
       orderBy: [{ order: 'asc' }, { key: 'asc' }],
     }),
     view.entities.reviews.query({
+      limit: null, // Wiki assembly joins complete content, appearances and evidence in one snapshot.
       select: {
         key: true,
         assertion: { target: true, format: true, start: true, end: true },
@@ -67,9 +73,13 @@ export async function readEavWiki(
       },
     }),
     view.entities.reviewPassages.query({
+      limit: null, // Wiki assembly joins complete content, appearances and evidence in one snapshot.
       select: { review: true, passage: { target: true, format: true, start: true, end: true } },
     }),
-    view.entities.wikiPageReferences.query({ select: { key: true, page: true, source: true } }),
+    view.entities.wikiPageReferences.query({
+      limit: null, // Wiki assembly joins complete content, appearances and evidence in one snapshot.
+      select: { key: true, page: true, source: true },
+    }),
   ]);
   const currentText = projectContentText(content, appearances);
   const sourceReference = async (

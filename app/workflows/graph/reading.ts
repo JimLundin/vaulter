@@ -84,6 +84,7 @@ export async function readGraph(db: GraphDatabase): Promise<Graph> {
   const view = latest ? db.at(latest) : db;
   const [records, vocabulary] = await Promise.all([
     view.entities.graphRelationships.query({
+      limit: null, // Graph interpretation needs complete vocabulary and relationship endpoints.
       where: { available: { eq: true } },
       select: {
         key: true,
@@ -94,6 +95,7 @@ export async function readGraph(db: GraphDatabase): Promise<Graph> {
       },
     }),
     view.entities.graphTerms.query({
+      limit: null, // Graph interpretation needs complete vocabulary and relationship endpoints.
       where: { available: { eq: true } },
       select: {
         key: true,
