@@ -49,6 +49,7 @@ test('Map restores Positron and Dark styles while retaining selection through ap
           },
         },
         layers: [
+          { id: 'attributed-points', type: 'circle', source: 'attribution' },
           {
             id: 'ground',
             type: 'background',
