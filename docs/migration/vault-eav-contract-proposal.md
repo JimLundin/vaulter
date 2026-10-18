@@ -103,8 +103,8 @@ changes to be rebuilt in sequence.
 | --- | --- | --- |
 | Foundation | Incorporate current main and agree shared reference behavior. | Main incorporated in `07062d0`; separate retained-state references approved. Implement that reference kind and confirm recorded-time/ordered-placement contracts where source fixtures require them. No legacy compatibility types or broad module refactor. |
 | Owner bases | V02 Tasks, Decisions and Observations; V03 candidates; V06 qualification; V08 leads. | Initial capabilities integrated; exact commits and focused-check evidence are in the response handoff. Source-backed mapping, source associations and structural links remain separate verification/design work. |
-| Shared history and identities | Retained-state references, V09 unknown versions and V10 general redirects. | Product contracts agreed; implementation commit/evidence pending in this handoff. Redirects must distinguish current canonical resolution from exact historical identity. |
-| Embedding | V04 general live/pinned embeds in Wiki and Chat. | Initial single-record reading/presentation and owner wiring integrated. Insertion controls, saved Query results and chronology need their own exact evidence; individual record embeds do not establish those contracts. |
+| Shared history and identities | Retained-state references, V09 unknown versions and V10 general redirects. | Product contracts agreed; owner implementations exist for all three and root integration is pending for references/redirects. Exact owner commits are in the response handoff. Redirects must distinguish current canonical resolution from exact historical identity. |
+| Embedding | V04 general live/pinned embeds in Wiki and Chat. | Initial single-record reading/presentation and owner wiring integrated. Wiki/Chat add/remove and live/pinned controls are implemented in `e3661bc`, pending root integration. Saved Query results and chronology need their own exact evidence; individual record embeds do not establish those contracts. |
 | Source conversion | V01 external originals and verified correspondence to current Conversation records; typed structural provenance links. | Private tooling verifies conversion without legacy grouping types. Original container references select preserved sources; native associations require verified correspondence. Confirm Calendar time values against exact source expressions. |
 | Migration verification | Exhaustive source-backed verification of only the new migration. | Inspect actual source inventory and independently reopened native records/history. No reconciliation with the old test migration. Journal publication/replacement is a separate concrete operation. |
 | Deferred separately | V07 storage indexing/caching/reduced repeated validation. | No model change and no migration acceptance prerequisite. Preserve rejection behavior and measure any optimization independently. |
@@ -126,8 +126,10 @@ capability from verified conversion of the private source inventory.
   Events for unlabelled chronology.
 - Recorded-time values where the source supplies minute/second precision, unknown
   timing or explicit null. Current owner support needs source-backed inspection.
-- Exact implementation commits, focused checks and commit-specific CI for shared
-  retained-state references, unknown tool versions and general redirects.
+- Root integration and commit-specific CI for retained-state references and
+  general redirects; owner commits and interfaces are recorded in the response.
+  Direct route adapters and merge interaction are separate from the same-type
+  redirect/current live-embed basis.
 
 The product decisions above are agreed. Open field/evidence work does not reopen
 those directions, and integrated owner capabilities do not establish source
