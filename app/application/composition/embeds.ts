@@ -21,8 +21,6 @@ import { readObservations } from '@/modules/observations/index.ts';
 import { EmbeddedObservation } from '@/modules/observations/presentation/index.ts';
 import { Text } from '@/shared/ui/kit/index.ts';
 import type { applicationDatabase } from './database.ts';
-import { readTasks } from '@/modules/tasks/index.ts';
-import { TaskCard } from '@/modules/tasks/presentation/index.ts';
 import { readActorBinding } from '@/modules/actors/index.ts';
 export type { WikiPage as EmbedHostPage } from '@/modules/wiki/index.ts';
 import { wikiActions } from '@/modules/wiki/index.ts';

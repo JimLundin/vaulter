@@ -2,7 +2,6 @@ import { Text } from '@/shared/ui/kit/index.ts';
 import { WikiBlocks } from '@/modules/wiki/presentation/rendering/blocks.tsx';
 import { ChatMessage } from '@/modules/conversation/presentation/ChatMessage.tsx';
 import { expect, test } from 'vitest';
-import { Text } from '@/shared/ui/kit/index.ts';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { createMemoryStorage } from '@/core/store/index.ts';
 import { wikiActions, readEavWiki } from '@/modules/wiki/index.ts';
