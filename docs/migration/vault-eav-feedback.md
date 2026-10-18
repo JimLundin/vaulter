@@ -92,6 +92,9 @@ fields and absence, exact historical endpoints, placement, revisions and
 deletion. Separate supplied state from later interpretation. Observation is
 already a glossary term; audit its actual retained fields before deciding whether
 existing execution observations cover them or another typed contract is needed.
+The [exact Observation and structural metadata contracts](vault-eav-observations.md)
+cover 37 states (host/session/weather) and nine historical structural links;
+preserve raw measurements, quality metadata and recorded timing/nulls.
 
 ### V03 — Relationships with unrecorded endpoints
 
