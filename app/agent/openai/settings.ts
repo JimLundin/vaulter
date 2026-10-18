@@ -1,10 +1,10 @@
-import { apiEndpoint } from '@/settings/endpoint.ts';
+import { apiEndpoint } from '@/application/settings/endpoint.ts';
 import {
   createSettings,
   deviceSettingsStorage,
   type SettingDefinition,
   type SettingsDefinition,
-} from '@/settings/store.ts';
+} from '@/application/settings/index.ts';
 import {
   DEFAULT_MODELS,
   DEFAULT_VOICE,

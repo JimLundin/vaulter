@@ -1,7 +1,7 @@
 # Agent-owned execution
 
 Agent owns typed EAV configuration, runs, effective ContextInputs, observable ModelSteps and canonical
-ToolExecutions in [data/schema.ts](data/schema.ts). Text and independent live voice use these same
+ToolExecutions in [records.ts](records.ts). Text and independent live voice use these same
 records. Runs can exist without Chat; Chat projects accepted activity without copying agent messages
 or tool outcomes. Application supplies models, tools and trusted Actor/origin context.
 
@@ -21,7 +21,7 @@ Agent runtime owns ordering, completion, disposal and persistence recovery. Tool
 trusted attribution. ContextInputs retain exactly supplied information independently of later edits to
 source records. Historical EAV evidence references preserve accepted source snapshots.
 
-See the [data model](../../docs/data-model.md) and [Chat contract](../workflows/chat/README.md).
+See the [data model](../../docs/data-model.md) and [Chat contract](../conversation/README.md).
 Focused runtime checks exercise admission, outcomes, Stop, failed saves and effect-free recovery.
 
 `reading.ts` interprets accepted Agent activity for transcript and timeline callers. It decodes the

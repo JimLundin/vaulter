@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { navigateToModule } from '@/ui/kit/navigation.browser.test-support.ts';
-import { fakeGitHub } from '@/vault/storage/github-client/fake-github.ts';
-import { seal } from '@/vault/session/sealed.ts';
+import { fakeGitHub } from '@/application/persistence/github-client/fake-github.ts';
+import { seal } from '@/application/session/sealed.ts';
 
 test('production Calendar accepts a user event through EAV and retains it after reload', async ({
   page,

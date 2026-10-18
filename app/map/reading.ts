@@ -1,6 +1,10 @@
-import { sameEntity, type HistoricalReference, type TransactionRef } from '@/vault/eav/index.ts';
+import {
+  sameEntity,
+  type HistoricalReference,
+  type TransactionRef,
+} from '@/application/store/index.ts';
 import { parseCoordinates } from './coordinates.ts';
-import type { MapDatabase } from './schema.ts';
+import type { MapDatabase } from './records.ts';
 
 export interface CoordinateQuery {
   subject?: HistoricalReference;

@@ -1,8 +1,8 @@
 import { expect, test, vi } from 'vitest';
-import { createMemoryStorage, openDatabase } from '@/vault/eav/index.ts';
-import { agentSchema } from './data/schema.ts';
-import { startAgentRun } from './data/operations.ts';
-import { executeEavRun } from './eav/runtime.ts';
+import { createMemoryStorage, openDatabase } from '@/application/store/index.ts';
+import { agentSchema } from './records.ts';
+import { startAgentRun } from './operations.ts';
+import { executeEavRun } from './execution/runtime.ts';
 import { readAgentActivity } from './reading.ts';
 
 async function fixture() {

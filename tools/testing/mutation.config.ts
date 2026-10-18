@@ -11,7 +11,10 @@ export default defineConfig({
         extends: true,
         test: {
           name: 'behavior',
-          include: ['app/vault/eav/*.test.ts', 'app/vault/storage/eav/*.test.ts'],
+          include: [
+            'app/application/store/*.test.ts',
+            'app/application/persistence/journal/*.test.ts',
+          ],
           maxWorkers: 1,
         },
       },

@@ -1,6 +1,6 @@
-import { bindActor } from '@/vault/records/actor.ts';
-import { ConflictError, SaveError, type DomainDatabase } from '@/vault/eav/index.ts';
-import type { Actor, ActorBinding } from '@/vault/records/actor.ts';
+import { bindActor } from '@/actors/index.ts';
+import { ConflictError, SaveError, type DomainDatabase } from '@/application/store/index.ts';
+import type { Actor, ActorBinding } from '@/actors/index.ts';
 
 /** Caller account keys bind to opaque actors; display names do not confer authority. */
 export interface ApplicationIdentities {

@@ -1,4 +1,4 @@
-import type { HistoricalReference } from '@/vault/eav/index.ts';
+import type { HistoricalReference } from '@/application/store/index.ts';
 import type { CoordinateRecord } from './reading.ts';
 import { decimalDegrees } from './coordinates.ts';
 

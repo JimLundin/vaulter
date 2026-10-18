@@ -1,7 +1,7 @@
 import { modelMessageSchema } from 'ai';
-import type { AgentRunRef, agentSchema } from './data/schema.ts';
-import { readAgentRun } from './data/operations.ts';
-import type { ReadView } from '@/vault/eav/index.ts';
+import type { AgentRunRef, agentSchema } from './records.ts';
+import { readAgentRun } from './operations.ts';
+import type { ReadView } from '@/application/store/index.ts';
 import type { HistoryPart } from './history.ts';
 import type { AgentRunState } from './runtime.ts';
 

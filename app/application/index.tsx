@@ -1,6 +1,6 @@
 import { MapPage, useMap, mapRoute } from '@/map/index.ts';
 import { GroupedSettingsMenu } from './SettingsCards.tsx';
-import { githubPreferences } from '@/vault/storage/settings.ts';
+import { githubPreferences } from '@/application/persistence/settings.ts';
 import { applicationQuestionCollection, applicationQuestionAnswers } from './composition.ts';
 import { chatRoute, historyRoute, settingsRoute } from './routes.ts';
 import {
@@ -24,18 +24,18 @@ import {
 } from './composition.ts';
 // Application shell and module views. Record composition lives in composition.ts.
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { useTranscription, type TranscriptionProvider } from '@/transcription.ts';
+import { useTranscription, type TranscriptionProvider } from '@/transcription/index.ts';
 import type { LanguageModel } from 'ai';
 import {
   useVaultSession,
-  type OpenEav,
+  type OpenJournal,
   VaultGate,
   RefreshVault,
   SessionStatus,
   SignOut,
   createSessionCredentials,
   restrictSessionCredentials,
-} from '@/vault/index.ts';
+} from '@/application/session/index.ts';
 import { Frame } from './Frame.tsx';
 import { Search, Keys } from '@/search/Search.tsx';
 import { Previews } from './Previews.tsx';
@@ -43,14 +43,14 @@ import { useKeys } from '@/navigation/keys.ts';
 import { opened } from '@/search/recent.ts';
 import { go, link, parseRoute, useRoute } from '@/navigation/routing.ts';
 import { later } from '@/runtime/later.ts';
-import { agentOptions, agentPreferences } from '@/agent/settings.ts';
+import { agentOptions, agentPreferences } from '@/agent/index.ts';
 import {
   createOpenAISettings,
   createOpenAIPreferences,
   openAIOptions,
-} from '@/agent/openai/settings.ts';
-import { chatPreferences, chatSettings } from '@/workflows/chat/preferences.ts';
-import { writeAvailability, recordsReady } from '@/vault/session/availability.ts';
+} from '@/agent/openai/index.ts';
+import { chatPreferences, chatSettings } from '@/conversation/index.ts';
+import { writeAvailability, recordsReady } from '@/application/session/availability.ts';
 import {
   Button,
   Alert,
@@ -72,20 +72,20 @@ import {
   useConversation,
   useChat,
   type Prompt,
-} from '@/workflows/chat/index.tsx';
+} from '@/conversation/presentation/index.tsx';
 import {
   createApplicationIdentities,
   defaultIdentities,
   type ApplicationIdentities,
 } from './identities.ts';
 import { createOpenAICapabilities } from '@/agent/openai/index.ts';
-import { HistoryDrawer } from '@/vault/transactions/history/index.tsx';
-import { Wiki, type ForeignRecordRenderer } from '@/workflows/wiki/index.tsx';
-import { wikiRoute, pageRoute } from '@/workflows/wiki/routes.ts';
-import { useEavWikiReading } from '@/workflows/wiki/data/reading.ts';
-import { GraphPage } from '@/workflows/graph/GraphPage.tsx';
-import { graphRoute, graphSubjectRoute } from '@/workflows/graph/routes.ts';
-import { useGraph, useGraphExplorer } from '@/workflows/graph/use-graph.ts';
+import { HistoryDrawer } from '@/application/history/index.tsx';
+import { Wiki, type ForeignRecordRenderer } from '@/wiki/presentation/index.tsx';
+import { wikiRoute, pageRoute } from '@/wiki/index.ts';
+import { useEavWikiReading } from '@/wiki/index.ts';
+import { GraphPage } from '@/graph/presentation/index.ts';
+import { graphRoute, graphSubjectRoute } from '@/graph/index.ts';
+import { useGraph, useGraphExplorer } from '@/graph/index.ts';
 import {
   QuestionsPage,
   questionsRoute,
@@ -95,7 +95,7 @@ import {
   questionAnswerAvailability,
   questionDescriptions,
   renderQuestionRecord,
-} from '@/workflows/questions/index.tsx';
+} from '@/questions/presentation/index.tsx';
 
 const unavailableModel = () =>
   Promise.reject(new Error('Configure an OpenAI key to send messages.'));
@@ -107,13 +107,13 @@ type SuppliedSession = Omit<
   Partial<Pick<VaultSession, 'identity' | 'credentialPending' | 'credentials' | 'updateEndpoint'>>;
 
 export function Application({
-  openEav,
+  openJournal,
   identities,
 }: {
-  openEav: OpenEav;
+  openJournal: OpenJournal;
   identities?: ApplicationIdentities;
 }) {
-  const session = useVaultSession(openEav);
+  const session = useVaultSession(openJournal);
   return (
     <VaultGate state={session}>
       <OpenApplication session={session} identities={identities} />

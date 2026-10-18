@@ -1,15 +1,15 @@
 import { tool } from 'ai';
 import { vi } from 'vitest';
 import { z } from 'zod';
-import type { MemoryStorage } from '@/vault/eav/index.ts';
-import { createMemoryStorage, e, openDatabase } from '@/vault/eav/index.ts';
-import { agentEntities } from './data/schema.ts';
+import type { JournalStorage } from '@/application/store/index.ts';
+import { createMemoryStorage, e, openDatabase } from '@/application/store/index.ts';
+import { agentEntities } from './records.ts';
 import type { AgentToolFactory } from './tools.ts';
 
 const Note = e.entity('voice.fixture.note', { text: e.string() });
 const schema = e.registry({ ...agentEntities, notes: Note });
 /** Native persistence and an independent content producer for voice behavior checks. */
-export async function voiceFixture(storage: MemoryStorage = createMemoryStorage()) {
+export async function voiceFixture(storage: JournalStorage = createMemoryStorage()) {
   const db = await openDatabase({ schema, storage });
   const refs = await db.transaction(async (tx) => {
     const user = await tx.entities.actors.insert({ name: 'User', kind: 'user' });

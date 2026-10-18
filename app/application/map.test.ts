@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { createMemoryStorage, sameEntity } from '@/vault/eav/index.ts';
+import { createMemoryStorage, sameEntity } from '@/application/store/index.ts';
 import { createCoordinates, readCoordinates } from '@/map/index.ts';
 import { createEvent } from '@/calendar/index.ts';
 import { createApplicationIdentities } from './identities.ts';

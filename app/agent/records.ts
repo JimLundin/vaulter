@@ -1,52 +1,109 @@
-// Ephemeral execution projections for live progress and receipt presentation.
-// Canonical persisted records are defined in data/schema.ts.
-import type { JsonObject, JsonValue } from '@/vault/eav/index.ts';
-// biome-ignore lint/style/useConsistentTypeDefinitions: type aliases satisfy JsonObject structurally
-export type AgentRunData = {
-  readonly kind: 'agentRun';
-  readonly started: string;
-  readonly ended?: string;
-  readonly status: 'running' | 'complete' | 'stopped' | 'failed' | 'interrupted';
-  readonly provider: string;
-  readonly model: { readonly requested: string; readonly served?: string };
-  readonly settings: JsonObject;
-  readonly enabledTools: readonly { readonly name: string; readonly version?: string }[];
-  readonly request?: string;
-  readonly finishReason?: string;
-  readonly timing?: { readonly elapsedMs: number; readonly firstOutputMs?: number };
-  readonly usage?: {
-    readonly input: number;
-    readonly output: number;
-    readonly cachedInput?: number;
-    readonly reasoning?: number;
-    readonly raw?: JsonObject;
-  };
-  readonly cost?: {
-    readonly amount: number;
-    readonly currency: string;
-    readonly estimated: boolean;
-    readonly pricing: {
-      readonly source: string;
-      readonly at: string;
-      readonly rates: JsonObject;
-    };
-  };
-  readonly error?: { readonly code: string; readonly message: string };
-  /** Independent execution output; Chat may project this into a message. */
-  readonly output?: JsonObject;
-};
-// biome-ignore lint/style/useConsistentTypeDefinitions: type aliases satisfy JsonObject structurally
-export type ToolExecutionData = {
-  readonly kind: 'toolExecution';
-  readonly call: string;
-  readonly name: string;
-  readonly version?: string;
-  readonly attempt: number;
-  readonly started: string;
-  readonly ended?: string;
-  readonly elapsedMs?: number;
-  readonly status: 'running' | 'complete' | 'failed' | 'cancelled';
-  readonly input: JsonValue;
-  readonly output?: JsonValue;
-  readonly error?: { readonly code: string; readonly message: string };
-};
+import { type EntityRef, e } from '@/application/store/index.ts';
+import { Actor, ActorBinding } from '@/actors/index.ts';
+
+export const ToolDefinition = e.entity('agent.toolDefinition', {
+  name: e.string(),
+  version: e.string(),
+});
+
+/** Editable configuration. Each run copies the configuration it actually uses. */
+export const Agent = e.entity('agent', {
+  actor: e.ref(Actor),
+  provider: e.string(),
+  model: e.string(),
+  instructions: e.string(),
+  settings: e.json(),
+  tools: e.set(e.ref(ToolDefinition)),
+});
+
+export const AgentRun = e.entity('agent.run', {
+  agent: e.ref(Agent),
+  author: e.ref(Actor),
+  startedAt: e.datetime(),
+  status: e.enum('running', 'complete', 'failed', 'stopped', 'interrupted'),
+  provider: e.string(),
+  requestedModel: e.string(),
+  instructions: e.string(),
+  settings: e.json(),
+  endedAt: e.datetime().optional(),
+  servedModel: e.string().optional(),
+  request: e.string().optional(),
+  finishReason: e.string().optional(),
+  elapsedMs: e.number().optional(),
+  firstOutputMs: e.number().optional(),
+  inputTokens: e.number().optional(),
+  outputTokens: e.number().optional(),
+  cachedInputTokens: e.number().optional(),
+  reasoningTokens: e.number().optional(),
+  usage: e.json().optional(),
+  cost: e.json().optional(),
+  output: e.json().optional(),
+  error: e.json().optional(),
+});
+
+/** One observable provider request. External transports may not expose this boundary. */
+export const ModelStep = e.entity('agent.modelStep', {
+  run: e.ref(AgentRun),
+  position: e.number(),
+  startedAt: e.datetime(),
+  status: e.enum('running', 'complete', 'failed', 'stopped'),
+  inputFormat: e.enum('ai-sdk-model-messages-v7'),
+  input: e.json(),
+  configuration: e.json(),
+  endedAt: e.datetime().optional(),
+  response: e.json().optional(),
+  error: e.json().optional(),
+});
+
+/** Accepted tool name/version, independent of later configuration edits. */
+export const RunTool = e.entity('agent.runTool', {
+  run: e.ref(AgentRun),
+  name: e.string(),
+  version: e.string(),
+});
+
+export const ContextInput = e.entity('agent.contextInput', {
+  run: e.ref(AgentRun),
+  position: e.number(),
+  role: e.enum('system', 'user', 'assistant', 'tool'),
+  transformation: e.enum('verbatim', 'selection', 'summary', 'truncation', 'generated'),
+  content: e.json(),
+});
+
+export const ToolExecution = e.entity('agent.toolExecution', {
+  tool: e.ref(RunTool),
+  step: e.ref(ModelStep).optional(),
+  position: e.number(),
+  call: e.string(),
+  attempt: e.number(),
+  startedAt: e.datetime(),
+  status: e.enum('running', 'complete', 'failed', 'cancelled'),
+  input: e.json(),
+  endedAt: e.datetime().optional(),
+  elapsedMs: e.number().optional(),
+  output: e.json().optional(),
+  error: e.json().optional(),
+});
+
+export const agentEntities = {
+  actors: Actor,
+  actorBindings: ActorBinding,
+  agents: Agent,
+  toolDefinitions: ToolDefinition,
+  agentRuns: AgentRun.extend({
+    inputs: e.inverse(ContextInput, 'run'),
+    tools: e.inverse(RunTool, 'run'),
+  }),
+  runTools: RunTool.extend({ executions: e.inverse(ToolExecution, 'tool') }),
+  contextInputs: ContextInput,
+  modelSteps: ModelStep,
+  toolExecutions: ToolExecution,
+} as const;
+
+export const agentSchema = e.registry(agentEntities);
+export type AgentRef = EntityRef<typeof Agent>;
+export type AgentRunRef = EntityRef<typeof AgentRun>;
+export type RunToolRef = EntityRef<typeof RunTool>;
+export type ToolExecutionRef = EntityRef<typeof ToolExecution>;
+
+export type ModelStepRef = EntityRef<typeof ModelStep>;

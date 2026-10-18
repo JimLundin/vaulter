@@ -1,17 +1,17 @@
 import type { ToolSet } from 'ai';
 import { asSchema } from 'ai';
-import type { EntityRef } from '@/vault/eav/index.ts';
-import { type Database, SaveError, type Transaction } from '@/vault/eav/index.ts';
-import type { Actor } from '@/vault/records/actor.ts';
+import type { EntityRef } from '@/application/store/index.ts';
+import { type Database, SaveError, type Transaction } from '@/application/store/index.ts';
+import type { Actor } from '@/actors/index.ts';
 import { historyModelMessages } from './history.ts';
 
 import { cancellable, serial } from '@/runtime/async.ts';
-import type { JsonValue } from '@/vault/eav/index.ts';
-import { canonical, frozen } from '@/vault/eav/index.ts';
-import type { RunInput } from './data/operations.ts';
-import { finishAgentRun, readAgentRun, startAgentRun } from './data/operations.ts';
-import type { AgentRef, AgentRunRef, agentSchema } from './data/schema.ts';
-import { executeEavRun } from './eav/runtime.ts';
+import type { JsonValue } from '@/application/store/index.ts';
+import { canonical, frozen } from '@/application/store/index.ts';
+import type { RunInput } from './operations.ts';
+import { finishAgentRun, readAgentRun, startAgentRun } from './operations.ts';
+import type { AgentRef, AgentRunRef, agentSchema } from './records.ts';
+import { executeEavRun } from './execution/runtime.ts';
 import type { AgentExecutionInput, AgentExecutionResult } from './providers.ts';
 import type { AgentRun, AgentRunState } from './runtime.ts';
 import type { AgentToolContext, AgentToolFactory } from './tools.ts';

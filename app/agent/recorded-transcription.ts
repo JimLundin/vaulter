@@ -1,5 +1,5 @@
 import type { FileTranscriptionProvider } from './providers.ts';
-import type { TranscriptionProvider } from './transcription.ts';
+import type { TranscriptionProvider } from '@/transcription/index.ts';
 
 /** Browser microphone capture for providers that accept recordings rather than live media. */
 export function recordedTranscription(

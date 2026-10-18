@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, expect, test, vi } from 'vitest';
-import { readAgentRun } from '@/agent/data/operations.ts';
+import { readAgentRun } from '@/agent/operations.ts';
 import { voiceFixture } from '@/agent/voice-fixture.test-support.ts';
 import { createOpenAICapabilities } from './index.ts';
 import { call, creates, done, media, outputs, response, speech } from './media.test-support.ts';

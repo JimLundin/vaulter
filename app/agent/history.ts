@@ -1,6 +1,6 @@
 // Execution-neutral provider history. Producers retain their own records and exact evidence links.
 import type { ModelMessage } from 'ai';
-import type { JsonValue } from '@/vault/eav/index.ts';
+import type { JsonValue } from '@/application/store/index.ts';
 
 export type HistoryPart =
   | { readonly kind: 'text'; readonly text: string }

@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import type { HistoricalReference, TransactionContext } from '@/vault/eav/index.ts';
-import type { CalendarDatabase, EventRef, AnnualDateRef } from './schema.ts';
+import type { HistoricalReference, TransactionContext } from '@/application/store/index.ts';
+import type { CalendarDatabase, EventRef, AnnualDateRef } from './records.ts';
 import { parseTime, daysInMonth, type TimeValue } from './time.ts';
 
 const description = z

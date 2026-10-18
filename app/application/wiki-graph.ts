@@ -1,10 +1,10 @@
-import { e, type DomainDatabase } from '@/vault/eav/index.ts';
-import { wikiSchema } from '@/workflows/wiki/data/schema.ts';
-import { readEavWiki } from '@/workflows/wiki/data/pages.ts';
-import type { WikiBlock, WikiPage } from '@/workflows/wiki/view.ts';
-import { topicEntities } from '@/workflows/graph/data/schema.ts';
-import { readTopics, topicMembers } from '@/workflows/graph/data/topics.ts';
-import type { GraphMapBlock, GraphMapTopic } from '@/workflows/graph/map.ts';
+import { e, type DomainDatabase } from '@/application/store/index.ts';
+import { wikiSchema } from '@/wiki/index.ts';
+import { readEavWiki } from '@/wiki/index.ts';
+import type { WikiBlock, WikiPage } from '@/wiki/index.ts';
+import { topicEntities } from '@/graph/index.ts';
+import { readTopics, topicMembers } from '@/graph/index.ts';
+import type { GraphMapBlock, GraphMapTopic } from '@/graph/index.ts';
 
 const schema = e.registry({ ...wikiSchema, ...topicEntities });
 type WikiGraphDatabase = DomainDatabase<typeof schema>;

@@ -7,7 +7,7 @@ import { dirname, relative, resolve } from 'node:path';
 import { compilerValues } from './compiler-values.ts';
 
 const slash = (path: string) => path.replaceAll('\\', '/');
-const semanticRenderer = (path: string) => path === 'app/workflows/wiki/rendering/blocks.tsx';
+const semanticRenderer = (path: string) => path === 'app/wiki/presentation/rendering/blocks.tsx';
 const semanticTags = new Set([
   'section',
   'h2',
@@ -37,22 +37,27 @@ const semanticTags = new Set([
   'figcaption',
 ]);
 // Chat permits semantic code markup, never a renderer-wide presentation exemption.
-const chatCodeRenderer = (path: string) => path === 'app/workflows/chat/rendering/highlight.tsx';
+const chatCodeRenderer = (path: string) =>
+  path === 'app/conversation/presentation/rendering/highlight.tsx';
 const kit = (path: string) => path.startsWith('app/ui/kit/');
 const compositionEntry = (path: string) =>
   [
     'app/application/index.tsx',
     'app/application/composition.ts',
+    'app/application/database.ts',
     'app/application/wiki-graph.ts',
   ].includes(path);
 const applicationTest = (path: string) => path.startsWith('app/application/') && testSource(path);
-const workflow = (path: string) => /^app\/workflows\/([^/]+)\//.exec(path)?.[1];
+const workflow = (path: string) =>
+  /^app\/(conversation|wiki|questions|graph)\//.exec(path)?.[1] ??
+  /^app\/workflows\/([^/]+)\//.exec(path)?.[1];
 const standaloneOwner = (path: string) => /^app\/(calendar|map)\//.exec(path)?.[1];
 const fixture = (path: string) =>
   /\.(?:test|type-test|test-support)\.[cm]?tsx?$/.test(path) || path.startsWith('app/preview/');
 const testSource = (path: string) => /\.(?:test|type-test|test-support)\.[cm]?tsx?$/.test(path);
 const removedStorePath = (path: string) =>
   /^app\/vault\/(?:nodes|storage\/nodes)(?:\/|$)/.test(path) ||
+  /^app\/application\/persistence\/nodes(?:\/|$)/.test(path) ||
   /^app\/vault\/transactions\/(?:store|lifetime|request|request-state|undo)\.[cm]?tsx?$/.test(path);
 const removedStoreTypes = new Set([
   'NodeId',
@@ -76,46 +81,49 @@ const removedStoreTypes = new Set([
   'NodeConflict',
   'NodePublicationRejected',
 ]);
-const eavImplementation = (path: string) => path.startsWith('app/vault/eav/');
+const eavImplementation = (path: string) => path.startsWith('app/application/store/');
 const storageAssembly = (path: string) =>
   path === 'app/main.tsx' ||
-  path.startsWith('app/vault/session/') ||
-  path.startsWith('app/vault/storage/') ||
+  path.startsWith('app/application/session/') ||
+  path.startsWith('app/application/persistence/') ||
   eavImplementation(path) ||
   fixture(path);
 const databaseAssembly = (path: string) =>
-  path === 'app/application/composition.ts' || eavImplementation(path) || fixture(path);
+  path === 'app/application/database.ts' ||
+  path === 'app/application/composition.ts' ||
+  eavImplementation(path) ||
+  fixture(path);
 const rawEavSymbols = new Map([
-  ['app/vault/eav/memory.ts', new Set(['createMemoryStorage'])],
-  ['app/vault/eav/persistence.ts', new Set(['createPersistentStorage'])],
+  ['app/application/store/memory.ts', new Set(['createMemoryStorage'])],
+  ['app/application/store/persistence.ts', new Set(['createPersistentStorage'])],
 ]);
 const sessionSymbols = new Map([
-  ['app/vault/session/session.ts', new Set(['useSession'])],
-  ['app/vault/index.ts', new Set(['useVaultSession'])],
+  ['app/application/session/session.ts', new Set(['useSession'])],
+  ['app/application/session/index.ts', new Set(['useVaultSession'])],
 ]);
 const sessionCaller = (from: string, owner: string) =>
   fixture(from) ||
-  (owner === 'app/vault/session/session.ts'
+  (owner === 'app/application/session/session.ts'
     ? from === 'app/application/index.tsx' ||
-      from === 'app/vault/index.ts' ||
-      from.startsWith('app/vault/session/')
+      from === 'app/application/session/index.ts' ||
+      from.startsWith('app/application/session/')
     : from === 'app/application/index.tsx');
 // These owner UI declarations compose presentation; storage/model implementations remain separate.
 const vaultUi = new Set([
-  'app/vault/Gate.tsx',
-  'app/vault/session/ui.tsx',
-  'app/vault/storage/Settings.tsx',
-  'app/vault/transactions/history/History.tsx',
-  'app/vault/transactions/history/HistoryList.tsx',
+  'app/application/session/Gate.tsx',
+  'app/application/session/ui.tsx',
+  'app/application/persistence/Settings.tsx',
+  'app/application/history/History.tsx',
+  'app/application/history/HistoryList.tsx',
 ]);
 export function importProblem(from: string, to: string): string | null {
   if (removedStorePath(to)) return `${from} imports the removed store; use the typed EAV interface`;
   if (
-    to.startsWith('app/vault/eav/') &&
-    !from.startsWith('app/vault/eav/') &&
-    to !== 'app/vault/eav/index.ts'
+    to.startsWith('app/application/store/') &&
+    !from.startsWith('app/application/store/') &&
+    to !== 'app/application/store/index.ts'
   )
-    return `${from} imports private EAV implementation; use app/vault/eav/index.ts`;
+    return `${from} imports private EAV implementation; use app/application/store/index.ts`;
   if (to.startsWith('app/preview/') && !fixture(from))
     return `${from} imports preview-only ${to}; fixtures cannot publish application data`;
   if (testSource(to) && !fixture(from))
@@ -124,13 +132,17 @@ export function importProblem(from: string, to: string): string | null {
     return `${from} imports tooling; migration depends on Wiki, never Wiki on migration`;
   if (
     workflow(from) === 'wiki' &&
-    (workflow(to) === 'chat' ||
+    (workflow(to) === 'conversation' ||
       to.startsWith('app/agent/') ||
       to.startsWith('app/vault/content/') ||
       to === 'app/vault/records/sources.ts')
   )
     return `${from} imports source interpretation; supply owner reading through Application composition`;
-  if (kit(from) && (to.startsWith('app/vault/') || to.startsWith('app/agent/')))
+  if (
+    kit(from) &&
+    (to.startsWith('app/vault/') ||
+      /^app\/(actors|sources|conversation|agent|wiki|graph|questions|calendar|map)\//.test(to))
+  )
     return `${from} imports record interpretation; keep Vault and Agent knowledge with its owning module`;
   const standalone = standaloneOwner(to);
   if (
@@ -143,36 +155,69 @@ export function importProblem(from: string, to: string): string | null {
   )
     return `${from} imports private ${standalone} implementation; use its public entry`;
   const target = workflow(to);
-  if (
-    target &&
-    !compositionEntry(from) &&
-    !applicationTest(from) &&
-    !(target === 'questions' && from === 'app/preview/question-records.ts') &&
-    !(target === 'chat' && from === 'app/preview/conversation-records.ts') &&
-    !(
-      ['app/preview/graph-density.ts', 'app/preview/graph-evidence.ts'].includes(from) &&
-      ['wiki', 'graph', 'questions'].includes(target)
-    ) &&
-    // Explicit preview-owned adapters consume public module reading and record UI interfaces.
-    !(
-      target === 'wiki' &&
-      [
-        'app/preview/wiki-example.tsx',
-        'app/preview/wiki-records.ts',
-        'app/preview/calendar.tsx',
-        'app/preview/records.test.ts',
-      ].includes(from)
-    ) &&
-    workflow(from) !== target
-  )
-    return `${from} imports optional workflow ${target}; compose it in app/application/index.tsx`;
+  const fromOwner = workflow(from);
+  if (target && target !== fromOwner && !compositionEntry(from) && !fixture(from))
+    return `${from} imports optional workflow ${target}; compose it in Application`;
   if (
     to.startsWith('app/application/') &&
     !from.startsWith('app/application/') &&
     from !== 'app/main.tsx' &&
-    !fixture(from)
+    !fixture(from) &&
+    !to.startsWith('app/application/store/') &&
+    !to.startsWith('app/application/settings/')
   )
     return `${from} imports Application composition; dependencies point from Application to module owners`;
+  if (
+    /^app\/application\/(store|session|persistence|history|settings)\//.test(from) &&
+    /^app\/application\/(?:index\.tsx|composition\.ts|Frame\.tsx)$/.test(to)
+  )
+    return `${from} imports Application composition; core domains cannot import their consumer`;
+  for (const [owner, allowed] of [
+    ['app/runtime/', ['app/runtime/']],
+    ['app/navigation/', ['app/navigation/', 'app/runtime/', 'app/ui/kit/']],
+    ['app/application/settings/', ['app/application/settings/', 'app/runtime/', 'app/ui/kit/']],
+    ['app/application/store/', ['app/application/store/', 'app/runtime/']],
+  ] as const) {
+    if (
+      from.startsWith(owner) &&
+      from !== 'app/application/settings/presentation.ts' &&
+      !fixture(from) &&
+      to.startsWith('app/') &&
+      !allowed.some((prefix) => to.startsWith(prefix))
+    )
+      return `${from} imports higher-level ${to}; keep ${owner} independent of its consumers`;
+  }
+  const domain = (path: string) =>
+    /^app\/(actors|sources|conversation|agent|wiki|graph|questions|calendar|map|transcription)\//.exec(
+      path,
+    )?.[1];
+  const owner = domain(to);
+  const caller = domain(from);
+  if (owner && owner !== caller && !fixture(from)) {
+    const entry = /^app\/[^/]+\/(?:index\.ts|presentation\/index\.tsx?|openai\/index\.ts)$/.test(
+      to,
+    );
+    if (!entry) return `${from} imports private ${owner} implementation; use its public entry`;
+    const allowed: Record<string, readonly string[]> = {
+      conversation: ['agent', 'actors', 'transcription'],
+      agent: ['actors', 'transcription'],
+      wiki: ['actors', 'sources'],
+      questions: ['actors', 'agent', 'transcription'],
+    };
+    if (caller && !['calendar', 'map'].includes(owner) && !allowed[caller]?.includes(owner))
+      return `${from} imports ${owner} ownership; compose unrelated domains in Application`;
+    if (
+      from.startsWith('app/application/') &&
+      !compositionEntry(from) &&
+      !from.startsWith('app/application/compositions/') &&
+      ![
+        'app/application/SettingsCards.tsx',
+        'app/application/Previews.tsx',
+        'app/application/identities.ts',
+      ].includes(from)
+    )
+      return `${from} imports domain ${owner}; compose it in Application`;
+  }
   if (kit(from) && to.startsWith('app/') && !kit(to) && !to.startsWith('app/runtime/'))
     return `${from} imports application behavior ${to}; the kit owns generic presentation only`;
 
@@ -186,25 +231,25 @@ export function importProblem(from: string, to: string): string | null {
   )
     return `${from} imports a private kit file; use app/ui/kit/index.ts`;
   if (
-    from.startsWith('app/vault/') &&
-    (to.startsWith('app/ui/') || to === 'app/settings/ModuleSettings.tsx') &&
-    !(vaultUi.has(from) && ['app/ui/kit/index.ts', 'app/settings/ModuleSettings.tsx'].includes(to))
+    (from.startsWith('app/vault/') ||
+      /^app\/application\/(store|session|persistence)\//.test(from)) &&
+    (to.startsWith('app/ui/') || to === 'app/application/settings/ModuleSettings.tsx') &&
+    !(
+      vaultUi.has(from) &&
+      ['app/ui/kit/index.ts', 'app/application/settings/ModuleSettings.tsx'].includes(to)
+    )
   )
     return `${from} imports presentation from the vault`;
-  for (const [owner, allowed] of [
-    ['app/runtime/', ['app/runtime/']],
-    ['app/navigation/', ['app/navigation/', 'app/runtime/', 'app/ui/kit/']],
-    ['app/settings/', ['app/settings/', 'app/runtime/', 'app/ui/kit/']],
-    ['app/vault/eav/', ['app/vault/eav/', 'app/runtime/']],
-  ] as const) {
-    if (
-      from.startsWith(owner) &&
-      !fixture(from) &&
-      to.startsWith('app/') &&
-      !allowed.some((prefix) => to.startsWith(prefix))
-    )
-      return `${from} imports higher-level ${to}; keep ${owner} independent of its consumers`;
-  }
+  if (
+    owner &&
+    owner === caller &&
+    to.includes('/presentation/') &&
+    !from.includes('/presentation/') &&
+    !fixture(from) &&
+    !from.endsWith('/index.ts') &&
+    !from.includes('/use-')
+  )
+    return `${from} imports domain presentation; keep outward state with its behavior owner`;
   return null;
 }
 function sources(directory: string): string[] {
@@ -285,7 +330,7 @@ export function checkLayout(root: string): string[] {
               `${from} constructs raw EAV storage; use the Application-supplied database`,
             );
           if (
-            owner === 'app/vault/eav/engine.ts' &&
+            owner === 'app/application/store/engine.ts' &&
             owned.name === 'openDatabase' &&
             !databaseAssembly(from)
           )
@@ -297,7 +342,7 @@ export function checkLayout(root: string): string[] {
               `${from} accesses a raw vault session; use the Application-supplied database`,
             );
           if (
-            owner === 'app/workflows/questions/data/operations.ts' &&
+            owner === 'app/questions/operations.ts' &&
             owned.name === 'questionActions' &&
             !(
               from === 'app/application/composition.ts' ||
@@ -492,7 +537,11 @@ export function checkLayout(root: string): string[] {
         if (
           accessedMember?.name === 'append' &&
           accessedMember.object &&
-          !(eavImplementation(from) || from.startsWith('app/vault/storage/') || fixture(from))
+          !(
+            eavImplementation(from) ||
+            from.startsWith('app/application/persistence/') ||
+            fixture(from)
+          )
         ) {
           const type = project.checker.getTypeAtLocation(accessedMember.object);
           const append =
@@ -503,7 +552,9 @@ export function checkLayout(root: string): string[] {
           if (
             append?.declarations.some((declaration) => {
               const owner = declaration.resolve()?.getSourceFile().fileName;
-              return owner && slash(relative(root, owner)) === 'app/vault/eav/persistence.ts';
+              return (
+                owner && slash(relative(root, owner)) === 'app/application/store/persistence.ts'
+              );
             })
           )
             problems.push(`${from} accesses raw EAV append; write through database.transaction`);
@@ -568,7 +619,7 @@ export function checkLayout(root: string): string[] {
             intrinsic(node.arguments[0]) &&
             ['createElement', 'jsx', 'jsxs', 'jsxDEV'].includes(valueName(node.expression)) &&
             !(
-              from === 'app/workflows/chat/rendering/markdown.ts' &&
+              from === 'app/conversation/presentation/rendering/markdown.ts' &&
               intrinsic(node.arguments[0]) === 'p'
             )
           )

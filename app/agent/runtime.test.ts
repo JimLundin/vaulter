@@ -1,10 +1,10 @@
 import { tool } from 'ai';
 import { expect, test, vi } from 'vitest';
 import { z } from 'zod';
-import { createMemoryStorage, openDatabase, sameEntity } from '@/vault/eav/index.ts';
-import { readAgentRun, startAgentRun } from './data/operations.ts';
-import { agentSchema } from './data/schema.ts';
-import { executeEavRun } from './eav/runtime.ts';
+import { createMemoryStorage, openDatabase, sameEntity } from '@/application/store/index.ts';
+import { readAgentRun, startAgentRun } from './operations.ts';
+import { agentSchema } from './records.ts';
+import { executeEavRun } from './execution/runtime.ts';
 
 async function setup(tools: readonly { name: string; version: string }[] = []) {
   const db = await openDatabase({ schema: agentSchema, storage: createMemoryStorage() });

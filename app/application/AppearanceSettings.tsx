@@ -1,4 +1,4 @@
-import type { SettingsDefinition } from '@/settings/store.ts';
+import type { SettingsDefinition } from '@/application/settings/store.ts';
 import { SettingField, ThemeSwitch } from '@/ui/kit/index.ts';
 
 export const appearanceSettings: SettingsDefinition = {

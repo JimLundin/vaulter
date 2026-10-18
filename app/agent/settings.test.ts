@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
-import { createSettings } from '@/settings/store.ts';
-import { agentSettingsSchema } from './schema.ts';
+import { createSettings } from '@/application/settings/index.ts';
+import { agentSettingsSchema } from './configuration.ts';
 import { agentOptions, agentSettings } from './settings.ts';
 
 function storage(): Storage {

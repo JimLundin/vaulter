@@ -1,6 +1,6 @@
 import type { FileTranscriptionProvider } from '@/agent/providers.ts';
 import { recordedTranscription } from '@/agent/recorded-transcription.ts';
-import type { TranscriptionProvider } from '@/agent/transcription.ts';
+import type { TranscriptionProvider } from '@/transcription/index.ts';
 import { OpenAIRequestError } from './http.ts';
 
 /** Keep dictation available on compatible APIs that expose file transcription without Realtime. */

@@ -1,40 +1,32 @@
-import { bindActor, readActorBinding } from '@/vault/records/actor.ts';
+import { applicationDatabase } from './database.ts';
+export { applicationDatabase, applicationSchema } from './database.ts';
+import { bindActor, readActorBinding } from '@/actors/index.ts';
 import { tool } from 'ai';
 import { z } from 'zod';
-import { questionEntities } from '@/workflows/questions/data/schema.ts';
-import { questionActions } from '@/workflows/questions/data/operations.ts';
-import { readEavQuestions } from '@/workflows/questions/data/reading.ts';
-import { nativeQuestionTools, questionCapabilities } from '@/workflows/questions/data/tools.ts';
-import { vaultHistory } from '@/vault/transactions/history/eav.ts';
-import { openDatabase, type MemoryStorage } from '@/vault/eav/index.ts';
+import { questionCollection, questionAnswerActions } from '@/questions/index.ts';
+import { nativeQuestionTools, questionCapabilities } from '@/questions/index.ts';
+import { vaultHistory } from '@/application/history/eav.ts';
+import type { JournalStorage } from '@/application/store/index.ts';
 import {
-  calendarEntities,
   createEvent,
   reviseEvent,
   removeEvent,
   type CalendarActions,
   type CalendarData,
 } from '@/calendar/index.ts';
-import { sameEntity, SaveError } from '@/vault/eav/index.ts';
-import { wikiTools, wikiCapabilities } from '@/workflows/wiki/data/tools.ts';
-import { graphTools, graphCapabilities } from '@/workflows/graph/data/tools.ts';
-import { wikiEntities } from '@/workflows/wiki/data/schema.ts';
-import { sourceEntities } from '@/vault/sources/schema.ts';
-import { evidenceEntities } from '@/vault/evidence/schema.ts';
+import { sameEntity } from '@/application/store/index.ts';
+import { wikiTools, wikiCapabilities } from '@/wiki/index.ts';
+import { graphTools, graphCapabilities } from '@/graph/index.ts';
 import { readWikiGraphTopics } from './wiki-graph.ts';
-import { graphEntities } from '@/workflows/graph/data/schema.ts';
-import { e } from '@/vault/eav/index.ts';
-import { chatSchema } from '@/workflows/chat/data/schema.ts';
-import { createEavChatBackend } from '@/workflows/chat/eav-backend.ts';
-import type { ChatBackendFactory } from '@/workflows/chat/backend.ts';
-import { agentOptions, agentPreferences } from '@/agent/settings.ts';
-import { createConversation, type ConversationOptions } from '@/workflows/chat/conversation.ts';
-import { questionToolPresentation } from '@/workflows/questions/tool-presentation.tsx';
+import { createEavChatBackend } from '@/conversation/index.ts';
+import type { ChatBackendFactory } from '@/conversation/index.ts';
+import { agentOptions, agentPreferences } from '@/agent/index.ts';
+import { createConversation, type ConversationOptions } from '@/conversation/index.ts';
+import { questionToolPresentation } from '@/questions/presentation/index.tsx';
 import { defaultIdentities, type ApplicationIdentities } from './identities.ts';
-import { discoveryPresentation } from '@/agent/discovery-presentation.tsx';
-import { readGraph } from '@/workflows/graph/reading.ts';
+import { discoveryPresentation } from '@/agent/presentation/index.ts';
+import { readGraph } from '@/graph/index.ts';
 import {
-  mapEntities,
   createCoordinates,
   reviseCoordinates,
   removeCoordinates,
@@ -50,116 +42,43 @@ type ApplicationChatOptions = Omit<
   'user' | 'agent' | 'backend' | 'enabledTools'
 > & {
   readonly identities?: ApplicationIdentities;
-  readonly eav: MemoryStorage | null;
+  readonly eav: JournalStorage | null;
 };
 
-export function applicationGraph(storage: MemoryStorage) {
+export function applicationGraph(storage: JournalStorage) {
   return applicationDatabase(storage).then(readGraph);
 }
-export function applicationGraphInput(storage: MemoryStorage) {
+export function applicationGraphInput(storage: JournalStorage) {
   return { database: () => applicationDatabase(storage) };
 }
-/** The same explicit composition used by the Application views and independent application callers. */
-export const applicationSchema = e.registry({
-  ...chatSchema,
-  ...wikiEntities,
-  ...sourceEntities,
-  ...evidenceEntities,
-  ...graphEntities,
-  ...calendarEntities,
-  ...mapEntities,
-  ...questionEntities,
-});
-const applicationDatabases = new WeakMap<
-  MemoryStorage,
-  ReturnType<typeof openDatabase<typeof applicationSchema>>
->();
-export function applicationDatabase(storage: MemoryStorage) {
-  let database = applicationDatabases.get(storage);
-  if (!database) {
-    database = openDatabase({ schema: applicationSchema, storage }).catch((error) => {
-      applicationDatabases.delete(storage);
-      throw error;
-    });
-    applicationDatabases.set(storage, database);
-  }
-  return database;
-}
-export function applicationWiki(storage: MemoryStorage) {
+export function applicationWiki(storage: JournalStorage) {
   return {
     database: () => applicationDatabase(storage),
     topics: () => applicationDatabase(storage).then(readWikiGraphTopics),
   };
 }
-const questionCollections = new WeakMap<MemoryStorage, ReturnType<typeof makeQuestionCollection>>();
-function makeQuestionCollection(storage: MemoryStorage) {
-  return {
-    collection: () => applicationDatabase(storage).then(readEavQuestions),
-    subscribe: (listener: () => void) => {
-      let disposed = false;
-      let unsubscribe: (() => void) | undefined;
-      applicationDatabase(storage)
-        .then((db) => {
-          if (!disposed) unsubscribe = db.subscribe(listener);
-        })
-        .catch(listener);
-      return () => {
-        disposed = true;
-        unsubscribe?.();
-      };
-    },
-  };
-}
-export function applicationQuestionCollection(storage: MemoryStorage) {
+const questionCollections = new WeakMap<JournalStorage, ReturnType<typeof questionCollection>>();
+export function applicationQuestionCollection(storage: JournalStorage) {
   let collection = questionCollections.get(storage);
   if (!collection) {
-    collection = makeQuestionCollection(storage);
+    collection = questionCollection(() => applicationDatabase(storage));
     questionCollections.set(storage, collection);
   }
   return collection;
 }
 export function applicationQuestionAnswers(
-  storage: MemoryStorage,
+  storage: JournalStorage,
   identities: ApplicationIdentities,
   admission: () => string | undefined,
 ) {
-  const check = () => {
-    const reason = admission();
-    if (reason) throw new Error(reason);
-  };
-  const answer = async (
-    question: import('@/workflows/questions/reading.ts').Question,
-    text: string,
-  ): Promise<void> => {
-    check();
-    if (!question.evidence) throw new Error('Question has no native EAV address.');
-    const db = await applicationDatabase(storage);
-    let actor = await readActorBinding(db, identities.user, 'user');
-    if (!actor) {
-      try {
-        await db.transaction(async (tx) => {
-          check();
-          await bindActor(tx, identities.user, 'user', 'Vault owner');
-          check();
-        });
-      } catch (error) {
-        if (error instanceof SaveError) {
-          throw new SaveError(error.message, async () => {
-            await error.retry();
-            await answer(question, text);
-          });
-        }
-        throw error;
-      }
-      actor = await readActorBinding(db, identities.user, 'user');
-    }
-    if (!actor) throw new Error('Preparing Vault identities…');
-    await questionActions(db, { author: actor }, undefined, check).answer(question.evidence, text);
-  };
-  return { answer };
+  return questionAnswerActions({
+    database: () => applicationDatabase(storage),
+    user: identities.user,
+    admission,
+  });
 }
 export function applicationCalendar(
-  storage: MemoryStorage,
+  storage: JournalStorage,
   identities: ApplicationIdentities = defaultIdentities,
 ) {
   const author = async () => {
@@ -185,7 +104,7 @@ export function applicationCalendar(
 
 /** Application supplies foreign-record choices; Map retains only their historical identity. */
 export function applicationMap(
-  storage: MemoryStorage,
+  storage: JournalStorage,
   identities: ApplicationIdentities = defaultIdentities,
 ) {
   const author = async () => {
@@ -289,14 +208,14 @@ export function applicationMap(
 
 /** Match the original subject identity, independently of the snapshot retained by Calendar. */
 export async function applicationSubjectCalendar(
-  storage: MemoryStorage,
+  storage: JournalStorage,
   key: string,
   data: CalendarData,
 ): Promise<CalendarData> {
   const db = await applicationDatabase(storage);
   const page = await db.entities.wikiPages.first({ where: { key: { eq: key } }, select: {} });
   if (!page) return { events: [], annualDates: [] };
-  const matches = async (address: import('@/vault/eav/index.ts').HistoricalReference) =>
+  const matches = async (address: import('@/application/store/index.ts').HistoricalReference) =>
     sameEntity((await db.history.resolve(address)).entity, page);
   const events = await Promise.all(
     data.events.map(async (event) =>
@@ -315,8 +234,8 @@ export async function applicationSubjectCalendar(
     annualDates: dates.filter((date) => date !== undefined),
   };
 }
-const eavChatFactories = new WeakMap<MemoryStorage, ChatBackendFactory>();
-function eavChatFactory(storage: MemoryStorage): ChatBackendFactory {
+const eavChatFactories = new WeakMap<JournalStorage, ChatBackendFactory>();
+function conversationToolFactory(storage: JournalStorage): ChatBackendFactory {
   let factory = eavChatFactories.get(storage);
   if (!factory) {
     factory = (options) =>
@@ -416,7 +335,7 @@ function eavChatFactory(storage: MemoryStorage): ChatBackendFactory {
 }
 
 export function applicationHistory(
-  storage: MemoryStorage,
+  storage: JournalStorage,
   identities: ApplicationIdentities = defaultIdentities,
   admission: () => string | undefined = () => undefined,
 ) {
@@ -454,7 +373,7 @@ export function applicationChatOptions({
   return {
     ...options,
     backend: eav
-      ? eavChatFactory(eav)
+      ? conversationToolFactory(eav)
       : () => ({
           send: () => {
             throw new Error('Vault storage is unavailable.');

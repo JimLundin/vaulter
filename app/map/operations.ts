@@ -1,6 +1,6 @@
-import type { HistoricalReference, TransactionContext } from '@/vault/eav/index.ts';
+import type { HistoricalReference, TransactionContext } from '@/application/store/index.ts';
 import { parseCoordinates, type CoordinateValue } from './coordinates.ts';
-import type { CoordinateRef, MapDatabase } from './schema.ts';
+import type { CoordinateRef, MapDatabase } from './records.ts';
 
 export interface CoordinateInput {
   subject: HistoricalReference;

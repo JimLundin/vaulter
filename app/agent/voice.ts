@@ -1,5 +1,5 @@
 import type { ToolSet } from 'ai';
-import type { JsonValue } from '@/vault/eav/index.ts';
+import type { JsonValue } from '@/application/store/index.ts';
 import type { HistoryPart, ProviderHistory } from './history.ts';
 
 export interface VoiceTranscript {

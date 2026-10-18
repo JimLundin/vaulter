@@ -1,13 +1,13 @@
 import { useState, useSyncExternalStore } from 'react';
 import { AppearanceSettings } from './AppearanceSettings.tsx';
-import type { SettingsDefinition, SettingsStore } from '@/settings/store.ts';
-import { agentSettings } from '@/agent/settings.ts';
-import { githubSettings } from '@/vault/storage/settings.ts';
-import { supportsOpenAISampling } from '@/agent/openai/settings.ts';
-import { apiEndpoint } from '@/settings/endpoint.ts';
-import { ModuleSettings } from '@/settings/ModuleSettings.tsx';
-import { CredentialSetting } from '@/vault/session/ui.tsx';
-import type { SessionCredentials } from '@/vault/session/credentials.ts';
+import type { SettingsDefinition, SettingsStore } from '@/application/settings/store.ts';
+import { agentSettings } from '@/agent/index.ts';
+import { githubSettings } from '@/application/persistence/settings.ts';
+import { supportsOpenAISampling } from '@/agent/openai/index.ts';
+import { apiEndpoint } from '@/application/settings/endpoint.ts';
+import { ModuleSettings } from '@/application/settings/ModuleSettings.tsx';
+import { CredentialSetting } from '@/application/session/ui.tsx';
+import type { SessionCredentials } from '@/application/session/credentials.ts';
 import {
   Button,
   FieldError,

@@ -1,8 +1,8 @@
 import { expect, test } from 'vitest';
-import { createMemoryStorage, sameEntity } from '@/vault/eav/index.ts';
+import { createMemoryStorage, sameEntity } from '@/application/store/index.ts';
 import { createEvent, readCalendar } from '@/calendar/index.ts';
 import { applicationCalendar, applicationWiki, applicationSubjectCalendar } from './composition.ts';
-import { wikiActions } from '@/workflows/wiki/data/operations.ts';
+import { wikiActions } from '@/wiki/operations.ts';
 
 test('Wiki subject timelines use identity rather than matching names and user actions keep attribution', async () => {
   const storage = createMemoryStorage();

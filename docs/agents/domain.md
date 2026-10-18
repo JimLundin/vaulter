@@ -4,6 +4,8 @@ This repo uses a single context: `GLOSSARY.md` at the repo root and decisions in
 
 ## Before exploration or design
 
+- Read [the project ownership map](../../app/README.md) before locating behavior or choosing its owner.
+
 - Read the root glossary when it exists, and relevant ADRs before working in their area.
 - If a root `GLOSSARY-MAP.md` is introduced later, follow its relevant glossary pointers and
   context-scoped ADR locations instead.

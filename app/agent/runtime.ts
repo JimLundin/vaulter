@@ -1,6 +1,6 @@
 // Live execution state is a projection of canonical EAV Agent records.
 import type { AgentExecutionProvider, LanguageModelProvider } from './providers.ts';
-import type { AgentRunData, ToolExecutionData } from './records.ts';
+import type { AgentRunData, ToolExecutionData } from './activity-data.ts';
 import type { AgentToolFactory } from './tools.ts';
 export interface PendingToolSave {
   readonly id: string;

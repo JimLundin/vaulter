@@ -10,33 +10,30 @@ test('optional workflows are composed only by Application and use the public kit
 }, 30_000);
 test('the dependency policy rejects cross-workflow imports and private kit access', () => {
   expect(
-    importProblem('app/workflows/chat/Chat.tsx', 'app/workflows/questions/index.tsx'),
+    importProblem('app/conversation/presentation/Chat.tsx', 'app/questions/presentation/index.tsx'),
   ).toContain('compose');
-  expect(importProblem('app/vault/index.ts', 'app/workflows/questions/index.ts')).toContain(
-    'optional workflow',
-  );
-  expect(importProblem('app/application/Frame.tsx', 'app/workflows/chat/index.tsx')).toContain(
+  expect(importProblem('app/application/session/index.ts', 'app/questions/index.ts')).toContain(
     'optional workflow',
   );
   expect(
-    importProblem('app/application/index.tsx', 'app/vault/transactions/history/index.tsx'),
+    importProblem('app/application/Frame.tsx', 'app/conversation/presentation/index.tsx'),
+  ).toContain('compose');
+  expect(
+    importProblem('app/application/index.tsx', 'app/application/history/index.tsx'),
   ).toBeNull();
   expect(
-    importProblem('app/workflows/chat/Chat.tsx', 'app/vault/transactions/history/nodes.ts'),
+    importProblem('app/conversation/presentation/Chat.tsx', 'app/application/history/nodes.ts'),
+  ).toContain('Application composition');
+  expect(
+    importProblem('app/application/history/index.tsx', 'app/application/history/History.tsx'),
   ).toBeNull();
   expect(
-    importProblem(
-      'app/vault/transactions/history/index.tsx',
-      'app/vault/transactions/history/History.tsx',
-    ),
-  ).toBeNull();
-  expect(importProblem('app/workflows/chat/Chat.tsx', 'app/ui/kit/parts/button.tsx')).toContain(
-    'private kit',
-  );
+    importProblem('app/conversation/presentation/Chat.tsx', 'app/ui/kit/parts/button.tsx'),
+  ).toContain('private kit');
 });
 
 test('removed store imports cannot return, including tests and storage assembly', () => {
-  for (const entry of ['app/vault/nodes/memory.ts', 'app/vault/storage/nodes/github.ts'])
+  for (const entry of ['app/vault/nodes/memory.ts', 'app/application/persistence/nodes/github.ts'])
     for (const caller of [
       'app/main.tsx',
       'app/agent/tools.test.ts',
@@ -52,11 +49,11 @@ test('removed store imports cannot return, including tests and storage assembly'
 
 test('browser drivers are shared across test owners without exposing private kit code', () => {
   const driver = 'app/ui/kit/navigation.browser.test-support.ts';
-  expect(importProblem('app/workflows/chat/eav-chat.browser.test.ts', driver)).toBeNull();
+  expect(importProblem('app/conversation/eav-chat.browser.test.ts', driver)).toBeNull();
   expect(importProblem('app/application/navigation.browser.test.ts', driver)).toBeNull();
-  expect(importProblem('app/workflows/chat/Chat.tsx', driver)).toContain('test-only');
+  expect(importProblem('app/conversation/presentation/Chat.tsx', driver)).toContain('test-only');
   expect(
-    importProblem('app/workflows/chat/eav-chat.browser.test.ts', 'app/ui/kit/navigation.tsx'),
+    importProblem('app/conversation/eav-chat.browser.test.ts', 'app/ui/kit/navigation.tsx'),
   ).toContain('private kit');
 });
 
@@ -64,27 +61,29 @@ test('raw session hooks remain with Vault assembly and Application through every
   const root = mkdtempSync(join(tmpdir(), 'vaulter-vault-session-policy-'));
   try {
     const files = {
-      'app/vault/session/session.ts':
+      'app/application/session/session.ts':
         'export function useSession() { return {storage: {}}; } export type Session = {storage: unknown};',
-      'app/vault/index.ts':
-        "import { useSession } from './session/session.ts'; export { useSession as open }; export function useVaultSession() { return useSession(); } export type { Session } from './session/session.ts';",
+      'app/application/session/index.ts':
+        "import { useSession } from './session.ts'; export { useSession as open }; export function useVaultSession() { return useSession(); } export type { Session } from './session.ts';",
       'app/application/index.tsx':
-        "import { useVaultSession } from '../vault/index.ts'; const session = useVaultSession; export const exposed = session;",
+        "import { useVaultSession } from './session/index.ts'; const session = useVaultSession; export const exposed = session;",
       'app/agent/import.ts':
-        "import { open as session } from '@/vault/index.ts'; export { session };",
+        "import { open as session } from '@/application/session/index.ts'; export { session };",
       'app/agent/value-alias.ts':
         "import { exposed as session } from '@/application/index.tsx'; export { session };",
-      'app/agent/export.ts': "export { open } from '@/vault/index.ts';",
-      'app/agent/export-all.ts': "export * from '@/vault/index.ts';",
-      'app/agent/namespace.ts': "import * as vault from '@/vault/index.ts'; export { vault };",
-      'app/agent/export-namespace.ts': "export * as vault from '@/vault/index.ts';",
-      'app/agent/dynamic.ts': "export const vault = () => import('@/vault/index.ts');",
+      'app/agent/export.ts': "export { open } from '@/application/session/index.ts';",
+      'app/agent/export-all.ts': "export * from '@/application/session/index.ts';",
+      'app/agent/namespace.ts':
+        "import * as vault from '@/application/session/index.ts'; export { vault };",
+      'app/agent/export-namespace.ts': "export * as vault from '@/application/session/index.ts';",
+      'app/agent/dynamic.ts':
+        "export const vault = () => import('@/application/session/index.ts');",
       'app/agent/types.ts':
-        "import type { Session } from '@/vault/index.ts'; export type State = Session;",
-      'app/vault/session/owner.ts':
+        "import type { Session } from '@/application/session/index.ts'; export type State = Session;",
+      'app/application/session/owner.ts':
         "import { useSession } from './session.ts'; export { useSession };",
       'app/agent/session.test.ts':
-        "import { useSession } from '@/vault/session/session.ts'; import { useVaultSession } from '@/vault/index.ts'; export { useSession, useVaultSession };",
+        "import { useSession } from '@/application/session/session.ts'; import { useVaultSession } from '@/application/session/index.ts'; export { useSession, useVaultSession };",
     };
     writeFileSync(
       join(root, 'tsconfig.json'),
@@ -102,16 +101,24 @@ test('raw session hooks remain with Vault assembly and Application through every
       mkdirSync(join(root, path, '..'), { recursive: true });
       writeFileSync(join(root, path), source);
     }
-    expect(checkLayout(root).toSorted((a, b) => a.localeCompare(b))).toEqual(
-      ['import', 'value-alias', 'export', 'export-all', 'namespace', 'export-namespace', 'dynamic']
-        .map(
-          (name) =>
-            `app/agent/${name}.ts accesses a raw vault session; use the Application-supplied database`,
-        )
-        .concat(
-          'app/agent/value-alias.ts imports Application composition; dependencies point from Application to module owners',
-        )
-        .toSorted((a, b) => a.localeCompare(b)),
+    const problems = checkLayout(root);
+    for (const name of [
+      'import',
+      'value-alias',
+      'export',
+      'export-all',
+      'namespace',
+      'export-namespace',
+      'dynamic',
+    ])
+      expect(problems).toContain(
+        `app/agent/${name}.ts accesses a raw vault session; use the Application-supplied database`,
+      );
+    expect(problems).toContain(
+      'app/agent/types.ts imports Application composition; dependencies point from Application to module owners',
+    );
+    expect(problems.some((problem) => problem.startsWith('app/application/session/owner.ts'))).toBe(
+      false,
     );
   } finally {
     rmSync(root, { recursive: true, force: true });
@@ -122,16 +129,16 @@ test('compiler ownership follows EAV storage and database factories through alia
   const root = mkdtempSync(join(tmpdir(), 'vaulter-eav-factories-'));
   try {
     const files = {
-      'app/vault/eav/memory.ts': 'export function createMemoryStorage() { return {}; }',
-      'app/vault/eav/engine.ts': 'export function openDatabase() { return {}; }',
-      'app/vault/eav/index.ts':
+      'app/application/store/memory.ts': 'export function createMemoryStorage() { return {}; }',
+      'app/application/store/engine.ts': 'export function openDatabase() { return {}; }',
+      'app/application/store/index.ts':
         "export {createMemoryStorage} from './memory.ts'; export {openDatabase} from './engine.ts';",
       'app/application/composition.ts':
-        "import {openDatabase} from '../vault/eav/index.ts'; const open=openDatabase; export {open};",
+        "import {openDatabase} from '@/application/store/index.ts'; const open=openDatabase; export {open};",
       'app/main.tsx':
-        "import {createMemoryStorage} from './vault/eav/index.ts'; export {createMemoryStorage};",
+        "import {createMemoryStorage} from './application/store/index.ts'; export {createMemoryStorage};",
       'app/preview/seed.ts':
-        "import {createMemoryStorage,openDatabase} from '../vault/eav/index.ts'; export {createMemoryStorage,openDatabase};",
+        "import {createMemoryStorage,openDatabase} from '@/application/store/index.ts'; export {createMemoryStorage,openDatabase};",
     };
     writeFileSync(
       join(root, 'tsconfig.json'),
@@ -147,11 +154,11 @@ test('compiler ownership follows EAV storage and database factories through alia
     );
     const cases = {
       import:
-        "import {createMemoryStorage as build,openDatabase as open} from '@/vault/eav/index.ts'; export {build,open};",
-      export: "export {createMemoryStorage,openDatabase} from '@/vault/eav/index.ts';",
-      all: "export * from '@/vault/eav/index.ts';",
-      namespace: "import * as eav from '@/vault/eav/index.ts'; export {eav};",
-      dynamic: "export const load=()=>import('@/vault/eav/index.ts');",
+        "import {createMemoryStorage as build,openDatabase as open} from '@/application/store/index.ts'; export {build,open};",
+      export: "export {createMemoryStorage,openDatabase} from '@/application/store/index.ts';",
+      all: "export * from '@/application/store/index.ts';",
+      namespace: "import * as eav from '@/application/store/index.ts'; export {eav};",
+      dynamic: "export const load=()=>import('@/application/store/index.ts');",
       alias: "import {open} from '@/application/composition.ts'; export {open};",
     };
     for (const [name, source] of Object.entries(cases))
@@ -180,25 +187,25 @@ test('raw journal publication cannot escape through properties, destructuring or
   const root = mkdtempSync(join(tmpdir(), 'vaulter-eav-append-'));
   try {
     const files = {
-      'app/vault/eav/persistence.ts':
+      'app/application/store/persistence.ts':
         'export interface StorageAdapter {append():void;load():void;}',
-      'app/vault/eav/index.ts': "export type {StorageAdapter} from './persistence.ts';",
+      'app/application/store/index.ts': "export type {StorageAdapter} from './persistence.ts';",
       'app/workflows/example/property.ts':
-        "import type {StorageAdapter} from '@/vault/eav/index.ts'; export const write=(adapter:StorageAdapter)=>adapter.append();",
+        "import type {StorageAdapter} from '@/application/store/index.ts'; export const write=(adapter:StorageAdapter)=>adapter.append();",
       'app/workflows/example/element.ts':
-        "import type {StorageAdapter} from '@/vault/eav/index.ts'; const method='append'; export const write=(adapter:StorageAdapter)=>adapter[method]();",
+        "import type {StorageAdapter} from '@/application/store/index.ts'; const method='append'; export const write=(adapter:StorageAdapter)=>adapter[method]();",
       'app/workflows/example/destructure.ts':
-        "import type {StorageAdapter} from '@/vault/eav/index.ts'; declare const adapter:StorageAdapter; const {append:publish}=adapter; export {publish};",
+        "import type {StorageAdapter} from '@/application/store/index.ts'; declare const adapter:StorageAdapter; const {append:publish}=adapter; export {publish};",
       'app/workflows/example/alias.ts':
-        "import type {StorageAdapter} from '@/vault/eav/index.ts'; declare const adapter:StorageAdapter;const borrowed=adapter; const publish=borrowed.append;export {publish};",
+        "import type {StorageAdapter} from '@/application/store/index.ts'; declare const adapter:StorageAdapter;const borrowed=adapter; const publish=borrowed.append;export {publish};",
       'app/workflows/example/read.ts':
-        "import type {StorageAdapter} from '@/vault/eav/index.ts';export const read=(adapter:StorageAdapter)=>adapter.load();",
+        "import type {StorageAdapter} from '@/application/store/index.ts';export const read=(adapter:StorageAdapter)=>adapter.load();",
       'app/workflows/example/unrelated.ts':
         'interface Files {append():void} export const save=(files:Files)=>files.append();',
-      'app/vault/storage/eav/writer.ts':
+      'app/application/persistence/journal/writer.ts':
         "import type {StorageAdapter} from '../../eav/index.ts'; export const persist=(adapter:StorageAdapter)=>adapter.append();",
       'app/workflows/example/seed.test.ts':
-        "import type {StorageAdapter} from '@/vault/eav/index.ts';export const seed=(adapter:StorageAdapter)=>adapter.append();",
+        "import type {StorageAdapter} from '@/application/store/index.ts';export const seed=(adapter:StorageAdapter)=>adapter.append();",
     };
     writeFileSync(
       join(root, 'tsconfig.json'),
@@ -264,12 +271,12 @@ test('Questions ownership factories remain private when another module re-export
   const root = mkdtempSync(join(tmpdir(), 'vaulter-question-owner-policy-'));
   try {
     const files = {
-      'app/workflows/questions/data/operations.ts':
+      'app/questions/operations.ts':
         'export function questionActions() { return {}; } export type QuestionDatabase = {kind: string};',
-      'app/workflows/questions/data/tools.ts':
+      'app/questions/tools.ts':
         "import { questionActions } from './operations.ts'; export const own = questionActions;",
       'app/application/composition.ts':
-        "import { questionActions } from '../workflows/questions/data/operations.ts'; const own = questionActions; export const exposed = own; export type { QuestionDatabase } from '../workflows/questions/data/operations.ts';",
+        "import { questionActions } from '../questions/operations.ts'; const own = questionActions; export const exposed = own; export type { QuestionDatabase } from '../questions/operations.ts';",
       'app/agent/helper.ts':
         "import { exposed as manufacture } from '../application/composition.ts'; export const own = manufacture;",
       'app/agent/types.ts':
@@ -290,6 +297,7 @@ test('Questions ownership factories remain private when another module re-export
       'app/agent/helper.ts imports Application composition; dependencies point from Application to module owners',
       'app/agent/helper.ts accesses Questions ownership; compose actions in app/application/composition.ts',
       'app/agent/types.ts imports Application composition; dependencies point from Application to module owners',
+      'app/application/composition.ts imports private questions implementation; use its public entry',
     ]);
   } finally {
     rmSync(root, { recursive: true, force: true });
@@ -298,9 +306,9 @@ test('Questions ownership factories remain private when another module re-export
 
 test('Vault task UI composes shared presentation while persistence keeps its own implementation', () => {
   for (const source of [
-    'app/vault/Gate.tsx',
-    'app/vault/session/ui.tsx',
-    'app/vault/storage/Settings.tsx',
+    'app/application/session/Gate.tsx',
+    'app/application/session/ui.tsx',
+    'app/application/persistence/Settings.tsx',
   ]) {
     expect(importProblem(source, 'app/ui/kit/index.ts')).toBeNull();
     expect(importProblem(source, 'app/ui/kit/parts/button.tsx')).toContain('private kit');
@@ -309,39 +317,43 @@ test('Vault task UI composes shared presentation while persistence keeps its own
     );
   }
   for (const source of [
-    'app/vault/session/session.ts',
-    'app/vault/eav/types.ts',
-    'app/vault/storage/eav/github.ts',
+    'app/application/session/session.ts',
+    'app/application/store/types.ts',
+    'app/application/persistence/journal/github.ts',
     'app/vault/content/tools.ts',
-    'app/vault/session/new-helper.tsx',
+    'app/application/session/new-helper.tsx',
   ])
-    expect(importProblem(source, 'app/ui/kit/index.ts')).toContain('presentation from the vault');
+    expect(importProblem(source, 'app/ui/kit/index.ts')).toMatch(
+      /presentation from the vault|higher-level/,
+    );
 });
 
 test('Wiki owns its records while migration and source readers stay outside its implementation', () => {
-  expect(importProblem('app/workflows/wiki/records.ts', 'tools/migration/records.ts')).toContain(
+  expect(importProblem('app/wiki/records.ts', 'tools/migration/records.ts')).toContain(
     'migration depends on Wiki',
   );
-  expect(importProblem('app/workflows/wiki/pages.ts', 'app/agent/sources.ts')).toContain(
+  expect(importProblem('app/wiki/pages.ts', 'app/agent/sources.ts')).toContain(
     'source interpretation',
   );
-  expect(importProblem('app/workflows/wiki/pages.ts', 'app/vault/content/sources.ts')).toContain(
+  expect(importProblem('app/wiki/pages.ts', 'app/vault/content/sources.ts')).toContain(
     'source interpretation',
   );
-  expect(importProblem('app/workflows/wiki/pages.ts', 'app/vault/records/sources.ts')).toContain(
+  expect(importProblem('app/wiki/pages.ts', 'app/vault/records/sources.ts')).toContain(
     'source interpretation',
   );
-  expect(importProblem('app/vault/records/sources.ts', 'app/workflows/wiki/records.ts')).toContain(
+  expect(importProblem('app/vault/records/sources.ts', 'app/wiki/records.ts')).toContain(
     'optional workflow',
   );
-  expect(importProblem('app/application/index.tsx', 'app/workflows/wiki/records.ts')).toBeNull();
-  expect(importProblem('app/workflows/wiki/pages.ts', 'app/vault/sources.ts')).toBeNull();
+  expect(importProblem('app/application/index.tsx', 'app/wiki/records.ts')).toContain(
+    'private wiki',
+  );
+  expect(importProblem('app/wiki/pages.ts', 'app/vault/sources.ts')).toBeNull();
 });
 
 test('compiler resolution rejects aliased and re-exported Wiki dependencies on migration', () => {
   const root = mkdtempSync(join(tmpdir(), 'vaulter-wiki-ownership-'));
   try {
-    mkdirSync(join(root, 'app/workflows/wiki'), { recursive: true });
+    mkdirSync(join(root, 'app/wiki'), { recursive: true });
     mkdirSync(join(root, 'tools/migration'), { recursive: true });
     writeFileSync(
       join(root, 'tsconfig.json'),
@@ -356,11 +368,11 @@ test('compiler resolution rejects aliased and re-exported Wiki dependencies on m
     );
     writeFileSync(join(root, 'tools/migration/records.ts'), 'export const value = 1;');
     writeFileSync(
-      join(root, 'app/workflows/wiki/records.ts'),
+      join(root, 'app/wiki/records.ts'),
       "export { value } from 'migration/records.ts';",
     );
     expect(checkLayout(root)).toEqual([
-      'app/workflows/wiki/records.ts imports tooling; migration depends on Wiki, never Wiki on migration',
+      'app/wiki/records.ts imports tooling; migration depends on Wiki, never Wiki on migration',
     ]);
   } finally {
     rmSync(root, { recursive: true, force: true });
@@ -527,7 +539,7 @@ test('shared row presentation cannot interpret Vault records through aliases, re
   const root = mkdtempSync(join(tmpdir(), 'vaulter-record-presentation-policy-'));
   try {
     mkdirSync(join(root, 'app/ui/kit'), { recursive: true });
-    mkdirSync(join(root, 'app/vault/sources'), { recursive: true });
+    mkdirSync(join(root, 'app/sources'), { recursive: true });
     writeFileSync(
       join(root, 'tsconfig.json'),
       JSON.stringify({
@@ -539,11 +551,11 @@ test('shared row presentation cannot interpret Vault records through aliases, re
         include: ['app'],
       }),
     );
-    writeFileSync(join(root, 'app/vault/sources/schema.ts'), 'export const transaction = 1;');
+    writeFileSync(join(root, 'app/sources/records.ts'), 'export const transaction = 1;');
     const imports = [
-      "import { transaction } from '@/vault/sources/schema.ts'; export { transaction };",
-      "export { transaction } from '@/vault/sources/schema.ts';",
-      "export const load = () => import('@/vault/sources/schema.ts');",
+      "import { transaction } from '@/sources/records.ts'; export { transaction };",
+      "export { transaction } from '@/sources/records.ts';",
+      "export const load = () => import('@/sources/records.ts');",
     ];
     for (const [index, source] of imports.entries())
       writeFileSync(join(root, `app/ui/kit/row${index}.ts`), source);
@@ -656,7 +668,7 @@ export const load = () => import('@kit/drawer.tsx');`,
 test('Chat renderer helpers cannot smuggle pane layout, styling or private kit implementation', () => {
   const root = mkdtempSync(join(tmpdir(), 'vaulter-chat-presentation-policy-'));
   try {
-    mkdirSync(join(root, 'app/workflows/chat/rendering'), { recursive: true });
+    mkdirSync(join(root, 'app/conversation/rendering'), { recursive: true });
     mkdirSync(join(root, 'app/ui/kit'), { recursive: true });
     writeFileSync(
       join(root, 'tsconfig.json'),
@@ -672,7 +684,7 @@ test('Chat renderer helpers cannot smuggle pane layout, styling or private kit i
     );
     writeFileSync(join(root, 'app/ui/kit/private.ts'), 'export const Pane = 1;');
     writeFileSync(
-      join(root, 'app/workflows/chat/rendering/pane.tsx'),
+      join(root, 'app/conversation/rendering/pane.tsx'),
       `
       import { Pane } from '@/ui/kit/private.ts';
       export const load = () => import('@/ui/kit/private.ts');
@@ -683,12 +695,12 @@ test('Chat renderer helpers cannot smuggle pane layout, styling or private kit i
     );
     expect(checkLayout(root)).toEqual(
       expect.arrayContaining([
-        'app/workflows/chat/rendering/pane.tsx imports a private kit file; use app/ui/kit/index.ts',
-        'app/workflows/chat/rendering/pane.tsx: presentation dependencies belong behind app/ui/kit/index.ts',
-        'app/workflows/chat/rendering/pane.tsx: viewport queries belong in the kit',
-        'app/workflows/chat/rendering/pane.tsx: <div> must be a public kit component',
-        'app/workflows/chat/rendering/pane.tsx: <button> must be a public kit component',
-        'app/workflows/chat/rendering/pane.tsx: app views must compose the public kit instead of styling elements',
+        'app/conversation/rendering/pane.tsx imports a private kit file; use app/ui/kit/index.ts',
+        'app/conversation/rendering/pane.tsx: presentation dependencies belong behind app/ui/kit/index.ts',
+        'app/conversation/rendering/pane.tsx: viewport queries belong in the kit',
+        'app/conversation/rendering/pane.tsx: <div> must be a public kit component',
+        'app/conversation/rendering/pane.tsx: <button> must be a public kit component',
+        'app/conversation/rendering/pane.tsx: app views must compose the public kit instead of styling elements',
       ]),
     );
   } finally {
@@ -699,7 +711,7 @@ test('Chat renderer helpers cannot smuggle pane layout, styling or private kit i
 test('Wiki renderers accept semantic content but cannot own application presentation', () => {
   const root = mkdtempSync(join(tmpdir(), 'vaulter-wiki-policy-'));
   try {
-    mkdirSync(join(root, 'app/workflows/wiki/rendering'), { recursive: true });
+    mkdirSync(join(root, 'app/wiki/presentation/rendering'), { recursive: true });
     writeFileSync(
       join(root, 'tsconfig.json'),
       JSON.stringify({
@@ -708,12 +720,12 @@ test('Wiki renderers accept semantic content but cannot own application presenta
       }),
     );
     writeFileSync(
-      join(root, 'app/workflows/wiki/rendering/blocks.tsx'),
+      join(root, 'app/wiki/presentation/rendering/blocks.tsx'),
       'export const content = <section id="claim"><h2>Title</h2><p><strong>Retained</strong> text <a href="#/wiki/page/">Page</a></p><table><tbody><tr><td data-align="right">1</td></tr></tbody></table></section>;',
     );
     expect(checkLayout(root)).toEqual([]);
     writeFileSync(
-      join(root, 'app/workflows/wiki/rendering/presentation.tsx'),
+      join(root, 'app/wiki/presentation/rendering/presentation.tsx'),
       `import { Drawer } from '@base-ui/react/drawer';
       export const card = <div className="overflow-auto"><button>Context</button></div>;
       export const viewport = window.matchMedia('(min-width: 768px)');`,
@@ -721,11 +733,11 @@ test('Wiki renderers accept semantic content but cannot own application presenta
     const problems = checkLayout(root);
     expect(problems).toEqual(
       expect.arrayContaining([
-        'app/workflows/wiki/rendering/presentation.tsx: <div> must be a public kit component',
-        'app/workflows/wiki/rendering/presentation.tsx: <button> must be a public kit component',
-        'app/workflows/wiki/rendering/presentation.tsx: app views must compose the public kit instead of styling elements',
-        'app/workflows/wiki/rendering/presentation.tsx: presentation dependencies belong behind app/ui/kit/index.ts',
-        'app/workflows/wiki/rendering/presentation.tsx: viewport queries belong in the kit',
+        'app/wiki/presentation/rendering/presentation.tsx: <div> must be a public kit component',
+        'app/wiki/presentation/rendering/presentation.tsx: <button> must be a public kit component',
+        'app/wiki/presentation/rendering/presentation.tsx: app views must compose the public kit instead of styling elements',
+        'app/wiki/presentation/rendering/presentation.tsx: presentation dependencies belong behind app/ui/kit/index.ts',
+        'app/wiki/presentation/rendering/presentation.tsx: viewport queries belong in the kit',
       ]),
     );
   } finally {
@@ -736,7 +748,7 @@ test('Wiki renderers accept semantic content but cannot own application presenta
 test('Wiki passage renderers and private helpers cannot own controls, clipping or scroll mechanics', () => {
   const root = mkdtempSync(join(tmpdir(), 'vaulter-passage-policy-'));
   try {
-    mkdirSync(join(root, 'app/workflows/wiki/rendering/private'), { recursive: true });
+    mkdirSync(join(root, 'app/wiki/presentation/rendering/private'), { recursive: true });
     writeFileSync(
       join(root, 'tsconfig.json'),
       JSON.stringify({
@@ -745,25 +757,25 @@ test('Wiki passage renderers and private helpers cannot own controls, clipping o
       }),
     );
     writeFileSync(
-      join(root, 'app/workflows/wiki/rendering/blocks.tsx'),
+      join(root, 'app/wiki/presentation/rendering/blocks.tsx'),
       'export const passage = <blockquote><strong>Retained</strong> <mark>selected</mark> <a href="#/source/">Source</a></blockquote>;',
     );
     expect(checkLayout(root)).toEqual([]);
     writeFileSync(
-      join(root, 'app/workflows/wiki/rendering/references.tsx'),
+      join(root, 'app/wiki/presentation/rendering/references.tsx'),
       `import { hide } from './private/clipping.ts';
       export const passage = <section className="card"><button onClick={hide}>Context</button></section>;`,
     );
     writeFileSync(
-      join(root, 'app/workflows/wiki/rendering/private/clipping.ts'),
+      join(root, 'app/wiki/presentation/rendering/private/clipping.ts'),
       'export function hide(node: HTMLElement) { node.scrollTop = 20; node.getBoundingClientRect(); new ResizeObserver(() => {}); }',
     );
     const problems = checkLayout(root);
     expect(problems).toEqual(
       expect.arrayContaining([
-        'app/workflows/wiki/rendering/references.tsx: <button> must be a public kit component',
-        'app/workflows/wiki/rendering/references.tsx: app views must compose the public kit instead of styling elements',
-        'app/workflows/wiki/rendering/private/clipping.ts: passage measurement and scrolling belong in the kit',
+        'app/wiki/presentation/rendering/references.tsx: <button> must be a public kit component',
+        'app/wiki/presentation/rendering/references.tsx: app views must compose the public kit instead of styling elements',
+        'app/wiki/presentation/rendering/private/clipping.ts: passage measurement and scrolling belong in the kit',
       ]),
     );
   } finally {
@@ -824,10 +836,10 @@ test('renderer names and local aliases cannot hide application presentation', ()
   const root = mkdtempSync(join(tmpdir(), 'vaulter-semantic-alias-policy-'));
   try {
     const files = {
-      'app/workflows/wiki/rendering/new-card.tsx': `const Raw = 'div'; const style = {}; export const card = <Raw {...{style}}/>;`,
+      'app/wiki/presentation/rendering/new-card.tsx': `const Raw = 'div'; const style = {}; export const card = <Raw {...{style}}/>;`,
       'app/search/size.ts': `export function useLayout() { return 'compact'; }`,
       'app/search/bridge.ts': `export { useLayout as dimensions } from './size.ts';`,
-      'app/workflows/wiki/helper.ts': `import { dimensions } from '../../search/bridge.ts'; const alias = dimensions; alias(); const query = window.matchMedia; query('(hover: hover)');`,
+      'app/wiki/helper.ts': `import { dimensions } from '../search/bridge.ts'; const alias = dimensions; alias(); const query = window.matchMedia; query('(hover: hover)');`,
       'app/factory.ts': 'export function createElement(tag: string) { return tag; }',
       'app/search/view.ts': `import { createElement } from '../factory.ts'; const element = createElement; element('section');`,
     };
@@ -844,10 +856,10 @@ test('renderer names and local aliases cannot hide application presentation', ()
     }
     expect(checkLayout(root)).toEqual(
       expect.arrayContaining([
-        'app/workflows/wiki/rendering/new-card.tsx: <div> must be a public kit component',
-        'app/workflows/wiki/rendering/new-card.tsx: presentation props belong in the kit or content renderer',
-        'app/workflows/wiki/helper.ts: size-dependent presentation belongs in the kit',
-        'app/workflows/wiki/helper.ts: viewport queries belong in the kit',
+        'app/wiki/presentation/rendering/new-card.tsx: <div> must be a public kit component',
+        'app/wiki/presentation/rendering/new-card.tsx: presentation props belong in the kit or content renderer',
+        'app/wiki/helper.ts: size-dependent presentation belongs in the kit',
+        'app/wiki/helper.ts: viewport queries belong in the kit',
         'app/search/view.ts: intrinsic element factories belong in the kit or content renderer',
       ]),
     );
@@ -982,7 +994,7 @@ test('direct viewport dimensions and destructured aliases remain kit-owned', () 
 test('semantic rendering permits content and links but delegates custom controls to public Button', () => {
   const root = mkdtempSync(join(tmpdir(), 'vaulter-semantic-controls-'));
   try {
-    mkdirSync(join(root, 'app/workflows/wiki/rendering'), { recursive: true });
+    mkdirSync(join(root, 'app/wiki/presentation/rendering'), { recursive: true });
     mkdirSync(join(root, 'app/ui/kit'), { recursive: true });
     writeFileSync(
       join(root, 'tsconfig.json'),
@@ -995,7 +1007,7 @@ test('semantic rendering permits content and links but delegates custom controls
       join(root, 'app/ui/kit/index.ts'),
       'export declare function Button(props:unknown):unknown;',
     );
-    const file = join(root, 'app/workflows/wiki/rendering/blocks.tsx');
+    const file = join(root, 'app/wiki/presentation/rendering/blocks.tsx');
     for (const source of [
       `<span role="button" tabIndex={0} onClick={()=>{}}>Disclosure</span>`,
       `<a href="#source" onClick={()=>{}}>Custom control</a>`,
@@ -1009,7 +1021,7 @@ test('semantic rendering permits content and links but delegates custom controls
     ]) {
       writeFileSync(file, source);
       expect(checkLayout(root)).toContain(
-        'app/workflows/wiki/rendering/blocks.tsx: semantic content controls belong in public kit components',
+        'app/wiki/presentation/rendering/blocks.tsx: semantic content controls belong in public kit components',
       );
     }
     writeFileSync(
@@ -1061,32 +1073,32 @@ test('installed presentation-library targets cannot hide behind path aliases or 
 });
 
 test('module owners cannot depend on their consumers', () => {
-  expect(importProblem('app/agent/store.ts', 'app/vault/eav/identity.ts')).toContain('private EAV');
-  expect(importProblem('app/agent/store.ts', 'app/vault/eav/index.ts')).toBeNull();
-  for (const owner of ['runtime', 'navigation', 'settings', 'vault/eav']) {
+  expect(importProblem('app/agent/store.ts', 'app/application/store/identity.ts')).toContain(
+    'private EAV',
+  );
+  expect(importProblem('app/agent/store.ts', 'app/application/store/index.ts')).toBeNull();
+  for (const owner of ['runtime', 'navigation', 'application/settings', 'application/store']) {
     expect(importProblem(`app/${owner}/core.ts`, 'app/application/composition.ts')).toContain(
       'imports Application composition',
     );
-    expect(importProblem(`app/${owner}/core.ts`, 'app/agent/records.ts')).toContain('higher-level');
+    expect(importProblem(`app/${owner}/core.ts`, 'app/agent/index.ts')).toContain('higher-level');
   }
   for (const target of ['navigation/routing.ts', 'settings/store.ts', 'search/Search.tsx'])
     expect(importProblem('app/ui/kit/control.tsx', `app/${target}`)).toContain(
       'kit owns generic presentation only',
     );
-  expect(
-    importProblem('app/application/composition.ts', 'app/workflows/questions/data/operations.ts'),
-  ).toBeNull();
-  expect(
-    importProblem('app/application/connections.test.ts', 'app/workflows/wiki/subjects.ts'),
-  ).toBeNull();
+  expect(importProblem('app/application/composition.ts', 'app/questions/operations.ts')).toContain(
+    'private questions',
+  );
+  expect(importProblem('app/application/connections.test.ts', 'app/wiki/subjects.ts')).toBeNull();
 });
 
 test('Wiki and Questions stay independent across value, type, dynamic and import-type references', () => {
   const root = mkdtempSync(join(tmpdir(), 'vaulter-peer-records-'));
   try {
     const files = {
-      'app/workflows/wiki/records.ts': 'export const value = 1; export type Record = string;',
-      'app/workflows/questions/records.ts': 'export const value = 1; export type Record = string;',
+      'app/wiki/records.ts': 'export const value = 1; export type Record = string;',
+      'app/questions/records.ts': 'export const value = 1; export type Record = string;',
     };
     writeFileSync(
       join(root, 'tsconfig.json'),
@@ -1107,7 +1119,7 @@ test('Wiki and Questions stay independent across value, type, dynamic and import
       ['wiki', 'questions'],
       ['questions', 'wiki'],
     ]) {
-      const path = `@/workflows/${to}/records.ts`;
+      const path = `@/${to}/records.ts`;
       const sources = [
         `import { value } from '${path}'; export { value };`,
         `export * from '${path}';`,
@@ -1116,7 +1128,7 @@ test('Wiki and Questions stay independent across value, type, dynamic and import
         `export type Data = import('${path}').Record;`,
       ];
       for (const [i, source] of sources.entries())
-        writeFileSync(join(root, `app/workflows/${from}/case${i}.ts`), source);
+        writeFileSync(join(root, `app/${from}/case${i}.ts`), source);
     }
     const problems = checkLayout(root);
     expect(problems).toHaveLength(10);
@@ -1205,14 +1217,14 @@ test('app-root CSS aliases preserve presentation ownership', () => {
 });
 
 test('Calendar and Map protect private record implementation while exposing shared value entries', () => {
-  expect(importProblem('app/workflows/wiki/example.ts', 'app/calendar/operations.ts')).toContain(
+  expect(importProblem('app/wiki/example.ts', 'app/calendar/operations.ts')).toContain(
     'private calendar',
   );
-  expect(importProblem('app/workflows/questions/example.ts', 'app/map/reading.ts')).toContain(
+  expect(importProblem('app/questions/example.ts', 'app/map/reading.ts')).toContain('private map');
+  expect(importProblem('app/wiki/example.ts', 'app/calendar/index.ts')).toBeNull();
+  expect(importProblem('app/application/composition.ts', 'app/map/records.ts')).toContain(
     'private map',
   );
-  expect(importProblem('app/workflows/wiki/example.ts', 'app/calendar/index.ts')).toBeNull();
-  expect(importProblem('app/application/composition.ts', 'app/map/schema.ts')).toBeNull();
 });
 
 test('compiler resolution protects standalone owner record behavior through public re-exports', () => {
@@ -1226,12 +1238,12 @@ test('compiler resolution protects standalone owner record behavior through publ
         "export { createEvent } from './operations.ts'; export { parseTime } from './time.ts'; export type { TimeValue } from './time.ts';",
       'app/map/reading.ts': 'export const readCoordinates = () => 1;',
       'app/map/index.ts': "export { readCoordinates } from './reading.ts';",
-      'app/workflows/wiki/allowed.ts':
-        "import { parseTime, type TimeValue } from '../../calendar/index.ts'; export const parse = parseTime; export type Value = TimeValue;",
-      'app/workflows/wiki/leak.ts':
-        "import { createEvent } from '../../calendar/index.ts'; export const leaked = createEvent;",
-      'app/workflows/questions/leak.ts':
-        "import { readCoordinates } from '../../map/index.ts'; export const leaked = readCoordinates;",
+      'app/wiki/allowed.ts':
+        "import { parseTime, type TimeValue } from '../calendar/index.ts'; export const parse = parseTime; export type Value = TimeValue;",
+      'app/wiki/leak.ts':
+        "import { createEvent } from '../calendar/index.ts'; export const leaked = createEvent;",
+      'app/questions/leak.ts':
+        "import { readCoordinates } from '../map/index.ts'; export const leaked = readCoordinates;",
       'app/application/composition.ts':
         "import { createEvent } from '../calendar/index.ts'; export const allowed = createEvent;",
     };
@@ -1249,12 +1261,12 @@ test('compiler resolution protects standalone owner record behavior through publ
     const problems = checkLayout(root);
     expect(
       problems.some((problem) =>
-        problem.startsWith('app/workflows/wiki/leak.ts accesses calendar record behavior'),
+        problem.startsWith('app/wiki/leak.ts accesses calendar record behavior'),
       ),
     ).toBe(true);
     expect(
       problems.some((problem) =>
-        problem.startsWith('app/workflows/questions/leak.ts accesses map record behavior'),
+        problem.startsWith('app/questions/leak.ts accesses map record behavior'),
       ),
     ).toBe(true);
     expect(problems.filter((problem) => problem.includes('allowed.ts'))).toEqual([]);

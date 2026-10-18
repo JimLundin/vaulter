@@ -1,7 +1,7 @@
 import { expect, test } from 'vitest';
-import { createPersistentStorage, type Journal } from '@/vault/eav/index.ts';
-import { wikiActions } from '@/workflows/wiki/data/operations.ts';
-import { readEavWiki } from '@/workflows/wiki/data/pages.ts';
+import { createPersistentStorage, type Journal } from '@/application/store/index.ts';
+import { wikiActions } from '@/wiki/operations.ts';
+import { readEavWiki } from '@/wiki/pages.ts';
 import { applicationDatabase, applicationHistory } from './composition.ts';
 
 test('application Wiki reopens exact source evidence and historical attribution after edits and deletion', async () => {

@@ -2,9 +2,9 @@ import {
   createSettings,
   type SettingDefinition,
   type SettingsDefinition,
-} from '@/settings/store.ts';
-import type { JsonObject } from '@/vault/eav/index.ts';
-import { agentSettingsSchema, parseAgentSettings } from './schema.ts';
+} from '@/application/settings/index.ts';
+import type { JsonObject } from '@/application/store/index.ts';
+import { agentSettingsSchema, parseAgentSettings } from './configuration.ts';
 
 type AgentSettingKey = keyof typeof agentSettingsSchema.shape;
 

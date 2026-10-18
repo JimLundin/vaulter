@@ -5,7 +5,7 @@ import { createRoot } from 'react-dom/client';
 import { expect, test, vi } from 'vitest';
 import { MockLanguageModelV4, convertArrayToReadableStream } from 'ai/test';
 import { OpenApplication } from './index.tsx';
-import { createMemoryStorage } from '@/vault/eav/index.ts';
+import { createMemoryStorage } from '@/application/store/index.ts';
 import { applicationDatabase } from './composition.ts';
 
 test.each([false, true])(

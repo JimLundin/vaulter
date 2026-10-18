@@ -5,8 +5,8 @@ test.use({
   },
 });
 import { navigateToModule } from '@/ui/kit/navigation.browser.test-support.ts';
-import { fakeGitHub } from '@/vault/storage/github-client/fake-github.ts';
-import { seal } from '@/vault/session/sealed.ts';
+import { fakeGitHub } from '@/application/persistence/github-client/fake-github.ts';
+import { seal } from '@/application/session/sealed.ts';
 
 test('production Map attaches coordinates to a record, reloads and removes them', async ({
   page,

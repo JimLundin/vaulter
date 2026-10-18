@@ -1,5 +1,10 @@
 import { expect, test } from 'vitest';
-import { e, openDatabase, createPersistentStorage, type Journal } from '@/vault/eav/index.ts';
+import {
+  e,
+  openDatabase,
+  createPersistentStorage,
+  type Journal,
+} from '@/application/store/index.ts';
 import {
   calendarEntities,
   calendarSchema,

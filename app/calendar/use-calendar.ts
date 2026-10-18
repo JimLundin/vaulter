@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { readCalendar } from './reading.ts';
-import type { CalendarDatabase } from './schema.ts';
+import type { CalendarDatabase } from './records.ts';
 import type { CalendarData } from './presentation.ts';
 
 export interface CalendarInput {

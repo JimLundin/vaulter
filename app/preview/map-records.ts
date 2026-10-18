@@ -1,9 +1,9 @@
 import { applicationDatabase } from '@/application/composition.ts';
 import { createCoordinates } from '@/map/index.ts';
-import type { MemoryStorage } from '@/vault/eav/index.ts';
+import type { JournalStorage } from '@/application/store/index.ts';
 
 /** Sample positions are fictional annotations on the existing sample pages. */
-export async function seedMap(storage: MemoryStorage) {
+export async function seedMap(storage: JournalStorage) {
   const db = await applicationDatabase(storage);
   if (await db.entities.mapCoordinates.first({ select: {} })) return;
   const pages = await db.entities.wikiPages.query({ select: { title: true }, limit: 3 });

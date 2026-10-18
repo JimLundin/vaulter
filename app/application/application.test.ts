@@ -1,9 +1,9 @@
 import { expect, test } from 'vitest';
 import { previewModel } from '@/preview/model.ts';
-import { createMemoryStorage } from '@/vault/eav/index.ts';
+import { createMemoryStorage } from '@/application/store/index.ts';
 import { applicationWiki, createApplicationConversation } from './composition.ts';
 import { seedEavWiki } from '@/preview/wiki-records.ts';
-import { readEavQuestions } from '@/workflows/questions/data/reading.ts';
+import { readEavQuestions } from '@/questions/projection.ts';
 import { createApplicationIdentities } from './identities.ts';
 
 test('Application agent asks an EAV Question and reopens its accepted receipt without execution', async () => {

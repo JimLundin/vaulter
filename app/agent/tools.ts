@@ -1,7 +1,7 @@
 import type { ToolSet } from 'ai';
-import type { EntityRef } from '@/vault/eav/index.ts';
-import type { Actor } from '@/vault/records/actor.ts';
-import type { AgentRunRef } from './data/schema.ts';
+import type { EntityRef } from '@/application/store/index.ts';
+import type { Actor } from '@/actors/index.ts';
+import type { AgentRunRef } from './records.ts';
 
 /** Trusted attribution supplied by Agent, separate from model arguments. */
 export interface AgentToolContext {

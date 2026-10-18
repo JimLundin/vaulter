@@ -1,5 +1,5 @@
-import { sameEntity, type TransactionRef } from '@/vault/eav/index.ts';
-import type { CalendarDatabase, CalendarReading } from './schema.ts';
+import { sameEntity, type TransactionRef } from '@/application/store/index.ts';
+import type { CalendarDatabase, CalendarReading } from './records.ts';
 import { parseTime, parseDay, parseTimezone, timeDays, daysInMonth } from './time.ts';
 
 /** Use a single accepted snapshot for events, roles, provenance and recurrences. */

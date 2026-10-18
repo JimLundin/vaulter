@@ -1,7 +1,7 @@
 import type { TimeValue, TimePoint } from './time.ts';
 import { timeDays, daysInMonth } from './time.ts';
 import type { readCalendar } from './reading.ts';
-import { sameEntity, type EntityRef, type EntityDefinition } from '@/vault/eav/index.ts';
+import { sameEntity, type EntityRef, type EntityDefinition } from '@/application/store/index.ts';
 
 export type CalendarData = Awaited<ReturnType<typeof readCalendar>>;
 export type CalendarEvent = CalendarData['events'][number];

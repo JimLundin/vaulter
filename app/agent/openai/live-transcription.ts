@@ -3,7 +3,7 @@
 // https://developers.openai.com/api/docs/guides/realtime-webrtc
 
 import { transcriptBuffer } from '@/agent/transcript.ts';
-import type { TranscriptionProvider } from '@/agent/transcription.ts';
+import type { TranscriptionProvider } from '@/transcription/index.ts';
 import { DEFAULT_MODELS, DEFAULT_OPENAI_API } from './defaults.ts';
 import { openAIWebRTC } from './webrtc.ts';
 

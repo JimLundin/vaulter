@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { createMemoryStorage } from '@/vault/eav/index.ts';
+import { createMemoryStorage } from '@/application/store/index.ts';
 import { applicationDatabase, applicationGraph } from './composition.ts';
 
 test('Application Graph reads owner entities and retains accepted endpoint evidence after deletion', async () => {

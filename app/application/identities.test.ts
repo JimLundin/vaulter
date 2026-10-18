@@ -5,7 +5,7 @@ import {
   sameEntity,
   type AppendRequest,
   type Journal,
-} from '@/vault/eav/index.ts';
+} from '@/application/store/index.ts';
 import { applicationDatabase } from './composition.ts';
 import { createApplicationIdentities } from './identities.ts';
 

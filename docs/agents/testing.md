@@ -6,10 +6,10 @@ the change.
 
 ## Edit loop
 
-- Run behavior tests for the owning module with `npm run test:fast -- app/workflows/chat`, or
-  keep them running with `npm run test:watch -- app/workflows/chat`.
+- Run behavior tests for the owning module with `npm run test:fast -- app/conversation`, or
+  keep them running with `npm run test:watch -- app/conversation`.
 - To select behavior tests through imports, use
-  `npm exec vitest -- related app/workflows/chat/conversation.ts --run --project=behavior`.
+  `npm exec vitest -- related app/conversation/conversation.ts --run --project=behavior`.
   Source-inspection checks read files directly and need explicit selection.
 - For browser behavior, select the relevant test file and project, for example
   `npm run test:ui -- app/ui/kit/composer.browser.test.ts --project=desktop`.

@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { afterEach, expect, test, vi } from 'vitest';
 import type { FileTranscriptionProvider } from '@/agent/providers.ts';
-import type { TranscriptionProvider } from '@/agent/transcription.ts';
+import type { TranscriptionProvider } from '@/transcription/provider.ts';
 import { openAIDictation } from './dictation.ts';
 import { OpenAIRequestError } from './http.ts';
 

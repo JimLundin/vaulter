@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { openDatabase } from '@/vault/eav/index.ts';
+import { openDatabase } from '@/application/store/index.ts';
 import { calendarSchema, createEvent, readCalendar } from './index.ts';
 import { calendarEntries, formatTime } from './presentation.ts';
 

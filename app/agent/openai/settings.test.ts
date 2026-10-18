@@ -2,7 +2,7 @@
 
 import { generateText } from 'ai';
 import { afterEach, expect, test, vi } from 'vitest';
-import { createSettings } from '@/settings/store.ts';
+import { createSettings } from '@/application/settings/index.ts';
 import { DEFAULT_MODELS, DEFAULT_VOICE } from './defaults.ts';
 import { createOpenAICapabilities } from './index.ts';
 import { media } from './media.test-support.ts';

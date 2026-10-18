@@ -1,6 +1,6 @@
 import { createOpenAI } from '@ai-sdk/openai';
 import { wrapLanguageModel } from 'ai';
-import { executeEavRun } from '@/agent/eav/runtime.ts';
+import { executeEavRun } from '@/agent/execution/runtime.ts';
 import { createVoiceAgent, type VoiceAgentOptions } from '@/agent/voice-runtime.ts';
 import { DEFAULT_MODELS, defaultFileTranscriptionModel } from './defaults.ts';
 import { openAIDictation } from './dictation.ts';
@@ -80,3 +80,8 @@ export function createOpenAICapabilities(
     transcribe,
   };
 }
+export { selectedOpenAIModel } from '@/agent/openai/settings.ts';
+export { createOpenAISettings } from '@/agent/openai/settings.ts';
+export { createOpenAIPreferences } from '@/agent/openai/settings.ts';
+export { openAIOptions } from '@/agent/openai/settings.ts';
+export { supportsOpenAISampling } from '@/agent/openai/settings.ts';

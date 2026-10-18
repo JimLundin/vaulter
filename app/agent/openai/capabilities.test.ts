@@ -1,8 +1,8 @@
 import { generateText } from 'ai';
 import { expect, test, vi } from 'vitest';
-import { readAgentRun, startAgentRun } from '@/agent/data/operations.ts';
-import { agentSchema } from '@/agent/data/schema.ts';
-import { createMemoryStorage, openDatabase } from '@/vault/eav/index.ts';
+import { readAgentRun, startAgentRun } from '@/agent/operations.ts';
+import { agentSchema } from '@/agent/records.ts';
+import { createMemoryStorage, openDatabase } from '@/application/store/index.ts';
 import { openAIFileTranscription } from './file-transcription.ts';
 import { createOpenAICapabilities } from './index.ts';
 

@@ -19,7 +19,7 @@ test.each([
   ['playwright', ['--', 'app/ui/kit/composer.browser.test.ts']],
   ['playwright', ['--debug', 'inspector', '--shuffle', '42']],
   ['playwright', ['--last-failed']],
-  ['all', ['app/workflows/chat']],
+  ['all', ['app/conversation']],
 ] satisfies ['vitest' | 'playwright' | 'all', string[]][])(
   '%s rejects an unscoped local invocation: %j',
   (runner, args) => {
@@ -31,8 +31,8 @@ test.each([
 );
 
 test.each([
-  ['vitest', ['run', 'app/workflows/chat', '--project=behavior']],
-  ['vitest', ['related', 'app/workflows/chat/conversation.ts', '--run']],
+  ['vitest', ['run', 'app/conversation', '--project=behavior']],
+  ['vitest', ['related', 'app/conversation/conversation.ts', '--run']],
   ['vitest', ['run', '--changed']],
   ['vitest', ['run', '--changed=main']],
   ['vitest', ['run', '-t', 'rejects stale writes']],

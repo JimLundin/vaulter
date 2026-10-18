@@ -1,8 +1,12 @@
 import { tool } from 'ai';
 import { expect, test, vi } from 'vitest';
 import { z } from 'zod';
-import { type AppendRequest, createPersistentStorage, type Journal } from '@/vault/eav/index.ts';
-import { readAgentRun, startAgentRun } from './data/operations.ts';
+import {
+  type AppendRequest,
+  createPersistentStorage,
+  type Journal,
+} from '@/application/store/index.ts';
+import { readAgentRun, startAgentRun } from './operations.ts';
 import type { LiveVoiceOptions, VoiceHistory, VoicePart } from './voice.ts';
 import { voiceFixture } from './voice-fixture.test-support.ts';
 import { createVoiceAgent, type VoiceAgentOptions } from './voice-runtime.ts';

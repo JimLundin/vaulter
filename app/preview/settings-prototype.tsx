@@ -1,11 +1,11 @@
 // Throwaway comparison: can containers and navigation make settings easier to scan?
 // Three layouts share the same fictional, memory-only preferences.
 import { useState, useSyncExternalStore, type ReactNode } from 'react';
-import { ModuleSettings } from '@/settings/ModuleSettings.tsx';
-import { type SettingsDefinition, createSettings } from '@/settings/store.ts';
+import { ModuleSettings } from '@/application/settings/presentation.ts';
+import { type SettingsDefinition, createSettings } from '@/application/settings/index.ts';
 import { agentSettings } from '@/agent/settings.ts';
 import { createOpenAISettings } from '@/agent/openai/settings.ts';
-import { githubSettings } from '@/vault/storage/settings.ts';
+import { githubSettings } from '@/application/persistence/settings.ts';
 import {
   Button,
   Drawer,

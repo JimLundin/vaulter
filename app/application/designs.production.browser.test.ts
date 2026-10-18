@@ -1,10 +1,10 @@
-import { openDatabase, createPersistentStorage, type Journal } from '@/vault/eav/index.ts';
+import { openDatabase, createPersistentStorage, type Journal } from '@/application/store/index.ts';
 import { applicationSchema } from './composition.ts';
-import { wikiActions } from '@/workflows/wiki/data/operations.ts';
+import { wikiActions } from '@/wiki/operations.ts';
 import { expect, test } from '@playwright/test';
 import { navigateToModule } from '@/ui/kit/navigation.browser.test-support.ts';
-import { fakeGitHub } from '@/vault/storage/github-client/fake-github.ts';
-import { seal } from '@/vault/session/sealed.ts';
+import { fakeGitHub } from '@/application/persistence/github-client/fake-github.ts';
+import { seal } from '@/application/session/sealed.ts';
 
 test('production opens real Wiki pages and exact evidence alongside persistent Chat', async ({
   page,

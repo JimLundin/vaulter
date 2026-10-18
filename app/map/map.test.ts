@@ -6,7 +6,7 @@ import {
   sameEntity,
   type Journal,
   type HistoricalReference,
-} from '@/vault/eav/index.ts';
+} from '@/application/store/index.ts';
 import {
   mapEntities,
   mapSchema,
