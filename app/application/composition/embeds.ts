@@ -1,5 +1,6 @@
 import { createElement, type ReactNode } from 'react';
 import { resolveEmbed, type RecordEmbed } from '@/core/embeds/index.ts';
+import { resolveCurrentIdentity } from '@/core/identity/index.ts';
 import {
   sameEntity,
   type EntityRef,
@@ -34,10 +35,15 @@ export async function readEmbeddedRecord(
   cutoff?: TransactionRef,
   ownerView?: EmbeddedOwnerView,
 ): Promise<ReactNode> {
-  const { entity, snapshot } = await resolveEmbed(database, embed, cutoff);
+  const current =
+    embed.mode === 'live' && cutoff === undefined
+      ? await resolveCurrentIdentity(database, embed.target)
+      : undefined;
+  const { entity, snapshot } = current ?? (await resolveEmbed(database, embed, cutoff));
+  const target = current?.canonical ?? embed.target;
   if (embed.target.type === 'questions.question') {
     const questions = await readEavQuestions(database, snapshot);
-    const question = questions.find((record) => record.evidence.entity === embed.target.entity);
+    const question = questions.find((record) => record.evidence.entity === target.entity);
     if (question) return createElement(QuestionItem, { question });
   } else if (embed.target.type === 'map.coordinate') {
     const records = await readCoordinates(database, { snapshot });

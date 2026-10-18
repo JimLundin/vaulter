@@ -1,4 +1,5 @@
 import { e, openDatabase, type JournalStorage } from '@/core/store/index.ts';
+import { identityEntities } from '@/core/identity/index.ts';
 import { chatSchema } from '@/modules/conversation/index.ts';
 import { wikiEntities } from '@/modules/wiki/index.ts';
 import { graphEntities } from '@/modules/graph/index.ts';
@@ -12,6 +13,7 @@ import { sourceEntities } from '@/modules/sources/index.ts';
 import { evidenceEntities } from '@/modules/wiki/index.ts';
 /** The same explicit composition used by the Application views and independent application callers. */
 export const applicationSchema = e.registry({
+  ...identityEntities,
   ...chatSchema,
   ...wikiEntities,
   ...sourceEntities,

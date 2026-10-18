@@ -18,6 +18,7 @@ app/
 │   │   └── SettingsCards.tsx        Compose owner-defined settings fields
 │   └── runtime/sw.ts                Offline application asset caching
 ├── core/                            Core-owned modules
+│   ├── identity/                    Merge correspondence and canonical current resolution
 │   ├── store/                       Typed records, Transactions, Snapshots and exact save retry
 │   ├── persistence/                 Journal transport and cache
 │   │   └── presentation/            Connection preferences
