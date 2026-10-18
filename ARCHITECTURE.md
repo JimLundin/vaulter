@@ -5,108 +5,25 @@ module whose interface it uses. A relationship stored between entities does not 
 between their owning modules. Agent chooses those relationships; Application wires the available
 record actions, readers and renderers into Agent and the views.
 
-```mermaid
-flowchart TD
-  Bootstrap[Bootstrap: main / preview] --> Application
-  Application --> Agent
-  Application --> Chat
-  Application --> Wiki
-  Application --> Questions
-  Application --> Search
-  Application --> Session
-  Application --> History[Transactions / History]
-  Chat --> Agent
-  Agent --> EAV
-  Questions --> EAV
-  Wiki --> EAV[Typed EAV engine]
-  History --> Transactions
-  Transactions --> EAV
-  Session --> EAV
-  Session --> Storage[Storage adapters]
-  Storage --> EAV
-  Search --> Entries[Search entries and ranking]
-```
+The [project ownership map](app/README.md) is the authoritative layout and responsibility reference.
+`application/` composes the product. `core/` contains core-owned capabilities, including Store,
+Transactions, History, Settings, Session, Search and Navigation. `modules/` contains domain owners.
+Both core and domain modules keep behavior and presentation together. `shared/` provides generic
+mechanics and cannot depend on product modules.
 
-The graph shows the principal code dependencies. All UI owners may compose the public kit; record
-modules may use Settings, Navigation and Runtime where needed. Those supporting modules never
-import their consumers. No workflow imports a sibling workflow, including through a type-only
-reference. Calendar and Map keep record behavior behind their public entries and Application composition;
-other owners may consume their shared value types and parsers without acquiring their record behavior. Only the explicit Application composition entries and their integration tests combine
-workflows. There is no extension registry, common workflow manifest or runtime feature toggle.
-
-| Owner | Responsibility | Does not own |
-|---|---|---|
-| Application | Routes, shell, identities, module selection, record/tool/source composition | Record schemas or persistence |
-| Calendar | TimeValue conventions, Events, annual dates and calendar reading/presentation | Subject meaning, reminders or automatic time-based state changes |
-| Map | Latitude/longitude values, required subject associations and Map record UI | Subject records, coordinate conversion or base-map mechanics |
-| Agent | Execution, context discovery, grounding choices, durable tool activity, recovery, historical decoding | Wiki or Question payload interpretation |
-| Chat | Continuous conversation, messages, drafts, capture, projecting typed Agent activity into a transcript | Decoding Agent records |
-| Wiki | Pages, blocks, citations, subject discovery and page presentation | Creating or answering Questions |
-| Graph | Topics, memberships, typed relationships, historical endpoint interpretation and exploration UI | Wiki content or presentation, persistence |
-| Questions | Question/Answer records, action admission, atomic references, collection and embedded UI | Wiki classification or deciding which evidence to use |
-| Transactions / History | Single-journal history and historical change presentation | Producer-specific admission or compensation policy |
-| Session | Credentials, unlocking, adapter creation/replacement and cache lifetime | Record meaning |
-| Storage | EAV journal persistence, caches and GitHub transport | Features, credentials UI or record meaning |
-| UI kit | Generic presentation, controls, focus, scrolling, responsive layout and styling | Routes, preference storage or record interpretation |
-| Settings / Navigation / Search / Runtime | Preferences and settings binding / routes and commands / search interaction / scheduling and service worker | Workflow composition |
-
-```text
-app/
-  main.tsx                   production bootstrap and adapter selection
-  application/
-    index.tsx                mounted shell and module views
-    composition.ts           record sources, tools, publication rules and independent caller factories
-    identities.ts            stable configured authors and atomic bootstrap
-    routes.ts                application destinations
-    Frame.tsx                navigation choices supplied to the kit
-    AppearanceSettings.tsx   application appearance preferences
-    Previews.tsx              delegated document previews
-  agent/                     execution, discovery, historical reading, tools, providers and recovery
-  calendar/                  TimeValue, Events, annual dates and Calendar UI
-  map/                       geographic coordinate values and attached coordinate records
-  workflows/
-    chat/                    conversations, messages, capture and Chat UI
-    wiki/                    pages, blocks, citations, subjects and Wiki UI
-    graph/                   relationships, vocabulary, snapshot traversal and live queries
-    questions/               Question/Answer actions, reading, tools and record UI
-  navigation/                generic hash routes, command contracts and keyboard dispatch
-  search/                    search interaction and device-local recent destinations
-  settings/                  validated device preferences and module settings binding
-  runtime/                   scheduling, cancellation and offline application cache
-  transcription.ts           shared recording sessions and microphone lifetime
-  vault/
-    eav/                     typed engine, atomic transactions, snapshots and memory storage
-    transactions/            core History reading and UI
-    records/                 shared Actor records
-    sources/                 retained SourceDocuments
-    evidence/                historical selections, Reviews and passages
-    session/                 credentials, encryption and EAV journal lifetime
-    storage/
-      eav/                   GitHub transaction persistence
-      github-client/         shared GitHub transport
-  ui/kit/                    public generic presentation and its private implementation
-  preview/                   fictional adapters and examples
-tools/
-  architecture/              compiler-resolved dependencies, cycles and kit composition checks
-  build/                     build-time dynamic-code guard and credential sealing
-  preview/                   live Agent proxy and sample preview packaging/publishing
-  testing/                   focused-test guards, browser runners and mutation configuration
-```
-
-`app/ui/` contains only the kit. Shared application behavior has named owners: for example,
-Settings binds preferences to kit controls, Search binds results and commands to a kit overlay,
-and Application selects navigation entries for the kit's layout. Module-owned record UI stays
-beside the record it interprets, as required by [ADR 0006](docs/adr/0006-module-ui-and-shared-presentation.md).
+Routable modules declare their own patterns, views, destinations and shortcuts. Application explicitly
+registers these contributions and supplies context; it does not duplicate owner route definitions.
+Core Navigation provides the routing contract. Cross-domain combinations stay in Application.
 
 ## Import paths
 
 Use `@/` (the `app/` root) for imports outside the current directory, including tests,
-re-exports and dynamic imports. For example, use `@/ui/kit/index.ts` instead of
-`../../../ui/kit/index.ts`. Keep `./` for neighboring files so local implementation
+re-exports and dynamic imports. For example, use `@/shared/ui/kit/index.ts` instead of
+`../../../shared/ui/kit/index.ts`. Keep `./` for neighboring files so local implementation
 files can move together. Biome enforces this convention in app source.
 
-Import an owner's public entry when one exists, such as `@/vault/eav/index.ts` or
-`@/ui/kit/index.ts`. Aliases keep imports stable when a caller moves; public entries
+Import an owner's public entry when one exists, such as `@/core/store/index.ts` or
+`@/shared/ui/kit/index.ts`. Aliases keep imports stable when a caller moves; public entries
 keep callers stable when private implementation files move. Moving a public entry
 still requires updating its callers. The compiler-resolved ownership checks apply
 to both relative paths and aliases.
@@ -143,17 +60,17 @@ Agent makes the choice, Questions records it, and each view reads through its ow
 
 ## Adding or removing a workflow
 
-Create a folder under `app/workflows/` with its views, operations, state, adapters and tests.
+Create a named domain folder under `app/modules/` with its views, operations, state, adapters and tests.
 Expose ordinary named functions and views, such as Questions' creation/answering actions. External
 inputs are validated by the owning module. Wire views, routes and navigation in
-`application/index.tsx`; wire readers, tools and publication rules in `application/composition.ts`.
+`application/presentation/index.tsx`; wire readers, tools and publication rules in `application/composition/composition.ts`.
 Module integration tests live in `app/application/`.
 
 Remove a workflow by deleting its folder and Application wiring. Accepted history remains immutable;
 registered schema removal requires explicit evolution. History is core infrastructure under
-`vault/transactions/history/`. Content changes append transactions to stable entity identities.
+`core/history/`. Content changes append transactions to stable entity identities.
 
-Modules define their configuration through `SettingsDefinition` in `app/settings/store.ts`: field keys,
+Modules define their configuration through `SettingsDefinition` in `app/core/settings/store.ts`: field keys,
 labels, defaults, kinds, suggested choices, custom-value support and parsing. Agent owns invocation
 settings, Chat owns instructions, and
 OpenAI and GitHub storage own implementation-specific options and settings views. Session owns
@@ -207,9 +124,9 @@ model/tool effects. Chat's append queue covers preparation and initial acceptanc
 whole execution. Agent owns run/tool ordering and outcome recovery; tools own domain admission and
 publication. The kit presents supplied state and actions without acquiring those lifetimes.
 
-See the [Chat interface and lifetime](app/workflows/chat/README.md),
-[Agent execution and recovery](app/agent/README.md) and shared recording owner in
-[transcription.ts](app/transcription.ts) for task contracts, capture revisions and recovery details.
+See the [Chat interface and lifetime](app/modules/conversation/README.md),
+[Agent execution and recovery](app/modules/agent/README.md) and shared recording owner in
+[transcription.ts](app/modules/transcription/capture.ts) for task contracts, capture revisions and recovery details.
 
 ## UI kit
 
@@ -218,20 +135,20 @@ modules own record-specific UI and typed reading projections; the kit owns gener
 shared compositions. Supporting panes share one geometry, scrolling, dismissal, focus and responsive
 policy. Callers supply content, actions and requested visibility.
 
-The [public kit interface](app/ui/kit/index.ts) and [kit guide](app/ui/kit/README.md) own supported
+The [public kit interface](app/shared/ui/kit/index.ts) and [kit guide](app/shared/ui/kit/README.md) own supported
 components, detailed presentation contracts and paired catalogue examples. Public components accept
 no styling props; Tailwind scans only the kit. Application, Settings, Navigation, Search and workflow
 views compose those exports. Semantic content renderers have narrow permissions for text markup;
 they cannot implement layout, controls, viewport policy or private presentation-library mechanics.
 
-Search belongs to [app/search/Search.tsx](app/search/Search.tsx). Its container owns query, ranking,
+Search belongs to [app/core/search/presentation/Search.tsx](app/core/search/presentation/Search.tsx). Its container owns query, ranking,
 recent destinations and navigation/command/ask actions; SearchView accepts resolved entries and
 explicit actions. CommandOverlay supplies generic responsive geometry and focus/dismissal mechanics.
 The kit imports neither Search nor other application consumers.
 
 The compiler-backed [layout policy](tools/architecture/layout.test.ts) checks dependency direction,
-workflow isolation, public kit imports and presentation ownership. Exact declaration roles in
-[composition.ts](app/ui/kit/composition.ts) distinguish DOM/library mechanics from checked
+domain isolation, public kit imports and presentation ownership. Exact declaration roles in
+[composition.ts](app/shared/ui/kit/composition.ts) distinguish DOM/library mechanics from checked
 compositions. [Composition checks](tools/architecture/composition.test.ts) follow reachable private
 helpers through imports, aliases and re-exports, stopping at approved building blocks; they also
 verify the catalogue's Built from metadata. [Catalogue checks](tools/architecture/catalogue.test.ts)
@@ -246,7 +163,7 @@ secrets.json relative to the published app root. Notes stay in the private Vault
 Session owns credential unlocking, encrypted device overrides, adapter replacement and sign-out.
 Replacing GitHub credentials prepares and refreshes a candidate adapter before activation; failure
 preserves the active session. A successful replacement keeps the stable session identity and open
-conversation. See the [Vault guide](app/vault/README.md) and
+conversation. See the [Vault guide](app/core/store/OWNERSHIP.md) and
 [credential decision](docs/adr/0008-device-credential-overrides.md) for the current contracts.
 
 The alternate bootstrap in app/preview supplies fictional records, memory persistence and scripted
@@ -265,11 +182,11 @@ the [testing guide](docs/agents/testing.md) owns focused checks, devices and com
 
 The typed engine provides opaque entity identity, atomic transactions, queryable snapshots and
 validated historical references. Storage owns acceptance and immutable journal replay; producers own
-domain meaning and admission. Session owns the single adapter/cache lifetime. The [Vault guide](app/vault/README.md)
+domain meaning and admission. Session owns the single adapter/cache lifetime. The [Vault guide](app/core/store/OWNERSHIP.md)
 documents retry, offline reading and history limits; [ADR 0003](docs/adr/0003-github-eav-persistence.md)
 records remote acceptance authority and [ADR 0014](docs/adr/0014-eav-only-vault.md) records complete adoption.
 
-History reads accepted transactions and historical entity changes without importing workflows or
+History reads accepted transactions and historical entity changes without importing domain modules or
 resuming execution. It is a core application action alongside Settings. Its drawer retains the
 underlying page and draft and uses the kit's grouped surfaces, expandable rows, metadata and diffs.
 Direct History URLs enter that same drawer over Chat. Chat reads canonical Agent activity through
@@ -280,12 +197,12 @@ Agent's owner interface and retains transcript ordering and message projection.
 Wiki owns typed pages, content, appearances, containment, text grammar, source eligibility and selected
 assertion evidence. Captured sources, Chat, Agent and Questions keep independent owner records.
 Application explicitly composes source projections and foreign-record renderers; Wiki consumes the
-supplied interfaces without importing sibling workflows.
+supplied interfaces without importing unrelated domain modules.
 
 The private Vault pins Vaulter and targets current typed owner interfaces for translation and reviewed
 publication. Advancing that pin requires adapting the consumer under [ADR 0007](docs/adr/0007-vault-owned-translation.md).
 Historical EAV references preserve accepted source snapshots. Application opening performs no source
-translation or history reset. See the [Wiki guide](app/workflows/wiki/README.md).
+translation or history reset. See the [Wiki guide](app/modules/wiki/README.md).
 
 ## Chat record UI and shared presentation
 
@@ -298,10 +215,10 @@ and explicit actions independently of a live store or execution controller.
 Application supplies page routes and supporting-task visibility. Chat composes public reading,
 feed, dock and supporting-pane presentation; Wiki and its embedded Question card use the same
 shared pane and text-entry policies. TextBox owns keyboard/form/focus and inset actions while
-workflow owners retain drafts, capture associations, validation, acceptance and persistence.
+domain owners retain drafts, capture associations, validation, acceptance and persistence.
 
-The [Chat guide](app/workflows/chat/README.md) owns detailed projections and lifetime contracts;
-the [kit guide](app/ui/kit/README.md) owns presentation APIs. Semantic text conversion remains a
+The [Chat guide](app/modules/conversation/README.md) owns detailed projections and lifetime contracts;
+the [kit guide](app/shared/ui/kit/README.md) owns presentation APIs. Semantic text conversion remains a
 narrow renderer permission, with prose typography and code scrolling supplied by the kit.
 
 ## Current-model cleanup

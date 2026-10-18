@@ -4,14 +4,14 @@ import {
   createPersistentStorage,
   refreshStorage,
   closeStorage,
-  type MemoryStorage,
-} from '@/vault/eav/index.ts';
-import { githubEavAdapter } from '@/vault/storage/eav/github.ts';
-import { fakeGitHub } from '@/vault/storage/github-client/fake-github.ts';
-import { serial } from '@/runtime/async.ts';
-import { wikiActions } from '@/workflows/wiki/data/operations.ts';
-import { readEavWiki } from '@/workflows/wiki/data/pages.ts';
-import { applicationDatabase, applicationHistory } from './composition.ts';
+  type JournalStorage,
+} from '@/core/store/index.ts';
+import { githubEavAdapter } from '@/core/persistence/journal/github.ts';
+import { fakeGitHub } from '@/core/persistence/github-client/fake-github.ts';
+import { serial } from '@/shared/async/async.ts';
+import { wikiActions } from '@/modules/wiki/operations.ts';
+import { readEavWiki } from '@/modules/wiki/pages.ts';
+import { applicationDatabase, applicationHistory } from './composition/composition.ts';
 
 test('Wiki and History projections include writes accepted on independent devices', async () => {
   const queue = serial();
@@ -19,7 +19,7 @@ test('Wiki and History projections include writes accepted on independent device
     locks: { request: (_name: string, work: () => Promise<unknown>) => queue(work) },
   });
   const fake = await fakeGitHub({});
-  const stores: MemoryStorage[] = [];
+  const stores: JournalStorage[] = [];
   const open = () => {
     const storage = createPersistentStorage(
       githubEavAdapter({

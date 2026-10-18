@@ -4,12 +4,12 @@ import { act, StrictMode, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { MockLanguageModelV4, convertArrayToReadableStream } from 'ai/test';
-import { OpenApplication } from './index.tsx';
-import { Surface } from '@/ui/kit/index.ts';
-import { createMemoryStorage, sameEntity, type MemoryStorage } from '@/vault/eav/index.ts';
-import { applicationDatabase } from './composition.ts';
-import type { Secrets } from '@/vault/session/sealed.ts';
-import { media } from '@/agent/openai/media.test-support.ts';
+import { OpenApplication } from './presentation/index.tsx';
+import { Surface } from '@/shared/ui/kit/index.ts';
+import { createMemoryStorage, sameEntity, type JournalStorage } from '@/core/store/index.ts';
+import { applicationDatabase } from './composition/composition.ts';
+import type { Secrets } from '@/core/session/sealed.ts';
+import { media } from '@/modules/agent/openai/media.test-support.ts';
 
 type StreamResult = Awaited<ReturnType<MockLanguageModelV4['doStream']>>;
 const cleanups: (() => Promise<void>)[] = [];
@@ -154,7 +154,7 @@ async function fixture({
   strict?: boolean;
   preview?: boolean;
   stream?: () => Promise<StreamResult>;
-  storage?: MemoryStorage;
+  storage?: JournalStorage;
   identity?: object;
   credentialPending?: boolean;
   saveSecret?: (key: keyof Secrets, value: string | null | undefined) => Promise<void>;
@@ -165,7 +165,7 @@ async function fixture({
   const preloadedSecrets = { github: 'login-github', openai: 'login-openai' };
   const root = createRoot(document.body);
   let configure!: (changes: {
-    storage?: MemoryStorage;
+    storage?: JournalStorage;
     identity?: object;
     credentialPending?: boolean;
   }) => void;
@@ -276,12 +276,12 @@ async function fixture({
   };
 }
 
-async function runs(storage: MemoryStorage) {
+async function runs(storage: JournalStorage) {
   const db = await applicationDatabase(storage);
   return db.entities.agentRuns.query({ select: { requestedModel: true, settings: true } });
 }
 
-async function conversations(storage: MemoryStorage) {
+async function conversations(storage: JournalStorage) {
   return (await applicationDatabase(storage)).entities.conversations.query({ select: {} });
 }
 

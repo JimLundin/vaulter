@@ -1,7 +1,7 @@
 import { expect, test } from 'vitest';
-import { createMemoryStorage, openDatabase } from '@/vault/eav/index.ts';
-import { applicationSchema } from '@/application/composition.ts';
-import { readEavWiki } from '@/workflows/wiki/data/pages.ts';
+import { createMemoryStorage, openDatabase } from '@/core/store/index.ts';
+import { applicationSchema } from '@/application/composition/composition.ts';
+import { readEavWiki } from '@/modules/wiki/pages.ts';
 import { seedEavWiki } from './wiki-records.ts';
 
 test('fictional EAV evidence retains exact passages after source edits and deletion', async () => {

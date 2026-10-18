@@ -3,7 +3,7 @@ import {
   createPersistentStorage,
   parseJournal,
   type Journal,
-} from '@/vault/eav/index.ts';
+} from '@/core/store/index.ts';
 
 export const previewEavKey = 'vaulter:preview:eav:dialogue:v1';
 /** Fictional tab-local durability through the same EAV acceptance interface as production. */

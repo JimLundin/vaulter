@@ -1,12 +1,12 @@
 // Fictional entries and supplied actions exercise the real Search reading/rendering pipeline.
 import { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import '@/ui/kit/styles.css';
-import { Search } from '@/search/Search.tsx';
-import { opened } from '@/search/recent.ts';
-import { useRoute } from '@/navigation/routing.ts';
-import { searchIndex } from '@/search/entries.ts';
-import { Button, Input, Overlay, Stack, Text } from '@/ui/kit/index.ts';
+import '@/shared/ui/kit/styles.css';
+import { Search } from '@/core/search/presentation/index.ts';
+import { opened } from '@/core/search/index.ts';
+import { useRoute } from '@/core/navigation/index.ts';
+import { searchIndex } from '@/core/search/index.ts';
+import { Button, Input, Overlay, Stack, Text } from '@/shared/ui/kit/index.ts';
 
 const index = searchIndex([
   { href: '/topic/studio/', t: 'Studio', e: 'Making room', a: [], k: 'topic', g: [] },

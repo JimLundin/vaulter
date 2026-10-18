@@ -4,9 +4,9 @@ import { act, StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { expect, test, vi } from 'vitest';
 import { MockLanguageModelV4, convertArrayToReadableStream } from 'ai/test';
-import { OpenApplication } from './index.tsx';
-import { createMemoryStorage } from '@/vault/eav/index.ts';
-import { applicationDatabase } from './composition.ts';
+import { OpenApplication } from './presentation/index.tsx';
+import { createMemoryStorage } from '@/core/store/index.ts';
+import { applicationDatabase } from './composition/composition.ts';
 
 test.each([false, true])(
   'Application scopes consumed Ask to its session and accepts a fresh explicit Ask (StrictMode=%s)',

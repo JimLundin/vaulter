@@ -1,11 +1,11 @@
-import { openDatabase, createPersistentStorage, type Journal } from '@/vault/eav/index.ts';
-import { applicationSchema } from '@/application/composition.ts';
-import { wikiActions } from '@/workflows/wiki/data/operations.ts';
-import { topicActions } from '@/workflows/graph/data/topics.ts';
+import { openDatabase, createPersistentStorage, type Journal } from '@/core/store/index.ts';
+import { applicationSchema } from '@/application/composition/composition.ts';
+import { wikiActions } from '@/modules/wiki/operations.ts';
+import { topicActions } from '@/modules/graph/topics.ts';
 import { expect, test } from '@playwright/test';
-import { navigateToModule } from '@/ui/kit/navigation.browser.test-support.ts';
-import { fakeGitHub } from '@/vault/storage/github-client/fake-github.ts';
-import { seal } from '@/vault/session/sealed.ts';
+import { navigateToModule } from '@/shared/ui/kit/navigation.browser.test-support.ts';
+import { fakeGitHub } from '@/core/persistence/github-client/fake-github.ts';
+import { seal } from '@/core/session/sealed.ts';
 
 test('production Graph reads persisted topics, navigates subjects and survives reload', async ({
   page,

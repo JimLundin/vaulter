@@ -33,7 +33,7 @@ The typed engine exposes `openDatabase({ schema, storage })`, `entities.<type>.g
 `history.inspect(transaction, entity)` and `at(transaction)`. Generic inspection resolves an
 entity's type and attributes at that historical cutoff, including transaction attribution.
 A later edit or deletion cannot rename an author in an earlier History entry.
-See the [engine contract](../app/vault/eav/README.md) for query, identity and lifetime details.
+See the [engine contract](../app/core/store/README.md) for query, identity and lifetime details.
 
 Transactions expose insert/update/delete and read their pending changes. Only successful callbacks
 publish. Invalid writes, throws and conflicts abort the whole transaction; callback code is never
@@ -46,8 +46,8 @@ Historical references independently retain accepted evidence after later edits o
 
 ## Shared attribution and Agent records — implemented
 
-Definitions: [Actor](../app/vault/records/actor.ts) and
-[Agent schema](../app/agent/data/schema.ts).
+Definitions: [Actor](../app/modules/actors/actor.ts) and
+[Agent schema](../app/modules/agent/records.ts).
 
 | Entity | Required attributes and relationships | Optional retained information |
 |---|---|---|
@@ -80,7 +80,7 @@ or tool. Reading, reloading and browsing history never resume execution.
 
 ## Chat records — implemented
 
-Definitions: [Chat schema](../app/workflows/chat/data/schema.ts).
+Definitions: [Chat schema](../app/modules/conversation/records.ts).
 
 There is exactly one native Conversation per Vault. Topic changes, dates and device preferences do
 not create another conversation or routing scope. The engine does not declare a uniqueness
@@ -143,15 +143,15 @@ owner work and must append changes while preserving transcript, execution and so
 ## Native Wiki — implemented
 
 [ADR 0012](adr/0012-native-eav-wiki.md) adopts the [knowledge-model proposal](research/knowledge-model-proposal.md).
-Wiki production reads and writes use typed EAV [owner definitions](../app/workflows/wiki/data/schema.ts):
+Wiki production reads and writes use typed EAV [owner definitions](../app/modules/wiki/records.ts):
 WikiPage, Content, Appearance and PageReference. Prose remains prose; a selected assertion does not
 require a duplicate Claim entity. Pages may serve as Subjects, and Graph separately owns explicit
 Topic promotion and editorial membership. Creating a page never automatically creates a Topic.
 
 Content owns typed text and formatting. Appearances own ordered placement and share one content
 identity. Removal retains availability and history; restoration reveals current descendant content.
-Native [SourceDocument](../app/vault/sources/schema.ts) records retain captured text and provenance.
-[Evidence records](../app/vault/evidence/schema.ts) retain exact body/summary/source selectors,
+Native [SourceDocument](../app/modules/sources/records.ts) records retain captured text and provenance.
+[Evidence records](../app/modules/wiki/reviews/records.ts) retain exact body/summary/source selectors,
 attributed reviews and supporting or challenging passages. EAV historical-reference fields validate
 accepted targets and durable replay. Partial coverage leaves unselected clauses unsupported;
 page provenance cannot mark summaries supported. Changed selected text requires review, while

@@ -2,7 +2,7 @@ import {
   openAppAction,
   expectAppActionFocus,
   navigateToModule,
-} from '@/ui/kit/navigation.browser.test-support.ts';
+} from '@/shared/ui/kit/navigation.browser.test-support.ts';
 import { expect, test } from '@playwright/test';
 
 test(
@@ -147,7 +147,7 @@ test('Appearance group retains keyboard selection and device preference after re
 });
 
 test('feature pages center their reading or directory column', async ({ page }) => {
-  for (const path of ['/preview/', '/preview/#/wiki/', '/ui/kit/tests/browser.html']) {
+  for (const path of ['/preview/', '/preview/#/wiki/', '/shared/ui/kit/tests/browser.html']) {
     await page.setViewportSize({ width: 390, height: 1000 });
     await page.goto(path);
     for (const width of [390, 768, 1440, 1920]) {
@@ -246,7 +246,7 @@ test('agent controls have even insets and every suggested prompt is visible with
 test('settings is a shared drawer that keeps feature fields and focus when resized', {
   tag: '@phone',
 }, async ({ page }) => {
-  await page.goto('/ui/kit/tests/browser.html');
+  await page.goto('/shared/ui/kit/tests/browser.html');
   await openAppAction(page, 'Settings');
   const settings = page.getByRole('dialog', { name: 'Settings', exact: true });
   const field = settings.getByRole('textbox', { name: 'Calendar preference' });
@@ -289,7 +289,7 @@ test(
   'shared controls retain mouse and touch target sizes',
   { tag: ['@phone', '@touch'] },
   async ({ page }, info) => {
-    await page.goto('/ui/kit/tests/browser.html');
+    await page.goto('/shared/ui/kit/tests/browser.html');
     const compact = page.getByRole('button', { name: 'Small button' });
     const icon = page.getByRole('button', { name: 'Small icon' });
     const grouped = page.getByRole('button', { name: 'Go', exact: true });
@@ -361,7 +361,7 @@ test(
 test('search keeps its query, selected result and focus through every size threshold', {
   tag: '@phone',
 }, async ({ page }) => {
-  await page.goto('/ui/kit/tests/browser.html');
+  await page.goto('/shared/ui/kit/tests/browser.html');
   await openAppAction(page, 'Search');
   const input = page.getByRole('combobox');
   await expect(input).toBeFocused();
@@ -387,7 +387,7 @@ test('search keeps its query, selected result and focus through every size thres
 test('settings fields and open review drafts keep their DOM state when rearranged', async ({
   page,
 }) => {
-  await page.goto('/ui/kit/tests/browser.html');
+  await page.goto('/shared/ui/kit/tests/browser.html');
   const preference = page.getByRole('textbox', { name: 'Preference' });
   await preference.fill('Edited preference');
   await page.setViewportSize({ width: 390, height: 844 });
@@ -409,7 +409,7 @@ test('settings fields and open review drafts keep their DOM state when rearrange
 test('agent panel preserves its draft while becoming modal, and traps focus only when modal', async ({
   page,
 }) => {
-  await page.goto('/ui/kit/tests/browser.html');
+  await page.goto('/shared/ui/kit/tests/browser.html');
   await openAppAction(page, 'Open agent');
   const draft = page.getByRole('textbox', { name: 'Panel draft' });
   await draft.fill('A preserved agent draft');
@@ -439,7 +439,7 @@ test('a growing navigation keeps destinations and tools in a minimal rail menu',
   page,
 }) => {
   await page.setViewportSize({ width: 320, height: 640 });
-  await page.goto('/ui/kit/tests/browser.html');
+  await page.goto('/shared/ui/kit/tests/browser.html');
   const menu = page.getByRole('button', { name: 'Modules', exact: true });
   const rail = page.getByRole('navigation', { name: 'App controls', exact: true });
   await expect(rail.getByRole('button')).toHaveCount(1);
@@ -567,7 +567,7 @@ test('the composer and search stay within the visual viewport when a keyboard op
 
 test('Escape closes the nested review before closing the agent panel', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/ui/kit/tests/browser.html');
+  await page.goto('/shared/ui/kit/tests/browser.html');
   await openAppAction(page, 'Open agent');
   await page.getByRole('button', { name: 'Review in panel' }).click();
   await expect(page.getByRole('dialog', { name: 'Review', exact: true })).toBeVisible();

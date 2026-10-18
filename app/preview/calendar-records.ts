@@ -1,9 +1,9 @@
-import { applicationCalendar } from '@/application/composition.ts';
-import { createEvent, createAnnualDate } from '@/calendar/index.ts';
-import type { MemoryStorage } from '@/vault/eav/index.ts';
+import { applicationCalendar } from '@/application/composition/composition.ts';
+import { createEvent, createAnnualDate } from '@/modules/calendar/index.ts';
+import type { JournalStorage } from '@/core/store/index.ts';
 
 /** Fictional data uses the same Calendar operations as the product. */
-export async function seedCalendar(storage: MemoryStorage) {
+export async function seedCalendar(storage: JournalStorage) {
   const db = await applicationCalendar(storage).database();
   if (await db.entities.calendarEvents.first({ select: {} })) return;
   const page = await db.entities.wikiPages.first({

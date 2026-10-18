@@ -5,7 +5,7 @@ behind a password it reads them at runtime from the vault, the private repo `Jim
 them in plaintext on the device, and works offline. Chat and Agent use durable typed EAV records. Wiki, Graph and Questions use the same store; History reads its accepted transactions. The Vault owns [translation and enrichment tooling](https://github.com/JimLundin/vault/tree/main/.vaulter/tooling/migration)
 that targets the current Vaulter modules. Its source readers, extraction policy and private review
 data evolve in the Vault; Vaulter modules own their current record validation and historical reads.
-See [Wiki ingestion](./app/workflows/wiki/README.md) for the boundary and current interfaces.
+See [Wiki ingestion](./app/modules/wiki/README.md) for the boundary and current interfaces.
 See the [target EAV data model and migration status](docs/data-model.md).
 See [Architecture](ARCHITECTURE.md) for module boundaries and [ADRs](docs/adr/) for accepted decisions.
 
@@ -74,16 +74,15 @@ explicit `.ts` imports and `import type` (enforced by `tsconfig.json`).
 Use the [testing guide](docs/agents/testing.md) for focused local checks, test placement,
 device coverage and verification of the pushed commit in CI.
 
-`app/application/` composes the optional workflows in `app/workflows/`. Its `index.tsx` owns the shell
-and views; `composition.ts` connects record readers, tools and publication rules. Each task owns its behavior,
-views and tests. Removing a feature means deleting its folder and its wiring in Application. The
-permanent `app/vault/` module owns the typed EAV engine, transaction history, credential encryption and journal lifetime.
-Wiki and Questions share validated historical EAV references without importing one another. Agent selects their
-connections, and Application supplies embedded record rendering. Generic controls live in
-`app/ui/kit/`; Settings, Navigation, Search and Runtime own their respective application behavior.
-See [ARCHITECTURE.md](ARCHITECTURE.md) for the module map, ownership and dependency rules.
+Each domain owns its records, behavior and presentation in a named root: `conversation/`,
+`agent/`, `wiki/`, `graph/`, `questions/`, `calendar/` and `map/`. Actors and Source documents
+have their own homes. The core application owns Settings, the typed store, Transactions,
+persistence, session lifetime and History. Application composes foreign readers and tools through
+owner entries; the kit owns generic controls and browser mechanics.
+See the [project ownership map](app/README.md) for the directory diagram and domain responsibilities,
+and [ARCHITECTURE.md](ARCHITECTURE.md) for dependency and verification rules.
 
-The app uses the [component kit](app/ui/kit/README.md) in `app/ui/kit/`. Run
+The app uses the [component kit](app/shared/ui/kit/README.md) in `app/shared/ui/kit/`. Run
 `npm run kit` to open its searchable catalogue, with live desktop and mobile examples side by side.
 Every public component must have an example; CI checks coverage and app-wide kit composition.
 Workflow views compose its public components; styles stay in the kit, with a scoped exception for Markdown rendering. `tools/architecture/layout.test.ts` enforces the import rules
@@ -99,8 +98,8 @@ with a plaintext IndexedDB device cache. Chat owns the continuous dialogue; Agen
 execution receipts for text and independent voice. Wiki, Graph and Questions use their typed owners
 and validated historical evidence references. History reviews the same journal over the current page.
 
-See [the data model](docs/data-model.md), [Agent](app/agent/README.md), [Chat](app/workflows/chat/README.md)
-and [Vault](app/vault/README.md) for acceptance, recovery and current limits. Private source translation
+See [the data model](docs/data-model.md), [Agent](app/modules/agent/README.md), [Chat](app/modules/conversation/README.md)
+and [Vault](app/core/store/OWNERSHIP.md) for acceptance, recovery and current limits. Private source translation
 is a separate Vault procedure; application opening does not import or reset published records.
 
 ## Publishing

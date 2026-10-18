@@ -92,8 +92,8 @@ export function requireTestScope(
 
   const example =
     runner === 'playwright'
-      ? 'npm run test:ui -- app/ui/kit/composer.browser.test.ts --project=desktop'
-      : 'npm run test:fast -- app/workflows/chat';
+      ? 'npm run test:ui -- app/shared/ui/kit/composer.browser.test.ts --project=desktop'
+      : 'npm run test:fast -- app/conversation';
   throw new Error(
     `Full test suites run only in GitHub Actions. Select a module, file or test name locally, for example:\n${example}\nCommit and push your feature branch for full verification; inspect CI for that commit. See docs/agents/testing.md.`,
   );

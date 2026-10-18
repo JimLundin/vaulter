@@ -1,9 +1,9 @@
-import { openAppAction } from '@/ui/kit/navigation.browser.test-support.ts';
-import { createPersistentStorage, openDatabase, type Journal } from '@/vault/eav/index.ts';
-import { chatSchema } from '@/workflows/chat/data/schema.ts';
+import { openAppAction } from '@/shared/ui/kit/navigation.browser.test-support.ts';
+import { createPersistentStorage, openDatabase, type Journal } from '@/core/store/index.ts';
+import { chatSchema } from '@/modules/conversation/records.ts';
 import { expect, test } from '@playwright/test';
-import { fakeGitHub } from '@/vault/storage/github-client/fake-github.ts';
-import { seal } from '@/vault/session/sealed.ts';
+import { fakeGitHub } from '@/core/persistence/github-client/fake-github.ts';
+import { seal } from '@/core/session/sealed.ts';
 
 test('production History displays historical attribution and survives reload', async ({ page }) => {
   const eavFiles: Record<string, string> = {};

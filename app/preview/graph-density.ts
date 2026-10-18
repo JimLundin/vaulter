@@ -1,9 +1,9 @@
 // Comparison-only native sample Vault with shared retained evidence and open questions.
-import type { Database } from '@/vault/eav/index.ts';
-import type { applicationSchema } from '@/application/composition.ts';
-import { wikiActions } from '@/workflows/wiki/data/operations.ts';
-import { topicActions } from '@/workflows/graph/data/topics.ts';
-import { questionActions } from '@/workflows/questions/data/operations.ts';
+import type { Database } from '@/core/store/index.ts';
+import type { applicationSchema } from '@/application/composition/composition.ts';
+import { wikiActions } from '@/modules/wiki/operations.ts';
+import { topicActions } from '@/modules/graph/topics.ts';
+import { questionActions } from '@/modules/questions/operations.ts';
 
 const topicSamples = [
   [
@@ -209,8 +209,8 @@ export async function seedGraphDensity(db: Database<typeof applicationSchema>) {
   const questionWriter = questionActions(db, { author: agent });
   const shared = new Map<
     string,
-    import('@/vault/eav/index.ts').EntityRef<
-      typeof import('@/vault/sources/schema.ts').SourceDocument
+    import('@/core/store/index.ts').EntityRef<
+      typeof import('@/modules/sources/records.ts').SourceDocument
     >
   >();
   for (const group of [...new Set(topicSamples.map(([, category]) => category))]) {
@@ -276,8 +276,8 @@ export async function seedGraphDensity(db: Database<typeof applicationSchema>) {
       }),
     );
     const paragraphs = await db.transaction({ author }, async (tx) => {
-      const content: import('@/vault/eav/index.ts').EntityRef<
-        typeof import('@/workflows/wiki/data/schema.ts').Content
+      const content: import('@/core/store/index.ts').EntityRef<
+        typeof import('@/modules/wiki/records.ts').Content
       >[] = [];
       for (const [claimIndex, text] of specimen.claims.entries()) {
         const key = `preview:density:claim:${index}:${claimIndex}`;

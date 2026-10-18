@@ -2,11 +2,11 @@
   "$schema": "../../node_modules/@stryker-mutator/core/schema/stryker-schema.json",
   "testRunner": "vitest",
   "mutate": [
-    "app/vault/eav/engine.ts",
-    "app/vault/eav/schema.ts",
-    "app/vault/eav/query.ts",
-    "app/vault/eav/references.ts",
-    "app/vault/eav/persistence.ts"
+    "app/core/store/engine.ts",
+    "app/core/store/schema.ts",
+    "app/core/store/query.ts",
+    "app/core/store/references.ts",
+    "app/core/store/persistence.ts"
   ],
   "vitest": {
     "configFile": "tools/testing/mutation.config.ts",

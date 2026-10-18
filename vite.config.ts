@@ -57,7 +57,7 @@ const entries = (design: boolean): Record<string, string> =>
       }
     : {
         index: fileURLToPath(new URL('app/index.html', import.meta.url)),
-        sw: fileURLToPath(new URL('app/runtime/sw.ts', import.meta.url)),
+        sw: fileURLToPath(new URL('app/application/runtime/sw.ts', import.meta.url)),
       };
 
 export default defineConfig(({ command, mode }) => {

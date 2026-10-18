@@ -1,6 +1,6 @@
-import type { Database } from '@/vault/eav/index.ts';
-import type { applicationSchema } from '@/application/composition.ts';
-import { appendExchange } from '@/workflows/chat/data/operations.ts';
+import type { Database } from '@/core/store/index.ts';
+import type { applicationSchema } from '@/application/composition/composition.ts';
+import { appendExchange } from '@/modules/conversation/submission.ts';
 
 /** Fictional contributions use one native dialogue and survive reload without execution. */
 export async function seedConversation(db: Database<typeof applicationSchema>) {

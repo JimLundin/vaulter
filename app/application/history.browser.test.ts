@@ -1,10 +1,13 @@
-import { openAppAction, expectAppActionFocus } from '@/ui/kit/navigation.browser.test-support.ts';
+import {
+  openAppAction,
+  expectAppActionFocus,
+} from '@/shared/ui/kit/navigation.browser.test-support.ts';
 import { expect, test } from '@playwright/test';
 
 test('shared expandable rows retain independent disclosure and action behavior in bounded samples', async ({
   page,
 }) => {
-  await page.goto('/ui/kit/');
+  await page.goto('/shared/ui/kit/');
   await page.getByRole('searchbox', { name: 'Find a component' }).fill('Expandable rows');
   const family = page.locator('[data-kit-comparison="expandable-rows"]');
   const desktop = family.locator('[data-kit-preview="desktop"]');

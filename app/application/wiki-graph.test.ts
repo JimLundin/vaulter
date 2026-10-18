@@ -1,13 +1,13 @@
 import { expect, test } from 'vitest';
-import { e, openDatabase } from '@/vault/eav/index.ts';
-import { wikiSchema } from '@/workflows/wiki/data/schema.ts';
-import { wikiActions } from '@/workflows/wiki/data/operations.ts';
-import { graphEntities } from '@/workflows/graph/data/schema.ts';
-import { topicActions } from '@/workflows/graph/data/topics.ts';
-import { graphActions } from '@/workflows/graph/data/operations.ts';
-import { projectGraphExplorer } from '@/workflows/graph/explorer.ts';
-import { projectGraphMap } from '@/workflows/graph/map.ts';
-import { readWikiGraphTopics } from './wiki-graph.ts';
+import { e, openDatabase } from '@/core/store/index.ts';
+import { wikiSchema } from '@/modules/wiki/records.ts';
+import { wikiActions } from '@/modules/wiki/operations.ts';
+import { graphEntities } from '@/modules/graph/records.ts';
+import { topicActions } from '@/modules/graph/topics.ts';
+import { graphActions } from '@/modules/graph/operations.ts';
+import { projectGraphExplorer } from '@/modules/graph/explorer.ts';
+import { projectGraphMap } from '@/modules/graph/map.ts';
+import { readWikiGraphTopics } from './composition/wiki-graph.ts';
 
 test('editorial Topics use retained subject identity, current member prose and exact native evidence', async () => {
   await using db = await openDatabase({ schema: e.registry({ ...wikiSchema, ...graphEntities }) });

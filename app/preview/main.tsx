@@ -2,18 +2,26 @@ import { seedEavQuestions } from './question-records.ts';
 import '@fontsource-variable/geist';
 import '@fontsource-variable/geist-mono';
 import '@fontsource-variable/newsreader';
-import '@/ui/kit/styles.css';
+import '@/shared/ui/kit/styles.css';
 import { createRoot } from 'react-dom/client';
 import { useState } from 'react';
-import { DesignComparison } from '@/ui/kit/index.ts';
-import { OpenApplication } from '@/application/index.tsx';
-import { applicationWiki } from '@/application/composition.ts';
-import { startTheme, Text, DesignPreview, Gate, Brand, Button, Stack } from '@/ui/kit/index.ts';
+import { DesignComparison } from '@/shared/ui/kit/index.ts';
+import { OpenApplication } from '@/application/presentation/index.tsx';
+import { applicationWiki } from '@/application/composition/composition.ts';
+import {
+  startTheme,
+  Text,
+  DesignPreview,
+  Gate,
+  Brand,
+  Button,
+  Stack,
+} from '@/shared/ui/kit/index.ts';
 import { seedGraphEvidence } from './graph-evidence.ts';
 import { seedGraphDensity } from './graph-density.ts';
 import { previewModel } from './model.ts';
-import { createOpenAICapabilities } from '@/agent/openai/index.ts';
-import { recordedTranscription } from '@/agent/recorded-transcription.ts';
+import { createOpenAICapabilities } from '@/modules/agent/openai/index.ts';
+import { recordedTranscription } from '@/modules/agent/recorded-transcription.ts';
 import { previewTranscription } from './transcription.ts';
 import { previewEav, previewEavKey } from './eav.ts';
 import { seedEavWiki } from './wiki-records.ts';
@@ -94,7 +102,7 @@ function Preview() {
         location.hash = '#/chat/';
         location.reload();
       }}
-      kitHref={import.meta.env.DEV ? '/ui/kit/' : './kit/'}
+      kitHref={import.meta.env.DEV ? '/shared/ui/kit/' : './kit/'}
     >
       {signedOut ? (
         <Gate>

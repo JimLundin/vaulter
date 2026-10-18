@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
-import { seal } from '@/vault/session/sealed.ts';
-import { fakeGitHub } from '@/vault/storage/github-client/fake-github.ts';
+import { seal } from '@/core/session/sealed.ts';
+import { fakeGitHub } from '@/core/persistence/github-client/fake-github.ts';
 
 test('startup stays visible before JavaScript loads and hands over to the React loader', async ({
   page,
