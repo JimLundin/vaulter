@@ -53,7 +53,7 @@ const workflow = (path: string) =>
   /^app\/modules\/(conversation|wiki|questions|graph)\//.exec(path)?.[1] ??
   /^app\/workflows\/([^/]+)\//.exec(path)?.[1];
 const standaloneOwner = (path: string) =>
-  /^app\/modules\/(calendar|map|decisions)\//.exec(path)?.[1];
+  /^app\/modules\/(calendar|map|decisions|tasks|observations)\//.exec(path)?.[1];
 const fixture = (path: string) =>
   /\.(?:test|type-test|test-support)\.[cm]?tsx?$/.test(path) || path.startsWith('app/preview/');
 const testSource = (path: string) => /\.(?:test|type-test|test-support)\.[cm]?tsx?$/.test(path);
