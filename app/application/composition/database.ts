@@ -5,6 +5,7 @@ import { graphEntities } from '@/modules/graph/index.ts';
 import { questionEntities } from '@/modules/questions/index.ts';
 import { decisionEntities } from '@/modules/decisions/index.ts';
 import { calendarEntities } from '@/modules/calendar/index.ts';
+import { taskEntities } from '@/modules/tasks/index.ts';
 import { mapEntities } from '@/modules/map/index.ts';
 import { observationEntities } from '@/modules/observations/index.ts';
 import { sourceEntities } from '@/modules/sources/index.ts';
@@ -20,20 +21,4 @@ export const applicationSchema = e.registry({
   ...decisionEntities,
   ...mapEntities,
   ...questionEntities,
-  ...observationEntities,
-});
-const applicationDatabases = new WeakMap<
-  JournalStorage,
-  ReturnType<typeof openDatabase<typeof applicationSchema>>
->();
-export function applicationDatabase(storage: JournalStorage) {
-  let database = applicationDatabases.get(storage);
-  if (!database) {
-    database = openDatabase({ schema: applicationSchema, storage }).catch((error) => {
-      applicationDatabases.delete(storage);
-      throw error;
-    });
-    applicationDatabases.set(storage, database);
-  }
-  return database;
-}
+  ...taskEntities,
