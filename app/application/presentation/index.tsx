@@ -389,9 +389,9 @@ export function OpenApplication({
                   ? 'Calendar'
                   : onTasks
                     ? 'Tasks'
-                  : onGraph
-                    ? 'Graph'
-                    : 'Not found';
+                    : onGraph
+                      ? 'Graph'
+                      : 'Not found';
   const provider = useMemo(
     () =>
       session.secrets?.openai
@@ -524,8 +524,6 @@ export function OpenApplication({
       calendarPage,
       decisionsPage,
       tasksPage,
-      mapPage,
-      calendarPage,
       graphPage,
       wikiPageView,
       chatPage,

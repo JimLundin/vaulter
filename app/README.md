@@ -52,6 +52,8 @@ app/
 │   │   └── presentation/            Global decision log and embedded records
 │   ├── tasks/                       Tasks, fixed status workflow and provenance
 │   │   └── presentation/            Task board, embedded cards and routes
+│   ├── observations/                Structured measurements and collection outcomes
+│   │   └── presentation/            Embedded observation records
 │   └── map/                         Coordinates and geographic values
 │       └── presentation/            Map page and routes
 ├── shared/                          Mechanics independent of product modules

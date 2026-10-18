@@ -1,5 +1,5 @@
 import type { CoordinateRecord } from '@/modules/map/reading.ts';
-import { decimalDegrees } from '@/modules/map/coordinates.ts';
+import { decimalDegrees, spatialQualificationLabel } from '@/modules/map/coordinates.ts';
 import { MapView, Stack, Text } from '@/shared/ui/kit/index.ts';
 
 export function EmbeddedCoordinate({ record }: { record: CoordinateRecord }) {
@@ -10,6 +10,9 @@ export function EmbeddedCoordinate({ record }: { record: CoordinateRecord }) {
       <Text>
         Location · {latitude}, {longitude}
       </Text>
+      {!!record.coordinates.qualification && (
+        <Text tone="muted">{spatialQualificationLabel(record.coordinates.qualification)}</Text>
+      )}
       <MapView
         onSelect={() => undefined}
         markers={[{ id: 'embedded', label: 'Location', latitude, longitude }]}

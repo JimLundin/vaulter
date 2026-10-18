@@ -10,6 +10,12 @@ import { readEavQuestions } from '@/modules/questions/index.ts';
 import { QuestionItem } from '@/modules/questions/presentation/index.tsx';
 import { readCoordinates } from '@/modules/map/index.ts';
 import { EmbeddedCoordinate } from '@/modules/map/presentation/index.ts';
+import { readTasks } from '@/modules/tasks/index.ts';
+import { TaskCard } from '@/modules/tasks/presentation/index.ts';
+import { readDecisions } from '@/modules/decisions/index.ts';
+import { DecisionList } from '@/modules/decisions/presentation/index.ts';
+import { readObservations } from '@/modules/observations/index.ts';
+import { EmbeddedObservation } from '@/modules/observations/presentation/index.ts';
 import { Text } from '@/shared/ui/kit/index.ts';
 import type { applicationDatabase } from './database.ts';
 
@@ -33,8 +39,20 @@ export async function readEmbeddedRecord(
     if (question) return createElement(QuestionItem, { question });
   } else if (embed.target.type === 'map.coordinate') {
     const records = await readCoordinates(database, { snapshot });
-    const record = records.find((record) => sameEntity(record, entity));
+    const record = records.find((candidate) => sameEntity(candidate, entity));
     if (record) return createElement(EmbeddedCoordinate, { record });
+  } else if (embed.target.type === 'tasks.task') {
+    const records = await readTasks(database, snapshot);
+    const task = records.find((candidate) => sameEntity(candidate, entity));
+    if (task) return createElement(TaskCard, { task });
+  } else if (embed.target.type === 'decision') {
+    const records = await readDecisions(database, { snapshot });
+    const decision = records.find((candidate) => sameEntity(candidate, entity));
+    if (decision) return createElement(DecisionList, { decisions: [decision] });
+  } else if (embed.target.type === 'observations.observation') {
+    const records = await readObservations(database, { snapshot });
+    const record = records.find((candidate) => sameEntity(candidate.ref, entity));
+    if (record) return createElement(EmbeddedObservation, { record });
   } else {
     const view = await ownerView?.(database, { type: embed.target.type, entity, snapshot });
     if (view !== undefined) return view;

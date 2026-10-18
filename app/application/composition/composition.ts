@@ -110,6 +110,21 @@ export function applicationGraphInput(storage: JournalStorage) {
             limit: null,
           }),
           view.entities.questions.query({ select: {}, limit: null }),
+          view.entities.tasks.query({
+            select: {},
+            where: { available: { eq: true } },
+            limit: null,
+          }),
+          view.entities.decisions.query({
+            select: {},
+            where: { available: { eq: true } },
+            limit: null,
+          }),
+          view.entities.observations.query({
+            select: {},
+            where: { available: { eq: true } },
+            limit: null,
+          }),
         ])
       ).flat();
       return Promise.all(

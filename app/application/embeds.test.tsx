@@ -1,6 +1,7 @@
 import { WikiBlocks } from '@/modules/wiki/presentation/rendering/blocks.tsx';
 import { ChatMessage } from '@/modules/conversation/presentation/ChatMessage.tsx';
 import { expect, test } from 'vitest';
+import { Text } from '@/shared/ui/kit/index.ts';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { createMemoryStorage } from '@/core/store/index.ts';
 import { wikiActions, readEavWiki } from '@/modules/wiki/index.ts';
@@ -60,7 +61,7 @@ test('Wiki and Chat share live identity and pinned state without replaying any w
         blocks={pages[0]!.blocks}
         onEvidence={() => undefined}
         renderRecord={(block) =>
-          block.embed ? <span>{block.embed.mode} owner view</span> : undefined
+          block.embed ? <Text>{block.embed.mode} owner view</Text> : undefined
         }
       />,
     ),
@@ -89,7 +90,7 @@ test('Wiki and Chat share live identity and pinned state without replaying any w
           parts: [{ kind: 'text', text: 'Discuss this' }],
           embeds: turns[0]!.embeds,
         }}
-        renderEmbed={(embed) => <span>{embed.mode} owner view</span>}
+        renderEmbed={(embed) => <Text>{embed.mode} owner view</Text>}
       />,
     ),
   ).toContain('pinned owner view');
@@ -132,4 +133,54 @@ test('both host admissions reject forged target addresses atomically', async () 
   await expect(appendExchangeEmbed(db, exchange, { target }, 0)).rejects.toThrow();
   expect(await db.entities.wikiContent.query({ select: {} })).toHaveLength(0);
   expect(await db.entities.exchangeEmbeds.query({ select: {} })).toHaveLength(0);
+});
+
+test('installed task, decision and observation owner views preserve pinned values after edits', async () => {
+  await using db = await applicationDatabase(createMemoryStorage());
+  const observationValue = {
+    subject: 'host',
+    source: { kind: 'application' },
+    time: {},
+    outcome: { status: 'failed', reason: 'Original collector failure', value: null },
+  };
+  const records = await db.transaction(async (tx) => ({
+    task: await tx.entities.tasks.insert({
+      title: 'Original task',
+      description: '',
+      status: 'backlog',
+      available: true,
+    }),
+    decision: await tx.entities.decisions.insert({ text: 'Original decision', available: true }),
+    observation: await tx.entities.observations.insert({
+      value: observationValue,
+      available: true,
+    }),
+  }));
+  const snapshot = (await db.history.transactions.first({
+    select: {},
+    orderBy: [{ sequence: 'desc' }],
+  }))!;
+  const targets = await Promise.all(
+    Object.values(records).map((record) => db.history.reference(snapshot, record)),
+  );
+  await db.transaction(async (tx) => {
+    await tx.entities.tasks.update({ ...records.task, title: 'Changed task' });
+    await tx.entities.decisions.update({ ...records.decision, text: 'Changed decision' });
+    await tx.entities.observations.update({
+      ...records.observation,
+      value: {
+        ...observationValue,
+        outcome: { ...observationValue.outcome, reason: 'Changed collector failure' },
+      },
+    });
+  });
+  for (const [index, label] of ['task', 'decision', 'collector failure'].entries()) {
+    const target = targets[index]!;
+    expect(renderToStaticMarkup(await readEmbeddedRecord(db, { target, mode: 'live' }))).toContain(
+      `Changed ${label}`,
+    );
+    expect(
+      renderToStaticMarkup(await readEmbeddedRecord(db, { target, mode: 'pinned' })),
+    ).toContain(`Original ${label}`);
+  }
 });
