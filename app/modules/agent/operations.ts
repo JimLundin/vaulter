@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { knownToolVersion, recordedToolVersion, type RecordedToolVersion } from './tool-version.ts';
 import { agentSettingsSchema } from '@/modules/agent/configuration.ts';
 import { type JsonValue, type ReadView, sameEntity, type Transaction } from '@/core/store/index.ts';
 import type {
@@ -54,7 +55,7 @@ export async function startAgentRun(
   const names = new Set<string>();
   for (const tool of agent.tools) {
     z.string().min(1).parse(tool.name);
-    z.string().min(1).parse(tool.version);
+    knownToolVersion(tool);
     if (names.has(tool.name)) throw new Error('Enabled tool names must be unique');
     names.add(tool.name);
   }
@@ -74,7 +75,7 @@ export async function startAgentRun(
   });
   const tools = [];
   for (const tool of agent.tools)
-    tools.push(await tx.entities.runTools.insert({ run, name: tool.name, version: tool.version }));
+    tools.push(await recordRunTool(tx, run, { name: tool.name, version: tool.version }));
   const effective: RunInput[] = instructions
     ? [{ role: 'system', transformation: 'generated', content: instructions }, ...inputs]
     : inputs;
@@ -82,6 +83,17 @@ export async function startAgentRun(
   for (const [position, input] of effective.entries())
     recordedInputs.push(await tx.entities.contextInputs.insert({ run, position, ...input }));
   return { run, tools, inputs: recordedInputs };
+}
+
+/** Retain supplied historical tool identity without fabricating missing versions or model steps. */
+export async function recordRunTool(
+  tx: Writing,
+  run: AgentRunRef,
+  tool: { readonly name: string } & RecordedToolVersion,
+) {
+  const name = z.string().trim().min(1).parse(tool.name);
+  const version = recordedToolVersion(tool);
+  return tx.entities.runTools.insert({ run, name, ...version });
 }
 
 const outcomeSchema = z
@@ -167,10 +179,11 @@ export async function startToolExecution(
   const { step, ...supplied } = invocation;
   const value = invocationSchema.parse(supplied);
   const tool = await tx.entities.runTools.get(identity, {
-    select: { run: { status: true, startedAt: true } },
+    select: { version: true, versionStatus: true, run: { status: true, startedAt: true } },
   });
   if (!tool || tool.run.status !== 'running')
     throw new Error('Tool execution requires a running run');
+  knownToolVersion(tool);
   if (value.startedAt < tool.run.startedAt) throw new Error('Tool starts before its run');
   if (step) {
     const accepted = await tx.entities.modelSteps.get(step, {
@@ -268,14 +281,14 @@ export async function readAgentRun(view: Reading, identity: AgentRunRef) {
   const tools = await view.entities.runTools.query({
     limit: null, // Canonical run reading and tool admission require the complete ordered activity.
     where: { run: { eq: run } },
-    select: { name: true, version: true },
+    select: { name: true, version: true, versionStatus: true },
     orderBy: [{ name: 'asc' }],
   });
   const executions = await view.entities.toolExecutions.query({
     limit: null, // Canonical run reading and tool admission require the complete ordered activity.
     where: { tool: { matches: { run: { eq: run } } } },
     select: {
-      tool: { name: true, version: true },
+      tool: { name: true, version: true, versionStatus: true },
       position: true,
       call: true,
       attempt: true,
@@ -303,5 +316,6 @@ export async function readAgentRun(view: Reading, identity: AgentRunRef) {
     },
     orderBy: [{ position: 'asc' }],
   });
+  for (const tool of tools) recordedToolVersion(tool);
   return { ...run, inputs, tools, executions, steps };
 }

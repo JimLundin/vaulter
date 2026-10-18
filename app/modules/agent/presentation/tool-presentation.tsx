@@ -34,7 +34,11 @@ export function RecordedToolExecution({
     <ToolResult
       title={
         presentation?.title ??
-        (evidence.version ? `${evidence.name} (${evidence.version})` : evidence.name)
+        (evidence.versionStatus === 'unknown'
+          ? `${evidence.name} (version unknown)`
+          : evidence.version
+            ? `${evidence.name} (${evidence.version})`
+            : evidence.name)
       }
       status={toolStatus(evidence, live)}
       error={evidence.status === 'failed' || evidence.status === 'cancelled'}

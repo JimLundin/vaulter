@@ -28,3 +28,8 @@ Focused runtime checks exercise admission, outcomes, Stop, failed saves and effe
 current Model step format, orders text and Tool execution receipts, and reconciles opaque external
 output without executing providers or retrying publications. Live receipt projection also stays with
 Agent. Chat orders Exchanges and owns Conversation meaning; it does not parse model response formats.
+
+Historical Run tools can explicitly retain `versionStatus: unknown` with no version value.
+Known versions keep their existing nonempty version strings. Agent admission and reading validate
+these mutually exclusive states. New run admission and tool execution require a known version;
+importing unknown activity never creates Model steps or invokes a tool.

@@ -1,7 +1,7 @@
 // biome-ignore-all lint/performance/noBarrelFile: This domain exposes its behavior through one owner entry.
 export { agentSchema, agentEntities } from './records.ts';
 export type { AgentRunRef } from './records.ts';
-export { startAgentRun } from './operations.ts';
+export { startAgentRun, recordRunTool } from './operations.ts';
 export { executeEavRun } from './execution/runtime.ts';
 export { readAgentActivity, agentActivity } from './reading.ts';
 export type { AgentRun as AgentExecution, AgentRunState, AgentBackendOptions } from './runtime.ts';
@@ -19,3 +19,4 @@ export type {
   ToolEvidenceState,
   ToolPresentationAdapter,
 } from './tool-evidence.ts';
+export type { RecordedToolVersion } from './tool-version.ts';

@@ -131,3 +131,10 @@ test('Stop interrupts a pending external provider and retains stopped output wit
   expect(execution).toHaveBeenCalledOnce();
   handle.dispose();
 });
+
+test('new run admission rejects tools without recorded versions', async () => {
+  const { db, start } = await setup([{ name: 'inspect', version: ' ' }]);
+  await using _db = db;
+  await expect(start()).rejects.toThrow();
+  expect(await db.entities.agentRuns.query({ select: {} })).toEqual([]);
+});

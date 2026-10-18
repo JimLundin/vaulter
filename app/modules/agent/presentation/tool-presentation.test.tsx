@@ -70,3 +70,12 @@ test.each(['failed', 'cancelled'] as const)(
     expect(markup).not.toContain('Accepted');
   },
 );
+
+test('explicitly unknown versions render honest raw historical evidence', () => {
+  const { version: _version, ...retained } = evidence;
+  const unknown: ToolEvidenceState = { ...retained, versionStatus: 'unknown' };
+  const markup = renderToStaticMarkup(<RecordedToolExecution evidence={unknown} />);
+  expect(markup).toContain('retiredAction (version unknown)');
+  expect(markup).toContain('Exact recorded outcome');
+  expect(toolSummary(unknown, 1)).toContain('retiredAction (version unknown)');
+});

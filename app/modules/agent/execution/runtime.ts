@@ -14,6 +14,7 @@ import {
   frozen,
   SaveError,
 } from '@/core/store/index.ts';
+import { knownToolVersion } from '@/modules/agent/tool-version.ts';
 import { modelSteps } from './model-steps.ts';
 import { eavTools } from './tools.ts';
 
@@ -107,6 +108,7 @@ export function executeEavRun(
       const run = await options.db.transaction((tx) => readAgentRun(tx, options.run));
       if (!run || run.status !== 'running')
         throw new Error('Agent run is not available for execution');
+      const enabled = run.tools.map((tool) => ({ ...tool, version: knownToolVersion(tool) }));
       author = run.author;
       steps = modelSteps({
         db: options.db,
@@ -116,7 +118,7 @@ export function executeEavRun(
           provider: run.provider,
           model: run.requestedModel,
           settings: run.settings,
-          tools: run.tools.map(({ name, version }) => ({ name, version })),
+          tools: enabled.map(({ name, version }) => ({ name, version })),
         },
         failed: (error) => {
           interrupted = true;
@@ -137,7 +139,7 @@ export function executeEavRun(
         provider: run.provider,
         model: { requested: run.requestedModel },
         settings,
-        enabledTools: run.tools.map(({ name, version }) => ({ name, version })),
+        enabledTools: enabled.map(({ name, version }) => ({ name, version })),
       };
       notify({ data: initial, phase: 'running' });
       let data = initial;
@@ -162,7 +164,7 @@ export function executeEavRun(
           run: options.run,
           author: run.author,
           tools: supplied,
-          enabled: run.tools,
+          enabled,
           signal: abort.signal,
           step: () => steps?.current(),
           check,
