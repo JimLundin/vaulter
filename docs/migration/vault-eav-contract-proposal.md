@@ -1,40 +1,28 @@
-# Proposed contracts and implementation order
+# Agreed contracts and implementation order
 
-Status: proposed for discussion, with V01's product direction and a dedicated
-Tasks module with a Kanban board agreed on 2026-10-18.
-The initial board uses fixed Backlog, Ready, In progress and Done columns;
-configurable statuses and boards are deferred.
-Decisions is also agreed as a dedicated module with a global list page and
-embedded presentation, retaining decision text, civil date, optional rationale
-and revision history without implying continued applicability.
-Observations is agreed as an owner of structured retained records and embeddable
-presentation, with no standalone measurements page in the initial scope.
-V03 is agreed: Graph retains incomplete relationships as native candidates for
-clarification, including imported candidates. Legacy origin is not an exclusion
-criterion; the original external source material remains preserved as provenance.
-V04 is agreed: cross-module embeds default to live data and support explicit
-pinning to a recorded state. This applies to host modules beyond Wiki, including
-Chat embeds for Tasks, Map locations and Questions. Owners supply their own
-embedded presentation; Application composes the available foreign renderers.
-V05 scope is agreed: only the new migration matters. The previous one-time test
-migration is not an input to reconcile or a compatibility target. No removal or
-overwrite of published data is performed as part of this planning decision.
-V06 is agreed: Map retains and meaningfully displays optional street qualification.
-Future qualification values such as city extend the vocabulary; measured accuracy
-remains a separate concept. No additional qualifications are introduced initially.
-V07 is separate storage-implementation performance work, not a model change or
-acceptance prerequisite for this migration scope. V08 is agreed: Sources supports
-URL-only leads without invented capture text/time/authorship, and later capture
-may create a linked SourceDocument.
-No field schema is agreed and no migration is claimed complete.
-This proposal responds to [the feedback](vault-eav-feedback.md), its
+Status: product directions agreed on 2026-10-18; owner implementation underway.
+The [response handoff](vault-eav-response.md) records exact integrated commits,
+public owner entries and remaining verification. Implemented application capability
+is separate from verified conversion of the private source inventory; the new
+migration has not been verified by this document.
+
+This plan responds to [the feedback](vault-eav-feedback.md), its
 [exact gap contracts](vault-eav-gap-contracts.md), and the
 [Observation supplement](vault-eav-observations.md).
 
-The feedback branch is `feedback/vault-eav-migration-20261018`. Implementation
-should first incorporate current `main` (`12678e1`), which includes the module
-ownership reorganisation. Paths below refer to that layout. Inspection found no
-open GitHub Issues on 2026-10-18; these documents remain the request source.
+The feedback branch is `feedback/vault-eav-migration-20261018`. Current main's
+module ownership layout (`12678e1`) was incorporated in `07062d0`; paths below use
+that layout. These documents remain the request source.
+
+The agreed directions are: convert old dialogue into the ongoing Conversation and
+preserve originals as external Sources; dedicated Tasks and Decisions modules;
+embedded structured Observations; native incomplete relationship candidates;
+general live/pinned embeds; only the new migration; street qualification;
+URL-only source leads; explicitly unknown historical tool versions; general
+identity redirects; and separate references that can select exact deleted states.
+Storage performance work is deferred separately from the model and migration
+acceptance criteria. Detailed source correspondence, structural provenance links,
+and saved Query/chronology fixtures remain to settle.
 
 ## Common contract
 
@@ -65,10 +53,10 @@ it. Import/conversion time is never occurrence, completion or capture time.
 
 ## Contracts by request
 
-| Request | Proposed owner and retained shape | Required behavior |
+| Request | Agreed direction and retained shape | Required behavior |
 | --- | --- | --- |
 | V01 | Agreed product direction: private tooling processes old conversations into the current ongoing dialogue. Sources retains old notes as external source material, including original versions and structure needed for provenance. Conversation gains no legacy conversation/exchange grouping types. | Converted contributions use current Conversation semantics. References to an original container select its preserved external source state rather than an arbitrary converted contribution. Source-to-native correspondence remains explicit. Source capture/admission time is distinct from original dialogue time. The Sources field/selection contract remains to be designed. |
-| V02 Tasks | Agreed basis: dedicated Tasks domain and routable presentation, comparable to Calendar, with fixed Backlog, Ready, In progress and Done columns. Retain task text, optional civil due date, availability and provenance. Configurable statuses/boards are deferred; additional task features remain to be discussed. | Tasks owns admission, lifecycle and board behavior. Map imported open tasks to Backlog as a current workflow default, retaining the original open status in source provenance without claiming recorded readiness or activity. Completed tasks map to Done; abandoned tasks remain separately retained and accessible, never mapped to Done. Do not derive completion time. Application composes links to Wiki, Conversation and Calendar. Task historical states are valid relationship/source endpoints. |
+| V02 Tasks | Agreed basis: dedicated Tasks domain and routable presentation, comparable to Calendar, with fixed Backlog, Ready, In progress and Done columns. Retain task text, optional civil due date, availability and provenance. Configurable statuses/boards are deferred; additional task features remain to be discussed. | Tasks owns admission, lifecycle and board behavior. Map imported open tasks to Backlog as a current workflow default, retaining the original open status in source provenance without claiming recorded readiness or activity. Completed tasks map to Done; Cancelled and abandoned tasks remain separately retained and accessible, never mapped to Done. Do not derive completion time. Application composes links to Wiki, Conversation and Calendar. Task historical states are valid relationship/source endpoints. |
 | V02 Decisions | Agreed basis: dedicated Decisions domain with a routable global decision log and embedded presentation for other modules. Retain exact text, recorded civil decision date, optional rationale, availability and provenance. | Global and embedded views read the same records. Preserve revisions and final fields after removal without implying the decision is still in force. Optional attribution is retained only when supplied; admission author does not become original author. Application composes connections to relevant subjects, discussions and tasks; Wiki owns Page placement. |
 | V02 Observations | Agreed basis: Observations owns structured retained records and embeddable presentation; no standalone measurements page initially. Retain subject, structured source, requested/observed/received timing, optional elapsed milliseconds, structured outcome, availability and provenance. Host/session/weather projections expose recorded measurements and quality metadata, retaining raw external values. | Original Exchange context selects preserved external source material under V01; a current native Exchange link requires verified conversion correspondence. Preserve explicit nulls and collected/failed/unknown outcomes when supplied. Weather coordinates describe measurement context and do not assert anyone's presence. Reopen typed readings without reparsing a SourceDocument. |
 | V03 | Agreed basis: Graph retains native relationship candidates with known predicate/label/endpoints, explicit missing direction/endpoint knowledge and readable clarification reasons. Imported incomplete relationships use the same contract as newly recorded candidates; preserve external source provenance. Detailed source-association shape remains to settle. | Allow candidate → resolved → revised → unavailable history without replacing identity. Do not infer direction or endpoints from placement. Expose candidates for clarification rather than omitting them from native conversion due to legacy origin. Source associations remain distinct from editorial Topic membership and Wiki Review. |
@@ -77,8 +65,8 @@ it. Import/conversion time is never occurrence, completion or capture time.
 | V06 | Agreed basis: Map adds optional typed spatial qualification on CoordinateValue, separate from expression, CRS and measured accuracy. Initially support evidenced `street`; future values extend the vocabulary. | Preserve qualification through current reading, correction and reopen. Display meaningful street qualification alongside coordinates, including embedded views, without implying building precision. Unsupported values fail validation until explicitly supported. |
 | V07 | Separate storage-implementation improvement: indexes, bounded snapshot reuse and avoiding repeated validation; no domain model change. | It can improve exhaustive migration readback and ordinary history browsing, but is outside the current model work and migration acceptance criteria. Any future optimization must preserve validation and be measured independently. |
 | V08 | Agreed basis: Sources owns a separate Source lead with exact URL, optional title, availability and provenance. | A lead has no required captured text/time/author. References select its exact historical state without declaring captured or supporting evidence. Later capture produces a SourceDocument with an explicit connection to the lead; it does not rewrite the original lead as a capture. |
-| V09 | Agent: accepted RunTool version knowledge is explicitly `recorded` with a nonempty version or `unrecorded` with no version. ToolExecution refers to that accepted RunTool. | Live configured ToolDefinition still requires a real version. Import preserves known run configuration, ContextInput content/transformations and attribution. Historical import never executes tools/providers or fabricates ModelSteps. |
-| V10 | Proposed core Identity module: retained redirect records with exact historical source/target, availability and provenance; a current canonical-resolution interface. | Follow current redirects with cycle/ambiguity rejection. Historical-reference reading always resolves the originally selected identity/state and never follows current redirects. Alias text and factual Graph predicates do not establish a redirect. |
+| V09 | Agreed basis: Agent retains an explicit unknown-version marker in historical tool execution records when no version was recorded. Agent uses `versionStatus: unknown` without a version; known history retains its nonempty version. | Live configured ToolDefinition still requires a real version. Import preserves known run configuration, ContextInput content/transformations and attribution. Historical import never executes tools/providers or fabricates ModelSteps. |
+| V10 | Agreed general capability across record types: retained identity redirects with source/target, availability and provenance, plus current canonical resolution. Core owns redirect semantics; detailed public fields remain implementation work. | Follow current redirects with cycle/ambiguity rejection. Historical-reference reading always resolves the originally selected identity/state and never follows current redirects. Alias text and factual Graph predicates do not establish a redirect. |
 
 Observation `place` and ContextInput `suppliedContext` links need a separate typed
 structural relation with role, exact historical source/target and availability.
@@ -86,60 +74,61 @@ Propose Sources as the owner of this provenance relation, with Application suppl
 foreign descriptions. It must remain distinct from live Conversation InputSource,
 Graph editorial membership and Wiki supporting/challenging Review.
 
-## Historical deletion needs an explicit decision
+## Agreed historical deletion contract
 
-The feedback requires selecting a record that was already deleted at the chosen
-snapshot. Current Store historical-reference validation requires a live target at
-that snapshot. A reference selected while live survives a later deletion, but that
-does not satisfy selecting the deletion state itself.
+The user approved a separate retained-state reference on 2026-10-18. It may select
+a record already deleted at the chosen snapshot and must expose that exact state
+and its availability. Selecting an earlier live state is not an alternative.
 
-This conflicts with the current historical-reference contract in ADR 0014 and the
-data-model documentation. Do not weaken existing evidence validation globally.
-Propose a separate schema-defined retained-state reference: it validates accepted
-journal/transaction identity, immutable entity type and presence of the retained
-record, and exposes its availability. Existing historical evidence references
-continue to require a live selected target. Never substitute an earlier live state.
+Store's existing historical-reference validation requires a live target at the
+selected snapshot. Retain that requirement for existing evidence references under
+[ADR 0014](../adr/0014-eav-only-vault.md) and the supporting-evidence boundary in
+[ADR 0005](../adr/0005-wiki-citation-selections.md). The agreed addition extends
+available reference kinds without weakening those admission rules globally.
 
-Before implementation, inspect the Store history interface and decide whether this
-can extend its reference value format or needs a separate field/value format.
-Relationship/source/redirect fields may use retained-state references; supporting
-evidence must preserve its existing admission requirements. Record this decision
-in an ADR and verify both independent replay and old evidence behavior.
+A schema-defined retained-state reference validates accepted journal/transaction
+identity, immutable entity type and presence of the retained record. Relationship,
+provenance and redirect fields may use this separate reference kind. Supporting
+evidence continues to require availability at the selected state. The Store owner
+must record the addition in an ADR and verify independent replay, exact deletion
+selection and rejection behavior for existing evidence references.
 
-## Implementation order
+## Implementation order and current progress
 
-| Stage | Work | Why / completion gate |
+Several independent owner additions were implemented in parallel after agreement.
+This order describes remaining dependencies rather than requiring those completed
+changes to be rebuilt in sequence.
+
+| Stage | Work | Completion gate / current progress |
 | --- | --- | --- |
-| 0 | Incorporate current main; agree retained-state reference, recorded-time and ordered-placement contracts. | These affect several owners. Decide supported semantics before fixing field names. No legacy compatibility types or broad module refactor. |
-| Separate work | V07 storage indexing/caching/validation improvements. | No model change and not a prerequisite for this migration. Coordinate separately with `feat/eav-query-limits`; preserve rejection behavior and measure improvements. |
-| 2 | Core retained-state references and Calendar recorded-time values; V08 leads, V09 unknown versions, V06 qualification. | Establish shared prerequisites and independently verifiable additions. Deliver each owner with reopened current/historical examples. |
-| 3 | V01 external source preservation and conversion correspondence using current Conversation records. | Original container endpoints remain addressable as source evidence. Verify contributions converted into the ongoing dialogue without legacy grouping types; references to source containers do not silently resolve to one or all converted contributions. |
-| 4 | V02 Tasks, Decisions and Observations; structural provenance links; V03 unresolved Relationships/source associations. | Complete missing native meanings using stage 2/3 references. Verify revisions, resolution, unavailability and original metadata independently. |
-| 5 | V04 cross-module live/pinned embedding with Wiki and Chat hosts; Query result history and chronology; V10 redirects. | Owner embedded views are reusable beyond Wiki. Use the exact blocked fixtures to settle Query/chronology semantics; validate current canonical resolution separately from historical identity. Redirects can proceed earlier if their source/target owners are available. |
-| 6 | Return exact implementation commits and evidence; exhaustive source-backed verification of the new migration. | Run each owner's checks during its stage. Verify the new migration independently; no reconciliation with the previous test migration. Publishing a cutover is a separate action. |
+| Foundation | Incorporate current main and agree shared reference behavior. | Main incorporated in `07062d0`; separate retained-state references approved. Implement that reference kind and confirm recorded-time/ordered-placement contracts where source fixtures require them. No legacy compatibility types or broad module refactor. |
+| Owner bases | V02 Tasks, Decisions and Observations; V03 candidates; V06 qualification; V08 leads. | Initial capabilities integrated; exact commits and focused-check evidence are in the response handoff. Source-backed mapping, source associations and structural links remain separate verification/design work. |
+| Shared history and identities | Retained-state references, V09 unknown versions and V10 general redirects. | Product contracts agreed; implementation commit/evidence pending in this handoff. Redirects must distinguish current canonical resolution from exact historical identity. |
+| Embedding | V04 general live/pinned embeds in Wiki and Chat. | Initial single-record reading/presentation and owner wiring integrated. Insertion controls, saved Query results and chronology need their own exact evidence; individual record embeds do not establish those contracts. |
+| Source conversion | V01 external originals and verified correspondence to current Conversation records; typed structural provenance links. | Private tooling verifies conversion without legacy grouping types. Original container references select preserved sources; native associations require verified correspondence. Confirm Calendar time values against exact source expressions. |
+| Migration verification | Exhaustive source-backed verification of only the new migration. | Inspect actual source inventory and independently reopened native records/history. No reconciliation with the old test migration. Journal publication/replacement is a separate concrete operation. |
+| Deferred separately | V07 storage indexing/caching/reduced repeated validation. | No model change and no migration acceptance prerequisite. Preserve rejection behavior and measure any optimization independently. |
 
 Each implementation change runs focused owner checks locally and routine verification
 in its exact pushed commit's CI. Browser checks are needed where owner reading is
-newly wired to presentation. The response table must distinguish implemented owner
+newly wired to presentation. The response table distinguishes implemented owner
 capability from verified conversion of the private source inventory.
 
-## Decisions for discussion
+## Remaining detailed contracts and evidence
 
-1. Tasks is agreed as a dedicated domain module with a Kanban board, comparable
-   to Calendar, initially using fixed Backlog, Ready, In progress and Done columns.
-   Configurable statuses/boards are deferred. Ordering, additional fields/views and
-   cancellation interaction remain implementation/design details to settle.
-   Decisions is agreed as a dedicated module with a global list and embedded
-   views. Observations is agreed as structured records with embedded presentation;
-   a standalone page is deferred.
-2. Accept a separate retained-state reference rather than changing what an accepted
-   evidence reference means?
-3. V01 direction agreed: old notes are external source material and their dialogue
-   is processed into the ongoing Conversation. Sources owns preserved originals;
-   Conversation does not model legacy containers. Remaining discussion concerns
-   source selection/correspondence fields and Wiki ownership of foreign placement.
-4. Confirm the original Query/chronology fixture shapes before agreeing V04's
-   complete field contract. The feedback alone does not specify enough to do so.
+- Source selection and source-to-native correspondence for preserved old notes.
+  Do not infer correspondence from equal text, equal URLs or source placement.
+- Typed source associations and structural provenance links, including Observation
+  `place` and ContextInput `suppliedContext`. Their role and exact historical
+  endpoints remain distinct from Topic membership, InputSource and Wiki Review.
+- Exact saved Query/chronology fixtures and result-history semantics. Initial
+  individual-record embeds do not create a retained query execution or fabricate
+  Events for unlabelled chronology.
+- Recorded-time values where the source supplies minute/second precision, unknown
+  timing or explicit null. Current owner support needs source-backed inspection.
+- Exact implementation commits, focused checks and commit-specific CI for shared
+  retained-state references, unknown tool versions and general redirects.
 
-Other decisions remain pending. This document does not mark any request implemented,
-agree a schema migration, or claim source conversion completion.
+The product decisions above are agreed. Open field/evidence work does not reopen
+those directions, and integrated owner capabilities do not establish source
+conversion completion.
