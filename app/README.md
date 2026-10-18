@@ -55,6 +55,10 @@ app/
 ├── application/                 Core application owner
 │   ├── composition/             Database registry, domain joins and production wiring
 │   ├── presentation/            Frame, routes, navigation and global settings composition
+│   ├── navigation/              Routes, destinations, commands and global key bindings
+│   ├── search/                  Global search, ranking and recent destinations
+│   │   └── presentation/        Search palette and Agent handoff
+│   ├── runtime/                 Startup and offline application asset caching
 │   ├── store/                   Core module: typed database and Transactions
 │   ├── persistence/             Core module: journal transport and cache
 │   │   └── presentation/        Connection preferences
@@ -85,13 +89,55 @@ app/
 │   └── map/
 │       └── presentation/        Map page
 ├── shared/                      Reusable support; no domain record interpretation
-│   ├── search/                  Ranking and search interaction; Application supplies entries
-│   │   └── presentation/        Search overlay
-│   ├── navigation/              Route and command mechanics
-│   ├── ui/                      Generic UI kit
-│   └── runtime/                 Independent utilities
+│   ├── ui/kit/                  Generic controls, layouts, focus and interaction mechanics
+│   ├── browser/                 Safe URL handling shared by content renderers
+│   └── async/                   Independent queue and cancellation utilities
 └── preview/                     Fictional composition using public module entries
 ```
+
+### Application versus Shared
+
+Application owns product-wide behavior, core data infrastructure and composition. Shared owns
+reusable mechanics whose interface can be described without naming an application workflow.
+Use by several domains does not by itself make something Shared. Both Application and domain
+modules may use Shared; Shared imports neither Application nor domain owners.
+
+| Capability | Target home | Ownership |
+| --- | --- | --- |
+| Global Search | `application/search/` | Entry contract, ranking policy, recent destinations and search/command/Agent interaction; Application composition assembles entries from domain readers |
+| Application Navigation | `application/navigation/` | Route contracts, destination definitions, commands, URL transitions and global shortcuts; module-specific actions remain with their module |
+| UI kit | `shared/ui/kit/` | Generic rendering, responsive layout, theme mechanics, focus, scrolling, keyboard list movement, overlays and controls; callers supply content and actions |
+| Application frame | `application/presentation/` | Which destinations and actions appear, their labels, current route and module mounting; the kit renders supplied navigation |
+| Settings | `application/settings/` | Shared preference persistence and credential editing; each domain owns its setting meanings and fields; Application composes the global Settings screen |
+| Theme preferences | `application/settings/` | The selected preference and its persistence; kit theme controls and visual application consume the supplied preference |
+| Offline application runtime | `application/runtime/` | Startup, service-worker registration and caching rules for application assets and sealed credentials |
+| Async mechanics | `shared/async/` | In-process serialization, cancellation and reporting of unobserved work; no journal or domain policy |
+| Safe browser URLs | `shared/browser/` | URL scheme validation usable by multiple content renderers; navigation destinations remain Application-owned |
+| Preview | `preview/` | Fictional Application composition and adapters, outside production ownership |
+
+Search is a core-owned module with behavior and presentation, just like History and Settings.
+Its current ranking prioritizes Topics and Notes, and its palette combines commands, recent
+destinations and an Agent handoff. These are product decisions. The kit owns the generic palette
+controls; Search owns how those controls become the product's Search experience.
+
+Navigation has the same split: Application chooses destinations, routes and actions; the kit
+renders a sidebar, compact navigation and generic keyboard interactions. Keep routing behavior
+together under Application initially. Extract a generic router only if another real caller needs
+an independent interface. Existing module-local search stays inside its owning module.
+
+```mermaid
+flowchart LR
+  subgraph Application["application/ — product ownership"]
+    Composition["composition/\nDomain readers → search entries"] -->|supplies entries| Search["search/\nRanking + recent + palette"]
+    Search -->|opens destination or runs command| Navigation["navigation/\nRoutes + commands"]
+    Shell["presentation/\nFrame + mounted module views"] -->|current route and destinations| Navigation
+    Search -->|Ask action supplied by composition| Handoff["Conversation handoff"]
+  end
+  Search -->|palette controls| Kit["shared/ui/kit/\nGeneric presentation mechanics"]
+  Shell -->|navigation layout| Kit
+```
+
+These are target placements; the current source paths remain in the first tree.
 
 ### Module convention
 
@@ -126,7 +172,7 @@ flowchart LR
   Shell["application/presentation/\nMounts module views"] -->|public presentation| Presentation["modules/calendar/presentation/index.ts"]
   Composition["application/composition/\nSupplies database and subject context"] -->|public behavior| Interface["modules/calendar/index.ts"]
   Presentation -->|local owner behavior| Interface
-  Presentation -->|generic controls| Shared["shared/ui/"]
+  Presentation -->|generic controls| Shared["shared/ui/kit/"]
   Interface -->|queries and Transactions| Store["application/store/index.ts"]
 ```
 
