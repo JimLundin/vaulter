@@ -87,6 +87,7 @@ function turn(data: MessageData, live = false, pendingToolCall?: string): Turn {
       ...(data.embeds && { embeds: data.embeds }),
       role: 'user',
       at: data.at,
+      ...(data.input !== undefined && { input: data.input }),
       parts: [{ kind: 'text', text: data.text }],
     };
   if (data.role === 'record')
@@ -117,10 +118,10 @@ function turn(data: MessageData, live = false, pendingToolCall?: string): Turn {
     role: 'agent',
     at: data.at,
     parts,
-    ...(data.error ? { error: data.error } : {}),
+    ...(data.error !== undefined ? { error: data.error } : {}),
     ...(data.status === 'running' && !live ? { status: 'unknown' as const } : {}),
-    ...(data.model ? { model: data.model } : {}),
-    ...(data.tokens ? { tokens: data.tokens } : {}),
+    ...(data.model !== undefined ? { model: data.model } : {}),
+    ...(data.tokens !== undefined ? { tokens: data.tokens } : {}),
   };
 }
 export function createConversation(initial: ConversationOptions) {

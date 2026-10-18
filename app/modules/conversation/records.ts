@@ -42,6 +42,11 @@ export const RetainedSource = e.entity('chat.retainedSource', {
   occurredAtPrecision: e.enum('second', 'minute', 'day', 'approximate').optional(),
   text: e.string().optional(),
   activity: e.json().optional(),
+  /** Source-reported metadata, not evidence of an observed provider request. */
+  input: e.json().optional(),
+  model: e.json().optional(),
+  tokens: e.json().optional(),
+  error: e.string().optional(),
   label: e.string().optional(),
   status: e.enum('running', 'complete', 'failed', 'stopped', 'interrupted').optional(),
   provenance: e.json(),

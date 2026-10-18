@@ -34,8 +34,8 @@ export type MessageData = { readonly embeds?: readonly RecordEmbed[] } & (
       readonly atPrecision?: Precision;
       readonly status: 'running' | 'complete' | 'stopped' | 'failed' | 'interrupted';
       readonly parts: readonly MessagePart[];
-      readonly model?: string;
-      readonly tokens?: { readonly in: number; readonly out: number };
+      readonly model?: string | null;
+      readonly tokens?: { readonly in: number; readonly out: number } | null;
       readonly error?: string;
     }
   | {
