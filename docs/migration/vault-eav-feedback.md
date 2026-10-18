@@ -183,6 +183,7 @@ A focused synthetic benchmark on the pinned native runtime measured cumulative
 parsing at 40/80/160 transactions as 257/1,954/13,300 ms; one final complete native
 parse took 42/61/338 ms. These are controlled measurements, not a full-vault ETA.
 They support optimizing repeated validation while retaining equivalent checks.
+See the [measured performance findings and full validation requirements](vault-eav-performance.md).
 
 ## How Vaulter can respond
 
