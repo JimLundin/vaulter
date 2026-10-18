@@ -1,4 +1,8 @@
-import type { DomainDatabase, HistoricalReference } from '@/core/store/index.ts';
+import type {
+  DomainDatabase,
+  HistoricalReference,
+  RetainedStateReference,
+} from '@/core/store/index.ts';
 import { graphSchemas, type QueryData } from './query.ts';
 import type { graphEntities } from './records.ts';
 
@@ -8,7 +12,7 @@ export interface GraphAddress {
   readonly transaction?: string;
 }
 export interface GraphEndpoint {
-  readonly address?: HistoricalReference;
+  readonly address?: HistoricalReference | RetainedStateReference;
   readonly state: 'available' | 'deleted' | 'missing' | 'unresolved';
   readonly values?: Readonly<Record<string, unknown>>;
   readonly current?: Readonly<Record<string, unknown>>;
@@ -95,7 +99,7 @@ export async function readGraph(db: GraphDatabase): Promise<Graph> {
     orderBy: [{ sequence: 'desc' }],
   });
   const view = latest ? db.at(latest) : db;
-  const [records, vocabulary] = await Promise.all([
+  const [retainedRecords, vocabulary] = await Promise.all([
     view.entities.graphRelationships.query({
       limit: null, // Graph interpretation needs complete vocabulary and relationship endpoints.
       where: { available: { eq: true } },
@@ -104,11 +108,14 @@ export async function readGraph(db: GraphDatabase): Promise<Graph> {
         predicate: true,
         source: true,
         target: true,
+        sourceState: true,
+        targetState: true,
         label: true,
         status: true,
         direction: true,
         clarificationReason: true,
         provenance: true,
+        provenanceState: true,
       },
     }),
     view.entities.graphTerms.query({
@@ -124,20 +131,43 @@ export async function readGraph(db: GraphDatabase): Promise<Graph> {
       },
     }),
   ]);
+  const records = retainedRecords.map((record) => {
+    for (const key of ['source', 'target', 'provenance'] as const)
+      if (record[key] && record[`${key}State`])
+        throw new Error(`Relationship ${key} selects two states`);
+    return {
+      ...record,
+      source: record.source ?? record.sourceState,
+      target: record.target ?? record.targetState,
+      provenance: record.provenance ?? record.provenanceState,
+    };
+  });
   const endpoints = new Map<string, GraphEndpoint>();
-  const endpoint = async (address?: HistoricalReference): Promise<GraphEndpoint> => {
+  const endpoint = async (
+    address?: HistoricalReference | RetainedStateReference,
+  ): Promise<GraphEndpoint> => {
     if (!address) return { state: 'unresolved' };
     const key = JSON.stringify([address.entity, address.transaction]);
     const cached = endpoints.get(key);
     if (cached) return cached;
-    const resolved = await db.history.resolve(address);
+    const resolved =
+      address.format === 'vaulter-eav-retained-state-v1'
+        ? await db.history.resolveRetainedState(address)
+        : await db.history.resolve(address);
     const recorded = await db.history.inspect(resolved.transaction, resolved.entity);
     const current = latest ? await db.history.inspect(latest, resolved.entity) : undefined;
     const result: GraphEndpoint = {
       address,
       values: recorded?.values,
       current: current?.values,
-      state: !recorded ? 'missing' : recorded.values.available === false ? 'deleted' : 'available',
+      state:
+        'state' in resolved && resolved.state === 'deleted'
+          ? 'deleted'
+          : !recorded
+            ? 'missing'
+            : recorded.values.available === false
+              ? 'deleted'
+              : 'available',
     };
     endpoints.set(key, result);
     return result;

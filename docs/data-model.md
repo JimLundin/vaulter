@@ -186,8 +186,9 @@ including its deleted state at an accepted snapshot. `history.retainedStateRefer
 Relationship, provenance and History owners can use this explicit contract without weakening
 supporting evidence: `e.historicalRef()` still requires a live target at the selected cutoff.
 Missing identities, wrong types, foreign scope/journal and unaccepted snapshots are rejected during
-acceptance and durable replay. Existing owner historical fields remain unchanged and require
-explicit adoption or migration to select deleted states. See [ADR 0015](adr/0015-retained-state-references.md).
+acceptance and durable replay. Graph adopts optional sourceState, targetState and provenanceState attributes, each exclusive
+with its existing historical counterpart. Other owner historical fields remain unchanged and
+require explicit adoption or migration to select deleted states. See [ADR 0015](adr/0015-retained-state-references.md).
 
 Source owners define text projections and selection ranges under
 [ADR 0005](adr/0005-wiki-citation-selections.md).

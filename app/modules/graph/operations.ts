@@ -1,19 +1,48 @@
-import { clear, type HistoricalReference, type TransactionContext } from '@/core/store/index.ts';
+import {
+  clear,
+  type HistoricalReference,
+  type RetainedStateReference,
+  type TransactionContext,
+} from '@/core/store/index.ts';
 import type { GraphDatabase } from '@/modules/graph/reading.ts';
+
+type RelationshipAddress = HistoricalReference | RetainedStateReference;
 
 export interface RelationshipInput {
   predicate?: string;
-  source?: HistoricalReference;
-  target?: HistoricalReference;
+  source?: RelationshipAddress;
+  target?: RelationshipAddress;
   label?: string;
   direction: 'directed' | 'unknown';
   clarificationReason?: string;
-  provenance?: HistoricalReference;
+  provenance?: RelationshipAddress;
 }
 
 export interface RelationshipCandidateActions {
   clarify: (key: string, input: RelationshipInput) => Promise<void>;
   remove: (key: string) => Promise<void>;
+}
+
+function retainedFields(input: {
+  source?: RelationshipAddress;
+  target?: RelationshipAddress;
+  provenance?: RelationshipAddress;
+}) {
+  const fields: {
+    source?: HistoricalReference;
+    target?: HistoricalReference;
+    provenance?: HistoricalReference;
+    sourceState?: RetainedStateReference;
+    targetState?: RetainedStateReference;
+    provenanceState?: RetainedStateReference;
+  } = {};
+  for (const key of ['source', 'target', 'provenance'] as const) {
+    const address = input[key];
+    if (!address) continue;
+    if (address.format === 'vaulter-eav-retained-state-v1') fields[`${key}State`] = address;
+    else fields[key] = address;
+  }
+  return fields;
 }
 
 function validate(input: RelationshipInput) {
@@ -47,7 +76,13 @@ export function graphActions(db: GraphDatabase, context: TransactionContext, sig
           })
         )
           throw new Error('Relationship key is already in use');
-        return tx.entities.graphRelationships.insert({ ...input, status, available: true });
+        const { source, target, provenance, ...rest } = input;
+        return tx.entities.graphRelationships.insert({
+          ...rest,
+          ...retainedFields({ source, target, provenance }),
+          status,
+          available: true,
+        });
       });
     },
     clarify: async (key: string, input: RelationshipInput) => {
@@ -57,19 +92,28 @@ export function graphActions(db: GraphDatabase, context: TransactionContext, sig
         signal?.throwIfAborted();
         const existing = await tx.entities.graphRelationships.first({
           where: { key: { eq: key } },
-          select: { available: true, provenance: true },
+          select: { available: true, provenance: true, provenanceState: true },
         });
         if (!(existing && existing.available)) throw new Error('Relationship is unavailable');
+        if (existing.provenance && existing.provenanceState)
+          throw new Error('Relationship provenance selects two states');
+        const fields = retainedFields({
+          ...input,
+          provenance: input.provenance ?? existing.provenance ?? existing.provenanceState,
+        });
         await tx.entities.graphRelationships.update({
           ...existing,
           predicate: input.predicate ?? clear,
-          source: input.source ?? clear,
-          target: input.target ?? clear,
+          source: fields.source ?? clear,
+          target: fields.target ?? clear,
+          sourceState: fields.sourceState ?? clear,
+          targetState: fields.targetState ?? clear,
           label: input.label ?? clear,
           direction: input.direction,
           status,
           clarificationReason: status === 'candidate' ? input.clarificationReason! : clear,
-          provenance: input.provenance ?? existing.provenance ?? clear,
+          provenance: fields.provenance ?? clear,
+          provenanceState: fields.provenanceState ?? clear,
         });
         return existing;
       });
@@ -77,8 +121,8 @@ export function graphActions(db: GraphDatabase, context: TransactionContext, sig
     connect: async (input: {
       key: string;
       predicate: string;
-      source: HistoricalReference;
-      target?: HistoricalReference;
+      source: RelationshipAddress;
+      target?: RelationshipAddress;
       label?: string;
     }) => {
       signal?.throwIfAborted();
@@ -94,8 +138,10 @@ export function graphActions(db: GraphDatabase, context: TransactionContext, sig
         });
         if (existing) throw new Error('Relationship key is already in use');
         signal?.throwIfAborted();
+        const { source, target, ...rest } = input;
         return tx.entities.graphRelationships.insert({
-          ...input,
+          ...rest,
+          ...retainedFields({ source, target }),
           available: true,
           status: input.target ? 'resolved' : 'candidate',
           direction: 'directed',

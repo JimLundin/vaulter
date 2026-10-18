@@ -78,7 +78,13 @@ function Candidate({
   const choices = [
     ...new Map(
       known
-        .filter((endpoint) => endpoint.address && endpoint.state === 'available')
+        .filter(
+          (endpoint) =>
+            endpoint.address &&
+            (endpoint.state === 'available' ||
+              endpoint === candidate.source ||
+              endpoint === candidate.target),
+        )
         .map((endpoint) => [JSON.stringify(endpoint.address), endpoint]),
     ).entries(),
   ];
@@ -86,7 +92,7 @@ function Candidate({
     { value: '', label: 'Unknown endpoint' },
     ...choices.map(([value, endpoint]) => ({
       value,
-      label: `${title(endpoint)} · ${endpoint.address!.transaction}`,
+      label: `${title(endpoint)}${endpoint.state === 'deleted' ? ' (deleted)' : ''} · ${endpoint.address!.transaction}`,
     })),
   ];
   const address = (value: string) => choices.find(([key]) => key === value)?.[1].address;

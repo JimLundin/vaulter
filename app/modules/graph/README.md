@@ -13,6 +13,14 @@ of uncertainty. Explicit candidates never become traversal edges or classificati
 resolution. Label-only connections require clarification before they can classify a record.
 Optional schema extensions permit existing directed records and journals to reopen unchanged.
 
+Endpoint and provenance admission accepts either a historical evidence address or a Retained state
+reference. Optional `sourceState`, `targetState` and `provenanceState` attributes retain the latter
+without changing existing historical field meanings. Each address uses one slot; admission writes
+and clears its alternatives together and reading rejects records with both slots populated.
+Selected engine-deleted states appear as deleted, remain addressable and survive clarification.
+They do not acquire supporting-evidence eligibility. Private migration can export the deleted
+snapshot with Store's `history.retainedStateReference` and use these same native operations.
+
 [graphActions](operations.ts) accepts connections with trusted attribution and validated historical endpoints atomically. Unresolved targets retain a label. Removal marks a connection unavailable while retaining accepted history.
 
 [The explorer](explorer.ts) subscribes to the EAV database, retains previous results after a failed refresh and rejects late responses after disposal or replacement. Application supplies foreign owner descriptions and topic, content and evidence projections. [The map](map.ts) keeps shared source identities and every incident connection before filtering.

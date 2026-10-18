@@ -188,3 +188,79 @@ test('widened relationship schema opens previously accepted directed records unc
   ]);
   expect(graph.relationships(source).map((edge) => edge.id)).toEqual(['existing']);
 });
+
+test('candidates and clarified relationships retain exact deleted endpoints and source provenance', async () => {
+  const storage = createMemoryStorage();
+  await using db = await openDatabase({ schema, storage });
+  const { author, a, b, document } = await db.transaction(async (tx) => ({
+    author: await tx.entities.actors.insert({ name: 'Person', kind: 'user' }),
+    a: await tx.entities.subjects.insert({ title: 'A', available: true }),
+    b: await tx.entities.subjects.insert({ title: 'B', available: true }),
+    document: await tx.entities.sourceDocuments.insert({
+      key: 'removed-source',
+      title: 'Old note',
+      text: 'A related to B?',
+      origin: 'external:note',
+      attribution: 'Original author',
+      capturedAt: new Date(),
+      available: true,
+    }),
+  }));
+  const original = (await db.history.transactions.first({ select: {} }))!;
+  const target = await db.history.reference(original, b);
+  await db.transaction(async (tx) => {
+    await tx.entities.subjects.delete(a);
+    await tx.entities.sourceDocuments.delete(document);
+  });
+  const removed = (await db.history.transactions.first({
+    select: {},
+    orderBy: [{ sequence: 'desc' }],
+  }))!;
+  const source = await db.history.retainedStateReference(removed, a);
+  const provenance = await db.history.retainedStateReference(removed, document);
+  const actions = graphActions(db, { author });
+  await actions.candidate({
+    key: 'deleted',
+    predicate: 'related',
+    source,
+    target,
+    provenance,
+    direction: 'unknown',
+    clarificationReason: 'Direction requires clarification',
+  });
+  const candidate = (await readGraph(db)).candidates[0]!;
+  expect(candidate.source).toMatchObject({ address: source, state: 'deleted' });
+  expect(candidate.provenance).toMatchObject({ address: provenance, state: 'deleted' });
+  expect(candidate.missing).toEqual(['direction']);
+  await actions.clarify('deleted', { source, target, predicate: 'related', direction: 'directed' });
+  const saved = (await db.entities.graphRelationships.first({
+    select: {
+      source: true,
+      sourceState: true,
+      provenance: true,
+      provenanceState: true,
+    },
+  }))!;
+  expect(saved.source).toBeUndefined();
+  expect(saved.sourceState).toEqual(source);
+  expect(saved.provenance).toBeUndefined();
+  expect(saved.provenanceState).toEqual(provenance);
+  await using reopened = await openDatabase({ schema, storage });
+  expect((await readGraph(reopened)).relationships(source)[0]?.source.state).toBe('deleted');
+  const live = await db.history.reference(original, a);
+  await actions.clarify('deleted', {
+    source: live,
+    target,
+    predicate: 'related',
+    direction: 'directed',
+  });
+  const revised = (await db.entities.graphRelationships.first({
+    select: { source: true, sourceState: true },
+  }))!;
+  expect(revised.source).toEqual(live);
+  expect(revised.sourceState).toBeUndefined();
+  await db.transaction((tx) =>
+    tx.entities.graphRelationships.update({ ...revised, sourceState: source }),
+  );
+  await expect(readGraph(db)).rejects.toThrow('selects two states');
+});

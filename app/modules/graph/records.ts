@@ -22,11 +22,14 @@ export const Relationship = e.entity('graph.relationship', {
   predicate: e.string().optional(),
   source: e.historicalRef().optional(),
   target: e.historicalRef().optional(),
+  sourceState: e.retainedStateRef().optional(),
+  targetState: e.retainedStateRef().optional(),
   label: e.string().optional(),
   status: e.enum('candidate', 'resolved').optional(),
   direction: e.enum('directed', 'unknown').optional(),
   clarificationReason: e.string().optional(),
   provenance: e.historicalRef().optional(),
+  provenanceState: e.retainedStateRef().optional(),
   available: e.boolean(),
 });
 export const Term = e.entity('graph.term', {

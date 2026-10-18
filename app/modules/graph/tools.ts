@@ -7,7 +7,7 @@ import { graphActions } from './operations.ts';
 import { topicActions, readTopics, topicMembers } from './topics.ts';
 
 const key = z.string().trim().min(1);
-const address = z.strictObject({
+const evidenceAddress = z.strictObject({
   format: z.literal('vaulter-eav-snapshot-v1'),
   scope: key,
   journal: key,
@@ -15,6 +15,12 @@ const address = z.strictObject({
   entity: key,
   type: key,
 });
+const address = z.union([
+  evidenceAddress,
+  evidenceAddress.extend({
+    format: z.literal('vaulter-eav-retained-state-v1'),
+  }),
+]);
 export const graphCapabilities = [
   'readGraph',
   'createRelationship',
@@ -179,7 +185,7 @@ export function graphTools(db: GraphDatabase, context: TransactionContext, signa
     promoteTopic: tool({
       description:
         'Explicitly promote an existing subject to a broad editorial Topic with a rationale. Page creation never promotes a Topic automatically.',
-      inputSchema: z.strictObject({ key, subject: address, title: key, rationale: key }),
+      inputSchema: z.strictObject({ key, subject: evidenceAddress, title: key, rationale: key }),
       execute: async (input) => {
         check();
         return receipt(await topics.promote(input));
@@ -190,7 +196,7 @@ export function graphTools(db: GraphDatabase, context: TransactionContext, signa
         'Associate narrower subject/material with a broad Topic. Editorial membership does not assert a factual relationship.',
       inputSchema: z.strictObject({
         topic: key,
-        member: address,
+        member: evidenceAddress,
         primary: z.boolean(),
         rationale: key,
       }),
