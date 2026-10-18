@@ -13,6 +13,9 @@ implemented; link the exact implementation commit and evidence.
 | V05 Published-journal conversion / references | pending | | | | |
 | V06 Spatial qualification | pending | | | | |
 | V07 Journal / historical-read performance | pending | | | | |
+| V08 Uncaptured URL leads | pending | | | | |
+| V09 Unrecorded historical tool versions | pending | | | | |
+| V10 Retained identity redirects | pending | | | | |
 
 ## Feedback to the migration
 

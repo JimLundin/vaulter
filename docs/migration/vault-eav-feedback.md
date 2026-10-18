@@ -39,6 +39,16 @@ not decisions to recreate the old node format or to retain retired owners.
 | V05 | Explicit published-journal conversion and reference reconciliation | Published request contains 585 source/Exchange pairs and retired `chat.migration` | Current registry rejects removed type; prepared and published identities differ |
 | V06 | Typed spatial qualification | One original location records `geo.precision: street` | Map coordinates preserve it in expression text but lack typed qualification |
 | V07 | Efficient validation and historical reading at migration scale | Live imports/readback take hours with the bound historical inventory | Adapter reparses the accumulated journal for every incoming transaction; historical lookups replay prefixes repeatedly |
+| V08 | Uncaptured URL leads | 359 states across 356 identities, URL only | SourceDocument requires captured text and metadata that were not recorded |
+| V09 | Historical execution with unrecorded tool versions | 12 execution states; four runs and two tool executions lack versions | Current accepted tool definitions require a version string |
+| V10 | Retained identity redirects | 12 original `merged-into` records | A named factual Relationship does not implement canonical identity resolution |
+
+The exact [additional field contracts](vault-eav-gap-contracts.md) expand V02,
+V01/V03 source associations, and V08–V10. For V08, retain URL-only state without
+inventing a capture. For V09, represent explicitly unrecorded tool versions without
+inventing version strings or Model steps. For V10, separate current canonical
+resolution from exact accepted historical identity. Each requires durable admission,
+independent reopening and owner-level reading through the returned contract.
 
 ### V01 — Imported dialogue grouping
 
